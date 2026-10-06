@@ -1,6 +1,9 @@
-import type { FilesScope } from '../rules/scope';
+import { Cause, Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
+import type { FilesScope } from '@porcelain/client/files/rules';
 import { useHtmlPreview } from '@/features/files/queries/preview-assets';
-import { fileErrorMessage } from '../rules/error-message';
+import { browserHtmlPreview } from '../adapters/html-preview';
+import { fileErrorMessage } from '@porcelain/client/files/rules';
 import { HtmlFrame } from './html-frame';
 import { type Connection } from '@/shared/workspace/connection';
 
@@ -15,29 +18,36 @@ export function HtmlPreview({
   html: string;
   connection: Connection;
 }) {
-  const preview = useHtmlPreview(connection, scope, path, html);
-  if (preview.isPending)
+  const preview = useHtmlPreview(
+    connection,
+    scope,
+    path,
+    html,
+    browserHtmlPreview,
+  );
+  if (AsyncResult.isInitial(preview))
     return (
       <p role="status" className="p-4">
         Loading preview…
       </p>
     );
-  if (preview.error)
+  if (AsyncResult.isFailure(preview))
     return (
       <p role="alert" className="p-4">
-        {fileErrorMessage(preview.error)}
+        {fileErrorMessage(Cause.squash(preview.cause))}
       </p>
     );
+  const document = Option.getOrThrow(AsyncResult.value(preview));
   return (
     <>
-      {preview.data.missing.length > 0 && (
+      {document.missing.length > 0 && (
         <p role="status" className="px-4 py-2 text-xs text-muted-foreground">
-          Some assets could not be loaded: {preview.data.missing.join(', ')}.
-          This preview supports local static assets.
+          Some assets could not be loaded: {document.missing.join(', ')}. This
+          preview supports local static assets.
         </p>
       )}
       <HtmlFrame
-        html={preview.data.html}
+        html={document.html}
         title={`${path} HTML preview`}
         className="min-h-0 flex-1"
       />

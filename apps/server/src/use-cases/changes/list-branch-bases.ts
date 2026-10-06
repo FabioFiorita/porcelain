@@ -1,49 +1,48 @@
-import type { ListBranchBasesService } from '@porcelain/changes/services';
-import type { ListBranchBasesResponse } from '@porcelain/contracts/changes';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import { type GitIoFailure } from '@porcelain/git/errors';
+import { ListBranchBasesService } from '@porcelain/changes/services';
+import { type ListBranchBasesResponse } from '@porcelain/contracts/changes';
+import { type WorktreeParams } from '@porcelain/contracts/shared';
 
-export class ListBranchBasesUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly listBranchBases: ListBranchBasesService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    listBranchBases: ListBranchBasesService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.checkWorktree = checkWorktree;
-    this.listBranchBases = listBranchBases;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class ListBranchBasesUseCase extends Context.Service<
+  ListBranchBasesUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams,
+    ) => Effect.Effect<
+      ListBranchBasesResponse,
+      WorktreeAccessFailure | GitIoFailure
+    >;
   }
+>()('@porcelain/server/ListBranchBasesUseCase') {
+  static readonly layer = Layer.effect(
+    ListBranchBasesUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const listBranchBasesCapability = yield* ListBranchBasesService;
 
-  async execute(
-    input: WorktreeParams,
-    context: OperationContext,
-  ): Promise<ListBranchBasesResponse> {
-    const { worktreeId } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
-    );
-    return this.lanes.runConsistent(
-      this.laneKeys.repository(worktree),
-      worktree,
-      async ({ signal }) => {
-        const bases = await this.listBranchBases.execute(
-          { worktreeId },
-          signal,
-        );
-        return bases;
-      },
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('ListBranchBasesUseCase.execute')(function* (
+          input: WorktreeParams,
+        ): Effect.fn.Return<
+          ListBranchBasesResponse,
+          WorktreeAccessFailure | GitIoFailure
+        > {
+          return yield* Effect.suspend(() => {
+            const { worktreeId } = input;
+            return accessCapability.read(worktreeId, () =>
+              Effect.gen(function* () {
+                const bases = yield* listBranchBasesCapability.execute({
+                  worktreeId,
+                });
+                return bases;
+              }),
+            );
+          });
+        }),
+      };
+    }),
+  );
 }

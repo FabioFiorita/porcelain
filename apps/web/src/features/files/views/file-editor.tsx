@@ -3,17 +3,18 @@ import { CheckIcon } from 'lucide-react';
 import { type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
-import type { FileDraft, FileDraftState } from '@/features/files/store';
+import type { FileDraftHandle } from '@porcelain/client/files';
+import type { FileDraftState } from '@porcelain/client/files';
 import { createPierreFileOptions } from '@/shared/lib/pierre';
 import { useFileDraftSaving } from '@/features/files/commands/edit-file';
-import { fileErrorMessage } from '../rules/error-message';
+import { fileErrorMessage } from '@porcelain/client/files/rules';
 import {
   createEditor,
   usePierreFileEditor,
 } from '../adapters/pierre-file-editor';
 import { usePreferences, useTheme } from '@/features/preferences/index';
 
-export function FileEditor({
+function FileEditor({
   owner,
   path,
   draft,
@@ -26,7 +27,7 @@ export function FileEditor({
 }: {
   owner: string;
   path: string;
-  draft: FileDraft;
+  draft: FileDraftHandle;
   state: FileDraftState;
   active: boolean;
   changed: boolean;
@@ -44,7 +45,7 @@ export function FileEditor({
     done,
     discard,
     notifyUnsaved,
-  } = useFileDraftSaving(owner, draft, state, toast.add);
+  } = useFileDraftSaving(owner, draft, toast.add);
   const {
     file,
     initialText,

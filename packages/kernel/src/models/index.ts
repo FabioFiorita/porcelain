@@ -7,7 +7,7 @@ export type {
   TrackedComparison,
   UnmergedComparison,
 } from './change.ts';
-export type { OwnerStatus } from './owner-status.ts';
+export { ownerStatusSchema, type OwnerStatus } from './owner-status.ts';
 export type { Base64UrlSecret } from './secret.ts';
 export type {
   Worktree,
@@ -16,3 +16,5 @@ export type {
   WorktreeKeys,
 } from './worktree.ts';
 export type { ReviewBadge, ReviewBadges } from './review-badge.ts';
+
+export { expectedFileSchema } from './change.ts';

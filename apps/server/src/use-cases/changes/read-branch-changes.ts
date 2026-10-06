@@ -1,52 +1,65 @@
-import type { ReadBranchChangesService } from '@porcelain/changes/services';
-import type {
-  ReadBranchChangesQuery,
-  ReadBranchChangesResponse,
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import { type GitIoFailure } from '@porcelain/git/errors';
+import {
+  type BranchBaseNotFoundError,
+  type UnbornBranchError,
+  type UnrelatedBranchError,
+} from '@porcelain/changes/errors';
+import { ReadBranchChangesService } from '@porcelain/changes/services';
+import {
+  type ReadBranchChangesQuery,
+  type ReadBranchChangesResponse,
 } from '@porcelain/contracts/changes';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import { type WorktreeParams } from '@porcelain/contracts/shared';
 
-export class ReadBranchChangesUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly readBranchChanges: ReadBranchChangesService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    readBranchChanges: ReadBranchChangesService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.checkWorktree = checkWorktree;
-    this.readBranchChanges = readBranchChanges;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class ReadBranchChangesUseCase extends Context.Service<
+  ReadBranchChangesUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams & ReadBranchChangesQuery,
+    ) => Effect.Effect<
+      ReadBranchChangesResponse,
+      | WorktreeAccessFailure
+      | GitIoFailure
+      | BranchBaseNotFoundError
+      | UnbornBranchError
+      | UnrelatedBranchError
+    >;
   }
+>()('@porcelain/server/ReadBranchChangesUseCase') {
+  static readonly layer = Layer.effect(
+    ReadBranchChangesUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const readBranchChangesCapability = yield* ReadBranchChangesService;
 
-  async execute(
-    input: WorktreeParams & ReadBranchChangesQuery,
-    context: OperationContext,
-  ): Promise<ReadBranchChangesResponse> {
-    const { worktreeId, base } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
-    );
-    return this.lanes.runConsistent(
-      this.laneKeys.repository(worktree),
-      worktree,
-      async ({ signal }) => {
-        const changes = await this.readBranchChanges.execute(
-          { worktreeId, base },
-          signal,
-        );
-        return { worktreeId, ...changes };
-      },
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('ReadBranchChangesUseCase.execute')(function* (
+          input: WorktreeParams & ReadBranchChangesQuery,
+        ): Effect.fn.Return<
+          ReadBranchChangesResponse,
+          | WorktreeAccessFailure
+          | GitIoFailure
+          | BranchBaseNotFoundError
+          | UnbornBranchError
+          | UnrelatedBranchError
+        > {
+          return yield* Effect.suspend(() => {
+            const { worktreeId, base } = input;
+            return accessCapability.read(worktreeId, () =>
+              Effect.gen(function* () {
+                const changes = yield* readBranchChangesCapability.execute({
+                  worktreeId,
+                  base,
+                });
+                return { worktreeId, ...changes };
+              }),
+            );
+          });
+        }),
+      };
+    }),
+  );
 }

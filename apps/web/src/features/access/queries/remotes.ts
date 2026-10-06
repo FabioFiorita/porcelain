@@ -1,34 +1,11 @@
-import { queryKeys } from '@porcelain/client/transport';
-import { queryOptions, useQuery } from '@tanstack/react-query';
-import {
-  REMOTE_STATUS_REFRESH_MS,
-  REMOTE_STATUS_TIMEOUT_MS,
-} from '@/config/limits';
-import { remoteTransport } from '@porcelain/client/transport';
-import { remoteApi } from '../api';
-import { remoteStatus, type Remote } from '../rules/remotes';
-
-export function remoteStatusQueryOptions(remote: Remote) {
-  return queryOptions({
-    queryKey: queryKeys.remoteStatus(remote.environmentId, remote.address),
-    queryFn: ({ signal }) =>
-      remoteApi.describe({
-        transport: remoteTransport(remote.address, remote.credential, fetch),
-        signal: AbortSignal.any([
-          signal,
-          AbortSignal.timeout(REMOTE_STATUS_TIMEOUT_MS),
-        ]),
-        environmentId: remote.environmentId,
-      }),
-    refetchInterval: (query) =>
-      remoteStatus(remote, query.state.data).kind === 'other-server'
-        ? false
-        : REMOTE_STATUS_REFRESH_MS,
-    retry: false,
-  });
-}
+import { useAtomValue } from '@effect/atom-react';
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
+import { readRemoteStatus } from '@porcelain/client/access';
+import { remoteStatus, type Remote } from '@porcelain/client/access/rules';
+import { pairingPlatform } from '../store';
 
 export function useRemoteStatus(remote: Remote) {
-  const query = useQuery(remoteStatusQueryOptions(remote));
-  return remoteStatus(remote, query.data);
+  const result = useAtomValue(readRemoteStatus(pairingPlatform, remote));
+  return remoteStatus(remote, Option.getOrUndefined(AsyncResult.value(result)));
 }

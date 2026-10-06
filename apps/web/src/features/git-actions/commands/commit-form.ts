@@ -1,10 +1,12 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
 import {
   COMMIT_MESSAGE_BYTES,
   COMMIT_GROUPS,
 } from '@porcelain/contracts/shared';
 import { useForm, useSelector } from '@tanstack/react-form';
 import { createId } from '@/shared/lib/id';
-import { resolveCommitModel } from '../rules/commit-model';
+import { resolveCommitModel } from '@porcelain/client/git-actions/rules';
 import {
   commitFormDefaults,
   type CommitFormProps,
@@ -13,10 +15,15 @@ import {
   type Drafts,
   draftIsStale,
   type Group,
-} from '../rules/commit-form';
-import { gitActionBlocker } from '../rules/status';
-import { expectationFor, receiptFailed, receiptWords } from '../rules/feedback';
-import { useCommitState, commitRuntime } from '../store';
+} from '@porcelain/client/git-actions/rules';
+import { gitActionBlocker } from '@porcelain/client/git-actions/rules';
+import {
+  expectationFor,
+  receiptFailed,
+  receiptWords,
+} from '@porcelain/client/git-actions/rules';
+import { commitState, commitDraftControllers } from '../store';
+import { useAtomRef } from '@effect/atom-react';
 import { useCommitModels } from '../queries/git-actions';
 import { useGitAction } from './run-action';
 import { useCommitDraft } from './commit-draft';
@@ -47,13 +54,14 @@ function useCommitFormState(
       lastCommitMessage,
     ),
   });
-  const { state, controllers } = commitRuntime(form);
+  const state = commitState(form);
+  const controllers = commitDraftControllers(form);
   const { mode, message, amendMessage, excluded, added, groups } = useSelector(
     form.store,
     (state) => state.values,
   );
   const { done, activeGroup, ownHead, busy, error, drafted, editingFiles } =
-    useCommitState(state);
+    useAtomRef(state);
   const setMode = (value: CommitMode) => form.setFieldValue('mode', value);
   const setMessage = (value: string) => form.setFieldValue('message', value);
   const setAmendMessage = (value: string) =>
@@ -69,16 +77,21 @@ function useCommitFormState(
       | ReadonlySet<string>
       | ((current: ReadonlySet<string>) => ReadonlySet<string>),
   ) =>
-    state.setState((current) => ({
+    state.update((current) => ({
+      ...current,
       done: typeof value === 'function' ? value(current.done) : value,
     }));
   const setActiveGroup = (activeGroup: string | null) =>
-    state.setState({ activeGroup });
-  const setOwnHead = (ownHead: string | null) => state.setState({ ownHead });
-  const setBusy = (busy: boolean) => state.setState({ busy });
-  const setError = (error: unknown) => state.setState({ error });
+    state.update((current) => ({ ...current, activeGroup }));
+  const setOwnHead = (ownHead: string | null) =>
+    state.update((current) => ({ ...current, ownHead }));
+  const setBusy = (busy: boolean) =>
+    state.update((current) => ({ ...current, busy }));
+  const setError = (error: unknown) =>
+    state.update((current) => ({ ...current, error }));
   const setDrafted = (kind: keyof Drafts, files: DraftedFiles | null) =>
-    state.setState((current) => ({
+    state.update((current) => ({
+      ...current,
       drafted: { ...current.drafted, [kind]: files },
     }));
   const commitAction: 'amend' | 'commit' =
@@ -86,7 +99,10 @@ function useCommitFormState(
   const git = useGitAction(scope, commitAction, context);
   const generator = useCommitDraft(scope, context, controllers);
   const models = useCommitModels(context);
-  const model = resolveCommitModel(models.data, commitModel.value);
+  const model = resolveCommitModel(
+    Option.getOrUndefined(AsyncResult.value(models)),
+    commitModel.value,
+  );
   const commitPaths = [
     ...new Set(
       files
@@ -105,7 +121,7 @@ function useCommitFormState(
   const currentMessage = commitAction === 'amend' ? amendMessage : message;
   const uncertain = Boolean(git.operation && !git.canStartNew);
   const receipt = git.operation?.receipt;
-  const working = busy || generator.isPending;
+  const working = busy || generator.result.waiting;
 
   const activeDraft = groups ? drafted.groups : drafted.message;
   const staleDraft =
@@ -336,7 +352,7 @@ async function lookAgain(controls: ReturnType<typeof useCommitFormState>) {
   setError(null);
   try {
     await onLookAgain();
-    git.startNew();
+    await git.startNew();
     setOwnHead(null);
   } catch (error) {
     setError(error);
@@ -349,7 +365,7 @@ async function checkOutcome(controls: ReturnType<typeof useCommitFormState>) {
   const { setError, git, activeGroup, setDone, setActiveGroup } = controls;
   setError(null);
   try {
-    const receipt = await git.recover.submit();
+    const receipt = await git.recover();
     if (activeGroup && ['succeeded', 'no-change'].includes(receipt.state)) {
       setDone((current) => new Set([...current, activeGroup]));
       setActiveGroup(null);
@@ -391,7 +407,10 @@ export function useCommitForm(
     checkOutcome: () => void checkOutcome(controls),
     setModel: commitModel.set,
     toggleEditingFiles: () =>
-      state.setState((current) => ({ editingFiles: !current.editingFiles })),
+      state.update((current) => ({
+        ...current,
+        editingFiles: !current.editingFiles,
+      })),
     setCurrentMessage: (value: string) => {
       if (commitAction === 'amend') setAmendMessage(value);
       else setMessage(value);

@@ -1,12 +1,16 @@
+import { Cause } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
+import { useConnectedContext } from '../store';
 import { UnplugIcon } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useDisconnect } from '../commands/disconnect';
-import { connectionErrorMessage } from '../rules/connection-error-message';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
 
 export function DisconnectBrowser() {
-  const disconnect = useDisconnect();
+  const { connection } = useConnectedContext();
+  const { result: disconnect, submit } = useDisconnect(connection);
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
@@ -19,17 +23,17 @@ export function DisconnectBrowser() {
         <Button
           variant="outline"
           className="shrink-0"
-          disabled={disconnect.isPending}
-          onClick={() => disconnect.onSubmit()}
+          disabled={disconnect.waiting}
+          onClick={submit}
         >
-          {disconnect.isPending ? <Spinner /> : <UnplugIcon />}
+          {disconnect.waiting ? <Spinner /> : <UnplugIcon />}
           Disconnect this browser
         </Button>
       </div>
-      {disconnect.error && (
+      {AsyncResult.isFailure(disconnect) && (
         <Alert variant="destructive">
           <AlertDescription>
-            {connectionErrorMessage(disconnect.error)}
+            {connectionErrorMessage(Cause.squash(disconnect.cause))}
           </AlertDescription>
         </Alert>
       )}

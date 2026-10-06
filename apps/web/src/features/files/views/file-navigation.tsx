@@ -1,3 +1,5 @@
+import { Cause, Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import type { GitStatusEntry } from '@pierre/trees';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import {
@@ -19,15 +21,18 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/toast';
-import { changePath, useReviewOverview } from '@/features/changes/index';
+import { changePath } from '@porcelain/client/changes/rules';
+import { useReviewOverview } from '@/features/changes/index';
 import {
   canonicalPreferencePath,
   hiddenPathFor,
+  visibleFileTreePaths,
+} from '@porcelain/client/projects/rules';
+import {
   useHiddenPaths,
   usePinnedPaths,
   useSetHidden,
   useSetPinned,
-  visibleFileTreePaths,
 } from '@/features/projects/index';
 import { discardRejection } from '@/shared/lib/submit-form';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
@@ -35,15 +40,21 @@ import { PierreFileTree } from '../adapters/pierre-file-tree';
 import { useEditFile } from '../commands/edit-file';
 import { runFileTreeAction } from '../commands/tree-menu';
 import { useDirectories, useDirectory } from '../queries/directory';
-import { fileErrorMessage, surfaceErrorMessage } from '../rules/error-message';
-import { fileTreeAncestors, mergeFileTreeEntries } from '../rules/file-tree';
+import {
+  fileErrorMessage,
+  surfaceErrorMessage,
+} from '@porcelain/client/files/rules';
+import {
+  fileTreeAncestors,
+  mergeFileTreeEntries,
+} from '@porcelain/client/files/rules';
 import { isImagePath } from '../rules/html-assets';
-import type { FilesScope } from '../rules/scope';
+import type { FilesScope } from '@porcelain/client/files/rules';
 import {
   duplicatePath,
   treeActions,
   type TreeAction,
-} from '../rules/tree-actions';
+} from '@porcelain/client/files/rules';
 import { FileTreeMenu } from './file-tree-menu';
 import { PinnedFiles } from './pinned-files';
 import { QuickOpen } from './quick-open';
@@ -89,13 +100,18 @@ function ScopedFileNavigation({
 }: Props) {
   const root = useDirectory(connection, scope, '');
   const edit = useEditFile(connection, scope);
+  const editError = AsyncResult.isFailure(edit.result)
+    ? Cause.squash(edit.result.cause)
+    : undefined;
   const [creating, setCreating] = useState<{
     kind: 'file' | 'directory';
     folder: string;
     nonce: number;
   }>();
   const [deleting, setDeleting] = useState<string | null>(null);
-  const overview = useReviewOverview(scope, connection);
+  const overview = Option.getOrUndefined(
+    AsyncResult.value(useReviewOverview(scope, connection)),
+  );
   const hidden = useHiddenPaths(connection, scope.projectId);
   const setHidden = useSetHidden(connection, scope.projectId);
   const pinned = usePinnedPaths(connection, scope.projectId);
@@ -109,21 +125,23 @@ function ScopedFileNavigation({
     setRequested((current) => union(current, fileTreeAncestors(selected)));
   }, [selected]);
 
-  const queries = useDirectories(connection, scope, requested);
+  const directoriesRead = useDirectories(connection, scope, requested);
   const directories = [
     root,
-    ...queries.flatMap((query) => (query.data ? [query.data] : [])),
+    ...directoriesRead.results.flatMap((result) =>
+      Option.toArray(AsyncResult.value(result)),
+    ),
   ];
   const entries = mergeFileTreeEntries(directories);
   const paths = entries.map((entry) => entry.path);
   const visiblePaths = visibleFileTreePaths(paths, hidden, showHidden);
   const kinds = new Map(entries.map((entry) => [entry.path, entry.kind]));
-  const failed = queries.filter((query) => query.isError);
+  const failed = directoriesRead.results.filter(AsyncResult.isFailure);
   const gitStatus: GitStatusEntry[] = [
     ...entries
       .filter((entry) => entry.ignored)
       .map((entry) => ({ path: entry.path, status: 'ignored' as const })),
-    ...(overview?.changes.changes ?? [])
+    ...(overview?.changes ?? [])
       .flatMap((entry) => entry.comparisons)
       .map((change): GitStatusEntry => ({
         path: changePath(change),
@@ -136,7 +154,7 @@ function ScopedFileNavigation({
       })),
   ];
   const changed = new Set<string>(
-    (overview?.changes.changes ?? []).map((entry) => entry.path),
+    (overview?.changes ?? []).map((entry) => entry.path),
   );
   const openable = new Set(
     entries.filter((entry) => entry.kind === 'file').map((entry) => entry.path),
@@ -159,7 +177,7 @@ function ScopedFileNavigation({
   useHotkey(
     SHORTCUTS.duplicateFile,
     () => {
-      if (!edit.isPending) duplicate(selected);
+      if (!edit.result.waiting) duplicate(selected);
     },
     { enabled: openable.has(selected), ignoreInputs: true },
   );
@@ -203,7 +221,7 @@ function ScopedFileNavigation({
           close,
           rename,
           onStartCreate: (kind, parent) => {
-            if (!edit.isPending)
+            if (!edit.result.waiting)
               setCreating({ kind, folder: parent, nonce: Date.now() });
           },
           onOpenFile: (next) => onOpen({ kind: 'file', path: next }),
@@ -220,7 +238,7 @@ function ScopedFileNavigation({
             ),
           onTrash: setDeleting,
           onDuplicate: (next) => {
-            if (!edit.isPending) duplicate(next);
+            if (!edit.result.waiting) duplicate(next);
           },
         }),
     };
@@ -265,7 +283,7 @@ function ScopedFileNavigation({
           size="icon-sm"
           variant="ghost"
           aria-label="New file"
-          disabled={edit.isPending}
+          disabled={edit.result.waiting}
           onClick={() =>
             setCreating({ kind: 'file', folder: '', nonce: Date.now() })
           }
@@ -276,7 +294,7 @@ function ScopedFileNavigation({
           size="icon-sm"
           variant="ghost"
           aria-label="New folder"
-          disabled={edit.isPending}
+          disabled={edit.result.waiting}
           onClick={() =>
             setCreating({ kind: 'directory', folder: '', nonce: Date.now() })
           }
@@ -365,7 +383,7 @@ function ScopedFileNavigation({
       <AlertDialog
         open={deleting !== null}
         onOpenChange={(open) => {
-          if (!open && !edit.isPending) setDeleting(null);
+          if (!open && !edit.result.waiting) setDeleting(null);
         }}
       >
         <AlertDialogContent>
@@ -378,12 +396,12 @@ function ScopedFileNavigation({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={edit.isPending}>
+            <AlertDialogCancel disabled={edit.result.waiting}>
               Cancel
             </AlertDialogCancel>
             <Button
               variant="destructive"
-              disabled={edit.isPending}
+              disabled={edit.result.waiting}
               onClick={() => {
                 if (deleting) edit.trash(deleting, () => setDeleting(null));
               }}
@@ -391,26 +409,26 @@ function ScopedFileNavigation({
               Move to trash
             </Button>
           </AlertDialogFooter>
-          {edit.error && (
+          {editError !== undefined && (
             <p role="alert" className="text-xs text-destructive">
-              {fileErrorMessage(edit.error)}
+              {fileErrorMessage(editError)}
             </p>
           )}
         </AlertDialogContent>
       </AlertDialog>
-      {edit.error && !deleting && (
+      {editError !== undefined && !deleting && (
         <p role="alert" className="px-3 py-2 text-xs text-destructive">
-          {fileErrorMessage(edit.error)}
+          {fileErrorMessage(editError)}
         </p>
       )}
-      {setPinned.error && (
+      {AsyncResult.isFailure(setPinned.result) && (
         <p role="alert" className="border-t px-3 py-2 text-xs text-destructive">
-          {surfaceErrorMessage(setPinned.error)}
+          {surfaceErrorMessage(Cause.squash(setPinned.result.cause))}
         </p>
       )}
-      {setHidden.error && (
+      {AsyncResult.isFailure(setHidden.result) && (
         <p role="alert" className="border-t px-3 py-2 text-xs text-destructive">
-          {surfaceErrorMessage(setHidden.error)}
+          {surfaceErrorMessage(Cause.squash(setHidden.result.cause))}
         </p>
       )}
       {failed.length > 0 && (
@@ -421,9 +439,7 @@ function ScopedFileNavigation({
           <Button
             variant="outline"
             size="xs"
-            onClick={() => {
-              for (const query of failed) void query.refetch();
-            }}
+            onClick={() => directoriesRead.retry()}
           >
             Try again
           </Button>

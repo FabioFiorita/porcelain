@@ -12,7 +12,7 @@ export type ReviewedFileMark = ReviewedMark & {
 
 export type ReviewedFiles = {
   worktreeId: string;
-  marks: ReviewedMark[];
+  marks: readonly ReviewedMark[];
 };
 
 export type ReviewedFile = {
@@ -26,8 +26,8 @@ export type ReviewedFileConflict = {
 };
 
 export type ReviewedFileSelection = {
-  marked: ReviewedFile[];
-  conflicts: ReviewedFileConflict[];
+  marked: readonly ReviewedFile[];
+  conflicts: readonly ReviewedFileConflict[];
 };
 
 export type ReviewedFileLimits = {
@@ -45,7 +45,7 @@ export type ListedReviewedLayerMark = ReviewedLayerMark & { stale: boolean };
 
 export type ReviewedLayers = {
   worktreeId: string;
-  marks: ListedReviewedLayerMark[];
+  marks: readonly ListedReviewedLayerMark[];
 };
 
 export type WorktreeReviewedLayerMark = ReviewedLayerMark & {

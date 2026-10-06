@@ -1,13 +1,8 @@
+import { Schema } from 'effect';
+import { selectedWorktreeInProject } from '@porcelain/client/projects/rules';
 import { createFileRoute, Navigate } from '@tanstack/react-router';
-import {
-  useRemoteConnection,
-  useRemoteStatus,
-  type RemoteConnection,
-} from '@/features/access/index';
-import {
-  selectedWorktreeInProject,
-  useInventory,
-} from '@/features/projects/index';
+import { useRemoteConnection, useRemoteStatus } from '@/features/access/index';
+import { useInventory } from '@/features/projects/index';
 import { ConnectedWorkspace } from '@/app/connected-workspace';
 import { WorkspaceError } from '@/app/workspace-error';
 import { WorkspacePending } from '@/app/workspace-pending';
@@ -20,14 +15,14 @@ import {
 export const Route = createFileRoute(
   '/_paired/remotes/$environmentId/$projectId/$worktreeId',
 )({
-  validateSearch: workspaceSearchSchema,
+  validateSearch: Schema.decodeUnknownSync(workspaceSearchSchema),
   pendingComponent: WorkspacePending,
   errorComponent: WorkspaceError,
   component: RemoteWorktreeLayout,
 });
 
 type Shown = {
-  remote: RemoteConnection;
+  remote: NonNullable<ReturnType<typeof useRemoteConnection>>;
   projectId: string;
   worktreeId: string;
   search: WorkspaceSearch;

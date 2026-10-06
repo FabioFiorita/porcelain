@@ -1,16 +1,20 @@
-import type {
-  GitActionOutcome,
-  GitActionRunnerOutcome,
-  RunGitActionInput,
-} from '@porcelain/git-actions/models';
-import type { FileChange } from '@porcelain/kernel/models';
-import { describe, expect, it } from 'vitest';
+import { GitActionRunner } from '@porcelain/git-actions/ports';
 import {
+  WORKTREE_ID,
   CLEAN_EXPECTATION,
   GUIDE_FINGERPRINT,
   README_FINGERPRINT,
   sampleRun,
 } from '../../spec/fixtures/git-action-samples.ts';
+import { withWriteLease } from '@porcelain/effects/worktree';
+import { Effect } from 'effect';
+import {
+  type GitActionOutcome,
+  type GitActionRunnerOutcome,
+  type RunGitActionInput,
+} from '@porcelain/git-actions/models';
+import { type FileChange } from '@porcelain/kernel/models';
+import { describe, expect, it } from 'vitest';
 import { ScriptedGitActionRunner } from '../../spec/fakes/scripted-git-action-runner.ts';
 import { RunGitActionService } from './run-git-action-service.ts';
 
@@ -39,11 +43,27 @@ function subject(
 ) {
   const lines: string[] = [];
   const runner = new ScriptedGitActionRunner({ answer, progress });
-  const service = new RunGitActionService(runner);
+  const service = Effect.runSync(
+    RunGitActionService.pipe(
+      Effect.provide(RunGitActionService.layer),
+      Effect.provideService(GitActionRunner, runner),
+    ),
+  );
   return {
     lines,
     execute: (input: Omit<RunGitActionInput, 'onProgress'>) =>
-      service.execute({ ...input, onProgress: (line) => lines.push(line) }),
+      Effect.runPromise(
+        withWriteLease(
+          WORKTREE_ID,
+          service.execute({
+            ...input,
+            onProgress: (line) =>
+              Effect.sync(() => {
+                lines.push(line);
+              }),
+          }),
+        ),
+      ),
     service,
   };
 }
@@ -167,22 +187,37 @@ describe('RunGitActionService', () => {
   });
 
   it('marks the review stale only after a commit or amend succeeded', async () => {
-    const passing = await subject().service.execute({
-      run: commit,
-      changes: [change('README.md', README_FINGERPRINT)],
-    });
-    const rejected = await subject().service.execute({
-      run: commit,
-      changes: [change('README.md', GUIDE_FINGERPRINT)],
-    });
-    const branch = await subject().service.execute({
-      run: sampleRun({
-        action: 'fetch',
-        remoteName: 'origin',
-        sourceRef: 'refs/heads/main',
-      }),
-      changes: [],
-    });
+    const passing = await Effect.runPromise(
+      withWriteLease(
+        WORKTREE_ID,
+        subject().service.execute({
+          run: commit,
+          changes: [change('README.md', README_FINGERPRINT)],
+        }),
+      ),
+    );
+    const rejected = await Effect.runPromise(
+      withWriteLease(
+        WORKTREE_ID,
+        subject().service.execute({
+          run: commit,
+          changes: [change('README.md', GUIDE_FINGERPRINT)],
+        }),
+      ),
+    );
+    const branch = await Effect.runPromise(
+      withWriteLease(
+        WORKTREE_ID,
+        subject().service.execute({
+          run: sampleRun({
+            action: 'fetch',
+            remoteName: 'origin',
+            sourceRef: 'refs/heads/main',
+          }),
+          changes: [],
+        }),
+      ),
+    );
     expect(passing.reviewStale).toBe(true);
     expect(rejected.reviewStale).toBe(false);
     expect(branch.reviewStale).toBe(false);
@@ -190,20 +225,28 @@ describe('RunGitActionService', () => {
 
   it('passes the progress lines Git reports to the listener', async () => {
     const lines: string[] = [];
-    await subject({ kind: 'finished', outcome: succeeded }, [
-      'Receiving objects: 100%',
-    ]).service.execute({
-      run: sampleRun(
-        {
-          action: 'fetch',
-          remoteName: 'origin',
-          sourceRef: 'refs/heads/main',
-        },
-        { ...CLEAN_EXPECTATION, upstream: {} },
+    await Effect.runPromise(
+      withWriteLease(
+        WORKTREE_ID,
+        subject({ kind: 'finished', outcome: succeeded }, [
+          'Receiving objects: 100%',
+        ]).service.execute({
+          run: sampleRun(
+            {
+              action: 'fetch',
+              remoteName: 'origin',
+              sourceRef: 'refs/heads/main',
+            },
+            { ...CLEAN_EXPECTATION, upstream: {} },
+          ),
+          changes: [],
+          onProgress: (line) =>
+            Effect.sync(() => {
+              lines.push(line);
+            }),
+        }),
       ),
-      changes: [],
-      onProgress: (line) => lines.push(line),
-    });
+    );
     expect(lines).toEqual(['Receiving objects: 100%']);
   });
 });

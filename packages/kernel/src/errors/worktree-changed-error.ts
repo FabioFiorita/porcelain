@@ -1,7 +1,10 @@
-export class WorktreeChangedError extends Error {
-  override readonly name = 'WorktreeChangedError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Worktree changed during inspection');
+export class WorktreeChangedError extends Schema.TaggedError<WorktreeChangedError>()(
+  'WorktreeChangedError',
+  {},
+) {
+  override get message() {
+    return 'Worktree changed during inspection';
   }
 }

@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import {
   listReviewedFilesResponseSchema,
   removeReviewedFilesResponseSchema,
@@ -37,7 +38,11 @@ test('a worktree with no reviewed marks lists none', async ({ session }) => {
     marks: [],
   });
   expect(response.body).toEqual(
-    expect.schemaMatching(listReviewedFilesResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(listReviewedFilesResponseSchema),
+      ),
+    ),
   );
 });
 
@@ -129,7 +134,11 @@ test('marking many at once marks what still matches and reports the others as st
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(setReviewedFilesResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(setReviewedFilesResponseSchema),
+      ),
+    ),
   );
   const body = record(response.body);
   expect(body.marked).toStrictEqual(['notes.txt']);
@@ -199,7 +208,11 @@ test('unmarking many at once removes each listed mark, keeps unlisted ones, and 
   expect(paths(marked)).toStrictEqual(['more.txt', 'notes.txt']);
   expect(responses.map((entry) => entry.status)).toStrictEqual([200, 200, 200]);
   expect(responses[0]?.body).toEqual(
-    expect.schemaMatching(removeReviewedFilesResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(removeReviewedFilesResponseSchema),
+      ),
+    ),
   );
   expect(paths(responses[0]?.body)).toStrictEqual(['more.txt']);
   expect(responses.slice(1).map((entry) => entry.body)).toStrictEqual([

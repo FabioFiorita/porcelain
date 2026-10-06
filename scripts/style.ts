@@ -1,3 +1,4 @@
+import { Schema, Result } from 'effect';
 import { spawnSync } from 'node:child_process';
 import {
   cpSync,
@@ -14,7 +15,6 @@ import { basename, dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Generator, getConfig } from '@tanstack/router-generator';
 import { parseDocument } from 'yaml';
-import { z } from 'zod';
 import {
   domainPackages,
   generatedRouteTree,
@@ -22,6 +22,7 @@ import {
 } from '../architecture/policy.ts';
 import {
   liveRuleNames,
+  lintPluginSchema,
   probeSchema,
   unknownRule,
 } from '../architecture/probe.ts';
@@ -34,9 +35,15 @@ import {
   ARCHITECTURE_LINE_BUDGET,
   architectureLines,
 } from '../architecture/guardrail-budget.ts';
-import { scriptInvokes } from '../architecture/script-policy.ts';
+import {
+  scriptInvokes,
+  localCheckMatches,
+} from '../architecture/script-policy.ts';
 import { unownedProse } from '../architecture/prose-policy.ts';
-import { manualAuditProblems } from '../architecture/ci-policy.ts';
+import {
+  manualAuditProblems,
+  workflowSchema,
+} from '../architecture/ci-policy.ts';
 import {
   duplicateScope,
   scanDuplicates,
@@ -45,26 +52,22 @@ import {
   mobileGeneratedTypes,
   mobileMetroFile,
 } from '../architecture/theme-policy.ts';
-
 const [mode, target] = process.argv.slice(2);
 if (
   (mode !== 'lint' && mode !== 'format') ||
   (target !== 'server' && target !== 'web')
 )
   throw new Error('Usage: node scripts/style.ts lint|format server|web');
-
 const packageNames = readdirSync('packages', { withFileTypes: true })
   .filter(
     (entry) =>
       entry.isDirectory() && existsSync(join('packages', entry.name, 'src')),
   )
   .map((entry) => entry.name);
-
 const packages = packageNames.flatMap((name) => [
   join('packages', name, 'src'),
   join('packages', name, 'spec'),
 ]);
-
 const serverRoots = [
   'apps/mobile/src',
   'apps/mobile/spec',
@@ -77,7 +80,6 @@ const serverRoots = [
   'apps/server/spec',
   ...packages,
   'packages/storage/scripts',
-  'packages/storage/drizzle.config.ts',
   'architecture',
   'scripts',
   'vitest.config.ts',
@@ -96,20 +98,17 @@ const webRoots = [
 ];
 const allRoots = [...serverRoots, ...webRoots];
 const roots = target === 'web' ? webRoots : serverRoots;
-
 const disableDirective = /(?:\/\/|\/\*)\s*(?:eslint|oxlint)-(?:disable|enable)/;
 const lintConfig = '.oxlintrc.json';
 const lintedFile = /\.[cm]?[jt]sx?$/;
 const strayLintConfig =
   /^(?:\.(?:oxlintrc|eslintrc)(?:\..+)?|\.(?:eslint|oxlint)ignore|(?:oxlint|eslint)\.config\.[cm]?[jt]s)$/;
 type Problem = { rule: StyleRule; message: string };
-
 function problem(rule: StyleRule, message: string): Problem {
   if (!/\b(?:because|so)\b\s+\S/.test(message))
     throw new Error(`A lint message explains why: ${message}`);
   return { rule, message };
 }
-
 const skippedDirectories = new Set([
   'node_modules',
   '.git',
@@ -119,7 +118,6 @@ const skippedDirectories = new Set([
   '.turbo',
   'test-results',
 ]);
-
 function filesUnder(path: string): string[] {
   if (!statSync(path).isDirectory()) return [path];
   return readdirSync(path, { withFileTypes: true }).flatMap((entry) => {
@@ -132,7 +130,6 @@ function filesUnder(path: string): string[] {
     return entry.isFile() ? [child] : [];
   });
 }
-
 function disableDirectives(): Problem[] {
   return allRoots.flatMap(filesUnder).flatMap((file) =>
     readFileSync(file, 'utf8')
@@ -149,7 +146,6 @@ function disableDirectives(): Problem[] {
       ),
   );
 }
-
 function repositoryFiles(): string[] {
   const listed = spawnSync(
     'git',
@@ -161,7 +157,6 @@ function repositoryFiles(): string[] {
     .split('\n')
     .filter((path) => existsSync(path) && !path.startsWith('.claude/'));
 }
-
 function codeOutsideLintRoots(files: readonly string[]): Problem[] {
   return files
     .filter(
@@ -176,7 +171,6 @@ function codeOutsideLintRoots(files: readonly string[]): Problem[] {
       ),
     );
 }
-
 function proseOutsideSkills(files: readonly string[]): Problem[] {
   return files
     .filter(unownedProse)
@@ -187,13 +181,11 @@ function proseOutsideSkills(files: readonly string[]): Problem[] {
       ),
     );
 }
-
 const pinnedWorkflows = [
   '.github/workflows/ci.yml',
   '.github/workflows/runtime-verification.yml',
   '.github/workflows/probes.yml',
 ] as const;
-
 function workflowDocument(path: string): unknown {
   if (!existsSync(path)) return undefined;
   const document = parseDocument(readFileSync(path, 'utf8'));
@@ -201,15 +193,6 @@ function workflowDocument(path: string): unknown {
   const parsed: unknown = document.toJS();
   return parsed;
 }
-
-const workflowRunsSchema = z.object({
-  on: z.record(z.string(), z.unknown()),
-  jobs: z.record(
-    z.string(),
-    z.object({ steps: z.array(z.object({ run: z.string().optional() })) }),
-  ),
-});
-
 const requiredRuns: Readonly<Record<string, readonly string[]>> = {
   '.github/workflows/ci.yml': [
     'pnpm check --affected',
@@ -228,39 +211,42 @@ const requiredRuns: Readonly<Record<string, readonly string[]>> = {
     'pnpm --filter @porcelain/web test:e2e',
   ],
 };
-
-const prePushSchema = z.object({
-  'pre-push': z
-    .object({
-      jobs: z.array(
-        z.object({ run: z.string(), name: z.string().optional() }).strict(),
-      ),
-    })
-    .strict(),
+const prePushSchema = Schema.Struct({
+  'pre-push': Schema.Struct({
+    jobs: Schema.Array(
+      Schema.Struct({
+        run: Schema.String,
+        name: Schema.optional(Schema.String),
+      }),
+    ),
+  }),
 });
 function prePushChecks(): boolean {
-  const parsed = prePushSchema.safeParse(lefthookConfig());
+  const parsed = Schema.decodeUnknownResult(prePushSchema.fields['pre-push'], {
+    onExcessProperty: 'error',
+  })(
+    Schema.decodeUnknownSync(Schema.Struct({ 'pre-push': Schema.Unknown }))(
+      lefthookConfig(),
+    )['pre-push'],
+  );
   return (
-    parsed.success &&
-    parsed.data['pre-push'].jobs.some((job) =>
-      scriptInvokes(job.run, [['pnpm', 'check']], '.'),
-    )
+    Result.isSuccess(parsed) &&
+    parsed.success.jobs.length === 1 &&
+    parsed.success.jobs[0]?.run.trim() === 'pnpm check:local'
   );
 }
-
 function workflowRuns(document: unknown): string[] {
-  const parsed = workflowRunsSchema.safeParse(document);
-  if (!parsed.success) return [];
-  return Object.values(parsed.data.jobs).flatMap((job) =>
+  const parsed = Schema.decodeUnknownResult(workflowSchema)(document);
+  if (!Result.isSuccess(parsed)) return [];
+  return Object.values(parsed.success.jobs).flatMap((job) =>
     job.steps.flatMap((step) => (step.run === undefined ? [] : [step.run])),
   );
 }
-
 function ciProblems(): Problem[] {
   const documents = new Map<string, unknown>(
     pinnedWorkflows.map((path) => [path, workflowDocument(path)]),
   );
-  const ci = workflowRunsSchema.safeParse(
+  const ci = Schema.decodeUnknownResult(workflowSchema)(
     documents.get('.github/workflows/ci.yml'),
   );
   return [
@@ -281,7 +267,9 @@ function ciProblems(): Problem[] {
             ),
           ];
     }),
-    ...(ci.success && 'pull_request' in ci.data.on && 'push' in ci.data.on
+    ...(Result.isSuccess(ci) &&
+    'pull_request' in ci.success.on &&
+    'push' in ci.success.on
       ? []
       : [
           problem(
@@ -297,12 +285,11 @@ function ciProblems(): Problem[] {
       : [
           problem(
             'ci-steps',
-            'lefthook.yml, merged with any local or extended Lefthook configuration, runs pnpm check before every push, with no skip, only or file filter, because required checks must run before a change can be shipped.',
+            'lefthook.yml, merged with any local or extended Lefthook configuration, runs only pnpm check:local before every push; local static checks use two workers and CI keeps pnpm check with the full suites, because broad local runs have exhausted these machines.',
           ),
         ]),
   ];
 }
-
 function lefthookConfig(): unknown {
   const dumped = spawnSync(
     join('node_modules', '.bin', 'lefthook'),
@@ -314,7 +301,6 @@ function lefthookConfig(): unknown {
   const parsed: unknown = JSON.parse(dumped.stdout);
   return parsed;
 }
-
 function hookProblems(): Problem[] {
   if (process.env.CI === 'true') return [];
   const checked = spawnSync(
@@ -344,11 +330,9 @@ function hookProblems(): Problem[] {
         ),
       ];
 }
-
 const formatConfig = '.oxfmtrc.json';
 const strayFormatConfig =
   /^(?:\.oxfmtrc(?:\..+)?|\.prettierrc(?:\..+)?|\.prettierignore|prettier\.config\.[cm]?[jt]s)$/;
-
 function strayFormatConfigs(): Problem[] {
   return filesUnder('.')
     .filter(
@@ -361,7 +345,6 @@ function strayFormatConfigs(): Problem[] {
       ),
     );
 }
-
 function strayLintConfigs(): Problem[] {
   return filesUnder('.')
     .filter(
@@ -374,34 +357,31 @@ function strayLintConfigs(): Problem[] {
       ),
     );
 }
-
-const lintConfigSchema = z
-  .object({
-    plugins: z.array(z.string()),
-    jsPlugins: z.array(z.string()),
-    options: z.object({ typeAware: z.literal(true) }).strict(),
-    rules: z.record(z.string(), z.unknown()),
-    overrides: z.array(z.unknown()),
-  })
-  .strict();
-
-const pluginSchema = z.object({
-  default: z.object({ rules: z.record(z.string(), z.unknown()) }),
+const lintConfigSchema = Schema.Struct({
+  plugins: Schema.Array(Schema.String),
+  jsPlugins: Schema.Array(Schema.String),
+  options: Schema.Struct({
+    typeAware: Schema.Literal(true),
+  }),
+  rules: Schema.Record(Schema.String, Schema.Unknown),
+  overrides: Schema.Array(Schema.Unknown),
 });
-
-const probeModuleSchema = z.object({ default: z.unknown() });
-
-const tsconfigSchema = z.object({
-  extends: z.string().optional(),
-  compilerOptions: z.record(z.string(), z.unknown()).optional(),
-  include: z.array(z.string()).optional(),
+const probeModuleSchema = Schema.Struct({
+  default: Schema.Unknown,
 });
-
-const formatConfigSchema = z.object({ ignorePatterns: z.unknown() }).partial();
-const manifestScriptsSchema = z.object({
-  scripts: z.record(z.string(), z.string()).optional(),
+const tsconfigSchema = Schema.Struct({
+  extends: Schema.optional(Schema.String),
+  compilerOptions: Schema.optional(
+    Schema.Record(Schema.String, Schema.Unknown),
+  ),
+  include: Schema.optional(Schema.Array(Schema.String)),
 });
-
+const formatConfigSchema = Schema.Struct({
+  ignorePatterns: Schema.optional(Schema.Unknown),
+});
+const manifestScriptsSchema = Schema.Struct({
+  scripts: Schema.optional(Schema.Record(Schema.String, Schema.String)),
+});
 const packageFolders = [
   'apps/mobile',
   'apps/desktop',
@@ -409,9 +389,7 @@ const packageFolders = [
   'apps/web',
   ...packageNames.map((name) => join('packages', name)),
 ];
-
 const tsconfigPackageOptions: ReadonlySet<string> = new Set(['types', 'lib']);
-
 const strictnessFlags = [
   'strict',
   'noUncheckedIndexedAccess',
@@ -421,7 +399,6 @@ const strictnessFlags = [
   'verbatimModuleSyntax',
   'erasableSyntaxOnly',
 ] as const;
-
 const requiredRules = [
   'no-unused-vars',
   'typescript/consistent-type-imports',
@@ -440,7 +417,6 @@ const requiredRules = [
   'shadcn/no-raw-colors',
   'shadcn/no-restyle',
 ] as const;
-
 const sanctionedOverrides: readonly { reason: string; override: unknown }[] = [
   {
     reason:
@@ -465,13 +441,11 @@ const sanctionedOverrides: readonly { reason: string; override: unknown }[] = [
     },
   },
 ];
-
 const typesFreePackages = new Set<string>([
   ...domainPackages,
   'kernel',
   'contracts',
 ]);
-
 class StyleProblem extends Error {
   readonly problem: Problem;
 
@@ -480,7 +454,6 @@ class StyleProblem extends Error {
     this.problem = found;
   }
 }
-
 function strictJson(path: string): unknown {
   try {
     const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
@@ -494,23 +467,25 @@ function strictJson(path: string): unknown {
     );
   }
 }
-
 function isError(level: unknown): boolean {
   return level === 'error' || (Array.isArray(level) && level[0] === 'error');
 }
-
 async function configProblems(): Promise<Problem[]> {
   const problems: Problem[] = [];
-  const config = lintConfigSchema.safeParse(strictJson('.oxlintrc.json'));
-  if (!config.success)
+  const config = Schema.decodeUnknownResult(lintConfigSchema, {
+    onExcessProperty: 'error',
+  })(strictJson('.oxlintrc.json'));
+  if (!Result.isSuccess(config))
     return [
       problem(
         'lint-config',
-        `.oxlintrc.json holds plugins, jsPlugins, options, rules and overrides only, because unsupported fields can bypass the shared lint policy: ${config.error.message}`,
+        `.oxlintrc.json holds plugins, jsPlugins, options, rules and overrides only, because unsupported fields can bypass the shared lint policy: ${config.failure.message}`,
       ),
     ];
-  const format = formatConfigSchema.safeParse(strictJson(formatConfig));
-  if (!format.success || format.data.ignorePatterns !== undefined)
+  const format = Schema.decodeUnknownResult(formatConfigSchema)(
+    strictJson(formatConfig),
+  );
+  if (!Result.isSuccess(format) || format.success.ignorePatterns !== undefined)
     problems.push(
       problem(
         'format-config',
@@ -518,7 +493,7 @@ async function configProblems(): Promise<Problem[]> {
       ),
     );
   problems.push(...(await viteProblems()));
-  const { plugins, jsPlugins, rules, overrides } = config.data;
+  const { plugins, jsPlugins, rules, overrides } = config.success;
   if (!isDeepStrictEqual(plugins, ['typescript']))
     problems.push(
       problem(
@@ -550,7 +525,9 @@ async function configProblems(): Promise<Problem[]> {
     '../architecture/oxlint-plugin.mjs',
     import.meta.url,
   ).href;
-  const plugin = pluginSchema.parse(await import(pluginPath));
+  const plugin = Schema.decodeUnknownSync(lintPluginSchema)(
+    await import(pluginPath),
+  );
   for (const name of Object.keys(plugin.default.rules))
     if (!isError(rules[`porcelain/${name}`]))
       problems.push(
@@ -594,7 +571,8 @@ async function configProblems(): Promise<Problem[]> {
     /(?:^|\/)tsconfig[^/]*\.json$/.test(path),
   );
   const rootOptions =
-    tsconfigSchema.parse(strictJson('tsconfig.json')).compilerOptions ?? {};
+    Schema.decodeUnknownSync(tsconfigSchema)(strictJson('tsconfig.json'))
+      .compilerOptions ?? {};
   for (const flag of strictnessFlags)
     if (rootOptions[flag] !== true)
       problems.push(
@@ -604,7 +582,7 @@ async function configProblems(): Promise<Problem[]> {
         ),
       );
   for (const path of tsconfigs) {
-    const tsconfig = tsconfigSchema.parse(strictJson(path));
+    const tsconfig = Schema.decodeUnknownSync(tsconfigSchema)(strictJson(path));
     if (path !== 'tsconfig.json') {
       const loosened = strictnessFlags.filter(
         (flag) => flag in (tsconfig.compilerOptions ?? {}),
@@ -653,8 +631,9 @@ async function configProblems(): Promise<Problem[]> {
         ),
       );
   }
-  const webTypes = tsconfigSchema.parse(strictJson('apps/web/tsconfig.json'))
-    .compilerOptions?.types;
+  const webTypes = Schema.decodeUnknownSync(tsconfigSchema)(
+    strictJson('apps/web/tsconfig.json'),
+  ).compilerOptions?.types;
   if (!isDeepStrictEqual(webTypes, ['vite/client']))
     problems.push(
       problem(
@@ -669,7 +648,6 @@ async function configProblems(): Promise<Problem[]> {
   problems.push(...(await ruleProblems()));
   return problems;
 }
-
 const routeTreeOptions = {
   target: 'react',
   autoCodeSplitting: true,
@@ -688,7 +666,6 @@ async function viteProblems(): Promise<Problem[]> {
         ),
       ];
 }
-
 function filesOf(root: string): Map<string, string> {
   return new Map(
     filesUnder(root).map((file) => [
@@ -697,7 +674,6 @@ function filesOf(root: string): Map<string, string> {
     ]),
   );
 }
-
 async function routeTreeProblems(): Promise<Problem[]> {
   const web = 'apps/web';
   const routes = join(web, 'src', 'routes');
@@ -744,7 +720,6 @@ async function routeTreeProblems(): Promise<Problem[]> {
     rmSync(scratch, { recursive: true, force: true });
   }
 }
-
 const rootTasks = [
   'typecheck',
   'lint:server',
@@ -757,7 +732,6 @@ const rootTasks = [
   'features:check',
 ] as const;
 const fastTasks = ['typecheck', 'test', ...rootTasks.slice(1)];
-
 type Invocation = readonly [string, ...string[]];
 const rootCommands: Readonly<Record<string, readonly Invocation[]>> = {
   typecheck: [['tsc', '--noEmit']],
@@ -791,8 +765,8 @@ const rootCommands: Readonly<Record<string, readonly Invocation[]>> = {
   'db:check': [['pnpm', '--filter', '@porcelain/storage', 'db:check']],
   prepare: [['lefthook', 'install']],
   check: [['turbo', 'run', ...fastTasks]],
+  'check:local': [['turbo', 'run', ...rootTasks]],
 };
-
 function scriptProblems(): Problem[] {
   const manifests = [
     'package.json',
@@ -810,7 +784,8 @@ function scriptProblems(): Problem[] {
   ];
   return manifests.flatMap((path) => {
     const scripts = existsSync(path)
-      ? (manifestScriptsSchema.parse(strictJson(path)).scripts ?? {})
+      ? (Schema.decodeUnknownSync(manifestScriptsSchema)(strictJson(path))
+          .scripts ?? {})
       : {};
     const folder = dirname(path);
     let expected: Readonly<Record<string, readonly Invocation[]>> = {};
@@ -865,14 +840,12 @@ function scriptProblems(): Problem[] {
       if (folder === 'packages/storage')
         expected = {
           ...expected,
-          'db:check': [
-            ['drizzle-kit', 'check'],
-            ['node', 'scripts/check-migrations.ts'],
-          ],
+          'db:check': [['node', 'scripts/check-migrations.ts']],
         };
     }
     return Object.entries(expected).flatMap(([name, invocations]) =>
-      scriptInvokes(scripts[name] ?? '', invocations, folder)
+      scriptInvokes(scripts[name] ?? '', invocations, folder) &&
+      (name !== 'check:local' || localCheckMatches(scripts[name] ?? ''))
         ? []
         : [
             problem(
@@ -883,75 +856,77 @@ function scriptProblems(): Problem[] {
     );
   });
 }
-
-const vitestConfigSchema = z.object({
-  default: z.object({
-    test: z.object({
-      allowOnly: z.unknown(),
-      passWithNoTests: z.unknown(),
-      reporters: z.array(z.unknown()),
-      projects: z.array(
-        z.object({
-          test: z.object({
-            name: z.unknown(),
-            expect: z.object({ requireAssertions: z.unknown() }).partial(),
+const vitestConfigSchema = Schema.Struct({
+  default: Schema.Struct({
+    test: Schema.Struct({
+      allowOnly: Schema.Unknown,
+      passWithNoTests: Schema.Unknown,
+      reporters: Schema.Array(Schema.Unknown),
+      projects: Schema.Array(
+        Schema.Struct({
+          test: Schema.Struct({
+            name: Schema.Unknown,
+            expect: Schema.Struct({
+              requireAssertions: Schema.optional(Schema.Unknown),
+            }),
           }),
         }),
       ),
     }),
   }),
 });
-
-const playwrightConfigSchema = z.object({
-  default: z.object({
-    retries: z.unknown(),
-    forbidOnly: z.unknown(),
-    use: z.object({
-      browserName: z.unknown(),
-      headless: z.unknown(),
-      trace: z.unknown(),
+const playwrightConfigSchema = Schema.Struct({
+  default: Schema.Struct({
+    retries: Schema.Unknown,
+    forbidOnly: Schema.Unknown,
+    use: Schema.Struct({
+      browserName: Schema.Unknown,
+      headless: Schema.Unknown,
+      trace: Schema.Unknown,
     }),
   }),
 });
-
-const desktopPlaywrightConfigSchema = z.object({
-  default: z.object({
-    retries: z.unknown(),
-    forbidOnly: z.unknown(),
+const desktopPlaywrightConfigSchema = Schema.Struct({
+  default: Schema.Struct({
+    retries: Schema.Unknown,
+    forbidOnly: Schema.Unknown,
   }),
 });
-
-const browserConfigSchema = z.object({
-  default: z.object({
-    test: z.object({
-      allowOnly: z.unknown(),
-      passWithNoTests: z.unknown(),
-      projects: z.never().optional(),
-      include: z.array(z.string()),
-      retry: z.unknown(),
-      browser: z.object({
-        enabled: z.unknown(),
-        headless: z.unknown(),
-        provider: z.object({ name: z.unknown() }),
-        instances: z.array(z.object({ browser: z.unknown() })),
+const browserConfigSchema = Schema.Struct({
+  default: Schema.Struct({
+    test: Schema.Struct({
+      allowOnly: Schema.Unknown,
+      passWithNoTests: Schema.Unknown,
+      projects: Schema.optional(Schema.Never),
+      include: Schema.Array(Schema.String),
+      retry: Schema.Unknown,
+      browser: Schema.Struct({
+        enabled: Schema.Unknown,
+        headless: Schema.Unknown,
+        provider: Schema.Struct({
+          name: Schema.Unknown,
+        }),
+        instances: Schema.Array(
+          Schema.Struct({
+            browser: Schema.Unknown,
+          }),
+        ),
       }),
     }),
   }),
 });
-
-const cruiserConfigSchema = z.object({
-  default: z.object({
-    forbidden: z.array(
-      z.object({
-        name: z.string(),
-        severity: z.unknown(),
-        from: z.unknown(),
-        to: z.unknown(),
+const cruiserConfigSchema = Schema.Struct({
+  default: Schema.Struct({
+    forbidden: Schema.Array(
+      Schema.Struct({
+        name: Schema.String,
+        severity: Schema.Unknown,
+        from: Schema.Unknown,
+        to: Schema.Unknown,
       }),
     ),
   }),
 });
-
 const cruiserRules = [
   'no-circular-source-imports',
   'web-routes-import-feature-index',
@@ -963,13 +938,11 @@ const cruiserRules = [
   'mobile-shared-imports-no-owner',
   'mobile-nothing-imports-routes',
 ] as const;
-
 const reportsSpecDiscipline = (reporter: unknown): boolean =>
   typeof reporter === 'object' &&
   reporter !== null &&
   'onTestRunEnd' in reporter &&
   typeof reporter.onTestRunEnd === 'function';
-
 function desktopDiscoversTests(): boolean {
   const result = spawnSync(
     resolve('node_modules/.bin/playwright'),
@@ -977,16 +950,22 @@ function desktopDiscoversTests(): boolean {
     { cwd: 'apps/desktop', encoding: 'utf8' },
   );
   if (result.status !== 0) return false;
-  const listed = z
-    .object({
-      config: z.object({ rootDir: z.string() }),
-      suites: z.array(z.object({ file: z.string() })),
-    })
-    .safeParse(JSON.parse(result.stdout));
-  if (!listed.success) return false;
+  const listed = Schema.decodeUnknownResult(
+    Schema.Struct({
+      config: Schema.Struct({
+        rootDir: Schema.String,
+      }),
+      suites: Schema.Array(
+        Schema.Struct({
+          file: Schema.String,
+        }),
+      ),
+    }),
+  )(JSON.parse(result.stdout));
+  if (!Result.isSuccess(listed)) return false;
   const discovered = new Set(
-    listed.data.suites.map((suite) =>
-      resolve(listed.data.config.rootDir, suite.file),
+    listed.success.suites.map((suite) =>
+      resolve(listed.success.config.rootDir, suite.file),
     ),
   );
   const expected = filesUnder('apps/desktop/spec/e2e').filter((path) =>
@@ -998,19 +977,22 @@ function desktopDiscoversTests(): boolean {
     discovered.size === expected.length
   );
 }
-
 async function configModuleProblems(): Promise<Problem[]> {
   const problems: Problem[] = [];
   const load = async (path: string): Promise<unknown> =>
     import(pathToFileURL(resolve(path)).href);
-  const vitest = vitestConfigSchema.safeParse(await load('vitest.config.ts'));
-  const projects = vitest.success ? vitest.data.default.test.projects : [];
+  const vitest = Schema.decodeUnknownResult(vitestConfigSchema)(
+    await load('vitest.config.ts'),
+  );
+  const projects = Result.isSuccess(vitest)
+    ? vitest.success.default.test.projects
+    : [];
   const named = new Set(projects.map((project) => project.test.name));
   if (
-    !vitest.success ||
-    vitest.data.default.test.allowOnly !== false ||
-    vitest.data.default.test.passWithNoTests !== false ||
-    !vitest.data.default.test.reporters.some(reportsSpecDiscipline) ||
+    !Result.isSuccess(vitest) ||
+    vitest.success.default.test.allowOnly !== false ||
+    vitest.success.default.test.passWithNoTests !== false ||
+    !vitest.success.default.test.reporters.some(reportsSpecDiscipline) ||
     projects.some(
       (project) => project.test.expect.requireAssertions !== true,
     ) ||
@@ -1026,10 +1008,12 @@ async function configModuleProblems(): Promise<Problem[]> {
         'vitest.config.ts gives every package a project that requires assertions, allows no .only, fails with no specs and keeps the spec-discipline reporter, because each declared unit and integration test must be discovered and assert its promise.',
       ),
     );
-  const browser = browserConfigSchema.safeParse(
+  const browser = Schema.decodeUnknownResult(browserConfigSchema)(
     await load('apps/web/vitest.config.ts'),
   );
-  const integration = browser.success ? browser.data.default.test : undefined;
+  const integration = Result.isSuccess(browser)
+    ? browser.success.default.test
+    : undefined;
   if (
     integration === undefined ||
     integration.allowOnly !== false ||
@@ -1050,10 +1034,10 @@ async function configModuleProblems(): Promise<Problem[]> {
         'apps/web/vitest.config.ts runs every integration test in spec/integration exactly once, in one project whose files Vitest schedules, with no retry and no .only, in headless Chromium through the Playwright provider, because each declared unit and integration test must be discovered and assert its promise.',
       ),
     );
-  const e2e = playwrightConfigSchema.safeParse(
+  const e2e = Schema.decodeUnknownResult(playwrightConfigSchema)(
     await load('apps/web/playwright.config.ts'),
   );
-  const flows = e2e.success ? e2e.data.default : undefined;
+  const flows = Result.isSuccess(e2e) ? e2e.success.default : undefined;
   if (
     flows === undefined ||
     flows.retries !== 0 ||
@@ -1068,10 +1052,12 @@ async function configModuleProblems(): Promise<Problem[]> {
         'apps/web/playwright.config.ts runs every e2e test once in headless Chromium with a failure trace, because retries and .only can hide regressions.',
       ),
     );
-  const desktop = desktopPlaywrightConfigSchema.safeParse(
+  const desktop = Schema.decodeUnknownResult(desktopPlaywrightConfigSchema)(
     await load('apps/desktop/playwright.config.ts'),
   );
-  const native = desktop.success ? desktop.data.default : undefined;
+  const native = Result.isSuccess(desktop)
+    ? desktop.success.default
+    : undefined;
   if (
     native === undefined ||
     !desktopDiscoversTests() ||
@@ -1084,10 +1070,12 @@ async function configModuleProblems(): Promise<Problem[]> {
         'apps/desktop/playwright.config.ts discovers every desktop e2e test once with no retry and no .only, so misplaced suites cannot silently escape the runner.',
       ),
     );
-  const cruiser = cruiserConfigSchema.safeParse(
+  const cruiser = Schema.decodeUnknownResult(cruiserConfigSchema)(
     await load('architecture/dependency-cruiser.cjs'),
   );
-  const forbidden = cruiser.success ? cruiser.data.default.forbidden : [];
+  const forbidden = Result.isSuccess(cruiser)
+    ? cruiser.success.default.forbidden
+    : [];
   const circular = forbidden.find(
     (rule) => rule.name === 'no-circular-source-imports',
   );
@@ -1109,7 +1097,6 @@ async function configModuleProblems(): Promise<Problem[]> {
     );
   return problems;
 }
-
 async function ruleProblems(): Promise<Problem[]> {
   const problems: Problem[] = [];
   const live = await liveRuleNames('.');
@@ -1117,13 +1104,16 @@ async function ruleProblems(): Promise<Problem[]> {
   for (const file of readdirSync(probeFolder).filter((name) =>
     name.endsWith('.ts'),
   )) {
-    const loaded = probeModuleSchema.parse(
+    const loaded = Schema.decodeUnknownSync(probeModuleSchema)(
       await import(pathToFileURL(join(probeFolder, file)).href),
     );
-    const probe = probeSchema.safeParse(loaded.default);
-    const dishonest = probe.success
-      ? unknownRule(probe.data, live)
-      : probe.error.issues.map((issue) => issue.message).join('; ');
+    const probe = Schema.decodeUnknownResult(probeSchema, {
+      onExcessProperty: 'error',
+      errors: 'all',
+    })(loaded.default);
+    const dishonest = Result.isSuccess(probe)
+      ? unknownRule(probe.success, live)
+      : probe.failure.message;
     if (dishonest !== undefined)
       problems.push(
         problem(
@@ -1134,26 +1124,27 @@ async function ruleProblems(): Promise<Problem[]> {
   }
   return problems;
 }
-
-const diagnosticsSchema = z.object({
-  number_of_files: z.number(),
-  diagnostics: z.array(
-    z.object({
-      message: z.string(),
-      code: z.string().optional(),
-      severity: z.string(),
-      filename: z.string(),
-      labels: z
-        .array(
-          z.object({
-            span: z.object({ line: z.number(), column: z.number() }),
+const diagnosticsSchema = Schema.Struct({
+  number_of_files: Schema.Finite,
+  diagnostics: Schema.Array(
+    Schema.Struct({
+      message: Schema.String,
+      code: Schema.optional(Schema.String),
+      severity: Schema.String,
+      filename: Schema.String,
+      labels: Schema.optional(
+        Schema.Array(
+          Schema.Struct({
+            span: Schema.Struct({
+              line: Schema.Finite,
+              column: Schema.Finite,
+            }),
           }),
-        )
-        .optional(),
+        ),
+      ),
     }),
   ),
 });
-
 type Finding = {
   rule: string;
   file: string;
@@ -1162,14 +1153,12 @@ type Finding = {
   code: string;
   message: string;
 };
-
 function webSources(): string[] {
   return filesUnder('apps/web/src').filter(
     (path) =>
       /\.tsx?$/.test(path) && !path.startsWith('apps/web/src/components/ui/'),
   );
 }
-
 function duplicateFindings(): Finding[] {
   const scope = duplicateScope(
     target === 'web' ? 'web' : 'repository',
@@ -1198,7 +1187,6 @@ function duplicateFindings(): Finding[] {
     })),
   );
 }
-
 async function lint(): Promise<number> {
   const files = roots
     .flatMap(filesUnder)
@@ -1225,12 +1213,14 @@ async function lint(): Promise<number> {
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   );
   if (result.error) throw result.error;
-  const parsed = diagnosticsSchema.safeParse(JSON.parse(result.stdout || '{}'));
-  if (!parsed.success) {
+  const parsed = Schema.decodeUnknownResult(diagnosticsSchema)(
+    JSON.parse(result.stdout || '{}'),
+  );
+  if (!Result.isSuccess(parsed)) {
     process.stderr.write(result.stdout + result.stderr);
     return 1;
   }
-  const linted: Finding[] = parsed.data.diagnostics.map((diagnostic) => ({
+  const linted: Finding[] = parsed.success.diagnostics.map((diagnostic) => ({
     rule: (diagnostic.code ?? '').replace(/^([a-z-]+)\((.+)\)$/, '$1/$2'),
     file: diagnostic.filename,
     line: diagnostic.labels?.[0]?.span.line ?? 0,
@@ -1255,20 +1245,21 @@ async function lint(): Promise<number> {
       `${finding.file}:${finding.line}:${finding.column}: ${finding.code}: ${finding.message}\n`,
     );
   process.stdout.write(`${reported.length} findings.\n`);
-  if (parsed.data.number_of_files !== files.length) {
+  if (parsed.success.number_of_files !== files.length) {
     process.stdout.write(
-      `lint skipped files: oxlint read ${parsed.data.number_of_files} of the ${files.length} files under the lint roots; nothing may hide a file from lint.\n`,
+      `lint skipped files: oxlint read ${parsed.success.number_of_files} of the ${files.length} files under the lint roots; nothing may hide a file from lint.\n`,
     );
     return 1;
   }
   return reported.length > 0 ? 1 : 0;
 }
-
 if (mode === 'format') {
   const result = spawnSync(
     join('node_modules', '.bin', 'oxfmt'),
     ['--check', ...roots, `!${mobileGeneratedTypes}`],
-    { stdio: 'inherit' },
+    {
+      stdio: 'inherit',
+    },
   );
   if (result.error) throw result.error;
   process.exitCode = result.status ?? 1;

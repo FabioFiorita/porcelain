@@ -1,3 +1,4 @@
+import { Schema, Result } from 'effect';
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import {
   desktopActionSchema,
@@ -27,8 +28,10 @@ let updateState: DesktopAppUpdateState = { status: 'idle' };
 ipcRenderer.on(
   'porcelain:app-update-state',
   (_event: IpcRendererEvent, value: unknown) => {
-    const parsed = desktopAppUpdateStateSchema.safeParse(value);
-    if (parsed.success) updateState = parsed.data;
+    const parsed = Schema.decodeUnknownResult(desktopAppUpdateStateSchema)(
+      value,
+    );
+    if (Result.isSuccess(parsed)) updateState = parsed.success;
   },
 );
 const bridge: DesktopBridge = {
@@ -45,7 +48,7 @@ const bridge: DesktopBridge = {
       const value: unknown = await ipcRenderer.invoke(
         'porcelain:credentials-read',
       );
-      return desktopCredentialsSchema.parse(value);
+      return Schema.decodeUnknownSync(desktopCredentialsSchema)(value);
     },
     write: async (value) => {
       if (typeof value !== 'string')
@@ -62,15 +65,17 @@ const bridge: DesktopBridge = {
       const value: unknown = await ipcRenderer.invoke(
         'porcelain:app-update-check',
       );
-      return desktopAppUpdateCheckSchema.parse(value);
+      return Schema.decodeUnknownSync(desktopAppUpdateCheckSchema)(value);
     },
     install: async () => {
       await ipcRenderer.invoke('porcelain:app-update-install');
     },
     onState: (receive) => {
       const listener = (_event: IpcRendererEvent, value: unknown) => {
-        const parsed = desktopAppUpdateStateSchema.safeParse(value);
-        if (parsed.success) receive(parsed.data);
+        const parsed = Schema.decodeUnknownResult(desktopAppUpdateStateSchema)(
+          value,
+        );
+        if (Result.isSuccess(parsed)) receive(parsed.success);
       };
       ipcRenderer.on('porcelain:app-update-state', listener);
       receive(updateState);
@@ -90,8 +95,8 @@ const bridge: DesktopBridge = {
   },
   onAction: (receive) => {
     const listener = (_event: IpcRendererEvent, value: unknown) => {
-      const parsed = desktopActionSchema.safeParse(value);
-      if (parsed.success) receive(parsed.data);
+      const parsed = Schema.decodeUnknownResult(desktopActionSchema)(value);
+      if (Result.isSuccess(parsed)) receive(parsed.success);
     };
     ipcRenderer.on('porcelain:action', listener);
     ipcRenderer.send('porcelain:actions-ready');

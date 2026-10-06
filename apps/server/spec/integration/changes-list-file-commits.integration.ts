@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { listFileCommitsResponseSchema } from '@porcelain/contracts/changes';
 import { expect } from 'vitest';
 import {
@@ -32,7 +33,11 @@ test('the timeline of a file follows it back across its rename, newest first', a
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(listFileCommitsResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(listFileCommitsResponseSchema),
+      ),
+    ),
   );
   const readme = session.fixture.readme.path;
   expect(response.body).toMatchObject({

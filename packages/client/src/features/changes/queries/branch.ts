@@ -1,61 +1,52 @@
-import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
-import { queryKeys } from '../../../shared/api/query-keys.ts';
-import type { ReadBranchDiffsRequest } from '@porcelain/contracts/changes';
-import type { QueryFunctionContext } from '@tanstack/query-core';
-import {
-  type WorktreeConnection,
-  type WorktreeScope,
+import { Effect } from 'effect';
+import { Atom } from 'effect/reactivity';
+import type {
+  RuntimeConnection,
+  WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { changesApi } from '../api.ts';
+import { porcelainClient } from '../../../shared/api/client.ts';
+import { clientRuntime } from '../../../shared/api/runtime.ts';
+import { worktreeRead } from '../../../shared/api/worktree-read.ts';
+import { requestEffect } from '../../../shared/api/effect-client.ts';
+import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 
-export function branchQueryOptions(
-  scope: WorktreeScope,
-  connection: WorktreeConnection,
-  base?: string,
-) {
-  return {
-    queryKey: queryKeys.worktreeSurface(connection, scope, [
-      'branch',
-      base ?? null,
-    ]),
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
-      const connected = connection.request(signal);
-      const result = await changesApi(connection).branch({
-        signal: connected.signal,
-        worktreeId: scope.worktreeId,
-        base,
-      });
-      assertCurrentAnswer(
-        connected.signal,
-        result.worktreeId === scope.worktreeId,
+type Selection = { connection: RuntimeConnection; scope: WorktreeScope };
+export const readBranchChanges = Atom.family(
+  ({ connection, scope, base }: Selection & { base?: string }) =>
+    worktreeRead(
+      connection,
+      scope,
+      ['branch', base ?? null],
+      Effect.gen(function* () {
+        const api = yield* porcelainClient(connection);
+        const answer = yield* requestEffect(
+          api.changes.readBranchChanges({
+            params: { worktreeId: scope.worktreeId },
+            query: { base },
+          }),
+        );
+        yield* currentAnswerEffect(
+          connection.request().signal,
+          answer.worktreeId === scope.worktreeId,
+        );
+        return answer;
+      }),
+      clientRuntime(connection),
+    ),
+);
+export const readBranchBases = Atom.family(({ connection, scope }: Selection) =>
+  worktreeRead(
+    connection,
+    scope,
+    ['branch-bases'],
+    Effect.gen(function* () {
+      const api = yield* porcelainClient(connection);
+      return yield* requestEffect(
+        api.changes.listBranchBases({
+          params: { worktreeId: scope.worktreeId },
+        }),
       );
-      return result;
-    },
-  };
-}
-
-export function branchDiffsQueryOptions(
-  scope: WorktreeScope,
-  connection: WorktreeConnection,
-  input: ReadBranchDiffsRequest,
-) {
-  return {
-    queryKey: queryKeys.worktreeSurface(connection, scope, [
-      'branch-diffs',
-      input,
-    ]),
-    queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
-      const connected = connection.request(signal);
-      const result = await changesApi(connection).branchDiffs({
-        signal: connected.signal,
-        worktreeId: scope.worktreeId,
-        input,
-      });
-      assertCurrentAnswer(connected.signal);
-
-      return result;
-    },
-  };
-}
+    }),
+    clientRuntime(connection),
+  ),
+);

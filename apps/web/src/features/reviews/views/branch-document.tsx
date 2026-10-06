@@ -1,3 +1,5 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Cause, Option } from 'effect';
 import { type ReactNode, Suspense, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,6 +10,8 @@ import {
   branchFilePaths,
   branchName,
   branchRange,
+} from '@porcelain/client/changes/rules';
+import {
   commitEntry,
   useBranchChanges,
   useBranchDiffs,
@@ -23,8 +27,11 @@ import {
   type DiffContent,
   mergeBranchChanges,
   type ReviewScope,
-} from '../rules/review';
-import { branchReviewRange, type ReviewRange } from '../rules/reviewed';
+} from '@porcelain/client/reviews/rules';
+import {
+  branchReviewRange,
+  type ReviewRange,
+} from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { ReadMoreFiles } from './read-more-files';
@@ -59,20 +66,24 @@ function BranchCode({
 }: Props & { path: string | undefined }) {
   const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
-  if (changes.isError)
+  if (AsyncResult.isFailure(changes.result))
     return (
       <div className="flex flex-col items-center p-4">
         <ReviewEmpty
           title="Branch could not be compared"
-          description={branchErrorMessage(changes.error)}
+          description={branchErrorMessage(
+            AsyncResult.isFailure(changes.result)
+              ? Cause.squash(changes.result.cause)
+              : undefined,
+          )}
         />
-        <Button variant="outline" onClick={() => void changes.refetch()}>
+        <Button variant="outline" onClick={changes.refresh}>
           Compare again
         </Button>
       </div>
     );
-  if (changes.isPending || changes.data == null) return <ComparingBranch />;
-  if (changes.data.base == null)
+  if (!AsyncResult.isSuccess(changes.result)) return <ComparingBranch />;
+  if (changes.result.value.base == null)
     return (
       <ReviewEmpty
         title="No default branch"
@@ -85,7 +96,7 @@ function BranchCode({
         scope={scope}
         context={context}
         interaction={interaction}
-        branch={changes.data}
+        branch={changes.result.value}
         path={path}
       />
     </Suspense>
@@ -110,7 +121,9 @@ function BranchMarkedCode({
   scope: ReviewScope;
   context: ConnectionContext;
   interaction: DocumentInteraction;
-  branch: NonNullable<ReturnType<typeof useBranchChanges>['data']>;
+  branch: AsyncResult.AsyncResult.Success<
+    ReturnType<typeof useBranchChanges>['result']
+  >;
   path: string | undefined;
 }) {
   const range = branchReviewRange(branch);
@@ -171,7 +184,9 @@ function BranchDiffs({
   };
 }) {
   const { connection } = context;
-  const overview = useReviewOverview(scope, connection);
+  const overview = Option.getOrUndefined(
+    AsyncResult.value(useReviewOverview(scope, connection)),
+  );
   const [window, setWindow] = useState({
     of: branch.head.oid,
     shown: DIFF_WINDOW_FILES,
@@ -225,7 +240,7 @@ function BranchDiffs({
   const rendered = new Set(entries.map((entry) => entry.path));
   const omitted = reached.filter((item) => !rendered.has(item.path));
   const more = items.length - reached.length;
-  const uncommitted = overview?.changes.changes.length ?? 0;
+  const uncommitted = overview?.changes.length ?? 0;
   const [first] = items;
 
   return (
@@ -269,7 +284,7 @@ function BranchDiffs({
             uncommitted={uncommitted}
             omitted={omitted}
             patchOf={patchOf}
-            failed={diffs.isError}
+            failed={diffs.failed}
             onRetry={diffs.retry}
             control={(item) => control(item, true)}
           />
@@ -277,7 +292,7 @@ function BranchDiffs({
       />
       <ReadMoreFiles
         more={more}
-        pending={diffs.isPending}
+        pending={diffs.pending}
         onReadMore={() =>
           setWindow({
             of: branch.head.oid,

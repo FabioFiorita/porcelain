@@ -1,11 +1,15 @@
-import { reviewedQueryOptions } from '@porcelain/client/reviews';
-import { usePrefetchQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { readReviewedFiles } from '@porcelain/client/reviews';
+import { useAtomMount } from '@effect/atom-react';
+import { useConfirmedRead } from '@/shared/query/confirmed-read';
 import {
   type ChangeList,
   mergeReviewChanges,
   type ReviewScope,
-} from '../rules/review';
-import { type ReviewRange, WORKTREE_RANGE } from '../rules/reviewed';
+} from '@porcelain/client/reviews/rules';
+import {
+  type ReviewRange,
+  WORKTREE_RANGE,
+} from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function useReviewedMarks(
@@ -13,9 +17,9 @@ export function useReviewedMarks(
   context: ConnectionContext,
   range: ReviewRange = WORKTREE_RANGE,
 ) {
-  return useSuspenseQuery(
-    reviewedQueryOptions(scope, context.connection, range),
-  ).data;
+  return useConfirmedRead(
+    readReviewedFiles({ scope, connection: context.connection, range }),
+  ).value;
 }
 
 export function usePrefetchReviewed(
@@ -23,7 +27,9 @@ export function usePrefetchReviewed(
   context: ConnectionContext,
   range: ReviewRange = WORKTREE_RANGE,
 ) {
-  usePrefetchQuery(reviewedQueryOptions(scope, context.connection, range));
+  useAtomMount(
+    readReviewedFiles({ scope, connection: context.connection, range }),
+  );
 }
 
 export function useReviewChangeItems(

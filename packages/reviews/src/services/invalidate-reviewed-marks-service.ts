@@ -1,28 +1,44 @@
-import type {
-  InvalidateReviewedMarksInput,
-  InvalidateReviewedMarksResult,
+import { Effect, Context, Layer } from 'effect';
+import {
+  type InvalidateReviewedMarksInput,
+  type InvalidateReviewedMarksResult,
 } from '../models/invalidate-reviewed-marks.ts';
-import type { ReviewedFileStore } from '../ports/reviewed-file-store.ts';
+import { ReviewedFileStore } from '../ports/reviewed-file-store.ts';
 import { touchedMarks } from '../rules/reviewed-marks.ts';
 
-export class InvalidateReviewedMarksService {
-  private readonly reviewedFiles: ReviewedFileStore;
-
-  constructor(reviewedFiles: ReviewedFileStore) {
-    this.reviewedFiles = reviewedFiles;
+export class InvalidateReviewedMarksService extends Context.Service<
+  InvalidateReviewedMarksService,
+  {
+    readonly execute: (
+      input: InvalidateReviewedMarksInput,
+    ) => Effect.Effect<InvalidateReviewedMarksResult, never>;
   }
+>()('@porcelain/reviews/InvalidateReviewedMarksService') {
+  static readonly layer = Layer.effect(
+    InvalidateReviewedMarksService,
+    Effect.gen(function* () {
+      const reviewedFilesCapability = yield* ReviewedFileStore;
 
-  execute(input: InvalidateReviewedMarksInput): InvalidateReviewedMarksResult {
-    const { worktreeId, paths } = input;
-    if (paths?.length === 0) return { changed: false };
-    const files = touchedMarks(
-      this.reviewedFiles
-        .list({ worktreeId })
-        .filter((mark) => !mark.stale)
-        .map((mark) => mark.path),
-      paths,
-    );
-    this.reviewedFiles.setStale({ worktreeId, paths: files, stale: true });
-    return { changed: files.length > 0 };
-  }
+      return {
+        execute: Effect.fn('InvalidateReviewedMarksService.execute')(function* (
+          input: InvalidateReviewedMarksInput,
+        ): Effect.fn.Return<InvalidateReviewedMarksResult, never> {
+          const { worktreeId, paths } = input;
+          if (paths?.length === 0) return { changed: false };
+          const files = touchedMarks(
+            (yield* reviewedFilesCapability.list({ worktreeId }))
+              .filter((mark) => !mark.stale)
+              .map((mark) => mark.path),
+            paths,
+          );
+          yield* reviewedFilesCapability.setStale({
+            worktreeId,
+            paths: files,
+            stale: true,
+          });
+          return { changed: files.length > 0 };
+        }),
+      };
+    }),
+  );
 }

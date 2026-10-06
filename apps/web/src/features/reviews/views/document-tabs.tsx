@@ -33,7 +33,7 @@ import { ScrollBar } from '@/components/ui/scroll-area';
 import { shortOid } from '@/features/history/index';
 import { cn } from '@/shared/lib/utils';
 import { parseEntry } from '../rules/documents';
-import { basename, type ReviewLayer } from '../rules/review';
+import { basename, type ReviewLayer } from '@porcelain/client/reviews/rules';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { FileTypeIcon } from '@/features/files/index';
 

@@ -1,9 +1,9 @@
+import type { Clock } from 'effect';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import type { CommandRunner } from './command-runner.ts';
 import type { ServicePaths } from './paths.ts';
 import { runtimeEntryPoint } from './persistent-runtime.ts';
 import type { ServiceConfiguration } from './records.ts';
-import type { Clock } from '@porcelain/kernel/ports';
 import type { Limits } from '../config/limits.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
 import { waitForHealthyService } from './service-health.ts';
@@ -19,7 +19,7 @@ export type InstallerContext = {
   nodeExecutable: string;
   searchPath: string;
   ownerProbe: OwnerProbe;
-  clock: Clock;
+  clock: Clock.Clock;
   limits: Limits;
 };
 

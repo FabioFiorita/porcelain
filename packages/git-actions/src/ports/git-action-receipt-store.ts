@@ -1,17 +1,27 @@
-import type { WorktreeKey } from '@porcelain/kernel/models';
-import type {
-  FinishedGitAction,
-  GitActionReceipt,
-  GitActionReceiptKey,
-  GitActionReceiptRemoval,
+import type { Effect } from 'effect';
+import { Context } from 'effect';
+import { type WorktreeKey } from '@porcelain/kernel/models';
+import {
+  type FinishedGitAction,
+  type GitActionReceipt,
+  type GitActionReceiptKey,
+  type GitActionReceiptRemoval,
 } from '../models/git-action-receipt.ts';
 
 export interface GitActionReceiptStore {
-  read(input: GitActionReceiptKey): GitActionReceipt | undefined;
-  insert(input: GitActionReceipt): void;
-  save(input: GitActionReceipt): void;
-  running(): GitActionReceipt[];
-  latestInterrupted(input: WorktreeKey): GitActionReceipt | undefined;
-  finished(): FinishedGitAction[];
-  remove(input: GitActionReceiptRemoval): void;
+  read(input: GitActionReceiptKey): Effect.Effect<GitActionReceipt | undefined>;
+  insert(input: GitActionReceipt): Effect.Effect<void>;
+  claimExecution(input: GitActionReceiptKey): Effect.Effect<boolean>;
+  save(input: GitActionReceipt): Effect.Effect<void>;
+  running(): Effect.Effect<GitActionReceipt[]>;
+  latestInterrupted(
+    input: WorktreeKey,
+  ): Effect.Effect<GitActionReceipt | undefined>;
+  finished(): Effect.Effect<FinishedGitAction[]>;
+  remove(input: GitActionReceiptRemoval): Effect.Effect<void>;
 }
+
+export const GitActionReceiptStore = Context.Service<
+  '@porcelain/git-actions/GitActionReceiptStore',
+  GitActionReceiptStore
+>('@porcelain/git-actions/GitActionReceiptStore');

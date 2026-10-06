@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import {
@@ -111,7 +112,11 @@ test('registering every sample project stays within the register budget', async 
   );
   for (const response of responses)
     expect(response.body).toEqual(
-      expect.schemaMatching(registerProjectResponseSchema),
+      expect.schemaMatching(
+        Schema.toStandardSchemaV1(
+          Schema.toEncoded(registerProjectResponseSchema),
+        ),
+      ),
     );
   const cost = measured(recorder, from);
   expect(cost.requests).toBe(projects.length);
@@ -140,7 +145,11 @@ test('reading the inventory lists every project within its budget', async ({
   );
   for (const response of responses)
     expect(response.body).toEqual(
-      expect.schemaMatching(readInventoryResponseSchema),
+      expect.schemaMatching(
+        Schema.toStandardSchemaV1(
+          Schema.toEncoded(readInventoryResponseSchema),
+        ),
+      ),
     );
   expect(
     responses.map((response) => list(record(response.body).projects).length),
@@ -177,7 +186,9 @@ test("reading a worktree's changes stays within its budget", async ({
   );
   for (const response of responses)
     expect(response.body).toEqual(
-      expect.schemaMatching(readChangesResponseSchema),
+      expect.schemaMatching(
+        Schema.toStandardSchemaV1(Schema.toEncoded(readChangesResponseSchema)),
+      ),
     );
   const cost = measured(recorder, from);
   expect(cost.requests).toBe(ROUTE_BUDGET_REQUESTS);
@@ -206,7 +217,11 @@ test('reading the Git status stays within its budget, counted by the Git trace',
   );
   for (const response of responses)
     expect(response.body).toEqual(
-      expect.schemaMatching(readGitStatusResponseSchema),
+      expect.schemaMatching(
+        Schema.toStandardSchemaV1(
+          Schema.toEncoded(readGitStatusResponseSchema),
+        ),
+      ),
     );
   const cost = measured(recorder, from);
   expect(cost.requests).toBe(ROUTE_BUDGET_REQUESTS);
@@ -244,7 +259,9 @@ test('reading a changed file stays within its budget', async ({
   );
   for (const response of responses)
     expect(response.body).toEqual(
-      expect.schemaMatching(readTextFileResponseSchema),
+      expect.schemaMatching(
+        Schema.toStandardSchemaV1(Schema.toEncoded(readTextFileResponseSchema)),
+      ),
     );
   const cost = measured(recorder, from);
   expect(cost.requests).toBe(ROUTE_BUDGET_REQUESTS);
@@ -284,7 +301,11 @@ test("reading a change's diff stays within its budget", async ({
   );
   for (const response of responses)
     expect(response.body).toEqual(
-      expect.schemaMatching(readChangeDiffsResponseSchema),
+      expect.schemaMatching(
+        Schema.toStandardSchemaV1(
+          Schema.toEncoded(readChangeDiffsResponseSchema),
+        ),
+      ),
     );
   const cost = measured(recorder, from);
   expect(cost.requests).toBe(ROUTE_BUDGET_REQUESTS);
@@ -313,7 +334,9 @@ test('listing the commit history stays within its budget', async ({
   );
   for (const response of responses)
     expect(response.body).toEqual(
-      expect.schemaMatching(listCommitsResponseSchema),
+      expect.schemaMatching(
+        Schema.toStandardSchemaV1(Schema.toEncoded(listCommitsResponseSchema)),
+      ),
     );
   const cost = measured(recorder, from);
   expect(cost.requests).toBe(ROUTE_BUDGET_REQUESTS);
@@ -347,7 +370,11 @@ test("listing a file's commits stays within its budget", async ({
   );
   for (const response of responses)
     expect(response.body).toEqual(
-      expect.schemaMatching(listFileCommitsResponseSchema),
+      expect.schemaMatching(
+        Schema.toStandardSchemaV1(
+          Schema.toEncoded(listFileCommitsResponseSchema),
+        ),
+      ),
     );
   const cost = measured(recorder, from);
   expect(cost.requests).toBe(ROUTE_BUDGET_REQUESTS);
@@ -376,7 +403,11 @@ test('listing every path in a worktree stays within its budget', async ({
   );
   for (const response of responses)
     expect(response.body).toEqual(
-      expect.schemaMatching(listWorktreePathsResponseSchema),
+      expect.schemaMatching(
+        Schema.toStandardSchemaV1(
+          Schema.toEncoded(listWorktreePathsResponseSchema),
+        ),
+      ),
     );
   const cost = measured(recorder, from);
   expect(cost.requests).toBe(ROUTE_BUDGET_REQUESTS);
@@ -411,7 +442,11 @@ test('listing a folder stays within its budget', async ({
   );
   for (const response of responses)
     expect(response.body).toEqual(
-      expect.schemaMatching(listDirectoryResponseSchema),
+      expect.schemaMatching(
+        Schema.toStandardSchemaV1(
+          Schema.toEncoded(listDirectoryResponseSchema),
+        ),
+      ),
     );
   const cost = measured(recorder, from);
   expect(cost.requests).toBe(ROUTE_BUDGET_REQUESTS);
@@ -445,7 +480,11 @@ test('marking files reviewed stays within its budget', async ({
   );
   for (const response of responses)
     expect(response.body).toEqual(
-      expect.schemaMatching(setReviewedFileResponseSchema),
+      expect.schemaMatching(
+        Schema.toStandardSchemaV1(
+          Schema.toEncoded(setReviewedFileResponseSchema),
+        ),
+      ),
     );
   const cost = measured(recorder, from);
   expect(cost.requests).toBe(ROUTE_BUDGET_REQUESTS);
@@ -474,7 +513,11 @@ test('listing reviewed files stays within its budget', async ({
   );
   for (const response of responses)
     expect(response.body).toEqual(
-      expect.schemaMatching(listReviewedFilesResponseSchema),
+      expect.schemaMatching(
+        Schema.toStandardSchemaV1(
+          Schema.toEncoded(listReviewedFilesResponseSchema),
+        ),
+      ),
     );
   const cost = measured(recorder, from);
   expect(cost.requests).toBe(ROUTE_BUDGET_REQUESTS);
@@ -508,7 +551,11 @@ test('unmarking files reviewed stays within its budget', async ({
   );
   for (const response of responses)
     expect(response.body).toEqual(
-      expect.schemaMatching(removeReviewedFileResponseSchema),
+      expect.schemaMatching(
+        Schema.toStandardSchemaV1(
+          Schema.toEncoded(removeReviewedFileResponseSchema),
+        ),
+      ),
     );
   const cost = measured(recorder, from);
   expect(cost.requests).toBe(ROUTE_BUDGET_REQUESTS);
@@ -545,7 +592,11 @@ test('commenting on files stays within its budget', async ({
   );
   for (const response of responses)
     expect(response.body).toEqual(
-      expect.schemaMatching(createCommentThreadResponseSchema),
+      expect.schemaMatching(
+        Schema.toStandardSchemaV1(
+          Schema.toEncoded(createCommentThreadResponseSchema),
+        ),
+      ),
     );
   const cost = measured(recorder, from);
   expect(cost.requests).toBe(ROUTE_BUDGET_REQUESTS);
@@ -574,7 +625,11 @@ test('reading the comments stays within its budget', async ({
   );
   for (const response of responses)
     expect(response.body).toEqual(
-      expect.schemaMatching(listCommentThreadsResponseSchema),
+      expect.schemaMatching(
+        Schema.toStandardSchemaV1(
+          Schema.toEncoded(listCommentThreadsResponseSchema),
+        ),
+      ),
     );
   const cost = measured(recorder, from);
   expect(cost.requests).toBe(ROUTE_BUDGET_REQUESTS);
@@ -608,7 +663,11 @@ test('reading the published review stays within its budget', async ({
   );
   for (const response of responses)
     expect(response.body).toEqual(
-      expect.schemaMatching(readPublishedReviewResponseSchema),
+      expect.schemaMatching(
+        Schema.toStandardSchemaV1(
+          Schema.toEncoded(readPublishedReviewResponseSchema),
+        ),
+      ),
     );
   const cost = measured(recorder, from);
   expect(cost.requests).toBe(ROUTE_BUDGET_REQUESTS);

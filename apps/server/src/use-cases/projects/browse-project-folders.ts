@@ -1,36 +1,51 @@
-import type {
-  BrowseProjectFoldersQuery,
-  BrowseProjectFoldersResponse,
+import { Effect, Context, Layer } from 'effect';
+import {
+  type FolderNotFoundError,
+  type FolderNotReadableError,
+  type UnsupportedFolderNameError,
+} from '@porcelain/projects/errors';
+import {
+  type BrowseProjectFoldersQuery,
+  type BrowseProjectFoldersResponse,
 } from '@porcelain/contracts/projects';
-import type { BrowseProjectFoldersService } from '@porcelain/projects/services';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { BrowseProjectFoldersService } from '@porcelain/projects/services';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class BrowseProjectFoldersUseCase {
-  private readonly browseProjectFolders: BrowseProjectFoldersService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    browseProjectFolders: BrowseProjectFoldersService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.browseProjectFolders = browseProjectFolders;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class BrowseProjectFoldersUseCase extends Context.Service<
+  BrowseProjectFoldersUseCase,
+  {
+    readonly execute: (
+      input: BrowseProjectFoldersQuery,
+    ) => Effect.Effect<
+      BrowseProjectFoldersResponse,
+      FolderNotFoundError | FolderNotReadableError | UnsupportedFolderNameError
+    >;
   }
+>()('@porcelain/server/BrowseProjectFoldersUseCase') {
+  static readonly layer = Layer.effect(
+    BrowseProjectFoldersUseCase,
+    Effect.gen(function* () {
+      const browseProjectFoldersCapability = yield* BrowseProjectFoldersService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
 
-  execute(
-    input: BrowseProjectFoldersQuery,
-    context: OperationContext,
-  ): Promise<BrowseProjectFoldersResponse> {
-    return this.lanes.run(
-      this.laneKeys.filesystem(),
-      'read',
-      ({ signal }) => this.browseProjectFolders.execute(input, signal),
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('BrowseProjectFoldersUseCase.execute')(function* (
+          input: BrowseProjectFoldersQuery,
+        ): Effect.fn.Return<
+          BrowseProjectFoldersResponse,
+          | FolderNotFoundError
+          | FolderNotReadableError
+          | UnsupportedFolderNameError
+        > {
+          return yield* lanesCapability.run(
+            laneKeysCapability.filesystem(),
+            'read',
+            () => browseProjectFoldersCapability.execute(input),
+          );
+        }),
+      };
+    }),
+  );
 }

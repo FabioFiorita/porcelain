@@ -1,23 +1,18 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { SetFilePreferenceRequest } from '@porcelain/contracts/projects';
-import { asMutation } from '@/shared/query/mutation';
+import { useAtom } from '@effect/atom-react';
 import { setFilePreference } from '@porcelain/client/projects';
 import {
   canonicalPreferencePath,
   type SetHiddenInput,
   type SetPinnedInput,
-} from '../rules/file-preferences';
+} from '@porcelain/client/projects/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 function useSetFilePreference(connection: Connection, projectId: string) {
-  const client = useQueryClient();
-  const mutation = asMutation(
-    useMutation({
-      mutationFn: (input: SetFilePreferenceRequest) =>
-        setFilePreference(connection, client, projectId, input),
-    }),
+  const [result, submit] = useAtom(
+    setFilePreference({ connection, projectId }),
+    { mode: 'promise' },
   );
-  return mutation;
+  return { result, submit };
 }
 
 export function useSetHidden(connection: Connection, projectId: string) {

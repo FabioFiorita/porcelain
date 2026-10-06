@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import {
   listAccessResponseSchema,
   redeemPairingResponseSchema,
@@ -42,7 +43,9 @@ test('a native client redeems a pairing code, receives a working credential in t
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(redeemPairingResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(redeemPairingResponseSchema)),
+    ),
   );
   const body = record(response.body);
   expect(body.device).toMatchObject({ label: 'Phone', platform: 'iOS' });
@@ -55,7 +58,11 @@ test('a native client redeems a pairing code, receives a working credential in t
   });
   expect(reading.status).toBe(200);
   const owner = await access(session);
-  expect(owner).toEqual(expect.schemaMatching(listAccessResponseSchema));
+  expect(owner).toEqual(
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(listAccessResponseSchema)),
+    ),
+  );
   expect(owner.grants).toStrictEqual([]);
   expect(
     list(owner.devices).filter(

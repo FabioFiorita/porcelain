@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   BranchBases,
   BranchPatches,
@@ -26,21 +27,27 @@ export class InMemoryBranchRangeReader implements BranchRangeReader {
     this.bases = stored.bases ?? noBases;
   }
 
-  readBranchRange(input: BranchRangeRequest): Promise<BranchRangeLookup> {
-    return Promise.resolve(
-      this.ranges.get(input.base ?? 'default') ?? { kind: 'missing-base' },
-    );
+  readBranchRange(input: BranchRangeRequest): Effect.Effect<BranchRangeLookup> {
+    return Effect.sync(() => {
+      return (
+        this.ranges.get(input.base ?? 'default') ?? { kind: 'missing-base' }
+      );
+    });
   }
 
-  readBranchPatches(input: BranchPatchesRequest): Promise<BranchPatches> {
-    return Promise.resolve(
-      this.patches.get(`${input.baseOid}..${input.headOid}`) ?? {
-        kind: 'missing',
-      },
-    );
+  readBranchPatches(input: BranchPatchesRequest): Effect.Effect<BranchPatches> {
+    return Effect.sync(() => {
+      return (
+        this.patches.get(`${input.baseOid}..${input.headOid}`) ?? {
+          kind: 'missing',
+        }
+      );
+    });
   }
 
-  listBranchBases(): Promise<BranchBases> {
-    return Promise.resolve(this.bases);
+  listBranchBases(): Effect.Effect<BranchBases> {
+    return Effect.sync(() => {
+      return this.bases;
+    });
   }
 }

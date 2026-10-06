@@ -1,41 +1,42 @@
+import { Schema, Result } from 'effect';
 import { isDeepStrictEqual } from 'node:util';
-import { z } from 'zod';
-
-const workflowSchema = z.object({
-  on: z.record(z.string(), z.unknown()),
-  jobs: z.record(
-    z.string(),
-    z.object({
-      strategy: z
-        .object({ matrix: z.unknown(), 'fail-fast': z.unknown().optional() })
-        .optional(),
-      steps: z.array(z.object({ run: z.string().optional() })),
+export const workflowSchema = Schema.Struct({
+  on: Schema.Record(Schema.String, Schema.Unknown),
+  jobs: Schema.Record(
+    Schema.String,
+    Schema.Struct({
+      strategy: Schema.optional(
+        Schema.Struct({
+          matrix: Schema.Unknown,
+          'fail-fast': Schema.optional(Schema.Unknown),
+        }),
+      ),
+      steps: Schema.Array(
+        Schema.Struct({
+          run: Schema.optional(Schema.String),
+        }),
+      ),
     }),
   ),
 });
 const probeRun = /^pnpm probes(?:\s|$)/;
 const shardRun = /^pnpm probes --shard \$\{\{ matrix\.shard \}\}\/([1-9]\d*)$/;
-
 export function manualAuditProblems(
   documents: ReadonlyMap<string, unknown>,
 ): string[] {
   const problems: string[] = [];
   const running = [...documents].flatMap(([path, document]) => {
-    const parsed = workflowSchema.safeParse(document);
-    if (!parsed.success) return [];
-    const workflow = parsed.data;
+    const parsed = Schema.decodeUnknownResult(workflowSchema)(document);
+    if (!Result.isSuccess(parsed)) return [];
+    const workflow = parsed.success;
     const triggers = Object.keys(workflow.on);
-    const weeklySchedule = z
-      .array(
-        z
-          .object({
-            cron: z
-              .string()
-              .regex(/^(?:[0-5]?\d) (?:[01]?\d|2[0-3]) \* \* [0-6]$/),
-          })
-          .strict(),
-      )
-      .length(1);
+    const weeklySchedule = Schema.Tuple([
+      Schema.Struct({
+        cron: Schema.String.check(
+          Schema.isPattern(/^(?:[0-5]?\d) (?:[01]?\d|2[0-3]) \* \* [0-6]$/),
+        ),
+      }),
+    ]);
     const isProbe = path.endsWith('/probes.yml');
     const allowed = isProbe
       ? ['workflow_dispatch', 'schedule']
@@ -45,7 +46,11 @@ export function manualAuditProblems(
       (!triggers.includes('workflow_dispatch') ||
         triggers.some((trigger) => !allowed.includes(trigger)) ||
         (workflow.on.schedule !== undefined &&
-          !weeklySchedule.safeParse(workflow.on.schedule).success))
+          !Result.isSuccess(
+            Schema.decodeUnknownResult(weeklySchedule, {
+              onExcessProperty: 'error',
+            })(workflow.on.schedule),
+          )))
     )
       problems.push(
         `${path}: expensive audits run on explicit workflow_dispatch${isProbe ? ' or one weekly schedule' : ''}, because routine pushes must not run the full audit.`,

@@ -1,4 +1,6 @@
-import { formatDistanceToNowStrict } from 'date-fns';
+import { Cause, Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
+import { relativeTime } from '@/shared/lib/relative-time';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,27 +17,26 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useRevokeAccess, useSetDeviceTrust } from '../commands/share';
 import { usePairedAccess } from '../queries/share';
-import { connectionErrorMessage } from '../rules/connection-error-message';
-import { deviceRouteTitles } from '../rules/share';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
+import { deviceRouteTitles } from '@porcelain/client/access/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function PairedDevices({ connection }: { connection: Connection }) {
   const access = usePairedAccess(connection);
-  const revoke = useRevokeAccess(connection);
-  const trust = useSetDeviceTrust(connection);
-  if (access.isPending) return <Spinner />;
-  if (access.error)
+  const answer = Option.getOrUndefined(AsyncResult.value(access));
+  if (AsyncResult.isFailure(access))
     return (
       <Alert variant="destructive">
         <AlertDescription>
-          {connectionErrorMessage(access.error)}
+          {connectionErrorMessage(Cause.squash(access.cause))}
         </AlertDescription>
       </Alert>
     );
+  if (!answer) return <Spinner />;
   return (
     <div className="flex flex-col gap-2">
       <ItemGroup role="list" aria-label="Paired devices and links">
-        {access.data.devices.map((device) => (
+        {answer.devices.map((device) => (
           <Item
             key={device.id}
             variant="outline"
@@ -54,11 +55,7 @@ export function PairedDevices({ connection }: { connection: Connection }) {
                 </Badge>
               </ItemTitle>
               <ItemDescription>
-                Last seen{' '}
-                {formatDistanceToNowStrict(new Date(device.lastSeenAt), {
-                  addSuffix: true,
-                })}{' '}
-                · {device.platform}
+                Last seen {relativeTime(device.lastSeenAt)} · {device.platform}
               </ItemDescription>
               {device.routeInferred && (
                 <ItemDescription>
@@ -69,30 +66,24 @@ export function PairedDevices({ connection }: { connection: Connection }) {
               )}
             </ItemContent>
             <ItemActions>
-              <Label aria-hidden>Can update</Label>
-              <Switch
-                aria-label={`${device.label} can update Porcelain`}
-                checked={device.trusted}
-                disabled={trust.pendingId === device.id}
-                onCheckedChange={(trusted) =>
-                  trust.onSubmit({ id: device.id, trusted })
-                }
+              <DeviceTrustControl
+                connection={connection}
+                id={device.id}
+                label={device.label}
+                trusted={device.trusted}
               />
               {!device.current && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  aria-label={`Revoke ${device.label}`}
-                  disabled={revoke.pendingId === device.id}
-                  onClick={() => revoke.onSubmit(device.id)}
-                >
-                  Revoke
-                </Button>
+                <RevokeControl
+                  connection={connection}
+                  id={device.id}
+                  label={device.label}
+                  cancelLink={false}
+                />
               )}
             </ItemActions>
           </Item>
         ))}
-        {access.data.grants.map((grant) => (
+        {answer.grants.map((grant) => (
           <Item
             key={grant.id}
             variant="outline"
@@ -111,33 +102,16 @@ export function PairedDevices({ connection }: { connection: Connection }) {
               </ItemDescription>
             </ItemContent>
             <ItemActions>
-              <Button
-                size="sm"
-                variant="outline"
-                aria-label={`Cancel the link for ${grant.label}`}
-                disabled={revoke.pendingId === grant.id}
-                onClick={() => revoke.onSubmit(grant.id)}
-              >
-                Cancel
-              </Button>
+              <RevokeControl
+                connection={connection}
+                id={grant.id}
+                label={grant.label}
+                cancelLink
+              />
             </ItemActions>
           </Item>
         ))}
       </ItemGroup>
-      {trust.error && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            {connectionErrorMessage(trust.error)}
-          </AlertDescription>
-        </Alert>
-      )}
-      {revoke.error && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            {connectionErrorMessage(revoke.error)}
-          </AlertDescription>
-        </Alert>
-      )}
       <p className="text-xs text-muted-foreground">
         Each device has its own credential, which works only through the way in
         it was paired over, so a credential seen on one network cannot be used
@@ -146,5 +120,72 @@ export function PairedDevices({ connection }: { connection: Connection }) {
         alone.
       </p>
     </div>
+  );
+}
+
+function DeviceTrustControl({
+  connection,
+  id,
+  label,
+  trusted,
+}: {
+  connection: Connection;
+  id: string;
+  label: string;
+  trusted: boolean;
+}) {
+  const [trust, setTrusted] = useSetDeviceTrust(connection, id);
+  return (
+    <>
+      <Label aria-hidden>Can update</Label>
+      <Switch
+        aria-label={`${label} can update Porcelain`}
+        checked={trusted}
+        disabled={trust.waiting}
+        onCheckedChange={setTrusted}
+      />
+      {AsyncResult.isFailure(trust) && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {connectionErrorMessage(Cause.squash(trust.cause))}
+          </AlertDescription>
+        </Alert>
+      )}
+    </>
+  );
+}
+function RevokeControl({
+  connection,
+  id,
+  label,
+  cancelLink,
+}: {
+  connection: Connection;
+  id: string;
+  label: string;
+  cancelLink: boolean;
+}) {
+  const [revoke, revokeDevice] = useRevokeAccess(connection, id);
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        aria-label={
+          cancelLink ? `Cancel the link for ${label}` : `Revoke ${label}`
+        }
+        disabled={revoke.waiting}
+        onClick={() => revokeDevice()}
+      >
+        {cancelLink ? 'Cancel' : 'Revoke'}
+      </Button>
+      {AsyncResult.isFailure(revoke) && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {connectionErrorMessage(Cause.squash(revoke.cause))}
+          </AlertDescription>
+        </Alert>
+      )}
+    </>
   );
 }

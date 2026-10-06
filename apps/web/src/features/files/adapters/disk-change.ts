@@ -1,8 +1,9 @@
+import { Effect } from 'effect';
 import { useEffect, useRef } from 'react';
-import type { FileDraft } from '../store';
+import type { FileDraftHandle } from '@porcelain/client/files';
 
 export function useDiskChangeNotice(
-  draft: FileDraft,
+  draft: FileDraftHandle,
   viewer: string,
   fingerprint: string | undefined,
 ) {
@@ -10,7 +11,12 @@ export function useDiskChangeNotice(
   useEffect(() => {
     if (previous.current === fingerprint) return;
     previous.current = fingerprint;
-    draft.noticeDiskChange(viewer, fingerprint);
+    Effect.runFork(draft.noticeDiskChange(viewer, fingerprint));
   }, [draft, viewer, fingerprint]);
-  useEffect(() => () => draft.forgetDiskChange(viewer), [draft, viewer]);
+  useEffect(
+    () => () => {
+      Effect.runFork(draft.forgetDiskChange(viewer));
+    },
+    [draft, viewer],
+  );
 }

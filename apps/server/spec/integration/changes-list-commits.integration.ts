@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { listCommitsResponseSchema } from '@porcelain/contracts/changes';
 import { expect } from 'vitest';
 import {
@@ -41,7 +42,9 @@ test('the first page of history snapshots the head and returns the newest commit
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(listCommitsResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(listCommitsResponseSchema)),
+    ),
   );
   expect(response.body).toStrictEqual({
     snapshot: {

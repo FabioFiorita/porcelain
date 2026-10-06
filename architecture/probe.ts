@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { z } from 'zod';
+import { Schema } from 'effect';
 import {
   archRuleFamilies,
   archRuleFamily,
@@ -9,41 +9,27 @@ import {
   styleRules,
 } from './policy.ts';
 
-const repositoryPath = z
-  .string()
-  .min(1)
-  .refine(
+const repositoryPath = Schema.NonEmptyString.check(
+  Schema.makeFilter(
     (path) => !isAbsolute(path) && !path.split('/').includes('..'),
-    'a probe edits a path inside the repository',
-  );
+    { expected: 'a probe edits a path inside the repository' },
+  ),
+);
 
-const probeEditSchema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal('create'),
+const probeEditSchema = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literals(['create', 'append', 'prepend']),
     path: repositoryPath,
-    content: z.string(),
+    content: Schema.String,
   }),
-  z.strictObject({
-    kind: z.literal('append'),
+  Schema.Struct({
+    kind: Schema.Literal('replace'),
     path: repositoryPath,
-    content: z.string(),
+    old: Schema.NonEmptyString,
+    new: Schema.String,
+    all: Schema.optional(Schema.Literal(true)),
   }),
-  z.strictObject({
-    kind: z.literal('prepend'),
-    path: repositoryPath,
-    content: z.string(),
-  }),
-  z.strictObject({
-    kind: z.literal('replace'),
-    path: repositoryPath,
-    old: z.string().min(1),
-    new: z.string(),
-    all: z.literal(true).optional(),
-  }),
-  z.strictObject({
-    kind: z.literal('delete'),
-    path: repositoryPath,
-  }),
+  Schema.Struct({ kind: Schema.Literal('delete'), path: repositoryPath }),
 ]);
 
 export const probeGates = [
@@ -79,8 +65,9 @@ export const ruleShapes: Readonly<
     shape: '<arch rule>: as arch:check prints its count line',
   },
   typecheck: {
-    pattern: /^error TS\d{4}$/,
-    shape: 'error TS<code>, as tsc prints a diagnostic',
+    pattern: /^error TS(?:\d{4}|377\d{3})$/,
+    shape:
+      'error TS<code>, as TypeScript or native Effect diagnostics print a diagnostic',
   },
   test: {
     pattern:
@@ -116,39 +103,36 @@ export const ruleShapes: Readonly<
   },
 };
 
-export const probeSchema = z
-  .strictObject({
-    decision: z.string().min(1),
-    plants: z.string().min(1),
-    gate: z.enum(probeGates),
-    rule: z.string().min(1),
-    feature: z.string().min(1).optional(),
-    edits: z.array(probeEditSchema).min(1),
-  })
-  .superRefine((probe, context) => {
+export const probeSchema = Schema.Struct({
+  decision: Schema.NonEmptyString,
+  plants: Schema.NonEmptyString,
+  gate: Schema.Literals(probeGates),
+  rule: Schema.NonEmptyString,
+  feature: Schema.optional(Schema.NonEmptyString),
+  edits: Schema.NonEmptyArray(probeEditSchema),
+}).check(
+  Schema.makeFilter((probe) => {
+    const issues: Schema.FilterIssue[] = [];
     if (
       probe.feature !== undefined &&
-      probe.gate !== 'integration' &&
-      probe.gate !== 'web-verify'
+      !['integration', 'web-verify'].includes(probe.gate)
     )
-      context.addIssue({
-        code: 'custom',
+      issues.push({
         path: ['feature'],
-        message:
-          'only an integration or web-verify probe names the test file its runner runs',
+        issue: 'Only integration and web-verify probes select a test file.',
       });
     const { pattern, shape } = ruleShapes[probe.gate];
     if (!pattern.test(probe.rule))
-      context.addIssue({
-        code: 'custom',
+      issues.push({
         path: ['rule'],
-        message: `its rule is not what ${probe.gate} prints: ${shape}`,
+        issue: `its rule is not what ${probe.gate} prints: ${shape}`,
       });
-  });
+    return issues;
+  }),
+);
 
-export type Probe = z.input<typeof probeSchema>;
-export type ProbeEdit = z.output<typeof probeEditSchema>;
-
+export type Probe = typeof probeSchema.Encoded;
+export type ProbeEdit = typeof probeEditSchema.Type;
 export type RuleFamily =
   | 'porcelain'
   | 'typescript'
@@ -157,20 +141,22 @@ export type RuleFamily =
   | 'arch';
 export type RuleNames = Readonly<Record<RuleFamily, readonly string[]>>;
 
-const pluginSchema = z.object({
-  default: z.object({ rules: z.record(z.string(), z.unknown()) }),
+export const lintPluginSchema = Schema.Struct({
+  default: Schema.Struct({
+    rules: Schema.Record(Schema.String, Schema.Unknown),
+  }),
 });
-const lintRulesSchema = z.object({
-  rules: z.record(z.string(), z.unknown()),
+const lintRulesSchema = Schema.Struct({
+  rules: Schema.Record(Schema.String, Schema.Unknown),
 });
 
 export async function liveRuleNames(root: string): Promise<RuleNames> {
-  const plugin = pluginSchema.parse(
+  const plugin = Schema.decodeUnknownSync(lintPluginSchema)(
     await import(
       pathToFileURL(join(root, 'architecture', 'oxlint-plugin.mjs')).href
     ),
   );
-  const lint = lintRulesSchema.parse(
+  const lint = Schema.decodeUnknownSync(lintRulesSchema)(
     JSON.parse(readFileSync(join(root, '.oxlintrc.json'), 'utf8')),
   );
   const sorted = (names: readonly string[]) =>

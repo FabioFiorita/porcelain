@@ -1,8 +1,17 @@
-import type {
-  DirectoryRead,
-  DirectoryReadInput,
+import { type WorktreeRead } from '@porcelain/effects/worktree';
+import { type Effect, Context } from 'effect';
+import {
+  type DirectoryRead,
+  type DirectoryReadInput,
 } from '../models/directory-read.ts';
 
 export interface DirectoryReader {
-  list(input: DirectoryReadInput, signal?: AbortSignal): Promise<DirectoryRead>;
+  list(
+    input: DirectoryReadInput,
+  ): Effect.Effect<DirectoryRead, never, WorktreeRead>;
 }
+
+export const DirectoryReader = Context.Service<
+  '@porcelain/files/DirectoryReader',
+  DirectoryReader
+>('@porcelain/files/DirectoryReader');

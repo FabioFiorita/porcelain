@@ -1,7 +1,16 @@
-import { type FSWatcher, watch as watchDirectory } from 'node:fs';
-import { stat } from 'node:fs/promises';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { watch as watchDirectory } from 'node:fs';
 import * as parcelWatcher from '@parcel/watcher';
+import {
+  Effect,
+  Exit,
+  FileSystem,
+  Layer,
+  Path,
+  RcMap,
+  Scope,
+  Semaphore,
+} from 'effect';
+import { nativeOperation } from '@porcelain/effects';
 import type { Limits } from '../../config/limits.ts';
 import { listIgnoredPaths } from '@porcelain/git/inspection';
 import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
@@ -9,59 +18,25 @@ import type {
   ListableProject,
   ListedWorktree,
 } from '@porcelain/projects/models';
-import type {
-  FileWatch,
-  FileWatchRequest,
-  IgnoreRulesRefresh,
-  RepositoryWatch,
-  RepositoryWatchRequest,
-  WatchedProject,
-  WatchedProjectLookup,
-  WatchedWorktree,
-  WatchedWorktreeLookup,
+import {
   WorktreeWatcher,
+  type FileWatch,
+  type IgnoreRulesRefresh,
 } from '../../ports/worktree-watcher.ts';
 
-type Changed = (paths: readonly string[]) => void;
-
-type Subscription = parcelWatcher.AsyncSubscription;
-
+type Subscription = { readonly unsubscribe: Effect.Effect<void> };
 type FileWatchState = {
   root: string;
   ignored: string[];
   explicit: string[];
   subscription: Subscription | undefined;
-  supplements: Map<string, FSWatcher>;
-  changed: Changed;
+  supplements: Map<string, Scope.Closeable>;
+  changed: (paths: readonly string[]) => void;
   closed: boolean;
 };
 
-const withoutUnreadableStat = () => undefined;
-const settledEitherWay = () => undefined;
-
-const unpublishedRepositoryPaths = [
-  'objects',
-  join('lfs', 'objects'),
-  'hooks',
-  'logs',
-  'worktrees/*/logs/**',
-  'fsmonitor--daemon',
-  'fsmonitor--daemon.ipc',
-];
-
 function backend(): parcelWatcher.Options {
   return process.platform === 'linux' ? { backend: 'inotify' } : {};
-}
-
-function watchIfPossible(
-  directory: string,
-  listener: (event: string, filename: string | Buffer | null) => void,
-): FSWatcher | undefined {
-  try {
-    return watchDirectory(directory, listener);
-  } catch {
-    return undefined;
-  }
 }
 
 function sameList(left: readonly string[], right: readonly string[]): boolean {
@@ -71,226 +46,286 @@ function sameList(left: readonly string[], right: readonly string[]): boolean {
   );
 }
 
-export class ParcelWorktreeWatcher implements WorktreeWatcher {
-  private readonly worktrees: WorktreeAccessReader<ListedWorktree>;
-  private readonly projects: () => readonly ListableProject[];
-  private readonly gitDirectory: string;
-  private readonly isTemporaryWrite: (path: string) => boolean;
-  private readonly limits: Limits['git'];
-  private readonly turns = new Map<string, Promise<void>>();
-
-  constructor(options: {
-    worktrees: WorktreeAccessReader<ListedWorktree>;
-    projects: () => readonly ListableProject[];
-    gitDirectory: string;
-    isTemporaryWrite: (path: string) => boolean;
-    limits: Limits['git'];
-  }) {
-    this.worktrees = options.worktrees;
-    this.projects = options.projects;
-    this.gitDirectory = options.gitDirectory;
-    this.isTemporaryWrite = options.isTemporaryWrite;
-    this.limits = options.limits;
-  }
-
-  async findWorktree(
-    input: WatchedWorktreeLookup,
-  ): Promise<WatchedWorktree | undefined> {
-    const check = await this.worktrees.known({
-      worktreeId: input.worktreeId,
-    });
-    if (check.kind !== 'found') return undefined;
-    return {
-      projectId: check.worktree.projectId,
-      worktreeId: check.worktree.id,
-      root: check.worktree.path,
-      available: check.worktree.available,
-    };
-  }
-
-  findProject(input: WatchedProjectLookup): WatchedProject | undefined {
-    const project = this.projects().find(
-      (entry) => entry.id === input.projectId,
-    );
-    return project
-      ? { projectId: project.id, commonDirectory: project.commonDirectory }
-      : undefined;
-  }
-
-  async watchFiles(input: FileWatchRequest): Promise<FileWatch> {
-    const { worktree, changed } = input;
-    const state: FileWatchState = {
-      root: worktree.root,
-      ignored: await listIgnoredPaths(worktree.root, this.limits),
-      explicit: [],
-      subscription: undefined,
-      supplements: new Map(),
-      changed,
-      closed: false,
-    };
-    state.subscription = await this.subscribeFiles(state, state.ignored);
-    return {
-      follow: (paths) => this.follow(state, paths),
-      refreshIgnoreRules: () => this.refreshIgnoreRules(state),
-      close: () => this.closeFiles(state),
-    };
-  }
-
-  async watchRepository(
-    input: RepositoryWatchRequest,
-  ): Promise<RepositoryWatch> {
-    const { project, changed } = input;
-    const subscription = await this.subscribe(
-      project.commonDirectory,
-      (error, events) => {
-        if (!error && events.length > 0) changed();
-      },
-      {
-        ...backend(),
-        ignore: unpublishedRepositoryPaths.map((path) =>
-          path.includes('*') ? path : join(project.commonDirectory, path),
-        ),
-      },
-    );
-    return { close: () => subscription.unsubscribe() };
-  }
-
-  private async subscribe(
-    directory: string,
-    changed: parcelWatcher.SubscribeCallback,
-    options: parcelWatcher.Options,
-  ): Promise<Subscription> {
-    const subscription = await this.inTurn(directory, () =>
-      parcelWatcher.subscribe(directory, changed, options),
-    );
-    return {
-      unsubscribe: () =>
-        this.inTurn(directory, () => subscription.unsubscribe()),
-    };
-  }
-
-  private inTurn<T>(directory: string, step: () => Promise<T>): Promise<T> {
-    const result = (this.turns.get(directory) ?? Promise.resolve()).then(step);
-    const turn = result.then(settledEitherWay, settledEitherWay);
-    this.turns.set(directory, turn);
-    turn.then(() => {
-      if (this.turns.get(directory) === turn) this.turns.delete(directory);
-    }, settledEitherWay);
-    return result;
-  }
-
-  private subscribeFiles(
-    state: FileWatchState,
-    ignored: readonly string[],
-  ): Promise<Subscription> {
-    return this.subscribe(
-      state.root,
-      (error, events) => {
-        if (error) return state.changed([]);
-        state.changed(
-          events.flatMap((event) => {
-            const path = relative(state.root, event.path);
-            if (path === '' || path.startsWith(`..${sep}`) || path === '..')
-              return [];
-            const reported = path.split(sep).join('/');
-            return this.isTemporaryWrite(reported) ? [] : [reported];
-          }),
+export const parcelWorktreeWatcherLayer = (options: {
+  worktrees: WorktreeAccessReader<ListedWorktree>;
+  projects: () => readonly ListableProject[];
+  gitDirectory: string;
+  isTemporaryWrite: (path: string) => boolean;
+  limits: Limits['git'];
+}) =>
+  Layer.effect(
+    WorktreeWatcher,
+    Effect.gen(function* () {
+      const fsCapability = yield* FileSystem.FileSystem;
+      const pathCapability = yield* Path.Path;
+      const turns = yield* RcMap.make({
+        lookup: (_directory: string) => Semaphore.make(1),
+        idleTimeToLive: 0,
+      });
+      const inTurn = <A>(directory: string, work: Effect.Effect<A>) =>
+        Effect.scoped(
+          Effect.flatMap(RcMap.get(turns, directory), (gate) =>
+            gate.withPermit(Effect.uninterruptible(work)),
+          ),
         );
-      },
-      {
-        ...backend(),
-        ignore: [
-          join(state.root, this.gitDirectory),
-          ...ignored.map((path) => join(state.root, path)),
-        ],
-      },
-    );
-  }
-
-  private async follow(
-    state: FileWatchState,
-    paths: readonly string[],
-  ): Promise<void> {
-    state.explicit = [...paths];
-    await this.refreshSupplements(state);
-  }
-
-  private async refreshSupplements(state: FileWatchState): Promise<void> {
-    const ignored = state.explicit.filter((path) =>
-      state.ignored.some(
-        (root) => path === root || path.startsWith(`${root}/`),
-      ),
-    );
-    const directories = new Set<string>();
-    for (const path of ignored) {
-      const absolute = resolve(state.root, path);
-      if (
-        absolute !== state.root &&
-        !absolute.startsWith(`${resolve(state.root)}${sep}`)
-      )
-        continue;
-      const info = await stat(absolute).catch(withoutUnreadableStat);
-      directories.add(info?.isDirectory() ? absolute : dirname(absolute));
-    }
-    if (state.closed) return;
-    for (const [directory, watcher] of state.supplements) {
-      if (directories.has(directory)) continue;
-      watcher.close();
-      state.supplements.delete(directory);
-    }
-    for (const directory of directories)
-      if (!state.supplements.has(directory))
-        this.superviseDirectory(state, directory);
-  }
-
-  private superviseDirectory(state: FileWatchState, directory: string): void {
-    const watcher = watchIfPossible(directory, (event, filename) => {
-      if (event !== 'change' && event !== 'rename') return;
-      const absolute = filename
-        ? join(directory, filename.toString())
-        : directory;
-      state.changed([relative(state.root, absolute).split(sep).join('/')]);
-    });
-    if (!watcher) return;
-    watcher.on('error', () => {
-      watcher.close();
-      state.supplements.delete(directory);
-    });
-    state.supplements.set(directory, watcher);
-  }
-
-  private async refreshIgnoreRules(
-    state: FileWatchState,
-  ): Promise<IgnoreRulesRefresh> {
-    if (state.closed) return 'unchanged';
-    const ignored = await listIgnoredPaths(state.root, this.limits);
-    if (sameList(ignored, state.ignored)) return 'unchanged';
-    await state.subscription?.unsubscribe();
-    state.subscription = undefined;
-    let subscription: Subscription;
-    try {
-      subscription = await this.subscribeFiles(state, ignored);
-    } catch (error) {
-      const restored = await this.subscribeFiles(state, state.ignored);
-      if (state.closed) await restored.unsubscribe();
-      else state.subscription = restored;
-      throw error;
-    }
-    if (state.closed) {
-      await subscription.unsubscribe();
-      return 'unchanged';
-    }
-    state.subscription = subscription;
-    state.ignored = [...ignored];
-    await this.refreshSupplements(state);
-    return 'changed';
-  }
-
-  private async closeFiles(state: FileWatchState): Promise<void> {
-    state.closed = true;
-    for (const watcher of state.supplements.values()) watcher.close();
-    state.supplements.clear();
-    await state.subscription?.unsubscribe();
-    state.subscription = undefined;
-  }
-}
+      const subscribe = Effect.fn('ParcelWorktreeWatcher.subscribe')(function* (
+        directory: string,
+        changed: parcelWatcher.SubscribeCallback,
+        settings: parcelWatcher.Options,
+      ) {
+        const subscription = yield* inTurn(
+          directory,
+          nativeOperation(() =>
+            parcelWatcher.subscribe(directory, changed, settings),
+          ),
+        );
+        return {
+          unsubscribe: inTurn(
+            directory,
+            nativeOperation(() => subscription.unsubscribe()),
+          ),
+        };
+      });
+      const subscribeFiles = (
+        state: FileWatchState,
+        ignored: readonly string[],
+      ) =>
+        subscribe(
+          state.root,
+          (error, events) => {
+            if (state.closed) return;
+            if (error) return state.changed([]);
+            state.changed(
+              events.flatMap((event) => {
+                const path = pathCapability.relative(state.root, event.path);
+                if (
+                  path === '' ||
+                  path.startsWith(`..${pathCapability.sep}`) ||
+                  path === '..'
+                )
+                  return [];
+                const reported = path.split(pathCapability.sep).join('/');
+                return options.isTemporaryWrite(reported) ? [] : [reported];
+              }),
+            );
+          },
+          {
+            ...backend(),
+            ignore: [
+              pathCapability.join(state.root, options.gitDirectory),
+              ...ignored.map((path) => pathCapability.join(state.root, path)),
+            ],
+          },
+        );
+      const refreshSupplements = Effect.fn(
+        'ParcelWorktreeWatcher.refreshSupplements',
+      )(function* (state: FileWatchState, scope: Scope.Scope) {
+        const ignored = state.explicit.filter((path) =>
+          state.ignored.some(
+            (root) => path === root || path.startsWith(`${root}/`),
+          ),
+        );
+        const directories = new Set<string>();
+        for (const path of ignored) {
+          const absolute = pathCapability.resolve(state.root, path);
+          if (
+            absolute !== state.root &&
+            !absolute.startsWith(
+              `${pathCapability.resolve(state.root)}${pathCapability.sep}`,
+            )
+          )
+            continue;
+          const info = yield* fsCapability
+            .stat(absolute)
+            .pipe(Effect.catch(() => Effect.succeed(undefined)));
+          directories.add(
+            info?.type === 'Directory'
+              ? absolute
+              : pathCapability.dirname(absolute),
+          );
+        }
+        if (state.closed) return;
+        for (const [directory, supplement] of state.supplements) {
+          if (directories.has(directory)) continue;
+          yield* Scope.close(supplement, Exit.void);
+          state.supplements.delete(directory);
+        }
+        for (const directory of directories) {
+          if (state.supplements.has(directory)) continue;
+          const supplement = yield* Scope.fork(scope);
+          state.supplements.set(directory, supplement);
+          const watched = yield* Effect.acquireRelease(
+            Effect.sync(() => {
+              const watcher = watchDirectory(directory, (event, filename) => {
+                if (state.closed || (event !== 'change' && event !== 'rename'))
+                  return;
+                const absolute = filename
+                  ? pathCapability.resolve(directory, filename.toString())
+                  : directory;
+                state.changed([
+                  pathCapability
+                    .relative(state.root, absolute)
+                    .split(pathCapability.sep)
+                    .join('/'),
+                ]);
+              });
+              watcher.on('error', () => {
+                watcher.close();
+                if (state.supplements.get(directory) === supplement)
+                  state.supplements.delete(directory);
+              });
+              return watcher;
+            }),
+            (watcher) => Effect.sync(() => watcher.close()),
+          ).pipe(
+            Effect.provideService(Scope.Scope, supplement),
+            Effect.catchDefect(() => Effect.succeed(undefined)),
+          );
+          if (!watched) {
+            state.supplements.delete(directory);
+            yield* Scope.close(supplement, Exit.void);
+          }
+        }
+      });
+      const refreshIgnoreRules = Effect.fn(
+        'ParcelWorktreeWatcher.refreshIgnoreRules',
+      )(function* (
+        state: FileWatchState,
+        scope: Scope.Scope,
+      ): Effect.fn.Return<IgnoreRulesRefresh> {
+        if (state.closed) return 'unchanged';
+        const ignored = yield* nativeOperation((signal) =>
+          listIgnoredPaths(state.root, options.limits, signal),
+        );
+        if (sameList(ignored, state.ignored)) return 'unchanged';
+        if (state.subscription) yield* state.subscription.unsubscribe;
+        state.subscription = undefined;
+        const opened = yield* Effect.exit(subscribeFiles(state, ignored));
+        if (Exit.isFailure(opened)) {
+          const restored = yield* subscribeFiles(state, state.ignored);
+          if (state.closed) yield* restored.unsubscribe;
+          else state.subscription = restored;
+          return yield* Effect.failCause(opened.cause);
+        }
+        if (state.closed) {
+          yield* opened.value.unsubscribe;
+          return 'unchanged';
+        }
+        state.subscription = opened.value;
+        state.ignored = [...ignored];
+        yield* refreshSupplements(state, scope);
+        return 'changed';
+      });
+      return {
+        findWorktree: Effect.fn('ParcelWorktreeWatcher.findWorktree')(
+          function* (input) {
+            const check = yield* nativeOperation((signal) =>
+              options.worktrees.known({ worktreeId: input.worktreeId }, signal),
+            );
+            return check.kind === 'found'
+              ? {
+                  projectId: check.worktree.projectId,
+                  worktreeId: check.worktree.id,
+                  root: check.worktree.path,
+                  available: check.worktree.available,
+                }
+              : undefined;
+          },
+        ),
+        findProject: Effect.fn('ParcelWorktreeWatcher.findProject')((input) =>
+          Effect.sync(() => {
+            const project = options
+              .projects()
+              .find((entry) => entry.id === input.projectId);
+            return project
+              ? {
+                  projectId: project.id,
+                  commonDirectory: project.commonDirectory,
+                }
+              : undefined;
+          }),
+        ),
+        watchFiles: Effect.fn('ParcelWorktreeWatcher.watchFiles')(
+          function* (input) {
+            const scope = yield* Effect.scope;
+            const state: FileWatchState = {
+              root: input.worktree.root,
+              ignored: yield* nativeOperation((signal) =>
+                listIgnoredPaths(input.worktree.root, options.limits, signal),
+              ),
+              explicit: [],
+              subscription: undefined,
+              supplements: new Map(),
+              changed: input.changed,
+              closed: false,
+            };
+            yield* Effect.acquireRelease(
+              Effect.uninterruptible(
+                Effect.gen(function* () {
+                  state.subscription = yield* subscribeFiles(
+                    state,
+                    state.ignored,
+                  );
+                  return state;
+                }),
+              ),
+              (current) =>
+                Effect.gen(function* () {
+                  current.closed = true;
+                  for (const supplement of current.supplements.values())
+                    yield* Scope.close(supplement, Exit.void);
+                  current.supplements.clear();
+                  if (current.subscription)
+                    yield* current.subscription.unsubscribe;
+                  current.subscription = undefined;
+                }),
+            );
+            return {
+              follow: (paths) =>
+                Effect.uninterruptible(
+                  Effect.gen(function* () {
+                    state.explicit = [...paths];
+                    yield* refreshSupplements(state, scope);
+                  }),
+                ),
+              refreshIgnoreRules: () =>
+                Effect.uninterruptible(refreshIgnoreRules(state, scope)),
+            } satisfies FileWatch;
+          },
+        ),
+        watchRepository: Effect.fn('ParcelWorktreeWatcher.watchRepository')(
+          function* (input) {
+            const unpublished = [
+              'objects',
+              pathCapability.join('lfs', 'objects'),
+              'hooks',
+              'logs',
+              'worktrees/*/logs/**',
+              'fsmonitor--daemon',
+              'fsmonitor--daemon.ipc',
+            ];
+            yield* Effect.acquireRelease(
+              subscribe(
+                input.project.commonDirectory,
+                (error, events) => {
+                  if (!error && events.length > 0) input.changed();
+                },
+                {
+                  ...backend(),
+                  ignore: unpublished.map((path) =>
+                    path.includes('*')
+                      ? path
+                      : pathCapability.join(
+                          input.project.commonDirectory,
+                          path,
+                        ),
+                  ),
+                },
+              ),
+              (subscription) => subscription.unsubscribe,
+            );
+          },
+        ),
+      } satisfies WorktreeWatcher;
+    }),
+  );

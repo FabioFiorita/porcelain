@@ -1,5 +1,5 @@
-import { InvalidWorktreeInventoryError } from '../errors/invalid-worktree-inventory-error.ts';
-import { UnsupportedRepositoryError } from '../errors/unsupported-repository-error.ts';
+import { InvalidWorktreeInventoryError } from '../../shared/errors/invalid-worktree-inventory-error.ts';
+import { UnsupportedRepositoryError } from '../../shared/errors/unsupported-repository-error.ts';
 
 type WorktreeRecord = { path: string; branch: string | null };
 

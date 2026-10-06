@@ -1,8 +1,9 @@
+import { Effect } from 'effect';
 import type { CatalogSnapshot } from '@porcelain/projects/models';
 import type { WorktreeCatalogStore } from '@porcelain/projects/ports';
-import type { JobWork } from '../../src/ports/job-work.ts';
+import type { JobRunner } from '../../src/ports/job-runner.ts';
 
-export class ScriptedInventoryRefresh implements JobWork {
+export class ScriptedInventoryRefresh implements JobRunner {
   private readonly catalog: WorktreeCatalogStore;
   private readonly refreshed: CatalogSnapshot;
 
@@ -11,7 +12,9 @@ export class ScriptedInventoryRefresh implements JobWork {
     this.refreshed = refreshed;
   }
 
-  async execute(): Promise<void> {
-    this.catalog.save(this.refreshed);
+  execute(): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.catalog.save(this.refreshed);
+    });
   }
 }

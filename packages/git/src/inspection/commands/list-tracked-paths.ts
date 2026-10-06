@@ -1,4 +1,4 @@
-import { UnsupportedPathEncodingError } from '../errors/unsupported-path-encoding-error.ts';
+import { UnsupportedPathEncodingError } from '../../shared/errors/unsupported-path-encoding-error.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { runInspection } from './run-inspection.ts';
 

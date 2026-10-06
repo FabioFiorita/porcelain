@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { listFilePreferencesResponseSchema } from '@porcelain/contracts/projects';
 import { expect } from 'vitest';
 import { apiError, invalidRequest, UNKNOWN_UUID } from '../kit/answers.ts';
@@ -17,7 +18,11 @@ test('a project starts with no file preferences', async ({ session }) => {
   expect(response.status).toBe(200);
   expect(response.body).toStrictEqual({ preferences: [] });
   expect(response.body).toEqual(
-    expect.schemaMatching(listFilePreferencesResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(listFilePreferencesResponseSchema),
+      ),
+    ),
   );
 });
 

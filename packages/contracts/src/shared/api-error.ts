@@ -1,22 +1,24 @@
-import { z } from 'zod';
+import { Schema } from 'effect';
 import { ERROR_STATUS_MAX, ERROR_STATUS_MIN } from './limits.ts';
 
-const apiErrorCodeSchema = z.enum([
+const apiErrorCodeSchema = Schema.Literals([
   'content_changed',
   'file_too_large',
   'unsupported_text',
   'worktree_changed',
 ]);
 
-export const apiErrorSchema = z.object({
-  statusCode: z.number().int().min(ERROR_STATUS_MIN).max(ERROR_STATUS_MAX),
-  error: z.string(),
-  message: z.string(),
-  code: apiErrorCodeSchema.optional(),
+export const apiErrorSchema = Schema.Struct({
+  statusCode: Schema.Number.check(Schema.isInt())
+    .check(Schema.isGreaterThanOrEqualTo(ERROR_STATUS_MIN))
+    .check(Schema.isLessThanOrEqualTo(ERROR_STATUS_MAX)),
+  error: Schema.String,
+  message: Schema.String,
+  code: Schema.optional(apiErrorCodeSchema),
 });
 
-export type ApiErrorCode = z.output<typeof apiErrorCodeSchema>;
-export type ApiError = z.output<typeof apiErrorSchema>;
+export type ApiErrorCode = typeof apiErrorCodeSchema.Type;
+export type ApiError = typeof apiErrorSchema.Type;
 
 export const API_ERROR_STATUS: Readonly<Record<ApiErrorCode, number>> = {
   content_changed: 409,

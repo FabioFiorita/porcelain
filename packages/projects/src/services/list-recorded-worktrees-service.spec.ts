@@ -1,5 +1,10 @@
+import {
+  WorktreePresenceStore,
+  InventoryStore,
+} from '@porcelain/projects/ports';
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import type { RegisteredProject } from '@porcelain/projects/models';
+import { type RegisteredProject } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { InMemoryWorktreePresenceStore } from '../../spec/fakes/in-memory-worktree-presence-store.ts';
 import { ListRecordedWorktreesService } from './list-recorded-worktrees-service.ts';
@@ -15,28 +20,42 @@ const project: RegisteredProject = {
 };
 
 describe('ListRecordedWorktreesService', () => {
-  it('answers every recorded worktree, present or absent, with the repository of its registered project', () => {
+  it('answers every recorded worktree, present or absent, with the repository of its registered project', async () => {
     const presence = new InMemoryWorktreePresenceStore();
-    presence.save({
-      rows: [
-        { worktreeId: 'here', projectId: project.id, missingSince: undefined },
-        {
-          worktreeId: 'away',
-          projectId: project.id,
-          missingSince: '2026-08-01T00:00:00.000Z',
-        },
-        {
-          worktreeId: 'orphan',
-          projectId: 'project-gone',
-          missingSince: undefined,
-        },
-      ],
-    });
+    await Effect.runPromise(
+      presence.save({
+        rows: [
+          {
+            worktreeId: 'here',
+            projectId: project.id,
+            missingSince: undefined,
+          },
+          {
+            worktreeId: 'away',
+            projectId: project.id,
+            missingSince: '2026-08-01T00:00:00.000Z',
+          },
+          {
+            worktreeId: 'orphan',
+            projectId: 'project-gone',
+            missingSince: undefined,
+          },
+        ],
+      }),
+    );
     expect(
-      new ListRecordedWorktreesService(
-        presence,
-        new InMemoryInventoryStore([project]),
-      ).execute(),
+      Effect.runSync(
+        Effect.runSync(
+          ListRecordedWorktreesService.pipe(
+            Effect.provide(ListRecordedWorktreesService.layer),
+            Effect.provideService(WorktreePresenceStore, presence),
+            Effect.provideService(
+              InventoryStore,
+              new InMemoryInventoryStore([project]),
+            ),
+          ),
+        ).execute(),
+      ),
     ).toEqual({
       worktrees: [
         { id: 'here', projectId: project.id, repositoryId: 'repository-1' },

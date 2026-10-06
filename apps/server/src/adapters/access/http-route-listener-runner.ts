@@ -1,3 +1,5 @@
+import type { Effect } from 'effect';
+import { nativeOperation } from '@porcelain/effects';
 import { once } from 'node:events';
 import { createServer, type Server } from 'node:http';
 import type { Socket } from 'node:net';
@@ -28,7 +30,11 @@ export class HttpRouteListenerRunner implements RouteListenerRunner {
     this.target = target;
   }
 
-  async listen(
+  listen(input: RouteAddresses): Effect.Effect<ListenOutcome> {
+    return nativeOperation((signal) => this.listenNative(input, signal));
+  }
+
+  private async listenNative(
     input: RouteAddresses,
     signal: AbortSignal,
   ): Promise<ListenOutcome> {
@@ -62,7 +68,11 @@ export class HttpRouteListenerRunner implements RouteListenerRunner {
     };
   }
 
-  async close(input: RouteKey): Promise<void> {
+  close(input: RouteKey): Effect.Effect<void> {
+    return nativeOperation(() => this.closeNative(input));
+  }
+
+  private async closeNative(input: RouteKey): Promise<void> {
     const open = this.routes.get(input.route);
     this.routes.delete(input.route);
     await Promise.all(

@@ -7,38 +7,34 @@ export default {
   rule: 'the web calls PUT /api/worktrees/:worktreeId/review: no map file lists it in its api',
   edits: [
     {
-      kind: 'append',
-      path: 'packages/client/src/features/files/api.ts',
-      content: `
-import { publishReviewEndpoint as probeEndpoint, type PublishReviewRequest } from '@porcelain/contracts/reviews';
-export function probePublish(transport: Transport, worktreeId: string, body: PublishReviewRequest, signal: AbortSignal) {
-  return requestEndpoint(transport, probeEndpoint, { params: { worktreeId }, body, signal });
-}
-`,
-    },
-    {
       kind: 'create',
       path: 'packages/client/src/features/files/queries/probe-publish.ts',
       content: `
-import { probePublish } from '../api.ts';
-import type { Transport } from '../../../shared/api/transport.ts';
+import { Effect } from 'effect';
+import { Atom } from 'effect/reactivity';
+import type { RuntimeConnection } from '../../../shared/api/connection.ts';
+import { porcelainClient } from '../../../shared/api/client.ts';
+import { clientRuntime } from '../../../shared/api/runtime.ts';
 import type { PublishReviewRequest } from '@porcelain/contracts/reviews';
-export function probePublishQueryOptions(transport: Transport, worktreeId: string, body: PublishReviewRequest, signal: AbortSignal) {
-  return { queryFn: () => probePublish(transport, worktreeId, body, signal) };
-}
+export const probePublishRead = Atom.family(({ connection, worktreeId, body }: { connection: RuntimeConnection; worktreeId: string; body: PublishReviewRequest }) =>
+  clientRuntime(connection).atom(Effect.gen(function* () {
+    const api = yield* porcelainClient(connection);
+    return yield* api.reviews.publishReview({ params: { worktreeId }, payload: body });
+  }))
+);
 `,
     },
     {
       kind: 'append',
       path: 'packages/client/src/features/files/index.ts',
       content:
-        "\nexport { probePublishQueryOptions } from './queries/probe-publish.ts';\n",
+        "\nexport { probePublishRead } from './queries/probe-publish.ts';\n",
     },
     {
       kind: 'append',
       path: 'apps/web/src/features/files/queries/preview-assets.ts',
       content:
-        "\nimport { probePublishQueryOptions as options } from '@porcelain/client/files';\nexport const probePublishQuery = options;\n",
+        "\nimport { probePublishRead as read } from '@porcelain/client/files';\nexport const probePublishQuery = read;\n",
     },
   ],
 } satisfies Probe;

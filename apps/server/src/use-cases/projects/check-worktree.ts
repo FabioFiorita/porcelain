@@ -1,36 +1,53 @@
-import type {
-  CheckWorktreeInput,
-  ListedWorktree,
+import { InventoryRefresh } from '../../ports/inventory-refresh.ts';
+import { Effect, Context, Layer } from 'effect';
+import { type WorktreeNotFoundError } from '@porcelain/kernel/errors';
+import {
+  type WorktreeUnavailableError,
+  type ProjectNotFoundError,
+} from '@porcelain/projects/errors';
+import {
+  type CheckWorktreeInput,
+  type ListedWorktree,
 } from '@porcelain/projects/models';
-import type {
+import {
   CheckRefreshedWorktreeService,
   CheckWorktreeService,
 } from '@porcelain/projects/services';
-import type { JobWork } from '../../ports/job-work.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
-export class CheckWorktreeUseCase {
-  private readonly checkWorktree: CheckWorktreeService;
-  private readonly checkRefreshedWorktree: CheckRefreshedWorktreeService;
-  private readonly refreshInventory: JobWork;
-
-  constructor(
-    checkWorktree: CheckWorktreeService,
-    checkRefreshedWorktree: CheckRefreshedWorktreeService,
-    refreshInventory: JobWork,
-  ) {
-    this.checkWorktree = checkWorktree;
-    this.checkRefreshedWorktree = checkRefreshedWorktree;
-    this.refreshInventory = refreshInventory;
+export class CheckWorktreeUseCase extends Context.Service<
+  CheckWorktreeUseCase,
+  {
+    readonly execute: (
+      input: CheckWorktreeInput,
+    ) => Effect.Effect<
+      ListedWorktree,
+      WorktreeNotFoundError | WorktreeUnavailableError | ProjectNotFoundError
+    >;
   }
+>()('@porcelain/server/CheckWorktreeUseCase') {
+  static readonly layer = Layer.effect(
+    CheckWorktreeUseCase,
+    Effect.gen(function* () {
+      const checkWorktreeCapability = yield* CheckWorktreeService;
+      const checkRefreshedWorktreeCapability =
+        yield* CheckRefreshedWorktreeService;
+      const refreshInventoryCapability = yield* InventoryRefresh;
 
-  async execute(
-    input: CheckWorktreeInput,
-    context: OperationContext,
-  ): Promise<ListedWorktree> {
-    const checked = this.checkWorktree.execute(input);
-    if (checked.kind === 'found') return checked.worktree;
-    await this.refreshInventory.execute(context);
-    return this.checkRefreshedWorktree.execute(input);
-  }
+      return {
+        execute: Effect.fn('CheckWorktreeUseCase.execute')(function* (
+          input: CheckWorktreeInput,
+        ): Effect.fn.Return<
+          ListedWorktree,
+          | WorktreeNotFoundError
+          | WorktreeUnavailableError
+          | ProjectNotFoundError
+        > {
+          const checked = yield* checkWorktreeCapability.execute(input);
+          if (checked.kind === 'found') return checked.worktree;
+          yield* refreshInventoryCapability.execute();
+          return yield* checkRefreshedWorktreeCapability.execute(input);
+        }),
+      };
+    }),
+  );
 }

@@ -1,13 +1,13 @@
+import { ReviewStore } from '@porcelain/reviews/ports';
+import { ValidateReviewDraftService } from '@porcelain/reviews/services';
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
+import { ReviewConflictError } from '@porcelain/reviews/errors';
 import {
-  DuplicateLayerIdError,
-  ReviewConflictError,
-  UnknownProofTargetError,
-} from '@porcelain/reviews/errors';
-import type {
-  LayerDraft,
-  Review,
-  ReviewDraft,
+  type LayerDraft,
+  type Review,
+  type ReviewDraft,
+  type ValidatedReviewDraft,
 } from '@porcelain/reviews/models';
 import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
 import { CheckReviewDraftService } from './check-review-draft-service.ts';
@@ -40,48 +40,44 @@ const published: Review = {
   layers: [],
 };
 
-function draft(overrides: Partial<ReviewDraft> = {}): ReviewDraft {
-  return {
-    expectedRevision: 1,
-    summaryHtml: '<p>Summary</p>',
-    layers: [layer],
-    ...overrides,
-  };
+function draft(overrides: Partial<ReviewDraft> = {}): ValidatedReviewDraft {
+  return Effect.runSync(
+    Effect.runSync(
+      ValidateReviewDraftService.pipe(
+        Effect.provide(ValidateReviewDraftService.layer),
+      ),
+    ).execute({
+      expectedRevision: 1,
+      summaryHtml: '<p>Summary</p>',
+      layers: [layer],
+      ...overrides,
+    }),
+  );
 }
 
 const service = () =>
-  new CheckReviewDraftService(new InMemoryReviewStore([published]));
+  Effect.runSync(
+    CheckReviewDraftService.pipe(
+      Effect.provide(CheckReviewDraftService.layer),
+      Effect.provideService(ReviewStore, new InMemoryReviewStore([published])),
+    ),
+  );
 
 describe('CheckReviewDraftService', () => {
   it('accepts a sound draft that states the current revision', () => {
     expect(() =>
-      service().execute({ worktreeId, draft: draft() }),
+      Effect.runSync(service().execute({ worktreeId, draft: draft() })),
     ).not.toThrow();
   });
 
   it('refuses a draft that states another revision', () => {
     expect(() =>
-      service().execute({ worktreeId, draft: draft({ expectedRevision: 0 }) }),
-    ).toThrow(ReviewConflictError);
-  });
-
-  it('refuses a malformed draft before comparing revisions', () => {
-    expect(() =>
-      service().execute({
-        worktreeId,
-        draft: draft({ expectedRevision: 0, layers: [layer, layer] }),
-      }),
-    ).toThrow(DuplicateLayerIdError);
-  });
-
-  it('refuses proof on a layer the draft does not have', () => {
-    expect(() =>
-      service().execute({
-        worktreeId,
-        draft: draft({
-          proof: { checks: [{ name: 'Tests', result: 'pass', layerId: 'x' }] },
+      Effect.runSync(
+        service().execute({
+          worktreeId,
+          draft: draft({ expectedRevision: 0 }),
         }),
-      }),
-    ).toThrow(UnknownProofTargetError);
+      ),
+    ).toThrow(ReviewConflictError);
   });
 });

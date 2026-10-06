@@ -5,8 +5,8 @@ import type {
   FileCommitsRequest,
   HistoryCheckout,
 } from '../dtos/commit-history.ts';
-import { InvalidHistoryRequestError } from '../errors/invalid-history-request-error.ts';
-import { UnsupportedHistoryDataError } from '../errors/unsupported-history-data-error.ts';
+import { InvalidHistoryRequestError } from '../../shared/errors/invalid-history-request-error.ts';
+import { UnsupportedHistoryDataError } from '../../shared/errors/unsupported-history-data-error.ts';
 import { decodeHistory } from '../parsers/decode-history.ts';
 import { COMMIT_FORMAT } from '../parsers/parse-commit.ts';
 import { parseFileCommits } from '../parsers/parse-file-commits.ts';

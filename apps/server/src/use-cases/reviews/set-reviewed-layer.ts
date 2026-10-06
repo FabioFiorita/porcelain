@@ -1,101 +1,101 @@
-import type { ReadTextFilesService } from '@porcelain/files/services';
-import type {
-  SetReviewedLayerRequest,
-  SetReviewedLayerResponse,
+import {
+  type ReviewLayerNotFoundError,
+  type ReviewedMarkConflictError,
+} from '@porcelain/reviews/errors';
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import { ReadTextFilesService } from '@porcelain/files/services';
+import {
+  type SetReviewedLayerRequest,
+  type SetReviewedLayerResponse,
 } from '@porcelain/contracts/reviews';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type {
+import { type WorktreeParams } from '@porcelain/contracts/shared';
+import {
   ListReviewedLayerPathsService,
   ListReviewedLayersService,
   ReadReviewLayerService,
   SetReviewedLayerService,
 } from '@porcelain/reviews/services';
-import type { ConfirmWorktreeService } from '@porcelain/projects/services';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import { EventPublisher } from '../../ports/event-publisher.ts';
 
-export class SetReviewedLayerUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly confirmWorktree: ConfirmWorktreeService;
-  private readonly readReviewLayer: ReadReviewLayerService;
-  private readonly readTextFiles: ReadTextFilesService;
-  private readonly setReviewedLayer: SetReviewedLayerService;
-  private readonly listReviewedLayerPaths: ListReviewedLayerPathsService;
-  private readonly listReviewedLayers: ListReviewedLayersService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-  private readonly events: EventPublisher;
-
-  constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    confirmWorktree: ConfirmWorktreeService,
-    readReviewLayer: ReadReviewLayerService,
-    readTextFiles: ReadTextFilesService,
-    setReviewedLayer: SetReviewedLayerService,
-    listReviewedLayerPaths: ListReviewedLayerPathsService,
-    listReviewedLayers: ListReviewedLayersService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-    events: EventPublisher,
-  ) {
-    this.checkWorktree = checkWorktree;
-    this.confirmWorktree = confirmWorktree;
-    this.readReviewLayer = readReviewLayer;
-    this.readTextFiles = readTextFiles;
-    this.setReviewedLayer = setReviewedLayer;
-    this.listReviewedLayerPaths = listReviewedLayerPaths;
-    this.listReviewedLayers = listReviewedLayers;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
-    this.events = events;
+export class SetReviewedLayerUseCase extends Context.Service<
+  SetReviewedLayerUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams & SetReviewedLayerRequest,
+    ) => Effect.Effect<
+      SetReviewedLayerResponse,
+      | WorktreeAccessFailure
+      | ReviewLayerNotFoundError
+      | ReviewedMarkConflictError
+    >;
   }
+>()('@porcelain/server/SetReviewedLayerUseCase') {
+  static readonly layer = Layer.effect(
+    SetReviewedLayerUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const readReviewLayerCapability = yield* ReadReviewLayerService;
+      const readTextFilesCapability = yield* ReadTextFilesService;
+      const setReviewedLayerCapability = yield* SetReviewedLayerService;
+      const listReviewedLayerPathsCapability =
+        yield* ListReviewedLayerPathsService;
+      const listReviewedLayersCapability = yield* ListReviewedLayersService;
+      const eventsCapability = yield* EventPublisher;
 
-  async execute(
-    input: WorktreeParams & SetReviewedLayerRequest,
-    context: OperationContext,
-  ): Promise<SetReviewedLayerResponse> {
-    const { worktreeId } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
-    );
-    const result = await this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'write',
-      async ({ signal }) => {
-        const { layer, paths } = this.readReviewLayer.execute({
-          worktreeId,
-          layerId: input.layerId,
-        });
-        const { texts } = await this.readTextFiles.execute(
-          { worktreeId, paths },
-          signal,
-        );
-        this.confirmWorktree.execute({ worktree });
-        this.setReviewedLayer.execute({
-          worktreeId,
-          layer,
-          fingerprint: input.fingerprint,
-          texts,
-        });
-        const { paths: marked } = this.listReviewedLayerPaths.execute({
-          worktreeId,
-        });
-        const listed = await this.readTextFiles.execute(
-          { worktreeId, paths: marked },
-          signal,
-        );
-        return this.listReviewedLayers.execute({
-          worktreeId,
-          texts: listed.texts,
-        });
-      },
-      { callerSignal: context.signal },
-    );
-    this.events.worktreeChanged({ worktreeId, change: 'reviewed' });
-    return result;
-  }
+      return {
+        execute: Effect.fn('SetReviewedLayerUseCase.execute')(function* (
+          input: WorktreeParams & SetReviewedLayerRequest,
+        ): Effect.fn.Return<
+          SetReviewedLayerResponse,
+          | WorktreeAccessFailure
+          | ReviewLayerNotFoundError
+          | ReviewedMarkConflictError
+        > {
+          return yield* Effect.suspend(() => {
+            const { worktreeId } = input;
+            return accessCapability.transaction(
+              worktreeId,
+              () =>
+                Effect.gen(function* () {
+                  const { layer, paths } =
+                    yield* readReviewLayerCapability.execute({
+                      worktreeId,
+                      layerId: input.layerId,
+                    });
+                  const marked =
+                    yield* listReviewedLayerPathsCapability.execute({
+                      worktreeId,
+                    });
+                  const { texts } = yield* readTextFilesCapability.execute({
+                    worktreeId,
+                    paths: [...new Set([...paths, ...marked.paths])],
+                  });
+                  return { layer, texts };
+                }),
+              ({ layer, texts }) =>
+                Effect.gen(function* () {
+                  yield* setReviewedLayerCapability.execute({
+                    worktreeId,
+                    layer,
+                    fingerprint: input.fingerprint,
+                    texts,
+                  });
+                  return yield* listReviewedLayersCapability.execute({
+                    worktreeId,
+                    texts,
+                  });
+                }),
+              () =>
+                eventsCapability.worktreeChanged({
+                  worktreeId,
+                  change: 'reviewed',
+                }),
+            );
+          });
+        }),
+      };
+    }),
+  );
 }

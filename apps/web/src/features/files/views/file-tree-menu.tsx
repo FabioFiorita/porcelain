@@ -24,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { TreeAction } from '../rules/tree-actions';
+import type { TreeAction } from '@porcelain/client/files/rules';
 
 type MenuParts = {
   Item: ComponentType<ComponentProps<typeof ContextMenuItem>>;

@@ -1,7 +1,10 @@
-export class CommitDraftSelectionError extends Error {
-  override readonly name = 'CommitDraftSelectionError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Select readable changed files to generate a commit draft.');
+export class CommitDraftSelectionError extends Schema.TaggedError<CommitDraftSelectionError>()(
+  'CommitDraftSelectionError',
+  {},
+) {
+  override get message() {
+    return 'Select readable changed files to generate a commit draft.';
   }
 }

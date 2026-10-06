@@ -96,13 +96,19 @@ test("a removed project's worktree address says the worktree is no longer presen
   await pairedPage
     .getByRole('menuitem', { name: 'Remove from Porcelain', exact: true })
     .click();
-  await pairedPage
-    .getByRole('alertdialog', {
-      name: `Remove ${sample.name} from Porcelain?`,
-      exact: true,
-    })
+  const confirm = pairedPage.getByRole('alertdialog', {
+    name: `Remove ${sample.name} from Porcelain?`,
+    exact: true,
+  });
+  await confirm
     .getByRole('button', { name: 'Remove from Porcelain', exact: true })
     .click();
+  await expect(confirm).not.toBeAttached();
+  await expect
+    .poll(async () =>
+      (await server.inventory()).projects.map((entry) => entry.id),
+    )
+    .not.toContain(sample.id);
   await expect(
     pairedPage.getByRole('button', { name: sample.name, exact: true }),
   ).not.toBeAttached();

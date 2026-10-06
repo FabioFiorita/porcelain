@@ -1,16 +1,23 @@
-import type {
-  GitActionExpectation,
-  GitActionRunnerOutcome,
-  GitActionRunRequest,
-} from '@porcelain/git-actions/models';
-import type { GitActionRunner } from '@porcelain/git-actions/ports';
+import { writeGit } from '../../runtime/git-io.ts';
 import {
+  type GitIoFailure,
   GitActionRejectedError,
+  GitTimeoutError,
+} from '@porcelain/git/errors';
+import { Effect } from 'effect';
+import { type WorktreeWrite } from '@porcelain/effects/worktree';
+import {
+  type GitActionExpectation,
+  type GitActionRunnerOutcome,
+  type GitActionRunRequest,
+} from '@porcelain/git-actions/models';
+import { type GitActionRunner } from '@porcelain/git-actions/ports';
+import {
   type GitActionExpectation as GitExpectation,
   type GitActionWriterFactory,
 } from '@porcelain/git/actions';
-import { GitTimeoutError, RequestGitSession } from '@porcelain/git/inspection';
-import type { Limits } from '../../config/limits.ts';
+import { RequestGitSession } from '@porcelain/git/inspection';
+import { type Limits } from '../../config/limits.ts';
 import {
   openCheckout,
   type ListedWorktrees,
@@ -31,11 +38,19 @@ export class GitGitActionRunner implements GitActionRunner {
     this.limits = limits;
   }
 
-  async run(
+  run(
+    input: GitActionRunRequest,
+  ): Effect.Effect<GitActionRunnerOutcome, GitIoFailure, WorktreeWrite> {
+    return writeGit(input.run.worktreeId, (signal) =>
+      this.runNative(input, signal),
+    );
+  }
+
+  private async runNative(
     input: GitActionRunRequest,
     signal?: AbortSignal,
   ): Promise<GitActionRunnerOutcome> {
-    const { run } = input;
+    const { run, onProgress } = input;
     try {
       const { checkout } = await openCheckout(
         this.worktrees,
@@ -50,7 +65,11 @@ export class GitGitActionRunner implements GitActionRunner {
           run.intent,
           gitExpectation(run.expected),
           signal ?? new AbortController().signal,
-          input.onProgress,
+          onProgress === undefined
+            ? undefined
+            : (line) => {
+                Effect.runSync(onProgress(line));
+              },
         ),
       };
     } catch (error) {

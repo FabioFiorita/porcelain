@@ -1,54 +1,70 @@
-import type {
-  CommentAuthor,
-  CommentThreadParams,
-  EditCommentMessageRequest,
-  EditCommentMessageResponse,
+import {
+  type CommentTargetNotFoundError,
+  type CommentAuthorMismatchError,
+  type CommentLimitExceededError,
+} from '@porcelain/reviews/errors';
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import {
+  type CommentAuthor,
+  type CommentThreadParams,
+  type EditCommentMessageRequest,
+  type EditCommentMessageResponse,
 } from '@porcelain/contracts/reviews';
-import type { EditCommentMessageService } from '@porcelain/reviews/services';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import { EditCommentMessageService } from '@porcelain/reviews/services';
+import { EventPublisher } from '../../ports/event-publisher.ts';
 
-export class EditCommentMessageUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly editCommentMessage: EditCommentMessageService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-  private readonly events: EventPublisher;
-
-  constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    editCommentMessage: EditCommentMessageService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-    events: EventPublisher,
-  ) {
-    this.checkWorktree = checkWorktree;
-    this.editCommentMessage = editCommentMessage;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
-    this.events = events;
+export class EditCommentMessageUseCase extends Context.Service<
+  EditCommentMessageUseCase,
+  {
+    readonly execute: (
+      input: CommentThreadParams & EditCommentMessageRequest & CommentAuthor,
+    ) => Effect.Effect<
+      EditCommentMessageResponse,
+      | WorktreeAccessFailure
+      | CommentTargetNotFoundError
+      | CommentAuthorMismatchError
+      | CommentLimitExceededError
+    >;
   }
+>()('@porcelain/server/EditCommentMessageUseCase') {
+  static readonly layer = Layer.effect(
+    EditCommentMessageUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const editCommentMessageCapability = yield* EditCommentMessageService;
+      const eventsCapability = yield* EventPublisher;
 
-  async execute(
-    input: CommentThreadParams & EditCommentMessageRequest & CommentAuthor,
-    context: OperationContext,
-  ): Promise<EditCommentMessageResponse> {
-    const { worktreeId } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
-    );
-    const { thread, changed } = await this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'write',
-      async () => this.editCommentMessage.execute(input),
-      { callerSignal: context.signal },
-    );
-    if (changed)
-      this.events.worktreeChanged({ worktreeId, change: 'comments' });
-    return thread;
-  }
+      return {
+        execute: Effect.fn('EditCommentMessageUseCase.execute')(function* (
+          input: CommentThreadParams &
+            EditCommentMessageRequest &
+            CommentAuthor,
+        ): Effect.fn.Return<
+          EditCommentMessageResponse,
+          | WorktreeAccessFailure
+          | CommentTargetNotFoundError
+          | CommentAuthorMismatchError
+          | CommentLimitExceededError
+        > {
+          return yield* accessCapability
+            .transaction(
+              input.worktreeId,
+              () => Effect.void,
+              () => editCommentMessageCapability.execute(input),
+              (value) =>
+                Effect.gen(function* () {
+                  if (value.changed)
+                    yield* eventsCapability.worktreeChanged({
+                      worktreeId: input.worktreeId,
+                      change: 'comments',
+                    });
+                }),
+            )
+            .pipe(Effect.map((value) => value.thread));
+        }),
+      };
+    }),
+  );
 }

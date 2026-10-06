@@ -1,10 +1,6 @@
-import {
-  useEnvironments,
-  useEnvironmentStorageStatus,
-  pairingPlatform,
-} from '../../access';
+import { useEnvironments, useEnvironmentStorageStatus } from '../../access';
 import { useProjectSelection } from '../store';
-import { useWorkspaceConnection } from '../queries/connection';
+import { useWorkspaceConnection } from '../commands/workspace-connection';
 
 export function useWorkspace() {
   const environments = useEnvironments();
@@ -19,7 +15,6 @@ export function useWorkspace() {
     : undefined;
   const connected = useWorkspaceConnection(
     remote,
-    pairingPlatform().send,
     remembered?.projectId,
     remembered?.worktreeId,
     access.status === 'ready' && selection.status === 'ready',

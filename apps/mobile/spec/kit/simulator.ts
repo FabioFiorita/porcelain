@@ -1,13 +1,10 @@
+import { Schema } from 'effect';
 import { execFile } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { promisify } from 'node:util';
-import { z } from 'zod';
 import { hostFileName } from './device-host.ts';
-
 export type DeviceKind = 'iphone' | 'ipad';
-
 export type Simulator = { udid: string; name: string; kind: DeviceKind };
-
 const execute = promisify(execFile);
 const minimumRuntime = 26;
 const language = 'en-US';
@@ -19,48 +16,45 @@ const preferred: Record<DeviceKind, readonly string[]> = {
   iphone: ['iPhone 17', 'iPhone 18 Pro'],
   ipad: ['iPad Air 11-inch (M4)', 'iPad (A16)'],
 };
-const runtimesSchema = z.object({
-  runtimes: z.array(
-    z.object({
-      identifier: z.string(),
-      version: z.string(),
-      platform: z.string().optional(),
-      isAvailable: z.boolean(),
-      supportedDeviceTypes: z.array(
-        z.object({
-          identifier: z.string(),
-          name: z.string(),
-          productFamily: z.string(),
+const runtimesSchema = Schema.Struct({
+  runtimes: Schema.Array(
+    Schema.Struct({
+      identifier: Schema.String,
+      version: Schema.String,
+      platform: Schema.optional(Schema.String),
+      isAvailable: Schema.Boolean,
+      supportedDeviceTypes: Schema.Array(
+        Schema.Struct({
+          identifier: Schema.String,
+          name: Schema.String,
+          productFamily: Schema.String,
         }),
       ),
     }),
   ),
 });
-const devicesSchema = z.object({
-  devices: z.record(
-    z.string(),
-    z.array(
-      z.object({
-        udid: z.string(),
-        name: z.string(),
-        state: z.string(),
-        isAvailable: z.boolean(),
+const devicesSchema = Schema.Struct({
+  devices: Schema.Record(
+    Schema.String,
+    Schema.Array(
+      Schema.Struct({
+        udid: Schema.String,
+        name: Schema.String,
+        state: Schema.String,
+        isAvailable: Schema.Boolean,
       }),
     ),
   ),
 });
-
 async function simctl(...args: string[]): Promise<string> {
   const { stdout } = await execute('xcrun', ['simctl', ...args], {
     maxBuffer: 16 * 1024 * 1024,
   });
   return stdout;
 }
-
 function versionOf(version: string): number[] {
   return version.split('.').map(Number);
 }
-
 function newer(left: string, right: string): number {
   const a = versionOf(left);
   const b = versionOf(right);
@@ -70,9 +64,8 @@ function newer(left: string, right: string): number {
   }
   return 0;
 }
-
 async function deviceFor(kind: DeviceKind) {
-  const { runtimes } = runtimesSchema.parse(
+  const { runtimes } = Schema.decodeUnknownSync(runtimesSchema)(
     JSON.parse(await simctl('list', 'runtimes', '-j')),
   );
   const [runtime] = runtimes
@@ -100,22 +93,20 @@ async function deviceFor(kind: DeviceKind) {
     );
   return { runtime, type };
 }
-
 async function devices() {
-  return devicesSchema.parse(JSON.parse(await simctl('list', 'devices', '-j')))
-    .devices;
+  return Schema.decodeUnknownSync(devicesSchema)(
+    JSON.parse(await simctl('list', 'devices', '-j')),
+  ).devices;
 }
-
 async function bootedSimulators(): Promise<string[]> {
   return Object.values(
-    devicesSchema.parse(
+    Schema.decodeUnknownSync(devicesSchema)(
       JSON.parse(await simctl('list', 'devices', 'booted', '-j')),
     ).devices,
   )
     .flat()
     .map((device) => device.name);
 }
-
 export function simulatorLimitProblem(
   booted: readonly string[],
   limit: number | undefined,
@@ -123,7 +114,6 @@ export function simulatorLimitProblem(
   if (limit === undefined || booted.length < limit) return undefined;
   return `The device host already has ${booted.length} booted simulators (${booted.join(', ')}) and simulatorLimit in ${hostFileName} allows ${limit} at once; each thread stops only its own instance with .agents/skills/mobile-verify/scripts/cli stop, so start again once one has stopped.`;
 }
-
 export async function localBootProblem(
   limit: number | undefined,
 ): Promise<string | undefined> {
@@ -131,7 +121,6 @@ export async function localBootProblem(
     ? undefined
     : simulatorLimitProblem(await bootedSimulators(), limit);
 }
-
 export async function bootSimulator(
   kind: DeviceKind,
   label: string,
@@ -181,17 +170,14 @@ export async function bootSimulator(
   }
   return { udid, name, kind };
 }
-
 async function stateOf(udid: string): Promise<string | undefined> {
   return Object.values(await devices())
     .flat()
     .find((device) => device.udid === udid)?.state;
 }
-
 export async function isBooted(udid: string): Promise<boolean> {
   return (await stateOf(udid)) === 'Booted';
 }
-
 export async function shutdownSimulator(udid: string): Promise<void> {
   if (await isBooted(udid)) await simctl('shutdown', udid);
   const deadline = Date.now() + shutdownLimitMs;
@@ -205,7 +191,6 @@ export async function shutdownSimulator(udid: string): Promise<void> {
     await sleep(settleMs);
   }
 }
-
 export async function resetApp(
   udid: string,
   app: string,

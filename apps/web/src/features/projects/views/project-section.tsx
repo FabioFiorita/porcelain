@@ -21,7 +21,8 @@ import {
 } from '@/components/ui/context-menu';
 import { copyText } from '@/shared/workspace/copy';
 import { removeProjectDialog, renameProjectDialog } from '../overlays';
-import { projectPath, type Project } from '../rules/inventory';
+import { projectPath } from '@porcelain/client/projects/rules';
+import { type Project } from '@porcelain/client/projects/rules';
 import { WorktreeRow } from './worktree-row';
 
 export function ProjectSection({

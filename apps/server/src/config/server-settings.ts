@@ -1,12 +1,12 @@
 import { isIP } from 'node:net';
 import { isAbsolute } from 'node:path';
-import { z } from 'zod';
+import { Effect, Result, Schema } from 'effect';
 import { ServeConfigurationError } from './errors/serve-configuration-error.ts';
 import { LIMITS, type Limits } from './limits.ts';
 
 const HOSTNAME_LABEL = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/;
 
-export const DEFAULT_LISTEN_HOST = '127.0.0.1';
+const DEFAULT_LISTEN_HOST = '127.0.0.1';
 export const DEFAULT_LISTEN_PORT = LIMITS.network.defaultPort;
 export const DEFAULT_DATA_DIRECTORY_NAME = '.porcelain';
 
@@ -27,43 +27,48 @@ function isValidListenHost(host: string) {
   return labels.every((label) => HOSTNAME_LABEL.test(label));
 }
 
-export const absolutePathSchema = z
-  .string()
-  .refine((path) => isAbsolute(path))
-  .refine((path) => !path.includes('\0'));
+export const absolutePathSchema = Schema.String.check(
+  Schema.makeFilter((path) => isAbsolute(path) && !path.includes('\0'), {
+    message: 'Path must be absolute and contain no null bytes',
+  }),
+);
 
-export const listenHostSchema = z
-  .string()
-  .refine(isValidListenHost, 'Host must be a valid IP address or hostname');
+export const listenHostSchema = Schema.String.check(
+  Schema.makeFilter(isValidListenHost, {
+    message: 'Host must be a valid IP address or hostname',
+  }),
+);
 
-export const listenPortSchema = z
-  .number()
-  .int()
-  .min(0)
-  .max(LIMITS.network.maxPort);
+export const listenPortSchema = Schema.Int.check(
+  Schema.isBetween({ minimum: 0, maximum: LIMITS.network.maxPort }),
+);
 
-const serverSettingsSchema = z.object({
+const serverSettingsSchema = Schema.Struct({
   dataDirectory: absolutePathSchema,
   projectHome: absolutePathSchema,
-  host: listenHostSchema.default(DEFAULT_LISTEN_HOST),
-  port: listenPortSchema.default(DEFAULT_LISTEN_PORT),
-  webRoot: absolutePathSchema.optional(),
-  allowedHosts: z.array(listenHostSchema).default([]),
+  host: listenHostSchema.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_LISTEN_HOST)),
+  ),
+  port: listenPortSchema.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_LISTEN_PORT)),
+  ),
+  webRoot: Schema.optional(absolutePathSchema),
+  allowedHosts: Schema.Array(listenHostSchema).pipe(
+    Schema.withDecodingDefault(Effect.succeed([])),
+  ),
 });
 
-type ServerSettingsInput = z.input<typeof serverSettingsSchema>;
+type ServerSettingsInput = typeof serverSettingsSchema.Encoded;
 
-export type ServerSettings = z.output<typeof serverSettingsSchema> & {
+export type ServerSettings = typeof serverSettingsSchema.Type & {
   limits: Limits;
 };
 
 export function readServerSettings(input: ServerSettingsInput): ServerSettings {
-  const parsed = serverSettingsSchema.safeParse(input);
-  if (!parsed.success)
+  const parsed = Schema.decodeUnknownResult(serverSettingsSchema)(input);
+  if (Result.isFailure(parsed))
     throw new ServeConfigurationError(
-      `Invalid server settings: ${parsed.error.issues
-        .map((issue) => issue.path.join('.'))
-        .join(', ')}`,
+      `Invalid server settings: ${parsed.failure.message}`,
     );
-  return { ...parsed.data, limits: LIMITS };
+  return { ...parsed.success, limits: LIMITS };
 }

@@ -1,7 +1,10 @@
-export class BranchBaseNotFoundError extends Error {
-  override readonly name = 'BranchBaseNotFoundError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Base branch not found');
+export class BranchBaseNotFoundError extends Schema.TaggedError<BranchBaseNotFoundError>()(
+  'BranchBaseNotFoundError',
+  {},
+) {
+  override get message() {
+    return 'Base branch not found';
   }
 }

@@ -1,3 +1,6 @@
+import { Cause } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import { Button, Host, RNHostView, TextInput, useNativeState } from '@expo/ui';
 import { ScrollView, Text, View } from 'react-native';
 import { usePairEnvironment } from '../commands/pairing';
@@ -29,20 +32,20 @@ export function PairEnvironment({ onClose }: { onClose: () => void }) {
               autoCorrect={false}
             />
           </Host>
-          {pair.error ? (
+          {AsyncResult.isFailure(pair.result) ? (
             <Text
               accessibilityRole="alert"
               className="text-sm text-destructive"
             >
-              {pair.error.message}
+              {connectionErrorMessage(Cause.squash(pair.result.cause))}
             </Text>
           ) : null}
           <Host matchContents={{ vertical: true }}>
             <Button
               testID="pair-environment"
-              label={pair.isPending ? 'Pairing…' : 'Pair'}
-              disabled={pair.isPending}
-              onPress={() => pair.onSubmit(value.get())}
+              label={pair.result.waiting ? 'Pairing…' : 'Pair'}
+              disabled={pair.result.waiting}
+              onPress={() => pair.submit(value.get())}
             />
           </Host>
           <Host matchContents={{ vertical: true }}>

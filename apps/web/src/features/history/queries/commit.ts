@@ -1,7 +1,7 @@
-import { commitQueryOptions } from '@porcelain/client/history';
-import { useSuspenseQuery } from '@tanstack/react-query';
-import type { HistoryScope } from '../rules/connection';
-import { type Connection } from '@/shared/workspace/connection';
+import { readCommit } from '@porcelain/client/history';
+import { useConfirmedRead } from '@/shared/query/confirmed-read';
+import type { HistoryScope } from '@porcelain/client/history/rules';
+import type { Connection } from '@/shared/workspace/connection';
 
 export function useCommit(
   connection: Connection,
@@ -9,6 +9,5 @@ export function useCommit(
   oid: string,
   parent = 1,
 ) {
-  return useSuspenseQuery(commitQueryOptions(scope, connection, oid, parent))
-    .data;
+  return useConfirmedRead(readCommit({ connection, scope, oid, parent })).value;
 }

@@ -4,7 +4,10 @@ import { desktopAppAddress } from '@/shared/adapters/desktop';
 import { useTheme } from '@/features/preferences/index';
 import { useSummaryLayerRequests } from '../adapters/summary-messages';
 import type { OpenDocument } from '../rules/documents';
-import { type ReviewResponse, reviewSummaryUrl } from '../rules/review';
+import {
+  type ReviewResponse,
+  reviewSummaryUrl,
+} from '@porcelain/client/reviews/rules';
 import { DocumentToolbar } from './document-toolbar';
 import type { Graph } from './review-diagram';
 import { ReviewDiagram } from './lazy-review-diagram';

@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import {
   readServiceUpdateResponseSchema,
   startServiceUpdateResponseSchema,
@@ -86,7 +87,11 @@ test('the update status tells each caller whether it may start an update', async
     200, 200, 200, 200,
   ]);
   expect(here?.body).toEqual(
-    expect.schemaMatching(readServiceUpdateResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readServiceUpdateResponseSchema),
+      ),
+    ),
   );
   expect(here?.body).toMatchObject({ running: false, canUpdate: true });
   expect(relayed?.body).toMatchObject({ running: false, canUpdate: false });
@@ -226,7 +231,11 @@ test('a trusted bearer client on another origin starts an update it can read the
 
   expect(response.status).toBe(202);
   expect(response.body).toEqual(
-    expect.schemaMatching(startServiceUpdateResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(startServiceUpdateResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toMatchObject({
     running: true,

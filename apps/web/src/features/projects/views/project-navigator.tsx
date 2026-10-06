@@ -10,20 +10,17 @@ import {
 } from '@/components/ui/empty';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SidebarMenuSubItem } from '@/components/ui/sidebar';
-import type { RemoteConnection } from '@/features/access/index';
-import type { Inventory, WorktreeTarget } from '../rules/inventory';
+import type { RemoteConnection } from '@porcelain/client/access';
+import type { WorktreeTarget } from '../rules/worktree-target';
+import type { Inventory } from '@porcelain/client/projects/rules';
 import { MachineSection } from './machine-section';
 import { OpenProjectMenu } from './open-project-menu';
 import { RemoteMachine } from './remote-machine';
-import { RemoveProjectDialog } from './remove-project-dialog';
-import { RenameProjectDialog } from './rename-project-dialog';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { ProjectSection } from './project-section';
-import { type Connection } from '@/shared/workspace/connection';
 
 type Props = {
   inventory: Inventory;
-  connection: Connection;
   remotes: readonly RemoteConnection[] | undefined;
   selected: Pick<WorktreeTarget, 'remote' | 'worktreeId'> | undefined;
   onSelect: (target: WorktreeTarget) => void;
@@ -35,7 +32,6 @@ type Props = {
 
 export function ProjectNavigator({
   inventory,
-  connection,
   remotes,
   selected,
   onSelect: select,
@@ -142,8 +138,6 @@ export function ProjectNavigator({
           <KeyboardIcon />
         </Button>
       </footer>
-      <RenameProjectDialog connection={connection} />
-      <RemoveProjectDialog connection={connection} />
     </nav>
   );
 }

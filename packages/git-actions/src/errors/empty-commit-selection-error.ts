@@ -1,7 +1,10 @@
-export class EmptyCommitSelectionError extends Error {
-  override readonly name = 'EmptyCommitSelectionError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Select at least one path to commit');
+export class EmptyCommitSelectionError extends Schema.TaggedError<EmptyCommitSelectionError>()(
+  'EmptyCommitSelectionError',
+  {},
+) {
+  override get message() {
+    return 'Select at least one path to commit';
   }
 }

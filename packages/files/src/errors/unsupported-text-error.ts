@@ -1,7 +1,10 @@
-export class UnsupportedTextError extends Error {
-  override readonly name = 'UnsupportedTextError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('File is not supported UTF-8 text');
+export class UnsupportedTextError extends Schema.TaggedError<UnsupportedTextError>()(
+  'UnsupportedTextError',
+  {},
+) {
+  override get message() {
+    return 'File is not supported UTF-8 text';
   }
 }

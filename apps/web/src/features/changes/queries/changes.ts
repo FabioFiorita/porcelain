@@ -1,15 +1,13 @@
-import { changesQueryOptions } from '@porcelain/client/changes';
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
-import { type ChangesScope } from '../rules/changes';
-import { type Connection } from '@/shared/workspace/connection';
+import { readChanges } from '@porcelain/client/changes';
+import { useAtomValue } from '@effect/atom-react';
+import { useConfirmedRead } from '@/shared/query/confirmed-read';
+import type { ChangesScope } from '@porcelain/client/changes/rules';
+import type { Connection } from '@/shared/workspace/connection';
 
 export function useChanges(scope: ChangesScope, connection: Connection) {
-  return useSuspenseQuery(changesQueryOptions(scope, connection)).data;
+  return useConfirmedRead(readChanges({ scope, connection })).value;
 }
 
 export function useReviewOverview(scope: ChangesScope, connection: Connection) {
-  return useQuery({
-    ...changesQueryOptions(scope, connection),
-    throwOnError: false,
-  }).data;
+  return useAtomValue(readChanges({ scope, connection }));
 }

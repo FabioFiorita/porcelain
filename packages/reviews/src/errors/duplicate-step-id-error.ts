@@ -1,7 +1,10 @@
-export class DuplicateStepIdError extends Error {
-  override readonly name = 'DuplicateStepIdError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Step IDs repeat within a layer');
+export class DuplicateStepIdError extends Schema.TaggedError<DuplicateStepIdError>()(
+  'DuplicateStepIdError',
+  {},
+) {
+  override get message() {
+    return 'Step IDs repeat within a layer';
   }
 }

@@ -1,6 +1,6 @@
 import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
 import type { ActionRemote } from '../dtos/git-action-snapshot.ts';
-import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
+import { GitActionRejectedError } from '../../shared/errors/git-action-rejected-error.ts';
 import { rejectBusyCheckout } from './reject-busy-checkout.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from '../parsers/parse-process-result.ts';

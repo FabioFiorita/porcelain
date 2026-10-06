@@ -10,9 +10,8 @@ export default {
     {
       kind: 'replace',
       path: 'packages/projects/src/services/check-worktree-service.ts',
-      old: `    const entry = this.catalog.find({ worktreeId: input.worktreeId });`,
-      new: `    const entry = this.catalog.find({ worktreeId: input.worktreeId });
-    this.catalog.save({ projects: [] });`,
+      old: 'const entry = catalogCapability.find({\n            worktreeId: input.worktreeId,\n          });',
+      new: 'const entry = catalogCapability.find({\n            worktreeId: input.worktreeId,\n          });\n          catalogCapability.save({ projects: [], listings: [] });',
     },
   ],
 } satisfies Probe;

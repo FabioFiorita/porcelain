@@ -1,3 +1,5 @@
-import { z } from 'zod';
+import { Schema } from 'effect';
 
-export const fingerprintSchema = z.string().regex(/^[a-f0-9]{64}$/);
+export const fingerprintSchema = Schema.String.check(
+  Schema.isPattern(/^[a-f0-9]{64}$/),
+);

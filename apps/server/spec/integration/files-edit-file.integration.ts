@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { editFileResponseSchema } from '@porcelain/contracts/files';
 import { expect } from 'vitest';
 import {
@@ -46,7 +47,11 @@ test('writing a file with the fingerprint just read replaces its text and answer
   );
 
   expect(response.status).toBe(200);
-  expect(response.body).toEqual(expect.schemaMatching(editFileResponseSchema));
+  expect(response.body).toEqual(
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(editFileResponseSchema)),
+    ),
+  );
   const written = await contentFingerprint(
     session,
     session.fixture.readme.path,

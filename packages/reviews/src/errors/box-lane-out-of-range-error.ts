@@ -1,7 +1,10 @@
-export class BoxLaneOutOfRangeError extends Error {
-  override readonly name = 'BoxLaneOutOfRangeError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('A diagram box names a lane its diagram does not have');
+export class BoxLaneOutOfRangeError extends Schema.TaggedError<BoxLaneOutOfRangeError>()(
+  'BoxLaneOutOfRangeError',
+  {},
+) {
+  override get message() {
+    return 'A diagram box names a lane its diagram does not have';
   }
 }

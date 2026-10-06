@@ -17,7 +17,7 @@ import type {
   GitActionIntent,
   GitActionOutcome,
 } from './dtos/git-action.ts';
-import { GitActionRejectedError } from './errors/git-action-rejected-error.ts';
+import { GitActionRejectedError } from '../shared/errors/git-action-rejected-error.ts';
 import type { GitActionWriter } from './interfaces/git-action-writer.ts';
 import type { GitProcessRunner } from './interfaces/git-process-runner.ts';
 

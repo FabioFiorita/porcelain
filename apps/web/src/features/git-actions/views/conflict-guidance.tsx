@@ -1,7 +1,9 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
 import { CopyIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useReviewOverview } from '@/features/changes/index';
-import type { GitScope } from '../rules/git-action';
+import type { GitScope } from '@porcelain/client/git-actions/rules';
 import { copyText } from '@/shared/workspace/copy';
 
 export function ConflictGuidance({
@@ -16,10 +18,12 @@ export function ConflictGuidance({
   onOpen: (entry: { kind: 'file'; path: string }) => void;
 }) {
   const { connection } = context;
-  const overview = useReviewOverview(scope, connection);
-  const state = overview?.changes.inProgress;
+  const overview = Option.getOrUndefined(
+    AsyncResult.value(useReviewOverview(scope, connection)),
+  );
+  const state = overview?.inProgress;
   if (!state) return null;
-  const conflicts = overview.changes.changes.filter((file) =>
+  const conflicts = overview.changes.filter((file) =>
     file.comparisons.some((change) => change.scope === 'unmerged'),
   );
   return (
@@ -49,13 +53,13 @@ export function ConflictGuidance({
       )}
       <p>
         Resolve the files in your editor or with your agent.{' '}
-        {state === 'merge' && overview.changes.mergeHeadOid
+        {state === 'merge' && overview.mergeHeadOid
           ? 'Use Commit from the Git menu to finish. The merge commit includes every staged resolution.'
           : 'Stage the resolved files, then continue in a terminal in this worktree.'}
       </p>
       <div className="flex flex-wrap items-center gap-2">
         {state === 'rebase' && <Command command="git rebase --continue" />}
-        {state === 'merge' && !overview.changes.mergeHeadOid && (
+        {state === 'merge' && !overview.mergeHeadOid && (
           <Command command="git commit" />
         )}
         <span>To back out:</span>

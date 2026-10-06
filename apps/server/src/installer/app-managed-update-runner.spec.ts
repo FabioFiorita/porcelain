@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Effect } from 'effect';
 import { openAppManagedUpdateRunner } from './app-managed-update-runner.ts';
 
 describe('openAppManagedUpdateRunner', () => {
@@ -8,7 +9,9 @@ describe('openAppManagedUpdateRunner', () => {
   };
 
   it('reports a server the service updater does not manage, with nothing to offer', async () => {
-    expect(await openAppManagedUpdateRunner().read(check)).toEqual({
+    expect(
+      await Effect.runPromise(openAppManagedUpdateRunner().read(check)),
+    ).toEqual({
       managed: false,
       version: undefined,
       latest: undefined,
@@ -20,7 +23,9 @@ describe('openAppManagedUpdateRunner', () => {
 
   it('refuses to start a service update and says the app updates its server', async () => {
     await expect(
-      openAppManagedUpdateRunner().start({ version: '9.9.9' }),
+      Effect.runPromise(
+        openAppManagedUpdateRunner().start({ version: '9.9.9' }),
+      ),
     ).rejects.toThrow('the Porcelain app, which updates it with the app');
   });
 });

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { FileLocation } from '../../src/models/file-location.ts';
 import type {
   EntryCopyInput,
@@ -29,37 +30,37 @@ export class InMemoryFileWriter implements FileWriter {
     return this.entries.get(path);
   }
 
-  write(input: FileWriteInput): Promise<FileWrite> {
+  write(input: FileWriteInput): Effect.Effect<FileWrite> {
     this.entries.set(input.path, {
       kind: 'file',
       text: input.text,
       basedOn: input.revision,
     });
-    return Promise.resolve(written);
+    return Effect.succeed(written);
   }
 
-  create(input: EntryCreateInput): Promise<FileWrite> {
+  create(input: EntryCreateInput): Effect.Effect<FileWrite> {
     this.entries.set(input.path, {
       kind: input.entryKind,
       text: '',
       basedOn: undefined,
     });
-    return Promise.resolve(written);
+    return Effect.succeed(written);
   }
 
-  move(input: EntryMoveInput): Promise<FileWrite> {
+  move(input: EntryMoveInput): Effect.Effect<FileWrite> {
     this.entries.set(input.destination, this.entries.get(input.path));
     this.entries.delete(input.path);
-    return Promise.resolve(written);
+    return Effect.succeed(written);
   }
 
-  copy(input: EntryCopyInput): Promise<FileWrite> {
+  copy(input: EntryCopyInput): Effect.Effect<FileWrite> {
     this.entries.set(input.destination, this.entries.get(input.path));
-    return Promise.resolve(written);
+    return Effect.succeed(written);
   }
 
-  trash(input: FileLocation): Promise<FileWrite> {
+  trash(input: FileLocation): Effect.Effect<FileWrite> {
     this.entries.delete(input.path);
-    return Promise.resolve(written);
+    return Effect.succeed(written);
   }
 }

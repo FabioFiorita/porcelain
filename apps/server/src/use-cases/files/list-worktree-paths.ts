@@ -1,45 +1,43 @@
-import type { ListWorktreePathsResponse } from '@porcelain/contracts/files';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { ListWorktreePathsService } from '@porcelain/files/services';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import { type ListWorktreePathsResponse } from '@porcelain/contracts/files';
+import { type WorktreeParams } from '@porcelain/contracts/shared';
+import { ListWorktreePathsService } from '@porcelain/files/services';
+import { type DirectoryTooLargeError } from '@porcelain/files/errors';
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 
-export class ListWorktreePathsUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly listWorktreePaths: ListWorktreePathsService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    listWorktreePaths: ListWorktreePathsService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.checkWorktree = checkWorktree;
-    this.listWorktreePaths = listWorktreePaths;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class ListWorktreePathsUseCase extends Context.Service<
+  ListWorktreePathsUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams,
+    ) => Effect.Effect<
+      ListWorktreePathsResponse,
+      WorktreeAccessFailure | DirectoryTooLargeError
+    >;
   }
+>()('@porcelain/server/ListWorktreePathsUseCase') {
+  static readonly layer = Layer.effect(
+    ListWorktreePathsUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const listWorktreePathsCapability = yield* ListWorktreePathsService;
 
-  async execute(
-    input: WorktreeParams,
-    context: OperationContext,
-  ): Promise<ListWorktreePathsResponse> {
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId: input.worktreeId, requireAvailableProject: false },
-      context,
-    );
-    return this.lanes.runConsistent(
-      this.laneKeys.repository(worktree),
-      worktree,
-      async ({ signal }) => {
-        const result = await this.listWorktreePaths.execute(input, signal);
-        return result;
-      },
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('ListWorktreePathsUseCase.execute')(function* (
+          input: WorktreeParams,
+        ): Effect.fn.Return<
+          ListWorktreePathsResponse,
+          WorktreeAccessFailure | DirectoryTooLargeError
+        > {
+          return yield* accessCapability.read(input.worktreeId, (worktree) =>
+            listWorktreePathsCapability.execute({
+              ...input,
+              worktreeId: worktree.id,
+            }),
+          );
+        }),
+      };
+    }),
+  );
 }

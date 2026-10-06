@@ -1,54 +1,53 @@
-import type {
-  CommentAuthor,
-  DeleteResolvedCommentsRequest,
-  DeleteResolvedCommentsResponse,
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import {
+  type CommentAuthor,
+  type DeleteResolvedCommentsRequest,
+  type DeleteResolvedCommentsResponse,
 } from '@porcelain/contracts/reviews';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { DeleteResolvedCommentsService } from '@porcelain/reviews/services';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import { type WorktreeParams } from '@porcelain/contracts/shared';
+import { DeleteResolvedCommentsService } from '@porcelain/reviews/services';
+import { EventPublisher } from '../../ports/event-publisher.ts';
 
-export class DeleteResolvedCommentsUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly deleteResolvedComments: DeleteResolvedCommentsService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-  private readonly events: EventPublisher;
-
-  constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    deleteResolvedComments: DeleteResolvedCommentsService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-    events: EventPublisher,
-  ) {
-    this.checkWorktree = checkWorktree;
-    this.deleteResolvedComments = deleteResolvedComments;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
-    this.events = events;
+export class DeleteResolvedCommentsUseCase extends Context.Service<
+  DeleteResolvedCommentsUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams & DeleteResolvedCommentsRequest & CommentAuthor,
+    ) => Effect.Effect<DeleteResolvedCommentsResponse, WorktreeAccessFailure>;
   }
+>()('@porcelain/server/DeleteResolvedCommentsUseCase') {
+  static readonly layer = Layer.effect(
+    DeleteResolvedCommentsUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const deleteResolvedCommentsCapability =
+        yield* DeleteResolvedCommentsService;
+      const eventsCapability = yield* EventPublisher;
 
-  async execute(
-    input: WorktreeParams & DeleteResolvedCommentsRequest & CommentAuthor,
-    context: OperationContext,
-  ): Promise<DeleteResolvedCommentsResponse> {
-    const { worktreeId } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
-    );
-    const result = await this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'write',
-      async () => this.deleteResolvedComments.execute(input),
-      { callerSignal: context.signal },
-    );
-    if (result.deleted.length > 0)
-      this.events.worktreeChanged({ worktreeId, change: 'comments' });
-    return result;
-  }
+      return {
+        execute: Effect.fn('DeleteResolvedCommentsUseCase.execute')(function* (
+          input: WorktreeParams & DeleteResolvedCommentsRequest & CommentAuthor,
+        ): Effect.fn.Return<
+          DeleteResolvedCommentsResponse,
+          WorktreeAccessFailure
+        > {
+          return yield* accessCapability.transaction(
+            input.worktreeId,
+            () => Effect.void,
+            () => deleteResolvedCommentsCapability.execute(input),
+            (value) =>
+              Effect.gen(function* () {
+                if (value.deleted.length > 0)
+                  yield* eventsCapability.worktreeChanged({
+                    worktreeId: input.worktreeId,
+                    change: 'comments',
+                  });
+              }),
+          );
+        }),
+      };
+    }),
+  );
 }

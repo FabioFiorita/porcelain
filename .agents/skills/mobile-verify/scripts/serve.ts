@@ -1,8 +1,8 @@
+import { Schema } from 'effect';
 import { appendFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { z } from 'zod';
 import { buildIsolatedServer } from '../../../../apps/server/spec/kit/sandbox.ts';
 import {
   buildProblem,
@@ -46,24 +46,21 @@ import {
 } from './device.ts';
 import { freeHostPorts, hostProblems } from './host.ts';
 import { registry, scriptFingerprint } from './instance.ts';
-
 const startLimitMs = 25 * 60 * 1000;
 export const pairingLabel = 'Verification simulator';
-const optionsSchema = z.object({
-  kind: z.enum(['iphone', 'ipad']),
-  host: z
-    .object({
-      hub: z.string(),
-      tokenVariable: z.string(),
-      ports: z.array(z.number()),
-    })
-    .nullable(),
-  simulatorLimit: z.number().nullable(),
+const optionsSchema = Schema.Struct({
+  kind: Schema.Literals(['iphone', 'ipad']),
+  host: Schema.NullOr(
+    Schema.Struct({
+      hub: Schema.String,
+      tokenVariable: Schema.String,
+      ports: Schema.Array(Schema.Finite),
+    }),
+  ),
+  simulatorLimit: Schema.NullOr(Schema.Finite),
 });
-
 type Timings = Record<string, number>;
 type Booted = { target: Target & { udid: string }; name: string };
-
 async function phase<T>(
   timings: Timings,
   name: string,
@@ -74,7 +71,6 @@ async function phase<T>(
   timings[name] = Math.round(performance.now() - started);
   return value;
 }
-
 function connect(target: Target, metro: Metro): void {
   agentDevice(target, [
     'open',
@@ -84,7 +80,6 @@ function connect(target: Target, metro: Metro): void {
   agentDevice(target, ['alert', 'accept', '5000'], { allowFailure: true });
   agentDevice(target, ['wait', 'text', 'Review', '60000']);
 }
-
 function pair(target: Target, link: string): void {
   agentDevice(target, [
     'open',
@@ -97,7 +92,6 @@ function pair(target: Target, link: string): void {
   agentDevice(target, ['press', 'id="pair-environment"', '--settle']);
   agentDevice(target, ['wait', 'text', 'Online', '30000']);
 }
-
 async function localSimulator(
   life: Life,
   timings: Timings,
@@ -115,14 +109,13 @@ async function localSimulator(
     agentDevice(target, ['close', '--shutdown'], { allowFailure: true });
     await shutdownSimulator(simulator.udid);
   });
-  const client = developmentClient();
-  if (client === undefined) throw new Error(buildProblem());
+  const client = await developmentClient();
+  if (client === undefined) throw new Error(await buildProblem());
   await phase(timings, 'install', () =>
     resetApp(simulator.udid, client, identity.bundleIdentifier),
   );
   return { target, name: simulator.name };
 }
-
 async function hostedSimulator(
   life: Life,
   timings: Timings,
@@ -141,19 +134,20 @@ async function hostedSimulator(
   life.onStop(() => {
     agentDevice(target, ['close', '--shutdown'], { allowFailure: true });
   });
-  await phase(timings, 'install', async () => resetRemoteApp(target));
+  await phase(timings, 'install', () => resetRemoteApp(target));
   life.onStop(holdLease(target));
   return { target, name: simulator.name };
 }
-
 export function serve(folder: string): Promise<void> {
   return registry.serve(folder, async (life) => {
-    const { kind, host, simulatorLimit } = optionsSchema.parse(life.options);
+    const { kind, host, simulatorLimit } = Schema.decodeUnknownSync(
+      optionsSchema,
+    )(life.options);
     const limit = simulatorLimit ?? undefined;
     const evidence = registry.evidenceFolder(life.id);
     const session = `porcelain-mobile-${life.id}`;
     const timings: Timings = {};
-    const native = nativeFingerprint();
+    const native = await nativeFingerprint();
     const script = scriptFingerprint();
     const ports = host === null ? [] : await freeHostPorts(host, 2);
     if (host !== null && ports.length < 2)
@@ -253,7 +247,6 @@ export function serve(folder: string): Promise<void> {
     };
   });
 }
-
 export async function startProblems(
   host: RemoteHost | undefined,
 ): Promise<(string | undefined)[]> {
@@ -263,9 +256,11 @@ export async function startProblems(
     problems.push(
       `To drive a Mac's simulator from here instead, describe the device host in ${mainCheckoutHostFile()}, as the skill's "A simulator on another machine" says.`,
     );
-  return [...problems, problems.length === 0 ? buildProblem() : undefined];
+  return [
+    ...problems,
+    problems.length === 0 ? await buildProblem() : undefined,
+  ];
 }
-
 export async function start(kind: DeviceKind): Promise<string> {
   const { remote, simulatorLimit } = deviceHost();
   refuseMissing(await startProblems(remote));

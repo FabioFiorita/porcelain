@@ -1,3 +1,5 @@
+import { Cause, Effect, Exit, Scope } from 'effect';
+import { nativeOperation } from '@porcelain/effects';
 import { join } from 'node:path';
 import type { ServiceUpdateRunner } from '../ports/service-update-runner.ts';
 import { commandRunner, type CommandRunner } from './command-runner.ts';
@@ -18,7 +20,9 @@ import { UPDATE_UNIT_NAME } from './systemd-unit.ts';
 import { updaterUnitArguments } from './updater-unit.ts';
 import { compareVersions } from './version-policy.ts';
 
-type ServiceUpdateState = Awaited<ReturnType<ServiceUpdateRunner['read']>>;
+type ServiceUpdateState = Effect.Success<
+  ReturnType<ServiceUpdateRunner['read']>
+>;
 type ServiceUpdateCheck = Parameters<ServiceUpdateRunner['read']>[0];
 type ServiceUpdateTarget = Parameters<ServiceUpdateRunner['start']>[0];
 
@@ -48,6 +52,8 @@ class InstalledServiceUpdateRunner implements ServiceUpdateRunner {
     | { version: string | undefined; checkedAt: string }
     | undefined;
   private preparing = false;
+  private readonly scope = Scope.makeUnsafe();
+  private closing = false;
 
   constructor(options: ServiceUpdateRunnerOptions) {
     this.options = options;
@@ -56,7 +62,11 @@ class InstalledServiceUpdateRunner implements ServiceUpdateRunner {
     this.nodeExecutable = options.nodeExecutable ?? process.execPath;
   }
 
-  async read(
+  read(input: ServiceUpdateCheck): Effect.Effect<ServiceUpdateState> {
+    return nativeOperation((signal) => this.readNative(input, signal));
+  }
+
+  private async readNative(
     input: ServiceUpdateCheck,
     signal?: AbortSignal,
   ): Promise<ServiceUpdateState> {
@@ -79,45 +89,70 @@ class InstalledServiceUpdateRunner implements ServiceUpdateRunner {
     };
   }
 
-  async start(input: ServiceUpdateTarget, signal?: AbortSignal): Promise<void> {
-    signal?.throwIfAborted();
-    this.preparing = true;
-    const from = await this.runningVersion().catch((error: unknown) => {
-      this.preparing = false;
-      throw error;
-    });
-    const progress = { from: from ?? '', target: input.version };
-    try {
-      await writeJsonFile(this.paths.updateRecord, {
-        ...progress,
-        stage: 'downloading',
-      });
-    } catch (error) {
-      this.preparing = false;
-      throw error;
-    }
-    void this.prepareAndHandOff(input.version)
-      .catch((error: unknown) =>
-        writeJsonFile(this.paths.updateRecord, {
-          ...progress,
-          stage: 'failed',
-          reason: failureDetail(error),
-        }),
-      )
-      .catch(() => undefined)
-      .finally(() => {
-        this.preparing = false;
-      });
+  start(input: ServiceUpdateTarget): Effect.Effect<void> {
+    return Effect.uninterruptibleMask((restore) =>
+      Effect.gen({ self: this }, function* () {
+        if (this.closing) return yield* Effect.interrupt;
+        const from = yield* restore(
+          nativeOperation(() => this.runningVersion()),
+        );
+        if (this.closing) return yield* Effect.interrupt;
+        const progress = { from: from ?? '', target: input.version };
+        yield* nativeOperation(() =>
+          writeJsonFile(this.paths.updateRecord, {
+            ...progress,
+            stage: 'downloading',
+          }),
+        );
+        this.preparing = true;
+        const preparation = nativeOperation((signal) =>
+          this.prepareAndHandOff(input.version, signal),
+        ).pipe(
+          Effect.onExit((exit) =>
+            Exit.isSuccess(exit)
+              ? Effect.void
+              : nativeOperation(() =>
+                  writeJsonFile(this.paths.updateRecord, {
+                    ...progress,
+                    stage: 'failed',
+                    reason: Cause.hasInterruptsOnly(exit.cause)
+                      ? 'The server stopped before the update was handed off.'
+                      : failureDetail(Cause.squash(exit.cause)),
+                  }),
+                ).pipe(Effect.ignoreCause),
+          ),
+          Effect.ensuring(
+            Effect.sync(() => {
+              this.preparing = false;
+            }),
+          ),
+        );
+        yield* Effect.forkIn(preparation, this.scope, {
+          startImmediately: true,
+        });
+      }),
+    );
   }
 
-  private async prepareAndHandOff(target: string): Promise<void> {
+  close(): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.closing = true;
+    }).pipe(Effect.andThen(Scope.close(this.scope, Exit.void)));
+  }
+
+  private async prepareAndHandOff(
+    target: string,
+    signal: AbortSignal,
+  ): Promise<void> {
     await installRuntime(
       this.runner,
       this.nodeExecutable,
       `${PACKAGE_NAME}@${target}`,
       this.paths.updater,
       target,
+      signal,
     );
+    signal.throwIfAborted();
     const handedOff = await this.runner(
       'systemd-run',
       updaterUnitArguments({
@@ -128,7 +163,9 @@ class InstalledServiceUpdateRunner implements ServiceUpdateRunner {
           this.options.searchPath,
         ),
       }),
+      { signal },
     );
+    signal.throwIfAborted();
     if (handedOff.code !== 0)
       throw new UpdateHandOffError(handedOff.stderr.trim());
   }

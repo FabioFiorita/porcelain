@@ -1,232 +1,188 @@
-import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { savedJson } from '@/shared/lib/saved-json';
-import { desktopCredentials } from '@/shared/adapters/desktop';
+import { WorkspaceSelectionCleanup } from '@porcelain/client/projects';
+import { InventorySeed } from '@porcelain/client/projects';
+import type { BrowserSession } from '@porcelain/client/access/rules';
+import { WEB_PLATFORM_NAME_MAX_LENGTH } from '@/config/limits';
 import {
-  parseRemotes,
-  savedRemotes,
-  syncRemoteConnections,
-  withRemote,
-  type Remote,
-} from './rules/remotes';
+  AccessStore,
+  AccessSession,
+  remoteConnectionsLayer,
+  ConnectionFactory,
+  RemoteConnectionFactory,
+  RemoteConnections,
+  AccessPlatform,
+  EnvironmentCommands,
+  EnvironmentMutations,
+  EnvironmentStorage,
+  type AccessPlatformValue,
+} from '@porcelain/client/access';
+import { Effect, Layer, ManagedRuntime, Option } from 'effect';
+import { Atom } from 'effect/reactivity';
+import { useAtomRef, useAtomValue } from '@effect/atom-react';
+import { environmentStorage } from './adapters/environment-storage';
+
+export const pairingPlatform: AccessPlatformValue = {
+  name: () =>
+    typeof navigator === 'undefined'
+      ? 'Browser'
+      : navigator.userAgent.slice(0, WEB_PLATFORM_NAME_MAX_LENGTH) || 'Browser',
+  send: fetch,
+};
+import { type Remote } from '@porcelain/client/access/rules';
 import { REQUEST_TIMEOUT_MS } from '@/config/limits';
 import { browserTransport } from '@/shared/api/transport';
+import type { Transport } from '@porcelain/client/transport';
 import {
-  createWorktreeConnection,
-  remoteTransport,
-  type Transport,
-} from '@porcelain/client/transport';
-import type { LiveUpdatePort } from '@/shared/live/port';
+  openLiveConnection,
+  openRemoteConnection,
+  type LiveUpdatePort,
+} from '@porcelain/client/live';
 import {
-  remoteLiveUpdates,
   sameOriginLiveUpdates,
-  type LiveRetryTimer,
-} from '@/shared/live/socket';
-import { adoptFileDrafts } from '@/shared/query/file-drafts';
-import { createOperationStore } from '@/shared/query/operation-store';
+  webSocket,
+} from '@/shared/adapters/live-socket';
+import { FileDrafts } from '@porcelain/client/files';
+import { OperationStorage } from '@porcelain/client/git-actions';
+import { operationStorage } from './adapters/operation-storage';
+import { BrowserCrypto } from '@effect/platform-browser';
 import {
   type Connection,
   type ConnectionContext,
   requireConnection,
 } from '@/shared/workspace/connection';
 
-export type RemoteConnection = { remote: Remote; connection: Connection };
-
 type Server = {
   address: string;
   transport: Transport;
   liveUpdates: LiveUpdatePort;
-  operationsKey: string;
-};
-
-type AccessState = {
-  connection: Connection | null;
-  remoteConnections: readonly RemoteConnection[];
-  generation: number;
-  connect: (environmentId: string) => Connection;
-  beginConnection: (
-    automatic?: boolean,
-  ) => ((inventory: ReadInventoryResponse) => boolean) | null;
-  clear: () => void;
+  operationsKey: string | undefined;
 };
 
 function createConnection(environmentId: string, server: Server): Connection {
-  let storage: Storage | undefined;
-  try {
-    storage = window.sessionStorage;
-  } catch {
-    storage = undefined;
-  }
-  const { connection: requests, controller } = createWorktreeConnection({
-    environmentId,
-    transport: server.transport,
-    timeoutMs: REQUEST_TIMEOUT_MS,
-  });
-  const connection: Connection = {
-    ...requests,
-    address: server.address,
-    environmentId,
-    controller,
-    operations: createOperationStore(
-      storage ? { storage, key: server.operationsKey } : undefined,
+  return openLiveConnection(
+    {
+      environmentId,
+      address: server.address,
+      transport: server.transport,
+      liveUpdates: server.liveUpdates,
+      timeoutMs: REQUEST_TIMEOUT_MS,
+    },
+    Layer.merge(
+      BrowserCrypto.layer,
+      Layer.succeed(OperationStorage, operationStorage(server.operationsKey)),
     ),
-    liveUpdates: server.liveUpdates,
-  };
-  adoptFileDrafts(connection);
+    applicationRuntime.memoMap,
+  );
+}
+
+function localConnection({ inventory, principal }: BrowserSession): Connection {
+  const writer = principal.kind === 'owner' ? 'owner' : principal.deviceId;
+  const connection = createConnection(inventory.environmentId, {
+    address: window.location.href,
+    transport: browserTransport(fetch),
+    liveUpdates: sameOriginLiveUpdates(),
+    operationsKey: `porcelain-git-requests:${JSON.stringify([inventory.environmentId, principal.kind, writer])}`,
+  });
+  connection.atoms.addGlobalLayer(
+    Layer.succeed(InventorySeed, Option.some(inventory)),
+  );
   return connection;
 }
 
-const liveRetry: LiveRetryTimer = (run, ms) => {
-  const timer = setTimeout(run, ms);
-  return () => clearTimeout(timer);
-};
-
-function localConnection(environmentId: string) {
-  return createConnection(environmentId, {
-    address: window.location.href,
-    transport: browserTransport(fetch),
-    liveUpdates: sameOriginLiveUpdates(liveRetry),
-    operationsKey: `porcelain-git-requests:${environmentId}`,
-  });
-}
-
-function remoteConnection(remote: Remote) {
-  const transport = remoteTransport(remote.address, remote.credential, fetch);
-  return createConnection(remote.environmentId, {
-    address: remote.address,
-    transport,
-    liveUpdates: remoteLiveUpdates(remote.address, transport, liveRetry),
-    operationsKey: `porcelain-git-requests:${remote.address}:${remote.environmentId}`,
-  });
-}
-
-function close(connection: Connection) {
-  connection.operations.clear();
-  connection.controller.abort();
-}
-
-type RemotesState = {
-  remotes: Remote[];
-  unreadable: string | undefined;
-  save: (remote: Remote) => void;
-  forget: (environmentId: string) => void;
-};
-
-function remotesStorage() {
-  const credentials = desktopCredentials();
-  if (!credentials) return savedJson(() => localStorage, parseRemotes);
-  let readable = false;
-  return {
-    async getItem() {
-      const saved = savedRemotes(await credentials.read());
-      if (saved.kind === 'unreadable') throw new Error(saved.message);
-      readable = true;
-      return saved.remotes === undefined ? null : { state: saved.remotes };
-    },
-    async setItem(_name: string, value: { state: Remote[] }) {
-      if (readable) await credentials.write(JSON.stringify(value.state));
-    },
-    async removeItem() {
-      await credentials.clear();
-    },
-  };
-}
-
-export const useRemotesStore = create<RemotesState>()(
-  persist<RemotesState, [], [], Remote[]>(
-    (set, get) => ({
-      remotes: [],
-      unreadable: undefined,
-      save: (remote) => set({ remotes: withRemote(get().remotes, remote) }),
-      forget: (environmentId) =>
-        set({
-          remotes: get().remotes.filter(
-            (remote) => remote.environmentId !== environmentId,
-          ),
-        }),
-    }),
+function remoteConnection(remote: Remote): Connection {
+  return openRemoteConnection(
     {
-      name: 'porcelain.remotes',
-      storage: remotesStorage(),
-      partialize: ({ remotes }) => remotes,
-      merge: (saved, current) => ({ ...current, remotes: parseRemotes(saved) }),
-      onRehydrateStorage: () => (_state, error) => {
-        if (error instanceof Error)
-          useRemotesStore.setState({ unreadable: error.message });
-      },
+      ...remote,
+      send: fetch,
+      socket: webSocket,
+      timeoutMs: REQUEST_TIMEOUT_MS,
     },
+    Layer.merge(
+      BrowserCrypto.layer,
+      Layer.succeed(
+        OperationStorage,
+        operationStorage(
+          remote.deviceId
+            ? `porcelain-git-requests:${JSON.stringify([remote.environmentId, remote.address, remote.deviceId])}`
+            : undefined,
+        ),
+      ),
+    ),
+    applicationRuntime.memoMap,
+  );
+}
+
+const stores = Layer.merge(AccessStore.layer, EnvironmentMutations.layer).pipe(
+  Layer.provide(Layer.succeed(EnvironmentStorage, environmentStorage)),
+);
+const services = Layer.mergeAll(
+  stores,
+  Layer.succeed(AccessPlatform, pairingPlatform),
+  FileDrafts.layer,
+  Layer.succeed(ConnectionFactory, {
+    local: (session) =>
+      Effect.acquireRelease(
+        Effect.sync(() => localConnection(session)),
+        (connection) => Effect.promise(() => connection.close()),
+      ),
+  }),
+  Layer.succeed(RemoteConnectionFactory, {
+    open: (remote) =>
+      Effect.acquireRelease(
+        Effect.sync(() => remoteConnection(remote)),
+        (connection) => Effect.promise(() => connection.close()),
+      ),
+  }),
+  Layer.succeed(WorkspaceSelectionCleanup, {
+    forgetEnvironment: () => Effect.void,
+  }),
+);
+const application = remoteConnectionsLayer.pipe(
+  Layer.provideMerge(
+    Layer.mergeAll(
+      EnvironmentCommands.layer,
+      AccessSession.layer,
+      RemoteConnections.layer,
+    ).pipe(Layer.provideMerge(services)),
   ),
 );
-
-function remoteConnections(
-  remotes: readonly Remote[],
-  current: readonly RemoteConnection[],
-) {
-  const { next, closed } = syncRemoteConnections(
-    remotes,
-    current,
-    remoteConnection,
-  );
-  for (const connection of closed) close(connection);
-  return next;
-}
-
-export const useAccessStore = create<AccessState>()((set, get) => ({
-  connection: null,
-  remoteConnections: remoteConnections(useRemotesStore.getState().remotes, []),
-  generation: 0,
-  connect(environmentId) {
-    const current = get().connection;
-    if (current?.environmentId === environmentId) return current;
-    if (current) close(current);
-    const connection = localConnection(environmentId);
-    set({ connection });
-    return connection;
-  },
-  beginConnection(automatic = false) {
-    if (automatic && get().generation !== 0) return null;
-    const attempt = get().generation;
-    return (inventory) => {
-      if (attempt !== get().generation) return false;
-      set({ generation: attempt + 1 });
-      get().connect(inventory.environmentId);
-      return true;
-    };
-  },
-  clear() {
-    const current = get().connection;
-    if (current) close(current);
-    set((state) => ({
-      connection: null,
-      generation: state.generation + 1,
-    }));
-  },
-}));
-
-useRemotesStore.subscribe(({ remotes }) =>
-  useAccessStore.setState({
-    remoteConnections: remoteConnections(
-      remotes,
-      useAccessStore.getState().remoteConnections,
-    ),
+export const applicationRuntime = ManagedRuntime.make(application);
+export const environmentRuntime = Atom.context({
+  memoMap: applicationRuntime.memoMap,
+})(application);
+const accessStore = applicationRuntime.runSync(AccessStore);
+export const accessSession = applicationRuntime.runSync(AccessSession);
+const remoteConnections = applicationRuntime.runSync(RemoteConnections);
+const restoreSavedEnvironments = environmentRuntime.atom(
+  Effect.gen(function* () {
+    const commands = yield* EnvironmentCommands;
+    yield* commands.read();
   }),
 );
 
+export function useRestoreEnvironments() {
+  useAtomValue(restoreSavedEnvironments);
+}
+
+export function useSavedEnvironments() {
+  return useAtomRef(accessStore.state);
+}
+
+export function useLocalConnection() {
+  return useAtomRef(accessSession.state).connection;
+}
+
 export function useRemoteConnections() {
-  return useAccessStore((state) => state.remoteConnections);
+  return useAtomRef(remoteConnections.state);
 }
 
 export function useRemoteConnection(environmentId: string) {
-  return useAccessStore((state) =>
-    state.remoteConnections.find(
-      (entry) => entry.remote.environmentId === environmentId,
-    ),
+  return useAtomRef(remoteConnections.state).find(
+    (entry) => entry.remote.environmentId === environmentId,
   );
 }
 
 export function useConnectedContext(remote?: Connection): ConnectionContext {
-  const local = useAccessStore((state) => state.connection);
+  const local = useLocalConnection();
   if (remote) return { connection: remote };
   return { connection: requireConnection(local) };
 }

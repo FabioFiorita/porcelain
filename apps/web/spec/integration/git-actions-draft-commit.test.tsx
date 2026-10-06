@@ -182,6 +182,9 @@ test('a commit the worktree has moved past since the draft is refused, and a new
   await expect.element(uncovered).not.toBeInTheDocument();
   await commit.click();
   await expect
+    .element(dialog.getByText('succeeded', { exact: true }))
+    .toBeVisible();
+  await expect
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe(drafted);
   await expect

@@ -36,7 +36,7 @@ export type ReviewDiagnostics = {
 };
 
 export type ReviewEvidence = {
-  changes: FileChange[];
+  changes: readonly FileChange[];
   texts: ReviewTexts;
-  diffs: ReviewDiff[];
+  diffs: readonly ReviewDiff[];
 };

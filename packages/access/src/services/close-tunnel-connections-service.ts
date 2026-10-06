@@ -1,29 +1,32 @@
-import type { RemoteAccessStore } from '../ports/remote-access-store.ts';
-import type { RouteStateStore } from '../ports/route-state-store.ts';
-import type { TunnelConnectionStore } from '../ports/tunnel-connection-store.ts';
+import { Effect, Context, Layer } from 'effect';
+import { RemoteAccessStore } from '../ports/remote-access-store.ts';
+import { RouteStateStore } from '../ports/route-state-store.ts';
+import { TunnelConnectionStore } from '../ports/tunnel-connection-store.ts';
 import { answeredTunnelHosts } from '../rules/remote-access.ts';
 
-export class CloseTunnelConnectionsService {
-  private readonly remoteAccess: RemoteAccessStore;
-  private readonly routeStates: RouteStateStore;
-  private readonly tunnelConnections: TunnelConnectionStore;
+export class CloseTunnelConnectionsService extends Context.Service<
+  CloseTunnelConnectionsService,
+  { readonly execute: () => Effect.Effect<void, never> }
+>()('@porcelain/access/CloseTunnelConnectionsService') {
+  static readonly layer = Layer.effect(
+    CloseTunnelConnectionsService,
+    Effect.gen(function* () {
+      const remoteAccess = yield* RemoteAccessStore;
+      const routeStates = yield* RouteStateStore;
+      const tunnelConnections = yield* TunnelConnectionStore;
 
-  constructor(
-    remoteAccess: RemoteAccessStore,
-    routeStates: RouteStateStore,
-    tunnelConnections: TunnelConnectionStore,
-  ) {
-    this.remoteAccess = remoteAccess;
-    this.routeStates = routeStates;
-    this.tunnelConnections = tunnelConnections;
-  }
-
-  execute(): void {
-    this.tunnelConnections.retain({
-      hostnames: answeredTunnelHosts(
-        this.remoteAccess.read(),
-        this.routeStates.read().states,
-      ),
-    });
-  }
+      return {
+        execute: Effect.fn('CloseTunnelConnectionsService.execute')(
+          function* (): Effect.fn.Return<void, never> {
+            tunnelConnections.retain({
+              hostnames: answeredTunnelHosts(
+                yield* remoteAccess.read(),
+                routeStates.read().states,
+              ),
+            });
+          },
+        ),
+      };
+    }),
+  );
 }

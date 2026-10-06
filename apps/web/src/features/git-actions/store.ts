@@ -1,34 +1,30 @@
-import { createStore } from 'zustand/vanilla';
-import { useStore } from 'zustand';
-import type { OperationStore } from '@/shared/query/operation-store';
-import type { Drafts } from './rules/commit-form';
+import { Atom, AtomRef } from 'effect/reactivity';
+import { useAtomRef } from '@effect/atom-react';
+import type { Context } from 'effect';
+import type { OperationStore } from '@porcelain/client/git-actions';
+import type { Drafts } from '@porcelain/client/git-actions/rules';
 
-export function useGitOperation(operations: OperationStore, key: string) {
-  const snapshot = () => operations.get(key);
-  return useStore({
-    getState: snapshot,
-    getInitialState: snapshot,
-    subscribe: (listener) => {
-      let previous = snapshot();
-      return operations.subscribe(() => {
-        const next = snapshot();
-        listener(next, previous);
-        previous = next;
-      });
-    },
-  });
+export function useGitOperation(
+  operations: Context.Service.Shape<typeof OperationStore>,
+  key: string,
+) {
+  const selected = operations.state.map(
+    (state) => state.operations.get(key) ?? null,
+  );
+  return useAtomRef(selected);
 }
 
-function createCommitState() {
-  return createStore<{
-    done: ReadonlySet<string>;
-    activeGroup: string | null;
-    ownHead: string | null;
-    busy: boolean;
-    error: unknown;
-    drafted: Drafts;
-    editingFiles: boolean;
-  }>(() => ({
+type CommitState = {
+  done: ReadonlySet<string>;
+  activeGroup: string | null;
+  ownHead: string | null;
+  busy: boolean;
+  error: unknown;
+  drafted: Drafts;
+  editingFiles: boolean;
+};
+export const commitState = Atom.family((_owner: object) =>
+  AtomRef.make<CommitState>({
     done: new Set(),
     activeGroup: null,
     ownHead: null,
@@ -36,28 +32,8 @@ function createCommitState() {
     error: null,
     drafted: { message: null, groups: null },
     editingFiles: false,
-  }));
-}
-
-export function useCommitState(store: ReturnType<typeof createCommitState>) {
-  return useStore(store);
-}
-
-const commitRuntimes = new WeakMap<
-  object,
-  {
-    state: ReturnType<typeof createCommitState>;
-    controllers: Set<AbortController>;
-  }
->();
-
-export function commitRuntime(owner: object) {
-  const retained = commitRuntimes.get(owner);
-  if (retained) return retained;
-  const runtime = {
-    state: createCommitState(),
-    controllers: new Set<AbortController>(),
-  };
-  commitRuntimes.set(owner, runtime);
-  return runtime;
-}
+  }),
+);
+export const commitDraftControllers = Atom.family(
+  (_owner: object) => new Set<AbortController>(),
+);

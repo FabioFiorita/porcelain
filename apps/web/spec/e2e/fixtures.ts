@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { expect, test as base, type Page } from '@playwright/test';
@@ -16,6 +16,7 @@ import { World } from '../kit/world.ts';
 import { serverBuild } from './global-setup.ts';
 import {
   failInventory,
+  failChangesRead,
   holdNextPost,
   holdNextReviewRead,
   liveRouter,
@@ -26,7 +27,20 @@ export type { Page };
 
 declare const navigation: { entries(): { url: string | null }[] };
 declare const location: { href: string };
-declare const window: { dispatchEvent(event: Event): boolean };
+declare const window: {
+  dispatchEvent(event: Event): boolean;
+  __INSTANCE?: {
+    getContainerElement():
+      | {
+          isConnected: boolean;
+          getBoundingClientRect(): { width: number; height: number };
+          querySelectorAll(selector: string): { length: number };
+        }
+      | undefined;
+    getWindowSpecs(): { top: number; bottom: number };
+    workerManager?: { getStats(): Record<string, string | number | boolean> };
+  };
+};
 
 export type Shell = 'web' | 'desktop';
 
@@ -52,12 +66,13 @@ async function transformApp(
   );
 }
 
-async function startVite(shell: Shell) {
+async function startVite(shell: Shell, cacheDir: string) {
   let target = 'http://127.0.0.1';
   const retarget: Array<(address: string) => void> = [];
   const vite: ViteDevServer = await createServer({
     configFile: join(webRoot, 'vite.config.ts'),
     root: webRoot,
+    cacheDir,
     mode: viteModes[shell],
     logLevel: 'error',
     clearScreen: false,
@@ -79,18 +94,23 @@ async function startVite(shell: Shell) {
       },
     },
   });
-  await vite.listen();
-  await transformApp(vite.environments.client);
-  const url = vite.resolvedUrls?.local[0];
-  if (url === undefined) throw new Error('Vite printed no local address.');
-  return {
-    url,
-    target(address: string) {
-      target = address;
-      for (const change of retarget) change(address);
-    },
-    close: () => vite.close(),
-  };
+  try {
+    await vite.listen();
+    await transformApp(vite.environments.client);
+    const url = vite.resolvedUrls?.local[0];
+    if (url === undefined) throw new Error('Vite printed no local address.');
+    return {
+      url,
+      target(address: string) {
+        target = address;
+        for (const change of retarget) change(address);
+      },
+      close: () => vite.close(),
+    };
+  } catch (error) {
+    await vite.close();
+    throw error;
+  }
 }
 
 type Vite = Awaited<ReturnType<typeof startVite>>;
@@ -168,6 +188,7 @@ async function appOf(page: Page, world: World, live: LiveFixture) {
           .entries()
           .map((entry) => new URL(entry.url ?? '', location.href).pathname),
       ),
+    failReviewRead: () => failChangesRead(page.context()),
     async failSessionRestore() {
       const end = await failInventory(page.context());
       return {
@@ -232,9 +253,20 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   shell: ['web', { scope: 'worker', option: true }],
   vite: [
     async ({ shell }, use) => {
-      const vite = await startVite(shell);
-      await use(vite);
-      await vite.close();
+      const cacheRoot = await mkdtemp(join(tmpdir(), 'porcelain-e2e-vite-'));
+      try {
+        const vite = await startVite(
+          shell,
+          join(cacheRoot, 'node_modules/.vite'),
+        );
+        try {
+          await use(vite);
+        } finally {
+          await vite.close();
+        }
+      } finally {
+        await rm(cacheRoot, { recursive: true, force: true });
+      }
     },
     { scope: 'worker' },
   ],
@@ -266,8 +298,51 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     );
     await use(observed);
   },
-  page: async ({ page, observed: _observed, live: _live }, use) => {
+  page: async ({ page, observed: _observed, live: _live }, use, testInfo) => {
     await use(page);
+    if (testInfo.status === testInfo.expectedStatus) return;
+    const closed = page.isClosed();
+    const renderer = closed
+      ? null
+      : await page
+          .evaluate(() => {
+            const viewer = window.__INSTANCE;
+            if (!viewer) return null;
+            const container = viewer.getContainerElement();
+            const bounds = container?.getBoundingClientRect();
+            return {
+              connected: container?.isConnected ?? false,
+              bounds: bounds
+                ? { width: bounds.width, height: bounds.height }
+                : null,
+              renderedFiles:
+                container?.querySelectorAll('diffs-container').length ?? 0,
+              window: viewer.getWindowSpecs(),
+              workers: viewer.workerManager?.getStats() ?? null,
+            };
+          })
+          .catch((error: unknown) => ({
+            unavailable: error instanceof Error ? error.message : String(error),
+          }));
+    const path = testInfo.outputPath('code-viewer.json');
+    await writeFile(
+      path,
+      JSON.stringify(
+        {
+          closed,
+          workers: page
+            .workers()
+            .map((worker) => new URL(worker.url()).pathname),
+          renderer,
+        },
+        null,
+        2,
+      ),
+    );
+    await testInfo.attach('code-viewer.json', {
+      path,
+      contentType: 'application/json',
+    });
   },
   live: async ({ context }, use) => {
     const router = await liveRouter(context);

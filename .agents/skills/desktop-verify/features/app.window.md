@@ -6,7 +6,8 @@ selectors:
   - desktop-fullscreen
 tests:
   - apps/desktop/spec/e2e/window.e2e.ts
-api: []
+api:
+  - GET /api/live
 ---
 
 # app.window

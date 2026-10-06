@@ -1,150 +1,185 @@
+import { EditFileOptions } from '../ports/edit-file-options.ts';
+import {
+  type WorktreeRead,
+  type WorktreeWrite,
+} from '@porcelain/effects/worktree';
 import { sha256Hex } from '@porcelain/kernel/rules';
+import { Effect, Context, Layer } from 'effect';
 import { ContentChangedError } from '../errors/content-changed-error.ts';
+import { CrossDeviceMoveError } from '../errors/cross-device-move-error.ts';
+import { DiskFullError } from '../errors/disk-full-error.ts';
+import { EntryExistsError } from '../errors/entry-exists-error.ts';
 import { FileTooLargeError } from '../errors/file-too-large-error.ts';
 import { InvalidMoveError } from '../errors/invalid-move-error.ts';
-import type {
-  EditFileInput,
-  EditFileOptions,
-  EditFileResult,
-} from '../models/edit-file.ts';
-import type { FileLocation } from '../models/file-location.ts';
-import type { FileWrite } from '../models/file-write.ts';
-import type { FileReader } from '../ports/file-reader.ts';
-import type { FileWriter } from '../ports/file-writer.ts';
-import { moveProblem } from '../rules/move-problem.ts';
 import { PathNotFoundError } from '../errors/path-not-found-error.ts';
 import { PathNotReadableError } from '../errors/path-not-readable-error.ts';
-import { UnsupportedTextError } from '../errors/unsupported-text-error.ts';
-import { EntryExistsError } from '../errors/entry-exists-error.ts';
-import { CrossDeviceMoveError } from '../errors/cross-device-move-error.ts';
 import { TrashUnavailableError } from '../errors/trash-unavailable-error.ts';
-import { DiskFullError } from '../errors/disk-full-error.ts';
-import type { TextFailure, WriteFailure } from '../models/file-failure.ts';
+import { UnsupportedTextError } from '../errors/unsupported-text-error.ts';
+import {
+  type EditFileInput,
+  type EditFileResult,
+} from '../models/edit-file.ts';
+import { type FileEdit } from '../models/file-edit.ts';
+import { type TextFailure, type WriteFailure } from '../models/file-failure.ts';
+import { type FileLocation } from '../models/file-location.ts';
+import { type FileWrite } from '../models/file-write.ts';
+import { FileReader } from '../ports/file-reader.ts';
+import { FileWriter } from '../ports/file-writer.ts';
+import { moveProblem } from '../rules/move-problem.ts';
 
-export class EditFileService {
-  private readonly fileReader: FileReader;
-  private readonly fileWriter: FileWriter;
-  private readonly options: EditFileOptions;
+export type EditFileFailure =
+  | PathNotFoundError
+  | PathNotReadableError
+  | ContentChangedError
+  | UnsupportedTextError
+  | EntryExistsError
+  | CrossDeviceMoveError
+  | TrashUnavailableError
+  | FileTooLargeError
+  | DiskFullError
+  | InvalidMoveError;
 
-  constructor(
-    fileReader: FileReader,
-    fileWriter: FileWriter,
-    options: EditFileOptions,
-  ) {
-    this.fileReader = fileReader;
-    this.fileWriter = fileWriter;
-    this.options = options;
+type WriteEdit = Extract<FileEdit, { kind: 'write' }>;
+
+export class EditFileService extends Context.Service<
+  EditFileService,
+  {
+    readonly execute: (
+      input: EditFileInput,
+    ) => Effect.Effect<
+      EditFileResult,
+      EditFileFailure,
+      WorktreeRead | WorktreeWrite
+    >;
   }
-
-  async execute(
-    input: EditFileInput,
-    signal?: AbortSignal,
-  ): Promise<EditFileResult> {
-    const { worktreeId, command } = input;
-    switch (command.kind) {
-      case 'write':
-        return this.write(
-          { worktreeId, path: command.path },
-          command.text,
-          command.expectedFingerprint,
-          signal,
-        );
-      case 'create':
-        this.succeed(
-          await this.fileWriter.create(
-            { worktreeId, path: command.path, entryKind: command.entryKind },
-            signal,
-          ),
-        );
-        return { path: command.path };
-      case 'move':
-        if (moveProblem(command.path, command.destination))
-          throw new InvalidMoveError();
-        this.succeed(
-          await this.fileWriter.move(
-            {
-              worktreeId,
-              path: command.path,
-              destination: command.destination,
-            },
-            signal,
-          ),
-        );
-        return { path: command.destination };
-      case 'trash':
-        this.succeed(
-          await this.fileWriter.trash(
-            { worktreeId, path: command.path },
-            signal,
-          ),
-        );
-        return { path: command.path };
-      case 'copy':
-        this.succeed(
-          await this.fileWriter.copy(
-            {
-              worktreeId,
-              path: command.path,
-              destination: command.destination,
-              maxBytes: this.options.maxCopyBytes,
-            },
-            signal,
-          ),
-        );
-        return { path: command.destination };
-    }
-  }
-
-  private async write(
-    location: FileLocation,
-    text: string,
-    expectedFingerprint: string,
-    signal?: AbortSignal,
-  ): Promise<EditFileResult> {
-    const current = await this.fileReader.readText(
-      { ...location, maxBytes: this.options.maxCurrentBytes },
-      signal,
-    );
-    if (current.kind === 'failed') throw this.failure(current.failure);
-    if (current.kind === 'too-large') throw new FileTooLargeError();
-    if (sha256Hex(current.text) !== expectedFingerprint)
-      throw new ContentChangedError();
-    this.succeed(
-      await this.fileWriter.write(
-        { ...location, text, revision: current.revision },
-        signal,
-      ),
-    );
-    return {
-      path: location.path,
-      contentFingerprint: sha256Hex(text),
-    };
-  }
-
-  private succeed(write: FileWrite): void {
-    if (write.kind === 'failed') throw this.failure(write.failure);
-  }
-
-  private failure(failure: TextFailure | WriteFailure): Error {
-    switch (failure) {
-      case 'missing':
-        return new PathNotFoundError();
-      case 'unreadable':
-        return new PathNotReadableError();
-      case 'changed':
-        return new ContentChangedError();
-      case 'unsupported-text':
-        return new UnsupportedTextError();
-      case 'exists':
-        return new EntryExistsError();
-      case 'cross-device':
-        return new CrossDeviceMoveError();
-      case 'trash-unavailable':
-        return new TrashUnavailableError();
-      case 'too-large':
-        return new FileTooLargeError();
-      case 'no-space':
-        return new DiskFullError();
-    }
-  }
+>()('@porcelain/files/EditFileService') {
+  static readonly layer = Layer.effect(
+    EditFileService,
+    Effect.gen(function* () {
+      const fileReaderCapability = yield* FileReader;
+      const fileWriterCapability = yield* FileWriter;
+      const optionsCapability = yield* EditFileOptions;
+      const operationWrite = Effect.fn('EditFileService.write')(function* (
+        location: FileLocation,
+        command: WriteEdit,
+      ): Effect.fn.Return<
+        EditFileResult,
+        EditFileFailure,
+        WorktreeRead | WorktreeWrite
+      > {
+        const current = yield* fileReaderCapability.readText({
+          ...location,
+          maxBytes: optionsCapability.maxCurrentBytes,
+        });
+        if (current.kind === 'failed')
+          return yield* Effect.fail(operationFailure(current.failure));
+        if (current.kind === 'too-large') return yield* new FileTooLargeError();
+        if (sha256Hex(current.text) !== command.expectedFingerprint)
+          return yield* new ContentChangedError();
+        const written = yield* fileWriterCapability.write({
+          ...location,
+          text: command.text,
+          revision: current.revision,
+        });
+        yield* operationSucceed(written);
+        return {
+          path: location.path,
+          contentFingerprint: sha256Hex(command.text),
+        };
+      });
+      const operationSucceed = Effect.fn('EditFileService.succeed')(function* (
+        write: FileWrite,
+      ): Effect.fn.Return<void, EditFileFailure> {
+        return yield* write.kind === 'failed'
+          ? Effect.fail(operationFailure(write.failure))
+          : Effect.void;
+      });
+      function operationFailure(
+        failure: TextFailure | WriteFailure,
+      ): EditFileFailure {
+        switch (failure) {
+          case 'missing':
+            return new PathNotFoundError();
+          case 'unreadable':
+            return new PathNotReadableError();
+          case 'changed':
+            return new ContentChangedError();
+          case 'unsupported-text':
+            return new UnsupportedTextError();
+          case 'exists':
+            return new EntryExistsError();
+          case 'cross-device':
+            return new CrossDeviceMoveError();
+          case 'trash-unavailable':
+            return new TrashUnavailableError();
+          case 'too-large':
+            return new FileTooLargeError();
+          case 'no-space':
+            return new DiskFullError();
+        }
+      }
+      return {
+        execute: Effect.fn('EditFileService.execute')(function* (
+          input: EditFileInput,
+        ): Effect.fn.Return<
+          EditFileResult,
+          EditFileFailure,
+          WorktreeRead | WorktreeWrite
+        > {
+          return yield* Effect.suspend(() => {
+            const { worktreeId, command } = input;
+            switch (command.kind) {
+              case 'write':
+                return operationWrite(
+                  { worktreeId, path: command.path },
+                  command,
+                );
+              case 'create':
+                return Effect.gen(function* () {
+                  const created = yield* fileWriterCapability.create({
+                    worktreeId,
+                    path: command.path,
+                    entryKind: command.entryKind,
+                  });
+                  yield* operationSucceed(created);
+                  return { path: command.path };
+                });
+              case 'move':
+                return Effect.gen(function* () {
+                  if (moveProblem(command.path, command.destination))
+                    return yield* new InvalidMoveError();
+                  const moved = yield* fileWriterCapability.move({
+                    worktreeId,
+                    path: command.path,
+                    destination: command.destination,
+                  });
+                  yield* operationSucceed(moved);
+                  return { path: command.destination };
+                });
+              case 'trash':
+                return Effect.gen(function* () {
+                  const trashed = yield* fileWriterCapability.trash({
+                    worktreeId,
+                    path: command.path,
+                  });
+                  yield* operationSucceed(trashed);
+                  return { path: command.path };
+                });
+              case 'copy':
+                return Effect.gen(function* () {
+                  const copied = yield* fileWriterCapability.copy({
+                    worktreeId,
+                    path: command.path,
+                    destination: command.destination,
+                    maxBytes: optionsCapability.maxCopyBytes,
+                  });
+                  yield* operationSucceed(copied);
+                  return { path: command.destination };
+                });
+            }
+          });
+        }),
+      };
+    }),
+  );
 }

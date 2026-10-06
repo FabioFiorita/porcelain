@@ -5,6 +5,8 @@ import {
   CircleXIcon,
 } from 'lucide-react';
 import { Suspense } from 'react';
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import {
   Collapsible,
   CollapsibleContent,
@@ -13,21 +15,21 @@ import {
 import { useBranchChanges } from '@/features/changes/index';
 import { cn } from '@/shared/lib/utils';
 import { useReviewedMarks } from '../queries/reviewed';
-import type { CommentThread } from '../rules/comments';
+import type { CommentThread } from '@porcelain/client/reviews/rules';
 import {
   type ReadinessItem,
   type ReadinessKey,
   readinessItems,
   readinessSummary,
   type ReadinessTone,
-} from '../rules/readiness';
+} from '@porcelain/client/reviews/rules';
 import {
   mergeBranchChanges,
   type ReviewResponse,
   type ReviewScope,
   type ReviewStatus,
-} from '../rules/review';
-import { branchReviewRange } from '../rules/reviewed';
+} from '@porcelain/client/reviews/rules';
+import { branchReviewRange } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Select = (key: ReadinessKey, firstStale: string | undefined) => void;
@@ -70,13 +72,14 @@ export function BranchReadiness({
 }) {
   const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
-  if (changes.data?.base == null) return null;
+  const branch = Option.getOrUndefined(AsyncResult.value(changes.result));
+  if (branch?.base == null) return null;
   return (
     <Suspense fallback={null}>
       <BranchReadinessMarks
         scope={scope}
         context={context}
-        branch={changes.data}
+        branch={branch}
         review={review}
         threads={threads}
         onSelect={onSelect}
@@ -95,7 +98,9 @@ function BranchReadinessMarks({
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
-  branch: NonNullable<ReturnType<typeof useBranchChanges>['data']>;
+  branch: AsyncResult.AsyncResult.Success<
+    ReturnType<typeof useBranchChanges>['result']
+  >;
   review: ReviewResponse | null;
   threads: readonly CommentThread[];
   onSelect: Select;

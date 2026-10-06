@@ -1,5 +1,4 @@
 export {
-  editFileRequestSchema,
   editFileResponseSchema,
   listDirectoryResponseSchema,
   listWorktreePathsResponseSchema,
@@ -18,4 +17,4 @@ export {
   type ReadTextFileQuery,
   type ReadTextFileResponse,
 } from './files.ts';
-export * from './endpoints.ts';
+export { FilesApi } from './api.ts';

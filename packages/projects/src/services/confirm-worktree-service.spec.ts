@@ -1,6 +1,8 @@
+import { WorktreeCatalogStore } from '@porcelain/projects/ports';
+import { Effect } from 'effect';
 import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
-import type { ListedWorktree } from '@porcelain/projects/models';
+import { type ListedWorktree } from '@porcelain/projects/models';
 import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { ConfirmWorktreeService } from './confirm-worktree-service.ts';
 
@@ -34,39 +36,54 @@ function service(current: ListedWorktree[]) {
       },
     ],
   });
-  return new ConfirmWorktreeService(catalog);
+  return Effect.runSync(
+    ConfirmWorktreeService.pipe(
+      Effect.provide(ConfirmWorktreeService.layer),
+      Effect.provideService(WorktreeCatalogStore, catalog),
+    ),
+  );
 }
 
 describe('ConfirmWorktreeService', () => {
   it('confirms a worktree the catalog still holds as it was checked', () => {
-    expect(() => service([worktree]).execute({ worktree })).not.toThrow();
+    expect(() =>
+      Effect.runSync(service([worktree]).execute({ worktree })),
+    ).not.toThrow();
   });
 
   it('still confirms a worktree whose branch or availability changed in place', () => {
     expect(() =>
-      service([
-        { ...worktree, branch: 'refs/heads/other', available: false },
-      ]).execute({ worktree }),
+      Effect.runSync(
+        service([
+          { ...worktree, branch: 'refs/heads/other', available: false },
+        ]).execute({ worktree }),
+      ),
     ).not.toThrow();
   });
 
   it('refuses a worktree the catalog no longer holds', () => {
-    expect(() => service([]).execute({ worktree })).toThrow(
+    expect(() => Effect.runSync(service([]).execute({ worktree }))).toThrow(
       WorktreeChangedError,
     );
   });
 
   it('refuses a worktree that moved to another folder', () => {
     expect(() =>
-      service([{ ...worktree, path: '/srv/api-moved' }]).execute({ worktree }),
+      Effect.runSync(
+        service([{ ...worktree, path: '/srv/api-moved' }]).execute({
+          worktree,
+        }),
+      ),
     ).toThrow(WorktreeChangedError);
   });
 
   it('refuses a worktree whose repository is no longer the one checked', () => {
     expect(() =>
-      service([{ ...worktree, repositoryIdentity: 'repository-2' }]).execute({
-        worktree,
-      }),
+      Effect.runSync(
+        service([{ ...worktree, repositoryIdentity: 'repository-2' }]).execute({
+          worktree,
+        }),
+      ),
     ).toThrow(WorktreeChangedError);
   });
 });

@@ -1,3 +1,5 @@
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import {
   FileQuestionIcon,
   FlaskConicalIcon,
@@ -32,7 +34,7 @@ import {
   changeAnchor,
   commentsSeenThrough,
   type CommentThread,
-} from '../rules/comments';
+} from '@porcelain/client/reviews/rules';
 import {
   BRANCH,
   type DocumentRef,
@@ -41,22 +43,22 @@ import {
   UNEXPLAINED,
   type OpenDocument,
 } from '../rules/documents';
-import { proofLabel, proofStatus } from '../rules/proof';
-import type { ReadinessKey } from '../rules/readiness';
+import { proofLabel, proofStatus } from '@porcelain/client/reviews/rules';
+import type { ReadinessKey } from '@porcelain/client/reviews/rules';
 import {
   type ChangeList,
   notExplainedLabel,
   type ReviewChangeItem,
   type ReviewResponse,
   type ReviewScope,
-} from '../rules/review';
+} from '@porcelain/client/reviews/rules';
 import { BranchIndex } from './branch-index';
 import { ChangeRow, ROW } from './change-row';
 import { DeleteResolved } from './delete-resolved';
 import { InlineComposer } from './inline-composer';
 import { BranchReadiness, ChangeReadiness } from './readiness-panel';
 import { ThreadCard } from './thread-card';
-import { groupSpecPaths } from '../rules/spec-paths';
+import { groupSpecPaths } from '@porcelain/client/reviews/rules';
 import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -87,9 +89,9 @@ export function ReviewIndex({
   const [view, setView] = useState<'layers' | 'comments'>('layers');
   usePrefetchReviewed(scope, context);
   usePrefetchComments(scope, context);
-  const { changes: list } = useChanges(scope, connection);
+  const list = useChanges(scope, connection);
   const published = usePublishedReview(scope, context);
-  const review = published.data?.active ? published.data : null;
+  const review = published.review?.active ? published.review : null;
   const { threads } = useComments(scope, context);
   const changes = useReviewChangeItems(scope, context, list);
   const openComments = threads.filter((thread) => !thread.resolved).length;
@@ -435,8 +437,9 @@ function BranchChangeComment({
 }) {
   const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
-  const ref = changes.data?.base?.ref;
-  const tip = changes.data?.head.oid;
+  const branch = Option.getOrUndefined(AsyncResult.value(changes.result));
+  const ref = branch?.base?.ref;
+  const tip = branch?.head.oid;
   return (
     <ChangeComment
       scope={scope}
@@ -488,7 +491,7 @@ function CommentsView({
     (top, thread) => Math.max(top, thread.revision),
     0,
   );
-  const markSeen = useMarkCommentsSeen(scope, context).mutate;
+  const markSeen = useMarkCommentsSeen(scope, context);
   const shown = useRef({ snapshot: '', filters: new Set<string>() });
   useEffect(() => {
     if (shown.current.snapshot !== snapshot)

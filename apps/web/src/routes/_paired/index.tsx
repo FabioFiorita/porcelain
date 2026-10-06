@@ -1,24 +1,29 @@
 import {
+  firstWaitingWorktree,
+  selectedWorktreeInProject,
+} from '@porcelain/client/projects/rules';
+import {
   createFileRoute,
   Navigate,
   useRouterState,
 } from '@tanstack/react-router';
-import { z } from 'zod';
+import { Effect, Option, Schema } from 'effect';
 import { useConnectedContext } from '@/features/access/index';
-import {
-  firstWaitingWorktree,
-  selectedWorktreeInProject,
-  useInventory,
-} from '@/features/projects/index';
+import { useInventory } from '@/features/projects/index';
 import { ConnectedWorkspace } from '@/app/connected-workspace';
 import { WorkspaceError } from '@/app/workspace-error';
 import { WorkspacePending } from '@/app/workspace-pending';
 import { workspaceSearchSchema } from '@/shared/workspace/search';
 
 export const Route = createFileRoute('/_paired/')({
-  validateSearch: workspaceSearchSchema.extend({
-    worktree: z.string().optional().catch(undefined),
-  }),
+  validateSearch: Schema.decodeUnknownSync(
+    Schema.Struct({
+      ...workspaceSearchSchema.fields,
+      worktree: Schema.optional(Schema.String).pipe(
+        Schema.catchDecoding(() => Effect.succeed(Option.some(undefined))),
+      ),
+    }),
+  ),
   pendingComponent: WorkspacePending,
   errorComponent: WorkspaceError,
   component: WorkspaceIndex,

@@ -1,132 +1,230 @@
-import type { QueryClient } from '@tanstack/query-core';
 import type {
-  WorktreeConnection,
+  CreateCommentThreadRequest,
+  ReplyToCommentRequest,
+  UpdateCommentThreadRequest,
+  EditCommentMessageRequest,
+} from '@porcelain/contracts/reviews';
+import { Effect, Option } from 'effect';
+import { Atom, Reactivity } from 'effect/reactivity';
+import type {
+  RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
+import { porcelainClient } from '../../../shared/api/client.ts';
+import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
-import { createScopedWriteQueues } from '../../../shared/api/write-queue.ts';
-import { commentsApi } from '../api.ts';
-import { commentsQueryOptions } from '../queries/comments.ts';
-import type {
-  CommentThread,
-  NewComment,
-  ReplyCommentInput,
-  ResolveCommentInput,
-  EditCommentInput,
-  DeleteCommentInput,
-  ConfirmedThreads,
-} from '../ports/comments.ts';
+import { requestEffect } from '../../../shared/api/effect-client.ts';
+import { CommentThreadsState, commentsRuntime } from '../store/comments.ts';
+import {
+  mergeCommentThreads,
+  type CommentThread,
+  type ConfirmedThreads,
+} from '../rules/comments.ts';
 
-const writeQueue = createScopedWriteQueues();
+type ReplyCommentInput = { threadId: string } & ReplyToCommentRequest;
+type ResolveCommentInput = { threadId: string } & UpdateCommentThreadRequest;
+type EditCommentInput = { threadId: string } & EditCommentMessageRequest;
+type DeleteCommentInput = { threadId: string; messageId: string };
 
-export function commentCommands(
-  scope: WorktreeScope,
-  connection: WorktreeConnection,
-  client: QueryClient,
-) {
-  const api = commentsApi(connection);
-  const key = commentsQueryOptions(scope, connection).queryKey;
-  const queue = writeQueue(connection, key);
-  const request = () => ({ ...scope, ...connection.request() });
-
-  async function merge(
-    updated: CommentThread[],
-    refreshInventory: boolean,
-    signal: AbortSignal,
-    removed: readonly string[] = [],
-  ) {
-    await client.cancelQueries({ queryKey: key, exact: true });
-    assertCurrentAnswer(signal);
-    client.setQueryData<CommentThread[]>(key, (current) => {
-      const byId = new Map(
-        (current ?? []).map((thread) => [thread.id, thread]),
-      );
-      for (const thread of updated) byId.set(thread.id, thread);
-      for (const threadId of removed) byId.delete(threadId);
-      return [...byId.values()];
-    });
-    if (refreshInventory)
-      await client.invalidateQueries({
-        queryKey: queryKeys.inventory(connection.environmentId),
+export const commentCommands = Atom.family(
+  ({
+    connection,
+    scope,
+  }: {
+    connection: RuntimeConnection;
+    scope: WorktreeScope;
+  }) => {
+    const runtime = commentsRuntime({ connection, scope });
+    const params = { worktreeId: scope.worktreeId };
+    const inventory = Reactivity.invalidate([
+      queryKeys.inventory(connection.environmentId),
+    ]);
+    function confirmThread<E>(
+      operation: Effect.Effect<CommentThread, E>,
+      refreshInventory = false,
+    ) {
+      return Effect.gen(function* () {
+        const state = yield* CommentThreadsState;
+        const thread = yield* state.confirm(
+          operation.pipe(
+            Effect.tap((thread) =>
+              currentAnswerEffect(
+                connection.request().signal,
+                thread.worktreeId === scope.worktreeId,
+              ),
+            ),
+          ),
+          (previous, thread) =>
+            Option.some(
+              mergeCommentThreads(
+                Option.getOrElse(previous, () => []),
+                [thread],
+              ),
+            ),
+        );
+        if (refreshInventory) yield* inventory;
+        return thread;
       });
-  }
-
-  function threads<T>(
-    input: T,
-    send: (
-      connected: ReturnType<typeof request>,
-      input: T,
-    ) => Promise<CommentThread[]>,
-    refreshInventory = false,
-  ) {
-    return queue.enqueue(async () => {
-      const connected = request();
-      const result = await send(connected, input);
-      assertCurrentAnswer(
-        connected.signal,
-        result.every((thread) => thread.worktreeId === scope.worktreeId),
-      );
-      await merge(result, refreshInventory, connected.signal);
-      return result;
-    });
-  }
-
-  return {
-    create: (input: NewComment) =>
-      threads(input, (connected, input) => api.create({ ...connected, input })),
-    reply: (input: ReplyCommentInput) =>
-      threads(
-        input,
-        (connected, { threadId, body, messageId }) =>
-          api.reply({ ...connected, threadId, input: { body, messageId } }),
-        true,
+    }
+    return {
+      create: runtime.fn(
+        Effect.fn('Reviews.createComment')(function* (
+          input: CreateCommentThreadRequest,
+        ) {
+          const api = yield* porcelainClient(connection);
+          return yield* confirmThread(
+            requestEffect(
+              api.reviews.createCommentThread({ params, payload: input }),
+            ),
+          );
+        }),
+        { concurrent: true },
       ),
-    resolve: (input: ResolveCommentInput) =>
-      threads(input, (connected, { threadId, resolved }) =>
-        api.resolve({ ...connected, threadId, input: { resolved } }),
+      reply: runtime.fn(
+        Effect.fn('Reviews.replyToComment')(function* ({
+          threadId,
+          body,
+          messageId,
+        }: ReplyCommentInput) {
+          const api = yield* porcelainClient(connection);
+          return yield* confirmThread(
+            requestEffect(
+              api.reviews.replyToComment({
+                params: { ...params, threadId },
+                payload: { body, messageId },
+              }),
+            ),
+            true,
+          );
+        }),
+        { concurrent: true },
       ),
-    edit: (input: EditCommentInput) =>
-      threads(input, (connected, input) =>
-        api.edit({ ...connected, ...input }),
+      resolve: runtime.fn(
+        Effect.fn('Reviews.resolveComment')(function* ({
+          threadId,
+          resolved,
+        }: ResolveCommentInput) {
+          const api = yield* porcelainClient(connection);
+          return yield* confirmThread(
+            requestEffect(
+              api.reviews.updateCommentThread({
+                params: { ...params, threadId },
+                payload: { resolved },
+              }),
+            ),
+          );
+        }),
+        { concurrent: true },
       ),
-    remove: (input: DeleteCommentInput) =>
-      queue.enqueue(async () => {
-        const connected = request();
-        const result = await api.remove({ ...connected, ...input });
-        const updated = result.thread ? [result.thread] : [];
-        assertCurrentAnswer(
-          connected.signal,
-          updated.every((thread) => thread.worktreeId === scope.worktreeId),
-        );
-        await merge(
-          updated,
-          true,
-          connected.signal,
-          result.thread ? [] : [result.threadId],
-        );
-        return result;
-      }),
-    removeResolved: (threads: ConfirmedThreads) =>
-      queue.enqueue(async () => {
-        const connected = request();
-        const result = await api.removeResolved({ ...connected, threads });
-        assertCurrentAnswer(connected.signal);
-        await merge([], true, connected.signal, result.deleted);
-        return result;
-      }),
-    seen: (throughRevision: number) =>
-      queue.enqueue(async () => {
-        const connected = request();
-        const result = await api.seen({ ...connected, throughRevision });
-        assertCurrentAnswer(
-          connected.signal,
-          result.worktreeId === scope.worktreeId,
-        );
-        await client.invalidateQueries({
-          queryKey: queryKeys.inventory(connection.environmentId),
-        });
-        return result;
-      }),
-  };
-}
+      edit: runtime.fn(
+        Effect.fn('Reviews.editComment')(function* ({
+          threadId,
+          messageId,
+          body,
+        }: EditCommentInput) {
+          const api = yield* porcelainClient(connection);
+          return yield* confirmThread(
+            requestEffect(
+              api.reviews.editCommentMessage({
+                params: { ...params, threadId },
+                payload: { messageId, body },
+              }),
+            ),
+          );
+        }),
+        { concurrent: true },
+      ),
+      remove: runtime.fn(
+        Effect.fn('Reviews.deleteComment')(function* ({
+          threadId,
+          messageId,
+        }: DeleteCommentInput) {
+          const api = yield* porcelainClient(connection);
+          const state = yield* CommentThreadsState;
+          const result = yield* state.confirm(
+            Effect.gen(function* () {
+              const answer = yield* requestEffect(
+                api.reviews.deleteCommentMessage({
+                  params: { ...params, threadId },
+                  query: { messageId },
+                }),
+              );
+              yield* currentAnswerEffect(
+                connection.request().signal,
+                answer.threadId === threadId &&
+                  (!answer.thread ||
+                    answer.thread.worktreeId === scope.worktreeId),
+              );
+              return answer;
+            }),
+            (previous, answer) =>
+              Option.some(
+                mergeCommentThreads(
+                  Option.getOrElse(previous, () => []),
+                  answer.thread ? [answer.thread] : [],
+                  answer.thread ? [] : [answer.threadId],
+                ),
+              ),
+          );
+          yield* inventory;
+          return result;
+        }),
+        { concurrent: true },
+      ),
+      removeResolved: runtime.fn(
+        Effect.fn('Reviews.deleteResolvedComments')(function* (
+          threads: ConfirmedThreads,
+        ) {
+          const api = yield* porcelainClient(connection);
+          const state = yield* CommentThreadsState;
+          const result = yield* state.confirm(
+            requestEffect(
+              api.reviews.deleteResolvedComments({
+                params,
+                payload: { threads },
+              }),
+            ),
+            (previous, answer) =>
+              Option.some(
+                mergeCommentThreads(
+                  Option.getOrElse(previous, () => []),
+                  [],
+                  answer.deleted,
+                ),
+              ),
+          );
+          yield* inventory;
+          return result;
+        }),
+        { concurrent: true },
+      ),
+      seen: runtime.fn(
+        Effect.fn('Reviews.markCommentsSeen')(function* (
+          throughRevision: number,
+        ) {
+          const api = yield* porcelainClient(connection);
+          const state = yield* CommentThreadsState;
+          const result = yield* state.confirm(
+            Effect.gen(function* () {
+              const answer = yield* requestEffect(
+                api.reviews.markCommentsSeen({
+                  params,
+                  payload: { throughRevision },
+                }),
+              );
+              yield* currentAnswerEffect(
+                connection.request().signal,
+                answer.worktreeId === scope.worktreeId,
+              );
+              return answer;
+            }),
+            (previous) => previous,
+          );
+          yield* inventory;
+          return result;
+        }),
+        { concurrent: true },
+      ),
+    };
+  },
+);

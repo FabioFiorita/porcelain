@@ -1,7 +1,10 @@
-export class StepLaneOutOfRangeError extends Error {
-  override readonly name = 'StepLaneOutOfRangeError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('A step names a lane its layer does not have');
+export class StepLaneOutOfRangeError extends Schema.TaggedError<StepLaneOutOfRangeError>()(
+  'StepLaneOutOfRangeError',
+  {},
+) {
+  override get message() {
+    return 'A step names a lane its layer does not have';
   }
 }

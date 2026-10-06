@@ -1,14 +1,10 @@
 export { ConnectionError } from './connection-error.ts';
-export { RequestError, requestEndpoint, isEndpointError } from './request.ts';
-export { remoteTransport, type Transport } from './transport.ts';
+export { RequestError } from './request-error.ts';
+export type { Transport } from './transport.ts';
 
-export type { WorktreeConnection } from './connection.ts';
+export type { RuntimeConnection } from './connection.ts';
 export { createWorktreeConnection } from './worktree-connection.ts';
 
-export {
-  queryKeys,
-  reviewSurfaceFilters,
-  fileSurfaces,
-  gitSurfaces,
-} from './query-keys.ts';
-export { assertCurrentAnswer } from './stale-answer.ts';
+export { queryKeys } from './query-keys.ts';
+export { runRequest } from './effect-client.ts';
+export { retryWorktreeReads } from './read-recovery.ts';

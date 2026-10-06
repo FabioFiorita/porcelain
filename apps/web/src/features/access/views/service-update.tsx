@@ -1,16 +1,18 @@
+import { Cause, Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useStartServiceUpdate } from '../commands/share';
 import { useServiceUpdate } from '../queries/share';
-import { connectionErrorMessage } from '../rules/connection-error-message';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import {
   type ServiceUpdate,
   serviceUpdateOutcome,
   serviceUpdateProgress,
-} from '../rules/service-update';
-import { useAccessStore } from '../store';
+} from '@porcelain/client/access/rules';
+import { useLocalConnection } from '../store';
 import { type Connection } from '@/shared/workspace/connection';
 
 type UpdateTarget =
@@ -78,7 +80,7 @@ function Offer({
   state: ServiceUpdate;
   onStart: () => void;
 }) {
-  const start = useStartServiceUpdate(connection);
+  const [start, startUpdate] = useStartServiceUpdate(connection);
   const { latest } = state;
   if (!state.available || latest == null)
     return (
@@ -95,13 +97,13 @@ function Offer({
         {state.canUpdate && (
           <Button
             size="sm"
-            disabled={start.isPending}
+            disabled={start.waiting}
             onClick={() => {
               onStart();
-              start.onSubmit(latest);
+              startUpdate(latest);
             }}
           >
-            {start.isPending && <Spinner />}
+            {start.waiting && <Spinner />}
             Update to {latest}
           </Button>
         )}
@@ -109,10 +111,10 @@ function Offer({
       {!state.canUpdate && (
         <p className="text-xs text-muted-foreground">{trustHint(target)}</p>
       )}
-      {start.error && (
+      {AsyncResult.isFailure(start) && (
         <Alert variant="destructive">
           <AlertDescription>
-            {connectionErrorMessage(start.error)}
+            {connectionErrorMessage(Cause.squash(start.cause))}
           </AlertDescription>
         </Alert>
       )}
@@ -129,18 +131,18 @@ function UpdateContent({
 }) {
   const update = useServiceUpdate(connection);
   const [started, setStarted] = useState(false);
-  const state = update.data;
+  const state = Option.getOrUndefined(AsyncResult.value(update));
   if (!state)
-    return update.error ? (
+    return AsyncResult.isFailure(update) ? (
       <Alert variant="destructive">
         <AlertDescription>
-          {connectionErrorMessage(update.error)}
+          {connectionErrorMessage(Cause.squash(update.cause))}
         </AlertDescription>
       </Alert>
     ) : (
       <Spinner />
     );
-  const progress = serviceUpdateProgress(state, update.unreachable);
+  const progress = serviceUpdateProgress(state, AsyncResult.isFailure(update));
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm font-medium">
@@ -172,7 +174,7 @@ function UpdateContent({
 }
 
 export function ServiceUpdateSettings() {
-  const connection = useAccessStore((state) => state.connection);
+  const connection = useLocalConnection();
   return (
     connection && (
       <UpdateContent connection={connection} target={{ kind: 'local' }} />

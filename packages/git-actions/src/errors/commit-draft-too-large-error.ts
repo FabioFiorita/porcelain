@@ -1,7 +1,10 @@
-export class CommitDraftTooLargeError extends Error {
-  override readonly name = 'CommitDraftTooLargeError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Select fewer files to generate a commit draft.');
+export class CommitDraftTooLargeError extends Schema.TaggedError<CommitDraftTooLargeError>()(
+  'CommitDraftTooLargeError',
+  {},
+) {
+  override get message() {
+    return 'Select fewer files to generate a commit draft.';
   }
 }

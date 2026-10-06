@@ -1,7 +1,10 @@
-export class UnrelatedBranchError extends Error {
-  override readonly name = 'UnrelatedBranchError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('The branch shares no history with its base');
+export class UnrelatedBranchError extends Schema.TaggedError<UnrelatedBranchError>()(
+  'UnrelatedBranchError',
+  {},
+) {
+  override get message() {
+    return 'The branch shares no history with its base';
   }
 }

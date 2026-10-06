@@ -1,27 +1,28 @@
-import type { QueryClient } from '@tanstack/react-query';
-import { sessionQueryOptions } from '../queries/session';
-import { useAccessStore } from '../store';
-import { queryKeys } from '@porcelain/client/transport';
+import { Effect } from 'effect';
+import { AsyncResult, AtomRegistry } from 'effect/reactivity';
+import { readBrowserSession } from '@porcelain/client/access';
+import { browserTransport } from '@/shared/api/transport';
+import { accessSession, applicationRuntime } from '../store';
 
-export async function restoreSession(client: QueryClient) {
-  const restored = useAccessStore.getState().connection;
-  if (restored) return true;
-  const complete = useAccessStore.getState().beginConnection(true);
+const restoredSession = readBrowserSession(
+  browserTransport(fetch, { reportUnauthorized: false }),
+);
+
+export async function restoreSession(registry: AtomRegistry.AtomRegistry) {
+  if (accessSession.state.value.connection) return true;
+  const complete = applicationRuntime.runSync(
+    accessSession.beginConnection(true),
+  );
   if (!complete) return false;
-  const inventory = await client.query({
-    ...sessionQueryOptions(),
-    staleTime: 'static',
-  });
-  if (inventory === null) return false;
-  if (complete(inventory)) {
-    client.clear();
-    client.setQueryData(
-      queryKeys.inventory(inventory.environmentId),
-      inventory,
-    );
-    void client.invalidateQueries({
-      queryKey: queryKeys.inventory(inventory.environmentId),
-    });
-  }
-  return useAccessStore.getState().connection !== null;
+  const result = registry.get(restoredSession);
+  if (AsyncResult.isFailure(result) && !result.waiting)
+    registry.refresh(restoredSession);
+  const session = await Effect.runPromise(
+    AtomRegistry.getResult(registry, restoredSession, {
+      suspendOnWaiting: true,
+    }),
+  );
+  if (session === null) return false;
+  await applicationRuntime.runPromise(complete(session));
+  return accessSession.state.value.connection !== null;
 }

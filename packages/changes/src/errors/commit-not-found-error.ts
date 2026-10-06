@@ -1,7 +1,10 @@
-export class CommitNotFoundError extends Error {
-  override readonly name = 'CommitNotFoundError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Commit not found');
+export class CommitNotFoundError extends Schema.TaggedError<CommitNotFoundError>()(
+  'CommitNotFoundError',
+  {},
+) {
+  override get message() {
+    return 'Commit not found';
   }
 }

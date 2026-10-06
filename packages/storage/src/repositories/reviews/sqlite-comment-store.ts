@@ -1,31 +1,13 @@
-import { and, asc, count, eq, inArray, max, sql, sum } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { commentRevision } from '../../db/schema/comment-revision.ts';
+import { Effect, Layer, Option, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/sql';
+import { CommentStore } from '@porcelain/reviews/ports';
+import type { CommentMessage, CommentThread } from '@porcelain/reviews/models';
 import {
-  commentMessages,
-  commentThreads,
-} from '../../db/schema/comment-threads.ts';
-import type {
-  AgentReply,
-  CommentEdit,
-  CommentMessage,
-  CommentRemoval,
-  CommentReply,
-  CommentResolution,
-  CommentThread,
-  CommentUsage,
-  NewCommentThread,
-  PostedCommentMessage,
-} from '@porcelain/reviews/models';
-import type { CommentStore } from '@porcelain/reviews/ports';
+  CommentMessageRow,
+  CommentThreadRow,
+} from '../../db/models/comment-threads.ts';
 
-type Transaction = Parameters<
-  Parameters<BetterSQLite3Database['transaction']>[0]
->[0];
-type ThreadRow = typeof commentThreads.$inferSelect;
-type MessageRow = typeof commentMessages.$inferSelect;
-
-function messageFromRow(row: MessageRow): CommentMessage {
+function messageFromRow(row: CommentMessageRow): CommentMessage {
   return {
     id: row.id,
     body: row.body,
@@ -34,10 +16,9 @@ function messageFromRow(row: MessageRow): CommentMessage {
     ...(row.editedAt === null ? {} : { editedAt: row.editedAt }),
   };
 }
-
 function threadFromRows(
-  row: ThreadRow,
-  messages: readonly MessageRow[],
+  row: CommentThreadRow,
+  messages: readonly CommentMessageRow[],
 ): CommentThread {
   return {
     id: row.id,
@@ -49,269 +30,206 @@ function threadFromRows(
   };
 }
 
-function nextRevision(tx: Transaction): number {
-  return tx
-    .insert(commentRevision)
-    .values({ singleton: 1, revision: 1 })
-    .onConflictDoUpdate({
-      target: commentRevision.singleton,
-      set: { revision: sql`${commentRevision.revision} + 1` },
-    })
-    .returning({ revision: commentRevision.revision })
-    .get().revision;
-}
-
-export class SqliteCommentStore implements CommentStore {
-  private readonly db: BetterSQLite3Database;
-
-  constructor(db: BetterSQLite3Database) {
-    this.db = db;
-  }
-
-  list(input: { worktreeId: string }): CommentThread[] {
-    const threads = this.db
-      .select()
-      .from(commentThreads)
-      .where(eq(commentThreads.worktreeId, input.worktreeId))
-      .orderBy(asc(commentThreads.sequence))
-      .all();
-    const messages = this.db
-      .select()
-      .from(commentMessages)
-      .where(eq(commentMessages.worktreeId, input.worktreeId))
-      .orderBy(asc(commentMessages.sequence))
-      .all();
-    const byThread = new Map<string, MessageRow[]>();
-    for (const message of messages) {
-      const entries = byThread.get(message.threadId) ?? [];
-      entries.push(message);
-      byThread.set(message.threadId, entries);
-    }
-    return threads.map((thread) =>
-      threadFromRows(thread, byThread.get(thread.id) ?? []),
-    );
-  }
-
-  find(input: { threadId: string }): CommentThread | undefined {
-    const row = this.db
-      .select()
-      .from(commentThreads)
-      .where(eq(commentThreads.id, input.threadId))
-      .get();
-    if (!row) return undefined;
-    const messages = this.db
-      .select()
-      .from(commentMessages)
-      .where(eq(commentMessages.threadId, input.threadId))
-      .orderBy(asc(commentMessages.sequence))
-      .all();
-    return threadFromRows(row, messages);
-  }
-
-  findMessage(input: { messageId: string }): PostedCommentMessage | undefined {
-    const row = this.db
-      .select()
-      .from(commentMessages)
-      .where(eq(commentMessages.id, input.messageId))
-      .orderBy(asc(commentMessages.sequence))
-      .get();
-    return row
-      ? {
-          ...messageFromRow(row),
-          threadId: row.threadId,
-          worktreeId: row.worktreeId,
-        }
-      : undefined;
-  }
-
-  usage(input: { worktreeId: string }): CommentUsage {
-    const result = this.db
-      .select({ threads: count(), bytes: sum(commentThreads.sizeBytes) })
-      .from(commentThreads)
-      .where(eq(commentThreads.worktreeId, input.worktreeId))
-      .get();
-    return {
-      threads: result?.threads ?? 0,
-      bytes: Number(result?.bytes ?? 0),
-    };
-  }
-
-  lastRevision(input: { worktreeId: string }): number {
-    return (
-      this.db
-        .select({ revision: max(commentThreads.revision) })
-        .from(commentThreads)
-        .where(eq(commentThreads.worktreeId, input.worktreeId))
-        .get()?.revision ?? 0
-    );
-  }
-
-  listAgentReplies(input: { worktreeIds: readonly string[] }): AgentReply[] {
-    return this.db
-      .select({
-        worktreeId: commentThreads.worktreeId,
-        threadId: commentThreads.id,
-        revision: commentThreads.lastAgentRevision,
-        resolved: commentThreads.resolved,
-      })
-      .from(commentThreads)
-      .where(inArray(commentThreads.worktreeId, [...input.worktreeIds]))
-      .all()
-      .flatMap(({ worktreeId, threadId, revision, resolved }) =>
-        revision === null ? [] : [{ worktreeId, threadId, revision, resolved }],
-      );
-  }
-
-  insert(input: NewCommentThread): CommentThread {
-    const { content } = input;
-    return this.db.transaction(
-      (tx) => {
-        const revision = nextRevision(tx);
-        tx.insert(commentThreads)
-          .values({
+export const sqliteCommentStoreLayer = Layer.effect(
+  CommentStore,
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const nextRevision = SqlSchema.findOne({
+      Request: Schema.Void,
+      Result: Schema.Struct({ revision: Schema.Int }),
+      execute: () =>
+        sql`INSERT INTO comment_revision (singleton, revision) VALUES (1, 1) ON CONFLICT (singleton) DO UPDATE SET revision = revision + 1 RETURNING revision`,
+    });
+    const threads = SqlSchema.findAll({
+      Request: Schema.Struct({ worktreeId: Schema.String }),
+      Result: CommentThreadRow,
+      execute: (input) =>
+        sql`SELECT * FROM comment_threads WHERE worktree_id = ${input.worktreeId} ORDER BY sequence`,
+    });
+    const messages = SqlSchema.findAll({
+      Request: Schema.Struct({ worktreeId: Schema.String }),
+      Result: CommentMessageRow,
+      execute: (input) =>
+        sql`SELECT * FROM comment_messages WHERE worktree_id = ${input.worktreeId} ORDER BY sequence`,
+    });
+    const findThread = SqlSchema.findOneOption({
+      Request: Schema.Struct({ threadId: Schema.String }),
+      Result: CommentThreadRow,
+      execute: (input) =>
+        sql`SELECT * FROM comment_threads WHERE id = ${input.threadId}`,
+    });
+    const threadMessages = SqlSchema.findAll({
+      Request: Schema.Struct({ threadId: Schema.String }),
+      Result: CommentMessageRow,
+      execute: (input) =>
+        sql`SELECT * FROM comment_messages WHERE thread_id = ${input.threadId} ORDER BY sequence`,
+    });
+    const findMessage = SqlSchema.findOneOption({
+      Request: Schema.Struct({ messageId: Schema.String }),
+      Result: CommentMessageRow,
+      execute: (input) =>
+        sql`SELECT * FROM comment_messages WHERE id = ${input.messageId} ORDER BY sequence LIMIT 1`,
+    });
+    const usage = SqlSchema.findOne({
+      Request: Schema.Struct({ worktreeId: Schema.String }),
+      Result: Schema.Struct({ threads: Schema.Int, bytes: Schema.Int }),
+      execute: (input) =>
+        sql`SELECT COUNT(*) AS threads, COALESCE(SUM(size_bytes), 0) AS bytes FROM comment_threads WHERE worktree_id = ${input.worktreeId}`,
+    });
+    const lastRevision = SqlSchema.findOne({
+      Request: Schema.Struct({ worktreeId: Schema.String }),
+      Result: Schema.Struct({ revision: Schema.Int }),
+      execute: (input) =>
+        sql`SELECT COALESCE(MAX(revision), 0) AS revision FROM comment_threads WHERE worktree_id = ${input.worktreeId}`,
+    });
+    const agentReplies = SqlSchema.findAll({
+      Request: Schema.Struct({ worktreeIds: Schema.Array(Schema.String) }),
+      Result: Schema.Struct({
+        worktreeId: Schema.String,
+        threadId: Schema.String,
+        revision: Schema.Int,
+        resolved: Schema.BooleanFromBit,
+      }),
+      execute: (input) =>
+        sql`SELECT worktree_id, id AS thread_id, last_agent_revision AS revision, resolved FROM comment_threads WHERE ${sql.in('worktreeId', input.worktreeIds)} AND last_agent_revision IS NOT NULL`,
+    });
+    const insertMessage = Effect.fn('CommentStore.insertMessage')(function* (
+      thread: Pick<CommentThread, 'id' | 'worktreeId'>,
+      message: CommentMessage,
+    ) {
+      const row = yield* Schema.encodeEffect(CommentMessageRow.insert)({
+        id: message.id,
+        threadId: thread.id,
+        worktreeId: thread.worktreeId,
+        body: message.body,
+        author: message.author,
+        createdAt: message.createdAt ?? null,
+        editedAt: message.editedAt ?? null,
+      });
+      yield* sql`INSERT INTO comment_messages ${sql.insert(row)}`;
+    });
+    return CommentStore.of({
+      list: Effect.fn('CommentStore.list')(function* (input) {
+        return yield* Effect.gen(function* () {
+          const rows = yield* threads(input);
+          const allMessages = yield* messages(input);
+          const byThread = new Map<string, CommentMessageRow[]>();
+          for (const message of allMessages) {
+            const entries = byThread.get(message.threadId) ?? [];
+            entries.push(message);
+            byThread.set(message.threadId, entries);
+          }
+          return rows.map((row) =>
+            threadFromRows(row, byThread.get(row.id) ?? []),
+          );
+        }).pipe(sql.withTransaction, Effect.orDie);
+      }),
+      find: Effect.fn('CommentStore.find')(function* (input) {
+        return yield* Effect.gen(function* () {
+          const row = yield* findThread(input);
+          if (Option.isNone(row)) return undefined;
+          return threadFromRows(row.value, yield* threadMessages(input));
+        }).pipe(sql.withTransaction, Effect.orDie);
+      }),
+      findMessage: Effect.fn('CommentStore.findMessage')(function* (input) {
+        const row = yield* findMessage(input).pipe(Effect.orDie);
+        if (Option.isNone(row)) return undefined;
+        return {
+          ...messageFromRow(row.value),
+          threadId: row.value.threadId,
+          worktreeId: row.value.worktreeId,
+        };
+      }),
+      usage: Effect.fn('CommentStore.usage')(function* (input) {
+        return yield* usage(input).pipe(Effect.orDie);
+      }),
+      lastRevision: Effect.fn('CommentStore.lastRevision')(function* (input) {
+        return (yield* lastRevision(input).pipe(Effect.orDie)).revision;
+      }),
+      listAgentReplies: Effect.fn('CommentStore.listAgentReplies')(
+        function* (input) {
+          return yield* agentReplies(input).pipe(Effect.orDie);
+        },
+      ),
+      insert: Effect.fn('CommentStore.insert')(function* (input) {
+        return yield* Effect.gen(function* () {
+          const { content } = input;
+          const { revision } = yield* nextRevision(undefined);
+          const row = yield* Schema.encodeEffect(CommentThreadRow.insert)({
             id: content.id,
             worktreeId: content.worktreeId,
-            anchor: structuredClone(content.anchor),
+            anchor: content.anchor,
             resolved: false,
             revision,
             lastAgentRevision: input.writtenByAgent ? revision : null,
             sizeBytes: input.sizeBytes,
-          })
-          .run();
-        for (const message of content.messages)
-          tx.insert(commentMessages)
-            .values({
-              id: message.id,
-              threadId: content.id,
-              worktreeId: content.worktreeId,
-              body: message.body,
-              author: message.author,
-              createdAt: message.createdAt ?? null,
-            })
-            .run();
-        return { ...structuredClone(content), resolved: false, revision };
-      },
-      { behavior: 'immediate' },
-    );
-  }
-
-  append(input: CommentReply): CommentThread {
-    const { thread, message } = input;
-    return this.db.transaction(
-      (tx) => {
-        const revision = nextRevision(tx);
-        tx.insert(commentMessages)
-          .values({
-            id: message.id,
-            threadId: thread.id,
-            worktreeId: thread.worktreeId,
-            body: message.body,
-            author: message.author,
-            createdAt: message.createdAt ?? null,
-          })
-          .run();
-        tx.update(commentThreads)
-          .set({
+          });
+          yield* sql`INSERT INTO comment_threads ${sql.insert(row)}`;
+          for (const message of content.messages)
+            yield* insertMessage(content, message);
+          return { ...structuredClone(content), resolved: false, revision };
+        }).pipe(sql.withTransaction, Effect.orDie);
+      }),
+      append: Effect.fn('CommentStore.append')(function* (input) {
+        return yield* Effect.gen(function* () {
+          const { thread, message } = input;
+          const { revision } = yield* nextRevision(undefined);
+          yield* insertMessage(thread, message);
+          yield* sql`UPDATE comment_threads SET revision = ${revision}, last_agent_revision = ${input.writtenByAgent ? revision : null}, size_bytes = ${input.sizeBytes} WHERE id = ${thread.id}`;
+          return {
+            ...structuredClone(thread),
+            messages: structuredClone([...thread.messages, message]),
             revision,
-            lastAgentRevision: input.writtenByAgent ? revision : null,
-            sizeBytes: input.sizeBytes,
-          })
-          .where(eq(commentThreads.id, thread.id))
-          .run();
-        return {
-          ...structuredClone(thread),
-          messages: structuredClone([...thread.messages, message]),
-          revision,
-        };
-      },
-      { behavior: 'immediate' },
-    );
-  }
-
-  resolve(input: CommentResolution): CommentThread {
-    const { thread, resolved } = input;
-    return this.db.transaction(
-      (tx) => {
-        const revision = nextRevision(tx);
-        tx.update(commentThreads)
-          .set({ resolved, revision })
-          .where(eq(commentThreads.id, thread.id))
-          .run();
-        return { ...structuredClone(thread), resolved, revision };
-      },
-      { behavior: 'immediate' },
-    );
-  }
-
-  edit(input: CommentEdit): CommentThread {
-    const { thread } = input;
-    return this.db.transaction(
-      (tx) => {
-        const revision = nextRevision(tx);
-        tx.update(commentMessages)
-          .set({ body: input.body, editedAt: input.editedAt })
-          .where(
-            and(
-              eq(commentMessages.threadId, thread.id),
-              eq(commentMessages.id, input.messageId),
+          };
+        }).pipe(sql.withTransaction, Effect.orDie);
+      }),
+      resolve: Effect.fn('CommentStore.resolve')(function* (input) {
+        return yield* Effect.gen(function* () {
+          const { revision } = yield* nextRevision(undefined);
+          yield* sql`UPDATE comment_threads SET resolved = ${input.resolved ? 1 : 0}, revision = ${revision} WHERE id = ${input.thread.id}`;
+          return {
+            ...structuredClone(input.thread),
+            resolved: input.resolved,
+            revision,
+          };
+        }).pipe(sql.withTransaction, Effect.orDie);
+      }),
+      edit: Effect.fn('CommentStore.edit')(function* (input) {
+        return yield* Effect.gen(function* () {
+          const { revision } = yield* nextRevision(undefined);
+          yield* sql`UPDATE comment_messages SET body = ${input.body}, edited_at = ${input.editedAt} WHERE thread_id = ${input.thread.id} AND id = ${input.messageId}`;
+          yield* sql`UPDATE comment_threads SET revision = ${revision}, size_bytes = ${input.sizeBytes} WHERE id = ${input.thread.id}`;
+          return {
+            ...structuredClone(input.thread),
+            messages: input.thread.messages.map((message) =>
+              message.id === input.messageId
+                ? { ...message, body: input.body, editedAt: input.editedAt }
+                : structuredClone(message),
             ),
-          )
-          .run();
-        tx.update(commentThreads)
-          .set({ revision, sizeBytes: input.sizeBytes })
-          .where(eq(commentThreads.id, thread.id))
-          .run();
-        return {
-          ...structuredClone(thread),
-          messages: thread.messages.map((message) =>
-            message.id === input.messageId
-              ? { ...message, body: input.body, editedAt: input.editedAt }
-              : structuredClone(message),
-          ),
-          revision,
-        };
-      },
-      { behavior: 'immediate' },
-    );
-  }
-
-  removeMessage(input: CommentRemoval): CommentThread {
-    const { thread } = input;
-    return this.db.transaction(
-      (tx) => {
-        tx.delete(commentMessages)
-          .where(
-            and(
-              eq(commentMessages.threadId, thread.id),
-              eq(commentMessages.id, input.messageId),
-            ),
-          )
-          .run();
-        const remaining = tx
-          .select()
-          .from(commentMessages)
-          .where(eq(commentMessages.threadId, thread.id))
-          .orderBy(asc(commentMessages.sequence))
-          .all();
-        const revision = nextRevision(tx);
-        tx.update(commentThreads)
-          .set({ revision, sizeBytes: input.sizeBytes })
-          .where(eq(commentThreads.id, thread.id))
-          .run();
-        return {
-          ...structuredClone(thread),
-          messages: remaining.map(messageFromRow),
-          revision,
-        };
-      },
-      { behavior: 'immediate' },
-    );
-  }
-
-  remove(input: { threadId: string }): void {
-    this.db
-      .delete(commentThreads)
-      .where(eq(commentThreads.id, input.threadId))
-      .run();
-  }
-}
+            revision,
+          };
+        }).pipe(sql.withTransaction, Effect.orDie);
+      }),
+      removeMessage: Effect.fn('CommentStore.removeMessage')(function* (input) {
+        return yield* Effect.gen(function* () {
+          yield* sql`DELETE FROM comment_messages WHERE thread_id = ${input.thread.id} AND id = ${input.messageId}`;
+          const remaining = yield* threadMessages({
+            threadId: input.thread.id,
+          });
+          const { revision } = yield* nextRevision(undefined);
+          yield* sql`UPDATE comment_threads SET revision = ${revision}, size_bytes = ${input.sizeBytes} WHERE id = ${input.thread.id}`;
+          return {
+            ...structuredClone(input.thread),
+            messages: remaining.map(messageFromRow),
+            revision,
+          };
+        }).pipe(sql.withTransaction, Effect.orDie);
+      }),
+      remove: Effect.fn('CommentStore.remove')(function* (input) {
+        yield* sql`DELETE FROM comment_threads WHERE id = ${input.threadId}`.pipe(
+          Effect.orDie,
+        );
+      }),
+    });
+  }),
+);

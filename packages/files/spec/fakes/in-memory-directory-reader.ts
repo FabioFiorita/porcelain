@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   DirectoryRead,
   DirectoryReadInput,
@@ -13,7 +14,7 @@ export class InMemoryDirectoryReader implements DirectoryReader {
     this.listings = new Map(Object.entries(listings));
   }
 
-  list(input: DirectoryReadInput): Promise<DirectoryRead> {
-    return Promise.resolve(this.listings.get(input.path) ?? missing);
+  list(input: DirectoryReadInput): Effect.Effect<DirectoryRead> {
+    return Effect.succeed(this.listings.get(input.path) ?? missing);
   }
 }

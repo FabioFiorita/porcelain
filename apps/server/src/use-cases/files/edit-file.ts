@@ -1,83 +1,88 @@
-import type {
-  EditFileRequest,
-  EditFileResponse,
+import {
+  type EditFileRequest,
+  type EditFileResponse,
 } from '@porcelain/contracts/files';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { EditFileService } from '@porcelain/files/services';
-import type { ConfirmWorktreeService } from '@porcelain/projects/services';
-import type { EditAnnouncementWriter } from '../../ports/edit-announcement-writer.ts';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { Logger } from '../../ports/logger.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { InvalidateReviewedMarksUseCasePort } from '../../ports/invalidate-reviewed-marks-use-case-port.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import { type WorktreeParams } from '@porcelain/contracts/shared';
+import {
+  type EditFileFailure,
+  EditFileService,
+} from '@porcelain/files/services';
+import { Cause, Effect, Context, Layer } from 'effect';
+import { EditAnnouncementWriter } from '../../ports/edit-announcement-writer.ts';
+import { EventPublisher } from '../../ports/event-publisher.ts';
+import { Logger } from '../../ports/logger.ts';
+import { InvalidateReviewedMarksUseCasePort } from '../../ports/invalidate-reviewed-marks-use-case-port.ts';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 
-export class EditFileUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly confirmWorktree: ConfirmWorktreeService;
-  private readonly editFile: EditFileService;
-  private readonly invalidateReviewedMarks: InvalidateReviewedMarksUseCasePort;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-  private readonly events: EventPublisher;
-  private readonly editAnnouncements: EditAnnouncementWriter;
-  private readonly logger: Logger;
-
-  constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    confirmWorktree: ConfirmWorktreeService,
-    editFile: EditFileService,
-    invalidateReviewedMarks: InvalidateReviewedMarksUseCasePort,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-    events: EventPublisher,
-    editAnnouncements: EditAnnouncementWriter,
-    logger: Logger,
-  ) {
-    this.checkWorktree = checkWorktree;
-    this.confirmWorktree = confirmWorktree;
-    this.editFile = editFile;
-    this.invalidateReviewedMarks = invalidateReviewedMarks;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
-    this.events = events;
-    this.editAnnouncements = editAnnouncements;
-    this.logger = logger;
+export class EditFileUseCase extends Context.Service<
+  EditFileUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams & EditFileRequest,
+    ) => Effect.Effect<
+      EditFileResponse,
+      EditFileFailure | WorktreeAccessFailure
+    >;
   }
-
-  async execute(
-    input: WorktreeParams & EditFileRequest,
-    context: OperationContext,
-  ): Promise<EditFileResponse> {
-    const { worktreeId } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: true },
-      context,
-    );
-    const paths =
-      input.kind === 'move'
-        ? [input.path, input.destination]
-        : input.kind === 'copy'
-          ? [input.destination]
-          : [input.path];
-    const edited = await this.lanes.run(
-      this.laneKeys.repository(worktree),
-      'write',
-      async ({ signal }) => {
-        this.confirmWorktree.execute({ worktree });
-        return this.editFile.execute({ worktreeId, command: input }, signal);
-      },
-      { callerSignal: context.signal },
-    );
-    this.editAnnouncements.announce({ worktreeId, paths });
-    await this.invalidateReviewedMarks
-      .execute({ worktreeId, paths }, {})
-      .catch((error: unknown) =>
-        this.logger.failure({ kind: 'reviewed-marks', worktreeId, error }),
+>()('@porcelain/server/EditFileUseCase') {
+  static readonly layer = Layer.effect(
+    EditFileUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const editFileCapability = yield* EditFileService;
+      const invalidateReviewedMarksCapability =
+        yield* InvalidateReviewedMarksUseCasePort;
+      const eventsCapability = yield* EventPublisher;
+      const editAnnouncementsCapability = yield* EditAnnouncementWriter;
+      const loggerCapability = yield* Logger;
+      const operationAnnounce = Effect.fn('EditFileUseCase.announce')(
+        function* (
+          worktreeId: string,
+          paths: string[],
+        ): Effect.fn.Return<void> {
+          yield* editAnnouncementsCapability.announce({ worktreeId, paths });
+          const invalidated = invalidateReviewedMarksCapability.execute({
+            worktreeId,
+            paths,
+          });
+          yield* Effect.catchCause(invalidated, (cause) =>
+            Effect.sync(() =>
+              loggerCapability.failure({
+                kind: 'reviewed-marks',
+                worktreeId,
+                error: Cause.squash(cause),
+              }),
+            ),
+          );
+          yield* eventsCapability.filesChanged({ worktreeId, paths });
+        },
       );
-    this.events.filesChanged({ worktreeId, paths });
-    return edited;
-  }
+      return {
+        execute: Effect.fn('EditFileUseCase.execute')(function* (
+          input: WorktreeParams & EditFileRequest,
+        ): Effect.fn.Return<
+          EditFileResponse,
+          EditFileFailure | WorktreeAccessFailure
+        > {
+          const { worktreeId } = input;
+          const paths =
+            input.kind === 'move'
+              ? [input.path, input.destination]
+              : input.kind === 'copy'
+                ? [input.destination]
+                : [input.path];
+          return yield* accessCapability.write(
+            worktreeId,
+            (worktree) =>
+              editFileCapability.execute({
+                worktreeId: worktree.id,
+                command: input,
+              }),
+            () => operationAnnounce(worktreeId, paths),
+          );
+        }),
+      };
+    }),
+  );
 }

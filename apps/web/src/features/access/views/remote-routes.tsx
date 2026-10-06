@@ -1,3 +1,5 @@
+import { Cause } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import {
   Item,
   ItemActions,
@@ -18,7 +20,7 @@ import { Switch } from '@/components/ui/switch';
 import { copyText } from '@/shared/workspace/copy';
 import { submitForm } from '@/shared/lib/submit-form';
 import { useSetRemoteAccess } from '../commands/share';
-import { connectionErrorMessage } from '../rules/connection-error-message';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import {
   localNetworkNote,
   networkName,
@@ -28,7 +30,7 @@ import {
   type RemoteAccess,
   type RemoteRoute,
   type RemoteRouteName,
-} from '../rules/share';
+} from '@porcelain/client/access/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 const descriptions: Record<RemoteRouteName, string> = {
@@ -350,8 +352,8 @@ export function RemoteRoutes({
   connection: Connection;
   remote: RemoteAccess;
 }) {
-  const change = useSetRemoteAccess(connection);
-  const disabled = change.isPending;
+  const [change, setRemote] = useSetRemoteAccess(connection);
+  const disabled = change.waiting;
   return (
     <>
       <ItemGroup>
@@ -362,12 +364,12 @@ export function RemoteRoutes({
             disabled ||
             (!remote.routes.lan.enabled && remote.localNetwork === undefined)
           }
-          onChange={(lan) => change.onSubmit({ lan })}
+          onChange={(lan) => setRemote({ lan })}
         >
           <LocalNetworkSettings
             remote={remote}
             disabled={disabled}
-            onTurnOn={() => change.onSubmit({ lan: true })}
+            onTurnOn={() => setRemote({ lan: true })}
           />
         </RouteRow>
       </ItemGroup>
@@ -376,20 +378,20 @@ export function RemoteRoutes({
           name="tailnet"
           route={remote.routes.tailnet}
           disabled={disabled || remote.tailnetHostname === undefined}
-          onChange={(tailnet) => change.onSubmit({ tailnet })}
+          onChange={(tailnet) => setRemote({ tailnet })}
         >
           <TailnetSettings
             remote={remote}
             disabled={disabled}
             onSave={(tailnetHostname) =>
-              change.onSubmit({
+              setRemote({
                 tailnetHostname,
                 ...(remote.tailnetHostname === undefined
                   ? { tailnet: true }
                   : {}),
               })
             }
-            onCheck={() => change.onSubmit({ tailnet: true })}
+            onCheck={() => setRemote({ tailnet: true })}
           />
         </RouteRow>
       </ItemGroup>
@@ -398,27 +400,27 @@ export function RemoteRoutes({
           name="cloudflare"
           route={remote.routes.cloudflare}
           disabled={disabled || remote.cloudflareHostname === undefined}
-          onChange={(cloudflare) => change.onSubmit({ cloudflare })}
+          onChange={(cloudflare) => setRemote({ cloudflare })}
         >
           <TunnelSettings
             remote={remote}
             disabled={disabled}
             onSave={(cloudflareHostname) =>
-              change.onSubmit({
+              setRemote({
                 cloudflareHostname,
                 ...(remote.cloudflareHostname === undefined
                   ? { cloudflare: true }
                   : {}),
               })
             }
-            onCheck={() => change.onSubmit({ cloudflare: true })}
+            onCheck={() => setRemote({ cloudflare: true })}
           />
         </RouteRow>
       </ItemGroup>
-      {change.error && (
+      {AsyncResult.isFailure(change) && (
         <Alert variant="destructive">
           <AlertDescription>
-            {connectionErrorMessage(change.error)}
+            {connectionErrorMessage(Cause.squash(change.cause))}
           </AlertDescription>
         </Alert>
       )}

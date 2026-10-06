@@ -11,8 +11,8 @@ export default {
     {
       kind: 'replace',
       path: 'packages/agents/src/commit-planning/claude-provider.ts',
-      old: "            '--output-format',\n            'json',\n",
-      new: "            '--output-format',\n            'stream-json',\n",
+      old: "                    '--output-format',\n                    'json',\n",
+      new: "                    '--output-format',\n                    'stream-json',\n",
     },
   ],
 } satisfies Probe;

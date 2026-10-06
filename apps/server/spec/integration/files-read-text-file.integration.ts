@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { readTextFileResponseSchema } from '@porcelain/contracts/files';
 import { TEXT_BYTES } from '@porcelain/contracts/shared';
 import { expect } from 'vitest';
@@ -28,7 +29,11 @@ test('reading a text file answers it as on disk with a fingerprint that stays wi
   const second = await session.send(text(session, session.fixture.readme.path));
 
   expect([first.status, second.status]).toStrictEqual([200, 200]);
-  expect(first.body).toEqual(expect.schemaMatching(readTextFileResponseSchema));
+  expect(first.body).toEqual(
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readTextFileResponseSchema)),
+    ),
+  );
   expect(first.body).toStrictEqual({
     worktreeId: session.worktreeId,
     path: session.fixture.readme.path,

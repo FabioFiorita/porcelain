@@ -1,7 +1,10 @@
-export class ReviewSummaryNotFoundError extends Error {
-  override readonly name = 'ReviewSummaryNotFoundError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Review summary not found');
+export class ReviewSummaryNotFoundError extends Schema.TaggedError<ReviewSummaryNotFoundError>()(
+  'ReviewSummaryNotFoundError',
+  {},
+) {
+  override get message() {
+    return 'Review summary not found';
   }
 }

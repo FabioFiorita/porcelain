@@ -1,26 +1,31 @@
-import type { RecordedWorktreesResult } from '../models/collect-absent-worktrees.ts';
-import type { InventoryStore } from '../ports/inventory-store.ts';
-import type { WorktreePresenceStore } from '../ports/worktree-presence-store.ts';
+import { Effect, Context, Layer } from 'effect';
+import { type RecordedWorktreesResult } from '../models/collect-absent-worktrees.ts';
+import { InventoryStore } from '../ports/inventory-store.ts';
+import { WorktreePresenceStore } from '../ports/worktree-presence-store.ts';
 import { recordedWorktrees } from '../rules/worktree-presence.ts';
 
-export class ListRecordedWorktreesService {
-  private readonly worktreePresence: WorktreePresenceStore;
-  private readonly inventory: InventoryStore;
+export class ListRecordedWorktreesService extends Context.Service<
+  ListRecordedWorktreesService,
+  { readonly execute: () => Effect.Effect<RecordedWorktreesResult, never> }
+>()('@porcelain/projects/ListRecordedWorktreesService') {
+  static readonly layer = Layer.effect(
+    ListRecordedWorktreesService,
+    Effect.gen(function* () {
+      const worktreePresenceCapability = yield* WorktreePresenceStore;
+      const inventoryCapability = yield* InventoryStore;
 
-  constructor(
-    worktreePresence: WorktreePresenceStore,
-    inventory: InventoryStore,
-  ) {
-    this.worktreePresence = worktreePresence;
-    this.inventory = inventory;
-  }
-
-  execute(): RecordedWorktreesResult {
-    return {
-      worktrees: recordedWorktrees(
-        this.worktreePresence.list(),
-        this.inventory.read().projects,
-      ),
-    };
-  }
+      return {
+        execute: Effect.fn('ListRecordedWorktreesService.execute')(
+          function* (): Effect.fn.Return<RecordedWorktreesResult, never> {
+            return {
+              worktrees: recordedWorktrees(
+                yield* worktreePresenceCapability.list(),
+                (yield* inventoryCapability.read()).projects,
+              ),
+            };
+          },
+        ),
+      };
+    }),
+  );
 }

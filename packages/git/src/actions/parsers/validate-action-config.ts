@@ -1,5 +1,5 @@
 import { parseConfigList } from '../../shared/parsers/conversion-filters.ts';
-import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
+import { GitActionRejectedError } from '../../shared/errors/git-action-rejected-error.ts';
 
 const TERMINAL = 'Run this action from a terminal instead.';
 

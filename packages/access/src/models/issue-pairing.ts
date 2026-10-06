@@ -1,4 +1,5 @@
 import type { PairingGrant } from './pairing-grant.ts';
+import type { Redacted } from 'effect';
 
 export type IssuePairingInput = {
   labels: readonly string[];
@@ -9,13 +10,13 @@ export type IssuePairingInput = {
 
 type PairingLink = {
   addresses: string[];
-  code: string;
+  code: Redacted.Redacted<string>;
   environmentId: string;
 };
 
 export type IssuedPairingGrant = {
   grant: PairingGrant & { trusted: boolean };
-  code: string;
+  code: Redacted.Redacted<string>;
   link: PairingLink;
 };
 

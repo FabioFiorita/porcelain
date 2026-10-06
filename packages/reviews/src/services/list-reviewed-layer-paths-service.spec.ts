@@ -1,5 +1,7 @@
+import { ReviewStore, ReviewedLayerStore } from '@porcelain/reviews/ports';
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import type { ReviewLayer } from '@porcelain/reviews/models';
+import { type ReviewLayer } from '@porcelain/reviews/models';
 import { currentLayerFingerprint } from '@porcelain/reviews/rules';
 import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
 import { InMemoryReviewedLayerStore } from '../../spec/fakes/in-memory-reviewed-layer-store.ts';
@@ -32,41 +34,53 @@ const readmeLayer = layer('layer-1', 'README.md');
 const guideLayer = layer('layer-2', 'GUIDE.md');
 const reviewed = 'first\nadded\n';
 
-function setup() {
+async function setup() {
   const reviews = new InMemoryReviewStore();
-  reviews.save({
-    worktreeId,
-    revision: 1,
-    publishedAt: '2026-01-01T00:00:00.000Z',
-    active: true,
-    summaryHtml: '<p>Summary</p>',
-    summaryToken: 'token',
-    summarySecret: 'secret',
-    layers: [readmeLayer, guideLayer],
-  });
+  await Effect.runPromise(
+    reviews.save({
+      worktreeId,
+      revision: 1,
+      publishedAt: '2026-01-01T00:00:00.000Z',
+      active: true,
+      summaryHtml: '<p>Summary</p>',
+      summaryToken: 'token',
+      summarySecret: 'secret',
+      layers: [readmeLayer, guideLayer],
+    }),
+  );
   const marks = new InMemoryReviewedLayerStore();
-  marks.save({
-    worktreeId,
-    marks: [
-      {
-        layerId: readmeLayer.id,
-        fingerprint: currentLayerFingerprint(
-          readmeLayer,
-          new Map([['README.md', reviewed]]),
-        ),
-        reviewedAt: '2026-01-01T00:00:00.000Z',
-      },
-    ],
-  });
+  await Effect.runPromise(
+    marks.save({
+      worktreeId,
+      marks: [
+        {
+          layerId: readmeLayer.id,
+          fingerprint: currentLayerFingerprint(
+            readmeLayer,
+            new Map([['README.md', reviewed]]),
+          ),
+          reviewedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    }),
+  );
   return {
     marks,
-    paths: new ListReviewedLayerPathsService(reviews, marks),
+    paths: Effect.runSync(
+      ListReviewedLayerPathsService.pipe(
+        Effect.provide(ListReviewedLayerPathsService.layer),
+        Effect.provideService(ReviewStore, reviews),
+        Effect.provideService(ReviewedLayerStore, marks),
+      ),
+    ),
   };
 }
 
 describe('ListReviewedLayerPathsService', () => {
-  it('names only the files that the marked layers point at', () => {
-    expect(setup().paths.execute({ worktreeId })).toEqual({
+  it('names only the files that the marked layers point at', async () => {
+    expect(
+      Effect.runSync((await setup()).paths.execute({ worktreeId })),
+    ).toEqual({
       paths: ['README.md'],
     });
   });

@@ -1,9 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { testClock } from '@porcelain/kernel/test-kit';
 import {
-  FixedClock,
   SequentialIdSource,
   SequentialSecretSource,
 } from '@porcelain/kernel/fakes';
+import { IdSource, SecretSource } from '@porcelain/kernel/ports';
+import {
+  PairingGrantStore,
+  PairingReachReader,
+  IssuePairingOptions,
+} from '@porcelain/access/ports';
+import type { Context } from 'effect';
+import { Redacted, Effect, Clock } from 'effect';
+import { describe, expect, it } from 'vitest';
 import {
   InvalidDeviceDetailsError,
   InvalidPairingAddressError,
@@ -16,77 +24,101 @@ import { IssuePairingService } from './issue-pairing-service.ts';
 const address = 'http://192.168.1.20:4173';
 const environmentId = 'e0000000-0000-4000-8000-000000000001';
 
-function setup() {
+async function setup() {
   const grants = new InMemoryPairingGrantStore();
-  const service = new IssuePairingService(
-    grants,
-    new FixedPairingReachReader({
-      port: 4173,
-      policy: {
-        allowedHosts: ['laptop.local'],
-        localAddresses: ['192.168.1.20'],
-      },
-    }),
-    new FixedClock('2026-09-23T10:00:00.000Z'),
-    new SequentialIdSource(),
-    new SequentialSecretSource(),
-    { lifetimeMs: 15 * 60 * 1000, labelLength: 80 },
+  const service = Effect.runSync(
+    IssuePairingService.pipe(
+      Effect.provide(IssuePairingService.layer),
+      Effect.provideService(PairingGrantStore, grants),
+      Effect.provideService(
+        PairingReachReader,
+        new FixedPairingReachReader({
+          port: 4173,
+          policy: {
+            allowedHosts: ['laptop.local'],
+            localAddresses: ['192.168.1.20'],
+          },
+        }),
+      ),
+      Effect.provideService(
+        Clock.Clock,
+        await testClock('2026-09-23T10:00:00.000Z'),
+      ),
+      Effect.provideService(IdSource, new SequentialIdSource()),
+      Effect.provideService(SecretSource, new SequentialSecretSource()),
+      Effect.provideService(IssuePairingOptions, {
+        lifetimeMs: 15 * 60 * 1000,
+        labelLength: 80,
+      }),
+    ),
   );
   return { grants, service };
 }
 
 function issueOne(
-  service: IssuePairingService,
+  service: Context.Service.Shape<typeof IssuePairingService>,
   addresses: readonly string[] = [address],
 ) {
-  const [issued] = service.execute({
-    labels: ['Phone'],
-    addresses,
-    environmentId,
-  }).grants;
+  const [issued] = Effect.runSync(
+    service.execute({
+      labels: ['Phone'],
+      addresses,
+      environmentId,
+    }),
+  ).grants;
   if (!issued) throw new Error('No grant was issued');
   return issued;
 }
 
 describe('IssuePairingService', () => {
-  it('issues one grant per label, each with its own one-time code', () => {
-    const { service } = setup();
-    const { grants } = service.execute({
-      labels: ['Phone', 'Tablet'],
-      addresses: [address],
-      environmentId,
-    });
-    expect(grants.map(({ grant }) => grant.label)).toEqual(['Phone', 'Tablet']);
-    expect(grants.map(({ code }) => parseCredential('pcp', code)?.id)).toEqual(
-      grants.map(({ grant }) => grant.id),
+  it('issues one grant per label, each with its own one-time code', async () => {
+    const { service } = await setup();
+    const { grants } = Effect.runSync(
+      service.execute({
+        labels: ['Phone', 'Tablet'],
+        addresses: [address],
+        environmentId,
+      }),
     );
-    expect(new Set(grants.map(({ code }) => code)).size).toBe(2);
+    expect(grants.map(({ grant }) => grant.label)).toEqual(['Phone', 'Tablet']);
+    expect(
+      grants.map(
+        ({ code }) => parseCredential('pcp', Redacted.value(code))?.id,
+      ),
+    ).toEqual(grants.map(({ grant }) => grant.id));
+    expect(new Set(grants.map(({ code }) => Redacted.value(code))).size).toBe(
+      2,
+    );
   });
 
-  it('keeps only a hash of the code, which the code matches', () => {
-    const { grants, service } = setup();
+  it('keeps only a hash of the code, which the code matches', async () => {
+    const { grants, service } = await setup();
     const issued = issueOne(service);
-    const secret = parseCredential('pcp', issued.code)?.secret ?? '';
-    const stored = grants.find({ grantId: issued.grant.id });
-    expect(stored?.secretHash).not.toContain(secret);
+    const secret =
+      parseCredential('pcp', Redacted.value(issued.code))?.secret ??
+      Redacted.make('');
+    const stored = await Effect.runPromise(
+      grants.find({ grantId: issued.grant.id }),
+    );
+    expect(stored?.secretHash).not.toContain(Redacted.value(secret));
     expect(secretMatches(stored?.secretHash ?? '', secret)).toBe(true);
   });
 
-  it('expires the grant one pairing lifetime after it was issued', () => {
-    const { service } = setup();
+  it('expires the grant one pairing lifetime after it was issued', async () => {
+    const { service } = await setup();
     const issued = issueOne(service);
     expect(issued.grant.createdAt).toBe('2026-09-23T10:00:00.000Z');
     expect(issued.grant.expiresAt).toBe('2026-09-23T10:15:00.000Z');
   });
 
-  it('records every address the link may be opened at, in order', () => {
-    const { service } = setup();
+  it('records every address the link may be opened at, in order', async () => {
+    const { service } = await setup();
     const addresses = ['http://laptop.local:4173', address];
     expect(issueOne(service, addresses).grant.addresses).toEqual(addresses);
   });
 
-  it('hands the link its parts: every address in order, the code and the environment', () => {
-    const { service } = setup();
+  it('hands the link its parts: every address in order, the code and the environment', async () => {
+    const { service } = await setup();
     const addresses = ['http://laptop.local:4173', address];
     const issued = issueOne(service, addresses);
     expect(issued.link).toEqual({
@@ -96,44 +128,57 @@ describe('IssuePairingService', () => {
     });
   });
 
-  it('issues an untrusted grant unless the owner asks for a trusted one', () => {
-    const { grants, service } = setup();
+  it('issues an untrusted grant unless the owner asks for a trusted one', async () => {
+    const { grants, service } = await setup();
     const plain = issueOne(service);
-    const [trusted] = service.execute({
-      labels: ['Desktop'],
-      addresses: [address],
-      environmentId,
-      trusted: true,
-    }).grants;
-    expect(plain.grant.trusted).toBe(false);
-    expect(trusted?.grant.trusted).toBe(true);
-    expect(grants.find({ grantId: plain.grant.id })?.trusted).toBe(false);
-    expect(grants.find({ grantId: trusted?.grant.id ?? '' })?.trusted).toBe(
-      true,
-    );
-  });
-
-  it('refuses an address the server does not answer at and issues nothing', () => {
-    const { grants, service } = setup();
-    expect(() =>
+    const [trusted] = Effect.runSync(
       service.execute({
-        labels: ['Phone'],
-        addresses: [address, 'http://192.168.1.99:4173'],
-        environmentId,
-      }),
-    ).toThrow(InvalidPairingAddressError);
-    expect(grants.list()).toEqual([]);
-  });
-
-  it('refuses the whole request when any label is invalid', () => {
-    const { grants, service } = setup();
-    expect(() =>
-      service.execute({
-        labels: ['Phone', ' \t '],
+        labels: ['Desktop'],
         addresses: [address],
         environmentId,
+        trusted: true,
       }),
+    ).grants;
+    expect(plain.grant.trusted).toBe(false);
+    expect(trusted?.grant.trusted).toBe(true);
+    expect(
+      (await Effect.runPromise(grants.find({ grantId: plain.grant.id })))
+        ?.trusted,
+    ).toBe(false);
+    expect(
+      (
+        await Effect.runPromise(
+          grants.find({ grantId: trusted?.grant.id ?? '' }),
+        )
+      )?.trusted,
+    ).toBe(true);
+  });
+
+  it('refuses an address the server does not answer at and issues nothing', async () => {
+    const { grants, service } = await setup();
+    expect(() =>
+      Effect.runSync(
+        service.execute({
+          labels: ['Phone'],
+          addresses: [address, 'http://192.168.1.99:4173'],
+          environmentId,
+        }),
+      ),
+    ).toThrow(InvalidPairingAddressError);
+    expect(await Effect.runPromise(grants.list())).toEqual([]);
+  });
+
+  it('refuses the whole request when any label is invalid', async () => {
+    const { grants, service } = await setup();
+    expect(() =>
+      Effect.runSync(
+        service.execute({
+          labels: ['Phone', ' \t '],
+          addresses: [address],
+          environmentId,
+        }),
+      ),
     ).toThrow(InvalidDeviceDetailsError);
-    expect(grants.list()).toEqual([]);
+    expect(await Effect.runPromise(grants.list())).toEqual([]);
   });
 });

@@ -1,38 +1,56 @@
-import type { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { GitActionNotFoundError } from '../errors/git-action-not-found-error.ts';
-import type {
-  FinishGitActionInput,
-  FinishGitActionResult,
+import {
+  type FinishGitActionInput,
+  type FinishGitActionResult,
 } from '../models/finish-git-action.ts';
-import type { GitActionReceipt } from '../models/git-action-receipt.ts';
-import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
+import { type GitActionReceipt } from '../models/git-action-receipt.ts';
+import { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import { gitActionReceiptView } from '../rules/git-action-receipt-view.ts';
 
-export class FinishGitActionService {
-  private readonly gitActionReceipts: GitActionReceiptStore;
-  private readonly clock: Clock;
-
-  constructor(gitActionReceipts: GitActionReceiptStore, clock: Clock) {
-    this.gitActionReceipts = gitActionReceipts;
-    this.clock = clock;
+export class FinishGitActionService extends Context.Service<
+  FinishGitActionService,
+  {
+    readonly execute: (
+      input: FinishGitActionInput,
+    ) => Effect.Effect<FinishGitActionResult, GitActionNotFoundError, never>;
   }
+>()('@porcelain/git-actions/FinishGitActionService') {
+  static readonly layer = Layer.effect(
+    FinishGitActionService,
+    Effect.gen(function* () {
+      const gitActionReceiptsCapability = yield* GitActionReceiptStore;
+      const clockCapability = yield* Clock.Clock;
 
-  execute(input: FinishGitActionInput): FinishGitActionResult {
-    const current = this.gitActionReceipts.read({
-      requestId: input.requestId,
-    });
-    if (!current) throw new GitActionNotFoundError();
-    const { outcome } = input;
-    const finished: GitActionReceipt = {
-      ...current,
-      state: outcome.state === 'indeterminate' ? 'interrupted' : outcome.state,
-      reason: outcome.reason,
-      message: outcome.message,
-      result: outcome.result,
-      refreshRequired: outcome.refreshRequired,
-      finishedAt: this.clock.now(),
-    };
-    this.gitActionReceipts.save(finished);
-    return gitActionReceiptView(finished);
-  }
+      return {
+        execute: Effect.fn('FinishGitActionService.execute')(function* (
+          input: FinishGitActionInput,
+        ): Effect.fn.Return<
+          FinishGitActionResult,
+          GitActionNotFoundError,
+          never
+        > {
+          const current = yield* gitActionReceiptsCapability.read({
+            requestId: input.requestId,
+          });
+          if (!current) return yield* Effect.fail(new GitActionNotFoundError());
+          const { outcome } = input;
+          const finished: GitActionReceipt = {
+            ...current,
+            state:
+              outcome.state === 'indeterminate' ? 'interrupted' : outcome.state,
+            reason: outcome.reason,
+            message: outcome.message,
+            result: outcome.result,
+            refreshRequired: outcome.refreshRequired,
+            finishedAt: DateTime.formatIso(
+              DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
+            ),
+          };
+          yield* gitActionReceiptsCapability.save(finished);
+          return gitActionReceiptView(finished);
+        }),
+      };
+    }),
+  );
 }

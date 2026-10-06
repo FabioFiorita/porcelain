@@ -1,3 +1,7 @@
+import { Effect } from 'effect';
+import { syscall } from './guarded-filesystem-syscalls.ts';
+import { GuardedFilesystemError } from '../../runtime/errors/guarded-filesystem-error.ts';
+import { PathRefusedError } from '../../runtime/errors/path-refused-error.ts';
 import type { BigIntStats } from 'node:fs';
 import { lstat, realpath } from 'node:fs/promises';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
@@ -11,21 +15,20 @@ export type InspectedPath = {
   evidence: { path: string; info: BigIntStats }[];
 };
 
-type Refusal = 'unreadable' | 'changed' | 'trash-unavailable' | 'too-large';
+export type GuardedPathFailure = GuardedFilesystemError | PathRefusedError;
 
-const refusals = new WeakMap<Error, Refusal>();
-
-export function pathRefused(refusal: Refusal, options?: ErrorOptions): Error {
-  const error = new Error(
-    `The path guard refused the path: ${refusal}`,
-    options,
-  );
-  refusals.set(error, refusal);
-  return error;
+export function pathRefused(
+  refusal: PathRefusedError['refusal'],
+  options?: ErrorOptions,
+): PathRefusedError {
+  return new PathRefusedError({
+    refusal,
+    ...(options?.cause === undefined ? {} : { cause: options.cause }),
+  });
 }
 
-function refusalOf(error: unknown): Refusal | undefined {
-  return error instanceof Error ? refusals.get(error) : undefined;
+function refusalOf(error: unknown): PathRefusedError['refusal'] | undefined {
+  return error instanceof PathRefusedError ? error.refusal : undefined;
 }
 
 const unreadableCodes = new Set([
@@ -45,7 +48,8 @@ const vanishedCodes = new Set([
   'ENOTDIR',
 ]);
 
-function errorCode(error: unknown) {
+function errorCode(error: unknown): string | undefined {
+  if (error instanceof GuardedFilesystemError) return errorCode(error.cause);
   return error instanceof Error && 'code' in error
     ? String(error.code)
     : undefined;
@@ -102,15 +106,14 @@ export function fileIdentity(info: BigIntStats): string {
   ].join(':');
 }
 
-export async function inspectPath(
+export const inspectPath = Effect.fn('inspectPath')(function* (
   target: CheckoutPath,
-  signal?: AbortSignal,
-): Promise<InspectedPath> {
+): Effect.fn.Return<InspectedPath, GuardedPathFailure> {
   const root = resolve(target.root);
   const path = resolve(root, target.path);
   const local = relative(root, path);
   if (isAbsolute(local) || local === '..' || local.startsWith(`..${sep}`))
-    throw pathRefused('unreadable');
+    return yield* Effect.fail(pathRefused('unreadable'));
   const components = local === '' ? [] : local.split(sep);
   const paths = [
     root,
@@ -120,18 +123,19 @@ export async function inspectPath(
   ];
   const evidence: InspectedPath['evidence'] = [];
   for (const component of paths) {
-    signal?.throwIfAborted();
-    const info = await lstat(component, { bigint: true });
-    if (info.isSymbolicLink()) throw pathRefused('unreadable');
+    const info = yield* syscall(() => lstat(component, { bigint: true }));
+    if (info.isSymbolicLink())
+      return yield* Effect.fail(pathRefused('unreadable'));
     if (component !== path && !info.isDirectory())
-      throw pathRefused('unreadable');
+      return yield* Effect.fail(pathRefused('unreadable'));
     evidence.push({ path: component, info });
   }
-  if ((await realpath(path)) !== path) throw pathRefused('unreadable');
+  if ((yield* syscall(() => realpath(path))) !== path)
+    return yield* Effect.fail(pathRefused('unreadable'));
   const info = evidence.at(-1)?.info;
-  if (!info) throw pathRefused('unreadable');
+  if (!info) return yield* Effect.fail(pathRefused('unreadable'));
   return { path, info, evidence };
-}
+});
 
 export function sameEvidence(before: InspectedPath, after: InspectedPath) {
   return before.evidence.every((entry, index) => {
@@ -140,24 +144,19 @@ export function sameEvidence(before: InspectedPath, after: InspectedPath) {
   });
 }
 
-export async function verifyPath(
+export const verifyPath = Effect.fn('verifyPath')(function* (
   before: InspectedPath,
   target: CheckoutPath,
-  signal?: AbortSignal,
 ) {
-  let after: InspectedPath;
-  try {
-    after = await inspectPath(target, signal);
-  } catch (error) {
-    signal?.throwIfAborted();
-    const code = errorCode(error);
-    if (
-      refusalOf(error) !== undefined ||
-      (code !== undefined && vanishedCodes.has(code))
-    )
-      throw pathRefused('changed', { cause: error });
-    throw error;
-  }
+  const after = yield* inspectPath(target).pipe(
+    Effect.catch((error) => {
+      const code = errorCode(error);
+      return refusalOf(error) !== undefined ||
+        (code !== undefined && vanishedCodes.has(code))
+        ? Effect.fail(pathRefused('changed', { cause: error }))
+        : Effect.fail(error);
+    }),
+  );
   if (!sameEvidence(before, after) || !unchanged(before.info, after.info))
-    throw pathRefused('changed');
-}
+    return yield* Effect.fail(pathRefused('changed'));
+});

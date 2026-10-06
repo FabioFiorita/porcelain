@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   CommitDraftGeneration,
   CommitDraftRequest,
@@ -11,7 +12,9 @@ export class ScriptedCommitDraftSource implements CommitDraftSource {
     this.generations = generations;
   }
 
-  async generate(input: CommitDraftRequest): Promise<CommitDraftGeneration> {
-    return this.generations[input.model] ?? { kind: 'unsupported-model' };
+  generate(input: CommitDraftRequest): Effect.Effect<CommitDraftGeneration> {
+    return Effect.sync(() => {
+      return this.generations[input.model] ?? { kind: 'unsupported-model' };
+    });
   }
 }

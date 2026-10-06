@@ -1,46 +1,49 @@
-import type {
-  ReadProofFileQuery,
-  ReadProofFileResponse,
+import { type ProofFileNotFoundError } from '@porcelain/reviews/errors';
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import {
+  type ReadProofFileQuery,
+  type ReadProofFileResponse,
 } from '@porcelain/contracts/reviews';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { ReadProofFileService } from '@porcelain/reviews/services';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import { type WorktreeParams } from '@porcelain/contracts/shared';
+import { ReadProofFileService } from '@porcelain/reviews/services';
 
-export class ReadProofFileUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly readProofFile: ReadProofFileService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    readProofFile: ReadProofFileService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.checkWorktree = checkWorktree;
-    this.readProofFile = readProofFile;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class ReadProofFileUseCase extends Context.Service<
+  ReadProofFileUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams & ReadProofFileQuery,
+    ) => Effect.Effect<
+      ReadProofFileResponse,
+      WorktreeAccessFailure | ProofFileNotFoundError
+    >;
   }
+>()('@porcelain/server/ReadProofFileUseCase') {
+  static readonly layer = Layer.effect(
+    ReadProofFileUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const readProofFileCapability = yield* ReadProofFileService;
 
-  async execute(
-    input: WorktreeParams & ReadProofFileQuery,
-    context: OperationContext,
-  ): Promise<ReadProofFileResponse> {
-    const { worktreeId, proofId } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
-    );
-    return this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'read',
-      async () => this.readProofFile.execute({ worktreeId, proofId }),
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('ReadProofFileUseCase.execute')(function* (
+          input: WorktreeParams & ReadProofFileQuery,
+        ): Effect.fn.Return<
+          ReadProofFileResponse,
+          WorktreeAccessFailure | ProofFileNotFoundError
+        > {
+          const { worktreeId, proofId } = input;
+          return yield* accessCapability.reviews(worktreeId, 'read', () =>
+            Effect.gen(function* () {
+              return yield* readProofFileCapability.execute({
+                worktreeId,
+                proofId,
+              });
+            }),
+          );
+        }),
+      };
+    }),
+  );
 }

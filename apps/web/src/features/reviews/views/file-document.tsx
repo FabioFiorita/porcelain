@@ -1,3 +1,4 @@
+import type { FileDraftHandle } from '@porcelain/client/files';
 import { CopyIcon, FileDiffIcon, HistoryIcon, PencilIcon } from 'lucide-react';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { type ReactNode, useEffect, useId, useState } from 'react';
@@ -9,8 +10,6 @@ import { copyText } from '@/shared/workspace/copy';
 import { usePreferences } from '@/features/preferences/index';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import {
-  type FileDraft,
-  type FileDraftState,
   FileEditor,
   FileTypeIcon,
   HtmlPreview,
@@ -22,9 +21,10 @@ import {
   useFileDraft,
   useTextFile,
 } from '@/features/files/index';
+import type { FileDraftState } from '@porcelain/client/files';
 import { fileEntry } from '../adapters/code-entries';
 import type { DocumentInteraction, OpenDocument } from '../rules/documents';
-import type { ReviewScope } from '../rules/review';
+import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { FindBar } from './find-bar';
@@ -98,7 +98,7 @@ function TextFileDocument({
   const { connection } = context;
   const file = useTextFile(connection, scope, path);
   const unreadable = 'kind' in file;
-  const { draft, state } = useFileDraft(
+  const { draft, state, reset } = useFileDraft(
     connection,
     scope,
     path,
@@ -129,6 +129,7 @@ function TextFileDocument({
         }
         draft={draft}
         draftState={state}
+        reset={reset}
         onOpen={onOpen}
       />
     </div>
@@ -147,16 +148,18 @@ function ReadableFileDocument({
   contentFingerprint,
   draft,
   draftState,
+  reset,
   onOpen,
 }: FileDocumentProps & {
   text: string;
   contentFingerprint?: string | undefined;
-  draft: FileDraft;
+  draft: FileDraftHandle;
   draftState: FileDraftState;
+  reset: (text: string, fingerprint: string) => void;
 }) {
   const { preferences } = usePreferences();
   const { connection } = context;
-  const { changes } = useChanges(scope, connection);
+  const changes = useChanges(scope, connection);
   const kind = fileKind(path);
   const changed = changes.changes.some((entry) => entry.path === path);
   const [mode, setMode] = useState<FileDisplayMode>(() =>
@@ -255,7 +258,7 @@ function ReadableFileDocument({
         changed={changed}
         onDone={() => setEditing(false)}
         onDiscard={() => {
-          draft.reset(text, contentFingerprint ?? '');
+          reset(text, contentFingerprint ?? '');
           setEditing(false);
         }}
         renderToolbar={(controls) => (

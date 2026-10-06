@@ -1,32 +1,63 @@
-import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
-import { queryKeys } from '../../../shared/api/query-keys.ts';
-import type { QueryFunctionContext } from '@tanstack/query-core';
-import {
-  type WorktreeConnection,
-  type WorktreeScope,
+import { Effect } from 'effect';
+import { Atom } from 'effect/reactivity';
+import type {
+  RuntimeConnection,
+  WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { changesApi } from '../api.ts';
+import { porcelainClient } from '../../../shared/api/client.ts';
+import { clientRuntime } from '../../../shared/api/runtime.ts';
+import { worktreeRead } from '../../../shared/api/worktree-read.ts';
+import { requestEffect } from '../../../shared/api/effect-client.ts';
+import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 
-export function changesQueryOptions(
-  scope: WorktreeScope,
-  connection: WorktreeConnection,
-) {
-  return {
-    queryKey: queryKeys.worktreeSurface(connection, scope, ['changes']),
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
-      const connected = connection.request(signal);
-      const result = await changesApi(connection).list({
-        signal: connected.signal,
-        worktreeId: scope.worktreeId,
-      });
-      assertCurrentAnswer(
-        connected.signal,
-        result.environmentId === connection.environmentId &&
-          result.worktreeId === scope.worktreeId,
-      );
-      return { changes: result };
-    },
-  };
-}
+type Selection = { connection: RuntimeConnection; scope: WorktreeScope };
+
+export const readChangesSnapshot = Effect.fn('Changes.readSnapshot')(
+  function* ({ connection, scope }: Selection) {
+    const api = yield* porcelainClient(connection);
+    const answer = yield* requestEffect(
+      api.changes.readChanges({ params: { worktreeId: scope.worktreeId } }),
+    );
+    yield* currentAnswerEffect(
+      connection.request().signal,
+      answer.environmentId === connection.environmentId &&
+        answer.worktreeId === scope.worktreeId,
+    );
+    return answer;
+  },
+);
+
+export const readChanges = Atom.family((selection: Selection) =>
+  worktreeRead(
+    selection.connection,
+    selection.scope,
+    ['changes'],
+    readChangesSnapshot(selection),
+    clientRuntime(selection.connection),
+  ),
+);
+
+export const readGitStatusSnapshot = Effect.fn('Changes.readGitStatusSnapshot')(
+  function* ({ connection, scope }: Selection) {
+    const api = yield* porcelainClient(connection);
+    const answer = yield* requestEffect(
+      api.changes.readGitStatus({ params: { worktreeId: scope.worktreeId } }),
+    );
+    yield* currentAnswerEffect(
+      connection.request().signal,
+      answer.environmentId === connection.environmentId &&
+        answer.worktreeId === scope.worktreeId,
+    );
+    return answer;
+  },
+);
+
+export const readGitStatus = Atom.family((selection: Selection) =>
+  worktreeRead(
+    selection.connection,
+    selection.scope,
+    ['git-status'],
+    readGitStatusSnapshot(selection),
+    clientRuntime(selection.connection),
+  ),
+);

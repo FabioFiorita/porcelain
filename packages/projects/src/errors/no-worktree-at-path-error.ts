@@ -1,7 +1,10 @@
-export class NoWorktreeAtPathError extends Error {
-  override readonly name = 'NoWorktreeAtPathError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('No registered Porcelain worktree contains this path');
+export class NoWorktreeAtPathError extends Schema.TaggedError<NoWorktreeAtPathError>()(
+  'NoWorktreeAtPathError',
+  {},
+) {
+  override get message() {
+    return 'No registered Porcelain worktree contains this path';
   }
 }

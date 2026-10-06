@@ -1,7 +1,10 @@
-export class WorktreeNotFoundError extends Error {
-  override readonly name = 'WorktreeNotFoundError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Worktree not found');
+export class WorktreeNotFoundError extends Schema.TaggedError<WorktreeNotFoundError>()(
+  'WorktreeNotFoundError',
+  {},
+) {
+  override get message() {
+    return 'Worktree not found';
   }
 }

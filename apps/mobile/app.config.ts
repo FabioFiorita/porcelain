@@ -1,3 +1,4 @@
+import 'tsx/cjs';
 import { type ExpoConfig } from 'expo/config';
 
 import { buildIdentity } from './src/shared/rules/build-identity.ts';
@@ -10,6 +11,7 @@ const config: ExpoConfig = {
   owner: 'fabiofiorita',
   version: '1.0.0',
   scheme: identity.scheme,
+  platforms: ['ios', 'android'],
   userInterfaceStyle: 'automatic',
   ios: {
     bundleIdentifier: identity.bundleIdentifier,

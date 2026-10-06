@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { commentsQueryOptions } from './comments.ts';
+import { afterEach, describe, expect, it } from 'vitest';
+import { Layer, Effect } from 'effect';
+import { AtomRegistry } from 'effect/reactivity';
+import { createWorktreeConnection } from '@porcelain/client/transport';
+import { readCommentThreads } from './comments.ts';
 
 const scope = {
   projectId: 'project',
@@ -19,39 +22,52 @@ const thread = {
   ],
   revision: 1,
 };
-function connection(answer: object[]) {
-  return {
-    environmentId: 'environment',
-    request: (signal?: AbortSignal) => ({
-      signal: signal ?? new AbortController().signal,
-    }),
-    transport: () => Promise.resolve(Response.json(answer)),
-  };
+const owned: {
+  close: () => Promise<void>;
+  registry: AtomRegistry.AtomRegistry;
+}[] = [];
+function read(answer: object[]) {
+  const lifetime = createWorktreeConnection(
+    {
+      environmentId: 'environment',
+      timeoutMs: 10_000,
+      transport: () => Promise.resolve(Response.json(answer)),
+    },
+    undefined,
+    Layer.empty,
+  );
+  const registry = AtomRegistry.make();
+  owned.push({ close: lifetime.close, registry });
+  return Effect.runPromise(
+    AtomRegistry.getResult(
+      registry,
+      readCommentThreads({ scope, connection: lifetime.connection }),
+    ),
+  );
 }
+afterEach(async () => {
+  for (const subject of owned) {
+    subject.registry.dispose();
+    await subject.close();
+  }
+  owned.length = 0;
+});
 
 describe('a discussion stays with its selected worktree', () => {
   it('accepts an empty discussion and the selected worktree discussion', async () => {
-    const signal = new AbortController().signal;
-    expect(
-      await commentsQueryOptions(scope, connection([])).queryFn({ signal }),
-    ).toEqual([]);
-    expect(
-      await commentsQueryOptions(scope, connection([thread])).queryFn({
-        signal,
-      }),
-    ).toEqual([thread]);
+    expect(await read([])).toEqual([]);
+    expect(await read([thread])).toEqual([thread]);
   });
   it('rejects a mixed discussion containing another worktree', async () => {
     await expect(
-      commentsQueryOptions(
-        scope,
-        connection([
-          thread,
-          { ...thread, worktreeId: '11111111111111111111111111111111' },
-        ]),
-      ).queryFn({ signal: new AbortController().signal }),
-    ).rejects.toThrow(
-      'The connected context changed. Reopen Porcelain to continue safely.',
-    );
+      read([
+        thread,
+        { ...thread, worktreeId: '11111111111111111111111111111111' },
+      ]),
+    ).rejects.toMatchObject({
+      _tag: 'ConnectionError',
+      message:
+        'The connected context changed. Reopen Porcelain to continue safely.',
+    });
   });
 });

@@ -1,29 +1,30 @@
-import type { ListCommitModelsResponse } from '@porcelain/contracts/git-actions';
-import type { ListCommitModelsService } from '@porcelain/git-actions/services';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { ListCommitModelsUseCaseOptions } from '../../ports/list-commit-models-use-case-options.ts';
+import { Effect, Context, Layer } from 'effect';
+import { type ListCommitModelsResponse } from '@porcelain/contracts/git-actions';
+import { ListCommitModelsService } from '@porcelain/git-actions/services';
+import { Lanes } from '../../runtime/lanes.ts';
 
-type ListCommitModelsOptions = { deadlineMs: number };
+export class ListCommitModelsUseCase extends Context.Service<
+  ListCommitModelsUseCase,
+  { readonly execute: () => Effect.Effect<ListCommitModelsResponse> }
+>()('@porcelain/server/ListCommitModelsUseCase') {
+  static readonly layer = Layer.effect(
+    ListCommitModelsUseCase,
+    Effect.gen(function* () {
+      const listCommitModelsCapability = yield* ListCommitModelsService;
+      const lanesCapability = yield* Lanes;
+      const optionsCapability = yield* ListCommitModelsUseCaseOptions;
 
-export class ListCommitModelsUseCase {
-  private readonly listCommitModels: ListCommitModelsService;
-  private readonly lanes: Lanes;
-  private readonly options: ListCommitModelsOptions;
-
-  constructor(
-    listCommitModels: ListCommitModelsService,
-    lanes: Lanes,
-    options: ListCommitModelsOptions,
-  ) {
-    this.listCommitModels = listCommitModels;
-    this.lanes = lanes;
-    this.options = options;
-  }
-
-  execute(context: OperationContext): Promise<ListCommitModelsResponse> {
-    return this.lanes.unqueued(() => this.listCommitModels.execute(), {
-      callerSignal: context.signal,
-      deadlineMs: this.options.deadlineMs,
-    });
-  }
+      return {
+        execute: Effect.fn('ListCommitModelsUseCase.execute')(
+          function* (): Effect.fn.Return<ListCommitModelsResponse> {
+            return yield* lanesCapability.unqueued(
+              () => listCommitModelsCapability.execute(),
+              optionsCapability,
+            );
+          },
+        ),
+      };
+    }),
+  );
 }

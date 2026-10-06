@@ -2,9 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { requestFailure } from './error-handler.ts';
 
 function request(url: string, abandoned = false) {
-  const controller = new AbortController();
-  if (abandoned) controller.abort();
-  return { id: 'req-1', method: 'GET', url, disconnected: controller.signal };
+  return { id: 'req-1', method: 'GET', url, abandoned };
 }
 
 describe('requestFailure', () => {

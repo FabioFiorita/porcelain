@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { ChangeDiffContent } from '../../src/models/change-diff.ts';
 import type { ReadChangeDiffsInput } from '../../src/models/read-change-diffs.ts';
 import type { ChangeDiffReader } from '../../src/ports/change-diff-reader.ts';
@@ -17,11 +18,11 @@ export class ScriptedChangeDiffReader implements ChangeDiffReader {
     this.diffs = diffs;
   }
 
-  readDiffs(input: ReadChangeDiffsInput): Promise<ChangeDiffContent[]> {
-    return Promise.resolve(
-      input.comparisons
+  readDiffs(input: ReadChangeDiffsInput): Effect.Effect<ChangeDiffContent[]> {
+    return Effect.sync(() => {
+      return input.comparisons
         .map((comparison) => this.diffs.get(diffKey(comparison)))
-        .filter((content) => content !== undefined),
-    );
+        .filter((content) => content !== undefined);
+    });
   }
 }

@@ -1,7 +1,10 @@
-export class ReviewLayerNotFoundError extends Error {
-  override readonly name = 'ReviewLayerNotFoundError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Review layer not found');
+export class ReviewLayerNotFoundError extends Schema.TaggedError<ReviewLayerNotFoundError>()(
+  'ReviewLayerNotFoundError',
+  {},
+) {
+  override get message() {
+    return 'Review layer not found';
   }
 }

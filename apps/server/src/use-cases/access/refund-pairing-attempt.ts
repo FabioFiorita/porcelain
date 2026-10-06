@@ -1,33 +1,38 @@
-import type { RefundPairingAttemptInput } from '@porcelain/access/models';
-import type { RefundPairingAttemptService } from '@porcelain/access/services';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { Context, Effect, Layer } from 'effect';
+import { type RefundPairingAttemptInput } from '@porcelain/access/models';
+import { RefundPairingAttemptService } from '@porcelain/access/services';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class RefundPairingAttemptUseCase {
-  private readonly refundPairingAttempt: RefundPairingAttemptService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    refundPairingAttempt: RefundPairingAttemptService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.refundPairingAttempt = refundPairingAttempt;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class RefundPairingAttemptUseCase extends Context.Service<
+  RefundPairingAttemptUseCase,
+  {
+    readonly execute: (
+      input: RefundPairingAttemptInput,
+    ) => Effect.Effect<void, never>;
   }
+>()('@porcelain/server/RefundPairingAttemptUseCase') {
+  static readonly layer = Layer.effect(
+    RefundPairingAttemptUseCase,
+    Effect.gen(function* () {
+      const refundPairingAttemptCapability = yield* RefundPairingAttemptService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
 
-  execute(
-    input: RefundPairingAttemptInput,
-    context: OperationContext,
-  ): Promise<void> {
-    return this.lanes.run(
-      this.laneKeys.access(),
-      'write',
-      async () => this.refundPairingAttempt.execute(input),
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('RefundPairingAttemptUseCase.execute')(function* (
+          input: RefundPairingAttemptInput,
+        ): Effect.fn.Return<void, never> {
+          return yield* lanesCapability.run(
+            laneKeysCapability.access(),
+            'write',
+            () =>
+              Effect.gen(function* () {
+                return yield* refundPairingAttemptCapability.execute(input);
+              }),
+          );
+        }),
+      };
+    }),
+  );
 }

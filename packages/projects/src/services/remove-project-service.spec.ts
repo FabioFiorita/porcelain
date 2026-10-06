@@ -1,5 +1,7 @@
+import { InventoryStore } from '@porcelain/projects/ports';
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import type { RegisteredProject } from '@porcelain/projects/models';
+import { type RegisteredProject } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { RemoveProjectService } from './remove-project-service.ts';
 
@@ -20,27 +22,43 @@ function setup() {
     project('api', 1),
     project('web', 2),
   ]);
-  return { inventory, service: new RemoveProjectService(inventory) };
+  return {
+    inventory,
+    service: Effect.runSync(
+      RemoveProjectService.pipe(
+        Effect.provide(RemoveProjectService.layer),
+        Effect.provideService(InventoryStore, inventory),
+      ),
+    ),
+  };
 }
 
 describe('RemoveProjectService', () => {
-  it('removes a registered project and reports that it deleted it', () => {
+  it('removes a registered project and reports that it deleted it', async () => {
     const { inventory, service } = setup();
-    expect(service.execute({ projectId: 'api' })).toEqual({ deleted: true });
-    expect(inventory.read()).toEqual({ projects: [project('web', 2)] });
+    expect(Effect.runSync(service.execute({ projectId: 'api' }))).toEqual({
+      deleted: true,
+    });
+    expect(await Effect.runPromise(inventory.read())).toEqual({
+      projects: [project('web', 2)],
+    });
   });
 
-  it('reports nothing deleted for an unknown project and keeps the others', () => {
+  it('reports nothing deleted for an unknown project and keeps the others', async () => {
     const { inventory, service } = setup();
-    expect(service.execute({ projectId: 'unknown' })).toEqual({
+    expect(Effect.runSync(service.execute({ projectId: 'unknown' }))).toEqual({
       deleted: false,
     });
-    expect(inventory.read().projects).toHaveLength(2);
+    expect((await Effect.runPromise(inventory.read())).projects).toHaveLength(
+      2,
+    );
   });
 
   it('reports nothing deleted when the same project is removed again', () => {
     const { service } = setup();
-    service.execute({ projectId: 'api' });
-    expect(service.execute({ projectId: 'api' })).toEqual({ deleted: false });
+    Effect.runSync(service.execute({ projectId: 'api' }));
+    expect(Effect.runSync(service.execute({ projectId: 'api' }))).toEqual({
+      deleted: false,
+    });
   });
 });

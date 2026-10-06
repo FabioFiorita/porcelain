@@ -1,31 +1,35 @@
-import type {
-  CommitFilesLookup,
-  CommitPage,
-  CommitPatches,
-  CommitPatchesRequest,
+import { type GitIoFailure } from '@porcelain/git/errors';
+import { type Effect, Context } from 'effect';
+import { type WorktreeRead } from '@porcelain/effects/worktree';
+import {
+  type CommitFilesLookup,
+  type CommitPage,
+  type CommitPatches,
+  type CommitPatchesRequest,
 } from '../models/commit-history.ts';
-import type { ListCommitsInput } from '../models/list-commits.ts';
-import type {
-  FileCommits,
-  ListFileCommitsInput,
+import { type ListCommitsInput } from '../models/list-commits.ts';
+import {
+  type FileCommits,
+  type ListFileCommitsInput,
 } from '../models/list-file-commits.ts';
-import type { ReadCommitFilesInput } from '../models/read-commit-files.ts';
+import { type ReadCommitFilesInput } from '../models/read-commit-files.ts';
 
 export interface CommitHistoryReader {
   listCommits(
     input: ListCommitsInput,
-    signal?: AbortSignal,
-  ): Promise<CommitPage>;
+  ): Effect.Effect<CommitPage, GitIoFailure, WorktreeRead>;
   listFileCommits(
     input: ListFileCommitsInput,
-    signal?: AbortSignal,
-  ): Promise<FileCommits>;
+  ): Effect.Effect<FileCommits, GitIoFailure, WorktreeRead>;
   readCommitFiles(
     input: ReadCommitFilesInput,
-    signal?: AbortSignal,
-  ): Promise<CommitFilesLookup>;
+  ): Effect.Effect<CommitFilesLookup, GitIoFailure, WorktreeRead>;
   readCommitPatches(
     input: CommitPatchesRequest,
-    signal?: AbortSignal,
-  ): Promise<CommitPatches>;
+  ): Effect.Effect<CommitPatches, GitIoFailure, WorktreeRead>;
 }
+
+export const CommitHistoryReader = Context.Service<
+  '@porcelain/changes/CommitHistoryReader',
+  CommitHistoryReader
+>('@porcelain/changes/CommitHistoryReader');

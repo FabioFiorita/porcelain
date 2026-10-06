@@ -1,8 +1,9 @@
-import { z } from 'zod';
+import { isoDateTimeSchema } from './schema.ts';
+import { Schema } from 'effect';
 import { oidSchema } from './oid.ts';
-import { worktreeIdSchema } from './worktree-params.ts';
+import { worktreeIdSchema } from './schema.ts';
 
-export const gitActionSchema = z.enum([
+export const gitActionSchema = Schema.Literals([
   'fetch',
   'pull',
   'push',
@@ -14,12 +15,12 @@ export const gitActionSchema = z.enum([
   'discard',
 ]);
 
-export const gitActionReceiptSchema = z.object({
-  requestId: z.uuid(),
-  projectId: z.uuid(),
+export const gitActionReceiptSchema = Schema.Struct({
+  requestId: Schema.String.check(Schema.isUUID()),
+  projectId: Schema.String.check(Schema.isUUID()),
   worktreeId: worktreeIdSchema,
   action: gitActionSchema,
-  state: z.enum([
+  state: Schema.Literals([
     'running',
     'succeeded',
     'no-change',
@@ -27,8 +28,8 @@ export const gitActionReceiptSchema = z.object({
     'conflicted',
     'interrupted',
   ]),
-  reason: z
-    .enum([
+  reason: Schema.optional(
+    Schema.Literals([
       'CHANGED_SINCE_LOOKED',
       'STALE_PREPARATION',
       'REQUEST_MISMATCH',
@@ -39,23 +40,23 @@ export const gitActionReceiptSchema = z.object({
       'DEADLINE_EXCEEDED',
       'OUTCOME_UNKNOWN',
       'PROCESS_GROUP_UNCONFIRMED',
-    ])
-    .optional(),
-  message: z.string().optional(),
-  progress: z.array(z.string()),
-  result: z
-    .object({
-      headOid: oidSchema.optional(),
-      trackingOid: oidSchema.optional(),
-      sourceOid: oidSchema.optional(),
-      destinationRef: z.string().optional(),
-      stashOid: oidSchema.optional(),
-      stashRetained: z.boolean().optional(),
-      restoreStashOid: oidSchema.optional(),
-      restoreIndex: z.boolean().optional(),
-      branch: z.string().optional(),
-    })
-    .optional(),
-  acceptedAt: z.iso.datetime(),
-  finishedAt: z.iso.datetime().optional(),
+    ]),
+  ),
+  message: Schema.optional(Schema.String),
+  progress: Schema.Array(Schema.String),
+  result: Schema.optional(
+    Schema.Struct({
+      headOid: Schema.optional(oidSchema),
+      trackingOid: Schema.optional(oidSchema),
+      sourceOid: Schema.optional(oidSchema),
+      destinationRef: Schema.optional(Schema.String),
+      stashOid: Schema.optional(oidSchema),
+      stashRetained: Schema.optional(Schema.Boolean),
+      restoreStashOid: Schema.optional(oidSchema),
+      restoreIndex: Schema.optional(Schema.Boolean),
+      branch: Schema.optional(Schema.String),
+    }),
+  ),
+  acceptedAt: isoDateTimeSchema,
+  finishedAt: Schema.optional(isoDateTimeSchema),
 });

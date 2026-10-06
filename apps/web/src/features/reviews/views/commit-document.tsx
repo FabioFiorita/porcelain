@@ -1,4 +1,4 @@
-import { formatDistanceToNowStrict } from 'date-fns';
+import { relativeTime } from '@/shared/lib/relative-time';
 import { CopyIcon } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -11,13 +11,15 @@ import {
   commitMessage,
   type CommitFile,
   type CommitFiles,
+} from '@porcelain/client/history/rules';
+import {
   historyRefLabel,
   ordinal,
   shortOid,
   useCommit,
 } from '@/features/history/index';
 import type { DocumentInteraction } from '../rules/documents';
-import type { DiffContent, ReviewScope } from '../rules/review';
+import type { DiffContent, ReviewScope } from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { ReadMoreFiles } from './read-more-files';
@@ -150,7 +152,7 @@ export function CommitDocument({
               oid={oid}
               omitted={omitted}
               patchOf={patchOf}
-              failed={diffs.isError}
+              failed={diffs.failed}
               onRetry={diffs.retry}
             />
           </>
@@ -158,7 +160,7 @@ export function CommitDocument({
       />
       <ReadMoreFiles
         more={more}
-        pending={diffs.isPending}
+        pending={diffs.pending}
         onReadMore={readMore}
       />
     </div>
@@ -197,10 +199,7 @@ function CommitHeader({
         {commit.commit != null && (
           <span>
             {commit.commit.author.name} ·{' '}
-            {formatDistanceToNowStrict(
-              new Date(commit.commit.author.timestamp),
-              { addSuffix: true },
-            )}
+            {relativeTime(commit.commit.author.timestamp)}
           </span>
         )}
         <span className="font-mono">{oid}</span>

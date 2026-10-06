@@ -5,8 +5,8 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { useFileTimeline } from '../queries/file-timeline';
-import { timelineChange } from '../rules/commit';
-import type { HistoryScope } from '../rules/connection';
+import { timelineChange } from '@porcelain/client/history/rules';
+import type { HistoryScope } from '@porcelain/client/history/rules';
 import { CommitRow } from './commit-row';
 import { type Connection } from '@/shared/workspace/connection';
 

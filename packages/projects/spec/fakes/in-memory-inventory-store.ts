@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   Inventory,
   ProjectKey,
@@ -14,33 +15,43 @@ export class InMemoryInventoryStore implements InventoryStore {
     );
   }
 
-  read(): Inventory {
-    return {
-      projects: [...this.projects.values()]
-        .map((project) => ({ ...project }))
-        .sort((a, b) => a.position - b.position),
-    };
+  read(): Effect.Effect<Inventory> {
+    return Effect.sync(() => {
+      return {
+        projects: [...this.projects.values()]
+          .map((project) => ({ ...project }))
+          .sort((a, b) => a.position - b.position),
+      };
+    });
   }
 
-  find(input: ProjectKey): RegisteredProject | undefined {
-    const project = this.projects.get(input.projectId);
-    return project && { ...project };
+  find(input: ProjectKey): Effect.Effect<RegisteredProject | undefined> {
+    return Effect.sync(() => {
+      const project = this.projects.get(input.projectId);
+      return project && { ...project };
+    });
   }
 
-  save(input: RegisteredProject): void {
-    this.projects.set(input.id, { ...input });
+  save(input: RegisteredProject): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.projects.set(input.id, { ...input });
+    });
   }
 
-  markAllUnavailable(): void {
-    this.projects = new Map(
-      [...this.projects].map(([id, project]) => [
-        id,
-        { ...project, available: false },
-      ]),
-    );
+  markAllUnavailable(): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.projects = new Map(
+        [...this.projects].map(([id, project]) => [
+          id,
+          { ...project, available: false },
+        ]),
+      );
+    });
   }
 
-  remove(input: ProjectKey): void {
-    this.projects.delete(input.projectId);
+  remove(input: ProjectKey): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.projects.delete(input.projectId);
+    });
   }
 }

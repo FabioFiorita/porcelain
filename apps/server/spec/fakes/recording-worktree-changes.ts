@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   AnnounceWorktreeChangeUseCasePort,
   WorktreeChange,
@@ -5,12 +6,20 @@ import type {
 
 export class RecordingWorktreeChanges implements AnnounceWorktreeChangeUseCasePort {
   private readonly changes = new Map<string, WorktreeChange>();
+  private readonly history: WorktreeChange[] = [];
 
-  async execute(input: WorktreeChange): Promise<void> {
-    this.changes.set(input.worktreeId, input);
+  execute(input: WorktreeChange): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.changes.set(input.worktreeId, input);
+      this.history.push(input);
+    });
   }
 
   announced(worktreeId: string): WorktreeChange | undefined {
     return this.changes.get(worktreeId);
+  }
+
+  all(): readonly WorktreeChange[] {
+    return this.history;
   }
 }

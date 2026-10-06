@@ -1,20 +1,18 @@
+import { Schema } from 'effect';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { TestProject } from 'vitest/node';
-import { z } from 'zod';
 import { temporaryServerBuild } from './sandbox.ts';
-
 const integrationFolder = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../integration',
 );
-const routeLogSchema = z.object({
-  registered: z.array(z.string()),
-  requested: z.array(z.string()),
+const routeLogSchema = Schema.Struct({
+  registered: Schema.Array(Schema.String),
+  requested: Schema.Array(Schema.String),
 });
-
 async function unrequestedRoutes(folder: string, project: TestProject) {
   const logs = await readdir(folder);
   const tests = (await readdir(integrationFolder)).filter((name) =>
@@ -36,7 +34,7 @@ async function unrequestedRoutes(folder: string, project: TestProject) {
   const registered = new Set<string>();
   const requested = new Set<string>();
   for (const name of logs) {
-    const log = routeLogSchema.parse(
+    const log = Schema.decodeUnknownSync(routeLogSchema)(
       JSON.parse(await readFile(join(folder, name), 'utf8')),
     );
     for (const route of log.registered) registered.add(route);
@@ -44,7 +42,6 @@ async function unrequestedRoutes(folder: string, project: TestProject) {
   }
   return [...registered].filter((route) => !requested.has(route)).sort();
 }
-
 export default async function setup(project: TestProject) {
   const perf = project.name === '@porcelain/server-perf';
   const build = await temporaryServerBuild(perf ? 'perf' : undefined);

@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { deleteResolvedCommentsResponseSchema } from '@porcelain/contracts/reviews';
 import { expect } from 'vitest';
@@ -114,7 +115,11 @@ test("deleting confirmed resolved threads removes the reviewer's whole threads a
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(deleteResolvedCommentsResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(deleteResolvedCommentsResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toStrictEqual({
     deleted: [answeredId],
@@ -127,7 +132,7 @@ test("deleting confirmed resolved threads removes the reviewer's whole threads a
   );
   expect(listed).toMatchObject(answered(4));
   expect(
-    list(toolValue(listed)).map((entry) => record(entry).id),
+    list(record(toolValue(listed)).threads).map((entry) => record(entry).id),
   ).toStrictEqual([notedId, openId, fromAgentId]);
 });
 

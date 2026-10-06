@@ -8,7 +8,6 @@ export { HtmlPreview } from './views/html-preview';
 export { useDirectory } from './queries/directory';
 export { useTextFile } from './queries/text';
 export { useFileDraft } from './commands/edit-file';
-export type { FileDraft, FileDraftState } from './store';
 export { FileNavigation } from './views/file-navigation';
 export { useDiskChangeNotice } from './adapters/disk-change';
 export { useUnsavedDraftsGuard } from './adapters/unsaved-drafts';

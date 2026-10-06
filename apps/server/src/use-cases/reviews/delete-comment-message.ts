@@ -1,53 +1,62 @@
-import type {
-  CommentAuthor,
-  CommentThreadParams,
-  DeleteCommentMessageQuery,
-  DeleteCommentMessageResponse,
+import {
+  type CommentTargetNotFoundError,
+  type CommentAuthorMismatchError,
+} from '@porcelain/reviews/errors';
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import {
+  type CommentAuthor,
+  type CommentThreadParams,
+  type DeleteCommentMessageQuery,
+  type DeleteCommentMessageResponse,
 } from '@porcelain/contracts/reviews';
-import type { DeleteCommentMessageService } from '@porcelain/reviews/services';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import { DeleteCommentMessageService } from '@porcelain/reviews/services';
+import { EventPublisher } from '../../ports/event-publisher.ts';
 
-export class DeleteCommentMessageUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly deleteCommentMessage: DeleteCommentMessageService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-  private readonly events: EventPublisher;
-
-  constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    deleteCommentMessage: DeleteCommentMessageService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-    events: EventPublisher,
-  ) {
-    this.checkWorktree = checkWorktree;
-    this.deleteCommentMessage = deleteCommentMessage;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
-    this.events = events;
+export class DeleteCommentMessageUseCase extends Context.Service<
+  DeleteCommentMessageUseCase,
+  {
+    readonly execute: (
+      input: CommentThreadParams & DeleteCommentMessageQuery & CommentAuthor,
+    ) => Effect.Effect<
+      DeleteCommentMessageResponse,
+      | WorktreeAccessFailure
+      | CommentTargetNotFoundError
+      | CommentAuthorMismatchError
+    >;
   }
+>()('@porcelain/server/DeleteCommentMessageUseCase') {
+  static readonly layer = Layer.effect(
+    DeleteCommentMessageUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const deleteCommentMessageCapability = yield* DeleteCommentMessageService;
+      const eventsCapability = yield* EventPublisher;
 
-  async execute(
-    input: CommentThreadParams & DeleteCommentMessageQuery & CommentAuthor,
-    context: OperationContext,
-  ): Promise<DeleteCommentMessageResponse> {
-    const { worktreeId } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
-    );
-    const result = await this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'write',
-      async () => this.deleteCommentMessage.execute(input),
-      { callerSignal: context.signal },
-    );
-    this.events.worktreeChanged({ worktreeId, change: 'comments' });
-    return result;
-  }
+      return {
+        execute: Effect.fn('DeleteCommentMessageUseCase.execute')(function* (
+          input: CommentThreadParams &
+            DeleteCommentMessageQuery &
+            CommentAuthor,
+        ): Effect.fn.Return<
+          DeleteCommentMessageResponse,
+          | WorktreeAccessFailure
+          | CommentTargetNotFoundError
+          | CommentAuthorMismatchError
+        > {
+          return yield* accessCapability.transaction(
+            input.worktreeId,
+            () => Effect.void,
+            () => deleteCommentMessageCapability.execute(input),
+            () =>
+              eventsCapability.worktreeChanged({
+                worktreeId: input.worktreeId,
+                change: 'comments',
+              }),
+          );
+        }),
+      };
+    }),
+  );
 }

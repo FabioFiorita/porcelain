@@ -1,13 +1,3 @@
 export { HistoryGit } from './history-git.ts';
-export { HistorySnapshotUnavailableError } from './errors/history-snapshot-unavailable-error.ts';
-export { HistoryWorktreeUnavailableError } from './errors/history-worktree-unavailable-error.ts';
-export { InvalidHistoryRequestError } from './errors/invalid-history-request-error.ts';
-export { ReadLimitExceededError } from './errors/read-limit-exceeded-error.ts';
-export { UnsupportedHistoryDataError } from './errors/unsupported-history-data-error.ts';
-export type {
-  BranchBases,
-  BranchFile,
-  BranchRange,
-} from './dtos/branch-range.ts';
-export type { CommitSummary, FileCommit } from './dtos/commit-history.ts';
+export type { CommitSummary } from './dtos/commit-history.ts';
 export type { CommitReaderFactory } from './interfaces/commit-reader.ts';

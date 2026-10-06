@@ -48,16 +48,13 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
       domainPackages.map((name) => [`./${name}`, `./src/${name}/index.ts`]),
     ),
   },
-  storage: {
-    '.': './src/index.ts',
-    ...Object.fromEntries(
-      domainPackages
-        .filter((name) => name !== 'files' && name !== 'changes')
-        .map((name) => [`./${name}`, `./src/repositories/${name}/index.ts`]),
-    ),
-  },
+  storage: { '.': './src/index.ts' },
   agents: {
     './commit-planning': './src/commit-planning/index.ts',
+  },
+  effects: {
+    '.': './src/index.ts',
+    './worktree': './src/worktree-lease.ts',
   },
   kernel: {
     './models': './src/models/index.ts',
@@ -65,6 +62,7 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
     './rules': './src/rules/index.ts',
     './errors': './src/errors/index.ts',
     './fakes': './spec/fakes/index.ts',
+    './test-kit': './spec/kit/test-clock.ts',
   },
   process: { '.': './src/index.ts' },
   theme: { './tokens.css': './src/tokens.css' },
@@ -73,20 +71,25 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
     './access/api': './src/features/access/api.ts',
     './access/rules': './src/features/access/rules/index.ts',
     './projects': './src/features/projects/index.ts',
-    './projects/api': './src/features/projects/api.ts',
     './projects/rules': './src/features/projects/rules/index.ts',
     './files': './src/features/files/index.ts',
-    './files/api': './src/features/files/api.ts',
+    './files/rules': './src/features/files/rules/index.ts',
     './changes': './src/features/changes/index.ts',
-    './changes/api': './src/features/changes/api.ts',
+    './changes/rules': './src/features/changes/rules/index.ts',
     './history': './src/features/history/index.ts',
-    './history/api': './src/features/history/api.ts',
+    './history/rules': './src/features/history/rules/index.ts',
     './git-actions': './src/features/git-actions/index.ts',
-    './git-actions/api': './src/features/git-actions/api.ts',
+    './git-actions/rules': './src/features/git-actions/rules/index.ts',
     './reviews': './src/features/reviews/index.ts',
-    './reviews/api': './src/features/reviews/api.ts',
+    './reviews/rules': './src/features/reviews/rules/index.ts',
+    './live': './src/features/live/index.ts',
     './transport': './src/shared/api/index.ts',
   },
+};
+
+targetPackageExports.git = {
+  ...targetPackageExports.git,
+  './errors': './src/shared/errors/index.ts',
 };
 
 for (const name of ['access', 'git-actions', 'projects', 'reviews'])
@@ -107,9 +110,7 @@ export const requiredServerFiles: readonly string[] = [
   'apps/server/src/http/status-policy.ts',
   'apps/server/src/runtime/lanes.ts',
   'apps/server/src/runtime/shared-reads.ts',
-  'apps/server/src/runtime/launch-limit.ts',
   'apps/server/src/runtime/lane-keys.ts',
-  'apps/server/src/ports/operation-context.ts',
   'apps/server/src/ports/event-publisher.ts',
 ];
 
@@ -139,11 +140,13 @@ export const roles = [
   'process-api',
   'process',
   'runtime',
+  'workflow',
   'server-port',
   'bootstrap',
   'contract',
   'config',
   'kernel',
+  'kernel-test-kit',
   'fake',
   'fixture',
   'capture',
@@ -523,6 +526,7 @@ function classifyPackage(name: string, inside: string) {
       ? classified('theme-tokens', name)
       : undefined;
   if (name === 'client') {
+    if (inside === 'config/limits.ts') return classified('web-limits', name);
     if (/^shared\/api\/[a-z-]+\.spec\.ts$/.test(inside))
       return classified('client-transport-spec', name);
     if (/^shared\/api\/[a-z-]+\.ts$/.test(inside))
@@ -542,7 +546,7 @@ function classifyPackage(name: string, inside: string) {
     if (part === 'store.spec.ts')
       return classified('client-feature-spec', name);
     const member =
-      /^(rules|queries|commands|ports)\/([a-z]+(?:-[a-z]+)*(?:\.spec)?\.ts)$/.exec(
+      /^(rules|queries|commands|ports|store)\/([a-z]+(?:-[a-z]+)*(?:\.spec)?\.ts)$/.exec(
         part,
       );
     if (!member) return;
@@ -566,18 +570,26 @@ function classifyPackage(name: string, inside: string) {
         ? 'query'
         : folder === 'commands'
           ? 'command'
-          : 'client-port',
+          : folder === 'store'
+            ? 'store'
+            : 'client-port',
       name,
     );
   }
   if (/\.test\.ts$/.test(inside)) return;
   if (/\.spec\.ts$/.test(inside)) return classified('test', name);
+  if (name === 'effects') return classified('runtime', name);
   if (domainSet.has(name)) return classifyDomain(name, inside);
   const section = inside.split('/')[0] ?? '';
   if (name === 'git') {
     if (gitCapabilitySet.has(section))
       return classified(
         inside === `${section}/index.ts` ? 'gateway-api' : 'gateway',
+        name,
+      );
+    if (inside.startsWith('shared/errors/'))
+      return classified(
+        inside === 'shared/errors/index.ts' ? 'error-api' : 'error',
         name,
       );
     if (section === 'shared') return classified('gateway', name);
@@ -625,6 +637,8 @@ function classifyServer(inside: string) {
   if (/\.spec\.ts$/.test(inside)) return classified('test', owner);
   if (inside.startsWith('use-cases/')) return classified('use-case', owner);
   if (inside.startsWith('bootstrap/')) return classified('bootstrap', owner);
+  if (/^runtime\/.+-workflow\.ts$/.test(inside))
+    return classified('workflow', owner);
   if (inside.startsWith('runtime/')) return classified('runtime', owner);
   if (inside.startsWith('ports/')) return classified('server-port', owner);
   if (inside.startsWith('adapters/')) return classified('gateway', owner);
@@ -642,6 +656,11 @@ function classifyServer(inside: string) {
         'server-factory.ts',
         'static-files.ts',
         'principal.ts',
+        'request-context.ts',
+        'request-error.ts',
+        'node-live-socket.ts',
+        'diagnostics.ts',
+        'application.ts',
       ].includes(http)
     )
       return classified('transport', owner);
@@ -839,6 +858,8 @@ export function classify(path: string): Classification | undefined {
     return classified('client-integration-test', 'client');
   if (/^packages\/client\/spec\/kit\/[a-z]+(?:-[a-z]+)*\.ts$/.test(path))
     return classified('client-test-kit', 'client');
+  if (/^packages\/kernel\/spec\/kit\/[a-z]+(?:-[a-z]+)*\.ts$/.test(path))
+    return classified('kernel-test-kit', 'kernel');
   const packageFake = /^packages\/([^/]+)\/spec\/fakes\/.+\.ts$/.exec(path);
   if (packageFake) return classified('fake', packageFake[1] ?? '');
   const capture = /^packages\/([^/]+)\/spec\/fixtures\/capture\.ts$/.exec(path);
@@ -962,6 +983,7 @@ const everything: readonly Role[] = [
   'gateway-api',
   'gateway',
   'runtime',
+  'workflow',
   'server-port',
   'bootstrap',
   'contract',
@@ -1068,6 +1090,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'kernel',
     'contract',
     'runtime',
+    'workflow',
     'server-port',
   ]),
   installer: new Set([
@@ -1106,8 +1129,8 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'error-api',
   ]),
   model: new Set(['kernel', 'model', 'model-api']),
-  port: new Set(['kernel', 'port', 'model', 'model-api']),
-  error: new Set(['error']),
+  port: new Set(['kernel', 'port', 'model', 'model-api', 'error-api']),
+  error: new Set(['error', 'error-api']),
   repository: new Set([
     'kernel',
     'repository',
@@ -1144,6 +1167,17 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'server-port',
     'contract',
   ]),
+  workflow: new Set([
+    'runtime',
+    'workflow',
+    'domain-api',
+    'model-api',
+    'port-api',
+    'error-api',
+    'server-port',
+    'config',
+    'kernel',
+  ]),
   'server-port': new Set(['server-port', 'kernel', 'model-api']),
   bootstrap: new Set([
     'bootstrap',
@@ -1156,13 +1190,15 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'gateway-api',
     'repository-api',
     'runtime',
+    'workflow',
     'server-port',
     'config',
     'kernel',
   ]),
-  contract: new Set(['contract', 'rule-api']),
+  contract: new Set(['contract', 'rule-api', 'error-api']),
   config: new Set(['config', 'contract']),
   kernel: new Set(['kernel']),
+  'kernel-test-kit': new Set(['kernel-test-kit']),
   fake: new Set([
     'kernel',
     'port',
@@ -1188,6 +1224,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   'server-kit': new Set([
     'server-kit',
     'bootstrap',
+    'runtime',
     'transport',
     'config',
     'server-port',
@@ -1199,6 +1236,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   'verify-core': new Set(['verify-core', 'server-kit']),
   test: new Set([
     ...everything,
+    'kernel-test-kit',
     'fake',
     'fixture',
     'store-contract',
@@ -1256,6 +1294,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   store: new Set([
+    'adapter',
     'client-feature-api',
     'client-port',
     'client-rules-api',
@@ -1266,6 +1305,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   live: new Set([
+    'client-rules-api',
     'client-transport-api',
     'query',
     'web-rule',
@@ -1280,6 +1320,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   adapter: new Set([
+    'client-rules-api',
     'client-feature-api',
     'adapter',
     'store',
@@ -1386,6 +1427,33 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   ]),
 };
 
+for (const [role, targets] of [
+  ['service', ['runtime']],
+  ['model', ['runtime']],
+  ['port', ['runtime']],
+  ['client-feature-spec', ['runtime', 'error-api']],
+  ['client-transport-spec', ['error-api', 'client-transport-api']],
+  ['client-request-api', ['error-api']],
+  ['transport', ['runtime', 'error-api']],
+  ['query', ['error-api']],
+  ['server-port', ['error-api', 'runtime']],
+  ['client-test-kit', ['runtime']],
+  ['client-feature-spec', ['web-shared']],
+  ['command', ['runtime']],
+  ['store', ['runtime', 'error-api']],
+  ['web-shared', ['runtime', 'error-api']],
+  ['runtime', ['error-api']],
+  ['gateway', ['error-api', 'error']],
+  ['bootstrap', ['model-api', 'error-api']],
+  ['client-request-api', ['client-request-api']],
+  ['shell', ['client-feature-api']],
+  ['web-shared', ['client-feature-api', 'client-request-api']],
+  ['route', ['client-rules-api']],
+  ['shell', ['client-rules-api']],
+  ['web-rule-spec', ['client-rules-api']],
+] as const)
+  allowedTargets[role] = new Set([...allowedTargets[role], ...targets]);
+
 const specSupportRoles: ReadonlySet<string> = new Set(['fake', 'fixture']);
 
 const serverKitClients: ReadonlySet<Role> = new Set<Role>([
@@ -1446,6 +1514,14 @@ export function violation(
   from: Classification,
   to: Classification,
 ): ArchRule | undefined {
+  if (
+    from.owner === 'server' &&
+    from.role === 'gateway' &&
+    to.role === 'error-api' &&
+    to.owner !== 'kernel' &&
+    to.owner !== 'git'
+  )
+    return 'gateway-cannot-import-error-api';
   if (to.owner === 'theme')
     return from.role === 'app-stylesheet' &&
       (from.owner === 'web' || from.owner === 'mobile')
@@ -1462,6 +1538,8 @@ export function violation(
     from.owner === 'client' &&
     to.owner !== 'client' &&
     to.owner !== 'contracts' &&
+    !(to.owner === 'effects' && to.role === 'runtime') &&
+    to.role !== 'error-api' &&
     !(serverKitClients.has(from.role) && to.role === 'server-kit')
   )
     return 'client-imports-client-and-contracts-only';
@@ -1521,7 +1599,11 @@ export function violation(
   )
     return 'contract-imports-kernel-rules-only';
   if (from.owner !== to.owner) {
-    if (to.owner === 'git' && to.role !== 'gateway-api')
+    if (
+      to.owner === 'git' &&
+      to.role !== 'gateway-api' &&
+      to.role !== 'error-api'
+    )
       return 'git-public-api-only';
     if (domainSet.has(to.owner) && !domainApiRoles.has(to.role))
       return 'domain-public-api-only';
@@ -1553,6 +1635,8 @@ export function violation(
 }
 
 export const serverPortContractTypes: Readonly<Record<string, string>> = {
+  'apps/server/src/ports/git-status-reads.ts':
+    'the shared status cache stores the validated response returned to all clients; its capability must carry the exact outcome and typed errors so cached reads cannot widen the wire shape',
   'apps/server/src/ports/live-channel.ts':
     'a live channel sends the notice the contract schema defines to the socket; a kernel or server copy of that union would drift from the schema the client parses',
 };
@@ -1624,61 +1708,88 @@ export const externalPackages: Record<Role, readonly string[]> = {
   'mobile-metro-config': ['expo', 'uniwind'],
   'mobile-generated-types': ['uniwind'],
   'mobile-store': [],
-  'mobile-config': ['expo'],
+  'mobile-config': ['expo', 'tsx/cjs'],
   'client-rules-api': [],
   'client-feature-api': [],
   'client-request-api': [],
   'client-port': [],
-  'client-feature-spec': ['vitest'],
-  'client-integration-test': ['vitest', '@tanstack/query-core'],
-  'client-test-kit': ['vitest'],
+  'client-feature-spec': [],
+  'client-integration-test': [
+    'vitest',
+    '@tanstack/query-core',
+    'effect',
+    'effect/reactivity',
+  ],
+  'client-test-kit': ['vitest', 'effect/reactivity'],
   'client-transport-api': [],
-  'client-transport-spec': ['vitest'],
-  desktop: ['electron', 'fix-path', 'zod'],
+  'client-transport-spec': ['vitest', '@effect/vitest'],
+  desktop: ['electron', 'fix-path', '@effect/platform-node'],
   'desktop-gateway': [],
   'desktop-server-api': [],
   transport: [
-    'fastify',
-    '@fastify/*',
     'ws',
-    'zod',
-    '@modelcontextprotocol/sdk',
     'qrcode-terminal',
+    'effect/cli',
+    '@effect/platform-node',
+    'effect/net',
+    'effect/socket',
+    'effect/ai',
+    'effect/rpc',
   ],
-  'status-policy': ['fastify', '@fastify/sensible'],
+  'status-policy': ['effect/http', 'effect/http-api'],
   'use-case': [],
-  installer: ['zod'],
+  installer: ['@effect/platform-node'],
   'installer-api': [],
   'domain-api': [],
   service: [],
   'rule-api': [],
-  rule: [],
+  rule: ['effect/DateTime', 'effect/Redacted'],
   'model-api': [],
   model: [],
   'port-api': [],
   port: [],
   'error-api': [],
   error: [],
-  'repository-api': ['drizzle-orm', 'better-sqlite3'],
-  repository: ['drizzle-orm', 'better-sqlite3'],
+  'repository-api': [],
+  repository: [
+    'effect',
+    'effect/sql',
+    'effect/schema',
+    '@effect/sql-sqlite-node',
+  ],
   'gateway-api': [],
-  gateway: ['zod', 'trash', '@parcel/watcher'],
+  gateway: [
+    'trash',
+    '@parcel/watcher',
+    '@effect/platform-node',
+    'effect/ai',
+    'effect/process',
+  ],
   'process-api': [],
-  process: [],
+  process: ['effect', 'effect/process'],
   runtime: [],
+  workflow: ['effect/workflow', 'effect/cluster'],
   'server-port': [],
-  bootstrap: ['fastify', '@fastify/*', 'better-sqlite3'],
-  contract: ['zod'],
-  config: ['zod'],
+  bootstrap: ['@effect/platform-node', 'effect/cluster'],
+  contract: ['effect/ai', 'effect/rpc'],
+  config: [],
   kernel: [],
+  'kernel-test-kit': ['effect', 'effect/testing', 'vitest'],
   fake: [],
   fixture: [],
   capture: [],
-  'store-contract': ['vitest'],
-  'server-kit': ['esbuild', 'zod', 'vitest'],
-  'integration-test': ['vitest'],
-  'server-cli': ['zod'],
-  'verify-core': ['zod'],
+  'store-contract': ['vitest', 'effect'],
+  'server-kit': [
+    'esbuild',
+    '@effect/platform-node',
+    'vitest',
+    'effect/Schema',
+    'effect/rpc',
+    'effect/socket',
+  ],
+  'integration-test': ['vitest', 'effect/Schema'],
+  'server-cli': [],
+  'verify-core': [],
   test: [],
   route: [],
   shell: [],
@@ -1698,27 +1809,74 @@ export const externalPackages: Record<Role, readonly string[]> = {
   'integration-kit': [],
   'integration-host': ['vitest'],
   'e2e-spec': [],
-  'e2e-kit': ['@playwright/test', 'vite', 'zod'],
+  'e2e-kit': ['@playwright/test', 'vite'],
   'web-test-kit': [],
   'web-test-config': [
     '@playwright/test',
     '@vitest/browser-playwright',
     'vitest',
   ],
-  'web-verify-cli': ['playwright', 'zod'],
-  'desktop-kit': ['@electron/rebuild', 'esbuild', 'zod'],
+  'web-verify-cli': ['playwright'],
+  'desktop-kit': ['esbuild'],
   'desktop-e2e': [],
   'desktop-e2e-kit': ['@playwright/test'],
-  'desktop-verify-cli': ['playwright', 'zod', '@electron/fuses'],
-  'mobile-test-kit': ['zod'],
+  'desktop-verify-cli': ['playwright', '@electron/fuses'],
+  'mobile-test-kit': ['expo/fingerprint'],
   'mobile-e2e-spec': [],
   'mobile-e2e-kit': ['vitest'],
-  'mobile-verify-cli': ['zod'],
+  'mobile-verify-cli': [],
   'web-rule-spec': [],
   'web-config': [],
   'web-limits': [],
   'web-entry': [],
 };
+
+for (const role of [
+  'service',
+  'model',
+  'port',
+  'error',
+  'kernel',
+  'fake',
+  'use-case',
+  'server-port',
+  'runtime',
+  'workflow',
+  'bootstrap',
+  'transport',
+  'contract',
+  'config',
+  'gateway',
+  'installer',
+  'desktop',
+  'desktop-gateway',
+  'desktop-e2e',
+  'server-kit',
+  'mobile-test-kit',
+  'desktop-kit',
+  'verify-core',
+  'server-cli',
+  'web-verify-cli',
+  'desktop-verify-cli',
+  'mobile-verify-cli',
+  'client-transport-spec',
+  'client-test-kit',
+] as const)
+  externalPackages[role] = [...externalPackages[role], 'effect'];
+for (const role of [
+  'transport',
+  'contract',
+  'gateway',
+  'runtime',
+  'desktop',
+  'client-transport-spec',
+  'server-kit',
+] as const)
+  externalPackages[role] = [
+    ...externalPackages[role],
+    'effect/http',
+    'effect/http-api',
+  ];
 
 const fixtureNodeModules = new Set(['fs', 'path', 'url']);
 const captureNodeModules = new Set([
@@ -1732,7 +1890,6 @@ const captureNodeModules = new Set([
 function isNodeModule(name: string): boolean {
   return nodeModules.has(name) || nodeModules.has(name.split('/')[0] ?? '');
 }
-
 function packageName(module: string): string {
   const [scope = '', name = ''] = module.split('/');
   return scope.startsWith('@') ? `${scope}/${name}` : scope;
@@ -1740,6 +1897,8 @@ function packageName(module: string): string {
 
 function allowedPackage(role: Role, module: string): boolean {
   const name = packageName(module);
+  if (externalPackages[role].includes(module)) return true;
+  if (name === 'effect') return false;
   return externalPackages[role].some((entry) =>
     entry.endsWith('/*') ? name.startsWith(entry.slice(0, -1)) : entry === name,
   );
@@ -1765,8 +1924,9 @@ function forbiddenNodeModule(role: Role, name: string): boolean {
   )
     return false;
   if (role === 'capture') return !captureNodeModules.has(base);
-  if (base === 'child_process') return role !== 'process';
-  if (role === 'kernel' || role === 'fake') return true;
+  if (base === 'child_process') return true;
+  if (role === 'kernel' || role === 'kernel-test-kit' || role === 'fake')
+    return true;
   if (role === 'fixture') return !fixtureNodeModules.has(base);
   if (typedRoles.has(role))
     return !((role === 'rule' || role === 'rule-api') && name === 'crypto');
@@ -1821,12 +1981,12 @@ const rolePurposes: Record<Role, string> = {
   'mobile-generated-types':
     'the exact Uniwind-generated light/dark declaration module, verified before it is exempt from handwritten code lint',
   'mobile-store':
-    'a native feature state binding, which injects platform adapters into shared vanilla state and supplies its React bindings to views, queries and commands',
+    'a native feature state binding, which injects platform adapters into shared native Effect services and Atom state and supplies its React bindings to views, queries and commands',
   'mobile-config':
     'the Expo build configuration, which selects the installation identity and native plugins',
   'client-rules-api': "a shared client feature's public pure rules entry",
   'client-feature-api':
-    'the shared feature entry for query options, commands, vanilla stores and platform ports; apps own React bindings and views cannot reach request APIs',
+    'the shared feature entry for query options, commands, native Effect stores and platform ports; apps own React bindings and views cannot reach request APIs',
   'client-request-api':
     'the shared feature request API; only app APIs and shared reads and commands reach it',
   'client-port':
@@ -1867,7 +2027,7 @@ const rolePurposes: Record<Role, string> = {
   'repository-api':
     "the storage package's public entry, index.ts or repositories/<domain>/index.ts",
   repository:
-    'storage internals: the SQLite schema and the repositories that implement domain ports',
+    'storage internals: native SQL models and the layers that implement domain ports',
   'gateway-api': "a git or agents capability's index.ts, its public entry",
   gateway:
     'an adapter that implements ports over git, coding agents, the file system or the network (packages/git, packages/agents, apps/server/src/adapters)',
@@ -1876,6 +2036,8 @@ const rolePurposes: Record<Role, string> = {
   process: 'packages/process internals, the only code that spawns a process',
   runtime:
     'the server runtime in apps/server/src/runtime: lanes, locks and the data directory',
+  workflow:
+    'durable Effect workflow orchestration in apps/server/src/runtime, using admitted domain services and persisted activities',
   'server-port':
     'a server port in apps/server/src/ports, an interface server adapters implement',
   bootstrap:
@@ -1884,6 +2046,8 @@ const rolePurposes: Record<Role, string> = {
     'the HTTP contract in packages/contracts, the schemas server and clients share',
   config: 'server configuration and limits in apps/server/src/config',
   kernel: 'the kernel models and ports every package shares',
+  'kernel-test-kit':
+    'scoped native Effect test resources shared by unit specs; production roles cannot import them',
   fake: 'a fake in spec/fakes/ that stands in for a port in specs',
   fixture: 'spec data in spec/fixtures/',
   capture:
@@ -1891,7 +2055,7 @@ const rolePurposes: Record<Role, string> = {
   'store-contract':
     'a store contract in spec/contracts/, the spec every implementation of a store passes',
   'server-kit':
-    'the disposable-server kit in apps/server/spec/kit/, which builds the server, starts it sandboxed with the sample project, pairs, reads its state back, redacts secrets and stops only what it started, for integration tests, e2e setup and the verification CLIs',
+    'the disposable-server kit in apps/server/spec/kit/, which builds scoped runtime Layers and the server, starts it sandboxed with the sample project, pairs, reads its state back, redacts secrets and stops only what it started, for integration tests, e2e setup and the verification CLIs',
   'integration-test':
     'a server integration test in apps/server/spec/integration/<feature>.integration.ts, or a route budget test in apps/server/spec/perf/<name>.perf.ts, which drives the built, sandboxed server over HTTP through the kit with a real database and real Git',
   'server-cli':
@@ -1905,7 +2069,7 @@ const rolePurposes: Record<Role, string> = {
   query: "a feature's queries/ file, which owns a read and its cache",
   command: "a feature's commands/ file, which owns a write and its cache",
   store:
-    "a feature's store.ts, the owner of shared client state and Web Storage",
+    "a feature's native state and persistence policy, with app bindings supplying platform adapters",
   live: "a feature's live.ts, which applies server notices to its queries",
   overlays: "a feature's overlays.ts, the owner of its Base UI handles",
   'web-rule': "a pure function in a feature's rules/",

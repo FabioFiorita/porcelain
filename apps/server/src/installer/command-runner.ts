@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { NodeServices } from '@effect/platform-node';
 import {
   runCommand as runProcess,
   type ProcessGroupLimits,
@@ -18,16 +20,18 @@ export function commandRunner(limits: {
 }): CommandRunner {
   return async (command, args, options) => {
     try {
-      const output = await runProcess(
-        {
-          command,
-          args,
-          cwd: options?.cwd,
-          timeoutMs: limits.timeoutMs,
-          maxBytes: limits.maxBytes,
-          processGroup: limits.processGroup,
-        },
-        options?.signal,
+      const output = await Effect.runPromise(
+        runProcess(
+          {
+            command,
+            args,
+            cwd: options?.cwd,
+            timeoutMs: limits.timeoutMs,
+            maxBytes: limits.maxBytes,
+            processGroup: limits.processGroup,
+          },
+          options?.signal,
+        ).pipe(Effect.provide(NodeServices.layer)),
       );
       const stdout = output.stdout.toString('utf8');
       const stderr = output.stderr.toString('utf8');

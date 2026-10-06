@@ -1,10 +1,8 @@
-import { asc, eq } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { DeviceTrust, StoredDevice } from '@porcelain/access/models';
-import type { DeviceStore } from '@porcelain/access/ports';
-import { devices } from '../../db/schema/devices.ts';
-
-type DeviceRow = typeof devices.$inferSelect;
+import { Effect, Layer, Option, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/sql';
+import { DeviceStore } from '@porcelain/access/ports';
+import type { StoredDevice } from '@porcelain/access/models';
+import { DeviceRow } from '../../db/models/devices.ts';
 
 function storedDevice({
   lastSeenAddress,
@@ -21,68 +19,54 @@ function storedDevice({
     ...(revokedAt === null ? {} : { revokedAt }),
   };
 }
+export const sqliteDeviceStoreLayer = Layer.effect(
+  DeviceStore,
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const find = SqlSchema.findOneOption({
+      Request: Schema.Struct({ deviceId: Schema.String }),
+      Result: DeviceRow,
+      execute: (input) =>
+        sql`SELECT * FROM devices WHERE id = ${input.deviceId}`,
+    });
+    const list = SqlSchema.findAll({
+      Request: Schema.Void,
+      Result: DeviceRow,
+      execute: () => sql`SELECT * FROM devices ORDER BY created_at`,
+    });
 
-export class SqliteDeviceStore implements DeviceStore {
-  private readonly db: BetterSQLite3Database;
-
-  constructor(db: BetterSQLite3Database) {
-    this.db = db;
-  }
-
-  find(input: { deviceId: string }): StoredDevice | undefined {
-    const row = this.db
-      .select()
-      .from(devices)
-      .where(eq(devices.id, input.deviceId))
-      .get();
-    return row ? storedDevice(row) : undefined;
-  }
-
-  list(): StoredDevice[] {
-    return this.db
-      .select()
-      .from(devices)
-      .orderBy(asc(devices.createdAt))
-      .all()
-      .map(storedDevice);
-  }
-
-  markRevoked(input: { device: StoredDevice; revokedAt: string }): void {
-    this.db.transaction(
-      (tx) => {
-        tx.update(devices)
-          .set({ revokedAt: input.revokedAt })
-          .where(eq(devices.id, input.device.id))
-          .run();
-      },
-      { behavior: 'immediate' },
-    );
-  }
-
-  recordSighting(input: { device: StoredDevice }): void {
-    this.db.transaction(
-      (tx) => {
-        tx.update(devices)
-          .set({
-            lastSeenAt: input.device.lastSeenAt,
-            lastSeenAddress: input.device.lastSeenAddress ?? null,
-          })
-          .where(eq(devices.id, input.device.id))
-          .run();
-      },
-      { behavior: 'immediate' },
-    );
-  }
-
-  recordTrust(input: DeviceTrust): void {
-    this.db.transaction(
-      (tx) => {
-        tx.update(devices)
-          .set({ trusted: input.trusted })
-          .where(eq(devices.id, input.device.id))
-          .run();
-      },
-      { behavior: 'immediate' },
-    );
-  }
-}
+    return DeviceStore.of({
+      find: Effect.fn('DeviceStore.find')(function* (
+        input: Parameters<DeviceStore['find']>[0],
+      ) {
+        return Option.getOrUndefined(
+          Option.map(yield* find(input).pipe(Effect.orDie), storedDevice),
+        );
+      }),
+      list: Effect.fn('DeviceStore.list')(function* () {
+        return (yield* list(undefined).pipe(Effect.orDie)).map(storedDevice);
+      }),
+      markRevoked: Effect.fn('DeviceStore.markRevoked')(function* (
+        input: Parameters<DeviceStore['markRevoked']>[0],
+      ) {
+        yield* sql`UPDATE devices SET revoked_at = ${input.revokedAt} WHERE id = ${input.device.id}`.pipe(
+          Effect.orDie,
+        );
+      }),
+      recordSighting: Effect.fn('DeviceStore.recordSighting')(function* (
+        input: Parameters<DeviceStore['recordSighting']>[0],
+      ) {
+        yield* sql`UPDATE devices SET last_seen_at = ${input.device.lastSeenAt}, last_seen_address = ${input.device.lastSeenAddress ?? null} WHERE id = ${input.device.id}`.pipe(
+          Effect.orDie,
+        );
+      }),
+      recordTrust: Effect.fn('DeviceStore.recordTrust')(function* (
+        input: Parameters<DeviceStore['recordTrust']>[0],
+      ) {
+        yield* sql`UPDATE devices SET trusted = ${input.trusted ? 1 : 0} WHERE id = ${input.device.id}`.pipe(
+          Effect.orDie,
+        );
+      }),
+    });
+  }),
+);

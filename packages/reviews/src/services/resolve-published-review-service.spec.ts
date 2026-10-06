@@ -1,7 +1,19 @@
-import { describe, expect, it } from 'vitest';
-import type { FileChange, TrackedComparison } from '@porcelain/kernel/models';
-import { FixedClock } from '@porcelain/kernel/fakes';
-import type { Review, ReviewDiff, ReviewStep } from '@porcelain/reviews/models';
+import { testClock } from '@porcelain/kernel/test-kit';
+import {
+  SignatureSource,
+  ResolvePublishedReviewOptions,
+} from '@porcelain/reviews/ports';
+import { Effect, Clock, type Context } from 'effect';
+import { beforeEach, describe, expect, it } from 'vitest';
+import {
+  type FileChange,
+  type TrackedComparison,
+} from '@porcelain/kernel/models';
+import {
+  type Review,
+  type ReviewDiff,
+  type ReviewStep,
+} from '@porcelain/reviews/models';
 import { changesDigest } from '@porcelain/reviews/rules';
 import { ScriptedSignatureSource } from '../../spec/fakes/scripted-signature-source.ts';
 import { ResolvePublishedReviewService } from './resolve-published-review-service.ts';
@@ -74,11 +86,23 @@ function text(path: string, content: string): [string, string] {
   return [path, content];
 }
 
-const service = new ResolvePublishedReviewService(
-  new FixedClock('2026-01-01T00:00:00.000Z'),
-  new ScriptedSignatureSource(),
-  { lifetimeMs: 3_600_000 },
-);
+let service: Context.Service.Shape<typeof ResolvePublishedReviewService>;
+
+beforeEach(async () => {
+  service = Effect.runSync(
+    ResolvePublishedReviewService.pipe(
+      Effect.provide(ResolvePublishedReviewService.layer),
+      Effect.provideService(
+        Clock.Clock,
+        await testClock('2026-01-01T00:00:00.000Z'),
+      ),
+      Effect.provideService(SignatureSource, new ScriptedSignatureSource()),
+      Effect.provideService(ResolvePublishedReviewOptions, {
+        lifetimeMs: 3_600_000,
+      }),
+    ),
+  );
+});
 
 function generate(evidence: {
   steps?: ReviewStep[];
@@ -86,15 +110,17 @@ function generate(evidence: {
   texts?: [string, string][];
   diffs?: ReviewDiff[];
 }) {
-  return service.execute({
-    environmentId,
-    review: review(evidence.steps),
-    evidence: {
-      changes: evidence.changes ?? [],
-      texts: new Map(evidence.texts ?? []),
-      diffs: evidence.diffs ?? [],
-    },
-  });
+  return Effect.runSync(
+    service.execute({
+      environmentId,
+      review: review(evidence.steps),
+      evidence: {
+        changes: evidence.changes ?? [],
+        texts: new Map(evidence.texts ?? []),
+        diffs: evidence.diffs ?? [],
+      },
+    }),
+  );
 }
 
 const readme = 'first\nsecond\nadded\n';
@@ -217,25 +243,27 @@ describe('ResolvePublishedReviewService', () => {
 
   it('calls the proof current only while the changes are the ones it was published against', () => {
     const proven = (changes: FileChange[]) =>
-      service.execute({
-        environmentId,
-        review: {
-          ...review(),
-          proof: {
-            checks: [{ name: 'Tests', result: 'pass' }],
-            assets: [],
-            baseline: {
-              digest: changesDigest([changed('README.md')], []),
-              proofPaths: [],
+      Effect.runSync(
+        service.execute({
+          environmentId,
+          review: {
+            ...review(),
+            proof: {
+              checks: [{ name: 'Tests', result: 'pass' }],
+              assets: [],
+              baseline: {
+                digest: changesDigest([changed('README.md')], []),
+                proofPaths: [],
+              },
             },
           },
-        },
-        evidence: {
-          changes,
-          texts: new Map([text('README.md', readme)]),
-          diffs: [],
-        },
-      }).proof;
+          evidence: {
+            changes,
+            texts: new Map([text('README.md', readme)]),
+            diffs: [],
+          },
+        }),
+      ).proof;
     expect(proven([changed('README.md')])).toEqual({
       checks: [{ name: 'Tests', result: 'pass' }],
       assets: [],
@@ -263,28 +291,30 @@ describe('ResolvePublishedReviewService', () => {
       comparisons: [{ scope: 'untracked', path: 'shot.png' }],
     };
     const proofWith = (changes: FileChange[]) =>
-      service.execute({
-        environmentId,
-        review: {
-          ...review(),
-          proof: {
-            checks: [{ name: 'Tests', result: 'pass' }],
-            assets: [],
-            baseline: {
-              digest: changesDigest(
-                [changed('README.md'), screenshot],
-                ['shot.png'],
-              ),
-              proofPaths: ['shot.png'],
+      Effect.runSync(
+        service.execute({
+          environmentId,
+          review: {
+            ...review(),
+            proof: {
+              checks: [{ name: 'Tests', result: 'pass' }],
+              assets: [],
+              baseline: {
+                digest: changesDigest(
+                  [changed('README.md'), screenshot],
+                  ['shot.png'],
+                ),
+                proofPaths: ['shot.png'],
+              },
             },
           },
-        },
-        evidence: {
-          changes,
-          texts: new Map([text('README.md', readme)]),
-          diffs: [],
-        },
-      }).proof.current;
+          evidence: {
+            changes,
+            texts: new Map([text('README.md', readme)]),
+            diffs: [],
+          },
+        }),
+      ).proof.current;
     expect(proofWith([changed('README.md')])).toBe(true);
     expect(proofWith([changed('README.md'), screenshot])).toBe(true);
   });

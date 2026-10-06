@@ -1,10 +1,10 @@
+import { Schema } from 'effect';
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cruise } from 'dependency-cruiser';
 import extractDepcruiseOptions from 'dependency-cruiser/config-utl/extract-depcruise-options';
-import { z } from 'zod';
 import web from '../apps/web/vite.config.ts';
 import {
   allowedContractType,
@@ -30,7 +30,7 @@ import {
   type Classification,
 } from '../architecture/policy.ts';
 import { typeRuleFindings } from '../architecture/type-rules.ts';
-import { unusedExportFindings } from '../architecture/unused-exports.ts';
+import { knipFindings } from '../architecture/knip.ts';
 import {
   mobileMetroFile,
   mobileMetroValid,
@@ -42,39 +42,40 @@ import {
   themeTokenFile,
   themeTokensValid,
 } from '../architecture/theme-policy.ts';
-
-const dependencySchema = z.object({
-  module: z.string(),
-  resolved: z.string(),
-  couldNotResolve: z.boolean(),
-  dependencyTypes: z.array(z.string()),
+const dependencySchema = Schema.Struct({
+  module: Schema.String,
+  resolved: Schema.String,
+  couldNotResolve: Schema.Boolean,
+  dependencyTypes: Schema.Array(Schema.String),
 });
-
-const cruiseReportSchema = z.object({
-  modules: z.array(
-    z.object({ source: z.string(), dependencies: z.array(dependencySchema) }),
+const cruiseReportSchema = Schema.Struct({
+  modules: Schema.Array(
+    Schema.Struct({
+      source: Schema.String,
+      dependencies: Schema.Array(dependencySchema),
+    }),
   ),
-  summary: z.object({
-    totalCruised: z.number(),
-    totalDependenciesCruised: z.number(),
-    violations: z.array(
-      z.object({
-        from: z.string(),
-        to: z.string(),
-        rule: z.object({ name: z.enum(archRules), severity: z.string() }),
+  summary: Schema.Struct({
+    totalCruised: Schema.Finite,
+    totalDependenciesCruised: Schema.Finite,
+    violations: Schema.Array(
+      Schema.Struct({
+        from: Schema.String,
+        to: Schema.String,
+        rule: Schema.Struct({
+          name: Schema.Literals(archRules),
+          severity: Schema.String,
+        }),
       }),
     ),
   }),
 });
-type CruiseReport = z.output<typeof cruiseReportSchema>;
-
+type CruiseReport = typeof cruiseReportSchema.Type;
 type Finding = { rule: ArchRule; from: string; to: string };
-
-const manifestSchema = z.object({
-  exports: z.record(z.string(), z.string()).optional(),
+const manifestSchema = Schema.Struct({
+  exports: Schema.optional(Schema.Record(Schema.String, Schema.String)),
 });
-type Manifest = z.output<typeof manifestSchema>;
-
+type Manifest = typeof manifestSchema.Type;
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const packageNames = readdirSync(join(repositoryRoot, 'packages'), {
   withFileTypes: true,
@@ -110,7 +111,6 @@ const webConfigs = [
   'apps/web/playwright.config.ts',
 ];
 const allRoots = [...sourceRoots, ...webRoots, ...mobileRoots];
-
 const ignoredDirectories = new Set([
   'node_modules',
   'dist',
@@ -120,7 +120,6 @@ const ignoredDirectories = new Set([
 ]);
 const ignoredFile = /(?:^\.DS_Store|\.tsbuildinfo)$/;
 const codeFile = /\.[cm]?[jt]sx?$/;
-
 function filesUnder(directory: string): string[] {
   if (!existsSync(join(repositoryRoot, directory))) return [];
   return readdirSync(join(repositoryRoot, directory), {
@@ -135,11 +134,9 @@ function filesUnder(directory: string): string[] {
     return entry.isFile() && !ignoredFile.test(entry.name) ? [path] : [];
   });
 }
-
 function sourceFiles(directory: string): string[] {
   return filesUnder(directory).filter((path) => codeFile.test(path));
 }
-
 const permittedOutsideRoots: readonly RegExp[] = [
   /^packages\/client\/tsconfig\.spec\.json$/,
   /^apps\/mobile\/(?:package\.json|tsconfig\.json|app\.config\.ts|eas\.json|metro\.config\.cjs)$/,
@@ -157,7 +154,6 @@ const insideRoot =
 const fixtureData = /^packages\/[^/]+\/spec\/fixtures\//;
 const webInside = /^apps\/web\/(?:src|spec)\//;
 const webAsset = /^apps\/web\/src\/(?:[^/]+\.css|assets\/[^/]+)$/;
-
 function placementFindings(): Finding[] {
   const files = [...filesUnder('packages'), ...filesUnder('apps')];
   return files.flatMap((path) => {
@@ -194,7 +190,6 @@ function placementFindings(): Finding[] {
     ];
   });
 }
-
 function themeFindings(): Finding[] {
   const findings: Finding[] = [];
   for (const path of filesUnder('packages/theme')) {
@@ -273,29 +268,29 @@ function themeFindings(): Finding[] {
   }
   return findings;
 }
-
 function isRepositoryPath(resolved: string): boolean {
   return (
     !resolved.split('/').includes('node_modules') &&
     existsSync(join(repositoryRoot, resolved))
   );
 }
-
-const webResolveSchema = z.object({
-  resolve: z.object({ alias: z.record(z.string(), z.string()) }),
+const webResolveSchema = Schema.Struct({
+  resolve: Schema.Struct({
+    alias: Schema.Record(Schema.String, Schema.String),
+  }),
 });
-
 async function webScan(): Promise<CruiseReport> {
   const result = await cruise(
     [...webRoots, ...webConfigs],
     await extractDepcruiseOptions(
       join(repositoryRoot, 'architecture/dependency-cruiser.cjs'),
     ),
-    { alias: webResolveSchema.parse(web).resolve.alias },
+    {
+      alias: Schema.decodeUnknownSync(webResolveSchema)(web).resolve.alias,
+    },
   );
-  return cruiseReportSchema.parse(result.output);
+  return Schema.decodeUnknownSync(cruiseReportSchema)(result.output);
 }
-
 async function scan(sources: readonly string[]): Promise<CruiseReport> {
   const result = spawnSync(
     join(repositoryRoot, 'node_modules/.bin/depcruise'),
@@ -311,7 +306,7 @@ async function scan(sources: readonly string[]): Promise<CruiseReport> {
   if (result.error) throw result.error;
   if (result.status !== 0)
     throw new Error(result.stderr || result.stdout || 'Dependency scan failed');
-  const server: CruiseReport = cruiseReportSchema.parse(
+  const server: CruiseReport = Schema.decodeUnknownSync(cruiseReportSchema)(
     JSON.parse(result.stdout),
   );
   const webReport = await webScan();
@@ -340,11 +335,10 @@ async function scan(sources: readonly string[]): Promise<CruiseReport> {
           },
         },
       );
-      return cruiseReportSchema.parse(result.output);
+      return Schema.decodeUnknownSync(cruiseReportSchema)(result.output);
     }),
   );
   const mobileModules = mobileReports.flatMap((report) => report.modules);
-
   const report: CruiseReport = {
     modules: [...server.modules, ...webReport.modules, ...mobileModules],
     summary: {
@@ -384,14 +378,14 @@ async function scan(sources: readonly string[]): Promise<CruiseReport> {
     );
   return report;
 }
-
 function readManifest(name: string): Manifest | undefined {
   const path = join(repositoryRoot, 'packages', name, 'package.json');
   return existsSync(path)
-    ? manifestSchema.parse(JSON.parse(readFileSync(path, 'utf8')))
+    ? Schema.decodeUnknownSync(manifestSchema)(
+        JSON.parse(readFileSync(path, 'utf8')),
+      )
     : undefined;
 }
-
 function packageExportFindings(): Finding[] {
   const result: Finding[] = [];
   for (const sourceRoot of sourceRoots.filter(
@@ -432,13 +426,10 @@ function packageExportFindings(): Finding[] {
   }
   return result;
 }
-
 const runtimeFixture = /(?:^|[/.])(?:mocks?|fixtures?|fakes?)(?:[./-]|$)/i;
-
 const useCaseFile = new RegExp(
   `^(?:${domainPackages.join('|')})/[a-z0-9]+(?:-[a-z0-9]+)*\\.ts$`,
 );
-
 function structureFindings(
   sources: readonly string[],
   classified: ReadonlyMap<string, Classification>,
@@ -521,7 +512,6 @@ function structureFindings(
   }
   return result;
 }
-
 function classifyAll(sources: readonly string[]): {
   classified: Map<string, Classification>;
   findings: Finding[];
@@ -556,7 +546,6 @@ function classifyAll(sources: readonly string[]): {
   }
   return { classified, findings };
 }
-
 function dependencyFindings(
   report: CruiseReport,
   classified: ReadonlyMap<string, Classification>,
@@ -652,7 +641,6 @@ function dependencyFindings(
   }
   return result;
 }
-
 try {
   if (process.argv[2] !== 'check')
     throw new Error('Usage: pnpm arch:check [--all]');
@@ -672,7 +660,7 @@ try {
     ...placementFindings(),
     ...themeFindings(),
     ...typeRuleFindings(repositoryRoot),
-    ...unusedExportFindings(repositoryRoot),
+    ...knipFindings(repositoryRoot),
   ];
   const byRule = new Map<ArchRule, Finding[]>();
   for (const finding of violations) {

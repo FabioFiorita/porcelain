@@ -26,7 +26,7 @@ import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/shared/lib/utils';
 import type { CssVariables } from '@/shared/lib/css-variables';
 import { usePreferences } from '@/features/preferences/index';
-import type { Diagram, DiagramBox } from '../rules/review';
+import type { Diagram, DiagramBox } from '@porcelain/client/reviews/rules';
 import { useFitOnResize } from '../adapters/diagram-fit';
 
 type GraphBox = DiagramBox & {
@@ -37,8 +37,8 @@ type GraphBox = DiagramBox & {
 };
 
 export type Graph = {
-  lanes: string[];
-  boxes: GraphBox[];
+  lanes: readonly string[];
+  boxes: readonly GraphBox[];
   arrows: Diagram['arrows'];
 };
 
@@ -352,7 +352,7 @@ const FLOW_STYLE: CssVariables = {
   '--xy-controls-button-border-color': 'var(--border)',
 };
 
-export function ReviewDiagram({
+function ReviewDiagram({
   graph,
   onBoxClick,
   className,
@@ -405,7 +405,7 @@ function Canvas({
   onNodesChange,
 }: {
   graph: { nodes: Node[]; edges: Edge[] };
-  boxes: GraphBox[];
+  boxes: readonly GraphBox[];
   onBoxClick?: ((box: GraphBox) => void) | undefined;
   onNodesChange: (changes: NodeChange[]) => void;
 }) {

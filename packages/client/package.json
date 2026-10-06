@@ -8,18 +8,18 @@
     "./access": "./src/features/access/index.ts",
     "./access/api": "./src/features/access/api.ts",
     "./projects": "./src/features/projects/index.ts",
-    "./projects/api": "./src/features/projects/api.ts",
     "./projects/rules": "./src/features/projects/rules/index.ts",
     "./files": "./src/features/files/index.ts",
-    "./files/api": "./src/features/files/api.ts",
     "./changes": "./src/features/changes/index.ts",
-    "./changes/api": "./src/features/changes/api.ts",
     "./history": "./src/features/history/index.ts",
-    "./history/api": "./src/features/history/api.ts",
     "./reviews": "./src/features/reviews/index.ts",
-    "./reviews/api": "./src/features/reviews/api.ts",
-    "./git-actions/api": "./src/features/git-actions/api.ts",
-    "./git-actions": "./src/features/git-actions/index.ts"
+    "./git-actions": "./src/features/git-actions/index.ts",
+    "./git-actions/rules": "./src/features/git-actions/rules/index.ts",
+    "./reviews/rules": "./src/features/reviews/rules/index.ts",
+    "./changes/rules": "./src/features/changes/rules/index.ts",
+    "./history/rules": "./src/features/history/rules/index.ts",
+    "./files/rules": "./src/features/files/rules/index.ts",
+    "./live": "./src/features/live/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.spec.json",
@@ -27,9 +27,12 @@
     "test:integration": "vitest run --config ../../vitest.config.ts --project @porcelain/client-integration"
   },
   "dependencies": {
+    "@porcelain/access": "workspace:*",
     "@porcelain/contracts": "workspace:*",
-    "@tanstack/query-core": "5.102.8",
-    "zustand": "5.0.15"
+    "@porcelain/effects": "workspace:*",
+    "@porcelain/files": "workspace:*",
+    "@porcelain/kernel": "workspace:*",
+    "effect": "4.0.0"
   },
   "devDependencies": {
     "@porcelain/server": "workspace:*"

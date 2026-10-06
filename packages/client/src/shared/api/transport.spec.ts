@@ -1,3 +1,4 @@
+import { Redacted } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { remoteTransport } from './transport.ts';
 
@@ -8,7 +9,7 @@ describe('remoteTransport', () => {
     const headers = new Headers({ 'content-type': 'application/json' });
     const transport = remoteTransport(
       'https://remote.test',
-      'secret',
+      Redacted.make('secret'),
       (input, init) => {
         received.push(new Request(input, init));
         return Promise.resolve(Response.json({ connected: true }));

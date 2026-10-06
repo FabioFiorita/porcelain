@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { FileWrite } from '../../src/models/file-write.ts';
 import type { FileWriter } from '../../src/ports/file-writer.ts';
 
@@ -8,23 +9,23 @@ export class ScriptedFileWriter implements FileWriter {
     this.outcome = outcome;
   }
 
-  write(): Promise<FileWrite> {
-    return Promise.resolve(this.outcome);
+  write(): Effect.Effect<FileWrite> {
+    return Effect.succeed(this.outcome);
   }
 
-  create(): Promise<FileWrite> {
-    return Promise.resolve(this.outcome);
+  create(): Effect.Effect<FileWrite> {
+    return Effect.succeed(this.outcome);
   }
 
-  move(): Promise<FileWrite> {
-    return Promise.resolve(this.outcome);
+  move(): Effect.Effect<FileWrite> {
+    return Effect.succeed(this.outcome);
   }
 
-  trash(): Promise<FileWrite> {
-    return Promise.resolve(this.outcome);
+  trash(): Effect.Effect<FileWrite> {
+    return Effect.succeed(this.outcome);
   }
 
-  copy(): Promise<FileWrite> {
-    return Promise.resolve(this.outcome);
+  copy(): Effect.Effect<FileWrite> {
+    return Effect.succeed(this.outcome);
   }
 }

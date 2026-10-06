@@ -1,4 +1,19 @@
-export { textQueryOptions } from './queries/text.ts';
-export { directoryQueryOptions } from './queries/directory.ts';
-export { pathsQueryOptions } from './queries/paths.ts';
-export { editFile, refreshFileEdit } from './commands/edit-file.ts';
+export { readTextFile } from './queries/text.ts';
+export { readDirectory } from './queries/directory.ts';
+export { readWorktreePaths } from './queries/paths.ts';
+export { readAsset } from './queries/asset.ts';
+export { editFile, retainFileDraft } from './commands/edit-file.ts';
+export {
+  FileDrafts,
+  FileDraftTiming,
+  readFileDrafts,
+  type FileDraftHandle,
+  type FileDraftState,
+} from './store.ts';
+export type { FileDraftWriteFailure } from './ports/file-draft-writer.ts';
+
+export { readHtmlPreview } from './queries/html-preview.ts';
+export {
+  HtmlPreviewPlatform,
+  HtmlPreviewUnavailable,
+} from './ports/html-preview-platform.ts';

@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import {
   kitHeaders,
@@ -17,7 +18,7 @@ export async function prepareRemote(server: ServerHandle, recorder: Recorder) {
     headers: kitHeaders,
     body: { name: REMOTE_COMPUTER_NAME },
   });
-  const project = readInventoryResponseSchema.parse(
+  const project = Schema.decodeUnknownSync(readInventoryResponseSchema)(
     await read(kit, {
       method: 'GET',
       path: '/api/inventory',

@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { readEnvironmentResponseSchema } from '@porcelain/contracts/access';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import { expect } from 'vitest';
@@ -32,7 +33,11 @@ test('anyone asks which environment the server is without a credential', async (
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readEnvironmentResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readEnvironmentResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toStrictEqual({
     environmentId: before.environmentId,

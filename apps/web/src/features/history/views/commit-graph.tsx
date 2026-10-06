@@ -1,6 +1,6 @@
 import { HISTORY_GRAPH_ROW_GAP, HISTORY_ROW_HEIGHT } from '@/config/limits';
 import { useHistory } from '../queries/history';
-import type { HistoryScope } from '../rules/connection';
+import type { HistoryScope } from '@porcelain/client/history/rules';
 import { historyGraphWidth, layoutGraph } from '../rules/graph';
 import { CommitRow } from './commit-row';
 import { HistoryGraph } from './history-graph';

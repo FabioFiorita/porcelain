@@ -1,3 +1,5 @@
+import type { GitActionReason } from '../../shared/errors/git-action-reason.ts';
+
 export type GitActionIntent =
   | {
       action: 'pull';
@@ -15,13 +17,15 @@ export type GitActionIntent =
   | {
       action: 'commit';
       message: string;
-      paths?: string[] | undefined;
-      expectedFiles?: { path: string; fingerprint: string }[] | undefined;
+      paths?: readonly string[] | undefined;
+      expectedFiles?:
+        | readonly { path: string; fingerprint: string }[]
+        | undefined;
     }
   | {
       action: 'amend';
       message: string;
-      paths: string[];
+      paths: readonly string[];
     }
   | { action: 'stash-create'; message: string; includeUntracked: boolean }
   | {
@@ -47,7 +51,7 @@ export type GitActionExpectation = {
   inProgress: 'merge' | 'rebase' | null;
   mergeHeadOid: string | null;
   upstreamOid?: string | null | undefined;
-  files?: { path: string; fingerprint: string }[] | undefined;
+  files?: readonly { path: string; fingerprint: string }[] | undefined;
 };
 
 export type GitActionPreview = {
@@ -62,17 +66,6 @@ export type GitActionPreview = {
   trackingOid?: string | null;
   stashOid?: string;
 };
-export type GitActionReason =
-  | 'CHANGED_SINCE_LOOKED'
-  | 'STALE_PREPARATION'
-  | 'REQUEST_MISMATCH'
-  | 'CHECKOUT_BUSY'
-  | 'UNSUPPORTED_CONFIGURATION'
-  | 'NON_FAST_FORWARD'
-  | 'GIT_REJECTED'
-  | 'DEADLINE_EXCEEDED'
-  | 'OUTCOME_UNKNOWN'
-  | 'PROCESS_GROUP_UNCONFIRMED';
 type GitActionResult = {
   headOid?: string;
   trackingOid?: string;

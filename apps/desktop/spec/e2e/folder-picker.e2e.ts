@@ -1,14 +1,15 @@
+import { Schema } from 'effect';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { appRequest, expect, test, type Page } from './fixtures.ts';
 
 async function registered(page: Page): Promise<string[]> {
-  return readInventoryResponseSchema
-    .parse(await appRequest(page, 'GET', '/api/inventory'))
-    .projects.flatMap((project) =>
-      project.worktrees.map((worktree) => worktree.path),
-    );
+  return Schema.decodeUnknownSync(readInventoryResponseSchema)(
+    await appRequest(page, 'GET', '/api/inventory'),
+  ).projects.flatMap((project) =>
+    project.worktrees.map((worktree) => worktree.path),
+  );
 }
 
 function folderRequests(page: Page): string[] {

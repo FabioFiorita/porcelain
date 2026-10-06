@@ -1,3 +1,4 @@
+import { Schema } from 'effect';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -244,7 +245,7 @@ test('Quit persists the latest maximized window before closing it, even while it
   expect(dialogs).toEqual(['beforeunload']);
   expect(app.output.join('')).toContain(unloadMarker);
   expect(
-    desktopWindowStateSchema.parse(
+    Schema.decodeUnknownSync(desktopWindowStateSchema)(
       JSON.parse(await readFile(join(app.profile, 'window.json'), 'utf8')),
     ),
   ).toEqual({ bounds, maximized: true });
@@ -264,7 +265,9 @@ test('delayed events after destroying a restored maximized window do not throw, 
     join(desktop.profile, 'window.json'),
     'utf8',
   );
-  const savedState = desktopWindowStateSchema.parse(JSON.parse(savedText));
+  const savedState = Schema.decodeUnknownSync(desktopWindowStateSchema)(
+    JSON.parse(savedText),
+  );
   expect(savedState.maximized).toBe(true);
 
   const app = await desktop.launch();
@@ -521,8 +524,9 @@ test('restarting restores the saved window bounds, the maximized window, the dar
     )
     .toBe('dark');
   expect(
-    listAccessResponseSchema.parse(await restarted.askOwner('GET', '/access'))
-      .devices,
+    Schema.decodeUnknownSync(listAccessResponseSchema)(
+      await restarted.askOwner('GET', '/access'),
+    ).devices,
   ).toEqual([]);
   const { pid } = await restarted.server();
   await restarted.quit();

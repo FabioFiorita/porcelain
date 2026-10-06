@@ -1,5 +1,5 @@
 import { copyText } from '@/shared/workspace/copy';
-import type { TreeAction } from '../rules/tree-actions';
+import type { TreeAction } from '@porcelain/client/files/rules';
 
 export function runFileTreeAction(
   id: TreeAction,

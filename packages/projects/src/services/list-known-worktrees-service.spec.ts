@@ -1,7 +1,9 @@
+import { WorktreeCatalogStore } from '@porcelain/projects/ports';
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import type {
-  ListedWorktree,
-  RegisteredProject,
+import {
+  type ListedWorktree,
+  type RegisteredProject,
 } from '@porcelain/projects/models';
 import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { ListKnownWorktreesService } from './list-known-worktrees-service.ts';
@@ -62,9 +64,16 @@ describe('ListKnownWorktreesService', () => {
       web: [worktree('web-main', 'web', false)],
     });
     expect(
-      new ListKnownWorktreesService(reader).execute({
-        projects: [project('web', true), project('api', true)],
-      }),
+      Effect.runSync(
+        Effect.runSync(
+          ListKnownWorktreesService.pipe(
+            Effect.provide(ListKnownWorktreesService.layer),
+            Effect.provideService(WorktreeCatalogStore, reader),
+          ),
+        ).execute({
+          projects: [project('web', true), project('api', true)],
+        }),
+      ),
     ).toEqual({
       listings: [
         {
@@ -84,9 +93,16 @@ describe('ListKnownWorktreesService', () => {
   it('shows every worktree of an unavailable project as unavailable', () => {
     const reader = catalog({ api: [worktree('api-main', 'api')] });
     expect(
-      new ListKnownWorktreesService(reader).execute({
-        projects: [project('api', false)],
-      }),
+      Effect.runSync(
+        Effect.runSync(
+          ListKnownWorktreesService.pipe(
+            Effect.provide(ListKnownWorktreesService.layer),
+            Effect.provideService(WorktreeCatalogStore, reader),
+          ),
+        ).execute({
+          projects: [project('api', false)],
+        }),
+      ),
     ).toEqual({
       listings: [
         {
@@ -101,9 +117,16 @@ describe('ListKnownWorktreesService', () => {
   it('answers an empty list for a project never listed', () => {
     const reader = catalog({});
     expect(
-      new ListKnownWorktreesService(reader).execute({
-        projects: [project('api', true)],
-      }).listings[0]?.worktrees,
+      Effect.runSync(
+        Effect.runSync(
+          ListKnownWorktreesService.pipe(
+            Effect.provide(ListKnownWorktreesService.layer),
+            Effect.provideService(WorktreeCatalogStore, reader),
+          ),
+        ).execute({
+          projects: [project('api', true)],
+        }),
+      ).listings[0]?.worktrees,
     ).toEqual([]);
   });
 });

@@ -1,81 +1,114 @@
+import {
+  Cause,
+  type Context,
+  type Duration,
+  Effect,
+  Exit,
+  Schedule,
+  Scope,
+  SynchronizedRef,
+} from 'effect';
 import type { Logger } from '../ports/logger.ts';
-import type { JobWork } from '../ports/job-work.ts';
+import type { JobRunner } from '../ports/job-runner.ts';
 import type { Job } from '../ports/job.ts';
-import type { OperationContext } from '../ports/operation-context.ts';
+import type { Observability } from './observability.ts';
 
 type JobSchedule = {
-  everyMs?: number | undefined;
+  every?: Duration.Duration | undefined;
   atStart?: boolean | undefined;
   atStop?: boolean | undefined;
 };
+type JobState = {
+  readonly scope: Scope.Closeable;
+  readonly stop: Effect.Effect<void>;
+};
 
-export class JobSequence implements JobWork {
-  private readonly works: readonly JobWork[];
+export const jobSequence = <E>(
+  works: readonly JobRunner<E>[],
+): JobRunner<E> => ({
+  execute: Effect.fn('JobSequence.execute')(() =>
+    Effect.forEach(works, (work) => work.execute(), {
+      discard: true,
+      concurrency: 1,
+    }),
+  ),
+});
 
-  constructor(works: readonly JobWork[]) {
-    this.works = works;
-  }
-
-  async execute(context: OperationContext): Promise<void> {
-    for (const work of this.works) await work.execute(context);
-  }
-}
-
-export class IntervalJob implements Job {
-  private readonly name: string;
-  private readonly work: JobWork;
-  private readonly schedule: JobSchedule;
-  private readonly logger: Logger;
-  private timer: NodeJS.Timeout | undefined;
-  private running: Promise<void> | undefined;
-  private stopped = new AbortController();
-  private started = false;
-
-  constructor(
-    name: string,
-    work: JobWork,
-    schedule: JobSchedule,
-    logger: Logger,
-  ) {
-    this.name = name;
-    this.work = work;
-    this.schedule = schedule;
-    this.logger = logger;
-  }
-
-  start(): void {
-    if (this.started) return;
-    this.started = true;
-    this.stopped = new AbortController();
-    if (this.schedule.atStart) this.tick();
-    if (this.schedule.everyMs === undefined) return;
-    this.timer = setInterval(() => this.tick(), this.schedule.everyMs);
-    this.timer.unref();
-  }
-
-  async stop(): Promise<void> {
-    if (!this.started) return;
-    this.started = false;
-    clearInterval(this.timer);
-    this.timer = undefined;
-    this.stopped.abort();
-    await this.running;
-    if (this.schedule.atStop) await this.attempt(new AbortController().signal);
-  }
-
-  private tick(): void {
-    if (this.running !== undefined) return;
-    this.running = this.attempt(this.stopped.signal).finally(() => {
-      this.running = undefined;
-    });
-  }
-
-  private async attempt(signal: AbortSignal): Promise<void> {
-    try {
-      await this.work.execute({ signal });
-    } catch (error) {
-      if (!signal.aborted)
-        this.logger.failure({ kind: 'job', job: this.name, error });
-    }
-  }
-}
+export const makeIntervalJob = <E>(
+  name: string,
+  work: JobRunner<E>,
+  schedule: JobSchedule,
+  logger: Logger,
+  observability: Context.Service.Shape<typeof Observability>,
+) =>
+  Effect.gen(function* () {
+    const parent = yield* Scope.Scope;
+    const state = yield* SynchronizedRef.make<JobState | undefined>(undefined);
+    const attempt = Effect.fn('IntervalJob.attempt')(() =>
+      observability
+        .measure(
+          { kind: 'job', name },
+          Effect.suspend(() => work.execute()),
+        )
+        .pipe(
+          Effect.catchCause((cause) =>
+            Cause.hasInterruptsOnly(cause)
+              ? Effect.interrupt
+              : Effect.sync(() =>
+                  logger.failure({
+                    kind: 'job',
+                    job: name,
+                    error: Cause.squash(cause),
+                  }),
+                ),
+          ),
+        ),
+    );
+    const job: Job = {
+      start: Effect.fn('IntervalJob.start')(() =>
+        SynchronizedRef.modifyEffect(state, (current) => {
+          if (current) return Effect.succeed([undefined, current] as const);
+          return Effect.gen(function* () {
+            const scope = yield* Scope.fork(parent);
+            const stop = yield* Effect.cached(
+              Effect.uninterruptible(
+                Scope.close(scope, Exit.void).pipe(
+                  Effect.andThen(schedule.atStop ? attempt() : Effect.void),
+                  Effect.ensuring(
+                    SynchronizedRef.update(state, (current) =>
+                      current?.scope === scope ? undefined : current,
+                    ),
+                  ),
+                ),
+              ),
+            );
+            const every = schedule.every;
+            if (schedule.atStart || every !== undefined) {
+              const repeated =
+                every === undefined
+                  ? attempt()
+                  : attempt().pipe(
+                      Effect.repeat(Schedule.fixed(every)),
+                      Effect.asVoid,
+                    );
+              const scheduled =
+                schedule.atStart || every === undefined
+                  ? repeated
+                  : Effect.delay(repeated, every);
+              yield* Effect.forkIn(scheduled, scope, {
+                startImmediately: true,
+              });
+            }
+            return [undefined, { scope, stop }] as const;
+          });
+        }).pipe(Effect.uninterruptible, Effect.asVoid),
+      ),
+      stop: Effect.fn('IntervalJob.stop')(() =>
+        SynchronizedRef.get(state).pipe(
+          Effect.flatMap((current) => current?.stop ?? Effect.void),
+        ),
+      ),
+    };
+    yield* Effect.addFinalizer(() => job.stop());
+    return job;
+  });

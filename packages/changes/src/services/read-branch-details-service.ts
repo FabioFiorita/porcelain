@@ -1,27 +1,40 @@
-import type {
-  ReadBranchDetailsInput,
-  ReadBranchDetailsResult,
+import { type GitIoFailure } from '@porcelain/git/errors';
+import { Effect, Context, Layer } from 'effect';
+import { type WorktreeRead } from '@porcelain/effects/worktree';
+import {
+  type ReadBranchDetailsInput,
+  type ReadBranchDetailsResult,
 } from '../models/read-branch-details.ts';
-import type { ChangeStatusReader } from '../ports/change-status-reader.ts';
+import { ChangeStatusReader } from '../ports/change-status-reader.ts';
 
-export class ReadBranchDetailsService {
-  private readonly changeStatusReader: ChangeStatusReader;
-
-  constructor(changeStatusReader: ChangeStatusReader) {
-    this.changeStatusReader = changeStatusReader;
+export class ReadBranchDetailsService extends Context.Service<
+  ReadBranchDetailsService,
+  {
+    readonly execute: (
+      input: ReadBranchDetailsInput,
+    ) => Effect.Effect<ReadBranchDetailsResult, GitIoFailure, WorktreeRead>;
   }
+>()('@porcelain/changes/ReadBranchDetailsService') {
+  static readonly layer = Layer.effect(
+    ReadBranchDetailsService,
+    Effect.gen(function* () {
+      const changeStatusReaderCapability = yield* ChangeStatusReader;
 
-  execute(
-    input: ReadBranchDetailsInput,
-    signal?: AbortSignal,
-  ): Promise<ReadBranchDetailsResult> {
-    return this.changeStatusReader.readBranchDetails(
-      {
-        worktreeId: input.worktreeId,
-        branchName: input.branch?.name,
-        headOid: input.headOid,
-      },
-      signal,
-    );
-  }
+      return {
+        execute: Effect.fn('ReadBranchDetailsService.execute')(function* (
+          input: ReadBranchDetailsInput,
+        ): Effect.fn.Return<
+          ReadBranchDetailsResult,
+          GitIoFailure,
+          WorktreeRead
+        > {
+          return yield* changeStatusReaderCapability.readBranchDetails({
+            worktreeId: input.worktreeId,
+            branchName: input.branch?.name,
+            headOid: input.headOid,
+          });
+        }),
+      };
+    }),
+  );
 }

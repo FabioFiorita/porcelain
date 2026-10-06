@@ -1,6 +1,10 @@
-import type { SelectedDiffRequest } from '@porcelain/git-actions/models';
-import type { SelectedDiffReader } from '@porcelain/git-actions/ports';
-import type { GitActionWriterFactory } from '@porcelain/git/actions';
+import { readGit } from '../../runtime/git-io.ts';
+import { type GitIoFailure } from '@porcelain/git/errors';
+import { type Effect } from 'effect';
+import { type WorktreeRead } from '@porcelain/effects/worktree';
+import { type SelectedDiffRequest } from '@porcelain/git-actions/models';
+import { type SelectedDiffReader } from '@porcelain/git-actions/ports';
+import { type GitActionWriterFactory } from '@porcelain/git/actions';
 import {
   openCheckout,
   type GitSessions,
@@ -22,7 +26,15 @@ export class GitSelectedDiffReader implements SelectedDiffReader {
     this.sessions = sessions;
   }
 
-  async read(
+  read(
+    input: SelectedDiffRequest,
+  ): Effect.Effect<string, GitIoFailure, WorktreeRead> {
+    return readGit(input.worktreeId, (signal) =>
+      this.readNative(input, signal),
+    );
+  }
+
+  private async readNative(
     input: SelectedDiffRequest,
     signal?: AbortSignal,
   ): Promise<string> {

@@ -1,9 +1,10 @@
-export class CommitGroupsMismatchError extends Error {
-  override readonly name = 'CommitGroupsMismatchError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super(
-      'The generated groups did not cover the selected files. Generate again or write the message manually.',
-    );
+export class CommitGroupsMismatchError extends Schema.TaggedError<CommitGroupsMismatchError>()(
+  'CommitGroupsMismatchError',
+  {},
+) {
+  override get message() {
+    return 'The generated groups did not cover the selected files. Generate again or write the message manually.';
   }
 }

@@ -1,56 +1,60 @@
-import type {
+import { Context, Effect, Layer } from 'effect';
+import {
   AuthorizeServiceUpdateService,
   PlanServiceUpdateCheckService,
 } from '@porcelain/access/services';
-import type {
-  ReadServiceUpdateRequest,
-  ReadServiceUpdateResponse,
+import {
+  type ReadServiceUpdateRequest,
+  type ReadServiceUpdateResponse,
 } from '@porcelain/contracts/access';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { ServiceUpdateRunner } from '../../ports/service-update-runner.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
+import { ServiceUpdateRunner } from '../../ports/service-update-runner.ts';
 
-export class ReadServiceUpdateUseCase {
-  private readonly updates: ServiceUpdateRunner;
-  private readonly authorizeServiceUpdate: AuthorizeServiceUpdateService;
-  private readonly planCheck: PlanServiceUpdateCheckService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    updates: ServiceUpdateRunner,
-    authorizeServiceUpdate: AuthorizeServiceUpdateService,
-    planCheck: PlanServiceUpdateCheckService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.updates = updates;
-    this.authorizeServiceUpdate = authorizeServiceUpdate;
-    this.planCheck = planCheck;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class ReadServiceUpdateUseCase extends Context.Service<
+  ReadServiceUpdateUseCase,
+  {
+    readonly execute: (
+      input: ReadServiceUpdateRequest,
+    ) => Effect.Effect<ReadServiceUpdateResponse, never>;
   }
+>()('@porcelain/server/ReadServiceUpdateUseCase') {
+  static readonly layer = Layer.effect(
+    ReadServiceUpdateUseCase,
+    Effect.gen(function* () {
+      const updatesCapability = yield* ServiceUpdateRunner;
+      const authorizeServiceUpdateCapability =
+        yield* AuthorizeServiceUpdateService;
+      const planCheckCapability = yield* PlanServiceUpdateCheckService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
 
-  async execute(
-    input: ReadServiceUpdateRequest,
-    context: OperationContext,
-  ): Promise<ReadServiceUpdateResponse> {
-    const check = this.planCheck.execute();
-    const authority = await this.lanes.run(
-      this.laneKeys.access(),
-      'read',
-      async () => this.authorizeServiceUpdate.execute(input),
-      { callerSignal: context.signal },
-    );
-    return this.lanes.run(
-      this.laneKeys.serviceUpdate(),
-      'read',
-      async ({ signal }) => ({
-        ...(await this.updates.read(check, signal)),
-        ...authority,
-      }),
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('ReadServiceUpdateUseCase.execute')(function* (
+          input: ReadServiceUpdateRequest,
+        ): Effect.fn.Return<ReadServiceUpdateResponse, never> {
+          const check = yield* planCheckCapability.execute();
+          const authority = yield* lanesCapability.run(
+            laneKeysCapability.access(),
+            'read',
+            () =>
+              Effect.gen(function* () {
+                return yield* authorizeServiceUpdateCapability.execute(input);
+              }),
+          );
+          return yield* lanesCapability.run(
+            laneKeysCapability.serviceUpdate(),
+            'read',
+            () =>
+              Effect.gen(function* () {
+                return {
+                  ...(yield* updatesCapability.read(check)),
+                  ...authority,
+                };
+              }),
+          );
+        }),
+      };
+    }),
+  );
 }

@@ -1,5 +1,6 @@
+import type { Effect } from 'effect';
 export type Runtime = {
   address: string;
   socketPath: string;
-  close(): Promise<void>;
+  close(): Effect.Effect<void>;
 };

@@ -1,4 +1,4 @@
-import { RepositoryIdentityMismatchError } from '../../discovery/index.ts';
+import { RepositoryIdentityMismatchError } from '../../shared/errors/repository-identity-mismatch-error.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { identity } from '../../shared/commands/identity.ts';
 import { runInspection } from './run-inspection.ts';

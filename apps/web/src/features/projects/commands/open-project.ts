@@ -1,8 +1,13 @@
-import { useMutation } from '@tanstack/react-query';
-import { desktopProjectPicker } from '@/shared/adapters/desktop';
-import type { Project, WorktreeTarget } from '../rules/inventory';
-import { useProjectBrowserStore } from '../store';
+import { Cause, Effect, Exit, Option } from 'effect';
+import { Atom, AsyncResult } from 'effect/reactivity';
+import { DesktopHost } from '@/shared/adapters/desktop';
+import type { WorktreeTarget } from '../rules/worktree-target';
+import type { Project } from '@porcelain/client/projects/rules';
+import { projectFolder } from '../store';
+import { useAtom, useAtomSet, useAtomValue } from '@effect/atom-react';
 import { useRegisterProject } from './register-project';
+import { registerProject } from '@porcelain/client/projects';
+import { ConnectionError } from '@porcelain/client/transport';
 import { type Connection } from '@/shared/workspace/connection';
 
 type Opened = (target: WorktreeTarget) => Promise<void>;
@@ -18,51 +23,84 @@ export function useOpenProject(
   close: () => void,
   selectWorktree: Opened,
 ) {
-  const register = useRegisterProject(connection);
+  const [registration, register] = useRegisterProject(connection);
+  const setFolder = useAtomSet(projectFolder);
   const submit = async (path: string) => {
-    if (register.isPending) return;
+    if (registration.waiting) return;
     let project;
     try {
-      project = await register.submit(path.trim());
+      project = await register(path.trim());
     } catch {
       return;
     }
     const target = openedWorktree(remote, project);
-    useProjectBrowserStore.getState().reset();
+    setFolder(undefined);
     close();
     if (target) await selectWorktree(target);
   };
   return {
-    isPending: register.isPending,
-    error: register.error,
+    result: registration,
     submit,
   };
 }
 
-export function resetProjectBrowser(open: boolean) {
-  if (!open) useProjectBrowserStore.getState().reset();
+export function useResetProjectBrowser() {
+  const setFolder = useAtomSet(projectFolder);
+  return (open: boolean) => {
+    if (!open) setFolder(undefined);
+  };
 }
+
+const desktopHost = Atom.runtime(DesktopHost.layer).atom(DesktopHost);
+const pickProject = Atom.family((connection: Connection) =>
+  connection.atoms(DesktopHost.layer).fn((selectWorktree: Opened, get) =>
+    Effect.gen(function* () {
+      const desktop = yield* DesktopHost;
+      const path = yield* desktop.pickProject(connection.address);
+      if (path === null) return;
+      const project = yield* get.setResult(registerProject(connection), path);
+      const target = openedWorktree(null, project);
+      if (target)
+        yield* Effect.tryPromise({
+          try: () => selectWorktree(target),
+          catch: (cause) =>
+            new ConnectionError({
+              message: 'Could not open the selected worktree.',
+              cause,
+            }),
+        });
+    }),
+  ),
+);
 
 export function useNativeProjectPicker(
   connection: Connection,
   selectWorktree: Opened,
   fail: (error: Error) => void,
 ) {
-  const register = useRegisterProject(connection);
-  const picker = desktopProjectPicker(connection.address);
-  const selection = useMutation({
-    mutationFn: async (pick: () => Promise<string | null>) => {
-      const path = await pick();
-      if (path == null) return;
-      const target = openedWorktree(null, await register.submit(path));
-      if (target) await selectWorktree(target);
-    },
-    onError: fail,
+  const desktop = Option.getOrUndefined(
+    AsyncResult.value(useAtomValue(desktopHost)),
+  );
+  const [selection, run] = useAtom(pickProject(connection), {
+    mode: 'promiseExit',
   });
   return (
-    picker &&
+    desktop?.canPickProject(connection.address) &&
     (() => {
-      if (!selection.isPending) selection.mutate(picker);
+      if (selection.waiting) return;
+      void run(selectWorktree).then((exit) => {
+        if (Exit.isFailure(exit)) {
+          const error = Cause.squash(exit.cause);
+          fail(
+            error instanceof Error
+              ? error
+              : new ConnectionError({
+                  message: 'Could not open the selected worktree.',
+                  cause: error,
+                }),
+          );
+        }
+      });
     })
   );
 }

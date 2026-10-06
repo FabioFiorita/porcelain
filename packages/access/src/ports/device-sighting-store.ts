@@ -1,3 +1,4 @@
+import { Context } from 'effect';
 import type {
   DeviceKey,
   DeviceSighting,
@@ -10,3 +11,8 @@ export interface DeviceSightingStore {
   take(): StoredDevice[];
   remove(input: DeviceKey): void;
 }
+
+export const DeviceSightingStore = Context.Service<
+  '@porcelain/access/DeviceSightingStore',
+  DeviceSightingStore
+>('@porcelain/access/DeviceSightingStore');

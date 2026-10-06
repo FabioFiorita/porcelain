@@ -1,3 +1,4 @@
+import { userEvent } from 'vitest/browser';
 import { expect, test, replaceEditorContent } from './fixtures.tsx';
 
 test('an edited file saves after a pause, with Done and when its tab closes', async ({
@@ -24,6 +25,12 @@ test('an edited file saves after a pause, with Done and when its tab closes', as
     .element(workspace.getByText('Saved', { exact: true }))
     .toBeVisible();
   await expect.poll(saved).toBe('Browser autosave marker');
+  await expect.poll(() => server.fileWriteCount()).toBe(1);
+
+  await replaceEditorContent(editor, 'Browser shortcut marker');
+  await userEvent.keyboard('{ControlOrMeta>}s{/ControlOrMeta}');
+  await expect.poll(saved).toBe('Browser shortcut marker');
+  await expect.poll(() => server.fileWriteCount()).toBe(2);
 
   await replaceEditorContent(editor, 'Browser done marker');
   await workspace.getByRole('button', { name: 'Done', exact: true }).click();
@@ -31,6 +38,7 @@ test('an edited file saves after a pause, with Done and when its tab closes', as
     .element(workspace.getByRole('button', { name: 'Edit', exact: true }))
     .toBeVisible();
   await expect.poll(saved).toBe('Browser done marker');
+  await expect.poll(() => server.fileWriteCount()).toBe(3);
 
   await workspace.getByRole('button', { name: 'Edit', exact: true }).click();
   await replaceEditorContent(
@@ -42,4 +50,5 @@ test('an edited file saves after a pause, with Done and when its tab closes', as
     .last()
     .click();
   await expect.poll(saved).toBe('Browser close marker');
+  await expect.poll(() => server.fileWriteCount()).toBe(4);
 }, 30_000);

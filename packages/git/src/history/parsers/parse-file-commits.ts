@@ -1,7 +1,8 @@
-import { InvalidGitDiffError, parseRawDiff } from '../../inspection/index.ts';
+import { InvalidGitDiffError } from '../../shared/errors/invalid-git-diff-error.ts';
+import { parseRawDiff } from '../../inspection/index.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type { CommitFile, FileCommit } from '../dtos/commit-history.ts';
-import { UnsupportedHistoryDataError } from '../errors/unsupported-history-data-error.ts';
+import { UnsupportedHistoryDataError } from '../../shared/errors/unsupported-history-data-error.ts';
 import { decodeHistory } from './decode-history.ts';
 import { COMMIT_FIELDS, parseCommitRecord } from './parse-commit.ts';
 

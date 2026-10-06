@@ -1,7 +1,10 @@
-export class ProjectNotFoundError extends Error {
-  override readonly name = 'ProjectNotFoundError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Project not found');
+export class ProjectNotFoundError extends Schema.TaggedError<ProjectNotFoundError>()(
+  'ProjectNotFoundError',
+  {},
+) {
+  override get message() {
+    return 'Project not found';
   }
 }

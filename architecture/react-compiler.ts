@@ -1,16 +1,13 @@
+import { Schema, Result } from 'effect';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { z } from 'zod';
 import { transformAsync } from '@babel/core';
 import reactCompiler, {
   type LoggerEvent,
   type PluginOptions,
 } from 'babel-plugin-react-compiler';
-
 export type CompilerFinding = { file: string; line: number; message: string };
-
 const optOut = /^\s*['"]use no (?:memo|forget)['"]/m;
-
 async function compile(
   file: string,
   source: string,
@@ -27,13 +24,11 @@ async function compile(
     plugins: [[reactCompiler, options]],
   });
 }
-
 function reason(event: LoggerEvent): string | undefined {
   if (event.kind === 'PipelineError')
     return event.data.split('\n')[0] ?? event.data;
   return event.kind === 'CompileError' ? event.detail.reason : undefined;
 }
-
 async function failures(
   file: string,
   source: string,
@@ -59,7 +54,6 @@ async function failures(
   });
   return [...found.values()];
 }
-
 export async function compilerFindings(
   files: readonly string[],
 ): Promise<CompilerFinding[]> {
@@ -95,38 +89,38 @@ export async function compilerFindings(
   }
   return findings;
 }
-
-const buildPluginSchema = z.object({
-  name: z.literal('@rolldown/plugin-babel'),
-  configResolved: z.custom<(...arguments_: unknown[]) => unknown>(
-    (value) => typeof value === 'function',
-  ),
-  applyToEnvironment: z.custom<(...arguments_: unknown[]) => unknown>(
-    (value) => typeof value === 'function',
-  ),
-  transform: z.object({
-    handler: z.custom<(...arguments_: unknown[]) => unknown>(
-      (value) => typeof value === 'function',
-    ),
-  }),
+const compilerHook = Schema.declare(
+  (value): value is (...arguments_: unknown[]) => unknown =>
+    typeof value === 'function',
+);
+const buildPluginSchema = Schema.Struct({
+  name: Schema.Literal('@rolldown/plugin-babel'),
+  configResolved: compilerHook,
+  applyToEnvironment: compilerHook,
+  transform: Schema.Struct({ handler: compilerHook }),
 });
-
 export async function buildCompilerRuns(module: unknown): Promise<boolean> {
-  const config = z
-    .object({ default: z.object({ plugins: z.array(z.unknown()) }) })
-    .safeParse(module);
-  if (!config.success) return false;
-  const pending = [...config.data.default.plugins];
+  const config = Schema.decodeUnknownResult(
+    Schema.Struct({
+      default: Schema.Struct({
+        plugins: Schema.Array(Schema.Unknown),
+      }),
+    }),
+  )(module);
+  if (!Result.isSuccess(config)) return false;
+  const pending = [...config.success.default.plugins];
   while (pending.length > 0) {
     const value: unknown = await pending.shift();
-    const list = z.array(z.unknown()).safeParse(value);
-    if (list.success) {
-      pending.push(...list.data);
+    const list = Schema.decodeUnknownResult(Schema.Array(Schema.Unknown))(
+      value,
+    );
+    if (Result.isSuccess(list)) {
+      pending.push(...list.success);
       continue;
     }
-    const parsed = buildPluginSchema.safeParse(value);
-    if (!parsed.success) continue;
-    const plugin = parsed.data;
+    const parsed = Schema.decodeUnknownResult(buildPluginSchema)(value);
+    if (!Result.isSuccess(parsed)) continue;
+    const plugin = parsed.success;
     const environment = { name: 'client', config: { consumer: 'client' } };
     plugin.configResolved({ command: 'build', isProduction: true });
     if (!plugin.applyToEnvironment(environment)) continue;
@@ -143,8 +137,15 @@ export async function buildCompilerRuns(module: unknown): Promise<boolean> {
       resolve('apps/web/src/guardrail-fixture.tsx'),
       { moduleType: 'tsx' },
     );
-    const result = z.object({ code: z.string() }).safeParse(transformed);
-    if (result.success && result.data.code.includes('react/compiler-runtime'))
+    const result = Schema.decodeUnknownResult(
+      Schema.Struct({
+        code: Schema.String,
+      }),
+    )(transformed);
+    if (
+      Result.isSuccess(result) &&
+      result.success.code.includes('react/compiler-runtime')
+    )
       return true;
   }
   return false;

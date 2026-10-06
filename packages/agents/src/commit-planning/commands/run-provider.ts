@@ -1,38 +1,36 @@
 import { runCommand, type ProcessGroupLimits } from '@porcelain/process';
+import { Effect } from 'effect';
 import { ProviderProcessFailedError } from '../errors/provider-process-failed-error.ts';
 
 type ProviderCommand = {
-  command: string;
-  args: readonly string[];
-  cwd: string;
-  prompt: string;
-  maxBytes: number;
-  timeoutMs: number;
-  processGroup: ProcessGroupLimits;
+  readonly command: string;
+  readonly args: readonly string[];
+  readonly cwd: string;
+  readonly prompt: string;
+  readonly maxBytes: number;
+  readonly timeoutMs: number;
+  readonly processGroup: ProcessGroupLimits;
 };
 
-export async function runProvider(
+export const runProvider = Effect.fn('Provider.run')(function* (
   input: ProviderCommand,
-  signal?: AbortSignal,
-): Promise<string> {
-  signal?.throwIfAborted();
-  const output = await runCommand(
-    {
-      command: input.command,
-      args: input.args,
-      cwd: input.cwd,
-      stdin: input.prompt,
-      timeoutMs: input.timeoutMs,
-      maxBytes: input.maxBytes,
-      processGroup: input.processGroup,
-    },
-    signal,
-  ).catch((cause: unknown) => {
-    signal?.throwIfAborted();
-    throw new ProviderProcessFailedError({ cause });
-  });
-  if (output.exitCode === 0 && output.stopped !== 'output-limit')
+) {
+  const output = yield* runCommand({
+    command: input.command,
+    args: input.args,
+    cwd: input.cwd,
+    stdin: input.prompt,
+    timeoutMs: input.timeoutMs,
+    maxBytes: input.maxBytes,
+    processGroup: input.processGroup,
+  }).pipe(
+    Effect.mapError((cause) => new ProviderProcessFailedError({ cause })),
+  );
+  if (
+    output.exitCode === 0 &&
+    output.stopped !== 'output-limit' &&
+    output.groupStopped
+  )
     return output.stdout.toString('utf8');
-  signal?.throwIfAborted();
-  throw new ProviderProcessFailedError();
-}
+  return yield* Effect.fail(new ProviderProcessFailedError());
+});

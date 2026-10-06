@@ -8,23 +8,20 @@
     "./kit/*": "./spec/kit/*.ts"
   },
   "scripts": {
-    "start": "node --input-type=module --eval \"const { cli } = await import('./src/bootstrap/main.ts'); await cli.run();\"",
+    "start": "node --input-type=module --eval \"const { runCli } = await import('./src/bootstrap/main.ts'); await runCli();\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config ../../vitest.config.ts --project @porcelain/server",
     "test:integration": "vitest run --config ../../vitest.config.ts --project @porcelain/server-integration",
     "test:perf": "vitest run --config ../../vitest.config.ts --project @porcelain/server-perf"
   },
   "dependencies": {
-    "@fastify/cors": "11.3.0",
-    "@fastify/sensible": "6.0.5",
-    "@fastify/type-provider-zod": "1.0.0",
-    "@fastify/websocket": "11.3.1",
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@effect/platform-node": "4.0.0",
     "@parcel/watcher": "2.6.0",
     "@porcelain/access": "workspace:*",
     "@porcelain/agents": "workspace:*",
     "@porcelain/changes": "workspace:*",
     "@porcelain/contracts": "workspace:*",
+    "@porcelain/effects": "workspace:*",
     "@porcelain/files": "workspace:*",
     "@porcelain/git": "workspace:*",
     "@porcelain/git-actions": "workspace:*",
@@ -33,16 +30,13 @@
     "@porcelain/projects": "workspace:*",
     "@porcelain/reviews": "workspace:*",
     "@porcelain/storage": "workspace:*",
-    "better-sqlite3": "13.0.3",
-    "drizzle-orm": "0.45.2",
-    "fastify": "5.12.3",
+    "effect": "4.0.0",
     "qrcode-terminal": "0.12.0",
     "trash": "10.1.1",
-    "ws": "8.21.3",
-    "zod": "4.5.4"
+    "ws": "8.21.3"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "9.6.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "@types/qrcode-terminal": "0.12.2",
     "@types/ws": "8.18.1"
   }

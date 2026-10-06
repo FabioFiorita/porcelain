@@ -1,4 +1,6 @@
-import { formatDistanceToNowStrict } from 'date-fns';
+import { Cause } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
+import { relativeTime } from '@/shared/lib/relative-time';
 import {
   CheckIcon,
   EllipsisIcon,
@@ -44,18 +46,15 @@ import {
   threadStarter,
   threadState,
   threadStateLabel,
-} from '../rules/comments';
+} from '@porcelain/client/reviews/rules';
 import {
   basename,
   reviewErrorMessage,
   type ReviewScope,
-} from '../rules/review';
+} from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
-const relative = (iso?: string) =>
-  iso == null
-    ? null
-    : formatDistanceToNowStrict(new Date(iso), { addSuffix: true });
+const relative = (iso?: string) => (iso == null ? null : relativeTime(iso));
 
 function AuthorAvatar({ author }: { author: CommentMessageAuthor }) {
   const agent = author === 'agent';
@@ -114,7 +113,7 @@ function MessageMenu({
               variant="ghost"
               size="icon-xs"
               aria-label="Comment actions"
-              disabled={remove.isPending}
+              disabled={remove.result.waiting}
             />
           }
         >
@@ -134,9 +133,9 @@ function MessageMenu({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      {remove.error != null && (
+      {AsyncResult.isFailure(remove.result) && (
         <span role="alert" className="font-normal text-destructive">
-          {reviewErrorMessage(remove.error)}
+          {reviewErrorMessage(Cause.squash(remove.result.cause))}
         </span>
       )}
     </>
@@ -160,10 +159,10 @@ function MessageEditor({
       className="flex w-full flex-col gap-2"
       onSubmit={(event) => {
         event.preventDefault();
-        if (!valid || edit.isPending) return;
+        if (!valid || edit.result.waiting) return;
         edit.send(
           { threadId: owner.threadId, messageId: message.id, body },
-          { onSuccess: onDone },
+          onDone,
         );
       }}
     >
@@ -172,15 +171,15 @@ function MessageEditor({
         aria-label="Edit comment"
         value={body}
         maxLength={edit.bodyLimit}
-        disabled={edit.isPending}
+        disabled={edit.result.waiting}
         onChange={(event) => setBody(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === 'Escape') onDone();
         }}
       />
-      {edit.error != null && (
+      {AsyncResult.isFailure(edit.result) && (
         <p role="alert" className="text-[11px] text-destructive">
-          {reviewErrorMessage(edit.error)}
+          {reviewErrorMessage(Cause.squash(edit.result.cause))}
         </p>
       )}
       <div className="flex items-center justify-end gap-1">
@@ -188,13 +187,17 @@ function MessageEditor({
           type="button"
           size="sm"
           variant="ghost"
-          disabled={edit.isPending}
+          disabled={edit.result.waiting}
           onClick={onDone}
         >
           Cancel
         </Button>
-        <Button type="submit" size="sm" disabled={edit.isPending || !valid}>
-          {edit.isPending ? 'Saving…' : 'Save'}
+        <Button
+          type="submit"
+          size="sm"
+          disabled={edit.result.waiting || !valid}
+        >
+          {edit.result.waiting ? 'Saving…' : 'Save'}
         </Button>
       </div>
     </form>
@@ -312,7 +315,7 @@ export function ThreadCard({
       size="sm"
       variant="ghost"
       className="h-6"
-      disabled={resolve.isPending}
+      disabled={resolve.result.waiting}
       onClick={() =>
         resolve.send({ threadId: thread.id, resolved: !thread.resolved })
       }
@@ -329,9 +332,9 @@ export function ThreadCard({
   const resolveControl = (
     <span className="inline-flex min-w-0 items-center gap-1">
       {resolveButton}
-      {resolve.error != null && (
+      {AsyncResult.isFailure(resolve.result) && (
         <span role="alert" className="max-w-64 text-[11px] text-destructive">
-          {reviewErrorMessage(resolve.error)}
+          {reviewErrorMessage(Cause.squash(resolve.result.cause))}
         </span>
       )}
     </span>
@@ -342,7 +345,7 @@ export function ThreadCard({
       className="mt-3"
       onSubmit={(event) => {
         event.preventDefault();
-        if (!commentBodyValid(body) || reply.isPending) return;
+        if (!commentBodyValid(body) || reply.result.waiting) return;
         const intent = retainIntent(pendingReply.current, body, () => ({
           body,
           messageId: crypto.randomUUID(),
@@ -350,12 +353,10 @@ export function ThreadCard({
         pendingReply.current = intent;
         reply.send(
           { threadId: thread.id, body, messageId: intent.messageId },
-          {
-            onSuccess: () => {
-              pendingReply.current = undefined;
-              setBody('');
-              setReplying(false);
-            },
+          () => {
+            pendingReply.current = undefined;
+            setBody('');
+            setReplying(false);
           },
         );
       }}
@@ -368,7 +369,7 @@ export function ThreadCard({
             value={body}
             maxLength={reply.bodyLimit}
             required
-            disabled={reply.isPending}
+            disabled={reply.result.waiting}
             onChange={(event) => {
               pendingReply.current = undefined;
               setBody(event.target.value);
@@ -376,24 +377,24 @@ export function ThreadCard({
             placeholder="Add a reply…"
           />
         </Field>
-        {reply.error != null && (
+        {AsyncResult.isFailure(reply.result) && (
           <p role="alert" className="text-[11px] text-destructive">
-            {reviewErrorMessage(reply.error)}
+            {reviewErrorMessage(Cause.squash(reply.result.cause))}
           </p>
         )}
         <div className="flex items-center gap-1">
           <Button
             type="submit"
             size="sm"
-            disabled={reply.isPending || !commentBodyValid(body)}
+            disabled={reply.result.waiting || !commentBodyValid(body)}
           >
-            {reply.isPending ? 'Replying…' : 'Post reply'}
+            {reply.result.waiting ? 'Replying…' : 'Post reply'}
           </Button>
           <Button
             type="button"
             size="sm"
             variant="ghost"
-            disabled={reply.isPending}
+            disabled={reply.result.waiting}
             onClick={() => setReplying(false)}
           >
             Cancel

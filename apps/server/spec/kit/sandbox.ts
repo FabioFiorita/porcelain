@@ -1,3 +1,4 @@
+import { Schema } from 'effect';
 import { execFileSync, spawn } from 'node:child_process';
 import {
   accessSync,
@@ -14,15 +15,12 @@ import { tmpdir, userInfo } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
-import { z } from 'zod';
 import { buildPerfSample } from './perf-sample.ts';
-
 const kit = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(kit, '../../../..');
 const CHILD_BUNDLE = 'server/src/bootstrap/dev-server-child.mjs';
 const CODING_TOOL_BUNDLE = 'coding-tool/claude.mjs';
 const unbundled = [
-  { name: 'better-sqlite3', via: [] },
   { name: '@parcel/watcher', via: [] },
   { name: '@stroncium/procfs', via: ['trash'] },
 ];
@@ -31,18 +29,18 @@ const SERVER_MOUNT = '/opt/porcelain/server';
 const SANDBOX_PATH = '/opt/porcelain/bin';
 const SEATBELT = '/usr/bin/sandbox-exec';
 const STOP_GRACE_MS = 10_000;
-const packageSchema = z.object({
-  dependencies: z.record(z.string(), z.string()).optional(),
-  optionalDependencies: z.record(z.string(), z.string()).optional(),
+const packageSchema = Schema.Struct({
+  dependencies: Schema.optional(Schema.Record(Schema.String, Schema.String)),
+  optionalDependencies: Schema.optional(
+    Schema.Record(Schema.String, Schema.String),
+  ),
 });
-
 type Installation = {
   server: string;
   bin: string;
   serverAt: string;
   binAt: string;
 };
-
 type Sandbox = {
   node: string;
   git: string;
@@ -51,7 +49,6 @@ type Sandbox = {
   codingTool: string;
   port: number;
 };
-
 function locate(name: string, from: string): string | undefined {
   for (let directory = from; ; directory = dirname(directory)) {
     const candidate = join(directory, 'node_modules', name);
@@ -60,7 +57,6 @@ function locate(name: string, from: string): string | undefined {
     if (dirname(directory) === directory) return undefined;
   }
 }
-
 async function vendor(
   name: string,
   from: string,
@@ -72,7 +68,7 @@ async function vendor(
   if (copied.has(name)) return;
   copied.add(name);
   await cp(source, join(into, name), { recursive: true, dereference: true });
-  const manifest = packageSchema.parse(
+  const manifest = Schema.decodeUnknownSync(packageSchema)(
     JSON.parse(readFileSync(join(source, 'package.json'), 'utf8')),
   );
   for (const dependency of Object.keys(manifest.dependencies ?? {}))
@@ -81,7 +77,6 @@ async function vendor(
     if (locate(dependency, source) !== undefined)
       await vendor(dependency, source, into, copied);
 }
-
 export async function temporaryServerBuild(sample?: 'perf') {
   const folder = await mkdtemp(join(tmpdir(), 'porcelain-server-build-'));
   const remove = () => rm(folder, { recursive: true, force: true });
@@ -93,7 +88,6 @@ export async function temporaryServerBuild(sample?: 'perf') {
   }
   return { folder, remove };
 }
-
 export async function buildIsolatedServer(
   output: string,
   sample?: 'perf',
@@ -142,7 +136,6 @@ export async function buildIsolatedServer(
     await vendor(name, from, join(output, 'node_modules'), copied);
   }
 }
-
 function hostExecutable(name: string): string {
   for (const directory of (process.env.PATH ?? '')
     .split(delimiter)
@@ -157,13 +150,11 @@ function hostExecutable(name: string): string {
   }
   throw new Error(`Could not find ${name} on PATH`);
 }
-
 function addons(directory: string): string[] {
   return readdirSync(directory, { recursive: true, encoding: 'utf8' })
     .filter((path) => path.endsWith('.node'))
     .map((path) => join(directory, path));
 }
-
 function linkedLibraries(binary: string): string[] {
   const [command, args, pattern] =
     process.platform === 'darwin'
@@ -183,7 +174,6 @@ function linkedLibraries(binary: string): string[] {
     return path ? [path] : [];
   });
 }
-
 function sharedLibraries(binaries: readonly string[]): string[] {
   const libraries = new Set<string>();
   const pending = [...binaries];
@@ -195,11 +185,9 @@ function sharedLibraries(binaries: readonly string[]): string[] {
       }
   return [...libraries];
 }
-
 function gitTemplates(execPath: string): string {
   return resolve(execPath, '../../share/git-core');
 }
-
 function gitExecutables(git: string): {
   named: string;
   execPath: string;
@@ -209,7 +197,6 @@ function gitExecutables(git: string): {
   const execPath = realpathSync(named);
   return { named, execPath, templates: gitTemplates(execPath) };
 }
-
 function gitSystemConfig(git: string): string[] {
   try {
     const path = execFileSync(git, ['var', 'GIT_CONFIG_SYSTEM'], {
@@ -221,11 +208,9 @@ function gitSystemConfig(git: string): string[] {
     return [];
   }
 }
-
 function readOnly(path: string, at = path): string[] {
   return ['--ro-bind', path, at];
 }
-
 function libraryMounts(libraries: readonly string[]): string[] {
   const mounted = new Set<string>();
   return libraries.flatMap((library) => {
@@ -237,7 +222,6 @@ function libraryMounts(libraries: readonly string[]): string[] {
     });
   });
 }
-
 function bubblewrapArguments(sandbox: Sandbox): string[] {
   const { node, git, root, installation } = sandbox;
   const { execPath, templates } = gitExecutables(git);
@@ -273,17 +257,14 @@ function bubblewrapArguments(sandbox: Sandbox): string[] {
     join(installation.serverAt, CHILD_BUNDLE),
   ];
 }
-
 function quoted(path: string): string {
   return JSON.stringify(path);
 }
-
 function filters(kind: 'literal' | 'subpath', paths: readonly string[]) {
   return [...new Set(paths)]
     .map((path) => `(${kind} ${quoted(path)})`)
     .join(' ');
 }
-
 function ancestors(paths: readonly string[]): string[] {
   const found = new Set<string>();
   for (const path of paths)
@@ -295,7 +276,6 @@ function ancestors(paths: readonly string[]): string[] {
       found.add(directory);
   return [...found];
 }
-
 function seatbeltProfile(sandbox: Sandbox): string {
   const { node, git, root, installation, codingTool, port } = sandbox;
   const { named, execPath, templates } = gitExecutables(git);
@@ -334,7 +314,6 @@ function seatbeltProfile(sandbox: Sandbox): string {
     `(deny file-read* ${filters('literal', quiet)} (with no-log))`,
   ].join('\n');
 }
-
 function relayTo(
   socketPath: string,
   port: number,
@@ -355,7 +334,6 @@ function relayTo(
     });
   });
 }
-
 function freePort(): Promise<number> {
   const probe = createServer();
   return new Promise((resolvePort, rejectPort) => {
@@ -370,31 +348,25 @@ function freePort(): Promise<number> {
     });
   });
 }
-
 function sampleOption(): 'perf' | undefined {
   return process.env.PORCELAIN_DEV_SAMPLE === 'perf' ? 'perf' : undefined;
 }
-
 function option(name: string): string | undefined {
   const at = process.argv.indexOf(name);
   return at === -1 ? undefined : process.argv[at + 1];
 }
-
 function portOption(): number | undefined {
   const port = option('--port');
   return port === undefined ? undefined : Number(port);
 }
-
 function scratchFolder(): string {
   return process.platform === 'darwin' ? '/tmp' : tmpdir();
 }
-
 async function temporary(prefix: string, scratch: string[]): Promise<string> {
   const path = realpathSync(await mkdtemp(join(scratchFolder(), prefix)));
   scratch.push(path);
   return path;
 }
-
 async function install(
   given: string | undefined,
   scratch: string[],
@@ -429,7 +401,6 @@ async function install(
     });
   return { server, bin, serverAt: server, binAt: bin };
 }
-
 async function main() {
   const scratch: string[] = [];
   const root = await temporary('porcelain-dev-', scratch);
@@ -524,5 +495,4 @@ async function main() {
       await rm(path, { recursive: true, force: true });
   }
 }
-
 if (import.meta.main) await main();

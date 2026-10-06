@@ -1,8 +1,10 @@
+import { testClock } from '@porcelain/kernel/test-kit';
+import { WorktreeCatalogStore } from '@porcelain/projects/ports';
+import { Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { FixedClock } from '@porcelain/kernel/fakes';
-import type {
-  ListedWorktree,
-  RegisteredProject,
+import {
+  type ListedWorktree,
+  type RegisteredProject,
 } from '@porcelain/projects/models';
 import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { RecordWorktreeCatalogService } from './record-worktree-catalog-service.ts';
@@ -37,7 +39,7 @@ function worktree(id: string, projectId: string): ListedWorktree {
   };
 }
 
-function record(
+async function record(
   catalog: InMemoryWorktreeCatalogStore,
   projects: RegisteredProject[],
   listings: {
@@ -46,16 +48,24 @@ function record(
     worktrees: ListedWorktree[];
   }[],
 ) {
-  new RecordWorktreeCatalogService(catalog, new FixedClock(now)).execute({
-    projects,
-    listings: listings.map((listing) => ({ ...listing, complete: true })),
-  });
+  Effect.runSync(
+    Effect.runSync(
+      RecordWorktreeCatalogService.pipe(
+        Effect.provide(RecordWorktreeCatalogService.layer),
+        Effect.provideService(WorktreeCatalogStore, catalog),
+        Effect.provideService(Clock.Clock, await testClock(now)),
+      ),
+    ).execute({
+      projects,
+      listings: listings.map((listing) => ({ ...listing, complete: true })),
+    }),
+  );
 }
 
 describe('RecordWorktreeCatalogService', () => {
-  it('records each listed project as observed now with the worktrees its listing found', () => {
+  it('records each listed project as observed now with the worktrees its listing found', async () => {
     const catalog = new InMemoryWorktreeCatalogStore();
-    record(
+    await record(
       catalog,
       [project('api')],
       [
@@ -78,10 +88,10 @@ describe('RecordWorktreeCatalogService', () => {
     });
   });
 
-  it('records a project whose listing failed as observed but not listed, keeping the worktrees given for it', () => {
+  it('records a project whose listing failed as observed but not listed, keeping the worktrees given for it', async () => {
     const catalog = new InMemoryWorktreeCatalogStore();
     const kept = { ...worktree('main', 'api'), available: false };
-    record(
+    await record(
       catalog,
       [project('api')],
       [{ projectId: 'api', available: false, worktrees: [kept] }],
@@ -92,9 +102,9 @@ describe('RecordWorktreeCatalogService', () => {
     expect(catalog.lastSeen({ projectId: 'api' })).toEqual([kept]);
   });
 
-  it('forgets a project that is no longer registered', () => {
+  it('forgets a project that is no longer registered', async () => {
     const catalog = new InMemoryWorktreeCatalogStore();
-    record(
+    await record(
       catalog,
       [project('api'), project('web')],
       [
@@ -110,7 +120,7 @@ describe('RecordWorktreeCatalogService', () => {
         },
       ],
     );
-    record(
+    await record(
       catalog,
       [project('web')],
       [

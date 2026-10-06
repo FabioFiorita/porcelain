@@ -1,8 +1,8 @@
-import { z } from 'zod';
+import { Schema } from 'effect';
 
-export const readHealthResponseSchema = z.object({
-  status: z.literal('ok'),
-  environmentId: z.string(),
+export const readHealthResponseSchema = Schema.Struct({
+  status: Schema.Literal('ok'),
+  environmentId: Schema.String,
 });
 
-export type ReadHealthResponse = z.output<typeof readHealthResponseSchema>;
+export type ReadHealthResponse = typeof readHealthResponseSchema.Type;

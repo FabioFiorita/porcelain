@@ -1,17 +1,23 @@
-import type {
-  CommitFilesLookup,
-  CommitPage,
-  CommitPatches,
-  CommitPatchesRequest,
-  CommitSummary,
-  FileCommits,
-  ListCommitsInput,
-  ListFileCommitsInput,
-  ReadCommitFilesInput,
-} from '@porcelain/changes/models';
-import type { CommitHistoryReader } from '@porcelain/changes/ports';
+import { type Effect } from 'effect';
+import { type WorktreeRead } from '@porcelain/effects/worktree';
+import { readGit } from '../../runtime/git-io.ts';
 import {
+  type GitIoFailure,
   HistorySnapshotUnavailableError,
+} from '@porcelain/git/errors';
+import {
+  type CommitFilesLookup,
+  type CommitPage,
+  type CommitPatches,
+  type CommitPatchesRequest,
+  type CommitSummary,
+  type FileCommits,
+  type ListCommitsInput,
+  type ListFileCommitsInput,
+  type ReadCommitFilesInput,
+} from '@porcelain/changes/models';
+import { type CommitHistoryReader } from '@porcelain/changes/ports';
+import {
   type CommitReaderFactory,
   type CommitSummary as GitCommitSummary,
 } from '@porcelain/git/history';
@@ -31,7 +37,15 @@ export class GitCommitHistoryReader implements CommitHistoryReader {
     this.git = git;
   }
 
-  async listCommits(
+  listCommits(
+    input: ListCommitsInput,
+  ): Effect.Effect<CommitPage, GitIoFailure, WorktreeRead> {
+    return readGit(input.worktreeId, (signal) =>
+      this.listCommitsNative(input, signal),
+    );
+  }
+
+  private async listCommitsNative(
     input: ListCommitsInput,
     signal?: AbortSignal,
   ): Promise<CommitPage> {
@@ -59,7 +73,15 @@ export class GitCommitHistoryReader implements CommitHistoryReader {
     };
   }
 
-  async listFileCommits(
+  listFileCommits(
+    input: ListFileCommitsInput,
+  ): Effect.Effect<FileCommits, GitIoFailure, WorktreeRead> {
+    return readGit(input.worktreeId, (signal) =>
+      this.listFileCommitsNative(input, signal),
+    );
+  }
+
+  private async listFileCommitsNative(
     input: ListFileCommitsInput,
     signal?: AbortSignal,
   ): Promise<FileCommits> {
@@ -82,7 +104,15 @@ export class GitCommitHistoryReader implements CommitHistoryReader {
     };
   }
 
-  async readCommitFiles(
+  readCommitFiles(
+    input: ReadCommitFilesInput,
+  ): Effect.Effect<CommitFilesLookup, GitIoFailure, WorktreeRead> {
+    return readGit(input.worktreeId, (signal) =>
+      this.readCommitFilesNative(input, signal),
+    );
+  }
+
+  private async readCommitFilesNative(
     input: ReadCommitFilesInput,
     signal?: AbortSignal,
   ): Promise<CommitFilesLookup> {
@@ -116,7 +146,15 @@ export class GitCommitHistoryReader implements CommitHistoryReader {
     }
   }
 
-  async readCommitPatches(
+  readCommitPatches(
+    input: CommitPatchesRequest,
+  ): Effect.Effect<CommitPatches, GitIoFailure, WorktreeRead> {
+    return readGit(input.worktreeId, (signal) =>
+      this.readCommitPatchesNative(input, signal),
+    );
+  }
+
+  private async readCommitPatchesNative(
     input: CommitPatchesRequest,
     signal?: AbortSignal,
   ): Promise<CommitPatches> {

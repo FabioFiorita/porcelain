@@ -1,52 +1,64 @@
-import type { ReadBranchDiffsService } from '@porcelain/changes/services';
-import type {
-  ReadBranchDiffsRequest,
-  ReadBranchDiffsResponse,
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import { type GitIoFailure } from '@porcelain/git/errors';
+import {
+  type CommitNotFoundError,
+  type IncompleteDiffReadError,
+} from '@porcelain/changes/errors';
+import { ReadBranchDiffsService } from '@porcelain/changes/services';
+import {
+  type ReadBranchDiffsRequest,
+  type ReadBranchDiffsResponse,
 } from '@porcelain/contracts/changes';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import { type WorktreeParams } from '@porcelain/contracts/shared';
 
-export class ReadBranchDiffsUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly readBranchDiffs: ReadBranchDiffsService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    readBranchDiffs: ReadBranchDiffsService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.checkWorktree = checkWorktree;
-    this.readBranchDiffs = readBranchDiffs;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class ReadBranchDiffsUseCase extends Context.Service<
+  ReadBranchDiffsUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams & ReadBranchDiffsRequest,
+    ) => Effect.Effect<
+      ReadBranchDiffsResponse,
+      | WorktreeAccessFailure
+      | GitIoFailure
+      | CommitNotFoundError
+      | IncompleteDiffReadError
+    >;
   }
+>()('@porcelain/server/ReadBranchDiffsUseCase') {
+  static readonly layer = Layer.effect(
+    ReadBranchDiffsUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const readBranchDiffsCapability = yield* ReadBranchDiffsService;
 
-  async execute(
-    input: WorktreeParams & ReadBranchDiffsRequest,
-    context: OperationContext,
-  ): Promise<ReadBranchDiffsResponse> {
-    const { worktreeId, baseOid, headOid, paths } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
-    );
-    return this.lanes.runConsistent(
-      this.laneKeys.repository(worktree),
-      worktree,
-      async ({ signal }) => {
-        const diffs = await this.readBranchDiffs.execute(
-          { worktreeId, baseOid, headOid, paths },
-          signal,
-        );
-        return diffs;
-      },
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('ReadBranchDiffsUseCase.execute')(function* (
+          input: WorktreeParams & ReadBranchDiffsRequest,
+        ): Effect.fn.Return<
+          ReadBranchDiffsResponse,
+          | WorktreeAccessFailure
+          | GitIoFailure
+          | CommitNotFoundError
+          | IncompleteDiffReadError
+        > {
+          return yield* Effect.suspend(() => {
+            const { worktreeId, baseOid, headOid, paths } = input;
+            return accessCapability.read(worktreeId, () =>
+              Effect.gen(function* () {
+                const diffs = yield* readBranchDiffsCapability.execute({
+                  worktreeId,
+                  baseOid,
+                  headOid,
+                  paths,
+                });
+                return diffs;
+              }),
+            );
+          });
+        }),
+      };
+    }),
+  );
 }

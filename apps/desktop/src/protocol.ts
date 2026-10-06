@@ -1,19 +1,31 @@
-import { z } from 'zod';
-
-export const serverMessage = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('ready'), address: z.url() }),
-  z.object({ kind: z.literal('failed'), message: z.string() }),
-]);
-
-export const hostMessage = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('start'),
-    profile: z.string(),
-    outputEnd: z.uuid(),
-    projectHome: z.string(),
-    packageRoot: z.string(),
-    session: z.object({ deviceId: z.string(), secretHash: z.string() }),
+import { urlStringSchema } from '@porcelain/contracts/shared';
+import { Schema } from 'effect';
+export const serverMessage = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal('ready'),
+    address: urlStringSchema,
   }),
-  z.object({ kind: z.literal('stop') }),
-  z.object({ kind: z.literal('exit') }),
+  Schema.Struct({
+    kind: Schema.Literal('failed'),
+    message: Schema.String,
+  }),
+]);
+export const hostMessage = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal('start'),
+    profile: Schema.String,
+    outputEnd: Schema.String.check(Schema.isUUID()),
+    projectHome: Schema.String,
+    packageRoot: Schema.String,
+    session: Schema.Struct({
+      deviceId: Schema.String,
+      secretHash: Schema.String,
+    }),
+  }),
+  Schema.Struct({
+    kind: Schema.Literal('stop'),
+  }),
+  Schema.Struct({
+    kind: Schema.Literal('exit'),
+  }),
 ]);

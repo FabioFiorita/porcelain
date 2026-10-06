@@ -1,4 +1,4 @@
-import { RepositoryIdentityMismatchError } from '@porcelain/git/discovery';
+import { RepositoryIdentityMismatchError } from '@porcelain/git/errors';
 import {
   RequestGitSession,
   type CheckoutSession,

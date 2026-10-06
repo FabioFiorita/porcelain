@@ -1,7 +1,10 @@
-export class CrossDeviceMoveError extends Error {
-  override readonly name = 'CrossDeviceMoveError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Destination is on another filesystem; nothing was moved');
+export class CrossDeviceMoveError extends Schema.TaggedError<CrossDeviceMoveError>()(
+  'CrossDeviceMoveError',
+  {},
+) {
+  override get message() {
+    return 'Destination is on another filesystem; nothing was moved';
   }
 }

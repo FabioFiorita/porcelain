@@ -1,14 +1,25 @@
-import type { ListCommitModelsResult } from '../models/list-commit-models.ts';
-import type { CommitModelReader } from '../ports/commit-model-reader.ts';
+import { Effect, Context, Layer } from 'effect';
+import { type ListCommitModelsResult } from '../models/list-commit-models.ts';
+import { CommitModelReader } from '../ports/commit-model-reader.ts';
 
-export class ListCommitModelsService {
-  private readonly commitModelReader: CommitModelReader;
-
-  constructor(commitModelReader: CommitModelReader) {
-    this.commitModelReader = commitModelReader;
+export class ListCommitModelsService extends Context.Service<
+  ListCommitModelsService,
+  {
+    readonly execute: () => Effect.Effect<ListCommitModelsResult, never, never>;
   }
+>()('@porcelain/git-actions/ListCommitModelsService') {
+  static readonly layer = Layer.effect(
+    ListCommitModelsService,
+    Effect.gen(function* () {
+      const commitModelReaderCapability = yield* CommitModelReader;
 
-  execute(): Promise<ListCommitModelsResult> {
-    return this.commitModelReader.list();
-  }
+      return {
+        execute: Effect.fn('ListCommitModelsService.execute')(
+          function* (): Effect.fn.Return<ListCommitModelsResult, never, never> {
+            return yield* commitModelReaderCapability.list();
+          },
+        ),
+      };
+    }),
+  );
 }

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { ListenOutcome } from '../../src/models/remote-access.ts';
 import type { RouteListenerRunner } from '../../src/ports/route-listener-runner.ts';
 
@@ -10,9 +11,13 @@ export class FixedRouteListenerRunner implements RouteListenerRunner {
     this.failure = failure;
   }
 
-  async listen(): Promise<ListenOutcome> {
-    return { port: this.port, bound: [], failure: this.failure };
+  listen(): Effect.Effect<ListenOutcome> {
+    return Effect.sync(() => {
+      return { port: this.port, bound: [], failure: this.failure };
+    });
   }
 
-  async close(): Promise<void> {}
+  close(): Effect.Effect<void> {
+    return Effect.sync(() => {});
+  }
 }

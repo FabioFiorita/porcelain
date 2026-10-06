@@ -1,13 +1,18 @@
 import {
+  CommitDraftSource,
+  GenerateCommitDraftOptions,
+} from '@porcelain/git-actions/ports';
+import { Effect } from 'effect';
+import {
   CommitGenerationFailedError,
   CommitGroupsMismatchError,
   CommitToolFailedError,
   CommitToolMissingError,
   UnsupportedCommitModelError,
 } from '@porcelain/git-actions/errors';
-import type {
-  CommitDraftCapture,
-  CommitDraftGeneration,
+import {
+  type CommitDraftCapture,
+  type CommitDraftGeneration,
 } from '@porcelain/git-actions/models';
 import { describe, expect, it } from 'vitest';
 import { README_FINGERPRINT } from '../../spec/fixtures/git-action-samples.ts';
@@ -25,10 +30,18 @@ const generate = (
   generations: Record<string, CommitDraftGeneration>,
   model = 'claude:sonnet',
 ) =>
-  new GenerateCommitDraftService(
-    new ScriptedCommitDraftSource(generations),
-    limits,
-  ).execute({ capture, mode: 'message', model });
+  Effect.runPromise(
+    Effect.runSync(
+      GenerateCommitDraftService.pipe(
+        Effect.provide(GenerateCommitDraftService.layer),
+        Effect.provideService(
+          CommitDraftSource,
+          new ScriptedCommitDraftSource(generations),
+        ),
+        Effect.provideService(GenerateCommitDraftOptions, limits),
+      ),
+    ).execute({ capture, mode: 'message', model }),
+  );
 
 describe('GenerateCommitDraftService', () => {
   it('returns the groups the chosen model drafted with the files the draft was based on', async () => {

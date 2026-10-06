@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { issuePairingResponseSchema } from '@porcelain/contracts/access';
 import {
   list,
@@ -31,7 +32,7 @@ export async function pairingGrant(
   label: string,
   trusted = false,
 ) {
-  const [grant] = issuePairingResponseSchema.parse(
+  const [grant] = Schema.decodeUnknownSync(issuePairingResponseSchema)(
     await read(session, {
       method: 'POST',
       path: '/pairings',
@@ -122,12 +123,24 @@ export function toolCall(
     method: 'POST',
     path: '/mcp',
     target: 'owner',
-    headers: mcpHeaders(session.repository),
+    headers: {
+      ...mcpHeaders(session.repository),
+      'mcp-protocol-version': '2026-07-28',
+      'mcp-method': 'tools/call',
+      'mcp-name': name,
+    },
     body: {
       jsonrpc: '2.0',
       id,
       method: 'tools/call',
-      params: { name, arguments: input },
+      params: {
+        name,
+        arguments: input,
+        _meta: {
+          'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+          'io.modelcontextprotocol/clientCapabilities': {},
+        },
+      },
     },
   };
 }

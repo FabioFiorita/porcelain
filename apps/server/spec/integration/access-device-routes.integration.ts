@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { listAccessResponseSchema } from '@porcelain/contracts/access';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { expect } from 'vitest';
@@ -24,7 +25,9 @@ test('the device paired on this computer is refused through the tunnel', async (
 
   expect(direct.status).toBe(200);
   expect(direct.body).toEqual(
-    expect.schemaMatching(readInventoryResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readInventoryResponseSchema)),
+    ),
   );
   expect(tunnelled.status).toBe(401);
   expect(tunnelled.body).toStrictEqual(unauthenticated);
@@ -56,7 +59,9 @@ test('a device paired through the tunnel works only through the tunnel', async (
   });
   expect(tunnelRead.status).toBe(200);
   expect(tunnelRead.body).toEqual(
-    expect.schemaMatching(readInventoryResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readInventoryResponseSchema)),
+    ),
   );
   const directRead = await session.send({ ...inventoryRead, auth: { bearer } });
   expect(directRead.status).toBe(401);
@@ -70,7 +75,9 @@ test('the listing names the route each device was paired over', async ({
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(listAccessResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(listAccessResponseSchema)),
+    ),
   );
   expect(
     list(record(response.body).devices).map((device) => ({

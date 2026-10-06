@@ -1,13 +1,14 @@
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { parsePatchFiles } from '@pierre/diffs';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { selectionKey } from '@porcelain/client/changes/rules';
 import {
-  selectionKey,
   useChangeDiffs,
   useChangeLines,
   useChanges,
-  useRecoverChangedDiffs,
 } from '@/features/changes/index';
 import { MarkdownView } from '@/features/files/index';
 import { contentVersion } from '@/shared/lib/pierre';
@@ -17,14 +18,14 @@ import { useLayerMark } from '../queries/published-review';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import type { DocumentInteraction, OpenDocument } from '../rules/documents';
 import { contextPatch, focusPatch } from '../rules/patch-focus';
-import type { ReviewProof } from '../rules/proof';
+import type { ReviewProof } from '@porcelain/client/reviews/rules';
 import type {
   ChangeSelection,
   ReviewChangeItem,
   ReviewLayer,
   ReviewScope,
   ReviewStep,
-} from '../rules/review';
+} from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
 import { fileReviewControl } from './reviewed-control';
 import { DocumentToolbar } from './document-toolbar';
@@ -90,7 +91,7 @@ export function PublishedLayer({
           variant="ghost"
           size="sm"
           aria-pressed={reviewed}
-          disabled={toggle.isPending || !mark.settled}
+          disabled={toggle.result.waiting || !mark.settled}
           onClick={() =>
             toggle.toggle({
               layerId: layer.id,
@@ -112,7 +113,7 @@ export function PublishedLayer({
           </TabsList>
         </Tabs>
       </DocumentToolbar>
-      {(toggle.isError || mark.failed) && (
+      {(AsyncResult.isFailure(toggle.result) || mark.failed) && (
         <p role="alert" className="px-4 text-sm text-destructive">
           The layer mark could not be updated. Try again.
         </p>
@@ -194,9 +195,8 @@ function LayerSteps({
 }) {
   const { scope, context } = props;
   const { connection } = context;
-  const recover = useRecoverChangedDiffs(scope, connection);
   usePrefetchReviewed(scope, context);
-  const { changes } = useChanges(scope, connection);
+  const changes = useChanges(scope, connection);
   const items = useReviewChangeItems(
     scope,
     context,
@@ -226,7 +226,6 @@ function LayerSteps({
       )
       .map(({ path, fingerprint }) => ({ path, fingerprint })),
     selections,
-    recover,
   );
   return (
     <div className="space-y-6">
@@ -284,16 +283,17 @@ function Step({
     location.endLine,
     !changed && Boolean(plain) && (!committed || expanded),
   );
+  const contextLines = Option.getOrUndefined(AsyncResult.value(lines));
   const entries: CodeEntry[] = [];
   if (!changed && (!committed || expanded)) {
     const patches =
-      plain && lines.data
+      plain && contextLines
         ? [
             {
               patch: contextPatch(
                 step.pointer.path,
-                lines.data.from,
-                lines.data.lines,
+                contextLines.from,
+                contextLines.lines,
               ),
               comparison: undefined,
             },
@@ -391,9 +391,9 @@ function Step({
         </div>
       ) : (
         <p role="status" className="text-sm text-muted-foreground">
-          {lines.isError || diffs.failed
+          {AsyncResult.isFailure(lines) || diffs.failed
             ? 'Code could not be loaded.'
-            : lines.isFetching || diffs.pending
+            : lines.waiting || diffs.pending
               ? 'Loading code…'
               : 'No textual code at this location. Open the file to inspect it.'}
         </p>

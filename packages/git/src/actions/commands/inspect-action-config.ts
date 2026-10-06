@@ -6,7 +6,7 @@ import {
   parseFilterAttributes,
 } from '../../shared/parsers/conversion-filters.ts';
 import type { GitActionIntent } from '../dtos/git-action.ts';
-import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
+import { GitActionRejectedError } from '../../shared/errors/git-action-rejected-error.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from '../parsers/parse-process-result.ts';
 import { validateActionConfig } from '../parsers/validate-action-config.ts';

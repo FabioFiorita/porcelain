@@ -1,7 +1,11 @@
-import { usePathDiffs } from './path-diffs';
-import { commitDiffsQueryOptions } from '@porcelain/client/changes';
-import type { ChangesScope } from '../rules/changes';
-import { type Connection } from '@/shared/workspace/connection';
+import { readCommitDiffs } from '@porcelain/client/changes';
+import { usePathDiffs } from './batched-reads';
+import {
+  consecutiveBatches,
+  type ChangesScope,
+} from '@porcelain/client/changes/rules';
+import { DIFF_WINDOW_FILES } from '@/config/limits';
+import type { Connection } from '@/shared/workspace/connection';
 
 export function useCommitDiffs(
   connection: Connection,
@@ -10,15 +14,9 @@ export function useCommitDiffs(
   parent: number,
   paths: readonly (readonly string[])[],
 ) {
-  const connected = connection;
-  return usePathDiffs({
-    connection: connected,
-    paths,
-    key: (batch) =>
-      commitDiffsQueryOptions(scope, connected, oid, parent, batch).queryKey,
-    read: (signal, batch) =>
-      commitDiffsQueryOptions(scope, connected, oid, parent, batch).queryFn({
-        signal,
-      }),
-  });
+  return usePathDiffs(
+    consecutiveBatches(paths, DIFF_WINDOW_FILES).map((batch) =>
+      readCommitDiffs({ connection, scope, oid, parent, paths: batch }),
+    ),
+  );
 }

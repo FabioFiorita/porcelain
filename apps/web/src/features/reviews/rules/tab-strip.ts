@@ -1,6 +1,9 @@
 import { parseEntry, withDocument } from './documents';
 
-export type Pane = { tabs: string[]; pinned: string[] };
+export type Pane = {
+  readonly tabs: readonly string[];
+  readonly pinned: readonly string[];
+};
 
 export const emptyPane = (): Pane => ({ tabs: [], pinned: [] });
 

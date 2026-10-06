@@ -1,3 +1,5 @@
+import { Cause } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { useForm } from '@tanstack/react-form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -13,14 +15,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Field, FieldError } from '@/components/ui/field';
 import { Spinner } from '@/components/ui/spinner';
-import { connectionErrorMessage } from '@/features/access/index';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import { submitForm } from '@/shared/lib/submit-form';
 import {
   renameProjectValidator,
   useRenameProject,
 } from '../commands/rename-project';
 import { renameProjectDialog } from '../overlays';
-import { projectPath, type Project } from '../rules/inventory';
+import { projectPath } from '@porcelain/client/projects/rules';
+import { type Project } from '@porcelain/client/projects/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function RenameProjectDialog({
@@ -56,6 +59,7 @@ function RenameProjectContent({
   project: Project;
   rename: ReturnType<typeof useRenameProject>;
 }) {
+  const { result } = rename;
   const form = useForm({
     defaultValues: { name: project.name },
     validators: { onChange: renameProjectValidator },
@@ -110,10 +114,10 @@ function RenameProjectContent({
             {projectPath(project)}
           </p>
         </div>
-        {rename.error && (
+        {AsyncResult.isFailure(result) && (
           <Alert variant="destructive">
             <AlertDescription>
-              {connectionErrorMessage(rename.error)}
+              {connectionErrorMessage(Cause.squash(result.cause))}
             </AlertDescription>
           </Alert>
         )}
@@ -121,16 +125,16 @@ function RenameProjectContent({
           <Button
             type="button"
             variant="outline"
-            disabled={rename.isPending}
+            disabled={result.waiting}
             onClick={() => renameProjectDialog.close()}
           >
             Cancel
           </Button>
           <form.Subscribe selector={(state) => state.canSubmit}>
             {(canSubmit) => (
-              <Button type="submit" disabled={!canSubmit || rename.isPending}>
-                {rename.isPending && <Spinner />}
-                {rename.isPending ? 'Renaming…' : 'Rename'}
+              <Button type="submit" disabled={!canSubmit || result.waiting}>
+                {result.waiting && <Spinner />}
+                {result.waiting ? 'Renaming…' : 'Rename'}
               </Button>
             )}
           </form.Subscribe>

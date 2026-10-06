@@ -1,3 +1,6 @@
+import { BranchRangeReader } from '@porcelain/changes/ports';
+import { Effect } from 'effect';
+import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
 import { InMemoryBranchRangeReader } from '../../spec/fakes/in-memory-branch-range-reader.ts';
 import { branchFile } from '../../spec/fixtures/branch-files.ts';
@@ -22,21 +25,31 @@ describe('ReadBranchChangesService', () => {
       newMode: '000000',
       newOid: undefined,
     });
-    const read = new ReadBranchChangesService(
-      new InMemoryBranchRangeReader({
-        ranges: {
-          default: {
-            kind: 'found',
-            head,
-            base,
-            mergeBaseOid,
-            commits: 3,
-            files: [renamed, deleted],
-          },
-        },
-      }),
+    const read = Effect.runSync(
+      ReadBranchChangesService.pipe(
+        Effect.provide(ReadBranchChangesService.layer),
+        Effect.provideService(
+          BranchRangeReader,
+          new InMemoryBranchRangeReader({
+            ranges: {
+              default: {
+                kind: 'found',
+                head,
+                base,
+                mergeBaseOid,
+                commits: 3,
+                files: [renamed, deleted],
+              },
+            },
+          }),
+        ),
+      ),
     );
-    expect(await read.execute({ worktreeId: 'w', base: undefined })).toEqual({
+    expect(
+      await Effect.runPromise(
+        withReadLease('w', read.execute({ worktreeId: 'w', base: undefined })),
+      ),
+    ).toEqual({
       head: { oid: head.oid, branch: head.ref },
       base,
       mergeBaseOid,
@@ -65,12 +78,22 @@ describe('ReadBranchChangesService', () => {
   });
 
   it('answers no base and no files when the repository has no default branch', async () => {
-    const read = new ReadBranchChangesService(
-      new InMemoryBranchRangeReader({
-        ranges: { default: { kind: 'no-default-base', head } },
-      }),
+    const read = Effect.runSync(
+      ReadBranchChangesService.pipe(
+        Effect.provide(ReadBranchChangesService.layer),
+        Effect.provideService(
+          BranchRangeReader,
+          new InMemoryBranchRangeReader({
+            ranges: { default: { kind: 'no-default-base', head } },
+          }),
+        ),
+      ),
     );
-    expect(await read.execute({ worktreeId: 'w', base: undefined })).toEqual({
+    expect(
+      await Effect.runPromise(
+        withReadLease('w', read.execute({ worktreeId: 'w', base: undefined })),
+      ),
+    ).toEqual({
       head: { oid: head.oid, branch: head.ref },
       base: undefined,
       mergeBaseOid: undefined,
@@ -84,13 +107,24 @@ describe('ReadBranchChangesService', () => {
     ['unrelated', 'UnrelatedBranchError'],
     ['unborn', 'UnbornBranchError'],
   ] as const)('refuses a %s range with %s', async (kind, name) => {
-    const read = new ReadBranchChangesService(
-      new InMemoryBranchRangeReader({
-        ranges: { 'refs/heads/other': { kind } },
-      }),
+    const read = Effect.runSync(
+      ReadBranchChangesService.pipe(
+        Effect.provide(ReadBranchChangesService.layer),
+        Effect.provideService(
+          BranchRangeReader,
+          new InMemoryBranchRangeReader({
+            ranges: { 'refs/heads/other': { kind } },
+          }),
+        ),
+      ),
     );
     await expect(
-      read.execute({ worktreeId: 'w', base: 'refs/heads/other' }),
+      Effect.runPromise(
+        withReadLease(
+          'w',
+          read.execute({ worktreeId: 'w', base: 'refs/heads/other' }),
+        ),
+      ),
     ).rejects.toMatchObject({ name });
   });
 });

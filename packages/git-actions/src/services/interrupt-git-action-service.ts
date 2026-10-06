@@ -1,30 +1,50 @@
-import type { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { GitActionNotFoundError } from '../errors/git-action-not-found-error.ts';
-import type {
-  InterruptGitActionInput,
-  InterruptGitActionResult,
+import {
+  type InterruptGitActionInput,
+  type InterruptGitActionResult,
 } from '../models/interrupt-git-action.ts';
-import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
+import { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import { gitActionReceiptView } from '../rules/git-action-receipt-view.ts';
 import { interruptedReceipt } from '../rules/interrupted-receipt.ts';
 
-export class InterruptGitActionService {
-  private readonly gitActionReceipts: GitActionReceiptStore;
-  private readonly clock: Clock;
-
-  constructor(gitActionReceipts: GitActionReceiptStore, clock: Clock) {
-    this.gitActionReceipts = gitActionReceipts;
-    this.clock = clock;
+export class InterruptGitActionService extends Context.Service<
+  InterruptGitActionService,
+  {
+    readonly execute: (
+      input: InterruptGitActionInput,
+    ) => Effect.Effect<InterruptGitActionResult, GitActionNotFoundError, never>;
   }
+>()('@porcelain/git-actions/InterruptGitActionService') {
+  static readonly layer = Layer.effect(
+    InterruptGitActionService,
+    Effect.gen(function* () {
+      const gitActionReceiptsCapability = yield* GitActionReceiptStore;
+      const clockCapability = yield* Clock.Clock;
 
-  execute(input: InterruptGitActionInput): InterruptGitActionResult {
-    const current = this.gitActionReceipts.read({
-      requestId: input.requestId,
-    });
-    if (!current) throw new GitActionNotFoundError();
-    if (current.state !== 'running') return gitActionReceiptView(current);
-    const interrupted = interruptedReceipt(current, this.clock.now());
-    this.gitActionReceipts.save(interrupted);
-    return gitActionReceiptView(interrupted);
-  }
+      return {
+        execute: Effect.fn('InterruptGitActionService.execute')(function* (
+          input: InterruptGitActionInput,
+        ): Effect.fn.Return<
+          InterruptGitActionResult,
+          GitActionNotFoundError,
+          never
+        > {
+          const current = yield* gitActionReceiptsCapability.read({
+            requestId: input.requestId,
+          });
+          if (!current) return yield* Effect.fail(new GitActionNotFoundError());
+          if (current.state !== 'running') return gitActionReceiptView(current);
+          const interrupted = interruptedReceipt(
+            current,
+            DateTime.formatIso(
+              DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
+            ),
+          );
+          yield* gitActionReceiptsCapability.save(interrupted);
+          return gitActionReceiptView(interrupted);
+        }),
+      };
+    }),
+  );
 }

@@ -1,3 +1,5 @@
+import { EnvironmentNameStore, HostNameReader } from '@porcelain/access/ports';
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedHostNameReader } from '../../spec/fakes/fixed-host-name-reader.ts';
 import { InMemoryEnvironmentNameStore } from '../../spec/fakes/in-memory-environment-name-store.ts';
@@ -7,30 +9,38 @@ function setup() {
   const store = new InMemoryEnvironmentNameStore();
   return {
     store,
-    rename: new RenameEnvironmentService(
-      store,
-      new FixedHostNameReader('linux-desktop'),
+    rename: Effect.runSync(
+      RenameEnvironmentService.pipe(
+        Effect.provide(RenameEnvironmentService.layer),
+        Effect.provideService(EnvironmentNameStore, store),
+        Effect.provideService(
+          HostNameReader,
+          new FixedHostNameReader('linux-desktop'),
+        ),
+      ),
     ),
   };
 }
 
 describe('RenameEnvironmentService', () => {
-  it('keeps the chosen name and answers it', () => {
+  it('keeps the chosen name and answers it', async () => {
     const { rename, store } = setup();
-    expect(rename.execute({ name: 'Workstation' })).toEqual({
+    expect(Effect.runSync(rename.execute({ name: 'Workstation' }))).toEqual({
       name: 'Workstation',
       custom: true,
     });
-    expect(store.read()).toEqual({ name: 'Workstation' });
+    expect(await Effect.runPromise(store.read())).toEqual({
+      name: 'Workstation',
+    });
   });
 
-  it('goes back to the host name when the name is cleared', () => {
+  it('goes back to the host name when the name is cleared', async () => {
     const { rename, store } = setup();
-    rename.execute({ name: 'Workstation' });
-    expect(rename.execute({ name: undefined })).toEqual({
+    Effect.runSync(rename.execute({ name: 'Workstation' }));
+    expect(Effect.runSync(rename.execute({ name: undefined }))).toEqual({
       name: 'linux-desktop',
       custom: false,
     });
-    expect(store.read()).toEqual({ name: undefined });
+    expect(await Effect.runPromise(store.read())).toEqual({ name: undefined });
   });
 });

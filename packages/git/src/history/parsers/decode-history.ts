@@ -1,4 +1,4 @@
-import { UnsupportedHistoryDataError } from '../errors/unsupported-history-data-error.ts';
+import { UnsupportedHistoryDataError } from '../../shared/errors/unsupported-history-data-error.ts';
 
 export function decodeHistory(output: Buffer): string {
   try {

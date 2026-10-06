@@ -1,12 +1,15 @@
-import { z } from 'zod';
+import { Schema } from 'effect';
 
-export const gitDiffContentSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('text'), patch: z.string() }),
-  z.object({ kind: z.literal('binary') }),
-  z.object({ kind: z.literal('metadata-only'), patch: z.string() }),
-  z.object({
-    kind: z.literal('omitted'),
-    reason: z.enum([
+export const gitDiffContentSchema = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal('text'), patch: Schema.String }),
+  Schema.Struct({ kind: Schema.Literal('binary') }),
+  Schema.Struct({
+    kind: Schema.Literal('metadata-only'),
+    patch: Schema.String,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal('omitted'),
+    reason: Schema.Literals([
       'size-limit',
       'unsupported-encoding',
       'unsupported-submodule',

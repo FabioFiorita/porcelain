@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import {
   listAccessResponseSchema,
   readRemoteAccessResponseSchema,
@@ -62,14 +63,24 @@ test('the host browser on this computer reads and changes sharing', async ({
   });
 
   expect(devices.status).toBe(200);
-  expect(devices.body).toEqual(expect.schemaMatching(listAccessResponseSchema));
+  expect(devices.body).toEqual(
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(listAccessResponseSchema)),
+    ),
+  );
   expect(routes.status).toBe(200);
   expect(routes.body).toEqual(
-    expect.schemaMatching(readRemoteAccessResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readRemoteAccessResponseSchema),
+      ),
+    ),
   );
   expect(revoked.status).toBe(200);
   expect(revoked.body).toEqual(
-    expect.schemaMatching(revokeAccessResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(revokeAccessResponseSchema)),
+    ),
   );
 });
 

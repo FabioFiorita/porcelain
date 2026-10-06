@@ -1,2 +1,14 @@
-export { commitModelsQueryOptions } from './queries/git-actions.ts';
-export { gitActionCommands } from './commands/git-actions.ts';
+export { OperationStore } from './ports/operation-store.ts';
+export { operationStoreLayer } from './store/operations.ts';
+export { readCommitModels } from './queries/git-actions.ts';
+export {
+  generateCommitDraft,
+  dismissInterruptedGitAction,
+} from './commands/git-actions.ts';
+export { operationKey, isTerminal } from './store/operations.ts';
+export {
+  runGitAction,
+  recoverGitAction,
+  startNewGitAction,
+} from './commands/git-action-controller.ts';
+export { OperationStorage } from './ports/operation-storage.ts';

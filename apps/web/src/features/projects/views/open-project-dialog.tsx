@@ -1,3 +1,5 @@
+import { Cause } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { FolderGit2Icon } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -8,13 +10,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
+import type { RemoteConnection } from '@porcelain/client/access';
 import {
-  connectionErrorMessage,
-  type RemoteConnection,
-} from '@/features/access/index';
-import { resetProjectBrowser, useOpenProject } from '../commands/open-project';
+  useResetProjectBrowser,
+  useOpenProject,
+} from '../commands/open-project';
 import { openProjectDialog } from '../overlays';
-import type { WorktreeTarget } from '../rules/inventory';
+import type { WorktreeTarget } from '../rules/worktree-target';
 import { ProjectFolderPicker } from './project-folder-picker';
 import { type Connection } from '@/shared/workspace/connection';
 
@@ -29,6 +32,7 @@ export function OpenProjectDialog({
   remotes: readonly RemoteConnection[];
   onOpened: Opened;
 }) {
+  const resetProjectBrowser = useResetProjectBrowser();
   const computer = (remote: string | null) => {
     if (remote === null) return { connection, name: undefined };
     const entry = remotes.find((each) => each.remote.environmentId === remote);
@@ -95,14 +99,14 @@ function OpenProjectContent({
       <ScrollArea className="min-h-0 [&>[data-slot=scroll-area-viewport]]:max-h-[calc(90svh-8rem)]">
         <div className="flex flex-col gap-3 p-1">
           <ProjectFolderPicker
-            disabled={opening.isPending}
+            disabled={opening.result.waiting}
             connection={connection}
             onOpen={(path) => void opening.submit(path)}
           />
-          {opening.error && (
+          {AsyncResult.isFailure(opening.result) && (
             <Alert variant="destructive">
               <AlertDescription>
-                {connectionErrorMessage(opening.error)}
+                {connectionErrorMessage(Cause.squash(opening.result.cause))}
               </AlertDescription>
             </Alert>
           )}

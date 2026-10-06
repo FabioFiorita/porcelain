@@ -1,3 +1,7 @@
+import type { RemoteConnection } from '@porcelain/client/access';
+import { Cause, Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
+import { remoteStatusText } from '@porcelain/client/access/rules';
 import type { ReactNode } from 'react';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
 import {
@@ -11,16 +15,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
 import { desktopShell } from '@/shared/shell';
 import { useRemoteAccess } from '../queries/share';
-import { connectionErrorMessage } from '../rules/connection-error-message';
-import type { Environment, RemoteAccess } from '../rules/share';
-import {
-  useAccessStore,
-  useRemoteConnections,
-  type RemoteConnection,
-} from '../store';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
+import type { Environment, RemoteAccess } from '@porcelain/client/access/rules';
+import { useLocalConnection, useRemoteConnections } from '../store';
 import { useRemoteStatus } from '../queries/remotes';
-import { remoteStatusText } from '../rules/remotes';
-import { desktopAppUpdate } from '@/shared/adapters/desktop';
+
+import { useAppUpdateCapability } from '../queries/app-update';
 import { EnvironmentName } from './environment-name';
 import { RemoteServiceUpdate, ServiceUpdateSettings } from './service-update';
 import { AppUpdateSettings } from './app-update';
@@ -37,26 +37,27 @@ function RemoteAccessGate({
   children: (remote: RemoteAccess) => ReactNode;
 }) {
   const remote = useRemoteAccess(connection);
-  if (remote.managedElsewhere)
+  const answer = Option.getOrUndefined(AsyncResult.value(remote));
+  if (answer === null)
     return (
       <p className="text-xs text-muted-foreground">
         Sharing is managed from a browser on the computer that runs Porcelain.
       </p>
     );
-  if (remote.error)
+  if (AsyncResult.isFailure(remote))
     return (
       <Alert variant="destructive">
         <AlertDescription>
-          {connectionErrorMessage(remote.error)}
+          {connectionErrorMessage(Cause.squash(remote.cause))}
         </AlertDescription>
       </Alert>
     );
-  if (!remote.data) return <Spinner />;
-  return children(remote.data);
+  if (!answer) return <Spinner />;
+  return children(answer);
 }
 
 function useDesktopConnection() {
-  const connection = useAccessStore((state) => state.connection);
+  const connection = useLocalConnection();
   return desktopShell ? connection : null;
 }
 
@@ -66,6 +67,9 @@ export function ComputerSettings({
   environment: Environment;
 }) {
   const connection = useDesktopConnection();
+  const desktop = Option.getOrUndefined(
+    AsyncResult.value(useAppUpdateCapability()),
+  );
   return (
     connection && (
       <>
@@ -84,10 +88,12 @@ export function ComputerSettings({
           <ItemGroup>
             <Item variant="outline">
               <ItemContent>
-                {desktopAppUpdate() ? (
+                {desktop === true ? (
                   <AppUpdateSettings />
-                ) : (
+                ) : desktop === false ? (
                   <ServiceUpdateSettings />
+                ) : (
+                  <Spinner />
                 )}
               </ItemContent>
             </Item>

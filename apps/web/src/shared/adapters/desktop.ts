@@ -1,7 +1,11 @@
+import { Context, Effect, Layer, Option, Queue, Stream } from 'effect';
+import { ConnectionError } from '@porcelain/client/transport';
 import type {
   DesktopAction,
   DesktopAppearance,
   DesktopBridge,
+  DesktopAppUpdateCheck,
+  DesktopAppUpdateState,
 } from '@porcelain/contracts/desktop';
 import { desktopShell } from '@/shared/shell';
 
@@ -43,17 +47,99 @@ export function connectDesktopChrome(): () => void {
   };
 }
 
-export function desktopAppUpdate() {
-  return desktopShell ? window.porcelainDesktop?.appUpdate : undefined;
-}
-
-export function desktopProjectPicker(address: string | undefined) {
-  if (!desktopShell || address === undefined) return undefined;
-  const target = new URL(address);
-  return target.protocol === window.location.protocol &&
-    target.host === window.location.host
-    ? window.porcelainDesktop?.pickProjectFolder
-    : undefined;
+export class DesktopHost extends Context.Service<
+  DesktopHost,
+  {
+    readonly hasAppUpdater: boolean;
+    readonly canPickProject: (address: string | undefined) => boolean;
+    readonly pickProject: (
+      address: string,
+    ) => Effect.Effect<string | null, ConnectionError>;
+    readonly checkUpdate: Effect.Effect<
+      Option.Option<DesktopAppUpdateCheck & { readonly current: string }>,
+      ConnectionError
+    >;
+    readonly installUpdate: Effect.Effect<void, ConnectionError>;
+    readonly updateStates: Stream.Stream<DesktopAppUpdateState>;
+  }
+>()('@porcelain/web/DesktopHost') {
+  static readonly layer = Layer.sync(DesktopHost, () => {
+    const bridge = desktopShell ? window.porcelainDesktop : undefined;
+    const canPickProject = (address: string | undefined) => {
+      if (!bridge || address === undefined) return false;
+      const target = new URL(address);
+      return (
+        target.protocol === window.location.protocol &&
+        target.host === window.location.host
+      );
+    };
+    return {
+      hasAppUpdater: bridge !== undefined,
+      canPickProject,
+      pickProject: Effect.fn('Desktop.pickProject')(function* (
+        address: string,
+      ) {
+        if (!bridge || !canPickProject(address))
+          return yield* Effect.fail(
+            new ConnectionError({
+              message:
+                'The native project picker is unavailable for this computer.',
+            }),
+          );
+        return yield* Effect.tryPromise({
+          try: () => bridge.pickProjectFolder(),
+          catch: (cause) =>
+            new ConnectionError({
+              message: 'Could not select the project folder.',
+              cause,
+            }),
+        });
+      }),
+      checkUpdate: Effect.gen(function* () {
+        if (!bridge) return Option.none();
+        const update = yield* Effect.tryPromise({
+          try: () => bridge.appUpdate.check(),
+          catch: (cause) =>
+            new ConnectionError({
+              message: 'Could not check for an app update.',
+              cause,
+            }),
+        });
+        return Option.some({ current: bridge.appUpdate.current(), ...update });
+      }),
+      installUpdate: Effect.suspend(() =>
+        bridge
+          ? Effect.tryPromise({
+              try: () => bridge.appUpdate.install(),
+              catch: (cause) =>
+                new ConnectionError({
+                  message: 'Could not install the app update.',
+                  cause,
+                }),
+            })
+          : Effect.fail(
+              new ConnectionError({
+                message: 'The native app updater is unavailable.',
+              }),
+            ),
+      ),
+      updateStates: bridge
+        ? Stream.concat(
+            Stream.succeed<DesktopAppUpdateState>({ status: 'idle' }),
+            Stream.callback<DesktopAppUpdateState>((queue) =>
+              Effect.acquireRelease(
+                Effect.sync(() =>
+                  bridge.appUpdate.onState((state) =>
+                    Queue.offerUnsafe(queue, state),
+                  ),
+                ),
+                (unsubscribe) => Effect.sync(unsubscribe),
+              ),
+            ),
+          )
+        : Stream.succeed<DesktopAppUpdateState>({ status: 'idle' }),
+    };
+  });
 }
 
 export function desktopAppAddress(): string | undefined {

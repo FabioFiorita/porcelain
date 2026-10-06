@@ -1,77 +1,101 @@
-import type {
+import {
   CloseTunnelConnectionsService,
   OpenRemoteRoutesService,
   ReadEnvironmentService,
   SetRemoteAccessService,
 } from '@porcelain/access/services';
-import type {
-  SetRemoteAccessRequest,
-  SetRemoteAccessResponse,
+import {
+  type SetRemoteAccessRequest,
+  type SetRemoteAccessResponse,
 } from '@porcelain/contracts/access';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { Logger } from '../../ports/logger.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
+import { Logger } from '../../ports/logger.ts';
+import { Context, Effect, Layer, Cause } from 'effect';
+import {
+  type InvalidTailnetHostnameError,
+  type InvalidTunnelHostnameError,
+  type MissingTailnetHostnameError,
+  type MissingTunnelHostnameError,
+  type NoLocalNetworkError,
+  type UnidentifiedLocalNetworkError,
+} from '@porcelain/access/errors';
 
-export class SetRemoteAccessUseCase {
-  private readonly setRemoteAccess: SetRemoteAccessService;
-  private readonly openRemoteRoutes: OpenRemoteRoutesService;
-  private readonly closeTunnelConnections: CloseTunnelConnectionsService;
-  private readonly readEnvironment: ReadEnvironmentService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-  private readonly logger: Logger;
-
-  constructor(
-    setRemoteAccess: SetRemoteAccessService,
-    openRemoteRoutes: OpenRemoteRoutesService,
-    closeTunnelConnections: CloseTunnelConnectionsService,
-    readEnvironment: ReadEnvironmentService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-    logger: Logger,
-  ) {
-    this.setRemoteAccess = setRemoteAccess;
-    this.openRemoteRoutes = openRemoteRoutes;
-    this.closeTunnelConnections = closeTunnelConnections;
-    this.readEnvironment = readEnvironment;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
-    this.logger = logger;
+export class SetRemoteAccessUseCase extends Context.Service<
+  SetRemoteAccessUseCase,
+  {
+    readonly execute: (
+      input: SetRemoteAccessRequest,
+    ) => Effect.Effect<
+      SetRemoteAccessResponse,
+      | InvalidTailnetHostnameError
+      | InvalidTunnelHostnameError
+      | MissingTailnetHostnameError
+      | MissingTunnelHostnameError
+      | NoLocalNetworkError
+      | UnidentifiedLocalNetworkError
+    >;
   }
+>()('@porcelain/server/SetRemoteAccessUseCase') {
+  static readonly layer = Layer.effect(
+    SetRemoteAccessUseCase,
+    Effect.gen(function* () {
+      const setRemoteAccessCapability = yield* SetRemoteAccessService;
+      const openRemoteRoutesCapability = yield* OpenRemoteRoutesService;
+      const closeTunnelConnectionsCapability =
+        yield* CloseTunnelConnectionsService;
+      const readEnvironmentCapability = yield* ReadEnvironmentService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
+      const loggerCapability = yield* Logger;
 
-  async execute(
-    input: SetRemoteAccessRequest,
-    context: OperationContext,
-  ): Promise<SetRemoteAccessResponse> {
-    const changed = await this.lanes.run(
-      this.laneKeys.remoteAccess(),
-      'write',
-      async () => {
-        const changed = await this.setRemoteAccess.execute(input);
-        this.closeTunnelConnections.execute();
-        return changed;
-      },
-      { callerSignal: context.signal },
-    );
-    this.lanes.background(
-      this.laneKeys.remoteAccess(),
-      async ({ signal }) => {
-        await this.openRemoteRoutes.execute(
-          this.readEnvironment.execute(),
-          signal,
-        );
-        this.closeTunnelConnections.execute();
-      },
-      {
-        onFailure: (error) =>
-          this.logger.failure({
-            kind: 'job',
-            job: 'open-remote-routes',
-            error,
-          }),
-      },
-    );
-    return changed;
-  }
+      return {
+        execute: Effect.fn('SetRemoteAccessUseCase.execute')(function* (
+          input: SetRemoteAccessRequest,
+        ): Effect.fn.Return<
+          SetRemoteAccessResponse,
+          | InvalidTailnetHostnameError
+          | InvalidTunnelHostnameError
+          | MissingTailnetHostnameError
+          | MissingTunnelHostnameError
+          | NoLocalNetworkError
+          | UnidentifiedLocalNetworkError
+        > {
+          return yield* lanesCapability.commit(
+            laneKeysCapability.remoteAccess(),
+            () =>
+              Effect.uninterruptible(
+                Effect.gen(function* () {
+                  const changed =
+                    yield* setRemoteAccessCapability.execute(input);
+                  yield* closeTunnelConnectionsCapability.execute();
+                  return changed;
+                }),
+              ),
+            () =>
+              lanesCapability.background(
+                laneKeysCapability.remoteAccess(),
+                () =>
+                  Effect.gen(function* () {
+                    yield* openRemoteRoutesCapability.execute(
+                      yield* readEnvironmentCapability.execute(),
+                    );
+                    yield* closeTunnelConnectionsCapability.execute();
+                  }),
+                (cause) =>
+                  Cause.hasInterruptsOnly(cause)
+                    ? Effect.void
+                    : Effect.sync(() =>
+                        loggerCapability.failure({
+                          kind: 'job',
+                          job: 'open-remote-routes',
+                          error: Cause.squash(cause),
+                        }),
+                      ),
+              ),
+          );
+        }),
+      };
+    }),
+  );
 }

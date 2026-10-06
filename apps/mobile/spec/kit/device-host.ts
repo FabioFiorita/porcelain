@@ -1,31 +1,44 @@
+import { Schema, Result } from 'effect';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { z } from 'zod';
 import { repositoryRoot } from './development-client.ts';
-
 export const hostFileName = '.mobile-device-host.json';
 const hubFields = ['hub', 'tokenVariable', 'ports'] as const;
-const fileSchema = z.object({
-  hub: z.url({ protocol: /^https?$/ }).optional(),
-  tokenVariable: z
-    .string()
-    .regex(/^[A-Z_][A-Z0-9_]*$/)
-    .optional(),
-  ports: z.array(z.number().int().min(1024).max(65535)).min(2).optional(),
-  simulatorLimit: z.number().int().positive().optional(),
+const fileSchema = Schema.Struct({
+  hub: Schema.optional(
+    Schema.String.check(
+      Schema.makeFilter((value) => {
+        const parsed = Schema.decodeUnknownResult(Schema.URLFromString)(value);
+        return (
+          Result.isSuccess(parsed) && /^https?:$/.test(parsed.success.protocol)
+        );
+      }),
+    ),
+  ),
+  tokenVariable: Schema.optional(
+    Schema.String.check(Schema.isPattern(/^[A-Z_][A-Z0-9_]*$/)),
+  ),
+  ports: Schema.optional(
+    Schema.Array(
+      Schema.Finite.check(Schema.isInt())
+        .check(Schema.isGreaterThanOrEqualTo(1024))
+        .check(Schema.isLessThanOrEqualTo(65535)),
+    ).check(Schema.isMinLength(2)),
+  ),
+  simulatorLimit: Schema.optional(
+    Schema.Finite.check(Schema.isInt()).check(Schema.isGreaterThan(0)),
+  ),
 });
-
 export type RemoteHost = {
   hub: string;
   tokenVariable: string;
-  ports: number[];
+  ports: readonly number[];
 };
 export type DeviceHost = {
   remote: RemoteHost | undefined;
   simulatorLimit: number | undefined;
 };
-
 export function mainCheckoutHostFile(): string {
   let commonDirectory: string;
   try {
@@ -41,7 +54,6 @@ export function mainCheckoutHostFile(): string {
   }
   return join(dirname(commonDirectory), hostFileName);
 }
-
 function fileProblem(hostFile: string, wrong: readonly string[]): Error {
   return new Error(
     [
@@ -55,7 +67,6 @@ function fileProblem(hostFile: string, wrong: readonly string[]): Error {
     ].join('\n'),
   );
 }
-
 export function deviceHost(): DeviceHost {
   const hostFile = mainCheckoutHostFile();
   if (!existsSync(hostFile))
@@ -68,18 +79,15 @@ export function deviceHost(): DeviceHost {
       `${hostFile} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
-  const parsed = fileSchema.safeParse(value);
-  if (!parsed.success)
-    throw fileProblem(
-      hostFile,
-      parsed.error.issues.map(
-        (issue) => `${issue.path.join('.') || 'the file'}: ${issue.message}`,
-      ),
-    );
-  const { hub, tokenVariable, ports, simulatorLimit } = parsed.data;
+  const parsed = Schema.decodeUnknownResult(fileSchema)(value);
+  if (!Result.isSuccess(parsed))
+    throw fileProblem(hostFile, [parsed.failure.message]);
+  const { hub, tokenVariable, ports, simulatorLimit } = parsed.success;
   if (hub !== undefined && tokenVariable !== undefined && ports !== undefined)
     return { remote: { hub, tokenVariable, ports }, simulatorLimit };
-  const present = hubFields.filter((field) => parsed.data[field] !== undefined);
+  const present = hubFields.filter(
+    (field) => parsed.success[field] !== undefined,
+  );
   if (present.length > 0)
     throw fileProblem(hostFile, [
       `it has ${present.join(' and ')} but not ${hubFields.filter((field) => !present.includes(field)).join(' and ')}; give all three to drive a remote device host, or none to drive this Mac's simulators`,

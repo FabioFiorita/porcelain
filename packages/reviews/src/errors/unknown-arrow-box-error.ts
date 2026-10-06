@@ -1,7 +1,10 @@
-export class UnknownArrowBoxError extends Error {
-  override readonly name = 'UnknownArrowBoxError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('A diagram arrow joins a box its diagram does not have');
+export class UnknownArrowBoxError extends Schema.TaggedError<UnknownArrowBoxError>()(
+  'UnknownArrowBoxError',
+  {},
+) {
+  override get message() {
+    return 'A diagram arrow joins a box its diagram does not have';
   }
 }

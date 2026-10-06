@@ -1,48 +1,48 @@
-import type {
-  ReadFileAssetQuery,
-  ReadFileAssetResponse,
+import {
+  type ReadFileAssetQuery,
+  type ReadFileAssetResponse,
 } from '@porcelain/contracts/files';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { ReadFileAssetService } from '@porcelain/files/services';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import { type WorktreeParams } from '@porcelain/contracts/shared';
+import {
+  ReadFileAssetService,
+  type ReadFileAssetFailure,
+} from '@porcelain/files/services';
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 
-export class ReadFileAssetUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly readFileAsset: ReadFileAssetService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    readFileAsset: ReadFileAssetService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.checkWorktree = checkWorktree;
-    this.readFileAsset = readFileAsset;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class ReadFileAssetUseCase extends Context.Service<
+  ReadFileAssetUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams & ReadFileAssetQuery,
+    ) => Effect.Effect<
+      ReadFileAssetResponse,
+      WorktreeAccessFailure | ReadFileAssetFailure
+    >;
   }
+>()('@porcelain/server/ReadFileAssetUseCase') {
+  static readonly layer = Layer.effect(
+    ReadFileAssetUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const readFileAssetCapability = yield* ReadFileAssetService;
 
-  async execute(
-    input: WorktreeParams & ReadFileAssetQuery,
-    context: OperationContext,
-  ): Promise<ReadFileAssetResponse> {
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId: input.worktreeId, requireAvailableProject: false },
-      context,
-    );
-    return this.lanes.runConsistent(
-      this.laneKeys.repository(worktree),
-      worktree,
-      async ({ signal }) => {
-        const result = await this.readFileAsset.execute(input, signal);
-        return result;
-      },
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('ReadFileAssetUseCase.execute')(function* (
+          input: WorktreeParams & ReadFileAssetQuery,
+        ): Effect.fn.Return<
+          ReadFileAssetResponse,
+          WorktreeAccessFailure | ReadFileAssetFailure
+        > {
+          return yield* accessCapability.read(input.worktreeId, (worktree) =>
+            readFileAssetCapability.execute({
+              ...input,
+              worktreeId: worktree.id,
+            }),
+          );
+        }),
+      };
+    }),
+  );
 }

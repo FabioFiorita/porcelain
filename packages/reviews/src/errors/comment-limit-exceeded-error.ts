@@ -1,7 +1,10 @@
-export class CommentLimitExceededError extends Error {
-  override readonly name = 'CommentLimitExceededError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Comment capacity exceeded');
+export class CommentLimitExceededError extends Schema.TaggedError<CommentLimitExceededError>()(
+  'CommentLimitExceededError',
+  {},
+) {
+  override get message() {
+    return 'Comment capacity exceeded';
   }
 }

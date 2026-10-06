@@ -1,7 +1,10 @@
-export class TrashUnavailableError extends Error {
-  override readonly name = 'TrashUnavailableError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('This machine has no trash; nothing was deleted');
+export class TrashUnavailableError extends Schema.TaggedError<TrashUnavailableError>()(
+  'TrashUnavailableError',
+  {},
+) {
+  override get message() {
+    return 'This machine has no trash; nothing was deleted';
   }
 }

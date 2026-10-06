@@ -2,16 +2,9 @@ export type {
   AgentReply,
   CommentAnchor,
   CommentAuthorRole,
-  CommentEdit,
   CommentMessage,
-  CommentRemoval,
-  CommentReply,
-  CommentResolution,
   CommentSeenMark,
   CommentThread,
-  CommentUsage,
-  NewCommentThread,
-  PostedCommentMessage,
 } from './comment-thread.ts';
 export type { CreateCommentThreadInput } from './create-comment-thread.ts';
 export type { DeleteCommentMessageInput } from './delete-comment-message.ts';
@@ -30,26 +23,21 @@ export type {
   DiagramBox,
   LayerDraft,
   Review,
-  ReviewDiagram,
   ReviewDraft,
+  ValidatedReviewDraft,
   ReviewLayer,
-  ReviewSave,
   ReviewStep,
-  ReviewSummary,
   StepDraft,
 } from './review.ts';
 export type {
-  ReviewedFileKey,
-  ReviewedFileMark,
   ReviewedLayerMark,
-  ReviewedLayerSave,
-  ReviewedScope,
   WorktreeReviewedLayerMark,
 } from './reviewed-mark.ts';
-export type {
-  ProofFile,
-  ProofFileKey,
-  ProofFileReads,
-  ProofMediaType,
-  ReviewProof,
-} from './review-proof.ts';
+export type { ProofFileReads } from './review-proof.ts';
+
+export { reviewLayerSchema, reviewDiagramSchema } from './review.ts';
+export { reviewProofSchema, proofMediaTypeSchema } from './review-proof.ts';
+export {
+  commentAnchorSchema,
+  commentAuthorRoleSchema,
+} from './comment-thread.ts';

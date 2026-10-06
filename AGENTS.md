@@ -6,6 +6,8 @@ Porcelain is a companion to coding agents: it is where a developer reviews what 
 
 Simple systems, the smallest model that makes the correct behaviour unsurprising, and no machinery because it looks impressive. Fight scope creep; honour the developer's intent in a minimal and realistic way. Everything below is a good default, and the developer's request overrides it. Work autonomously and ask only when the answer would change the result.
 
+Agents author this codebase. Prefer one enforced, typed abstraction per responsibility; dependency requirements and invalid alternatives should fail before runtime. Familiarity with the old implementation is not a reason to preserve it.
+
 The codebase is the example. Copy the nearest feature's shape, and extract a second copy into its owner rather than pasting it. TypeScript, Oxlint, Oxfmt and the architecture check are the rulebook, and every lint message says why its rule exists: when one blocks you, change the code. When a rule fights the task itself, say so and ask before changing the rule.
 
 ## Ways to hurt yourself
@@ -24,9 +26,15 @@ Before calling a change done, check each of these and say which applied:
 - **The way back:** a way in needs a way out and a way to see it.
 - **Connections:** local, local network and remote environments behave differently.
 
+## Native Effect CLI
+
+Declare application CLI commands, flags, arguments and help in `apps/server/src/cli/command-tree.ts` with `effect/cli`. Commands obtain `CliOperations` through `yield*`; its Layer obtains machine capabilities through `CliHost`. Bootstrap composes the complete Layers and Node platform services. Configuration uses Effect Config and Schema. Change callers directly when removing an entry point; keep no forwarding files or compatibility exports.
+
 ## Building a feature
 
 A feature crosses the repository in one order: the contract, the domain decision in `packages/<domain>`, the server use case and route, the shared client in `packages/client` (api, queries, commands, store, rules), then each app's views and adapters. The architecture check enforces each role.
+
+Domain services and server use cases use named `Context.Service` capabilities with one readonly typed `execute` and a static Layer. The Layer resolves dependencies with `yield*`; execute uses named `Effect.fn`. Ports declare the capability key and its shape; models declare canonical native Schema values and inferred types, with business behavior in rules and services. Bootstrap supplies implementations and configuration through Layers. Copy `packages/access/src/services/read-environment-service.ts`; do not add constructor injection or a forwarding file when migrating an owner. Build a scoped graph with `Layer.build` in its application scope before extracting capabilities; `Effect.provide` owns a shorter scope and cannot return borrowed resources for later use. Runtime jobs expose native Effect start and stop operations, and application shutdown drains foreign IO and durable recovery before releasing persistence.
 
 ## Testing
 
@@ -42,7 +50,9 @@ Choose test setups with judgment: weigh what each layer of isolation, retry or e
 
 ## Verifying
 
-Prove a change with the smallest local proof: `pnpm check`, the test files you changed by name, and the feature driven through its surface's skill (`server-verify`, `web-verify`, `desktop-verify`, `mobile-verify`). Each skill's CLI at `scripts/cli` starts a disposable instance, drives it and records evidence; its feature map says how to reach each feature. CI owns the full suites. A guardrail change proves its rule with a fixture in `architecture/rule-cases.mjs`, or a probe in `architecture/probes/` run by name.
+Prove a change with the smallest local proof: `pnpm check:local`, the test files you changed by name, and the feature driven through its surface's skill (`server-verify`, `web-verify`, `desktop-verify`, `mobile-verify`). Each skill's CLI at `scripts/cli` starts a disposable instance, drives it and records evidence; its feature map says how to reach each feature. CI runs `pnpm check` and owns the full suites. A guardrail change proves its rule with a fixture in `architecture/rule-cases.mjs`, or a probe in `architecture/probes/` run by name.
+
+The root integration command runs suite tasks sequentially, because each Vitest runner already owns a machine-sized worker budget. Keep parallelism inside the suite; concurrent runners must not multiply that budget or require longer product deadlines.
 
 ## Pull requests
 
@@ -50,7 +60,7 @@ Work on your own branch from `main`, in your own worktree, and open a pull reque
 
 ## Where code lives
 
-- `apps/server`: the Fastify server, its use cases, routes and installer.
+- `apps/server`: the Effect HTTP server, its use cases, routes and installer.
 - `apps/web`: React and Vite; UI primitives come from the shadcn registry and stay as installed.
 - `apps/desktop`: Electron around the web.
 - `apps/mobile`: Expo, with Expo UI controls and Uniwind.

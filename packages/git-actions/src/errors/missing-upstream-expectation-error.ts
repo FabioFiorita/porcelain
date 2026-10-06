@@ -1,7 +1,10 @@
-export class MissingUpstreamExpectationError extends Error {
-  override readonly name = 'MissingUpstreamExpectationError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('This action needs the upstream the client expects');
+export class MissingUpstreamExpectationError extends Schema.TaggedError<MissingUpstreamExpectationError>()(
+  'MissingUpstreamExpectationError',
+  {},
+) {
+  override get message() {
+    return 'This action needs the upstream the client expects';
   }
 }

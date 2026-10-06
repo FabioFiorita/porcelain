@@ -1,3 +1,5 @@
+import { DeviceSightingStore, DeviceStore } from '@porcelain/access/ports';
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type { StoredDevice } from '@porcelain/access/models';
 import { InMemoryDeviceSightingStore } from '../../spec/fakes/in-memory-device-sighting-store.ts';
@@ -21,12 +23,18 @@ function setup() {
   return {
     devices,
     sightings,
-    service: new FlushDeviceActivityService(sightings, devices),
+    service: Effect.runSync(
+      FlushDeviceActivityService.pipe(
+        Effect.provide(FlushDeviceActivityService.layer),
+        Effect.provideService(DeviceSightingStore, sightings),
+        Effect.provideService(DeviceStore, devices),
+      ),
+    ),
   };
 }
 
 describe('FlushDeviceActivityService', () => {
-  it('stores each pending sighting and leaves none pending', () => {
+  it('stores each pending sighting and leaves none pending', async () => {
     const { devices, sightings, service } = setup();
     sightings.save({
       device: {
@@ -35,17 +43,21 @@ describe('FlushDeviceActivityService', () => {
         lastSeenAddress: '10.0.0.1',
       },
     });
-    service.execute();
-    expect(devices.find({ deviceId: 'device' })).toMatchObject({
+    Effect.runSync(service.execute());
+    expect(
+      await Effect.runPromise(devices.find({ deviceId: 'device' })),
+    ).toMatchObject({
       lastSeenAt: '2026-09-23T10:00:00.000Z',
       lastSeenAddress: '10.0.0.1',
     });
     expect(sightings.take()).toEqual([]);
   });
 
-  it('changes nothing when no device was seen since the last flush', () => {
+  it('changes nothing when no device was seen since the last flush', async () => {
     const { devices, service } = setup();
-    service.execute();
-    expect(devices.find({ deviceId: 'device' })).toEqual(device);
+    Effect.runSync(service.execute());
+    expect(
+      await Effect.runPromise(devices.find({ deviceId: 'device' })),
+    ).toEqual(device);
   });
 });

@@ -1,3 +1,4 @@
+import { Schema } from 'effect';
 import { spawn } from 'node:child_process';
 import { existsSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm, unlink } from 'node:fs/promises';
@@ -7,7 +8,6 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { parseArgs } from 'node:util';
 import { pairingLink } from '@porcelain/contracts/access';
 import { chromium } from 'playwright';
-import { z } from 'zod';
 import {
   IsolatedServer,
   Recorder,
@@ -51,7 +51,6 @@ import {
   serverRead,
   serverUsage,
 } from './server.ts';
-
 const vite = join(root, 'apps/web/node_modules/.bin/vite');
 const readyTimeoutMs = 60 * 1000;
 const remoteReadyMs = 90 * 1000;
@@ -68,23 +67,20 @@ const usage = `Usage: .agents/skills/web-verify/scripts/cli <command> [--instanc
   stop                    stop the instance this CLI started; the evidence stays
   evidence                print the evidence folder and what it holds
 ${interactionUsage}${serverUsage}`;
-
-const remoteSchema = z.object({
-  manifest: z.string(),
-  address: z.string(),
-  repository: z.string(),
+const remoteSchema = Schema.Struct({
+  manifest: Schema.String,
+  address: Schema.String,
+  repository: Schema.String,
 });
-
-const detailSchema = z.object({
-  web: z.string(),
-  session: z.string(),
-  repository: z.string(),
-  projectHome: z.string(),
-  desktop: z.boolean(),
-  manifest: z.string(),
-  remote: remoteSchema.optional(),
+const detailSchema = Schema.Struct({
+  web: Schema.String,
+  session: Schema.String,
+  repository: Schema.String,
+  projectHome: Schema.String,
+  desktop: Schema.Boolean,
+  manifest: Schema.String,
+  remote: Schema.optional(remoteSchema),
 });
-
 const registry = new Registry({
   name: 'web',
   cli: new URL('./cli.ts', import.meta.url).href,
@@ -97,15 +93,12 @@ const registry = new Registry({
       : undefined,
   stopWithinMs: 20_000,
 });
-
-type WebInstance = Instance<z.output<typeof detailSchema>>;
-
-const startOptions = z.object({
-  desktop: z.boolean(),
-  codingTool: z.boolean(),
-  unpaired: z.boolean(),
+type WebInstance = Instance<typeof detailSchema.Type>;
+const startOptions = Schema.Struct({
+  desktop: Schema.Boolean,
+  codingTool: Schema.Boolean,
+  unpaired: Schema.Boolean,
 });
-
 async function chromiumProblem(): Promise<string | undefined> {
   try {
     const launched = await chromium.launch({ headless: true });
@@ -115,7 +108,6 @@ async function chromiumProblem(): Promise<string | undefined> {
     return `Playwright's Chromium does not start (${error instanceof Error ? error.message.split('\n')[0] : String(error)}). Install it with: pnpm exec playwright install chromium`;
   }
 }
-
 async function reachable(url: string, deadline: number): Promise<void> {
   for (;;) {
     const answered = await fetch(url).then(
@@ -128,7 +120,6 @@ async function reachable(url: string, deadline: number): Promise<void> {
     await sleep(200);
   }
 }
-
 function serveRemote(
   folder: string,
   id: string,
@@ -183,10 +174,11 @@ function serveRemote(
     clearInterval(timer);
   });
 }
-
 function serve(folder: string): Promise<void> {
   return registry.serve(folder, async (life) => {
-    const { desktop, codingTool, unpaired } = startOptions.parse(life.options);
+    const { desktop, codingTool, unpaired } = Schema.decodeUnknownSync(
+      startOptions,
+    )(life.options);
     const evidence = registry.evidenceFolder(life.id);
     const session = `web-${life.id}`;
     const build = await mkdtemp(join(tmpdir(), 'porcelain-web-verify-server-'));
@@ -267,14 +259,12 @@ function serve(folder: string): Promise<void> {
     };
   });
 }
-
-async function start(options: z.input<typeof startOptions>): Promise<string> {
+async function start(options: typeof startOptions.Encoded): Promise<string> {
   refuseMissing([...sandboxProblems(), await chromiumProblem()]);
   const started = performance.now();
   const instance = await registry.launch(options, readyTimeoutMs * 2);
   return `instance ${instance.id}\nweb ${instance.detail.web}\nevidence ${instance.evidence}\nrepository ${instance.detail.repository}\n${options.codingTool ? 'coding tool claude (the kit fake) on the server PATH\n' : ''}${options.unpaired ? 'browser not paired\n' : ''}started in ${Math.round(performance.now() - started)} ms\n`;
 }
-
 async function doctor(): Promise<string> {
   const sandbox = sandboxProblems();
   const checks = [
@@ -291,16 +281,14 @@ async function doctor(): Promise<string> {
     );
   return `${checks.join('\n')}\nlive instances: ${live.join(', ') || 'none'}\n`;
 }
-
 function remoteOf(instance: WebInstance) {
   const { remote } = instance.detail;
   if (remote === undefined)
     throw new Refusal('No second computer runs yet; run remote start first.');
   return remote;
 }
-
 async function remoteStart(instance: WebInstance): Promise<string> {
-  const describe = (remote: z.output<typeof remoteSchema>) =>
+  const describe = (remote: typeof remoteSchema.Type) =>
     `remote computer ${REMOTE_COMPUTER_NAME}, project remote-sample\nremote address ${remote.address}\nremote repository ${remote.repository}\n`;
   if (instance.detail.remote !== undefined)
     return `already running\n${describe(instance.detail.remote)}`;
@@ -323,12 +311,10 @@ async function remoteStart(instance: WebInstance): Promise<string> {
     `the second computer did not start within ${remoteReadyMs / 1000} s; read supervisor.log`,
   );
 }
-
 type ServerSideValues = Parameters<typeof agentCommand>[2] & {
   remote: boolean;
   trusted: boolean;
 };
-
 async function serverSide(
   instance: WebInstance,
   browser: Browser,
@@ -387,7 +373,6 @@ async function serverSide(
   }
   return undefined;
 }
-
 async function command(args: readonly string[]): Promise<string> {
   const { values, positionals } = parseArgs({
     args: [...args],
@@ -438,5 +423,4 @@ async function command(args: readonly string[]): Promise<string> {
     return output;
   });
 }
-
 await runCli(command);

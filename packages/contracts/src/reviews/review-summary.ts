@@ -1,21 +1,16 @@
-import { z } from 'zod';
+import { isoDateTimeSchema } from '../shared/schema.ts';
+import { Schema } from 'effect';
 
-export const readReviewSummaryParamsSchema = z.strictObject({
-  token: z.uuid(),
+export const readReviewSummaryParamsSchema = Schema.Struct({
+  token: Schema.String.check(Schema.isUUID()),
 });
-export const readReviewSummaryQuerySchema = z.strictObject({
-  expires: z.iso.datetime(),
-  signature: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+export const readReviewSummaryQuerySchema = Schema.Struct({
+  expires: isoDateTimeSchema,
+  signature: Schema.String.check(Schema.isPattern(/^[A-Za-z0-9_-]{43}$/)),
 });
-export const readReviewSummaryResponseSchema = z.string();
-export const readReviewSummaryNotFoundResponseSchema = z.undefined();
+export const readReviewSummaryResponseSchema = Schema.String;
 
-export type ReadReviewSummaryParams = z.output<
-  typeof readReviewSummaryParamsSchema
->;
-export type ReadReviewSummaryQuery = z.output<
-  typeof readReviewSummaryQuerySchema
->;
-export type ReadReviewSummaryResponse = z.output<
-  typeof readReviewSummaryResponseSchema
->;
+export type ReadReviewSummaryParams = typeof readReviewSummaryParamsSchema.Type;
+export type ReadReviewSummaryQuery = typeof readReviewSummaryQuerySchema.Type;
+export type ReadReviewSummaryResponse =
+  typeof readReviewSummaryResponseSchema.Type;

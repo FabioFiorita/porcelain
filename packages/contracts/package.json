@@ -17,6 +17,14 @@
     "test": "vitest run --config ../../vitest.config.ts --project @porcelain/contracts"
   },
   "dependencies": {
-    "zod": "4.5.4"
+    "@porcelain/access": "workspace:*",
+    "@porcelain/changes": "workspace:*",
+    "@porcelain/files": "workspace:*",
+    "@porcelain/git": "workspace:*",
+    "@porcelain/git-actions": "workspace:*",
+    "@porcelain/kernel": "workspace:*",
+    "@porcelain/projects": "workspace:*",
+    "@porcelain/reviews": "workspace:*",
+    "effect": "4.0.0"
   }
 }

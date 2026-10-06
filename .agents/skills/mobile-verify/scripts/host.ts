@@ -1,26 +1,24 @@
+import { Schema } from 'effect';
 import { createServer } from 'node:net';
-import { z } from 'zod';
 import {
   hostFileName,
   type RemoteHost,
 } from '../../../../apps/mobile/spec/kit/device-host.ts';
 import { onPath, sandboxProblems } from '../../verify-core/cli.ts';
-
 const hubLimitMs = 5000;
-export const hostDetail = z
-  .object({ hub: z.string(), tokenVariable: z.string() })
-  .nullable();
-
-export type HostDetail = z.output<typeof hostDetail>;
-
+export const hostDetail = Schema.NullOr(
+  Schema.Struct({
+    hub: Schema.String,
+    tokenVariable: Schema.String,
+  }),
+);
+export type HostDetail = typeof hostDetail.Type;
 export function hubToken(host: { tokenVariable: string }): string {
   return process.env[host.tokenVariable] ?? '';
 }
-
 export function hubUrl(host: { hub: string }): string {
   return `${host.hub.replace(/\/+$/, '')}/agent-device`;
 }
-
 function portIsFree(port: number): Promise<boolean> {
   return new Promise((done) => {
     const probe = createServer();
@@ -30,7 +28,6 @@ function portIsFree(port: number): Promise<boolean> {
     );
   });
 }
-
 export async function freeHostPorts(
   host: RemoteHost,
   count: number,
@@ -42,7 +39,6 @@ export async function freeHostPorts(
   }
   return free;
 }
-
 export async function hostProblems(host: RemoteHost): Promise<string[]> {
   const problems = [...sandboxProblems()];
   if (!onPath('agent-device'))

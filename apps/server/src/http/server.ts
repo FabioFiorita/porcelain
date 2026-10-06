@@ -1,4 +1,6 @@
-import websocket from '@fastify/websocket';
+import { Effect, Layer, type Context } from 'effect';
+import type { Observability } from '../runtime/observability.ts';
+import { HttpRouter } from 'effect/http';
 import type { ServerSettings } from '../config/server-settings.ts';
 import type { Logger } from '../ports/logger.ts';
 import type { WebRootReader } from '../ports/web-root-reader.ts';
@@ -8,39 +10,47 @@ import {
 } from './hooks/request-client.ts';
 import { apiScope, type ApiUseCases } from './scopes/api.ts';
 import { pageScope, type PageUseCases } from './scopes/page.ts';
-import { createServer } from './server-factory.ts';
+import { createHttpListener, requestBoundary } from './server-factory.ts';
 
-type NetworkServerOptions = {
+export function createNetworkServer(options: {
   application: ApiUseCases & PageUseCases & RequestClientOptions;
   settings: Pick<ServerSettings, 'allowedHosts' | 'limits'>;
   files: WebRootReader;
   logger: Logger;
-};
-
-export function createNetworkServer(options: NetworkServerOptions) {
+  observability: Context.Service.Shape<typeof Observability>;
+}) {
   const { application, settings } = options;
-  const { allowedHosts } = settings;
-  const server = createServer({ logger: options.logger, principal: undefined });
-  server.addHook(
-    'onRequest',
+  const boundary = HttpRouter.middleware((app) =>
     identifyRequestClient(application, {
       maxAgeSeconds:
         settings.limits.access.remoteAccess.strictTransportMaxAgeSeconds,
+    }).pipe(Effect.andThen(app)),
+  ).combine(
+    requestBoundary({
+      logger: options.logger,
+      observability: options.observability,
+      principal: undefined,
+      bodyBytes: settings.limits.http.bodyBytes,
     }),
   );
-  server.register(websocket, {
-    options: { maxPayload: settings.limits.liveUpdates.messageBytes },
+  const routes = Layer.mergeAll(
+    apiScope({
+      application,
+      allowedHosts: settings.allowedHosts,
+      limits: settings.limits,
+      boundary,
+    }),
+    pageScope({
+      application,
+      allowedHosts: settings.allowedHosts,
+      files: options.files,
+      boundary,
+    }),
+  );
+  return createHttpListener({
+    application: routes,
+    logger: options.logger,
+    principal: undefined,
+    websocketMaxBytes: settings.limits.liveUpdates.messageBytes,
   });
-  server.register(apiScope, {
-    prefix: '/api',
-    application,
-    allowedHosts,
-    limits: settings.limits,
-  });
-  server.register(pageScope, {
-    application,
-    allowedHosts,
-    files: options.files,
-  });
-  return server;
 }

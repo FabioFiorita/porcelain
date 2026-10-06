@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   FinishedGitAction,
   GitActionReceipt,
@@ -7,6 +8,7 @@ import type { GitActionReceiptStore } from '../../src/ports/git-action-receipt-s
 export class InMemoryGitActionReceiptStore implements GitActionReceiptStore {
   private readonly rows: Map<string, GitActionReceipt>;
   private readonly saved = new Map<string, GitActionReceipt>();
+  private readonly queued = new Set<string>();
 
   constructor(receipts: readonly GitActionReceipt[] = []) {
     this.rows = new Map(
@@ -14,52 +16,74 @@ export class InMemoryGitActionReceiptStore implements GitActionReceiptStore {
     );
   }
 
-  read(input: { requestId: string }): GitActionReceipt | undefined {
-    const inserted = this.rows.get(input.requestId);
-    return inserted && this.current(inserted);
+  read(input: {
+    requestId: string;
+  }): Effect.Effect<GitActionReceipt | undefined> {
+    return Effect.sync(() => {
+      const inserted = this.rows.get(input.requestId);
+      return inserted && this.current(inserted);
+    });
   }
 
-  insert(input: GitActionReceipt): void {
-    this.rows.set(input.requestId, structuredClone(input));
-    this.saved.delete(input.requestId);
+  insert(input: GitActionReceipt): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.rows.set(input.requestId, structuredClone(input));
+      this.saved.delete(input.requestId);
+      this.queued.add(input.requestId);
+    });
   }
 
-  save(input: GitActionReceipt): void {
-    this.saved.set(input.requestId, structuredClone(input));
+  claimExecution(input: { requestId: string }): Effect.Effect<boolean> {
+    return Effect.sync(() => this.queued.delete(input.requestId));
   }
 
-  running(): GitActionReceipt[] {
-    return this.all().filter((receipt) => receipt.state === 'running');
+  save(input: GitActionReceipt): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.saved.set(input.requestId, structuredClone(input));
+    });
+  }
+
+  running(): Effect.Effect<GitActionReceipt[]> {
+    return Effect.sync(() => {
+      return this.all().filter((receipt) => receipt.state === 'running');
+    });
   }
 
   latestInterrupted(input: {
     worktreeId: string;
-  }): GitActionReceipt | undefined {
-    return this.all()
-      .filter(
-        (receipt) =>
-          receipt.worktreeId === input.worktreeId &&
-          receipt.state === 'interrupted' &&
-          receipt.dismissedAt === undefined,
-      )
-      .sort((left, right) =>
-        (right.finishedAt ?? '').localeCompare(left.finishedAt ?? ''),
-      )
-      .at(0);
+  }): Effect.Effect<GitActionReceipt | undefined> {
+    return Effect.sync(() => {
+      return this.all()
+        .filter(
+          (receipt) =>
+            receipt.worktreeId === input.worktreeId &&
+            receipt.state === 'interrupted' &&
+            receipt.dismissedAt === undefined,
+        )
+        .sort((left, right) =>
+          (right.finishedAt ?? '').localeCompare(left.finishedAt ?? ''),
+        )
+        .at(0);
+    });
   }
 
-  finished(): FinishedGitAction[] {
-    return this.all().flatMap(({ requestId, finishedAt }) =>
-      [finishedAt]
-        .filter((at) => at !== undefined)
-        .map((at) => ({ requestId, finishedAt: at })),
-    );
+  finished(): Effect.Effect<FinishedGitAction[]> {
+    return Effect.sync(() => {
+      return this.all().flatMap(({ requestId, finishedAt }) =>
+        [finishedAt]
+          .filter((at) => at !== undefined)
+          .map((at) => ({ requestId, finishedAt: at })),
+      );
+    });
   }
 
-  remove(input: { requestIds: string[] }): void {
-    input.requestIds.forEach((requestId) => {
-      this.rows.delete(requestId);
-      this.saved.delete(requestId);
+  remove(input: { requestIds: string[] }): Effect.Effect<void> {
+    return Effect.sync(() => {
+      input.requestIds.forEach((requestId) => {
+        this.rows.delete(requestId);
+        this.saved.delete(requestId);
+        this.queued.delete(requestId);
+      });
     });
   }
 

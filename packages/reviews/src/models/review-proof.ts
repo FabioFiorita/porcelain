@@ -1,23 +1,79 @@
-export type ProofTarget = {
-  layerId?: string | undefined;
-  stepId?: string | undefined;
-};
+import { Schema } from 'effect';
+const proofTargetSchema = Schema.Struct({
+  layerId: Schema.mutableKey(
+    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+  ),
+  stepId: Schema.mutableKey(
+    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+  ),
+});
+const proofCheckSchema = Schema.Struct({
+  ...proofTargetSchema.fields,
+  name: Schema.mutableKey(Schema.String),
+  result: Schema.mutableKey(
+    Schema.Union([
+      Schema.Literal('pass'),
+      Schema.Literal('fail'),
+      Schema.Literal('skipped'),
+    ]),
+  ),
+  output: Schema.mutableKey(
+    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+  ),
+});
+const proofFileKindSchema = Schema.Union([
+  Schema.Literal('image'),
+  Schema.Literal('video'),
+]);
+export const proofMediaTypeSchema = Schema.Union([
+  Schema.Literal('image/png'),
+  Schema.Literal('image/jpeg'),
+  Schema.Literal('image/gif'),
+  Schema.Literal('image/webp'),
+  Schema.Literal('video/mp4'),
+  Schema.Literal('video/webm'),
+]);
+const proofFileAssetSchema = Schema.Struct({
+  ...proofTargetSchema.fields,
+  id: Schema.mutableKey(Schema.String),
+  kind: Schema.mutableKey(proofFileKindSchema),
+  title: Schema.mutableKey(Schema.String),
+  mediaType: Schema.mutableKey(proofMediaTypeSchema),
+  byteLength: Schema.mutableKey(Schema.Number),
+});
+const proofLinkDraftSchema = Schema.Struct({
+  ...proofTargetSchema.fields,
+  kind: Schema.mutableKey(Schema.Literal('link')),
+  title: Schema.mutableKey(Schema.String),
+  url: Schema.mutableKey(Schema.String),
+});
+const proofLinkAssetSchema = Schema.Struct({
+  ...proofLinkDraftSchema.fields,
+  id: Schema.mutableKey(Schema.String),
+});
+const proofAssetSchema = Schema.Union([
+  proofFileAssetSchema,
+  proofLinkAssetSchema,
+]);
+const proofBaselineSchema = Schema.Struct({
+  digest: Schema.mutableKey(Schema.String),
+  proofPaths: Schema.mutableKey(Schema.Array(Schema.String)),
+});
+export const reviewProofSchema = Schema.Struct({
+  checks: Schema.mutableKey(Schema.Array(proofCheckSchema)),
+  assets: Schema.mutableKey(Schema.Array(proofAssetSchema)),
+  baseline: Schema.mutableKey(
+    Schema.optional(Schema.Union([proofBaselineSchema, Schema.Undefined])),
+  ),
+});
 
-type ProofCheck = ProofTarget & {
-  name: string;
-  result: 'pass' | 'fail' | 'skipped';
-  output?: string | undefined;
-};
+export type ProofTarget = typeof proofTargetSchema.Type;
 
-export type ProofFileKind = 'image' | 'video';
+type ProofCheck = typeof proofCheckSchema.Type;
 
-export type ProofMediaType =
-  | 'image/png'
-  | 'image/jpeg'
-  | 'image/gif'
-  | 'image/webp'
-  | 'video/mp4'
-  | 'video/webm';
+export type ProofFileKind = typeof proofFileKindSchema.Type;
+
+export type ProofMediaType = typeof proofMediaTypeSchema.Type;
 
 export type ProofFileDraft = ProofTarget & {
   kind: ProofFileKind;
@@ -26,45 +82,22 @@ export type ProofFileDraft = ProofTarget & {
   proofId?: string | undefined;
 };
 
-type ProofLinkDraft = ProofTarget & {
-  kind: 'link';
-  title: string;
-  url: string;
-};
+type ProofLinkDraft = typeof proofLinkDraftSchema.Type;
 
 type ProofAssetDraft = ProofFileDraft | ProofLinkDraft;
 
 export type ProofDraft = {
-  checks?: ProofCheck[] | undefined;
-  assets?: ProofAssetDraft[] | undefined;
+  checks?: readonly ProofCheck[] | undefined;
+  assets?: readonly ProofAssetDraft[] | undefined;
 };
 
-type ProofFileAsset = ProofTarget & {
-  id: string;
-  kind: ProofFileKind;
-  title: string;
-  mediaType: ProofMediaType;
-  byteLength: number;
-};
+export type ProofAsset = typeof proofAssetSchema.Type;
 
-type ProofLinkAsset = ProofLinkDraft & { id: string };
-
-export type ProofAsset = ProofFileAsset | ProofLinkAsset;
-
-export type ReviewProof = {
-  checks: ProofCheck[];
-  assets: ProofAsset[];
-  baseline?: ProofBaseline | undefined;
-};
-
-type ProofBaseline = {
-  digest: string;
-  proofPaths: string[];
-};
+export type ReviewProof = typeof reviewProofSchema.Type;
 
 export type ResolvedProof = {
-  checks: ProofCheck[];
-  assets: ProofAsset[];
+  checks: readonly ProofCheck[];
+  assets: readonly ProofAsset[];
   current: boolean;
 };
 

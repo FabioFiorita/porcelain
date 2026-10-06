@@ -1,10 +1,11 @@
+import { Effect } from 'effect';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { DiagramBox, Review } from '../../src/models/review.ts';
 import type { ReviewStore } from '../../src/ports/review-store.ts';
 
 export type ReviewStoreSubject = {
   store: ReviewStore;
-  close: () => void;
+  close: () => Promise<void> | void;
 };
 
 const first = 'a'.repeat(64);
@@ -51,32 +52,38 @@ function byWorktree(reviews: readonly Review[]): Review[] {
 
 export function reviewStoreContract(
   subject: string,
-  openSubject: (worktreeIds: readonly string[]) => ReviewStoreSubject,
+  openSubject: (
+    worktreeIds: readonly string[],
+  ) => ReviewStoreSubject | Promise<ReviewStoreSubject>,
 ): void {
   describe(subject, () => {
     let opened: ReviewStoreSubject;
     let store: ReviewStore;
 
-    beforeEach(() => {
-      opened = openSubject([first, second, third]);
+    beforeEach(async () => {
+      opened = await openSubject([first, second, third]);
       store = opened.store;
     });
 
-    afterEach(() => {
-      opened.close();
+    afterEach(async () => {
+      await opened.close();
     });
 
-    it('reads nothing for a worktree without a published review', () => {
-      store.save(review(second));
-      expect(store.read({ worktreeId: first })).toBeUndefined();
+    it('reads nothing for a worktree without a published review', async () => {
+      await Effect.runPromise(store.save(review(second)));
+      expect(
+        await Effect.runPromise(store.read({ worktreeId: first })),
+      ).toBeUndefined();
     });
 
-    it('reads a saved review back as it was saved', () => {
-      store.save(review(first));
-      expect(store.read({ worktreeId: first })).toEqual(review(first));
+    it('reads a saved review back as it was saved', async () => {
+      await Effect.runPromise(store.save(review(first)));
+      expect(
+        await Effect.runPromise(store.read({ worktreeId: first })),
+      ).toEqual(review(first));
     });
 
-    it('reads a saved diagram back with its before and after', () => {
+    it('reads a saved diagram back with its before and after', async () => {
       const box: DiagramBox = {
         id: 'box',
         lane: 0,
@@ -90,11 +97,13 @@ export function reviewStoreContract(
           before: { lanes: ['Server'], boxes: [], arrows: [] },
         },
       };
-      store.save(withDiagram);
-      expect(store.read({ worktreeId: first })).toEqual(withDiagram);
+      await Effect.runPromise(store.save(withDiagram));
+      expect(
+        await Effect.runPromise(store.read({ worktreeId: first })),
+      ).toEqual(withDiagram);
     });
 
-    it('reads saved proof back with the review and its files by worktree and id', () => {
+    it('reads saved proof back with the review and its files by worktree and id', async () => {
       const proof = {
         checks: [
           { name: 'Tests', result: 'fail' as const, output: 'one failed' },
@@ -111,130 +120,193 @@ export function reviewStoreContract(
         ],
       };
       const bytes = new Uint8Array([0x89, 0x50, 0x4e]);
-      store.save({
-        ...review(first),
-        proof,
-        proofFiles: [{ id: 'shot', mediaType: 'image/png', bytes }],
-      });
-      expect(store.read({ worktreeId: first })).toEqual({
+      await Effect.runPromise(
+        store.save({
+          ...review(first),
+          proof,
+          proofFiles: [{ id: 'shot', mediaType: 'image/png', bytes }],
+        }),
+      );
+      expect(
+        await Effect.runPromise(store.read({ worktreeId: first })),
+      ).toEqual({
         ...review(first),
         proof,
       });
       expect(
-        store.readProofFile({ worktreeId: first, proofId: 'shot' }),
+        await Effect.runPromise(
+          store.readProofFile({ worktreeId: first, proofId: 'shot' }),
+        ),
       ).toEqual({ id: 'shot', mediaType: 'image/png', bytes });
       expect(
-        store.readProofFile({ worktreeId: second, proofId: 'shot' }),
+        await Effect.runPromise(
+          store.readProofFile({ worktreeId: second, proofId: 'shot' }),
+        ),
       ).toBeUndefined();
     });
 
-    it('replaces the proof files of a worktree when its next review is saved', () => {
+    it('replaces the proof files of a worktree when its next review is saved', async () => {
       const bytes = new Uint8Array([1, 2, 3]);
-      store.save({
-        ...review(first, 1),
-        proofFiles: [{ id: 'old', mediaType: 'image/png', bytes }],
-      });
-      store.save({
-        ...review(second),
-        proofFiles: [{ id: 'kept', mediaType: 'image/png', bytes }],
-      });
-      store.save({
-        ...review(first, 2),
-        proofFiles: [{ id: 'new', mediaType: 'video/webm', bytes }],
-      });
+      await Effect.runPromise(
+        store.save({
+          ...review(first, 1),
+          proofFiles: [{ id: 'old', mediaType: 'image/png', bytes }],
+        }),
+      );
+      await Effect.runPromise(
+        store.save({
+          ...review(second),
+          proofFiles: [{ id: 'kept', mediaType: 'image/png', bytes }],
+        }),
+      );
+      await Effect.runPromise(
+        store.save({
+          ...review(first, 2),
+          proofFiles: [{ id: 'new', mediaType: 'video/webm', bytes }],
+        }),
+      );
       expect(
-        store.readProofFile({ worktreeId: first, proofId: 'old' }),
+        await Effect.runPromise(
+          store.readProofFile({ worktreeId: first, proofId: 'old' }),
+        ),
       ).toBeUndefined();
       expect(
-        store.readProofFile({ worktreeId: first, proofId: 'new' }),
+        await Effect.runPromise(
+          store.readProofFile({ worktreeId: first, proofId: 'new' }),
+        ),
       ).toEqual({ id: 'new', mediaType: 'video/webm', bytes });
       expect(
-        store.readProofFile({ worktreeId: second, proofId: 'kept' }),
+        await Effect.runPromise(
+          store.readProofFile({ worktreeId: second, proofId: 'kept' }),
+        ),
       ).toEqual({ id: 'kept', mediaType: 'image/png', bytes });
-      store.save(review(first, 3));
+      await Effect.runPromise(store.save(review(first, 3)));
       expect(
-        store.readProofFile({ worktreeId: first, proofId: 'new' }),
+        await Effect.runPromise(
+          store.readProofFile({ worktreeId: first, proofId: 'new' }),
+        ),
       ).toBeUndefined();
     });
 
-    it('replaces the review of a worktree when a newer one is saved', () => {
-      store.save(review(first, 1));
-      store.save(review(first, 2));
-      expect(store.read({ worktreeId: first })).toEqual(review(first, 2));
-      expect(store.byWorktrees({ worktreeIds: [first] })).toEqual([
-        review(first, 2),
-      ]);
+    it('replaces the review of a worktree when a newer one is saved', async () => {
+      await Effect.runPromise(store.save(review(first, 1)));
+      await Effect.runPromise(store.save(review(first, 2)));
+      expect(
+        await Effect.runPromise(store.read({ worktreeId: first })),
+      ).toEqual(review(first, 2));
+      expect(
+        await Effect.runPromise(store.byWorktrees({ worktreeIds: [first] })),
+      ).toEqual([review(first, 2)]);
     });
 
-    it('reads the reviews of the asked worktrees only', () => {
-      store.save(review(first));
-      store.save(review(second));
-      store.save(review(third));
+    it('reads the reviews of the asked worktrees only', async () => {
+      await Effect.runPromise(store.save(review(first)));
+      await Effect.runPromise(store.save(review(second)));
+      await Effect.runPromise(store.save(review(third)));
       expect(
-        byWorktree(store.byWorktrees({ worktreeIds: [third, first] })),
+        byWorktree(
+          await Effect.runPromise(
+            store.byWorktrees({ worktreeIds: [third, first] }),
+          ),
+        ),
       ).toEqual([review(first), review(third)]);
     });
 
-    it('reads no reviews when no worktree is asked', () => {
-      store.save(review(first));
-      expect(store.byWorktrees({ worktreeIds: [] })).toEqual([]);
-    });
-
-    it('finds the summary of a review by its token', () => {
-      store.save(review(first));
-      store.save(review(second));
-      expect(store.findSummary({ token: review(second).summaryToken })).toEqual(
-        {
-          summaryHtml: review(second).summaryHtml,
-          summaryToken: review(second).summaryToken,
-          summarySecret: review(second).summarySecret,
-        },
-      );
-    });
-
-    it('finds no summary for an unknown token or a replaced review', () => {
-      store.save(review(first, 1));
-      store.save(review(first, 2));
-      expect(store.findSummary({ token: 'unknown' })).toBeUndefined();
+    it('reads no reviews when no worktree is asked', async () => {
+      await Effect.runPromise(store.save(review(first)));
       expect(
-        store.findSummary({ token: review(first, 1).summaryToken }),
+        await Effect.runPromise(store.byWorktrees({ worktreeIds: [] })),
+      ).toEqual([]);
+    });
+
+    it('finds the summary of a review by its token', async () => {
+      await Effect.runPromise(store.save(review(first)));
+      await Effect.runPromise(store.save(review(second)));
+      expect(
+        await Effect.runPromise(
+          store.findSummary({ token: review(second).summaryToken }),
+        ),
+      ).toEqual({
+        summaryHtml: review(second).summaryHtml,
+        summaryToken: review(second).summaryToken,
+        summarySecret: review(second).summarySecret,
+      });
+    });
+
+    it('finds no summary for an unknown token or a replaced review', async () => {
+      await Effect.runPromise(store.save(review(first, 1)));
+      await Effect.runPromise(store.save(review(first, 2)));
+      expect(
+        await Effect.runPromise(store.findSummary({ token: 'unknown' })),
+      ).toBeUndefined();
+      expect(
+        await Effect.runPromise(
+          store.findSummary({ token: review(first, 1).summaryToken }),
+        ),
       ).toBeUndefined();
     });
 
-    it('deactivates and reactivates the review at the asked revision', () => {
-      store.save(review(first, 2));
-      store.setActive({ worktreeId: first, revision: 2, active: false });
-      expect(store.read({ worktreeId: first })).toEqual({
+    it('deactivates and reactivates the review at the asked revision', async () => {
+      await Effect.runPromise(store.save(review(first, 2)));
+      await Effect.runPromise(
+        store.setActive({ worktreeId: first, revision: 2, active: false }),
+      );
+      expect(
+        await Effect.runPromise(store.read({ worktreeId: first })),
+      ).toEqual({
         ...review(first, 2),
         active: false,
       });
-      store.setActive({ worktreeId: first, revision: 2, active: true });
-      expect(store.read({ worktreeId: first })).toEqual(review(first, 2));
+      await Effect.runPromise(
+        store.setActive({ worktreeId: first, revision: 2, active: true }),
+      );
+      expect(
+        await Effect.runPromise(store.read({ worktreeId: first })),
+      ).toEqual(review(first, 2));
     });
 
-    it('leaves the review active when another revision is deactivated', () => {
-      store.save(review(first, 2));
-      store.setActive({ worktreeId: first, revision: 1, active: false });
-      expect(store.read({ worktreeId: first })).toEqual(review(first, 2));
+    it('leaves the review active when another revision is deactivated', async () => {
+      await Effect.runPromise(store.save(review(first, 2)));
+      await Effect.runPromise(
+        store.setActive({ worktreeId: first, revision: 1, active: false }),
+      );
+      expect(
+        await Effect.runPromise(store.read({ worktreeId: first })),
+      ).toEqual(review(first, 2));
     });
 
-    it('leaves other worktrees active when one review is deactivated', () => {
-      store.save(review(first));
-      store.save(review(second));
-      store.setActive({ worktreeId: first, revision: 1, active: false });
-      expect(store.read({ worktreeId: second })).toEqual(review(second));
+    it('leaves other worktrees active when one review is deactivated', async () => {
+      await Effect.runPromise(store.save(review(first)));
+      await Effect.runPromise(store.save(review(second)));
+      await Effect.runPromise(
+        store.setActive({ worktreeId: first, revision: 1, active: false }),
+      );
+      expect(
+        await Effect.runPromise(store.read({ worktreeId: second })),
+      ).toEqual(review(second));
     });
 
-    it('hands out copies, so changing a returned review leaves the stored one unchanged', () => {
-      const saved = review(first);
-      store.save(saved);
-      saved.summaryHtml = '<p>Changed after saving</p>';
-      store.read({ worktreeId: first })?.layers.pop();
-      store
-        .byWorktrees({ worktreeIds: [first] })
-        .at(0)
-        ?.layers.pop();
-      expect(store.read({ worktreeId: first })).toEqual(review(first));
-    });
+    it.each(['read', 'bulk read'])(
+      'hands out a copy of the %s review, so changing it leaves the stored one unchanged',
+      async (source) => {
+        const saved = review(first);
+        await Effect.runPromise(store.save(saved));
+        saved.summaryHtml = '<p>Changed after saving</p>';
+        const returned =
+          source === 'read'
+            ? await Effect.runPromise(store.read({ worktreeId: first }))
+            : (
+                await Effect.runPromise(
+                  store.byWorktrees({ worktreeIds: [first] }),
+                )
+              ).at(0);
+        expect(returned).toBeDefined();
+        if (!returned) throw new Error('The saved review must be available');
+        Array.prototype.pop.call(returned.layers);
+        expect(
+          await Effect.runPromise(store.read({ worktreeId: first })),
+        ).toEqual(review(first));
+      },
+    );
   });
 }

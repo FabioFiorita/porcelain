@@ -1,8 +1,10 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Cause, Option } from 'effect';
 import { Button } from '@/components/ui/button';
 import { useReviewOverview } from '@/features/changes/index';
-import type { GitScope } from '../rules/git-action';
+import type { GitScope } from '@porcelain/client/git-actions/rules';
 import { useDismissInterrupted } from '../commands/dismiss-interrupted';
-import { gitErrorMessage } from '../rules/feedback';
+import { gitErrorMessage } from '@porcelain/client/git-actions/rules';
 
 export function InterruptedActionNotice({
   scope,
@@ -12,9 +14,11 @@ export function InterruptedActionNotice({
   context: Parameters<typeof useDismissInterrupted>[1];
 }) {
   const { connection } = context;
-  const overview = useReviewOverview(scope, connection);
+  const overview = Option.getOrUndefined(
+    AsyncResult.value(useReviewOverview(scope, connection)),
+  );
   const dismiss = useDismissInterrupted(scope, context);
-  const interrupted = overview?.changes.interrupted;
+  const interrupted = overview?.interrupted;
   if (!interrupted) return null;
   return (
     <div
@@ -29,16 +33,16 @@ export function InterruptedActionNotice({
         <p className="mt-1 text-muted-foreground">
           Check the current changes before trying again.
         </p>
-        {dismiss.error && (
+        {AsyncResult.isFailure(dismiss.result) && (
           <p role="alert" className="mt-1 text-destructive">
-            {gitErrorMessage(dismiss.error)}
+            {gitErrorMessage(Cause.squash(dismiss.result.cause))}
           </p>
         )}
       </div>
       <Button
         size="xs"
         variant="ghost"
-        disabled={dismiss.isPending}
+        disabled={dismiss.result.waiting}
         onClick={() => dismiss.dismiss(interrupted.requestId)}
       >
         Got it

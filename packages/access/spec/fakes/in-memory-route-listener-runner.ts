@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ListenOutcome,
   RouteAddresses,
@@ -18,15 +19,19 @@ export class InMemoryRouteListenerRunner implements RouteListenerRunner {
     this.taken = taken;
   }
 
-  async listen(input: RouteAddresses): Promise<ListenOutcome> {
-    const port = this.ports[String(input.port)] ?? Number(input.port);
-    const bound = input.addresses.filter(() => !this.taken.includes(port));
-    this.listening.set(input.route, { addresses: bound, port });
-    return { port, bound };
+  listen(input: RouteAddresses): Effect.Effect<ListenOutcome> {
+    return Effect.sync(() => {
+      const port = this.ports[String(input.port)] ?? Number(input.port);
+      const bound = input.addresses.filter(() => !this.taken.includes(port));
+      this.listening.set(input.route, { addresses: bound, port });
+      return { port, bound };
+    });
   }
 
-  async close(input: RouteKey): Promise<void> {
-    this.listening.delete(input.route);
+  close(input: RouteKey): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.listening.delete(input.route);
+    });
   }
 
   bound(input: RouteKey): string[] {

@@ -1,22 +1,19 @@
-import { useStore } from 'zustand';
-import { useShallow } from 'zustand/react/shallow';
+import { useAtomRef } from '@effect/atom-react';
 import {
-  createProjectSelectionStore,
-  type ProjectSelectionStore,
-} from '@porcelain/client/projects';
-import { projectSelectionStorage } from './adapters/selection-storage';
-
-export const projectSelectionStore: ProjectSelectionStore =
-  createProjectSelectionStore(projectSelectionStorage);
+  sameRemoteConnection,
+  type Remote,
+} from '@porcelain/client/access/rules';
+import {
+  remoteConnectionState,
+  selectionState,
+} from '../../shared/application/store';
 
 export function useProjectSelection() {
-  return useStore(
-    projectSelectionStore,
-    useShallow((state) => ({
-      currentEnvironmentId: state.currentEnvironmentId,
-      selections: state.selections,
-      status: state.status,
-      error: state.error,
-    })),
-  );
+  return useAtomRef(selectionState);
+}
+
+export function useProjectConnection(remote: Remote | undefined) {
+  return useAtomRef(remoteConnectionState).find(
+    (entry) => remote && sameRemoteConnection(entry.remote, remote),
+  )?.connection;
 }

@@ -30,7 +30,7 @@ declare module 'vitest' {
 
 export default async function setup(project: TestProject) {
   const problems = missingTools(['simulator', 'maestro']);
-  const unbuilt = problems.length === 0 ? buildProblem() : undefined;
+  const unbuilt = problems.length === 0 ? await buildProblem() : undefined;
   if (problems.length > 0 || unbuilt !== undefined)
     throw new Error(
       `The mobile e2e tests need macOS with a simulator, Maestro and the development client:\n${[...problems, ...(unbuilt === undefined ? [] : [unbuilt])].join('\n')}`,

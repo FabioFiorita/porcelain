@@ -1,7 +1,10 @@
-export class GitActionNotFoundError extends Error {
-  override readonly name = 'GitActionNotFoundError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Git action receipt not found');
+export class GitActionNotFoundError extends Schema.TaggedError<GitActionNotFoundError>()(
+  'GitActionNotFoundError',
+  {},
+) {
+  override get message() {
+    return 'Git action receipt not found';
   }
 }

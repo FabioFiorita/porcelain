@@ -1,30 +1,37 @@
-import type {
-  IdentifyRequestClientInput,
-  RequestClient,
+import { Context, Effect, Layer } from 'effect';
+import {
+  type IdentifyRequestClientInput,
+  type RequestClient,
 } from '@porcelain/access/models';
-import type { IdentifyRequestClientService } from '@porcelain/access/services';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { IdentifyRequestClientService } from '@porcelain/access/services';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class IdentifyRequestClientUseCase {
-  private readonly identifyRequestClient: IdentifyRequestClientService;
-  private readonly lanes: Lanes;
-
-  constructor(
-    identifyRequestClient: IdentifyRequestClientService,
-    lanes: Lanes,
-  ) {
-    this.identifyRequestClient = identifyRequestClient;
-    this.lanes = lanes;
+export class IdentifyRequestClientUseCase extends Context.Service<
+  IdentifyRequestClientUseCase,
+  {
+    readonly execute: (
+      input: IdentifyRequestClientInput,
+    ) => Effect.Effect<RequestClient, never>;
   }
+>()('@porcelain/server/IdentifyRequestClientUseCase') {
+  static readonly layer = Layer.effect(
+    IdentifyRequestClientUseCase,
+    Effect.gen(function* () {
+      const identifyRequestClientCapability =
+        yield* IdentifyRequestClientService;
+      const lanesCapability = yield* Lanes;
 
-  execute(
-    input: IdentifyRequestClientInput,
-    context: OperationContext,
-  ): Promise<RequestClient> {
-    return this.lanes.unqueued(
-      async () => this.identifyRequestClient.execute(input),
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('IdentifyRequestClientUseCase.execute')(function* (
+          input: IdentifyRequestClientInput,
+        ): Effect.fn.Return<RequestClient, never> {
+          return yield* lanesCapability.unqueued(() =>
+            Effect.gen(function* () {
+              return yield* identifyRequestClientCapability.execute(input);
+            }),
+          );
+        }),
+      };
+    }),
+  );
 }

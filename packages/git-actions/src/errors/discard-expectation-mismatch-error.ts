@@ -1,7 +1,10 @@
-export class DiscardExpectationMismatchError extends Error {
-  override readonly name = 'DiscardExpectationMismatchError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('A discard expects exactly the discarded path');
+export class DiscardExpectationMismatchError extends Schema.TaggedError<DiscardExpectationMismatchError>()(
+  'DiscardExpectationMismatchError',
+  {},
+) {
+  override get message() {
+    return 'A discard expects exactly the discarded path';
   }
 }

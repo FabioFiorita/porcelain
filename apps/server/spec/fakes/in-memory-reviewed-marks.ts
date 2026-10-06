@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { InvalidateReviewedMarksInput } from '@porcelain/reviews/models';
 import type { InvalidateReviewedMarksUseCasePort } from '../../src/ports/invalidate-reviewed-marks-use-case-port.ts';
 
@@ -18,14 +19,16 @@ export class InMemoryReviewedMarks implements InvalidateReviewedMarksUseCasePort
     this.settled = settled;
   }
 
-  async execute(input: InvalidateReviewedMarksInput): Promise<void> {
-    await this.settled;
-    const current = [...(this.marks.get(input.worktreeId) ?? [])];
-    const invalidated = new Set(input.paths ?? current);
-    this.marks.set(
-      input.worktreeId,
-      new Set(current.filter((path) => !invalidated.has(path))),
-    );
+  execute(input: InvalidateReviewedMarksInput): Effect.Effect<void> {
+    return Effect.gen({ self: this }, function* () {
+      yield* Effect.promise(() => this.settled);
+      const current = [...(this.marks.get(input.worktreeId) ?? [])];
+      const invalidated = new Set(input.paths ?? current);
+      this.marks.set(
+        input.worktreeId,
+        new Set(current.filter((path) => !invalidated.has(path))),
+      );
+    });
   }
 
   marksOf(worktreeId: string): string[] {

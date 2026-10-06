@@ -1,7 +1,10 @@
-export class UnbornBranchError extends Error {
-  override readonly name = 'UnbornBranchError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('The branch has no commits yet');
+export class UnbornBranchError extends Schema.TaggedError<UnbornBranchError>()(
+  'UnbornBranchError',
+  {},
+) {
+  override get message() {
+    return 'The branch has no commits yet';
   }
 }

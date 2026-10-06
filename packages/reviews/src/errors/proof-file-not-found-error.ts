@@ -1,7 +1,10 @@
-export class ProofFileNotFoundError extends Error {
-  override readonly name = 'ProofFileNotFoundError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Proof file not found');
+export class ProofFileNotFoundError extends Schema.TaggedError<ProofFileNotFoundError>()(
+  'ProofFileNotFoundError',
+  {},
+) {
+  override get message() {
+    return 'Proof file not found';
   }
 }

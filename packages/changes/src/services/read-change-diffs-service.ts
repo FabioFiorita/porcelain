@@ -1,33 +1,56 @@
+import { type GitIoFailure } from '@porcelain/git/errors';
+import { Effect, Context, Layer } from 'effect';
+import { type WorktreeRead } from '@porcelain/effects/worktree';
 import { IncompleteDiffReadError } from '../errors/incomplete-diff-read-error.ts';
-import type {
-  ReadChangeDiffsInput,
-  ReadChangeDiffsResult,
+import {
+  type ReadChangeDiffsInput,
+  type ReadChangeDiffsResult,
 } from '../models/read-change-diffs.ts';
-import type { ChangeDiffReader } from '../ports/change-diff-reader.ts';
+import { ChangeDiffReader } from '../ports/change-diff-reader.ts';
 
-export class ReadChangeDiffsService {
-  private readonly changeDiffReader: ChangeDiffReader;
-
-  constructor(changeDiffReader: ChangeDiffReader) {
-    this.changeDiffReader = changeDiffReader;
+export class ReadChangeDiffsService extends Context.Service<
+  ReadChangeDiffsService,
+  {
+    readonly execute: (
+      input: ReadChangeDiffsInput,
+    ) => Effect.Effect<
+      ReadChangeDiffsResult,
+      GitIoFailure | IncompleteDiffReadError,
+      WorktreeRead
+    >;
   }
+>()('@porcelain/changes/ReadChangeDiffsService') {
+  static readonly layer = Layer.effect(
+    ReadChangeDiffsService,
+    Effect.gen(function* () {
+      const changeDiffReaderCapability = yield* ChangeDiffReader;
 
-  async execute(
-    input: ReadChangeDiffsInput,
-    signal?: AbortSignal,
-  ): Promise<ReadChangeDiffsResult> {
-    const contents = await this.changeDiffReader.readDiffs(input, signal);
-    return input.comparisons.map((comparison, index) => {
-      const content = contents[index];
-      if (content === undefined) throw new IncompleteDiffReadError();
       return {
-        selection: {
-          scope: comparison.scope,
-          oldPath: comparison.oldPath,
-          newPath: comparison.newPath,
-        },
-        content,
+        execute: Effect.fn('ReadChangeDiffsService.execute')(function* (
+          input: ReadChangeDiffsInput,
+        ): Effect.fn.Return<
+          ReadChangeDiffsResult,
+          GitIoFailure | IncompleteDiffReadError,
+          WorktreeRead
+        > {
+          const contents = yield* changeDiffReaderCapability.readDiffs(input);
+          return yield* Effect.forEach(input.comparisons, (comparison, index) =>
+            Effect.gen(function* () {
+              const content = contents[index];
+              if (content === undefined)
+                return yield* Effect.fail(new IncompleteDiffReadError());
+              return {
+                selection: {
+                  scope: comparison.scope,
+                  oldPath: comparison.oldPath,
+                  newPath: comparison.newPath,
+                },
+                content,
+              };
+            }),
+          );
+        }),
       };
-    });
-  }
+    }),
+  );
 }

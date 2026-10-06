@@ -2,11 +2,13 @@ import { Component, type ReactNode, Suspense } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { reviewErrorMessage } from '../rules/review';
-import { useReviewReset } from '../queries/review-reset';
+import { reviewErrorMessage } from '@porcelain/client/reviews/rules';
+import { useRetryReview } from '../commands/read-retry';
+import type { Connection } from '@/shared/workspace/connection';
+import type { ReviewScope } from '@porcelain/client/reviews/rules';
 
 class ReviewErrorBoundary extends Component<
-  { children: ReactNode; reset: () => void },
+  { children: ReactNode; reset: (show: () => void) => void },
   { error: unknown }
 > {
   override state = { error: null };
@@ -24,8 +26,7 @@ class ReviewErrorBoundary extends Component<
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  this.props.reset();
-                  this.setState({ error: null });
+                  this.props.reset(() => this.setState({ error: null }));
                 }}
               >
                 Try again
@@ -37,8 +38,16 @@ class ReviewErrorBoundary extends Component<
     return this.props.children;
   }
 }
-export function ReviewBoundary({ children }: { children: ReactNode }) {
-  const { reset } = useReviewReset();
+export function ReviewBoundary({
+  children,
+  connection,
+  scope,
+}: {
+  children: ReactNode;
+  connection: Connection;
+  scope: ReviewScope;
+}) {
+  const reset = useRetryReview(connection, scope);
   return (
     <ReviewErrorBoundary reset={reset}>
       <Suspense

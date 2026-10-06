@@ -1,18 +1,35 @@
+import { Effect, Context, Layer } from 'effect';
 import { MissingEnvironmentIdentityError } from '../errors/missing-environment-identity-error.ts';
 import type { ReadEnvironmentResult } from '../models/read-environment.ts';
-import type { EnvironmentIdentityReader } from '../ports/environment-identity-reader.ts';
+import { EnvironmentIdentityReader } from '../ports/environment-identity-reader.ts';
 
-export class ReadEnvironmentService {
-  private readonly environmentIdentity: EnvironmentIdentityReader;
-
-  constructor(environmentIdentity: EnvironmentIdentityReader) {
-    this.environmentIdentity = environmentIdentity;
+export class ReadEnvironmentService extends Context.Service<
+  ReadEnvironmentService,
+  {
+    readonly execute: () => Effect.Effect<
+      ReadEnvironmentResult,
+      MissingEnvironmentIdentityError
+    >;
   }
+>()('@porcelain/access/ReadEnvironmentService') {
+  static readonly layer = Layer.effect(
+    ReadEnvironmentService,
+    Effect.gen(function* () {
+      const environmentIdentity = yield* EnvironmentIdentityReader;
 
-  execute(): ReadEnvironmentResult {
-    const environmentId = this.environmentIdentity.environmentId();
-    if (environmentId === undefined)
-      throw new MissingEnvironmentIdentityError();
-    return { environmentId };
-  }
+      return {
+        execute: Effect.fn('ReadEnvironmentService.execute')(
+          function* (): Effect.fn.Return<
+            ReadEnvironmentResult,
+            MissingEnvironmentIdentityError
+          > {
+            const environmentId = yield* environmentIdentity.environmentId();
+            if (environmentId === undefined)
+              return yield* Effect.fail(new MissingEnvironmentIdentityError());
+            return { environmentId };
+          },
+        ),
+      };
+    }),
+  );
 }

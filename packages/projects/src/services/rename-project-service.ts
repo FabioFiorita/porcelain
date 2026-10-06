@@ -1,24 +1,43 @@
+import { Effect, Context, Layer } from 'effect';
 import { ProjectNotFoundError } from '../errors/project-not-found-error.ts';
-import type {
-  RenameProjectInput,
-  RenameProjectResult,
+import {
+  type RenameProjectInput,
+  type RenameProjectResult,
 } from '../models/rename-project.ts';
-import type { InventoryStore } from '../ports/inventory-store.ts';
+import { InventoryStore } from '../ports/inventory-store.ts';
 
-export class RenameProjectService {
-  private readonly inventory: InventoryStore;
-
-  constructor(inventory: InventoryStore) {
-    this.inventory = inventory;
+export class RenameProjectService extends Context.Service<
+  RenameProjectService,
+  {
+    readonly execute: (
+      input: RenameProjectInput,
+    ) => Effect.Effect<RenameProjectResult, ProjectNotFoundError>;
   }
+>()('@porcelain/projects/RenameProjectService') {
+  static readonly layer = Layer.effect(
+    RenameProjectService,
+    Effect.gen(function* () {
+      const inventoryCapability = yield* InventoryStore;
 
-  execute(input: RenameProjectInput): RenameProjectResult {
-    const project = this.inventory.find({ projectId: input.projectId });
-    if (!project) throw new ProjectNotFoundError();
-    const renamed = { id: project.id, name: input.name };
-    if (project.namedByOwner && project.name === input.name)
-      return { project: renamed, changed: false };
-    this.inventory.save({ ...project, name: input.name, namedByOwner: true });
-    return { project: renamed, changed: true };
-  }
+      return {
+        execute: Effect.fn('RenameProjectService.execute')(function* (
+          input: RenameProjectInput,
+        ): Effect.fn.Return<RenameProjectResult, ProjectNotFoundError> {
+          const project = yield* inventoryCapability.find({
+            projectId: input.projectId,
+          });
+          if (!project) return yield* Effect.fail(new ProjectNotFoundError());
+          const renamed = { id: project.id, name: input.name };
+          if (project.namedByOwner && project.name === input.name)
+            return { project: renamed, changed: false };
+          yield* inventoryCapability.save({
+            ...project,
+            name: input.name,
+            namedByOwner: true,
+          });
+          return { project: renamed, changed: true };
+        }),
+      };
+    }),
+  );
 }

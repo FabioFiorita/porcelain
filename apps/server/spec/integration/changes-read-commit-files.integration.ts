@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { readCommitFilesResponseSchema } from '@porcelain/contracts/changes';
 import { expect } from 'vitest';
 import {
@@ -33,7 +34,11 @@ test('the files of a commit are compared with its first parent and include a ren
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readCommitFilesResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readCommitFilesResponseSchema),
+      ),
+    ),
   );
   expect(record(response.body).commit).toMatchObject({
     oid: state.rename,

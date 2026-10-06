@@ -1,6 +1,6 @@
 import type { GitActionIntent } from '../dtos/git-action.ts';
 import type { ActionRemote } from '../dtos/git-action-snapshot.ts';
-import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
+import { GitActionRejectedError } from '../../shared/errors/git-action-rejected-error.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { validateRemoteProfile } from '../parsers/validate-remote-profile.ts';
 import { readActionCommand } from './read-action-command.ts';

@@ -1,3 +1,11 @@
+import { Schema } from 'effect';
+export const expectedFileSchema = Schema.Struct({
+  path: Schema.mutableKey(Schema.String),
+  fingerprint: Schema.mutableKey(
+    Schema.Union([Schema.String, Schema.Undefined]),
+  ),
+});
+
 export type ChangeKind =
   | 'added'
   | 'modified'
@@ -47,7 +55,7 @@ export type FileChange = {
   comparisons: ChangeComparison[];
 };
 
-export type ExpectedFile = { path: string; fingerprint: string | undefined };
+export type ExpectedFile = typeof expectedFileSchema.Type;
 
 export type ComparisonSides = {
   oldPath?: string | undefined;

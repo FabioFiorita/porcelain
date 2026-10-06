@@ -1,29 +1,41 @@
-import type {
-  ListReviewedLayersInput,
-  ListReviewedLayersResult,
+import { Effect, Context, Layer } from 'effect';
+import {
+  type ListReviewedLayersInput,
+  type ListReviewedLayersResult,
 } from '../models/list-reviewed-layers.ts';
-import type { ReviewStore } from '../ports/review-store.ts';
-import type { ReviewedLayerStore } from '../ports/reviewed-layer-store.ts';
+import { ReviewStore } from '../ports/review-store.ts';
+import { ReviewedLayerStore } from '../ports/reviewed-layer-store.ts';
 import { reviewedLayerMarks } from '../rules/reviewed-marks.ts';
 
-export class ListReviewedLayersService {
-  private readonly reviews: ReviewStore;
-  private readonly reviewedLayers: ReviewedLayerStore;
-
-  constructor(reviews: ReviewStore, reviewedLayers: ReviewedLayerStore) {
-    this.reviews = reviews;
-    this.reviewedLayers = reviewedLayers;
+export class ListReviewedLayersService extends Context.Service<
+  ListReviewedLayersService,
+  {
+    readonly execute: (
+      input: ListReviewedLayersInput,
+    ) => Effect.Effect<ListReviewedLayersResult, never>;
   }
+>()('@porcelain/reviews/ListReviewedLayersService') {
+  static readonly layer = Layer.effect(
+    ListReviewedLayersService,
+    Effect.gen(function* () {
+      const reviewsCapability = yield* ReviewStore;
+      const reviewedLayersCapability = yield* ReviewedLayerStore;
 
-  execute(input: ListReviewedLayersInput): ListReviewedLayersResult {
-    const { worktreeId } = input;
-    return {
-      worktreeId,
-      marks: reviewedLayerMarks(
-        this.reviewedLayers.list({ worktreeId }),
-        this.reviews.read({ worktreeId })?.layers ?? [],
-        input.texts,
-      ),
-    };
-  }
+      return {
+        execute: Effect.fn('ListReviewedLayersService.execute')(function* (
+          input: ListReviewedLayersInput,
+        ): Effect.fn.Return<ListReviewedLayersResult, never> {
+          const { worktreeId } = input;
+          return {
+            worktreeId,
+            marks: reviewedLayerMarks(
+              yield* reviewedLayersCapability.list({ worktreeId }),
+              (yield* reviewsCapability.read({ worktreeId }))?.layers ?? [],
+              input.texts,
+            ),
+          };
+        }),
+      };
+    }),
+  );
 }

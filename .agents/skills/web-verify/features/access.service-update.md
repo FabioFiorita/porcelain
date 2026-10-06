@@ -55,6 +55,8 @@ None.
 - Server state read back by reload (step 5): the page reports 1.1.0 from `GET /api/service/update`.
 - `apps/web/spec/e2e/access-service-update.e2e.ts`: reads the offer from the server, sees "Porcelain <from>" and "Porcelain <to> is available.", clicks Update, sees Downloading/Installing progress, then the failure sentence and the server's reason; clicks again, sees progress, then "Updated from <from> to <to>. Reload to use the new version here.", "Porcelain <to>", "This is the newest version.", button "Reload", and `server.serviceUpdate().version` becomes `<to>`.
 
+- `packages/client/src/features/access/queries/share.spec.ts` proves that a failed read retains the confirmed running update, polling resumes after the failure, reads never overlap, and unmounting cancels the active request. It also covers the first restart read failing immediately after an accepted update.
+
 ## Gotchas
 
 - The scripted server has exactly two attempts and keeps the result for the instance's life: after step 4 the offer is gone (1.1.0 is newest). To drive it again, `$C stop` and `$C start`.

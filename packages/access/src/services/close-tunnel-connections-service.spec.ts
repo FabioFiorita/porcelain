@@ -1,3 +1,9 @@
+import {
+  RemoteAccessStore,
+  RouteStateStore,
+  TunnelConnectionStore,
+} from '@porcelain/access/ports';
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type {
   RemoteAccessSettings,
@@ -10,40 +16,51 @@ import { CloseTunnelConnectionsService } from './close-tunnel-connections-servic
 
 const tunnelHost = 'porcelain.example.com';
 
-function answeredAfter(
+async function answeredAfter(
   change: Partial<RemoteAccessSettings>,
   cloudflare: RouteState = { kind: 'on', urls: [] },
 ) {
   const settings = new InMemoryRemoteAccessStore();
-  settings.save({
-    lan: false,
-    tailnet: false,
-    cloudflare: true,
-    cloudflareHostname: tunnelHost,
-    ...change,
-  });
+  await Effect.runPromise(
+    settings.save({
+      lan: false,
+      tailnet: false,
+      cloudflare: true,
+      cloudflareHostname: tunnelHost,
+      ...change,
+    }),
+  );
   const routes = new InMemoryRouteStateStore();
   routes.save({
     states: { lan: { kind: 'off' }, tailnet: { kind: 'off' }, cloudflare },
     origins: [],
   });
   const connections = new RecordingTunnelConnectionStore();
-  new CloseTunnelConnectionsService(settings, routes, connections).execute();
+  Effect.runSync(
+    Effect.runSync(
+      CloseTunnelConnectionsService.pipe(
+        Effect.provide(CloseTunnelConnectionsService.layer),
+        Effect.provideService(RemoteAccessStore, settings),
+        Effect.provideService(RouteStateStore, routes),
+        Effect.provideService(TunnelConnectionStore, connections),
+      ),
+    ).execute(),
+  );
   return connections.retained();
 }
 
 describe('CloseTunnelConnectionsService', () => {
-  it('keeps the connections that came through the tunnel hostname while Cloudflare is on', () => {
-    expect(answeredAfter({})).toEqual([[tunnelHost]]);
+  it('keeps the connections that came through the tunnel hostname while Cloudflare is on', async () => {
+    expect(await answeredAfter({})).toEqual([[tunnelHost]]);
   });
 
-  it('closes every tunnel connection once Cloudflare is turned off', () => {
-    expect(answeredAfter({ cloudflare: false })).toEqual([[]]);
+  it('closes every tunnel connection once Cloudflare is turned off', async () => {
+    expect(await answeredAfter({ cloudflare: false })).toEqual([[]]);
   });
 
-  it('closes the connections of the old hostname once the tunnel serves another', () => {
+  it('closes the connections of the old hostname once the tunnel serves another', async () => {
     expect(
-      answeredAfter(
+      await answeredAfter(
         { cloudflareHostname: 'porcelain.example.org' },
         {
           kind: 'starting',
@@ -52,15 +69,15 @@ describe('CloseTunnelConnectionsService', () => {
     ).toEqual([['porcelain.example.org']]);
   });
 
-  it('closes the tunnel connections once another server answers at the hostname', () => {
+  it('closes the tunnel connections once another server answers at the hostname', async () => {
     expect(
-      answeredAfter({}, { kind: 'failed', reason: 'other-server' }),
+      await answeredAfter({}, { kind: 'failed', reason: 'other-server' }),
     ).toEqual([[]]);
   });
 
-  it('keeps them while nothing answers at the hostname yet', () => {
+  it('keeps them while nothing answers at the hostname yet', async () => {
     expect(
-      answeredAfter({}, { kind: 'failed', reason: 'unreachable' }),
+      await answeredAfter({}, { kind: 'failed', reason: 'unreachable' }),
     ).toEqual([[tunnelHost]]);
   });
 });

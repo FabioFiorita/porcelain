@@ -1,132 +1,81 @@
-import type {
+import { type MissingEnvironmentIdentityError } from '@porcelain/access/errors';
+import { Context, Effect, Layer } from 'effect';
+import {
   ReadEnvironmentNameService,
   ReadEnvironmentService,
 } from '@porcelain/access/services';
-import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
-import type { ReviewBadges } from '@porcelain/kernel/models';
-import type { ProjectWorktrees } from '@porcelain/projects/models';
-import type {
+import { type ReadInventoryResponse } from '@porcelain/contracts/projects';
+import {
   ListKnownWorktreesService,
   ListRegisteredProjectsService,
 } from '@porcelain/projects/services';
-import type { ReadTextFilesService } from '@porcelain/files/services';
-import type { ReviewTexts } from '@porcelain/reviews/models';
-import type {
-  ListReviewedLayerPathsService,
-  ReadReviewBadgesService,
-} from '@porcelain/reviews/services';
 import { inventoryReport } from '@porcelain/projects/rules';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { ReadInventoryBadgesUseCasePort } from '../../ports/read-inventory-badges-use-case-port.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class ReadInventoryUseCase {
-  private readonly listRegisteredProjects: ListRegisteredProjectsService;
-  private readonly listKnownWorktrees: ListKnownWorktreesService;
-  private readonly readWorktreeStatuses: ReadReviewBadgesService;
-  private readonly listReviewedLayerPaths: ListReviewedLayerPathsService;
-  private readonly readTextFiles: ReadTextFilesService;
-  private readonly readEnvironment: ReadEnvironmentService;
-  private readonly readEnvironmentName: ReadEnvironmentNameService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    listRegisteredProjects: ListRegisteredProjectsService,
-    listKnownWorktrees: ListKnownWorktreesService,
-    readWorktreeStatuses: ReadReviewBadgesService,
-    listReviewedLayerPaths: ListReviewedLayerPathsService,
-    readTextFiles: ReadTextFilesService,
-    readEnvironment: ReadEnvironmentService,
-    readEnvironmentName: ReadEnvironmentNameService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.listRegisteredProjects = listRegisteredProjects;
-    this.listKnownWorktrees = listKnownWorktrees;
-    this.readWorktreeStatuses = readWorktreeStatuses;
-    this.listReviewedLayerPaths = listReviewedLayerPaths;
-    this.readTextFiles = readTextFiles;
-    this.readEnvironment = readEnvironment;
-    this.readEnvironmentName = readEnvironmentName;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class ReadInventoryUseCase extends Context.Service<
+  ReadInventoryUseCase,
+  {
+    readonly execute: () => Effect.Effect<
+      ReadInventoryResponse,
+      MissingEnvironmentIdentityError
+    >;
   }
+>()('@porcelain/server/ReadInventoryUseCase') {
+  static readonly layer = Layer.effect(
+    ReadInventoryUseCase,
+    Effect.gen(function* () {
+      const listRegisteredProjectsCapability =
+        yield* ListRegisteredProjectsService;
+      const listKnownWorktreesCapability = yield* ListKnownWorktreesService;
+      const readBadgesCapability = yield* ReadInventoryBadgesUseCasePort;
+      const readEnvironmentCapability = yield* ReadEnvironmentService;
+      const readEnvironmentNameCapability = yield* ReadEnvironmentNameService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
 
-  async execute(context: OperationContext): Promise<ReadInventoryResponse> {
-    const { inventory, listings } = await this.lanes.run(
-      this.laneKeys.inventory(),
-      'read',
-      async () => {
-        const registered = this.listRegisteredProjects.execute();
-        return {
-          inventory: registered,
-          listings: this.listKnownWorktrees.execute(registered).listings,
-        };
-      },
-      { callerSignal: context.signal },
-    );
-    const statuses = await this.reviewBadges(listings, context);
-    const { environmentId, environment } = await this.lanes.run(
-      this.laneKeys.access(),
-      'read',
-      async () => ({
-        environmentId: this.readEnvironment.execute().environmentId,
-        environment: this.readEnvironmentName.execute(),
-      }),
-      { callerSignal: context.signal },
-    );
-    return {
-      ...inventoryReport(environmentId, inventory, listings, statuses),
-      environment,
-    };
-  }
-
-  private async reviewBadges(
-    listings: readonly ProjectWorktrees[],
-    context: OperationContext,
-  ): Promise<ReviewBadges> {
-    const badges = await Promise.all(
-      listings.flatMap(({ worktrees }) => {
-        const [first] = worktrees;
-        return first
-          ? [
-              this.lanes.run(
-                this.laneKeys.reviews(first),
-                'read',
-                async ({ signal }) => {
-                  const worktreeIds = worktrees.map((worktree) => worktree.id);
-                  const texts = new Map(
-                    await Promise.all(
-                      worktreeIds.map(
-                        async (worktreeId): Promise<[string, ReviewTexts]> => [
-                          worktreeId,
-                          (
-                            await this.readTextFiles.execute(
-                              {
-                                worktreeId,
-                                paths: this.listReviewedLayerPaths.execute({
-                                  worktreeId,
-                                }).paths,
-                              },
-                              signal,
-                            )
-                          ).texts,
-                        ],
-                      ),
-                    ),
-                  );
-                  return this.readWorktreeStatuses.execute({
-                    worktreeIds,
-                    texts,
-                  }).statuses;
-                },
-                { callerSignal: context.signal },
-              ),
-            ]
-          : [];
-      }),
-    );
-    return new Map(badges.flatMap((statuses) => [...statuses]));
-  }
+      return {
+        execute: Effect.fn('ReadInventoryUseCase.execute')(
+          function* (): Effect.fn.Return<
+            ReadInventoryResponse,
+            MissingEnvironmentIdentityError
+          > {
+            const { inventory, listings } = yield* lanesCapability.run(
+              laneKeysCapability.inventory(),
+              'read',
+              () =>
+                Effect.gen(function* () {
+                  const inventory =
+                    yield* listRegisteredProjectsCapability.execute();
+                  return {
+                    inventory,
+                    listings: (yield* listKnownWorktreesCapability.execute(
+                      inventory,
+                    )).listings,
+                  };
+                }),
+            );
+            const statuses = yield* readBadgesCapability.execute({ listings });
+            const { environmentId, environment } = yield* lanesCapability.run(
+              laneKeysCapability.access(),
+              'read',
+              () =>
+                Effect.gen(function* () {
+                  return {
+                    environmentId: (yield* readEnvironmentCapability.execute())
+                      .environmentId,
+                    environment: yield* readEnvironmentNameCapability.execute(),
+                  };
+                }),
+            );
+            return {
+              ...inventoryReport(environmentId, inventory, listings, statuses),
+              environment,
+            };
+          },
+        ),
+      };
+    }),
+  );
 }

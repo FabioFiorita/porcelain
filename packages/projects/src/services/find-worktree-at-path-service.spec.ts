@@ -1,6 +1,7 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { NoWorktreeAtPathError } from '@porcelain/projects/errors';
-import type { ProjectWorktrees } from '@porcelain/projects/models';
+import { type ProjectWorktrees } from '@porcelain/projects/models';
 import { FindWorktreeAtPathService } from './find-worktree-at-path-service.ts';
 
 const listings: ProjectWorktrees[] = [
@@ -24,18 +25,24 @@ const listings: ProjectWorktrees[] = [
     ],
   },
 ];
-const service = new FindWorktreeAtPathService();
+const service = Effect.runSync(
+  FindWorktreeAtPathService.pipe(
+    Effect.provide(FindWorktreeAtPathService.layer),
+  ),
+);
 
 describe('FindWorktreeAtPathService', () => {
   it('answers the worktree whose folder holds the path', () => {
     expect(
-      service.execute({ path: '/code/app/src/index.ts', listings }),
+      Effect.runSync(
+        service.execute({ path: '/code/app/src/index.ts', listings }),
+      ),
     ).toEqual({ worktreeId: 'app' });
   });
 
   it('refuses a path outside every known worktree', () => {
     expect(() =>
-      service.execute({ path: '/code/application', listings }),
+      Effect.runSync(service.execute({ path: '/code/application', listings })),
     ).toThrow(NoWorktreeAtPathError);
   });
 });

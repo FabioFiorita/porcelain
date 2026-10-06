@@ -1,9 +1,10 @@
-export class CommitToolFailedError extends Error {
-  override readonly name = 'CommitToolFailedError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super(
-      'Commit generation failed. Check that the selected CLI is up to date and signed in.',
-    );
+export class CommitToolFailedError extends Schema.TaggedError<CommitToolFailedError>()(
+  'CommitToolFailedError',
+  {},
+) {
+  override get message() {
+    return 'Commit generation failed. Check that the selected CLI is up to date and signed in.';
   }
 }

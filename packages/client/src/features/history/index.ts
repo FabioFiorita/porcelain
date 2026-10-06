@@ -1,2 +1,6 @@
-export { commitQueryOptions } from './queries/commit.ts';
-export { historyQueryOptions } from './queries/history.ts';
+export {
+  readHistory,
+  readHistoryWindow,
+  readCommit,
+  readFileTimeline,
+} from './queries/history.ts';

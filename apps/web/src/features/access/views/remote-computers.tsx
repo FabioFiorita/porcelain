@@ -1,3 +1,9 @@
+import { Cause } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
+import {
+  remoteStatusNote,
+  remoteStatusText,
+} from '@porcelain/client/access/rules';
 import {
   KeyRoundIcon,
   MonitorIcon,
@@ -28,20 +34,20 @@ import {
   ItemTitle,
 } from '@/components/ui/item';
 import { submitForm } from '@/shared/lib/submit-form';
-import { useAddRemote, useForgetRemote } from '../commands/remotes';
-import { useRemoteStatus } from '../queries/remotes';
-import { connectionErrorMessage } from '../rules/connection-error-message';
 import {
-  remoteStatusNote,
-  remoteStatusText,
-  remoteStatusVariant,
-  type Remote,
-} from '../rules/remotes';
-import { useRemotesStore } from '../store';
+  useAddRemote,
+  useForgetRemote,
+  useReadSavedEnvironments,
+} from '../commands/remotes';
+import { useRemoteStatus } from '../queries/remotes';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
+import { remoteStatusVariant } from '../rules/remotes';
+import { type Remote } from '@porcelain/client/access/rules';
+import { useSavedEnvironments } from '../store';
 
 function RemoteRow({ remote }: { remote: Remote }) {
   const status = useRemoteStatus(remote);
-  const forget = useForgetRemote();
+  const forget = useForgetRemote(remote);
   const note = remoteStatusNote(status);
   const name = status.kind === 'online' ? status.name : remote.name;
   return (
@@ -66,16 +72,18 @@ function RemoteRow({ remote }: { remote: Remote }) {
           variant="ghost"
           size="icon-sm"
           aria-label={`Remove ${name}`}
-          disabled={forget.isPending}
-          onClick={() => forget.onSubmit(remote)}
+          disabled={forget.result.waiting}
+          onClick={() => forget.submit()}
         >
           <Trash2Icon />
         </Button>
       </ItemActions>
-      {(note || forget.error) && (
+      {(note || AsyncResult.isFailure(forget.result)) && (
         <ItemFooter>
           <ItemDescription>
-            {forget.error ? connectionErrorMessage(forget.error) : note}
+            {AsyncResult.isFailure(forget.result)
+              ? connectionErrorMessage(Cause.squash(forget.result.cause))
+              : note}
           </ItemDescription>
         </ItemFooter>
       )}
@@ -85,7 +93,8 @@ function RemoteRow({ remote }: { remote: Remote }) {
 
 function AddRemote() {
   const [link, setLink] = useState('');
-  const add = useAddRemote();
+  const add = useAddRemote(() => setLink(''));
+  const { status } = useSavedEnvironments();
   return (
     <Item variant="outline">
       <ItemContent>
@@ -95,17 +104,13 @@ function AddRemote() {
         </ItemDescription>
         <form
           className="flex flex-col gap-2 sm:flex-row"
-          onSubmit={(event) =>
-            submitForm(event, () =>
-              add.submit(link, { onSuccess: () => setLink('') }),
-            )
-          }
+          onSubmit={(event) => submitForm(event, () => add.submit(link))}
         >
           <Input
             aria-label="Pairing link"
             placeholder="http://192.168.1.20:4738/pair#c=…"
             value={link}
-            disabled={add.isPending}
+            disabled={add.result.waiting || status !== 'ready'}
             onChange={(event) => {
               add.reset();
               setLink(event.target.value);
@@ -114,15 +119,17 @@ function AddRemote() {
           <Button
             type="submit"
             className="shrink-0"
-            disabled={add.isPending || link.trim() === ''}
+            disabled={
+              add.result.waiting || status !== 'ready' || link.trim() === ''
+            }
           >
-            {add.isPending ? 'Pairing…' : 'Add'}
+            {add.result.waiting ? 'Pairing…' : 'Add'}
           </Button>
         </form>
-        {add.error && (
+        {AsyncResult.isFailure(add.result) && (
           <Alert variant="destructive">
             <AlertDescription>
-              {connectionErrorMessage(add.error)}
+              {connectionErrorMessage(Cause.squash(add.result.cause))}
             </AlertDescription>
           </Alert>
         )}
@@ -132,8 +139,8 @@ function AddRemote() {
 }
 
 export function RemoteComputers() {
-  const remotes = useRemotesStore((state) => state.remotes);
-  const unreadable = useRemotesStore((state) => state.unreadable);
+  const { remotes, error: unreadable } = useSavedEnvironments();
+  const restore = useReadSavedEnvironments();
   return (
     <>
       {unreadable !== undefined && (
@@ -142,8 +149,15 @@ export function RemoteComputers() {
           <AlertTitle>Saved remote computers could not be read</AlertTitle>
           <AlertDescription>
             Porcelain keeps them as they are and saves no change over them.
-            Allow Porcelain to use its Keychain item, then reopen the app. A
-            computer added now lasts until the app quits. {unreadable}
+            Allow Porcelain to read its saved credentials, then try again.{' '}
+            {unreadable}
+            <Button
+              variant="outline"
+              disabled={restore.result.waiting}
+              onClick={() => restore.read()}
+            >
+              Read saved environments
+            </Button>
           </AlertDescription>
         </Alert>
       )}

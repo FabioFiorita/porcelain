@@ -1,8 +1,10 @@
 import { deepStrictEqual, strictEqual } from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
   mkdtempSync,
   rmSync,
+  symlinkSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -11,10 +13,73 @@ import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { domainPackages } from './policy.ts';
 import { typeRuleFindings } from './type-rules.ts';
+import { knipFindings } from './knip.ts';
 import { duplicateScope, scanDuplicates } from './duplicate-policy.ts';
 import { selectorAppears } from './feature-selectors.ts';
 import { guardrailCases } from './rule-cases.mjs';
 import { apiCalls, sameRoute } from '../scripts/api-calls.ts';
+
+function nativeTypeFixture(source) {
+  const root = mkdtempSync(join(tmpdir(), 'porcelain-effect-types-'));
+  const repository = fileURLToPath(new URL('../', import.meta.url));
+  try {
+    symlinkSync(
+      join(repository, 'node_modules'),
+      join(root, 'node_modules'),
+      'dir',
+    );
+    writeFiles(root, {
+      'package.json': '{"type":"module"}',
+      'fixture.ts': Object.entries({
+        __ADMISSION__: 'packages/effects/src/worktree-lease.ts',
+        __LANES__: 'apps/server/src/runtime/lanes.ts',
+        __REVIEW_SERVICES__: 'packages/reviews/src/services/index.ts',
+        __REVIEW_MODELS__: 'packages/reviews/src/models/index.ts',
+        __CLIENT_ACCESS__: 'packages/client/src/features/access/store.ts',
+        __CLIENT_SESSION__:
+          'packages/client/src/features/access/store/session.ts',
+        __CLIENT_FACTORY__:
+          'packages/client/src/features/access/ports/connection-factory.ts',
+        __CLIENT_REMOTE_CONNECTIONS__:
+          'packages/client/src/features/access/store/remote-connections.ts',
+        __CLIENT_SELECTION__: 'packages/client/src/features/projects/store.ts',
+        __CLIENT_QUEUES__: 'packages/client/src/shared/api/write-queue.ts',
+        __CLIENT_OPERATIONS__:
+          'packages/client/src/features/git-actions/ports/operation-store.ts',
+        __CLIENT_OPERATION_LAYER__:
+          'packages/client/src/features/git-actions/store/operations.ts',
+        __PROCESS_COMMAND__: 'packages/process/src/commands/run-command.ts',
+        __COMMIT_PLANNING__: 'packages/agents/src/commit-planning/index.ts',
+      }).reduce(
+        (text, [key, path]) => text.replaceAll(key, join(repository, path)),
+        source,
+      ),
+      'tsconfig.json': JSON.stringify({
+        extends: join(repository, 'tsconfig.json'),
+        include: ['fixture.ts'],
+      }),
+    });
+    const checked = spawnSync(
+      join(repository, 'node_modules/.bin/tsc'),
+      ['--pretty', 'false', '-p', join(root, 'tsconfig.json')],
+      { encoding: 'utf8' },
+    );
+    if (checked.error) throw checked.error;
+    const output = checked.stdout + checked.stderr;
+    const errors = [
+      ...output.matchAll(/fixture\.ts\(\d+,\d+\): error (TS\d+):/g),
+    ].map((match) => match[1]);
+    strictEqual(checked.status === 0, errors.length === 0, output);
+    strictEqual(
+      [...output.matchAll(/error TS\d+:/g)].length,
+      errors.length,
+      output,
+    );
+    return errors;
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
 
 function writeFiles(root, files) {
   for (const [name, source] of Object.entries(files)) {
@@ -27,6 +92,11 @@ function writeFiles(root, files) {
 function typeFixture(files) {
   const root = mkdtempSync(join(tmpdir(), 'porcelain-type-rules-'));
   try {
+    symlinkSync(
+      fileURLToPath(new URL('../node_modules', import.meta.url)),
+      join(root, 'node_modules'),
+      'dir',
+    );
     for (const name of [...domainPackages, 'kernel'])
       writeFiles(root, {
         [`packages/${name}/tsconfig.json`]: JSON.stringify({
@@ -62,20 +132,24 @@ function clientRoutesFixture(entry, source) {
     writeFiles(root, { ...entry.files, [entry.app]: source });
     const report = apiCalls(
       root,
-      ['packages/client/src'],
-      [/^packages\/client\/src\/features\/[^/]+\/api\.ts$/],
+      ['packages/client/src', dirname(entry.app)],
+      [
+        /^packages\/client\/src\/features\/[^/]+\/(?:api\.ts|(?:queries|commands)\/[^/]+\.ts)$/,
+      ],
       [dirname(entry.app)],
     );
-    deepStrictEqual(report.problems, []);
     for (const route of entry.mapped)
       strictEqual(
         report.calls.some((call) => sameRoute(route, call)),
         true,
-        route,
+        `${route}\n${source}`,
       );
-    return report.calls
-      .filter((call) => !entry.mapped.some((route) => sameRoute(route, call)))
-      .map((call) => `${call.method} ${call.path}`);
+    return [
+      ...report.calls
+        .filter((call) => !entry.mapped.some((route) => sameRoute(route, call)))
+        .map((call) => `${call.method} ${call.path}`),
+      ...report.problems.map((problem) => problem.replace(/^[^:]+:\d+: /, '')),
+    ];
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -149,6 +223,23 @@ function duplicateRatchetFixture(entry) {
   }
 }
 
+function knipFixture(files) {
+  const root = mkdtempSync(join(tmpdir(), 'porcelain-knip-'));
+  try {
+    symlinkSync(
+      fileURLToPath(new URL('../node_modules', import.meta.url)),
+      join(root, 'node_modules'),
+      'dir',
+    );
+    writeFiles(root, files);
+    return knipFindings(root)
+      .map(({ rule, from, to }) => `${rule}: ${from}: ${to.split(':')[0]}`)
+      .sort();
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 export function runGuardrailCases(named = []) {
   const cases = guardrailCases.filter(
     (entry) => named.length === 0 || named.includes(entry.rule),
@@ -159,7 +250,36 @@ export function runGuardrailCases(named = []) {
     'Name an existing guardrail fixture rule.',
   );
   for (const entry of cases) {
-    if (entry.rule === 'client-route-reachability') {
+    if (
+      [
+        'worktree-capability-types',
+        'native-transport-types',
+        'native-client-state-types',
+        'native-process-types',
+        'native-agent-types',
+        'native-effect-diagnostics',
+        'review-draft-types',
+        'worktree-transaction-types',
+      ].includes(entry.rule)
+    ) {
+      deepStrictEqual(nativeTypeFixture(entry.valid), [], entry.rule);
+      deepStrictEqual(
+        nativeTypeFixture(entry.invalid),
+        entry.errors,
+        entry.rule,
+      );
+    } else if (['unused-export', 'unused-dependency'].includes(entry.rule)) {
+      deepStrictEqual(
+        knipFixture({ ...entry.files, ...entry.valid }),
+        [],
+        entry.rule,
+      );
+      deepStrictEqual(
+        knipFixture({ ...entry.files, ...entry.invalid }),
+        entry.errors,
+        entry.rule,
+      );
+    } else if (entry.rule === 'client-route-reachability') {
       deepStrictEqual(clientRoutesFixture(entry, entry.valid), [], entry.valid);
       deepStrictEqual(
         clientRoutesFixture(entry, entry.invalid),

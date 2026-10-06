@@ -9,14 +9,19 @@ import ruleCases, {
   scriptCases,
   scriptEvasions,
   proseCases,
+  externalCases,
 } from './rule-cases.mjs';
 import { unownedProse } from './prose-policy.ts';
-import { scriptInvokes } from './script-policy.ts';
+import {
+  scriptInvokes,
+  localCheckCommand,
+  localCheckMatches,
+} from './script-policy.ts';
 import { architectureLines } from './guardrail-budget.ts';
 import { readFileSync } from 'node:fs';
 import { manualAuditProblems } from './ci-policy.ts';
 import { preflightEdits } from './probe-edits.ts';
-import { classify, violation } from './policy.ts';
+import { classify, violation, forbiddenExternal } from './policy.ts';
 import {
   mobileGeneratedTypesValid,
   mobileMetroValid,
@@ -25,6 +30,10 @@ import {
   themeTokensValid,
 } from './theme-policy.ts';
 
+for (const entry of externalCases) {
+  deepStrictEqual(forbiddenExternal(entry.role, entry.valid), false);
+  deepStrictEqual(forbiddenExternal(entry.role, entry.invalid), true);
+}
 for (const entry of scriptCases) {
   deepStrictEqual(
     scriptInvokes(entry.valid, entry.required, entry.folder),
@@ -55,6 +64,17 @@ deepStrictEqual(
   true,
 );
 deepStrictEqual(architectureLines(['', 'one', 'two\n', 'three\nfour']), 4);
+
+deepStrictEqual(localCheckMatches(localCheckCommand), true);
+for (const invalid of [
+  'pnpm check',
+  `${localCheckCommand} test`,
+  `${localCheckCommand} && vitest run`,
+  `${localCheckCommand} --dry-run`,
+  localCheckCommand.replace('arch:check ', ''),
+  localCheckCommand.replace('--concurrency=2', '--concurrency=100%'),
+])
+  deepStrictEqual(localCheckMatches(invalid), false, invalid);
 
 const root = new URL('../', import.meta.url);
 function requireReason(message) {
@@ -89,6 +109,7 @@ function checkMessageSource(node) {
 }
 for (const path of [
   'architecture/oxlint-plugin.mjs',
+  'architecture/native-http-rules.mjs',
   'architecture/web-rules.mjs',
   'architecture/mobile-rules.mjs',
   'architecture/hollow-tests.mjs',
@@ -274,10 +295,13 @@ deepStrictEqual(classify('packages/client/src/shared/api/request.ts'), {
   role: 'web-shared',
   owner: 'client',
 });
-deepStrictEqual(classify('packages/client/src/shared/api/request.spec.ts'), {
-  role: 'client-transport-spec',
-  owner: 'client',
-});
+deepStrictEqual(
+  classify('packages/client/src/shared/api/effect-client.spec.ts'),
+  {
+    role: 'client-transport-spec',
+    owner: 'client',
+  },
+);
 deepStrictEqual(
   classify('packages/client/src/shared/api/nested/request.ts'),
   undefined,
@@ -363,31 +387,25 @@ deepStrictEqual(
   ),
   'client-public-api-only',
 );
-deepStrictEqual(
-  classify('packages/client/spec/integration/files.integration.ts'),
-  {
-    role: 'client-integration-test',
-    owner: 'client',
-  },
-);
-deepStrictEqual(classify('packages/client/spec/kit/connection.ts'), {
-  role: 'client-test-kit',
-  owner: 'client',
-});
-deepStrictEqual(
-  violation(
-    { role: 'client-integration-test', owner: 'client' },
-    { role: 'server-kit', owner: 'server' },
-  ),
-  undefined,
-);
-deepStrictEqual(
-  violation(
-    { role: 'client-integration-test', owner: 'client' },
-    { role: 'bootstrap', owner: 'server' },
-  ),
-  'client-imports-client-and-contracts-only',
-);
+for (const [path, role] of [
+  [
+    'packages/client/spec/integration/files.integration.ts',
+    'client-integration-test',
+  ],
+  ['packages/client/spec/kit/connection.ts', 'client-test-kit'],
+])
+  deepStrictEqual(classify(path), { role, owner: 'client' });
+for (const [role, expected] of [
+  ['server-kit', undefined],
+  ['bootstrap', 'client-imports-client-and-contracts-only'],
+])
+  deepStrictEqual(
+    violation(
+      { role: 'client-integration-test', owner: 'client' },
+      { role, owner: 'server' },
+    ),
+    expected,
+  );
 deepStrictEqual(
   violation(
     { role: 'query', owner: 'client' },
@@ -655,7 +673,7 @@ for (const role of ['query', 'command']) {
 }
 deepStrictEqual(
   violation({ role: 'store', owner: 'web' }, { role: 'adapter', owner: 'web' }),
-  'store-cannot-import-adapter',
+  undefined,
 );
 process.stdout.write(
   'PASS native platform composition and shared state boundaries\n',
@@ -774,6 +792,16 @@ deepStrictEqual(
   ),
   undefined,
 );
+for (const owner of ['kernel', 'git', 'projects', 'reviews', 'access'])
+  deepStrictEqual(
+    violation(
+      { role: 'gateway', owner: 'server' },
+      { role: 'error-api', owner },
+    ),
+    ['kernel', 'git'].includes(owner)
+      ? undefined
+      : 'gateway-cannot-import-error-api',
+  );
 deepStrictEqual(
   violation(
     { role: 'client-transport-spec', owner: 'client' },

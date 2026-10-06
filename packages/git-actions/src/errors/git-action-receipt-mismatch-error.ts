@@ -1,7 +1,10 @@
-export class GitActionReceiptMismatchError extends Error {
-  override readonly name = 'GitActionReceiptMismatchError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Git action receipt does not match this request');
+export class GitActionReceiptMismatchError extends Schema.TaggedError<GitActionReceiptMismatchError>()(
+  'GitActionReceiptMismatchError',
+  {},
+) {
+  override get message() {
+    return 'Git action receipt does not match this request';
   }
 }

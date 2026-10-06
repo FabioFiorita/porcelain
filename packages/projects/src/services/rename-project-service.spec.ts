@@ -1,6 +1,8 @@
+import { InventoryStore } from '@porcelain/projects/ports';
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { ProjectNotFoundError } from '@porcelain/projects/errors';
-import type { RegisteredProject } from '@porcelain/projects/models';
+import { type RegisteredProject } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { RenameProjectService } from './rename-project-service.ts';
 
@@ -16,51 +18,67 @@ const project: RegisteredProject = {
 
 function setup() {
   const inventory = new InMemoryInventoryStore([project]);
-  return { inventory, service: new RenameProjectService(inventory) };
+  return {
+    inventory,
+    service: Effect.runSync(
+      RenameProjectService.pipe(
+        Effect.provide(RenameProjectService.layer),
+        Effect.provideService(InventoryStore, inventory),
+      ),
+    ),
+  };
 }
 
 describe('RenameProjectService', () => {
   it('answers the project under its new name', () => {
     const { service } = setup();
-    expect(service.execute({ projectId: project.id, name: 'Billing' })).toEqual(
-      {
-        project: { id: project.id, name: 'Billing' },
-        changed: true,
-      },
-    );
+    expect(
+      Effect.runSync(
+        service.execute({ projectId: project.id, name: 'Billing' }),
+      ),
+    ).toEqual({
+      project: { id: project.id, name: 'Billing' },
+      changed: true,
+    });
   });
 
   it('reports no change when the owner gives the name the project already has', () => {
     const { service } = setup();
-    service.execute({ projectId: project.id, name: 'Billing' });
+    Effect.runSync(service.execute({ projectId: project.id, name: 'Billing' }));
     expect(
-      service.execute({ projectId: project.id, name: 'Billing' }).changed,
+      Effect.runSync(
+        service.execute({ projectId: project.id, name: 'Billing' }),
+      ).changed,
     ).toBe(false);
   });
 
-  it('reports a change when the owner confirms a derived name as their own', () => {
+  it('reports a change when the owner confirms a derived name as their own', async () => {
     const { inventory, service } = setup();
     expect(
-      service.execute({ projectId: project.id, name: project.name }).changed,
+      Effect.runSync(
+        service.execute({ projectId: project.id, name: project.name }),
+      ).changed,
     ).toBe(true);
-    expect(inventory.read().projects).toEqual([
+    expect((await Effect.runPromise(inventory.read())).projects).toEqual([
       { ...project, namedByOwner: true },
     ]);
   });
 
-  it("stores the name as the owner's own, changing nothing else", () => {
+  it("stores the name as the owner's own, changing nothing else", async () => {
     const { inventory, service } = setup();
-    service.execute({ projectId: project.id, name: 'Billing' });
-    expect(inventory.read().projects).toEqual([
+    Effect.runSync(service.execute({ projectId: project.id, name: 'Billing' }));
+    expect((await Effect.runPromise(inventory.read())).projects).toEqual([
       { ...project, name: 'Billing', namedByOwner: true },
     ]);
   });
 
-  it('refuses a project that is not registered', () => {
+  it('refuses a project that is not registered', async () => {
     const { inventory, service } = setup();
-    expect(() => service.execute({ projectId: 'unknown', name: 'x' })).toThrow(
-      ProjectNotFoundError,
-    );
-    expect(inventory.read().projects).toEqual([project]);
+    expect(() =>
+      Effect.runSync(service.execute({ projectId: 'unknown', name: 'x' })),
+    ).toThrow(ProjectNotFoundError);
+    expect((await Effect.runPromise(inventory.read())).projects).toEqual([
+      project,
+    ]);
   });
 });

@@ -1,7 +1,9 @@
+import { Cause, Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { assetUrl } from '@/features/files/rules/html-assets';
-import type { FilesScope } from '../rules/scope';
+import type { FilesScope } from '@porcelain/client/files/rules';
 import { useAsset } from '@/features/files/queries/preview-assets';
-import { fileErrorMessage } from '../rules/error-message';
+import { fileErrorMessage } from '@porcelain/client/files/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function ImagePreview({
@@ -16,13 +18,13 @@ export function ImagePreview({
   const query = useAsset(connection, scope, path);
   return (
     <div className="flex w-full flex-col items-center gap-2 p-4">
-      {query.isPending ? (
+      {AsyncResult.isInitial(query) ? (
         <p role="status">Loading image…</p>
-      ) : query.error ? (
-        <p role="status">{fileErrorMessage(query.error)}</p>
+      ) : AsyncResult.isFailure(query) ? (
+        <p role="status">{fileErrorMessage(Cause.squash(query.cause))}</p>
       ) : (
         <img
-          src={assetUrl(query.data)}
+          src={assetUrl(Option.getOrThrow(AsyncResult.value(query)))}
           alt={path}
           className="max-h-[70vh] max-w-full object-contain"
         />

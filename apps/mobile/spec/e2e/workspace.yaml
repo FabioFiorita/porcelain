@@ -54,6 +54,10 @@ name: Select and restore environment project and worktree without leaving Files
 - tapOn: ${SECOND_ENVIRONMENT_NAME}
 - assertVisible: ${SECOND_PROJECT_NAME} · ${SECOND_WORKTREE_LABEL}
 - runFlow: forget-environments.yaml
+- tapOn: Files
+- assertVisible:
+    text: Files
+    selected: true
 - assertVisible: Workspace
 - assertNotVisible: ${FIRST_PROJECT_NAME} · ${FIRST_WORKTREE_LABEL}
 - assertNotVisible: ${SECOND_PROJECT_NAME} · ${SECOND_WORKTREE_LABEL}

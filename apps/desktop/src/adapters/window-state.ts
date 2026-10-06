@@ -1,3 +1,4 @@
+import { Schema, Result } from 'effect';
 import { readFileSync } from 'node:fs';
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
@@ -24,8 +25,10 @@ export class WindowState {
       const value: unknown = JSON.parse(
         readFileSync(join(this.profile, 'window.json'), 'utf8'),
       );
-      const result = desktopWindowStateSchema.safeParse(value);
-      return result.success ? result.data : undefined;
+      const result = Schema.decodeUnknownResult(desktopWindowStateSchema)(
+        value,
+      );
+      return Result.isSuccess(result) ? result.success : undefined;
     } catch {
       return undefined;
     }

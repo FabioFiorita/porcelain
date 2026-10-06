@@ -1,3 +1,4 @@
+import { Redacted } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { sha256Hex } from '@porcelain/kernel/rules';
 import { credential, parseCredential, secretMatches } from './credential.ts';
@@ -9,13 +10,16 @@ const otherSecret = 'b'.repeat(43);
 describe('credential', () => {
   it('writes a token that parses back to its id and secret', () => {
     const issued = credential('pcd', id, secret);
-    expect(issued.token).toBe(`pcd_${id}_${secret}`);
-    expect(parseCredential('pcd', issued.token)).toEqual({ id, secret });
+    expect(Redacted.value(issued.token)).toBe(`pcd_${id}_${secret}`);
+    const parsed = parseCredential('pcd', Redacted.value(issued.token));
+    expect(parsed?.id).toBe(id);
+    expect(parsed && Redacted.value(parsed.secret)).toBe(secret);
+    expect(JSON.stringify(issued)).not.toContain(secret);
   });
 });
 
 describe('parseCredential', () => {
-  const { token } = credential('pcp', id, secret);
+  const token = Redacted.value(credential('pcp', id, secret).token);
 
   it('refuses a token of the other kind', () => {
     expect(parseCredential('pcd', token)).toBeUndefined();
@@ -34,12 +38,14 @@ describe('parseCredential', () => {
 describe('secretMatches', () => {
   it('matches only the secret whose hash was stored', () => {
     const stored = sha256Hex(secret);
-    expect(secretMatches(stored, secret)).toBe(true);
-    expect(secretMatches(stored, otherSecret)).toBe(false);
+    expect(secretMatches(stored, Redacted.make(secret))).toBe(true);
+    expect(secretMatches(stored, Redacted.make(otherSecret))).toBe(false);
   });
 
   it('does not match against a stored hash of the wrong length', () => {
-    expect(secretMatches(sha256Hex(secret).slice(0, -2), secret)).toBe(false);
-    expect(secretMatches('', secret)).toBe(false);
+    expect(
+      secretMatches(sha256Hex(secret).slice(0, -2), Redacted.make(secret)),
+    ).toBe(false);
+    expect(secretMatches('', Redacted.make(secret))).toBe(false);
   });
 });

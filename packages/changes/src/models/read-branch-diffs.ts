@@ -4,7 +4,7 @@ export type ReadBranchDiffsInput = {
   worktreeId: string;
   baseOid: string;
   headOid: string;
-  paths: string[][];
+  paths: readonly (readonly string[])[];
 };
 
 export type ReadBranchDiffsResult = BranchDiffs;

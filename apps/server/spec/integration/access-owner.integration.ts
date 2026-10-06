@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import {
   issuePairingResponseSchema,
   listAccessResponseSchema,
@@ -26,7 +27,11 @@ test('the owner socket reports where the server runs and is never cached', async
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readOwnerStatusResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readOwnerStatusResponseSchema),
+      ),
+    ),
   );
   expect(record(response.body).address).toBe(session.address);
   expect(response.headers['cache-control']).toBe('no-store');
@@ -39,7 +44,9 @@ test('the owner lists no open pairing grants and the paired fixture device', asy
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(listAccessResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(listAccessResponseSchema)),
+    ),
   );
   expect(record(response.body).grants).toStrictEqual([]);
   expect(
@@ -63,7 +70,9 @@ test('the owner issues a pairing whose link opens the pairing page and which is 
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(issuePairingResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(issuePairingResponseSchema)),
+    ),
   );
   const grant = record(list(record(response.body).grants)[0]);
   expect(grant.grant).toMatchObject({
@@ -77,7 +86,11 @@ test('the owner issues a pairing whose link opens the pairing page and which is 
     ),
   );
   const access = await read(session, ownerAccess);
-  expect(access).toEqual(expect.schemaMatching(listAccessResponseSchema));
+  expect(access).toEqual(
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(listAccessResponseSchema)),
+    ),
+  );
   expect(list(access.grants).map((entry) => record(entry).id)).toStrictEqual([
     record(grant.grant).id,
   ]);
@@ -248,12 +261,17 @@ test('the owner socket serves the review MCP endpoint with its review tools', as
     owner({
       method: 'POST',
       path: '/mcp',
-      headers: mcpHeaders(session.repository),
+      headers: {
+        ...mcpHeaders(session.repository),
+        'mcp-session-id': initialized.headers['mcp-session-id'] ?? '',
+        'mcp-protocol-version': '2025-06-18',
+      },
       body: { jsonrpc: '2.0', id: 2, method: 'tools/list' },
     }),
   );
 
   expect(initialized.status).toBe(200);
+  expect(initialized.headers['mcp-session-id']).toEqual(expect.any(String));
   expect(initialized.body).toMatchObject({
     jsonrpc: '2.0',
     id: 1,
@@ -276,6 +294,7 @@ test('the owner socket serves the review MCP endpoint with its review tools', as
 
 test('the review MCP endpoint refuses every method but POST', async ({
   session,
+  server,
 }) => {
   const methods: HttpRequest['method'][] = ['GET', 'PUT', 'PATCH', 'DELETE'];
   const responses = [];
@@ -296,6 +315,14 @@ test('the review MCP endpoint refuses every method but POST', async ({
     'POST',
     'POST',
   ]);
+  expect(await server.requestedRoutes()).toEqual(
+    expect.arrayContaining([
+      'owner DELETE /mcp',
+      'owner GET /mcp',
+      'owner PATCH /mcp',
+      'owner PUT /mcp',
+    ]),
+  );
 });
 
 test('the network listener answers owner reads with the web shell, does not find owner writes even with a paired credential, and nothing is issued or revoked', async ({

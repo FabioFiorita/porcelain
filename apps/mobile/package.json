@@ -11,14 +11,16 @@
     "test:e2e": "vitest run --config ../../vitest.config.ts --project @porcelain/mobile-e2e && vitest run --config ../../vitest.config.ts --project @porcelain/mobile-e2e-tablet"
   },
   "dependencies": {
+    "@effect/atom-react": "4.0.0",
     "@expo/material-symbols": "0.1.1",
     "@expo/ui": "58.0.9",
     "@porcelain/client": "workspace:*",
     "@porcelain/contracts": "workspace:*",
     "@porcelain/theme": "workspace:*",
-    "@tanstack/react-query": "5.102.8",
+    "effect": "4.0.0",
     "expo": "58.0.0",
     "expo-build-properties": "58.0.9",
+    "expo-crypto": "58.0.3",
     "expo-dev-client": "58.0.9",
     "expo-device": "58.0.3",
     "expo-linking": "58.0.9",
@@ -31,12 +33,11 @@
     "react-native-safe-area-context": "5.9.1",
     "react-native-screens": "4.28.0",
     "tailwindcss": "4.3.3",
-    "uniwind": "1.12.1",
-    "zod": "4.5.4",
-    "zustand": "5.0.15"
+    "uniwind": "1.12.1"
   },
   "devDependencies": {
     "@porcelain/server": "workspace:*",
-    "@types/react": "19.2.18"
+    "@types/react": "19.2.18",
+    "tsx": "4.23.13"
   }
 }

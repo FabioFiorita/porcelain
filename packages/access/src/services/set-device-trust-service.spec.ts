@@ -1,3 +1,5 @@
+import { DeviceStore } from '@porcelain/access/ports';
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { DeviceNotFoundError } from '@porcelain/access/errors';
 import type { StoredDevice } from '@porcelain/access/models';
@@ -20,52 +22,76 @@ function device(id: string, extra: Partial<StoredDevice> = {}): StoredDevice {
 function setup(...paired: StoredDevice[]) {
   const devices = new InMemoryDeviceStore();
   paired.forEach((entry) => devices.add(entry));
-  return { devices, service: new SetDeviceTrustService(devices) };
+  return {
+    devices,
+    service: Effect.runSync(
+      SetDeviceTrustService.pipe(
+        Effect.provide(SetDeviceTrustService.layer),
+        Effect.provideService(DeviceStore, devices),
+      ),
+    ),
+  };
 }
 
 describe('SetDeviceTrustService', () => {
-  it('trusts the asked device and leaves the others untrusted', () => {
+  it('trusts the asked device and leaves the others untrusted', async () => {
     const { devices, service } = setup(device('phone'), device('tablet'));
-    expect(service.execute({ id: 'phone', trusted: true })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ id: 'phone', trusted: true })),
+    ).toEqual({
       id: 'phone',
       trusted: true,
     });
-    expect(devices.find({ deviceId: 'phone' })?.trusted).toBe(true);
-    expect(devices.find({ deviceId: 'tablet' })?.trusted).toBeUndefined();
+    expect(
+      (await Effect.runPromise(devices.find({ deviceId: 'phone' })))?.trusted,
+    ).toBe(true);
+    expect(
+      (await Effect.runPromise(devices.find({ deviceId: 'tablet' })))?.trusted,
+    ).toBeUndefined();
   });
 
-  it('stops trusting a trusted device', () => {
+  it('stops trusting a trusted device', async () => {
     const { devices, service } = setup(device('phone', { trusted: true }));
-    expect(service.execute({ id: 'phone', trusted: false })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ id: 'phone', trusted: false })),
+    ).toEqual({
       id: 'phone',
       trusted: false,
     });
-    expect(devices.find({ deviceId: 'phone' })?.trusted).toBeUndefined();
+    expect(
+      (await Effect.runPromise(devices.find({ deviceId: 'phone' })))?.trusted,
+    ).toBeUndefined();
   });
 
-  it('answers the same when the device already has the asked trust', () => {
+  it('answers the same when the device already has the asked trust', async () => {
     const { devices, service } = setup(device('phone', { trusted: true }));
-    expect(service.execute({ id: 'phone', trusted: true })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ id: 'phone', trusted: true })),
+    ).toEqual({
       id: 'phone',
       trusted: true,
     });
-    expect(devices.find({ deviceId: 'phone' })?.trusted).toBe(true);
+    expect(
+      (await Effect.runPromise(devices.find({ deviceId: 'phone' })))?.trusted,
+    ).toBe(true);
   });
 
-  it('refuses an unknown device and changes nothing', () => {
+  it('refuses an unknown device and changes nothing', async () => {
     const { devices, service } = setup(device('phone'));
-    expect(() => service.execute({ id: 'stranger', trusted: true })).toThrow(
-      DeviceNotFoundError,
-    );
-    expect(devices.list()).toEqual([device('phone')]);
+    expect(() =>
+      Effect.runSync(service.execute({ id: 'stranger', trusted: true })),
+    ).toThrow(DeviceNotFoundError);
+    expect(await Effect.runPromise(devices.list())).toEqual([device('phone')]);
   });
 
-  it('refuses a revoked device, so trust never outlives its access', () => {
+  it('refuses a revoked device, so trust never outlives its access', async () => {
     const revoked = device('phone', { revokedAt: '2026-09-23T08:00:00.000Z' });
     const { devices, service } = setup(revoked);
-    expect(() => service.execute({ id: 'phone', trusted: true })).toThrow(
-      DeviceNotFoundError,
-    );
-    expect(devices.find({ deviceId: 'phone' })?.trusted).toBeUndefined();
+    expect(() =>
+      Effect.runSync(service.execute({ id: 'phone', trusted: true })),
+    ).toThrow(DeviceNotFoundError);
+    expect(
+      (await Effect.runPromise(devices.find({ deviceId: 'phone' })))?.trusted,
+    ).toBeUndefined();
   });
 });

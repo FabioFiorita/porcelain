@@ -1,36 +1,42 @@
-import type { SetDeviceTrustService } from '@porcelain/access/services';
-import type {
-  SetDeviceTrustRequest,
-  SetDeviceTrustResponse,
+import { Context, Effect, Layer } from 'effect';
+import { type DeviceNotFoundError } from '@porcelain/access/errors';
+import { SetDeviceTrustService } from '@porcelain/access/services';
+import {
+  type SetDeviceTrustRequest,
+  type SetDeviceTrustResponse,
 } from '@porcelain/contracts/access';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class SetDeviceTrustUseCase {
-  private readonly setDeviceTrust: SetDeviceTrustService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    setDeviceTrust: SetDeviceTrustService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.setDeviceTrust = setDeviceTrust;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class SetDeviceTrustUseCase extends Context.Service<
+  SetDeviceTrustUseCase,
+  {
+    readonly execute: (
+      input: SetDeviceTrustRequest,
+    ) => Effect.Effect<SetDeviceTrustResponse, DeviceNotFoundError>;
   }
+>()('@porcelain/server/SetDeviceTrustUseCase') {
+  static readonly layer = Layer.effect(
+    SetDeviceTrustUseCase,
+    Effect.gen(function* () {
+      const setDeviceTrustCapability = yield* SetDeviceTrustService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
 
-  execute(
-    input: SetDeviceTrustRequest,
-    context: OperationContext,
-  ): Promise<SetDeviceTrustResponse> {
-    return this.lanes.run(
-      this.laneKeys.access(),
-      'write',
-      async () => this.setDeviceTrust.execute(input),
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('SetDeviceTrustUseCase.execute')(function* (
+          input: SetDeviceTrustRequest,
+        ): Effect.fn.Return<SetDeviceTrustResponse, DeviceNotFoundError> {
+          return yield* lanesCapability.run(
+            laneKeysCapability.access(),
+            'write',
+            () =>
+              Effect.gen(function* () {
+                return yield* setDeviceTrustCapability.execute(input);
+              }),
+          );
+        }),
+      };
+    }),
+  );
 }

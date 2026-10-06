@@ -1,6 +1,6 @@
-import { z } from 'zod';
+import { Schema } from 'effect';
 
-export const environmentSchema = z.object({
-  name: z.string(),
-  custom: z.boolean(),
+export const environmentSchema = Schema.Struct({
+  name: Schema.String,
+  custom: Schema.Boolean,
 });

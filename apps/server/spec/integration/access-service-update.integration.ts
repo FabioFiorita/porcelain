@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import {
   readServiceUpdateResponseSchema,
   startServiceUpdateResponseSchema,
@@ -50,7 +51,11 @@ test('the server offers its newer version while nothing runs and this browser ma
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readServiceUpdateResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readServiceUpdateResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toMatchObject({
     managed: true,
@@ -93,7 +98,11 @@ test('an update that fails runs one at a time, says why and keeps the running ve
 
   expect(responses.map((entry) => entry.status)).toStrictEqual([202, 409]);
   expect(responses[0]?.body).toEqual(
-    expect.schemaMatching(startServiceUpdateResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(startServiceUpdateResponseSchema),
+      ),
+    ),
   );
   expect(responses[0]?.body).toMatchObject({
     running: true,

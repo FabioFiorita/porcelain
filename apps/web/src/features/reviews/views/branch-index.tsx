@@ -1,3 +1,5 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Cause } from 'effect';
 import { GitBranchIcon } from 'lucide-react';
 import { Suspense } from 'react';
 import { Button } from '@/components/ui/button';
@@ -5,20 +7,26 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   branchErrorMessage,
   branchName,
-  useBranchChanges,
-} from '@/features/changes/index';
+} from '@porcelain/client/changes/rules';
+import { useBranchChanges } from '@/features/changes/index';
 import { cn } from '@/shared/lib/utils';
 import { toast } from '@/components/ui/toast';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useReviewedMarks } from '../queries/reviewed';
-import { anchorPath, type CommentThread } from '../rules/comments';
+import {
+  anchorPath,
+  type CommentThread,
+} from '@porcelain/client/reviews/rules';
 import { BRANCH, entryKey, type OpenDocument } from '../rules/documents';
-import { mergeBranchChanges, type ReviewScope } from '../rules/review';
-import { branchReviewRange } from '../rules/reviewed';
+import {
+  mergeBranchChanges,
+  type ReviewScope,
+} from '@porcelain/client/reviews/rules';
+import { branchReviewRange } from '@porcelain/client/reviews/rules';
 import { BranchBasePicker } from './branch-base-picker';
 import { ChangeRow, ROW } from './change-row';
 import { ReviewEmpty } from './review-empty';
-import { groupSpecPaths } from '../rules/spec-paths';
+import { groupSpecPaths } from '@porcelain/client/reviews/rules';
 import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -78,22 +86,28 @@ function BranchFiles({
 }) {
   const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
-  if (changes.isError)
+  if (AsyncResult.isFailure(changes.result))
     return (
       <div role="alert" className="p-3 text-xs text-muted-foreground">
-        <span className="block">{branchErrorMessage(changes.error)}</span>
+        <span className="block">
+          {branchErrorMessage(
+            AsyncResult.isFailure(changes.result)
+              ? Cause.squash(changes.result.cause)
+              : undefined,
+          )}
+        </span>
         <Button
           variant="outline"
           size="xs"
           className="mt-2"
-          onClick={() => void changes.refetch()}
+          onClick={changes.refresh}
         >
           Try again
         </Button>
       </div>
     );
-  if (changes.isPending || changes.data == null) return <ComparingBranch />;
-  if (changes.data.base == null)
+  if (!AsyncResult.isSuccess(changes.result)) return <ComparingBranch />;
+  if (changes.result.value.base == null)
     return (
       <div className="p-3">
         <ReviewEmpty
@@ -107,7 +121,7 @@ function BranchFiles({
       <BranchFileList
         scope={scope}
         context={context}
-        branch={changes.data}
+        branch={changes.result.value}
         activeEntry={activeEntry}
         threads={threads}
         onOpen={onOpen}
@@ -134,7 +148,9 @@ function BranchFileList({
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
-  branch: NonNullable<ReturnType<typeof useBranchChanges>['data']>;
+  branch: AsyncResult.AsyncResult.Success<
+    ReturnType<typeof useBranchChanges>['result']
+  >;
   activeEntry: string | undefined;
   threads: readonly CommentThread[];
   onOpen: OpenDocument;

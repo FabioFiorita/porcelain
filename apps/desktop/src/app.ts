@@ -1,5 +1,6 @@
-import { liveUpdatesEndpoint } from '@porcelain/contracts/access';
-import { endpointPath } from '@porcelain/contracts/shared';
+import { Schema, Result } from 'effect';
+import { LiveUpdatesApi } from '@porcelain/contracts/access';
+import { HttpApiClient } from 'effect/http-api';
 import {
   app,
   BrowserWindow,
@@ -168,7 +169,7 @@ async function openWindow() {
       preload: join(settings.packageRoot, 'desktop/preload.cjs'),
       additionalArguments: [
         `--porcelain-version=${app.getVersion()}`,
-        `--porcelain-live=${liveAddress(local.address, endpointPath(liveUpdatesEndpoint, { query: {} }))}`,
+        `--porcelain-live=${liveAddress(local.address, HttpApiClient.urlBuilder(LiveUpdatesApi).live.liveUpdates({ query: {} }))}`,
       ],
       sandbox: true,
       contextIsolation: true,
@@ -423,7 +424,9 @@ async function start() {
       urls: [
         liveAddress(
           server.address,
-          endpointPath(liveUpdatesEndpoint, { query: {} }),
+          HttpApiClient.urlBuilder(LiveUpdatesApi).live.liveUpdates({
+            query: {},
+          }),
         ),
       ],
     },
@@ -445,7 +448,9 @@ async function start() {
           },
           {
             ...server,
-            livePath: endpointPath(liveUpdatesEndpoint, { query: {} }),
+            livePath: HttpApiClient.urlBuilder(LiveUpdatesApi).live.liveUpdates(
+              { query: {} },
+            ),
           },
         );
       callback(
@@ -454,9 +459,11 @@ async function start() {
     },
   );
   ipcMain.on('porcelain:appearance', (event, value: unknown) => {
-    const appearance = desktopAppearanceSchema.safeParse(value);
-    if (quitting || !trusted(event) || !appearance.success) return;
-    nativeTheme.themeSource = appearance.data;
+    const appearance = Schema.decodeUnknownResult(desktopAppearanceSchema)(
+      value,
+    );
+    if (quitting || !trusted(event) || !Result.isSuccess(appearance)) return;
+    nativeTheme.themeSource = appearance.success;
     updateWindowBackground();
   });
   ipcMain.on('porcelain:actions-ready', (event) => {

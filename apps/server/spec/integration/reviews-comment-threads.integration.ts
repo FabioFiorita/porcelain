@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import {
   createCommentThreadResponseSchema,
@@ -39,7 +40,11 @@ test('a worktree without comments lists no threads', async ({ session }) => {
   expect(response.status).toBe(200);
   expect(response.body).toStrictEqual([]);
   expect(response.body).toEqual(
-    expect.schemaMatching(listCommentThreadsResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(listCommentThreadsResponseSchema),
+      ),
+    ),
   );
 });
 
@@ -69,7 +74,11 @@ test('creating a file thread and a line-range thread answers each written thread
 
   expect([fileThread.status, rangeThread.status]).toStrictEqual([200, 200]);
   expect(rangeThread.body).toEqual(
-    expect.schemaMatching(createCommentThreadResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(createCommentThreadResponseSchema),
+      ),
+    ),
   );
   expect(thread(fileThread.body, threadId)).toMatchObject({
     id: threadId,
@@ -80,7 +89,11 @@ test('creating a file thread and a line-range thread answers each written thread
     revision: 1,
   });
   expect(fileThread.body).toEqual(
-    expect.schemaMatching(createCommentThreadResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(createCommentThreadResponseSchema),
+      ),
+    ),
   );
   const listed = await session.read({
     method: 'GET',
@@ -140,10 +153,16 @@ test('replying to a thread appends a reviewer message and resolving it marks it 
 
   expect([reply.status, resolution.status]).toStrictEqual([200, 200]);
   expect(reply.body).toEqual(
-    expect.schemaMatching(replyToCommentResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(replyToCommentResponseSchema)),
+    ),
   );
   expect(resolution.body).toEqual(
-    expect.schemaMatching(updateCommentThreadResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(updateCommentThreadResponseSchema),
+      ),
+    ),
   );
   expect(thread(reply.body, threadId)).toMatchObject({
     resolved: false,

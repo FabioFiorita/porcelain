@@ -1,37 +1,45 @@
-import type { ListAccessService } from '@porcelain/access/services';
-import type {
-  ListAccessRequest,
-  ListAccessResponse,
+import { Context, Effect, Layer } from 'effect';
+import { ListAccessService } from '@porcelain/access/services';
+import {
+  type ListAccessRequest,
+  type ListAccessResponse,
 } from '@porcelain/contracts/access';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class ListAccessUseCase {
-  private readonly listAccess: ListAccessService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(listAccess: ListAccessService, lanes: Lanes, laneKeys: LaneKeys) {
-    this.listAccess = listAccess;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class ListAccessUseCase extends Context.Service<
+  ListAccessUseCase,
+  {
+    readonly execute: (
+      input: ListAccessRequest,
+    ) => Effect.Effect<ListAccessResponse, never>;
   }
+>()('@porcelain/server/ListAccessUseCase') {
+  static readonly layer = Layer.effect(
+    ListAccessUseCase,
+    Effect.gen(function* () {
+      const listAccessCapability = yield* ListAccessService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
 
-  execute(
-    input: ListAccessRequest,
-    context: OperationContext,
-  ): Promise<ListAccessResponse> {
-    const { viewer } = input;
-    return this.lanes.run(
-      this.laneKeys.access(),
-      'read',
-      async () =>
-        this.listAccess.execute({
-          viewerDeviceId:
-            viewer.kind === 'device' ? viewer.deviceId : undefined,
+      return {
+        execute: Effect.fn('ListAccessUseCase.execute')(function* (
+          input: ListAccessRequest,
+        ): Effect.fn.Return<ListAccessResponse, never> {
+          const { viewer } = input;
+          return yield* lanesCapability.run(
+            laneKeysCapability.access(),
+            'read',
+            () =>
+              Effect.gen(function* () {
+                return yield* listAccessCapability.execute({
+                  viewerDeviceId:
+                    viewer.kind === 'device' ? viewer.deviceId : undefined,
+                });
+              }),
+          );
         }),
-      { callerSignal: context.signal },
-    );
-  }
+      };
+    }),
+  );
 }

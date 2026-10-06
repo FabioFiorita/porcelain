@@ -3,7 +3,7 @@ import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { isOid } from '../../shared/parsers/oid.ts';
 import type { BranchDiffs, BranchDiffsRequest } from '../dtos/branch-range.ts';
 import type { HistoryCheckout } from '../dtos/commit-history.ts';
-import { InvalidHistoryRequestError } from '../errors/invalid-history-request-error.ts';
+import { InvalidHistoryRequestError } from '../../shared/errors/invalid-history-request-error.ts';
 import { confirmHistoryCheckout } from './inspect-history-checkout.ts';
 import { readHistoryAnswer } from './run-history.ts';
 

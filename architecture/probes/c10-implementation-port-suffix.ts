@@ -8,9 +8,9 @@ export default {
   edits: [
     {
       kind: 'replace',
-      path: 'apps/server/src/adapters/runtime/system-clock.ts',
-      old: 'export class SystemClock',
-      new: 'export class SystemClockAdapter',
+      path: 'apps/server/src/adapters/runtime/random-id-source.ts',
+      old: 'export class RandomIdSource',
+      new: 'export class RandomIdSourceAdapter',
     },
   ],
 } satisfies Probe;

@@ -1,17 +1,4 @@
-import { COMMIT_MODEL_LENGTH } from '@porcelain/contracts/shared';
-
-export type Preferences = {
-  commitModel: string;
-  pullStrategy: 'merge' | 'rebase';
-  appearance: 'system' | 'light' | 'dark';
-  diffStyle: 'unified' | 'split';
-  lineOverflow: 'scroll' | 'wrap';
-  markdownDefault: 'reader' | 'source';
-  htmlDefault: 'preview' | 'source';
-  collapseSpecs: boolean;
-};
-
-export const defaultPreferences: Preferences = {
+export const defaultPreferences = {
   commitModel: '',
   pullStrategy: 'merge',
   appearance: 'system',
@@ -20,46 +7,17 @@ export const defaultPreferences: Preferences = {
   markdownDefault: 'reader',
   htmlDefault: 'preview',
   collapseSpecs: false,
+} as const;
+export type Preferences = {
+  readonly commitModel: string;
+  readonly pullStrategy: 'merge' | 'rebase';
+  readonly appearance: 'system' | 'light' | 'dark';
+  readonly diffStyle: 'unified' | 'split';
+  readonly lineOverflow: 'scroll' | 'wrap';
+  readonly markdownDefault: 'reader' | 'source';
+  readonly htmlDefault: 'preview' | 'source';
+  readonly collapseSpecs: boolean;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-export function readPreferences(stored: unknown): Preferences {
-  if (!isRecord(stored)) return defaultPreferences;
-  return {
-    pullStrategy: stored.pullStrategy === 'rebase' ? 'rebase' : 'merge',
-    commitModel:
-      typeof stored.commitModel === 'string' &&
-      stored.commitModel.length <= COMMIT_MODEL_LENGTH
-        ? stored.commitModel
-        : '',
-    appearance:
-      stored.appearance === 'system' ||
-      stored.appearance === 'light' ||
-      stored.appearance === 'dark'
-        ? stored.appearance
-        : defaultPreferences.appearance,
-    diffStyle:
-      stored.diffStyle === 'unified' || stored.diffStyle === 'split'
-        ? stored.diffStyle
-        : defaultPreferences.diffStyle,
-    lineOverflow:
-      stored.lineOverflow === 'scroll' || stored.lineOverflow === 'wrap'
-        ? stored.lineOverflow
-        : defaultPreferences.lineOverflow,
-    markdownDefault:
-      stored.markdownDefault === 'reader' || stored.markdownDefault === 'source'
-        ? stored.markdownDefault
-        : defaultPreferences.markdownDefault,
-    htmlDefault:
-      stored.htmlDefault === 'preview' || stored.htmlDefault === 'source'
-        ? stored.htmlDefault
-        : defaultPreferences.htmlDefault,
-    collapseSpecs: stored.collapseSpecs === true,
-  };
-}
 
 export function resolvedTheme(
   appearance: Preferences['appearance'],

@@ -19,7 +19,7 @@ import type {
   FileCommitsRequest,
   HistoryCheckout,
 } from './dtos/commit-history.ts';
-import { InvalidHistoryRequestError } from './errors/invalid-history-request-error.ts';
+import { InvalidHistoryRequestError } from '../shared/errors/invalid-history-request-error.ts';
 import type { CommitReader } from './interfaces/commit-reader.ts';
 
 export class HistoryGit implements CommitReader {

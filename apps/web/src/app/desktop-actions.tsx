@@ -1,10 +1,8 @@
 import { linkOptions, useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { toast } from '@/components/ui/toast';
-import {
-  connectionErrorMessage,
-  useRemoteConnections,
-} from '@/features/access/index';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
+import { useRemoteConnections } from '@/features/access/index';
 import {
   OpenProjectDialog,
   openProjectDialog,

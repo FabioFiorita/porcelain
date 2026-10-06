@@ -1,10 +1,10 @@
-import type { Expectation } from '../rules/git-action';
+import type { Expectation } from '@porcelain/client/git-actions/rules';
 import {
   gitErrorMessage,
   type GitNotice,
   receiptFailed,
   receiptWords,
-} from '../rules/feedback';
+} from '@porcelain/client/git-actions/rules';
 import type { useGitAction } from './run-action';
 
 export async function restoreStash(

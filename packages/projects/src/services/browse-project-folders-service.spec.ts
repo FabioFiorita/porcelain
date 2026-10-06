@@ -1,12 +1,18 @@
+import {
+  ProjectFolderReader,
+  ProjectRepositoryReader,
+  BrowseProjectFoldersOptions,
+} from '@porcelain/projects/ports';
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   FolderNotFoundError,
   FolderNotReadableError,
   UnsupportedFolderNameError,
 } from '@porcelain/projects/errors';
-import type {
-  ProjectRepository,
-  ProjectFolderContents,
+import {
+  type ProjectRepository,
+  type ProjectFolderContents,
 } from '@porcelain/projects/models';
 import { ScriptedProjectFolderReader } from '../../spec/fakes/scripted-project-folder-reader.ts';
 import { ScriptedProjectRepositoryReader } from '../../spec/fakes/scripted-project-repository-reader.ts';
@@ -29,10 +35,17 @@ function folder(
 function setup(repositories: Record<string, ProjectRepository> = {}) {
   const folders = new ScriptedProjectFolderReader();
   const reader = new ScriptedProjectRepositoryReader({ repositories });
-  const service = new BrowseProjectFoldersService(folders, reader, {
-    home: '/home/owner',
-    maxEntries: 2000,
-  });
+  const service = Effect.runSync(
+    BrowseProjectFoldersService.pipe(
+      Effect.provide(BrowseProjectFoldersService.layer),
+      Effect.provideService(ProjectFolderReader, folders),
+      Effect.provideService(ProjectRepositoryReader, reader),
+      Effect.provideService(BrowseProjectFoldersOptions, {
+        home: '/home/owner',
+        maxEntries: 2000,
+      }),
+    ),
+  );
   return { folders, service };
 }
 
@@ -46,7 +59,7 @@ describe('BrowseProjectFoldersService', () => {
         ],
       }),
     );
-    await expect(service.execute({})).resolves.toEqual({
+    await expect(Effect.runPromise(service.execute({}))).resolves.toEqual({
       path: '/home/owner',
       parent: '/home',
       directories: [{ name: 'code', path: '/home/owner/code' }],
@@ -58,7 +71,9 @@ describe('BrowseProjectFoldersService', () => {
   it('lists the folder that was asked for', async () => {
     const { folders, service } = setup();
     folders.folder(folder('/srv', { parent: '/' }));
-    expect((await service.execute({ path: '/srv' })).path).toBe('/srv');
+    expect(
+      (await Effect.runPromise(service.execute({ path: '/srv' }))).path,
+    ).toBe('/srv');
   });
 
   it('never offers the Git directory as a folder to open', async () => {
@@ -72,9 +87,10 @@ describe('BrowseProjectFoldersService', () => {
         ],
       }),
     );
-    expect((await service.execute({ path: '/srv/api' })).directories).toEqual([
-      { name: 'src', path: '/srv/api/src' },
-    ]);
+    expect(
+      (await Effect.runPromise(service.execute({ path: '/srv/api' })))
+        .directories,
+    ).toEqual([{ name: 'src', path: '/srv/api/src' }]);
   });
 
   it('marks a folder as a repository when Git can open it', async () => {
@@ -86,15 +102,19 @@ describe('BrowseProjectFoldersService', () => {
       },
     });
     folders.folder(folder('/srv/api', { gitMarker: true }));
-    expect((await service.execute({ path: '/srv/api' })).repository).toBe(true);
+    expect(
+      (await Effect.runPromise(service.execute({ path: '/srv/api' })))
+        .repository,
+    ).toBe(true);
   });
 
   it('does not mark a folder whose Git marker Git cannot open', async () => {
     const { folders, service } = setup();
     folders.folder(folder('/srv/broken', { gitMarker: true }));
-    expect((await service.execute({ path: '/srv/broken' })).repository).toBe(
-      false,
-    );
+    expect(
+      (await Effect.runPromise(service.execute({ path: '/srv/broken' })))
+        .repository,
+    ).toBe(false);
   });
 
   it('does not mark a folder without a Git marker, even inside a repository', async () => {
@@ -106,40 +126,42 @@ describe('BrowseProjectFoldersService', () => {
       },
     });
     folders.folder(folder('/srv/api/src'));
-    expect((await service.execute({ path: '/srv/api/src' })).repository).toBe(
-      false,
-    );
+    expect(
+      (await Effect.runPromise(service.execute({ path: '/srv/api/src' })))
+        .repository,
+    ).toBe(false);
   });
 
   it('says when the folder held more entries than it lists', async () => {
     const { folders, service } = setup();
     folders.folder(folder('/srv/large', { truncated: true }));
-    expect((await service.execute({ path: '/srv/large' })).truncated).toBe(
-      true,
-    );
+    expect(
+      (await Effect.runPromise(service.execute({ path: '/srv/large' })))
+        .truncated,
+    ).toBe(true);
   });
 
   it('refuses a folder that does not exist', async () => {
     const { folders, service } = setup();
     folders.failing('/missing', 'missing');
-    await expect(service.execute({ path: '/missing' })).rejects.toThrow(
-      FolderNotFoundError,
-    );
+    await expect(
+      Effect.runPromise(service.execute({ path: '/missing' })),
+    ).rejects.toThrow(FolderNotFoundError);
   });
 
   it('refuses a folder it may not read', async () => {
     const { folders, service } = setup();
     folders.failing('/root', 'unreadable');
-    await expect(service.execute({ path: '/root' })).rejects.toThrow(
-      FolderNotReadableError,
-    );
+    await expect(
+      Effect.runPromise(service.execute({ path: '/root' })),
+    ).rejects.toThrow(FolderNotReadableError);
   });
 
   it('refuses a folder holding a name that is not UTF-8', async () => {
     const { folders, service } = setup();
     folders.failing('/odd', 'unsupported-name');
-    await expect(service.execute({ path: '/odd' })).rejects.toThrow(
-      UnsupportedFolderNameError,
-    );
+    await expect(
+      Effect.runPromise(service.execute({ path: '/odd' })),
+    ).rejects.toThrow(UnsupportedFolderNameError);
   });
 });

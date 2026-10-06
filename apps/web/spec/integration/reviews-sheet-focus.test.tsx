@@ -7,14 +7,23 @@ test('finding in a file opened from the review sheet keeps focus while the sheet
 }) => {
   const path = 'notes.txt';
   await repo.write(path, 'needle one\nneedle two\n');
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
-  await workspace
-    .getByRole('treeitem', { name: path, exact: true })
-    .click({ button: 'right' });
-  await workspace
-    .getByRole('menuitem', { name: 'Open file', exact: true })
-    .click();
+  const openFile = async () => {
+    await workspace
+      .getByRole('button', { name: 'Review', exact: true })
+      .click();
+    await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
+    await workspace
+      .getByRole('treeitem', { name: path, exact: true })
+      .click({ button: 'right' });
+    await workspace
+      .getByRole('menuitem', { name: 'Open file', exact: true })
+      .click();
+  };
+  await openFile();
+  await expect
+    .element(workspace.getByText('needle one', { exact: true }))
+    .toBeVisible();
+  await openFile();
   await userEvent.keyboard('{ControlOrMeta>}f{/ControlOrMeta}');
   const find = workspace.getByRole('textbox', {
     name: 'Find in file',

@@ -1,3 +1,24 @@
+const fixtureWatchWorktreesEventsFromUseCases = `import { Effect } from 'effect';
+import { AnnounceWorktreeChangeUseCasePort } from '../../ports/announce-worktree-change-use-case-port.ts';
+export const announce = Effect.flatMap(AnnounceWorktreeChangeUseCasePort, (operation) => operation.execute({ worktreeId: 'one', change: 'git' }));`;
+const fixtureNativeEventPublisherLayer = `import { Layer as NativeLayer, Effect } from 'effect';
+import { EventPublisher as Publisher } from '../../ports/event-publisher.ts';
+export const publisherLayer = NativeLayer.effect(Publisher, Effect.succeed({ inventoryChanged: () => Effect.void }));`;
+const fixtureReadChangeLinesUseCaseComputes = `import type { ReadChangeLinesService } from '@porcelain/changes/services';
+import type { ReadChangeLinesQuery } from '@porcelain/contracts/changes';
+
+export class ReadChangeLinesUseCase {
+  private readonly readChangeLines: ReadChangeLinesService;
+  execute(input: ReadChangeLinesQuery & { text: string }) {
+    const { path, from, to, at, text } = input;
+    return this.readChangeLines.execute({ path, from, to, at, text });
+  }
+}
+`;
+import {
+  effectRuleCases,
+  nativeHealthOperation,
+} from './effect-rule-cases.mjs';
 const commentSeenStore = `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
 
 export class InMemoryCommentSeenStore implements CommentSeenStore {
@@ -12,7 +33,6 @@ export class InMemoryCommentSeenStore implements CommentSeenStore {
   }
 }
 `;
-
 const filesystemDirectoryReader = `export class FilesystemDirectoryReader implements DirectoryReader {
   async list(
   ): Promise<DirectoryRead> {
@@ -26,7 +46,6 @@ const filesystemDirectoryReader = `export class FilesystemDirectoryReader implem
     }
   }
 }`;
-
 const remoteLinkCases = `import { describe, expect, it } from 'vitest';
 import { remoteLink } from './remotes.ts';
 
@@ -44,7 +63,6 @@ describe('remoteLink', () => {
   });
 });
 `;
-
 const apiErrorCases = `import { apiErrorSchema } from '@porcelain/contracts/shared';
 import { expect } from 'vitest';
 import { z } from 'zod';
@@ -62,12 +80,6 @@ test('the changes of an unknown worktree are refused with the error contract', a
 });
 `;
 
-const healthRoute = `import { readHealthEndpoint as endpoint } from '@porcelain/contracts/access';
-export function readHealth() {
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema,
-    handler: async (request) => options.useCase.execute({ signal: request.disconnected }) });
-}`;
-
 const encodedCredential = `import type { CredentialKind, CredentialParts } from '../models/credential.ts';
 
 export function parseCredential(
@@ -80,17 +92,6 @@ export function parseCredential(
     : undefined;
 }
 `;
-
-const separateWorktreeLanes = `export class MarkCommentsSeenUseCase {
-  async execute(
-  ): Promise<MarkCommentsSeenResponse> {
-    const { changed, ...seen } = await this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'write',
-      async () => this.markCommentsSeen.execute(input),
-    );
-  }
-}`;
 
 const runtimeJobs = `const openServer: OpenServer = async (input) => {
   const jobs: readonly Job[] = [
@@ -115,12 +116,26 @@ const observedStoreState = `describe('MarkCommentsSeenService', () => {
 `;
 
 export default [
+  ...[
+    '@effect/platform-node',
+    'effect/cli',
+    './operations.ts',
+    './settings.ts',
+    '../config/environment-settings.ts',
+  ].map((source) => ({
+    rule: 'spec-imports',
+    path: 'apps/server/src/cli/cli-program.spec.ts',
+    valid: `import { capability } from '${source}';`,
+    invalid: "import { startServer } from '../bootstrap/compose-server.ts';",
+    errors: 1,
+  })),
+
+  ...effectRuleCases,
   {
     rule: 'web-api-owns-request',
     path: 'apps/web/src/features/reviews/live.ts',
-    valid:
-      "import { reviewSurfaceFilters } from '@porcelain/client/transport';",
-    invalid: "import { requestEndpoint } from '@porcelain/client/transport';",
+    valid: "import { RequestError } from '@porcelain/client/transport';",
+    invalid: "import { HttpApiClient } from 'effect/http-api';",
     errors: 1,
   },
   {
@@ -142,10 +157,23 @@ export default [
 
   {
     rule: 'client-owns-shared-logic',
-    path: 'apps/web/src/features/reviews/api.ts',
-    valid: "export { reviewsApi } from '@porcelain/client/reviews/api';",
-    invalid:
-      "import { requestEndpoint as send } from '@porcelain/client/transport';",
+    path: 'apps/web/src/shared/query/file-drafts.ts',
+    valid: "import { retainedFileDrafts } from '@porcelain/client/files';",
+    invalid: "export { retainedFileDrafts } from '@porcelain/client/files';",
+    errors: 1,
+  },
+  {
+    rule: 'client-owns-shared-logic',
+    path: 'apps/web/src/features/files/index.ts',
+    valid: "export { FileEditor } from './views/file-editor';",
+    invalid: "export type { FileDraftState } from '@porcelain/client/files';",
+    errors: 1,
+  },
+  {
+    rule: 'client-owns-shared-logic',
+    path: 'apps/mobile/src/features/files/api.ts',
+    valid: "import { filesApi } from '@porcelain/client/files/api';",
+    invalid: "export * from '@porcelain/client/files/api';",
     errors: 1,
   },
   {
@@ -202,38 +230,13 @@ export default [
   },
   {
     rule: 'implementation-name',
-    path: 'apps/server/src/adapters/runtime/system-clock.ts',
-    valid: `export class SystemClock implements Clock {
-}`,
-    invalid: `export class SystemClockAdapter implements Clock {
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'implementation-name',
     path: 'packages/storage/src/repositories/reviews/sqlite-comment-seen-store.ts',
-    valid: `import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { CommentSeenStore } from '@porcelain/reviews/ports';
-
-export class SqliteCommentSeenStore implements CommentSeenStore {
-  private readonly db: BetterSQLite3Database;
-
-  constructor(db: BetterSQLite3Database) {
-    this.db = db;
-  }
-}
-`,
-    invalid: `import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { CommentSeenStore, CommentStore } from '@porcelain/reviews/ports';
-
-export class SqliteCommentSeenStore implements CommentSeenStore, CommentStore {
-  private readonly db: BetterSQLite3Database;
-
-  constructor(db: BetterSQLite3Database) {
-    this.db = db;
-  }
-}
-`,
+    valid: `import { Effect, Layer } from 'effect';
+import { CommentSeenStore } from '@porcelain/reviews/ports';
+export const sqliteCommentSeenStoreLayer = Layer.effect(CommentSeenStore, Effect.succeed({}));`,
+    invalid: `import { Effect, Layer } from 'effect';
+import { CommentSeenStore, CommentStore } from '@porcelain/reviews/ports';
+export const sqliteCommentSeenStoreLayer = Layer.mergeAll(Layer.effect(CommentSeenStore, Effect.succeed({})), Layer.effect(CommentStore, Effect.succeed({})));`,
     errors: 1,
   },
   {
@@ -249,29 +252,10 @@ export class SqliteCommentSeenStore implements CommentSeenStore, CommentStore {
   {
     rule: 'interfaces-only-in-ports',
     path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `import type { ListDirectoryOptions } from '../models/list-directory.ts';
-
-export class ListDirectoryService {
-  private readonly options: ListDirectoryOptions;
-
-  constructor(options: ListDirectoryOptions) {
-    this.options = options;
-  }
-}
-`,
-    invalid: `export interface ListDirectoryOptions {
-  maxEntries: number;
-  maxResponseBytes: number;
-}
-
-export class ListDirectoryService {
-  private readonly options: ListDirectoryOptions;
-
-  constructor(options: ListDirectoryOptions) {
-    this.options = options;
-  }
-}
-`,
+    valid:
+      "import type { ListDirectoryOptions } from '../models/list-directory.ts'; export type ListingOptions = ListDirectoryOptions;",
+    invalid:
+      'export interface ListDirectoryOptions { maxEntries: number; maxResponseBytes: number; }',
     errors: 1,
   },
   {
@@ -354,50 +338,10 @@ export type ListDirectoryOutcome =
   {
     rule: 'naming',
     path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-
-export class ReadHealthUseCase {
-  private readonly readEnvironment: ReadEnvironmentService;
-  private readonly lanes: Lanes;
-
-  constructor(readEnvironment: ReadEnvironmentService, lanes: Lanes) {
-    this.readEnvironment = readEnvironment;
-    this.lanes = lanes;
-  }
-
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.lanes.run('access', 'read', async () => {
-      const { environmentId } = this.readEnvironment.execute();
-      return { status: 'ok', environmentId };
-    }, { callerSignal: context.signal });
-  }
-}
-`,
-    invalid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-
-export class ReadHealthUseCase {
-  private readonly readEnvironmentService: ReadEnvironmentService;
-  private readonly lanes: Lanes;
-
-  constructor(readEnvironment: ReadEnvironmentService, lanes: Lanes) {
-    this.readEnvironmentService = readEnvironment;
-    this.lanes = lanes;
-  }
-
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.lanes.run('access', 'read', async () => {
-      const { environmentId } = this.readEnvironmentService.execute();
-      return { status: 'ok', environmentId };
-    }, { callerSignal: context.signal });
-  }
-}
-`,
+    valid:
+      "import { Effect } from 'effect';\nimport type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';\nimport type { ReadEnvironmentService } from '@porcelain/access/services';\nimport type { ReadHealthResponse } from '@porcelain/contracts/access';\nimport type { LaneKeys } from '../../runtime/lane-keys.ts';\nimport type { Lanes } from '../../runtime/lanes.ts';\n\nexport class ReadHealthUseCase {\n  private readonly readEnvironment: ReadEnvironmentService;\n  private readonly lanes: Lanes;\n  private readonly laneKeys: LaneKeys;\n\n  constructor(\n    readEnvironment: ReadEnvironmentService,\n    lanes: Lanes,\n    laneKeys: LaneKeys,\n  ) {\n    this.readEnvironment = readEnvironment;\n    this.lanes = lanes;\n    this.laneKeys = laneKeys;\n  }\n\n  execute(): Effect.Effect<\n    ReadHealthResponse,\n    MissingEnvironmentIdentityError\n  > {\n    return Effect.gen({ self: this }, function* () {\n      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>\n        Effect.gen({ self: this }, function* () {\n          const { environmentId } = yield* this.readEnvironment.execute();\n          return { status: 'ok' as const, environmentId };\n        }),\n      );\n    });\n  }\n}\n",
+    invalid:
+      "import { Effect } from 'effect';\nimport type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';\nimport type { ReadEnvironmentService } from '@porcelain/access/services';\nimport type { ReadHealthResponse } from '@porcelain/contracts/access';\nimport type { LaneKeys } from '../../runtime/lane-keys.ts';\nimport type { Lanes } from '../../runtime/lanes.ts';\n\nexport class ReadHealthUseCase {\n  private readonly readEnvironmentService: ReadEnvironmentService;\n  private readonly lanes: Lanes;\n  private readonly laneKeys: LaneKeys;\n\n  constructor(\n    readEnvironment: ReadEnvironmentService,\n    lanes: Lanes,\n    laneKeys: LaneKeys,\n  ) {\n    this.readEnvironmentService = readEnvironment;\n    this.lanes = lanes;\n    this.laneKeys = laneKeys;\n  }\n\n  execute(): Effect.Effect<\n    ReadHealthResponse,\n    MissingEnvironmentIdentityError\n  > {\n    return Effect.gen({ self: this }, function* () {\n      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>\n        Effect.gen({ self: this }, function* () {\n          const { environmentId } = yield* this.readEnvironmentService.execute();\n          return { status: 'ok' as const, environmentId };\n        }),\n      );\n    });\n  }\n}\n",
     errors: 1,
   },
   {
@@ -420,7 +364,7 @@ export class ReadHealthUseCase {
     errors: 1,
   },
   {
-    rule: 'no-interface-in-runtime',
+    rule: 'interfaces-only-in-ports',
     path: 'apps/server/src/runtime/delay.ts',
     valid: `import type { ProbeDelay } from '../ports/probe-delay.ts'; export type DelayOptions = { delay: ProbeDelay };`,
     invalid: `
@@ -467,13 +411,7 @@ export interface ProbeDelay {
     invalid: `export class ListDirectoryService { execute(input: ListDirectoryInput): Promise<{ entries: DirectoryEntry[] }> {} }`,
     errors: 1,
   },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `export class ReadHealthUseCase { execute(context: OperationContext): Promise<ReadHealthResponse> {} }`,
-    invalid: `export class ReadHealthController { execute(context: OperationContext): Promise<ReadHealthResponse> {} }`,
-    errors: 2,
-  },
+
   {
     rule: 'port-shape',
     path: 'apps/server/src/ports/notice-port.ts',
@@ -519,61 +457,18 @@ export interface ProbeDelay {
   {
     rule: 'no-comments',
     path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `import type { ListDirectoryOptions } from '../models/list-directory.ts';
-
-export class ListDirectoryService {
-  private readonly options: ListDirectoryOptions;
-
-  constructor(options: ListDirectoryOptions) {
-    this.options = options;
-  }
-
-  execute(): number {
-    return this.options.maxEntries + 1;
-  }
-}
-`,
-    invalid: `/** oxlint-disable */
-import type { ListDirectoryOptions } from '../models/list-directory.ts';
-
-export class ListDirectoryService {
-  private readonly options: ListDirectoryOptions;
-
-  constructor(options: ListDirectoryOptions) {
-    this.options = options;
-  }
-
-  execute(): number {
-    return Math.min(this.options.maxEntries, 2000) + 1;
-  }
-}
-`,
+    valid:
+      "import { Effect } from 'effect'; export const execute = Effect.fn('ListDirectoryService.execute')(function* () { return limit; });",
+    invalid:
+      "/** oxlint-disable */\nimport { Effect } from 'effect'; export const execute = Effect.fn('ListDirectoryService.execute')(function* () { return limit; });",
     errors: 1,
   },
   {
     rule: 'no-comments',
     path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `export class ListDirectoryService {
-  async execute(
-  ): Promise<ListDirectoryResult> {
-    const read = await this.directoryReader.list(
-      {
-        limit: this.options.maxEntries + 1,
-      },
-    );
-  }
-}`,
-    invalid: `export class ListDirectoryService {
-  async execute(
-  ): Promise<ListDirectoryResult> {
-    const read = await this.directoryReader.list(
-      {
-        /** eslint-disable-next-line */
-        limit: Math.min(this.options.maxEntries, 2000) + 1,
-      },
-    );
-  }
-}`,
+    valid: 'export const options = { limit: entries + 1 };',
+    invalid:
+      'export const options = { /** eslint-disable-next-line */ limit: entries + 1 };',
     errors: 1,
   },
   {
@@ -665,9 +560,9 @@ test('access.pairing: works', async ({ workspace }) => {
   },
   {
     rule: 'no-number-outside-limits',
-    path: 'packages/contracts/src/files/endpoints.ts',
+    path: 'packages/contracts/src/files/failures.ts',
     valid:
-      "export const endpoint = defineEndpoint({ errors: ['content_changed'] });",
+      "export const contentChanged = httpFailure(ContentChangedError, 'Conflict', { code: 'content_changed' });",
     invalid: 'export const API_ERROR_STATUS = { content_changed: 409 };',
     errors: 1,
   },
@@ -675,48 +570,21 @@ test('access.pairing: works', async ({ workspace }) => {
   {
     rule: 'no-number-outside-limits',
     path: 'apps/server/src/adapters/access/http-tunnel-probe.ts',
-    valid: 'export const schema = readHealthEndpoint.responses[200];',
-    invalid: 'export const schema = responses[200];',
+    valid:
+      'export const decodeHealth = Schema.decodeUnknownResult(readHealthResponseSchema);',
+    invalid: 'export const schema = readHealthEndpoint.responses[200];',
     errors: 1,
   },
 
   {
     rule: 'spec-imports',
-    path: 'packages/contracts/src/shared/endpoint.spec.ts',
-    valid: "import { z } from 'zod';",
+    path: 'packages/contracts/src/shared/http-api.spec.ts',
+    valid: "import { Schema } from 'effect';",
     invalid:
       "import { readHealth } from '@porcelain/server/src/http/routes/access/read-health';",
     errors: 1,
   },
 
-  {
-    rule: 'feature-route-shape',
-    path: 'apps/server/src/http/routes/files/read-text-file.ts',
-    valid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
-    invalid: `import { readTextFileEndpoint as endpoint, readFileAssetEndpoint as other } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: other.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-shape',
-    path: 'apps/server/src/http/routes/files/read-text-file.ts',
-    valid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
-    invalid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: 'GET', url: endpoint.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-shape',
-    path: 'apps/server/src/http/routes/files/read-text-file.ts',
-    valid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
-    invalid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: '/worktrees/:worktreeId/text', schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-shape',
-    path: 'apps/server/src/http/routes/files/read-text-file.ts',
-    valid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
-    invalid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: endpoint.path, schema: {}, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
-    errors: 1,
-  },
   {
     rule: 'root-scripts-import-no-package',
     path: 'scripts/api-calls.ts',
@@ -726,19 +594,19 @@ test('access.pairing: works', async ({ workspace }) => {
   },
   {
     rule: 'spec-imports',
-    path: 'packages/client/src/shared/api/request.spec.ts',
-    valid: "import { readTextFileEndpoint } from '@porcelain/contracts/files';",
+    path: 'packages/client/src/shared/api/effect-client.spec.ts',
+    valid: "import { FilesApi } from '@porcelain/contracts/files';",
     invalid:
       "import { ReadTextFileUseCase } from '@porcelain/server/src/use-cases/files/read-text-file';",
     errors: 1,
   },
   {
     rule: 'no-number-outside-limits',
-    path: 'packages/contracts/src/files/endpoints.ts',
+    path: 'packages/contracts/src/files/failures.ts',
     valid:
-      "export const endpoint = defineEndpoint({ errors: ['content_changed'] });",
+      "export const contentChanged = httpFailure(ContentChangedError, 'Conflict', { code: 'content_changed' });",
     invalid:
-      'export const endpoint = defineEndpoint({ errors: { content_changed: 409 } });',
+      'export const contentChanged = httpFailure(ContentChangedError, 409);',
     errors: 1,
   },
 
@@ -771,22 +639,15 @@ test('access.pairing: works', async ({ workspace }) => {
   {
     rule: 'client-platform-through-ports',
     path: 'packages/client/src/features/access/store.ts',
-    valid: "import { createStore } from 'zustand/vanilla';",
-    invalid: "import { create } from 'zustand';",
-    errors: 1,
-  },
-  {
-    rule: 'client-platform-through-ports',
-    path: 'packages/client/src/features/access/store.ts',
-    valid: "import { shallow } from 'zustand/vanilla/shallow';",
-    invalid: "import { useShallow } from 'zustand/react/shallow';",
+    valid: "import { AtomRef } from 'effect/reactivity';",
+    invalid: "import { useAtomRef } from '@effect/atom-react';",
     errors: 1,
   },
   {
     rule: 'spec-imports',
     path: 'packages/client/src/features/access/commands/pairing.spec.ts',
     valid:
-      "import { createAccessStore } from '@porcelain/client/access'; import type { Remote } from '@porcelain/client/access/rules'; import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';",
+      "import { AtomRegistry } from 'effect/reactivity'; import { AccessStore } from '@porcelain/client/access'; import type { Remote } from '@porcelain/client/access/rules'; import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';",
     invalid:
       "import { SettingsScreen } from '../../../../../../apps/mobile/src/features/access/views/settings-screen.tsx';",
     errors: 1,
@@ -796,20 +657,6 @@ test('access.pairing: works', async ({ workspace }) => {
     path: 'packages/client/src/features/access/queries/environments.ts',
     valid: "import type { QueryFunctionContext } from '@tanstack/query-core';",
     invalid: "import { useQuery } from '@tanstack/react-query';",
-    errors: 1,
-  },
-  {
-    rule: 'client-platform-through-ports',
-    path: 'packages/client/src/features/access/store.ts',
-    valid: "import { createStore } from 'zustand/vanilla';",
-    invalid: "import { useEffect } from 'react';",
-    errors: 1,
-  },
-  {
-    rule: 'web-store-owns-zustand',
-    path: 'apps/mobile/src/features/access/commands/pairing.ts',
-    valid: "import { accessStore } from '../store';",
-    invalid: "import { createStore } from 'zustand/vanilla';",
     errors: 1,
   },
   {
@@ -837,17 +684,10 @@ test('access.pairing: works', async ({ workspace }) => {
     errors: 1,
   },
   {
-    rule: 'web-store-owns-zustand',
-    path: 'packages/client/src/features/access/commands/pairing.ts',
-    valid: "import { accessStore } from '../store';",
-    invalid: "import { create } from 'zustand';",
-    errors: 1,
-  },
-  {
     rule: 'web-queries-export-reads',
     path: 'packages/client/src/features/access/queries/environments.ts',
     valid:
-      "import { queryOptions } from '@tanstack/react-query'; export const environmentQueryOptions = () => queryOptions({ queryKey: ['environments'], queryFn: () => [] });",
+      "import { Effect } from 'effect'; export const readEnvironment = () => Effect.succeed([]);",
     invalid: 'export const defaultEnvironment = "local";',
     errors: 1,
   },
@@ -855,7 +695,7 @@ test('access.pairing: works', async ({ workspace }) => {
     rule: 'web-api-owns-request',
     path: 'packages/client/src/features/access/commands/pairing.ts',
     valid: "import { ConnectionError } from '@porcelain/client/transport';",
-    invalid: "import { requestEndpoint } from '@porcelain/client/transport';",
+    invalid: "import { HttpApiClient } from 'effect/http-api';",
     errors: 1,
   },
   {
@@ -966,7 +806,7 @@ test('access.pairing: works', async ({ workspace }) => {
     rule: 'web-rules-are-pure',
     path: 'apps/web/src/features/access/rules/probe-rule.ts',
     valid:
-      'import { parsePairingLink } from "@porcelain/client/access/rules"; export const readCode = parsePairingLink;',
+      'import { parsePairingLink } from "@porcelain/client/access/rules"; import * as Schema from "effect/Schema"; import * as Redacted from "effect/Redacted"; export const readCode = parsePairingLink; export const secret = Redacted.make("secret"); export const shape = Schema.String;',
     invalid:
       'import { Button } from "@porcelain/client/access/views"; export const button = Button;',
     errors: 1,
@@ -1016,20 +856,13 @@ export class CheckedWorktreeAccessReader implements WorktreeAccessReader {
     rule: 'adapters-report-facts',
     path: 'apps/server/src/adapters/files/filesystem-directory-reader.ts',
     valid: filesystemDirectoryReader,
-    invalid: `export class FilesystemDirectoryReader implements DirectoryReader {
-  async list(
-  ): Promise<DirectoryRead> {
-    try {
-      for await (const entry of await opendir(before.path, {
-      })) {
-        if (name.toLowerCase() === '.git') continue;
+    invalid: filesystemDirectoryReader.replace(
+      `        if (found.length === input.limit) {
+`,
+      `        if (name.toLowerCase() === '.git') continue;
         if (found.length === input.limit) {
-        }
-      }
-    } catch (error) {
-    }
-  }
-}`,
+`,
+    ),
     errors: 1,
   },
   {
@@ -1062,20 +895,13 @@ export async function entryNames(path: string): Promise<string[]> {
     rule: 'adapters-report-facts',
     path: 'apps/server/src/adapters/files/filesystem-directory-reader.ts',
     valid: filesystemDirectoryReader,
-    invalid: `export class FilesystemDirectoryReader implements DirectoryReader {
-  async list(
-  ): Promise<DirectoryRead> {
-    try {
-      for await (const entry of await opendir(before.path, {
-      })) {
-        if (['.git'].includes(name)) continue;
+    invalid: filesystemDirectoryReader.replace(
+      `        if (found.length === input.limit) {
+`,
+      `        if (['.git'].includes(name)) continue;
         if (found.length === input.limit) {
-        }
-      }
-    } catch (error) {
-    }
-  }
-}`,
+`,
+    ),
     errors: 1,
   },
   {
@@ -1090,7 +916,7 @@ export async function entryNames(path: string): Promise<string[]> {
     path: 'apps/server/src/bootstrap/main.ts',
     valid: 'export const application = composeApplication();',
     invalid: `
-if (import.meta.main) await cli.run();
+if (import.meta.main) await runCli();
 `,
     errors: 1,
   },
@@ -1200,184 +1026,28 @@ export interface ReviewStatusReader {
 `,
     errors: 1,
   },
-  {
-    rule: 'events-after-lane',
-    path: 'apps/server/src/use-cases/git-actions/run-git-action.ts',
-    valid: `export class RunGitActionUseCase {
-  private runInBackground(worktree: Worktree, run: GitActionRun): void {
-    this.lanes.background(
-      this.laneKeys.receipts(worktree),
-      ({ signal }) => this.settle(run, signal),
-    );
-  }
-  private async settle(run: GitActionRun, signal: AbortSignal): Promise<void> {
-    const ran = await this.runGitAction.execute(
-      {
-        changes: await this.targetChanges(run, signal),
-    });
-  }
-  private async targetChanges(
-  ): Promise<FileChange[]> {
-    if (run.target.kind === 'unchecked') return [];
-  }
-}`,
-    invalid: `export class RunGitActionUseCase {
-  private runInBackground(worktree: Worktree, run: GitActionRun): void {
-    this.lanes.background(
-      this.laneKeys.receipts(worktree),
-      ({ signal }) => this.settle(run, signal),
-    );
-  }
-  private async settle(run: GitActionRun, signal: AbortSignal): Promise<void> {
-    const ran = await this.runGitAction.execute(
-      {
-        changes: await this.targetChanges(run, signal),
-    });
-  }
-  private async targetChanges(
-  ): Promise<FileChange[]> {
-    this.events.worktreeChanged({ worktreeId: run.worktreeId, change: 'git' });
-    if (run.target.kind === 'unchecked') return [];
-  }
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'events-after-lane',
-    path: 'apps/server/src/use-cases/reviews/list-reviewed-layers.ts',
-    valid: `export class ListReviewedLayersUseCase {
-  constructor(
-  ) {
-    return this.lanes.runConsistent(
-      this.laneKeys.reviews(worktree),
-      worktree,
-      async ({ signal }) => {
-        const { paths: marked } = this.listReviewedLayerPaths.execute({
-        });
-      },
-    );
-  }
-}`,
-    invalid: `export class ListReviewedLayersUseCase {
-  constructor(
-  ) {
-    return this.lanes.runConsistent(
-      this.laneKeys.reviews(worktree),
-      worktree,
-      async ({ signal }) => {
-        this.events.inventoryChanged();
-        const { paths: marked } = this.listReviewedLayerPaths.execute({
-        });
-      },
-    );
-  }
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'events-after-lane',
-    path: 'apps/server/src/use-cases/git-actions/run-git-action.ts',
-    valid: `import type { GitActionRun } from '@porcelain/git-actions/models';
-import type { InterruptGitActionService } from '@porcelain/git-actions/services';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
 
-export class RunGitActionUseCase {
-  private readonly interruptGitAction: InterruptGitActionService;
-  private readonly lanes: Lanes;
-  private readonly events: EventPublisher;
-
-  constructor(interruptGitAction: InterruptGitActionService, lanes: Lanes, events: EventPublisher) {
-    this.interruptGitAction = interruptGitAction;
-    this.lanes = lanes;
-    this.events = events;
-  }
-
-  private failed(run: GitActionRun, error: unknown): Promise<void> {
-    return this.lanes.finish(async () => this.abandon(run, error), {});
-  }
-
-  private abandon(run: GitActionRun, error: unknown): void {
-    this.events.gitActionChanged(this.interruptGitAction.execute({ requestId: run.requestId }));
-  }
-}
-`,
-    invalid: `import type { GitActionRun } from '@porcelain/git-actions/models';
-import type { InterruptGitActionService } from '@porcelain/git-actions/services';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-
-export class RunGitActionUseCase {
-  private readonly interruptGitAction: InterruptGitActionService;
-  private readonly lanes: Lanes;
-  private readonly events: EventPublisher;
-
-  constructor(interruptGitAction: InterruptGitActionService, lanes: Lanes, events: EventPublisher) {
-    this.interruptGitAction = interruptGitAction;
-    this.lanes = lanes;
-    this.events = events;
-  }
-
-  private failed(run: GitActionRun, error: unknown): Promise<void> {
-    return this.lanes.finish(async () => this.announceAbandon(run, error), {});
-  }
-
-  private announceAbandon(run: GitActionRun, error: unknown): void {
-    this.events.gitActionChanged(this.interruptGitAction.execute({ requestId: run.requestId }));
-    this.abandon(run, error);
-  }
-
-  private abandon(run: GitActionRun, error: unknown): void {
-    this.events.gitActionChanged(this.interruptGitAction.execute({ requestId: run.requestId }));
-  }
-}
-`,
-    errors: 1,
-  },
   {
     rule: 'events-from-use-cases',
     path: 'apps/server/src/runtime/live-updates/watch-worktrees.ts',
-    valid: `import type {
-  AnnounceWorktreeChangeUseCasePort,
-  WorktreeChange,
-} from '../../ports/announce-worktree-change-use-case-port.ts';
-
-export class WatchWorktrees {
-  private readonly announceWorktreeChange: AnnounceWorktreeChangeUseCasePort;
-
-  constructor(announceWorktreeChange: AnnounceWorktreeChangeUseCasePort) {
-    this.announceWorktreeChange = announceWorktreeChange;
-  }
-
-  private announceChange(change: WorktreeChange): void {
-    void this.announceWorktreeChange.execute(change, {});
-  }
-}
-`,
-    invalid: `import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type {
-  AnnounceWorktreeChangeUseCasePort,
-  WorktreeChange,
-} from '../../ports/announce-worktree-change-use-case-port.ts';
-
-export class WatchWorktrees {
-  private readonly announceWorktreeChange: AnnounceWorktreeChangeUseCasePort;
-
-  constructor(announceWorktreeChange: AnnounceWorktreeChangeUseCasePort) {
-    this.announceWorktreeChange = announceWorktreeChange;
-  }
-
-  private publish(events: EventPublisher, worktreeId: string): void {
-    events.worktreeChanged({ worktreeId, change: 'git' });
-  }
-
-  private announceChange(change: WorktreeChange): void {
-    void this.announceWorktreeChange.execute(change, {});
-  }
-}
-`,
+    valid: fixtureWatchWorktreesEventsFromUseCases,
+    invalid:
+      fixtureWatchWorktreesEventsFromUseCases +
+      `\nimport { EventPublisher } from '../../ports/event-publisher.ts';
+export const direct = Effect.flatMap(EventPublisher, (events) => events.worktreeChanged({ worktreeId: 'one', change: 'git' }));`,
     errors: 1,
   },
+  ...[
+    `export const direct = Effect.flatMap(Publisher, (events) => events.inventoryChanged());`,
+    `const alias = Publisher; export const second = NativeLayer.effect(alias, Effect.succeed({}));`,
+    `import * as Events from '../../ports/event-publisher.ts'; export const direct = Effect.flatMap(Events.EventPublisher, (events) => events.inventoryChanged());`,
+  ].map((invalid) => ({
+    rule: 'events-from-use-cases',
+    path: 'apps/server/src/adapters/events/web-socket-event-publisher.ts',
+    valid: fixtureNativeEventPublisherLayer,
+    invalid: fixtureNativeEventPublisherLayer + invalid,
+    errors: 1,
+  })),
   {
     rule: 'failure-in-service',
     path: 'packages/files/src/errors/probe-failure-error.ts',
@@ -1412,28 +1082,185 @@ export function probeFailureError(failure: 'missing'): Error {
       'export class InMemoryCommentSeenStore { private readonly seen = new Map<string, number>(); write(input: {worktreeId: string; seenThrough: number}) {     if ((this.seen.get(input.worktreeId) ?? 0) > input.seenThrough) return;\n    this.seen.set(input.worktreeId, input.seenThrough); } }',
     errors: 1,
   },
-  {
+  ...[
+    {
+      invalid: commentSeenStore
+        .replace(
+          `    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+          `    this.saves.push(input);
+    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+        )
+        .replace(
+          `  private readonly seen = new Map<string, number>();
+
+`,
+          `  private readonly seen = new Map<string, number>();
+  readonly saves: { worktreeId: string; seenThrough: number }[] = [];
+
+`,
+        ),
+      errors: 1,
+    },
+    {
+      invalid: commentSeenStore
+        .replace(
+          `    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+          `    this.saves = [...this.saves, input];
+    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+        )
+        .replace(
+          `  private readonly seen = new Map<string, number>();
+
+`,
+          `  private readonly seen = new Map<string, number>();
+  saves: { worktreeId: string; seenThrough: number }[] = [];
+
+`,
+        ),
+      errors: 2,
+    },
+    {
+      invalid: commentSeenStore.replace(
+        `    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+        `    const stored = this.seen.get(input.worktreeId);
+    (stored === undefined || stored < input.seenThrough) &&
+      this.seen.set(input.worktreeId, input.seenThrough);
+`,
+      ),
+      errors: 1,
+    },
+    {
+      invalid: commentSeenStore
+        .replace(
+          `    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+          `    this.#count++;
+    this.#calls.set(\`save:\${this.#count}\`, input.seenThrough);
+    const stored = this.seen.get(input.worktreeId);
+    stored === undefined && this.seen.set(input.worktreeId, input.seenThrough);
+    stored ?? this.seen.set(input.worktreeId, input.seenThrough);
+    [stored ?? 0]
+      .filter((known) => known < input.seenThrough)
+      .forEach(() => this.seen.set(input.worktreeId, input.seenThrough));
+`,
+        )
+        .replace(
+          `  private readonly seen = new Map<string, number>();
+
+`,
+          `  private readonly seen = new Map<string, number>();
+  #count = 0;
+  readonly #calls = new Map<string, number>();
+
+  calls(): number {
+    return this.#count + this.#calls.size;
+  }
+
+`,
+        ),
+      errors: 5,
+    },
+    {
+      invalid: commentSeenStore.replace(
+        `    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+        `    [this.seen.get(input.worktreeId) ?? 0]
+      .filter((stored) => stored < input.seenThrough)
+      .forEach(() => this.seen.set(input.worktreeId, input.seenThrough));
+`,
+      ),
+      errors: 1,
+    },
+    {
+      invalid: commentSeenStore
+        .replace(
+          `    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+          `    this.counter.calls = input.seenThrough;
+    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+        )
+        .replace(
+          `  private readonly seen = new Map<string, number>();
+
+`,
+          `  private readonly seen = new Map<string, number>();
+  private readonly counter = { calls: 0 };
+
+`,
+        ),
+      errors: 1,
+    },
+    {
+      invalid: commentSeenStore.replace(
+        `    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+        `    this.seen.get(input.worktreeId) ??
+      this.seen.set(input.worktreeId, input.seenThrough);
+`,
+      ),
+      errors: 1,
+    },
+    {
+      invalid: commentSeenStore
+        .replace(
+          `    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+          `    this.#calls.set(\`save:\${this.seen.size}\`, input.seenThrough);
+    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+        )
+        .replace(
+          `  private readonly seen = new Map<string, number>();
+
+`,
+          `  private readonly seen = new Map<string, number>();
+  readonly #calls = new Map<string, number>();
+
+  calls(): number {
+    return this.#calls.size;
+  }
+
+`,
+        ),
+      errors: 1,
+    },
+    {
+      invalid: commentSeenStore
+        .replace(
+          `    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+          `    this.#count++;
+    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+        )
+        .replace(
+          `  private readonly seen = new Map<string, number>();
+
+`,
+          `  private readonly seen = new Map<string, number>();
+  #count = 0;
+
+  calls(): number {
+    return this.#count;
+  }
+
+`,
+        ),
+      errors: 1,
+    },
+  ].map(({ invalid, errors }) => ({
     rule: 'fakes-store',
     path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
     valid: commentSeenStore,
-    invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-  readonly saves: { worktreeId: string; seenThrough: number }[] = [];
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.saves.push(input);
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
-`,
-    errors: 1,
-  },
+    invalid,
+    errors,
+  })),
   {
     rule: 'fakes-store',
     path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
@@ -1443,340 +1270,7 @@ export class InMemoryCommentSeenStore implements CommentSeenStore {
       'export class InMemoryCommentSeenStore { private readonly seen = new Map<string, number>(); write(input: {worktreeId: string; seenThrough: number}) {     const current = this.seen.get(input.worktreeId) ?? 0;\n    this.seen.set(\n      input.worktreeId,\n      current > input.seenThrough ? current : input.seenThrough,\n    ); } }',
     errors: 1,
   },
-  {
-    rule: 'fakes-store',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: commentSeenStore,
-    invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
 
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-  saves: { worktreeId: string; seenThrough: number }[] = [];
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.saves = [...this.saves, input];
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
-`,
-    errors: 2,
-  },
-  {
-    rule: 'fakes-store',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: commentSeenStore,
-    invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    const stored = this.seen.get(input.worktreeId);
-    (stored === undefined || stored < input.seenThrough) &&
-      this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'fakes-store',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: commentSeenStore,
-    invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-  #count = 0;
-  readonly #calls = new Map<string, number>();
-
-  calls(): number {
-    return this.#count + this.#calls.size;
-  }
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.#count++;
-    this.#calls.set(\`save:\${this.#count}\`, input.seenThrough);
-    const stored = this.seen.get(input.worktreeId);
-    stored === undefined && this.seen.set(input.worktreeId, input.seenThrough);
-    stored ?? this.seen.set(input.worktreeId, input.seenThrough);
-    [stored ?? 0]
-      .filter((known) => known < input.seenThrough)
-      .forEach(() => this.seen.set(input.worktreeId, input.seenThrough));
-  }
-}
-`,
-    errors: 5,
-  },
-  {
-    rule: 'fakes-store',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: commentSeenStore,
-    invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    [this.seen.get(input.worktreeId) ?? 0]
-      .filter((stored) => stored < input.seenThrough)
-      .forEach(() => this.seen.set(input.worktreeId, input.seenThrough));
-  }
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'fakes-store',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: commentSeenStore,
-    invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-  private readonly counter = { calls: 0 };
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.counter.calls = input.seenThrough;
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'fakes-store',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: commentSeenStore,
-    invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.seen.get(input.worktreeId) ??
-      this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'fakes-store',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: commentSeenStore,
-    invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-  readonly #calls = new Map<string, number>();
-
-  calls(): number {
-    return this.#calls.size;
-  }
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.#calls.set(\`save:\${this.seen.size}\`, input.seenThrough);
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'fakes-store',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: commentSeenStore,
-    invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-  #count = 0;
-
-  calls(): number {
-    return this.#count;
-  }
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.#count++;
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-handler',
-    path: 'apps/server/src/http/routes/git-actions/run-git-action.ts',
-    valid:
-      "import {statusPolicy} from '../../status-policy.ts'; api.post('/run', {schema}, (request, reply) => reply.code(statusPolicy(receipt)).send(options.useCase.execute(request.body, request.context)));",
-    invalid: `
-reply.code(statusOf(receipt))
-
-function statusOf(receipt: { state: string }): number {
-  return receipt.state === 'rejected' ? 409 : 200;
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-handler',
-    path: 'apps/server/src/http/routes/access/clear-browser-session.ts',
-    valid: `export function clearBrowserSession(
-) {
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request, reply) =>
-      reply
-        .code(204)
-        .send(await options.useCase.execute({ signal: request.disconnected })) });
-}`,
-    invalid: `export function clearBrowserSession(
-) {
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (_request, reply) => reply.code(204).send() });
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-handler',
-    path: 'apps/server/src/http/routes/changes/read-changes.ts',
-    valid: `export function readChanges(
-) {
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) =>
-      options.useCase.execute(request.params, {
-        signal: request.disconnected,
-      }) });
-}`,
-    invalid: `export function readChanges(
-) {
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) => {
-      const { worktreeId } = request.params;
-      return options.useCase.execute(
-        { worktreeId },
-        { signal: request.disconnected },
-      );
-    } });
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-registrations',
-    path: 'apps/server/src/http/routes/changes/read-changes.ts',
-    valid: `export function readChanges(
-  server: FastifyInstance,
-) {
-  const api = server.withTypeProvider<ZodTypeProvider>();
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: options.useCase.execute(request.params, {
-      }) });
-}`,
-    invalid: `export function readChanges(
-  server: FastifyInstance,
-) {
-  const api = server.withTypeProvider<ZodTypeProvider>();
-  api.addHook('preHandler', async () => undefined);
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: options.useCase.execute(request.params, {
-      }) });
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-registrations',
-    path: 'apps/server/src/http/routes/changes/read-changes.ts',
-    valid: `export function readChanges(
-  server: FastifyInstance,
-) {
-  const api = server.withTypeProvider<ZodTypeProvider>();
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: options.useCase.execute(request.params, {
-      }) });
-}`,
-    invalid: `export function readChanges(
-  server: FastifyInstance,
-) {
-  const api = server.withTypeProvider<ZodTypeProvider>();
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, preHandler: async () => undefined, handler: options.useCase.execute(request.params, {
-      }) });
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-shape',
-    path: 'apps/server/src/http/routes/access/read-health.ts',
-    valid: healthRoute,
-    invalid: `import { readHealthResponseSchema } from '@porcelain/contracts/access';
-export function readHealth(
-) {
-  const METHOD = 'get';
-  api[METHOD](
-    '/health',
-    {
-      schema: {
-        response: { 200: readHealthResponseSchema },
-      },
-    },
-    async (request) =>
-      options.useCase.execute({ signal: request.disconnected }),
-  );
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-shape',
-    path: 'apps/server/src/http/routes/access/read-health.ts',
-    valid: healthRoute,
-    invalid: `import { readHealthResponseSchema } from '@porcelain/contracts/access';
-export function readHealth(
-) {
-  api['get'](
-    '/health',
-    {
-      schema: {
-        response: { 200: readHealthResponseSchema },
-      },
-    },
-    async (request) =>
-      options.useCase.execute({ signal: request.disconnected }),
-  );
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-shape',
-    path: 'apps/server/src/http/routes/access/read-health.ts',
-    valid: healthRoute,
-    invalid: `type Options = { service: Pick<ReadHealthUseCase, 'execute'> };
-options.service.execute({ signal: request.disconnected });`,
-    errors: 1,
-  },
   {
     rule: 'fixture-imports',
     path: 'packages/git/spec/fixtures/capture.ts',
@@ -1863,17 +1357,6 @@ export { utf8ByteLength };`,
   },
 
   {
-    rule: 'kernel-is-types',
-    path: 'packages/kernel/src/models/worktree.ts',
-    valid: "export type WorktreeCheck = {kind: 'found'; worktreeId: string};",
-    invalid: `
-export function worktreeFound(check: WorktreeCheck): boolean {
-  return check.kind === 'found';
-}
-`,
-    errors: 1,
-  },
-  {
     rule: 'lane-after-check',
     path: 'apps/server/src/use-cases/files/list-directory.ts',
     valid: `export class ListDirectoryUseCase {
@@ -1916,71 +1399,24 @@ export function worktreeFound(check: WorktreeCheck): boolean {
   },
   {
     rule: 'limits-from-settings',
-    path: 'apps/server/src/http/routes/files/edit-file.ts',
-    valid: `import type { FastifyInstance } from 'fastify';
-import type { Limits } from '../../../config/limits.ts';
-import type { EditFileUseCase } from '../../../use-cases/files/edit-file.ts';
-
-export function editFile(
-  server: FastifyInstance,
-  options: {
-    useCase: Pick<EditFileUseCase, 'execute'>;
-    limits: Limits['http'];
-  },
-) {
-  server.post(
-    '/worktrees/:worktreeId/files',
-    { bodyLimit: options.limits.editFileBodyBytes },
-    async (request) => options.useCase.execute(request.body, {}),
-  );
-}
-`,
-    invalid: `import type { FastifyInstance } from 'fastify';
-import { LIMITS } from '../../../config/limits.ts';
-import type { EditFileUseCase } from '../../../use-cases/files/edit-file.ts';
-
-export function editFile(
-  server: FastifyInstance,
-  options: { useCase: Pick<EditFileUseCase, 'execute'> },
-) {
-  server.post(
-    '/worktrees/:worktreeId/files',
-    { bodyLimit: LIMITS.http.editFileBodyBytes },
-    async (request) => options.useCase.execute(request.body, {}),
-  );
-}
-`,
+    path: 'apps/server/src/http/routes/files/files-api.ts',
+    valid: `import type { Limits } from '../../../config/limits.ts';
+export function filesRoutes(limits: Limits['http']) {
+  return requestBodyLimit(FilesApi.groups.files.endpoints.editFile, limits.editFileBodyBytes);
+}`,
+    invalid: `import { LIMITS } from '../../../config/limits.ts';
+export function filesRoutes() {
+  return requestBodyLimit(FilesApi.groups.files.endpoints.editFile, LIMITS.http.editFileBodyBytes);
+}`,
     errors: 1,
   },
   {
     rule: 'mcp-tool-handler',
     path: 'apps/server/src/http/mcp/review-server.ts',
-    valid: `export function createReviewMcpServer(
-) {
-  server.registerTool(
-    'read_review',
-    {
-    },
-    ({ cwd }, { signal }) =>
-      result(readPublishedReviewResponseSchema, async () =>
-        useCases.reviews.readPublishedReviewAtPath.execute(
-        ),
-      ),
-  );
-}`,
-    invalid: `export function createReviewMcpServer(
-) {
-  server.registerTool(
-    'read_review',
-    {
-    },
-    ({ cwd }, { signal }) =>
-      result(readPublishedReviewResponseSchema, async () =>
-        useCases.reviews.readPublishedReviewAtPath.run(
-        ),
-      ),
-  );
-}`,
+    valid: `import { ReviewToolkit } from '@porcelain/contracts/reviews';
+export function reviewMcpHandlers() { return ReviewToolkit.toLayer({ read_review: (input) => useCases.reviews.readPublishedReviewAtPath.execute(input) }); }`,
+    invalid: `import { ReviewToolkit } from '@porcelain/contracts/reviews';
+export function reviewMcpHandlers() { return ReviewToolkit.toLayer({ read_review: (input) => useCases.reviews.readPublishedReviewAtPath.run(input) }); }`,
     errors: 2,
   },
   {
@@ -1988,33 +1424,29 @@ export function editFile(
     path: 'packages/projects/src/models/probe/probe-model.ts',
     valid:
       "import type {ProjectKey} from '../project.ts'; export type ProbeResult = ProjectKey | undefined;",
-    invalid: `import type { ProjectKey } from '../project.ts';
-
-export type ProbeResult = ProjectKey | undefined;
-
-export function probeKey(projectId: string): ProjectKey {
-  return { projectId };
-}
-`,
+    invalid: `import type { ProjectKey } from '../project.ts'; export type ProbeResult = ProjectKey | undefined; export function probeKey(projectId: string): ProjectKey { return { projectId }; }`,
     errors: 1,
   },
 
   {
-    rule: 'no-blocking-child-process',
-    path: 'packages/process/src/commands/read-command.ts',
-    valid: `import { spawn } from 'node:child_process';
-
-export function startCommand(command: string, args: readonly string[]) {
-  return spawn(command, [...args], { stdio: ['ignore', 'pipe', 'ignore'] });
-}
-`,
-    invalid: `import { execFileSync } from 'node:child_process';
-
-export function readCommand(command: string, args: readonly string[]): string {
-  return execFileSync(command, args, { encoding: 'utf8' });
-}
-`,
-    errors: 1,
+    rule: 'models-are-types',
+    path: 'packages/projects/src/models/probe/probe-model.ts',
+    valid: `import { Schema, Struct } from 'effect';
+const keySchema = Schema.Struct({ projectId: Schema.mutableKey(Schema.String) });
+export const projectSchema = Schema.Struct({ ...Struct.omit(keySchema.fields, []), name: Schema.String });
+export const secretSchema = Schema.Struct({ token: Schema.Redacted(Schema.String), failure: Schema.Cause(Schema.Never, Schema.Defect()) });
+export type Project = typeof projectSchema.Type;`,
+    invalid: `import { Effect, Schema } from 'effect';
+export const projectSchema = Schema.Struct({ projectId: Schema.String });
+export const readSchema = Effect.succeed('project');`,
+    errors: 2,
+  },
+  {
+    rule: 'models-are-types',
+    path: 'packages/projects/src/models/probe/probe-model.ts',
+    valid: `import { Schema } from 'effect'; export const projectSchema = Schema.Struct({ name: Schema.String });`,
+    invalid: `import { Schema } from 'effect'; const resultSchema = process.read(); export const projectSchema = Schema.Struct({ name: resultSchema });`,
+    errors: 2,
   },
   {
     rule: 'no-blocking-child-process',
@@ -2058,47 +1490,6 @@ export class ListDirectoryService {
   },
 
   {
-    rule: 'no-nested-lane',
-    path: 'apps/server/src/use-cases/reviews/mark-comments-seen.ts',
-    valid: separateWorktreeLanes,
-    invalid: `export class MarkCommentsSeenUseCase {
-  async execute(
-  ): Promise<MarkCommentsSeenResponse> {
-    const { changed, ...seen } = await this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'write',
-      async () => {
-        await this.checkWorktree.execute(
-          { worktreeId, requireAvailableProject: false },
-          context,
-        );
-        return this.markCommentsSeen.execute(input);
-      },
-    );
-  }
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'no-nested-lane',
-    path: 'apps/server/src/use-cases/reviews/mark-comments-seen.ts',
-    valid: separateWorktreeLanes,
-    invalid: `export class MarkCommentsSeenUseCase {
-  async execute(
-  ): Promise<MarkCommentsSeenResponse> {
-    const { changed, ...seen } = await this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'write',
-      async () =>
-        this.lanes.run(this.laneKeys.reviews(worktree), 'write', async () =>
-          this.markCommentsSeen.execute(input),
-        ),
-    );
-  }
-}`,
-    errors: 1,
-  },
-  {
     rule: 'no-loose-equality-in-domain',
     path: 'packages/access/src/services/issue-pairing-service.ts',
     valid: 'if (value === undefined) throw new InvalidDeviceDetailsError();',
@@ -2139,16 +1530,9 @@ import { withoutGitDirectory } from '@porcelain/kernel/rules';`,
     rule: 'no-node-globals',
     path: 'apps/server/src/use-cases/projects/probe-env.ts',
     valid:
-      "import type {OperationContext} from '../../ports/operation-context.ts'; export class ProbeEnvUseCase { constructor(private readonly reader: EnvironmentReader) {} execute(context: OperationContext): Promise<string> { return this.reader.read(context.signal); } }",
-    invalid: `import type { OperationContext } from '../../ports/operation-context.ts';
-
-export class ProbeEnvUseCase {
-  async execute(context: OperationContext): Promise<string> {
-    const fs = process.getBuiltinModule('node:fs');
-    return fs.readFileSync(\`\${process.env.HOME ?? ''}/.gitconfig\`, 'utf8');
-  }
-}
-`,
+      "import { Effect } from 'effect'; export class ProbeEnvUseCase { constructor(private readonly reader: EnvironmentReader) {} execute(): Effect.Effect<string, EnvironmentUnavailableError> { return this.reader.read(); } }",
+    invalid:
+      "import { Effect } from 'effect';\nexport class ProbeEnvUseCase {\n  execute(): Effect.Effect<string> {\n    const fs = process.getBuiltinModule('node:fs');\n    return fs.readFileSync(`${process.env.HOME ?? ''}/.gitconfig`, 'utf8');\n  }\n}\n",
     errors: 2,
   },
   {
@@ -2163,32 +1547,12 @@ export class ProbeEnvUseCase {
   {
     rule: 'no-number-outside-limits',
     path: 'packages/agents/src/commit-planning/claude-provider.ts',
-    valid: `export class ClaudeProvider implements Provider {
-  async answer(
-  ): Promise<unknown> {
-    try {
-      const output = await runProvider(
-        {
-          maxBytes: this.limits.claudeOutputBytes,
-        },
-      );
-    } finally {
-    }
-  }
-}`,
-    invalid: `export class ClaudeProvider implements Provider {
-  async answer(
-  ): Promise<unknown> {
-    try {
-      const output = await runProvider(
-        {
-          maxBytes: 1024 * 1024,
-        },
-      );
-    } finally {
-    }
-  }
-}`,
+    valid: `export const answer = Effect.fn('ClaudeProvider.answer')(function* () {
+  return yield* runProvider({ maxBytes: limits.claudeOutputBytes });
+});`,
+    invalid: `export const answer = Effect.fn('ClaudeProvider.answer')(function* () {
+  return yield* runProvider({ maxBytes: 1024 * 1024 });
+});`,
     errors: 3,
   },
   {
@@ -2226,13 +1590,6 @@ export class ProbeEnvUseCase {
     path: 'apps/server/src/installer/service-health.ts',
     valid: 'attempt < settings.maxAttempts;',
     invalid: `attempt < 60;`,
-    errors: 1,
-  },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'packages/process/src/commands/run-command.ts',
-    valid: 'await delay(options.pollIntervalMs);',
-    invalid: `await delay(10);`,
     errors: 1,
   },
   {
@@ -2355,19 +1712,12 @@ export function threadCapacityLeft(threads: number): number {
     rule: 'no-number-outside-limits',
     path: 'apps/server/src/adapters/files/filesystem-directory-reader.ts',
     valid: filesystemDirectoryReader,
-    invalid: `export class FilesystemDirectoryReader implements DirectoryReader {
-  async list(
-  ): Promise<DirectoryRead> {
-    try {
-      for await (const entry of await opendir(before.path, {
-      })) {
-        if (found.length >= 2000) {
-        }
-      }
-    } catch (error) {
-    }
-  }
-}`,
+    invalid: filesystemDirectoryReader.replace(
+      `        if (found.length === input.limit) {
+`,
+      `        if (found.length >= 2000) {
+`,
+    ),
     errors: 1,
   },
   {
@@ -2394,370 +1744,60 @@ export function threadCapacityLeft(threads: number): number {
   },
 
   {
-    rule: 'no-schema-parse-aliases',
+    rule: 'no-schema-parse-in-typed-code',
     path: 'packages/files/src/rules/encode-base64.ts',
     valid:
       'export function byteLength(value: Uint8Array) { return value.byteLength; }',
-    invalid: `
-export function probeParser(value: object): unknown {
-  return Reflect.get(value, "safeParse");
-}
+    invalid: `import { decodeUnknownSync as parse } from 'effect/Schema';
+const { decodeUnknownResult: parseResult } = Schema;
+export function probeParser(value: object): unknown { return Reflect.get(value, "decodeUnknownSync"); }
 `,
-    errors: 1,
+    errors: 3,
   },
   {
     rule: 'no-schema-parse-in-typed-code',
     path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `import type { ListDirectoryInput } from '../models/list-directory.ts';
-
-export class ListDirectoryService {
-  execute(input: ListDirectoryInput): string {
-    return input.path;
-  }
-}
-`,
-    invalid: `import { z } from 'zod/v4';
-import type { ListDirectoryInput } from '../models/list-directory.ts';
-
-export class ListDirectoryService {
-  execute(input: ListDirectoryInput): string {
-    z.string().parse(input.path);
-    return input.path;
-  }
-}
-`,
+    valid:
+      "export const execute = Effect.fn('ListDirectoryService.execute')(function* (input: ListDirectoryInput) { return input.path; });",
+    invalid:
+      "export const execute = Effect.fn('ListDirectoryService.execute')(function* (input: ListDirectoryInput) { Schema.decodeUnknownSync(Schema.String)(input.path); return input.path; });",
     errors: 1,
   },
   {
     rule: 'no-undefined-union-result',
     path: 'packages/git-actions/src/services/read-interrupted-git-action-service.ts',
-    valid: `import type {
-  ReadInterruptedGitActionInput,
-  ReadInterruptedGitActionResult,
-} from '../models/read-interrupted-git-action.ts';
-import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
-import { gitActionReceiptView } from '../rules/git-action-receipt-view.ts';
-
-export class ReadInterruptedGitActionService {
-  private readonly gitActionReceipts: GitActionReceiptStore;
-
-  constructor(gitActionReceipts: GitActionReceiptStore) {
-    this.gitActionReceipts = gitActionReceipts;
-  }
-
-  execute(input: ReadInterruptedGitActionInput): ReadInterruptedGitActionResult {
-    const receipt = this.gitActionReceipts.latestInterrupted(input);
-    return receipt
-      ? { kind: 'interrupted', receipt: gitActionReceiptView(receipt) }
-      : { kind: 'none' };
-  }
-}
-`,
-    invalid: `import type { GitActionReceiptView } from '../models/git-action-receipt-view.ts';
-import type { ReadInterruptedGitActionInput } from '../models/read-interrupted-git-action.ts';
-import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
-import { gitActionReceiptView } from '../rules/git-action-receipt-view.ts';
-
-export class ReadInterruptedGitActionService {
-  private readonly gitActionReceipts: GitActionReceiptStore;
-
-  constructor(gitActionReceipts: GitActionReceiptStore) {
-    this.gitActionReceipts = gitActionReceipts;
-  }
-
-  execute(input: ReadInterruptedGitActionInput): GitActionReceiptView | undefined {
-    const receipt = this.gitActionReceipts.latestInterrupted(input);
-    return receipt && gitActionReceiptView(receipt);
-  }
-}
-`,
+    valid:
+      "export class ReadInterruptedGitActionService { execute(input: ReadInterruptedGitActionInput): ReadInterruptedGitActionResult { return { kind: 'none' }; } }",
+    invalid:
+      'export class ReadInterruptedGitActionService { execute(input: ReadInterruptedGitActionInput): GitActionReceiptView | undefined { return undefined; } }',
     errors: 1,
   },
   {
     rule: 'no-void-statement',
     path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `export class ListDirectoryService {
-  async execute(
-  ): Promise<ListDirectoryResult> {
-    const read = await this.directoryReader.list(
-    );
-  }
-}`,
-    invalid: `export class ListDirectoryService {
-  async execute(
-  ): Promise<ListDirectoryResult> {
-    void signal;
-    const read = await this.directoryReader.list(
-    );
-  }
-}`,
+    valid:
+      "export const execute = Effect.fn('ListDirectoryService.execute')(function* () { return yield* reader.list(); });",
+    invalid:
+      "export const execute = Effect.fn('ListDirectoryService.execute')(function* (signal: AbortSignal) { void signal; return yield* reader.list(); });",
     errors: 1,
   },
   {
     rule: 'one-clock',
     path: 'packages/git-actions/src/services/accept-git-action-service.ts',
-    valid: `export class AcceptGitActionService {
-  constructor(gitActionReceipts: GitActionReceiptStore, clock: Clock) {
-    const receipt: GitActionReceipt = {
-      acceptedAt: this.clock.now(),
-    }
-  }
-}`,
-    invalid: `export class AcceptGitActionService {
-  constructor(gitActionReceipts: GitActionReceiptStore, clock: Clock) {
-    const receipt: GitActionReceipt = {
-      acceptedAt: new Date(Date.parse(this.clock.now())).toISOString(),
-    }
-  }
-}`,
+    valid: 'export const acceptedAt = clock.now();',
+    invalid:
+      'export const acceptedAt = new Date(Date.parse(clock.now())).toISOString();',
     errors: 2,
   },
   {
-    rule: 'operation-class-members',
+    rule: 'operation-class-shape',
     path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid:
-      "export class ReadHealthUseCase { execute(context: OperationContext): ReadHealthResponse { return { status: 'ok', environmentId: context.environmentId }; } }",
+    valid: nativeHealthOperation,
     invalid:
       "export async function fixture(input: Input, environmentId: string) {         return new HealthReply(\n          this.readEnvironment.execute().environmentId,\n        ).body();\n\nclass HealthReply {\n  private readonly environmentId: string;\n\n  constructor(environmentId: string) {\n    this.environmentId = environmentId;\n  }\n\n  body(): ReadHealthResponse {\n    return { status: 'ok', environmentId: this.environmentId };\n  }\n}\n }",
-    errors: 1,
+    errors: 3,
   },
-  {
-    rule: 'operation-class-members',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
-export class ReadHealthUseCase {
-  private readonly readEnvironment: ReadEnvironmentService;
-
-  constructor(readEnvironment: ReadEnvironmentService) {
-    this.readEnvironment = readEnvironment;
-  }
-
-  async execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.respond(this.readEnvironment.execute().environmentId);
-  }
-
-  private respond(environmentId: string): ReadHealthResponse {
-    return { status: 'ok', environmentId };
-  }
-}
-`,
-    invalid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
-import type { OperationContext } from '../../ports/operation-context.ts';
-
-export class ReadHealthUseCase {
-  private readonly readEnvironment: ReadEnvironmentService;
-
-  constructor(readEnvironment: ReadEnvironmentService) {
-    this.readEnvironment = readEnvironment;
-  }
-
-  async execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.respond(this.readEnvironment.execute().environmentId);
-  }
-
-  private readonly respond = (environmentId: string): ReadHealthResponse => ({
-    status: 'ok',
-    environmentId,
-  });
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/projects/collect-absent-worktrees.ts',
-    valid:
-      'export class CollectAbsentWorktreesUseCase { execute(context: OperationContext): Promise<CollectAbsentWorktreesResult> { return this.listExpiredWorktrees.execute(context); } }',
-    invalid:
-      'export class CollectAbsentWorktreesUseCase { execute(input: Input): Promise<Result> { return this.listExpiredWorktrees.execute(input); } }',
-    errors: 1,
-  },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/projects/collect-absent-worktrees.ts',
-    valid:
-      'export class CollectAbsentWorktreesUseCase { execute(context: OperationContext): Promise<CollectAbsentWorktreesResult> { return this.listExpiredWorktrees.execute(context); } }',
-    invalid:
-      'export class CollectAbsentWorktreesUseCase { execute(input: Input): Promise<Result> { return this.listExpiredWorktrees.execute(input); } }',
-    errors: 1,
-  },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-
-export class ReadHealthUseCase {
-  private readonly readEnvironment: ReadEnvironmentService;
-  private readonly lanes: Lanes;
-
-  constructor(readEnvironment: ReadEnvironmentService, lanes: Lanes) {
-    this.readEnvironment = readEnvironment;
-    this.lanes = lanes;
-  }
-
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.lanes.run('access', 'read', async () => {
-      const { environmentId } = this.readEnvironment.execute();
-      return { status: 'ok', environmentId };
-    }, { callerSignal: context.signal });
-  }
-}
-`,
-    invalid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-
-export class ReadHealthUseCase {
-  private readEnvironmentService: ReadEnvironmentService;
-  private readonly lanes: Lanes;
-
-  constructor(readEnvironment: ReadEnvironmentService, lanes: Lanes) {
-    this.readEnvironmentService = readEnvironment;
-    this.lanes = lanes;
-  }
-
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.lanes.run('access', 'read', async () => {
-      const { environmentId } = this.readEnvironmentService.execute();
-      return { status: 'ok', environmentId };
-    }, { callerSignal: context.signal });
-  }
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `export class ReadHealthUseCase {
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.lanes.run(
-      this.laneKeys.access(),
-      'read',
-      async () => {
-        const { environmentId } = this.readEnvironment.execute();
-        return { status: 'ok', environmentId };
-      },
-      { callerSignal: context.signal },
-    );
-  }
-}`,
-    invalid: `export class ReadHealthUseCase {
-  readonly execute = (
-    context: OperationContext,
-  ): Promise<ReadHealthResponse> =>
-    this.lanes.run(
-      this.laneKeys.access(),
-      'read',
-      async () => {
-        const { environmentId } = this.readEnvironment.execute();
-        return { status: 'ok', environmentId };
-      },
-      { callerSignal: context.signal },
-    );
-}`,
-    errors: 2,
-  },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
-import type { OperationContext } from '../../ports/operation-context.ts';
-
-export class ReadHealthUseCase {
-  private readonly readEnvironment: ReadEnvironmentService;
-
-  constructor(readEnvironment: ReadEnvironmentService) {
-    this.readEnvironment = readEnvironment;
-  }
-
-  async execute(context: OperationContext): Promise<ReadHealthResponse> {
-    const { environmentId } = this.readEnvironment.execute();
-    return { status: 'ok', environmentId };
-  }
-}
-`,
-    invalid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import { Operation } from '../../runtime/operation.ts';
-
-export class ReadHealthUseCase extends Operation<ReadHealthResponse> {
-  private readonly readEnvironment: ReadEnvironmentService;
-
-  constructor(readEnvironment: ReadEnvironmentService) {
-    super();
-    this.readEnvironment = readEnvironment;
-  }
-
-  protected async run(context: OperationContext): Promise<ReadHealthResponse> {
-    const { environmentId } = this.readEnvironment.execute();
-    return { status: 'ok', environmentId };
-  }
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `export class ReadHealthUseCase { execute(context: OperationContext): ReadHealthResponse { return {status: 'ok', environmentId: context.environmentId}; } }`,
-    invalid: `export class ReadHealthUseCase { read(context: OperationContext): ReadHealthResponse { return {status: "ok", environmentId: context.environmentId}; } }`,
-    errors: 2,
-  },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `export class ReadHealthUseCase {
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-  }
-}`,
-    invalid: `export class ReadHealthUseCase {
-  executeForOwner(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.execute(context);
-  }
-
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-  }
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `export class ReadHealthUseCase {
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.lanes.run(
-    );
-  }
-}`,
-    invalid: `export class ReadHealthUseCase {
-  execute(context: OperationContext): Promise<ReadHealthResponse>;
-  execute(
-    context: OperationContext,
-    verbose: boolean,
-  ): Promise<ReadHealthResponse>;
-  execute(
-    context: OperationContext,
-    verbose?: boolean,
-  ): Promise<ReadHealthResponse> {
-    if (verbose)
-      return Promise.resolve({ status: 'ok', environmentId: 'verbose' });
-    return this.lanes.run(
-    );
-  }
-}`,
-    errors: 1,
-  },
   {
     rule: 'port-shape',
     path: 'apps/server/src/ports/edit-announcement-writer.ts',
@@ -2776,15 +1816,13 @@ export interface ContextualEditWriter {
     valid: `export interface CheckWorktreeUseCasePort {
   execute(
     input: CheckWorktreeInput,
-    context: OperationContext,
-  ): Promise<ListedWorktree>;
+  ): Effect.Effect<ListedWorktree, WorktreeAccessFailure>;
 }`,
     invalid: `export interface CheckWorktreeUseCasePort {
   execute(
     input: CheckWorktreeInput,
-    context: OperationContext,
-  ): Promise<ListedWorktree>;
-  refresh(input: CheckWorktreeInput, context: OperationContext): Promise<void>;
+  ): Effect.Effect<ListedWorktree, WorktreeAccessFailure>;
+  refresh(input: CheckWorktreeInput): Effect.Effect<void>;
 }`,
     errors: 1,
   },
@@ -2792,7 +1830,7 @@ export interface ContextualEditWriter {
     rule: 'port-shape',
     path: 'apps/server/src/ports/notice-port.ts',
     valid: 'export interface NoticeWriter { send(input: NoticeInput): void; }',
-    invalid: `export interface NoticePort {
+    invalid: `export interface Clock {
   send(worktreeId: string, kind: string, revision: number): void;
 }
 `,
@@ -2877,7 +1915,7 @@ process.stdout.write(\`\${deriveProjectName(undefined, '/tmp/probe')}\\n\`);
     rule: 'root-scripts-import-no-package',
     path: 'scripts/probe-reach.ts',
     valid:
-      "import {z} from 'zod'; process.stdout.write(z.string().parse('value'));",
+      "import { Schema } from 'effect'; process.stdout.write(Schema.decodeUnknownSync(Schema.String)('value'));",
     invalid: `import { redeemPairingResponseSchema } from '@porcelain/contracts/access';
 
 process.stdout.write(\`\${JSON.stringify(redeemPairingResponseSchema.parse({}))}\\n\`);
@@ -3025,70 +2063,11 @@ export function parseCredential(
   {
     rule: 'scope-shape',
     path: 'apps/server/src/http/scopes/paired.ts',
-    valid: `export async function pairedScope(
-  server: FastifyInstance,
-) {
-  server.addHook(
-    authenticate(options.application, {
-      cookieMaxAgeSeconds: options.limits.access.device.cookieMaxAgeSeconds,
-    }),
-  );
-  server.register(runGitAction, {
-  });
-}`,
-    invalid: `export async function pairedScope(
-  server: FastifyInstance,
-) {
-  server.addHook(
-    authenticate(options.application, {
-      cookieMaxAgeSeconds: options.limits.access.device.cookieMaxAgeSeconds,
-    }),
-  );
-  server.get('/debug/lanes', async () => ({ ok: true }));
-  server.register(runGitAction, {
-  });
-}`,
+    valid: `import { Layer } from 'effect'; export function pairedScope(options) { return Layer.mergeAll(options.application.files, options.application.reviews).pipe(Layer.provide(policy(options).combine(options.boundary).layer)); }`,
+    invalid: `import { Layer } from 'effect'; export function pairedScope(options) { return options.application.files.execute(options.input); }`,
     errors: 1,
   },
-  {
-    rule: 'signals-are-passed',
-    path: 'packages/files/src/services/list-directory-service.ts',
-    valid:
-      'export class ListDirectoryService { constructor(private readonly reader: DirectoryReader) {} execute(input: DirectoryInput, signal?: AbortSignal) { return this.reader.read(input, signal); } }',
-    invalid: `    const { aborted } = signal ?? { aborted: false };
-    if (aborted) throw new DirectoryTooLargeError();
-    if (read.kind === 'failed') throw this.failure(read.failure);`,
-    errors: 1,
-  },
-  {
-    rule: 'signals-are-passed',
-    path: 'packages/files/src/services/list-directory-service.ts',
-    valid:
-      'export class ListDirectoryService { constructor(private readonly reader: DirectoryReader) {} execute(input: DirectoryInput, signal?: AbortSignal) { return this.reader.read(input, signal); } }',
-    invalid: `    signal?.throwIfAborted();
-    if (read.kind === 'failed') throw this.failure(read.failure);`,
-    errors: 1,
-  },
-  {
-    rule: 'signals-are-passed',
-    path: 'apps/server/src/use-cases/changes/read-changes.ts',
-    valid: `export class ReadChangesUseCase {
-  constructor(
-  ) {
-    return this.lanes.runConsistent<ReadChangesResponse>(
-    );
-  }
-}`,
-    invalid: `export class ReadChangesUseCase {
-  constructor(
-  ) {
-    context.signal?.throwIfAborted();
-    return this.lanes.runConsistent<ReadChangesResponse>(
-    );
-  }
-}`,
-    errors: 1,
-  },
+
   {
     rule: 'spec-asserts',
     path: 'packages/projects/src/rules/derive-project-name.spec.ts',
@@ -3333,65 +2312,42 @@ describe('remoteLink', () => {
     rule: 'spec-asserts',
     path: 'apps/web/src/features/access/rules/remotes.spec.ts',
     valid: remoteLinkCases,
-    invalid: `import { describe, expect, it } from 'vitest';
-import { remoteLink } from './remotes.ts';
-
-describe('remoteLink', () => {
-  it('reads the address, code and environment of a pairing link', () => {
-    expect(remoteLink('http://192.0.2.10:4738/pair#c=a&e=env')).toEqual({
-      address: 'http://192.0.2.10:4738',
-      code: 'a',
-      environmentId: 'env',
-    });
+    invalid: remoteLinkCases.replace(
+      `    expect(remoteLink(value)).toBeUndefined();
   });
-
-  it.each(['', 'http://192.0.2.10:4738/pair#c=a'])('reads nothing from %j', (value) => {
-    expect(remoteLink(value)).toBeUndefined();
+`,
+      `    expect(remoteLink(value)).toBeUndefined();
     expect(remoteLink('http://192.0.2.10:4738/pair#c=b&e=env')).toEqual({
       address: 'http://192.0.2.10:4738',
       code: 'b',
       environmentId: 'env',
     });
   });
-});
 `,
+    ),
     errors: 1,
   },
   {
     rule: 'spec-asserts',
     path: 'apps/web/src/features/access/rules/remotes.spec.ts',
-    valid: `import { describe, expect, it } from 'vitest';
-import { remoteLink } from './remotes.ts';
-
-describe('remoteLink', () => {
-  it('reads the address, code and environment of a pairing link', () => {
-    expect(remoteLink('http://192.0.2.10:4738/pair#c=a&e=env')).toEqual({
-      address: 'http://192.0.2.10:4738',
-      code: 'a',
-      environmentId: 'env',
-    });
+    valid: remoteLinkCases.replace(
+      `
+  it.each(['', 'http://192.0.2.10:4738/pair#c=a'])('reads nothing from %j', (value) => {
+    expect(remoteLink(value)).toBeUndefined();
   });
-});
 `,
-    invalid: `import { describe, expect, it } from 'vitest';
-import { remoteLink } from './remotes.ts';
-
-describe('remoteLink', () => {
-  it('reads the address, code and environment of a pairing link', () => {
-    expect(remoteLink('http://192.0.2.10:4738/pair#c=a&e=env')).toEqual({
-      address: 'http://192.0.2.10:4738',
-      code: 'a',
-      environmentId: 'env',
-    });
-  });
-
-  it('reads the same link the same way again', () => {
+      '',
+    ),
+    invalid: remoteLinkCases.replace(
+      `  it.each(['', 'http://192.0.2.10:4738/pair#c=a'])('reads nothing from %j', (value) => {
+    expect(remoteLink(value)).toBeUndefined();
+`,
+      `  it('reads the same link the same way again', () => {
     expect(remoteLink('http://192.0.2.10:4738/pair#c=a&e=env')).toEqual({
       ...remoteLink('http://192.0.2.10:4738/pair#c=a&e=env'),
     });
-  });
-});
 `,
+    ),
     errors: 1,
   },
   {
@@ -3627,8 +2583,6 @@ describe('commitPaths', () => {
     valid:
       "import {statusPolicy} from './status-policy.ts'; import {expect, it} from 'vitest'; it('maps the outcome to a response', () => { expect(statusPolicy({kind: 'missing'})).toBe(404); });",
     invalid: `import { openStorageSession } from '@porcelain/storage';
-
-
 describe('probe', () => {
   it('opens storage', () => {
     expect(openStorageSession).toBeTypeOf('function');
@@ -3746,7 +2700,7 @@ await page.waitForFunction("document.querySelector('.dark') !== null");`,
     rule: 'use-case-computes',
     path: 'apps/server/src/use-cases/projects/find-worktree-by-path.ts',
     valid:
-      'export class FindWorktreeByPathUseCase { execute(input: FindWorktreeInput, context: OperationContext) { return this.findWorktree.execute(input, context.signal); } }',
+      "import { Effect } from 'effect';\nexport class FindWorktreeByPathUseCase { execute(input: FindWorktreeInput) { return this.findWorktree.execute(input); } }",
     invalid:
       "import { NoWorktreeAtPathError } from '@porcelain/projects/errors';\n\n    export async function fixture(input: Input, environmentId: string) { if (input.path === '') return Promise.reject(new NoWorktreeAtPathError());\n    await this.refreshInventory.execute(context); }",
     errors: 2,
@@ -3754,116 +2708,56 @@ await page.waitForFunction("document.querySelector('.dark') !== null");`,
   {
     rule: 'use-case-computes',
     path: 'apps/server/src/use-cases/changes/read-change-lines.ts',
-    valid: `import type { ReadChangeLinesService } from '@porcelain/changes/services';
-import type { ReadChangeLinesQuery } from '@porcelain/contracts/changes';
-
-export class ReadChangeLinesUseCase {
-  private readonly readChangeLines: ReadChangeLinesService;
-
-  constructor(readChangeLines: ReadChangeLinesService) {
-    this.readChangeLines = readChangeLines;
-  }
-
-  execute(input: ReadChangeLinesQuery & { text: string }) {
-    const { path, from, to, at, text } = input;
-    return this.readChangeLines.execute({ path, from, to, at, text });
-  }
-}
+    valid: fixtureReadChangeLinesUseCaseComputes,
+    invalid: fixtureReadChangeLinesUseCaseComputes
+      .replace(
+        `    return this.readChangeLines.execute({ path, from, to, at, text });
 `,
-    invalid: `import { InvalidLineRangeError } from '@porcelain/kernel/errors';
+        `    if (from > to) throw new InvalidLineRangeError();
+    return this.readChangeLines.execute({ path, from, to, at, text });
+`,
+      )
+      .replace(
+        `import type { ReadChangeLinesService } from '@porcelain/changes/services';
+`,
+        `import { InvalidLineRangeError } from '@porcelain/kernel/errors';
 import type { ReadChangeLinesService } from '@porcelain/changes/services';
-import type { ReadChangeLinesQuery } from '@porcelain/contracts/changes';
-
-export class ReadChangeLinesUseCase {
-  private readonly readChangeLines: ReadChangeLinesService;
-
-  constructor(readChangeLines: ReadChangeLinesService) {
-    this.readChangeLines = readChangeLines;
-  }
-
-  execute(input: ReadChangeLinesQuery & { text: string }) {
-    const { path, from, to, at, text } = input;
-    if (from > to) throw new InvalidLineRangeError();
-    return this.readChangeLines.execute({ path, from, to, at, text });
-  }
-}
 `,
+      ),
     errors: 2,
   },
-  {
+  ...[
+    {
+      invalid:
+        "import {\n  readHealthResponseSchema,\n  type ReadHealthResponse,\n} from '@porcelain/contracts/access';\n    export async function fixture(input: Input, environmentId: string) { const check = readHealthResponseSchema.parse;\n    return check({ status: 'ok', environmentId }); }",
+      errors: 1,
+    },
+    {
+      invalid:
+        "import {\n  readHealthResponseSchema,\n  type ReadHealthResponse,\n} from '@porcelain/contracts/access';\n    export async function fixture(input: Input, environmentId: string) { const { parse: check } = readHealthResponseSchema;\n    return check({ status: 'ok', environmentId }); }",
+      errors: 1,
+    },
+    {
+      invalid:
+        "import {\n  readHealthResponseSchema,\n  type ReadHealthResponse,\n} from '@porcelain/contracts/access';\n    export async function fixture(input: Input, environmentId: string) { const decoded = readHealthResponseSchema.safeDecode({ status: 'ok', environmentId });\n    return decoded.success ? decoded.data : { status: 'ok', environmentId }; }",
+      errors: 1,
+    },
+  ].map(({ invalid, errors }) => ({
     rule: 'use-case-imports',
     path: 'apps/server/src/use-cases/access/read-health.ts',
     valid:
-      "import type {ReadHealthResponse} from '@porcelain/contracts/access'; export class ReadHealthUseCase { execute(context: OperationContext): ReadHealthResponse { return {status: 'ok', environmentId: context.environmentId}; } }",
-    invalid:
-      "import {\n  readHealthResponseSchema,\n  type ReadHealthResponse,\n} from '@porcelain/contracts/access';\n    export async function fixture(input: Input, environmentId: string) { const check = readHealthResponseSchema.parse;\n    return check({ status: 'ok', environmentId }); }",
-    errors: 1,
-  },
-  {
-    rule: 'use-case-imports',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid:
-      "import type {ReadHealthResponse} from '@porcelain/contracts/access'; export class ReadHealthUseCase { execute(context: OperationContext): ReadHealthResponse { return {status: 'ok', environmentId: context.environmentId}; } }",
-    invalid:
-      "import {\n  readHealthResponseSchema,\n  type ReadHealthResponse,\n} from '@porcelain/contracts/access';\n    export async function fixture(input: Input, environmentId: string) { const { parse: check } = readHealthResponseSchema;\n    return check({ status: 'ok', environmentId }); }",
-    errors: 1,
-  },
-  {
-    rule: 'use-case-imports',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid:
-      "import type {ReadHealthResponse} from '@porcelain/contracts/access'; export class ReadHealthUseCase { execute(context: OperationContext): ReadHealthResponse { return {status: 'ok', environmentId: context.environmentId}; } }",
-    invalid:
-      "import {\n  readHealthResponseSchema,\n  type ReadHealthResponse,\n} from '@porcelain/contracts/access';\n    export async function fixture(input: Input, environmentId: string) { const decoded = readHealthResponseSchema.safeDecode({ status: 'ok', environmentId });\n    return decoded.success ? decoded.data : { status: 'ok', environmentId }; }",
-    errors: 1,
-  },
+      "import { Effect } from 'effect';\nimport type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';\nimport type { ReadEnvironmentService } from '@porcelain/access/services';\nimport type { ReadHealthResponse } from '@porcelain/contracts/access';\nimport type { LaneKeys } from '../../runtime/lane-keys.ts';\nimport type { Lanes } from '../../runtime/lanes.ts';\n\nexport class ReadHealthUseCase {\n  private readonly readEnvironment: ReadEnvironmentService;\n  private readonly lanes: Lanes;\n  private readonly laneKeys: LaneKeys;\n\n  constructor(\n    readEnvironment: ReadEnvironmentService,\n    lanes: Lanes,\n    laneKeys: LaneKeys,\n  ) {\n    this.readEnvironment = readEnvironment;\n    this.lanes = lanes;\n    this.laneKeys = laneKeys;\n  }\n\n  execute(): Effect.Effect<\n    ReadHealthResponse,\n    MissingEnvironmentIdentityError\n  > {\n    return Effect.gen({ self: this }, function* () {\n      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>\n        Effect.gen({ self: this }, function* () {\n          const { environmentId } = yield* this.readEnvironment.execute();\n          return { status: 'ok' as const, environmentId };\n        }),\n      );\n    });\n  }\n}\n",
+    invalid,
+    errors,
+  })),
+
   {
     rule: 'use-case-input-is-contract',
     path: 'apps/server/src/use-cases/reviews/rule-fixture.ts',
-    valid: `import type {
-  CommentAuthor,
-  CreateCommentThreadRequest,
-  CreateCommentThreadResponse,
-} from '@porcelain/contracts/reviews';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { CreateCommentThreadService } from '@porcelain/reviews/services';
-import type { OperationContext } from '../../ports/operation-context.ts';
-
-export class CreateCommentThreadUseCase {
-  private readonly createCommentThread: CreateCommentThreadService;
-
-  constructor(createCommentThread: CreateCommentThreadService) {
-    this.createCommentThread = createCommentThread;
-  }
-
-  async execute(
-    input: WorktreeParams & CreateCommentThreadRequest & CommentAuthor,
-    context: OperationContext,
-  ): Promise<CreateCommentThreadResponse> {
-    return this.createCommentThread.execute(input);
-  }
-}
-`,
-    invalid: `import type { CreateCommentThreadResponse } from '@porcelain/contracts/reviews';
-import type { CreateCommentThreadInput } from '@porcelain/reviews/models';
-import type { CreateCommentThreadService } from '@porcelain/reviews/services';
-import type { OperationContext } from '../../ports/operation-context.ts';
-
-export class CreateCommentThreadUseCase {
-  private readonly createCommentThread: CreateCommentThreadService;
-
-  constructor(createCommentThread: CreateCommentThreadService) {
-    this.createCommentThread = createCommentThread;
-  }
-
-  async execute(
-    input: CreateCommentThreadInput,
-    context: OperationContext,
-  ): Promise<CreateCommentThreadResponse> {
-    return this.createCommentThread.execute(input);
-  }
-}
-`,
+    valid:
+      "import { Effect } from 'effect';\nimport type {\n  CommentAuthor,\n  CreateCommentThreadRequest,\n  CreateCommentThreadResponse,\n} from '@porcelain/contracts/reviews';\nimport type { WorktreeParams } from '@porcelain/contracts/shared';\nimport type { CreateCommentThreadService } from '@porcelain/reviews/services';\nexport class CreateCommentThreadUseCase {\n  private readonly createCommentThread: CreateCommentThreadService;\n\n  constructor(createCommentThread: CreateCommentThreadService) {\n    this.createCommentThread = createCommentThread;\n  }\n\n  execute(\n    input: WorktreeParams & CreateCommentThreadRequest & CommentAuthor,\n  ): Effect.Effect<CreateCommentThreadResponse, CreateCommentThreadError> {\n    return this.createCommentThread.execute(input);\n  }\n}\n",
+    invalid:
+      "import { Effect } from 'effect';\nimport type { CreateCommentThreadResponse } from '@porcelain/contracts/reviews';\nimport type { CreateCommentThreadInput } from '@porcelain/reviews/models';\nimport type { CreateCommentThreadService } from '@porcelain/reviews/services';\nexport class CreateCommentThreadUseCase {\n  private readonly createCommentThread: CreateCommentThreadService;\n\n  constructor(createCommentThread: CreateCommentThreadService) {\n    this.createCommentThread = createCommentThread;\n  }\n\n  execute(\n    input: CreateCommentThreadInput,\n  ): Effect.Effect<CreateCommentThreadResponse, CreateCommentThreadError> {\n    return this.createCommentThread.execute(input);\n  }\n}\n",
     errors: 1,
   },
   {
@@ -3871,9 +2765,9 @@ export class CreateCommentThreadUseCase {
     path: 'apps/web/src/features/access/queries/probe-query.ts',
     valid:
       "import {pairingApi} from '../api'; export const pairingQuery = () => pairingApi.read();",
-    invalid: `import { requestEndpoint } from '@/shared/api/request';
+    invalid: `import { HttpApiClient } from 'effect/http-api';
 
-export const probeRequest = requestEndpoint;
+export const probeRequest = HttpApiClient;
 `,
     errors: 1,
   },
@@ -3881,8 +2775,7 @@ export const probeRequest = requestEndpoint;
     rule: 'web-api-owns-request',
     path: 'apps/web/src/features/access/commands/pairing.ts',
     valid: "import { RequestError } from '@porcelain/client/transport';",
-    invalid:
-      "import { requestEndpoint as read } from '@porcelain/client/transport';",
+    invalid: "import { HttpApiClient as read } from 'effect/http-api';",
     errors: 1,
   },
   {
@@ -3890,7 +2783,7 @@ export const probeRequest = requestEndpoint;
     path: 'apps/mobile/src/features/access/views/access-screen.tsx',
     valid:
       "import {useEnvironments} from '@porcelain/client/access'; export const Screen = () => <Text>{useEnvironments().length}</Text>;",
-    invalid: "import * as client from '@porcelain/client/transport';",
+    invalid: "import * as client from 'effect/http-api';",
     errors: 1,
   },
   {
@@ -4264,32 +3157,18 @@ export const ProbeContext = createContext('');
 `,
     errors: 1,
   },
-  {
+  ...[
+    'apps/web/src/features/files/views/file-editor.tsx',
+    'apps/web/src/features/access/queries/probe-query.ts',
+  ].map((path) => ({
     rule: 'web-no-empty-catch',
-    path: 'apps/web/src/features/files/views/file-editor.tsx',
-    valid: 'export function probeEditor(run: () => void) { run(); }',
-    invalid: `
-export function probeSwallow(run: () => void) {
-  try {
-    run();
-  } catch {}
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-no-empty-catch',
-    path: 'apps/web/src/features/access/queries/probe-query.ts',
+    path,
     valid:
-      'export function probeRead(run: () => void) { try { run(); } catch(error) { throw error; } }',
-    invalid: `export function probeSwallow(run: () => void) {
-  try {
-    run();
-  } catch {}
-}
-`,
+      'export function read(run: () => void) { try { run(); } catch(error) { throw error; } }',
+    invalid:
+      'export function read(run: () => void) { try { run(); } catch {} }',
     errors: 1,
-  },
+  })),
   {
     rule: 'web-no-manual-memo',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
@@ -4329,7 +3208,7 @@ export const probeHandle = Dialog.createHandle();
     rule: 'web-queries-export-reads',
     path: 'apps/web/src/features/access/queries/probe-query.ts',
     valid:
-      "import {queryOptions} from '@tanstack/react-query'; export const pairingQueryOptions = () => queryOptions({queryKey: ['pairing'], queryFn: () => 'paired'});",
+      "import { useAtomValue } from '@effect/atom-react'; import { readPairedAccess } from '@porcelain/client/access'; export function usePairedAccess(connection: Parameters<typeof readPairedAccess>[0]) { return useAtomValue(readPairedAccess(connection)); }",
     invalid: `export { connectionErrorMessage } from '../rules/connection-error-message';
 `,
     errors: 1,
@@ -4360,26 +3239,16 @@ export function ProbeView() {
 `,
     errors: 2,
   },
-  {
+  ...[
+    "import { useState } from 'react'; export const probeHook = useState;",
+    'export const probeWidth = () => window.innerWidth;',
+  ].map((invalid) => ({
     rule: 'web-rules-are-pure',
     path: 'apps/web/src/features/access/rules/probe-rule.ts',
-    valid: 'export const probeLabel = (value: string) => value.trim();',
-    invalid: `import { useState } from 'react';
-
-export const probeHook = useState;
-`,
+    valid: 'export const label = (value: string) => value.trim();',
+    invalid,
     errors: 1,
-  },
-  {
-    rule: 'web-rules-are-pure',
-    path: 'apps/web/src/features/access/rules/probe-rule.ts',
-    valid: 'export const probeWidth = (width: number) => width;',
-    invalid: `export function probeWidth() {
-  return window.innerWidth;
-}
-`,
-    errors: 1,
-  },
+  })),
   {
     rule: 'web-shadcn-wrapper',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
@@ -4401,17 +3270,6 @@ export function SaveControl(props: ComponentProps<'button'>) {
     invalid: `export function probeSaved() {
   return localStorage.getItem('probe');
 }
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-store-owns-zustand',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    valid:
-      "import {useAccessStore} from '../store'; export const ProbeView = () => <p>{useAccessStore().open}</p>;",
-    invalid: `import { create } from 'zustand';
-
-export const probeStore = create(() => ({ open: false }));
 `,
     errors: 1,
   },
@@ -4504,46 +3362,43 @@ export const probeSearch = useSearch;
 `,
     errors: 1,
   },
-  {
-    rule: 'web-views-no-promise-chains',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    valid: 'export function probeSave(save: () => void) { save(); }',
-    invalid: `export function probeSave(save: () => Promise<void>) {
+  ...[
+    {
+      invalid: `export function probeSave(save: () => Promise<void>) {
   void save().catch(() => undefined);
 }
 `,
-    errors: 1,
-  },
-  {
-    rule: 'web-views-no-promise-chains',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    valid: 'export function probeSave(save: () => void) { save(); }',
-    invalid: `export function probeSave(save: () => Promise<void>) {
+      errors: 1,
+    },
+    {
+      invalid: `export function probeSave(save: () => Promise<void>) {
   void save()['then'](() => undefined);
 }
 `,
-    errors: 1,
-  },
-  {
-    rule: 'web-views-no-promise-chains',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    valid: 'export function probeSave(save: () => void) { save(); }',
-    invalid: `export function probeSave(save: () => Promise<void>) {
+      errors: 1,
+    },
+    {
+      invalid: `export function probeSave(save: () => Promise<void>) {
   void save().finally(() => undefined);
 }
 `,
-    errors: 1,
-  },
-  {
-    rule: 'web-views-no-promise-chains',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    valid: 'export function probeSave(save: () => void) { save(); }',
-    invalid: `export function probeSave(save: () => Promise<void>) {
+      errors: 1,
+    },
+    {
+      invalid: `export function probeSave(save: () => Promise<void>) {
   void save().then(() => undefined);
 }
 `,
-    errors: 1,
-  },
+      errors: 1,
+    },
+  ].map(({ invalid, errors }) => ({
+    rule: 'web-views-no-promise-chains',
+    path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid: 'export function probeSave(save: () => void) { save(); }',
+    invalid,
+    errors,
+  })),
+
   {
     rule: 'web-views-no-transport',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
@@ -4581,107 +3436,88 @@ const duplicateFixtureSource = `export function matchPaths(paths: readonly strin
 
 const clientRouteFiles = {
   'packages/client/package.json': JSON.stringify({
-    exports: { './files': './src/features/files/index.ts' },
+    exports: {
+      './files': './src/features/files/index.ts',
+      './reviews': './src/features/reviews/index.ts',
+      './access': './src/features/access/index.ts',
+    },
   }),
   'packages/client/src/features/files/index.ts': `
 export { textQuery as textQueryOptions } from './queries/text.ts';
-export { unusedQuery as unusedQueryOptions } from './queries/unused.ts';`,
-  'packages/client/src/features/files/queries/text.ts': `
-import { readText as read } from '../api.ts';
-export const textQuery = () => ({ queryFn: () => read() });`,
-  'packages/client/src/features/files/queries/unused.ts': `
-import { publish as write } from '../api.ts';
-export const unusedQuery = () => ({ queryFn: () => write() });`,
-  'packages/client/src/features/files/api.ts': `
-import { readTextFileEndpoint } from '@porcelain/contracts/files';
-import { publishReviewEndpoint as publishEndpoint } from '@porcelain/contracts/reviews';
-import { requestEndpoint as request } from '../../shared/api/request.ts';
-export const readText = () => request(transport, readTextFileEndpoint, {});
-export const publish = () => request(transport, publishEndpoint, {});`,
-};
-
-const clientMethodFiles = {
-  ...clientRouteFiles,
-  'packages/client/src/features/files/index.ts': `
-export { textQuery as textQueryOptions } from './queries/text.ts';
 export { unusedQuery as unusedQueryOptions } from './queries/unused.ts';
-export { filesApi, createFilesApi } from './api.ts';`,
+export { filesApi } from './api.ts';`,
+  'packages/client/src/features/reviews/index.ts': `export { reviewsApi } from './api.ts';`,
   'packages/client/src/shared/api/per-connection.ts': `
 export const perConnection = (create) => (connection) => create(connection.transport);`,
-  'packages/client/src/features/files/api.ts': `
-import { readTextFileEndpoint } from '@porcelain/contracts/files';
-import { publishReviewEndpoint } from '@porcelain/contracts/reviews';
-import { requestEndpoint } from '../../shared/api/request.ts';
-import { perConnection as connect } from '../../shared/api/per-connection.ts';
-export function createFilesApi(transport) {
-  return {
-    readText: () => requestEndpoint(transport, readTextFileEndpoint, {}),
-    publish() {
-      return requestEndpoint(transport, publishReviewEndpoint, {});
-    },
-  };
-}
-export const filesApi = connect(createFilesApi);`,
-  'packages/client/src/features/files/queries/unused.ts': `
+  'packages/client/src/features/files/queries/text.ts': `
 import { filesApi } from '../api.ts';
-export const unusedQuery = () => ({ queryFn: () => filesApi(connection).publish() });`,
+export const textQuery = () => ({ queryFn: () => filesApi(connection).readTextFile({ params, query }) });`,
+  'packages/client/src/features/files/queries/unused.ts': `
+import { reviewsApi } from '../../reviews/api.ts';
+export const unusedQuery = () => ({ queryFn: () => reviewsApi(connection).publishReview({ params, payload }) });`,
+  'packages/client/src/features/files/api.ts': `
+import { FilesApi } from '@porcelain/contracts/files';
+import { Effect } from 'effect';
+import { HttpApiClient } from 'effect/http-api';
+import { perConnection } from '../../shared/api/per-connection.ts';
+function createFilesApi(transport) {
+  return Effect.runSync(HttpApiClient.makeWith(FilesApi, { httpClient })).files;
+}
+export const filesApi = perConnection(createFilesApi);`,
+  'packages/client/src/features/reviews/api.ts': `
+import { ReviewsApi } from '@porcelain/contracts/reviews';
+import { Effect } from 'effect';
+import { HttpApiClient } from 'effect/http-api';
+import { perConnection } from '../../shared/api/per-connection.ts';
+function createReviewsApi(transport) {
+  return Effect.runSync(HttpApiClient.makeWith(ReviewsApi, { httpClient })).reviews;
+}
+export const reviewsApi = perConnection(createReviewsApi);`,
+};
+
+const clientAtomRouteFiles = {
+  ...clientRouteFiles,
+  'packages/client/src/features/files/api.ts': `import { FilesApi } from '@porcelain/contracts/files'; import { Atom, AtomHttpApi } from 'effect/reactivity'; export const filesApi = Atom.family((connection) => { class Client extends AtomHttpApi.Service<Client>()('FilesClient', { api: FilesApi, httpClient }) {} return Client; });`,
+  'packages/client/src/features/reviews/api.ts': `import { ReviewsApi } from '@porcelain/contracts/reviews'; import { Atom, AtomHttpApi } from 'effect/reactivity'; export const reviewsApi = Atom.family((connection) => { class Client extends AtomHttpApi.Service<Client>()('ReviewsClient', { api: ReviewsApi, httpClient }) {} return Client; });`,
+  'packages/client/src/features/files/queries/text.ts': `import { filesApi } from '../api.ts'; const shadow = (reviewsApi: () => void) => reviewsApi(); export const textQuery = () => { shadow(() => undefined); return filesApi(connection).query('files', 'readTextFile', { params, query }); };`,
+  'packages/client/src/features/files/queries/unused.ts': `import { reviewsApi } from '../../reviews/api.ts'; export const unusedQuery = () => reviewsApi(connection).mutation('reviews', 'publishReview');`,
+};
+
+const clientInjectedRouteFiles = {
+  ...clientAtomRouteFiles,
+  'packages/client/src/features/files/queries/text.ts': `import { Effect, Layer } from 'effect'; import { Atom } from 'effect/reactivity'; import { filesApi } from '../api.ts'; export const textQuery = () => { const runtime = Atom.runtime((get) => Layer.merge(base, get(filesApi(connection).runtime.layer))); return runtime.atom(Effect.gen(function* () { const api = yield* filesApi(connection); return yield* api.files.readTextFile({ params, query }); })); };`,
 };
 
 const clientMethodReads = [
-  `return filesApi(connection).readText();`,
-  `const api = filesApi(connection);
-const alias = api;
-return alias.readText();`,
-  `const { readText: read } = filesApi(connection);
-return read();`,
-  `const factory = filesApi;
-return factory(connection)["readText"]();`,
-  `return createFilesApi(transport).readText();`,
+  `return filesApi(connection).readTextFile({ params, query });`,
+  `const api = filesApi(connection); const alias = api; return alias.readTextFile({ params, query });`,
+  `const read = filesApi(connection).readTextFile; const alias = read; return alias({ params, query });`,
+  `const { readTextFile: read } = filesApi(connection); return read({ params, query });`,
+  `const factory = filesApi; return factory(connection)["readTextFile"]({ params, query });`,
 ];
 
 const clientNestedMethodFiles = {
-  ...clientMethodFiles,
-  'packages/client/src/features/files/index.ts': `
-export { textQuery as textQueryOptions } from './queries/text.ts';
-export { unusedQuery as unusedQueryOptions } from './queries/unused.ts';
-export { reviewsApi } from './api.ts';`,
-  'packages/client/src/features/files/api.ts': `
-import {
-  listReviewedFilesEndpoint,
-  setReviewedFileEndpoint,
-  listReviewedLayersEndpoint,
-} from '@porcelain/contracts/reviews';
-import { requestEndpoint } from '../../shared/api/request.ts';
+  ...clientRouteFiles,
+  'packages/client/src/features/access/index.ts': `export { accessApi } from './api.ts';`,
+  'packages/client/src/features/access/api.ts': `
+import { AccessApi } from '@porcelain/contracts/access';
+import { Effect } from 'effect';
+import { HttpApiClient } from 'effect/http-api';
 import { perConnection } from '../../shared/api/per-connection.ts';
-function createReviewsApi(transport) {
-  return {
-    reviewed: {
-      list: () => requestEndpoint(transport, listReviewedFilesEndpoint, {}),
-      set: () => requestEndpoint(transport, setReviewedFileEndpoint, {}),
-    },
-    reviewedLayers: {
-      list: () => requestEndpoint(transport, listReviewedLayersEndpoint, {}),
-    },
-  };
+function createAccessApi(transport) {
+  return Effect.runSync(HttpApiClient.makeWith(AccessApi, { httpClient }));
 }
-export const reviewsApi = perConnection(createReviewsApi);`,
+export const accessApi = perConnection(createAccessApi);`,
   'packages/client/src/features/files/queries/unused.ts': `
-import { reviewsApi } from '../api.ts';
-export const unusedQuery = () => ({
-  queryFn: () => reviewsApi(connection).reviewed.set(),
-});`,
+import { accessApi } from '../../access/api.ts';
+export const unusedQuery = () => ({ queryFn: () => accessApi(connection).session.issueLiveTicket() });`,
 };
 
 const clientNestedMethodReads = [
-  `return reviewsApi(connection).reviewed.list();`,
-  `const { reviewed: group } = reviewsApi(connection);
-const { list: read } = group;
-return read();`,
-  `const group = reviewsApi(connection).reviewed;
-const alias = group;
-return alias.list();`,
-  `const { reviewed: { list: read } } = reviewsApi(connection);
-return read();`,
+  `return accessApi(connection).session.readSession();`,
+  `const { session: group } = accessApi(connection); const { readSession: read } = group; return read();`,
+  `const group = accessApi(connection).session; const alias = group; return alias.readSession();`,
+  `const { session: { readSession: read } } = accessApi(connection); return read();`,
 ];
 
 function clientRoutesCase(files = clientRouteFiles, overrides = {}) {
@@ -4703,45 +3539,170 @@ export const write = () => unused();`,
 }
 
 export const guardrailCases = [
-  ...['web', 'desktop', 'mobile'].map((app) =>
-    clientRoutesCase(clientRouteFiles, { app: `apps/${app}/src/app.ts` }),
-  ),
+  {
+    rule: 'unused-export',
+    files: {
+      'package.json': '{"private":true,"type":"module"}',
+      'apps/desktop/package.json': '{"private":true}',
+      'apps/mobile/package.json':
+        '{"private":true,"dependencies":{"expo":"58.0.0"}}',
+      'apps/mobile/tsconfig.json':
+        '{"compilerOptions":{"moduleResolution":"Bundler","moduleSuffixes":[".ios",".android",""]}}',
+      'apps/web/package.json': '{"private":true}',
+      'packages/client/package.json':
+        '{"name":"@porcelain/client","private":true,"exports":{".":"./src/index.ts"}}',
+      'apps/desktop/src/main.ts':
+        "import { kept as alias } from '@porcelain/client'; console.log(alias); void import('./dynamic.ts').then(module => console.log(module));",
+      'apps/desktop/src/dynamic.ts': 'export const dynamicLive = true;',
+      'apps/web/src/main.tsx':
+        "import * as names from './namespace.ts'; console.log(names.live);",
+      'apps/web/src/namespace.ts': 'export const live = true;',
+      'packages/client/src/index.ts': "export { kept } from './owner.ts';",
+      'packages/client/src/owner.ts': 'export const kept = true;',
+      'apps/mobile/src/app/_layout.tsx':
+        "export { RootLayout as default } from '../shell/root-layout.tsx';",
+      'apps/mobile/src/shell/root-layout.tsx':
+        "import { native } from './native'; export function RootLayout() { return native(); }",
+      'apps/mobile/src/shell/native.ios.tsx':
+        'export function native() { return null; }',
+      'apps/mobile/src/shell/native.android.tsx':
+        'export function native() { return null; }',
+    },
+    valid: {},
+    invalid: {
+      'apps/desktop/src/unread.ts': 'export const unread = true;',
+      'apps/mobile/src/app/_layout.tsx':
+        "export { RootLayout as default } from '../shell/root-layout.tsx';\nexport const unusedRoute = true;",
+      'apps/web/src/namespace.ts':
+        'export const live = true; export const unusedMember = true;',
+      'packages/client/src/owner.ts':
+        'export const kept = true; export const unused = true;',
+    },
+    errors: [
+      'unused-export: apps/desktop/src/unread.ts: apps/desktop/src/unread.ts',
+      'unused-export: apps/mobile/src/app/_layout.tsx: unusedRoute',
+      'unused-export: apps/web/src/namespace.ts: unusedMember',
+      'unused-export: packages/client/src/owner.ts: unused',
+    ],
+  },
+  {
+    rule: 'unused-dependency',
+    files: {
+      'package.json': '{"private":true,"type":"module"}',
+      'apps/web/package.json':
+        '{"private":true,"dependencies":{"cmdk":"1.1.1","tailwindcss":"4.3.3"}}',
+      'apps/web/src/main.tsx': "import './app.css';",
+      'apps/web/src/app.css': "@import 'tailwindcss';",
+    },
+    valid: { 'apps/web/src/main.tsx': "import 'cmdk'; import './app.css';" },
+    invalid: {},
+    errors: ['unused-dependency: apps/web/package.json: cmdk'],
+  },
   ...[
-    {
-      'packages/client/src/features/files/index.ts': `
-export * from './forward.ts';`,
-      'packages/client/src/features/files/forward.ts': `
-export * from './index.ts';
-export { default as textQueryOptions, unusedQuery as unusedQueryOptions } from './queries/text.ts';`,
-      'packages/client/src/features/files/queries/text.ts': `
-import { readText, publish } from '../api.ts';
-const textQuery = () => ({ queryFn: () => readText() });
-export default textQuery;
-export const unusedQuery = () => ({ queryFn: () => publish() });`,
-    },
-    {
-      'packages/client/src/features/files/queries/text.ts': `
-import { readText, publish } from '../api.ts';
-const read = () => readText();
-const shadow = (publish: () => void) => publish();
-export const textQuery = () => ({ queryFn: () => { shadow(read); return read(); } });`,
-      'packages/client/src/features/files/api.ts': `
-import { readTextFileEndpoint } from '@porcelain/contracts/files';
-import { publishReviewEndpoint } from '@porcelain/contracts/reviews';
-import { requestEndpoint } from '../../shared/api/request.ts';
-const register = (callback) => callback;
-export const readText = () => requestEndpoint(transport, readTextFileEndpoint, {});
-export const publish = register(() => requestEndpoint(transport, publishReviewEndpoint, {}));`,
-    },
-  ].map((files) =>
+    "import { liveUrl as address } from '../api.ts'; export const unusedQuery = () => ({ queryFn: () => address({ query: {} }) });",
+    "import * as urls from '../api.ts'; export const unusedQuery = () => ({ queryFn: () => urls.liveUrl({ query: {} }) });",
+  ].map((query) =>
     clientRoutesCase(
-      { ...clientRouteFiles, ...files },
       {
-        valid: `
-import { textQueryOptions as options, type unusedQueryOptions } from '@porcelain/client/files';
-import '@porcelain/client/files';
-export const read = () => options();`,
+        ...clientRouteFiles,
+        'packages/client/src/features/files/api.ts':
+          clientRouteFiles['packages/client/src/features/files/api.ts'] +
+          `
+import { LiveUpdatesApi } from '@porcelain/contracts/access';
+export const liveUrl = HttpApiClient.urlBuilder(LiveUpdatesApi).live.liveUpdates;`,
+        'packages/client/src/features/files/queries/unused.ts': query,
       },
+      { errors: ['GET /api/live'] },
+    ),
+  ),
+  {
+    rule: 'native-effect-diagnostics',
+    valid: `import { Effect, Schema } from 'effect';
+class Refused extends Schema.TaggedError<Refused>()('Refused', { message: Schema.String }) {}
+const save = Effect.gen(function* () {
+  yield* Effect.void;
+  return yield* Effect.fail(new Refused({ message: 'Refused' }));
+});
+const settled = Effect.exit(save);`,
+    invalid: `import { Effect } from 'effect';
+Effect.succeed('never executed');
+const save = Effect.fail(new Error('Refused'));`,
+    errors: ['TS377001', 'TS377023'],
+  },
+  {
+    rule: 'native-transport-types',
+    valid:
+      "import { Effect, Schema } from 'effect';\nimport { HttpApi, HttpApiBuilder, HttpApiClient, HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';\nimport type { HttpClient } from 'effect/http';\nconst api = HttpApi.make('test').add(HttpApiGroup.make('files').add(HttpApiEndpoint.post('save', '/api/files/:id', { params: Schema.Struct({ id: Schema.String }), payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) })));\ndeclare const httpClient: HttpClient.HttpClient;\nconst client = Effect.runSync(HttpApiClient.makeWith(api, { httpClient })).files;\nconst handlers = HttpApiBuilder.group(api, 'files', (handlers) => handlers.handle('save', ({ params, payload }) => Effect.succeed({ fingerprint: params.id + payload.text })));\nconst request = client.save({ params: { id: 'tree' }, payload: { text: 'saved' } });\nimport { Rpc, RpcClient, RpcGroup } from 'effect/rpc';\nconst group = RpcGroup.make(Rpc.make('save', { payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) }));\ndeclare const rpcClient: RpcClient.FromGroup<typeof group>;\nconst rpcHandlers = group.toLayer({ save: ({ text }) => Effect.succeed({ fingerprint: text }) });\nconst rpcRequest = rpcClient.save({ text: 'saved' });\nimport { AtomHttpApi } from 'effect/reactivity';\nimport { Layer } from 'effect';\nimport { HttpClient as NativeHttpClient } from 'effect/http';\nclass Client extends AtomHttpApi.Service<Client>()('Client', { api, httpClient: Layer.succeed(NativeHttpClient.HttpClient, httpClient) }) {}\nconst nativeRequest = Client.query('files', 'save', { params: { id: 'tree' }, payload: { text: 'saved' } });",
+    invalid:
+      "import { Effect, Schema } from 'effect';\nimport { HttpApi, HttpApiBuilder, HttpApiClient, HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';\nimport type { HttpClient } from 'effect/http';\nconst api = HttpApi.make('test').add(HttpApiGroup.make('files').add(HttpApiEndpoint.post('save', '/api/files/:id', { params: Schema.Struct({ id: Schema.String }), payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) })));\ndeclare const httpClient: HttpClient.HttpClient;\nconst client = Effect.runSync(HttpApiClient.makeWith(api, { httpClient })).files;\nconst incomplete = HttpApiBuilder.group(api, 'files', (handlers) => handlers);\nconst invalidHandler = HttpApiBuilder.group(api, 'files', (handlers) => handlers.handle('save', () => Effect.succeed({ fingerprint: 123 })));\nconst invalidRequest = client.save({ params: { id: 'tree' }, payload: { text: 123 } });\nconst missingRequest = client.missing({});\nimport { Rpc, RpcClient, RpcGroup } from 'effect/rpc';\nconst group = RpcGroup.make(Rpc.make('save', { payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) }));\ndeclare const rpcClient: RpcClient.FromGroup<typeof group>;\nconst rpcHandlers = group.of({ save: () => Effect.succeed({ fingerprint: 123 }) });\nconst rpcRequest = rpcClient.save({ text: 123 });\nimport { AtomHttpApi } from 'effect/reactivity';\nimport { Layer } from 'effect';\nimport { HttpClient as NativeHttpClient } from 'effect/http';\nclass Client extends AtomHttpApi.Service<Client>()('Client', { api, httpClient: Layer.succeed(NativeHttpClient.HttpClient, httpClient) }) {}\nconst nativeRequest = Client.query('files', 'save', { params: { id: 'tree' }, payload: { text: 123 } });",
+    errors: 'TS2322 TS2375 TS2322 TS2339 TS2322 TS2322 TS2322'.split(' '),
+  },
+  {
+    rule: 'native-client-state-types',
+    valid:
+      "import { Effect, Redacted, type Context } from 'effect';\nimport { AccessStore } from '__CLIENT_ACCESS__';\nimport { ProjectSelectionStore } from '__CLIENT_SELECTION__';\ndeclare const access: Context.Service.Shape<typeof AccessStore>;\ndeclare const selection: Context.Service.Shape<typeof ProjectSelectionStore>;\nconst saved = access.save({environmentId: 'computer', name: 'Computer', address: 'http://localhost', credential: Redacted.make('secret')});\nconst selected = selection.selectWorktree('computer', 'project', 'tree');\nconst remotes = access.state.value.remotes;\nimport { OperationStore } from '__CLIENT_OPERATIONS__';\ndeclare const operations: Context.Service.Shape<typeof OperationStore>;\nconst pending = operations.state.value.operations.get('fetch');\nimport { WriteQueues } from '__CLIENT_QUEUES__';\nconst writes = WriteQueues.use((queues) => queues.run(['comments', 'tree'], Effect.succeed('written')));\nconst written = Effect.runPromise(Effect.provide(writes, WriteQueues.layer));\nimport { AccessSession } from '__CLIENT_SESSION__';\nimport { ConnectionFactory, RemoteConnectionFactory } from '__CLIENT_FACTORY__';\nimport { RemoteConnections } from '__CLIENT_REMOTE_CONNECTIONS__';\nimport { Layer } from 'effect';\ndeclare const session: Context.Service.Shape<typeof AccessSession>;\ndeclare const factory: Context.Service.Shape<typeof ConnectionFactory>;\nconst admitted = session.beginConnection(true);\ndeclare const pool: Context.Service.Shape<typeof RemoteConnections>;\nconst connections = pool.state.value;\nconst sessionGraph = Layer.build(AccessSession.layer.pipe(Layer.provide(Layer.succeed(ConnectionFactory, factory))));\ndeclare const remoteFactory: Context.Service.Shape<typeof RemoteConnectionFactory>;\nconst remoteGraph = Layer.build(RemoteConnections.layer.pipe(Layer.provide(Layer.succeed(RemoteConnectionFactory, remoteFactory))));",
+    invalid:
+      "import { Effect, Redacted, type Context } from 'effect';\nimport { AccessStore } from '__CLIENT_ACCESS__';\nimport { ProjectSelectionStore } from '__CLIENT_SELECTION__';\ndeclare const access: Context.Service.Shape<typeof AccessStore>;\ndeclare const selection: Context.Service.Shape<typeof ProjectSelectionStore>;\nEffect.runSync(AccessStore.pipe(Effect.provide(AccessStore.layer)));\naccess.state.set({remotes: [], status: 'ready', error: undefined});\naccess.state.value.remotes.push({environmentId: 'computer', name: 'Computer', address: 'http://localhost', credential: Redacted.make('secret')});\nselection.state.value.selections.computer = {projectId: 'project', worktreeId: 'tree'};\nimport { OperationStore } from '__CLIENT_OPERATIONS__';\ndeclare const operations: Context.Service.Shape<typeof OperationStore>;\nimport { operationStoreLayer } from '__CLIENT_OPERATION_LAYER__';\nEffect.runSync(OperationStore.pipe(Effect.provide(operationStoreLayer)));\noperations.state.value.operations.clear();\nimport { WriteQueues } from '__CLIENT_QUEUES__';\nconst writes = WriteQueues.use((queues) => queues.run(['comments', 'tree'], Effect.succeed('written')));\nconst written = Effect.runPromise(writes);\nimport { AccessSession } from '__CLIENT_SESSION__';\nimport { RemoteConnections } from '__CLIENT_REMOTE_CONNECTIONS__';\ndeclare const pool: Context.Service.Shape<typeof RemoteConnections>;\ndeclare const session: Context.Service.Shape<typeof AccessSession>;\nEffect.runSync(AccessSession.pipe(Effect.provide(AccessSession.layer)));\nsession.state.set({connection: null, generation: 0, writerIdentity: undefined});\npool.state.value.push({});\nconst wrong = session.beginConnection('automatic');\nEffect.runSync(RemoteConnections.pipe(Effect.provide(RemoteConnections.layer)));\npool.state.set([]);\nconst wrongRemotes = pool.synchronize('computer');\nimport { RemoteConnectionFactory } from '__CLIENT_FACTORY__';\ndeclare const remoteFactory: Context.Service.Shape<typeof RemoteConnectionFactory>;\nEffect.runPromise(remoteFactory.open({environmentId: 'computer', name: 'Computer', address: 'http://localhost', credential: Redacted.make('secret')}));",
+    errors:
+      'TS2379 TS377004 TS2339 TS2339 TS2542 TS2379 TS377004 TS2339 TS2379 TS377004 TS2379 TS377004 TS2339 TS2339 TS2345 TS2379 TS377004 TS2339 TS2345 TS2379 TS377004'.split(
+        ' ',
+      ),
+  },
+  {
+    rule: 'native-process-types',
+    valid:
+      "import { Effect, type Context } from 'effect';\nimport { ChildProcessSpawner } from 'effect/process';\nimport { runCommand } from '__PROCESS_COMMAND__';\ndeclare const spawner: Context.Service.Shape<typeof ChildProcessSpawner.ChildProcessSpawner>;\nconst input = { command: 'git', args: ['status'], maxBytes: 1024, processGroup: { lingerMs: 250, cleanupMs: 5000, pollMs: 10 } };\nconst result = Effect.runPromise(runCommand(input).pipe(Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner)));",
+    invalid:
+      "import { Effect } from 'effect';\nimport { runCommand } from '__PROCESS_COMMAND__';\nconst input = { command: 'git', args: ['status'], maxBytes: 1024, processGroup: { lingerMs: 250, cleanupMs: 5000, pollMs: 10 } };\nconst result = Effect.runPromise(runCommand(input));\nconst wrong = runCommand({ ...input, maxBytes: '1024' });",
+    errors: ['TS2379', 'TS377004', 'TS2322'],
+  },
+  {
+    rule: 'native-agent-types',
+    valid:
+      "import { Effect, type Context } from 'effect';\nimport { CommitPlanner, CodexProvider, ClaudeProvider } from '__COMMIT_PLANNING__';\ndeclare const codex: Context.Service.Shape<typeof CodexProvider>;\ndeclare const claude: Context.Service.Shape<typeof ClaudeProvider>;\nconst limits = { maxGroups: 20, maxPaths: 2000, maxMessageLength: 16384, maxPathLength: 4096 };\nconst planner = Effect.runSync(CommitPlanner.pipe(Effect.provide(CommitPlanner.layer(limits)), Effect.provideService(CodexProvider, codex), Effect.provideService(ClaudeProvider, claude)));\nconst plan = planner.plan({ mode: 'message', model: 'claude:sonnet', paths: ['README.md'], evidence: 'diff' });",
+    invalid:
+      "import { Effect, type Context } from 'effect';\nimport { CommitPlanner } from '__COMMIT_PLANNING__';\nconst limits = { maxGroups: 20, maxPaths: 2000, maxMessageLength: 16384, maxPathLength: 4096 };\nconst planner = Effect.runSync(CommitPlanner.pipe(Effect.provide(CommitPlanner.layer(limits))));\ndeclare const subject: Context.Service.Shape<typeof CommitPlanner>;\nconst plan = subject.plan({ mode: 'message', model: 'claude:sonnet', paths: [123], evidence: 'diff' });",
+    errors: ['TS2379', 'TS377004', 'TS2322'],
+  },
+  {
+    rule: 'review-draft-types',
+    valid:
+      "import { Effect, type Context } from 'effect';\nimport type { ValidateReviewDraftService, PublishReviewService } from '__REVIEW_SERVICES__';\nimport type { ReviewDraft } from '__REVIEW_MODELS__';\ndeclare const validate: Context.Service.Shape<typeof ValidateReviewDraftService>;\ndeclare const publish: Context.Service.Shape<typeof PublishReviewService>;\nconst input: ReviewDraft = { expectedRevision: 0, summaryHtml: '<p>Review</p>', layers: [] };\nconst publication = validate.execute(input).pipe(Effect.flatMap((draft) => publish.execute({ worktreeId: 'tree', draft, evidence: { changes: [], texts: new Map(), diffs: [] } })));",
+    invalid:
+      "import { Effect, type Context } from 'effect';\nimport type { ValidateReviewDraftService, PublishReviewService } from '__REVIEW_SERVICES__';\nimport type { ReviewDraft } from '__REVIEW_MODELS__';\ndeclare const validate: Context.Service.Shape<typeof ValidateReviewDraftService>;\ndeclare const publish: Context.Service.Shape<typeof PublishReviewService>;\nconst input: ReviewDraft = { expectedRevision: 0, summaryHtml: '<p>Review</p>', layers: [] };\nconst publication = publish.execute({ worktreeId: 'tree', draft: input, evidence: { changes: [], texts: new Map(), diffs: [] } });",
+    errors: ['TS2322'],
+  },
+  {
+    rule: 'worktree-transaction-types',
+    valid:
+      "import { Effect, type Context } from 'effect';\nimport { nativeRead, withReadLease } from '__ADMISSION__';\nimport type { Lanes } from '__LANES__';\ndeclare const lanes: Context.Service.Shape<typeof Lanes>;\nconst transaction = lanes.transaction('review', () => withReadLease('tree', nativeRead('tree', () => Promise.resolve('text'))), (text) => Effect.succeed(text), () => Effect.void);",
+    invalid:
+      "import { Effect, type Context } from 'effect';\nimport { nativeRead, withReadLease } from '__ADMISSION__';\nimport type { Lanes } from '__LANES__';\ndeclare const lanes: Context.Service.Shape<typeof Lanes>;\nconst transaction = lanes.transaction('review', () => Effect.succeed('prepared'), () => nativeRead('tree', () => Promise.resolve('text')), () => Effect.void);",
+    errors: ['TS2375', 'TS377004'],
+  },
+  {
+    rule: 'worktree-capability-types',
+    valid: `import { Effect } from 'effect';
+import { nativeRead, nativeWrite, withReadLease, withWriteLease } from '__ADMISSION__';
+const read = nativeRead('tree', () => Promise.resolve('text'));
+const write = nativeWrite('tree', () => Promise.resolve('written'));
+Effect.runPromise(withReadLease('tree', read));
+Effect.runPromise(withWriteLease('tree', Effect.andThen(read, write)));`,
+    invalid: `import { Effect } from 'effect';
+import { nativeRead, nativeWrite, withReadLease, WorktreeRead } from '__ADMISSION__';
+const read = nativeRead('tree', () => Promise.resolve('text'));
+const write = nativeWrite('tree', () => Promise.resolve('written'));
+Effect.runPromise(read);
+Effect.runPromise(withReadLease('tree', write));
+Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => undefined }));`,
+    errors: ['TS2379', 'TS377004', 'TS2379', 'TS377004', 'TS2739'],
+  },
+  ...['web', 'desktop', 'mobile'].flatMap((app) =>
+    [clientAtomRouteFiles, clientInjectedRouteFiles].map((files) =>
+      clientRoutesCase(files, {
+        app: `apps/${app}/src/app.ts`,
+        valid: `import { textQueryOptions as options, type unusedQueryOptions } from '@porcelain/client/files'; import '@porcelain/client/files'; export const read = () => options();`,
+      }),
     ),
   ),
   clientRoutesCase(clientRouteFiles, {
@@ -4753,14 +3714,14 @@ export const write = () => files.unusedQueryOptions();`,
   clientRoutesCase(
     {
       ...clientRouteFiles,
-      'packages/client/src/features/files/startup.ts': `
-import { publish } from './api.ts';
-publish();`,
+      'packages/client/src/features/files/commands/startup.ts': `
+import { reviewsApi } from '../../reviews/api.ts';
+reviewsApi(connection).publishReview({ params, payload });`,
     },
     {
       invalid: `
 import { textQueryOptions } from '@porcelain/client/files';
-import '../../../packages/client/src/features/files/startup.ts';
+import '../../../packages/client/src/features/files/commands/startup.ts';
 export const read = () => textQueryOptions();`,
     },
   ),
@@ -4768,9 +3729,9 @@ export const read = () => textQueryOptions();`,
     clientMethodReads.map((read) =>
       clientRoutesCase(
         {
-          ...clientMethodFiles,
+          ...clientRouteFiles,
           'packages/client/src/features/files/queries/text.ts': `
-import { filesApi, createFilesApi } from '../api.ts';
+import { filesApi } from '../api.ts';
 export const textQuery = () => ({
   queryFn: () => {
     ${read}
@@ -4782,102 +3743,72 @@ export const textQuery = () => ({
     ),
   ),
   ...clientMethodReads.map((read) =>
-    clientRoutesCase(clientMethodFiles, {
+    clientRoutesCase(clientRouteFiles, {
       app: 'apps/mobile/src/app.ts',
       valid: `
-import { ${read.includes('createFilesApi') ? 'createFilesApi' : 'filesApi'} } from '@porcelain/client/files';
+import { filesApi } from '@porcelain/client/files';
 export const read = () => {
   ${read}
 };`,
       invalid: `
-import { ${read.includes('createFilesApi') ? 'createFilesApi, filesApi' : 'filesApi'} } from '@porcelain/client/files';
+import { filesApi } from '@porcelain/client/files';
+import { reviewsApi } from '@porcelain/client/reviews';
 export const read = () => {
   ${read}
 };
 export const write = () => {
-  const api = filesApi(connection);
+  const api = reviewsApi(connection);
   const alias = api;
-  const { publish: write } = alias;
-  return write();
+  const { publishReview: write } = alias;
+  return write({ params, payload });
 };`,
     }),
   ),
   ...[
     `return filesApi(connection)[method]();`,
     `return consume(filesApi(connection));`,
-    `const { readText, ...rest } = filesApi(connection);
-return rest;`,
-    `let api = filesApi(connection);
-api = other;
-return api.readText();`,
+    `const { readTextFile, ...rest } = filesApi(connection); return rest;`,
+    `let api = filesApi(connection); api = other; return api.readTextFile({ params, query });`,
     `return filesApi(connection).unknown();`,
+    `return filesApi(connection).query(group, 'readTextFile', { params, query });`,
+    `return filesApi(connection).query('files', endpoint, { params, query });`,
+    `return filesApi(connection).mutation('files', endpoint);`,
   ].map((use) =>
-    clientRoutesCase({
-      ...clientMethodFiles,
-      'packages/client/src/features/files/queries/text.ts': `
-import { filesApi } from '../api.ts';
-export const textQuery = () => ({ queryFn: () => filesApi(connection).readText() });`,
-      'packages/client/src/features/files/queries/unused.ts': `
-import { filesApi } from '../api.ts';
-export const unusedQuery = () => ({
-  queryFn: () => {
-    ${use}
-  },
-});`,
-    }),
-  ),
-  ...[
-    `return {
-  ...other,
-  readText: () => requestEndpoint(transport, readTextFileEndpoint, {}),
-  publish: () => requestEndpoint(transport, publishReviewEndpoint, {}),
-};`,
-    `if (flag) return {
-  readText: () => requestEndpoint(transport, readTextFileEndpoint, {}),
-};
-return {
-  readText: () => requestEndpoint(transport, readTextFileEndpoint, {}),
-  publish: () => requestEndpoint(transport, publishReviewEndpoint, {}),
-};`,
-    `return {
-  readText() {
-    return this.publish();
-  },
-  publish: () => requestEndpoint(transport, publishReviewEndpoint, {}),
-};`,
-    `requestEndpoint(transport, publishReviewEndpoint, {});
-return {
-  readText: () => requestEndpoint(transport, readTextFileEndpoint, {}),
-};`,
-    `return {
-  readText: () => requestEndpoint(transport, readTextFileEndpoint, {}),
-  eager: requestEndpoint(transport, publishReviewEndpoint, {}),
-};`,
-  ].map((body) =>
     clientRoutesCase(
       {
-        ...clientMethodFiles,
-        'packages/client/src/features/files/api.ts':
-          clientMethodFiles['packages/client/src/features/files/api.ts'] +
-          `
-export function otherApi(transport) {
-  ${body}
-}`,
-        'packages/client/src/features/files/index.ts':
-          clientMethodFiles['packages/client/src/features/files/index.ts'] +
-          `
-export { otherApi } from './api.ts';`,
+        ...clientRouteFiles,
+        'packages/client/src/features/files/queries/unused.ts': `
+import { filesApi } from '../api.ts';
+export const unusedQuery = () => ({ queryFn: () => { ${use} } });`,
       },
       {
-        valid: `
-import { filesApi } from '@porcelain/client/files';
-export const read = () => filesApi(connection).readText();`,
-        invalid: `
-import { filesApi, otherApi } from '@porcelain/client/files';
-export const read = () => filesApi(connection).readText();
-export const write = () => otherApi(transport).readText();`,
+        errors: [
+          'select a literal generated endpoint, because an escaped or dynamic client binding cannot prove feature route coverage.',
+          ...(use.includes('let api') || /\.(?:query|mutation)\(/.test(use)
+            ? [
+                'keep the generated client binding traceable so its feature map can name the route.',
+              ]
+            : []),
+        ],
       },
     ),
+  ),
+  ...[
+    `if (dirty) yield* reviewsApi(connection).publishReview({ params, payload });`,
+    `const read = filesApi(connection).readTextFile; const write = reviewsApi(connection).publishReview; yield* read({ params, query }); if (dirty) yield* write({ params, payload });`,
+    `const plan = { ...other, dirty }; if (plan.dirty) yield* reviewsApi(connection).publishReview({ params, payload });`,
+  ].map((decision) =>
+    clientRoutesCase({
+      ...clientRouteFiles,
+      'packages/client/src/features/files/queries/unused.ts': `
+import { Effect } from 'effect';
+import { filesApi } from '../api.ts';
+import { reviewsApi } from '../../reviews/api.ts';
+export const unusedQuery = () => ({ queryFn: () => Effect.gen(function* () {
+  yield* filesApi(connection).readTextFile({ params, query });
+  ${decision}
+}) });`,
+    }),
   ),
   ...['web', 'desktop', 'mobile'].flatMap((app) =>
     clientNestedMethodReads.map((read) =>
@@ -4885,7 +3816,7 @@ export const write = () => otherApi(transport).readText();`,
         {
           ...clientNestedMethodFiles,
           'packages/client/src/features/files/queries/text.ts': `
-import { reviewsApi } from '../api.ts';
+import { accessApi } from '../../access/api.ts';
 export const textQuery = () => ({
   queryFn: () => {
     ${read}
@@ -4894,42 +3825,37 @@ export const textQuery = () => ({
         },
         {
           app: `apps/${app}/src/app.ts`,
-          mapped: ['GET /api/worktrees/:worktreeId/reviewed'],
-          errors: ['PUT /api/worktrees/:worktreeId/reviewed'],
+          mapped: ['GET /api/session'],
+          errors: ['POST /api/live/tickets'],
         },
       ),
     ),
   ),
   ...[
-    `return reviewsApi(connection).reviewed[method]();`,
-    `return reviewsApi(connection).reviewed.unknown();`,
-    `const { reviewed: group } = reviewsApi(connection);
-return consume(group);`,
-    `let group = reviewsApi(connection).reviewed;
-group = other;
-return group.list();`,
+    `return accessApi(connection).session[method]();`,
+    `return accessApi(connection).session.unknown();`,
+    `const { session: group } = accessApi(connection); return consume(group);`,
+    `let group = accessApi(connection).session; group = other; return group.readSession();`,
   ].map((use) =>
     clientRoutesCase(
       {
         ...clientNestedMethodFiles,
         'packages/client/src/features/files/queries/text.ts': `
-import { reviewsApi } from '../api.ts';
-export const textQuery = () => ({
-  queryFn: () => reviewsApi(connection).reviewed.list(),
-});`,
+import { accessApi } from '../../access/api.ts';
+export const textQuery = () => ({ queryFn: () => accessApi(connection).session.readSession() });`,
         'packages/client/src/features/files/queries/unused.ts': `
-import { reviewsApi } from '../api.ts';
-export const unusedQuery = () => ({
-  queryFn: () => {
-    ${use}
-  },
-});`,
+import { accessApi } from '../../access/api.ts';
+export const unusedQuery = () => ({ queryFn: () => { ${use} } });`,
       },
       {
-        mapped: ['GET /api/worktrees/:worktreeId/reviewed'],
+        mapped: ['GET /api/session'],
         errors: [
-          'PUT /api/worktrees/:worktreeId/reviewed',
-          'GET /api/worktrees/:worktreeId/reviewed-layers',
+          'select a literal generated endpoint, because an escaped or dynamic client binding cannot prove feature route coverage.',
+          ...(use.includes('let group')
+            ? [
+                'keep the generated client binding traceable so its feature map can name the route.',
+              ]
+            : []),
         ],
       },
     ),
@@ -4969,18 +3895,6 @@ export const unusedQuery = () => ({
   {
     rule: 'lane-per-table',
     valid: {
-      'packages/reviews/src/ports/review-store.ts':
-        'export interface ReviewStore { save(): void; }',
-    },
-    invalid: {
-      'packages/reviews/src/ports/new-review-store.ts':
-        'export interface NewReviewStore { save(): void; }',
-    },
-    errors: ['lane-per-table'],
-  },
-  {
-    rule: 'lane-per-table',
-    valid: {
       'packages/access/src/ports/device-store.ts':
         'export type DeviceStore = { save(): void };',
     },
@@ -4989,6 +3903,56 @@ export const unusedQuery = () => ({
         'export type NewDeviceStore = { save(): void };',
     },
     errors: ['lane-per-table'],
+  },
+  ...[
+    {
+      rule: 'lane-per-table',
+      call: 'return yield* lanes.commit(keys.access(), () => receipts.claimExecution());',
+    },
+    {
+      rule: 'lane-mode-matches-service',
+      call: "return yield* lanes.run(keys.receipts(), 'read', () => receipts.claimExecution());",
+    },
+  ].map(({ rule, call }) => {
+    const workflow = (body) =>
+      `import { Context, Effect, Layer } from 'effect'; import { GitActionReceiptStore } from '../../../../packages/git-actions/src/ports/git-action-receipt-store.ts'; import { Lanes } from './lanes.ts'; import { LaneKeys } from './lane-keys.ts'; export class GitActionWorkflow extends Context.Service<GitActionWorkflow, { readonly execute: () => Effect.Effect<boolean>; }>()('@porcelain/server/GitActionWorkflow') { static readonly layer = Layer.effect(GitActionWorkflow, Effect.gen(function* () { const receipts = yield* GitActionReceiptStore; const lanes = yield* Lanes; const keys = yield* LaneKeys; return { execute: Effect.fn('GitActionWorkflow.execute')(function* () { ${body} }), }; })); }`;
+    return {
+      rule,
+      files: {
+        'packages/git-actions/src/ports/git-action-receipt-store.ts':
+          "import { Context, type Effect } from 'effect'; export interface GitActionReceiptStore { claimExecution(): Effect.Effect<boolean>; } export const GitActionReceiptStore = Context.Service<'@porcelain/git-actions/GitActionReceiptStore', GitActionReceiptStore>('@porcelain/git-actions/GitActionReceiptStore');",
+        'apps/server/src/runtime/lanes.ts':
+          "import { Context, type Effect } from 'effect'; export class Lanes extends Context.Service<Lanes, { readonly commit: (key: string, work: () => Effect.Effect<boolean>) => Effect.Effect<boolean>; readonly run: (key: string, mode: string, work: () => Effect.Effect<boolean>) => Effect.Effect<boolean>; }>()('@porcelain/server/Lanes') {}",
+        'apps/server/src/runtime/lane-keys.ts':
+          "import { Context } from 'effect'; export class LaneKeys extends Context.Service<LaneKeys, { readonly receipts: () => string; readonly access: () => string; }>()('@porcelain/server/LaneKeys') {}",
+      },
+      valid: {
+        'apps/server/src/runtime/git-action-workflow.ts': workflow(
+          'return yield* lanes.commit(keys.receipts(), () => receipts.claimExecution());',
+        ),
+      },
+      invalid: {
+        'apps/server/src/runtime/git-action-workflow.ts': workflow(call),
+      },
+      errors: [rule],
+    };
+  }),
+  {
+    rule: 'status-policy-complete',
+    files: {
+      'packages/access/src/errors/native-error.ts': `import { Schema } from 'effect'; export class NativeFailure extends Schema.TaggedError<NativeFailure>()('NativeFailure', {}) {}`,
+      'packages/access/src/errors/index.ts':
+        "export { NativeFailure as PublicFailure } from './native-error.ts';",
+    },
+    valid: {
+      'apps/server/src/http/status-policy.ts':
+        "import { PublicFailure as Outcome } from '../../../../packages/access/src/errors/index.ts'; export const rules = [{ errors: [Outcome], statusCode: 400 }];",
+    },
+    invalid: {
+      'apps/server/src/http/status-policy.ts':
+        "import { PublicFailure as Outcome } from '../../../../packages/access/src/errors/index.ts'; export const decoy = { errors: [Outcome] }; export const rules = [];",
+    },
+    errors: ['status-policy-complete'],
   },
   {
     rule: 'status-policy-complete',
@@ -5124,12 +4088,9 @@ export const scriptCases = [
   },
   {
     folder: 'packages/storage',
-    required: [
-      ['drizzle-kit', 'check'],
-      ['node', 'scripts/check-migrations.ts'],
-    ],
-    valid: 'drizzle-kit check && node "./scripts/check-migrations.ts"',
-    invalid: 'drizzle-kit check',
+    required: [['node', 'scripts/check-migrations.ts']],
+    valid: 'node "./scripts/check-migrations.ts"',
+    invalid: 'node scripts/unrelated-check.ts',
   },
   {
     folder: 'apps/mobile',
@@ -5179,4 +4140,21 @@ export const scriptEvasions = [
   ],
   ['playwright test --list', [['playwright', 'test']]],
   ['turbo run test --dry-run', [['turbo', 'run', 'test']]],
+];
+
+export const externalCases = [
+  { role: 'rule', valid: 'effect/DateTime', invalid: 'effect' },
+  { role: 'kernel-test-kit', valid: 'effect/testing', invalid: 'node:fs' },
+  { role: 'kernel-test-kit', valid: 'vitest', invalid: 'effect/http' },
+  { role: 'mobile-config', valid: 'tsx/cjs', invalid: 'tsx' },
+  { role: 'mobile-test-kit', valid: 'expo/fingerprint', invalid: 'expo' },
+  ...['client-integration-test', 'client-test-kit'].map((role) => ({
+    role,
+    valid: 'effect/reactivity',
+    invalid: 'effect/http',
+  })),
+  { role: 'process', valid: 'effect/process', invalid: 'node:child_process' },
+  { role: 'config', valid: 'effect', invalid: 'effect/FileSystem' },
+  { role: 'transport', valid: '@effect/platform-node', invalid: 'fastify' },
+  { role: 'bootstrap', valid: '@effect/platform-node', invalid: 'effect/cli' },
 ];

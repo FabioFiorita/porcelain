@@ -1,29 +1,42 @@
-import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
-import { queryKeys } from '../../../shared/api/query-keys.ts';
-import type { QueryFunctionContext } from '@tanstack/query-core';
-import {
-  type WorktreeConnection,
-  type WorktreeScope,
+import { porcelainClient } from '../../../shared/api/client.ts';
+import { clientRuntime } from '../../../shared/api/runtime.ts';
+import { Atom } from 'effect/reactivity';
+import type {
+  RuntimeConnection,
+  WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { filesApi } from '../api.ts';
+import { worktreeRead } from '../../../shared/api/worktree-read.ts';
+import { requestEffect } from '../../../shared/api/effect-client.ts';
+import { Effect } from 'effect';
+import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 
-export function pathsQueryOptions(
-  scope: WorktreeScope,
-  connection: WorktreeConnection,
-) {
-  return {
-    queryKey: queryKeys.worktreeSurface(connection, scope, ['paths']),
-    queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
-      const connected = connection.request(signal);
-      const result = await filesApi(connection).paths({
-        signal: connected.signal,
-        worktreeId: scope.worktreeId,
-      });
-      assertCurrentAnswer(
-        connected.signal,
-        result.worktreeId === scope.worktreeId,
-      );
-      return result;
-    },
-  };
-}
+export const readWorktreePaths = Atom.family(
+  ({
+    connection,
+    scope,
+  }: {
+    connection: RuntimeConnection;
+    scope: WorktreeScope;
+  }) =>
+    worktreeRead(
+      connection,
+      scope,
+      ['paths'],
+      Effect.gen(function* () {
+        const api = yield* porcelainClient(connection);
+        return yield* requestEffect(
+          api.files.listWorktreePaths({
+            params: { worktreeId: scope.worktreeId },
+          }),
+        ).pipe(
+          Effect.tap((answer) =>
+            currentAnswerEffect(
+              connection.request().signal,
+              answer.worktreeId === scope.worktreeId,
+            ),
+          ),
+        );
+      }),
+      clientRuntime(connection),
+    ),
+);

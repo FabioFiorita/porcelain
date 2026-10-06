@@ -1,3 +1,5 @@
+import { admittedWrite, nativeOperation } from '@porcelain/effects';
+import { Effect, Layer, type Scope } from 'effect';
 import { randomUUID } from 'node:crypto';
 import { type BigIntStats, constants } from 'node:fs';
 import {
@@ -5,7 +7,6 @@ import {
   link,
   lstat,
   mkdir,
-  open,
   readlink,
   rename,
   rmdir,
@@ -22,12 +23,13 @@ import type {
   FileWrite,
   FileWriteInput,
 } from '@porcelain/files/models';
-import type { FileWriter } from '@porcelain/files/ports';
+import { FileWriter } from '@porcelain/files/ports';
 import {
   type CheckoutPath,
   type InspectedPath,
   filesystemFailure,
   inspectPath,
+  type GuardedPathFailure,
   pathRefused,
   fileIdentity,
   sameEvidence,
@@ -35,6 +37,7 @@ import {
   unchanged,
   verifyPath,
 } from './inspect-path.ts';
+import { openGuardedFile, syscall } from './guarded-filesystem-syscalls.ts';
 import {
   listedWorktree,
   type ListedWorktrees,
@@ -51,291 +54,379 @@ type Destination = {
   parent: InspectedPath;
   target: CheckoutPath;
 };
-
-type FilePermissions = { fileMode: number; directoryMode: number };
-
-type FileWriterOptions = FilePermissions & {
+type FileWriterOptions = {
+  fileMode: number;
+  directoryMode: number;
   temporaryName: (id: string) => string;
 };
+const exclusiveWrite =
+  constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL;
 
-export class FilesystemFileWriter implements FileWriter {
-  private readonly worktrees: ListedWorktrees;
-  private readonly options: FileWriterOptions;
+const parent = Effect.fn('FilesystemFileWriter.parent')(function* (
+  target: CheckoutPath,
+) {
+  const folder = dirname(target.path);
+  const inspected = yield* inspectPath({
+    ...target,
+    path: folder === '.' ? '' : folder,
+  });
+  if (!inspected.info.isDirectory())
+    return yield* Effect.fail(pathRefused('unreadable'));
+  return inspected;
+});
 
-  constructor(worktrees: ListedWorktrees, options: FileWriterOptions) {
-    this.worktrees = worktrees;
-    this.options = options;
-  }
+const verifyParent = Effect.fn('FilesystemFileWriter.verifyParent')(function* (
+  before: InspectedPath,
+  target: CheckoutPath,
+) {
+  const after = yield* parent(target);
+  if (!sameEvidence(before, after))
+    return yield* Effect.fail(pathRefused('changed'));
+});
 
-  async write(input: FileWriteInput, signal?: AbortSignal): Promise<FileWrite> {
-    const target = await this.locate(input, signal);
-    return this.attempt(async () => {
-      const before = await inspectPath(target, signal);
-      if (fileIdentity(before.info) !== input.revision)
-        throw pathRefused('changed');
-      const parent = await this.parent(target, signal);
-      const temporary = join(
-        parent.path,
-        this.options.temporaryName(randomUUID()),
-      );
-      const handle = await open(
-        temporary,
-        constants.O_WRONLY |
-          constants.O_CREAT |
-          constants.O_EXCL |
-          constants.O_NOFOLLOW,
-        Number(before.info.mode & 0o777n),
-      );
-      let committed = false;
-      try {
-        await handle.writeFile(input.text, {
-          encoding: 'utf8',
-          ...(signal ? { signal } : {}),
-        });
-        await handle.sync();
-        await verifyPath(before, target, signal);
-        await this.verifyParent(parent, target, signal);
-        signal?.throwIfAborted();
-        await rename(temporary, before.path);
-        committed = true;
-      } finally {
-        await handle.close();
-        if (!committed) await unlink(temporary).catch(() => undefined);
-      }
-    });
-  }
+const removeReservation = Effect.fn('FilesystemFileWriter.removeReservation')(
+  function* (path: string, before: BigIntStats) {
+    const current = yield* syscall(() => lstat(path, { bigint: true }));
+    if (!sameFile(before, current)) return;
+    yield* syscall(() => (current.isDirectory() ? rmdir(path) : unlink(path)));
+  },
+  Effect.catch(() => Effect.void),
+);
 
-  async create(
-    input: EntryCreateInput,
-    signal?: AbortSignal,
-  ): Promise<FileWrite> {
-    const target = await this.locate(input, signal);
-    return this.attempt(async () => {
-      const parent = await this.parent(target, signal);
-      signal?.throwIfAborted();
-      const path = join(parent.path, basename(target.path));
-      if (input.entryKind === 'directory') await mkdir(path);
-      else {
-        const file = await open(
-          path,
-          constants.O_WRONLY |
-            constants.O_CREAT |
-            constants.O_EXCL |
-            constants.O_NOFOLLOW,
-          this.options.fileMode,
-        );
-        await file.close();
-      }
-      const made = await lstat(path, { bigint: true });
-      try {
-        await this.verifyParent(parent, target, signal);
-      } catch (error) {
-        await removeReservation(path, made);
-        throw error;
-      }
-    });
-  }
-
-  async move(input: EntryMoveInput, signal?: AbortSignal): Promise<FileWrite> {
-    const target = await this.locate(input, signal);
-    return this.attempt(async () => {
-      const sourceParent = await this.parent(target, signal);
-      const source = join(sourceParent.path, basename(target.path));
-      const info = await lstat(source, { bigint: true });
-      const destinationTarget = { ...target, path: input.destination };
-      const destinationParent = await this.parent(destinationTarget, signal);
-      signal?.throwIfAborted();
-      await this.moveEntry(
-        { info, path: source, parent: sourceParent, target },
-        {
-          path: join(destinationParent.path, basename(input.destination)),
-          parent: destinationParent,
-          target: destinationTarget,
-        },
-        signal,
-      );
-    });
-  }
-
-  async copy(input: EntryCopyInput, signal?: AbortSignal): Promise<FileWrite> {
-    const target = await this.locate(input, signal);
-    return this.attempt(async () => {
-      const sourceParent = await this.parent(target, signal);
-      const source = join(sourceParent.path, basename(target.path));
-      const info = await lstat(source, { bigint: true });
-      if (!info.isFile()) throw pathRefused('unreadable');
-      if (info.size > BigInt(input.maxBytes)) throw pathRefused('too-large');
-      const destinationTarget = { ...target, path: input.destination };
-      const destinationParent = await this.parent(destinationTarget, signal);
-      const destination = join(
-        destinationParent.path,
-        basename(input.destination),
-      );
-      signal?.throwIfAborted();
-      const reading = await open(
-        source,
-        constants.O_RDONLY | constants.O_NOFOLLOW,
-      );
-      try {
-        if (!sameFile(info, await reading.stat({ bigint: true })))
-          throw pathRefused('changed');
-        const writing = await open(
-          destination,
-          constants.O_WRONLY |
-            constants.O_CREAT |
-            constants.O_EXCL |
-            constants.O_NOFOLLOW,
-          Number(info.mode & 0o777n),
-        );
-        const created = await writing.stat({ bigint: true });
-        try {
-          await copyContents(reading, writing, input.maxBytes, signal);
-          await writing.sync();
-          await this.verifyParent(sourceParent, target, signal);
-          await this.verifyParent(destinationParent, destinationTarget, signal);
-          if (!unchanged(info, await lstat(source, { bigint: true })))
-            throw pathRefused('changed');
-        } catch (error) {
-          await removeReservation(destination, created);
-          throw error;
-        } finally {
-          await writing.close();
-        }
-      } finally {
-        await reading.close();
-      }
-    });
-  }
-
-  async trash(input: FileLocation, signal?: AbortSignal): Promise<FileWrite> {
-    const target = await this.locate(input, signal);
-    return this.attempt(async () => {
-      const parent = await this.parent(target, signal);
-      const path = join(parent.path, basename(target.path));
-      const before = await lstat(path, { bigint: true });
-      await this.verifyParent(parent, target, signal);
-      signal?.throwIfAborted();
-      if (!unchanged(before, await lstat(path, { bigint: true })))
-        throw pathRefused('changed');
-      try {
-        await trash([path], { glob: false });
-      } catch (cause) {
-        throw pathRefused('trash-unavailable', { cause });
-      }
-    });
-  }
-
-  private async locate(
-    location: FileLocation,
-    signal?: AbortSignal,
-  ): Promise<CheckoutPath> {
-    const checkout = await listedWorktree(
-      this.worktrees,
-      location.worktreeId,
-      signal,
-    );
-    return { root: checkout.path, path: location.path };
-  }
-
-  private async attempt(work: () => Promise<void>): Promise<FileWrite> {
-    try {
-      await work();
-      return { kind: 'written' };
-    } catch (error) {
-      const failure = filesystemFailure(error);
-      if (failure === undefined) throw error;
-      return { kind: 'failed', failure };
-    }
-  }
-
-  private async moveEntry(from: Source, to: Destination, signal?: AbortSignal) {
-    const confirm = async () => {
-      await this.verifyParent(from.parent, from.target, signal);
-      await this.verifyParent(to.parent, to.target, signal);
-      if (!sameFile(from.info, await lstat(from.path, { bigint: true })))
-        throw pathRefused('changed');
-    };
-    if (from.info.isDirectory()) {
-      await mkdir(to.path, { mode: this.options.directoryMode });
-      const reservation = await lstat(to.path, { bigint: true });
-      try {
-        await confirm();
-        if (!unchanged(reservation, await lstat(to.path, { bigint: true })))
-          throw pathRefused('changed');
-        signal?.throwIfAborted();
-        await rename(from.path, to.path);
-      } catch (error) {
-        await removeReservation(to.path, reservation);
-        throw error;
-      }
-      return;
-    }
-    if (from.info.isSymbolicLink())
-      await symlink(await readlink(from.path), to.path);
-    else await link(from.path, to.path);
-    const created = await lstat(to.path, { bigint: true });
-    try {
-      await confirm();
-      if (!sameFile(created, await lstat(to.path, { bigint: true })))
-        throw pathRefused('changed');
-      signal?.throwIfAborted();
-      const remaining = await lstat(from.path, { bigint: true });
-      if (!sameFile(from.info, remaining)) throw pathRefused('changed');
-      if (!from.info.isSymbolicLink() && !sameFile(created, remaining))
-        throw pathRefused('changed');
-      await unlink(from.path);
-    } catch (error) {
-      await removeReservation(to.path, created);
-      throw error;
-    }
-  }
-
-  private async parent(target: CheckoutPath, signal?: AbortSignal) {
-    const folder = dirname(target.path);
-    const parent = await inspectPath(
-      { ...target, path: folder === '.' ? '' : folder },
-      signal,
-    );
-    if (!parent.info.isDirectory()) throw pathRefused('unreadable');
-    return parent;
-  }
-
-  private async verifyParent(
-    before: InspectedPath,
-    target: CheckoutPath,
-    signal?: AbortSignal,
-  ) {
-    const after = await this.parent(target, signal);
-    if (!sameEvidence(before, after)) throw pathRefused('changed');
-  }
-}
-
-async function copyContents(
+const copyContents = Effect.fn('FilesystemFileWriter.copyContents')(function* (
   reading: FileHandle,
   writing: FileHandle,
   maxBytes: number,
-  signal?: AbortSignal,
 ) {
   let copied = 0;
   for (;;) {
-    signal?.throwIfAborted();
-    const { bytesRead, buffer } = await reading.read();
+    const { bytesRead, buffer } = yield* syscall(() => reading.read());
     if (bytesRead === 0) return;
     copied += bytesRead;
-    if (copied > maxBytes) throw pathRefused('too-large');
+    if (copied > maxBytes) return yield* Effect.fail(pathRefused('too-large'));
     let chunk = buffer.subarray(0, bytesRead);
     while (chunk.length > 0) {
-      const { bytesWritten } = await writing.write(chunk);
+      const { bytesWritten } = yield* syscall(() => writing.write(chunk));
+      if (bytesWritten === 0)
+        return yield* Effect.die(new Error('File copy made no write progress'));
       chunk = chunk.subarray(bytesWritten);
     }
   }
-}
+});
 
-async function removeReservation(path: string, before: BigIntStats) {
-  try {
-    const current = await lstat(path, { bigint: true });
-    if (!sameFile(before, current)) return;
-    if (current.isDirectory()) await rmdir(path);
-    else await unlink(path);
-  } catch {}
-}
+export const filesystemFileWriterLayer = (
+  worktrees: ListedWorktrees,
+  options: FileWriterOptions,
+) =>
+  Layer.sync(FileWriter, () => {
+    const locate = Effect.fn('FilesystemFileWriter.locate')(function* (
+      location: FileLocation,
+    ) {
+      const checkout = yield* nativeOperation((signal) =>
+        listedWorktree(worktrees, location.worktreeId, signal),
+      );
+      return { root: checkout.path, path: location.path };
+    });
+    const attempt = (
+      worktreeId: string,
+      work: (
+        commit: <A>(
+          effect: Effect.Effect<A, GuardedPathFailure>,
+        ) => Effect.Effect<A, GuardedPathFailure>,
+      ) => Effect.Effect<void, GuardedPathFailure, Scope.Scope>,
+    ) =>
+      admittedWrite(worktreeId, (committed) =>
+        Effect.gen(function* (): Effect.fn.Return<FileWrite> {
+          const commit = <A>(effect: Effect.Effect<A, GuardedPathFailure>) =>
+            Effect.uninterruptible(
+              effect.pipe(Effect.tap(() => Effect.sync(committed))),
+            );
+          return yield* Effect.scoped(work(commit)).pipe(
+            Effect.as<FileWrite>({ kind: 'written' }),
+            Effect.catch((error) => {
+              const failure = filesystemFailure(error);
+              return failure === undefined
+                ? Effect.die(error)
+                : Effect.succeed<FileWrite>({ kind: 'failed', failure });
+            }),
+          );
+        }),
+      );
+
+    const write = Effect.fn('FilesystemFileWriter.write')(
+      (input: FileWriteInput) =>
+        attempt(input.worktreeId, (commit) =>
+          Effect.gen(function* () {
+            const target = yield* locate(input);
+            const before = yield* inspectPath(target);
+            if (fileIdentity(before.info) !== input.revision)
+              return yield* Effect.fail(pathRefused('changed'));
+            const folder = yield* parent(target);
+            const temporary = join(
+              folder.path,
+              options.temporaryName(randomUUID()),
+            );
+            let committed = false;
+            let opened = false;
+            yield* Effect.addFinalizer(() =>
+              committed || !opened
+                ? Effect.void
+                : syscall(() => unlink(temporary)).pipe(
+                    Effect.catch(() => Effect.void),
+                  ),
+            );
+            const handle = yield* Effect.uninterruptible(
+              openGuardedFile(
+                temporary,
+                exclusiveWrite,
+                Number(before.info.mode & 0o777n),
+              ).pipe(
+                Effect.tap(() =>
+                  Effect.sync(() => {
+                    opened = true;
+                  }),
+                ),
+              ),
+            );
+            yield* syscall((signal) =>
+              handle.writeFile(input.text, { encoding: 'utf8', signal }),
+            );
+            yield* syscall(() => handle.sync());
+            yield* verifyPath(before, target);
+            yield* verifyParent(folder, target);
+            yield* commit(
+              syscall(() => rename(temporary, before.path)).pipe(
+                Effect.tap(() =>
+                  Effect.sync(() => {
+                    committed = true;
+                  }),
+                ),
+              ),
+            );
+          }),
+        ),
+    );
+
+    const create = Effect.fn('FilesystemFileWriter.create')(
+      (input: EntryCreateInput) =>
+        attempt(input.worktreeId, (commit) =>
+          Effect.gen(function* () {
+            const target = yield* locate(input);
+            const folder = yield* parent(target);
+            const path = join(folder.path, basename(target.path));
+            let committed = false;
+            yield* Effect.acquireRelease(
+              Effect.scoped(
+                Effect.gen(function* () {
+                  if (input.entryKind === 'directory') {
+                    yield* syscall(() => mkdir(path));
+                    return yield* syscall(() => lstat(path, { bigint: true }));
+                  }
+                  const file = yield* openGuardedFile(
+                    path,
+                    exclusiveWrite,
+                    options.fileMode,
+                  );
+                  return yield* syscall(() => file.stat({ bigint: true }));
+                }),
+              ),
+              (info) =>
+                committed ? Effect.void : removeReservation(path, info),
+            );
+            yield* verifyParent(folder, target);
+            yield* commit(
+              Effect.sync(() => {
+                committed = true;
+              }),
+            );
+          }),
+        ),
+    );
+
+    const moveEntry = Effect.fn('FilesystemFileWriter.moveEntry')(function* (
+      from: Source,
+      to: Destination,
+      commit: <A>(
+        effect: Effect.Effect<A, GuardedPathFailure>,
+      ) => Effect.Effect<A, GuardedPathFailure>,
+    ) {
+      const confirm = Effect.gen(function* () {
+        yield* verifyParent(from.parent, from.target);
+        yield* verifyParent(to.parent, to.target);
+        if (
+          !sameFile(
+            from.info,
+            yield* syscall(() => lstat(from.path, { bigint: true })),
+          )
+        )
+          return yield* Effect.fail(pathRefused('changed'));
+      });
+      let committed = false;
+      const reservation = yield* Effect.acquireRelease(
+        Effect.gen(function* () {
+          if (from.info.isDirectory())
+            yield* syscall(() =>
+              mkdir(to.path, { mode: options.directoryMode }),
+            );
+          else if (from.info.isSymbolicLink()) {
+            const target = yield* syscall(() => readlink(from.path));
+            yield* syscall(() => symlink(target, to.path));
+          } else yield* syscall(() => link(from.path, to.path));
+          return yield* syscall(() => lstat(to.path, { bigint: true }));
+        }),
+        (info) => (committed ? Effect.void : removeReservation(to.path, info)),
+      );
+      yield* confirm;
+      const destination = yield* syscall(() =>
+        lstat(to.path, { bigint: true }),
+      );
+      if (from.info.isDirectory()) {
+        if (!unchanged(reservation, destination))
+          return yield* Effect.fail(pathRefused('changed'));
+        yield* commit(
+          syscall(() => rename(from.path, to.path)).pipe(
+            Effect.tap(() =>
+              Effect.sync(() => {
+                committed = true;
+              }),
+            ),
+          ),
+        );
+        return;
+      }
+      if (!sameFile(reservation, destination))
+        return yield* Effect.fail(pathRefused('changed'));
+      const remaining = yield* syscall(() =>
+        lstat(from.path, { bigint: true }),
+      );
+      if (
+        !sameFile(from.info, remaining) ||
+        (!from.info.isSymbolicLink() && !sameFile(reservation, remaining))
+      )
+        return yield* Effect.fail(pathRefused('changed'));
+      yield* commit(
+        syscall(() => unlink(from.path)).pipe(
+          Effect.tap(() =>
+            Effect.sync(() => {
+              committed = true;
+            }),
+          ),
+        ),
+      );
+    });
+
+    const move = Effect.fn('FilesystemFileWriter.move')(
+      (input: EntryMoveInput) =>
+        attempt(input.worktreeId, (commit) =>
+          Effect.gen(function* () {
+            const target = yield* locate(input);
+            const sourceParent = yield* parent(target);
+            const source = join(sourceParent.path, basename(target.path));
+            const info = yield* syscall(() => lstat(source, { bigint: true }));
+            const destinationTarget = { ...target, path: input.destination };
+            const destinationParent = yield* parent(destinationTarget);
+            yield* moveEntry(
+              { info, path: source, parent: sourceParent, target },
+              {
+                path: join(destinationParent.path, basename(input.destination)),
+                parent: destinationParent,
+                target: destinationTarget,
+              },
+              commit,
+            );
+          }),
+        ),
+    );
+
+    const copy = Effect.fn('FilesystemFileWriter.copy')(
+      (input: EntryCopyInput) =>
+        attempt(input.worktreeId, (commit) =>
+          Effect.gen(function* () {
+            const target = yield* locate(input);
+            const sourceParent = yield* parent(target);
+            const source = join(sourceParent.path, basename(target.path));
+            const info = yield* syscall(() => lstat(source, { bigint: true }));
+            if (!info.isFile())
+              return yield* Effect.fail(pathRefused('unreadable'));
+            if (info.size > BigInt(input.maxBytes))
+              return yield* Effect.fail(pathRefused('too-large'));
+            const destinationTarget = { ...target, path: input.destination };
+            const destinationParent = yield* parent(destinationTarget);
+            const destination = join(
+              destinationParent.path,
+              basename(input.destination),
+            );
+            const reading = yield* openGuardedFile(source, constants.O_RDONLY);
+            if (
+              !sameFile(
+                info,
+                yield* syscall(() => reading.stat({ bigint: true })),
+              )
+            )
+              return yield* Effect.fail(pathRefused('changed'));
+            let committed = false;
+            let created: BigIntStats | undefined;
+            yield* Effect.addFinalizer(() =>
+              !committed && created !== undefined
+                ? removeReservation(destination, created)
+                : Effect.void,
+            );
+            const writing = yield* Effect.uninterruptible(
+              Effect.gen(function* () {
+                const handle = yield* openGuardedFile(
+                  destination,
+                  exclusiveWrite,
+                  Number(info.mode & 0o777n),
+                );
+                created = yield* syscall(() => handle.stat({ bigint: true }));
+                return handle;
+              }),
+            );
+            yield* copyContents(reading, writing, input.maxBytes);
+            yield* syscall(() => writing.sync());
+            yield* verifyParent(sourceParent, target);
+            yield* verifyParent(destinationParent, destinationTarget);
+            if (
+              !unchanged(
+                info,
+                yield* syscall(() => lstat(source, { bigint: true })),
+              )
+            )
+              return yield* Effect.fail(pathRefused('changed'));
+            yield* commit(
+              Effect.sync(() => {
+                committed = true;
+              }),
+            );
+          }),
+        ),
+    );
+
+    const trashEntry = Effect.fn('FilesystemFileWriter.trash')(
+      (input: FileLocation) =>
+        attempt(input.worktreeId, (commit) =>
+          Effect.gen(function* () {
+            const target = yield* locate(input);
+            const folder = yield* parent(target);
+            const path = join(folder.path, basename(target.path));
+            const before = yield* syscall(() => lstat(path, { bigint: true }));
+            yield* verifyParent(folder, target);
+            if (
+              !unchanged(
+                before,
+                yield* syscall(() => lstat(path, { bigint: true })),
+              )
+            )
+              return yield* Effect.fail(pathRefused('changed'));
+            yield* commit(
+              syscall(() => trash([path], { glob: false })).pipe(
+                Effect.mapError((cause) =>
+                  pathRefused('trash-unavailable', { cause }),
+                ),
+              ),
+            );
+          }),
+        ),
+    );
+    return { write, create, move, copy, trash: trashEntry };
+  });

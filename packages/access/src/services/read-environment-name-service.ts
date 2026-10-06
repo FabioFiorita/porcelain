@@ -1,18 +1,26 @@
+import { Effect, Context, Layer } from 'effect';
 import type { EnvironmentName } from '../models/environment-name.ts';
-import type { EnvironmentNameStore } from '../ports/environment-name-store.ts';
-import type { HostNameReader } from '../ports/host-name-reader.ts';
+import { EnvironmentNameStore } from '../ports/environment-name-store.ts';
+import { HostNameReader } from '../ports/host-name-reader.ts';
 import { environmentName } from '../rules/environment-name.ts';
 
-export class ReadEnvironmentNameService {
-  private readonly names: EnvironmentNameStore;
-  private readonly hostNames: HostNameReader;
+export class ReadEnvironmentNameService extends Context.Service<
+  ReadEnvironmentNameService,
+  { readonly execute: () => Effect.Effect<EnvironmentName, never> }
+>()('@porcelain/access/ReadEnvironmentNameService') {
+  static readonly layer = Layer.effect(
+    ReadEnvironmentNameService,
+    Effect.gen(function* () {
+      const names = yield* EnvironmentNameStore;
+      const hostNames = yield* HostNameReader;
 
-  constructor(names: EnvironmentNameStore, hostNames: HostNameReader) {
-    this.names = names;
-    this.hostNames = hostNames;
-  }
-
-  execute(): EnvironmentName {
-    return environmentName(this.names.read(), this.hostNames.hostName());
-  }
+      return {
+        execute: Effect.fn('ReadEnvironmentNameService.execute')(
+          function* (): Effect.fn.Return<EnvironmentName, never> {
+            return environmentName(yield* names.read(), hostNames.hostName());
+          },
+        ),
+      };
+    }),
+  );
 }

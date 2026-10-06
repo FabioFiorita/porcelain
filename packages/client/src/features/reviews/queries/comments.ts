@@ -1,31 +1,17 @@
-import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
-import { queryKeys } from '../../../shared/api/query-keys.ts';
-import type { QueryFunctionContext } from '@tanstack/query-core';
-import {
-  type WorktreeConnection,
-  type WorktreeScope,
+import { Atom } from 'effect/reactivity';
+import type {
+  RuntimeConnection,
+  WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { commentsApi } from '../api.ts';
+import { worktreeResource } from '../../../shared/api/worktree-read.ts';
+import { CommentThreadsState, commentsRuntime } from '../store/comments.ts';
 
-export function commentsQueryOptions(
-  scope: WorktreeScope,
-  connection: WorktreeConnection,
-) {
-  return {
-    queryKey: queryKeys.worktreeSurface(connection, scope, ['comments']),
-    staleTime: 0,
-    refetchOnMount: true,
-    queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
-      const connected = connection.request(signal);
-      const result = await commentsApi(connection).list({
-        worktreeId: scope.worktreeId,
-        ...connected,
-      });
-      assertCurrentAnswer(
-        connected.signal,
-        result.every((thread) => thread.worktreeId === scope.worktreeId),
-      );
-      return result;
-    },
-  };
-}
+export const readCommentThreads = Atom.family(
+  (input: { connection: RuntimeConnection; scope: WorktreeScope }) =>
+    worktreeResource(
+      input.scope,
+      'comments',
+      CommentThreadsState,
+      commentsRuntime(input),
+    ),
+);

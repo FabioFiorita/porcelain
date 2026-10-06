@@ -1,83 +1,58 @@
-type Group<T> = {
-  readonly controller: AbortController;
-  readonly result: Promise<T>;
-  subscribers: number;
-};
+import { Effect, Equal, Fiber, Hash, RcMap, Semaphore } from 'effect';
 
-export class SharedReads<T> {
-  private readonly groups = new Map<string, Group<T>>();
-
-  run(
-    key: string,
-    work: (signal: AbortSignal) => Promise<T>,
-    callerSignal?: AbortSignal,
-  ): Promise<T> {
-    const existing = this.groups.get(key);
-    const group = existing ?? this.start(key, work);
-    group.subscribers += 1;
-    return this.attach(key, group, callerSignal);
+class ReadRequest<A, E> implements Equal.Equal {
+  readonly key: string;
+  readonly work: () => Effect.Effect<A, E>;
+  constructor(key: string, work: () => Effect.Effect<A, E>) {
+    this.key = key;
+    this.work = work;
   }
 
-  private start(key: string, work: (signal: AbortSignal) => Promise<T>) {
-    const controller = new AbortController();
-    const group: Group<T> = {
-      controller,
-      subscribers: 0,
-      result: (async () => work(controller.signal))(),
-    };
-    void group.result
-      .catch(() => undefined)
-      .finally(() => {
-        if (this.groups.get(key) === group) this.groups.delete(key);
-      });
-    this.groups.set(key, group);
-    return group;
+  [Equal.symbol](other: Equal.Equal): boolean {
+    return other instanceof ReadRequest && other.key === this.key;
   }
 
-  private attach(
-    key: string,
-    group: Group<T>,
-    callerSignal?: AbortSignal,
-  ): Promise<T> {
-    const leave = () => {
-      group.subscribers -= 1;
-      if (group.subscribers === 0) {
-        this.groups.delete(key);
-        group.controller.abort(
-          new DOMException('The last caller left', 'AbortError'),
-        );
-      }
-    };
-    if (!callerSignal)
-      return group.result.then(
-        (value) => {
-          group.subscribers -= 1;
-          return value;
-        },
-        (cause: unknown) => {
-          group.subscribers -= 1;
-          throw cause;
-        },
-      );
-    return new Promise<T>((resolve, reject) => {
-      const abandon = () => {
-        leave();
-        reject(callerSignal.reason);
-      };
-      if (callerSignal.aborted) return abandon();
-      callerSignal.addEventListener('abort', abandon, { once: true });
-      group.result.then(
-        (value) => {
-          callerSignal.removeEventListener('abort', abandon);
-          group.subscribers -= 1;
-          resolve(value);
-        },
-        (cause: unknown) => {
-          callerSignal.removeEventListener('abort', abandon);
-          group.subscribers -= 1;
-          reject(cause);
-        },
-      );
-    });
+  [Hash.symbol](): number {
+    return Hash.hash(this.key);
   }
 }
+
+export const makeSharedReads = <A, E = never>() =>
+  Effect.gen(function* () {
+    const admission = yield* Semaphore.make(1);
+    let resources: RcMap.RcMap<ReadRequest<A, E>, Fiber.Fiber<A, E>>;
+    resources = yield* RcMap.make({
+      idleTimeToLive: 0,
+      lookup: (request: ReadRequest<A, E>) =>
+        Effect.forkScoped(
+          Effect.suspend(request.work).pipe(
+            Effect.ensuring(
+              admission.withPermit(
+                Effect.gen(function* () {
+                  const keys = yield* RcMap.keys(resources);
+                  if (Array.from(keys).some((key) => key === request))
+                    yield* RcMap.invalidate(resources, request);
+                }),
+              ),
+            ),
+          ),
+        ),
+    });
+    return {
+      run: Effect.fn('SharedReads.run')(
+        (key: string, work: () => Effect.Effect<A, E>) =>
+          Effect.scoped(
+            Effect.gen(function* () {
+              const fiber = yield* admission.withPermit(
+                RcMap.get(resources, new ReadRequest(key, work)),
+              );
+              return yield* Fiber.join(fiber);
+            }),
+          ),
+      ),
+    };
+  });
+
+export type SharedReads<A, E = never> = Effect.Success<
+  ReturnType<typeof makeSharedReads<A, E>>
+>;

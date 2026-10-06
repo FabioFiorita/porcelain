@@ -1,8 +1,14 @@
-import type { IgnoredEntriesReadInput } from '../models/ignored-entries-read.ts';
+import { type WorktreeRead } from '@porcelain/effects/worktree';
+import { type Effect, Context } from 'effect';
+import { type IgnoredEntriesReadInput } from '../models/ignored-entries-read.ts';
 
 export interface IgnoredEntriesReader {
   read(
     input: IgnoredEntriesReadInput,
-    signal?: AbortSignal,
-  ): Promise<ReadonlySet<string>>;
+  ): Effect.Effect<ReadonlySet<string>, never, WorktreeRead>;
 }
+
+export const IgnoredEntriesReader = Context.Service<
+  '@porcelain/files/IgnoredEntriesReader',
+  IgnoredEntriesReader
+>('@porcelain/files/IgnoredEntriesReader');

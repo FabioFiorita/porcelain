@@ -1,7 +1,10 @@
-export class CommentAuthorMismatchError extends Error {
-  override readonly name = 'CommentAuthorMismatchError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Only the author of a comment may change it');
+export class CommentAuthorMismatchError extends Schema.TaggedError<CommentAuthorMismatchError>()(
+  'CommentAuthorMismatchError',
+  {},
+) {
+  override get message() {
+    return 'Only the author of a comment may change it';
   }
 }

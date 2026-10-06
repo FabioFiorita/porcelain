@@ -5,7 +5,7 @@ selectors:
   - "Branch"
   - "Compare against "
   - "the default branch"
-  - "checkpoint"
+  - "Find a base branch"
 tests:
   - apps/web/spec/e2e/changes-branch-base.e2e.ts
 api:

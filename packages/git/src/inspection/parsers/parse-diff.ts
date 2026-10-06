@@ -1,6 +1,6 @@
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type { GitDiffResult } from '../dtos/git-diff.ts';
-import { InvalidGitDiffError } from '../errors/invalid-git-diff-error.ts';
+import { InvalidGitDiffError } from '../../shared/errors/invalid-git-diff-error.ts';
 import { parseRawDiff } from './parse-raw-diff.ts';
 
 const SECTION_HEADER = Buffer.from('diff --git ');

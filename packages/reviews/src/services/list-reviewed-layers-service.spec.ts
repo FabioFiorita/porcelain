@@ -1,5 +1,7 @@
+import { ReviewStore, ReviewedLayerStore } from '@porcelain/reviews/ports';
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import type { ReviewLayer } from '@porcelain/reviews/models';
+import { type ReviewLayer } from '@porcelain/reviews/models';
 import { currentLayerFingerprint } from '@porcelain/reviews/rules';
 import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
 import { InMemoryReviewedLayerStore } from '../../spec/fakes/in-memory-reviewed-layer-store.ts';
@@ -26,45 +28,58 @@ const layer: ReviewLayer = {
 };
 const reviewed = new Map([['README.md', 'first\nadded\n']]);
 
-function service() {
+async function service() {
   const reviews = new InMemoryReviewStore();
-  reviews.save({
-    worktreeId,
-    revision: 1,
-    publishedAt: '2026-01-01T00:00:00.000Z',
-    active: true,
-    summaryHtml: '<p>Summary</p>',
-    summaryToken: 'token',
-    summarySecret: 'secret',
-    layers: [layer],
-  });
+  await Effect.runPromise(
+    reviews.save({
+      worktreeId,
+      revision: 1,
+      publishedAt: '2026-01-01T00:00:00.000Z',
+      active: true,
+      summaryHtml: '<p>Summary</p>',
+      summaryToken: 'token',
+      summarySecret: 'secret',
+      layers: [layer],
+    }),
+  );
   const marks = new InMemoryReviewedLayerStore();
-  marks.save({
-    worktreeId,
-    marks: [
-      {
-        layerId: layer.id,
-        fingerprint: currentLayerFingerprint(layer, reviewed),
-        reviewedAt: '2026-01-01T00:00:00.000Z',
-      },
-    ],
-  });
-  return new ListReviewedLayersService(reviews, marks);
+  await Effect.runPromise(
+    marks.save({
+      worktreeId,
+      marks: [
+        {
+          layerId: layer.id,
+          fingerprint: currentLayerFingerprint(layer, reviewed),
+          reviewedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    }),
+  );
+  return Effect.runSync(
+    ListReviewedLayersService.pipe(
+      Effect.provide(ListReviewedLayersService.layer),
+      Effect.provideService(ReviewStore, reviews),
+      Effect.provideService(ReviewedLayerStore, marks),
+    ),
+  );
 }
 
 describe('ListReviewedLayersService', () => {
-  it('answers a mark fresh while the lines it covers read as they did', () => {
+  it('answers a mark fresh while the lines it covers read as they did', async () => {
     expect(
-      service().execute({ worktreeId, texts: reviewed }).marks,
+      Effect.runSync((await service()).execute({ worktreeId, texts: reviewed }))
+        .marks,
     ).toMatchObject([{ layerId: layer.id, stale: false }]);
   });
 
-  it('answers a mark stale once the lines it covers changed, computed on this read', () => {
+  it('answers a mark stale once the lines it covers changed, computed on this read', async () => {
     expect(
-      service().execute({
-        worktreeId,
-        texts: new Map([['README.md', 'first\nchanged\n']]),
-      }).marks,
+      Effect.runSync(
+        (await service()).execute({
+          worktreeId,
+          texts: new Map([['README.md', 'first\nchanged\n']]),
+        }),
+      ).marks,
     ).toMatchObject([{ layerId: layer.id, stale: true }]);
   });
 });

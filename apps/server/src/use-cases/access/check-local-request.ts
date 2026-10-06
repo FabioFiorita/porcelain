@@ -1,27 +1,36 @@
-import type {
-  CheckLocalRequestInput,
-  CheckLocalRequestResult,
+import { Context, Effect, Layer } from 'effect';
+import {
+  type CheckLocalRequestInput,
+  type CheckLocalRequestResult,
 } from '@porcelain/access/models';
-import type { CheckLocalRequestService } from '@porcelain/access/services';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { CheckLocalRequestService } from '@porcelain/access/services';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class CheckLocalRequestUseCase {
-  private readonly checkLocalRequest: CheckLocalRequestService;
-  private readonly lanes: Lanes;
-
-  constructor(checkLocalRequest: CheckLocalRequestService, lanes: Lanes) {
-    this.checkLocalRequest = checkLocalRequest;
-    this.lanes = lanes;
+export class CheckLocalRequestUseCase extends Context.Service<
+  CheckLocalRequestUseCase,
+  {
+    readonly execute: (
+      input: CheckLocalRequestInput,
+    ) => Effect.Effect<CheckLocalRequestResult, never>;
   }
+>()('@porcelain/server/CheckLocalRequestUseCase') {
+  static readonly layer = Layer.effect(
+    CheckLocalRequestUseCase,
+    Effect.gen(function* () {
+      const checkLocalRequestCapability = yield* CheckLocalRequestService;
+      const lanesCapability = yield* Lanes;
 
-  execute(
-    input: CheckLocalRequestInput,
-    context: OperationContext,
-  ): Promise<CheckLocalRequestResult> {
-    return this.lanes.unqueued(
-      async () => this.checkLocalRequest.execute(input),
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('CheckLocalRequestUseCase.execute')(function* (
+          input: CheckLocalRequestInput,
+        ): Effect.fn.Return<CheckLocalRequestResult, never> {
+          return yield* lanesCapability.unqueued(() =>
+            Effect.gen(function* () {
+              return yield* checkLocalRequestCapability.execute(input);
+            }),
+          );
+        }),
+      };
+    }),
+  );
 }

@@ -1,149 +1,93 @@
-import type {
-  RegisterProjectRequest,
-  RegisterProjectResponse,
+import { type RepositoryUnavailableError } from '@porcelain/kernel/errors';
+import { InventoryRefresh } from '../../ports/inventory-refresh.ts';
+import { Effect, Context, Layer } from 'effect';
+import {
+  type RegisterProjectRequest,
+  type RegisterProjectResponse,
 } from '@porcelain/contracts/projects';
-import type { ReviewBadges } from '@porcelain/kernel/models';
-import type { ProjectWorktrees } from '@porcelain/projects/models';
-import type {
+import { type ProjectNotFoundError } from '@porcelain/projects/errors';
+import {
   InspectProjectRepositoryService,
   ListKnownWorktreesService,
   ListRegisteredProjectsService,
   ReadRepositoryOriginService,
   RegisterProjectService,
 } from '@porcelain/projects/services';
-import type { ReadTextFilesService } from '@porcelain/files/services';
-import type { ReviewTexts } from '@porcelain/reviews/models';
-import type {
-  ListReviewedLayerPathsService,
-  ReadReviewBadgesService,
-} from '@porcelain/reviews/services';
 import { registeredProjectReport } from '@porcelain/projects/rules';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { JobWork } from '../../ports/job-work.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { EventPublisher } from '../../ports/event-publisher.ts';
 
-export class RegisterProjectUseCase {
-  private readonly inspectProjectRepository: InspectProjectRepositoryService;
-  private readonly readRepositoryOrigin: ReadRepositoryOriginService;
-  private readonly registerProject: RegisterProjectService;
-  private readonly refreshInventory: JobWork;
-  private readonly listRegisteredProjects: ListRegisteredProjectsService;
-  private readonly listKnownWorktrees: ListKnownWorktreesService;
-  private readonly readWorktreeStatuses: ReadReviewBadgesService;
-  private readonly listReviewedLayerPaths: ListReviewedLayerPathsService;
-  private readonly readTextFiles: ReadTextFilesService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-  private readonly events: EventPublisher;
+import { ReadInventoryBadgesUseCasePort } from '../../ports/read-inventory-badges-use-case-port.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-  constructor(
-    inspectProjectRepository: InspectProjectRepositoryService,
-    readRepositoryOrigin: ReadRepositoryOriginService,
-    registerProject: RegisterProjectService,
-    refreshInventory: JobWork,
-    listRegisteredProjects: ListRegisteredProjectsService,
-    listKnownWorktrees: ListKnownWorktreesService,
-    readWorktreeStatuses: ReadReviewBadgesService,
-    listReviewedLayerPaths: ListReviewedLayerPathsService,
-    readTextFiles: ReadTextFilesService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-    events: EventPublisher,
-  ) {
-    this.inspectProjectRepository = inspectProjectRepository;
-    this.readRepositoryOrigin = readRepositoryOrigin;
-    this.registerProject = registerProject;
-    this.refreshInventory = refreshInventory;
-    this.listRegisteredProjects = listRegisteredProjects;
-    this.listKnownWorktrees = listKnownWorktrees;
-    this.readWorktreeStatuses = readWorktreeStatuses;
-    this.listReviewedLayerPaths = listReviewedLayerPaths;
-    this.readTextFiles = readTextFiles;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
-    this.events = events;
+export class RegisterProjectUseCase extends Context.Service<
+  RegisterProjectUseCase,
+  {
+    readonly execute: (
+      input: RegisterProjectRequest,
+    ) => Effect.Effect<
+      RegisterProjectResponse,
+      RepositoryUnavailableError | ProjectNotFoundError
+    >;
   }
+>()('@porcelain/server/RegisterProjectUseCase') {
+  static readonly layer = Layer.effect(
+    RegisterProjectUseCase,
+    Effect.gen(function* () {
+      const inspectProjectRepositoryCapability =
+        yield* InspectProjectRepositoryService;
+      const readRepositoryOriginCapability = yield* ReadRepositoryOriginService;
+      const registerProjectCapability = yield* RegisterProjectService;
+      const refreshInventoryCapability = yield* InventoryRefresh;
+      const listRegisteredProjectsCapability =
+        yield* ListRegisteredProjectsService;
+      const listKnownWorktreesCapability = yield* ListKnownWorktreesService;
+      const readBadgesCapability = yield* ReadInventoryBadgesUseCasePort;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
+      const eventsCapability = yield* EventPublisher;
 
-  async execute(
-    input: RegisterProjectRequest,
-    context: OperationContext,
-  ): Promise<RegisterProjectResponse> {
-    const registered = await this.lanes.run(
-      this.laneKeys.inventory(),
-      'write',
-      async ({ signal }) => {
-        const repository = await this.inspectProjectRepository.execute(
-          input,
-          signal,
-        );
-        const { originUrl } = await this.readRepositoryOrigin.execute(
-          input,
-          signal,
-        );
-        return this.registerProject.execute({ repository, originUrl });
-      },
-      { callerSignal: context.signal },
-    );
-    await this.refreshInventory.execute(context);
-    const { listings } = await this.lanes.run(
-      this.laneKeys.inventory(),
-      'read',
-      async () =>
-        this.listKnownWorktrees.execute(this.listRegisteredProjects.execute()),
-      { callerSignal: context.signal },
-    );
-    const statuses = await this.reviewBadges(listings, context);
-    if (registered.changed) this.events.inventoryChanged();
-    return registeredProjectReport(registered.project, listings, statuses);
-  }
-
-  private async reviewBadges(
-    listings: readonly ProjectWorktrees[],
-    context: OperationContext,
-  ): Promise<ReviewBadges> {
-    const badges = await Promise.all(
-      listings.flatMap(({ worktrees }) => {
-        const [first] = worktrees;
-        return first
-          ? [
-              this.lanes.run(
-                this.laneKeys.reviews(first),
-                'read',
-                async ({ signal }) => {
-                  const worktreeIds = worktrees.map((worktree) => worktree.id);
-                  const texts = new Map(
-                    await Promise.all(
-                      worktreeIds.map(
-                        async (worktreeId): Promise<[string, ReviewTexts]> => [
-                          worktreeId,
-                          (
-                            await this.readTextFiles.execute(
-                              {
-                                worktreeId,
-                                paths: this.listReviewedLayerPaths.execute({
-                                  worktreeId,
-                                }).paths,
-                              },
-                              signal,
-                            )
-                          ).texts,
-                        ],
-                      ),
-                    ),
-                  );
-                  return this.readWorktreeStatuses.execute({
-                    worktreeIds,
-                    texts,
-                  }).statuses;
-                },
-                { callerSignal: context.signal },
+      return {
+        execute: Effect.fn('RegisterProjectUseCase.execute')(function* (
+          input: RegisterProjectRequest,
+        ): Effect.fn.Return<
+          RegisterProjectResponse,
+          RepositoryUnavailableError | ProjectNotFoundError
+        > {
+          const registered = yield* lanesCapability.run(
+            laneKeysCapability.inventory(),
+            'write',
+            () =>
+              Effect.gen(function* () {
+                const repository =
+                  yield* inspectProjectRepositoryCapability.execute(input);
+                const { originUrl } =
+                  yield* readRepositoryOriginCapability.execute(input);
+                return yield* registerProjectCapability.execute({
+                  repository,
+                  originUrl,
+                });
+              }),
+          );
+          yield* refreshInventoryCapability.execute();
+          const { listings } = yield* lanesCapability.run(
+            laneKeysCapability.inventory(),
+            'read',
+            () =>
+              Effect.flatMap(
+                listRegisteredProjectsCapability.execute(),
+                (inventory) => listKnownWorktreesCapability.execute(inventory),
               ),
-            ]
-          : [];
-      }),
-    );
-    return new Map(badges.flatMap((statuses) => [...statuses]));
-  }
+          );
+          const statuses = yield* readBadgesCapability.execute({ listings });
+          if (registered.changed) yield* eventsCapability.inventoryChanged();
+          return registeredProjectReport(
+            registered.project,
+            listings,
+            statuses,
+          );
+        }),
+      };
+    }),
+  );
 }

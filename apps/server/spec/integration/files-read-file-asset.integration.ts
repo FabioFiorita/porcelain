@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { readFileAssetResponseSchema } from '@porcelain/contracts/files';
 import { expect } from 'vitest';
 import {
@@ -28,7 +29,9 @@ test('reading an SVG image answers its media type and base64 content', async ({
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readFileAssetResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readFileAssetResponseSchema)),
+    ),
   );
   expect(response.body).toStrictEqual({
     path: 'logo.svg',

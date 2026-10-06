@@ -1,9 +1,7 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { projectCommands } from '@porcelain/client/projects';
-import { asMutation } from '@/shared/query/mutation';
+import { useAtom } from '@effect/atom-react';
+import { registerProject } from '@porcelain/client/projects';
 import type { Connection } from '@/shared/workspace/connection';
 
 export function useRegisterProject(connection: Connection) {
-  const commands = projectCommands(connection, useQueryClient());
-  return asMutation(useMutation({ mutationFn: commands.register }));
+  return useAtom(registerProject(connection), { mode: 'promise' });
 }

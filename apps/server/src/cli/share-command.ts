@@ -1,16 +1,10 @@
 import {
-  readRemoteAccessEndpoint,
-  setRemoteAccessEndpoint,
-} from '@porcelain/contracts/access';
-import {
-  readRemoteAccessResponseSchema,
-  setRemoteAccessResponseSchema,
   type ReadRemoteAccessResponse,
   type SetRemoteAccessRequest,
 } from '@porcelain/contracts/access';
 import type { Limits } from '../config/limits.ts';
-import type { ShareAction } from './arguments.ts';
-import { askOwner } from './owner-client.ts';
+import type { ShareAction } from './settings.ts';
+import { ownerClient, runOwner } from './owner-client.ts';
 
 type Output = {
   stdout: (message: string) => void;
@@ -156,13 +150,11 @@ function failing(
 }
 
 async function readSharing(dataDirectory: string, limits: Limits) {
-  return readRemoteAccessResponseSchema.parse(
-    await askOwner(
+  return runOwner(
+    ownerClient(
       dataDirectory,
-      readRemoteAccessEndpoint,
-      undefined,
       limits.owner.requestTimeoutMs,
-    ),
+    ).administration.readRemoteAccess(),
   );
 }
 
@@ -196,13 +188,11 @@ export async function shareRemoteAccess(
       output.stderr('Nothing is shared, so there is nothing to check.\n');
     return action.kind === 'check' ? 1 : 0;
   }
-  const changed = setRemoteAccessResponseSchema.parse(
-    await askOwner(
+  const changed = await runOwner(
+    ownerClient(
       dataDirectory,
-      setRemoteAccessEndpoint,
-      requested,
       limits.owner.requestTimeoutMs,
-    ),
+    ).administration.setRemoteAccess({ payload: requested }),
   );
   const access = await settled(dataDirectory, changed, limits, wait);
   output.stdout(report(access));

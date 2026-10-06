@@ -1,4 +1,5 @@
 import type { DeviceRoute } from './device.ts';
+import type { Redacted } from 'effect';
 
 type LiveTicketViewer =
   | { kind: 'owner' }
@@ -9,7 +10,10 @@ export type IssueLiveTicketInput = {
   route: DeviceRoute;
 };
 
-export type IssueLiveTicketResult = { ticket: string; expiresAt: string };
+export type IssueLiveTicketResult = {
+  ticket: Redacted.Redacted<string>;
+  expiresAt: string;
+};
 
 export type IssueLiveTicketOptions = {
   lifetimeMs: number;

@@ -85,8 +85,12 @@ export function createFetchGate(filePath: string) {
       const gate = holdNextFetch(
         (path, init) =>
           init?.method === 'POST' &&
-          typeof init.body === 'string' &&
-          init.body.includes(filePath) &&
+          (typeof init.body === 'string'
+            ? init.body
+            : init.body instanceof Uint8Array
+              ? new TextDecoder().decode(init.body)
+              : ''
+          ).includes(filePath) &&
           path.endsWith('/changes/diffs'),
       );
       restores.push(holdLiveNotices(gate.held));

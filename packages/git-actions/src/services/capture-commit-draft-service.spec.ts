@@ -1,12 +1,19 @@
 import {
+  SelectedDiffReader,
+  UntrackedFileReader,
+  CaptureCommitDraftOptions,
+} from '@porcelain/git-actions/ports';
+import { withReadLease } from '@porcelain/effects/worktree';
+import { Effect } from 'effect';
+import {
   CommitDraftSelectionError,
   CommitDraftTooLargeError,
 } from '@porcelain/git-actions/errors';
-import type {
-  CommitDraftObservation,
-  UntrackedFileRead,
+import {
+  type CommitDraftObservation,
+  type UntrackedFileRead,
 } from '@porcelain/git-actions/models';
-import type { FileChange } from '@porcelain/kernel/models';
+import { type FileChange } from '@porcelain/kernel/models';
 import { describe, expect, it } from 'vitest';
 import {
   GUIDE_FINGERPRINT,
@@ -81,25 +88,39 @@ function service(
   files: Record<string, UntrackedFileRead> = {},
   options = limits,
 ) {
-  return new CaptureCommitDraftService(
-    new InMemorySelectedDiffReader(patches),
-    new InMemoryUntrackedFileReader(files),
-    options,
+  return Effect.runSync(
+    CaptureCommitDraftService.pipe(
+      Effect.provide(CaptureCommitDraftService.layer),
+      Effect.provideService(
+        SelectedDiffReader,
+        new InMemorySelectedDiffReader(patches),
+      ),
+      Effect.provideService(
+        UntrackedFileReader,
+        new InMemoryUntrackedFileReader(files),
+      ),
+      Effect.provideService(CaptureCommitDraftOptions, options),
+    ),
   );
 }
 
 describe('CaptureCommitDraftService', () => {
   it('captures the selected change once, with its diff and fingerprint', async () => {
-    const capture = await service({
-      'README.md': 'diff --git a/README.md b/README.md',
-    }).execute(
-      input(
-        observed(
-          modified('README.md', README_FINGERPRINT),
-          modified('OTHER.md', GUIDE_FINGERPRINT),
+    const capture = await Effect.runPromise(
+      withReadLease(
+        WORKTREE_ID,
+        service({
+          'README.md': 'diff --git a/README.md b/README.md',
+        }).execute(
+          input(
+            observed(
+              modified('README.md', README_FINGERPRINT),
+              modified('OTHER.md', GUIDE_FINGERPRINT),
+            ),
+            'README.md',
+            'README.md',
+          ),
         ),
-        'README.md',
-        'README.md',
       ),
     );
     expect(capture.paths).toEqual(['README.md']);
@@ -114,10 +135,15 @@ describe('CaptureCommitDraftService', () => {
 
   it('refuses a path that is not a change', async () => {
     await expect(
-      service().execute(
-        input(
-          observed(modified('README.md', README_FINGERPRINT)),
-          'missing.md',
+      Effect.runPromise(
+        withReadLease(
+          WORKTREE_ID,
+          service().execute(
+            input(
+              observed(modified('README.md', README_FINGERPRINT)),
+              'missing.md',
+            ),
+          ),
         ),
       ),
     ).rejects.toThrow(CommitDraftSelectionError);
@@ -125,23 +151,33 @@ describe('CaptureCommitDraftService', () => {
 
   it('refuses a change it cannot fingerprint', async () => {
     await expect(
-      service().execute(
-        input(
-          observed({
-            ...modified('README.md', README_FINGERPRINT),
-            fingerprint: undefined,
-          }),
-          'README.md',
+      Effect.runPromise(
+        withReadLease(
+          WORKTREE_ID,
+          service().execute(
+            input(
+              observed({
+                ...modified('README.md', README_FINGERPRINT),
+                fingerprint: undefined,
+              }),
+              'README.md',
+            ),
+          ),
         ),
       ),
     ).rejects.toThrow(CommitDraftSelectionError);
   });
 
   it('keeps both sides of a selected rename in one bundle and diffs both', async () => {
-    const capture = await service({
-      'GUIDE.md': '+new side',
-      'OLD.md': '-old side',
-    }).execute(input(observed(renamed), 'GUIDE.md', 'OLD.md'));
+    const capture = await Effect.runPromise(
+      withReadLease(
+        WORKTREE_ID,
+        service({
+          'GUIDE.md': '+new side',
+          'OLD.md': '-old side',
+        }).execute(input(observed(renamed), 'GUIDE.md', 'OLD.md')),
+      ),
+    );
     expect(capture.bundles).toEqual([['GUIDE.md', 'OLD.md']]);
     expect(evidence(capture.evidence)).toMatchObject({
       patch: '+new side-old side',
@@ -149,10 +185,15 @@ describe('CaptureCommitDraftService', () => {
   });
 
   it('reads an untracked file as content instead of a diff', async () => {
-    const capture = await service(
-      { 'notes.md': 'never diffed' },
-      { 'notes.md': { kind: 'text', text: 'hello', byteLength: 5 } },
-    ).execute(input(observed(untracked), 'notes.md'));
+    const capture = await Effect.runPromise(
+      withReadLease(
+        WORKTREE_ID,
+        service(
+          { 'notes.md': 'never diffed' },
+          { 'notes.md': { kind: 'text', text: 'hello', byteLength: 5 } },
+        ).execute(input(observed(untracked), 'notes.md')),
+      ),
+    );
     expect(evidence(capture.evidence)).toMatchObject({
       patch: '',
       untracked: {
@@ -169,14 +210,23 @@ describe('CaptureCommitDraftService', () => {
   });
 
   it('names why an untracked file was left out of the evidence', async () => {
-    const tooLarge = await service(
-      {},
-      { 'notes.md': { kind: 'too-large' } },
-    ).execute(input(observed(untracked), 'notes.md'));
-    const unreadable = await service(
-      {},
-      { 'notes.md': { kind: 'failed', failure: 'unsupported-text' } },
-    ).execute(input(observed(untracked), 'notes.md'));
+    const tooLarge = await Effect.runPromise(
+      withReadLease(
+        WORKTREE_ID,
+        service({}, { 'notes.md': { kind: 'too-large' } }).execute(
+          input(observed(untracked), 'notes.md'),
+        ),
+      ),
+    );
+    const unreadable = await Effect.runPromise(
+      withReadLease(
+        WORKTREE_ID,
+        service(
+          {},
+          { 'notes.md': { kind: 'failed', failure: 'unsupported-text' } },
+        ).execute(input(observed(untracked), 'notes.md')),
+      ),
+    );
     expect(evidence(tooLarge.evidence)).toMatchObject({
       untracked: { 'notes.md': { kind: 'omitted', reason: 'too-large' } },
     });
@@ -193,17 +243,35 @@ describe('CaptureCommitDraftService', () => {
     );
     const paths = changes.map((change) => change.path);
     await expect(
-      service().execute(input(observed(...changes), ...paths.slice(0, 3))),
+      Effect.runPromise(
+        withReadLease(
+          WORKTREE_ID,
+          service().execute(input(observed(...changes), ...paths.slice(0, 3))),
+        ),
+      ),
     ).resolves.toMatchObject({ paths: paths.slice(0, 3) });
     await expect(
-      service().execute(input(observed(...changes), ...paths)),
+      Effect.runPromise(
+        withReadLease(
+          WORKTREE_ID,
+          service().execute(input(observed(...changes), ...paths)),
+        ),
+      ),
     ).rejects.toThrow(CommitDraftTooLargeError);
   });
 
   it('refuses evidence larger than its limit', async () => {
     await expect(
-      service({ 'README.md': 'x'.repeat(4096) }).execute(
-        input(observed(modified('README.md', README_FINGERPRINT)), 'README.md'),
+      Effect.runPromise(
+        withReadLease(
+          WORKTREE_ID,
+          service({ 'README.md': 'x'.repeat(4096) }).execute(
+            input(
+              observed(modified('README.md', README_FINGERPRINT)),
+              'README.md',
+            ),
+          ),
+        ),
       ),
     ).rejects.toThrow(CommitDraftTooLargeError);
   });

@@ -3,12 +3,11 @@ packages:
   - packages/*
 allowBuilds:
   '@parcel/watcher': true
-  better-sqlite3: false
   esbuild: true
   lefthook: false
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
-  - "@tanstack/highlight@0.0.11"
+  - '@tanstack/highlight@0.0.11'
 packageExtensions:
   dependency-cruiser@18.4.0:
     dependencies:
@@ -16,4 +15,4 @@ packageExtensions:
 # beta.6 pins theming 1.0.0, whose theme peer excludes the 2.x version used by
 # current Pierre packages. The compatible patch release widens that peer.
 overrides:
-  "@pierre/trees>@pierre/theming": 1.0.1
+  '@pierre/trees>@pierre/theming': 1.0.1

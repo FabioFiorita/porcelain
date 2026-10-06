@@ -1,3 +1,6 @@
+import { FileReader, ReadFileAssetOptions } from '@porcelain/files/ports';
+import { Effect } from 'effect';
+import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
 import {
   ContentChangedError,
@@ -6,7 +9,7 @@ import {
   PathNotReadableError,
   UnsupportedAssetTypeError,
 } from '@porcelain/files/errors';
-import type { FileRead } from '@porcelain/files/models';
+import { type FileRead } from '@porcelain/files/models';
 import { InMemoryFileReader } from '../../spec/fakes/in-memory-file-reader.ts';
 import { ReadFileAssetService } from './read-file-asset-service.ts';
 
@@ -17,10 +20,16 @@ function file(bytes: Uint8Array): FileRead {
 }
 
 function serviceWith(files: Record<string, FileRead>, maxBytes = 1024) {
-  return new ReadFileAssetService(new InMemoryFileReader({ files }), {
-    maxBytes,
-    base64ChunkBytes: 0x8000,
-  });
+  return Effect.runSync(
+    ReadFileAssetService.pipe(
+      Effect.provide(ReadFileAssetService.layer),
+      Effect.provideService(FileReader, new InMemoryFileReader({ files })),
+      Effect.provideService(ReadFileAssetOptions, {
+        maxBytes,
+        base64ChunkBytes: 0x8000,
+      }),
+    ),
+  );
 }
 
 describe('ReadFileAssetService', () => {
@@ -29,7 +38,12 @@ describe('ReadFileAssetService', () => {
       'img/dot.png': file(new Uint8Array([0, 255, 1])),
     });
     await expect(
-      service.execute({ worktreeId, path: 'img/dot.png' }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          service.execute({ worktreeId, path: 'img/dot.png' }),
+        ),
+      ),
     ).resolves.toEqual({
       path: 'img/dot.png',
       mediaType: 'image/png',
@@ -40,21 +54,36 @@ describe('ReadFileAssetService', () => {
   it('refuses a file that is not a previewable asset before reading it', async () => {
     const service = serviceWith({});
     await expect(
-      service.execute({ worktreeId, path: 'README.md' }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          service.execute({ worktreeId, path: 'README.md' }),
+        ),
+      ),
     ).rejects.toThrow(UnsupportedAssetTypeError);
   });
 
   it('refuses an asset the reader stopped reading at the limit', async () => {
     const service = serviceWith({ 'big.png': { kind: 'too-large' } });
     await expect(
-      service.execute({ worktreeId, path: 'big.png' }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          service.execute({ worktreeId, path: 'big.png' }),
+        ),
+      ),
     ).rejects.toThrow(FileTooLargeError);
   });
 
   it('reports a missing asset as not found', async () => {
     const service = serviceWith({});
     await expect(
-      service.execute({ worktreeId, path: 'missing.png' }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          service.execute({ worktreeId, path: 'missing.png' }),
+        ),
+      ),
     ).rejects.toThrow(PathNotFoundError);
   });
 
@@ -63,7 +92,12 @@ describe('ReadFileAssetService', () => {
       'folder.png': { kind: 'failed', failure: 'unreadable' },
     });
     await expect(
-      service.execute({ worktreeId, path: 'folder.png' }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          service.execute({ worktreeId, path: 'folder.png' }),
+        ),
+      ),
     ).rejects.toThrow(PathNotReadableError);
   });
 
@@ -72,7 +106,12 @@ describe('ReadFileAssetService', () => {
       'logo.png': { kind: 'failed', failure: 'changed' },
     });
     await expect(
-      service.execute({ worktreeId, path: 'logo.png' }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          service.execute({ worktreeId, path: 'logo.png' }),
+        ),
+      ),
     ).rejects.toThrow(ContentChangedError);
   });
 });

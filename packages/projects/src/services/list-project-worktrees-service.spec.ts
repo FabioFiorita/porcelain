@@ -1,5 +1,10 @@
+import {
+  WorktreeListingReader,
+  WorktreeCatalogStore,
+} from '@porcelain/projects/ports';
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import type { ListedWorktree } from '@porcelain/projects/models';
+import { type ListedWorktree } from '@porcelain/projects/models';
 import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { ScriptedWorktreeListingReader } from '../../spec/fakes/scripted-worktree-listing-reader.ts';
 import { ListProjectWorktreesService } from './list-project-worktrees-service.ts';
@@ -30,7 +35,13 @@ function service(
   reader: ScriptedWorktreeListingReader,
   catalog = new InMemoryWorktreeCatalogStore(),
 ) {
-  return new ListProjectWorktreesService(reader, catalog);
+  return Effect.runSync(
+    ListProjectWorktreesService.pipe(
+      Effect.provide(ListProjectWorktreesService.layer),
+      Effect.provideService(WorktreeListingReader, reader),
+      Effect.provideService(WorktreeCatalogStore, catalog),
+    ),
+  );
 }
 
 function seen(worktrees: ListedWorktree[]) {
@@ -60,7 +71,9 @@ describe('ListProjectWorktreesService', () => {
       worktrees: [worktree('main')],
       unidentified: 0,
     });
-    expect(await service(reader).execute({ project })).toEqual({
+    expect(
+      await Effect.runPromise(service(reader).execute({ project })),
+    ).toEqual({
       projectId: project.id,
       available: true,
       complete: true,
@@ -77,7 +90,9 @@ describe('ListProjectWorktreesService', () => {
       worktrees: [worktree('main')],
       unidentified: 1,
     });
-    const result = await service(reader).execute({ project });
+    const result = await Effect.runPromise(
+      service(reader).execute({ project }),
+    );
     expect(result.available).toBe(true);
     expect(result.complete).toBe(false);
   });
@@ -88,7 +103,9 @@ describe('ListProjectWorktreesService', () => {
       const reader = new ScriptedWorktreeListingReader();
       reader.answer({ kind, projectId: project.id });
       const catalog = seen([worktree('main'), worktree('feature')]);
-      expect(await service(reader, catalog).execute({ project })).toEqual({
+      expect(
+        await Effect.runPromise(service(reader, catalog).execute({ project })),
+      ).toEqual({
         projectId: project.id,
         available: false,
         complete: false,
@@ -107,7 +124,9 @@ describe('ListProjectWorktreesService', () => {
       unidentified: 0,
     });
     const catalog = seen([worktree('main')]);
-    expect(await service(reader, catalog).execute({ project })).toEqual({
+    expect(
+      await Effect.runPromise(service(reader, catalog).execute({ project })),
+    ).toEqual({
       projectId: project.id,
       available: false,
       complete: false,
@@ -118,6 +137,8 @@ describe('ListProjectWorktreesService', () => {
   it('reports an unlisted project with nothing seen before as empty', async () => {
     const reader = new ScriptedWorktreeListingReader();
     reader.answer({ kind: 'unavailable', projectId: project.id });
-    expect((await service(reader).execute({ project })).worktrees).toEqual([]);
+    expect(
+      (await Effect.runPromise(service(reader).execute({ project }))).worktrees,
+    ).toEqual([]);
   });
 });

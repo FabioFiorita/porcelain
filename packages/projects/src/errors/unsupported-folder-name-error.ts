@@ -1,7 +1,10 @@
-export class UnsupportedFolderNameError extends Error {
-  override readonly name = 'UnsupportedFolderNameError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Directory contains a name that is not supported UTF-8');
+export class UnsupportedFolderNameError extends Schema.TaggedError<UnsupportedFolderNameError>()(
+  'UnsupportedFolderNameError',
+  {},
+) {
+  override get message() {
+    return 'Directory contains a name that is not supported UTF-8';
   }
 }

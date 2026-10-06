@@ -1,12 +1,15 @@
+import { Duration } from 'effect';
 import type { Limits } from './limits.ts';
 
-export function operationDeadlineMs(
+export function operationDeadline(
   projectCount: number,
   limits: Pick<Limits, 'inventory' | 'lanes'>,
-): number {
-  return (
-    Math.ceil(Math.max(projectCount, 1) / limits.inventory.listingLaunches) *
-      limits.inventory.listingTimeoutMs +
-    limits.lanes.operationTimeoutMs
+): Duration.Duration {
+  return Duration.sum(
+    Duration.times(
+      limits.inventory.listingTimeout,
+      Math.ceil(Math.max(projectCount, 1) / limits.inventory.listingLaunches),
+    ),
+    limits.lanes.operationTimeout,
   );
 }

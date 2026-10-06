@@ -1,45 +1,52 @@
-import type {
+import { Context, Effect, Layer } from 'effect';
+import { type MissingEnvironmentIdentityError } from '@porcelain/access/errors';
+import {
   CloseTunnelConnectionsService,
   OpenRemoteRoutesService,
   ReadEnvironmentService,
 } from '@porcelain/access/services';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class OpenRemoteRoutesUseCase {
-  private readonly openRemoteRoutes: OpenRemoteRoutesService;
-  private readonly closeTunnelConnections: CloseTunnelConnectionsService;
-  private readonly readEnvironment: ReadEnvironmentService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    openRemoteRoutes: OpenRemoteRoutesService,
-    closeTunnelConnections: CloseTunnelConnectionsService,
-    readEnvironment: ReadEnvironmentService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.openRemoteRoutes = openRemoteRoutes;
-    this.closeTunnelConnections = closeTunnelConnections;
-    this.readEnvironment = readEnvironment;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class OpenRemoteRoutesUseCase extends Context.Service<
+  OpenRemoteRoutesUseCase,
+  {
+    readonly execute: () => Effect.Effect<
+      void,
+      MissingEnvironmentIdentityError
+    >;
   }
+>()('@porcelain/server/OpenRemoteRoutesUseCase') {
+  static readonly layer = Layer.effect(
+    OpenRemoteRoutesUseCase,
+    Effect.gen(function* () {
+      const openRemoteRoutesCapability = yield* OpenRemoteRoutesService;
+      const closeTunnelConnectionsCapability =
+        yield* CloseTunnelConnectionsService;
+      const readEnvironmentCapability = yield* ReadEnvironmentService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
 
-  execute(context: OperationContext): Promise<void> {
-    return this.lanes.run(
-      this.laneKeys.remoteAccess(),
-      'write',
-      async ({ signal }) => {
-        await this.openRemoteRoutes.execute(
-          this.readEnvironment.execute(),
-          signal,
-        );
-        this.closeTunnelConnections.execute();
-      },
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('OpenRemoteRoutesUseCase.execute')(
+          function* (): Effect.fn.Return<
+            void,
+            MissingEnvironmentIdentityError
+          > {
+            return yield* lanesCapability.run(
+              laneKeysCapability.remoteAccess(),
+              'write',
+              () =>
+                Effect.gen(function* () {
+                  yield* openRemoteRoutesCapability.execute(
+                    yield* readEnvironmentCapability.execute(),
+                  );
+                  yield* closeTunnelConnectionsCapability.execute();
+                }),
+            );
+          },
+        ),
+      };
+    }),
+  );
 }

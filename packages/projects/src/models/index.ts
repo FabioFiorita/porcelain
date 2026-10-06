@@ -2,11 +2,7 @@ export type {
   CheckWorktreeInput,
   ConfirmWorktreeInput,
 } from './check-worktree.ts';
-export type {
-  FilePreference,
-  FilePreferenceKey,
-  ProjectFilePreference,
-} from './file-preference.ts';
+
 export type { ListedWorktree } from './listed-worktree.ts';
 export type {
   FolderEntry,
@@ -32,8 +28,4 @@ export type {
   CatalogSnapshot,
 } from './worktree-catalog.ts';
 export type { WorktreeListing } from './worktree-listing.ts';
-export type {
-  RemoveWorktreePresenceInput,
-  SaveWorktreePresenceInput,
-  WorktreePresence,
-} from './worktree-presence.ts';
+export type { WorktreePresence } from './worktree-presence.ts';

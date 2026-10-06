@@ -12,6 +12,7 @@ selectors:
   - "Search"
 tests:
   - apps/web/spec/integration/files-find.test.tsx
+  - apps/web/spec/integration/reviews-sheet-focus.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/text
 ---
@@ -66,6 +67,7 @@ awk 'BEGIN{for(i=0;i<4000;i++){if(i==20)print "an early NEEDLE"; if(i==3900)prin
 - Step 10: the editor scrolls to the same far match.
 - Nothing is written: `$C network` shows only `GET /api/worktrees/<id>/text?path=long.txt` for the file, no `POST .../files`.
 - `apps/web/spec/integration/files-find.test.tsx`: `Mod+F` focuses "Find in file"; "needle" reads "1 of 2" with the early line visible; `Enter` reads "2 of 2" with the far line visible; "Previous match" reads "1 of 2"; `Escape` removes the field; in the editor `Mod+F` shows "Search" and `Enter` brings the far line into view.
+- `apps/web/spec/integration/reviews-sheet-focus.test.tsx`: after the file's text has loaded, reopening it from the review sheet and immediately pressing `Mod+F` focuses "Find in file". The input keeps focus as the sheet closes and accepts typed text.
 
 ## Gotchas
 

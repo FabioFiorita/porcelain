@@ -1,3 +1,4 @@
+import { Schema } from 'effect';
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import {
@@ -14,55 +15,48 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
-import { z } from 'zod';
 import { Refusal } from './cli.ts';
 import { Evidence, Redactor, type EvidenceFormat } from './evidence.ts';
 import { buildFingerprint, type BuildInputs } from './fingerprint.ts';
 import { endGroup, endLeader, endMatching, processes } from './processes.ts';
-
 const core = dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = resolve(core, '../../..');
 const idleLimitMs = 30 * 60 * 1000;
 const idlePollMs = 30 * 1000;
 const heartbeatMs = 10 * 1000;
 const startPollMs = 50;
-
-const instanceSchema = z.object({
-  id: z.string(),
-  pid: z.number(),
-  folder: z.string(),
-  evidence: z.string(),
-  fingerprint: z.string(),
-  startedAt: z.string(),
-  secrets: z.array(z.string()),
-  markers: z.array(z.string()),
-  detail: z.unknown(),
+const instanceSchema = Schema.Struct({
+  id: Schema.String,
+  pid: Schema.Finite,
+  folder: Schema.String,
+  evidence: Schema.String,
+  fingerprint: Schema.String,
+  startedAt: Schema.String,
+  secrets: Schema.Array(Schema.String),
+  markers: Schema.Array(Schema.String),
+  detail: Schema.Unknown,
 });
-const pendingSchema = z.object({
-  id: z.string(),
-  evidence: z.string(),
-  fingerprint: z.string(),
-  options: z.unknown(),
+const pendingSchema = Schema.Struct({
+  id: Schema.String,
+  evidence: Schema.String,
+  fingerprint: Schema.String,
+  options: Schema.Unknown,
 });
-
-export type Instance<Detail> = Omit<
-  z.output<typeof instanceSchema>,
-  'detail'
-> & { detail: Detail };
-
+export type Instance<Detail> = Omit<typeof instanceSchema.Type, 'detail'> & {
+  detail: Detail;
+};
 export type Surface<Detail> = {
   name: 'server' | 'web' | 'desktop' | 'mobile';
   cli: string;
-  detail: z.ZodType<Detail>;
+  detail: Schema.Codec<Detail>;
   inputs: BuildInputs;
   format: EvidenceFormat;
   stale: (
     instance: Instance<Detail>,
     buildChanged: boolean,
-  ) => string | undefined;
+  ) => string | undefined | Promise<string | undefined>;
   stopWithinMs: number;
 };
-
 export type Life = {
   id: string;
   folder: string;
@@ -74,7 +68,6 @@ export type Life = {
   stop: (reason: string) => void;
   stopping: () => boolean;
 };
-
 function touch(file: string): void {
   try {
     writeFileSync(file, '');
@@ -82,12 +75,10 @@ function touch(file: string): void {
     return;
   }
 }
-
 export class Registry<Detail> {
   readonly home: string;
   private readonly surface: Surface<Detail>;
   private readonly cli: string;
-
   constructor(surface: Surface<Detail>) {
     this.surface = surface;
     this.cli = fileURLToPath(surface.cli);
@@ -98,30 +89,24 @@ export class Registry<Detail> {
       surface.name,
     );
   }
-
   fingerprint(): string {
     return buildFingerprint(repositoryRoot, this.surface.inputs, [
       dirname(this.cli),
       core,
     ]);
   }
-
   evidenceFolder(id: string): string {
     return join(this.home, 'evidence', id);
   }
-
   private folderOf(id: string): string {
     return join(this.home, 'instances', id);
   }
-
   private marker(folder: string): string {
     return `${this.cli} serve ${folder}`;
   }
-
   redactor(instance: Pick<Instance<Detail>, 'secrets'>): Redactor {
     return new Redactor(instance.secrets);
   }
-
   evidence(instance: Pick<Instance<Detail>, 'secrets' | 'evidence'>) {
     return new Evidence(
       instance.evidence,
@@ -129,12 +114,15 @@ export class Registry<Detail> {
       this.surface.format,
     );
   }
-
   private read(file: string): Instance<Detail> {
-    const base = instanceSchema.parse(JSON.parse(readFileSync(file, 'utf8')));
-    return { ...base, detail: this.surface.detail.parse(base.detail) };
+    const base = Schema.decodeUnknownSync(instanceSchema)(
+      JSON.parse(readFileSync(file, 'utf8')),
+    );
+    return {
+      ...base,
+      detail: Schema.decodeUnknownSync(this.surface.detail)(base.detail),
+    };
   }
-
   save(instance: Instance<Detail>): void {
     const file = join(instance.folder, 'instance.json');
     const partial = `${file}.${process.pid}.partial`;
@@ -143,7 +131,6 @@ export class Registry<Detail> {
     });
     renameSync(partial, file);
   }
-
   update(
     instance: Instance<Detail>,
     change: (current: Instance<Detail>) => Instance<Detail>,
@@ -152,7 +139,6 @@ export class Registry<Detail> {
     this.save(next);
     return next;
   }
-
   list(): { instance: Instance<Detail>; alive: boolean }[] {
     const root = join(this.home, 'instances');
     if (!existsSync(root)) return [];
@@ -171,13 +157,11 @@ export class Registry<Detail> {
         return [{ instance, alive }];
       });
   }
-
   alive(instance: Instance<Detail>): boolean {
     return this.list().some(
       (entry) => entry.instance.id === instance.id && entry.alive,
     );
   }
-
   chosen(
     requested: string | undefined,
     { includeStopped = false } = {},
@@ -208,12 +192,10 @@ export class Registry<Detail> {
       );
     return this.touched(only.instance);
   }
-
   private touched(instance: Instance<Detail>): Instance<Detail> {
     touch(join(instance.folder, 'last-command'));
     return instance;
   }
-
   async launch(
     options: unknown,
     readyWithinMs: number,
@@ -264,14 +246,12 @@ export class Registry<Detail> {
     }
     return this.read(file);
   }
-
-  staleness(instance: Instance<Detail>): string | undefined {
+  async staleness(instance: Instance<Detail>): Promise<string | undefined> {
     return this.surface.stale(
       instance,
       this.fingerprint() !== instance.fingerprint,
     );
   }
-
   async refuse(
     instance: Instance<Detail>,
     command: readonly string[],
@@ -280,7 +260,6 @@ export class Registry<Detail> {
     await this.evidence(instance).record('refused', command, message);
     throw new Refusal(message);
   }
-
   async drive<T>(
     instance: Instance<Detail>,
     command: readonly string[],
@@ -288,7 +267,7 @@ export class Registry<Detail> {
   ): Promise<T> {
     const beat = () => touch(join(instance.folder, 'last-command'));
     beat();
-    const stale = this.staleness(instance);
+    const stale = await this.staleness(instance);
     if (stale !== undefined) await this.refuse(instance, command, stale);
     const heartbeat = setInterval(beat, heartbeatMs);
     try {
@@ -302,7 +281,6 @@ export class Registry<Detail> {
       beat();
     }
   }
-
   async stop(instance: Instance<Detail>): Promise<string[]> {
     const report = await endLeader(
       instance.pid,
@@ -314,12 +292,11 @@ export class Registry<Detail> {
     await rm(instance.folder, { recursive: true, force: true });
     return report;
   }
-
   async serve(
     folder: string,
     start: (life: Life) => Promise<Detail>,
   ): Promise<void> {
-    const pending = pendingSchema.parse(
+    const pending = Schema.decodeUnknownSync(pendingSchema)(
       JSON.parse(await readFile(join(folder, 'pending.json'), 'utf8')),
     );
     const secrets: string[] = [];

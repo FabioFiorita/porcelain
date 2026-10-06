@@ -6,7 +6,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { cn } from '@/shared/lib/utils';
-import type { TreeAction } from '../rules/tree-actions';
+import type { TreeAction } from '@porcelain/client/files/rules';
 import { FileTreeMenuList } from './file-tree-menu';
 import { FileTypeIcon } from './file-type-icon';
 

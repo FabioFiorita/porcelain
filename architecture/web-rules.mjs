@@ -1,6 +1,6 @@
 import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { shadcnRegistry, webPart } from './policy.ts';
+import { classify, shadcnRegistry, webPart } from './policy.ts';
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url)).replaceAll(
   '\\',
@@ -67,7 +67,7 @@ const keyTargets = new Set([...globalObjects, 'document']);
 const keyEvents = new Set(['keydown', 'keyup', 'keypress']);
 const historyGlobals = new Set(['history']);
 const pureRuleModules =
-  /^(?:@porcelain\/contracts(?:\/|$)|@porcelain\/client\/[^/]+\/rules$|date-fns(?:\/|$))/;
+  /^(?:@porcelain\/contracts(?:\/|$)|@porcelain\/client\/[^/]+\/rules$|effect\/(?:Schema|Redacted)$)/;
 const loopStatements = new Set([
   'ForStatement',
   'ForInStatement',
@@ -530,17 +530,14 @@ export const webRules = {
       const path = webPath(context);
       if (!path.startsWith('packages/client/src/')) return {};
       const message =
-        'The shared client receives platform capabilities through ports and uses vanilla Zustand and Query core; React bindings, browser globals, Expo and native UI stay in each app so incompatible React runtimes cannot mix.';
+        'The shared client receives platform capabilities through ports and uses native Effect services and Atom state; React bindings, browser globals, Expo and native UI stay in each app so incompatible React runtimes cannot mix.';
       const check = (node) => {
         const source = sourceOf(node);
         if (
           source !== undefined &&
-          (/^(?:react(?:-native|-dom)?|@tanstack\/react-query|expo(?:-[^/]+)?|@expo\/[^/]+)(?:\/|$)/.test(
+          /^(?:react(?:-native|-dom)?|@effect\/atom-react|@tanstack\/react-query|expo(?:-[^/]+)?|@expo\/[^/]+)(?:\/|$)/.test(
             source,
-          ) ||
-            source === 'zustand' ||
-            (source.startsWith('zustand/') &&
-              !/^zustand\/vanilla(?:\/|$)/.test(source)))
+          )
         )
           context.report({ node, message });
       };
@@ -613,18 +610,61 @@ export const webRules = {
     message: (name) =>
       `\`${name}\` is not ours here: the React Compiler memoizes every component; hand memoization hides what it cannot compile, because hand memoization hides failures of the compiler used by the build.`,
   }),
-  'web-store-owns-zustand': {
+  'web-store-owns-atoms': {
     create(context) {
       const path = webPath(context);
-      if (!runtimeWeb(path) || webPart(path) === 'store') return {};
+      if (!runtimeWeb(path)) return {};
+      const part = webPart(path);
+      const message =
+        'Native Atom state has one feature owner: mutable AtomRef values and persisted atoms belong to store.ts; queries and commands own async atoms, because competing stores or view-created atoms split subscriptions and cancellation. Zustand is retired.';
+      let atoms = { locals: new Map(), namespaces: new Set() };
+      let methods = { locals: new Map(), namespaces: new Set() };
       return {
+        Program(program) {
+          atoms = importedFrom(
+            program,
+            (source) => source === 'effect/reactivity',
+          );
+          methods = importedFrom(
+            program,
+            (source) => source === 'effect/reactivity/Atom',
+          );
+        },
+        CallExpression(node) {
+          const callee = node.callee;
+          if (
+            part !== 'store' &&
+            (calledImport(callee, methods) === 'kvs' ||
+              (callee.type === 'MemberExpression' &&
+                promiseContinuationName(callee) === 'kvs' &&
+                calledImport(callee.object, atoms) === 'Atom'))
+          )
+            context.report({ node, message });
+        },
         ImportDeclaration(node) {
-          if (zustandModule.test(sourceOf(node) ?? ''))
-            context.report({
-              node,
-              message:
-                'Zustand is created in the feature store.ts only; a view reads it through the hooks store.ts exports, because a second store splits state ownership and subscriptions.',
-            });
+          const source = sourceOf(node) ?? '';
+          if (zustandModule.test(source)) {
+            context.report({ node, message });
+            return;
+          }
+          if (node.importKind === 'type') return;
+          for (const binding of node.specifiers) {
+            if (binding.importKind === 'type') continue;
+            const imported = source.startsWith('effect/reactivity/')
+              ? source.slice('effect/reactivity/'.length)
+              : source === 'effect/reactivity' &&
+                  binding.type === 'ImportSpecifier'
+                ? importedName(binding)
+                : source === 'effect/reactivity'
+                  ? '*'
+                  : undefined;
+            if (
+              (['AtomRef', '*'].includes(imported) && part !== 'store') ||
+              (['Atom', '*'].includes(imported) &&
+                ['view', 'route'].includes(part))
+            )
+              context.report({ node: binding, message });
+          }
         },
       };
     },
@@ -632,14 +672,15 @@ export const webRules = {
   'web-store-owns-storage': {
     create(context) {
       const path = webPath(context);
-      if (!runtimeWeb(path) || webPart(path) === 'store') return {};
+      if (!runtimeWeb(path) || ['store', 'adapter'].includes(webPart(path)))
+        return {};
       return {
         'Program:exit'(program) {
           for (const node of globalUses(context, program, storageGlobals))
             context.report({
               node,
               message:
-                'Web Storage is read and written by the feature store.ts only, through Zustand persist, so one owner decides what survives a reload.',
+                'Web Storage belongs to a feature store or its platform adapter; the shared Effect store owns persistence policy, so views and commands cannot bypass failure recovery.',
             });
         },
       };
@@ -682,9 +723,8 @@ export const webRules = {
     create(context) {
       if (webPart(webPath(context)) !== 'query') return {};
       const message =
-        'A queries/ file exports only queryOptions factories and read hooks; pure decisions belong in rules/, and re-exports belong in index.ts, because mixing decisions with reads hides their independent owner.';
-      const readName = (name) =>
-        /^use[A-Z]/.test(name) || /QueryOptions$/.test(name);
+        'A queries/ file exports only native reads and read hooks; pure decisions belong in rules/, and re-exports belong in index.ts, because mixing decisions with reads hides their independent owner.';
+      const readName = (name) => /^(?:use|read)[A-Z]/.test(name);
       return {
         ExportAllDeclaration(node) {
           context.report({ node, message });
@@ -766,28 +806,46 @@ export const webRules = {
     create(context) {
       const path = webPath(context);
       const part = webPart(path);
-      if (!runtimeWeb(path) || part === 'api' || part === 'web-shared')
+      if (
+        !runtimeWeb(path) ||
+        (path.startsWith('packages/client/') &&
+          (part === 'api' ||
+            path.startsWith('packages/client/src/shared/api/')))
+      )
         return {};
       const check = (node) => {
         const specifier = sourceOf(node);
         if (specifier === undefined) return;
         if (
-          localTarget(path, specifier) === 'shared/api/request' ||
-          (specifier === '@porcelain/client/transport' &&
+          ((specifier === 'effect/http-api' ||
+            specifier === 'effect/http-api/HttpApiClient') &&
+            (node.type === 'ImportExpression' ||
+              node.type === 'ExportAllDeclaration' ||
+              specifier === 'effect/http-api/HttpApiClient' ||
+              node.specifiers?.some(
+                (binding) =>
+                  binding.type === 'ImportNamespaceSpecifier' ||
+                  binding.imported?.name === 'HttpApiClient' ||
+                  binding.imported?.value === 'HttpApiClient' ||
+                  (node.type === 'ExportNamedDeclaration' &&
+                    binding.local?.name === 'HttpApiClient'),
+              ))) ||
+          (specifier.startsWith('.') &&
+            /(?:^|\/)shared\/api\/effect-client(?:\.ts)?$/.test(
+              posix.normalize(posix.join(posix.dirname(path), specifier)),
+            ) &&
             (node.type === 'ImportExpression' ||
               node.type === 'ExportAllDeclaration' ||
               node.specifiers?.some(
                 (binding) =>
                   binding.type === 'ImportNamespaceSpecifier' ||
-                  binding.imported?.name === 'requestEndpoint' ||
-                  binding.imported?.value === 'requestEndpoint' ||
-                  binding.local?.name === 'requestEndpoint',
+                  binding.imported?.name === 'transportClient',
               )))
         )
           context.report({
             node,
             message:
-              'The shared request function is called by the feature api.ts only; queries and commands call api.ts, so every request for a domain has one home.',
+              'Only the shared feature api.ts constructs the typed HTTP client; queries and commands use that API, because codec and transport policy must have one owner for every app.',
           });
       };
       return {
@@ -829,12 +887,14 @@ export const webRules = {
         NewExpression(node) {
           if (
             globalCallee(node.callee, new Set(['WebSocket', 'EventSource'])) &&
-            !inside.startsWith('shared/live/')
+            !/^apps\/(?:web|mobile)\/src\/shared\/adapters\/live-socket\.ts$/.test(
+              path,
+            )
           )
             context.report({
               node,
               message:
-                'Live connections belong in shared/live; a feature hears them through its live.ts, because connection setup and errors need one transport owner.',
+                'Construct sockets only in the app shared/adapters/live-socket.ts and supply them to packages/client/live, because the shared Effect lifecycle owns reconnects, cancellation and protocol handling for every client.',
             });
         },
       };
@@ -863,7 +923,7 @@ export const webRules = {
       const path = webPath(context);
       if (webPart(path) !== 'web-rule') return {};
       const message =
-        'features/<domain>/rules/ holds pure functions: no React, no I/O, only sibling rules, config/limits.ts, contracts and date-fns, because a decision must not depend on browser state or perform effects.';
+        'features/<domain>/rules/ holds pure functions: no React, no I/O, only sibling rules, limits, contracts, shared client rules and native Schema/Redacted, because a decision must not depend on browser state or perform effects.';
       const check = (node) => {
         const specifier = sourceOf(node);
         if (specifier === undefined) return;
@@ -872,6 +932,10 @@ export const webRules = {
           specifier.startsWith('./') && !specifier.slice(2).includes('/');
         if (
           target === 'config/limits' ||
+          (specifier.startsWith('.') &&
+            classify(
+              posix.normalize(posix.join(posix.dirname(path), specifier)),
+            )?.role === 'web-limits') ||
           sibling ||
           (target === undefined && pureRuleModules.test(specifier))
         )
@@ -960,7 +1024,6 @@ export const webRules = {
       const target = localTarget(path, specifier);
       const direct =
         queryModules.has(specifier) ||
-        zustandModule.test(specifier) ||
         target === 'shared/query' ||
         target?.startsWith('shared/query/') === true;
       if (direct) {

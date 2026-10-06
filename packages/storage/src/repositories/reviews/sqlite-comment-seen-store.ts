@@ -1,52 +1,50 @@
-import { eq, inArray } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { commentReads } from '../../db/schema/comment-reads.ts';
-import type { CommentSeenMark } from '@porcelain/reviews/models';
-import type { CommentSeenStore } from '@porcelain/reviews/ports';
+import { Effect, Layer, Option, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/sql';
+import { CommentSeenStore } from '@porcelain/reviews/ports';
 
-export class SqliteCommentSeenStore implements CommentSeenStore {
-  private readonly db: BetterSQLite3Database;
+import { CommentSeenRow } from '../../db/models/comment-reads.ts';
 
-  constructor(db: BetterSQLite3Database) {
-    this.db = db;
-  }
+export const sqliteCommentSeenStoreLayer = Layer.effect(
+  CommentSeenStore,
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const read = SqlSchema.findOneOption({
+      Request: Schema.Struct({ worktreeId: Schema.String }),
+      Result: CommentSeenRow,
+      execute: (input) =>
+        sql`SELECT * FROM comment_reads WHERE worktree_id = ${input.worktreeId}`,
+    });
+    const byWorktrees = SqlSchema.findAll({
+      Request: Schema.Struct({ worktreeIds: Schema.Array(Schema.String) }),
+      Result: CommentSeenRow,
+      execute: (input) =>
+        sql`SELECT * FROM comment_reads WHERE ${sql.in('worktreeId', input.worktreeIds)}`,
+    });
 
-  seenThrough(input: { worktreeId: string }): number {
-    return (
-      this.db
-        .select({ seenThrough: commentReads.seenThrough })
-        .from(commentReads)
-        .where(eq(commentReads.worktreeId, input.worktreeId))
-        .get()?.seenThrough ?? 0
-    );
-  }
-
-  seenByWorktrees(input: {
-    worktreeIds: readonly string[];
-  }): CommentSeenMark[] {
-    return this.db
-      .select({
-        worktreeId: commentReads.worktreeId,
-        seenThrough: commentReads.seenThrough,
-      })
-      .from(commentReads)
-      .where(inArray(commentReads.worktreeId, [...input.worktreeIds]))
-      .all();
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    const { worktreeId, seenThrough } = input;
-    this.db.transaction(
-      (tx) => {
-        tx.insert(commentReads)
-          .values({ worktreeId, seenThrough })
-          .onConflictDoUpdate({
-            target: commentReads.worktreeId,
-            set: { seenThrough },
-          })
-          .run();
-      },
-      { behavior: 'immediate' },
-    );
-  }
-}
+    return CommentSeenStore.of({
+      seenThrough: Effect.fn('CommentSeenStore.seenThrough')(function* (
+        input: Parameters<CommentSeenStore['seenThrough']>[0],
+      ) {
+        return Option.getOrElse(
+          Option.map(
+            yield* read(input).pipe(Effect.orDie),
+            (row) => row.seenThrough,
+          ),
+          () => 0,
+        );
+      }),
+      seenByWorktrees: Effect.fn('CommentSeenStore.seenByWorktrees')(function* (
+        input: Parameters<CommentSeenStore['seenByWorktrees']>[0],
+      ) {
+        return yield* byWorktrees(input).pipe(Effect.orDie);
+      }),
+      save: Effect.fn('CommentSeenStore.save')(function* (
+        input: Parameters<CommentSeenStore['save']>[0],
+      ) {
+        yield* sql`INSERT INTO comment_reads (worktree_id, seen_through) VALUES (${input.worktreeId}, ${input.seenThrough}) ON CONFLICT (worktree_id) DO UPDATE SET seen_through = excluded.seen_through`.pipe(
+          Effect.orDie,
+        );
+      }),
+    });
+  }),
+);

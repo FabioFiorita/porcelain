@@ -1,35 +1,25 @@
-import { useQueries } from '@tanstack/react-query';
+import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
+import { readDiffBatches } from '@porcelain/client/changes';
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 
-type BatchedReads<Batch, Entry> = {
-  batches: readonly Batch[];
-  key: (batch: Batch) => readonly unknown[];
-  read: (batch: Batch, signal: AbortSignal) => Promise<readonly Entry[]>;
-  retry?: (failureCount: number, error: Error) => boolean;
-};
+function useBatchedReads(queries: Parameters<typeof readDiffBatches>[0]) {
+  const batches = readDiffBatches(queries);
+  return { results: useAtomValue(batches), retry: useAtomRefresh(batches) };
+}
 
-export function useBatchedReads<Batch, Entry>({
-  batches,
-  key,
-  read,
-  retry,
-}: BatchedReads<Batch, Entry>) {
-  const results = useQueries({
-    queries: batches.map((batch) => ({
-      queryKey: key(batch),
-      queryFn: ({ signal }: { signal: AbortSignal }) => read(batch, signal),
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
-      throwOnError: false,
-      ...(retry ? { retry } : {}),
-    })),
-  });
+export function usePathDiffs(queries: Parameters<typeof readDiffBatches>[0]) {
+  const reads = useBatchedReads(queries);
   return {
-    entries: results.flatMap((result) => result.data ?? []),
-    complete: results.every((result) => result.data !== undefined),
-    pending: results.some((result) => result.isPending),
-    failed: results.some((result) => result.isError),
-    retry: () => {
-      for (const result of results) if (result.isError) void result.refetch();
-    },
+    patches: new Map(
+      reads.results.flatMap((result) =>
+        Option.toArray(AsyncResult.value(result)).flatMap((entries) => [
+          ...entries,
+        ]),
+      ),
+    ),
+    pending: reads.results.some(AsyncResult.isInitial),
+    failed: reads.results.some(AsyncResult.isFailure),
+    retry: reads.retry,
   };
 }

@@ -1,35 +1,44 @@
-import type {
-  RecordGitActionProgressInput,
-  RecordGitActionProgressOptions,
-  RecordGitActionProgressResult,
+import { RecordGitActionProgressOptions } from '../ports/record-git-action-progress-options.ts';
+import { Effect, Context, Layer } from 'effect';
+import {
+  type RecordGitActionProgressInput,
+  type RecordGitActionProgressResult,
 } from '../models/record-git-action-progress.ts';
-import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
+import { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import { gitActionReceiptView } from '../rules/git-action-receipt-view.ts';
 
-export class RecordGitActionProgressService {
-  private readonly gitActionReceipts: GitActionReceiptStore;
-  private readonly options: RecordGitActionProgressOptions;
-
-  constructor(
-    gitActionReceipts: GitActionReceiptStore,
-    options: RecordGitActionProgressOptions,
-  ) {
-    this.gitActionReceipts = gitActionReceipts;
-    this.options = options;
+export class RecordGitActionProgressService extends Context.Service<
+  RecordGitActionProgressService,
+  {
+    readonly execute: (
+      input: RecordGitActionProgressInput,
+    ) => Effect.Effect<RecordGitActionProgressResult, never, never>;
   }
+>()('@porcelain/git-actions/RecordGitActionProgressService') {
+  static readonly layer = Layer.effect(
+    RecordGitActionProgressService,
+    Effect.gen(function* () {
+      const gitActionReceiptsCapability = yield* GitActionReceiptStore;
+      const optionsCapability = yield* RecordGitActionProgressOptions;
 
-  execute(input: RecordGitActionProgressInput): RecordGitActionProgressResult {
-    const current = this.gitActionReceipts.read({
-      requestId: input.requestId,
-    });
-    if (current?.state !== 'running') return { kind: 'not-running' };
-    const updated = {
-      ...current,
-      progress: [...current.progress, input.line].slice(
-        -this.options.progressLines,
-      ),
-    };
-    this.gitActionReceipts.save(updated);
-    return { kind: 'recorded', receipt: gitActionReceiptView(updated) };
-  }
+      return {
+        execute: Effect.fn('RecordGitActionProgressService.execute')(function* (
+          input: RecordGitActionProgressInput,
+        ): Effect.fn.Return<RecordGitActionProgressResult, never, never> {
+          const current = yield* gitActionReceiptsCapability.read({
+            requestId: input.requestId,
+          });
+          if (current?.state !== 'running') return { kind: 'not-running' };
+          const updated = {
+            ...current,
+            progress: [...current.progress, input.line].slice(
+              -optionsCapability.progressLines,
+            ),
+          };
+          yield* gitActionReceiptsCapability.save(updated);
+          return { kind: 'recorded', receipt: gitActionReceiptView(updated) };
+        }),
+      };
+    }),
+  );
 }

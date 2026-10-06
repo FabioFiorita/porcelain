@@ -1,7 +1,10 @@
-export class MissingExpectedFilesError extends Error {
-  override readonly name = 'MissingExpectedFilesError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('This action needs the files the client expects');
+export class MissingExpectedFilesError extends Schema.TaggedError<MissingExpectedFilesError>()(
+  'MissingExpectedFilesError',
+  {},
+) {
+  override get message() {
+    return 'This action needs the files the client expects';
   }
 }

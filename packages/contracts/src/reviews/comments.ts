@@ -1,4 +1,5 @@
-import { z } from 'zod';
+import { isoDateTimeSchema } from '../shared/schema.ts';
+import { Schema } from 'effect';
 import {
   COMMENT_BODY_LENGTH,
   COMMENT_THREADS_PER_WORKTREE,
@@ -6,192 +7,196 @@ import {
   EVIDENCE_TOKEN_LENGTH,
   LINE_NUMBER_MAX,
 } from '../shared/limits.ts';
-import { absentAsNull } from '../shared/absent-as-null.ts';
+import { nullableAsUndefined } from '../shared/schema.ts';
 import { branchRefSchema } from '../shared/branch-ref.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
-import { worktreeIdSchema } from '../shared/worktree-params.ts';
+import { worktreeIdSchema } from '../shared/schema.ts';
 
-const comparisonSchema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal('worktree'),
-    scope: z.enum(['staged', 'unstaged', 'untracked']),
+const comparisonSchema = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal('worktree'),
+    scope: Schema.Literals(['staged', 'unstaged', 'untracked']),
   }),
-  z.strictObject({ kind: z.literal('file') }),
-  z.strictObject({
-    kind: z.literal('commit'),
-    parent: z.number().int().min(1).max(COMMIT_PARENTS),
+  Schema.Struct({ kind: Schema.Literal('file') }),
+  Schema.Struct({
+    kind: Schema.Literal('commit'),
+    parent: Schema.Number.check(Schema.isInt())
+      .check(Schema.isGreaterThanOrEqualTo(1))
+      .check(Schema.isLessThanOrEqualTo(COMMIT_PARENTS)),
   }),
-  z.strictObject({ kind: z.literal('branch'), base: branchRefSchema }),
+  Schema.Struct({ kind: Schema.Literal('branch'), base: branchRefSchema }),
 ]);
 const evidence = {
-  comparison: comparisonSchema.optional(),
-  revision: z.string().min(1).max(EVIDENCE_TOKEN_LENGTH).optional(),
-  contentFingerprint: z.string().min(1).max(EVIDENCE_TOKEN_LENGTH).optional(),
+  comparison: Schema.optional(comparisonSchema),
+  revision: Schema.optional(
+    Schema.String.check(Schema.isMinLength(1)).check(
+      Schema.isMaxLength(EVIDENCE_TOKEN_LENGTH),
+    ),
+  ),
+  contentFingerprint: Schema.optional(
+    Schema.String.check(Schema.isMinLength(1)).check(
+      Schema.isMaxLength(EVIDENCE_TOKEN_LENGTH),
+    ),
+  ),
 };
-const bodySchema = z
-  .string()
-  .min(1)
-  .max(COMMENT_BODY_LENGTH)
-  .refine((value) => value.trim().length > 0 && !value.includes('\0'));
+const bodySchema = Schema.String.check(Schema.isMinLength(1))
+  .check(Schema.isMaxLength(COMMENT_BODY_LENGTH))
+  .check(
+    Schema.makeFilter(
+      (value: string) => value.trim().length > 0 && !value.includes('\0'),
+    ),
+  );
 
-const commentAuthorSchema = z.enum(['reviewer', 'agent']);
+const commentAuthorSchema = Schema.Literals(['reviewer', 'agent']);
 
-const commentAnchorSchema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal('change'),
-    filePath: z.never().optional(),
+const commentAnchorSchema = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal('change'),
+    filePath: Schema.optional(Schema.Never),
     ...evidence,
   }),
-  z.strictObject({
-    kind: z.literal('file'),
+  Schema.Struct({
+    kind: Schema.Literal('file'),
     filePath: relativePathSchema,
     ...evidence,
   }),
-  z.strictObject({
-    kind: z.literal('codeRange'),
+  Schema.Struct({
+    kind: Schema.Literal('codeRange'),
     filePath: relativePathSchema,
-    startLine: z.number().int().min(1).max(LINE_NUMBER_MAX),
-    endLine: z.number().int().min(1).max(LINE_NUMBER_MAX),
-    side: z.enum(['additions', 'deletions']).optional(),
+    startLine: Schema.Number.check(Schema.isInt())
+      .check(Schema.isGreaterThanOrEqualTo(1))
+      .check(Schema.isLessThanOrEqualTo(LINE_NUMBER_MAX)),
+    endLine: Schema.Number.check(Schema.isInt())
+      .check(Schema.isGreaterThanOrEqualTo(1))
+      .check(Schema.isLessThanOrEqualTo(LINE_NUMBER_MAX)),
+    side: Schema.optional(Schema.Literals(['additions', 'deletions'])),
     ...evidence,
   }),
 ]);
 
-const commentMessageSchema = z.object({
-  id: z.uuid(),
+const commentMessageSchema = Schema.Struct({
+  id: Schema.String.check(Schema.isUUID()),
   body: bodySchema,
   author: commentAuthorSchema,
-  createdAt: z.iso.datetime().optional(),
-  editedAt: z.iso.datetime().optional(),
+  createdAt: Schema.optional(isoDateTimeSchema),
+  editedAt: Schema.optional(isoDateTimeSchema),
 });
 
-const commentThreadSchema = z.object({
-  id: z.uuid(),
+const commentThreadSchema = Schema.Struct({
+  id: Schema.String.check(Schema.isUUID()),
   worktreeId: worktreeIdSchema,
   anchor: commentAnchorSchema,
-  resolved: z.boolean(),
-  messages: z.array(commentMessageSchema).min(1),
-  revision: z.number().int().nonnegative(),
+  resolved: Schema.Boolean,
+  messages: Schema.Array(commentMessageSchema).check(Schema.isMinLength(1)),
+  revision: Schema.Number.check(Schema.isInt()).check(
+    Schema.isGreaterThanOrEqualTo(0),
+  ),
 });
 
-export const commentThreadParamsSchema = z.strictObject({
+export const commentThreadParamsSchema = Schema.Struct({
   worktreeId: worktreeIdSchema,
-  threadId: z.uuid(),
+  threadId: Schema.String.check(Schema.isUUID()),
 });
 
-export const commentThreadScopeSchema = z.enum(['waiting', 'all']);
-const listCommentThreadsQuerySchema = z.strictObject({
-  scope: commentThreadScopeSchema.optional(),
+export const commentThreadScopeSchema = Schema.Literals(['waiting', 'all']);
+const listCommentThreadsQuerySchema = Schema.Struct({
+  scope: Schema.optional(commentThreadScopeSchema),
 });
-const commentWriterSchema = z.object({
-  kind: z.enum(['owner', 'device', 'agent']),
+const commentWriterSchema = Schema.Struct({
+  kind: Schema.Literals(['owner', 'device', 'agent']),
 });
-export const listCommentThreadsResponseSchema = z.array(commentThreadSchema);
+export const listCommentThreadsResponseSchema =
+  Schema.Array(commentThreadSchema);
 
-export const createCommentThreadRequestSchema = z.strictObject({
-  threadId: z.uuid().optional(),
-  messageId: z.uuid().optional(),
+export const createCommentThreadRequestSchema = Schema.Struct({
+  threadId: Schema.optional(Schema.String.check(Schema.isUUID())),
+  messageId: Schema.optional(Schema.String.check(Schema.isUUID())),
   anchor: commentAnchorSchema,
   body: bodySchema,
 });
 export const createCommentThreadResponseSchema = commentThreadSchema;
 
-export const replyToCommentRequestSchema = z.strictObject({
-  messageId: z.uuid().optional(),
+export const replyToCommentRequestSchema = Schema.Struct({
+  messageId: Schema.optional(Schema.String.check(Schema.isUUID())),
   body: bodySchema,
 });
 export const replyToCommentResponseSchema = commentThreadSchema;
 
-export const updateCommentThreadRequestSchema = z.strictObject({
-  resolved: z.boolean(),
+export const updateCommentThreadRequestSchema = Schema.Struct({
+  resolved: Schema.Boolean,
 });
 export const updateCommentThreadResponseSchema = commentThreadSchema;
 
-export const editCommentMessageRequestSchema = z.strictObject({
-  messageId: z.uuid(),
+export const editCommentMessageRequestSchema = Schema.Struct({
+  messageId: Schema.String.check(Schema.isUUID()),
   body: bodySchema,
 });
-export const deleteCommentMessageQuerySchema = z.strictObject({
-  messageId: z.uuid(),
+export const deleteCommentMessageQuerySchema = Schema.Struct({
+  messageId: Schema.String.check(Schema.isUUID()),
 });
 export const editCommentMessageResponseSchema = commentThreadSchema;
-export const deleteCommentMessageResponseSchema = z.object({
-  threadId: z.uuid(),
-  thread: absentAsNull(commentThreadSchema),
+export const deleteCommentMessageResponseSchema = Schema.Struct({
+  threadId: Schema.String.check(Schema.isUUID()),
+  thread: nullableAsUndefined(commentThreadSchema),
 });
 
-export const deleteResolvedCommentsRequestSchema = z.strictObject({
-  threads: z
-    .array(
-      z.strictObject({
-        threadId: z.uuid(),
-        revision: z.number().int().nonnegative(),
-      }),
-    )
-    .min(1)
-    .max(COMMENT_THREADS_PER_WORKTREE),
+export const deleteResolvedCommentsRequestSchema = Schema.Struct({
+  threads: Schema.Array(
+    Schema.Struct({
+      threadId: Schema.String.check(Schema.isUUID()),
+      revision: Schema.Number.check(Schema.isInt()).check(
+        Schema.isGreaterThanOrEqualTo(0),
+      ),
+    }),
+  )
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(COMMENT_THREADS_PER_WORKTREE)),
 });
-export const deleteResolvedCommentsResponseSchema = z.object({
-  deleted: z.array(z.uuid()),
-  skipped: z.array(z.uuid()),
+export const deleteResolvedCommentsResponseSchema = Schema.Struct({
+  deleted: Schema.Array(Schema.String.check(Schema.isUUID())),
+  skipped: Schema.Array(Schema.String.check(Schema.isUUID())),
 });
 
-export const markCommentsSeenRequestSchema = z.strictObject({
-  throughRevision: z.number().int().nonnegative(),
+export const markCommentsSeenRequestSchema = Schema.Struct({
+  throughRevision: Schema.Number.check(Schema.isInt()).check(
+    Schema.isGreaterThanOrEqualTo(0),
+  ),
 });
-export const markCommentsSeenResponseSchema = z.object({
+export const markCommentsSeenResponseSchema = Schema.Struct({
   worktreeId: worktreeIdSchema,
-  seenThrough: z.number().int().nonnegative(),
+  seenThrough: Schema.Number.check(Schema.isInt()).check(
+    Schema.isGreaterThanOrEqualTo(0),
+  ),
 });
 
-export type CommentThreadParams = z.output<typeof commentThreadParamsSchema>;
-export type ListCommentThreadsQuery = z.output<
-  typeof listCommentThreadsQuerySchema
->;
-type CommentWriter = z.output<typeof commentWriterSchema>;
+export type CommentThreadParams = typeof commentThreadParamsSchema.Type;
+export type ListCommentThreadsQuery = typeof listCommentThreadsQuerySchema.Type;
+type CommentWriter = typeof commentWriterSchema.Type;
 export type CommentAuthor = { writer: CommentWriter };
-export type ListCommentThreadsResponse = z.output<
-  typeof listCommentThreadsResponseSchema
->;
-export type CreateCommentThreadRequest = z.output<
-  typeof createCommentThreadRequestSchema
->;
-export type CreateCommentThreadResponse = z.output<
-  typeof createCommentThreadResponseSchema
->;
-export type ReplyToCommentRequest = z.output<
-  typeof replyToCommentRequestSchema
->;
-export type ReplyToCommentResponse = z.output<
-  typeof replyToCommentResponseSchema
->;
-export type UpdateCommentThreadRequest = z.output<
-  typeof updateCommentThreadRequestSchema
->;
-export type UpdateCommentThreadResponse = z.output<
-  typeof updateCommentThreadResponseSchema
->;
-export type DeleteCommentMessageQuery = z.output<
-  typeof deleteCommentMessageQuerySchema
->;
-export type EditCommentMessageRequest = z.output<
-  typeof editCommentMessageRequestSchema
->;
-export type EditCommentMessageResponse = z.output<
-  typeof editCommentMessageResponseSchema
->;
-export type DeleteCommentMessageResponse = z.output<
-  typeof deleteCommentMessageResponseSchema
->;
-export type DeleteResolvedCommentsRequest = z.output<
-  typeof deleteResolvedCommentsRequestSchema
->;
-export type DeleteResolvedCommentsResponse = z.output<
-  typeof deleteResolvedCommentsResponseSchema
->;
-export type MarkCommentsSeenRequest = z.output<
-  typeof markCommentsSeenRequestSchema
->;
-export type MarkCommentsSeenResponse = z.output<
-  typeof markCommentsSeenResponseSchema
->;
+export type ListCommentThreadsResponse =
+  typeof listCommentThreadsResponseSchema.Type;
+export type CreateCommentThreadRequest =
+  typeof createCommentThreadRequestSchema.Type;
+export type CreateCommentThreadResponse =
+  typeof createCommentThreadResponseSchema.Type;
+export type ReplyToCommentRequest = typeof replyToCommentRequestSchema.Type;
+export type ReplyToCommentResponse = typeof replyToCommentResponseSchema.Type;
+export type UpdateCommentThreadRequest =
+  typeof updateCommentThreadRequestSchema.Type;
+export type UpdateCommentThreadResponse =
+  typeof updateCommentThreadResponseSchema.Type;
+export type DeleteCommentMessageQuery =
+  typeof deleteCommentMessageQuerySchema.Type;
+export type EditCommentMessageRequest =
+  typeof editCommentMessageRequestSchema.Type;
+export type EditCommentMessageResponse =
+  typeof editCommentMessageResponseSchema.Type;
+export type DeleteCommentMessageResponse =
+  typeof deleteCommentMessageResponseSchema.Type;
+export type DeleteResolvedCommentsRequest =
+  typeof deleteResolvedCommentsRequestSchema.Type;
+export type DeleteResolvedCommentsResponse =
+  typeof deleteResolvedCommentsResponseSchema.Type;
+export type MarkCommentsSeenRequest = typeof markCommentsSeenRequestSchema.Type;
+export type MarkCommentsSeenResponse =
+  typeof markCommentsSeenResponseSchema.Type;

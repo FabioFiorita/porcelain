@@ -1,3 +1,14 @@
+import {
+  Context,
+  Effect,
+  Layer,
+  ManagedRuntime,
+  Schedule,
+  Stream,
+} from 'effect';
+import { RpcClient, type RpcClientError, RpcSerialization } from 'effect/rpc';
+import { Socket } from 'effect/socket';
+import { LiveUpdatesRpc } from '@porcelain/contracts/access';
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, realpathSync, statSync } from 'node:fs';
 import {
@@ -30,6 +41,11 @@ import {
 } from './session.ts';
 
 export type { Hit } from './session.ts';
+
+class LiveRpcClient extends Context.Service<
+  LiveRpcClient,
+  RpcClient.FromGroup<typeof LiveUpdatesRpc, RpcClientError.RpcClientError>
+>()('@porcelain/spec/LiveRpcClient') {}
 
 type HttpStep = {
   phase: Phase;
@@ -143,7 +159,7 @@ const REQUEST_TIMEOUT_MS = 30_000;
 export class Recorder {
   phase: Phase = 'setup';
   steps: Step[] = [];
-  readonly cleanups: (() => void)[] = [];
+  readonly cleanups: (() => void | Promise<void>)[] = [];
   private readonly secrets = new Set<string>();
   private readonly unread = new Map<object, string>();
 
@@ -415,7 +431,7 @@ function readyManifestPath(line: string): string | undefined {
 
 function waitForReady(
   child: ChildProcess,
-  output: { stdout: string },
+  output: { stdout: string; stderr: string },
 ): Promise<string> {
   return new Promise((resolveReady, rejectReady) => {
     let pending = '';
@@ -431,7 +447,9 @@ function waitForReady(
     child.once('close', (code) => {
       clearTimeout(timeout);
       rejectReady(
-        new Error(`Isolated server exited before ready: ${code ?? 'signal'}`),
+        new Error(
+          `Isolated server exited before ready: ${code ?? 'signal'}${output.stderr.trim() ? `\n${output.stderr.trim()}` : ''}`,
+        ),
       );
     });
     child.stdout?.on('data', (chunk: Buffer) => {
@@ -924,19 +942,20 @@ export class ServerHandle {
         ...(origin === undefined ? {} : { origin }),
       },
     });
-    recorder.cleanups.push(() => socket.close());
     const received: Record<string, unknown>[] = [];
     const waiters = new Set<() => boolean>();
+    const rejected: Record<string, unknown>[] = [];
     let closed: { code: number; reason: string } | undefined;
     const wake = () => {
       for (const waiter of waiters) waiter();
     };
     socket.addEventListener('message', (event) => {
       const value = record(JSON.parse(String(event.data)));
-      recorder.harvest(value);
-      received.push(value);
-      step.received.push(value);
-      wake();
+      if (value._tag === 'Exit' && value.requestId === '999999') {
+        rejected.push(value);
+        step.received.push(value);
+        wake();
+      }
     });
     socket.addEventListener('close', (event) => {
       closed = { code: event.code, reason: event.reason };
@@ -955,6 +974,48 @@ export class ServerHandle {
       );
     });
     step.opened = true;
+    const runtime = ManagedRuntime.make(
+      Layer.effect(
+        LiveRpcClient,
+        RpcClient.make(LiveUpdatesRpc, { disableTracing: true }),
+      ).pipe(
+        Layer.provide(
+          Layer.effect(
+            RpcClient.Protocol,
+            RpcClient.makeProtocolSocket({ retryPolicy: Schedule.recurs(0) }),
+          ),
+        ),
+        Layer.provide(
+          Layer.effect(
+            Socket.Socket,
+            Socket.fromWebSocket(
+              Effect.acquireRelease(Effect.succeed(socket), () =>
+                Effect.sync(() => socket.close()),
+              ),
+            ),
+          ),
+        ),
+        Layer.provide(RpcSerialization.layerJson),
+      ),
+    );
+    recorder.cleanups.push(() => runtime.dispose());
+    void runtime
+      .runPromise(
+        Effect.flatMap(LiveRpcClient, (client) =>
+          client.notices(undefined).pipe(
+            Stream.runForEach((notice) =>
+              Effect.sync(() => {
+                recorder.harvest(notice);
+                received.push(notice);
+                step.received.push(notice);
+                wake();
+              }),
+            ),
+          ),
+        ),
+      )
+      .catch(() => undefined);
+
     const wait = <T>(
       read: () => T | undefined,
       timeoutMs: number,
@@ -977,9 +1038,25 @@ export class ServerHandle {
       });
     let consumed = 0;
     return {
-      send(message) {
+      follow(subscription) {
+        step.sent.push(subscription);
+        return runtime.runPromise(
+          Effect.flatMap(LiveRpcClient, (client) =>
+            client.follow(subscription),
+          ),
+        );
+      },
+      invalidFollow(payload) {
+        const message = {
+          _tag: 'Request',
+          id: '999999',
+          tag: 'follow',
+          payload,
+          headers: [],
+        };
         step.sent.push(message);
         socket.send(JSON.stringify(message));
+        return wait(() => rejected.shift(), 5_000, 'the RPC schema rejection');
       },
       next(accept, timeoutMs = 5_000) {
         return wait(
@@ -1001,7 +1078,7 @@ export class ServerHandle {
         return wait(() => closed, timeoutMs, 'the live connection to close');
       },
       close() {
-        socket.close();
+        return runtime.dispose();
       },
     };
   }

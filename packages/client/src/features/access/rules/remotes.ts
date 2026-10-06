@@ -1,18 +1,25 @@
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import type { ReadEnvironmentResponse } from '@porcelain/contracts/access';
+import * as Redacted from 'effect/Redacted';
+import * as Schema from 'effect/Schema';
 
 export type RemoteAnswer =
   | { kind: 'described'; environment: ReadEnvironmentResponse }
   | { kind: 'unauthorized' }
   | { kind: 'unreachable' };
 
-export type Remote = {
-  environmentId: string;
-  name: string;
-  address: string;
-  credential: string;
-  deviceId?: string | undefined;
-};
+const remoteSchema = Schema.Struct({
+  environmentId: Schema.String,
+  name: Schema.String,
+  address: Schema.String,
+  credential: Schema.RedactedFromValue(Schema.String),
+  deviceId: Schema.optional(Schema.String),
+});
+export type Remote = typeof remoteSchema.Type;
+
+export function serializeRemotes(remotes: readonly Remote[]): string {
+  return JSON.stringify(Schema.encodeSync(Schema.Array(remoteSchema))(remotes));
+}
 
 export type RemoteStatus =
   | { kind: 'checking' }
@@ -59,7 +66,7 @@ function savedRemote(value: unknown): Remote[] {
           environmentId,
           name,
           address,
-          credential,
+          credential: Redacted.make(credential),
           ...(deviceId ? { deviceId } : {}),
         },
       ]
@@ -75,4 +82,49 @@ export function withRemote(remotes: readonly Remote[], remote: Remote) {
     ...remotes.filter((entry) => entry.environmentId !== remote.environmentId),
     remote,
   ];
+}
+
+const sameCredential = Redacted.makeEquivalence<string>(
+  (left, right) => left === right,
+);
+
+export function sameRemoteConnection(left: Remote, right: Remote): boolean {
+  return (
+    left.environmentId === right.environmentId &&
+    left.address === right.address &&
+    sameCredential(left.credential, right.credential) &&
+    left.deviceId === right.deviceId
+  );
+}
+
+export function remoteStatusText(status: RemoteStatus): string {
+  switch (status.kind) {
+    case 'checking':
+      return 'Checking';
+    case 'online':
+      return 'Online';
+    case 'offline':
+      return 'Offline';
+    case 'needs-pairing':
+      return 'Needs pairing';
+    case 'other-server':
+      return 'Another server';
+    case 'incompatible':
+      return 'Update needed';
+  }
+}
+
+export function remoteStatusNote(status: RemoteStatus): string | undefined {
+  switch (status.kind) {
+    case 'offline':
+      return 'It did not answer. Check that it runs and that this computer reaches its address.';
+    case 'needs-pairing':
+      return 'It no longer accepts this app. Run porcelain pair on it and add the new link.';
+    case 'other-server':
+      return 'Another Porcelain answers at this address now, so this app stays away from it.';
+    case 'incompatible':
+      return 'It runs a Porcelain this app cannot talk to. Update both to the same version.';
+    default:
+      return undefined;
+  }
 }

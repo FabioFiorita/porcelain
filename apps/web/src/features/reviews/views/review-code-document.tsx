@@ -1,13 +1,11 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { changeId, selectionKey } from '@porcelain/client/changes/rules';
 import {
-  changeId,
   diffEntry,
-  selectionKey,
   useChangeDiffs,
   useChanges,
-  useRecoverChangedDiffs,
 } from '@/features/changes/index';
 import {
   ImagePreview,
@@ -26,7 +24,7 @@ import {
   orderReviewChanges,
   type ReviewChangeItem,
   type ReviewScope,
-} from '../rules/review';
+} from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
 import { InlineComposer } from './inline-composer';
 import { fileReviewControl, ReviewedControl } from './reviewed-control';
@@ -57,9 +55,8 @@ export function ReviewCodeDocument({
   toolbar?: (collapseControl: ReactNode) => ReactNode;
 }) {
   const { connection } = context;
-  const recover = useRecoverChangedDiffs(scope, connection);
   usePrefetchReviewed(scope, context);
-  const { changes } = useChanges(scope, connection);
+  const changes = useChanges(scope, connection);
   const items = orderReviewChanges(
     useReviewChangeItems(scope, context, changes, paths),
     files,
@@ -77,7 +74,6 @@ export function ReviewCodeDocument({
         : [],
     ),
     items.flatMap((item) => item.comparisons.flatMap(selectionOf)),
-    recover,
   );
   const untracked = useTextContents(
     connection,

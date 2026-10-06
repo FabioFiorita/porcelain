@@ -53,5 +53,5 @@ None.
 
 ## Gotchas
 
-- Drive this before anything installs a coding tool in the same instance: the server looks for `claude` on every `GET /api/git/commit-models`, and the web keeps the answer for 60 s (`COMMIT_MODELS_STALE_MS`); `open /` reloads it.
+- Drive this before anything installs a coding tool in the same instance: the server looks for `claude` on every `GET /api/git/commit-models`, and the web keeps the answer for 60 s (`packages/client/src/config/limits.ts`, `COMMIT_MODELS_STALE_MS`); `open /` reloads it.
 - After the commit the tree is clean and "Commit" is disabled; write a change on disk to drive it again (see git-actions.commit).

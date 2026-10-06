@@ -32,3 +32,13 @@ export type UntrackedFileRead =
   | { kind: 'text'; text: string; byteLength: number }
   | { kind: 'too-large' }
   | { kind: 'failed'; failure: string };
+
+export type CommitDraftEvidence = {
+  files: {
+    path: string;
+    fingerprint: string | undefined;
+    comparisons: FileChange['comparisons'];
+  }[];
+  patch: string;
+  untracked: Record<string, CommitDraftUntrackedContent>;
+};

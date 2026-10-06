@@ -1,6 +1,10 @@
-export type { CommitDraftSource } from './commit-draft-source.ts';
-export type { CommitModelReader } from './commit-model-reader.ts';
-export type { GitActionReceiptStore } from './git-action-receipt-store.ts';
-export type { GitActionRunner } from './git-action-runner.ts';
-export type { SelectedDiffReader } from './selected-diff-reader.ts';
-export type { UntrackedFileReader } from './untracked-file-reader.ts';
+export { CommitDraftSource } from './commit-draft-source.ts';
+export { CommitModelReader } from './commit-model-reader.ts';
+export { GitActionReceiptStore } from './git-action-receipt-store.ts';
+export { GitActionRunner } from './git-action-runner.ts';
+export { SelectedDiffReader } from './selected-diff-reader.ts';
+export { UntrackedFileReader } from './untracked-file-reader.ts';
+export { CaptureCommitDraftOptions } from './capture-commit-draft-options.ts';
+export { ExpireGitActionReceiptsOptions } from './expire-git-action-receipts-options.ts';
+export { GenerateCommitDraftOptions } from './generate-commit-draft-options.ts';
+export { RecordGitActionProgressOptions } from './record-git-action-progress-options.ts';

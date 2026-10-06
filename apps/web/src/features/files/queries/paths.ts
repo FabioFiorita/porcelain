@@ -1,17 +1,9 @@
-import { pathsQueryOptions } from '@porcelain/client/files';
-import { useQuery } from '@tanstack/react-query';
-import type { FilesScope } from '../rules/scope';
+import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
+import { readWorktreePaths } from '@porcelain/client/files';
+import type { FilesScope } from '@porcelain/client/files/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
-export function useWorktreePaths(
-  connection: Connection,
-  scope: FilesScope,
-  enabled = true,
-) {
-  return useQuery({
-    ...pathsQueryOptions(scope, connection),
-    enabled,
-    retry: false,
-    throwOnError: false,
-  });
+export function useWorktreePaths(connection: Connection, scope: FilesScope) {
+  const names = readWorktreePaths({ connection, scope });
+  return { result: useAtomValue(names), refresh: useAtomRefresh(names) };
 }

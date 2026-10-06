@@ -31,10 +31,9 @@ import {
   readPublishedReviewResponseSchema,
 } from '@porcelain/contracts/reviews';
 import type { Hit } from './session.ts';
+import * as Schema from 'effect/Schema';
 
 export type ServerAnswer = { status: number; body: unknown };
-
-type Schema<T> = { parse(value: unknown): T };
 
 function query(values: Record<string, string>) {
   return `?${new URLSearchParams(values).toString()}`;
@@ -50,14 +49,14 @@ export type ServerTransport = {
 
 export function serverReaders(transport: ServerTransport) {
   const read = async <T>(
-    schema: Schema<T>,
+    schema: Schema.Decoder<T>,
     path: string,
     target: 'network' | 'owner' = 'network',
   ): Promise<T> => {
     const answer = await transport.read({ target, path });
     if (answer.status !== 200)
       throw new Error(`The server answered ${path} with ${answer.status}.`);
-    return schema.parse(answer.body);
+    return Schema.decodeUnknownSync(schema)(answer.body);
   };
 
   const sampleProject = async () => {

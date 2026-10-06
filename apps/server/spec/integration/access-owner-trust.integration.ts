@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import {
   issuePairingResponseSchema,
   listAccessResponseSchema,
@@ -34,13 +35,19 @@ test('a pairing link issued as trusted is listed as trusted while pending and pa
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(issuePairingResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(issuePairingResponseSchema)),
+    ),
   );
   const issued = record(list(record(response.body).grants)[0]);
   const grant = record(issued.grant);
   expect(grant).toMatchObject({ label: 'Desktop', trusted: true });
   const pending = await read(session, ownerAccess);
-  expect(pending).toEqual(expect.schemaMatching(listAccessResponseSchema));
+  expect(pending).toEqual(
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(listAccessResponseSchema)),
+    ),
+  );
   expect(listed(pending.grants, grant.id)).toStrictEqual({
     label: 'Desktop',
     trusted: true,
@@ -118,7 +125,9 @@ test('the owner trusts a paired device by its id, the listing says so, and then 
 
   expect(trusted.status).toBe(200);
   expect(trusted.body).toEqual(
-    expect.schemaMatching(setDeviceTrustResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(setDeviceTrustResponseSchema)),
+    ),
   );
   expect(trusted.body).toStrictEqual({ id: deviceId, trusted: true });
   expect(listing.status).toBe(200);

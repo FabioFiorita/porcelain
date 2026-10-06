@@ -1,9 +1,18 @@
 import { COMMIT_MESSAGE_BYTES } from '@porcelain/contracts/shared';
-import { useMutation } from '@tanstack/react-query';
-import type { FormAction } from '../rules/action-form';
-import type { ActionInput, GitScope } from '../rules/git-action';
-import { expectationFor } from '../rules/feedback';
-import type { GitActionStatus } from '../rules/status';
+import { useAtom, useAtomSet } from '@effect/atom-react';
+import { Atom, AsyncResult } from 'effect/reactivity';
+import { Cause, Effect } from 'effect';
+import { useState } from 'react';
+import type {
+  FormAction,
+  ActionInput,
+  GitScope,
+  GitActionStatus,
+} from '@porcelain/client/git-actions/rules';
+import {
+  expectationFor,
+  gitErrorMessage,
+} from '@porcelain/client/git-actions/rules';
 import { useGitAction } from './run-action';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -22,52 +31,59 @@ export function useActionForm(
   },
 ) {
   const git = useGitAction(scope, action, context);
-  const submit = useMutation({
-    mutationFn: (input: ActionInput) =>
-      git.run(
-        input,
-        expectationFor(
-          expectedStatus,
-          expectedStatus.files?.map((file) => file.path) ?? [],
-          undefined,
-          true,
-        ),
-      ),
-    onSettled: () => onBusy(false),
-  });
-  const look = useMutation({
-    mutationFn: async (lookAgain: () => Promise<void>) => {
-      await lookAgain();
-      git.startNew();
-    },
-  });
-  const recover = useMutation({ mutationFn: () => git.recover.submit() });
-  const busy = submit.isPending || look.isPending;
+  const [lookCommand] = useState(() =>
+    Atom.fn(
+      (input: { read: () => Promise<void>; startNew: () => Promise<void> }) =>
+        Effect.tryPromise({
+          try: async () => {
+            await input.read();
+            await input.startNew();
+          },
+          catch: (cause) =>
+            new Cause.UnknownError(cause, gitErrorMessage(cause)),
+        }),
+    ),
+  );
+  const [look, reread] = useAtom(lookCommand, { mode: 'promiseExit' });
+  const resetLook = useAtomSet(lookCommand);
+  const busy = git.execution.waiting || look.waiting;
   const uncertain = Boolean(git.operation && !git.canStartNew);
+  const failure = (result: AsyncResult.AsyncResult<unknown, unknown>) =>
+    AsyncResult.isFailure(result) ? Cause.squash(result.cause) : null;
   return {
     operation: git.operation,
     messageLimit: COMMIT_MESSAGE_BYTES,
     outcome: git.operation?.receipt,
     busy,
     uncertain,
-    error: submit.error ?? look.error ?? recover.error,
+    error: failure(git.execution) ?? failure(look) ?? failure(git.recovered),
     onSubmit: (input: ActionInput) => {
       if (busy || uncertain) return;
       onBusy(true);
-      look.reset();
-      recover.reset();
-      submit.mutate(input);
+      resetLook(Atom.Reset);
+      git.reset();
+      void git
+        .run(
+          input,
+          expectationFor(
+            expectedStatus,
+            expectedStatus.files?.map((file) => file.path) ?? [],
+            undefined,
+            true,
+          ),
+        )
+        .finally(() => onBusy(false))
+        .catch(() => undefined);
     },
     lookAgain: () => {
-      if (!onLookAgain) return;
-      submit.reset();
-      recover.reset();
-      look.mutate(onLookAgain);
+      if (!onLookAgain || busy) return;
+      git.reset();
+      void reread({ read: onLookAgain, startNew: git.startNew });
     },
     checkOutcome: () => {
-      submit.reset();
-      look.reset();
-      recover.mutate();
+      git.reset();
+      resetLook(Atom.Reset);
+      void git.recover().catch(() => undefined);
     },
   };
 }

@@ -1,9 +1,10 @@
-export class UnsupportedProofFileError extends Error {
-  override readonly name = 'UnsupportedProofFileError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super(
-      'A proof file is not the kind it names: an image must be PNG, JPEG, GIF or WebP and a video MP4 or WebM',
-    );
+export class UnsupportedProofFileError extends Schema.TaggedError<UnsupportedProofFileError>()(
+  'UnsupportedProofFileError',
+  {},
+) {
+  override get message() {
+    return 'A proof file is not the kind it names: an image must be PNG, JPEG, GIF or WebP and a video MP4 or WebM';
   }
 }

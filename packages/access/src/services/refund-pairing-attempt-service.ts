@@ -1,38 +1,46 @@
-import type { Clock } from '@porcelain/kernel/ports';
+import { RefundPairingAttemptOptions } from '../ports/refund-pairing-attempt-options.ts';
+import { PairingAttemptBudgetStore } from '../ports/pairing-attempt-budget-store.ts';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 
-import type {
-  RefundPairingAttemptInput,
-  RefundPairingAttemptOptions,
-} from '../models/refund-pairing-attempt.ts';
-import type { PairingAttemptBudgets } from '../models/pairing-attempts.ts';
-import type { PairingAttemptStore } from '../ports/pairing-attempt-store.ts';
+import type { RefundPairingAttemptInput } from '../models/refund-pairing-attempt.ts';
 import { refundPairingAttempt } from '../rules/pairing-attempts.ts';
 
-export class RefundPairingAttemptService {
-  private readonly pairingAttempts: PairingAttemptBudgets<PairingAttemptStore>;
-  private readonly clock: Clock;
-  private readonly options: RefundPairingAttemptOptions;
-
-  constructor(
-    pairingAttempts: PairingAttemptBudgets<PairingAttemptStore>,
-    clock: Clock,
-    options: RefundPairingAttemptOptions,
-  ) {
-    this.pairingAttempts = pairingAttempts;
-    this.clock = clock;
-    this.options = options;
+export class RefundPairingAttemptService extends Context.Service<
+  RefundPairingAttemptService,
+  {
+    readonly execute: (
+      input: RefundPairingAttemptInput,
+    ) => Effect.Effect<void, never>;
   }
+>()('@porcelain/access/RefundPairingAttemptService') {
+  static readonly layer = Layer.effect(
+    RefundPairingAttemptService,
+    Effect.gen(function* () {
+      const pairingAttempts = yield* PairingAttemptBudgetStore;
+      const clock = yield* Clock.Clock;
+      const options = yield* RefundPairingAttemptOptions;
 
-  execute(input: RefundPairingAttemptInput): void {
-    const budget = input.crossOrigin ? 'crossOrigin' : 'sameOrigin';
-    const store = this.pairingAttempts[budget];
-    store.save(
-      refundPairingAttempt(
-        store.read(),
-        input.peer,
-        this.clock.now(),
-        this.options[budget],
-      ),
-    );
-  }
+      return {
+        execute: Effect.fn('RefundPairingAttemptService.execute')(function* (
+          input: RefundPairingAttemptInput,
+        ): Effect.fn.Return<void, never> {
+          const observedAt = DateTime.formatIso(
+            DateTime.makeUnsafe(yield* clock.currentTimeMillis),
+          );
+          return yield* Effect.sync<void>(() => {
+            const budget = input.crossOrigin ? 'crossOrigin' : 'sameOrigin';
+            const store = pairingAttempts[budget];
+            store.save(
+              refundPairingAttempt(
+                store.read(),
+                input.peer,
+                observedAt,
+                options[budget],
+              ),
+            );
+          });
+        }),
+      };
+    }),
+  );
 }

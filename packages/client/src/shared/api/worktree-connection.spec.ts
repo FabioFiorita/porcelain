@@ -1,3 +1,4 @@
+import { Layer } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { createWorktreeConnection } from './worktree-connection.ts';
 
@@ -9,9 +10,9 @@ const input = {
   timeoutMs: 15_000,
 };
 
-describe('a worktree connection owns its request lifetime', () => {
-  it('keeps the supplied transport and cache identity and cancels every request when closed', () => {
-    const lifetime = createWorktreeConnection(input);
+describe('a worktree connection owns its request lifetime', async () => {
+  it('keeps the supplied transport and cache identity and cancels every request when closed', async () => {
+    const lifetime = createWorktreeConnection(input, undefined, Layer.empty);
     const first = lifetime.connection.request().signal;
     const second = lifetime.connection.request().signal;
     expect(lifetime.connection.transport).toBe(transport);
@@ -20,7 +21,7 @@ describe('a worktree connection owns its request lifetime', () => {
       'device',
     ]);
     expect([first.aborted, second.aborted]).toEqual([false, false]);
-    lifetime.close();
+    await lifetime.close();
     expect([
       first.aborted,
       second.aborted,
@@ -28,41 +29,46 @@ describe('a worktree connection owns its request lifetime', () => {
     ]).toEqual([true, true, true]);
   });
 
-  it('cancels a caller request without closing the whole connection', () => {
-    const lifetime = createWorktreeConnection(input);
+  it('cancels a caller request without closing the whole connection', async () => {
+    const lifetime = createWorktreeConnection(input, undefined, Layer.empty);
     const caller = new AbortController();
     const request = lifetime.connection.request(caller.signal).signal;
     caller.abort(new Error('Selection changed'));
     expect(request.reason).toMatchObject({ message: 'Selection changed' });
     expect(lifetime.connection.request().signal.aborted).toBe(false);
-    lifetime.close();
+    await lifetime.close();
   });
 
-  it('exposes the same controller to clients that already own their abort call', () => {
-    const lifetime = createWorktreeConnection(input);
+  it('exposes the same controller to clients that already own their abort call', async () => {
+    const lifetime = createWorktreeConnection(input, undefined, Layer.empty);
     const request = lifetime.connection.request().signal;
     lifetime.controller.abort();
     expect(request.aborted).toBe(true);
     expect(lifetime.connection.request().signal.aborted).toBe(true);
+    await lifetime.close();
   });
 
   it('gives each request a fresh timeout using the configured budget', async () => {
-    const lifetime = createWorktreeConnection({ ...input, timeoutMs: 5 });
+    const lifetime = createWorktreeConnection(
+      { ...input, timeoutMs: 5 },
+      undefined,
+      Layer.empty,
+    );
     const firstRequest = lifetime.connection.request().signal;
     await expect.poll(() => firstRequest.aborted).toBe(true);
     expect(firstRequest.reason).toMatchObject({ name: 'TimeoutError' });
     expect(lifetime.connection.request().signal.aborted).toBe(false);
-    lifetime.close();
+    await lifetime.close();
   });
 
-  it('opens a fresh lifetime after cleanup without reviving old requests', () => {
-    const old = createWorktreeConnection(input);
+  it('opens a fresh lifetime after cleanup without reviving old requests', async () => {
+    const old = createWorktreeConnection(input, undefined, Layer.empty);
     const request = old.connection.request().signal;
-    old.close();
-    const current = createWorktreeConnection(input);
+    await old.close();
+    const current = createWorktreeConnection(input, undefined, Layer.empty);
     expect(request.aborted).toBe(true);
     expect(current.connection.request().signal.aborted).toBe(false);
     expect(current.connection).not.toBe(old.connection);
-    current.close();
+    await current.close();
   });
 });

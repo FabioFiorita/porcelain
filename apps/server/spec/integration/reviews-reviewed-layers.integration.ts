@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { listReviewedLayersResponseSchema } from '@porcelain/contracts/reviews';
@@ -74,7 +75,11 @@ test('marking a published layer at its fingerprint answers the mark as not stale
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(listReviewedLayersResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(listReviewedLayersResponseSchema),
+      ),
+    ),
   );
   expect(marks(response.body)).toMatchObject([
     { layerId, fingerprint, stale: false },
@@ -139,7 +144,7 @@ test('a file change while a viewer watches keeps the layer mark and flags it sta
   await eventually(session, { method: 'GET', path: layers(session) }, (body) =>
     marks(body).some((mark) => record(mark).stale === true),
   ).catch(() => undefined);
-  connection.close();
+  await connection.close();
 
   const response = await session.send({ method: 'GET', path: layers(session) });
 

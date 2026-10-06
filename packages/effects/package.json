@@ -1,0 +1,16 @@
+{
+  "name": "@porcelain/effects",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./worktree": "./src/worktree-lease.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/effects"
+  },
+  "dependencies": {
+    "effect": "4.0.0"
+  }
+}

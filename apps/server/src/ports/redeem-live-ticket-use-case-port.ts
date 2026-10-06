@@ -2,11 +2,10 @@ import type {
   AuthenticatedDevice,
   RedeemLiveTicketInput,
 } from '@porcelain/access/models';
-import type { OperationContext } from './operation-context.ts';
+import type { Effect } from 'effect';
 
 export interface RedeemLiveTicketUseCasePort {
   execute(
     input: RedeemLiveTicketInput,
-    context: OperationContext,
-  ): Promise<AuthenticatedDevice | undefined>;
+  ): Effect.Effect<AuthenticatedDevice | undefined>;
 }

@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { NodeServices } from '@effect/platform-node';
 import { runCommand } from '@porcelain/process';
 import type { Limits } from '../../config/limits.ts';
 import { macPrimaryService } from './mac-network-output.ts';
@@ -11,14 +13,16 @@ async function output(
   stdin?: string,
 ): Promise<string> {
   try {
-    const result = await runCommand({
-      command,
-      args,
-      stdin,
-      timeoutMs: limits.commandTimeoutMs,
-      maxBytes: limits.outputBytes,
-      processGroup: limits.processGroup,
-    });
+    const result = await Effect.runPromise(
+      runCommand({
+        command,
+        args,
+        stdin,
+        timeoutMs: limits.commandTimeoutMs,
+        maxBytes: limits.outputBytes,
+        processGroup: limits.processGroup,
+      }).pipe(Effect.provide(NodeServices.layer)),
+    );
     const completed =
       result.stopped === undefined || result.stopped === 'lingering';
     return completed && result.exitCode === 0

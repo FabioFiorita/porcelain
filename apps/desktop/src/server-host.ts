@@ -1,3 +1,4 @@
+import { Result, Schema } from 'effect';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { utilityProcess } from 'electron';
 import type { desktopSettings } from './settings.ts';
@@ -56,9 +57,9 @@ export async function startLocalServer(
     };
     timeout.addEventListener('abort', expired, { once: true });
     child.on('message', (message: unknown) => {
-      const parsed = serverMessage.safeParse(message);
-      if (!parsed.success) return;
-      const answer = parsed.data;
+      const parsed = Schema.decodeUnknownResult(serverMessage)(message);
+      if (!Result.isSuccess(parsed)) return;
+      const answer = parsed.success;
       if (answer.kind === 'ready') {
         timeout.removeEventListener('abort', expired);
         resolveReady(answer.address);

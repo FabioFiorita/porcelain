@@ -1,23 +1,28 @@
-import type {
-  BranchBases,
-  BranchPatches,
-  BranchPatchesRequest,
-  BranchRangeLookup,
-  BranchRangeRequest,
+import { type GitIoFailure } from '@porcelain/git/errors';
+import { type Effect, Context } from 'effect';
+import { type WorktreeRead } from '@porcelain/effects/worktree';
+import {
+  type BranchBases,
+  type BranchPatches,
+  type BranchPatchesRequest,
+  type BranchRangeLookup,
+  type BranchRangeRequest,
 } from '../models/branch-changes.ts';
-import type { ListBranchBasesInput } from '../models/list-branch-bases.ts';
+import { type ListBranchBasesInput } from '../models/list-branch-bases.ts';
 
 export interface BranchRangeReader {
   readBranchRange(
     input: BranchRangeRequest,
-    signal?: AbortSignal,
-  ): Promise<BranchRangeLookup>;
+  ): Effect.Effect<BranchRangeLookup, GitIoFailure, WorktreeRead>;
   readBranchPatches(
     input: BranchPatchesRequest,
-    signal?: AbortSignal,
-  ): Promise<BranchPatches>;
+  ): Effect.Effect<BranchPatches, GitIoFailure, WorktreeRead>;
   listBranchBases(
     input: ListBranchBasesInput,
-    signal?: AbortSignal,
-  ): Promise<BranchBases>;
+  ): Effect.Effect<BranchBases, GitIoFailure, WorktreeRead>;
 }
+
+export const BranchRangeReader = Context.Service<
+  '@porcelain/changes/BranchRangeReader',
+  BranchRangeReader
+>('@porcelain/changes/BranchRangeReader');

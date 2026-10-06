@@ -1,43 +1,54 @@
-import type {
-  ListProjectWorktreesInput,
-  ListProjectWorktreesResult,
+import { Effect, Context, Layer } from 'effect';
+import {
+  type ListProjectWorktreesInput,
+  type ListProjectWorktreesResult,
 } from '../models/list-project-worktrees.ts';
-import type { WorktreeCatalogStore } from '../ports/worktree-catalog-store.ts';
-import type { WorktreeListingReader } from '../ports/worktree-listing-reader.ts';
+import { WorktreeCatalogStore } from '../ports/worktree-catalog-store.ts';
+import { WorktreeListingReader } from '../ports/worktree-listing-reader.ts';
 import { repositoryMoved } from '../rules/repository-moved.ts';
 import { unavailableWorktrees } from '../rules/unavailable-worktrees.ts';
 
-export class ListProjectWorktreesService {
-  private readonly worktreeListing: WorktreeListingReader;
-  private readonly worktreeCatalog: WorktreeCatalogStore;
-
-  constructor(
-    worktreeListing: WorktreeListingReader,
-    worktreeCatalog: WorktreeCatalogStore,
-  ) {
-    this.worktreeListing = worktreeListing;
-    this.worktreeCatalog = worktreeCatalog;
+export class ListProjectWorktreesService extends Context.Service<
+  ListProjectWorktreesService,
+  {
+    readonly execute: (
+      input: ListProjectWorktreesInput,
+    ) => Effect.Effect<ListProjectWorktreesResult, never>;
   }
+>()('@porcelain/projects/ListProjectWorktreesService') {
+  static readonly layer = Layer.effect(
+    ListProjectWorktreesService,
+    Effect.gen(function* () {
+      const worktreeListingCapability = yield* WorktreeListingReader;
+      const worktreeCatalogCapability = yield* WorktreeCatalogStore;
 
-  async execute(
-    input: ListProjectWorktreesInput,
-    signal?: AbortSignal,
-  ): Promise<ListProjectWorktreesResult> {
-    const listing = await this.worktreeListing.list(input.project, signal);
-    if (listing.kind === 'listed' && !repositoryMoved(input.project, listing))
       return {
-        projectId: listing.projectId,
-        available: true,
-        complete: listing.unidentified === 0,
-        worktrees: listing.worktrees,
+        execute: Effect.fn('ListProjectWorktreesService.execute')(function* (
+          input: ListProjectWorktreesInput,
+        ): Effect.fn.Return<ListProjectWorktreesResult, never> {
+          const listing = yield* worktreeListingCapability.list(input.project);
+          if (
+            listing.kind === 'listed' &&
+            !repositoryMoved(input.project, listing)
+          )
+            return {
+              projectId: listing.projectId,
+              available: true,
+              complete: listing.unidentified === 0,
+              worktrees: listing.worktrees,
+            };
+          return {
+            projectId: listing.projectId,
+            available: false,
+            complete: false,
+            worktrees: unavailableWorktrees(
+              worktreeCatalogCapability.lastSeen({
+                projectId: listing.projectId,
+              }),
+            ),
+          };
+        }),
       };
-    return {
-      projectId: listing.projectId,
-      available: false,
-      complete: false,
-      worktrees: unavailableWorktrees(
-        this.worktreeCatalog.lastSeen({ projectId: listing.projectId }),
-      ),
-    };
-  }
+    }),
+  );
 }

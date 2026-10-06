@@ -1,12 +1,18 @@
+import { testClock } from '@porcelain/kernel/test-kit';
+import {
+  WorktreeCatalogStore,
+  InventoryStore,
+  CheckWorktreeOptions,
+} from '@porcelain/projects/ports';
+import { Effect, Clock } from 'effect';
 import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
-import { FixedClock } from '@porcelain/kernel/fakes';
 import { WorktreeUnavailableError } from '@porcelain/projects/errors';
-import type {
-  CatalogObservation,
-  CatalogProject,
-  ListedWorktree,
-  RegisteredProject,
+import {
+  type CatalogObservation,
+  type CatalogProject,
+  type ListedWorktree,
+  type RegisteredProject,
 } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
@@ -56,7 +62,7 @@ function observed(
   };
 }
 
-function service(
+async function service(
   options: {
     catalog?: CatalogProject[];
     projects?: RegisteredProject[];
@@ -64,147 +70,205 @@ function service(
 ) {
   const catalog = new InMemoryWorktreeCatalogStore();
   catalog.save({ projects: options.catalog ?? [observed()] });
-  return new CheckWorktreeService(
-    catalog,
-    new InMemoryInventoryStore(options.projects ?? [project]),
-    new FixedClock(now),
-    { staleAfterMs: MINUTE_MS },
+  return Effect.runSync(
+    CheckWorktreeService.pipe(
+      Effect.provide(CheckWorktreeService.layer),
+      Effect.provideService(WorktreeCatalogStore, catalog),
+      Effect.provideService(
+        InventoryStore,
+        new InMemoryInventoryStore(options.projects ?? [project]),
+      ),
+      Effect.provideService(Clock.Clock, await testClock(now)),
+      Effect.provideService(CheckWorktreeOptions, { staleAfterMs: MINUTE_MS }),
+    ),
   );
 }
 
 const found = { kind: 'found', worktree };
 
 describe('CheckWorktreeService', () => {
-  it('answers a worktree the last refresh found, for reading', () => {
+  it('answers a worktree the last refresh found, for reading', async () => {
     expect(
-      service().execute({
-        worktreeId: worktree.id,
-        requireAvailableProject: false,
-      }),
+      Effect.runSync(
+        (await service()).execute({
+          worktreeId: worktree.id,
+          requireAvailableProject: false,
+        }),
+      ),
     ).toEqual(found);
   });
 
-  it('answers an available worktree of an available project for writing', () => {
+  it('answers an available worktree of an available project for writing', async () => {
     expect(
-      service().execute({
-        worktreeId: worktree.id,
-        requireAvailableProject: true,
-      }),
+      Effect.runSync(
+        (await service()).execute({
+          worktreeId: worktree.id,
+          requireAvailableProject: true,
+        }),
+      ),
     ).toEqual(found);
   });
 
-  it('still reads a worktree of a project that is unavailable', () => {
+  it('still reads a worktree of a project that is unavailable', async () => {
     expect(
-      service({ projects: [{ ...project, available: false }] }).execute({
-        worktreeId: worktree.id,
-        requireAvailableProject: false,
-      }),
+      Effect.runSync(
+        (
+          await service({ projects: [{ ...project, available: false }] })
+        ).execute({
+          worktreeId: worktree.id,
+          requireAvailableProject: false,
+        }),
+      ),
     ).toEqual(found);
   });
 
-  it('refuses to write to a worktree of a project that is unavailable', () => {
+  it('refuses to write to a worktree of a project that is unavailable', async () => {
+    const checked = await service({
+      projects: [{ ...project, available: false }],
+    });
     expect(() =>
-      service({ projects: [{ ...project, available: false }] }).execute({
-        worktreeId: worktree.id,
-        requireAvailableProject: true,
-      }),
+      Effect.runSync(
+        checked.execute({
+          worktreeId: worktree.id,
+          requireAvailableProject: true,
+        }),
+      ),
     ).toThrow(WorktreeUnavailableError);
   });
 
-  it('refuses to write to a worktree whose folder is unavailable', () => {
+  it('refuses to write to a worktree whose folder is unavailable', async () => {
+    const checked = await service({
+      catalog: [observed({}, [{ ...worktree, available: false }])],
+    });
     expect(() =>
-      service({
-        catalog: [observed({}, [{ ...worktree, available: false }])],
-      }).execute({ worktreeId: worktree.id, requireAvailableProject: true }),
+      Effect.runSync(
+        checked.execute({
+          worktreeId: worktree.id,
+          requireAvailableProject: true,
+        }),
+      ),
     ).toThrow(WorktreeUnavailableError);
   });
 
-  it('refuses to write to a worktree whose project is no longer registered', () => {
+  it('refuses to write to a worktree whose project is no longer registered', async () => {
+    const checked = await service({ projects: [] });
     expect(() =>
-      service({ projects: [] }).execute({
-        worktreeId: worktree.id,
-        requireAvailableProject: true,
-      }),
+      Effect.runSync(
+        checked.execute({
+          worktreeId: worktree.id,
+          requireAvailableProject: true,
+        }),
+      ),
     ).toThrow(WorktreeUnavailableError);
   });
 
-  it('refuses a worktree no fresh refresh has seen', () => {
+  it('refuses a worktree no fresh refresh has seen', async () => {
+    const checked = await service();
     expect(() =>
-      service().execute({
-        worktreeId: 'unknown',
-        requireAvailableProject: false,
-      }),
+      Effect.runSync(
+        checked.execute({
+          worktreeId: 'unknown',
+          requireAvailableProject: false,
+        }),
+      ),
     ).toThrow(WorktreeNotFoundError);
   });
 
-  it('refuses an unknown worktree as unavailable while a repository could not be listed', () => {
+  it('refuses an unknown worktree as unavailable while a repository could not be listed', async () => {
+    const checked = await service({
+      catalog: [observed({ listed: false }, [])],
+    });
     expect(() =>
-      service({ catalog: [observed({ listed: false }, [])] }).execute({
-        worktreeId: 'unknown',
-        requireAvailableProject: false,
-      }),
+      Effect.runSync(
+        checked.execute({
+          worktreeId: 'unknown',
+          requireAvailableProject: false,
+        }),
+      ),
     ).toThrow(WorktreeUnavailableError);
   });
 
-  it('refuses a known worktree whose repository could not be listed at the last refresh', () => {
+  it('refuses a known worktree whose repository could not be listed at the last refresh', async () => {
+    const checked = await service({ catalog: [observed({ listed: false })] });
     expect(() =>
-      service({ catalog: [observed({ listed: false })] }).execute({
-        worktreeId: worktree.id,
-        requireAvailableProject: false,
-      }),
+      Effect.runSync(
+        checked.execute({
+          worktreeId: worktree.id,
+          requireAvailableProject: false,
+        }),
+      ),
     ).toThrow(WorktreeUnavailableError);
   });
 
-  it('answers a worktree inside the project the caller named', () => {
+  it('answers a worktree inside the project the caller named', async () => {
     expect(
-      service().execute({
-        worktreeId: worktree.id,
-        projectId: project.id,
-        requireAvailableProject: false,
-      }),
+      Effect.runSync(
+        (await service()).execute({
+          worktreeId: worktree.id,
+          projectId: project.id,
+          requireAvailableProject: false,
+        }),
+      ),
     ).toEqual(found);
   });
 
-  it('refuses a worktree that belongs to another project than the one named', () => {
+  it('refuses a worktree that belongs to another project than the one named', async () => {
+    const checked = await service();
     expect(() =>
-      service().execute({
-        worktreeId: worktree.id,
-        projectId: 'project-2',
-        requireAvailableProject: true,
-      }),
+      Effect.runSync(
+        checked.execute({
+          worktreeId: worktree.id,
+          projectId: 'project-2',
+          requireAvailableProject: true,
+        }),
+      ),
     ).toThrow(WorktreeNotFoundError);
   });
 
-  it('answers stale for a worktree observed longer ago than the staleness limit', () => {
+  it('answers stale for a worktree observed longer ago than the staleness limit', async () => {
     expect(
-      service({
-        catalog: [observed({ observedAt: '2026-09-24T11:58:59.999Z' })],
-      }).execute({ worktreeId: worktree.id, requireAvailableProject: false }),
+      Effect.runSync(
+        (
+          await service({
+            catalog: [observed({ observedAt: '2026-09-24T11:58:59.999Z' })],
+          })
+        ).execute({ worktreeId: worktree.id, requireAvailableProject: false }),
+      ),
     ).toEqual({ kind: 'stale' });
   });
 
-  it('still answers a worktree observed exactly at the staleness limit', () => {
+  it('still answers a worktree observed exactly at the staleness limit', async () => {
     expect(
-      service({
-        catalog: [observed({ observedAt: '2026-09-24T11:59:00.000Z' })],
-      }).execute({ worktreeId: worktree.id, requireAvailableProject: false }),
+      Effect.runSync(
+        (
+          await service({
+            catalog: [observed({ observedAt: '2026-09-24T11:59:00.000Z' })],
+          })
+        ).execute({ worktreeId: worktree.id, requireAvailableProject: false }),
+      ),
     ).toEqual(found);
   });
 
-  it('answers stale for an unknown worktree before any refresh has observed a project', () => {
+  it('answers stale for an unknown worktree before any refresh has observed a project', async () => {
     expect(
-      service({ catalog: [] }).execute({
-        worktreeId: worktree.id,
-        requireAvailableProject: false,
-      }),
+      Effect.runSync(
+        (await service({ catalog: [] })).execute({
+          worktreeId: worktree.id,
+          requireAvailableProject: false,
+        }),
+      ),
     ).toEqual({ kind: 'stale' });
   });
 
-  it('answers stale for an unknown worktree while some observation is stale', () => {
+  it('answers stale for an unknown worktree while some observation is stale', async () => {
     expect(
-      service({
-        catalog: [observed({ observedAt: '2026-09-24T11:00:00.000Z' }, [])],
-      }).execute({ worktreeId: 'unknown', requireAvailableProject: false }),
+      Effect.runSync(
+        (
+          await service({
+            catalog: [observed({ observedAt: '2026-09-24T11:00:00.000Z' }, [])],
+          })
+        ).execute({ worktreeId: 'unknown', requireAvailableProject: false }),
+      ),
     ).toEqual({ kind: 'stale' });
   });
 });

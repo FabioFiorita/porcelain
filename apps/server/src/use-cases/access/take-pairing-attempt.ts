@@ -1,33 +1,39 @@
-import type { TakePairingAttemptInput } from '@porcelain/access/models';
-import type { TakePairingAttemptService } from '@porcelain/access/services';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { Context, Effect, Layer } from 'effect';
+import { type TooManyPairingAttemptsError } from '@porcelain/access/errors';
+import { type TakePairingAttemptInput } from '@porcelain/access/models';
+import { TakePairingAttemptService } from '@porcelain/access/services';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class TakePairingAttemptUseCase {
-  private readonly takePairingAttempt: TakePairingAttemptService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    takePairingAttempt: TakePairingAttemptService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.takePairingAttempt = takePairingAttempt;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class TakePairingAttemptUseCase extends Context.Service<
+  TakePairingAttemptUseCase,
+  {
+    readonly execute: (
+      input: TakePairingAttemptInput,
+    ) => Effect.Effect<void, TooManyPairingAttemptsError>;
   }
+>()('@porcelain/server/TakePairingAttemptUseCase') {
+  static readonly layer = Layer.effect(
+    TakePairingAttemptUseCase,
+    Effect.gen(function* () {
+      const takePairingAttemptCapability = yield* TakePairingAttemptService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
 
-  execute(
-    input: TakePairingAttemptInput,
-    context: OperationContext,
-  ): Promise<void> {
-    return this.lanes.run(
-      this.laneKeys.access(),
-      'write',
-      async () => this.takePairingAttempt.execute(input),
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('TakePairingAttemptUseCase.execute')(function* (
+          input: TakePairingAttemptInput,
+        ): Effect.fn.Return<void, TooManyPairingAttemptsError> {
+          return yield* lanesCapability.run(
+            laneKeysCapability.access(),
+            'write',
+            () =>
+              Effect.gen(function* () {
+                return yield* takePairingAttemptCapability.execute(input);
+              }),
+          );
+        }),
+      };
+    }),
+  );
 }

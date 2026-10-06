@@ -1,103 +1,66 @@
-import { and, asc, eq, inArray } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { reviewedFiles } from '../../db/schema/reviewed-files.ts';
-import type {
-  ReviewedFileKey,
-  ReviewedFileMark,
-  ReviewedScope,
-} from '@porcelain/reviews/models';
-import type { ReviewedFileStore } from '@porcelain/reviews/ports';
+import { Effect, Layer, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/sql';
+import { ReviewedFileStore } from '@porcelain/reviews/ports';
 
-export class SqliteReviewedFileStore implements ReviewedFileStore {
-  private readonly db: BetterSQLite3Database;
+import { ReviewedFileRow } from '../../db/models/reviewed-files.ts';
 
-  constructor(db: BetterSQLite3Database) {
-    this.db = db;
-  }
+export const sqliteReviewedFileStoreLayer = Layer.effect(
+  ReviewedFileStore,
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const list = SqlSchema.findAll({
+      Request: Schema.Struct({
+        worktreeId: Schema.String,
+        scope: Schema.optional(Schema.Literals(['worktree', 'branch'])),
+        branch: Schema.optional(Schema.String),
+      }),
+      Result: Schema.Struct({
+        path: ReviewedFileRow.fields.path,
+        fingerprint: ReviewedFileRow.fields.fingerprint,
+        reviewedAt: ReviewedFileRow.fields.reviewedAt,
+        stale: ReviewedFileRow.fields.stale,
+      }),
+      execute: (input) =>
+        sql`SELECT path, fingerprint, reviewed_at, stale FROM reviewed_files WHERE worktree_id = ${input.worktreeId} AND scope = ${input.scope ?? 'worktree'} AND branch = ${input.branch ?? ''} ORDER BY path`,
+    });
 
-  list(input: ReviewedFileKey): ReviewedFileMark[] {
-    return this.db
-      .select({
-        path: reviewedFiles.path,
-        fingerprint: reviewedFiles.fingerprint,
-        reviewedAt: reviewedFiles.reviewedAt,
-        stale: reviewedFiles.stale,
-      })
-      .from(reviewedFiles)
-      .where(inScope(input))
-      .orderBy(asc(reviewedFiles.path))
-      .all();
-  }
-
-  save(input: ReviewedFileKey & { marks: readonly ReviewedFileMark[] }): void {
-    const { worktreeId } = input;
-    const scope = scopeOf(input);
-    const branch = input.branch ?? '';
-    if (input.marks.length === 0) return;
-    this.db.transaction(
-      (tx) => {
-        for (const mark of input.marks)
-          tx.insert(reviewedFiles)
-            .values({ worktreeId, scope, branch, ...mark })
-            .onConflictDoUpdate({
-              target: [
-                reviewedFiles.worktreeId,
-                reviewedFiles.scope,
-                reviewedFiles.branch,
-                reviewedFiles.path,
-              ],
-              set: {
-                fingerprint: mark.fingerprint,
-                reviewedAt: mark.reviewedAt,
-                stale: mark.stale,
-              },
-            })
-            .run();
-      },
-      { behavior: 'immediate' },
-    );
-  }
-
-  remove(input: ReviewedFileKey & { paths: readonly string[] }): void {
-    if (input.paths.length === 0) return;
-    this.db.transaction(
-      (tx) => {
-        tx.delete(reviewedFiles)
-          .where(
-            and(inScope(input), inArray(reviewedFiles.path, [...input.paths])),
-          )
-          .run();
-      },
-      { behavior: 'immediate' },
-    );
-  }
-
-  setStale(
-    input: ReviewedFileKey & { paths: readonly string[]; stale: boolean },
-  ): void {
-    if (input.paths.length === 0) return;
-    this.db.transaction(
-      (tx) => {
-        tx.update(reviewedFiles)
-          .set({ stale: input.stale })
-          .where(
-            and(inScope(input), inArray(reviewedFiles.path, [...input.paths])),
-          )
-          .run();
-      },
-      { behavior: 'immediate' },
-    );
-  }
-}
-
-function scopeOf(key: ReviewedFileKey): ReviewedScope {
-  return key.scope ?? 'worktree';
-}
-
-function inScope(key: ReviewedFileKey) {
-  return and(
-    eq(reviewedFiles.worktreeId, key.worktreeId),
-    eq(reviewedFiles.scope, scopeOf(key)),
-    eq(reviewedFiles.branch, key.branch ?? ''),
-  );
-}
+    return ReviewedFileStore.of({
+      list: Effect.fn('ReviewedFileStore.list')(function* (
+        input: Parameters<ReviewedFileStore['list']>[0],
+      ) {
+        return yield* list(input).pipe(Effect.orDie);
+      }),
+      save: Effect.fn('ReviewedFileStore.save')(function* (
+        input: Parameters<ReviewedFileStore['save']>[0],
+      ) {
+        return yield* Effect.gen(function* () {
+          for (const mark of input.marks) {
+            const row = yield* Schema.encodeEffect(ReviewedFileRow.insert)({
+              worktreeId: input.worktreeId,
+              scope: input.scope ?? 'worktree',
+              branch: input.branch ?? '',
+              ...mark,
+            });
+            yield* sql`INSERT INTO reviewed_files ${sql.insert(row)} ON CONFLICT (worktree_id, scope, branch, path) DO UPDATE SET ${sql.update(row, ['worktreeId', 'scope', 'branch', 'path'])}`;
+          }
+        }).pipe(sql.withTransaction, Effect.asVoid, Effect.orDie);
+      }),
+      remove: Effect.fn('ReviewedFileStore.remove')(function* (
+        input: Parameters<ReviewedFileStore['remove']>[0],
+      ) {
+        if (!input.paths.length) return;
+        yield* sql`DELETE FROM reviewed_files WHERE worktree_id = ${input.worktreeId} AND scope = ${input.scope ?? 'worktree'} AND branch = ${input.branch ?? ''} AND ${sql.in('path', input.paths)}`.pipe(
+          Effect.orDie,
+        );
+      }),
+      setStale: Effect.fn('ReviewedFileStore.setStale')(function* (
+        input: Parameters<ReviewedFileStore['setStale']>[0],
+      ) {
+        if (!input.paths.length) return;
+        yield* sql`UPDATE reviewed_files SET stale = ${input.stale ? 1 : 0} WHERE worktree_id = ${input.worktreeId} AND scope = ${input.scope ?? 'worktree'} AND branch = ${input.branch ?? ''} AND ${sql.in('path', input.paths)}`.pipe(
+          Effect.orDie,
+        );
+      }),
+    });
+  }),
+);

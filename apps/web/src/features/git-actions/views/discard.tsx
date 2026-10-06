@@ -1,3 +1,5 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
 import { Undo2Icon } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import {
@@ -15,9 +17,12 @@ import {
   useReadCurrentChanges,
   useReviewOverview,
 } from '@/features/changes/index';
-import { fileName, type GitScope } from '../rules/git-action';
+import { fileName, type GitScope } from '@porcelain/client/git-actions/rules';
 import { useDiscard } from '../commands/discard';
-import { type GitActionStatus, statusFromChanges } from '../rules/status';
+import {
+  type GitActionStatus,
+  statusFromChanges,
+} from '@porcelain/client/git-actions/rules';
 import { GitActionError } from './git-action-message';
 
 export function DiscardButton({
@@ -40,13 +45,15 @@ export function DiscardButton({
   children?: (trigger: ReactNode) => ReactNode;
 }) {
   const { connection } = context;
-  const overview = useReviewOverview(scope, connection);
+  const overview = Option.getOrUndefined(
+    AsyncResult.value(useReviewOverview(scope, connection)),
+  );
   const readChanges = useReadCurrentChanges(scope, connection);
   const [isOpen, setOpen] = useState(false);
   const [openedStatus, setOpenedStatus] = useState<GitActionStatus | null>(
     null,
   );
-  const changes = overview?.changes;
+  const changes = overview;
   const status = changes ? statusFromChanges(changes) : null;
   const file = changes?.changes.find((entry) => entry.path === path);
   const candidate = openedStatus ?? status;

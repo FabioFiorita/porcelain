@@ -48,3 +48,12 @@ export function failInventory(context: BrowserContext) {
     503,
   );
 }
+
+export function failChangesRead(context: BrowserContext) {
+  return browserNetwork(context).fail(
+    (request) =>
+      request.method() === 'GET' &&
+      /^\/api\/worktrees\/[^/]+\/changes$/.test(pathOf(request)),
+    503,
+  );
+}

@@ -1,13 +1,16 @@
 import { parsePatchFiles, type FileDiffMetadata } from '@pierre/diffs';
 import { contentVersion } from '@/shared/lib/pierre';
-import { changeId } from '../rules/change-id';
+import { changeId } from '@porcelain/client/changes/rules';
 import {
   changePath,
   type Change,
   type CommitFile,
   type DiffContent,
-} from '../rules/changes';
-import { commitDiffPath, showsWorktreeDiff } from '../rules/diff-eligibility';
+} from '@porcelain/client/changes/rules';
+import {
+  commitDiffPath,
+  showsWorktreeDiff,
+} from '@porcelain/client/changes/rules';
 
 type OrdinaryChange = Extract<Change, { kind: string }>;
 type DiffEntry = {

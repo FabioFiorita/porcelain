@@ -1,3 +1,4 @@
+import { DateTime } from 'effect';
 import { randomUUID } from 'node:crypto';
 import { chmod, mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
@@ -50,7 +51,9 @@ export async function install(
   const staging = `${paths.runtime}.next-${randomUUID()}`;
   const backup = backupLocation(
     paths.backups,
-    context.clock.now(),
+    DateTime.formatIso(
+      DateTime.makeUnsafe(context.clock.currentTimeMillisUnsafe()),
+    ),
     'preinstall',
   );
   let backupComplete = false;

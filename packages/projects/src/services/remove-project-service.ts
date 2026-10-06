@@ -1,20 +1,34 @@
-import type {
-  RemoveProjectInput,
-  RemoveProjectResult,
+import { Effect, Context, Layer } from 'effect';
+import {
+  type RemoveProjectInput,
+  type RemoveProjectResult,
 } from '../models/remove-project.ts';
-import type { InventoryStore } from '../ports/inventory-store.ts';
+import { InventoryStore } from '../ports/inventory-store.ts';
 
-export class RemoveProjectService {
-  private readonly inventory: InventoryStore;
-
-  constructor(inventory: InventoryStore) {
-    this.inventory = inventory;
+export class RemoveProjectService extends Context.Service<
+  RemoveProjectService,
+  {
+    readonly execute: (
+      input: RemoveProjectInput,
+    ) => Effect.Effect<RemoveProjectResult, never>;
   }
+>()('@porcelain/projects/RemoveProjectService') {
+  static readonly layer = Layer.effect(
+    RemoveProjectService,
+    Effect.gen(function* () {
+      const inventoryCapability = yield* InventoryStore;
 
-  execute(input: RemoveProjectInput): RemoveProjectResult {
-    const { projectId } = input;
-    if (!this.inventory.find({ projectId })) return { deleted: false };
-    this.inventory.remove({ projectId });
-    return { deleted: true };
-  }
+      return {
+        execute: Effect.fn('RemoveProjectService.execute')(function* (
+          input: RemoveProjectInput,
+        ): Effect.fn.Return<RemoveProjectResult, never> {
+          const { projectId } = input;
+          if (!(yield* inventoryCapability.find({ projectId })))
+            return { deleted: false };
+          yield* inventoryCapability.remove({ projectId });
+          return { deleted: true };
+        }),
+      };
+    }),
+  );
 }

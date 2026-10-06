@@ -5,8 +5,8 @@ import type {
   GitOrdinaryChange,
   GitStatusObservation,
 } from '../dtos/git-status.ts';
-import { InvalidGitStatusError } from '../errors/invalid-git-status-error.ts';
-import { UnsupportedPathEncodingError } from '../errors/unsupported-path-encoding-error.ts';
+import { InvalidGitStatusError } from '../../shared/errors/invalid-git-status-error.ts';
+import { UnsupportedPathEncodingError } from '../../shared/errors/unsupported-path-encoding-error.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { isNullOid, isOid } from '../../shared/parsers/oid.ts';
 

@@ -17,7 +17,7 @@ export type CommitSummary = {
 };
 export type CommitPageRequest = {
   limit?: number;
-  after?: string[];
+  after?: readonly string[];
   tip?: string;
 };
 export type CommitPage = {

@@ -1,4 +1,5 @@
 import type { EditFileRequest } from '@porcelain/contracts/files';
+import type { liveSubscriptionSchema } from '@porcelain/contracts/access';
 
 export type HttpRequest = {
   method: 'GET' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -24,13 +25,14 @@ export type HttpResponse = {
 };
 
 export type LiveConnection = {
-  send(message: unknown): void;
+  follow(subscription: typeof liveSubscriptionSchema.Type): Promise<void>;
+  invalidFollow(payload: unknown): Promise<Record<string, unknown>>;
   next(
     accept: (notice: Record<string, unknown>) => boolean,
     timeoutMs?: number,
   ): Promise<Record<string, unknown>>;
   closed(timeoutMs?: number): Promise<{ code: number; reason: string }>;
-  close(): void;
+  close(): Promise<void>;
 };
 
 export type LiveOptions = { ticket: string; origin?: string };

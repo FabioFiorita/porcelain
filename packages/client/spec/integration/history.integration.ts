@@ -1,12 +1,13 @@
-import type { InfiniteData } from '@tanstack/query-core';
-import type { ListCommitsResponse } from '@porcelain/contracts/changes';
 import { expect } from 'vitest';
-import { InfiniteQueryObserver, QueryClient } from '@tanstack/query-core';
 import { test } from '@porcelain/server/kit/server-test';
 import { threeCommits } from '@porcelain/server/kit/reads';
-import { historyQueryOptions } from '@porcelain/client/history';
-import { commitQueryOptions } from '@porcelain/client/history';
-import { commitDiffsQueryOptions } from '@porcelain/client/changes';
+import {
+  readHistory,
+  readHistoryWindow,
+  readCommit,
+  readFileTimeline,
+} from '@porcelain/client/history';
+import { readCommitDiffs } from '@porcelain/client/changes';
 import { connection } from '../kit/connection.ts';
 
 test('read commit metadata, renamed paths and the selected commit patch', async ({
@@ -14,18 +15,21 @@ test('read commit metadata, renamed paths and the selected commit patch', async 
   session,
 }) => {
   const state = await threeCommits(session);
-  const { connected, scope } = await connection(server, session);
-  const cache = new QueryClient();
-  const history = await cache.infiniteQuery(
-    historyQueryOptions(scope, connected),
+  const {
+    connected,
+    scope,
+    read: nativeRead,
+  } = await connection(server, session);
+  const history = await nativeRead(
+    readHistoryWindow({ scope, connection: connected }),
   );
   expect(history.commits.map((commit) => commit.subject)).toEqual([
     'Rename',
     'Second commit',
     'Initial commit',
   ]);
-  const commit = await cache.query(
-    commitQueryOptions(scope, connected, state.second),
+  const commit = await nativeRead(
+    readCommit({ scope, connection: connected, oid: state.second }),
   );
   expect(commit).toMatchObject({
     commit: {
@@ -34,10 +38,14 @@ test('read commit metadata, renamed paths and the selected commit patch', async 
       body: 'With a body',
     },
   });
-  const diffs = await cache.query(
-    commitDiffsQueryOptions(scope, connected, state.second, 1, [
-      [session.fixture.readme.path],
-    ]),
+  const diffs = await nativeRead(
+    readCommitDiffs({
+      scope,
+      connection: connected,
+      oid: state.second,
+      parent: 1,
+      paths: [[session.fixture.readme.path]],
+    }),
   );
   expect(diffs).toEqual({
     commitOid: state.second,
@@ -57,8 +65,8 @@ test('read commit metadata, renamed paths and the selected commit patch', async 
       },
     ],
   });
-  const renamed = await cache.query(
-    commitQueryOptions(scope, connected, state.rename),
+  const renamed = await nativeRead(
+    readCommit({ scope, connection: connected, oid: state.rename }),
   );
   expect(renamed.files).toEqual([
     expect.objectContaining({
@@ -67,18 +75,36 @@ test('read commit metadata, renamed paths and the selected commit patch', async 
       newPath: 'GUIDE.md',
     }),
   ]);
+  const timeline = await nativeRead(
+    readFileTimeline({ scope, connection: connected, path: 'GUIDE.md' }),
+  );
+  expect(timeline.commits.map((entry) => entry.commit.subject)).toEqual([
+    'Rename',
+    'Second commit',
+    'Initial commit',
+  ]);
+  expect(timeline.commits[0]).toMatchObject({
+    path: 'GUIDE.md',
+    previousPath: session.fixture.readme.path,
+    status: 'renamed',
+  });
 });
 
 test('read root, deleted, binary and empty commit changes without inventing a parent or a surviving path', async ({
   server,
   session,
 }) => {
-  const { connected, scope } = await connection(server, session);
-  const cache = new QueryClient();
+  const {
+    connected,
+    scope,
+    read: nativeRead,
+  } = await connection(server, session);
   const rootOid = (
     await session.git('rev-list', '--max-parents=0', 'HEAD')
   ).trim();
-  const root = await cache.query(commitQueryOptions(scope, connected, rootOid));
+  const root = await nativeRead(
+    readCommit({ scope, connection: connected, oid: rootOid }),
+  );
   expect(root.comparison).toEqual({ kind: 'empty-tree' });
   expect(root.files).toContainEqual({
     oldPath: undefined,
@@ -87,10 +113,14 @@ test('read root, deleted, binary and empty commit changes without inventing a pa
     oldMode: '000000',
     newMode: '100644',
   });
-  const rootDiff = await cache.query(
-    commitDiffsQueryOptions(scope, connected, rootOid, 1, [
-      [session.fixture.readme.path],
-    ]),
+  const rootDiff = await nativeRead(
+    readCommitDiffs({
+      scope,
+      connection: connected,
+      oid: rootOid,
+      parent: 1,
+      paths: [[session.fixture.readme.path]],
+    }),
   );
   expect(rootDiff).toEqual({
     commitOid: rootOid,
@@ -116,7 +146,9 @@ test('read root, deleted, binary and empty commit changes without inventing a pa
   await session.git('add', '-A');
   await session.git('commit', '-m', 'Delete readme and add binary');
   const oid = (await session.git('rev-parse', 'HEAD')).trim();
-  const changed = await cache.query(commitQueryOptions(scope, connected, oid));
+  const changed = await nativeRead(
+    readCommit({ scope, connection: connected, oid }),
+  );
   expect(changed.files).toEqual([
     {
       oldPath: session.fixture.readme.path,
@@ -133,11 +165,14 @@ test('read root, deleted, binary and empty commit changes without inventing a pa
       newMode: '100644',
     },
   ]);
-  const diffs = await cache.query(
-    commitDiffsQueryOptions(scope, connected, oid, 1, [
-      [session.fixture.readme.path],
-      ['image.bin'],
-    ]),
+  const diffs = await nativeRead(
+    readCommitDiffs({
+      scope,
+      connection: connected,
+      oid,
+      parent: 1,
+      paths: [[session.fixture.readme.path], ['image.bin']],
+    }),
   );
   expect(diffs).toEqual({
     commitOid: oid,
@@ -160,12 +195,11 @@ test('read root, deleted, binary and empty commit changes without inventing a pa
   });
   await session.git('commit', '--allow-empty', '-m', 'Empty commit');
   const emptyOid = (await session.git('rev-parse', 'HEAD')).trim();
-  const empty = await cache.query(
-    commitQueryOptions(scope, connected, emptyOid),
+  const empty = await nativeRead(
+    readCommit({ scope, connection: connected, oid: emptyOid }),
   );
   expect(empty.commit.subject).toBe('Empty commit');
   expect(empty.files).toEqual([]);
-  cache.clear();
 });
 
 test('compare a merge with the chosen parent and cache each parent independently', async ({
@@ -185,11 +219,16 @@ test('compare a merge with the chosen parent and cache each parent independently
   const main = (await session.git('rev-parse', 'HEAD')).trim();
   await session.git('merge', '--no-ff', 'topic', '-m', 'Merge topic');
   const oid = (await session.git('rev-parse', 'HEAD')).trim();
-  const { connected, scope } = await connection(server, session);
-  const cache = new QueryClient();
-  const first = await cache.query(commitQueryOptions(scope, connected, oid, 1));
-  const second = await cache.query(
-    commitQueryOptions(scope, connected, oid, 2),
+  const {
+    connected,
+    scope,
+    read: nativeRead,
+  } = await connection(server, session);
+  const first = await nativeRead(
+    readCommit({ scope, connection: connected, oid, parent: 1 }),
+  );
+  const second = await nativeRead(
+    readCommit({ scope, connection: connected, oid, parent: 2 }),
   );
   expect(first.commit.parentOids).toEqual([main, topic]);
   expect(first.comparison).toEqual({
@@ -204,8 +243,14 @@ test('compare a merge with the chosen parent and cache each parent independently
     baseOid: topic,
   });
   expect(second.files.map((file) => file.newPath)).toEqual(['MAIN.md']);
-  const diff = await cache.query(
-    commitDiffsQueryOptions(scope, connected, oid, 2, [['MAIN.md']]),
+  const diff = await nativeRead(
+    readCommitDiffs({
+      scope,
+      connection: connected,
+      oid,
+      parent: 2,
+      paths: [['MAIN.md']],
+    }),
   );
   expect(diff).toEqual({
     commitOid: oid,
@@ -220,9 +265,10 @@ test('compare a merge with the chosen parent and cache each parent independently
     ],
   });
   expect(
-    cache.getQueryData(commitQueryOptions(scope, connected, oid, 1).queryKey),
+    await nativeRead(
+      readCommit({ scope, connection: connected, oid, parent: 1 }),
+    ),
   ).toEqual(first);
-  cache.clear();
 });
 
 test('continue history with its tip and frontier and discard earlier pages after a restart', async ({
@@ -231,40 +277,37 @@ test('continue history with its tip and frontier and discard earlier pages after
 }) => {
   await session.git('checkout', '--orphan', 'paginated');
   await session.git('commit', '-am', 'History root');
-  for (let index = 0; index < 50; index += 1)
+  for (let index = 0; index < 100; index += 1)
     await session.git('commit', '--allow-empty', '-m', `Commit ${index}`);
-  const { connected, scope } = await connection(server, session);
-  const cache = new QueryClient();
-  const observer = new InfiniteQueryObserver(
-    cache,
-    historyQueryOptions(scope, connected),
+  const {
+    connected,
+    scope,
+    registry,
+    read: nativeRead,
+  } = await connection(server, session);
+  const history = readHistory({ scope, connection: connected });
+  const stop = registry.mount(history);
+  const first = await nativeRead(
+    readHistoryWindow({ scope, connection: connected }),
   );
-  const first = await observer.refetch();
-  expect(first.data?.commits).toHaveLength(50);
-  expect(observer.getCurrentResult().hasNextPage).toBe(true);
-  const next = await observer.fetchNextPage();
-  expect(next.data?.commits).toHaveLength(51);
-  expect(next.data?.commits.at(-1)?.subject).toBe('History root');
-  expect(next.hasNextPage).toBe(false);
-  const options = historyQueryOptions(scope, connected);
-  const original = cache.getQueryData<InfiniteData<ListCommitsResponse>>(
-    options.queryKey,
+  expect(first.commits).toHaveLength(50);
+  expect(first.nextAfter).toBeDefined();
+  registry.set(history, undefined);
+  const next = await nativeRead(
+    readHistoryWindow({ scope, connection: connected }),
   );
-  if (!original?.pages[0]) throw new Error('Expected history pages');
+  expect(next.commits).toHaveLength(100);
+  expect(next.commits.at(-1)?.subject).toBe('Commit 0');
+  expect(next.nextAfter).toBeDefined();
   await session.git('checkout', '--orphan', 'replacement');
   await session.git('commit', '-am', 'Replacement history');
-  const restarted = await options.queryFn({
-    signal: new AbortController().signal,
-    pageParam: options.getNextPageParam(original.pages[0]),
-  });
+  registry.set(history, undefined);
+  const restarted = await nativeRead(
+    readHistoryWindow({ scope, connection: connected }),
+  );
   expect(restarted.restarted).toBe(true);
-  expect(
-    options
-      .select({
-        pages: [...original.pages, restarted],
-        pageParams: [undefined, undefined, undefined],
-      })
-      .commits.map((commit) => commit.subject),
-  ).toEqual(['Replacement history']);
-  observer.destroy();
+  expect(restarted.commits.map((commit) => commit.subject)).toEqual([
+    'Replacement history',
+  ]);
+  stop();
 });

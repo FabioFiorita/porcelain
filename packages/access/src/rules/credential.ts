@@ -1,4 +1,5 @@
 import { constantTimeEquals, sha256Hex } from '@porcelain/kernel/rules';
+import * as Redacted from 'effect/Redacted';
 import type {
   Credential,
   CredentialKind,
@@ -14,7 +15,11 @@ export function credential(
   id: string,
   secret: string,
 ): Credential {
-  return { id, secret, token: `${kind}_${id}_${secret}` };
+  return {
+    id,
+    secret: Redacted.make(secret),
+    token: Redacted.make(`${kind}_${id}_${secret}`),
+  };
 }
 
 export function parseCredential(
@@ -25,10 +30,13 @@ export function parseCredential(
     `^${kind}_(?<id>${ID_PATTERN})_(?<secret>${SECRET_PATTERN})$`,
   ).exec(value)?.groups;
   return parts?.id && parts.secret
-    ? { id: parts.id, secret: parts.secret }
+    ? { id: parts.id, secret: Redacted.make(parts.secret) }
     : undefined;
 }
 
-export function secretMatches(expectedHash: string, secret: string): boolean {
-  return constantTimeEquals(expectedHash, sha256Hex(secret));
+export function secretMatches(
+  expectedHash: string,
+  secret: Redacted.Redacted<string>,
+): boolean {
+  return constantTimeEquals(expectedHash, sha256Hex(Redacted.value(secret)));
 }

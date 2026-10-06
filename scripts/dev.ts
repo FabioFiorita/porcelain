@@ -1,22 +1,26 @@
+import { Schema, Result } from 'effect';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createServer } from 'node:net';
 import { resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { parseArgs } from 'node:util';
-import { z } from 'zod';
 import {
   electronExecutable,
   root,
   stageDesktop,
 } from '../apps/desktop/spec/kit/stage.ts';
-
 const webRoot = resolve(root, 'apps/web');
 const vite = resolve(webRoot, 'node_modules/.bin/vite');
-const readySchema = z.object({ address: z.url() });
+const readySchema = Schema.Struct({
+  address: Schema.String.check(
+    Schema.makeFilter((value) =>
+      Result.isSuccess(Schema.decodeUnknownResult(Schema.URLFromString)(value)),
+    ),
+  ),
+});
 const { values } = parseArgs({
   options: { desktop: { type: 'boolean', default: false } },
 });
-
 function exitOf(child: ChildProcess): Promise<number> {
   return new Promise((done) => {
     child.once('error', (error) => {
@@ -26,7 +30,6 @@ function exitOf(child: ChildProcess): Promise<number> {
     child.once('close', (code) => done(code ?? 1));
   });
 }
-
 function freePort(): Promise<number> {
   return new Promise((done, fail) => {
     const probe = createServer();
@@ -41,7 +44,6 @@ function freePort(): Promise<number> {
     });
   });
 }
-
 async function webReady(origin: string, exited: Promise<number>) {
   let stopped = false;
   void exited.then(() => {
@@ -55,7 +57,6 @@ async function webReady(origin: string, exited: Promise<number>) {
   }
   throw new Error(`Vite did not answer at ${origin}.`);
 }
-
 async function desktop(): Promise<void> {
   const app = resolve(root, 'dist/desktop/development');
   await stageDesktop({
@@ -113,7 +114,6 @@ async function desktop(): Promise<void> {
     process.off('SIGTERM', stop);
   }
 }
-
 async function browser(): Promise<void> {
   const server = spawn(
     process.execPath,
@@ -142,8 +142,10 @@ async function browser(): Promise<void> {
       lines.on('line', (line) => {
         process.stdout.write(`${line}\n`);
         try {
-          const ready = readySchema.safeParse(JSON.parse(line));
-          if (ready.success) done(ready.data.address);
+          const ready = Schema.decodeUnknownResult(readySchema)(
+            JSON.parse(line),
+          );
+          if (Result.isSuccess(ready)) done(ready.success.address);
         } catch {
           return;
         }
@@ -183,5 +185,4 @@ async function browser(): Promise<void> {
     process.off('SIGTERM', stop);
   }
 }
-
 await (values.desktop ? desktop() : browser());

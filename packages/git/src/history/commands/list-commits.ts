@@ -5,8 +5,8 @@ import type {
   CommitSummary,
   HistoryCheckout,
 } from '../dtos/commit-history.ts';
-import { InvalidHistoryRequestError } from '../errors/invalid-history-request-error.ts';
-import { UnsupportedHistoryDataError } from '../errors/unsupported-history-data-error.ts';
+import { InvalidHistoryRequestError } from '../../shared/errors/invalid-history-request-error.ts';
+import { UnsupportedHistoryDataError } from '../../shared/errors/unsupported-history-data-error.ts';
 import { decodeHistory } from '../parsers/decode-history.ts';
 import { COMMIT_FORMAT, parseCommitRecords } from '../parsers/parse-commit.ts';
 import { isOid } from '../../shared/parsers/oid.ts';
@@ -59,7 +59,7 @@ export async function listCommits(
 async function continueFrom(
   checkout: HistoryCheckout,
   tip: string,
-  frontier: string[],
+  frontier: readonly string[],
   limit: number,
   shallow: boolean,
   limits: GitLimits,

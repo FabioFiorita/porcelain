@@ -1,37 +1,52 @@
-import { useMutation } from '@tanstack/react-query';
-import { useRef, useEffect } from 'react';
-import { pairEnvironment } from '@porcelain/client/access';
-import { pairingPlatform, accessStore } from '../store';
+import { Effect, Exit } from 'effect';
+import { Atom } from 'effect/reactivity';
+import { useAtom, useAtomSet } from '@effect/atom-react';
+import { useEffect, useRef, useState } from 'react';
+import { EnvironmentCommands } from '@porcelain/client/access';
+import { clientRuntime } from '../../../shared/application/store';
+
+const pairEnvironment = Atom.family((_identity: symbol) =>
+  clientRuntime.fn(
+    ({
+      value,
+      signal,
+    }: {
+      readonly value: string;
+      readonly signal: AbortSignal;
+    }) =>
+      Effect.gen(function* () {
+        const commands = yield* EnvironmentCommands;
+        return yield* commands.pair({ value, signal });
+      }),
+  ),
+);
+const readEnvironments = clientRuntime.fn((_: void) =>
+  Effect.gen(function* () {
+    const commands = yield* EnvironmentCommands;
+    yield* commands.read();
+  }),
+);
 
 export function usePairEnvironment(onPaired: () => void) {
+  const [identity] = useState(Symbol);
   const controller = useRef<AbortController | null>(null);
-  const mutation = useMutation({
-    scope: { id: 'access.environments' },
-    onSuccess: onPaired,
-    mutationFn: (value: string) => {
-      controller.current?.abort();
-      controller.current = new AbortController();
-      return pairEnvironment(
-        accessStore,
-        pairingPlatform(),
-        value,
-        controller.current.signal,
-      );
-    },
+  const [result, run] = useAtom(pairEnvironment(identity), {
+    mode: 'promiseExit',
   });
   useEffect(() => () => controller.current?.abort(), []);
   return {
-    submit: mutation.mutateAsync,
-    onSubmit: mutation.mutate,
-    isPending: mutation.isPending,
-    error: mutation.error,
+    result,
+    submit: (value: string) => {
+      controller.current?.abort();
+      const request = new AbortController();
+      controller.current = request;
+      void run({ value, signal: request.signal }).then((exit) => {
+        if (Exit.isSuccess(exit) && !request.signal.aborted) onPaired();
+      });
+    },
   };
 }
 
 export function useReadEnvironments() {
-  const mutation = useMutation({
-    scope: { id: 'access.environments' },
-    mutationFn: () => accessStore.getState().load(),
-  });
-  return mutation.mutate;
+  return useAtomSet(readEnvironments);
 }

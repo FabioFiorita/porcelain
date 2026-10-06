@@ -1,7 +1,10 @@
-export class UnsupportedCommitModelError extends Error {
-  override readonly name = 'UnsupportedCommitModelError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Unsupported commit model.');
+export class UnsupportedCommitModelError extends Schema.TaggedError<UnsupportedCommitModelError>()(
+  'UnsupportedCommitModelError',
+  {},
+) {
+  override get message() {
+    return 'Unsupported commit model.';
   }
 }

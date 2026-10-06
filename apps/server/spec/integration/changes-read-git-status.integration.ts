@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { readGitStatusResponseSchema } from '@porcelain/contracts/changes';
 import { expect } from 'vitest';
@@ -36,7 +37,9 @@ test('the git status of the sample unstaged change reports its entry, the head c
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readGitStatusResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readGitStatusResponseSchema)),
+    ),
   );
   expect(response.body).toMatchObject({
     worktreeId: session.worktreeId,

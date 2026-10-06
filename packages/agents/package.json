@@ -11,9 +11,10 @@
   },
   "dependencies": {
     "@porcelain/process": "workspace:*",
-    "zod": "4.5.4"
+    "effect": "4.0.0"
   },
   "devDependencies": {
+    "@effect/platform-node": "4.0.0",
     "@types/node": "24.13.3"
   }
 }

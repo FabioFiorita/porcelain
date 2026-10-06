@@ -1,5 +1,6 @@
-import { httpErrors } from '@fastify/sensible';
-import type { FastifyRequest } from 'fastify';
+import { Effect } from 'effect';
+import { RequestContext } from '../request-context.ts';
+import { RequestError } from '../../runtime/errors/request-error.ts';
 import type { CheckLocalRequestUseCasePort } from '../../ports/check-local-request-use-case-port.ts';
 import { headerValue } from './header-value.ts';
 
@@ -7,37 +8,39 @@ export type LocalDeviceOptions = {
   access: { checkLocalRequest: CheckLocalRequestUseCasePort };
 };
 
-async function askedFromThisComputer(
-  options: LocalDeviceOptions,
-  request: FastifyRequest,
-): Promise<boolean> {
-  const verdict = await options.access.checkLocalRequest.execute(
-    {
-      host: request.headers.host,
-      route: request.client.route,
-      remoteAddress: request.socket.remoteAddress,
-      localAddress: request.socket.localAddress,
-      headers: Object.keys(request.headers),
-      origin: request.headers.origin,
-      referer: request.headers.referer,
-      fetchSite: headerValue(request.headers['sec-fetch-site']),
-    },
-    { signal: request.disconnected },
-  );
-  return verdict.kind === 'local';
+function askedFromThisComputer(options: LocalDeviceOptions) {
+  return Effect.gen(function* () {
+    const context = yield* RequestContext;
+    const verdict = yield* options.access.checkLocalRequest.execute({
+      host: context.request.headers.host,
+      route: context.client.route,
+      remoteAddress: context.incoming.socket.remoteAddress,
+      localAddress: context.incoming.socket.localAddress,
+      headers: Object.keys(context.request.headers),
+      origin: context.request.headers.origin,
+      referer: context.request.headers.referer,
+      fetchSite: headerValue(context.request.headers['sec-fetch-site']),
+    });
+    return verdict.kind === 'local';
+  });
 }
 
 export function requireLocalDevice(options: LocalDeviceOptions) {
-  return async (request: FastifyRequest) => {
-    if (!(await askedFromThisComputer(options, request)))
-      throw httpErrors.forbidden(
-        'Sharing is managed from a browser on the computer that runs Porcelain',
+  return Effect.gen(function* () {
+    if (!(yield* askedFromThisComputer(options)))
+      return yield* Effect.die(
+        new RequestError({
+          statusCode: 403,
+          message:
+            'Sharing is managed from a browser on the computer that runs Porcelain',
+        }),
       );
-  };
+  });
 }
 
 export function recognizeLocalRequest(options: LocalDeviceOptions) {
-  return async (request: FastifyRequest) => {
-    request.local = await askedFromThisComputer(options, request);
-  };
+  return Effect.gen(function* () {
+    const context = yield* RequestContext;
+    context.local = yield* askedFromThisComputer(options);
+  });
 }

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   ServiceNotManagedError,
@@ -19,11 +20,17 @@ const offered: ServiceUpdateState = {
 const check =
   (state: ServiceUpdateState, version = '1.1.0', canUpdate = true) =>
   () =>
-    new CheckServiceUpdateService().execute({
-      authority: { canUpdate },
-      state,
-      target: { version },
-    });
+    Effect.runSync(
+      Effect.runSync(
+        CheckServiceUpdateService.pipe(
+          Effect.provide(CheckServiceUpdateService.layer),
+        ),
+      ).execute({
+        authority: { canUpdate },
+        state,
+        target: { version },
+      }),
+    );
 
 describe('CheckServiceUpdateService', () => {
   it('lets the offered update start', () => {

@@ -22,8 +22,8 @@ export default {
     {
       kind: 'replace',
       path: 'packages/files/src/services/list-directory-service.ts',
-      old: '        limit: this.options.maxEntries + 1,',
-      new: '        limit: Math.min(this.options.maxEntries, 2000) + 1,',
+      old: '            limit: optionsCapability.maxEntries + 1,',
+      new: '            limit: Math.min(optionsCapability.maxEntries, 2000) + 1,',
     },
   ],
 } satisfies Probe;

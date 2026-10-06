@@ -20,7 +20,7 @@ import { cn } from '@/shared/lib/utils';
 import { copyText } from '@/shared/workspace/copy';
 import { FileTypeIcon } from '@/features/files/index';
 import type { DocumentRef, OpenDocument } from '../rules/documents';
-import { basename, type ReviewStatus } from '../rules/review';
+import { basename, type ReviewStatus } from '@porcelain/client/reviews/rules';
 
 export const ROW =
   'flex w-full min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-[12.5px] transition-colors hover:bg-accent';

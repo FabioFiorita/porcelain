@@ -1,27 +1,41 @@
-import type { ForgetProjectRecordsInput } from '../models/find-project.ts';
-import type { FilePreferenceStore } from '../ports/file-preference-store.ts';
-import type { WorktreePresenceStore } from '../ports/worktree-presence-store.ts';
+import { Effect, Context, Layer } from 'effect';
+import { type ForgetProjectRecordsInput } from '../models/find-project.ts';
+import { FilePreferenceStore } from '../ports/file-preference-store.ts';
+import { WorktreePresenceStore } from '../ports/worktree-presence-store.ts';
 
-export class ForgetProjectRecordsService {
-  private readonly worktreePresence: WorktreePresenceStore;
-  private readonly filePreference: FilePreferenceStore;
-
-  constructor(
-    worktreePresence: WorktreePresenceStore,
-    filePreference: FilePreferenceStore,
-  ) {
-    this.worktreePresence = worktreePresence;
-    this.filePreference = filePreference;
+export class ForgetProjectRecordsService extends Context.Service<
+  ForgetProjectRecordsService,
+  {
+    readonly execute: (
+      input: ForgetProjectRecordsInput,
+    ) => Effect.Effect<void, never>;
   }
+>()('@porcelain/projects/ForgetProjectRecordsService') {
+  static readonly layer = Layer.effect(
+    ForgetProjectRecordsService,
+    Effect.gen(function* () {
+      const worktreePresenceCapability = yield* WorktreePresenceStore;
+      const filePreferenceCapability = yield* FilePreferenceStore;
 
-  execute(input: ForgetProjectRecordsInput): void {
-    const { projectId } = input;
-    this.worktreePresence.remove({
-      worktreeIds: this.worktreePresence
-        .read({ projectId })
-        .map((row) => row.worktreeId),
-    });
-    for (const preference of this.filePreference.list({ projectId }))
-      this.filePreference.remove({ projectId, path: preference.path });
-  }
+      return {
+        execute: Effect.fn('ForgetProjectRecordsService.execute')(function* (
+          input: ForgetProjectRecordsInput,
+        ): Effect.fn.Return<void, never> {
+          const { projectId } = input;
+          yield* worktreePresenceCapability.remove({
+            worktreeIds: (yield* worktreePresenceCapability.read({
+              projectId,
+            })).map((row) => row.worktreeId),
+          });
+          for (const preference of yield* filePreferenceCapability.list({
+            projectId,
+          }))
+            yield* filePreferenceCapability.remove({
+              projectId,
+              path: preference.path,
+            });
+        }),
+      };
+    }),
+  );
 }

@@ -14,7 +14,30 @@
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnostics": true,
+        "includeSuggestionsInTsc": false,
+        "ignoreEffectWarningsInTscExitCode": true,
+        "diagnosticSeverity": {
+          "floatingEffect": "error",
+          "floatingEffectInVitest": "error",
+          "missingEffectContext": "error",
+          "missingLayerContext": "error",
+          "missingStarInYieldEffectGen": "error",
+          "anyUnknownInErrorContext": "error",
+          "classSelfMismatch": "error",
+          "promiseInEffectSuccess": "error",
+          "overriddenSchemaConstructor": "error",
+          "returnEffectInGen": "error",
+          "unsafeEffectTypeAssertion": "error",
+          "globalErrorInEffectFailure": "error",
+          "globalErrorInEffectCatch": "error"
+        }
+      }
+    ]
   },
   "include": [
     "vitest.config.ts",

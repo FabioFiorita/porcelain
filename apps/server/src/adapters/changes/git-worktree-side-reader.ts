@@ -1,53 +1,62 @@
+import { Effect, Layer } from 'effect';
+import { type WorktreeRead } from '@porcelain/effects/worktree';
+import { readGit } from '../../runtime/git-io.ts';
+import { type GitIoFailure } from '@porcelain/git/errors';
 import { join } from 'node:path';
-import type {
-  StagingStampRequest,
-  SubmoduleHeadsRequest,
-  WorktreeEntriesRequest,
-  WorktreeEntry,
+import {
+  type StagingStampRequest,
+  type SubmoduleHeadsRequest,
+  type WorktreeEntriesRequest,
+  type WorktreeEntry,
 } from '@porcelain/changes/models';
-import type { WorktreeSideReader } from '@porcelain/changes/ports';
-import type { OpenInspection } from './inspection-checkouts.ts';
+import { WorktreeSideReader } from '@porcelain/changes/ports';
+import { type OpenInspection } from './inspection-checkouts.ts';
 import {
   readWorktreeFiles,
   stampPath,
   type WorktreeReadOptions,
 } from './worktree-files.ts';
 
-export class GitWorktreeSideReader implements WorktreeSideReader {
-  private readonly open: OpenInspection;
-  private readonly options: WorktreeReadOptions;
-
-  constructor(open: OpenInspection, options: WorktreeReadOptions) {
-    this.open = open;
-    this.options = options;
-  }
-
-  async readEntries(
-    input: WorktreeEntriesRequest,
-    signal?: AbortSignal,
-  ): Promise<ReadonlyMap<string, WorktreeEntry>> {
-    const { worktree } = await this.open(input.worktreeId, signal);
-    return readWorktreeFiles(
-      worktree.path,
-      input.paths,
-      input.maxDigestBytes,
-      this.options,
-    );
-  }
-
-  async readSubmoduleHeads(
-    input: SubmoduleHeadsRequest,
-    signal?: AbortSignal,
-  ): Promise<ReadonlyMap<string, string>> {
-    const { git } = await this.open(input.worktreeId, signal);
-    return git.readSubmoduleHeads(input.paths, signal);
-  }
-
-  async readStagingStamp(
-    input: StagingStampRequest,
-    signal?: AbortSignal,
-  ): Promise<string | undefined> {
-    const { worktree } = await this.open(input.worktreeId, signal);
-    return stampPath(join(worktree.administrativeDirectory, 'index'));
-  }
-}
+export const gitWorktreeSideReaderLayer = (
+  open: OpenInspection,
+  options: WorktreeReadOptions,
+) =>
+  Layer.succeed(WorktreeSideReader, {
+    readEntries: Effect.fn('GitWorktreeSideReader.readEntries')(function* (
+      input: WorktreeEntriesRequest,
+    ): Effect.fn.Return<
+      ReadonlyMap<string, WorktreeEntry>,
+      GitIoFailure,
+      WorktreeRead
+    > {
+      const { worktree } = yield* readGit(input.worktreeId, (signal) =>
+        open(input.worktreeId, signal),
+      );
+      return yield* readWorktreeFiles(
+        worktree.path,
+        input.paths,
+        input.maxDigestBytes,
+        options,
+      );
+    }),
+    readSubmoduleHeads: Effect.fn('GitWorktreeSideReader.readSubmoduleHeads')(
+      function* (input: SubmoduleHeadsRequest) {
+        const { git } = yield* readGit(input.worktreeId, (signal) =>
+          open(input.worktreeId, signal),
+        );
+        return yield* readGit(input.worktreeId, (signal) =>
+          git.readSubmoduleHeads(input.paths, signal),
+        );
+      },
+    ),
+    readStagingStamp: Effect.fn('GitWorktreeSideReader.readStagingStamp')(
+      function* (input: StagingStampRequest) {
+        const { worktree } = yield* readGit(input.worktreeId, (signal) =>
+          open(input.worktreeId, signal),
+        );
+        return yield* stampPath(
+          join(worktree.administrativeDirectory, 'index'),
+        );
+      },
+    ),
+  });

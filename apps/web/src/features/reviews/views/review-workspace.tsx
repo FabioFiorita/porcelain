@@ -1,3 +1,5 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
 import {
   detectPlatform,
   formatForDisplay,
@@ -29,7 +31,7 @@ import {
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/shared/lib/utils';
 import { useReviewOverview } from '@/features/changes/index';
-import type { Project } from '@/features/projects/index';
+import type { Project } from '@porcelain/client/projects/rules';
 import {
   ConflictGuidance,
   GitButton,
@@ -44,9 +46,12 @@ import type {
 import { useDesktopReview } from '../adapters/desktop-review';
 import { type PaneIndex, useTabLayout } from '../adapters/tab-layout';
 import { usePublishedReview } from '../queries/published-review';
-import { anchorBase, type RevealComment } from '../rules/comments';
+import {
+  anchorBase,
+  type RevealComment,
+} from '@porcelain/client/reviews/rules';
 import { entryKey, type OpenDocument, parseEntry } from '../rules/documents';
-import type { ReviewLayer } from '../rules/review';
+import type { ReviewLayer } from '@porcelain/client/reviews/rules';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
 import { ReviewBoundary } from './review-boundary';
@@ -215,7 +220,7 @@ export function ReviewWorkspace({
           aria-label="Review content"
           className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
         >
-          <ReviewBoundary>
+          <ReviewBoundary connection={context.connection} scope={scope}>
             <InterruptedActionNotice scope={scope} context={context} />
             <ConflictGuidance scope={scope} context={context} onOpen={open} />
             <DocumentArea
@@ -295,12 +300,14 @@ function DocumentArea({
   focused: PaneIndex;
 }) {
   const { connection } = context;
-  const overview = useReviewOverview(scope, connection);
+  const overview = Option.getOrUndefined(
+    AsyncResult.value(useReviewOverview(scope, connection)),
+  );
   const published = usePublishedReview(scope, context);
-  const layers = published.data?.active ? published.data.layers : [];
+  const layers = published.review?.active ? published.review.layers : [];
   const hasHandoff =
-    Boolean(published.data?.active) ||
-    (overview != null && overview.changes.changes.length > 0);
+    Boolean(published.review?.active) ||
+    (overview != null && overview.changes.length > 0);
   const layout = useTabLayout({
     worktreeId,
     entry,
@@ -346,7 +353,7 @@ function DocumentArea({
     scope,
     context,
     layers,
-    handoff: published.data?.active
+    handoff: published.review?.active
       ? ('review' as const)
       : hasHandoff
         ? ('changes' as const)
@@ -455,7 +462,11 @@ function PaneView({
         <EmptyDocument handoff={handoff} onOpen={onOpen} />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <ReviewBoundary key={pane.active}>
+          <ReviewBoundary
+            connection={context.connection}
+            scope={scope}
+            key={pane.active}
+          >
             <DocumentView
               scope={scope}
               context={context}

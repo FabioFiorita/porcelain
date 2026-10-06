@@ -1,3 +1,4 @@
+import { AsyncResult } from 'effect/reactivity';
 import { FileIcon, GitGraphIcon, HistoryIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CommitGraph, FileTimeline } from '@/features/history/index';
@@ -5,15 +6,15 @@ import { DiscardButton } from '@/features/git-actions/index';
 import { useChanges } from '@/features/changes/index';
 import { usePublishedReview } from '../queries/published-review';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
-import type { RevealComment } from '../rules/comments';
+import type { RevealComment } from '@porcelain/client/reviews/rules';
 import {
   type DocumentInteraction,
   type DocumentRef,
   entryKey,
   type OpenDocument,
 } from '../rules/documents';
-import { proofOnLayer } from '../rules/proof';
-import type { ReviewScope } from '../rules/review';
+import { proofOnLayer } from '@porcelain/client/reviews/rules';
+import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { BranchDocument, BranchFileDocument } from './branch-document';
 import { CommitDocument } from './commit-document';
 import { DocumentToolbar } from './document-toolbar';
@@ -153,18 +154,18 @@ function TimelineDocument({
 
 function HandoffDocument(props: DocumentProps) {
   const published = usePublishedReview(props.scope, props.context);
-  if (published.isPending)
+  if (AsyncResult.isInitial(published.result))
     return (
       <p role="status" className="p-4 text-sm">
         Loading review…
       </p>
     );
-  if (published.isError)
-    return <PublicationFailure retry={() => void published.refetch()} />;
-  if (published.data?.active)
+  if (AsyncResult.isFailure(published.result))
+    return <PublicationFailure retry={published.refresh} />;
+  if (published.review?.active)
     return (
       <PublishedOverview
-        review={published.data}
+        review={published.review}
         address={props.context.connection.address}
         onOpen={props.onOpen}
       />
@@ -175,7 +176,7 @@ function HandoffDocument(props: DocumentProps) {
 function PlainChangesDocument({ scope, context, interaction }: DocumentProps) {
   const { connection } = context;
   usePrefetchReviewed(scope, context);
-  const list = useChanges(scope, connection).changes;
+  const list = useChanges(scope, connection);
   const changes = useReviewChangeItems(scope, context, list);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -203,17 +204,17 @@ function LayerDocument({
   ...props
 }: DocumentProps & { layerId: string }) {
   const published = usePublishedReview(props.scope, props.context);
-  const layer = published.data?.layers.find(
+  const layer = published.review?.layers.find(
     (candidate) => candidate.id === layerId,
   );
-  if (published.isPending)
+  if (AsyncResult.isInitial(published.result))
     return (
       <p role="status" className="p-4 text-sm">
         Loading layer…
       </p>
     );
-  if (published.isError)
-    return <PublicationFailure retry={() => void published.refetch()} />;
+  if (AsyncResult.isFailure(published.result))
+    return <PublicationFailure retry={published.refresh} />;
   if (!layer)
     return (
       <ReviewEmpty
@@ -223,10 +224,10 @@ function LayerDocument({
     );
   return (
     <PublishedLayer
-      key={`${layerId}:${published.data?.revision}`}
+      key={`${layerId}:${published.review?.revision}`}
       {...props}
       layer={layer}
-      proof={proofOnLayer(published.data?.proof, layerId)}
+      proof={proofOnLayer(published.review?.proof, layerId)}
     />
   );
 }
@@ -240,7 +241,7 @@ function ChangeDocument({
 }: DocumentProps & { path: string }) {
   const { connection } = context;
   usePrefetchReviewed(scope, context);
-  const list = useChanges(scope, connection).changes;
+  const list = useChanges(scope, connection);
   const change = useReviewChangeItems(scope, context, list, [path]).find(
     (entry) => entry.path === path,
   );

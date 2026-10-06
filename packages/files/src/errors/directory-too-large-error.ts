@@ -1,7 +1,10 @@
-export class DirectoryTooLargeError extends Error {
-  override readonly name = 'DirectoryTooLargeError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Directory exceeds the listing limit');
+export class DirectoryTooLargeError extends Schema.TaggedError<DirectoryTooLargeError>()(
+  'DirectoryTooLargeError',
+  {},
+) {
+  override get message() {
+    return 'Directory exceeds the listing limit';
   }
 }

@@ -1,3 +1,5 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
 import { GitBranchIcon, PlusIcon, SparklesIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,17 +16,17 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { FileTypeIcon } from '@/features/files/index';
-import { groupedCommitModels } from '../rules/commit-model';
+import { groupedCommitModels } from '@porcelain/client/git-actions/rules';
 import {
   changedSinceLooked,
   gitErrorMessage,
   receiptFailed,
-} from '../rules/feedback';
+} from '@porcelain/client/git-actions/rules';
 import { GitActionError } from './git-action-message';
 import { useCommitForm } from '../commands/commit-form';
-import type { CommitFormProps } from '../rules/commit-form';
+import type { CommitFormProps } from '@porcelain/client/git-actions/rules';
 import { useDraftCancellation } from '../adapters/form-lifetime';
-import { commitFiles } from '@/features/changes/index';
+import { commitFiles } from '@porcelain/client/changes/rules';
 import { usePreferences } from '@/features/preferences/index';
 
 export function CommitForm(
@@ -69,6 +71,7 @@ export function CommitForm(
     commitModeBlocker,
     amendModeBlocker,
   } = form;
+  const choices = Option.getOrUndefined(AsyncResult.value(models));
   return (
     <form
       className="flex min-w-0 flex-col gap-4"
@@ -238,18 +241,18 @@ export function CommitForm(
                   className="w-auto max-w-48"
                   size="sm"
                   value={model ?? ''}
-                  disabled={!models.data?.length}
+                  disabled={!choices?.length}
                   onChange={(event) => form.setModel(event.target.value)}
                 >
                   {!model && (
                     <NativeSelectOption value="" disabled>
-                      {models.data?.length
+                      {choices?.length
                         ? 'Choose a model'
                         : 'No coding CLI available'}
                     </NativeSelectOption>
                   )}
                   {groupedCommitModels(
-                    models.data?.filter(
+                    choices?.filter(
                       (entry) => !entry.id.endsWith(':default'),
                     ) ?? [],
                   ).map(([provider, entries]) => (
@@ -451,7 +454,7 @@ export function CommitForm(
         }
       >
         {working
-          ? generator.isPending
+          ? generator.result.waiting
             ? 'Generating…'
             : commitAction === 'amend'
               ? 'Amending…'

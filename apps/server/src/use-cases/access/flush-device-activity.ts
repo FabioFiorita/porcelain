@@ -1,29 +1,33 @@
-import type { FlushDeviceActivityService } from '@porcelain/access/services';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { Context, Effect, Layer } from 'effect';
+import { FlushDeviceActivityService } from '@porcelain/access/services';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class FlushDeviceActivityUseCase {
-  private readonly flushDeviceActivity: FlushDeviceActivityService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
+export class FlushDeviceActivityUseCase extends Context.Service<
+  FlushDeviceActivityUseCase,
+  { readonly execute: () => Effect.Effect<void, never> }
+>()('@porcelain/server/FlushDeviceActivityUseCase') {
+  static readonly layer = Layer.effect(
+    FlushDeviceActivityUseCase,
+    Effect.gen(function* () {
+      const flushDeviceActivityCapability = yield* FlushDeviceActivityService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
 
-  constructor(
-    flushDeviceActivity: FlushDeviceActivityService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.flushDeviceActivity = flushDeviceActivity;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
-  }
-
-  execute(context: OperationContext): Promise<void> {
-    return this.lanes.run(
-      this.laneKeys.access(),
-      'write',
-      async () => this.flushDeviceActivity.execute(),
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('FlushDeviceActivityUseCase.execute')(
+          function* (): Effect.fn.Return<void, never> {
+            return yield* lanesCapability.run(
+              laneKeysCapability.access(),
+              'write',
+              () =>
+                Effect.gen(function* () {
+                  return yield* flushDeviceActivityCapability.execute();
+                }),
+            );
+          },
+        ),
+      };
+    }),
+  );
 }

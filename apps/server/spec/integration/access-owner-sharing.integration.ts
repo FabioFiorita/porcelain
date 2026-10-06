@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import {
   readRemoteAccessResponseSchema,
   setRemoteAccessResponseSchema,
@@ -32,7 +33,11 @@ test('the owner reads every sharing route off at first, with the address the ser
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readRemoteAccessResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readRemoteAccessResponseSchema),
+      ),
+    ),
   );
   const off = { enabled: false, status: { kind: 'off' } };
   expect(record(response.body).routes).toStrictEqual({
@@ -52,7 +57,11 @@ test('the owner turns the local network and the tailnet on, and each comes up wi
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(setRemoteAccessResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(setRemoteAccessResponseSchema),
+      ),
+    ),
   );
   expect(status(record(response.body), 'lan')).toStrictEqual({
     kind: 'starting',

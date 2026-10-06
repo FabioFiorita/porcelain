@@ -1,54 +1,64 @@
-import type {
-  SetFilePreferenceParams,
-  SetFilePreferenceRequest,
-  SetFilePreferenceResponse,
+import { Effect, Context, Layer } from 'effect';
+import {
+  type ProjectNotFoundError,
+  type FilePreferenceLimitError,
+} from '@porcelain/projects/errors';
+import {
+  type SetFilePreferenceParams,
+  type SetFilePreferenceRequest,
+  type SetFilePreferenceResponse,
 } from '@porcelain/contracts/projects';
-import type {
+import {
   CheckProjectService,
   SetFilePreferenceService,
 } from '@porcelain/projects/services';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { EventPublisher } from '../../ports/event-publisher.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class SetFilePreferenceUseCase {
-  private readonly checkProject: CheckProjectService;
-  private readonly setFilePreference: SetFilePreferenceService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-  private readonly events: EventPublisher;
-
-  constructor(
-    checkProject: CheckProjectService,
-    setFilePreference: SetFilePreferenceService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-    events: EventPublisher,
-  ) {
-    this.checkProject = checkProject;
-    this.setFilePreference = setFilePreference;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
-    this.events = events;
+export class SetFilePreferenceUseCase extends Context.Service<
+  SetFilePreferenceUseCase,
+  {
+    readonly execute: (
+      input: SetFilePreferenceParams & SetFilePreferenceRequest,
+    ) => Effect.Effect<
+      SetFilePreferenceResponse,
+      ProjectNotFoundError | FilePreferenceLimitError
+    >;
   }
+>()('@porcelain/server/SetFilePreferenceUseCase') {
+  static readonly layer = Layer.effect(
+    SetFilePreferenceUseCase,
+    Effect.gen(function* () {
+      const checkProjectCapability = yield* CheckProjectService;
+      const setFilePreferenceCapability = yield* SetFilePreferenceService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
+      const eventsCapability = yield* EventPublisher;
 
-  async execute(
-    input: SetFilePreferenceParams & SetFilePreferenceRequest,
-    context: OperationContext,
-  ): Promise<SetFilePreferenceResponse> {
-    const project = this.checkProject.execute({ projectId: input.projectId });
-    const result = await this.lanes.run(
-      this.laneKeys.project(project),
-      'write',
-      async () => this.setFilePreference.execute(input),
-      { callerSignal: context.signal },
-    );
-    if (result.changed)
-      this.events.projectChanged({
-        projectId: input.projectId,
-        change: 'preferences',
-      });
-    return { preferences: result.preferences };
-  }
+      return {
+        execute: Effect.fn('SetFilePreferenceUseCase.execute')(function* (
+          input: SetFilePreferenceParams & SetFilePreferenceRequest,
+        ): Effect.fn.Return<
+          SetFilePreferenceResponse,
+          ProjectNotFoundError | FilePreferenceLimitError
+        > {
+          const project = yield* checkProjectCapability.execute({
+            projectId: input.projectId,
+          });
+          const result = yield* lanesCapability.run(
+            laneKeysCapability.project(project),
+            'write',
+            () => setFilePreferenceCapability.execute(input),
+          );
+          if (result.changed)
+            yield* eventsCapability.projectChanged({
+              projectId: input.projectId,
+              change: 'preferences',
+            });
+          return { preferences: result.preferences };
+        }),
+      };
+    }),
+  );
 }

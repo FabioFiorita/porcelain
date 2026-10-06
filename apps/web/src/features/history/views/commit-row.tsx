@@ -1,4 +1,4 @@
-import { formatDistanceToNowStrict } from 'date-fns';
+import { relativeTime } from '@/shared/lib/relative-time';
 import { CopyIcon, GitMergeIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,10 @@ import {
 } from '@/components/ui/context-menu';
 import { cn } from '@/shared/lib/utils';
 import { copyText } from '@/shared/workspace/copy';
-import { commitMessage, type CommitSummary } from '../rules/commit';
+import {
+  commitMessage,
+  type CommitSummary,
+} from '@porcelain/client/history/rules';
 import { historyRefLabel, shortOid } from '../rules/graph';
 
 export function CommitRow({
@@ -60,9 +63,7 @@ export function CommitRow({
           <span className="truncate">{commit.author.name}</span>
           <span aria-hidden="true">·</span>
           <span className="shrink-0">
-            {formatDistanceToNowStrict(new Date(commit.author.timestamp), {
-              addSuffix: true,
-            })}
+            {relativeTime(commit.author.timestamp)}
           </span>
         </span>
         {children}

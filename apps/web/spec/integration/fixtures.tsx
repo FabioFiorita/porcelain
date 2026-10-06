@@ -1,4 +1,4 @@
-import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
+import { AtomRegistry } from 'effect/reactivity';
 import { Suspense, useRef, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test as base } from 'vitest';
@@ -9,12 +9,12 @@ import { PairedShell } from '@/app/paired-shell';
 import {
   pairBrowser,
   restoreSession,
-  useAccessStore,
+  accessSession,
+  applicationRuntime,
 } from '@/features/access/index';
 import { ThemeProvider } from '@/features/preferences/index';
 import { ProjectNavigator, useInventory } from '@/features/projects/index';
 import { ReviewWorkspace } from '@/features/reviews/index';
-import { createQueryClient } from '@/shared/query/client';
 import type { Connection } from '@/shared/workspace/connection';
 import type { WorkspaceSearch } from '@/shared/workspace/search';
 import {
@@ -99,18 +99,14 @@ function readersOf(server: ServerName) {
 }
 
 function Providers({
-  client,
+  registry,
   children,
 }: {
-  client: QueryClient;
+  registry: AtomRegistry.AtomRegistry;
   children: ReactNode;
 }) {
   return (
-    <AppProviders
-      query={(app) => (
-        <QueryClientProvider client={client}>{app}</QueryClientProvider>
-      )}
-    >
+    <AppProviders registry={registry}>
       <ThemeProvider>
         <PairedShell>
           <Suspense>{children}</Suspense>
@@ -148,7 +144,6 @@ function Navigator({ connection }: { connection: Connection }) {
   return (
     <ProjectNavigator
       inventory={inventory}
-      connection={connection}
       remotes={undefined}
       selected={undefined}
       onSelect={() => {}}
@@ -160,32 +155,34 @@ function Navigator({ connection }: { connection: Connection }) {
   );
 }
 
-async function pairedConnection(client: QueryClient): Promise<Connection> {
+async function pairedConnection(
+  registry: AtomRegistry.AtomRegistry,
+): Promise<Connection> {
   const issued = await host.porcelainPairingLink('Journey browser', 'this');
   await pairBrowser(
-    client,
+    registry,
     { code: issued.code, environmentId: issued.environmentId },
     new AbortController().signal,
   );
-  const { connection } = useAccessStore.getState();
-  if (!(await restoreSession(client)) || connection === null)
+  const { connection } = accessSession.state.value;
+  if (!(await restoreSession(registry)) || connection === null)
     throw new Error('Pairing left no session the paired routes restore.');
   return connection;
 }
 
 async function mount(view: (connection: Connection) => ReactNode) {
-  const client = createQueryClient();
-  const connection = await pairedConnection(client);
+  const registry = AtomRegistry.make();
+  const connection = await pairedConnection(registry);
   const element = document.createElement('div');
   document.body.append(element);
   const root = createRoot(element);
-  root.render(<Providers client={client}>{view(connection)}</Providers>);
-  return () => {
+  root.render(<Providers registry={registry}>{view(connection)}</Providers>);
+  return async () => {
     watching = false;
     root.unmount();
     element.remove();
-    useAccessStore.getState().clear();
-    client.clear();
+    await applicationRuntime.runPromise(accessSession.clear());
+    registry.dispose();
     localStorage.clear();
     sessionStorage.clear();
   };
@@ -240,7 +237,7 @@ export const test = base
     install: () => host.porcelainCodingTool(),
   }))
   .extend('render', async ({ world: _world }, { onCleanup }) => {
-    let unmount: (() => void) | undefined;
+    let unmount: (() => Promise<void>) | undefined;
     onCleanup(() => unmount?.());
     const show = async (view: (connection: Connection) => ReactNode) => {
       if (unmount !== undefined)
@@ -272,7 +269,18 @@ export const test = base
     };
     return render;
   })
-  .extend('workspace', ({ render }) => render.workspace())
+  .extend('workspace', async ({ render, repo }) => {
+    const workspace = await render.workspace();
+    await expect
+      .element(
+        workspace.getByRole('button', {
+          name: `Mark ${repo.readme.path} as reviewed`,
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    return workspace;
+  })
   .extend('navigator', ({ render }) => render.navigator())
   .extend('fetchGate', ({ repo }, { onCleanup }) => {
     const gate = createFetchGate(repo.readme.path);

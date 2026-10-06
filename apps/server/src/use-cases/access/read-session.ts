@@ -1,23 +1,34 @@
-import type {
-  ReadSessionRequest,
-  ReadSessionResponse,
+import { Effect, Context, Layer } from 'effect';
+import {
+  type ReadSessionRequest,
+  type ReadSessionResponse,
 } from '@porcelain/contracts/access';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class ReadSessionUseCase {
-  private readonly lanes: Lanes;
-
-  constructor(lanes: Lanes) {
-    this.lanes = lanes;
+export class ReadSessionUseCase extends Context.Service<
+  ReadSessionUseCase,
+  {
+    readonly execute: (
+      input: ReadSessionRequest,
+    ) => Effect.Effect<ReadSessionResponse, never>;
   }
+>()('@porcelain/server/ReadSessionUseCase') {
+  static readonly layer = Layer.effect(
+    ReadSessionUseCase,
+    Effect.gen(function* () {
+      const lanesCapability = yield* Lanes;
 
-  execute(
-    input: ReadSessionRequest,
-    context: OperationContext,
-  ): Promise<ReadSessionResponse> {
-    return this.lanes.unqueued(async () => input.viewer, {
-      callerSignal: context.signal,
-    });
-  }
+      return {
+        execute: Effect.fn('ReadSessionUseCase.execute')(function* (
+          input: ReadSessionRequest,
+        ): Effect.fn.Return<ReadSessionResponse, never> {
+          return yield* lanesCapability.unqueued(() =>
+            Effect.sync(() => {
+              return input.viewer;
+            }),
+          );
+        }),
+      };
+    }),
+  );
 }

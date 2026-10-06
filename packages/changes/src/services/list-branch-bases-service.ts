@@ -1,20 +1,32 @@
-import type {
-  ListBranchBasesInput,
-  ListBranchBasesResult,
+import { type GitIoFailure } from '@porcelain/git/errors';
+import { Effect, Context, Layer } from 'effect';
+import { type WorktreeRead } from '@porcelain/effects/worktree';
+import {
+  type ListBranchBasesInput,
+  type ListBranchBasesResult,
 } from '../models/list-branch-bases.ts';
-import type { BranchRangeReader } from '../ports/branch-range-reader.ts';
+import { BranchRangeReader } from '../ports/branch-range-reader.ts';
 
-export class ListBranchBasesService {
-  private readonly branchRangeReader: BranchRangeReader;
-
-  constructor(branchRangeReader: BranchRangeReader) {
-    this.branchRangeReader = branchRangeReader;
+export class ListBranchBasesService extends Context.Service<
+  ListBranchBasesService,
+  {
+    readonly execute: (
+      input: ListBranchBasesInput,
+    ) => Effect.Effect<ListBranchBasesResult, GitIoFailure, WorktreeRead>;
   }
+>()('@porcelain/changes/ListBranchBasesService') {
+  static readonly layer = Layer.effect(
+    ListBranchBasesService,
+    Effect.gen(function* () {
+      const branchRangeReaderCapability = yield* BranchRangeReader;
 
-  execute(
-    input: ListBranchBasesInput,
-    signal?: AbortSignal,
-  ): Promise<ListBranchBasesResult> {
-    return this.branchRangeReader.listBranchBases(input, signal);
-  }
+      return {
+        execute: Effect.fn('ListBranchBasesService.execute')(function* (
+          input: ListBranchBasesInput,
+        ): Effect.fn.Return<ListBranchBasesResult, GitIoFailure, WorktreeRead> {
+          return yield* branchRangeReaderCapability.listBranchBases(input);
+        }),
+      };
+    }),
+  );
 }

@@ -1,14 +1,5 @@
 import { SettingsScreen } from '../../features/access';
-import { useForgetProjectEnvironment } from '../../features/projects';
-import { DestinationScreen } from '../../shell/destination-screen';
 
-function SettingsRoute() {
-  const forgetProjectEnvironment = useForgetProjectEnvironment();
-  return (
-    <DestinationScreen>
-      <SettingsScreen forgetProjectEnvironment={forgetProjectEnvironment} />
-    </DestinationScreen>
-  );
+export default function SettingsRoute() {
+  return <SettingsScreen />;
 }
-
-export { SettingsRoute as default };

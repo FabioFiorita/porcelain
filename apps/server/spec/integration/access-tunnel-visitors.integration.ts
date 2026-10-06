@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { expect } from 'vitest';
 import {
@@ -102,7 +103,9 @@ test('the cookie a tunnel visitor sends back stays for HTTPS only and works only
 
   expect(tunnelRead.status).toBe(200);
   expect(tunnelRead.body).toEqual(
-    expect.schemaMatching(readInventoryResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readInventoryResponseSchema)),
+    ),
   );
   expect(tunnelRead.headers['set-cookie']).toMatch(secureCookieForm);
   expect(tunnelRead.headers['strict-transport-security']).toBe(

@@ -1,52 +1,54 @@
-import type { ListCommitsService } from '@porcelain/changes/services';
-import type {
-  ListCommitsQuery,
-  ListCommitsResponse,
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import { type GitIoFailure } from '@porcelain/git/errors';
+import { ListCommitsService } from '@porcelain/changes/services';
+import {
+  type ListCommitsQuery,
+  type ListCommitsResponse,
 } from '@porcelain/contracts/changes';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import { type WorktreeParams } from '@porcelain/contracts/shared';
 
-export class ListCommitsUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly listCommits: ListCommitsService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    listCommits: ListCommitsService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.checkWorktree = checkWorktree;
-    this.listCommits = listCommits;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class ListCommitsUseCase extends Context.Service<
+  ListCommitsUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams & ListCommitsQuery,
+    ) => Effect.Effect<
+      ListCommitsResponse,
+      WorktreeAccessFailure | GitIoFailure
+    >;
   }
+>()('@porcelain/server/ListCommitsUseCase') {
+  static readonly layer = Layer.effect(
+    ListCommitsUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const listCommitsCapability = yield* ListCommitsService;
 
-  async execute(
-    input: WorktreeParams & ListCommitsQuery,
-    context: OperationContext,
-  ): Promise<ListCommitsResponse> {
-    const { worktreeId, limit, after, tip } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
-    );
-    return this.lanes.runConsistent(
-      this.laneKeys.repository(worktree),
-      worktree,
-      async ({ signal }) => {
-        const page = await this.listCommits.execute(
-          { worktreeId, limit, after, tip },
-          signal,
-        );
-        return page;
-      },
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('ListCommitsUseCase.execute')(function* (
+          input: WorktreeParams & ListCommitsQuery,
+        ): Effect.fn.Return<
+          ListCommitsResponse,
+          WorktreeAccessFailure | GitIoFailure
+        > {
+          return yield* Effect.suspend(() => {
+            const { worktreeId, limit, after, tip } = input;
+            return accessCapability.read(worktreeId, () =>
+              Effect.gen(function* () {
+                const page = yield* listCommitsCapability.execute({
+                  worktreeId,
+                  limit,
+                  after,
+                  tip,
+                });
+                return page;
+              }),
+            );
+          });
+        }),
+      };
+    }),
+  );
 }

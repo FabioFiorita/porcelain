@@ -1,4 +1,88 @@
-export type CommentAuthorRole = 'reviewer' | 'agent';
+import { Schema } from 'effect';
+const commentComparisonSchema = Schema.Union([
+  Schema.Struct({
+    kind: Schema.mutableKey(Schema.Literal('worktree')),
+    scope: Schema.mutableKey(
+      Schema.Union([
+        Schema.Literal('staged'),
+        Schema.Literal('unstaged'),
+        Schema.Literal('untracked'),
+      ]),
+    ),
+  }),
+  Schema.Struct({ kind: Schema.mutableKey(Schema.Literal('file')) }),
+  Schema.Struct({
+    kind: Schema.mutableKey(Schema.Literal('commit')),
+    parent: Schema.mutableKey(Schema.Number),
+  }),
+  Schema.Struct({
+    kind: Schema.mutableKey(Schema.Literal('branch')),
+    base: Schema.mutableKey(Schema.String),
+  }),
+]);
+export const commentAnchorSchema = Schema.Union([
+  Schema.Struct({
+    comparison: Schema.mutableKey(
+      Schema.optional(
+        Schema.Union([commentComparisonSchema, Schema.Undefined]),
+      ),
+    ),
+    revision: Schema.mutableKey(
+      Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+    ),
+    contentFingerprint: Schema.mutableKey(
+      Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+    ),
+    kind: Schema.mutableKey(Schema.Literal('change')),
+  }),
+  Schema.Struct({
+    comparison: Schema.mutableKey(
+      Schema.optional(
+        Schema.Union([commentComparisonSchema, Schema.Undefined]),
+      ),
+    ),
+    revision: Schema.mutableKey(
+      Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+    ),
+    contentFingerprint: Schema.mutableKey(
+      Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+    ),
+    kind: Schema.mutableKey(Schema.Literal('file')),
+    filePath: Schema.mutableKey(Schema.String),
+  }),
+  Schema.Struct({
+    comparison: Schema.mutableKey(
+      Schema.optional(
+        Schema.Union([commentComparisonSchema, Schema.Undefined]),
+      ),
+    ),
+    revision: Schema.mutableKey(
+      Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+    ),
+    contentFingerprint: Schema.mutableKey(
+      Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+    ),
+    kind: Schema.mutableKey(Schema.Literal('codeRange')),
+    filePath: Schema.mutableKey(Schema.String),
+    startLine: Schema.mutableKey(Schema.Number),
+    endLine: Schema.mutableKey(Schema.Number),
+    side: Schema.mutableKey(
+      Schema.optional(
+        Schema.Union([
+          Schema.Literal('additions'),
+          Schema.Literal('deletions'),
+          Schema.Undefined,
+        ]),
+      ),
+    ),
+  }),
+]);
+export const commentAuthorRoleSchema = Schema.Union([
+  Schema.Literal('reviewer'),
+  Schema.Literal('agent'),
+]);
+
+export type CommentAuthorRole = typeof commentAuthorRoleSchema.Type;
 
 export type CommentWriter = {
   kind: 'owner' | 'device' | 'agent';
@@ -6,27 +90,7 @@ export type CommentWriter = {
 
 export type CommentThreadScope = 'all' | 'waiting';
 
-type CommentComparison =
-  | { kind: 'worktree'; scope: 'staged' | 'unstaged' | 'untracked' }
-  | { kind: 'file' }
-  | { kind: 'commit'; parent: number }
-  | { kind: 'branch'; base: string };
-
-export type CommentAnchor = {
-  comparison?: CommentComparison | undefined;
-  revision?: string | undefined;
-  contentFingerprint?: string | undefined;
-} & (
-  | { kind: 'change' }
-  | { kind: 'file'; filePath: string }
-  | {
-      kind: 'codeRange';
-      filePath: string;
-      startLine: number;
-      endLine: number;
-      side?: 'additions' | 'deletions' | undefined;
-    }
-);
+export type CommentAnchor = typeof commentAnchorSchema.Type;
 
 export type CommentMessage = {
   id: string;
@@ -41,7 +105,7 @@ export type CommentThread = {
   worktreeId: string;
   anchor: CommentAnchor;
   resolved: boolean;
-  messages: CommentMessage[];
+  messages: readonly CommentMessage[];
   revision: number;
 };
 

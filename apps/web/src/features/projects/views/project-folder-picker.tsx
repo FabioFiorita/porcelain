@@ -1,3 +1,5 @@
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { Fragment } from 'react';
 import {
   Breadcrumb,
@@ -10,7 +12,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useProjectFolder } from '../queries/project-locations';
-import { useProjectBrowserStore } from '../store';
+import { projectFolder } from '../store';
+import { useAtomSet, useAtomValue } from '@effect/atom-react';
 import { ProjectFolderList } from './project-folder-list';
 import { type Connection } from '@/shared/workspace/connection';
 
@@ -23,10 +26,10 @@ export function ProjectFolderPicker({
   disabled: boolean;
   onOpen: (path: string) => void;
 }) {
-  const path = useProjectBrowserStore((state) => state.folderPath);
-  const setPath = useProjectBrowserStore((state) => state.setFolderPath);
-  const folder = useProjectFolder(connection, path, true);
-  const current = folder.data;
+  const path = useAtomValue(projectFolder);
+  const setPath = useAtomSet(projectFolder);
+  const folder = useProjectFolder(connection, path);
+  const current = Option.getOrUndefined(AsyncResult.value(folder.value));
   const crumbs = current
     ? ['/', ...current.path.split('/').filter(Boolean)]
     : [];
@@ -88,8 +91,8 @@ export function ProjectFolderPicker({
           disabled={
             disabled ||
             !current?.repository ||
-            folder.isFetching ||
-            folder.isError
+            AsyncResult.isWaiting(folder.value) ||
+            AsyncResult.isFailure(folder.value)
           }
           onClick={() => {
             if (current) onOpen(current.path);

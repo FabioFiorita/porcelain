@@ -1,7 +1,10 @@
-export class FileTooLargeError extends Error {
-  override readonly name = 'FileTooLargeError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('File exceeds the read limit');
+export class FileTooLargeError extends Schema.TaggedError<FileTooLargeError>()(
+  'FileTooLargeError',
+  {},
+) {
+  override get message() {
+    return 'File exceeds the read limit';
   }
 }

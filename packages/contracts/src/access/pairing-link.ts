@@ -1,7 +1,7 @@
-import { z } from 'zod';
+import { Schema, SchemaTransformation } from 'effect';
 
 type PairingLinkParts = {
-  addresses: string[];
+  addresses: readonly string[];
   code: string;
   environmentId: string;
 };
@@ -33,12 +33,18 @@ function linkParts(link: string): PairingLinkParts {
   };
 }
 
-export const pairingLinkSchema = z.codec(
-  z.string(),
-  z.object({
-    addresses: z.array(z.string()),
-    code: z.string(),
-    environmentId: z.string(),
-  }),
-  { decode: linkParts, encode: pairingLink },
+const pairingLinkWireSchema = Schema.String;
+const pairingLinkValueSchema = Schema.Struct({
+  addresses: Schema.Array(Schema.String),
+  code: Schema.String,
+  environmentId: Schema.String,
+});
+export const pairingLinkSchema = pairingLinkWireSchema.pipe(
+  Schema.decodeTo(
+    pairingLinkValueSchema,
+    SchemaTransformation.transform<
+      typeof pairingLinkValueSchema.Type,
+      typeof pairingLinkWireSchema.Type
+    >({ decode: linkParts, encode: pairingLink }),
+  ),
 );

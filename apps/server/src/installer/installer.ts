@@ -1,3 +1,6 @@
+import { Effect, type Clock } from 'effect';
+import { NodeServices } from '@effect/platform-node';
+import { nativeOperation } from '@porcelain/effects';
 import { commandRunner, type CommandRunner } from './command-runner.ts';
 import type { InstallerContext } from './context.ts';
 import { NoUserIdError } from './errors/no-user-id-error.ts';
@@ -13,7 +16,6 @@ import { acquireDirectoryLock } from '../runtime/directory-lock.ts';
 import { ManagementLockHeldError } from './errors/management-lock-held-error.ts';
 import { servicePaths } from './paths.ts';
 import { serviceSearchPath } from './search-path.ts';
-import type { Clock } from '@porcelain/kernel/ports';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
 import { readServiceStatus, type ServiceStatus } from './status.ts';
 import { SystemdService } from './systemd-service.ts';
@@ -30,7 +32,7 @@ type InstallerOptions = {
   packageVersion: string;
   searchPath: string;
   ownerProbe: OwnerProbe;
-  clock: Clock;
+  clock: Clock.Clock;
   limits: Limits;
   uid?: number | undefined;
   runner?: CommandRunner | undefined;
@@ -64,20 +66,23 @@ class Installer {
     return this.locked(() => uninstall(this.context));
   }
 
-  private async locked<T>(work: () => Promise<T>): Promise<T> {
-    const lock = await acquireDirectoryLock({
-      path: join(this.context.paths.root, 'management.lock'),
-      waitMs: 0,
-      pollMs: this.context.limits.locks.pollMs,
-      staleTakeovers: this.context.limits.locks.staleTakeovers,
-      clock: this.context.clock,
-      held: () => new ManagementLockHeldError(),
-    });
-    try {
-      return await work();
-    } finally {
-      await lock.release();
-    }
+  private locked<T>(work: () => Promise<T>): Promise<T> {
+    const context = this.context;
+    return Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          yield* acquireDirectoryLock({
+            path: join(context.paths.root, 'management.lock'),
+            waitMs: 0,
+            pollMs: context.limits.locks.pollMs,
+            staleTakeovers: context.limits.locks.staleTakeovers,
+            clock: context.clock,
+            held: () => new ManagementLockHeldError(),
+          });
+          return yield* nativeOperation(work);
+        }),
+      ).pipe(Effect.provide(NodeServices.layer)),
+    );
   }
 }
 

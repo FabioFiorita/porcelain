@@ -1,7 +1,7 @@
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type { GitDiffResult } from '../dtos/git-diff.ts';
 import type { GitOrdinaryChange } from '../dtos/git-status.ts';
-import { InspectionLimitError } from '../errors/inspection-limit-error.ts';
+import { InspectionLimitError } from '../../shared/errors/inspection-limit-error.ts';
 import type { CheckoutSession } from '../interfaces/git-session.ts';
 import { diffKey, parseDiff } from '../parsers/parse-diff.ts';
 import { sessionConversionFilters } from './check-conversion-filters.ts';

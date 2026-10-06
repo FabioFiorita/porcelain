@@ -1,18 +1,18 @@
-import { historyQueryOptions } from '@porcelain/client/history';
-import { useSuspenseInfiniteQuery } from '@tanstack/react-query';
-import { discardRejection } from '@/shared/lib/submit-form';
-import type { HistoryScope } from '../rules/connection';
-import { type Connection } from '@/shared/workspace/connection';
+import { readHistory, readHistoryWindow } from '@porcelain/client/history';
+import { useAtomSet } from '@effect/atom-react';
+import { useConfirmedRead } from '@/shared/query/confirmed-read';
+import type { HistoryScope } from '@porcelain/client/history/rules';
+import type { Connection } from '@/shared/workspace/connection';
 
 export function useHistory(connection: Connection, scope: HistoryScope) {
-  const query = useSuspenseInfiniteQuery(
-    historyQueryOptions(scope, connection),
+  const history = readHistory({ connection, scope });
+  const { result, value } = useConfirmedRead(
+    readHistoryWindow({ connection, scope }),
   );
+  const readMore = useAtomSet(history);
   return {
-    ...query.data,
-    hasNextPage: query.hasNextPage,
-    isFetchingNextPage: query.isFetchingNextPage,
-    isFetchNextPageError: query.isFetchNextPageError,
-    loadNextPage: () => discardRejection(query.fetchNextPage()),
+    ...value,
+    result,
+    readMore: () => readMore(undefined),
   };
 }

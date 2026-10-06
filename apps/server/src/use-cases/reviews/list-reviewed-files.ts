@@ -1,47 +1,44 @@
-import type {
-  ListReviewedFilesQuery,
-  ListReviewedFilesResponse,
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import {
+  type ListReviewedFilesQuery,
+  type ListReviewedFilesResponse,
 } from '@porcelain/contracts/reviews';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { ListReviewedFilesService } from '@porcelain/reviews/services';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import { type WorktreeParams } from '@porcelain/contracts/shared';
+import { ListReviewedFilesService } from '@porcelain/reviews/services';
 
-export class ListReviewedFilesUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly listReviewedFiles: ListReviewedFilesService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    listReviewedFiles: ListReviewedFilesService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.checkWorktree = checkWorktree;
-    this.listReviewedFiles = listReviewedFiles;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class ListReviewedFilesUseCase extends Context.Service<
+  ListReviewedFilesUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams & ListReviewedFilesQuery,
+    ) => Effect.Effect<ListReviewedFilesResponse, WorktreeAccessFailure>;
   }
+>()('@porcelain/server/ListReviewedFilesUseCase') {
+  static readonly layer = Layer.effect(
+    ListReviewedFilesUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const listReviewedFilesCapability = yield* ListReviewedFilesService;
 
-  async execute(
-    input: WorktreeParams & ListReviewedFilesQuery,
-    context: OperationContext,
-  ): Promise<ListReviewedFilesResponse> {
-    const { worktreeId, scope } = input;
-    const branch = scope === 'branch' ? input.branch : undefined;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
-    );
-    return this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'read',
-      async () => this.listReviewedFiles.execute({ worktreeId, scope, branch }),
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('ListReviewedFilesUseCase.execute')(function* (
+          input: WorktreeParams & ListReviewedFilesQuery,
+        ): Effect.fn.Return<ListReviewedFilesResponse, WorktreeAccessFailure> {
+          const { worktreeId, scope } = input;
+          const branch = scope === 'branch' ? input.branch : undefined;
+          return yield* accessCapability.reviews(worktreeId, 'read', () =>
+            Effect.gen(function* () {
+              return yield* listReviewedFilesCapability.execute({
+                worktreeId,
+                scope,
+                branch,
+              });
+            }),
+          );
+        }),
+      };
+    }),
+  );
 }

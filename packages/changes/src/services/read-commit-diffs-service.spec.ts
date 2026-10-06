@@ -1,3 +1,6 @@
+import { CommitHistoryReader } from '@porcelain/changes/ports';
+import { Effect } from 'effect';
+import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
 import { ReadCommitDiffsService } from './read-commit-diffs-service.ts';
 import { InMemoryCommitHistoryReader } from '../../spec/fakes/in-memory-commit-history-reader.ts';
@@ -20,14 +23,24 @@ describe('ReadCommitDiffsService', () => {
         },
       },
     });
-    const read = new ReadCommitDiffsService(history);
+    const read = Effect.runSync(
+      ReadCommitDiffsService.pipe(
+        Effect.provide(ReadCommitDiffsService.layer),
+        Effect.provideService(CommitHistoryReader, history),
+      ),
+    );
     expect(
-      await read.execute({
-        worktreeId: 'w',
-        oid,
-        parent: undefined,
-        paths: [['a.md'], ['README.md', 'GUIDE.md']],
-      }),
+      await Effect.runPromise(
+        withReadLease(
+          'w',
+          read.execute({
+            worktreeId: 'w',
+            oid,
+            parent: undefined,
+            paths: [['a.md'], ['README.md', 'GUIDE.md']],
+          }),
+        ),
+      ),
     ).toEqual({
       commitOid: oid,
       diffs: [
@@ -41,13 +54,26 @@ describe('ReadCommitDiffsService', () => {
   });
 
   it('answers a path the commit did not touch with an empty metadata-only patch', async () => {
-    const read = new ReadCommitDiffsService(new InMemoryCommitHistoryReader());
-    const { diffs } = await read.execute({
-      worktreeId: 'w',
-      oid,
-      parent: undefined,
-      paths: [['untouched.md']],
-    });
+    const read = Effect.runSync(
+      ReadCommitDiffsService.pipe(
+        Effect.provide(ReadCommitDiffsService.layer),
+        Effect.provideService(
+          CommitHistoryReader,
+          new InMemoryCommitHistoryReader(),
+        ),
+      ),
+    );
+    const { diffs } = await Effect.runPromise(
+      withReadLease(
+        'w',
+        read.execute({
+          worktreeId: 'w',
+          oid,
+          parent: undefined,
+          paths: [['untouched.md']],
+        }),
+      ),
+    );
     expect(diffs).toEqual([
       {
         paths: ['untouched.md'],
@@ -60,13 +86,23 @@ describe('ReadCommitDiffsService', () => {
     const history = new InMemoryCommitHistoryReader({
       patches: { [oid]: { kind: 'over-limit' } },
     });
-    const read = new ReadCommitDiffsService(history);
-    const { diffs } = await read.execute({
-      worktreeId: 'w',
-      oid,
-      parent: undefined,
-      paths: [['a.md'], ['b.md']],
-    });
+    const read = Effect.runSync(
+      ReadCommitDiffsService.pipe(
+        Effect.provide(ReadCommitDiffsService.layer),
+        Effect.provideService(CommitHistoryReader, history),
+      ),
+    );
+    const { diffs } = await Effect.runPromise(
+      withReadLease(
+        'w',
+        read.execute({
+          worktreeId: 'w',
+          oid,
+          parent: undefined,
+          paths: [['a.md'], ['b.md']],
+        }),
+      ),
+    );
     expect(diffs.map((diff) => diff.content)).toEqual([
       { kind: 'omitted', reason: 'size-limit' },
       { kind: 'omitted', reason: 'size-limit' },

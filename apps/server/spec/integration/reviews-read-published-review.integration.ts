@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { readPublishedReviewResponseSchema } from '@porcelain/contracts/reviews';
 import { expect } from 'vitest';
@@ -29,7 +30,11 @@ test('reading the review before anything is published answers null', async ({
   expect(response.status).toBe(200);
   expect(response.body).toStrictEqual({ review: null });
   expect(response.body).toEqual(
-    expect.schemaMatching(readPublishedReviewResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readPublishedReviewResponseSchema),
+      ),
+    ),
   );
 });
 

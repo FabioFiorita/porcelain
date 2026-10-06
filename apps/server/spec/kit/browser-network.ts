@@ -22,7 +22,6 @@ type CallHandler = (call: RoutedCall) => Promise<void>;
 
 export type RoutedContext = {
   route(url: string, handler: CallHandler): Promise<unknown>;
-  unroute(url: string, handler: CallHandler): Promise<unknown>;
   routeWebSocket(
     url: RegExp,
     handler: (socket: RoutedSocket) => void,
@@ -114,12 +113,15 @@ export function browserNetwork(context: RoutedContext) {
       onHold === undefined ? { once: true } : { once: true, onHold },
     );
   async function fail(matches: RequestMatch, status: number) {
+    let failing = true;
     const handler: CallHandler = (call) =>
-      matches(call.request())
+      failing && matches(call.request())
         ? call.fulfill({ status, body: '' })
         : call.fallback();
     await context.route('**/api/**', handler);
-    return () => context.unroute('**/api/**', handler);
+    return async () => {
+      failing = false;
+    };
   }
   return { live, hold, holdNext, fail };
 }

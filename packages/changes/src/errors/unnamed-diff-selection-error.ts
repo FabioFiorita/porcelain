@@ -1,7 +1,10 @@
-export class UnnamedDiffSelectionError extends Error {
-  override readonly name = 'UnnamedDiffSelectionError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('A diff selection names neither an old nor a new path');
+export class UnnamedDiffSelectionError extends Schema.TaggedError<UnnamedDiffSelectionError>()(
+  'UnnamedDiffSelectionError',
+  {},
+) {
+  override get message() {
+    return 'A diff selection names neither an old nor a new path';
   }
 }

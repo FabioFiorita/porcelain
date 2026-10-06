@@ -1,59 +1,36 @@
-import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
-import { queryKeys } from '../../../shared/api/query-keys.ts';
-import type { QueryFunctionContext } from '@tanstack/query-core';
-import {
-  type WorktreeConnection,
-  type WorktreeScope,
+import { Atom } from 'effect/reactivity';
+import type {
+  RuntimeConnection,
+  WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { reviewsApi } from '../api.ts';
+import { worktreeResource } from '../../../shared/api/worktree-read.ts';
+import { ReviewedFilesState, reviewedRuntime } from '../store/reviewed.ts';
+import {
+  reviewedReadRange,
+  type ReviewedReadRange,
+  WORKTREE_RANGE,
+} from '../rules/reviewed.ts';
 
-export function reviewedQueryOptions(
-  scope: WorktreeScope,
-  connection: WorktreeConnection,
-  range:
-    | { kind: 'worktree' }
-    | { kind: 'branch'; branch: string | undefined } = { kind: 'worktree' },
-) {
-  return {
-    queryKey: queryKeys.worktreeSurface(connection, scope, [
+const reads = Atom.family(
+  (input: {
+    connection: RuntimeConnection;
+    scope: WorktreeScope;
+    range: ReviewedReadRange;
+  }) =>
+    worktreeResource(
+      input.scope,
       'reviewed',
-      ...(range.kind === 'branch' ? ['branch', range.branch ?? ''] : []),
-    ]),
-    queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
-      const connected = connection.request(signal);
-      const result = await reviewsApi(connection).reviewed.list({
-        worktreeId: scope.worktreeId,
-        ...connected,
-        range,
-      });
-      assertCurrentAnswer(
-        connected.signal,
-        result.worktreeId === scope.worktreeId,
-      );
-
-      return result;
-    },
-  };
-}
-
-export function layerMarksQueryOptions(
-  scope: WorktreeScope,
-  connection: WorktreeConnection,
-) {
-  return {
-    queryKey: queryKeys.worktreeSurface(connection, scope, ['reviewed-layers']),
-    queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
-      const connected = connection.request(signal);
-      const result = await reviewsApi(connection).reviewedLayers.list({
-        worktreeId: scope.worktreeId,
-        ...connected,
-      });
-      assertCurrentAnswer(
-        connected.signal,
-        result.worktreeId === scope.worktreeId,
-      );
-
-      return result;
-    },
-  };
+      ReviewedFilesState,
+      reviewedRuntime(input),
+    ),
+);
+export function readReviewedFiles({
+  range = WORKTREE_RANGE,
+  ...input
+}: {
+  connection: RuntimeConnection;
+  scope: WorktreeScope;
+  range?: ReviewedReadRange;
+}) {
+  return reads({ ...input, range: reviewedReadRange(range) });
 }

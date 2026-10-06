@@ -1,7 +1,10 @@
-export class UnknownProofFileError extends Error {
-  override readonly name = 'UnknownProofFileError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('A proofId names no image or video of the current review');
+export class UnknownProofFileError extends Schema.TaggedError<UnknownProofFileError>()(
+  'UnknownProofFileError',
+  {},
+) {
+  override get message() {
+    return 'A proofId names no image or video of the current review';
   }
 }

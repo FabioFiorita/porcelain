@@ -1,20 +1,20 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { GitScope } from '../rules/git-action';
+import { useAtom } from '@effect/atom-react';
+import type { GitScope } from '@porcelain/client/git-actions/rules';
+import { dismissInterruptedGitAction } from '@porcelain/client/git-actions';
 import { type ConnectionContext } from '@/shared/workspace/connection';
-import { gitActionCommands } from '@porcelain/client/git-actions';
 
 export function useDismissInterrupted(
   scope: GitScope,
   context: ConnectionContext,
 ) {
-  const { connection } = context;
-  const commands = gitActionCommands(scope, connection, useQueryClient());
-  const mutation = useMutation({
-    mutationFn: commands.dismiss,
-  });
+  const [result, dismiss] = useAtom(
+    dismissInterruptedGitAction({ connection: context.connection, scope }),
+    { mode: 'promiseExit' },
+  );
   return {
-    isPending: mutation.isPending,
-    error: mutation.error,
-    dismiss: (requestId: string) => mutation.mutate(requestId),
+    result,
+    dismiss: (requestId: string) => {
+      void dismiss(requestId);
+    },
   };
 }

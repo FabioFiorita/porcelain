@@ -1,3 +1,5 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
 import { ChevronDownIcon, GitBranchIcon, Undo2Icon } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import {
@@ -35,14 +37,17 @@ import { Spinner } from '@/components/ui/spinner';
 import { toast } from '@/components/ui/toast';
 import { usePreferences } from '@/features/preferences/index';
 import { useGitMenu } from '../commands/git-menu';
-import type { GitNotice } from '../rules/feedback';
-import type { GitAction, GitScope } from '../rules/git-action';
-import { gitActionGroups, gitActions } from '../rules/git-action-options';
+import type { GitNotice } from '@porcelain/client/git-actions/rules';
+import type { GitAction, GitScope } from '@porcelain/client/git-actions/rules';
+import {
+  gitActionGroups,
+  gitActions,
+} from '@porcelain/client/git-actions/rules';
 import {
   isNetworkAction,
   networkLabel,
   primaryTooltip,
-} from '../rules/network';
+} from '@porcelain/client/git-actions/rules';
 import {
   branchStatus,
   type GitActionStatus,
@@ -52,7 +57,7 @@ import {
   shownBranch,
   statusFromChanges,
   suggestedCount,
-} from '../rules/status';
+} from '@porcelain/client/git-actions/rules';
 import { GitActionIcon } from './git-action-icon';
 import { GitActionInspection } from './git-action-inspection';
 import { GitActionError, GitActionMessage } from './git-action-message';
@@ -65,14 +70,19 @@ export function GitButton({
   context: Parameters<typeof useGitMenu>[1];
 }) {
   const { connection } = context;
-  const overview = useReviewOverview(scope, connection);
+  const overview = Option.getOrUndefined(
+    AsyncResult.value(useReviewOverview(scope, connection)),
+  );
   const [detailsEnabled, setDetailsEnabled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const settled =
     overview != null &&
-    primaryGitAction(statusFromChanges(overview.changes)).kind === 'hint';
+    primaryGitAction(statusFromChanges(overview)).kind === 'hint';
   const detailsLive = detailsEnabled || settled;
   const details = useGitStatus(scope, connection, detailsLive);
+  const detailedStatus = Option.getOrUndefined(
+    AsyncResult.value(details.result),
+  );
   const refreshLook = useRefreshGitLook(scope, connection);
   const { preferences } = usePreferences();
   const [busy, setBusy] = useState(false);
@@ -105,10 +115,10 @@ export function GitButton({
   });
   if (overview == null) return null;
   const status = {
-    ...statusFromChanges(overview.changes),
+    ...statusFromChanges(overview),
     branch: shownBranch(
-      overview.changes.branch,
-      detailsLive ? details.status?.branch : undefined,
+      overview.branch,
+      detailsLive ? detailedStatus?.branch : undefined,
     ),
   };
   const selected = gitActions.find((candidate) => candidate.id === action);
@@ -263,7 +273,9 @@ export function GitButton({
                 <DropdownMenuGroup>
                   {group.actions.map((candidate) => {
                     const blocker =
-                      isNetworkAction(candidate.id) && details.pending
+                      isNetworkAction(candidate.id) &&
+                      detailsLive &&
+                      AsyncResult.isInitial(details.result)
                         ? 'Reading the configured upstream.'
                         : gitActionBlocker(candidate.id, status);
                     const reason =

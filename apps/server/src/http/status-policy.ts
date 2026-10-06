@@ -1,5 +1,7 @@
 import { STATUS_CODES } from 'node:http';
-import { HttpError } from '@fastify/sensible';
+import { HttpApiError } from 'effect/http-api';
+import { HttpServerError } from 'effect/http';
+import { RequestError } from '../runtime/errors/request-error.ts';
 import {
   DeviceNotFoundError,
   InvalidDeviceDetailsError,
@@ -29,7 +31,7 @@ import {
   UnnamedDiffSelectionError,
   UnrelatedBranchError,
 } from '@porcelain/changes/errors';
-import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
+import { type RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import {
   API_ERROR_STATUS,
   type ApiError,
@@ -69,27 +71,26 @@ import {
   MissingUpstreamExpectationError,
   UnsupportedCommitModelError,
 } from '@porcelain/git-actions/errors';
-import { GitActionRejectedError } from '@porcelain/git/actions';
-import { isRepositoryUnavailable } from '@porcelain/git/discovery';
 import {
+  GitActionRejectedError,
+  isRepositoryUnavailable,
   HistorySnapshotUnavailableError,
   HistoryWorktreeUnavailableError,
   InvalidHistoryRequestError,
   ReadLimitExceededError,
   UnsupportedHistoryDataError,
-} from '@porcelain/git/history';
-import {
   GitTimeoutError,
   InspectionLimitError,
   InvalidGitDiffError,
   InvalidGitStatusError,
   UnsupportedGitFiltersError,
   UnsupportedPathEncodingError,
-} from '@porcelain/git/inspection';
+} from '@porcelain/git/errors';
 import {
   InvalidLineRangeError,
   WorktreeChangedError,
   WorktreeNotFoundError,
+  RepositoryUnavailableError,
 } from '@porcelain/kernel/errors';
 import {
   FilePreferenceLimitError,
@@ -97,7 +98,6 @@ import {
   FolderNotReadableError,
   NoWorktreeAtPathError,
   ProjectNotFoundError,
-  RepositoryUnavailableError,
   UnsupportedFolderNameError,
   WorktreeUnavailableError,
 } from '@porcelain/projects/errors';
@@ -125,7 +125,6 @@ import {
   UnsupportedCommentComparisonError,
   UnsupportedProofFileError,
 } from '@porcelain/reviews/errors';
-import { errorCodes } from 'fastify';
 import { ApplicationClosedError } from '../runtime/errors/application-closed-error.ts';
 
 type ErrorClass = abstract new (...args: never[]) => Error;
@@ -165,9 +164,6 @@ const rules: readonly StatusRule[] = [
   },
   {
     errors: [
-      errorCodes.FST_ERR_CTP_INVALID_JSON_BODY,
-      errorCodes.FST_ERR_CTP_EMPTY_JSON_BODY,
-      errorCodes.FST_ERR_CTP_INVALID_MEDIA_TYPE,
       SelectionMismatchError,
       InvalidLineRangeError,
       UnnamedDiffSelectionError,
@@ -265,7 +261,7 @@ const rules: readonly StatusRule[] = [
     message: 'The review changed; reload before retrying',
   },
   {
-    errors: [errorCodes.FST_ERR_CTP_BODY_TOO_LARGE, ProofTooLargeError],
+    errors: [ProofTooLargeError],
     statusCode: 413,
   },
   {
@@ -389,12 +385,25 @@ export function gitActionReceiptStatus(
   return 200;
 }
 
-function isHttpError(error: unknown): error is HttpError {
-  return error instanceof HttpError;
-}
-
 export function toStatusResponse(error: unknown): StatusResponse {
-  if (isHttpError(error)) return response(error.statusCode, error.message);
+  if (error instanceof RequestError)
+    return response(error.statusCode, error.message);
+  if (HttpApiError.HttpApiSchemaError.is(error))
+    return response(
+      error.kind === 'Body' || error.kind === 'ResponseHeaders' ? 500 : 400,
+      error.kind === 'Body' || error.kind === 'ResponseHeaders'
+        ? 'Operation failed'
+        : INVALID_REQUEST,
+    );
+  if (HttpServerError.isHttpServerError(error)) {
+    if (error.reason._tag === 'RouteNotFound')
+      return response(
+        404,
+        `Route ${error.reason.request.method}:${error.reason.request.originalUrl} not found`,
+      );
+    if (error.reason._tag === 'RequestParseError')
+      return response(400, INVALID_REQUEST);
+  }
   if (error instanceof Error) {
     const rule = rules.find((entry) =>
       entry.errors.some((errorClass) => error instanceof errorClass),

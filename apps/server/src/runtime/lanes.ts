@@ -1,6 +1,22 @@
+import { makeLaneAdmission, withLaneAdmission } from './lane-admission.ts';
+import { LaneOptions } from '../ports/lane-options.ts';
+import {
+  type Cause,
+  Context,
+  Effect,
+  Layer,
+  Deferred,
+  Fiber,
+  Scope,
+  Exit,
+  RcMap,
+  Ref,
+  TxRef,
+} from 'effect';
 import { channel } from 'node:diagnostics_channel';
-import type { ListedWorktree } from '@porcelain/projects/models';
-import type { WorktreeConsistencyProbe } from '../ports/worktree-consistency-probe.ts';
+import { type ListedWorktree } from '@porcelain/projects/models';
+import { type WorktreeChangedError } from '@porcelain/kernel/errors';
+
 import { ApplicationClosedError } from './errors/application-closed-error.ts';
 
 const operationChannel = channel('porcelain:operation');
@@ -12,308 +28,373 @@ type OperationEvent = {
   failed?: boolean;
 };
 
-let sequence = 0;
-
 type LaneMode = 'read' | 'write';
 
-type Admission = {
-  readonly lane: string;
-  readonly mode: LaneMode;
-  readonly signal: AbortSignal;
-};
-
-type Waiter = {
-  admit: () => void;
-  refuse: (reason: unknown) => void;
-  detach: () => void;
-};
-
-class Gate {
-  private readonly capacity: number;
-  private readers = 0;
-  private writing = false;
-  private readonly waitingReads: Waiter[] = [];
-  private readonly waitingWrites: Waiter[] = [];
-
-  constructor(capacity: number) {
-    this.capacity = capacity;
+export class Lanes extends Context.Service<
+  Lanes,
+  {
+    readonly assertOpen: () => Effect.Effect<void>;
+    readonly run: <A, E>(
+      lane: string,
+      mode: LaneMode,
+      work: () => Effect.Effect<A, E>,
+      options?: {
+        deadlineMs?: number;
+        settled?: (() => Effect.Effect<void>) | undefined;
+      },
+    ) => Effect.Effect<A, E>;
+    readonly commit: <A, E>(
+      lane: string,
+      work: () => Effect.Effect<A, E>,
+      committed: (value: A) => Effect.Effect<void>,
+    ) => Effect.Effect<A, E>;
+    readonly transaction: <Prepared, A, E, F>(
+      lane: string,
+      prepare: () => Effect.Effect<Prepared, E>,
+      commit: (prepared: Prepared) => Effect.Effect<A, F>,
+      committed: (value: A) => Effect.Effect<void>,
+    ) => Effect.Effect<A, E | F>;
+    readonly unqueued: <A, E>(
+      work: () => Effect.Effect<A, E>,
+      options?: { deadlineMs?: number },
+    ) => Effect.Effect<A, E>;
+    readonly background: <E>(
+      lane: string,
+      work: () => Effect.Effect<void, E>,
+      onFailure: (cause: Cause.Cause<E>) => Effect.Effect<void>,
+      options?: { deadlineMs?: number },
+    ) => Effect.Effect<void>;
+    readonly finish: <A, E>(
+      lane: string,
+      work: () => Effect.Effect<A, E>,
+    ) => Effect.Effect<A, E>;
+    readonly start: <E>(
+      work: () => Effect.Effect<void, E>,
+      onFailure: (cause: Cause.Cause<E>) => Effect.Effect<void>,
+    ) => Effect.Effect<void>;
+    readonly runConsistent: <A, E>(
+      lane: string,
+      worktree: ListedWorktree,
+      work: () => Effect.Effect<A, E>,
+    ) => Effect.Effect<A, E | WorktreeChangedError>;
+    readonly close: () => Effect.Effect<void>;
   }
+>()('@porcelain/server/Lanes') {
+  static readonly layer = Layer.effect(
+    Lanes,
+    Effect.gen(function* () {
+      const options = yield* LaneOptions;
+      const shutdown = yield* Deferred.make<void>();
+      const scope = yield* Scope.make();
+      const sequence = yield* Ref.make(0);
+      const lifecycle = yield* TxRef.make<{
+        phase: 'open' | 'closing' | 'closed';
+        finishing: number;
+      }>({ phase: 'open', finishing: 0 });
 
-  get idle() {
-    return (
-      this.readers === 0 &&
-      !this.writing &&
-      this.waitingReads.length === 0 &&
-      this.waitingWrites.length === 0
-    );
-  }
+      const admissionScope = yield* Scope.make();
+      const admissions = yield* RcMap.make({
+        lookup: () => makeLaneAdmission(options.readCapacity),
+        idleTimeToLive: 0,
+      }).pipe(Scope.provide(admissionScope));
+      const configuredDeadlineMs = options.deadlineMs;
+      const deadlineMs =
+        typeof configuredDeadlineMs === 'function'
+          ? configuredDeadlineMs
+          : () => configuredDeadlineMs;
+      const closeResources = options.closeResources ?? (() => undefined);
+      const consistency = options.consistency;
 
-  private free(mode: LaneMode) {
-    if (this.writing) return false;
-    return mode === 'write'
-      ? this.readers === 0
-      : this.waitingWrites.length === 0 && this.readers < this.capacity;
-  }
-
-  private take(mode: LaneMode) {
-    if (mode === 'write') this.writing = true;
-    else this.readers += 1;
-  }
-
-  enter(mode: LaneMode, signal?: AbortSignal): Promise<void> {
-    if (signal?.aborted) return Promise.reject(signal.reason);
-    if (this.free(mode)) {
-      this.take(mode);
-      return Promise.resolve();
-    }
-    const queue = mode === 'write' ? this.waitingWrites : this.waitingReads;
-    return new Promise<void>((resolve, reject) => {
-      const leave = () => {
-        const index = queue.indexOf(waiter);
-        if (index >= 0) queue.splice(index, 1);
-        waiter.detach();
-        reject(signal?.reason);
-        this.wake();
+      const assertOpen = Effect.fn('Lanes.assertOpen')(function* () {
+        if ((yield* TxRef.get(lifecycle)).phase !== 'open')
+          return yield* Effect.die(new ApplicationClosedError());
+      });
+      function run<A, E>(
+        lane: string,
+        mode: LaneMode,
+        work: () => Effect.Effect<A, E>,
+        options: {
+          deadlineMs?: number;
+          settled?: (() => Effect.Effect<void>) | undefined;
+        } = {},
+      ): Effect.Effect<A, E> {
+        return runEffect(lane, mode, work, {
+          ...options,
+          completed: options.settled,
+        });
+      }
+      function commit<A, E>(
+        lane: string,
+        work: () => Effect.Effect<A, E>,
+        committed: (value: A) => Effect.Effect<void>,
+      ): Effect.Effect<A, E> {
+        return transaction(lane, () => Effect.void, work, committed);
+      }
+      function transaction<Prepared, A, E, F>(
+        lane: string,
+        prepare: () => Effect.Effect<Prepared, E>,
+        commit: (prepared: Prepared) => Effect.Effect<A, F>,
+        committed: (value: A) => Effect.Effect<void>,
+      ): Effect.Effect<A, E | F> {
+        return Effect.suspend(() => {
+          let confirmed: { value: A } | undefined;
+          return runEffect(
+            lane,
+            'write',
+            () =>
+              Effect.uninterruptibleMask((restore) =>
+                Effect.gen(function* () {
+                  const prepared = yield* restore(Effect.suspend(prepare));
+                  const value = yield* commit(prepared);
+                  confirmed = { value };
+                  return value;
+                }),
+              ),
+            {
+              completed: () =>
+                confirmed ? committed(confirmed.value) : Effect.void,
+            },
+          );
+        });
+      }
+      function runEffect<A, E>(
+        lane: string,
+        mode: LaneMode,
+        work: () => Effect.Effect<A, E>,
+        options: {
+          deadlineMs?: number;
+          completed?: (() => Effect.Effect<void>) | undefined;
+        },
+      ): Effect.Effect<A, E> {
+        return Effect.uninterruptibleMask((restore) =>
+          Effect.gen(function* () {
+            yield* assertOpen();
+            const id = yield* Ref.updateAndGet(sequence, (value) => value + 1);
+            publish(id, lane, 'queued');
+            return yield* admittedEffect(
+              id,
+              lane,
+              work,
+              restore,
+              mode,
+              options,
+            );
+          }),
+        );
+      }
+      function unqueued<A, E>(
+        work: () => Effect.Effect<A, E>,
+        options: { deadlineMs?: number } = {},
+      ): Effect.Effect<A, E> {
+        return Effect.uninterruptibleMask((restore) =>
+          Effect.gen(function* () {
+            yield* assertOpen();
+            return yield* admittedEffect(
+              yield* Ref.updateAndGet(sequence, (value) => value + 1),
+              'unqueued',
+              work,
+              restore,
+              undefined,
+              options,
+            );
+          }),
+        );
+      }
+      function background<E>(
+        lane: string,
+        work: () => Effect.Effect<void, E>,
+        onFailure: (cause: Cause.Cause<E>) => Effect.Effect<void>,
+        options: { deadlineMs?: number } = {},
+      ): Effect.Effect<void> {
+        return Effect.forkIn(
+          run(lane, 'write', work, options).pipe(
+            Effect.onExit((exit) =>
+              Exit.isFailure(exit) ? onFailure(exit.cause) : Effect.void,
+            ),
+          ),
+          scope,
+          { startImmediately: true },
+        ).pipe(Effect.asVoid);
+      }
+      function finish<A, E>(
+        lane: string,
+        work: () => Effect.Effect<A, E>,
+      ): Effect.Effect<A, E> {
+        return Effect.uninterruptible(
+          Effect.gen(function* () {
+            yield* Effect.gen(function* () {
+              const current = yield* TxRef.get(lifecycle);
+              if (current.phase === 'closed')
+                return yield* Effect.die(new ApplicationClosedError());
+              yield* TxRef.set(lifecycle, {
+                ...current,
+                finishing: current.finishing + 1,
+              });
+            }).pipe(Effect.tx);
+            const operation = Effect.gen(function* () {
+              const admission = yield* RcMap.get(admissions, lane);
+              return yield* withLaneAdmission(
+                admission,
+                'write',
+                Effect.suspend(work),
+              );
+            }).pipe(Effect.scoped);
+            return yield* operation.pipe(
+              Effect.ensuring(
+                TxRef.update(lifecycle, (current) => ({
+                  ...current,
+                  finishing: current.finishing - 1,
+                })),
+              ),
+            );
+          }),
+        );
+      }
+      function start<E>(
+        work: () => Effect.Effect<void, E>,
+        onFailure: (cause: Cause.Cause<E>) => Effect.Effect<void>,
+      ): Effect.Effect<void> {
+        return Effect.forkIn(
+          Effect.suspend(work).pipe(
+            Effect.onExit((exit) =>
+              Exit.isFailure(exit) ? onFailure(exit.cause) : Effect.void,
+            ),
+          ),
+          scope,
+          { startImmediately: true },
+        ).pipe(Effect.asVoid);
+      }
+      function admittedEffect<A, E>(
+        id: number,
+        lane: string,
+        work: () => Effect.Effect<A, E>,
+        restore: <B, F, R>(
+          effect: Effect.Effect<B, F, R>,
+        ) => Effect.Effect<B, F, R>,
+        mode: LaneMode | undefined,
+        options: {
+          deadlineMs?: number;
+          completed?: (() => Effect.Effect<void>) | undefined;
+        },
+      ): Effect.Effect<A, E> {
+        return Effect.gen(function* () {
+          const admitted = yield* Deferred.make<void>();
+          let started = false;
+          const operation = Effect.gen(function* () {
+            yield* assertOpen();
+            publish(id, lane, 'started');
+            started = true;
+            yield* Deferred.succeed(admitted, undefined);
+            return yield* Effect.suspend(work);
+          });
+          const owned =
+            mode === undefined
+              ? operation
+              : Effect.gen(function* () {
+                  const admission = yield* RcMap.get(admissions, lane);
+                  return yield* withLaneAdmission(admission, mode, operation);
+                }).pipe(Effect.scoped);
+          const worker = yield* Effect.forkIn(
+            Effect.interruptible(owned).pipe(
+              Effect.onExit((exit) =>
+                Effect.gen(function* () {
+                  if (!started) return;
+                  publish(id, lane, 'settled', Exit.isFailure(exit));
+                  if (options.completed) yield* options.completed();
+                }),
+              ),
+            ),
+            scope,
+            { startImmediately: true },
+          );
+          const awaited = Effect.gen(function* () {
+            yield* Effect.raceFirst(
+              Deferred.await(admitted),
+              Effect.asVoid(Fiber.join(worker)),
+            );
+            const timeout = Effect.sleep(
+              options.deadlineMs ?? deadlineMs(),
+            ).pipe(
+              Effect.andThen(
+                Effect.die(
+                  new DOMException(
+                    'The operation exceeded its deadline',
+                    'TimeoutError',
+                  ),
+                ),
+              ),
+            );
+            return yield* Effect.raceFirst(Fiber.join(worker), timeout);
+          });
+          return yield* restore(
+            Effect.raceFirst(
+              awaited,
+              Deferred.await(shutdown).pipe(Effect.andThen(Effect.interrupt)),
+            ),
+          ).pipe(
+            Effect.onExit(() =>
+              Effect.forkIn(Fiber.interrupt(worker), scope, {
+                startImmediately: true,
+              }).pipe(Effect.asVoid),
+            ),
+          );
+        });
+      }
+      function runConsistent<A, E>(
+        lane: string,
+        worktree: ListedWorktree,
+        work: () => Effect.Effect<A, E>,
+      ): Effect.Effect<A, E | WorktreeChangedError> {
+        return run(lane, 'read', () =>
+          work().pipe(Effect.tap(() => consistency.execute({ worktree }))),
+        );
+      }
+      function publish(
+        operation: number,
+        runner: string,
+        phase: OperationEvent['phase'],
+        failed?: boolean,
+      ) {
+        if (!operationChannel.hasSubscribers) return;
+        const event: OperationEvent = { runner, operation, phase };
+        if (failed !== undefined) event.failed = failed;
+        operationChannel.publish(event);
+      }
+      const closing = yield* Effect.cached(
+        Effect.uninterruptible(
+          Effect.gen(function* () {
+            yield* TxRef.update(lifecycle, (current) => ({
+              ...current,
+              phase: 'closing' as const,
+            }));
+            yield* Deferred.succeed(shutdown, undefined);
+            yield* Scope.close(scope, Exit.void);
+            yield* Effect.gen(function* () {
+              const current = yield* TxRef.get(lifecycle);
+              if (current.finishing > 0) return yield* Effect.txRetry;
+              yield* TxRef.set(lifecycle, {
+                ...current,
+                phase: 'closed' as const,
+              });
+            }).pipe(Effect.tx);
+            yield* Scope.close(admissionScope, Exit.void);
+            yield* Effect.sync(closeResources);
+          }),
+        ),
+      );
+      yield* Effect.addFinalizer(() => closing);
+      return {
+        assertOpen,
+        run,
+        commit,
+        transaction,
+        unqueued,
+        background,
+        finish,
+        start,
+        runConsistent,
+        close: () => closing,
       };
-      const waiter: Waiter = {
-        admit: resolve,
-        refuse: reject,
-        detach: () => signal?.removeEventListener('abort', leave),
-      };
-      signal?.addEventListener('abort', leave, { once: true });
-      queue.push(waiter);
-    });
-  }
-
-  leave(mode: LaneMode) {
-    if (mode === 'write') this.writing = false;
-    else this.readers -= 1;
-    this.wake();
-  }
-
-  private wake() {
-    while (this.waitingWrites.length > 0 && this.free('write')) {
-      const next = this.waitingWrites.shift();
-      if (!next) return;
-      next.detach();
-      this.take('write');
-      next.admit();
-    }
-    while (this.waitingReads.length > 0 && this.free('read')) {
-      const next = this.waitingReads.shift();
-      if (!next) return;
-      next.detach();
-      this.take('read');
-      next.admit();
-    }
-  }
-}
-
-type LaneOptions = {
-  readCapacity: number;
-  deadlineMs: number | (() => number);
-  consistency: WorktreeConsistencyProbe;
-  closeResources?: () => void;
-};
-
-type RunOptions = {
-  callerSignal?: AbortSignal | undefined;
-  deadlineMs?: number | undefined;
-  untilSettled?: boolean | undefined;
-};
-
-export class Lanes {
-  private readonly gates = new Map<string, Gate>();
-  private readonly capacity: number;
-  private readonly deadlineMs: () => number;
-  private readonly closeResources: () => void;
-  private readonly consistency: WorktreeConsistencyProbe;
-  private readonly shutdown = new AbortController();
-  private active = new Set<Promise<unknown>>();
-  private closing: Promise<void> | undefined;
-
-  constructor(options: LaneOptions) {
-    this.capacity = options.readCapacity;
-    const { deadlineMs } = options;
-    this.deadlineMs =
-      typeof deadlineMs === 'function' ? deadlineMs : () => deadlineMs;
-    this.closeResources = options.closeResources ?? (() => undefined);
-    this.consistency = options.consistency;
-  }
-
-  assertOpen(): void {
-    if (this.shutdown.signal.aborted) throw new ApplicationClosedError();
-  }
-
-  private gate(lane: string) {
-    const existing = this.gates.get(lane);
-    if (existing) return existing;
-    const created = new Gate(this.capacity);
-    this.gates.set(lane, created);
-    return created;
-  }
-
-  async run<T>(
-    lane: string,
-    mode: LaneMode,
-    work: (admission: Admission) => Promise<T>,
-    options: RunOptions = {},
-  ): Promise<T> {
-    this.assertOpen();
-    const { callerSignal } = options;
-    const waiting = AbortSignal.any([
-      this.shutdown.signal,
-      ...(callerSignal ? [callerSignal] : []),
-    ]);
-    const gate = this.gate(lane);
-    const id = ++sequence;
-    this.publish(id, lane, 'queued');
-    await gate.enter(mode, waiting);
-    const signal = AbortSignal.any([
-      waiting,
-      AbortSignal.timeout(options.deadlineMs ?? this.deadlineMs()),
-    ]);
-    this.publish(id, lane, 'started');
-    let task: Promise<T>;
-    try {
-      task = Promise.resolve(work({ lane, mode, signal }));
-    } catch (cause) {
-      gate.leave(mode);
-      if (gate.idle) this.gates.delete(lane);
-      this.publish(id, lane, 'settled', true);
-      throw cause;
-    }
-    this.track(task);
-    void task.then(
-      () => {
-        this.publish(id, lane, 'settled', false);
-        gate.leave(mode);
-        if (gate.idle) this.gates.delete(lane);
-      },
-      () => {
-        this.publish(id, lane, 'settled', true);
-        gate.leave(mode);
-        if (gate.idle) this.gates.delete(lane);
-      },
-    );
-    return options.untilSettled ? task : this.until(task, signal);
-  }
-
-  runConsistent<T>(
-    lane: string,
-    worktree: ListedWorktree,
-    work: (admission: Admission) => Promise<T>,
-    options: RunOptions = {},
-  ): Promise<T> {
-    return this.run(
-      lane,
-      'read',
-      async (admission) => {
-        const result = await work(admission);
-        this.consistency.execute({ worktree });
-        return result;
-      },
-      options,
-    );
-  }
-
-  background(
-    lane: string,
-    work: (admission: Admission) => Promise<void>,
-    options: {
-      deadlineMs?: number | undefined;
-      onFailure: (error: unknown) => unknown;
-    },
-  ): void {
-    this.track(
-      this.run(lane, 'write', work, {
-        deadlineMs: options.deadlineMs,
-        untilSettled: true,
-      }).catch((error: unknown) => options.onFailure(error)),
-    );
-  }
-
-  private until<T>(task: Promise<T>, signal: AbortSignal): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      const leave = () => reject(signal.reason);
-      if (signal.aborted) return leave();
-      signal.addEventListener('abort', leave, { once: true });
-      task
-        .then(resolve, reject)
-        .finally(() => signal.removeEventListener('abort', leave));
-    });
-  }
-
-  async unqueued<T>(
-    work: (signal: AbortSignal) => Promise<T>,
-    options: {
-      callerSignal?: AbortSignal | undefined;
-      deadlineMs?: number | undefined;
-    } = {},
-  ): Promise<T> {
-    this.assertOpen();
-    const signal = AbortSignal.any([
-      this.shutdown.signal,
-      ...(options.callerSignal ? [options.callerSignal] : []),
-      AbortSignal.timeout(options.deadlineMs ?? this.deadlineMs()),
-    ]);
-    const task = work(signal);
-    this.track(task);
-    return this.until(task, signal);
-  }
-
-  finish(
-    work: () => Promise<unknown>,
-    options: { lane: string },
-  ): Promise<void> {
-    const task = this.admitWhileClosing(options.lane, work).then(
-      () => undefined,
-      () => undefined,
-    );
-    this.track(task);
-    return task;
-  }
-
-  private async admitWhileClosing(lane: string, work: () => Promise<unknown>) {
-    const gate = this.gate(lane);
-    await gate.enter('write');
-    try {
-      return await work();
-    } finally {
-      gate.leave('write');
-      if (gate.idle) this.gates.delete(lane);
-    }
-  }
-
-  private track(task: Promise<unknown>) {
-    const settled = task.then(
-      () => undefined,
-      () => undefined,
-    );
-    this.active.add(settled);
-    void settled.finally(() => this.active.delete(settled));
-  }
-
-  private publish(
-    operation: number,
-    runner: string,
-    phase: OperationEvent['phase'],
-    failed?: boolean,
-  ) {
-    if (!operationChannel.hasSubscribers) return;
-    const event: OperationEvent = { runner, operation, phase };
-    if (failed !== undefined) event.failed = failed;
-    operationChannel.publish(event);
-  }
-
-  close(): Promise<void> {
-    if (!this.closing) {
-      this.shutdown.abort(new ApplicationClosedError());
-      this.closing = (async () => {
-        while (this.active.size > 0) await Promise.all([...this.active]);
-        this.closeResources();
-      })();
-    }
-    return this.closing;
-  }
+    }),
+  );
 }

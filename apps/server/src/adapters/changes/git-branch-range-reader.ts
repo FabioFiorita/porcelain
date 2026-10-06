@@ -1,13 +1,17 @@
-import type {
-  BranchBases,
-  BranchPatches,
-  BranchPatchesRequest,
-  BranchRangeLookup,
-  BranchRangeRequest,
-  ListBranchBasesInput,
+import { type Effect } from 'effect';
+import { type WorktreeRead } from '@porcelain/effects/worktree';
+import { readGit } from '../../runtime/git-io.ts';
+import { type GitIoFailure } from '@porcelain/git/errors';
+import {
+  type BranchBases,
+  type BranchPatches,
+  type BranchPatchesRequest,
+  type BranchRangeLookup,
+  type BranchRangeRequest,
+  type ListBranchBasesInput,
 } from '@porcelain/changes/models';
-import type { BranchRangeReader } from '@porcelain/changes/ports';
-import type { CommitReaderFactory } from '@porcelain/git/history';
+import { type BranchRangeReader } from '@porcelain/changes/ports';
+import { type CommitReaderFactory } from '@porcelain/git/history';
 import {
   listedWorktree,
   type ListedWorktrees,
@@ -24,7 +28,15 @@ export class GitBranchRangeReader implements BranchRangeReader {
     this.git = git;
   }
 
-  async readBranchRange(
+  readBranchRange(
+    input: BranchRangeRequest,
+  ): Effect.Effect<BranchRangeLookup, GitIoFailure, WorktreeRead> {
+    return readGit(input.worktreeId, (signal) =>
+      this.readBranchRangeNative(input, signal),
+    );
+  }
+
+  private async readBranchRangeNative(
     input: BranchRangeRequest,
     signal?: AbortSignal,
   ): Promise<BranchRangeLookup> {
@@ -61,7 +73,15 @@ export class GitBranchRangeReader implements BranchRangeReader {
     }
   }
 
-  async readBranchPatches(
+  readBranchPatches(
+    input: BranchPatchesRequest,
+  ): Effect.Effect<BranchPatches, GitIoFailure, WorktreeRead> {
+    return readGit(input.worktreeId, (signal) =>
+      this.readBranchPatchesNative(input, signal),
+    );
+  }
+
+  private async readBranchPatchesNative(
     input: BranchPatchesRequest,
     signal?: AbortSignal,
   ): Promise<BranchPatches> {
@@ -81,7 +101,15 @@ export class GitBranchRangeReader implements BranchRangeReader {
     };
   }
 
-  async listBranchBases(
+  listBranchBases(
+    input: ListBranchBasesInput,
+  ): Effect.Effect<BranchBases, GitIoFailure, WorktreeRead> {
+    return readGit(input.worktreeId, (signal) =>
+      this.listBranchBasesNative(input, signal),
+    );
+  }
+
+  private async listBranchBasesNative(
     input: ListBranchBasesInput,
     signal?: AbortSignal,
   ): Promise<BranchBases> {

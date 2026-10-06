@@ -73,8 +73,8 @@ export const test = base
       failed = true;
       for (const error of task.result?.errors ?? []) scrubbed(error, recorder);
     });
-    onCleanup(() => {
-      for (const cleanup of recorder.cleanups) cleanup();
+    onCleanup(async () => {
+      for (const cleanup of recorder.cleanups.toReversed()) await cleanup();
       const unread = recorder.unreadStatuses();
       if (!failed && unread.length > 0)
         throw new Error(

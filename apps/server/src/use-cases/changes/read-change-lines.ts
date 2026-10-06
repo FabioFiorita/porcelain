@@ -1,71 +1,79 @@
-import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadChangeLinesService } from '@porcelain/changes/services';
-import type {
-  ReadChangeLinesQuery,
-  ReadChangeLinesResponse,
+import { type MissingEnvironmentIdentityError } from '@porcelain/access/errors';
+import { Context, Effect, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import { type InvalidLineRangeError } from '@porcelain/kernel/errors';
+import { ReadEnvironmentService } from '@porcelain/access/services';
+import { ReadChangeLinesService } from '@porcelain/changes/services';
+import {
+  type ReadChangeLinesQuery,
+  type ReadChangeLinesResponse,
 } from '@porcelain/contracts/changes';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { ReadTextFileService } from '@porcelain/files/services';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import { type WorktreeParams } from '@porcelain/contracts/shared';
+import {
+  ReadTextFileService,
+  type ReadTextFileFailure,
+} from '@porcelain/files/services';
 
-export class ReadChangeLinesUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly readTextFile: ReadTextFileService;
-  private readonly readChangeLines: ReadChangeLinesService;
-  private readonly readEnvironment: ReadEnvironmentService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    readTextFile: ReadTextFileService,
-    readChangeLines: ReadChangeLinesService,
-    readEnvironment: ReadEnvironmentService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.checkWorktree = checkWorktree;
-    this.readTextFile = readTextFile;
-    this.readChangeLines = readChangeLines;
-    this.readEnvironment = readEnvironment;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class ReadChangeLinesUseCase extends Context.Service<
+  ReadChangeLinesUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams & ReadChangeLinesQuery,
+    ) => Effect.Effect<
+      ReadChangeLinesResponse,
+      | MissingEnvironmentIdentityError
+      | WorktreeAccessFailure
+      | ReadTextFileFailure
+      | InvalidLineRangeError
+    >;
   }
+>()('@porcelain/server/ReadChangeLinesUseCase') {
+  static readonly layer = Layer.effect(
+    ReadChangeLinesUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const readTextFileCapability = yield* ReadTextFileService;
+      const readChangeLinesCapability = yield* ReadChangeLinesService;
+      const readEnvironmentCapability = yield* ReadEnvironmentService;
 
-  async execute(
-    input: WorktreeParams & ReadChangeLinesQuery,
-    context: OperationContext,
-  ): Promise<ReadChangeLinesResponse> {
-    const { worktreeId, path, from, to, at } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
-    );
-    return this.lanes.runConsistent(
-      this.laneKeys.repository(worktree),
-      worktree,
-      async ({ signal }) => {
-        const { text } = await this.readTextFile.execute(
-          { worktreeId, path, at },
-          signal,
-        );
-        const lines = this.readChangeLines.execute({
-          path,
-          from,
-          to,
-          at,
-          text,
-        });
-        return {
-          environmentId: this.readEnvironment.execute().environmentId,
-          worktreeId,
-          ...lines,
-        };
-      },
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('ReadChangeLinesUseCase.execute')(function* (
+          input: WorktreeParams & ReadChangeLinesQuery,
+        ): Effect.fn.Return<
+          ReadChangeLinesResponse,
+          | MissingEnvironmentIdentityError
+          | WorktreeAccessFailure
+          | ReadTextFileFailure
+          | InvalidLineRangeError
+        > {
+          return yield* Effect.suspend(() => {
+            const { worktreeId, path, from, to, at } = input;
+            return accessCapability.read(worktreeId, () =>
+              Effect.gen(function* () {
+                const { text } = yield* readTextFileCapability.execute({
+                  worktreeId,
+                  path,
+                  at,
+                });
+                const lines = yield* readChangeLinesCapability.execute({
+                  path,
+                  from,
+                  to,
+                  at,
+                  text,
+                });
+                return {
+                  environmentId: (yield* readEnvironmentCapability.execute())
+                    .environmentId,
+                  worktreeId,
+                  ...lines,
+                };
+              }),
+            );
+          });
+        }),
+      };
+    }),
+  );
 }

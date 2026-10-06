@@ -1,6 +1,8 @@
+import { handlerAudit } from './diagnostics.ts';
 import { basename, extname, isAbsolute, posix } from 'node:path';
-import { httpErrors } from '@fastify/sensible';
-import type { FastifyInstance } from 'fastify';
+import { Layer, Effect } from 'effect';
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http';
+import { RequestError } from '../runtime/errors/request-error.ts';
 import type { WebRootReader } from '../ports/web-root-reader.ts';
 
 const SHELL = 'index.html';
@@ -100,48 +102,48 @@ function isClientRoute(urlPath: string): boolean {
   return !basename(normalized).includes('.');
 }
 
-async function findStaticFile(
+const findStaticFile = Effect.fn('StaticFiles.find')(function* (
   files: WebRootReader,
   urlPath: string,
-): Promise<StaticFile | null> {
+): Effect.fn.Return<StaticFile | null> {
   if (isApiRequestPath(urlPath)) return null;
   const path = requestedPath(urlPath);
   if (path === null) return null;
 
-  const direct = await files.find({ path });
+  const direct = yield* files.find({ path });
   if (direct) return { ...direct, fallback: false };
-  if (await files.exists({ path })) return null;
+  if (yield* files.exists({ path })) return null;
   if (!isClientRoute(urlPath)) return null;
 
-  const fallback = await files.find({ path: SHELL });
+  const fallback = yield* files.find({ path: SHELL });
   return fallback ? { ...fallback, fallback: true } : null;
-}
+});
 
-export function staticFiles(
-  server: FastifyInstance,
-  options: { files: WebRootReader },
-) {
-  server.route({
-    method: ['GET', 'HEAD'],
-    url: '/*',
-    handler: async (request, reply) => {
-      const urlPath = request.raw.url ?? request.url;
-      const file = await findStaticFile(options.files, urlPath);
-      if (file === null) throw httpErrors.notFound();
-
-      reply
-        .header(
-          'Cache-Control',
-          !file.fallback && isViteHashedAsset(urlPath)
-            ? IMMUTABLE_CACHE
-            : NO_CACHE,
-        )
-        .header('Content-Length', String(file.size))
-        .type(contentTypeForPath(file.path));
-      if (request.method === 'HEAD') return reply.send();
-      return reply.send(
-        options.files.open({ path: file.path, size: file.size }),
+export function staticFiles(files: WebRootReader) {
+  const answer = Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const urlPath = request.originalUrl;
+    const file = yield* findStaticFile(files, urlPath);
+    if (file === null)
+      return yield* Effect.die(
+        new RequestError({ statusCode: 404, message: 'Not Found' }),
       );
-    },
+    const headers = {
+      'Cache-Control':
+        !file.fallback && isViteHashedAsset(urlPath)
+          ? IMMUTABLE_CACHE
+          : NO_CACHE,
+      'Content-Length': String(file.size),
+      'Content-Type': contentTypeForPath(file.path),
+    };
+    if (request.method === 'HEAD')
+      return HttpServerResponse.empty({ status: 200, headers });
+    return HttpServerResponse.stream(
+      files.open({ path: file.path, size: file.size }),
+      { headers },
+    );
   });
+  return HttpRouter.add('GET', '/*', answer).pipe(
+    Layer.provide(handlerAudit.layer),
+  );
 }

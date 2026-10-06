@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   GitActionRunnerOutcome,
   GitActionRunRequest,
@@ -16,8 +17,10 @@ export class ScriptedGitActionRunner implements GitActionRunner {
     this.progress = script.progress ?? [];
   }
 
-  async run(input: GitActionRunRequest): Promise<GitActionRunnerOutcome> {
-    this.progress.forEach((line) => input.onProgress?.(line));
-    return this.answer;
+  run(input: GitActionRunRequest): Effect.Effect<GitActionRunnerOutcome> {
+    return Effect.forEach(
+      this.progress,
+      (line) => input.onProgress?.(line) ?? Effect.void,
+    ).pipe(Effect.as(this.answer));
   }
 }

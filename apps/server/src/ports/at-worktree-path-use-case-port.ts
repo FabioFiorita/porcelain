@@ -1,49 +1,29 @@
 import type { WorktreeKey } from '@porcelain/kernel/models';
-import type { OperationContext } from './operation-context.ts';
+import { Context, type Effect } from 'effect';
+import type {
+  NoWorktreeAtPathError,
+  ProjectNotFoundError,
+} from '@porcelain/projects/errors';
 
 type WorktreePathLookup = { path: string };
 
 export interface FindWorktreeByPathUseCasePort {
   execute(
     input: WorktreePathLookup,
-    context: OperationContext,
-  ): Promise<WorktreeKey>;
+  ): Effect.Effect<WorktreeKey, NoWorktreeAtPathError | ProjectNotFoundError>;
 }
 
-export interface WorktreeOperationUseCasePort {
-  execute(input: WorktreeKey, context: OperationContext): Promise<unknown>;
-}
-
-type AtPathRequest<Operation extends WorktreeOperationUseCasePort> = Omit<
-  Parameters<Operation['execute']>[0],
-  'worktreeId'
->;
-
-export type AtPathResponse<Operation extends WorktreeOperationUseCasePort> =
-  Awaited<ReturnType<Operation['execute']>>;
-
-type AtPathOperationInput<Operation extends WorktreeOperationUseCasePort> =
-  AtPathRequest<Operation> & WorktreeKey;
-
-export interface AtPathOperationUseCasePort<
-  Operation extends WorktreeOperationUseCasePort,
-> {
-  execute(
-    input: AtPathOperationInput<Operation>,
-    context: OperationContext,
-  ): Promise<AtPathResponse<Operation>>;
-}
-
-export type AtPathInput<Operation extends WorktreeOperationUseCasePort> = {
+export type AtPathExecution<Request, Result, Failure> = {
   cwd: string;
-  request: AtPathRequest<Operation>;
+  request: Request;
+  operation: {
+    readonly execute: (
+      input: Request & WorktreeKey,
+    ) => Effect.Effect<Result, Failure>;
+  };
 };
 
-export interface AtWorktreePathUseCasePort<
-  Operation extends WorktreeOperationUseCasePort,
-> {
-  execute(
-    input: AtPathInput<Operation>,
-    context: OperationContext,
-  ): Promise<AtPathResponse<Operation>>;
-}
+export const FindWorktreeByPathUseCasePort = Context.Service<
+  '@porcelain/server/FindWorktreeByPathUseCasePort',
+  FindWorktreeByPathUseCasePort
+>('@porcelain/server/FindWorktreeByPathUseCasePort');

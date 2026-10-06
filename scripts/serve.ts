@@ -1,11 +1,9 @@
 import { spawn } from 'node:child_process';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cli } from '../apps/server/src/bootstrap/main.ts';
-import { parseCliArguments } from '../apps/server/src/cli/arguments.ts';
-import { installShutdownSignals } from '../apps/server/src/cli/signals.ts';
+import { runCli } from '../apps/server/src/bootstrap/main.ts';
 import { ServeConfigurationError } from '../apps/server/src/config/errors/serve-configuration-error.ts';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -175,43 +173,20 @@ async function assertWebRoot(webRoot: string): Promise<void> {
   );
 }
 
-function servesLocally(args: readonly string[]): boolean {
-  try {
-    return parseCliArguments(args, process.env, homedir()).command === 'serve';
-  } catch {
-    return false;
-  }
-}
-
-async function buildInto(webRoot: string): Promise<boolean> {
-  const controller = new AbortController();
-  const removeShutdownSignals = installShutdownSignals(controller);
-  try {
-    await buildWeb(repositoryRoot, webRoot, controller.signal);
-    await assertWebRoot(webRoot);
-    return !controller.signal.aborted;
-  } catch (error) {
-    if (!controller.signal.aborted) {
-      process.stderr.write(`${cli.startupFailureMessage(error)}\n`);
-      process.exitCode = 1;
-    }
-    return false;
-  } finally {
-    removeShutdownSignals();
-  }
-}
-
 async function main(): Promise<void> {
-  const args = process.argv.slice(2);
-  if (!servesLocally(args)) {
-    await cli.run(args);
-    return;
-  }
-  const webRoot = await mkdtemp(join(tmpdir(), 'porcelain-web-'));
+  let webRoot: string | undefined;
   try {
-    if (await buildInto(webRoot)) await cli.run(args, process.env, { webRoot });
+    await runCli(process.argv.slice(2), process.env, {
+      prepareWebRoot: async (signal) => {
+        webRoot = await mkdtemp(join(tmpdir(), 'porcelain-web-'));
+        await buildWeb(repositoryRoot, webRoot, signal);
+        await assertWebRoot(webRoot);
+        return webRoot;
+      },
+    });
   } finally {
-    await rm(webRoot, { recursive: true, force: true });
+    if (webRoot !== undefined)
+      await rm(webRoot, { recursive: true, force: true });
   }
 }
 

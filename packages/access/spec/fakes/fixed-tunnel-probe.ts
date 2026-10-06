@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { TunnelAnswer } from '../../src/models/remote-access.ts';
 import type { TunnelProbe } from '../../src/ports/tunnel-probe.ts';
 
@@ -8,8 +9,10 @@ export class FixedTunnelProbe implements TunnelProbe {
     this.answer = answer;
   }
 
-  async probe(): Promise<TunnelAnswer> {
-    return this.answer;
+  probe(): Effect.Effect<TunnelAnswer> {
+    return Effect.sync(() => {
+      return this.answer;
+    });
   }
 
   replace(answer: TunnelAnswer): void {

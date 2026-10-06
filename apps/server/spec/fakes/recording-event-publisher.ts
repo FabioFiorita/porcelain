@@ -10,19 +10,29 @@ export class RecordingEventPublisher implements EventPublisher {
   private readonly files = new Map<string, readonly string[]>();
   private readonly worktrees = new Map<string, string>();
 
-  inventoryChanged(): void {}
-
-  projectChanged(_input: ProjectChangedNotice): void {}
-
-  worktreeChanged(input: WorktreeChangedNotice): void {
-    this.worktrees.set(input.worktreeId, input.change);
+  inventoryChanged(): Effect.Effect<void> {
+    return Effect.void;
   }
 
-  filesChanged(input: FilesChangedNotice): void {
-    this.files.set(input.worktreeId, input.paths);
+  projectChanged(_input: ProjectChangedNotice): Effect.Effect<void> {
+    return Effect.void;
   }
 
-  gitActionChanged(_input: GitActionReceiptView): void {}
+  worktreeChanged(input: WorktreeChangedNotice): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.worktrees.set(input.worktreeId, input.change);
+    });
+  }
+
+  filesChanged(input: FilesChangedNotice): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.files.set(input.worktreeId, input.paths);
+    });
+  }
+
+  gitActionChanged(_input: GitActionReceiptView): Effect.Effect<void> {
+    return Effect.void;
+  }
 
   announcedFiles(worktreeId: string): readonly string[] | undefined {
     return this.files.get(worktreeId);
@@ -32,3 +42,4 @@ export class RecordingEventPublisher implements EventPublisher {
     return this.worktrees.get(worktreeId);
   }
 }
+import { Effect } from 'effect';

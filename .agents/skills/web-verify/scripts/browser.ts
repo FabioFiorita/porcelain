@@ -1,15 +1,13 @@
+import { Schema } from 'effect';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
-import { z } from 'zod';
 import { Refusal, Usage } from '../../verify-core/cli.ts';
 import type { Evidence, Redactor } from '../../verify-core/evidence.ts';
 import type { BuildInputs } from '../../verify-core/fingerprint.ts';
 import { repositoryRoot } from '../../verify-core/registry.ts';
 import { networkCommand } from './network.ts';
-
 const playwright = join(repositoryRoot, 'node_modules/.bin/playwright');
 const appearWithinMs = 10_000;
-
 export const webInputs: BuildInputs = {
   roots: [
     'apps/web/src',
@@ -19,7 +17,6 @@ export const webInputs: BuildInputs = {
   ],
   apps: ['apps/web'],
 };
-
 export const interactionOptions = {
   instance: { type: 'string' },
   role: { type: 'string' },
@@ -39,7 +36,6 @@ export const interactionOptions = {
   status: { type: 'string' },
   static: { type: 'boolean', default: false },
 } as const;
-
 export const interactionUsage = `  open <route>            open a route of the web app
   back                    go back in the browser history
   click <address> [--button right]
@@ -63,14 +59,12 @@ export const interactionUsage = `  open <route>            open a route of the w
   live drop | restore     cut the live connection and let it reconnect
   trace start|stop        record a Chrome performance trace through CDP
 `;
-
 type Address = {
   role?: string | undefined;
   name?: string | undefined;
   testid?: string | undefined;
   text?: string | undefined;
 };
-
 export type Interaction = Address & {
   button?: string | undefined;
   'within-role'?: string | undefined;
@@ -85,7 +79,6 @@ export type Interaction = Address & {
   status?: string | undefined;
   static?: boolean | undefined;
 };
-
 export type Browser = {
   session: string;
   cwd: string;
@@ -93,20 +86,17 @@ export type Browser = {
   evidence: Evidence;
   redactor: Redactor;
 };
-
 function quoted(value: string): string {
   return /^\/.+\/[a-z]*$/.test(value)
     ? value
     : `'${value.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`;
 }
-
 function byRole(role: string, name: string | undefined): string {
   if (name === undefined) return `getByRole(${quoted(role)})`;
   return name.startsWith('/')
     ? `getByRole(${quoted(role)}, { name: ${quoted(name)} })`
     : `getByRole(${quoted(role)}, { name: ${quoted(name)}, exact: true })`;
 }
-
 function address(values: Address, flag = ''): string {
   if (values.testid !== undefined)
     return `getByTestId(${quoted(values.testid)})`;
@@ -120,14 +110,12 @@ function address(values: Address, flag = ''): string {
     );
   return byRole(values.role, values.name);
 }
-
 function count(value: string | undefined, flag: string, fallback: number) {
   if (value === undefined) return fallback;
   if (!/^\d+$/.test(value))
     throw new Usage(`--${flag} takes a whole number, not ${value}.`);
   return Number(value);
 }
-
 function target(values: Interaction): string {
   const frame =
     values.frame === undefined
@@ -141,7 +129,6 @@ function target(values: Interaction): string {
     values.nth === undefined ? '' : `.nth(${count(values.nth, 'nth', 0)})`;
   return `${frame}${within}${address(values)}${nth}`;
 }
-
 function dropTarget(values: Interaction): string {
   return address(
     {
@@ -153,11 +140,9 @@ function dropTarget(values: Interaction): string {
     'to-',
   );
 }
-
 export function daemonMarker(session: string): string {
   return `cliDaemon.js ${session}`;
 }
-
 export function playwrightCli(
   session: string,
   cwd: string,
@@ -176,15 +161,11 @@ export function playwrightCli(
     );
   return output;
 }
-
 export function runCode(session: string, cwd: string, code: string): string {
-  return z
-    .string()
-    .parse(
-      JSON.parse(playwrightCli(session, cwd, ['--raw', 'run-code', code])),
-    );
+  return Schema.decodeUnknownSync(Schema.String)(
+    JSON.parse(playwrightCli(session, cwd, ['--raw', 'run-code', code])),
+  );
 }
-
 export async function recorded(
   browser: Browser,
   name: string,
@@ -194,7 +175,6 @@ export async function recorded(
   const file = await browser.evidence.record(name, args, output);
   return `${browser.redactor.text(output)}\nrecorded ${file}\n`;
 }
-
 async function appear(
   browser: Browser,
   name: string,
@@ -220,7 +200,6 @@ async function appear(
   }
   return Date.now() - started;
 }
-
 function fillCode(locator: string, value: string): string {
   const text = JSON.stringify(value);
   return `async page => {
@@ -232,7 +211,6 @@ function fillCode(locator: string, value: string): string {
   return 'filled';
 }`;
 }
-
 function snapshot(browser: Browser): string {
   return runCode(
     browser.session,
@@ -240,12 +218,10 @@ function snapshot(browser: Browser): string {
     "async page => page.locator('body').ariaSnapshot()",
   );
 }
-
 function withSnapshot(browser: Browser, output: string): string {
   if (/^### Snapshot$/m.test(output)) return output;
   return `${output}\n${snapshot(browser)}`;
 }
-
 async function run(
   browser: Browser,
   name: string | undefined,
@@ -386,7 +362,6 @@ async function run(
   }
   return undefined;
 }
-
 export async function interact(
   browser: Browser,
   name: string | undefined,

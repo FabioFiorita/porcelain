@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import { fileChange, modified } from '../../spec/fixtures/comparisons.ts';
@@ -15,22 +16,30 @@ const observation = {
   },
   previousStamp: undefined,
 };
-const service = new ConfirmDiffObservationService();
+const service = Effect.runSync(
+  ConfirmDiffObservationService.pipe(
+    Effect.provide(ConfirmDiffObservationService.layer),
+  ),
+);
 
 describe('ConfirmDiffObservationService', () => {
   it('accepts an observation that matches what the reviewer saw', () => {
-    expect(() => service.execute(observation)).not.toThrow();
+    expect(() => Effect.runSync(service.execute(observation))).not.toThrow();
   });
 
   it('refuses an observation whose status token moved', () => {
     expect(() =>
-      service.execute({ ...observation, statusToken: 'u'.repeat(64) }),
+      Effect.runSync(
+        service.execute({ ...observation, statusToken: 'u'.repeat(64) }),
+      ),
     ).toThrow(WorktreeChangedError);
   });
 
   it('refuses an observation taken after the files moved since the previous one', () => {
     expect(() =>
-      service.execute({ ...observation, previousStamp: 'stamp-0' }),
+      Effect.runSync(
+        service.execute({ ...observation, previousStamp: 'stamp-0' }),
+      ),
     ).toThrow(WorktreeChangedError);
   });
 });

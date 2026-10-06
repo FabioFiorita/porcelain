@@ -1,48 +1,48 @@
-import type {
-  ReadTextFileQuery,
-  ReadTextFileResponse,
+import {
+  type ReadTextFileQuery,
+  type ReadTextFileResponse,
 } from '@porcelain/contracts/files';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { ReadTextFileService } from '@porcelain/files/services';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import { type WorktreeParams } from '@porcelain/contracts/shared';
+import {
+  ReadTextFileService,
+  type ReadTextFileFailure,
+} from '@porcelain/files/services';
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 
-export class ReadTextFileUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly readTextFile: ReadTextFileService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    readTextFile: ReadTextFileService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.checkWorktree = checkWorktree;
-    this.readTextFile = readTextFile;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class ReadTextFileUseCase extends Context.Service<
+  ReadTextFileUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams & ReadTextFileQuery,
+    ) => Effect.Effect<
+      ReadTextFileResponse,
+      WorktreeAccessFailure | ReadTextFileFailure
+    >;
   }
+>()('@porcelain/server/ReadTextFileUseCase') {
+  static readonly layer = Layer.effect(
+    ReadTextFileUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const readTextFileCapability = yield* ReadTextFileService;
 
-  async execute(
-    input: WorktreeParams & ReadTextFileQuery,
-    context: OperationContext,
-  ): Promise<ReadTextFileResponse> {
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId: input.worktreeId, requireAvailableProject: false },
-      context,
-    );
-    return this.lanes.runConsistent(
-      this.laneKeys.repository(worktree),
-      worktree,
-      async ({ signal }) => {
-        const result = await this.readTextFile.execute(input, signal);
-        return result;
-      },
-      { callerSignal: context.signal },
-    );
-  }
+      return {
+        execute: Effect.fn('ReadTextFileUseCase.execute')(function* (
+          input: WorktreeParams & ReadTextFileQuery,
+        ): Effect.fn.Return<
+          ReadTextFileResponse,
+          WorktreeAccessFailure | ReadTextFileFailure
+        > {
+          return yield* accessCapability.read(input.worktreeId, (worktree) =>
+            readTextFileCapability.execute({
+              ...input,
+              worktreeId: worktree.id,
+            }),
+          );
+        }),
+      };
+    }),
+  );
 }

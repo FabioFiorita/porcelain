@@ -14,7 +14,7 @@ import {
   usePublishedReview,
 } from '../queries/published-review';
 import type { OpenDocument } from '../rules/documents';
-import type { ReviewScope } from '../rules/review';
+import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import {
   type ChangeScope,
   isSurface,
@@ -162,7 +162,7 @@ function SidebarSurface({
   if (!available)
     return (
       <div className="p-3">
-        {published.data && surface === 'changes' && (
+        {published.review && surface === 'changes' && (
           <Button variant="ghost" onClick={() => onOpen({ kind: 'handoff' })}>
             Saved review
           </Button>
@@ -175,7 +175,11 @@ function SidebarSurface({
     );
 
   const content = (
-    <ReviewBoundary key={`${scope.worktreeId}:${surface}`}>
+    <ReviewBoundary
+      connection={context.connection}
+      scope={scope}
+      key={`${scope.worktreeId}:${surface}`}
+    >
       {surface === 'changes' && (
         <ReviewIndex
           scope={scope}

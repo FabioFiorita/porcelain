@@ -1,7 +1,10 @@
-export class DuplicateLayerIdError extends Error {
-  override readonly name = 'DuplicateLayerIdError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Layer IDs repeat within the review');
+export class DuplicateLayerIdError extends Schema.TaggedError<DuplicateLayerIdError>()(
+  'DuplicateLayerIdError',
+  {},
+) {
+  override get message() {
+    return 'Layer IDs repeat within the review';
   }
 }

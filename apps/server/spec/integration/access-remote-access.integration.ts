@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import {
   issuePairingResponseSchema,
   readRemoteAccessResponseSchema,
@@ -69,7 +70,11 @@ test('every way in is off at first and the local network the computer is on is r
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readRemoteAccessResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readRemoteAccessResponseSchema),
+      ),
+    ),
   );
   const off = { enabled: false, status: { kind: 'off' } };
   expect(response.body).toStrictEqual({
@@ -172,7 +177,11 @@ test('turning on the local network and the tailnet serves the private address an
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(setRemoteAccessResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(setRemoteAccessResponseSchema),
+      ),
+    ),
   );
   const starting = { enabled: true, status: { kind: 'starting' } };
   expect(routes(record(response.body)).lan).toStrictEqual(starting);
@@ -198,7 +207,11 @@ test('turning on the local network and the tailnet serves the private address an
       addresses: [status(opened, 'lan').urls].flat(),
     },
   });
-  expect(link).toEqual(expect.schemaMatching(issuePairingResponseSchema));
+  expect(link).toEqual(
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(issuePairingResponseSchema)),
+    ),
+  );
   const tailnetLink = await read(session, {
     method: 'POST',
     path: '/api/pairings',

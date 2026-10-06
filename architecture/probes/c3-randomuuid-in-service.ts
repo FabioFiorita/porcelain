@@ -10,17 +10,17 @@ export default {
     {
       kind: 'replace',
       path: 'packages/access/src/services/issue-pairing-service.ts',
-      old: "import type { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';",
+      old: "import { IdSource, SecretSource } from '@porcelain/kernel/ports';",
       new: `import { randomUUID } from 'node:crypto';
-import type { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';`,
+import { IdSource, SecretSource } from '@porcelain/kernel/ports';`,
     },
     {
       kind: 'replace',
       path: 'packages/access/src/services/issue-pairing-service.ts',
-      old: `        this.idSource.next(),
-        this.secretSource.next(),`,
-      new: `        randomUUID(),
-        this.secretSource.next(),`,
+      old: `              idSource.next(),
+              secretSource.next(),`,
+      new: `              randomUUID(),
+              secretSource.next(),`,
     },
   ],
 } satisfies Probe;

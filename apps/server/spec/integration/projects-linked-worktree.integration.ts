@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { readChangesResponseSchema } from '@porcelain/contracts/changes';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
@@ -51,7 +52,9 @@ test('a worktree added with git worktree add is listed beside the main checkout 
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readInventoryResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readInventoryResponseSchema)),
+    ),
   );
   const worktrees = worktreesOf(record(response.body));
   expect(worktrees).toHaveLength(2);
@@ -93,7 +96,9 @@ test('reading a linked worktree answers its own checkout, not the edits of the m
     text: session.fixture.readme.committed,
   });
   expect(changes.body).toEqual(
-    expect.schemaMatching(readChangesResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readChangesResponseSchema)),
+    ),
   );
   expect(record(changes.body).changes).toStrictEqual([]);
 });

@@ -1,11 +1,8 @@
-import { z } from 'zod';
-import { WORKTREE_ID_LENGTH } from './limits.ts';
+import { Schema } from 'effect';
+import { worktreeIdSchema } from './schema.ts';
 
-export const worktreeIdSchema = z
-  .string()
-  .regex(new RegExp(`^[0-9a-f]{${WORKTREE_ID_LENGTH}}$`));
-export const worktreeParamsSchema = z.strictObject({
+export const worktreeParamsSchema = Schema.Struct({
   worktreeId: worktreeIdSchema,
 });
 
-export type WorktreeParams = z.output<typeof worktreeParamsSchema>;
+export type WorktreeParams = typeof worktreeParamsSchema.Type;

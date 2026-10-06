@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import {
   deleteCommentMessageResponseSchema,
@@ -100,7 +101,11 @@ test('the reviewer rewrites their comment in place, stamped and at the next revi
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(editCommentMessageResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(editCommentMessageResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toMatchObject({
     id: threadId,
@@ -118,7 +123,7 @@ test('the reviewer rewrites their comment in place, stamped and at the next revi
     toolCall(session, 2, 'list_comments', { scope: 'all' }),
   );
   expect(listed).toMatchObject(answered(2));
-  expect(toolValue(listed)).toMatchObject([
+  expect(record(toolValue(listed)).threads).toMatchObject([
     {
       id: threadId,
       messages: [
@@ -172,7 +177,11 @@ test('the reviewer deletes a reply and the rest of the thread stays at the next 
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(deleteCommentMessageResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(deleteCommentMessageResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toMatchObject({
     threadId,
@@ -216,7 +225,7 @@ test('deleting the last message of a thread removes the thread for the reviewer 
   );
   expect(listed).toMatchObject(answered(3));
   expect(
-    list(toolValue(listed)).map((entry) => record(entry).id),
+    list(record(toolValue(listed)).threads).map((entry) => record(entry).id),
   ).toStrictEqual([threadId]);
   expect(
     (await threads(session)).map((entry) => record(entry).id),

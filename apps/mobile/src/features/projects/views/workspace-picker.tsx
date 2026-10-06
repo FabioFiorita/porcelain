@@ -1,5 +1,7 @@
+import { Cause, Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
-import { environmentSelectionAccess } from '../../access';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import { useProjectSelectionCommands } from '../commands/selection';
 import { WorkspaceMenu } from './workspace-menu';
 import { useWorkspace } from './selected-worktree';
@@ -18,7 +20,8 @@ export function WorkspacePicker({
     inventory,
     remembered,
   } = workspace;
-  const commands = useProjectSelectionCommands(environmentSelectionAccess);
+  const commands = useProjectSelectionCommands();
+  const data = Option.getOrUndefined(AsyncResult.value(inventory.result));
   const project = workspace.project;
   const worktree = workspace.worktree;
   const unavailable = worktree && (!project?.available || !worktree.available);
@@ -27,11 +30,11 @@ export function WorkspacePicker({
     : (environment?.name ?? 'Workspace');
   const projectMessage = !environment
     ? 'Select an environment'
-    : inventory.isPending
+    : AsyncResult.isInitial(inventory.result)
       ? 'Reading projects…'
-      : inventory.isError
+      : AsyncResult.isFailure(inventory.result)
         ? 'Could not read projects'
-        : inventory.data?.projects.length === 0
+        : data?.projects.length === 0
           ? 'No projects registered'
           : remembered && (!worktree || unavailable)
             ? 'Saved worktree is unavailable'
@@ -45,24 +48,29 @@ export function WorkspacePicker({
         name,
       }))}
       environmentId={selection.currentEnvironmentId}
-      projects={inventory.data?.projects ?? []}
+      projects={data?.projects ?? []}
       projectId={remembered?.projectId}
       worktreeId={remembered?.worktreeId}
       disabled={
         access.status !== 'ready' ||
         selection.status !== 'ready' ||
-        commands.isPending
+        commands.pending > 0
       }
       projectMessage={projectMessage}
-      error={selection.error ?? commands.error?.message}
-      onRead={() => commands.onSubmit({ kind: 'read' })}
+      error={
+        selection.error ??
+        (AsyncResult.isFailure(commands.result)
+          ? connectionErrorMessage(Cause.squash(commands.result.cause))
+          : undefined)
+      }
+      onRead={() => commands.submit({ kind: 'read' })}
       onReadInventory={inventory.read}
       onEnvironment={(environmentId) =>
-        commands.onSubmit({ kind: 'environment', environmentId })
+        commands.submit({ kind: 'environment', environmentId })
       }
       onWorktree={(projectId, worktreeId) => {
         if (selection.currentEnvironmentId)
-          commands.onSubmit({
+          commands.submit({
             kind: 'worktree',
             environmentId: selection.currentEnvironmentId,
             projectId,

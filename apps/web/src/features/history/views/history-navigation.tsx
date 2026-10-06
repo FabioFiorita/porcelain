@@ -7,9 +7,9 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from '@/components/ui/empty';
-import { worktreeLabel } from '@/features/projects/index';
+import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { useHistory } from '../queries/history';
-import type { HistoryScope } from '../rules/connection';
+import type { HistoryScope } from '@porcelain/client/history/rules';
 import { historyFollows } from '../rules/graph';
 import { HistoryRows } from './history-rows';
 import { type Connection } from '@/shared/workspace/connection';

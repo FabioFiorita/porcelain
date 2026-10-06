@@ -1,13 +1,3 @@
-import { create } from 'zustand';
+import { Atom } from 'effect/reactivity';
 
-type ProjectBrowserState = {
-  folderPath: string | undefined;
-  setFolderPath: (path: string | undefined) => void;
-  reset: () => void;
-};
-
-export const useProjectBrowserStore = create<ProjectBrowserState>()((set) => ({
-  folderPath: undefined,
-  setFolderPath: (folderPath) => set({ folderPath }),
-  reset: () => set({ folderPath: undefined }),
-}));
+export const projectFolder = Atom.make<string | undefined>(undefined);

@@ -1,3 +1,5 @@
+import type { Effect } from 'effect';
+import { nativeOperation } from '@porcelain/effects';
 import { networkInterfaces } from 'node:os';
 import type { DefaultRoute, NetworkAddress } from '@porcelain/access/models';
 import type { NetworkAddressReader } from '@porcelain/access/ports';
@@ -29,7 +31,11 @@ export class MacNetworkAddressReader implements NetworkAddressReader {
     );
   }
 
-  async defaultRoutes(): Promise<DefaultRoute[]> {
+  defaultRoutes(): Effect.Effect<DefaultRoute[]> {
+    return nativeOperation(() => this.defaultRoutesNative());
+  }
+
+  private async defaultRoutesNative(): Promise<DefaultRoute[]> {
     const [route, service] = await Promise.all([
       readMacRoute(this.limits),
       readMacPrimaryService(this.limits),

@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { readGitActionReceiptResponseSchema } from '@porcelain/contracts/git-actions';
 import { expect } from 'vitest';
@@ -78,7 +79,11 @@ test('reading the receipt of a settled commit names the project, worktree, actio
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readGitActionReceiptResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readGitActionReceiptResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toMatchObject({
     requestId,
@@ -103,7 +108,11 @@ test('reading the receipt of a rejected action answers it with its rejection rea
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readGitActionReceiptResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readGitActionReceiptResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toMatchObject({
     requestId,

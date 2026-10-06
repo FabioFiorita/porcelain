@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   SubmoduleHeadsRequest,
   WorktreeEntriesRequest,
@@ -24,21 +25,27 @@ export class InMemoryWorktreeSideReader implements WorktreeSideReader {
 
   readEntries(
     input: WorktreeEntriesRequest,
-  ): Promise<ReadonlyMap<string, WorktreeEntry>> {
-    return Promise.resolve(
-      new Map([...this.entries].filter(([path]) => input.paths.includes(path))),
-    );
+  ): Effect.Effect<ReadonlyMap<string, WorktreeEntry>> {
+    return Effect.sync(() => {
+      return new Map(
+        [...this.entries].filter(([path]) => input.paths.includes(path)),
+      );
+    });
   }
 
   readSubmoduleHeads(
     input: SubmoduleHeadsRequest,
-  ): Promise<ReadonlyMap<string, string>> {
-    return Promise.resolve(
-      new Map([...this.heads].filter(([path]) => input.paths.includes(path))),
-    );
+  ): Effect.Effect<ReadonlyMap<string, string>> {
+    return Effect.sync(() => {
+      return new Map(
+        [...this.heads].filter(([path]) => input.paths.includes(path)),
+      );
+    });
   }
 
-  readStagingStamp(): Promise<string | undefined> {
-    return Promise.resolve(this.stagingStamp);
+  readStagingStamp(): Effect.Effect<string | undefined> {
+    return Effect.sync(() => {
+      return this.stagingStamp;
+    });
   }
 }

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   DefaultRoute,
   NetworkAddress,
@@ -17,8 +18,10 @@ export class FixedNetworkAddressReader implements NetworkAddressReader {
     return [...this.addresses];
   }
 
-  async defaultRoutes(): Promise<DefaultRoute[]> {
-    return this.routes.map((route) => ({ ...route }));
+  defaultRoutes(): Effect.Effect<DefaultRoute[]> {
+    return Effect.sync(() => {
+      return this.routes.map((route) => ({ ...route }));
+    });
   }
 
   replace(addresses: NetworkAddress[], routes = this.routes): void {

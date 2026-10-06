@@ -1,55 +1,68 @@
-import type {
+import {
   ReadChangeDiffsService,
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
-import type { ReadTextFilesService } from '@porcelain/files/services';
-import type {
-  ReadReviewEvidenceInput,
-  ReviewEvidence,
+import { ReadTextFilesService } from '@porcelain/files/services';
+import {
+  type ReadReviewEvidenceInput,
+  type ReviewEvidence,
 } from '@porcelain/reviews/models';
 import { reviewPaths, trackedComparisons } from '@porcelain/reviews/rules';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { Effect, Context, Layer } from 'effect';
+import { type WorktreeRead } from '@porcelain/effects';
+import { type GitIoFailure } from '@porcelain/git/errors';
+import { type IncompleteDiffReadError } from '@porcelain/changes/errors';
 
-export class ReadReviewEvidenceUseCase {
-  private readonly readWorktreeStatus: ReadWorktreeStatusService;
-  private readonly readChangeFingerprints: ReadChangeFingerprintsService;
-  private readonly readTextFiles: ReadTextFilesService;
-  private readonly readChangeDiffs: ReadChangeDiffsService;
-
-  constructor(
-    readWorktreeStatus: ReadWorktreeStatusService,
-    readChangeFingerprints: ReadChangeFingerprintsService,
-    readTextFiles: ReadTextFilesService,
-    readChangeDiffs: ReadChangeDiffsService,
-  ) {
-    this.readWorktreeStatus = readWorktreeStatus;
-    this.readChangeFingerprints = readChangeFingerprints;
-    this.readTextFiles = readTextFiles;
-    this.readChangeDiffs = readChangeDiffs;
+export class ReadReviewEvidenceUseCase extends Context.Service<
+  ReadReviewEvidenceUseCase,
+  {
+    readonly execute: (
+      input: ReadReviewEvidenceInput,
+    ) => Effect.Effect<
+      ReviewEvidence,
+      GitIoFailure | IncompleteDiffReadError,
+      WorktreeRead
+    >;
   }
+>()('@porcelain/server/ReadReviewEvidenceUseCase') {
+  static readonly layer = Layer.effect(
+    ReadReviewEvidenceUseCase,
+    Effect.gen(function* () {
+      const readWorktreeStatusCapability = yield* ReadWorktreeStatusService;
+      const readChangeFingerprintsCapability =
+        yield* ReadChangeFingerprintsService;
+      const readTextFilesCapability = yield* ReadTextFilesService;
+      const readChangeDiffsCapability = yield* ReadChangeDiffsService;
 
-  async execute(
-    input: ReadReviewEvidenceInput,
-    context: OperationContext,
-  ): Promise<ReviewEvidence> {
-    const { worktreeId } = input;
-    const status = await this.readWorktreeStatus.execute(
-      { worktreeId },
-      context.signal,
-    );
-    const { changes } = await this.readChangeFingerprints.execute(
-      { worktreeId, comparisons: status.changes, paths: undefined },
-      context.signal,
-    );
-    const { texts } = await this.readTextFiles.execute(
-      { worktreeId, paths: reviewPaths(input.layers, changes) },
-      context.signal,
-    );
-    const diffs = await this.readChangeDiffs.execute(
-      { worktreeId, comparisons: trackedComparisons(changes) },
-      context.signal,
-    );
-    return { changes, texts, diffs };
-  }
+      return {
+        execute: Effect.fn('ReadReviewEvidenceUseCase.execute')(function* (
+          input: ReadReviewEvidenceInput,
+        ): Effect.fn.Return<
+          ReviewEvidence,
+          GitIoFailure | IncompleteDiffReadError,
+          WorktreeRead
+        > {
+          const { worktreeId } = input;
+          const status = yield* readWorktreeStatusCapability.execute({
+            worktreeId,
+          });
+          const { changes } = yield* readChangeFingerprintsCapability.execute({
+            worktreeId,
+            comparisons: status.changes,
+            paths: undefined,
+          });
+          const { texts } = yield* readTextFilesCapability.execute({
+            worktreeId,
+            paths: reviewPaths(input.layers, changes),
+          });
+          const diffs = yield* readChangeDiffsCapability.execute({
+            worktreeId,
+            comparisons: trackedComparisons(changes),
+          });
+          return { changes, texts, diffs };
+        }),
+      };
+    }),
+  );
 }

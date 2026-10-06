@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   CommitFiles,
   CommitFilesLookup,
@@ -40,28 +41,36 @@ export class InMemoryCommitHistoryReader implements CommitHistoryReader {
     this.timelines = new Map(Object.entries(stored.timelines ?? {}));
   }
 
-  listCommits(): Promise<CommitPage> {
-    return Promise.resolve({
-      snapshot: undefined,
-      commits: this.commits.map((files) => files.commit),
-      nextAfter: undefined,
-      tip: undefined,
-      boundary: undefined,
-      restarted: false,
+  listCommits(): Effect.Effect<CommitPage> {
+    return Effect.sync(() => {
+      return {
+        snapshot: undefined,
+        commits: this.commits.map((files) => files.commit),
+        nextAfter: undefined,
+        tip: undefined,
+        boundary: undefined,
+        restarted: false,
+      };
     });
   }
 
-  listFileCommits(input: ListFileCommitsInput): Promise<FileCommits> {
-    return Promise.resolve(
-      this.timelines.get(input.path) ?? { commits: [], more: false },
-    );
+  listFileCommits(input: ListFileCommitsInput): Effect.Effect<FileCommits> {
+    return Effect.sync(() => {
+      return this.timelines.get(input.path) ?? { commits: [], more: false };
+    });
   }
 
-  readCommitFiles(input: ReadCommitFilesInput): Promise<CommitFilesLookup> {
-    return Promise.resolve(this.lookups.get(input.oid) ?? missing);
+  readCommitFiles(
+    input: ReadCommitFilesInput,
+  ): Effect.Effect<CommitFilesLookup> {
+    return Effect.sync(() => {
+      return this.lookups.get(input.oid) ?? missing;
+    });
   }
 
-  readCommitPatches(input: CommitPatchesRequest): Promise<CommitPatches> {
-    return Promise.resolve(this.patches.get(input.oid) ?? untouched);
+  readCommitPatches(input: CommitPatchesRequest): Effect.Effect<CommitPatches> {
+    return Effect.sync(() => {
+      return this.patches.get(input.oid) ?? untouched;
+    });
   }
 }

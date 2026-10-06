@@ -1,42 +1,50 @@
+import { NodeServices } from '@effect/platform-node';
+import { Effect, Layer, ManagedRuntime } from 'effect';
+import {
+  InventoryStore,
+  WorktreePresenceStore,
+} from '@porcelain/projects/ports';
+import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
+import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { GitActionReceipt } from '@porcelain/git-actions/models';
 import { gitActionReceiptStoreContract } from '@porcelain/git-actions/store-contracts';
-import { openStorageSession, type StorageSession } from '../../index.ts';
-import {
-  createInventoryStore,
-  createWorktreePresenceStore,
-} from '../projects/index.ts';
-import { createGitActionReceiptStore } from './index.ts';
 
-function openScoped(projectId: string, worktreeIds: readonly string[]) {
+async function openScoped(projectId: string, worktreeIds: readonly string[]) {
   const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
-  const session = openStorageSession(dataDirectory, {
-    worktreeIdLength: 32,
-    busyTimeoutMs: 5000,
-  });
-  createInventoryStore(session).save({
-    id: projectId,
-    name: projectId,
-    namedByOwner: false,
-    commonDirectory: `/repositories/${projectId}/.git`,
-    repositoryIdentity: `identity-${projectId}`,
-    available: true,
-    position: 1,
-  });
-  createWorktreePresenceStore(session).save({
-    rows: worktreeIds.map((worktreeId) => ({
-      worktreeId,
-      projectId,
-      missingSince: undefined,
-    })),
-  });
+  const session = ManagedRuntime.make(
+    storageLayer(dataDirectory, {
+      worktreeIdLength: 32,
+      busyTimeoutMs: 5000,
+    }).pipe(Layer.provide(NodeServices.layer)),
+  );
+  await Effect.runPromise(
+    (await session.runPromise(InventoryStore)).save({
+      id: projectId,
+      name: projectId,
+      namedByOwner: false,
+      commonDirectory: `/repositories/${projectId}/.git`,
+      repositoryIdentity: `identity-${projectId}`,
+      available: true,
+      position: 1,
+    }),
+  );
+  await Effect.runPromise(
+    (await session.runPromise(WorktreePresenceStore)).save({
+      rows: worktreeIds.map((worktreeId) => ({
+        worktreeId,
+        projectId,
+        missingSince: undefined,
+      })),
+    }),
+  );
   return {
     session,
-    close: () => {
-      session.close();
+    close: async () => {
+      await session.dispose();
       rmSync(dataDirectory, { recursive: true, force: true });
     },
   };
@@ -44,9 +52,9 @@ function openScoped(projectId: string, worktreeIds: readonly string[]) {
 
 gitActionReceiptStoreContract(
   'SqliteGitActionReceiptStore',
-  ({ projectId, worktreeIds }) => {
-    const { session, close } = openScoped(projectId, worktreeIds);
-    return { store: createGitActionReceiptStore(session), close };
+  async ({ projectId, worktreeIds }) => {
+    const { session, close } = await openScoped(projectId, worktreeIds);
+    return { store: await session.runPromise(GitActionReceiptStore), close };
   },
 );
 
@@ -68,27 +76,41 @@ function receipt(requestId: string, worktreeId: string): GitActionReceipt {
 }
 
 describe('SqliteGitActionReceiptStore collection', () => {
-  let opened: { session: StorageSession; close: () => void };
+  let opened: {
+    session: ManagedRuntime.ManagedRuntime<
+      Layer.Success<ReturnType<typeof storageLayer>>,
+      never
+    >;
+    close: () => void;
+  };
 
-  beforeEach(() => {
-    opened = openScoped('project', ['collected', 'kept']);
+  beforeEach(async () => {
+    opened = await openScoped('project', ['collected', 'kept']);
   });
 
   afterEach(() => {
     opened.close();
   });
 
-  it('removes the receipts of a worktree when the worktree is collected, and keeps the others', () => {
-    const store = createGitActionReceiptStore(opened.session);
-    store.insert(receipt('collected', 'collected'));
-    store.insert(receipt('kept', 'kept'));
-    createWorktreePresenceStore(opened.session).remove({
-      worktreeIds: ['collected'],
-    });
-    expect(store.read({ requestId: 'collected' })).toBeUndefined();
+  it('removes the receipts of a worktree when the worktree is collected, and keeps the others', async () => {
+    const store = await opened.session.runPromise(GitActionReceiptStore);
+    await Effect.runPromise(store.insert(receipt('collected', 'collected')));
+    await Effect.runPromise(store.insert(receipt('kept', 'kept')));
+    await Effect.runPromise(
+      (await opened.session.runPromise(WorktreePresenceStore)).remove({
+        worktreeIds: ['collected'],
+      }),
+    );
     expect(
-      store.latestInterrupted({ worktreeId: 'collected' }),
+      await Effect.runPromise(store.read({ requestId: 'collected' })),
     ).toBeUndefined();
-    expect(store.read({ requestId: 'kept' })).toEqual(receipt('kept', 'kept'));
+    expect(
+      await Effect.runPromise(
+        store.latestInterrupted({ worktreeId: 'collected' }),
+      ),
+    ).toBeUndefined();
+    expect(await Effect.runPromise(store.read({ requestId: 'kept' }))).toEqual(
+      receipt('kept', 'kept'),
+    );
   });
 });

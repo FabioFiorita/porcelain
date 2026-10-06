@@ -1,11 +1,14 @@
+import { Effect } from 'effect';
 import type { ServiceUpdateRunner } from '../ports/service-update-runner.ts';
 import { AppManagedUpdateError } from './errors/app-managed-update-error.ts';
 
-type ServiceUpdateState = Awaited<ReturnType<ServiceUpdateRunner['read']>>;
+type ServiceUpdateState = Effect.Success<
+  ReturnType<ServiceUpdateRunner['read']>
+>;
 
 class AppManagedUpdateRunner implements ServiceUpdateRunner {
-  read(): Promise<ServiceUpdateState> {
-    return Promise.resolve({
+  read(): Effect.Effect<ServiceUpdateState> {
+    return Effect.succeed({
       managed: false,
       version: undefined,
       latest: undefined,
@@ -15,8 +18,12 @@ class AppManagedUpdateRunner implements ServiceUpdateRunner {
     });
   }
 
-  start(): Promise<void> {
-    return Promise.reject(new AppManagedUpdateError());
+  start(): Effect.Effect<void> {
+    return Effect.die(new AppManagedUpdateError());
+  }
+
+  close(): Effect.Effect<void> {
+    return Effect.void;
   }
 }
 

@@ -1,7 +1,10 @@
-export class CommitPlanFailedError extends Error {
-  override readonly name = 'CommitPlanFailedError';
+import { Schema } from 'effect';
 
-  constructor(options?: ErrorOptions) {
-    super('Commit generation failed.', options);
+export class CommitPlanFailedError extends Schema.TaggedError<CommitPlanFailedError>()(
+  'CommitPlanFailedError',
+  { cause: Schema.optional(Schema.Unknown) },
+) {
+  override get message() {
+    return 'Commit generation failed.';
   }
 }
