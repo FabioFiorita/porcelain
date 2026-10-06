@@ -1,5 +1,6 @@
 import { appendFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { stop } from 'esbuild';
 import { IsolatedServer } from '../../../../apps/server/spec/kit/isolated-server.ts';
 import { buildIsolatedServer } from '../../../../apps/server/spec/kit/sandbox.ts';
 import { refuseMissing, sandboxProblems } from '../../verify-core/cli.ts';
@@ -32,7 +33,11 @@ export function serve(folder: string): Promise<void> {
   return registry.serve(folder, async (life) => {
     const build = join(folder, 'build');
     const logFile = join(life.evidence().folder, 'server.log');
-    await buildIsolatedServer(build);
+    try {
+      await buildIsolatedServer(build);
+    } finally {
+      await stop();
+    }
     const server = await IsolatedServer.start(
       repositoryRoot,
       build,
