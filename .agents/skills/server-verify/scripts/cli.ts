@@ -17,7 +17,7 @@ import { serve, start } from './start.ts';
 
 const usage = `Usage: .agents/skills/server-verify/scripts/cli <command> [--instance <id>]
   start                                   build and start one disposable sandboxed server
-  connection                              print public metadata and protected curl configuration paths
+  connection                              print public metadata and protected connection file paths
   doctor                                  check ownership, health and whether the build matches the checkout
   record <label> --body <file> [--headers <file>] [--status N]
                  [--request <description>] [--transport network|owner]

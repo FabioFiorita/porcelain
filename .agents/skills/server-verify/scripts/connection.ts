@@ -7,7 +7,9 @@ export async function connection(instance: ServerInstance): Promise<string> {
   const handle = await ServerHandle.attach(instance.detail.manifestPath);
   const network = join(instance.folder, 'curl-network.conf');
   const owner = join(instance.folder, 'curl-owner.conf');
+  const authFile = join(instance.folder, 'authentication.json');
   for (const [path, content] of [
+    [authFile, `${JSON.stringify({ credential: handle.credential })}\n`],
     [
       network,
       `header = ${JSON.stringify(`Authorization: Bearer ${handle.credential}`)}\n`,
@@ -26,6 +28,7 @@ export async function connection(instance: ServerInstance): Promise<string> {
       repository: instance.detail.repository,
       home: instance.detail.projectHome,
       ownerSocket: handle.socketPath,
+      authFile,
       curl: { network, owner },
       startedAt: instance.startedAt,
       fingerprint: instance.fingerprint,
