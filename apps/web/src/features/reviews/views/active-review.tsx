@@ -1,3 +1,4 @@
+import { AsyncResult } from 'effect/reactivity';
 import type { ReactNode } from 'react';
 import { usePublishedReview } from '../queries/published-review';
 import type {
@@ -19,8 +20,8 @@ export function ActiveReview({
   children: (review: ReviewResponse) => ReactNode;
 }) {
   const published = usePublishedReview(scope, context);
-  const review = published.data?.active ? published.data : null;
-  if (published.isPending)
+  const review = published.review?.active ? published.review : null;
+  if (AsyncResult.isInitial(published.result))
     return (
       <p role="status" className="p-4 text-sm">
         Loading review…

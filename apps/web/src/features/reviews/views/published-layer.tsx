@@ -91,7 +91,7 @@ export function PublishedLayer({
           variant="ghost"
           size="sm"
           aria-pressed={reviewed}
-          disabled={toggle.isPending || !mark.settled}
+          disabled={toggle.result.waiting || !mark.settled}
           onClick={() =>
             toggle.toggle({
               layerId: layer.id,
@@ -113,7 +113,7 @@ export function PublishedLayer({
           </TabsList>
         </Tabs>
       </DocumentToolbar>
-      {(toggle.isError || mark.failed) && (
+      {(AsyncResult.isFailure(toggle.result) || mark.failed) && (
         <p role="alert" className="px-4 text-sm text-destructive">
           The layer mark could not be updated. Try again.
         </p>

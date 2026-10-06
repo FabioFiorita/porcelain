@@ -162,7 +162,7 @@ function SidebarSurface({
   if (!available)
     return (
       <div className="p-3">
-        {published.data && surface === 'changes' && (
+        {published.review && surface === 'changes' && (
           <Button variant="ghost" onClick={() => onOpen({ kind: 'handoff' })}>
             Saved review
           </Button>

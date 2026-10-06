@@ -1,5 +1,5 @@
-import { proofFileQueryOptions } from '@porcelain/client/reviews';
-import { useQuery } from '@tanstack/react-query';
+import { readProofFile } from '@porcelain/client/reviews';
+import { useAtomValue } from '@effect/atom-react';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 
@@ -8,8 +8,7 @@ export function useProofFile(
   context: ConnectionContext,
   proofId: string,
 ) {
-  return useQuery({
-    ...proofFileQueryOptions(scope, context.connection, proofId),
-    throwOnError: false,
-  });
+  return useAtomValue(
+    readProofFile({ scope, connection: context.connection, proofId }),
+  );
 }

@@ -1,5 +1,6 @@
 import { Effect, Stream } from 'effect';
-import { Atom } from 'effect/reactivity';
+import { Atom, AsyncResult } from 'effect/reactivity';
+import type { ConfirmedResource } from './confirmed-resource.ts';
 import type { RuntimeConnection, WorktreeScope } from './connection.ts';
 import { queryKeys } from './query-keys.ts';
 import { currentAnswerEffect } from './stale-answer.ts';
@@ -64,4 +65,25 @@ function reactiveRead<A extends Atom.Atom<unknown>>(
     ),
     Atom.setIdleTTL(0),
   );
+}
+
+export function worktreeResource<A, E, R>(
+  scope: WorktreeScope,
+  resource: Effect.Effect<ConfirmedResource<A, E>, never, R>,
+  runtime: Atom.AtomRuntime<R | ReadSubscriptions>,
+) {
+  return runtime
+    .atom(
+      Stream.unwrap(
+        Effect.gen(function* () {
+          const subscriptions = yield* ReadSubscriptions;
+          yield* subscriptions.retain({ ...scope, paths: [] });
+          return (yield* resource).stream;
+        }),
+      ),
+    )
+    .pipe(
+      Atom.map((result) => AsyncResult.flatMap(result, (answer) => answer)),
+      Atom.setIdleTTL(0),
+    );
 }

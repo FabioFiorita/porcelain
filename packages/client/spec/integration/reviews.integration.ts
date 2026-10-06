@@ -8,11 +8,11 @@ import {
   sampleReview,
   worktreePath,
 } from '@porcelain/server/kit/requests';
-import { publishedReviewQueryOptions } from '@porcelain/client/reviews';
+import { readPublishedReview } from '@porcelain/client/reviews';
 import { commentsQueryOptions } from '@porcelain/client/reviews';
 import {
   reviewedQueryOptions,
-  layerMarksQueryOptions,
+  readLayerMarks,
 } from '@porcelain/client/reviews';
 import { readChanges } from '@porcelain/client/changes';
 import { readChangeDiffs } from '@porcelain/client/changes';
@@ -22,10 +22,15 @@ test('read an unpublished review, then its published layers and discussion', asy
   server,
   session,
 }) => {
-  const { connected, scope } = await connection(server, session);
+  const {
+    connected,
+    scope,
+    read: nativeRead,
+    registry,
+  } = await connection(server, session);
   const cache = new QueryClient();
   expect(
-    await cache.query(publishedReviewQueryOptions(scope, connected)),
+    await nativeRead(readPublishedReview({ scope, connection: connected })),
   ).toBeNull();
   const layerId = '75dc6a36-a001-4d00-b511-c45430b99403';
   await read(session, {
@@ -46,9 +51,9 @@ test('read an unpublished review, then its published layers and discussion', asy
       body: 'Please explain this line.',
     },
   });
-  const review = await cache.query(
-    publishedReviewQueryOptions(scope, connected),
-  );
+  const published = readPublishedReview({ scope, connection: connected });
+  registry.refresh(published);
+  const review = await nativeRead(published);
   expect(review).toMatchObject({
     worktreeId: scope.worktreeId,
     environmentId: connected.environmentId,
@@ -63,7 +68,9 @@ test('read an unpublished review, then its published layers and discussion', asy
   expect(
     await cache.query(reviewedQueryOptions(scope, connected)),
   ).toMatchObject({ worktreeId: scope.worktreeId, marks: [] });
-  expect(await cache.query(layerMarksQueryOptions(scope, connected))).toEqual({
+  expect(
+    await nativeRead(readLayerMarks({ scope, connection: connected })),
+  ).toEqual({
     worktreeId: scope.worktreeId,
     marks: [],
   });

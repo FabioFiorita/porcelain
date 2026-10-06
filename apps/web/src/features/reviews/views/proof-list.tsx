@@ -1,3 +1,5 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
 import {
   CircleCheckIcon,
   CircleMinusIcon,
@@ -214,8 +216,8 @@ function ProofMedia({
   video: boolean;
 }) {
   const file = useProofFile(scope, context, id);
-  const url = useProofFileUrl(file.data);
-  if (file.isError)
+  const url = useProofFileUrl(Option.getOrUndefined(AsyncResult.value(file)));
+  if (AsyncResult.isFailure(file))
     return (
       <p role="status" className="p-3 text-xs text-muted-foreground">
         This attachment could not be loaded.

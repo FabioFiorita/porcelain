@@ -21,6 +21,10 @@ export function confirmedResource<A, E>(
   key: readonly unknown[],
   read: Effect.Effect<A, E>,
   seed: Option.Option<A> = Option.none(),
+  readKeys: readonly unknown[] = [
+    key,
+    queryKeys.environment(connection.environmentId),
+  ],
 ) {
   return Effect.gen(function* () {
     const queues = yield* WriteQueues;
@@ -94,12 +98,7 @@ export function confirmedResource<A, E>(
         SubscriptionRef.changes(state).pipe(
           Stream.map((current) => current.result),
         ),
-        reactivity
-          .stream(
-            [key, queryKeys.environment(connection.environmentId)],
-            observe,
-          )
-          .pipe(Stream.drain),
+        reactivity.stream(readKeys, observe).pipe(Stream.drain),
       ),
     } satisfies ConfirmedResource<A, E>;
   });

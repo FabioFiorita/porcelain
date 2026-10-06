@@ -304,9 +304,9 @@ function DocumentArea({
     AsyncResult.value(useReviewOverview(scope, connection)),
   );
   const published = usePublishedReview(scope, context);
-  const layers = published.data?.active ? published.data.layers : [];
+  const layers = published.review?.active ? published.review.layers : [];
   const hasHandoff =
-    Boolean(published.data?.active) ||
+    Boolean(published.review?.active) ||
     (overview != null && overview.changes.length > 0);
   const layout = useTabLayout({
     worktreeId,
@@ -353,7 +353,7 @@ function DocumentArea({
     scope,
     context,
     layers,
-    handoff: published.data?.active
+    handoff: published.review?.active
       ? ('review' as const)
       : hasHandoff
         ? ('changes' as const)

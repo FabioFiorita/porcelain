@@ -91,7 +91,7 @@ export function ReviewIndex({
   usePrefetchComments(scope, context);
   const list = useChanges(scope, connection);
   const published = usePublishedReview(scope, context);
-  const review = published.data?.active ? published.data : null;
+  const review = published.review?.active ? published.review : null;
   const { threads } = useComments(scope, context);
   const changes = useReviewChangeItems(scope, context, list);
   const openComments = threads.filter((thread) => !thread.resolved).length;

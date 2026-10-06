@@ -1,5 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { operationMutation } from '@/shared/query/mutation';
+import { useAtom } from '@effect/atom-react';
 import { toggleLayerMark } from '@porcelain/client/reviews';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
@@ -8,17 +7,8 @@ export function useToggleLayerMark(
   scope: ReviewScope,
   context: ConnectionContext,
 ) {
-  const client = useQueryClient();
-  const mutation = useMutation(
-    operationMutation(
-      (input: { layerId: string; fingerprint: string; reviewed: boolean }) =>
-        toggleLayerMark(scope, context.connection, client, input),
-      context.connection,
-    ),
+  const [result, toggle] = useAtom(
+    toggleLayerMark({ scope, connection: context.connection }),
   );
-  return {
-    isPending: mutation.isPending,
-    isError: mutation.isError,
-    toggle: mutation.mutate,
-  };
+  return { result, toggle };
 }

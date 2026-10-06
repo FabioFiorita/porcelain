@@ -46,27 +46,3 @@ export function reviewedQueryOptions(
     },
   };
 }
-
-export function layerMarksQueryOptions(
-  scope: WorktreeScope,
-  connection: WorktreeConnection,
-) {
-  return {
-    queryKey: queryKeys.worktreeSurface(connection, scope, ['reviewed-layers']),
-    queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
-      const connected = connection.request(signal);
-      const result = await runRequest(
-        reviewsApi(connection).listReviewedLayers({
-          params: { worktreeId: scope.worktreeId },
-        }),
-        connected.signal,
-      );
-      assertCurrentAnswer(
-        connected.signal,
-        result.worktreeId === scope.worktreeId,
-      );
-
-      return result;
-    },
-  };
-}

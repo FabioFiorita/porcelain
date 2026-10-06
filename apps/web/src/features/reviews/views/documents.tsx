@@ -1,3 +1,4 @@
+import { AsyncResult } from 'effect/reactivity';
 import { FileIcon, GitGraphIcon, HistoryIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CommitGraph, FileTimeline } from '@/features/history/index';
@@ -153,18 +154,18 @@ function TimelineDocument({
 
 function HandoffDocument(props: DocumentProps) {
   const published = usePublishedReview(props.scope, props.context);
-  if (published.isPending)
+  if (AsyncResult.isInitial(published.result))
     return (
       <p role="status" className="p-4 text-sm">
         Loading review…
       </p>
     );
-  if (published.isError)
-    return <PublicationFailure retry={() => void published.refetch()} />;
-  if (published.data?.active)
+  if (AsyncResult.isFailure(published.result))
+    return <PublicationFailure retry={published.refresh} />;
+  if (published.review?.active)
     return (
       <PublishedOverview
-        review={published.data}
+        review={published.review}
         address={props.context.connection.address}
         onOpen={props.onOpen}
       />
@@ -203,17 +204,17 @@ function LayerDocument({
   ...props
 }: DocumentProps & { layerId: string }) {
   const published = usePublishedReview(props.scope, props.context);
-  const layer = published.data?.layers.find(
+  const layer = published.review?.layers.find(
     (candidate) => candidate.id === layerId,
   );
-  if (published.isPending)
+  if (AsyncResult.isInitial(published.result))
     return (
       <p role="status" className="p-4 text-sm">
         Loading layer…
       </p>
     );
-  if (published.isError)
-    return <PublicationFailure retry={() => void published.refetch()} />;
+  if (AsyncResult.isFailure(published.result))
+    return <PublicationFailure retry={published.refresh} />;
   if (!layer)
     return (
       <ReviewEmpty
@@ -223,10 +224,10 @@ function LayerDocument({
     );
   return (
     <PublishedLayer
-      key={`${layerId}:${published.data?.revision}`}
+      key={`${layerId}:${published.review?.revision}`}
       {...props}
       layer={layer}
-      proof={proofOnLayer(published.data?.proof, layerId)}
+      proof={proofOnLayer(published.review?.proof, layerId)}
     />
   );
 }
