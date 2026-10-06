@@ -1,20 +1,3 @@
----
-route: /$projectId/$worktreeId
-selectors:
-  - "Review"
-  - "Files"
-  - "Open file"
-  - "Edit"
-  - "Done"
-  - "Not saving: changed on disk"
-  - "Copy draft"
-  - "Reload"
-tests:
-  - apps/web/spec/integration/files-edit-conflict.test.tsx
-api:
-  - POST /api/worktrees/:worktreeId/files
----
-
 # files.edit-conflict
 
 ## What it is
@@ -28,33 +11,34 @@ Saving an edit to a file that changed on disk since the editor opened is refused
 ## Driving it
 
 `C=.agents/skills/web-verify/scripts/cli; $C start`. `$REPO` is the path `start` prints after `repository`.
+After each start, use the skill’s in-app attachment workflow: open the fresh attachment page in an owned tab and follow "Open workspace".
 
 ### Setup
 
 None before driving; the disk write happens between steps 6 and 7.
 
-1. `$C open /`
+1. Open `/` on the instance web URL
    Look for: Page Title "Changes — repository".
-2. `$C click --role button --name "Review"`
+2. Click the button named 'Review'
    Look for: dialog "Worktree review" with tab "Files".
-3. `$C click --role tab --name "Files"`
+3. Click the tab named 'Files'
    Look for: treeitem "README.md".
-4. `$C click --role treeitem --name "README.md" --button right`
+4. Right-click the tree item named 'README.md'
    Look for: menuitem "Open file".
-5. `$C click --role menuitem --name "Open file"`
+5. Click the menu item named 'Open file'
    Look for: tab "README.md Close README.md" selected; button "Edit".
-6. `$C click --role button --name "Edit"`
+6. Click the button named 'Edit'
    Look for: textbox "README.md"; status "Saves as you pause".
 7. On disk: `printf 'Changed on disk while the browser edits\n' > "$REPO/README.md"`
    Look for: nothing changes in the editor (an open editor never takes the disk text).
-8. `$C fill --role textbox --name "README.md" "Browser edit made before the disk changed"`
+8. Focus the 'README.md' editor, select all with `Mod+A`, type 'Browser edit made before the disk changed', and read back the editor content to confirm it matches
    Look for: status "Unsaved changes".
-9. `$C click --role button --name "Done"`
+9. Click the button named 'Done'
    Look for: alert "The file changed on disk since you opened it. Reload it before saving. Your draft is kept here." with buttons "Copy draft" and "Reload" (no "Retry save"); status "Not saving: changed on disk"; button "Done" disabled; textbox "README.md" still holds "Browser edit made before the disk changed".
    Disk: `cat "$REPO/README.md"` prints `Changed on disk while the browser edits`.
-10. `$C network`
+10. Inspect browser network evidence
     Look for: exactly one `POST /api/worktrees/<id>/files` and it answered 409.
-11. `$C click --role button --name "Reload"`
+11. Click the button named 'Reload'
     Look for: the editor closes; button "Edit" is back; the Reader shows the paragraph "Changed on disk while the browser edits".
 
 ## What proves it works
@@ -66,6 +50,6 @@ None before driving; the disk write happens between steps 6 and 7.
 
 - The disk write must land after Edit (step 6) and before the save; written before Edit, the editor starts from the new text and the save succeeds.
 - Once refused, no later save sends a request (Done stays disabled, `Mod+S` and autosave do nothing) until Reload; only one POST appears in the network log.
-- The CLI browser is 414 px wide: the tree lives in the sheet behind "Review", which closes when the file opens.
-- The tab strip persists per worktree in localStorage across `open /`; leftovers from an earlier feature can make "Edit" or the tab names ambiguous. `$C stop` and `$C start` for a clean instance.
+- At a narrow browser viewport, the tree lives in the sheet behind "Review", which closes when the file opens.
+- The tab strip persists per worktree in localStorage across loading `/`; leftovers from an earlier feature can make "Edit" or the tab names ambiguous. `$C stop` and `$C start` for a clean instance.
 - The step 7 write replaces the sample `README.md` for later features; restore it with `printf '# Sample repository\n\nA change to review.\n' > "$REPO/README.md"`.

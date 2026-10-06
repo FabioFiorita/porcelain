@@ -1,23 +1,3 @@
----
-route: /
-selectors:
-  - "Review"
-  - "Files"
-  - "Open file"
-  - "Pin"
-  - "Unpin "
-  - "Changes"
-  - "All changes"
-  - "Collapse"
-  - "Expand"
-  - "Close "
-tests:
-  - apps/web/spec/e2e/reviews-reload-layout.e2e.ts
-api:
-  - GET /api/worktrees/:worktreeId/text
-  - POST /api/worktrees/:worktreeId/changes/diffs
----
-
 # reviews.reload-layout
 
 ## What it is
@@ -34,6 +14,7 @@ The document tabs (which are open, which are pinned) and each diff's collapsed s
 ## Driving it
 
 `C=.agents/skills/web-verify/scripts/cli; $C start` (prints `repository <path>`; call it `$REPO`).
+After each start, use the skill’s in-app attachment workflow: open the fresh attachment page in an owned tab and follow "Open workspace".
 
 ### Setup
 
@@ -41,19 +22,19 @@ The document tabs (which are open, which are pinned) and each diff's collapsed s
 printf '# Notes\n' > "$REPO/notes.md"
 ```
 
-1. `$C open /`, then `$C click --role button --name "Review"`, then `$C click --role tab --name "Files"`
+1. Open `/` on the instance web URL, then click the button named 'Review', then click the tab named 'Files'
    Look for: in the dialog, treeitems "README.md" and "notes.md".
-2. `$C click --role treeitem --name "README.md" --button right`, then `$C click --role menuitem --name "Open file"`
+2. Right-click the tree item named 'README.md', then click the menu item named 'Open file'
    Look for: the sheet closes; tab "README.md Close README.md" selected.
-3. `$C click --role button --name "Review"`, then `$C click --role treeitem --name "notes.md" --button right`, then `$C click --role menuitem --name "Open file"`
+3. Click the button named 'Review', then right-click the tree item named 'notes.md', then click the menu item named 'Open file'
    Look for: tab "notes.md Close notes.md" selected; tab "README.md Close README.md" still there.
-4. `$C click --role tab --name "/README.md/" --button right`, then `$C click --role menuitem --name "Pin"`
+4. Right-click the tab whose name contains 'README.md', then click the menu item named 'Pin'
    Look for: button "Unpin README.md" (the README.md tab now reads "README.md Unpin README.md" and sits first); no "Close README.md".
-5. `$C click --role button --name "Review"`, then `$C click --role tab --name "Changes"`, then `$C click --role button --name "All changes"`
+5. Click the button named 'Review', then click the tab named 'Changes', then click the button named 'All changes'
    Look for: the sheet closes; tab "Changes Close Changes" selected; heading "Changes", text "2 files", buttons "Collapse README.md" and "Collapse notes.md". Page URL carries `entry=handoff`.
-6. `$C click --role button --name "Collapse README.md"`
+6. Click the button named 'Collapse README.md'
    Look for: button "Expand README.md" (aria-expanded false).
-7. `$C open "<path and query of the Page URL step 6 printed>"` (the reload)
+7. reload <path and query of the Page URL step 6 printed> (the reload)
    Look for: button "Expand README.md", button "Unpin README.md", tab "notes.md Close notes.md", tab "Changes Close Changes" selected.
 
 ## What proves it works
@@ -64,6 +45,6 @@ printf '# Notes\n' > "$REPO/notes.md"
 ## Gotchas
 
 - Phone width: the Files tree is in the review sheet behind "Review"; every "Open file" or "All changes" closes the sheet, so click "Review" again before the next tree or sidebar action. The sidebar remembers the Files surface, so step 3 needs no second "Files" click.
-- Reload with the exact path and query printed as Page URL. `$C open /` also restores the tabs and pin, but without `entry=handoff` it activates the last tab (notes.md); click tab "Changes Close Changes" to see "Expand README.md".
+- Reload with the exact path and query printed as Page URL. open `/` on the instance web URL also restores the tabs and pin, but without `entry=handoff` it activates the last tab (notes.md); click tab "Changes Close Changes" to see "Expand README.md".
 - An inactive tab's "Close <name>" button is transparent until hover but still in the accessibility tree.
 - The layout and folds live in this browser's localStorage and persist for the instance. To reset: right-click the README.md tab → "Unpin", close the file tabs, and click "Expand README.md"; `rm "$REPO/notes.md"`.

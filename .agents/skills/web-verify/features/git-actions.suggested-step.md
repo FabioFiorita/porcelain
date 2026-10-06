@@ -1,18 +1,3 @@
----
-route: /
-selectors:
-  - "Commit"
-  - "Apply stash"
-  - "Git actions"
-  - "Stash changes"
-  - "Git controls"
-tests:
-  - apps/web/spec/integration/git-actions-suggested-step.test.tsx
-api:
-  - GET /api/worktrees/:worktreeId/git/status
-  - POST /api/worktrees/:worktreeId/git/actions
----
-
 # git-actions.suggested-step
 
 ## What it is
@@ -27,22 +12,23 @@ The Git button (group "Git controls", left of Git actions) suggests the next ste
 ## Driving it
 
 Start with `$C start`. No setup; `REPO` is the repository path `start` printed.
+After each start, use the skill’s in-app attachment workflow: open the fresh attachment page in an owned tab and follow "Open workspace".
 
-1. `$C snapshot`
+1. Inspect the current page
    Look for: group "Git controls" holds button "Commit" and button "Git actions"; no button "Apply stash".
-2. `$C click --role button --name "Git actions"`
+2. Click the button named 'Git actions'
    Look for: menuitem starting "Stash changes".
-3. `$C click --role menuitem --name "/^Stash changes/"`
+3. Click the menu item whose name starts with 'Stash changes'
    Look for: dialog "Stash changes".
-4. `$C click --role button --name "Stash changes"`
+4. Click the button named 'Stash changes'
    Look for: `status` "succeeded" in the dialog.
-5. `$C press Escape`
+5. Press `Escape`
    Look for: the dialog is gone; group "Git controls" now holds button "Apply stash" (visible text "Apply stash") instead of "Commit"; README.md is no longer listed.
-6. `$C click --role button --name "Apply stash"`
+6. Click the button named 'Apply stash'
    Look for: dialog "Apply stash" with the description "Its changes come back into the working tree and the stash is kept.", combobox "Stash" showing "On main: Porcelain review · <id>" and button "Apply stash".
-7. `$C click --role button --name "Apply stash"`
+7. Click the button named 'Apply stash'
    Look for: `status` "succeeded" in the dialog.
-8. `$C press Escape`
+8. Press `Escape`
    Look for: the dialog is gone; the Git button is "Commit" again (no button "Apply stash"); README.md is listed again.
 
 ## What proves it works
@@ -52,5 +38,5 @@ Start with `$C start`. No setup; `REPO` is the repository path `start` printed.
 
 ## Gotchas
 
-- Steps 6 and 7 use the same name: in step 7 the dialog is modal, so the page behind it is hidden from the accessibility tree and `--name "Apply stash"` resolves to the dialog's button only.
+- Steps 6 and 7 use the same name: in step 7 the dialog is modal, so the page behind it is hidden from the accessibility tree so choose the dialog’s "Apply stash" button.
 - The stash stays after this feature; `git -C "$REPO" stash drop` removes it so later features start with the Git button reading "Commit".

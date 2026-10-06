@@ -1,28 +1,10 @@
----
-route: /
-selectors:
-  - "Review"
-  - "Files"
-  - "Open file"
-  - "History"
-  - "Toggle Sidebar"
-  - "Settings"
-  - "Back"
-tests:
-  - apps/web/spec/e2e/app-tab-title.e2e.ts
-api:
-  - GET /api/inventory
-  - GET /api/worktrees/:worktreeId/commits
-  - GET /api/worktrees/:worktreeId/text
----
-
 # app.tab-title
 
 ## What it is
 
 The browser tab (document title) names what is shown: the open document, or the surface when no document is open, followed by ` — <project name>`; Settings and the empty workspace have their own titles.
 
-The exact strings (`apps/web/src/features/reviews/rules/documents.ts`, `apps/web/src/app/connected-workspace.tsx`, `apps/web/src/app/settings-page.tsx`), with `P` = project name ("repository" in the CLI instance):
+The exact strings (`apps/web/src/features/reviews/rules/documents.ts`, `apps/web/src/app/connected-workspace.tsx`, `apps/web/src/app/settings-page.tsx`), with `P` = project name ("repository" in the disposable instance):
 
 - Changes document (the "All changes"/"Review summary" handoff tab): `Changes — P`
 - a changed file or a file opened from Files: `<file name> — P` (the last path segment, e.g. `README.md — P`)
@@ -37,11 +19,12 @@ The exact strings (`apps/web/src/features/reviews/rules/documents.ts`, `apps/web
 ## How a user reaches it
 
 - It follows every navigation in the workspace: opening a document tab (Changes list, Files tree, History list), switching tabs, switching surface with the sidebar tabs or `Alt+1` / `Alt+2` / `Alt+3`, opening Settings.
-- Every CLI command prints the Page Title, so each step below reads it from the command's own output.
+- Read the browser document title at each step below.
 
 ## Driving it
 
 `C=.agents/skills/web-verify/scripts/cli; $C start`, then `REPO=<the repository path start printed>`.
+After each start, use the skill’s in-app attachment workflow: open the fresh attachment page in an owned tab and follow "Open workspace".
 
 ### Setup
 
@@ -49,28 +32,28 @@ None before step 1. Step 5 commits on disk; do it only after step 4, because "Op
 
 ### Steps
 
-1. `$C open /`
+1. Open `/` on the instance web URL
    Look for: Page Title "Changes — repository".
-2. `$C click --role button --name "Review"`, then `$C click --role tab --name "Files"`
+2. Click the button named 'Review', then click the tab named 'Files'
    Look for: the review sheet with tab "Files" selected and treeitem "README.md"; Page Title "Files — repository" (with the Changes document selected, the title follows the sidebar surface).
-3. `$C click --role treeitem --name "README.md" --button right`
+3. Right-click the tree item named 'README.md'
    Look for: menu with menuitems "Open diff" and "Open file".
-4. `$C click --role menuitem --name "Open file"`
+4. Click the menu item named 'Open file'
    Look for: the sheet closes; a document tab for README.md is selected; Page Title "README.md — repository".
 5. On disk: `git -C "$REPO" add -A && git -C "$REPO" commit -qm "Name the tab after the commit" && git -C "$REPO" rev-parse --short=7 HEAD`
    Look for: a 7-character oid printed; call it `OID`.
-6. `$C click --role button --name "Review"`, then `$C click --role tab --name "History"`
-   Look for: a button whose name starts with "Name the tab after the commit" above one starting with "Initial commit" (allow a moment for the watcher; repeat `$C snapshot` until it shows).
-7. `$C click --role button --name "/^Name the tab after the commit/"`
+6. Click the button named 'Review', then click the tab named 'History'
+   Look for: a button whose name starts with "Name the tab after the commit" above one starting with "Initial commit" (allow a moment for the watcher; inspect the current page again until it shows).
+7. Click the button whose name starts with 'Name the tab after the commit'
    Look for: Page Title "`OID` — repository".
-8. `$C click --role button --name "Toggle Sidebar"`, then `$C click --role button --name "Settings"`
+8. Click the button named 'Toggle Sidebar', then click the button named 'Settings'
    Look for: Page URL `/settings/appearance`; Page Title "Settings".
-9. `$C click --role button --name "Back"`
+9. Click the button named 'Back'
    Look for: Page Title "`OID` — repository" again.
 
 ## What proves it works
 
-- Steps 1, 4, 7, 8 and 9 each print the title stated above; a reload (`$C open` with the current Page URL) prints the same title, since the open document lives in the URL's `entry` parameter.
+- Steps 1, 4, 7, 8 and 9 each show the title stated above; reloading the current page preserves that title, since the open document lives in the URL's `entry` parameter.
 - `apps/web/spec/e2e/app-tab-title.e2e.ts` (web project, 414x896): the title is "Changes — <project>" on load, "README.md — <project>" after Files → README.md → Open file, and "<oid 7> — <project>" after committing and opening that commit from History.
 
 ## Gotchas

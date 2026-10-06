@@ -1,26 +1,12 @@
-# Web feature map
+# Web journey guides
 
-`C=.agents/skills/web-verify/scripts/cli`, from the repository root; every map uses `$C` for commands.
+These optional Markdown guides describe useful navigation, fixture setup and observable promises. Start and attach using [the web verification skill](../SKILL.md), then use the in-app browser for semantic steps. Add or correct a guide when it helps the work; there is no required inventory, frontmatter format or source synchronization check. Product Schemas and behavioral regressions own the API contract.
 
-One file per feature the web offers, named `<domain>.<capability>.md`. Each says what the feature is, how a user reaches it, the exact CLI lines that drive it with the end state to look for, the tests that guard it and its gotchas. `pnpm check` runs `node scripts/feature-maps.ts`, which fails when a page route has no map, a map names a route, test, selector or API route that does not exist, or the web calls a route no map lists.
+Most existing steps describe the compact 414×896 layout: Toggle Sidebar opens the navigator and Review opens the review drawer. At ordinary desktop width, use the visible navigator and review pane instead of expecting those dialogs. Select the intended width explicitly and confirm actual screenshot dimensions. A compact browser with a mouse does not prove touch or native-mobile behavior.
 
-What every map assumes about the CLI, proven in the live pass:
+The launcher owns disposable services, private connection details and fixture operations. It does not implement click, fill, wait, snapshot, network or trace commands. Tool syntax and editor/private-pairing procedures and capability limits belong once in the skill. Native tool artifacts and independent server/disk readback provide evidence.
 
-- `start` gives a phone-width browser: the project navigator sits behind `Toggle Sidebar` and the review sidebar (Changes, Files, History) behind `Review`; opening a document closes that sheet.
-- `open` prints the URL and title of the first load, before the app redirects (`/` and "Porcelain"); the next command prints the settled ones. `click` and `press` include a snapshot even for changes at the same URL; they append one only when Playwright supplied none.
-- Right after `start` or `open` the diffs load after the toolbar; `click`, `fill`, `select` and `drag` wait up to 10 s for their target, and `wait` waits for something a step expects (a disk write reaching the page, a dialog's status).
-- An address must match one element. Two panes, a file and its timeline, or the toolbar and diff-header mark buttons repeat a name; scope it with `--within-role`/`--within-name`, pick one with `--nth`, or use the address the map names.
-- `network` lists only the requests since the last page load; add `--static` to include successful scripts, styles and images; `[FAILED] net::ERR_ABORTED` lines are requests the page cancelled and sent again.
-- The aria snapshot shows neither the editor's text nor an iframe's content nor a native select's choice; check those with `screenshot`, `wait --frame`, or the disk.
-- `fill` on the file editor replaces its whole text.
-- Disk setup runs in the `repository` folder `start` printed; the sample repository already commits as "Porcelain Development". `stop` and `start` give a clean instance in a few seconds, which most maps assume.
-- `start --desktop` adds This computer, Ways in, Devices and Remote computers. A remote computer is the second disposable server `remote start` runs, added from the link `remote pairing-link` prints.
-- `start --unpaired` begins on the not-paired page and `pair` pairs through a fresh link; `start --coding-tool` lets commits be drafted.
-- Agent actions (`agent publish-review`, `publish-proof`, `comment`, `reply`) go through the server's MCP route as an agent's would; `server …` prints what the server holds. A review publishes once per instance's worktree.
-- `network hold`/`fail` and `live drop` act from the browser's side, as the e2e fixtures do; release, restore or `stop` before handing the instance on.
-- The disposable servers sign a summary link for 2 seconds from the review read: a summary frame mounted later stays blank until `open` reads the review again.
-
-| Feature | Route | What it does |
+| Guide | Route | Behavior |
 | --- | --- | --- |
 | [access.device-trust](access.device-trust.md) | /settings/$section (desktop) | On Devices the owner lets a paired device update Porcelain and takes it back, and creates a pairing link whose device may update Porcelain. |
 | [access.disconnect](access.disconnect.md) | / | Disconnecting this browser from Settings ends its session and shows how to pair it again while the device stays paired, and it is refused while a file draft cannot be saved. |

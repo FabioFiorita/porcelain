@@ -1,18 +1,3 @@
----
-route: /
-selectors:
-  - "Review"
-  - "History"
-  - "Merge commit"
-  - "Commit graph"
-  - "Open graph"
-  - "Start of history."
-tests:
-  - apps/web/spec/integration/history-list.test.tsx
-api:
-  - GET /api/worktrees/:worktreeId/commits
----
-
 # history.list
 
 ## What it is
@@ -21,13 +6,14 @@ The History list gives each commit one row with its message, 7-character id, aut
 
 ## How a user reaches it
 
-- Phone width (the CLI): button "Review" → sheet "Worktree review" → tab "History".
+- Phone width: button "Review" → sheet "Worktree review" → tab "History".
 - Desktop width (1280 px and wider): tab "History" in the review sidebar ("Review sidebar").
 - Shortcut `Alt+3` selects the History surface (the sheet still needs "Review" at phone width); URL `?surface=history`.
 
 ## Driving it
 
 Start with `$C start`. `REPO` is the repository path `start` printed.
+After each start, use the skill’s in-app attachment workflow: open the fresh attachment page in an owned tab and follow "Open workspace".
 
 ### Setup
 
@@ -48,9 +34,9 @@ git -C "$REPO" log -1 --format='%s %p'
 
 The last line prints `Merge branch 'topic'` and two parent ids.
 
-1. `$C click --role button --name "Review"`
+1. Click the button named 'Review'
    Look for: dialog "Worktree review" with tabs "Changes", "Files", "History".
-2. `$C click --role tab --name "History"`
+2. Click the tab named 'History'
    Look for, in the snapshot of the sheet:
    - four row buttons, the merge first (the two commits made in the same second may come in either order, a live run showed "Add the topic notes" above "Describe every step…"): one starting "Merge commit Merge branch 'topic'" that holds img "Merge commit" and the chip "main"; one starting "Describe every step the reviewer takes before approving the change" with that whole subject as text and no img "Merge commit"; one starting "Add the topic notes" with the chip "topic"; one starting "Initial commit";
    - each row's name goes on with the 7-character id, "Porcelain Development" and the age;
@@ -63,6 +49,6 @@ The last line prints `Merge branch 'topic'` and two parent ids.
 
 ## Gotchas
 
-- Rows are buttons named by their whole text; address one with a regex anchored at the start, such as `--name "/^Add the topic notes/"`. The merge row's name begins with the img label "Merge commit".
+- Rows are buttons named by their whole text; choose the row whose name starts with "Add the topic notes". The merge row's name begins with the img label "Merge commit".
 - A long subject is truncated visually but its full text is in the accessibility tree; compare names in the snapshot, not the screenshot.
 - The setup leaves the branch, merge and files in place for the rest of the instance.

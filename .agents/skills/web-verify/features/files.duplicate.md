@@ -1,17 +1,3 @@
----
-route: /
-selectors:
-  - "Review"
-  - "Worktree review"
-  - "Files"
-  - "Duplicate"
-tests:
-  - apps/web/spec/e2e/files-duplicate.e2e.ts
-api:
-  - GET /api/worktrees/:worktreeId/directory
-  - POST /api/worktrees/:worktreeId/files
----
-
 # files.duplicate
 
 ## What it is
@@ -22,15 +8,16 @@ Duplicating a file writes a copy beside it, named `<stem> copy<extension>` (then
 
 - Review (phone width) → tab Files → right-click a file row → menuitem "Duplicate".
 - Review → tab Files → right-click a row under "Pinned" → menuitem "Duplicate".
-- `Mod+D` (`ControlOrMeta+d` in the CLI) duplicates the file open as a file document while the Files tree is mounted.
+- `Mod+D` duplicates the file open as a file document while the Files tree is mounted.
 
 ## Driving it
 
 Start with `$C start`. Set `REPO` to the path it prints after `repository`.
+After each start, use the skill’s in-app attachment workflow: open the fresh attachment page in an owned tab and follow "Open workspace".
 
 ### Setup
 
-Before `open`:
+Before a page load:
 
 ```sh
 printf 'Notes to copy\n' > "$REPO/notes.md"
@@ -38,30 +25,30 @@ printf 'Notes to copy\n' > "$REPO/notes.md"
 
 ### Steps
 
-1. `$C open /`
+1. Open `/` on the instance web URL
    Look for: Page Title "Changes — repository".
-2. `$C click --role button --name "Review"`
+2. Click the button named 'Review'
    Look for: dialog "Worktree review".
-3. `$C click --role tab --name "Files"`
+3. Click the tab named 'Files'
    Look for: tab "Files" [selected], with treeitem "notes.md" and treeitem "README.md" in the tree of region "All files".
-4. `$C click --role treeitem --name "notes.md" --button right`
+4. Right-click the tree item named 'notes.md'
    Look for: a menu with menuitems "Rename", "Duplicate", "Open diff", "Open file", "Show timeline", "Pin file", "Hide file", "Copy relative path", "Copy full path", "Move to trash".
-5. `$C click --role menuitem --name "Duplicate"`
+5. Click the menu item named 'Duplicate'
    Look for: dialog "Worktree review" is gone; heading "notes copy.md" [level=1]; Page Title "notes copy.md — repository".
    Disk: `cat "$REPO/notes copy.md"` prints `Notes to copy`, and `cat "$REPO/notes.md"` still prints `Notes to copy`.
-6. `$C click --role button --name "Review"`
+6. Click the button named 'Review'
    Look for: dialog "Worktree review" with tab "Files" selected and treeitem "notes copy.md" (selected) in the tree.
-7. `$C press ControlOrMeta+d`
+7. Press `Mod+D`
    Look for: the dialog is gone; Page Title "notes copy copy.md — repository"; heading "notes copy copy.md" [level=1].
    Disk: `ls "$REPO"` lists `notes copy copy.md`.
-8. `$C network`
+8. Inspect browser network evidence
    Look for: two `POST /api/worktrees/<worktreeId>/files` requests with a 2xx status.
 
 ## What proves it works
 
 - On disk: `notes copy.md` and `notes copy copy.md` hold the original's text, and `notes.md` is unchanged.
 - The Page Title names the copy after each duplicate, which shows the copy opened.
-- `apps/web/spec/e2e/files-duplicate.e2e.ts` duplicates `notes.md` from its menu. It asserts that the server lists `notes copy.md` with the same text, that the original keeps its text, and that the title becomes `notes copy.md — <project>`. It then presses `ControlOrMeta+d` with the Files tab showing and asserts `notes copy copy.md` exists and its title shows.
+- `apps/web/spec/e2e/files-duplicate.e2e.ts` duplicates `notes.md` from its menu. It asserts that the server lists `notes copy.md` with the same text, that the original keeps its text, and that the title becomes `notes copy.md — <project>`. It then presses `Mod+D` with the Files tab showing and asserts `notes copy copy.md` exists and its title shows.
 
 ## Gotchas
 

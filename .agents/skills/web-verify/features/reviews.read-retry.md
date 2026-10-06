@@ -1,14 +1,3 @@
----
-route: /$projectId/$worktreeId
-selectors:
-  - "Try again"
-  - "Changes"
-tests:
-  - apps/web/spec/e2e/reviews-read-retry.e2e.ts
-api:
-  - GET /api/worktrees/:worktreeId/changes
----
-
 # reviews.read-retry
 
 ## What it is
@@ -23,14 +12,17 @@ An initial review read that fails without a confirmed reply shows its error and 
 ## Driving it
 
 `C=.agents/skills/web-verify/scripts/cli; $C start` starts a disposable workspace.
+After each start, use the skill’s in-app attachment workflow: open the fresh attachment page in an owned tab and follow "Open workspace".
 
-1. `$C network fail "GET /api/worktrees/:worktreeId/changes" --status 503`, then `$C open /`.
+This controlled case requires HTTP failure interception for `GET /api/worktrees/:worktreeId/changes` and response restoration. The selected in-app browser presently does not expose these controls. Record this interactive case as unavailable. The named automated regressions are separate evidence.
+
+1. Fail `GET /api/worktrees/:worktreeId/changes` with HTTP 503, then open `/` on the instance web URL.
    Look for: button Try again in the review surface.
-2. `$C network restore`, then `$C click --role button --name "Try again"`.
+2. Restore normal HTTP responses and dispatch the window `online` event, then click the button named 'Try again'.
    Look for: heading Changes and the sample diff; Try again is gone, and the workspace address is unchanged.
-3. `$C network`.
+3. Inspect browser network evidence.
    Look for: the refused Changes read followed by a successful read after Try again.
-4. `$C console`, then `$C stop`.
+4. Inspect browser console evidence, then `$C stop`.
    Look for: the expected refused-read diagnostics and no later JavaScript failure.
 
 ## What proves it works

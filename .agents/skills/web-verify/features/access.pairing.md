@@ -1,17 +1,3 @@
----
-route: /pair
-selectors:
-  - "Review content"
-  - "Pairing this browser"
-  - "This pairing link is not usable. Ask for a new one."
-tests:
-  - apps/web/spec/e2e/access-pairing.e2e.ts
-api:
-  - GET /api/health
-  - GET /api/inventory
-  - POST /api/pair
----
-
 # access.pairing
 
 ## What it is
@@ -25,24 +11,24 @@ Opening a one-time pairing link checks the server's health, redeems the code as 
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start --unpaired`: the browser starts on the not-paired page. `pair` then issues a one-time link for "Verification browser" through the owner socket and opens it in this tab, as a person opens the link `porcelain pair` prints; neither prints the code.
+`C=.agents/skills/web-verify/scripts/cli; $C start` launches the disposable server without a browser. Open the printed web root in a fresh in-app tab before using any attachment. `$C pair` issues a fresh one-time link for "Verification browser" through the owner socket and returns safe attachment details; open that attachment page and follow "Open workspace" with the skill’s in-app workflow.
 
 ### Setup
 
 None.
 
-1. `$C open /`
+1. Open `/` on the instance web URL
    Look for: Page URL `/pair` and heading "This browser is not paired".
-2. `$C pair`, then `$C wait --role region --name "Review content"`
-   Look for: the `pair` output names `/pair#c=[redacted]&e=<environmentId>`; the workspace shows within a few seconds.
-3. `$C click --role button --name "Review"`
+2. Run `$C pair`, open the fresh attachment page it returns and follow "Open workspace", then wait for the region named 'Review content'
+   Look for: the attachment opens the pairing flow; the workspace shows within a few seconds and no pairing code remains in the address.
+3. Click the button named 'Review'
    Look for: Page URL `/<projectId>/<worktreeId>?entry=handoff` with no `#c=` fragment, Page Title "Changes — repository".
-4. `$C network` (before any `open`)
+4. Inspect browser network evidence (before any page load)
    Look for: `GET /api/health` 200, `POST /api/pair` 200, `GET /api/inventory` 200. `$C server devices` lists "Verification browser" beside "Development setup".
-5. `$C open /`
+5. Open `/` on the instance web URL
    Look for: the workspace again (region "Review content"), not `/pair`: the pairing left a working session.
-6. `$C open /pair`, then `$C snapshot`
-   Look for: region "Review content" and no heading "This browser is not paired": the paired browser is sent from `/pair` to its workspace (the CLI may still print Page URL `/pair` for the `open`; the `snapshot` prints the settled page).
+6. Open `/pair` on the instance web URL, then inspect the current page
+   Look for: region "Review content" and no heading "This browser is not paired": the paired browser leaves `/pair` for its workspace after navigation settles.
 
 ## What proves it works
 
@@ -52,6 +38,6 @@ None.
 
 ## Gotchas
 
-- A plain `start` pairs the browser through this same flow before the first command; `--unpaired` leaves it to `pair` so each step can be watched. Each `pair` issues a fresh link; a used code cannot be replayed (the page would show "This pairing link is not usable. Ask for a new one.").
-- Neither `start` nor `pair` prints the code; their evidence shows `c=[redacted]`.
-- `$C network` may no longer include the pairing requests after an `open`; read it first.
+- Start is browser-free. Keep the fresh tab unpaired until step 2 so the whole flow is observable. Each `$C pair` issues a fresh link; a used code cannot be replayed (the page would show "This pairing link is not usable. Ask for a new one.").
+- Neither `start` nor `pair` prints the code. Use the returned attachment details and keep the private connection artifact local.
+- Retain the pairing requests before the next page load if the in-app browser clears request history on navigation.

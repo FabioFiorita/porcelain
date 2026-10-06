@@ -1,23 +1,3 @@
----
-route: /settings/$section
-selectors:
-  - "Toggle Sidebar"
-  - "Projects and worktrees"
-  - "Settings"
-  - "Settings sections"
-  - "Appearance"
-  - "Git and agents"
-  - "Connection"
-  - "Updates"
-  - "Sharing"
-tests:
-  - apps/web/spec/e2e/app-settings-without-sharing.e2e.ts
-api:
-  - GET /api/inventory
-  - GET /api/service/update
-  - POST /api/service/update
----
-
 # app.settings-without-sharing
 
 ## What it is
@@ -33,6 +13,7 @@ The web the server serves (web mode) leaves sharing and remote computers to the 
 ## Driving it
 
 `C=.agents/skills/web-verify/scripts/cli; $C start` (web mode; `--desktop` shows the other section list).
+After each start, use the skill’s in-app attachment workflow: open the fresh attachment page in an owned tab and follow "Open workspace".
 
 ### Setup
 
@@ -40,17 +21,17 @@ None. Note the computer's name with `hostname` on the machine running the instan
 
 ### Steps
 
-1. `$C open /`
+1. Open `/` on the instance web URL
    Look for: button "Toggle Sidebar" (the next command prints Page Title "Changes — repository").
-2. `$C click --role button --name "Toggle Sidebar"`
+2. Click the button named 'Toggle Sidebar'
    Look for: navigation "Projects and worktrees" whose header reads "Porcelain" and, under it, the `hostname` output; button "repository"; no group "This computer" (that group is desktop-only).
-3. `$C click --role button --name "Settings"`
+3. Click the button named 'Settings'
    Look for: Page URL `/settings/appearance`; Page Title "Settings"; main "Settings"; heading "Appearance"; navigation "Settings sections" holding exactly the buttons "Appearance", "Git and agents", "Connection", "Updates" and "Back"; no button "Sharing", "This computer", "Ways in", "Devices" or "Remote computers".
-4. `$C click --role button --name "Updates"`
-   Look for: Page URL `/settings/updates`; heading "Updates"; the CLI's server offers a scripted update, so the list reads "Porcelain 1.0.0", "Porcelain 1.1.0 is available." and button "Update to 1.1.0". (A server that runs outside the installed service shows "This server runs outside the installed service. Update it with npm, then run porcelain service update." instead.)
-5. `$C network`
+4. Click the button named 'Updates'
+   Look for: Page URL `/settings/updates`; heading "Updates"; the disposable server offers a scripted update, so the list reads "Porcelain 1.0.0", "Porcelain 1.1.0 is available." and button "Update to 1.1.0". (A server that runs outside the installed service shows "This server runs outside the installed service. Update it with npm, then run porcelain service update." instead.)
+5. Inspect browser network evidence
    Look for: `GET /api/service/update` with status 200.
-6. `$C open /settings/devices`
+6. Open `/settings/devices` on the instance web URL
    Look for: Page URL `/settings/appearance` (redirected); heading "Appearance".
 
 ## What proves it works

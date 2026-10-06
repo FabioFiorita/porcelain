@@ -1,23 +1,3 @@
----
-route: /$projectId/$worktreeId
-selectors:
-  - "Review"
-  - "Comments"
-  - "Comment on the whole change"
-  - "Comment"
-  - "Resolve"
-  - "Reopen"
-  - "No open comments yet."
-  - "Nothing resolved yet."
-tests:
-  - apps/web/spec/integration/reviews-resolve.test.tsx
-api:
-  - GET /api/worktrees/:worktreeId/comments
-  - POST /api/worktrees/:worktreeId/comments
-  - POST /api/worktrees/:worktreeId/comments/:threadId/replies
-  - PUT /api/worktrees/:worktreeId/comments/:threadId/resolution
----
-
 # reviews.resolve
 
 ## What it is
@@ -33,36 +13,37 @@ Resolving a comment thread moves it from the open comments to the resolved ones 
 ## Driving it
 
 Start with `$C start`.
+After each start, use the skill’s in-app attachment workflow: open the fresh attachment page in an owned tab and follow "Open workspace".
 
 ### Setup
 
 The agent comments on README.md: `$C agent comment README.md "Is this line still needed?"`. The thread is file-anchored, so it also shows inline under README.md, behind the sheet.
 
-1. `$C open /`
+1. Open `/` on the instance web URL
    Look for: Page Title "Changes — repository".
-2. `$C click --role button --name "Review"`
+2. Click the button named 'Review'
    Look for: dialog "Worktree review" with tabs "Changed files" and "Comments".
-3. `$C click --role tab --name "/^Comments/"`
+3. Click the tab whose name starts with 'Comments'
    Look for: buttons "open 1" [pressed] and "resolved 0"; region "Comments" with article "Comment thread" holding button "README.md Whole file", "Is this line still needed?", "From the agent" and button "Resolve".
-4. `$C click --role button --name "Resolve"`
+4. Click the button named 'Resolve'
    Look for: text "No open comments yet."; buttons "open 0" and "resolved 1". `$C server comment-threads` reads `"resolved": true`.
-5. `$C click --role button --name "/^resolved/i"`
+5. Click the button whose name starts with 'resolved' (case-insensitive)
    Look for: article "Resolved comment thread" with "Is this line still needed?" and button "Reopen"; button "Delete resolved" [disabled] (the agent started the only resolved thread).
-6. `$C click --role button --name "Reopen"`
+6. Click the button named 'Reopen'
    Look for: text "Nothing resolved yet."; buttons "open 1" and "resolved 0". `$C server comment-threads` reads `"resolved": false`.
-7. `$C click --role button --name "/^open/i"`
+7. Click the button whose name starts with 'open' (case-insensitive)
    Look for: article "Comment thread" with "Is this line still needed?" and button "Resolve".
-8. `$C network`
+8. Inspect browser network evidence
    Look for: two `PUT /api/worktrees/<id>/comments/<threadId>/resolution` answered 200 (steps 4 and 6).
 
 ## What proves it works
 
 - Steps 4 to 7: the thread moves between the "open" and "resolved" filters, the counts follow and the server's `resolved` flag with them; step 8's two 200 PUTs.
-- Persistence: resolve it again, then `$C open /`, "Review", tab `/^Comments/`, button `/^resolved/i` shows it still resolved.
+- Persistence: resolve it again, then open `/` on the instance web URL, "Review", the tab whose name starts with "Comments", the filter button whose name starts with "resolved" shows it still resolved.
 - `apps/web/spec/integration/reviews-resolve.test.tsx`: after an agent comment, Resolve shows "No open comments yet." and `server.commentThreads()` reads `resolved: true`; the "resolved" filter shows it; Reopen shows "Nothing resolved yet." and the server reads `resolved: false`; the "open" filter shows it again.
 
 ## Gotchas
 
 - A reviewer comment on the whole change resolves the same way and shows only in the list; "Delete resolved" is then enabled.
-- The filter buttons are named in lower case with their count ("open 1", "resolved 0"); CSS capitalises them. Address them with `/^open/i` and `/^resolved/i`.
+- The filter buttons are named in lower case with their count ("open 1", "resolved 0"); CSS capitalises them. Choose the filter whose name starts with "open" or "resolved", ignoring case.
 - "Resolve" must be unique: threads left by other features in this instance make it ambiguous. `stop` and `start` for a clean instance.

@@ -1,19 +1,3 @@
----
-route: /
-selectors:
-  - "Toggle Sidebar"
-  - "repository"
-  - "Remove from Porcelain"
-  - "Cancel"
-  - "No projects registered"
-  - "Select a worktree"
-  - "Worktree no longer present"
-tests:
-  - apps/web/spec/e2e/projects-remove.e2e.ts
-api:
-  - DELETE /api/projects/:projectId
----
-
 # projects.remove
 
 ## What it is
@@ -22,12 +6,13 @@ Removing a project from the navigator's context menu, after confirming, takes it
 
 ## How a user reaches it
 
-- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → right-click the project button (its name, e.g. "repository") → `Remove from Porcelain` → alertdialog "Remove <name> from Porcelain?" → `Remove from Porcelain` or `Cancel`.
+- Sidebar (phone width: `Toggle Sidebar` first, or `Mod+B`) → right-click the project button (its name, e.g. "repository") → `Remove from Porcelain` → alertdialog "Remove <name> from Porcelain?" → `Remove from Porcelain` or `Cancel`.
 - Remote computers' projects in the desktop shell have no Rename/Remove items (only `Copy path`).
 
 ## Driving it
 
 `C=.agents/skills/web-verify/scripts/cli; $C start` (web mode), then `REPO=<the repository path start printed>`. Case 2 empties the instance; drive it last or re-register afterwards (Gotchas).
+After each start, use the skill’s in-app attachment workflow: open the fresh attachment page in an owned tab and follow "Open workspace".
 
 ### Setup
 
@@ -35,25 +20,25 @@ None.
 
 ### Case 1: Cancel keeps the project
 
-1. `$C open /`, then `$C click --role button --name "Toggle Sidebar"`
+1. Open `/` on the instance web URL, then click the button named 'Toggle Sidebar'
    Look for: dialog "Sidebar" with project button "repository".
-2. `$C click --role button --name "repository" --button right`
+2. Right-click the button named 'repository'
    Look for: context menu with menuitems "Copy path", "Rename project", "Remove from Porcelain".
-3. `$C click --role menuitem --name "Remove from Porcelain"`
+3. Click the menu item named 'Remove from Porcelain'
    Look for: alertdialog "Remove repository from Porcelain?" stating that repository files and Git history stay on disk, the project path `$REPO`, buttons "Cancel" and "Remove from Porcelain".
-4. `$C click --role button --name "Cancel"`
-   Look for: the alertdialog is gone; project button "repository" still in the sheet; `$C network` shows no `DELETE /api/projects/…`.
+4. Click the button named 'Cancel'
+   Look for: the alertdialog is gone; project button "repository" still in the sheet; browser network evidence shows no `DELETE /api/projects/…`.
 
 ### Case 2: confirming removes it
 
-5. `$C click --role button --name "repository" --button right`, then `$C click --role menuitem --name "Remove from Porcelain"`
+5. Right-click the button named 'repository', then click the menu item named 'Remove from Porcelain'
    Look for: alertdialog "Remove repository from Porcelain?".
-6. `$C click --role button --name "Remove from Porcelain"`
+6. Click the button named 'Remove from Porcelain'
    Look for: the alertdialog is gone; text "No projects registered" in the sheet; Page URL `/?worktree=<worktreeId>`; text "Worktree no longer present"; Page Title "Porcelain".
-7. `$C network`
+7. Inspect browser network evidence
    Look for: `DELETE /api/projects/<projectId>` with status 200.
-8. `$C open /`
-   Look for: after the reload Page URL stays `/` and the workspace shows "Select a worktree"; `$C click --role button --name "Toggle Sidebar"` shows "No projects registered" (the server forgot it).
+8. Open `/` on the instance web URL
+   Look for: after the reload Page URL stays `/` and the workspace shows "Select a worktree"; click the button named 'Toggle Sidebar' shows "No projects registered" (the server forgot it).
 9. Disk: `git -C "$REPO" status --short` still prints ` M README.md`; the repository is untouched.
 
 ## What proves it works
@@ -64,5 +49,5 @@ None.
 ## Gotchas
 
 - Phone width: the navigator is in the sidebar sheet; it stays open through the dialog and after removal.
-- After Case 2 the instance has no project. To continue, re-register the sample: `$C click --role button --name "Open project"`, `$C click --role button --name "repository"`, `$C click --role button --name "Open repository"`. The project returns with a new id, so URLs, marks, comments and file preferences from before are gone.
+- After Case 2 the instance has no project. To continue, re-register the sample: click the button named 'Open project', click the button named 'repository', click the button named 'Open repository'. The project returns with a new id, so URLs, marks, comments and file preferences from before are gone.
 - A project with unsaved file drafts refuses removal with "Save or discard unsaved file drafts before removing this project." in the alertdialog.

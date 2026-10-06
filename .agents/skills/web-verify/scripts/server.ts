@@ -34,10 +34,10 @@ export const serverUsage = `  agent publish-review "<title>" [--context] [--summ
   server reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | pending-links | receipt <requestId>
                           print the server's state as JSON
       agent and server take --remote to act on the second computer
-  pair                    pair the browser through a fresh one-time link
+  pair                    refresh the private pairing link; open the attachment URL with your browser tool
   remote start            start a second disposable computer for the remote-computer features
   remote pairing-link [--trusted]
-                          print a one-time link that adds the second computer
+                          write a private connection file for the second computer
 `;
 
 type ServerValues = {

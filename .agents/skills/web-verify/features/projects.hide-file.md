@@ -1,19 +1,3 @@
----
-route: /
-selectors:
-  - "Review"
-  - "Files"
-  - "Hide file"
-  - "Show file"
-  - "Hidden ("
-  - "Showing hidden"
-tests:
-  - apps/web/spec/integration/projects-hide-file.test.tsx
-api:
-  - GET /api/projects/:projectId/file-preferences
-  - PUT /api/projects/:projectId/file-preferences
----
-
 # projects.hide-file
 
 ## What it is
@@ -30,6 +14,7 @@ Hiding a file from the Files tree's context menu takes it out of the tree and th
 ## Driving it
 
 `C=.agents/skills/web-verify/scripts/cli; $C start` (web mode).
+After each start, use the skill’s in-app attachment workflow: open the fresh attachment page in an owned tab and follow "Open workspace".
 
 ### Setup
 
@@ -37,33 +22,33 @@ None: the sample's `README.md` is the file to hide.
 
 ### Hide README.md
 
-1. `$C open /`
+1. Open `/` on the instance web URL
    Look for: Page Title "Changes — repository"; button "Review".
-2. `$C click --role button --name "Review"`
+2. Click the button named 'Review'
    Look for: the review sheet (dialog "Worktree review") with tabs "Changes", "Files", "History".
-3. `$C click --role tab --name "Files"`
+3. Click the tab named 'Files'
    Look for: tab "Files" selected; treeitem "README.md"; no button "Hidden (1)".
-4. `$C click --role treeitem --name "README.md" --button right`
+4. Right-click the tree item named 'README.md'
    Look for: a context menu with menuitems "Rename", "Duplicate", "Open diff", "Open file", "Show timeline", "Pin file", "Hide file", "Copy relative path", "Copy full path", "Move to trash".
-5. `$C click --role menuitem --name "Hide file"`
+5. Click the menu item named 'Hide file'
    Look for: treeitem "README.md" is gone; button "Hidden (1)" appears beside textbox "Search files".
-6. `$C network`
+6. Inspect browser network evidence
    Look for: `PUT /api/projects/<projectId>/file-preferences` with status 200.
 
 ### The server kept it
 
-7. `$C open /`, then `$C click --role button --name "Review"`, then `$C click --role tab --name "Files"`
+7. Open `/` on the instance web URL, then click the button named 'Review', then click the tab named 'Files'
    Look for: still no treeitem "README.md"; button "Hidden (1)" present (the preference came back from `GET /api/projects/<projectId>/file-preferences`).
 
 ### Show it again
 
-8. `$C click --role button --name "Hidden (1)"`
+8. Click the button named 'Hidden (1)'
    Look for: the button is now named "Showing hidden" (pressed); treeitem "README.md" is back.
-9. `$C click --role treeitem --name "README.md" --button right`
+9. Right-click the tree item named 'README.md'
    Look for: menuitem "Show file" where "Hide file" was.
-10. `$C click --role menuitem --name "Show file"`
+10. Click the menu item named 'Show file'
     Look for: button "Showing hidden" is gone (no hidden entries left, so no toggle at all); treeitem "README.md" stays.
-11. `$C network`
+11. Inspect browser network evidence
     Look for: a second `PUT /api/projects/<projectId>/file-preferences` with status 200.
 
 ## What proves it works

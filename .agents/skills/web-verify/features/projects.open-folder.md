@@ -1,21 +1,3 @@
----
-route: /
-selectors:
-  - "Toggle Sidebar"
-  - "Open project"
-  - "Browse for a folder"
-  - "Folder path"
-  - "No subfolders."
-  - "Pick a folder that is a Git repository."
-  - "Up"
-  - "Every worktree appears in the sidebar."
-tests:
-  - apps/web/spec/e2e/projects-open-folder.e2e.ts
-api:
-  - GET /api/projects/folders
-  - POST /api/projects
----
-
 # projects.open-folder
 
 ## What it is
@@ -24,12 +6,13 @@ The Open project dialog browses the server's folders, starting in its project ho
 
 ## How a user reaches it
 
-- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → `Open project` (plus button in the navigator header) → dialog "Open project" → region "Browse for a folder": click a folder to enter it, `Up` to go to the parent, a breadcrumb button (navigation "Folder path") to jump to an ancestor → `Open <folder>`.
+- Sidebar (phone width: `Toggle Sidebar` first, or `Mod+B`) → `Open project` (plus button in the navigator header) → dialog "Open project" → region "Browse for a folder": click a folder to enter it, `Up` to go to the parent, a breadcrumb button (navigation "Folder path") to jump to an ancestor → `Open <folder>`.
 - Desktop shell with remote computers added: `Open project` is a menu → `This computer` (see `projects.open-remote`). The desktop app with its bridge opens the native folder picker instead of this dialog.
 
 ## Driving it
 
 `C=.agents/skills/web-verify/scripts/cli; $C start` (web mode), then `REPO=<the repository path start printed>`. The dialog opens in the project home `$REPO/..`.
+After each start, use the skill’s in-app attachment workflow: open the fresh attachment page in an owned tab and follow "Open workspace".
 
 ### Setup
 
@@ -45,24 +28,24 @@ git -C "$REPO/../browsed" -c user.name=Verify -c user.email=verify@example.inval
 
 ### A plain folder cannot be opened
 
-1. `$C open /`, then `$C click --role button --name "Toggle Sidebar"`
+1. Open `/` on the instance web URL, then click the button named 'Toggle Sidebar'
    Look for: dialog "Sidebar" with button "Open project" and project button "repository".
-2. `$C click --role button --name "Open project"`
+2. Click the button named 'Open project'
    Look for: dialog "Open project", text "Browse for a repository on the Porcelain server."; folder buttons "plain", "browsed", "repository"; the project home is no repository, so text "Pick a folder that is a Git repository." and a disabled `Open porcelain-dev-…` button.
-3. `$C click --role button --name "plain"`
+3. Click the button named 'plain'
    Look for: text "No subfolders."; text "Pick a folder that is a Git repository."; button "Open plain" disabled; button "Up" present.
 
 ### A repository opens as a project
 
-4. `$C click --role button --name "Up"`
+4. Click the button named 'Up'
    Look for: back in the project home (folder buttons "plain", "browsed" again).
-5. `$C click --role button --name "browsed"`
+5. Click the button named 'browsed'
    Look for: text "Every worktree appears in the sidebar."; button "Open browsed" enabled.
-6. `$C click --role button --name "Open browsed"`
+6. Click the button named 'Open browsed'
    Look for: dialog "Open project" is gone; Page URL `/<new projectId>/<worktreeId>`; Page Title "Changes — browsed"; the still-open sidebar sheet shows project buttons "browsed" and "repository", with the "browsed" worktree row pressed.
-7. `$C network`
+7. Inspect browser network evidence
    Look for: `GET /api/projects/folders` (no query), `GET /api/projects/folders?path=…plain`, and one `POST /api/projects` with status 200; no POST while "plain" was shown.
-8. `$C open /`, then `$C click --role button --name "Toggle Sidebar"`
+8. Open `/` on the instance web URL, then click the button named 'Toggle Sidebar'
    Look for: after the reload the navigator still lists "browsed" and "repository" and no "plain".
 
 ## What proves it works

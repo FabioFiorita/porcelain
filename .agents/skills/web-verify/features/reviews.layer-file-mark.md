@@ -1,21 +1,3 @@
----
-route: /
-selectors:
-  - "Review"
-  - "Review layer "
-  - "as reviewed"
-  - "as unreviewed"
-  - "Collapse"
-tests:
-  - apps/web/spec/integration/reviews-layer-file-mark.test.tsx
-api:
-  - DELETE /api/worktrees/:worktreeId/reviewed
-  - DELETE /api/worktrees/:worktreeId/reviewed-bulk
-  - GET /api/worktrees/:worktreeId/reviewed
-  - PUT /api/worktrees/:worktreeId/reviewed
-  - PUT /api/worktrees/:worktreeId/reviewed-bulk
----
-
 # reviews.layer-file-mark
 
 ## What it is
@@ -30,30 +12,31 @@ Inside a layer of the agent's published review, each step's code carries the sam
 ## Driving it
 
 `C=.agents/skills/web-verify/scripts/cli; $C start`.
+After each start, use the skill’s in-app attachment workflow: open the fresh attachment page in an owned tab and follow "Open workspace".
 
 ### Setup
 
 - The agent publishes a review: `$C agent publish-review "Readme layer"` (one layer "Readme layer", one step "New line" pointing at README.md line 3).
 
-1. `$C open /`
+1. Open `/` on the instance web URL
    Look for: the handoff tab "Review Close Review" and region "Published review".
-2. `$C click --role button --name "Review"`
+2. Click the button named 'Review'
    Look for: a dialog (the review sheet) with the sidebar tab "Review" selected and buttons "Review summary" and one whose name contains "Readme layer".
-3. `$C click --role button --name "/Readme layer/"`
+3. Click the button whose name contains 'Readme layer'
    Look for: the sheet closes; tab "1. Readme layer Close 1. Readme layer" selected; region "Review layer Readme layer" with heading "Readme layer", article "Step New line", buttons "Collapse README.md" and "Mark README.md as reviewed".
-4. `$C click --role button --name "Mark README.md as reviewed"`
+4. Click the button named 'Mark README.md as reviewed'
    Look for: button "Unmark README.md as unreviewed" [pressed]. Then `$C server reviewed-files`: `marks` holds README.md with its fingerprint.
-5. `$C click --role button --name "Unmark README.md as unreviewed"`
+5. Click the button named 'Unmark README.md as unreviewed'
    Look for: button "Mark README.md as reviewed" again. Then `$C server reviewed-files`: `marks` is `[]`.
 
 ## What proves it works
 
-- The control flips in steps 4 and 5, and `$C network` shows `PUT /api/worktrees/<id>/reviewed` then `DELETE /api/worktrees/<id>/reviewed?...` each answered 200.
-- Persistence: `$C server reviewed-files` after steps 4 and 5 reads the mark, then none, from the server; after step 4, `$C open /` also reloads onto the saved layer tab (the last tab opened) and still shows "Unmark README.md as unreviewed".
+- The control flips in steps 4 and 5, and browser network evidence shows `PUT /api/worktrees/<id>/reviewed` then `DELETE /api/worktrees/<id>/reviewed?...` each answered 200.
+- Persistence: `$C server reviewed-files` after steps 4 and 5 reads the mark, then none, from the server; after step 4, open `/` on the instance web URL also reloads onto the saved layer tab (the last tab opened) and still shows "Unmark README.md as unreviewed".
 - `apps/web/spec/integration/reviews-layer-file-mark.test.tsx`: in region "Review layer Readme layer", "Mark README.md as reviewed" turns into an enabled "Unmark README.md as unreviewed" and `server.reviewedFiles()` lists README.md; unmarking removes it.
 
 ## Gotchas
 
 - Phone width: the review sidebar is a sheet behind the "Review" button; choosing the layer closes it.
-- The sidebar's layer button has a number prefix; address it by `/Readme layer/`. Once the layer tab is open its "Close 1. Readme layer" button also matches that pattern, so go back to the layer with `$C click --role tab --name "/Readme layer/"` instead.
+- The sidebar’s layer button has a number prefix and includes "Readme layer". Once the layer tab is open, go back to it by selecting the "Readme layer" tab; its separate close button also includes that name.
 - Marks persist on the server across steps; unmark before handing the instance to another feature.

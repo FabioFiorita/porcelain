@@ -1,20 +1,3 @@
----
-route: /$projectId/$worktreeId
-selectors:
-  - "Review"
-  - "Files"
-  - "Open file"
-  - "Not shown"
-  - "This file is binary or uses an unsupported text encoding."
-  - "Timeline"
-  - "Copy path"
-tests:
-  - apps/web/spec/integration/files-image-preview.test.tsx
-api:
-  - GET /api/worktrees/:worktreeId/asset
-  - GET /api/worktrees/:worktreeId/text
----
-
 # files.image-preview
 
 ## What it is
@@ -29,6 +12,7 @@ An image opened from the file tree shows as a picture (read through the asset ro
 ## Driving it
 
 `C=.agents/skills/web-verify/scripts/cli; $C start`. `$REPO` is the path `start` prints after `repository`.
+After each start, use the skill’s in-app attachment workflow: open the fresh attachment page in an owned tab and follow "Open workspace".
 
 ### Setup
 
@@ -40,22 +24,22 @@ printf 'binary\000content\n' > "$REPO/data.bin"
 
 ### 1. An image opened from the file tree shows as a picture
 
-1. `$C open /`, `$C click --role button --name "Review"`, `$C click --role tab --name "Files"`
+1. Open `/` on the instance web URL, click the button named 'Review', click the tab named 'Files'
    Look for: treeitems "logo.svg", "pixel.png" and "data.bin".
-2. `$C click --role treeitem --name "logo.svg"`
+2. Click the tree item named 'logo.svg'
    Look for: the sheet closes; tab "logo.svg Close logo.svg" selected; heading "logo.svg"; img "logo.svg"; buttons "Timeline" and "Copy path" (no "Edit"). The screenshot shows a teal square.
-3. `$C click --role button --name "Review"`, then `$C click --role treeitem --name "pixel.png"`
+3. Click the button named 'Review', then click the tree item named 'pixel.png'
    Look for: img "pixel.png" (a 1 by 1 pixel PNG).
-4. `$C network`
+4. Inspect browser network evidence
    Look for: `GET /api/worktrees/<id>/asset?path=logo.svg` and `...asset?path=pixel.png` answered 200, and no `GET .../text` for either.
 
 ### 2. A binary file opened from the file tree is not shown as text and says why
 
-1. `$C click --role button --name "Review"`, then `$C click --role treeitem --name "data.bin" --button right`
+1. Click the button named 'Review', then right-click the tree item named 'data.bin'
    Look for: menuitems "Open diff" and "Open file".
-2. `$C click --role menuitem --name "Open file"`
+2. Click the menu item named 'Open file'
    Look for: tab "data.bin Close data.bin" selected; heading "data.bin"; the text "Not shown" with "This file is binary or uses an unsupported text encoding." under it; no button "Edit".
-3. `$C network`
+3. Inspect browser network evidence
    Look for: `GET /api/worktrees/<id>/text?path=data.bin` answered 422.
 
 ## What proves it works
@@ -68,4 +52,4 @@ printf 'binary\000content\n' > "$REPO/data.bin"
 
 - While the asset loads the panel shows status "Loading image…"; an unreadable asset shows its error message as a status in place of the picture.
 - `printf` needs the octal `\000` to write the NUL byte that makes `data.bin` binary.
-- The CLI browser is 414 px wide: the tree lives in the sheet behind "Review", which closes each time a document opens, so click "Review" before each tree click.
+- At a narrow browser viewport, the tree lives in the sheet behind "Review", which closes each time a document opens, so click "Review" before each tree click.

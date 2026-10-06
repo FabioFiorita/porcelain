@@ -1,18 +1,3 @@
----
-route: /
-selectors:
-  - "Review"
-  - "Changes"
-  - "Toggle Sidebar"
-  - "Settings"
-  - "Spec files"
-  - "Back"
-tests:
-  - apps/web/spec/e2e/reviews-spec-files.e2e.ts
-api:
-  - GET /api/worktrees/:worktreeId/changes
----
-
 # reviews.spec-files
 
 ## What it is
@@ -30,6 +15,7 @@ A spec file is one named `*.spec.*`, `*.test.*`, `*.browser.*`, `*_test.*`, `*_s
 ## Driving it
 
 `C=.agents/skills/web-verify/scripts/cli; $C start`, then `REPO=<the repository path start printed>`.
+After each start, use the skill’s in-app attachment workflow: open the fresh attachment page in an owned tab and follow "Open workspace".
 
 ### Setup
 
@@ -40,26 +26,26 @@ printf 'export const search = true;\n' > "$REPO/search.ts"
 
 ### Steps
 
-1. `$C open /`
-   Look for: paragraph "3 files" in region "Review content" (allow a moment for the watcher; repeat `$C open /` until it shows).
-2. `$C click --role button --name "Review"`, then `$C click --role tab --name "Changes"`
+1. Open `/` on the instance web URL
+   Look for: paragraph "3 files" in region "Review content" (allow a moment for the watcher; repeat open `/` on the instance web URL until it shows).
+2. Click the button named 'Review', then click the tab named 'Changes'
    Look for: in the review sheet, below "All changes", the file rows in this order: button "README.md · unstaged", button "search.spec.ts · untracked", button "search.ts · untracked" (the text after "·" is the change scope).
-3. `$C press Escape`
+3. Press `Escape`
    Look for: the review sheet closes; button "Toggle Sidebar" is reachable.
-4. `$C click --role button --name "Toggle Sidebar"`, then `$C click --role button --name "Settings"`
+4. Click the button named 'Toggle Sidebar', then click the button named 'Settings'
    Look for: Page URL `/settings/appearance`; switch "Spec files" not checked; text "Group them after the other files and start them collapsed."
-5. `$C click --role switch --name "Spec files"`
+5. Click the switch named 'Spec files'
    Look for: switch "Spec files" is checked.
-6. `$C click --role button --name "Back"`
+6. Click the button named 'Back'
    Look for: region "Review content" shows again; in it the file sections run README.md, search.ts, then search.spec.ts, with search.spec.ts collapsed.
-7. `$C click --role button --name "Review"`
+7. Click the button named 'Review'
    Look for: the Changes rows now in the order "README.md · unstaged", "search.ts · untracked", "search.spec.ts · untracked".
-8. Reset: `$C press Escape`, `$C click --role button --name "Toggle Sidebar"`, `$C click --role button --name "Settings"`, `$C click --role switch --name "Spec files"`, `$C click --role button --name "Back"`
+8. Reset: press `Escape`, click the button named 'Toggle Sidebar', click the button named 'Settings', click the switch named 'Spec files', click the button named 'Back'
    Look for: switch "Spec files" unchecked before Back; the rows back in the order of step 2.
 
 ## What proves it works
 
-- The order in step 2 versus step 7 is the promise. The preference is kept by this browser (Web Storage `porcelain.prototype.preferences`, key `collapseSpecs`), not by the server: `$C open /` after step 6 keeps the grouped order, and no request is sent when the switch flips (`$C network` shows only reads such as `GET /api/worktrees/<worktreeId>/changes`).
+- The order in step 2 versus step 7 is the promise. The preference is kept by this browser (Web Storage `porcelain.prototype.preferences`, key `collapseSpecs`), not by the server: open `/` on the instance web URL after step 6 keeps the grouped order, and no request is sent when the switch flips (browser network evidence shows only reads such as `GET /api/worktrees/<worktreeId>/changes`).
 - `apps/web/spec/e2e/reviews-spec-files.e2e.ts` (web project, 414x896): with README.md, search.spec.ts and search.ts changed, the sidebar rows read README.md, search.spec.ts, search.ts; after turning on "Spec files" in Settings and going Back, they read README.md, search.ts, search.spec.ts.
 
 ## Gotchas

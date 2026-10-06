@@ -1,17 +1,3 @@
----
-route: /$projectId/$worktreeId
-selectors:
-  - "Review"
-  - "Files"
-  - "Could not display the workspace."
-  - "This browser is not paired"
-  - "Review content"
-tests:
-  - apps/web/spec/e2e/access-restore-outage.e2e.ts
-api:
-  - GET /api/inventory
----
-
 # access.restore-outage
 
 ## What it is
@@ -25,33 +11,36 @@ When a reload's session restore fails for a reason other than "not paired" (inve
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start`. `network fail` answers `GET /api/inventory` with 503 from the browser's side, the outage the test makes; `network restore` ends it and dispatches the window `online` event, as the test does.
+`C=.agents/skills/web-verify/scripts/cli; $C start`. Fail `GET /api/inventory` with HTTP 503 from the browser side, as the test does. Restore normal responses and dispatch the window `online` event to end the outage.
+After each start, use the skill’s in-app attachment workflow: open the fresh attachment page in an owned tab and follow "Open workspace".
 
-1. `$C open /`, `$C click --role button --name "Review"`, `$C click --role tab --name "Files"`
+This controlled case requires HTTP failure interception for `GET /api/inventory` and response restoration. The selected in-app browser presently does not expose these controls. Record this interactive case as unavailable. The named automated regressions are separate evidence.
+
+1. Open `/` on the instance web URL, click the button named 'Review', click the tab named 'Files'
    Look for: tab "Files" selected; Page URL `/<projectId>/<worktreeId>?…surface=files` (call its path and query `$WORKSPACE`).
-2. `$C network fail "GET /api/inventory" --status 503`, then `$C open "$WORKSPACE"` and `$C wait --text "Could not display the workspace."`
-   Look for: alert with "Could not display the workspace." and "Porcelain will retry when the connection returns or this window becomes active again."; NO heading "This browser is not paired"; Page URL still `$WORKSPACE`. `$C network` lists `GET /api/inventory` answered 503 (not 401); `$C console` holds "ConnectionError: Could not reach Porcelain to restore this browser session.".
-3. `$C network restore`, then `$C wait --role region --name "Review content"`
-   Look for: "restored 1 failing route and dispatched the window online event"; without another `open`, region "Review content" appears; Page URL still `$WORKSPACE`.
-4. `$C click --role button --name "Review"`
+2. Fail `GET /api/inventory` with HTTP 503, then open `$WORKSPACE` on the instance web URL and wait for the text 'Could not display the workspace.'
+   Look for: alert with "Could not display the workspace." and "Porcelain will retry when the connection returns or this window becomes active again."; NO heading "This browser is not paired"; Page URL still `$WORKSPACE`. Browser network evidence lists `GET /api/inventory` answered 503 (not 401); browser console evidence holds "ConnectionError: Could not reach Porcelain to restore this browser session.".
+3. Restore normal HTTP responses and dispatch the window `online` event, then wait for the region named 'Review content'
+   Look for: normal responses restored and the window `online` event dispatched; without another page load, region "Review content" appears; Page URL still `$WORKSPACE`.
+4. Click the button named 'Review'
    Look for: tab "Files" [selected] (the `surface=files` search survived).
 
 ### The pairing page during the outage
 
-5. `$C network fail "GET /api/inventory" --status 503`, then `$C open /pair` and `$C wait --text "Could not display the workspace."`
+5. Fail `GET /api/inventory` with HTTP 503, then open `/pair` on the instance web URL and wait for the text 'Could not display the workspace.'
    Look for: the workspace error, not the heading "This browser is not paired".
-6. `$C network restore`, then `$C wait --role region --name "Review content"`
+6. Restore normal HTTP responses and dispatch the window `online` event, then wait for the region named 'Review content'
    Look for: region "Review content": the paired browser left `/pair` for its workspace.
 
 ## What proves it works
 
 - During the outage: the workspace error at the unchanged address, never the not-paired page. After it: the workspace returns at the same address with the Files surface kept.
-- `$C network` during the outage: `GET /api/inventory` answered 503 (not 401), and no navigation to `/pair`.
-- `$C console` shows the expected error "Could not reach Porcelain to restore this browser session."
+- Browser network evidence during the outage: `GET /api/inventory` answered 503 (not 401), and no navigation to `/pair`.
+- browser console evidence shows the expected error "Could not reach Porcelain to restore this browser session."
 - `apps/web/spec/e2e/access-restore-outage.e2e.ts`: pairs, opens Files, makes inventory answer 503 and reloads; asserts the workspace error, no not-paired heading and the same path; ends the outage and dispatches `online`; asserts "Review content", the same path and Files still selected. A second case opens `/pair` in a paired browser during the outage, asserts the workspace error and no not-paired heading, and after the outage "Review content" away from `/pair`.
 
 ## Gotchas
 
-- The retry fires on `online`, `focus` or `visibilitychange`; a headless page rarely gets focus or visibility events, so the `online` event `network restore` dispatches is what brings the workspace back. An `open` would be a new load, not the self-recovery the promise is about.
+- The retry fires on `online`, `focus` or `visibilitychange`; this controlled promise dispatches the `online` event after restoring responses to bring the workspace back. A reload starts a new load; it does not prove the promised self-recovery.
 - The console error "Could not reach Porcelain to restore this browser session." is expected during the outage.
 - Phone width: the review panel is a sheet behind `Review`.

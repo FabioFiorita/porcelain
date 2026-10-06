@@ -1,17 +1,3 @@
----
-route: /
-selectors:
-  - "Review"
-  - "Worktree review"
-  - "Files"
-  - "Change no longer present"
-tests:
-  - apps/web/spec/integration/files-move.test.tsx
-api:
-  - GET /api/worktrees/:worktreeId/directory
-  - POST /api/worktrees/:worktreeId/files
----
-
 # files.move
 
 ## What it is
@@ -26,10 +12,11 @@ Dragging a file onto a folder in the tree moves it into that folder on disk with
 ## Driving it
 
 Start with `$C start`. Set `REPO` to the path it prints after `repository`.
+After each start, use the skill’s in-app attachment workflow: open the fresh attachment page in an owned tab and follow "Open workspace".
 
 ### Setup
 
-Before `open`:
+Before a page load:
 
 ```sh
 mkdir "$REPO/archive"
@@ -38,27 +25,27 @@ printf 'Notes to move\n' > "$REPO/move-me.md"
 printf 'Notes that clash\n' > "$REPO/clash.md"
 ```
 
-The move is a drag: `drag` presses on the source row, moves onto the target row and releases there, as a mouse would.
+Press on the source row, move onto the target folder row and release there, as a mouse would.
 
 ### Steps
 
-1. `$C open /`
+1. Open `/` on the instance web URL
    Look for: Page Title "Changes — repository".
-2. `$C click --role button --name "Review"`
+2. Click the button named 'Review'
    Look for: dialog "Worktree review".
-3. `$C click --role tab --name "Files"`
+3. Click the tab named 'Files'
    Look for: the tree in region "All files" with treeitems "archive" (a collapsed folder), "clash.md", "move-me.md" and "README.md".
-4. `$C drag --role treeitem --name "move-me.md" --to-role treeitem --to-name "archive"`
+4. Drag the tree item named 'move-me.md' onto the tree item named 'archive'
    Look for: treeitem "move-me.md" is gone from the root, dialog "Worktree review" stays open, and no text "Change no longer present" appears.
    Disk: `ls "$REPO/archive"` prints `clash.md` and `move-me.md`; `test -e "$REPO/move-me.md" || echo moved` prints `moved`.
-5. `$C drag --role treeitem --name "clash.md" --to-role treeitem --to-name "archive"`
+5. Drag the tree item named 'clash.md' onto the tree item named 'archive'
    Look for: alert "An entry already exists at that path" under the tree, and treeitem "clash.md" still at the root.
    Disk: `cat "$REPO/clash.md"` prints `Notes that clash`, and `cat "$REPO/archive/clash.md"` prints `Already in the folder`.
 
 ## What proves it works
 
 - On disk: the moved file is under `archive/` and gone from the root. After the refused drag, both `clash.md` files keep their text.
-- `$C network` shows `POST /api/worktrees/<worktreeId>/files` answered 200 for the move and 409 for the clash.
+- Browser network evidence shows `POST /api/worktrees/<worktreeId>/files` answered 200 for the move and 409 for the clash.
 - `apps/web/spec/integration/files-move.test.tsx` drags with Vitest's `userEvent.dragAndDrop`. It asserts that the server lists `move-me.md` under `archive` and no longer at the root, that the row is gone, and that "Change no longer present" never shows. For the clash it asserts the alert "An entry already exists at that path", that the row stays, and that both files keep their text.
 
 ## Gotchas

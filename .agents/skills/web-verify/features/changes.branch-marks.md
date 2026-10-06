@@ -1,24 +1,3 @@
----
-route: /
-selectors:
-  - "Review"
-  - "Branch"
-  - "Mark reviewed"
-  - "Mark "
-  - " as reviewed"
-  - "Unmark "
-  - " as unreviewed"
-  - "Mark as reviewed"
-tests:
-  - apps/web/spec/integration/changes-branch-marks.test.tsx
-api:
-  - GET /api/worktrees/:worktreeId/branch-bases
-  - GET /api/worktrees/:worktreeId/branch-changes
-  - GET /api/worktrees/:worktreeId/reviewed
-  - PUT /api/worktrees/:worktreeId/reviewed
-  - PUT /api/worktrees/:worktreeId/reviewed-bulk
----
-
 # changes.branch-marks
 
 ## What it is
@@ -34,6 +13,7 @@ A file marked reviewed in the branch review is reviewed only for the checked-out
 ## Driving it
 
 `C=.agents/skills/web-verify/scripts/cli; $C start`, then `REPO=<the repository path start printed>`.
+After each start, use the skill’s in-app attachment workflow: open the fresh attachment page in an owned tab and follow "Open workspace".
 
 ### Setup
 
@@ -43,31 +23,31 @@ printf 'first line\n' > "$REPO/notes.md"
 git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 ```
 
-1. `$C open /`
+1. Open `/` on the instance web URL
    Look for: Page Title "Changes — repository".
-2. `$C click --role button --name "Review"`
+2. Click the button named 'Review'
    Look for: tabs "Uncommitted" and "Branch".
-3. `$C click --role tab --name "Branch"`
+3. Click the tab named 'Branch'
    Look for: text "1 commit on feature since main"; buttons "README.md · modified" and "notes.md · added".
-4. `$C click --role button --name "notes.md · added"`
+4. Click the button named 'notes.md · added'
    Look for: the sheet closes; Page Title "notes.md — repository"; toolbar "notes.md" over "notes.md · on the branch"; text "first line"; button "Mark notes.md as reviewed" with text "Mark reviewed".
-5. `$C click --text "Mark reviewed"`
+5. Click the toolbar button with visible text "Mark reviewed"
    Look for: the toolbar button now reads "Reviewed"; the snapshot shows `button "Unmark notes.md as unreviewed" [pressed]` (twice: toolbar and diff header) and no "Mark notes.md as reviewed". `$C server reviewed-files refs/heads/feature` lists notes.md in `marks`; `$C server reviewed-files` (the uncommitted review) lists none.
 6. On disk, while the page stays open: `git -C "$REPO" switch -c copy`
-   Then `$C wait --role button --name "Mark notes.md as reviewed" --nth 0` and `$C snapshot`. Look for: the toolbar button reads "Mark reviewed" again and the snapshot shows `button "Mark notes.md as reviewed"`, no "Unmark notes.md as unreviewed"; `$C server reviewed-files refs/heads/copy` lists no mark.
+   Then wait for the button named 'Mark notes.md as reviewed' (toolbar control) and inspect the current page. Look for: the toolbar button reads "Mark reviewed" again and the snapshot shows `button "Mark notes.md as reviewed"`, no "Unmark notes.md as unreviewed"; `$C server reviewed-files refs/heads/copy` lists no mark.
 7. On disk: `git -C "$REPO" switch feature`
-   Then `$C wait --role button --name "Unmark notes.md as unreviewed" --nth 0` and `$C snapshot`. Look for: the toolbar button reads "Reviewed" and the snapshot shows `button "Unmark notes.md as unreviewed" [pressed]` again.
+   Then wait for the button named 'Unmark notes.md as unreviewed' (toolbar control) and inspect the current page. Look for: the toolbar button reads "Reviewed" and the snapshot shows `button "Unmark notes.md as unreviewed" [pressed]` again.
 
 ## What proves it works
 
-- Steps 6 and 7: the same file flips between unreviewed on `copy` and reviewed on `feature` with no `open`, so the marks are kept per branch and pushed live.
-- Persistence: after step 7, `$C open <the path and query of the printed Page URL>` still shows "Reviewed". `$C network` shows `PUT /api/worktrees/<worktreeId>/reviewed` with 200 at step 5 and `GET /api/worktrees/<worktreeId>/reviewed?scope=branch&…` reads after each switch.
+- Steps 6 and 7: the same file flips between unreviewed on `copy` and reviewed on `feature` with no page load, so the marks are kept per branch and pushed live.
+- Persistence: after step 7, reloading the current page with its full path and query still shows "Reviewed". Browser network evidence shows `PUT /api/worktrees/<worktreeId>/reviewed` with 200 at step 5 and `GET /api/worktrees/<worktreeId>/reviewed?scope=branch&…` reads after each switch.
 - The stored marks per branch ref: `$C server reviewed-files <branch ref>` reads them (step 5 and 6).
 - `apps/web/spec/integration/changes-branch-marks.test.tsx`: asserts the server holds `notes.md` as reviewed for `refs/heads/feature`, that "Mark notes.md as reviewed" shows after switching to `copy`, and "Unmark notes.md as unreviewed" after switching back.
 
 ## Gotchas
 
-- The single-file branch document renders the mark control twice (toolbar and diff header) under the same name, so `--role button --name "Mark notes.md as reviewed"` alone is ambiguous and refused. Add `--nth 0` (the toolbar's), click the toolbar's visible text with `--text "Mark reviewed"`, or open Review → Branch, right-click "notes.md · added" (`--button right`) and click menuitem "Mark as reviewed".
-- The branch switch reaches the page through the server's file watcher and the live socket, which the `wait` lines follow.
+- The single-file branch document has the same mark control in the toolbar and diff header. Use the toolbar button with visible text "Mark reviewed", or open Review → Branch, right-click "notes.md · added" and choose "Mark as reviewed".
+- The branch switch reaches the page through the server's file watcher and the live socket, which the wait lines follow.
 - Every commit uses `git add --all`, so README.md's start-state change is committed on `feature` and listed as "README.md · modified".
 - The setup leaves the repository on `feature` with branch `copy`; `$C stop` and `$C start` before driving another feature.
