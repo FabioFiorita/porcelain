@@ -1,3 +1,5 @@
+import { Cause } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -44,6 +46,7 @@ function RemoveProjectContent({
   project: Project;
   remove: ReturnType<typeof useRemoveProject>;
 }) {
+  const { result } = remove;
   return (
     <AlertDialogContent>
       <AlertDialogHeader>
@@ -60,24 +63,22 @@ function RemoveProjectContent({
       <p className="break-all font-mono text-xs text-muted-foreground">
         {projectPath(project)}
       </p>
-      {remove.error && (
+      {AsyncResult.isFailure(result) && (
         <Alert variant="destructive">
           <AlertDescription>
-            {connectionErrorMessage(remove.error)}
+            {connectionErrorMessage(Cause.squash(result.cause))}
           </AlertDescription>
         </Alert>
       )}
       <AlertDialogFooter>
-        <AlertDialogCancel disabled={remove.isPending}>
-          Cancel
-        </AlertDialogCancel>
+        <AlertDialogCancel disabled={result.waiting}>Cancel</AlertDialogCancel>
         <AlertDialogAction
           variant="destructive"
-          disabled={remove.isPending}
+          disabled={result.waiting}
           onClick={() => remove.confirm(project.id)}
         >
-          {remove.isPending && <Spinner />}
-          {remove.isPending ? 'Removing…' : 'Remove from Porcelain'}
+          {result.waiting && <Spinner />}
+          {result.waiting ? 'Removing…' : 'Remove from Porcelain'}
         </AlertDialogAction>
       </AlertDialogFooter>
     </AlertDialogContent>

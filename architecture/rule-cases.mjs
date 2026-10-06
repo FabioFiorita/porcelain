@@ -4133,7 +4133,9 @@ export const scriptEvasions = [
   ['turbo run test --dry-run', [['turbo', 'run', 'test']]],
 ];
 
+const ciRole = 'client-integration-test';
 export const externalCases = [
+  { role: ciRole, valid: 'effect/reactivity', invalid: 'effect/http' },
   { role: 'process', valid: 'effect/process', invalid: 'node:child_process' },
   { role: 'config', valid: 'effect', invalid: 'effect/FileSystem' },
   { role: 'transport', valid: '@effect/platform-node', invalid: 'fastify' },

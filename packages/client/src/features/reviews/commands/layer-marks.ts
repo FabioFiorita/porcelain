@@ -1,3 +1,4 @@
+import { Reactivity } from 'effect/reactivity';
 import type { QueryClient } from '@tanstack/query-core';
 import type {
   WorktreeConnection,
@@ -8,7 +9,6 @@ import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { reviewsApi } from '../api.ts';
 import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { Effect } from 'effect';
-import { nativeOperation } from '@porcelain/effects';
 import { layerMarksQueryOptions } from '../queries/reviewed.ts';
 
 export function toggleLayerMark(
@@ -44,11 +44,9 @@ export function toggleLayerMark(
       layerMarksQueryOptions(scope, connection).queryKey,
       result,
     );
-    yield* nativeOperation(() =>
-      client.invalidateQueries({
-        queryKey: queryKeys.inventory(connection.environmentId),
-      }),
-    );
+    yield* Reactivity.invalidate([
+      queryKeys.inventory(connection.environmentId),
+    ]);
     return result;
   });
 }

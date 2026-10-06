@@ -1,3 +1,4 @@
+import { Reactivity } from 'effect/reactivity';
 import { QueryClient, QueryObserver } from '@tanstack/query-core';
 import { Effect, Fiber } from 'effect';
 import { expect, it } from 'vitest';
@@ -40,12 +41,17 @@ it('coalesces a live receipt with its command, keeps refreshing when one waiter 
     },
   }).subscribe(() => {});
   try {
+    const reactivity = Effect.runSync(Reactivity.make);
     const command = Effect.runFork(
-      refreshGitReceipt(client, 'environment', receipt),
+      refreshGitReceipt(client, 'environment', receipt).pipe(
+        Effect.provideService(Reactivity.Reactivity, reactivity),
+      ),
     );
     await started.promise;
     const notice = Effect.runFork(
-      refreshGitReceipt(client, 'environment', receipt),
+      refreshGitReceipt(client, 'environment', receipt).pipe(
+        Effect.provideService(Reactivity.Reactivity, reactivity),
+      ),
     );
     await Effect.runPromise(Fiber.interrupt(command));
     expect(reads).toBe(1);
@@ -53,7 +59,11 @@ it('coalesces a live receipt with its command, keeps refreshing when one waiter 
     answer.resolve('after');
     await Effect.runPromise(Fiber.join(notice));
     expect(client.getQueryData(key)).toBe('after');
-    await Effect.runPromise(refreshGitReceipt(client, 'environment', receipt));
+    await Effect.runPromise(
+      refreshGitReceipt(client, 'environment', receipt).pipe(
+        Effect.provideService(Reactivity.Reactivity, reactivity),
+      ),
+    );
     expect(reads).toBe(2);
   } finally {
     answer.resolve('cleanup');
@@ -70,7 +80,9 @@ it.each(['running', 'rejected', 'no-change'] as const)(
     client.setQueryData(key, 'confirmed');
     try {
       await Effect.runPromise(
-        refreshGitReceipt(client, 'environment', { ...receipt, state }),
+        refreshGitReceipt(client, 'environment', { ...receipt, state }).pipe(
+          Effect.provide(Reactivity.layer),
+        ),
       );
       expect(client.getQueryState(key)?.isInvalidated).toBe(false);
       expect(client.getQueryData(key)).toBe('confirmed');

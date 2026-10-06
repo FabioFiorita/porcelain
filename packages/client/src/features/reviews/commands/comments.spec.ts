@@ -1,5 +1,6 @@
 import { afterEach } from 'vitest';
-import { ManagedRuntime } from 'effect';
+import { Layer, ManagedRuntime } from 'effect';
+import { Reactivity } from 'effect/reactivity';
 import { WriteQueues } from '@porcelain/client/transport';
 import { runClientRequest } from '@porcelain/client/transport';
 import { describe, expect, it } from 'vitest';
@@ -79,9 +80,13 @@ describe('comment writes report failed intent', () => {
   });
 });
 
-const runtimes = new Set<ManagedRuntime.ManagedRuntime<WriteQueues, never>>();
+const runtimes = new Set<
+  ManagedRuntime.ManagedRuntime<WriteQueues | Reactivity.Reactivity, never>
+>();
 function runtimeFixture() {
-  const runtime = ManagedRuntime.make(WriteQueues.layer);
+  const runtime = ManagedRuntime.make(
+    Layer.merge(WriteQueues.layer, Reactivity.layer),
+  );
   runtimes.add(runtime);
   return runtime;
 }

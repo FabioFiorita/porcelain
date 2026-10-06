@@ -66,6 +66,8 @@ done
 - End state: after step 7 the server's inventory, as the navigator shows it after a reload, holds two projects: the sample and `selected`; `unselected` never appears although it is a repository in the same folder.
 - `apps/web/spec/e2e/projects-manual-selection.e2e.ts`: the dialog lists both folders and has no "Found on this machine" region, the server inventory holds one project before opening, and after `Open selected` it holds exactly two, including `selected` (read through `server.inventory()`).
 
+- `packages/client/src/features/projects/queries/inventory.spec.ts` proves a late pre-write read cannot remove a confirmed registration, even when the next read fails; native connection scopes also isolate device refreshes and cancel unmounted HTTP reads.
+
 ## Gotchas
 
 - Phone width: the navigator is in the sidebar sheet behind `Toggle Sidebar`; after `Open selected` the sheet stays open.

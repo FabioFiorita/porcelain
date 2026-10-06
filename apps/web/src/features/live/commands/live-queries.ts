@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
-import { connectLiveQueries } from '@porcelain/client/live';
+import { useAtomValue } from '@effect/atom-react';
+import { liveQueries, inactiveLiveQueries } from '@porcelain/client/live';
 import type { Connection } from '@/shared/workspace/connection';
 
 export function useLiveQueries(
@@ -8,8 +8,9 @@ export function useLiveQueries(
   onUnauthorized: () => void,
 ) {
   const client = useQueryClient();
-  useEffect(() => {
-    if (!connection) return;
-    return connectLiveQueries(client, connection, onUnauthorized);
-  }, [client, connection, onUnauthorized]);
+  useAtomValue(
+    connection
+      ? liveQueries({ client, connection, onUnauthorized })
+      : inactiveLiveQueries,
+  );
 }

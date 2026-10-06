@@ -1,23 +1,12 @@
-import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import {
-  createWorktreeConnection,
-  remoteTransport,
-  queryKeys,
-} from '@porcelain/client/transport';
-import {
-  connectLiveQueries,
-  remoteLiveUpdates,
-  type LiveConnection,
-} from '@porcelain/client/live';
-import { OperationStore } from '@porcelain/client/git-actions';
-import { ManagedRuntime } from 'effect';
-import { projectOperationsLayer } from '../store';
-import { mobileSocket } from '../../../shared/adapters/live-socket';
+import { useAtomValue } from '@effect/atom-react';
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
+import { liveQueries, inactiveLiveQueries } from '@porcelain/client/live';
+import { useProjectConnection } from '../store';
 import type { Remote } from '@porcelain/client/access/rules';
 import { useInventory } from '../queries/inventory';
 import type { AccessPlatform } from '@porcelain/client/access';
-import { REQUEST_TIMEOUT_MS } from '../../../config/limits';
 
 export function useWorkspaceConnection(
   remote: Remote | undefined,
@@ -27,84 +16,36 @@ export function useWorkspaceConnection(
   ready: boolean,
 ) {
   const client = useQueryClient();
-  const inventory = useInventory(remote, send);
-  const project = inventory.data?.projects.find(
+  const connection = useProjectConnection(remote, send);
+  const inventory = useInventory(connection);
+  const data = Option.getOrUndefined(AsyncResult.value(inventory.result));
+  const project = data?.projects.find(
     (candidate) => candidate.id === projectId,
   );
   const worktree = project?.worktrees.find(
     (candidate) => candidate.id === worktreeId,
   );
   const selected =
-    ready && !inventory.isError && project?.available && worktree?.available;
-  const environmentId = remote?.environmentId;
-  const address = remote?.address;
-  const credential = remote?.credential;
-  const deviceId = remote?.deviceId;
-  const key =
-    selected && remote && project && worktree
-      ? JSON.stringify([
-          environmentId,
-          address,
-          deviceId ?? '',
-          project.id,
-          worktree.id,
-        ])
-      : undefined;
-  const [connected, setConnected] = useState<{
-    key: string;
-    credential: string;
-    connection: LiveConnection;
-  }>();
-  useEffect(() => {
-    if (
-      !key ||
-      !environmentId ||
-      !deviceId ||
-      address === undefined ||
-      credential === undefined
-    )
-      return;
-    const lifetime = createWorktreeConnection({
-      environmentId,
-      transport: remoteTransport(address, credential, send),
-      cacheIdentity: [address, deviceId ?? ''],
-      timeoutMs: REQUEST_TIMEOUT_MS,
-    });
-    const operationRuntime = ManagedRuntime.make(
-      projectOperationsLayer({ environmentId, address, deviceId }),
-    );
-    const connection: LiveConnection = {
-      ...lifetime.connection,
-      controller: lifetime.controller,
-      operations: operationRuntime.runSync(OperationStore),
-      liveUpdates: remoteLiveUpdates(
-        address,
-        lifetime.connection.transport,
-        mobileSocket,
-      ),
-    };
-    const closeLive = connectLiveQueries(client, connection, () => {
-      void client.invalidateQueries({
-        queryKey: queryKeys.connectedInventory(connection),
-        exact: true,
-      });
-    });
-    setConnected({ key, credential, connection });
-    return () => {
-      closeLive();
-      void lifetime.close();
-      void operationRuntime.dispose();
-    };
-  }, [key, environmentId, address, credential, deviceId, send, client]);
+    ready &&
+    !AsyncResult.isFailure(inventory.result) &&
+    project?.available &&
+    worktree?.available;
+  useAtomValue(
+    selected && connection
+      ? liveQueries({ client, connection })
+      : inactiveLiveQueries,
+  );
   const current =
-    key &&
-    connected?.key === key &&
-    connected.credential === credential &&
-    project &&
-    worktree
+    selected && remote && project && worktree && connection
       ? {
-          key,
-          connection: connected.connection,
+          key: JSON.stringify([
+            remote.environmentId,
+            remote.address,
+            remote.deviceId ?? '',
+            project.id,
+            worktree.id,
+          ]),
+          connection,
           scope: { projectId: project.id, worktreeId: worktree.id },
           project,
           worktree,

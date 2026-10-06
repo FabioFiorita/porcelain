@@ -101,7 +101,7 @@ function OpenProjectContent({
             connection={connection}
             onOpen={(path) => void opening.submit(path)}
           />
-          {opening.error && (
+          {opening.error !== undefined && (
             <Alert variant="destructive">
               <AlertDescription>
                 {connectionErrorMessage(opening.error)}

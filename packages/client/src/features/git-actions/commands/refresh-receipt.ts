@@ -1,7 +1,9 @@
+import { Reactivity } from 'effect/reactivity';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import type { QueryClient, QueryFilters } from '@tanstack/query-core';
 import { Effect, Exit, Fiber } from 'effect';
 import { ScopedTasks } from '@porcelain/effects';
+import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { isTerminal } from '../store/operations.ts';
 import { receiptQueryFilters } from '../../live/commands/cache-updates.ts';
@@ -66,14 +68,15 @@ export function refreshGitReceipt(
   client: QueryClient,
   environmentId: string,
   receipt: Receipt,
-): Effect.Effect<void, ConnectionError> {
-  return Effect.suspend(() => {
+): Effect.Effect<void, ConnectionError, Reactivity.Reactivity> {
+  return Effect.gen(function* () {
     if (
       !isTerminal(receipt) ||
       receipt.state === 'rejected' ||
       receipt.state === 'no-change'
     )
-      return Effect.void;
+      return;
+    const reactivity = yield* Reactivity.Reactivity;
     let state = receiptRefreshes.get(client);
     if (!state) {
       state = { tasks: new ScopedTasks(), pending: new Map() };
@@ -86,8 +89,9 @@ export function refreshGitReceipt(
       receipt.requestId,
     ]);
     const existing = state.pending.get(key);
-    if (existing) return Fiber.join(existing);
+    if (existing) return yield* Fiber.join(existing);
     const refresh = Effect.gen(function* () {
+      yield* reactivity.invalidate([queryKeys.inventory(environmentId)]);
       const settled = yield* Effect.forEach(
         receiptQueryFilters(environmentId, receipt),
         (filters) => Effect.exit(refreshActiveQueries(client, filters)),
@@ -106,6 +110,6 @@ export function refreshGitReceipt(
         void Effect.runPromise(owned.tasks.close());
       }
     });
-    return Fiber.join(fiber);
+    return yield* Fiber.join(fiber);
   });
 }

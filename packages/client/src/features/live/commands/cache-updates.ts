@@ -25,8 +25,7 @@ export function noticeQueryFilters(
     notice.type === 'git-action'
   )
     return [];
-  if (notice.type === 'inventory')
-    return [{ queryKey: queryKeys.inventory(environmentId) }];
+  if (notice.type === 'inventory') return [];
   if (notice.type === 'project')
     return notice.change === 'preferences'
       ? [
@@ -44,10 +43,7 @@ export function noticeQueryFilters(
   if (notice.change === 'git')
     for (const surface of [...gitSurfaces, ...BRANCH_SURFACES])
       surfaces.add(surface);
-  return [
-    { queryKey: queryKeys.inventory(environmentId) },
-    reviewSurfaceFilters(environmentId, notice, surfaces),
-  ];
+  return [reviewSurfaceFilters(environmentId, notice, surfaces)];
 }
 
 export function receiptQueryFilters(
@@ -67,8 +63,5 @@ export function receiptQueryFilters(
     ...BRANCH_SURFACES,
     ...(receiptSurfaces(receipt)?.surfaces ?? []),
   ]);
-  return [
-    { queryKey: queryKeys.inventory(environmentId) },
-    reviewSurfaceFilters(environmentId, receipt, surfaces),
-  ];
+  return [reviewSurfaceFilters(environmentId, receipt, surfaces)];
 }

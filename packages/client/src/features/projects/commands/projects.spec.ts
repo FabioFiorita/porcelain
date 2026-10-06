@@ -1,107 +1,138 @@
-import { afterEach } from 'vitest';
-import { ManagedRuntime } from 'effect';
-import { WriteQueues } from '@porcelain/client/transport';
-import { expect, it } from 'vitest';
-import { Effect } from 'effect';
+import { afterEach, expect, it } from 'vitest';
+import { Effect, Layer, Option } from 'effect';
+import { AtomRegistry } from 'effect/reactivity';
 import { QueryClient } from '@tanstack/query-core';
+import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { FileDrafts, fileDraftRuntime } from '@porcelain/client/files';
 import { ContentChangedError } from '@porcelain/files/errors';
-import { runClientRequest } from '@porcelain/client/transport';
-import { inventoryQueryOptions } from '@porcelain/client/projects';
-import { projectCommands } from './projects.ts';
+import {
+  createWorktreeConnection,
+  type RuntimeConnection,
+  type Transport,
+} from '@porcelain/client/transport';
+import { InventorySeed, readInventory } from '@porcelain/client/projects';
+import { removeProject } from './projects.ts';
 
 const projectId = '00000000-0000-4000-8000-000000000001';
 const worktreeId = 'a'.repeat(32);
-function connection(steps: string[]) {
-  const signal = new AbortController().signal;
-  return {
+const initial: ReadInventoryResponse = {
+  environmentId: 'environment',
+  environment: { name: 'Computer', custom: false },
+  projects: [
+    { id: projectId, name: 'Project', available: true, worktrees: [] },
+  ],
+};
+const owned = new Set<{
+  connection: RuntimeConnection;
+  registry: AtomRegistry.AtomRegistry;
+  client: QueryClient;
+}>();
+afterEach(async () => {
+  for (const { connection, registry, client } of owned) {
+    registry.dispose();
+    await connection.close();
+    client.clear();
+  }
+  owned.clear();
+});
+function fixture(steps: string[], transport?: Transport) {
+  let deleted = false;
+  const { connection } = createWorktreeConnection({
     environmentId: 'environment',
-    request: () => ({ signal }),
-    transport: (path: string) => {
-      steps.push(path);
-      return Promise.resolve(Response.json({ deleted: true }));
+    timeoutMs: 10_000,
+    transport:
+      transport ??
+      ((path) => {
+        if (path === '/api/inventory')
+          return Promise.resolve(
+            Response.json({
+              ...initial,
+              projects: deleted ? [] : initial.projects,
+            }),
+          );
+        steps.push(path);
+        deleted = true;
+        return Promise.resolve(Response.json({ deleted: true }));
+      }),
+  });
+  connection.atoms.addGlobalLayer(
+    Layer.succeed(InventorySeed, Option.some(initial)),
+  );
+  const registry = AtomRegistry.make();
+  const client = new QueryClient();
+  owned.add({ connection, registry, client });
+  const atom = removeProject({ connection, client });
+  return {
+    connection,
+    registry,
+    remove: () => {
+      registry.set(atom, projectId);
+      return Effect.runPromise(
+        AtomRegistry.getResult(registry, atom, { suspendOnWaiting: true }),
+      );
     },
+    inventory: () =>
+      Effect.runPromise(
+        AtomRegistry.getResult(registry, readInventory(connection), {
+          suspendOnWaiting: true,
+        }),
+      ),
   };
 }
-
-it('saves a retained project draft before removing the project and updating inventory', async () => {
-  const requestRuntime = runtimeFixture();
-
-  const steps: string[] = [];
-  const connected = connection(steps);
-  const cache = new QueryClient();
-  const key = inventoryQueryOptions(connected).queryKey;
-  cache.setQueryData(key, { projects: [{ id: projectId, name: 'Project' }] });
-  const draft = Effect.runSync(
+function retain(
+  connection: RuntimeConnection,
+  steps: string[],
+  other = false,
+  conflict = false,
+) {
+  return Effect.runSync(
     fileDraftRuntime.runSync(FileDrafts).retain({
-      environmentId: connected.environmentId,
-      scope: { projectId, worktreeId },
+      environmentId: connection.environmentId,
+      scope: { projectId: other ? 'other-project' : projectId, worktreeId },
       path: 'README.md',
       text: 'original',
       fingerprint: 'version-1',
       writer: {
         write: () =>
-          Effect.sync(() => {
-            steps.push('draft saved');
-            return 'version-2';
-          }),
+          conflict
+            ? Effect.fail(new ContentChangedError())
+            : Effect.sync(() => {
+                steps.push(other ? 'other draft saved' : 'draft saved');
+                return 'version-2';
+              }),
       },
     }),
   );
+}
+it('saves a retained project draft before removing the project and publishing confirmed inventory', async () => {
+  const steps: string[] = [];
+  const subject = fixture(steps);
+  const draft = retain(subject.connection, steps);
   try {
     await Effect.runPromise(draft.change('updated'));
-    expect(
-      await runClientRequest(
-        projectCommands(connected, cache).remove(projectId),
-        connected.request().signal,
-        requestRuntime,
-      ),
-    ).toEqual({ deleted: true });
+    expect(await subject.remove()).toEqual({ deleted: true });
     expect(steps).toEqual(['draft saved', `/api/projects/${projectId}`]);
     expect(draft.state.value).toMatchObject({
       text: 'updated',
       savedText: 'updated',
       fingerprint: 'version-2',
     });
-    expect(cache.getQueryData(key)).toEqual({ projects: [] });
+    expect((await subject.inventory()).projects).toEqual([]);
   } finally {
     await Effect.runPromise(draft.dispose());
-    cache.clear();
   }
 });
-
 it('keeps the project and its unsaved draft when a save conflicts', async () => {
-  const requestRuntime = runtimeFixture();
-
   const steps: string[] = [];
-  const connected = connection(steps);
-  const cache = new QueryClient();
-  const key = inventoryQueryOptions(connected).queryKey;
-  const inventory = { projects: [{ id: projectId, name: 'Project' }] };
-  cache.setQueryData(key, inventory);
-  const draft = Effect.runSync(
-    fileDraftRuntime.runSync(FileDrafts).retain({
-      environmentId: connected.environmentId,
-      scope: { projectId, worktreeId },
-      path: 'README.md',
-      text: 'original',
-      fingerprint: 'version-1',
-      writer: { write: () => Effect.fail(new ContentChangedError()) },
-    }),
-  );
+  const subject = fixture(steps);
+  const draft = retain(subject.connection, steps, false, true);
   try {
     await Effect.runPromise(draft.change('unsaved'));
-    await expect(
-      runClientRequest(
-        projectCommands(connected, cache).remove(projectId),
-        connected.request().signal,
-        requestRuntime,
-      ),
-    ).rejects.toThrow(
+    await expect(subject.remove()).rejects.toThrow(
       'Save or discard unsaved file drafts before removing this project.',
     );
     expect(steps).toEqual([]);
-    expect(cache.getQueryData(key)).toEqual(inventory);
+    expect(await subject.inventory()).toEqual(initial);
     expect(draft.state.value).toMatchObject({
       text: 'unsaved',
       savedText: 'original',
@@ -109,41 +140,15 @@ it('keeps the project and its unsaved draft when a save conflicts', async () => 
     });
   } finally {
     await Effect.runPromise(draft.dispose());
-    cache.clear();
   }
 });
-
 it('leaves another project draft alone when removing the selected project', async () => {
-  const requestRuntime = runtimeFixture();
-
   const steps: string[] = [];
-  const connected = connection(steps);
-  const cache = new QueryClient();
-  const draft = Effect.runSync(
-    fileDraftRuntime.runSync(FileDrafts).retain({
-      environmentId: connected.environmentId,
-      scope: { projectId: 'other-project', worktreeId },
-      path: 'README.md',
-      text: 'original',
-      fingerprint: 'version-1',
-      writer: {
-        write: () =>
-          Effect.sync(() => {
-            steps.push('other draft saved');
-            return 'version-2';
-          }),
-      },
-    }),
-  );
+  const subject = fixture(steps);
+  const draft = retain(subject.connection, steps, true);
   try {
     await Effect.runPromise(draft.change('unsaved'));
-    expect(
-      await runClientRequest(
-        projectCommands(connected, cache).remove(projectId),
-        connected.request().signal,
-        requestRuntime,
-      ),
-    ).toEqual({ deleted: true });
+    expect(await subject.remove()).toEqual({ deleted: true });
     expect(steps).toEqual([`/api/projects/${projectId}`]);
     expect(draft.state.value).toMatchObject({
       text: 'unsaved',
@@ -152,17 +157,5 @@ it('leaves another project draft alone when removing the selected project', asyn
     });
   } finally {
     await Effect.runPromise(draft.dispose());
-    cache.clear();
   }
-});
-
-const runtimes = new Set<ManagedRuntime.ManagedRuntime<WriteQueues, never>>();
-function runtimeFixture() {
-  const runtime = ManagedRuntime.make(WriteQueues.layer);
-  runtimes.add(runtime);
-  return runtime;
-}
-afterEach(async () => {
-  for (const runtime of runtimes) await runtime.dispose();
-  runtimes.clear();
 });

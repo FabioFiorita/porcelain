@@ -18,7 +18,6 @@ const receipt: RunGitActionResponse = {
 function cache() {
   const client = new QueryClient();
   const keys = {
-    inventory: queryKeys.inventory('environment'),
     preferences: queryKeys.filePreferences('environment', scope.projectId),
     changes: queryKeys.reviewSurface('environment', scope, ['changes']),
     file: queryKeys.reviewSurface('environment', scope, ['text', 'file.ts']),
@@ -48,7 +47,6 @@ it.each([
   {
     change: 'files',
     expected: {
-      inventory: true,
       preferences: false,
       changes: true,
       file: true,
@@ -62,7 +60,6 @@ it.each([
   {
     change: 'git',
     expected: {
-      inventory: true,
       preferences: false,
       changes: true,
       file: false,
@@ -76,7 +73,6 @@ it.each([
   {
     change: 'comments',
     expected: {
-      inventory: true,
       preferences: false,
       changes: false,
       file: false,
@@ -115,7 +111,6 @@ it('a preference notice leaves file contents and inventory untouched', async () 
     }).map((filters) => subject.client.invalidateQueries(filters)),
   );
   expect(subject.invalidated()).toEqual({
-    inventory: false,
     preferences: true,
     changes: false,
     file: false,
@@ -136,7 +131,6 @@ it('a completed push refreshes branch and history without invalidating published
     ),
   );
   expect(subject.invalidated()).toEqual({
-    inventory: true,
     preferences: false,
     changes: true,
     file: false,
@@ -159,7 +153,6 @@ it.each(['running', 'rejected', 'no-change'] as const)(
       ),
     );
     expect(subject.invalidated()).toEqual({
-      inventory: false,
       preferences: false,
       changes: false,
       file: false,

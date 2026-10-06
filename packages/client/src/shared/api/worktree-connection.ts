@@ -1,5 +1,5 @@
-import { Atom } from 'effect/reactivity';
-import { ManagedRuntime } from 'effect';
+import { Atom, Reactivity } from 'effect/reactivity';
+import { Layer, ManagedRuntime } from 'effect';
 import { WriteQueues } from './write-queue.ts';
 import type { RuntimeConnection, WorktreeConnection } from './connection.ts';
 
@@ -8,8 +8,10 @@ export function createWorktreeConnection(
 ) {
   const controller = new AbortController();
   const { timeoutMs, ...context } = input;
-  const runtime = ManagedRuntime.make(WriteQueues.layer);
-  const atoms = Atom.context();
+  const runtime = ManagedRuntime.make(
+    Layer.merge(WriteQueues.layer, Reactivity.layer),
+  );
+  const atoms = Atom.context({ memoMap: runtime.memoMap });
   const close = () => {
     controller.abort();
     return runtime.dispose();

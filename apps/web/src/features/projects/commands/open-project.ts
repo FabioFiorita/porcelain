@@ -1,3 +1,5 @@
+import { Cause } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { useMutation } from '@tanstack/react-query';
 import { desktopProjectPicker } from '@/shared/adapters/desktop';
 import type { WorktreeTarget } from '../rules/worktree-target';
@@ -20,13 +22,13 @@ export function useOpenProject(
   close: () => void,
   selectWorktree: Opened,
 ) {
-  const register = useRegisterProject(connection);
+  const [registration, register] = useRegisterProject(connection);
   const setFolder = useAtomSet(projectFolder);
   const submit = async (path: string) => {
-    if (register.isPending) return;
+    if (registration.waiting) return;
     let project;
     try {
-      project = await register.submit(path.trim());
+      project = await register(path.trim());
     } catch {
       return;
     }
@@ -36,8 +38,10 @@ export function useOpenProject(
     if (target) await selectWorktree(target);
   };
   return {
-    isPending: register.isPending,
-    error: register.error,
+    isPending: registration.waiting,
+    error: AsyncResult.isFailure(registration)
+      ? Cause.squash(registration.cause)
+      : undefined,
     submit,
   };
 }
@@ -54,13 +58,13 @@ export function useNativeProjectPicker(
   selectWorktree: Opened,
   fail: (error: Error) => void,
 ) {
-  const register = useRegisterProject(connection);
+  const [, register] = useRegisterProject(connection);
   const picker = desktopProjectPicker(connection.address);
   const selection = useMutation({
     mutationFn: async (pick: () => Promise<string | null>) => {
       const path = await pick();
       if (path == null) return;
-      const target = openedWorktree(null, await register.submit(path));
+      const target = openedWorktree(null, await register(path));
       if (target) await selectWorktree(target);
     },
     onError: fail,

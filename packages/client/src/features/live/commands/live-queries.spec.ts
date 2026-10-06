@@ -1,3 +1,4 @@
+import { AtomRegistry } from 'effect/reactivity';
 import { Layer, ManagedRuntime, type Context } from 'effect';
 import { afterEach } from 'vitest';
 import { Effect } from 'effect';
@@ -36,9 +37,17 @@ const request: RunGitActionRequest = {
 function setup() {
   const lifetime = createWorktreeConnection({
     environmentId: 'live',
-    transport: () => Promise.reject(new Error('Unexpected HTTP request')),
+    transport: () =>
+      Promise.resolve(
+        Response.json({
+          environmentId: 'live',
+          environment: { name: 'Live', custom: false },
+          projects: [],
+        }),
+      ),
     timeoutMs: 1000,
   });
+  const registry = AtomRegistry.make();
   const client = new QueryClient();
   const { store: operations } = operationStoreFixture();
   const sent: LiveSubscription[] = [];
@@ -64,6 +73,7 @@ function setup() {
       liveUpdates,
     },
     () => {},
+    registry,
   );
   return {
     ...lifetime,
@@ -75,6 +85,7 @@ function setup() {
     close,
     cleanup: async () => {
       close();
+      registry.dispose();
       await lifetime.close();
       client.clear();
     },

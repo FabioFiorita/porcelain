@@ -1,3 +1,4 @@
+import { InventorySeed } from '@porcelain/client/projects';
 import type { BrowserSession } from '@porcelain/client/access/rules';
 import { WEB_PLATFORM_NAME_MAX_LENGTH } from '@/config/limits';
 import {
@@ -5,7 +6,7 @@ import {
   EnvironmentStorage,
   type AccessPlatform,
 } from '@porcelain/client/access';
-import { Effect, Layer, ManagedRuntime } from 'effect';
+import { Effect, Layer, ManagedRuntime, Option } from 'effect';
 import { Atom, AtomRef } from 'effect/reactivity';
 import { useAtomRef, useAtomValue } from '@effect/atom-react';
 import { environmentStorage } from './adapters/environment-storage';
@@ -87,12 +88,16 @@ function createConnection(environmentId: string, server: Server): Connection {
 
 function localConnection({ inventory, principal }: BrowserSession) {
   const writer = principal.kind === 'owner' ? 'owner' : principal.deviceId;
-  return createConnection(inventory.environmentId, {
+  const connection = createConnection(inventory.environmentId, {
     address: window.location.href,
     transport: browserTransport(fetch),
     liveUpdates: sameOriginLiveUpdates(),
     operationsKey: `porcelain-git-requests:${JSON.stringify([inventory.environmentId, principal.kind, writer])}`,
   });
+  connection.atoms.addGlobalLayer(
+    Layer.succeed(InventorySeed, Option.some(inventory)),
+  );
+  return connection;
 }
 
 function remoteConnection(remote: Remote) {

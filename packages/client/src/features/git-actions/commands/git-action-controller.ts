@@ -1,3 +1,4 @@
+import type { Reactivity } from 'effect/reactivity';
 import type { Context } from 'effect';
 import { Effect, Schema } from 'effect';
 import type { QueryClient } from '@tanstack/query-core';
@@ -77,7 +78,8 @@ export class GitActionController {
     input: Pick<RunGitActionRequest, 'input' | 'expected'>,
   ): Effect.Effect<
     Receipt,
-    RunFailure | RequestError | ConnectionError | GitOperationStateError
+    RunFailure | RequestError | ConnectionError | GitOperationStateError,
+    Reactivity.Reactivity
   > {
     return withSignal(
       Effect.gen({ self: this }, function* () {
@@ -105,7 +107,8 @@ export class GitActionController {
 
   recover(): Effect.Effect<
     Receipt,
-    RunFailure | RequestError | ConnectionError | GitOperationStateError
+    RunFailure | RequestError | ConnectionError | GitOperationStateError,
+    Reactivity.Reactivity
   > {
     return withSignal(
       Effect.gen({ self: this }, function* () {
@@ -134,7 +137,11 @@ export class GitActionController {
 
   private send(
     request: RunGitActionRequest,
-  ): Effect.Effect<Receipt, RunFailure | RequestError | ConnectionError> {
+  ): Effect.Effect<
+    Receipt,
+    RunFailure | RequestError | ConnectionError,
+    Reactivity.Reactivity
+  > {
     return Effect.gen({ self: this }, function* () {
       const api = gitActionsApi(this.connection);
       const result = yield* api.runGitAction({
@@ -160,7 +167,9 @@ export class GitActionController {
     });
   }
 
-  private accept(receipt: Receipt): Effect.Effect<Receipt, ConnectionError> {
+  private accept(
+    receipt: Receipt,
+  ): Effect.Effect<Receipt, ConnectionError, Reactivity.Reactivity> {
     return Effect.gen({ self: this }, function* () {
       yield* currentAnswerEffect(
         this.signal,

@@ -1,3 +1,5 @@
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { environmentSelectionAccess } from '../../access';
 import { useProjectSelectionCommands } from '../commands/selection';
@@ -19,6 +21,7 @@ export function WorkspacePicker({
     remembered,
   } = workspace;
   const commands = useProjectSelectionCommands(environmentSelectionAccess);
+  const data = Option.getOrUndefined(AsyncResult.value(inventory.result));
   const project = workspace.project;
   const worktree = workspace.worktree;
   const unavailable = worktree && (!project?.available || !worktree.available);
@@ -27,11 +30,11 @@ export function WorkspacePicker({
     : (environment?.name ?? 'Workspace');
   const projectMessage = !environment
     ? 'Select an environment'
-    : inventory.isPending
+    : AsyncResult.isInitial(inventory.result)
       ? 'Reading projects…'
-      : inventory.isError
+      : AsyncResult.isFailure(inventory.result)
         ? 'Could not read projects'
-        : inventory.data?.projects.length === 0
+        : data?.projects.length === 0
           ? 'No projects registered'
           : remembered && (!worktree || unavailable)
             ? 'Saved worktree is unavailable'
@@ -45,7 +48,7 @@ export function WorkspacePicker({
         name,
       }))}
       environmentId={selection.currentEnvironmentId}
-      projects={inventory.data?.projects ?? []}
+      projects={data?.projects ?? []}
       projectId={remembered?.projectId}
       worktreeId={remembered?.worktreeId}
       disabled={

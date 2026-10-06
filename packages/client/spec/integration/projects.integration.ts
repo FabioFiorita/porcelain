@@ -1,42 +1,58 @@
 import { runClientRequest } from '@porcelain/client/transport';
-import { expect } from 'vitest';
+import { afterEach, expect } from 'vitest';
+import { Effect } from 'effect';
+import { AtomRegistry } from 'effect/reactivity';
 import { QueryClient } from '@tanstack/query-core';
 import { test } from '@porcelain/server/kit/server-test';
 import {
-  projectCommands,
-  inventoryQueryOptions,
+  registerProject,
+  renameProject,
+  removeProject,
+  readInventory,
   setFilePreference,
   filePreferencesQueryOptions,
 } from '@porcelain/client/projects';
 import { connection } from '../kit/connection.ts';
 
+const registries = new Set<AtomRegistry.AtomRegistry>();
+afterEach(() => {
+  for (const registry of registries) registry.dispose();
+  registries.clear();
+});
 test('register, rename, pin and remove a repository through the shared project owner', async ({
   server,
   session,
 }) => {
   const { connected } = await connection(server, session);
+  const registry = AtomRegistry.make();
+  registries.add(registry);
   const cache = new QueryClient();
-  await cache.query(inventoryQueryOptions(connected));
-  const commands = projectCommands(connected, cache);
-  const project = await runClientRequest(
-    commands.register(session.repository),
-    connected.request().signal,
-    connected.runtime,
+  const inventory = readInventory(connected);
+  registry.mount(inventory);
+  await Effect.runPromise(
+    AtomRegistry.getResult(registry, inventory, { suspendOnWaiting: true }),
+  );
+  const register = registerProject(connected);
+  registry.set(register, session.repository);
+  const project = await Effect.runPromise(
+    AtomRegistry.getResult(registry, register, { suspendOnWaiting: true }),
   );
   expect(project.id).toBe(session.projectId);
+  const rename = renameProject(connected);
+  registry.set(rename, { projectId: project.id, name: 'Shared project' });
   expect(
     (
-      await runClientRequest(
-        commands.rename({ projectId: project.id, name: 'Shared project' }),
-        connected.request().signal,
-        connected.runtime,
+      await Effect.runPromise(
+        AtomRegistry.getResult(registry, rename, { suspendOnWaiting: true }),
       )
     ).name,
   ).toBe('Shared project');
   expect(
-    (await cache.query(inventoryQueryOptions(connected))).projects.find(
-      (entry) => entry.id === project.id,
-    )?.name,
+    (
+      await Effect.runPromise(
+        AtomRegistry.getResult(registry, inventory, { suspendOnWaiting: true }),
+      )
+    ).projects.find((entry) => entry.id === project.id)?.name,
   ).toBe('Shared project');
   await runClientRequest(
     setFilePreference(connected, cache, project.id, {
@@ -55,12 +71,17 @@ test('register, rename, pin and remove a repository through the shared project o
     hidden: false,
     pinned: true,
   });
-  await runClientRequest(
-    commands.remove(project.id),
-    connected.request().signal,
-    connected.runtime,
+  const remove = removeProject({ connection: connected, client: cache });
+  registry.set(remove, project.id);
+  await Effect.runPromise(
+    AtomRegistry.getResult(registry, remove, { suspendOnWaiting: true }),
   );
   expect(
-    (await cache.query(inventoryQueryOptions(connected))).projects,
+    (
+      await Effect.runPromise(
+        AtomRegistry.getResult(registry, inventory, { suspendOnWaiting: true }),
+      )
+    ).projects,
   ).toEqual([]);
+  cache.clear();
 });

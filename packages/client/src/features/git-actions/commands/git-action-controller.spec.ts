@@ -12,7 +12,7 @@ import {
 import {
   createWorktreeConnection,
   queryKeys,
-  runRequest,
+  runClientRequest,
   type Transport,
 } from '@porcelain/client/transport';
 import {
@@ -78,7 +78,11 @@ function setup(
     client,
     ids: () => ids,
     run: () =>
-      runRequest(controller.execute(input), lifetime.controller.signal),
+      runClientRequest(
+        controller.execute(input),
+        lifetime.controller.signal,
+        lifetime.connection.runtime,
+      ),
     close: async () => {
       await lifetime.close();
       client.clear();
@@ -101,7 +105,11 @@ it('retains the original request after an unanswered write and resends that exac
     await expect(subject.run()).rejects.toThrow('Check the existing receipt');
     expect(sent).toHaveLength(1);
     await expect(
-      runRequest(subject.controller.recover(), subject.signal),
+      runClientRequest(
+        subject.controller.recover(),
+        subject.signal,
+        subject.connection.runtime,
+      ),
     ).resolves.toEqual(receipt);
     expect(sent).toEqual([
       JSON.stringify(
@@ -127,7 +135,7 @@ it('refuses an action mismatch before retaining a request or contacting the serv
   });
   try {
     await expect(
-      runRequest(
+      runClientRequest(
         subject.controller.execute({
           ...input,
           input: {
@@ -137,6 +145,7 @@ it('refuses an action mismatch before retaining a request or contacting the serv
           },
         }),
         subject.signal,
+        subject.connection.runtime,
       ),
     ).rejects.toThrow('Action mismatch');
     expect(sent).toBe(0);
@@ -226,7 +235,11 @@ it('keeps an accepted running request recoverable when its caller cancels waitin
   const caller = new AbortController();
   const cancelled = new Error('Dialog closed');
   try {
-    const result = runRequest(subject.controller.execute(input), caller.signal);
+    const result = runClientRequest(
+      subject.controller.execute(input),
+      caller.signal,
+      subject.connection.runtime,
+    );
     const failure = expect(result).rejects.toBe(cancelled);
     await received.promise;
     caller.abort(cancelled);

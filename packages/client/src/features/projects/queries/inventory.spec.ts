@@ -1,12 +1,28 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { Effect, Layer, Option, Stream } from 'effect';
+import { InventorySeed, registerProject } from '@porcelain/client/projects';
+import { AsyncResult, AtomRegistry, Reactivity } from 'effect/reactivity';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import {
-  inventoryQueryOptions,
-  inventoryScopeQueryOptions,
-} from './inventory.ts';
+  createWorktreeConnection,
+  queryKeys,
+  type RuntimeConnection,
+  type Transport,
+} from '@porcelain/client/transport';
+import { readInventory } from './inventory.ts';
 
 const environmentId = '87deba35-c65b-4fb6-9dfd-52bfbe76f64c';
-
+const owned = new Set<{
+  connection: RuntimeConnection;
+  registry: AtomRegistry.AtomRegistry;
+}>();
+afterEach(async () => {
+  for (const { connection, registry } of owned) {
+    registry.dispose();
+    await connection.close();
+  }
+  owned.clear();
+});
 function inventory(
   name = 'Computer',
   identity = environmentId,
@@ -17,102 +33,174 @@ function inventory(
     projects: [],
   };
 }
-
-function connection(
-  read: () => ReadInventoryResponse,
-  cacheIdentity?: readonly string[],
-) {
-  const controller = new AbortController();
-  const requests: { path: string; signal: AbortSignal | null | undefined }[] =
-    [];
-  const connected: Parameters<typeof inventoryQueryOptions>[0] = {
+function fixture(transport: Transport, cacheIdentity?: readonly string[]) {
+  const lifetime = createWorktreeConnection({
     environmentId,
-    ...(cacheIdentity === undefined ? {} : { cacheIdentity }),
-    request: (signal) => ({
-      signal: signal
-        ? AbortSignal.any([controller.signal, signal])
-        : controller.signal,
-    }),
-    transport: (path, init) => {
-      requests.push({ path, signal: init?.signal });
-      return Promise.resolve(Response.json(read()));
-    },
-  };
-  return { connected, controller, requests };
+    transport,
+    timeoutMs: 10_000,
+    ...(cacheIdentity ? { cacheIdentity } : {}),
+  });
+  const registry = AtomRegistry.make();
+  owned.add({ connection: lifetime.connection, registry });
+  return { ...lifetime, registry };
 }
-
+function read(subject: ReturnType<typeof fixture>) {
+  return Effect.runPromise(
+    AtomRegistry.getResult(
+      subject.registry,
+      readInventory(subject.connection),
+      { suspendOnWaiting: true },
+    ),
+  );
+}
 describe('reading a connected project inventory', () => {
-  it('reads through its connection and preserves the web inventory cache prefix', async () => {
-    const { connected, requests } = connection(() => inventory());
-    const options = inventoryQueryOptions(connected);
-    expect(
-      await options.queryFn({ signal: new AbortController().signal }),
-    ).toEqual(inventory());
-    expect(options.queryKey).toEqual(['inventory', environmentId]);
-    expect(inventoryScopeQueryOptions(environmentId).queryKey).toEqual(
-      options.queryKey,
-    );
-    expect(requests[0]?.path).toBe('/api/inventory');
-    expect(requests[0]?.signal?.aborted).toBe(false);
+  it('reads the canonical HTTP endpoint through its connection', async () => {
+    const requests: string[] = [];
+    const subject = fixture((path) => {
+      requests.push(path);
+      return Promise.resolve(Response.json(inventory()));
+    });
+    expect(await read(subject)).toEqual(inventory());
+    expect(requests).toEqual(['/api/inventory']);
   });
-
   it('rejects an inventory returned by another installation', async () => {
-    const { connected } = connection(() =>
-      inventory('Other computer', '7978b5bd-7a5e-49c2-b624-068b2a257fc2'),
+    const subject = fixture(() =>
+      Promise.resolve(
+        Response.json(
+          inventory('Other computer', '7978b5bd-7a5e-49c2-b624-068b2a257fc2'),
+        ),
+      ),
     );
-    await expect(
-      inventoryQueryOptions(connected).queryFn({
-        signal: new AbortController().signal,
-      }),
-    ).rejects.toThrow('The connected context changed.');
+    await expect(read(subject)).rejects.toThrow(
+      'The connected context changed.',
+    );
   });
-
   it('rejects a completed read when its connection was cancelled', async () => {
-    const { connected, controller, requests } = connection(() => {
-      controller.abort();
-      return inventory();
+    const subject = fixture(() => {
+      subject.controller.abort();
+      return Promise.resolve(Response.json(inventory()));
     });
-    await expect(
-      inventoryQueryOptions(connected).queryFn({
-        signal: new AbortController().signal,
-      }),
-    ).rejects.toThrow();
-    expect(requests[0]?.signal?.aborted).toBe(true);
+    await expect(read(subject)).rejects.toThrow();
+    expect(
+      Option.getOrUndefined(
+        AsyncResult.value(
+          subject.registry.get(readInventory(subject.connection)),
+        ),
+      ),
+    ).toBeUndefined();
   });
-
-  it('forwards query cancellation even when the connection still exists', async () => {
-    const query = new AbortController();
-    const { connected, controller, requests } = connection(() => {
-      query.abort();
-      return inventory();
+  it('unmounting the read cancels its HTTP request without closing the connection', async () => {
+    const started = Promise.withResolvers<void>();
+    const cancelled = Promise.withResolvers<void>();
+    let signal: AbortSignal | null | undefined;
+    const subject = fixture((_path, init) => {
+      signal = init?.signal;
+      signal?.addEventListener('abort', () => cancelled.resolve(), {
+        once: true,
+      });
+      started.resolve();
+      return new Promise(() => {});
     });
-    await expect(
-      inventoryQueryOptions(connected).queryFn({ signal: query.signal }),
-    ).rejects.toThrow();
-    expect(controller.signal.aborted).toBe(false);
-    expect(requests[0]?.signal?.aborted).toBe(true);
+    const unmount = subject.registry.mount(readInventory(subject.connection));
+    await started.promise;
+    unmount();
+    await cancelled.promise;
+    expect(signal?.aborted).toBe(true);
+    expect(subject.controller.signal.aborted).toBe(false);
   });
+  it('isolates devices on the same environment, including their reactive refreshes', async () => {
+    let firstReads = 0;
+    let secondReads = 0;
+    const first = fixture(() => {
+      firstReads += 1;
+      return Promise.resolve(Response.json(inventory(`First ${firstReads}`)));
+    }, ['https://computer.test', 'first-device']);
+    const second = fixture(() => {
+      secondReads += 1;
+      return Promise.resolve(Response.json(inventory(`Second ${secondReads}`)));
+    }, ['https://computer.test', 'second-device']);
+    const stopFirst = first.registry.mount(readInventory(first.connection));
+    const stopSecond = second.registry.mount(readInventory(second.connection));
+    try {
+      expect((await read(first)).environment.name).toBe('First 1');
+      expect((await read(second)).environment.name).toBe('Second 1');
+      first.connection.runtime.runSync(
+        Reactivity.invalidate([queryKeys.inventory(environmentId)]),
+      );
+      expect((await read(first)).environment.name).toBe('First 2');
+      expect((await read(second)).environment.name).toBe('Second 1');
+      expect(secondReads).toBe(1);
+    } finally {
+      stopFirst();
+      stopSecond();
+    }
+  });
+});
 
-  it('keeps native device identity separate under the same environment prefix', () => {
-    const first = connection(
-      () => inventory(),
-      ['https://computer.test', 'first-device'],
+it('a read started before a confirmed write cannot restore its old inventory, even when the following refresh fails', async () => {
+  const held = Promise.withResolvers<Response>();
+  const started = Promise.withResolvers<void>();
+  let reads = 0;
+  const added = {
+    id: '00000000-0000-4000-8000-000000000001',
+    name: 'Added project',
+    available: true,
+    worktrees: [],
+  };
+  const subject = fixture((path) => {
+    if (path === '/api/projects') return Promise.resolve(Response.json(added));
+    reads += 1;
+    if (reads === 1) {
+      started.resolve();
+      return held.promise;
+    }
+    return Promise.resolve(
+      Response.json({ message: 'Refresh unavailable' }, { status: 503 }),
     );
-    const second = connection(
-      () => inventory(),
-      ['https://computer.test', 'second-device'],
+  });
+  subject.connection.atoms.addGlobalLayer(
+    Layer.succeed(InventorySeed, Option.some(inventory())),
+  );
+  const state = readInventory(subject.connection);
+  const stop = subject.registry.mount(state);
+  try {
+    await started.promise;
+    const confirmed = Effect.runPromise(
+      AtomRegistry.toStream(subject.registry, state).pipe(
+        Stream.filter(
+          (result) =>
+            Option.getOrUndefined(AsyncResult.value(result))?.projects[0]
+              ?.name === 'Added project',
+        ),
+        Stream.take(1),
+        Stream.runHead,
+      ),
     );
-    const firstOptions = inventoryQueryOptions(first.connected);
-    const secondOptions = inventoryQueryOptions(second.connected);
-    expect(firstOptions.queryKey).not.toEqual(secondOptions.queryKey);
-    expect(firstOptions.queryKey.slice(0, 2)).toEqual(
-      inventoryScopeQueryOptions(environmentId).queryKey,
+    const command = registerProject(subject.connection);
+    subject.registry.set(command, '/repository');
+    expect(
+      await Effect.runPromise(
+        AtomRegistry.getResult(subject.registry, command, {
+          suspendOnWaiting: true,
+        }),
+      ),
+    ).toEqual(added);
+    expect(Option.getOrThrow(await confirmed)._tag).toBe('Success');
+    const failed = Effect.runPromise(
+      AtomRegistry.toStream(subject.registry, state).pipe(
+        Stream.filter(AsyncResult.isFailure),
+        Stream.take(1),
+        Stream.runHead,
+      ),
     );
-    expect(secondOptions.queryKey).toEqual([
-      'inventory',
-      environmentId,
-      'https://computer.test',
-      'second-device',
+    held.resolve(Response.json(inventory()));
+    const result = Option.getOrThrow(await failed);
+    expect(Option.getOrThrow(AsyncResult.value(result)).projects).toEqual([
+      added,
     ]);
-  });
+    expect(reads).toBe(2);
+  } finally {
+    held.resolve(Response.json(inventory()));
+    stop();
+  }
 });

@@ -1,6 +1,10 @@
 import type { Context } from 'effect';
 import type { LiveNotice } from '@porcelain/contracts/access';
 import { Effect } from 'effect';
+import { AsyncResult, Atom, AtomRegistry, Reactivity } from 'effect/reactivity';
+import { Option } from 'effect';
+import { readInventory } from '../../projects/queries/inventory.ts';
+import { inventoryRuntime } from '../../projects/store/inventory.ts';
 import { nativeOperation, ScopedTasks, withSignal } from '@porcelain/effects';
 import {
   LIVE_PATHS_PER_WORKTREE,
@@ -32,12 +36,8 @@ function liveSubscription(
   client: QueryClient,
   environmentId: string,
   operations: Context.Service.Shape<typeof OperationStore>,
+  data: ReadInventoryResponse | undefined,
 ) {
-  const inventory = client
-    .getQueryCache()
-    .findAll({ queryKey: queryKeys.inventory(environmentId) })[0];
-  const data =
-    inventory && client.getQueryData<ReadInventoryResponse>(inventory.queryKey);
   const watched = new Map<string, Watched>();
   for (const operation of [...operations.state.value.operations.values()]) {
     if (operation.receipt && isTerminal(operation.receipt)) continue;
@@ -95,20 +95,28 @@ function applyLiveNotice(
   if (notice.type === 'git-action') {
     return refreshGitReceipt(client, environmentId, notice.receipt);
   }
-  return Effect.forEach(
-    noticeQueryFilters(environmentId, notice),
-    (filters) => nativeOperation(() => client.invalidateQueries(filters)),
-    { concurrency: 'unbounded', discard: true },
-  );
+  return Effect.gen(function* () {
+    if (notice.type === 'inventory' || notice.type === 'worktree')
+      yield* Reactivity.invalidate([queryKeys.inventory(environmentId)]);
+    yield* Effect.forEach(
+      noticeQueryFilters(environmentId, notice),
+      (filters) => nativeOperation(() => client.invalidateQueries(filters)),
+      { concurrency: 'unbounded', discard: true },
+    );
+  });
 }
 
 export function connectLiveQueries(
   client: QueryClient,
   connection: LiveConnection,
-  onUnauthorized: () => void,
+  onUnauthorized: (() => void) | undefined,
+  registry: AtomRegistry.AtomRegistry,
 ) {
   const lifecycle = new AbortController();
   const tasks = new ScopedTasks();
+  const services = connection.runtime.runSync(
+    Effect.context<Reactivity.Reactivity>(),
+  );
   const signal = AbortSignal.any([
     connection.controller.signal,
     lifecycle.signal,
@@ -135,7 +143,12 @@ export function connectLiveQueries(
         if (!signal.aborted) yield* connection.operations.accept(receipt);
       });
       void tasks
-        .run(withSignal(recovery, signal).pipe(Effect.ignore))
+        .run(
+          withSignal(recovery, signal).pipe(
+            Effect.ignore,
+            Effect.provideContext(services),
+          ),
+        )
         .catch(() => undefined);
     }
   };
@@ -159,20 +172,36 @@ export function connectLiveQueries(
           }),
         ),
       );
-      void tasks.run(withSignal(update, signal)).catch(() => undefined);
+      void tasks
+        .run(withSignal(update, signal).pipe(Effect.provideContext(services)))
+        .catch(() => undefined);
     },
     onReconnect: () => {
       if (signal.aborted) return;
-      const refresh = nativeOperation(() =>
-        client.invalidateQueries({
-          type: 'active',
-          predicate: (query) => query.queryKey[1] === connection.environmentId,
-        }),
+      const refresh = Effect.andThen(
+        Reactivity.invalidate([queryKeys.inventory(connection.environmentId)]),
+        nativeOperation(() =>
+          client.invalidateQueries({
+            type: 'active',
+            predicate: (query) =>
+              query.queryKey[1] === connection.environmentId,
+          }),
+        ),
       );
-      void tasks.run(withSignal(refresh, signal)).catch(() => undefined);
+      void tasks
+        .run(withSignal(refresh, signal).pipe(Effect.provideContext(services)))
+        .catch(() => undefined);
     },
     onUnauthorized: () => {
-      if (!signal.aborted) onUnauthorized();
+      if (!signal.aborted) {
+        if (onUnauthorized) onUnauthorized();
+        else
+          connection.runtime.runSync(
+            Reactivity.invalidate([
+              queryKeys.inventory(connection.environmentId),
+            ]),
+          );
+      }
     },
   });
   let queued = false;
@@ -184,6 +213,9 @@ export function connectLiveQueries(
       client,
       connection.environmentId,
       connection.operations,
+      Option.getOrUndefined(
+        AsyncResult.value(registry.get(readInventory(connection))),
+      ),
     );
     const serialized = JSON.stringify(subscription);
     if (serialized === sent) return;
@@ -197,13 +229,48 @@ export function connectLiveQueries(
       .run(Effect.andThen(Effect.yieldNow, Effect.sync(send)))
       .catch(() => undefined);
   };
+  const unsubscribeInventory = registry.subscribe(
+    readInventory(connection),
+    changed,
+  );
   const unsubscribe = client.getQueryCache().subscribe(changed);
   const unsubscribeOperations = connection.operations.state.subscribe(changed);
   changed();
   return () => {
+    unsubscribeInventory();
     unsubscribe();
     unsubscribeOperations?.();
     lifecycle.abort();
     void Effect.runPromise(tasks.close());
   };
 }
+
+export const liveQueries = Atom.family(
+  ({
+    client,
+    connection,
+    onUnauthorized,
+  }: {
+    client: QueryClient;
+    connection: LiveConnection;
+    onUnauthorized?: () => void;
+  }) =>
+    inventoryRuntime(connection)
+      .atom(
+        Effect.acquireRelease(
+          Effect.gen(function* () {
+            const registry = yield* AtomRegistry.AtomRegistry;
+            return connectLiveQueries(
+              client,
+              connection,
+              onUnauthorized,
+              registry,
+            );
+          }),
+          (close) => Effect.sync(close),
+        ).pipe(Effect.asVoid),
+      )
+      .pipe(Atom.setIdleTTL(0)),
+);
+
+export const inactiveLiveQueries = Atom.make(AsyncResult.success(undefined));

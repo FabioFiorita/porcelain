@@ -1,3 +1,4 @@
+import { Reactivity } from 'effect/reactivity';
 import type { QueryClient } from '@tanstack/query-core';
 import type {
   WorktreeConnection,
@@ -56,11 +57,9 @@ export function commentCommands(
         return [...byId.values()];
       });
       if (refreshInventory)
-        yield* nativeOperation(() =>
-          client.invalidateQueries({
-            queryKey: queryKeys.inventory(connection.environmentId),
-          }),
-        );
+        yield* Reactivity.invalidate([
+          queryKeys.inventory(connection.environmentId),
+        ]);
     });
   }
 
@@ -190,11 +189,9 @@ export function commentCommands(
             connected.signal,
             result.worktreeId === scope.worktreeId,
           );
-          yield* nativeOperation(() =>
-            client.invalidateQueries({
-              queryKey: queryKeys.inventory(connection.environmentId),
-            }),
-          );
+          yield* Reactivity.invalidate([
+            queryKeys.inventory(connection.environmentId),
+          ]);
           return result;
         }),
       ),

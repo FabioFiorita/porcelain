@@ -1,4 +1,5 @@
 import type { WriteQueues } from '@porcelain/client/transport';
+import type { Reactivity } from 'effect/reactivity';
 import { type UseMutationResult } from '@tanstack/react-query';
 import type { Effect } from 'effect';
 import {
@@ -7,7 +8,9 @@ import {
 } from '@porcelain/client/transport';
 
 export function operationMutation<A, E, Input>(
-  operation: (input: Input) => Effect.Effect<A, E, WriteQueues>,
+  operation: (
+    input: Input,
+  ) => Effect.Effect<A, E, WriteQueues | Reactivity.Reactivity>,
   connection: RuntimeConnection,
 ) {
   return {

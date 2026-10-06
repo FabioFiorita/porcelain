@@ -1694,13 +1694,13 @@ export const externalPackages: Record<Role, readonly string[]> = {
   'client-feature-api': [],
   'client-request-api': [],
   'client-port': [],
-  'client-feature-spec': [
+  'client-feature-spec': [],
+  'client-integration-test': [
     'vitest',
-    'effect/rpc',
-    'effect/socket',
-    'effect/net',
+    '@tanstack/query-core',
+    'effect',
+    'effect/reactivity',
   ],
-  'client-integration-test': ['vitest', '@tanstack/query-core'],
   'client-test-kit': ['vitest'],
   'client-transport-api': [],
   'client-transport-spec': ['vitest', '@effect/vitest'],
@@ -1833,7 +1833,6 @@ for (const role of [
   'desktop-e2e',
   'server-kit',
   'mobile-test-kit',
-  'client-feature-spec',
   'client-transport-spec',
   'client-test-kit',
 ] as const)
@@ -1865,7 +1864,6 @@ const captureNodeModules = new Set([
 function isNodeModule(name: string): boolean {
   return nodeModules.has(name) || nodeModules.has(name.split('/')[0] ?? '');
 }
-
 function packageName(module: string): string {
   const [scope = '', name = ''] = module.split('/');
   return scope.startsWith('@') ? `${scope}/${name}` : scope;

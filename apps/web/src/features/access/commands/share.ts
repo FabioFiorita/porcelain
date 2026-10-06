@@ -1,5 +1,4 @@
 import { useAtom } from '@effect/atom-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   issuePairing,
   revokeAccess,
@@ -8,7 +7,6 @@ import {
   startServiceUpdate,
   renameEnvironment,
 } from '@porcelain/client/access';
-import { operationMutation } from '@/shared/query/mutation';
 import type { Connection } from '@/shared/workspace/connection';
 
 export function useIssuePairing(connection: Connection) {
@@ -27,16 +25,5 @@ export function useStartServiceUpdate(connection: Connection) {
   return useAtom(startServiceUpdate(connection));
 }
 export function useRenameEnvironment(connection: Connection) {
-  const client = useQueryClient();
-  const mutation = useMutation(
-    operationMutation(
-      (name: string | null) => renameEnvironment(connection, client, name),
-      connection,
-    ),
-  );
-  return {
-    submit: mutation.mutateAsync,
-    isPending: mutation.isPending,
-    error: mutation.error,
-  };
+  return useAtom(renameEnvironment(connection), { mode: 'promise' });
 }

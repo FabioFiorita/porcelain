@@ -1,3 +1,5 @@
+import { Cause } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -19,7 +21,7 @@ export function EnvironmentName({
   environment: Environment;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
-  const rename = useRenameEnvironment(connection);
+  const [renaming, rename] = useRenameEnvironment(connection);
   const value = draft ?? (environment.custom ? environment.name : '');
   const name = value.trim();
   const unchanged = environment.custom
@@ -29,7 +31,7 @@ export function EnvironmentName({
     <form
       className="flex flex-col gap-2"
       onSubmit={(event) =>
-        submitForm(event, async () => rename.submit(name === '' ? null : name))
+        submitForm(event, async () => rename(name === '' ? null : name))
       }
     >
       <Field>
@@ -46,9 +48,9 @@ export function EnvironmentName({
           <Button
             type="submit"
             variant="outline"
-            disabled={unchanged || rename.isPending}
+            disabled={unchanged || renaming.waiting}
           >
-            {rename.isPending ? 'Saving…' : 'Save'}
+            {renaming.waiting ? 'Saving…' : 'Save'}
           </Button>
         </div>
         <FieldDescription>
@@ -56,10 +58,10 @@ export function EnvironmentName({
           empty to use the host name.
         </FieldDescription>
       </Field>
-      {rename.error && (
+      {AsyncResult.isFailure(renaming) && (
         <Alert variant="destructive">
           <AlertDescription>
-            {connectionErrorMessage(rename.error)}
+            {connectionErrorMessage(Cause.squash(renaming.cause))}
           </AlertDescription>
         </Alert>
       )}

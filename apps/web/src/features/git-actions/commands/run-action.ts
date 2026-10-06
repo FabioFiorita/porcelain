@@ -12,7 +12,7 @@ import { asMutation } from '@/shared/query/mutation';
 import { isTerminal, operationKey } from '@porcelain/client/git-actions';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import { GitActionController } from '@porcelain/client/git-actions';
-import { runRequest } from '@porcelain/client/transport';
+import { runClientRequest, runRequest } from '@porcelain/client/transport';
 
 export function useGitAction(
   scope: GitScope,
@@ -42,11 +42,19 @@ export function useGitAction(
   );
   const execution = useMutation({
     mutationFn: (input: { input: ActionInput; expected: Expectation }) =>
-      runRequest(controller.execute(input), connection.request().signal),
+      runClientRequest(
+        controller.execute(input),
+        connection.request().signal,
+        connection.runtime,
+      ),
   });
   const recovery = useMutation({
     mutationFn: () =>
-      runRequest(controller.recover(), connection.request().signal),
+      runClientRequest(
+        controller.recover(),
+        connection.request().signal,
+        connection.runtime,
+      ),
   });
   const terminal = operation?.receipt && isTerminal(operation.receipt);
   return {
