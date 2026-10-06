@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { expect, test as base, type Page } from '@playwright/test';
@@ -27,7 +27,20 @@ export type { Page };
 
 declare const navigation: { entries(): { url: string | null }[] };
 declare const location: { href: string };
-declare const window: { dispatchEvent(event: Event): boolean };
+declare const window: {
+  dispatchEvent(event: Event): boolean;
+  __INSTANCE?: {
+    getContainerElement():
+      | {
+          isConnected: boolean;
+          getBoundingClientRect(): { width: number; height: number };
+          querySelectorAll(selector: string): { length: number };
+        }
+      | undefined;
+    getWindowSpecs(): { top: number; bottom: number };
+    workerManager?: { getStats(): Record<string, string | number | boolean> };
+  };
+};
 
 export type Shell = 'web' | 'desktop';
 
@@ -285,8 +298,51 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     );
     await use(observed);
   },
-  page: async ({ page, observed: _observed, live: _live }, use) => {
+  page: async ({ page, observed: _observed, live: _live }, use, testInfo) => {
     await use(page);
+    if (testInfo.status === testInfo.expectedStatus) return;
+    const closed = page.isClosed();
+    const renderer = closed
+      ? null
+      : await page
+          .evaluate(() => {
+            const viewer = window.__INSTANCE;
+            if (!viewer) return null;
+            const container = viewer.getContainerElement();
+            const bounds = container?.getBoundingClientRect();
+            return {
+              connected: container?.isConnected ?? false,
+              bounds: bounds
+                ? { width: bounds.width, height: bounds.height }
+                : null,
+              renderedFiles:
+                container?.querySelectorAll('diffs-container').length ?? 0,
+              window: viewer.getWindowSpecs(),
+              workers: viewer.workerManager?.getStats() ?? null,
+            };
+          })
+          .catch((error: unknown) => ({
+            unavailable: error instanceof Error ? error.message : String(error),
+          }));
+    const path = testInfo.outputPath('code-viewer.json');
+    await writeFile(
+      path,
+      JSON.stringify(
+        {
+          closed,
+          workers: page
+            .workers()
+            .map((worker) => new URL(worker.url()).pathname),
+          renderer,
+        },
+        null,
+        2,
+      ),
+    );
+    await testInfo.attach('code-viewer.json', {
+      path,
+      contentType: 'application/json',
+    });
   },
   live: async ({ context }, use) => {
     const router = await liveRouter(context);

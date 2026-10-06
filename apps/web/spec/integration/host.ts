@@ -36,7 +36,36 @@ let proxied: { target?: unknown } | undefined;
 export default async function setup(project: TestProject) {
   const build = await temporaryServerBuild();
   project.provide('serverBuild', build.folder);
-  return build.remove;
+  return async () => {
+    try {
+      const interrupted = await Promise.allSettled(
+        [...worlds.entries()].map(async ([session, current]) => {
+          const evidence = await Promise.allSettled([
+            current.keepEvidence(join(evidenceRoot, `interrupted-${session}`)),
+          ]);
+          const failures: unknown[] = await current.stop();
+          for (const result of evidence)
+            if (result.status === 'rejected') failures.push(result.reason);
+          if (failures.length > 0)
+            throw new AggregateError(
+              failures,
+              'An interrupted browser fixture could not retain evidence and stop.',
+            );
+        }),
+      );
+      const failures: unknown[] = [];
+      for (const result of interrupted)
+        if (result.status === 'rejected') failures.push(result.reason);
+      if (failures.length > 0)
+        throw new AggregateError(
+          failures,
+          'Interrupted browser fixtures could not retain evidence and stop.',
+        );
+    } finally {
+      worlds.clear();
+      await build.remove();
+    }
+  };
 }
 
 function sessionOf(cookies: string | undefined): string | undefined {
