@@ -92,7 +92,7 @@ None. The disposable server fakes the network (`apps/server/spec/kit/sandboxed-s
   - Tailscale disabled until a name is saved, then on at `https://porcelain.tail0000.ts.net` with the serve command;
   - the tunnel disabled until a hostname is saved, then on at `https://porcelain.example.com`;
   - after turning Local network off, the server state `lan: { enabled: false, status: off }`.
-- Steps 7–10 (failure text and recovery) have no test. It follows `routeFailure` in `apps/web/src/features/access/rules/share.ts`.
+- Steps 7–10 (failure text and recovery) have no test. It follows `routeFailure` in `packages/client/src/features/access/rules/share.ts`.
 
 ## Gotchas
 

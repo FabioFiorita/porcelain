@@ -3495,6 +3495,11 @@ const clientAtomRouteFiles = {
   'packages/client/src/features/files/queries/unused.ts': `import { reviewsApi } from '../../reviews/api.ts'; export const unusedQuery = () => reviewsApi(connection).mutation('reviews', 'publishReview');`,
 };
 
+const clientInjectedRouteFiles = {
+  ...clientAtomRouteFiles,
+  'packages/client/src/features/files/queries/text.ts': `import { Effect, Layer } from 'effect'; import { Atom } from 'effect/reactivity'; import { filesApi } from '../api.ts'; export const textQuery = () => { const runtime = Atom.runtime((get) => Layer.merge(base, get(filesApi(connection).runtime.layer))); return runtime.atom(Effect.gen(function* () { const api = yield* filesApi(connection); return yield* api.files.readTextFile({ params, query }); })); };`,
+};
+
 const clientMethodReads = [
   `return filesApi(connection).readTextFile({ params, query });`,
   `const api = filesApi(connection); const alias = api; return alias.readTextFile({ params, query });`,
@@ -3704,11 +3709,13 @@ Effect.runPromise(withReadLease('tree', write));
 Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => undefined }));`,
     errors: ['TS2379', 'TS377004', 'TS2379', 'TS377004', 'TS2739'],
   },
-  ...['web', 'desktop', 'mobile'].map((app) =>
-    clientRoutesCase(clientAtomRouteFiles, {
-      app: `apps/${app}/src/app.ts`,
-      valid: `import { textQueryOptions as options, type unusedQueryOptions } from '@porcelain/client/files'; import '@porcelain/client/files'; export const read = () => options();`,
-    }),
+  ...['web', 'desktop', 'mobile'].flatMap((app) =>
+    [clientAtomRouteFiles, clientInjectedRouteFiles].map((files) =>
+      clientRoutesCase(files, {
+        app: `apps/${app}/src/app.ts`,
+        valid: `import { textQueryOptions as options, type unusedQueryOptions } from '@porcelain/client/files'; import '@porcelain/client/files'; export const read = () => options();`,
+      }),
+    ),
   ),
   clientRoutesCase(clientRouteFiles, {
     invalid: `

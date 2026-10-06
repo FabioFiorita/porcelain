@@ -191,7 +191,8 @@ function usedMembers(
   if (
     parent.isTSAsExpression() ||
     parent.isTSNonNullExpression() ||
-    parent.isTSSatisfiesExpression()
+    parent.isTSSatisfiesExpression() ||
+    parent.isYieldExpression()
   )
     return usedMembers(parent, nextSeen, afterMember);
   if (parent.isMemberExpression() && parent.get('object') === path) {
@@ -833,7 +834,9 @@ class RouteReader {
           module.apis.has(reference.name),
         ) &&
         !(value?.isExpression() && this.sdkEndpoint(file, value)) &&
-        (member === undefined || !endpointNames.has(member.at(-1) ?? ''))
+        (member === undefined ||
+          (!endpointNames.has(member.at(-1) ?? '') &&
+            member.join('.') !== 'runtime.layer'))
       )
         problems.add(
           `${file}:${lineOf(readFileSync(join(this.root, file), 'utf8'), declaration.start)}: select a literal generated endpoint, because an escaped or dynamic client binding cannot prove feature route coverage.`,

@@ -1,3 +1,4 @@
+import { Atom } from 'effect/reactivity';
 import { ManagedRuntime } from 'effect';
 import { WriteQueues } from './write-queue.ts';
 import type { RuntimeConnection, WorktreeConnection } from './connection.ts';
@@ -8,6 +9,7 @@ export function createWorktreeConnection(
   const controller = new AbortController();
   const { timeoutMs, ...context } = input;
   const runtime = ManagedRuntime.make(WriteQueues.layer);
+  const atoms = Atom.context();
   const close = () => {
     controller.abort();
     return runtime.dispose();
@@ -21,6 +23,7 @@ export function createWorktreeConnection(
   );
   const connection: RuntimeConnection = {
     runtime,
+    atoms,
     close,
     ...context,
     request: (signal) => ({

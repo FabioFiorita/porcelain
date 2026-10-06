@@ -1,28 +1,17 @@
-import { useQuery } from '@tanstack/react-query';
+import { useAtomValue } from '@effect/atom-react';
 import {
-  pairedAccessQueryOptions,
-  remoteAccessQueryOptions,
-  serviceUpdateQueryOptions,
+  readPairedAccess,
+  readRemoteAccess,
+  readServiceUpdate,
 } from '@porcelain/client/access';
 import type { Connection } from '@/shared/workspace/connection';
 
 export function usePairedAccess(connection: Connection) {
-  return useQuery(pairedAccessQueryOptions(connection));
+  return useAtomValue(readPairedAccess(connection));
 }
 export function useRemoteAccess(connection: Connection) {
-  const query = useQuery(remoteAccessQueryOptions(connection));
-  return {
-    data: query.data,
-    isPending: query.isPending,
-    error: query.error,
-    managedElsewhere: query.data === null,
-  };
+  return useAtomValue(readRemoteAccess(connection));
 }
 export function useServiceUpdate(connection: Connection) {
-  const query = useQuery(serviceUpdateQueryOptions(connection));
-  return {
-    data: query.data,
-    error: query.error,
-    unreachable: query.isRefetchError,
-  };
+  return useAtomValue(readServiceUpdate(connection));
 }

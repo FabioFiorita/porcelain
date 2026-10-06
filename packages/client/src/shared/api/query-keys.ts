@@ -22,12 +22,6 @@ export const queryKeys = {
     ),
   session: () => ['access', 'session'] as const,
   appUpdate: () => ['desktop-app-update'] as const,
-  pairedAccess: (environmentId: string) =>
-    ['paired-access', environmentId] as const,
-  remoteAccess: (environmentId: string) =>
-    ['remote-access', environmentId] as const,
-  serviceUpdate: (environmentId: string) =>
-    ['service-update', environmentId] as const,
   filePreferences: (environmentId: string, projectId: string) =>
     ['review', environmentId, projectId, 'file-preferences'] as const,
   inventory: (environmentId: string | undefined) =>

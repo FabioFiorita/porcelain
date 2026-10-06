@@ -19,7 +19,6 @@ export {
 } from './connection-error-message.ts';
 export {
   deviceRouteTitles,
-  issuedLink,
   localNetworkNote,
   networkName,
   pairingAddresses,

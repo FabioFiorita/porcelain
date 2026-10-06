@@ -1,3 +1,5 @@
+import { Cause, Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { remoteStatusText } from '@porcelain/client/access/rules';
 import type { ReactNode } from 'react';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
@@ -38,22 +40,23 @@ function RemoteAccessGate({
   children: (remote: RemoteAccess) => ReactNode;
 }) {
   const remote = useRemoteAccess(connection);
-  if (remote.managedElsewhere)
+  const answer = Option.getOrUndefined(AsyncResult.value(remote));
+  if (answer === null)
     return (
       <p className="text-xs text-muted-foreground">
         Sharing is managed from a browser on the computer that runs Porcelain.
       </p>
     );
-  if (remote.error)
+  if (AsyncResult.isFailure(remote))
     return (
       <Alert variant="destructive">
         <AlertDescription>
-          {connectionErrorMessage(remote.error)}
+          {connectionErrorMessage(Cause.squash(remote.cause))}
         </AlertDescription>
       </Alert>
     );
-  if (!remote.data) return <Spinner />;
-  return children(remote.data);
+  if (!answer) return <Spinner />;
+  return children(answer);
 }
 
 function useDesktopConnection() {

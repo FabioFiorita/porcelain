@@ -1,70 +1,100 @@
-import type { Query, QueryFunctionContext } from '@tanstack/query-core';
-import type {
-  ReadRemoteAccessResponse,
-  ReadServiceUpdateResponse,
-} from '@porcelain/contracts/access';
+import { Cause, Effect, Exit, Option, Ref, Schedule, Stream } from 'effect';
+import { AsyncResult, Atom } from 'effect/reactivity';
 import {
   REMOTE_ACCESS_SETTLING_POLL_MS,
   SERVICE_UPDATE_POLL_MS,
 } from '../../../config/limits.ts';
-import type { WorktreeConnection } from '../../../shared/api/connection.ts';
-import { queryKeys } from '../../../shared/api/query-keys.ts';
-import { runRequest } from '../../../shared/api/effect-client.ts';
-import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
+import { porcelainClient } from '../../../shared/api/client.ts';
+import type { RuntimeConnection } from '../../../shared/api/connection.ts';
+import { requestEffect } from '../../../shared/api/effect-client.ts';
+import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { RequestError } from '../../../shared/api/request-error.ts';
-import { accessApi } from '../api.ts';
 import { routesSettling } from '../rules/share.ts';
+import { accessRuntime, AccessSnapshots } from '../store/share.ts';
 
-export function pairedAccessQueryOptions(connection: WorktreeConnection) {
-  return {
-    queryKey: queryKeys.pairedAccess(connection.environmentId),
-    queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
-      const connected = connection.request(signal);
-      const result = await runRequest(
-        accessApi(connection).administration.listAccess(),
-        connected.signal,
+function observe<A, E, R>(
+  connection: RuntimeConnection,
+  snapshot: Ref.Ref<Option.Option<A>>,
+  request: Effect.Effect<A, E, R>,
+) {
+  return Effect.gen(function* () {
+    const answer = yield* Effect.exit(
+      request.pipe(
+        Effect.tap(() => currentAnswerEffect(connection.request().signal)),
+      ),
+    );
+    if (Exit.isFailure(answer) && Cause.hasInterrupts(answer.cause))
+      return yield* Effect.interrupt;
+    if (Exit.isSuccess(answer))
+      yield* Ref.set(snapshot, Option.some(answer.value));
+    return AsyncResult.fromExitWithPrevious(
+      answer,
+      Option.map(yield* Ref.get(snapshot), AsyncResult.success),
+    );
+  });
+}
+function pollWhile<A, E, R>(
+  runtime: Atom.AtomRuntime<R>,
+  read: Effect.Effect<AsyncResult.AsyncResult<A, E>, never, R>,
+  interval: number,
+  settling: (answer: A | undefined) => boolean,
+) {
+  return Atom.optimistic(
+    runtime
+      .atom(
+        Stream.fromEffect(read).pipe(
+          Stream.repeat(Schedule.spaced(interval)),
+          Stream.takeUntil(
+            (answer) =>
+              !settling(Option.getOrUndefined(AsyncResult.value(answer))),
+          ),
+        ),
+      )
+      .pipe(
+        Atom.map((result) => AsyncResult.flatMap(result, (answer) => answer)),
+      ),
+  ).pipe(Atom.setIdleTTL(0));
+}
+export const readPairedAccess = Atom.family((connection: RuntimeConnection) =>
+  porcelainClient(connection).query('administration', 'listAccess', {
+    timeToLive: 0,
+  }),
+);
+export const readRemoteAccess = Atom.family((connection: RuntimeConnection) =>
+  pollWhile(
+    accessRuntime(connection),
+    Effect.gen(function* () {
+      const api = yield* porcelainClient(connection);
+      const snapshots = yield* AccessSnapshots;
+      return yield* observe(
+        connection,
+        snapshots.remote,
+        requestEffect(api.administration.readRemoteAccess()).pipe(
+          Effect.catch((error) =>
+            error instanceof RequestError && error.status === 403
+              ? Effect.succeed(null)
+              : Effect.fail(error),
+          ),
+        ),
       );
-      assertCurrentAnswer(connected.signal);
-      return result;
-    },
-  };
-}
-export function remoteAccessQueryOptions(connection: WorktreeConnection) {
-  return {
-    queryKey: queryKeys.remoteAccess(connection.environmentId),
-    queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
-      const connected = connection.request(signal);
-      try {
-        const result = await runRequest(
-          accessApi(connection).administration.readRemoteAccess(),
-          connected.signal,
-        );
-        assertCurrentAnswer(connected.signal);
-        return result;
-      } catch (error) {
-        assertCurrentAnswer(connected.signal);
-        if (error instanceof RequestError && error.status === 403) return null;
-        throw error;
-      }
-    },
-    refetchInterval: (query: Query<ReadRemoteAccessResponse | null>) =>
-      routesSettling(query.state.data) ? REMOTE_ACCESS_SETTLING_POLL_MS : false,
-  };
-}
-export function serviceUpdateQueryOptions(connection: WorktreeConnection) {
-  return {
-    queryKey: queryKeys.serviceUpdate(connection.environmentId),
-    queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
-      const connected = connection.request(signal);
-      const result = await runRequest(
-        accessApi(connection).serviceUpdates.readServiceUpdate(),
-        connected.signal,
+    }),
+    REMOTE_ACCESS_SETTLING_POLL_MS,
+    routesSettling,
+  ),
+);
+export const readServiceUpdate = Atom.family((connection: RuntimeConnection) =>
+  pollWhile(
+    accessRuntime(connection),
+    Effect.gen(function* () {
+      const api = yield* porcelainClient(connection);
+      const snapshots = yield* AccessSnapshots;
+      return yield* observe(
+        connection,
+        snapshots.update,
+        requestEffect(api.serviceUpdates.readServiceUpdate()),
       );
-      assertCurrentAnswer(connected.signal);
-      return result;
-    },
-    refetchInterval: (query: Query<ReadServiceUpdateResponse>) =>
-      query.state.data?.running === true ? SERVICE_UPDATE_POLL_MS : false,
-    retry: false,
-  };
-}
+    }),
+    SERVICE_UPDATE_POLL_MS,
+    (answer) => answer?.running === true,
+  ),
+);
