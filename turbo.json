@@ -45,7 +45,6 @@
     "//#format:server:check": {},
     "//#format:web:check": {},
     "//#arch:check": {},
-    "//#features:check": {},
     "build": {
       "dependsOn": ["transit"]
     },

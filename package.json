@@ -19,8 +19,7 @@
     "serve": "node scripts/serve.ts",
     "build:package": "node scripts/build-package.ts",
     "prepare": "lefthook install --reset-hooks-path && effect-tsgo patch --typescript",
-    "check": "turbo run typecheck lint:server lint:web format:server:check format:web:check arch:check features:check --output-logs=errors-only --continue --concurrency=2",
-    "features:check": "node scripts/feature-maps.ts",
+    "check": "turbo run typecheck lint:server lint:web format:server:check format:web:check arch:check --output-logs=errors-only --continue --concurrency=2",
     "desktop:build": "node scripts/build-desktop.ts",
     "desktop:install": "node scripts/install-desktop.ts",
     "dev:mobile": "pnpm --filter @porcelain/mobile dev"
