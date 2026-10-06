@@ -1,4 +1,4 @@
-import { Cause } from 'effect';
+import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import type { GitStatusEntry } from '@pierre/trees';
 import { useHotkey } from '@tanstack/react-hotkeys';
@@ -120,16 +120,18 @@ function ScopedFileNavigation({
     setRequested((current) => union(current, fileTreeAncestors(selected)));
   }, [selected]);
 
-  const queries = useDirectories(connection, scope, requested);
+  const directoriesRead = useDirectories(connection, scope, requested);
   const directories = [
     root,
-    ...queries.flatMap((query) => (query.data ? [query.data] : [])),
+    ...directoriesRead.results.flatMap((result) =>
+      Option.toArray(AsyncResult.value(result)),
+    ),
   ];
   const entries = mergeFileTreeEntries(directories);
   const paths = entries.map((entry) => entry.path);
   const visiblePaths = visibleFileTreePaths(paths, hidden, showHidden);
   const kinds = new Map(entries.map((entry) => [entry.path, entry.kind]));
-  const failed = queries.filter((query) => query.isError);
+  const failed = directoriesRead.results.filter(AsyncResult.isFailure);
   const gitStatus: GitStatusEntry[] = [
     ...entries
       .filter((entry) => entry.ignored)
@@ -432,9 +434,7 @@ function ScopedFileNavigation({
           <Button
             variant="outline"
             size="xs"
-            onClick={() => {
-              for (const query of failed) void query.refetch();
-            }}
+            onClick={() => directoriesRead.retry()}
           >
             Try again
           </Button>

@@ -1,5 +1,6 @@
 import type {
   WorktreeConnection,
+  RuntimeConnection,
   WorktreeScope,
 } from '../../shared/api/connection.ts';
 import {
@@ -343,8 +344,8 @@ export class FileDrafts extends Context.Service<
       connection: Pick<WorktreeConnection, 'environmentId'>,
     ) => ReadonlyMap<string, FileDraftHandle>;
     readonly retain: (input: DraftInput) => Effect.Effect<FileDraftHandle>;
-    readonly adopt: (connection: WorktreeConnection) => void;
-    readonly connection: (connection: WorktreeConnection) => WorktreeConnection;
+    readonly adopt: (connection: RuntimeConnection) => void;
+    readonly connection: (connection: RuntimeConnection) => RuntimeConnection;
     readonly hasUnsaved: (environmentIds: readonly string[]) => boolean;
     readonly save: (environmentId: string) => Effect.Effect<boolean>;
     readonly drop: (environmentId: string) => Effect.Effect<void>;
@@ -365,7 +366,7 @@ export class FileDrafts extends Context.Service<
       const drafts = AtomRef.make<
         ReadonlyMap<string, ReadonlyMap<string, DraftEntry>>
       >(new Map());
-      const connections = AtomRef.make<ReadonlyMap<string, WorktreeConnection>>(
+      const connections = AtomRef.make<ReadonlyMap<string, RuntimeConnection>>(
         new Map(),
       );
       const entries = (environmentId: string) =>

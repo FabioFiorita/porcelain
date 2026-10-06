@@ -1,8 +1,7 @@
-export { textQueryOptions } from './queries/text.ts';
-export { directoryQueryOptions } from './queries/directory.ts';
-export { pathsQueryOptions } from './queries/paths.ts';
-export { assetQueryOptions } from './queries/asset.ts';
-export { readPreviewAssets } from './queries/preview-assets.ts';
+export { readTextFile } from './queries/text.ts';
+export { readDirectory } from './queries/directory.ts';
+export { readWorktreePaths } from './queries/paths.ts';
+export { readAsset } from './queries/asset.ts';
 export { refreshFileEdit } from './commands/edit-file.ts';
 export { FileEditCoordinator } from './commands/file-edit-coordinator.ts';
 export {
@@ -13,3 +12,9 @@ export {
   type FileDraftState,
 } from './store.ts';
 export type { FileDraftWriteFailure } from './ports/file-draft-writer.ts';
+
+export { readHtmlPreview } from './queries/html-preview.ts';
+export {
+  HtmlPreviewPlatform,
+  HtmlPreviewUnavailable,
+} from './ports/html-preview-platform.ts';

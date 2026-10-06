@@ -6,7 +6,7 @@ import type {
 import { withSignal } from '@porcelain/effects';
 import { Effect } from 'effect';
 import type {
-  WorktreeConnection,
+  RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
@@ -21,13 +21,13 @@ type FileEditFailure =
   | RequestError;
 
 export class FileEditCoordinator {
-  private readonly connection: WorktreeConnection;
+  private readonly connection: RuntimeConnection;
   private readonly scope: WorktreeScope;
   private readonly cache: QueryClient;
   private readonly createId: () => string;
 
   constructor(
-    connection: WorktreeConnection,
+    connection: RuntimeConnection,
     scope: WorktreeScope,
     cache: QueryClient,
     createId: () => string,

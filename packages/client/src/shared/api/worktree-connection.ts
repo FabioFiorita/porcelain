@@ -1,6 +1,7 @@
 import { Atom, Reactivity } from 'effect/reactivity';
 import { Equal, Layer, ManagedRuntime } from 'effect';
 import { WriteQueues } from './write-queue.ts';
+import { ReadSubscriptions } from './read-subscriptions.ts';
 import type { RuntimeConnection, WorktreeConnection } from './connection.ts';
 
 export function createWorktreeConnection(
@@ -9,7 +10,11 @@ export function createWorktreeConnection(
   const controller = new AbortController();
   const { timeoutMs, ...context } = input;
   const runtime = ManagedRuntime.make(
-    Layer.merge(WriteQueues.layer, Reactivity.layer),
+    Layer.mergeAll(
+      WriteQueues.layer,
+      Reactivity.layer,
+      ReadSubscriptions.layer,
+    ),
   );
   const atoms = Atom.context({ memoMap: runtime.memoMap });
   const close = () => {

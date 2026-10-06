@@ -1,5 +1,6 @@
 import { AtomRegistry, Reactivity } from 'effect/reactivity';
 import { readFilePreferences } from '@porcelain/client/projects';
+import { readTextFile } from '@porcelain/client/files';
 import { Equal, Layer, ManagedRuntime, type Context } from 'effect';
 import { afterEach } from 'vitest';
 import { Effect } from 'effect';
@@ -336,6 +337,78 @@ it('a project preference notice refreshes its native preferences while leaving i
     expect(preferences).toBe(2);
     expect(inventories).toBe(1);
     expect(subject.client.getQueryCache().findAll()).toEqual([]);
+  } finally {
+    stop();
+    await subject.cleanup();
+  }
+});
+
+it('native file reads subscribe their paths, refresh from a live notice and release their watches on unmount', async () => {
+  const worktreeId = '0123456789abcdef0123456789abcdef';
+  const followed = Promise.withResolvers<void>();
+  const released = Promise.withResolvers<void>();
+  let watched = false;
+  let reads = 0;
+  const subject = setup(
+    (path) => {
+      if (path.endsWith('/text?path=README.md')) {
+        reads += 1;
+        return Promise.resolve(
+          Response.json({
+            worktreeId,
+            path: 'README.md',
+            encoding: 'utf-8',
+            byteLength: 5,
+            text: reads === 1 ? 'First' : 'After',
+          }),
+        );
+      }
+      return Promise.resolve(
+        Response.json({
+          environmentId,
+          environment: { name: 'Live', custom: false },
+          projects: [],
+        }),
+      );
+    },
+    (subscription) => {
+      if (
+        subscription.worktrees.some(
+          (entry) =>
+            entry.worktreeId === worktreeId &&
+            entry.paths.includes('README.md'),
+        )
+      ) {
+        watched = true;
+        followed.resolve();
+      } else if (watched && subscription.worktrees.length === 0)
+        released.resolve();
+    },
+  );
+  const state = readTextFile({
+    connection: subject.connection,
+    scope: { projectId, worktreeId },
+    path: 'README.md',
+  });
+  const stop = subject.registry.mount(state);
+  const read = () =>
+    Effect.runPromise(
+      AtomRegistry.getResult(subject.registry, state, {
+        suspendOnWaiting: true,
+      }),
+    );
+  try {
+    await followed.promise;
+    expect(await read()).toMatchObject({ text: 'First' });
+    subject
+      .live()
+      ?.onNotice({ type: 'worktree', projectId, worktreeId, change: 'files' });
+    expect(await read()).toMatchObject({ text: 'After' });
+    expect(reads).toBe(2);
+    expect(subject.client.getQueryCache().findAll()).toEqual([]);
+    stop();
+    await released.promise;
+    expect(subject.sent.at(-1)?.worktrees).toEqual([]);
   } finally {
     stop();
     await subject.cleanup();

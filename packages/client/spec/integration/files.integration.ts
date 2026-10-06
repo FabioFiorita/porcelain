@@ -3,13 +3,29 @@ import { runRequest } from '@porcelain/client/transport';
 import { refreshFileEdit } from '@porcelain/client/files';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { expect } from 'vitest';
+import { afterEach, expect } from 'vitest';
+import { Effect } from 'effect';
+import { AtomRegistry, type Atom, type AsyncResult } from 'effect/reactivity';
 import { QueryClient } from '@tanstack/query-core';
 import { test } from '@porcelain/server/kit/server-test';
-import { directoryQueryOptions } from '@porcelain/client/files';
-import { pathsQueryOptions } from '@porcelain/client/files';
-import { textQueryOptions } from '@porcelain/client/files';
+import { readDirectory } from '@porcelain/client/files';
+import { readWorktreePaths } from '@porcelain/client/files';
+import { readTextFile } from '@porcelain/client/files';
 import { connection } from '../kit/connection.ts';
+
+const owned = new Set<AtomRegistry.AtomRegistry>();
+afterEach(() => {
+  for (const registry of owned) registry.dispose();
+  owned.clear();
+});
+function reader() {
+  const registry = AtomRegistry.make();
+  owned.add(registry);
+  return <A, E>(atom: Atom.Atom<AsyncResult.AsyncResult<A, E>>) =>
+    Effect.runPromise(
+      AtomRegistry.getResult(registry, atom, { suspendOnWaiting: true }),
+    );
+}
 
 test('browse nested paths and read exact Unicode text through the paired transport', async ({
   server,
@@ -18,21 +34,23 @@ test('browse nested paths and read exact Unicode text through the paired transpo
   await mkdir(join(session.repository, 'notes'));
   await session.writeFile('notes/a #&?.md', 'Olá 🌿\nSecond line\n');
   const { connected, scope } = await connection(server, session);
-  const cache = new QueryClient();
-  const root = await cache.query(directoryQueryOptions(scope, connected, ''));
+  const read = reader();
+  const root = await read(
+    readDirectory({ scope, connection: connected, path: '' }),
+  );
   expect(root.entries).toContainEqual({ name: 'notes', kind: 'directory' });
-  const nested = await cache.query(
-    directoryQueryOptions(scope, connected, 'notes'),
+  const nested = await read(
+    readDirectory({ scope, connection: connected, path: 'notes' }),
   );
   expect(nested).toEqual({
     worktreeId: scope.worktreeId,
     path: 'notes',
     entries: [{ name: 'a #&?.md', kind: 'file' }],
   });
-  const paths = await cache.query(pathsQueryOptions(scope, connected));
+  const paths = await read(readWorktreePaths({ scope, connection: connected }));
   expect(paths.paths).toContain('notes/a #&?.md');
-  const file = await cache.query(
-    textQueryOptions(scope, connected, 'notes/a #&?.md'),
+  const file = await read(
+    readTextFile({ scope, connection: connected, path: 'notes/a #&?.md' }),
   );
   expect(file).toMatchObject({
     worktreeId: scope.worktreeId,
@@ -49,21 +67,15 @@ test('missing files retain the server error and binary files explain why text is
 }) => {
   await session.writeFile('binary.dat', new Uint8Array([0, 1, 2]));
   const { connected, scope } = await connection(server, session);
-  const cache = new QueryClient();
+  const read = reader();
   await expect(
-    cache.query({
-      ...textQueryOptions(scope, connected, 'missing.md'),
-      retry: false,
-    }),
+    read(readTextFile({ scope, connection: connected, path: 'missing.md' })),
   ).rejects.toMatchObject({
     _tag: 'PathNotFoundError',
     message: 'Path not found',
   });
   await expect(
-    cache.query({
-      ...textQueryOptions(scope, connected, 'binary.dat'),
-      retry: false,
-    }),
+    read(readTextFile({ scope, connection: connected, path: 'binary.dat' })),
   ).resolves.toEqual({
     kind: 'unreadable',
     reason: 'This file is binary or uses an unsupported text encoding.',
@@ -75,9 +87,13 @@ test('save exact text through the shared writer and refuse an older fingerprint'
   session,
 }) => {
   const { connected, scope } = await connection(server, session);
-  const cache = new QueryClient();
-  const original = await cache.query(
-    textQueryOptions(scope, connected, session.fixture.readme.path),
+  const read = reader();
+  const original = await read(
+    readTextFile({
+      scope,
+      connection: connected,
+      path: session.fixture.readme.path,
+    }),
   );
   if (!('contentFingerprint' in original) || !original.contentFingerprint)
     throw new Error('Expected the editable file fingerprint');
@@ -96,11 +112,15 @@ test('save exact text through the shared writer and refuse an older fingerprint'
   );
   expect(saved.contentFingerprint).not.toBe(original.contentFingerprint);
   await runRequest(
-    refreshFileEdit(cache, connected, scope, input),
+    refreshFileEdit(new QueryClient(), connected, scope, input),
     connected.request().signal,
   );
-  const current = await cache.query(
-    textQueryOptions(scope, connected, session.fixture.readme.path),
+  const current = await read(
+    readTextFile({
+      scope,
+      connection: connected,
+      path: session.fixture.readme.path,
+    }),
   );
   expect(current).toMatchObject({
     text: 'Saved by the shared client.\n',
@@ -119,8 +139,12 @@ test('save exact text through the shared writer and refuse an older fingerprint'
     message: 'Content changed; retry the operation',
   });
   expect(
-    await cache.query(
-      textQueryOptions(scope, connected, session.fixture.readme.path),
+    await read(
+      readTextFile({
+        scope,
+        connection: connected,
+        path: session.fixture.readme.path,
+      }),
     ),
   ).toMatchObject({ text: 'Saved by the shared client.\n' });
 });

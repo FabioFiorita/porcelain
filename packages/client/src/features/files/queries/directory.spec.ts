@@ -1,46 +1,66 @@
-import { describe, expect, it } from 'vitest';
-
-import { directoryQueryOptions } from './directory.ts';
+import { afterEach, expect, it } from 'vitest';
+import { Effect } from 'effect';
+import { AtomRegistry } from 'effect/reactivity';
+import {
+  createWorktreeConnection,
+  type Transport,
+} from '@porcelain/client/transport';
 
 const scope = {
   projectId: 'project',
   worktreeId: '00000000000000000000000000000000',
 };
+const owned: (() => Promise<void>)[] = [];
+afterEach(async () => {
+  for (const close of owned) await close();
+  owned.length = 0;
+});
+function fixture(transport: Transport, cacheIdentity?: readonly string[]) {
+  const lifetime = createWorktreeConnection({
+    environmentId: 'environment',
+    transport,
+    timeoutMs: 10_000,
+    ...(cacheIdentity ? { cacheIdentity } : {}),
+  });
+  const registry = AtomRegistry.make();
+  owned.push(async () => {
+    registry.dispose();
+    await lifetime.close();
+  });
+  return { ...lifetime, registry };
+}
+import { readDirectory } from './directory.ts';
 const response = {
-  worktreeId: '00000000000000000000000000000000',
+  worktreeId: scope.worktreeId,
   path: 'src',
   entries: [{ name: 'index.ts', kind: 'file' }],
 };
-
-function connection(answer: object) {
-  return {
-    environmentId: 'environment',
-    transport: () => Promise.resolve(Response.json(answer)),
-    request: (signal?: AbortSignal) => ({
-      signal: signal ?? new AbortController().signal,
-    }),
-  };
-}
-
-describe('a directory read stays with the selected worktree', () => {
-  it('returns the listing of the selected worktree', async () => {
-    await expect(
-      directoryQueryOptions(scope, connection(response), 'src').queryFn({
-        signal: new AbortController().signal,
+it('returns the listing of the selected worktree', async () => {
+  const subject = fixture(() => Promise.resolve(Response.json(response)));
+  expect(
+    await Effect.runPromise(
+      AtomRegistry.getResult(
+        subject.registry,
+        readDirectory({ connection: subject.connection, scope, path: 'src' }),
+      ),
+    ),
+  ).toEqual(response);
+});
+it('rejects another worktree returned by the transport', async () => {
+  const subject = fixture(() =>
+    Promise.resolve(
+      Response.json({
+        ...response,
+        worktreeId: '11111111111111111111111111111111',
       }),
-    ).resolves.toEqual(response);
-  });
-
-  it('rejects another worktree returned by the transport', async () => {
-    await expect(
-      directoryQueryOptions(
-        scope,
-        connection({
-          ...response,
-          worktreeId: '11111111111111111111111111111111',
-        }),
-        'src',
-      ).queryFn({ signal: new AbortController().signal }),
-    ).rejects.toThrow('The connected context changed.');
-  });
+    ),
+  );
+  await expect(
+    Effect.runPromise(
+      AtomRegistry.getResult(
+        subject.registry,
+        readDirectory({ connection: subject.connection, scope, path: 'src' }),
+      ),
+    ),
+  ).rejects.toThrow('The connected context changed.');
 });

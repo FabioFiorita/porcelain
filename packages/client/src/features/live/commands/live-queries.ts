@@ -1,6 +1,6 @@
 import type { Context } from 'effect';
 import type { LiveNotice } from '@porcelain/contracts/access';
-import { Effect } from 'effect';
+import { Effect, HashMap, Stream } from 'effect';
 import { AsyncResult, Atom, AtomRegistry, Reactivity } from 'effect/reactivity';
 import { Option } from 'effect';
 import { readInventory } from '../../projects/queries/inventory.ts';
@@ -16,7 +16,11 @@ import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import type { LiveUpdatePort } from '../ports/live-update.ts';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
-import { noticeQueryFilters } from './cache-updates.ts';
+import { noticeQueryFilters, noticeReadKeys } from './cache-updates.ts';
+import {
+  ReadSubscriptions,
+  type ReadSubscription,
+} from '../../../shared/api/read-subscriptions.ts';
 import {
   isTerminal,
   type OperationStore,
@@ -37,6 +41,7 @@ function liveSubscription(
   environmentId: string,
   operations: Context.Service.Shape<typeof OperationStore>,
   data: ReadInventoryResponse | undefined,
+  reads: Iterable<ReadSubscription>,
 ) {
   const watched = new Map<string, Watched>();
   for (const operation of [...operations.state.value.operations.values()]) {
@@ -76,6 +81,16 @@ function liveSubscription(
       entry.paths.add(path);
     watched.set(key, entry);
   }
+  for (const read of reads) {
+    const key = JSON.stringify([read.projectId, read.worktreeId]);
+    const entry = watched.get(key) ?? {
+      projectId: read.projectId,
+      worktreeId: read.worktreeId,
+      paths: new Set<string>(),
+    };
+    for (const path of read.paths) if (path !== '') entry.paths.add(path);
+    watched.set(key, entry);
+  }
   return {
     projects:
       data?.projects.map((project) => project.id).slice(0, LIVE_PROJECTS) ?? [],
@@ -102,6 +117,7 @@ function applyLiveNotice(
       yield* Reactivity.invalidate([
         queryKeys.filePreferences(environmentId, notice.projectId),
       ]);
+    yield* Reactivity.invalidate(noticeReadKeys(environmentId, notice));
     yield* Effect.forEach(
       noticeQueryFilters(environmentId, notice),
       (filters) => nativeOperation(() => client.invalidateQueries(filters)),
@@ -117,6 +133,7 @@ export function connectLiveQueries(
   registry: AtomRegistry.AtomRegistry,
 ) {
   const lifecycle = new AbortController();
+  const reads = connection.runtime.runSync(ReadSubscriptions);
   const tasks = new ScopedTasks();
   const services = connection.runtime.runSync(
     Effect.context<Reactivity.Reactivity>(),
@@ -222,6 +239,7 @@ export function connectLiveQueries(
       Option.getOrUndefined(
         AsyncResult.value(registry.get(readInventory(connection))),
       ),
+      HashMap.values(connection.runtime.runSync(reads.snapshot)),
     );
     const serialized = JSON.stringify(subscription);
     if (serialized === sent) return;
@@ -240,6 +258,7 @@ export function connectLiveQueries(
     changed,
   );
   const unsubscribe = client.getQueryCache().subscribe(changed);
+  tasks.fork(Stream.runForEach(reads.changes, () => Effect.sync(changed)));
   const unsubscribeOperations = connection.operations.state.subscribe(changed);
   changed();
   return () => {

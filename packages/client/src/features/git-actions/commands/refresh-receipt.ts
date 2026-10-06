@@ -6,7 +6,10 @@ import { ScopedTasks } from '@porcelain/effects';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { isTerminal } from '../store/operations.ts';
-import { receiptQueryFilters } from '../../live/commands/cache-updates.ts';
+import {
+  receiptQueryFilters,
+  receiptReadKeys,
+} from '../../live/commands/cache-updates.ts';
 
 type Receipt = RunGitActionResponse;
 
@@ -92,6 +95,7 @@ export function refreshGitReceipt(
     if (existing) return yield* Fiber.join(existing);
     const refresh = Effect.gen(function* () {
       yield* reactivity.invalidate([queryKeys.inventory(environmentId)]);
+      yield* reactivity.invalidate(receiptReadKeys(environmentId, receipt));
       const settled = yield* Effect.forEach(
         receiptQueryFilters(environmentId, receipt),
         (filters) => Effect.exit(refreshActiveQueries(client, filters)),

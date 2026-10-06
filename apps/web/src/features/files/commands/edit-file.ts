@@ -13,11 +13,11 @@ import { asMutation } from '@/shared/query/mutation';
 import { FileEditCoordinator } from '@porcelain/client/files';
 import { runRequest } from '@porcelain/client/transport';
 import { copyText } from '@/shared/workspace/copy';
-import type { WorktreeConnection } from '@porcelain/client/transport';
+import type { RuntimeConnection } from '@porcelain/client/transport';
 
 const withoutTrailingSlash = (path: string) => path.replace(/\/$/, '');
 
-function useFileWriter(connection: WorktreeConnection, scope: FilesScope) {
+function useFileWriter(connection: RuntimeConnection, scope: FilesScope) {
   const client = useQueryClient();
   return (input: FileEdit) => {
     const current = fileDraftRuntime.runSync(FileDrafts).connection(connection);
@@ -26,7 +26,7 @@ function useFileWriter(connection: WorktreeConnection, scope: FilesScope) {
     );
   };
 }
-export function useEditFile(connection: WorktreeConnection, scope: FilesScope) {
+export function useEditFile(connection: RuntimeConnection, scope: FilesScope) {
   const write = useFileWriter(connection, scope);
   const edit = asMutation(
     useMutation({
@@ -79,7 +79,7 @@ export function useEditFile(connection: WorktreeConnection, scope: FilesScope) {
 }
 
 export function useFileDraft(
-  connection: WorktreeConnection,
+  connection: RuntimeConnection,
   scope: FilesScope,
   path: string,
   text: string,

@@ -1,40 +1,79 @@
-import { expect, it } from 'vitest';
-import type { WorktreeConnection } from '@porcelain/client/transport';
-import { assetQueryOptions } from './asset.ts';
+import { afterEach, expect, it } from 'vitest';
+import { Effect } from 'effect';
+import { AtomRegistry } from 'effect/reactivity';
+import {
+  createWorktreeConnection,
+  type Transport,
+} from '@porcelain/client/transport';
+
 const scope = {
-  projectId: '11111111111111111111111111111111',
-  worktreeId: '22222222222222222222222222222222',
+  projectId: 'project',
+  worktreeId: '00000000000000000000000000000000',
 };
+const owned: (() => Promise<void>)[] = [];
+afterEach(async () => {
+  for (const close of owned) await close();
+  owned.length = 0;
+});
+function fixture(transport: Transport, cacheIdentity?: readonly string[]) {
+  const lifetime = createWorktreeConnection({
+    environmentId: 'environment',
+    transport,
+    timeoutMs: 10_000,
+    ...(cacheIdentity ? { cacheIdentity } : {}),
+  });
+  const registry = AtomRegistry.make();
+  owned.push(async () => {
+    registry.dispose();
+    await lifetime.close();
+  });
+  return { ...lifetime, registry };
+}
+import { readAsset } from './asset.ts';
 const image = {
   path: 'image #1.png',
   mediaType: 'image/png',
   base64: 'aGVsbG8=',
 };
-it('isolates the image cache by connection and encodes the asset path once', async () => {
+it('shares an active asset read, isolates replacement credentials and encodes the path once', async () => {
   const sent: string[] = [];
-  const connection: WorktreeConnection = {
-    environmentId: 'environment-1',
-    cacheIdentity: ['paired-device-1'],
-    request: (signal = new AbortController().signal) => ({ signal }),
-    transport: (path) => {
-      sent.push(path);
-      return Promise.resolve(Response.json(image));
-    },
+  const transport: Transport = (path) => {
+    sent.push(path);
+    return Promise.resolve(Response.json(image));
   };
-  const options = assetQueryOptions(scope, connection, image.path);
-  expect(options.queryKey).toEqual([
-    'review',
-    'environment-1',
-    scope.projectId,
-    scope.worktreeId,
-    'asset',
-    image.path,
-    'paired-device-1',
-  ]);
-  await expect(
-    options.queryFn({ signal: new AbortController().signal }),
-  ).resolves.toEqual(image);
-  expect(sent).toEqual([
-    `/api/worktrees/${scope.worktreeId}/asset?path=image+%231.png`,
-  ]);
+  const first = fixture(transport, ['paired-device-1']);
+  const second = fixture(transport, ['paired-device-2']);
+  const query = readAsset({
+    connection: first.connection,
+    scope,
+    path: image.path,
+  });
+  const stop = first.registry.mount(query);
+  try {
+    expect(
+      await Effect.runPromise(AtomRegistry.getResult(first.registry, query)),
+    ).toEqual(image);
+    expect(
+      await Effect.runPromise(
+        AtomRegistry.getResult(
+          first.registry,
+          readAsset({ connection: first.connection, scope, path: image.path }),
+        ),
+      ),
+    ).toEqual(image);
+    expect(
+      await Effect.runPromise(
+        AtomRegistry.getResult(
+          second.registry,
+          readAsset({ connection: second.connection, scope, path: image.path }),
+        ),
+      ),
+    ).toEqual(image);
+    expect(sent).toEqual([
+      `/api/worktrees/${scope.worktreeId}/asset?path=image+%231.png`,
+      `/api/worktrees/${scope.worktreeId}/asset?path=image+%231.png`,
+    ]);
+  } finally {
+    stop();
+  }
 });

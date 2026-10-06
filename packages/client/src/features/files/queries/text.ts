@@ -1,41 +1,53 @@
-import { runRequest } from '../../../shared/api/effect-client.ts';
-import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
-import { queryKeys } from '../../../shared/api/query-keys.ts';
-import type { QueryFunctionContext } from '@tanstack/query-core';
-import {
-  type WorktreeConnection,
-  type WorktreeScope,
+import { porcelainClient } from '../../../shared/api/client.ts';
+import { clientRuntime } from '../../../shared/api/runtime.ts';
+import { Atom } from 'effect/reactivity';
+import type {
+  RuntimeConnection,
+  WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { filesApi, unreadableFileReason } from '../api.ts';
+import { worktreeRead } from '../../../shared/api/worktree-read.ts';
+import { requestEffect } from '../../../shared/api/effect-client.ts';
+import { Effect } from 'effect';
+import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
+import { unreadableFileReason } from '../api.ts';
 
-export function textQueryOptions(
-  scope: WorktreeScope,
-  connection: WorktreeConnection,
-  path: string,
-) {
-  return {
-    queryKey: queryKeys.worktreeSurface(connection, scope, ['text', path]),
-    queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
-      const connected = connection.request(signal);
-      try {
-        const result = await runRequest(
-          filesApi(connection).readTextFile({
+export const readTextFile = Atom.family(
+  ({
+    connection,
+    scope,
+    path,
+  }: {
+    connection: RuntimeConnection;
+    scope: WorktreeScope;
+    path: string;
+  }) =>
+    worktreeRead(
+      connection,
+      scope,
+      ['text', path],
+      Effect.gen(function* () {
+        const api = yield* porcelainClient(connection);
+        return yield* requestEffect(
+          api.files.readTextFile({
             params: { worktreeId: scope.worktreeId },
             query: { path },
           }),
-          connected.signal,
+        ).pipe(
+          Effect.tap((answer) =>
+            currentAnswerEffect(
+              connection.request().signal,
+              answer.worktreeId === scope.worktreeId,
+            ),
+          ),
+          Effect.catch((error) => {
+            const reason = unreadableFileReason(error);
+            return reason
+              ? Effect.succeed({ kind: 'unreadable' as const, reason })
+              : Effect.fail(error);
+          }),
         );
-        assertCurrentAnswer(
-          connected.signal,
-          result.worktreeId === scope.worktreeId,
-        );
-        return result;
-      } catch (error) {
-        assertCurrentAnswer(connected.signal);
-        const reason = unreadableFileReason(error);
-        if (reason) return { kind: 'unreadable' as const, reason };
-        throw error;
-      }
-    },
-  };
-}
+      }),
+      clientRuntime(connection),
+      [path],
+    ),
+);

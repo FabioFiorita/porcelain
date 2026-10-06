@@ -5,6 +5,7 @@ import {
   fileSurfaces,
   gitSurfaces,
   reviewSurfaceFilters,
+  queryKeys,
 } from '../../../shared/api/query-keys.ts';
 import {
   noticeSurfaces,
@@ -13,44 +14,78 @@ import {
 
 const BRANCH_SURFACES = ['branch', 'branch-bases', 'history'];
 
-export function noticeQueryFilters(
-  environmentId: string,
-  notice: LiveNotice,
-): QueryFilters[] {
+function noticeReadSurfaces(notice: LiveNotice) {
   if (
     notice.type === 'ready' ||
     notice.type === 'subscribed' ||
     notice.type === 'heartbeat' ||
     notice.type === 'git-action'
   )
-    return [];
-  if (notice.type === 'inventory') return [];
-  if (notice.type === 'project') return [];
+    return undefined;
+  if (notice.type === 'inventory') return undefined;
+  if (notice.type === 'project') return undefined;
   const surfaces = new Set(noticeSurfaces(notice)?.surfaces);
   if (notice.change === 'files')
     for (const surface of fileSurfaces) surfaces.add(surface);
   if (notice.change === 'git')
     for (const surface of [...gitSurfaces, ...BRANCH_SURFACES])
       surfaces.add(surface);
-  return [reviewSurfaceFilters(environmentId, notice, surfaces)];
+  return { scope: notice, surfaces };
 }
 
-export function receiptQueryFilters(
+export function noticeQueryFilters(
   environmentId: string,
-  receipt: RunGitActionResponse,
+  notice: LiveNotice,
 ): QueryFilters[] {
+  const read = noticeReadSurfaces(notice);
+  return read
+    ? [reviewSurfaceFilters(environmentId, read.scope, read.surfaces)]
+    : [];
+}
+
+export function noticeReadKeys(environmentId: string, notice: LiveNotice) {
+  const read = noticeReadSurfaces(notice);
+  return read
+    ? [...read.surfaces].map((surface) =>
+        queryKeys.reviewSurface(environmentId, read.scope, [surface]),
+      )
+    : [];
+}
+
+function receiptReadSurfaces(receipt: RunGitActionResponse) {
   if (
     receipt.state === 'running' ||
     receipt.state === 'rejected' ||
     receipt.state === 'no-change'
   )
-    return [];
-  const surfaces = new Set([
+    return undefined;
+  return new Set([
     ...(receipt.action === 'fetch' || receipt.action === 'push'
       ? ['git-status', 'changes']
       : [...gitSurfaces, ...fileSurfaces]),
     ...BRANCH_SURFACES,
     ...(receiptSurfaces(receipt)?.surfaces ?? []),
   ]);
-  return [reviewSurfaceFilters(environmentId, receipt, surfaces)];
+}
+
+export function receiptQueryFilters(
+  environmentId: string,
+  receipt: RunGitActionResponse,
+): QueryFilters[] {
+  const surfaces = receiptReadSurfaces(receipt);
+  return surfaces
+    ? [reviewSurfaceFilters(environmentId, receipt, surfaces)]
+    : [];
+}
+
+export function receiptReadKeys(
+  environmentId: string,
+  receipt: RunGitActionResponse,
+) {
+  const surfaces = receiptReadSurfaces(receipt);
+  return surfaces
+    ? [...surfaces].map((surface) =>
+        queryKeys.reviewSurface(environmentId, receipt, [surface]),
+      )
+    : [];
 }

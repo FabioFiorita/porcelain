@@ -1,3 +1,5 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
 import { Button } from '@/components/ui/button';
 import {
   Command,
@@ -29,7 +31,10 @@ export function QuickOpen({
   );
   const names = useWorktreePaths(connection, scope);
   useQuickOpenShortcut(toggle);
-  const matches = quickOpenMatches(names.data?.paths ?? [], query);
+  const matches = quickOpenMatches(
+    Option.getOrUndefined(AsyncResult.value(names.result))?.paths ?? [],
+    query,
+  );
   return (
     <CommandDialog
       handle={quickOpenDialog}
@@ -43,7 +48,7 @@ export function QuickOpen({
           value={query}
           onValueChange={setQuery}
         />
-        {names.isError && (
+        {AsyncResult.isFailure(names.result) && (
           <div className="p-3 text-xs text-muted-foreground">
             <span className="block">
               Full file search could not be loaded. You can still browse
@@ -53,22 +58,25 @@ export function QuickOpen({
               variant="outline"
               size="xs"
               className="mt-2"
-              onClick={() => void names.refetch()}
+              onClick={() => names.refresh()}
             >
               Try again
             </Button>
           </div>
         )}
-        {names.isPending && !names.isError && (
-          <div className="p-3 text-xs text-muted-foreground">
-            Reading file names…
-          </div>
-        )}
-        {!names.isPending && !names.isError && matches.length === 0 && (
-          <div className="p-3 text-xs text-muted-foreground">
-            No file matches that name.
-          </div>
-        )}
+        {AsyncResult.isInitial(names.result) &&
+          !AsyncResult.isFailure(names.result) && (
+            <div className="p-3 text-xs text-muted-foreground">
+              Reading file names…
+            </div>
+          )}
+        {!AsyncResult.isInitial(names.result) &&
+          !AsyncResult.isFailure(names.result) &&
+          matches.length === 0 && (
+            <div className="p-3 text-xs text-muted-foreground">
+              No file matches that name.
+            </div>
+          )}
         <CommandList>
           {matches.map((path) => (
             <CommandItem key={path} value={path} onSelect={() => select(path)}>

@@ -1,31 +1,38 @@
-import type { QueryFunctionContext } from '@tanstack/query-core';
+import { Effect } from 'effect';
+import { porcelainClient } from '../../../shared/api/client.ts';
+import { clientRuntime } from '../../../shared/api/runtime.ts';
+import { Atom } from 'effect/reactivity';
 import type {
-  WorktreeConnection,
+  RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { runRequest } from '../../../shared/api/effect-client.ts';
-import { queryKeys } from '../../../shared/api/query-keys.ts';
-import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
-import { filesApi } from '../api.ts';
+import { worktreeRead } from '../../../shared/api/worktree-read.ts';
+import { requestEffect } from '../../../shared/api/effect-client.ts';
 
-export function assetQueryOptions(
-  scope: WorktreeScope,
-  connection: WorktreeConnection,
-  path: string,
-) {
-  return {
-    queryKey: queryKeys.worktreeSurface(connection, scope, ['asset', path]),
-    queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
-      const connected = connection.request(signal);
-      const result = await runRequest(
-        filesApi(connection).readFileAsset({
-          params: { worktreeId: scope.worktreeId },
-          query: { path },
-        }),
-        connected.signal,
-      );
-      assertCurrentAnswer(connected.signal);
-      return result;
-    },
-  };
-}
+export const readAsset = Atom.family(
+  ({
+    connection,
+    scope,
+    path,
+  }: {
+    connection: RuntimeConnection;
+    scope: WorktreeScope;
+    path: string;
+  }) =>
+    worktreeRead(
+      connection,
+      scope,
+      ['asset', path],
+      Effect.gen(function* () {
+        const api = yield* porcelainClient(connection);
+        return yield* requestEffect(
+          api.files.readFileAsset({
+            params: { worktreeId: scope.worktreeId },
+            query: { path },
+          }),
+        );
+      }),
+      clientRuntime(connection),
+      [path],
+    ),
+);

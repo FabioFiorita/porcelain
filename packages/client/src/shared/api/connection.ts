@@ -2,6 +2,7 @@ import type { ManagedRuntime } from 'effect';
 import type { Atom, Reactivity } from 'effect/reactivity';
 import type { WriteQueues } from './write-queue.ts';
 import type { Transport } from './transport.ts';
+import type { ReadSubscriptions } from './read-subscriptions.ts';
 
 export type WorktreeConnection = {
   environmentId: string;
@@ -15,7 +16,7 @@ export type WorktreeScope = { projectId: string; worktreeId: string };
 export type RuntimeConnection = WorktreeConnection & {
   readonly atoms: Atom.RuntimeFactory;
   readonly runtime: ManagedRuntime.ManagedRuntime<
-    WriteQueues | Reactivity.Reactivity,
+    WriteQueues | Reactivity.Reactivity | ReadSubscriptions,
     never
   >;
   readonly close: () => Promise<void>;
