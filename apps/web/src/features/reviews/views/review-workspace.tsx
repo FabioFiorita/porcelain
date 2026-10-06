@@ -220,7 +220,7 @@ export function ReviewWorkspace({
           aria-label="Review content"
           className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
         >
-          <ReviewBoundary>
+          <ReviewBoundary connection={context.connection} scope={scope}>
             <InterruptedActionNotice scope={scope} context={context} />
             <ConflictGuidance scope={scope} context={context} onOpen={open} />
             <DocumentArea
@@ -462,7 +462,11 @@ function PaneView({
         <EmptyDocument handoff={handoff} onOpen={onOpen} />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <ReviewBoundary key={pane.active}>
+          <ReviewBoundary
+            connection={context.connection}
+            scope={scope}
+            key={pane.active}
+          >
             <DocumentView
               scope={scope}
               context={context}

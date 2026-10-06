@@ -1,8 +1,9 @@
 import { afterEach, expect, it } from 'vitest';
-import { Effect } from 'effect';
+import { Effect, Exit } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import {
   createWorktreeConnection,
+  retryWorktreeReads,
   type Transport,
 } from '@porcelain/client/transport';
 
@@ -194,4 +195,120 @@ it('unmount cancels the active transport read', async () => {
   stop();
   await aborted.promise;
   expect(subject.controller.signal.aborted).toBe(false);
+});
+
+it('retries a failed mounted text read through its native worktree owner', async () => {
+  let requests = 0;
+  const subject = fixture(() => {
+    requests += 1;
+    return Promise.resolve(
+      requests === 1
+        ? new Response('Unavailable', { status: 503 })
+        : Response.json(response),
+    );
+  });
+  const atom = readTextFile({
+    connection: subject.connection,
+    scope,
+    path: 'README.md',
+  });
+  const unmount = subject.registry.mount(atom);
+  try {
+    const refused = await Effect.runPromiseExit(
+      AtomRegistry.getResult(subject.registry, atom),
+    );
+    expect(Exit.isFailure(refused)).toBe(true);
+    expect(requests).toBe(1);
+    const retry = retryWorktreeReads(subject.connection);
+    subject.registry.set(retry, scope);
+    await Effect.runPromise(
+      AtomRegistry.getResult(subject.registry, retry, {
+        suspendOnWaiting: true,
+      }),
+    );
+    const restored = await Effect.runPromise(
+      AtomRegistry.getResult(subject.registry, atom, {
+        suspendOnWaiting: true,
+      }),
+    );
+    expect(restored).toEqual(response);
+    expect(requests).toBe(2);
+  } finally {
+    unmount();
+  }
+});
+
+it('retries only the selected worktree on the selected connection', async () => {
+  const requests: string[] = [];
+  const transport =
+    (name: string): Transport =>
+    (path) => {
+      requests.push(`${name}:${path}`);
+      const url = new URL(path, 'http://test.invalid');
+      return Promise.resolve(
+        Response.json({
+          ...response,
+          worktreeId: url.pathname.split('/')[3],
+          path: url.searchParams.get('path'),
+        }),
+      );
+    };
+  const first = fixture(transport('first'));
+  const other = fixture(transport('other'));
+  const otherScope = {
+    ...scope,
+    worktreeId: '11111111111111111111111111111111',
+  };
+  const selected = readTextFile({
+    connection: first.connection,
+    scope,
+    path: 'README.md',
+  });
+  const sameWorkspace = readTextFile({
+    connection: first.connection,
+    scope,
+    path: 'second.md',
+  });
+  const otherWorkspace = readTextFile({
+    connection: first.connection,
+    scope: otherScope,
+    path: 'README.md',
+  });
+  const otherConnection = readTextFile({
+    connection: other.connection,
+    scope,
+    path: 'README.md',
+  });
+  const unmount = [
+    first.registry.mount(selected),
+    first.registry.mount(sameWorkspace),
+    first.registry.mount(otherWorkspace),
+    other.registry.mount(otherConnection),
+  ];
+  try {
+    await Promise.all([
+      read(first),
+      read(first, 'second.md'),
+      read(first, 'README.md', otherScope),
+      read(other),
+    ]);
+    requests.length = 0;
+    const retry = retryWorktreeReads(first.connection);
+    first.registry.set(retry, scope);
+    await Effect.runPromise(
+      AtomRegistry.getResult(first.registry, retry, { suspendOnWaiting: true }),
+    );
+    await Promise.all([
+      read(first),
+      read(first, 'second.md'),
+      read(first, 'README.md', otherScope),
+      read(other),
+    ]);
+    expect(requests.sort()).toEqual([
+      `first:/api/worktrees/${scope.worktreeId}/text?path=README.md`,
+      `first:/api/worktrees/${scope.worktreeId}/text?path=second.md`,
+    ]);
+  } finally {
+    for (const stop of unmount) stop();
+  }
 });

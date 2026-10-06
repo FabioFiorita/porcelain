@@ -9,11 +9,9 @@ import { WorkspaceProvider } from '@/app/workspace-provider';
 onCopyNotice((notice) => toast.add(notice));
 
 export function AppProviders({
-  query,
   registry,
   children,
 }: {
-  query: (app: ReactNode) => ReactNode;
   registry: AtomRegistry.AtomRegistry;
   children: ReactNode;
 }) {
@@ -21,11 +19,9 @@ export function AppProviders({
     <StrictMode>
       <RegistryContext.Provider value={registry}>
         <TooltipProvider>
-          {query(
-            <WorkspaceProvider>
-              <Toaster>{children}</Toaster>
-            </WorkspaceProvider>,
-          )}
+          <WorkspaceProvider>
+            <Toaster>{children}</Toaster>
+          </WorkspaceProvider>
         </TooltipProvider>
       </RegistryContext.Provider>
     </StrictMode>

@@ -1,26 +1,19 @@
-import { useEffect, useState } from 'react';
+import { Cause, Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import { desktopAppUpdate } from '@/shared/adapters/desktop';
 import { useInstallAppUpdate } from '../commands/app-update';
-import { useAppUpdate } from '../queries/app-update';
-import {
-  appUpdateProgress,
-  noUpdateMessage,
-  type AppUpdateState,
-} from '../rules/app-update';
+import { useAppUpdate, useAppUpdateState } from '../queries/app-update';
+import { appUpdateProgress, noUpdateMessage } from '../rules/app-update';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 
 export function AppUpdateSettings() {
   const update = useAppUpdate();
   const install = useInstallAppUpdate();
-  const [state, setState] = useState<AppUpdateState>({
-    status: 'idle',
-  });
-  useEffect(() => desktopAppUpdate()?.onState(setState), []);
-  const info = update.data;
-  if (!info) return update.isPending ? <Spinner /> : null;
+  const state = useAppUpdateState();
+  const info = Option.getOrUndefined(Option.flatten(AsyncResult.value(update)));
+  if (!info) return AsyncResult.isInitial(update) ? <Spinner /> : null;
   const progress = appUpdateProgress(state);
   return (
     <div className="flex flex-col gap-3">
@@ -37,8 +30,8 @@ export function AppUpdateSettings() {
           </p>
           <Button
             size="sm"
-            disabled={install.isPending}
-            onClick={() => install.onSubmit()}
+            disabled={install.result.waiting}
+            onClick={() => install.install()}
           >
             Update to {info.available}
           </Button>
@@ -48,12 +41,14 @@ export function AppUpdateSettings() {
           {noUpdateMessage(state)}
         </p>
       )}
-      {(state.status === 'error' || install.error) && (
+      {(state.status === 'error' || AsyncResult.isFailure(install.result)) && (
         <Alert variant="destructive">
           <AlertDescription>
             {state.status === 'error'
               ? state.message
-              : connectionErrorMessage(install.error)}
+              : AsyncResult.isFailure(install.result)
+                ? connectionErrorMessage(Cause.squash(install.result.cause))
+                : undefined}
           </AlertDescription>
         </Alert>
       )}

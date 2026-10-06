@@ -175,7 +175,11 @@ function SidebarSurface({
     );
 
   const content = (
-    <ReviewBoundary key={`${scope.worktreeId}:${surface}`}>
+    <ReviewBoundary
+      connection={context.connection}
+      scope={scope}
+      key={`${scope.worktreeId}:${surface}`}
+    >
       {surface === 'changes' && (
         <ReviewIndex
           scope={scope}

@@ -35,7 +35,6 @@ export const queryKeys = {
     ),
   environment: (environmentId: string) =>
     ['environment', environmentId] as const,
-  appUpdate: () => ['desktop-app-update'] as const,
   filePreferences: (environmentId: string, projectId: string) =>
     ['review', environmentId, projectId, 'file-preferences'] as const,
   inventory: (environmentId: string | undefined) =>

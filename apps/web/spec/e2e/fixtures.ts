@@ -16,6 +16,7 @@ import { World } from '../kit/world.ts';
 import { serverBuild } from './global-setup.ts';
 import {
   failInventory,
+  failChangesRead,
   holdNextPost,
   holdNextReviewRead,
   liveRouter,
@@ -168,6 +169,7 @@ async function appOf(page: Page, world: World, live: LiveFixture) {
           .entries()
           .map((entry) => new URL(entry.url ?? '', location.href).pathname),
       ),
+    failReviewRead: () => failChangesRead(page.context()),
     async failSessionRestore() {
       const end = await failInventory(page.context());
       return {

@@ -1,4 +1,3 @@
-import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { AtomRegistry } from 'effect/reactivity';
 import { Suspense, useRef, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -15,7 +14,6 @@ import {
 import { ThemeProvider } from '@/features/preferences/index';
 import { ProjectNavigator, useInventory } from '@/features/projects/index';
 import { ReviewWorkspace } from '@/features/reviews/index';
-import { createQueryClient } from '@/shared/query/client';
 import type { Connection } from '@/shared/workspace/connection';
 import type { WorkspaceSearch } from '@/shared/workspace/search';
 import {
@@ -100,21 +98,14 @@ function readersOf(server: ServerName) {
 }
 
 function Providers({
-  client,
   registry,
   children,
 }: {
-  client: QueryClient;
   registry: AtomRegistry.AtomRegistry;
   children: ReactNode;
 }) {
   return (
-    <AppProviders
-      registry={registry}
-      query={(app) => (
-        <QueryClientProvider client={client}>{app}</QueryClientProvider>
-      )}
-    >
+    <AppProviders registry={registry}>
       <ThemeProvider>
         <PairedShell>
           <Suspense>{children}</Suspense>
@@ -179,23 +170,17 @@ async function pairedConnection(
 }
 
 async function mount(view: (connection: Connection) => ReactNode) {
-  const client = createQueryClient();
   const registry = AtomRegistry.make();
   const connection = await pairedConnection(registry);
   const element = document.createElement('div');
   document.body.append(element);
   const root = createRoot(element);
-  root.render(
-    <Providers client={client} registry={registry}>
-      {view(connection)}
-    </Providers>,
-  );
+  root.render(<Providers registry={registry}>{view(connection)}</Providers>);
   return () => {
     watching = false;
     root.unmount();
     element.remove();
     accessSession.clear();
-    client.clear();
     registry.dispose();
     localStorage.clear();
     sessionStorage.clear();

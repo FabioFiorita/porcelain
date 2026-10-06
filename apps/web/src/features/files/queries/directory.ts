@@ -1,4 +1,5 @@
-import { useAtomSet, useAtomSuspense, useAtomValue } from '@effect/atom-react';
+import { useAtomSet, useAtomValue } from '@effect/atom-react';
+import { useConfirmedRead } from '@/shared/query/confirmed-read';
 import { Atom } from 'effect/reactivity';
 import { readDirectory } from '@porcelain/client/files';
 import type { FilesScope } from '@porcelain/client/files/rules';
@@ -27,7 +28,7 @@ export function useDirectory(
   scope: FilesScope,
   path: string,
 ) {
-  return useAtomSuspense(readDirectory({ connection, scope, path })).value;
+  return useConfirmedRead(readDirectory({ connection, scope, path })).value;
 }
 export function useDirectories(
   connection: Connection,

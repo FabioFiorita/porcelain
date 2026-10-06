@@ -1,5 +1,5 @@
 import { readCommit } from '@porcelain/client/history';
-import { useAtomSuspense } from '@effect/atom-react';
+import { useConfirmedRead } from '@/shared/query/confirmed-read';
 import type { HistoryScope } from '@porcelain/client/history/rules';
 import type { Connection } from '@/shared/workspace/connection';
 
@@ -9,5 +9,5 @@ export function useCommit(
   oid: string,
   parent = 1,
 ) {
-  return useAtomSuspense(readCommit({ connection, scope, oid, parent })).value;
+  return useConfirmedRead(readCommit({ connection, scope, oid, parent })).value;
 }

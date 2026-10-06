@@ -1,18 +1,9 @@
-import { useAtomSuspense } from '@effect/atom-react';
-import { AsyncResult } from 'effect/reactivity';
-import { Cause, Option } from 'effect';
+import { useConfirmedRead } from '@/shared/query/confirmed-read';
 import { readFilePreferences } from '@porcelain/client/projects';
 import { type Connection } from '@/shared/workspace/connection';
 
 function useFilePreferences(connection: Connection, projectId: string) {
-  const result = useAtomSuspense(
-    readFilePreferences({ connection, projectId }),
-    { includeFailure: true },
-  );
-  if (AsyncResult.isSuccess(result)) return result.value;
-  return Option.getOrElse(AsyncResult.value(result), () => {
-    throw Cause.squash(result.cause);
-  });
+  return useConfirmedRead(readFilePreferences({ connection, projectId })).value;
 }
 
 export function useHiddenPaths(

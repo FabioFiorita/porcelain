@@ -26,7 +26,6 @@
     "@tanstack/pacer": "0.22.0",
     "@tanstack/react-form": "1.33.5",
     "@tanstack/react-hotkeys": "0.10.0",
-    "@tanstack/react-query": "5.102.8",
     "@tanstack/react-router": "1.170.33",
     "@xyflow/react": "12.11.6",
     "class-variance-authority": "0.7.1",

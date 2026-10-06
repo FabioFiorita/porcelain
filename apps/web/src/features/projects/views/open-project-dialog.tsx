@@ -1,3 +1,5 @@
+import { Cause } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { FolderGit2Icon } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -97,14 +99,14 @@ function OpenProjectContent({
       <ScrollArea className="min-h-0 [&>[data-slot=scroll-area-viewport]]:max-h-[calc(90svh-8rem)]">
         <div className="flex flex-col gap-3 p-1">
           <ProjectFolderPicker
-            disabled={opening.isPending}
+            disabled={opening.result.waiting}
             connection={connection}
             onOpen={(path) => void opening.submit(path)}
           />
-          {opening.error !== undefined && (
+          {AsyncResult.isFailure(opening.result) && (
             <Alert variant="destructive">
               <AlertDescription>
-                {connectionErrorMessage(opening.error)}
+                {connectionErrorMessage(Cause.squash(opening.result.cause))}
               </AlertDescription>
             </Alert>
           )}

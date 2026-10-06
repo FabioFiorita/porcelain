@@ -23,7 +23,7 @@ import {
 } from '../store';
 import { useRemoteStatus } from '../queries/remotes';
 
-import { desktopAppUpdate } from '@/shared/adapters/desktop';
+import { useAppUpdateCapability } from '../queries/app-update';
 import { EnvironmentName } from './environment-name';
 import { RemoteServiceUpdate, ServiceUpdateSettings } from './service-update';
 import { AppUpdateSettings } from './app-update';
@@ -70,6 +70,9 @@ export function ComputerSettings({
   environment: Environment;
 }) {
   const connection = useDesktopConnection();
+  const desktop = Option.getOrUndefined(
+    AsyncResult.value(useAppUpdateCapability()),
+  );
   return (
     connection && (
       <>
@@ -88,10 +91,12 @@ export function ComputerSettings({
           <ItemGroup>
             <Item variant="outline">
               <ItemContent>
-                {desktopAppUpdate() ? (
+                {desktop === true ? (
                   <AppUpdateSettings />
-                ) : (
+                ) : desktop === false ? (
                   <ServiceUpdateSettings />
+                ) : (
+                  <Spinner />
                 )}
               </ItemContent>
             </Item>

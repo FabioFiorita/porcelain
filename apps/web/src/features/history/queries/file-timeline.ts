@@ -1,5 +1,5 @@
 import { readFileTimeline } from '@porcelain/client/history';
-import { useAtomSuspense } from '@effect/atom-react';
+import { useConfirmedRead } from '@/shared/query/confirmed-read';
 import type { HistoryScope } from '@porcelain/client/history/rules';
 import type { Connection } from '@/shared/workspace/connection';
 
@@ -8,5 +8,5 @@ export function useFileTimeline(
   scope: HistoryScope,
   path: string,
 ) {
-  return useAtomSuspense(readFileTimeline({ connection, scope, path })).value;
+  return useConfirmedRead(readFileTimeline({ connection, scope, path })).value;
 }

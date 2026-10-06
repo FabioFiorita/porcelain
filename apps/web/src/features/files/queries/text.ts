@@ -1,4 +1,5 @@
-import { useAtomSet, useAtomSuspense, useAtomValue } from '@effect/atom-react';
+import { useAtomSet, useAtomValue } from '@effect/atom-react';
+import { useConfirmedRead } from '@/shared/query/confirmed-read';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import { readTextFile } from '@porcelain/client/files';
@@ -28,7 +29,7 @@ export function useTextFile(
   scope: FilesScope,
   path: string,
 ) {
-  return useAtomSuspense(readTextFile({ connection, scope, path })).value;
+  return useConfirmedRead(readTextFile({ connection, scope, path })).value;
 }
 export function useTextContents(
   connection: Connection,
