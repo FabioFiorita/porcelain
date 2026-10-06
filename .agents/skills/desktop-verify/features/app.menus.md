@@ -1,16 +1,3 @@
----
-selectors:
-  - open-settings
-  - open-project
-  - 'Settings…'
-  - togglefullscreen
-  - 'This build updates by reinstalling; there is no update feed yet.'
-tests:
-  - apps/desktop/spec/e2e/menus.e2e.ts
-  - apps/desktop/spec/e2e/folder-picker.e2e.ts
-api: []
----
-
 # app.menus
 
 ## What it is

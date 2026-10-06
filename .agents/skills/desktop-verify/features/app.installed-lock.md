@@ -1,12 +1,3 @@
----
-selectors:
-  - 'Porcelain refuses to start with the debugging switch'
-  - 'Porcelain refuses to start with'
-tests:
-  - apps/desktop/src/rules/launch-refusal.spec.ts
-api: []
----
-
 # app.installed-lock
 
 ## What it is

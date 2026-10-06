@@ -1,14 +1,3 @@
----
-selectors:
-  - open-project
-  - 'Open Project…'
-  - porcelain:pick-project-folder
-  - 'Open project'
-tests:
-  - apps/desktop/spec/e2e/folder-picker.e2e.ts
-api: []
----
-
 # projects.folder-picker
 
 ## What it is

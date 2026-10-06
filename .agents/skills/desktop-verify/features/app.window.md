@@ -1,15 +1,3 @@
----
-selectors:
-  - window.json
-  - porcelain:fullscreen
-  - desktop-sidebar-header
-  - desktop-fullscreen
-tests:
-  - apps/desktop/spec/e2e/window.e2e.ts
-api:
-  - GET /api/live
----
-
 # app.window
 
 ## What it is

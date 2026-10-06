@@ -1,8 +1,8 @@
-# Desktop feature map
+# Desktop journeys
 
-One file per native feature of the Mac app, named `<domain>.<capability>.md`. Each describes the user entry points, a real native or renderer journey with observable results, the separate regression promises and its gotchas. `web-verify` maps renderer behavior, including desktop-shell UI in a browser; native Electron behavior is verified here. `pnpm check` runs `node scripts/feature-maps.ts`, which checks named tests/selectors and that each desktop e2e file has a map.
+These optional guides collect practical journeys and related behavioral regressions. Use the guide relevant to the change; API contracts live in `packages/contracts`, and verification records actual observations and evidence in the session.
 
-Read the skill first. Its launcher exposes only disposable start, passive status, diagnostics, evidence and owned stop. CUA drives actual native sheets, menus, accelerators and windows, bound to the reported running development bundle/PID. CUA or an optional exact-CDP renderer companion drives History and Settings. Injected picker responses and direct menu callbacks in Playwright Electron tests are bridge proof, not physical native selection. Complete regression suites belong to CI; each map names its focused local command.
+Read the skill first. Its launcher exposes only disposable start, passive status, diagnostics, evidence and owned stop. CUA drives actual native sheets, menus, accelerators and windows, bound to the reported running development bundle/PID. CUA or an optional exact-CDP renderer companion drives History and Settings. Injected picker responses and direct menu callbacks in Playwright Electron tests are bridge proof, not physical native selection. Complete regression suites belong to CI; each guide includes a focused local command.
 
 The common local journey covers [folder selection/cancellation](projects.folder-picker.md), [Settings and Back](app.menus.md), and [full screen, close/reopen and Quit](app.window.md). [Remote credentials](access.remote-credentials.md) need a separate disposable pairing fixture and logged-in Keychain access. [Installed lock](app.installed-lock.md) is run only when explicitly requested for an installed build. Do not report these latter cases as successful from the common local journey.
 
