@@ -1,3 +1,4 @@
+import type { StopResult } from './processes.ts';
 import { accessSync, constants, existsSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { delimiter, join } from 'node:path';
@@ -72,4 +73,18 @@ export async function runCli(
     );
     process.exitCode = error instanceof Usage ? 2 : 1;
   }
+}
+
+export function stopOutput(
+  result: StopResult & {
+    id: string;
+    evidence: string;
+    alreadyStopped: boolean;
+  },
+): string {
+  if (!result.complete) process.exitCode = 1;
+  const status = result.complete
+    ? `${result.alreadyStopped ? 'already stopped' : 'stopped'} ${result.id}`
+    : `stop incomplete for ${result.id}`;
+  return `${result.report.map((line) => `${line}\n`).join('')}${status}\nevidence ${result.evidence}\n`;
 }

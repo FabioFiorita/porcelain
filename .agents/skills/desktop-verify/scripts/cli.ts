@@ -14,6 +14,7 @@ import {
   Refusal,
   refuseMissing,
   runCli,
+  stopOutput,
   Usage,
 } from '../../verify-core/cli.ts';
 import {
@@ -298,15 +299,19 @@ async function command(args: readonly string[]): Promise<string> {
     );
   }
   if (name === undefined) throw new Usage(usage);
-  const instance = registry.chosen(values.instance, {
-    includeStopped: name === 'stop',
-  });
   if (name === 'stop') {
-    const report = await registry.stop(instance);
-    return `${report.map((line) => `${line}\n`).join('')}stopped ${instance.id}\nevidence ${instance.evidence}\n`;
+    const result = await registry.stopById(values.instance);
+    return stopOutput(result);
   }
+  if (name === 'evidence')
+    return registry
+      .evidence({
+        evidence: registry.evidencePath(values.instance),
+        secrets: [],
+      })
+      .listing();
+  const instance = registry.chosen(values.instance);
   const evidence = registry.evidence(instance);
-  if (name === 'evidence') return evidence.listing();
   return registry.drive(instance, args, async () => {
     const native = nativeRequest(name, rest, values.cancel);
     if (native !== undefined) {

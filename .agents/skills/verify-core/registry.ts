@@ -7,7 +7,6 @@ import {
   readFileSync,
   readdirSync,
   renameSync,
-  statSync,
   writeFileSync,
 } from 'node:fs';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -25,13 +24,12 @@ import {
   endLeader,
   endProcess,
   processes,
+  stopResultSchema,
   type ProcessIdentity,
+  type StopResult,
 } from './processes.ts';
 const core = dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = resolve(core, '../../..');
-const idleLimitMs = 30 * 60 * 1000;
-const idlePollMs = 30 * 1000;
-const heartbeatMs = 10 * 1000;
 const startPollMs = 50;
 const instanceSchema = Schema.Struct({
   id: Schema.String,
@@ -81,13 +79,11 @@ export type Life = {
   stop: (reason: string) => void;
   stopping: () => boolean;
 };
-function touch(file: string): void {
-  try {
-    writeFileSync(file, '');
-  } catch {
-    return;
-  }
-}
+export type SessionStopResult = StopResult & {
+  id: string;
+  evidence: string;
+  alreadyStopped: boolean;
+};
 export class Registry<Detail> {
   readonly home: string;
   private readonly surface: Surface<Detail>;
@@ -111,7 +107,26 @@ export class Registry<Detail> {
   evidenceFolder(id: string): string {
     return join(this.home, 'evidence', id);
   }
+  private validateId(id: string): void {
+    if (!/^[a-f0-9]{8}$/.test(id))
+      throw new Refusal(
+        'instance IDs must be eight lowercase hexadecimal characters',
+      );
+  }
+  evidencePath(requested?: string): string {
+    if (requested !== undefined) this.validateId(requested);
+    const folder =
+      requested === undefined
+        ? this.chosen(undefined).evidence
+        : this.evidenceFolder(requested);
+    if (!existsSync(folder))
+      throw new Refusal(
+        'no retained evidence for this instance in this checkout',
+      );
+    return folder;
+  }
   private folderOf(id: string): string {
+    this.validateId(id);
     return join(this.home, 'instances', id);
   }
   private marker(folder: string): string {
@@ -129,25 +144,70 @@ export class Registry<Detail> {
     pid: number,
     folder: string,
     owned: readonly ProcessIdentity[],
-  ): Promise<string[]> {
-    const report = await endLeader(
-      pid,
-      this.marker(folder),
-      this.surface.stopWithinMs,
-      owned.find((entry) => entry.pid === pid),
-      owned.filter((entry) => entry.pgid === pid),
-    );
+  ): Promise<StopResult> {
+    const results = [
+      await endLeader(
+        pid,
+        this.marker(folder),
+        this.surface.stopWithinMs,
+        owned.find((entry) => entry.pid === pid),
+        owned.filter((entry) => entry.pgid === pid),
+      ),
+    ];
     const supervisorGroup = owned[0]?.pgid ?? pid;
     for (const entry of owned)
       if (entry.pgid !== supervisorGroup)
-        report.push(
-          ...(await endProcess(
+        results.push(
+          await endProcess(
             entry,
             this.surface.stopWithinMs,
             owned.filter((member) => member.pgid === entry.pgid),
-          )),
+          ),
         );
-    return report;
+    return {
+      complete: results.every((result) => result.complete),
+      report: results.flatMap((result) => result.report),
+    };
+  }
+  private stopOutcome(evidence: string): StopResult | undefined {
+    const file = join(evidence, 'stop-result.json');
+    if (!existsSync(file)) return undefined;
+    try {
+      return Schema.decodeUnknownSync(stopResultSchema)(
+        JSON.parse(readFileSync(file, 'utf8')),
+      );
+    } catch {
+      return {
+        complete: false,
+        report: ['retained stop outcome could not be read'],
+      };
+    }
+  }
+  private async retainStop(
+    evidence: Evidence,
+    redactor: Redactor,
+    result: StopResult,
+  ): Promise<StopResult> {
+    const prior = this.stopOutcome(evidence.folder);
+    const report =
+      prior?.complete === false
+        ? [
+            ...prior.report,
+            ...result.report,
+            'prior shutdown remained incomplete; its unresolved outcome is retained',
+          ]
+        : result.report;
+    const outcome = {
+      complete: result.complete && prior?.complete !== false,
+      report: [...new Set(report.map((line) => redactor.text(line)))],
+    };
+    await evidence.scrub();
+    const partial = await evidence.note(
+      `stop-result.json.${process.pid}.partial`,
+      `${JSON.stringify(outcome, null, 2)}\n`,
+    );
+    renameSync(partial, join(evidence.folder, 'stop-result.json'));
+    return outcome;
   }
   redactor(instance: Pick<Instance<Detail>, 'secrets'>): Redactor {
     return new Redactor(instance.secrets);
@@ -222,8 +282,9 @@ export class Registry<Detail> {
       )
       .join('\n');
     if (requested !== undefined) {
+      this.validateId(requested);
       const match = candidates.find((entry) => entry.instance.id === requested);
-      if (match) return this.touched(match.instance);
+      if (match) return match.instance;
       throw new Refusal(
         `no running instance ${requested} in this checkout${listing ? `:\n${listing}` : '; run start'}`,
       );
@@ -235,11 +296,7 @@ export class Registry<Detail> {
       throw new Refusal(
         `${candidates.length} instances are running in this checkout; name one with --instance <id>:\n${listing}`,
       );
-    return this.touched(only.instance);
-  }
-  private touched(instance: Instance<Detail>): Instance<Detail> {
-    touch(join(instance.folder, 'last-command'));
-    return instance;
+    return only.instance;
   }
   async launch(
     options: unknown,
@@ -267,6 +324,8 @@ export class Registry<Detail> {
       stdio: ['ignore', log, log],
     });
     supervisor.unref();
+    const captured =
+      supervisor.pid === undefined ? undefined : captureProcess(supervisor.pid);
     let exited = false;
     supervisor.once('exit', () => {
       exited = true;
@@ -275,9 +334,33 @@ export class Registry<Detail> {
     const deadline = Date.now() + readyWithinMs;
     while (!existsSync(file)) {
       if (exited || Date.now() > deadline) {
-        if (supervisor.pid !== undefined)
-          await this.finish(supervisor.pid, folder, this.owned(folder));
-        await rm(folder, { recursive: true, force: true });
+        const prior = this.stopOutcome(evidence);
+        if (prior?.complete !== true) {
+          let owned = this.owned(folder);
+          if (owned.length === 0 && captured !== undefined) {
+            owned = [captured, ...captureGroup(captured)];
+            await mkdir(folder, { recursive: true, mode: 0o700 });
+            await writeFile(
+              join(folder, 'processes.json'),
+              JSON.stringify(owned),
+              { mode: 0o600 },
+            );
+          }
+          const result =
+            supervisor.pid === undefined
+              ? {
+                  complete: false,
+                  report: ['started supervisor has no captured PID'],
+                }
+              : await this.finish(supervisor.pid, folder, owned);
+          const outcome = await this.retainStop(
+            new Evidence(evidence, new Redactor([]), this.surface.format),
+            new Redactor([]),
+            result,
+          );
+          if (outcome.complete)
+            await rm(folder, { recursive: true, force: true });
+        }
         const failed = join(evidence, 'start-failed.txt');
         throw new Refusal(
           `instance ${id} did not start${exited ? '' : ` within ${readyWithinMs / 1000} s`}: ${existsSync(failed) ? readFileSync(failed, 'utf8').split('\n')[0] : 'read supervisor.log'}; evidence: ${evidence}`,
@@ -306,30 +389,151 @@ export class Registry<Detail> {
     command: readonly string[],
     work: () => Promise<T>,
   ): Promise<T> {
-    const beat = () => touch(join(instance.folder, 'last-command'));
-    beat();
     const stale = await this.staleness(instance);
     if (stale !== undefined) await this.refuse(instance, command, stale);
-    const heartbeat = setInterval(beat, heartbeatMs);
     try {
       return await work();
     } catch (error) {
       if (error instanceof Error)
         error.message = this.redactor(instance).text(error.message);
       throw error;
-    } finally {
-      clearInterval(heartbeat);
-      beat();
     }
   }
-  async stop(instance: Instance<Detail>): Promise<string[]> {
-    const report = await this.finish(
-      instance.pid,
-      instance.folder,
-      this.owned(instance.folder),
-    );
-    await rm(instance.folder, { recursive: true, force: true });
-    return report;
+  async stop(instance: Instance<Detail>): Promise<StopResult> {
+    return this.stopRuntime(instance);
+  }
+  private async stopRuntime(
+    instance: Pick<Instance<Detail>, 'pid' | 'folder' | 'evidence' | 'secrets'>,
+  ): Promise<StopResult> {
+    const snapshots: { name: string; content: string }[] = [];
+    const restore = async () => {
+      try {
+        await mkdir(instance.folder, { recursive: true, mode: 0o700 });
+        for (const snapshot of snapshots) {
+          const file = join(instance.folder, snapshot.name);
+          const partial = `${file}.${process.pid}.partial`;
+          writeFileSync(partial, snapshot.content, { mode: 0o600 });
+          renameSync(partial, file);
+        }
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    let result: StopResult;
+    try {
+      for (const name of ['instance.json', 'processes.json', 'pending.json']) {
+        const file = join(instance.folder, name);
+        if (existsSync(file))
+          snapshots.push({ name, content: readFileSync(file, 'utf8') });
+      }
+      result = await this.finish(
+        instance.pid,
+        instance.folder,
+        this.owned(instance.folder),
+      );
+    } catch {
+      result = {
+        complete: false,
+        report: ['owned process cleanup could not be confirmed'],
+      };
+    }
+    try {
+      let outcome = await this.retainStop(
+        this.evidence(instance),
+        this.redactor(instance),
+        result,
+      );
+      if (outcome.complete)
+        try {
+          await rm(instance.folder, { recursive: true, force: true });
+        } catch {
+          outcome = await this.retainStop(
+            this.evidence(instance),
+            this.redactor(instance),
+            {
+              complete: false,
+              report: [
+                ...outcome.report,
+                'runtime cleanup failed; protected runtime retained',
+              ],
+            },
+          );
+        }
+      if (!outcome.complete && !(await restore()))
+        return {
+          complete: false,
+          report: [
+            ...outcome.report,
+            'protected runtime metadata could not be fully restored',
+          ],
+        };
+      return outcome;
+    } catch {
+      const restored = await restore();
+      return {
+        complete: false,
+        report: [
+          ...result.report,
+          'stop outcome could not be retained',
+          restored
+            ? 'protected runtime kept for recovery'
+            : 'protected runtime metadata could not be fully restored',
+        ].map((line) => this.redactor(instance).text(line)),
+      };
+    }
+  }
+  async stopById(requested?: string): Promise<SessionStopResult> {
+    if (requested === undefined) {
+      const instance = this.chosen(undefined);
+      return {
+        ...(await this.stop(instance)),
+        id: instance.id,
+        evidence: instance.evidence,
+        alreadyStopped: false,
+      };
+    }
+    this.validateId(requested);
+    const evidence = this.evidenceFolder(requested);
+    const folder = this.folderOf(requested);
+    const prior = this.stopOutcome(evidence);
+    if (prior?.complete === true && !existsSync(folder))
+      return { ...prior, id: requested, evidence, alreadyStopped: true };
+    const file = join(folder, 'instance.json');
+    if (existsSync(file)) {
+      const instance = this.read(file);
+      return {
+        ...(await this.stop(instance)),
+        id: requested,
+        evidence,
+        alreadyStopped: false,
+      };
+    }
+    if (existsSync(folder)) {
+      const owned = this.owned(folder);
+      const pid = owned[0]?.pid;
+      if (pid === undefined)
+        throw new Refusal(
+          `instance ${requested} has no captured supervisor; runtime kept for recovery`,
+        );
+      return {
+        ...(await this.stopRuntime({ pid, folder, evidence, secrets: [] })),
+        id: requested,
+        evidence,
+        alreadyStopped: false,
+      };
+    }
+    const outcome = this.stopOutcome(this.evidencePath(requested));
+    if (outcome === undefined)
+      throw new Refusal(
+        `instance ${requested} has no confirmed stop outcome in this checkout`,
+      );
+    return {
+      ...outcome,
+      id: requested,
+      evidence,
+      alreadyStopped: outcome.complete,
+    };
   }
   async serve(
     folder: string,
@@ -359,43 +563,64 @@ export class Registry<Detail> {
     };
     own(process.pid);
     const cleanups: ((reason: string) => Promise<void> | void)[] = [];
-    const lastCommand = join(folder, 'last-command');
     const evidence = () =>
       new Evidence(
         pending.evidence,
         new Redactor(secrets),
         this.surface.format,
       );
-    let idle: NodeJS.Timeout | undefined;
     let stopping = false;
     const shutdown = async (reason: string) => {
       if (stopping) return;
       stopping = true;
-      clearInterval(idle);
       process.stdout.write(`[supervisor] stopping: ${reason}\n`);
+      const results: StopResult[] = [];
       for (const cleanup of cleanups.toReversed())
-        await Promise.resolve(cleanup(reason)).catch((error: unknown) =>
-          process.stdout.write(
-            `[supervisor] cleanup failed: ${String(error)}\n`,
-          ),
-        );
+        try {
+          await cleanup(reason);
+        } catch (error) {
+          results.push({
+            complete: false,
+            report: [
+              `cleanup failed: ${new Redactor(secrets).text(String(error))}`,
+            ],
+          });
+        }
       for (const entry of owned)
         if (entry.pid !== process.pid && entry.pgid !== process.pid)
-          for (const line of await endProcess(
-            entry,
-            this.surface.stopWithinMs,
-            owned.filter((member) => member.pgid === entry.pgid),
-          ))
-            process.stdout.write(`[supervisor] ${line}\n`);
-      for (const line of await endGroup(process.pid))
+          results.push(
+            await endProcess(
+              entry,
+              this.surface.stopWithinMs,
+              owned.filter((member) => member.pgid === entry.pgid),
+            ),
+          );
+      results.push(await endGroup(process.pid));
+      let outcome = await this.retainStop(evidence(), new Redactor(secrets), {
+        complete: results.every((result) => result.complete),
+        report: results.flatMap((result) => result.report),
+      });
+      if (outcome.complete)
+        try {
+          await rm(folder, { recursive: true, force: true });
+        } catch {
+          outcome = await this.retainStop(evidence(), new Redactor(secrets), {
+            complete: false,
+            report: [
+              ...outcome.report,
+              'runtime cleanup failed; protected runtime retained',
+            ],
+          });
+        }
+      for (const line of outcome.report)
         process.stdout.write(`[supervisor] ${line}\n`);
-      await evidence().scrub();
-      await rm(folder, { recursive: true, force: true });
-      process.exit(0);
+      process.exit(outcome.complete ? 0 : 1);
     };
     const stop = (reason: string) => {
       shutdown(reason).catch((error: unknown) => {
-        process.stdout.write(`[supervisor] ${String(error)}\n`);
+        process.stdout.write(
+          `[supervisor] ${new Redactor(secrets).text(String(error))}\n`,
+        );
         process.exit(1);
       });
     };
@@ -418,7 +643,6 @@ export class Registry<Detail> {
     try {
       const detail = await start(life);
       own(process.pid);
-      touch(lastCommand);
       this.save({
         id: pending.id,
         pid: process.pid,
@@ -438,21 +662,5 @@ export class Registry<Detail> {
       stop('start failed');
       return;
     }
-    idle = setInterval(() => {
-      if (!existsSync(lastCommand)) {
-        stop('its instance folder was removed');
-        return;
-      }
-      if (Date.now() - statSync(lastCommand).mtimeMs <= idleLimitMs) return;
-      evidence()
-        .note(
-          'idle-stop.txt',
-          `No command reached instance ${pending.id} for 30 minutes; it stopped itself.\n`,
-        )
-        .then(
-          () => stop('no command for 30 minutes'),
-          () => stop('no command for 30 minutes'),
-        );
-    }, idlePollMs);
   }
 }

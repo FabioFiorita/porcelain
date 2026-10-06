@@ -5,10 +5,12 @@ import {
   appendFile,
   cp,
   mkdtemp,
+  mkdir,
   readFile,
   readdir,
   rm,
   symlink,
+  utimes,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -85,6 +87,7 @@ async function started(
       running(dirname(file)),
       'no process of the instance outlives its stop',
     ).toStrictEqual([]);
+    await rm(dirname(file), { recursive: true, force: true });
   });
   const instance = record(JSON.parse(await readFile(file, 'utf8')));
   return {
@@ -164,6 +167,245 @@ async function settled(done: () => boolean): Promise<boolean> {
   return done();
 }
 
+async function sessionFixture(onTestFinished: Finished) {
+  const copy = await checkoutCopy(onTestFinished);
+  const fixture = '.agents/skills/server-verify/scripts/session.mjs';
+  const secret = 'private-session-callback-secret';
+  await writeFile(
+    join(copy, fixture),
+    String.raw`#!/usr/bin/env node
+import { Schema } from 'effect';
+import { spawn } from 'node:child_process';
+import { Registry } from '../../verify-core/registry.ts';
+import { captureProcess, endProcess, sameProcess } from '../../verify-core/processes.ts';
+import { once } from 'node:events';
+const secret = ${JSON.stringify(secret)};
+const registry = new Registry({
+  name: 'server',
+  cli: import.meta.url,
+  detail: Schema.Struct({ childPid: Schema.Finite }),
+  inputs: { roots: [], apps: [] },
+  format: 'text',
+  stale: () => undefined,
+  stopWithinMs: 1000,
+});
+const command = process.argv[2];
+if (command === 'serve') {
+  await registry.serve(process.argv[3], async (life) => {
+    const keepAlive = setInterval(() => {}, 1000);
+    life.onStop(() => clearInterval(keepAlive));
+    let childPid = 0;
+    if (life.options.failure) {
+      life.secret(secret);
+      const child = spawn(process.execPath,
+        ['-e', 'setInterval(() => {}, 1000)', '--', secret],
+        { stdio: 'ignore', detached: true });
+      childPid = child.pid;
+      life.own(childPid);
+      life.onStop(() => { throw new Error('cleanup ' + secret); });
+    }
+    return { childPid };
+  });
+} else if (command === 'start') {
+  const instance = await registry.launch({ failure: process.argv[3] === 'failure' }, 5000);
+  process.stdout.write(JSON.stringify({ id: instance.id, pid: instance.pid,
+    folder: instance.folder, evidence: instance.evidence, childPid: instance.detail.childPid }) + '\n');
+} else if (command === 'stop') {
+  const result = await registry.stopById(process.argv[3]);
+  process.stdout.write(JSON.stringify(result) + '\n');
+  process.exitCode = result.complete ? 0 : 1;
+} else if (command === 'evidence') {
+  process.stdout.write(registry.evidencePath(process.argv[3]) + '\n');
+} else if (command === 'process-outcomes') {
+  const child = spawn(process.execPath,
+    ['-e', "process.on('SIGTERM', () => {}); process.stdout.write('ready'); setInterval(() => {}, 1000)"],
+    { stdio: ['ignore', 'pipe', 'ignore'] });
+  try {
+    await once(child.stdout, 'data');
+    const captured = captureProcess(child.pid);
+    if (captured === undefined) throw new Error('child identity was not captured');
+    const stale = await endProcess({ ...captured, birth: captured.birth + '-stale' }, 20);
+    const survived = sameProcess(captured);
+    const forced = await endProcess(captured, 20);
+    process.stdout.write(JSON.stringify({ stale, survived, forced, alive: sameProcess(captured) }) + '\n');
+  } finally {
+    child.kill('SIGKILL');
+  }
+}
+`,
+    { mode: 0o700 },
+  );
+  const instances: {
+    id: string;
+    pid: number;
+    childPid: number;
+    folder: string;
+  }[] = [];
+  onTestFinished(async () => {
+    for (const instance of instances) {
+      await cli(copy, fixture, 'stop', instance.id);
+      for (const pid of [instance.pid, instance.childPid])
+        if (pid > 0 && alive(pid)) {
+          process.kill(pid, 'SIGTERM');
+          if (!(await settled(() => !alive(pid)))) process.kill(pid, 'SIGKILL');
+          await settled(() => !alive(pid));
+        }
+      expect(
+        [instance.pid, instance.childPid].filter(
+          (pid) => pid > 0 && alive(pid),
+        ),
+      ).toStrictEqual([]);
+      await rm(instance.folder, { recursive: true, force: true });
+    }
+  });
+  return {
+    secret,
+    command: (...args: string[]) => cli(copy, fixture, ...args),
+    start: async (failure = false) => {
+      const run = await cli(
+        copy,
+        fixture,
+        'start',
+        ...(failure ? ['failure'] : []),
+      );
+      const value = record(JSON.parse(run.stdout));
+      const instance = {
+        id: text(value.id),
+        pid: Number(value.pid),
+        childPid: Number(value.childPid),
+        folder: text(value.folder),
+        evidence: text(value.evidence),
+      };
+      instances.push(instance);
+      return instance;
+    },
+  };
+}
+
+test('cleanup reports success after confirmed SIGKILL and refuses a stale child identity', async ({
+  onTestFinished,
+}) => {
+  const fixture = await sessionFixture(onTestFinished);
+  const run = await fixture.command('process-outcomes');
+  const outcome = record(JSON.parse(run.stdout));
+  const stale = record(outcome.stale);
+  const forced = record(outcome.forced);
+
+  expect(run.code).toBe(0);
+  expect(stale.complete).toBe(false);
+  expect(list(stale.report).map(text).join('\n')).toContain(
+    'different identity',
+  );
+  expect(outcome.survived).toBe(true);
+  expect(forced.complete).toBe(true);
+  expect(list(forced.report).map(text).join('\n')).toContain('after SIGTERM');
+  expect(outcome.alive).toBe(false);
+});
+
+test('every surface can read retained evidence and repeat a confirmed stop without starting an instance', async ({
+  onTestFinished,
+}) => {
+  const copy = await checkoutCopy(onTestFinished);
+  const id = 'abc12345';
+  for (const surface of ['server', 'web', 'desktop', 'mobile']) {
+    const path = `.agents/skills/${surface}-verify/scripts/cli`;
+    const home = resolve(instanceFile(copy, surface, id), '../../..');
+    const evidence = join(home, 'evidence', id);
+    onTestFinished(() => rm(home, { recursive: true, force: true }));
+    await mkdir(evidence, { recursive: true, mode: 0o700 });
+    await writeFile(
+      join(evidence, 'stop-result.json'),
+      JSON.stringify({ complete: true, report: [] }),
+      { mode: 0o600 },
+    );
+    const retained = await cli(copy, path, 'evidence', '--instance', id);
+    const repeated = await cli(copy, path, 'stop', '--instance', id);
+
+    expect(retained.code, `${surface}: ${retained.stderr}`).toBe(0);
+    expect(retained.stdout).toContain(evidence);
+    expect(repeated.code, `${surface}: ${repeated.stderr}`).toBe(0);
+    expect(repeated.stdout).toContain(`already stopped ${id}`);
+    for (const selector of ['00000000', `../${id}`]) {
+      const refusedEvidence = await cli(
+        copy,
+        path,
+        'evidence',
+        '--instance',
+        selector,
+      );
+      const refusedStop = await cli(copy, path, 'stop', '--instance', selector);
+      expect(refusedEvidence.code, surface).toBe(1);
+      expect(refusedEvidence.stdout, surface).toBe('');
+      expect(refusedStop.code, surface).toBe(1);
+      expect(refusedStop.stdout, surface).not.toMatch(
+        /(?:^|\n)(?:already )?stopped /,
+      );
+    }
+    expect(existsSync(join(home, 'instances')), surface).toBe(false);
+    expect(await readdir(evidence), surface).toStrictEqual([
+      'stop-result.json',
+    ]);
+  }
+});
+
+test('a throwing cleanup stays incomplete after its supervisor exits and redacts its secret', async ({
+  onTestFinished,
+}) => {
+  const fixture = await sessionFixture(onTestFinished);
+  const instance = await fixture.start(true);
+  const captured = await readFile(
+    join(instance.folder, 'processes.json'),
+    'utf8',
+  );
+  const stopped = await fixture.command('stop', instance.id);
+  const repeated = await fixture.command('stop', instance.id);
+  const retained = await fixture.command('evidence', instance.id);
+  const outcome = record(
+    JSON.parse(
+      await readFile(join(instance.evidence, 'stop-result.json'), 'utf8'),
+    ),
+  );
+  const evidence = await evidenceOf(instance.evidence);
+
+  expect(captured).toContain(fixture.secret);
+  expect(stopped.code).toBe(1);
+  expect(record(JSON.parse(stopped.stdout)).complete).toBe(false);
+  expect(repeated.code).toBe(1);
+  expect(record(JSON.parse(repeated.stdout)).complete).toBe(false);
+  expect(outcome.complete).toBe(false);
+  expect(list(outcome.report).map(text).join('\n')).toContain(
+    'cleanup [redacted]',
+  );
+  expect(alive(instance.pid)).toBe(false);
+  expect(alive(instance.childPid)).toBe(false);
+  expect(existsSync(join(instance.folder, 'instance.json'))).toBe(true);
+  expect(existsSync(join(instance.folder, 'processes.json'))).toBe(true);
+  expect(retained.code).toBe(0);
+  expect(retained.stdout).toContain(instance.evidence);
+  expect(stopped.stdout).not.toContain(fixture.secret);
+  expect(repeated.stdout).not.toContain(fixture.secret);
+  expect(evidence.text).not.toContain(fixture.secret);
+});
+
+test('an inactive session survives the former idle poll and stops only when requested', async ({
+  onTestFinished,
+}) => {
+  const fixture = await sessionFixture(onTestFinished);
+  const instance = await fixture.start();
+  const activity = join(instance.folder, 'last-command');
+  await writeFile(activity, '');
+  await utimes(activity, 0, 0);
+  await delay(31_000);
+
+  expect(alive(instance.pid)).toBe(true);
+  expect(existsSync(join(instance.evidence, 'idle-stop.txt'))).toBe(false);
+  const stopped = await fixture.command('stop', instance.id);
+  expect(stopped.code).toBe(0);
+  expect(record(JSON.parse(stopped.stdout)).complete).toBe(true);
+  expect(alive(instance.pid)).toBe(false);
+  expect(existsSync(instance.folder)).toBe(false);
+}, 45_000);
+
 test('a CLI session records numbered, redacted evidence and never shows the instance credential', async ({
   onTestFinished,
 }) => {
@@ -205,8 +447,28 @@ test('a CLI session records numbered, redacted evidence and never shows the inst
     'stop',
     '--instance',
     instance.id,
+    credential,
+  );
+  const retained = await cli(
+    repositoryRoot,
+    SERVER_CLI,
+    'evidence',
+    '--instance',
+    instance.id,
+  );
+  const repeated = await cli(
+    repositoryRoot,
+    SERVER_CLI,
+    'stop',
+    '--instance',
+    instance.id,
   );
   const evidence = await evidenceOf(instance.evidence);
+  const outcome = record(
+    JSON.parse(
+      await readFile(join(instance.evidence, 'stop-result.json'), 'utf8'),
+    ),
+  );
   const pairing = record(
     JSON.parse(
       await readFile(join(instance.evidence, '003-request.json'), 'utf8'),
@@ -216,6 +478,13 @@ test('a CLI session records numbered, redacted evidence and never shows the inst
   const exchange = isRecord(steps[0]) ? steps[0] : {};
 
   expect(instance.run.code).toBe(0);
+  expect(stopped.code).toBe(0);
+  expect(retained.code).toBe(0);
+  expect(retained.stdout).toContain(instance.evidence);
+  expect(repeated.code).toBe(0);
+  expect(repeated.stdout).toContain('already stopped');
+  expect(outcome.complete).toBe(true);
+  expect(alive(instance.pid)).toBe(false);
   expect(credential).not.toBe('');
   expect(evidence.numbered).toStrictEqual([
     '001-start.json',
@@ -243,6 +512,7 @@ test('a CLI session records numbered, redacted evidence and never shows the inst
   expect(record(exchange.response).status).toBe(200);
   expect(record(record(exchange.response).body).credential).toBe('[redacted]');
   expect(existsSync(instance.file)).toBe(false);
+  expect(existsSync(dirname(instance.file))).toBe(false);
 });
 
 test('a CLI command refuses to drive an instance once a server source file changed since start', async ({
@@ -305,6 +575,13 @@ test('each checkout sees only the instances it started', async ({
     '--instance',
     instance.id,
   );
+  const evidenceElsewhere = await cli(
+    repositoryRoot,
+    SERVER_CLI,
+    'evidence',
+    '--instance',
+    instance.id,
+  );
   const own = await cli(copy, SERVER_CLI, 'request', 'GET', '/api/health');
 
   expect(elsewhere.stderr).toMatch(
@@ -312,6 +589,8 @@ test('each checkout sees only the instances it started', async ({
   );
   expect(elsewhere.code).toBe(1);
   expect(stoppedElsewhere.code).toBe(1);
+  expect(evidenceElsewhere.code).toBe(1);
+  expect(evidenceElsewhere.stdout).toBe('');
   expect(alive(instance.pid)).toBe(true);
   expect(own.stdout).toMatch(/^HTTP 200\n/);
 });
@@ -355,9 +634,14 @@ test('stop never signals a process whose command line is not the instance superv
   );
   expect(stopped.stdout).toMatch(
     new RegExp(
-      `^process ${strangerPid} is not this instance's supervisor; it was not signalled\n`,
+      `process ${strangerPid} is not this instance's supervisor; it was not signalled`,
     ),
   );
+  expect(stopped.code).toBe(1);
+  expect(stopped.stdout).toContain('stop incomplete');
+  expect(stopped.stdout).not.toMatch(/(?:^|\n)(?:already )?stopped /);
+  expect(existsSync(instance.file)).toBe(true);
+  expect(existsSync(join(dirname(instance.file), 'processes.json'))).toBe(true);
   expect(alive(strangerPid)).toBe(true);
   expect(alive(instance.pid)).toBe(true);
 });
@@ -393,6 +677,16 @@ test('stop leaves an unrelated process alive even when its command contains a re
   expect(stopped.code).toBe(0);
   expect(alive(strangerPid)).toBe(true);
   expect(alive(instance.pid)).toBe(false);
+  const repeated = await cli(
+    repositoryRoot,
+    SERVER_CLI,
+    'stop',
+    '--instance',
+    instance.id,
+  );
+  expect(repeated.code).toBe(0);
+  expect(repeated.stdout).toContain('already stopped');
+  expect(alive(strangerPid)).toBe(true);
 });
 
 test('stop refuses a PID without a captured owner even when its command names the instance', async ({
@@ -428,10 +722,14 @@ test('stop refuses a PID without a captured owner even when its command names th
     instance.id,
   );
 
-  expect(stopped.code).toBe(0);
+  expect(stopped.code).toBe(1);
   expect(stopped.stdout).toContain(
     `process ${strangerPid} has no captured owner; it was not signalled`,
   );
+  expect(stopped.stdout).toContain('stop incomplete');
+  expect(stopped.stdout).not.toMatch(/(?:^|\n)(?:already )?stopped /);
+  expect(existsSync(instance.file)).toBe(true);
+  expect(existsSync(join(dirname(instance.file), 'processes.json'))).toBe(true);
   expect(alive(strangerPid)).toBe(true);
   expect(alive(instance.pid)).toBe(true);
 });
@@ -475,10 +773,33 @@ test('stop refuses a stale process identity even when its PID and command still 
     instance.id,
   );
 
-  expect(stopped.code).toBe(0);
+  expect(stopped.code).toBe(1);
   expect(stopped.stdout).toContain(
     `process ${strangerPid} has a different identity; it was not signalled`,
   );
+  expect(stopped.stdout).toContain('stop incomplete');
+  expect(stopped.stdout).not.toMatch(/(?:^|\n)(?:already )?stopped /);
+  expect(existsSync(instance.file)).toBe(true);
+  expect(existsSync(ledger)).toBe(true);
+  const outcome = record(
+    JSON.parse(
+      await readFile(join(instance.evidence, 'stop-result.json'), 'utf8'),
+    ),
+  );
+  const retained = await cli(
+    repositoryRoot,
+    SERVER_CLI,
+    'evidence',
+    '--instance',
+    instance.id,
+  );
+  const evidence = await evidenceOf(instance.evidence);
+  expect(outcome.complete).toBe(false);
+  expect(retained.code).toBe(0);
+  expect(retained.stdout).toContain(instance.evidence);
+  expect(
+    instance.secrets.filter((secret) => evidence.text.includes(secret)),
+  ).toStrictEqual([]);
   expect(alive(strangerPid)).toBe(true);
   expect(alive(instance.pid)).toBe(false);
 });
@@ -544,18 +865,15 @@ if (process.argv[2] === 'serve') {
 test('stopping one instance leaves another instance in the same checkout usable', async ({
   onTestFinished,
 }) => {
-  const first = await started(onTestFinished);
-  const second = await started(onTestFinished);
+  const copy = await checkoutCopy(onTestFinished);
+  const first = await started(onTestFinished, { root: copy });
+  const second = await started(onTestFinished, { root: copy });
+  const ambiguousStop = await cli(copy, SERVER_CLI, 'stop');
+  const ambiguousEvidence = await cli(copy, SERVER_CLI, 'evidence');
 
-  const stopped = await cli(
-    repositoryRoot,
-    SERVER_CLI,
-    'stop',
-    '--instance',
-    first.id,
-  );
+  const stopped = await cli(copy, SERVER_CLI, 'stop', '--instance', first.id);
   const health = await cli(
-    repositoryRoot,
+    copy,
     SERVER_CLI,
     'request',
     'GET',
@@ -565,10 +883,59 @@ test('stopping one instance leaves another instance in the same checkout usable'
   );
 
   expect(stopped.code).toBe(0);
+  expect(ambiguousStop.code).toBe(1);
+  expect(ambiguousEvidence.code).toBe(1);
+  expect(ambiguousStop.stderr).toContain('--instance');
+  expect(ambiguousEvidence.stderr).toContain('--instance');
   expect(alive(first.pid)).toBe(false);
   expect(alive(second.pid)).toBe(true);
   expect(health.code).toBe(0);
   expect(health.stdout).toMatch(/^HTTP 200\n/);
+});
+
+test('retained sessions require an explicit valid instance selector and never guess history', async ({
+  onTestFinished,
+}) => {
+  const copy = await checkoutCopy(onTestFinished);
+  const instance = await started(onTestFinished, { root: copy });
+  const unknown = instance.id === '00000000' ? 'ffffffff' : '00000000';
+  const foreignSelectors = [unknown, `../${instance.id}`, 'ABCD1234'];
+  for (const selector of foreignSelectors) {
+    const evidence = await cli(
+      copy,
+      SERVER_CLI,
+      'evidence',
+      '--instance',
+      selector,
+    );
+    const stopped = await cli(copy, SERVER_CLI, 'stop', '--instance', selector);
+    expect(evidence.code).toBe(1);
+    expect(evidence.stdout).toBe('');
+    expect(stopped.code).toBe(1);
+    expect(stopped.stdout).not.toMatch(/(?:^|\n)(?:already )?stopped /);
+    expect(alive(instance.pid)).toBe(true);
+  }
+  const stopped = await cli(
+    copy,
+    SERVER_CLI,
+    'stop',
+    '--instance',
+    instance.id,
+  );
+  const evidenceWithoutId = await cli(copy, SERVER_CLI, 'evidence');
+  const stopWithoutId = await cli(copy, SERVER_CLI, 'stop');
+  const retained = await cli(
+    copy,
+    SERVER_CLI,
+    'evidence',
+    '--instance',
+    instance.id,
+  );
+  expect(stopped.code).toBe(0);
+  expect(evidenceWithoutId.code).toBe(1);
+  expect(stopWithoutId.code).toBe(1);
+  expect(retained.code).toBe(0);
+  expect(retained.stdout).toContain(instance.evidence);
 });
 
 test('stop ends the sandboxed server of an instance whose supervisor is gone', async ({
@@ -593,7 +960,7 @@ test('stop ends the sandboxed server of an instance whose supervisor is gone', a
   );
   expect(stopped.code).toBe(0);
   expect(stopped.stdout).toMatch(
-    new RegExp(`^stopped owned process group ${instance.pid}\n`),
+    new RegExp(`stopped owned process group ${instance.pid}`),
   );
   expect(running(build)).toStrictEqual([]);
 });

@@ -51,6 +51,8 @@ pnpm --filter @porcelain/desktop exec playwright test spec/e2e/window.e2e.ts
 
 A failed test keeps screenshots, the server log and renderer errors in `apps/desktop/test-results/e2e/`.
 
+Sessions have no idle expiry. Stop your instance when finished. After stopping, `$C evidence --instance <id>` reads the retained evidence and `$C stop --instance <id>` repeats a confirmed stop without signaling processes. A failed stop exits nonzero and retains private runtime state; inspect its report before retrying.
+
 ## Gotchas
 
 - `safeStorage` fails over SSH with "User interaction is not allowed". Run a test or instance that writes credentials in a Terminal window of the logged-in session and read its log:
@@ -61,7 +63,7 @@ A failed test keeps screenshots, the server log and renderer errors in `apps/des
   ```
 
 - macOS finishes a full screen transition only on an unlocked screen, so `window.e2e.ts`'s full screen test fails while the session is locked. Check with `ioreg -n Root -d1 -a | grep -A1 CGSSessionScreenIsLocked`. `folder-picker` and `menus` run fine over SSH.
-- After you edit desktop, web, server or CLI code, commands refuse until you `stop` and `start` again. With two instances, every command needs `--instance <id>`. An instance idle for 30 minutes, or whose app quits, stops itself.
+- After you edit desktop, web, server or CLI code, commands refuse until you `stop` and `start` again. With two instances, every command needs `--instance <id>`. The session ends if its app quits.
 
 ## The installed app's lock
 

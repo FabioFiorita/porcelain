@@ -14,13 +14,15 @@ Use macOS, or the `workstation` skill for the owner's Mac and simulator hub. Nat
 1. Run `$C doctor`. After native dependencies, app config or owned native modules change, run `$C build` on the Mac. JavaScript changes need no native build; the CLI reloads them. Follow a stale-code refusal's restart instructions.
 2. Run `$C start` for iPhone, or `$C start --device ipad`. It owns its simulator, Metro and server; only stop your instance. With multiple instances, include `--instance <id>` on every command.
 3. Read `features/README.md` and the feature's map. Follow **Driving it** and compare each end state with snapshots, screenshots and server state. If navigation differs, run `$C snapshot` before another action.
-4. Run `$C evidence`, read the numbered files and logs, then `$C stop`. Evidence remains. Text is redacted; screenshots can contain a pairing link, so keep those local.
+4. Run `$C evidence`, read the numbered files and logs, then `$C stop`. Evidence remains; use `$C evidence --instance <id>` after stopping. Text is redacted; screenshots can contain a pairing link, so keep those local.
 5. Run only the test files named by the changed map. Stop the CLI instance first: tests boot their own simulator on the shared Mac.
 
 ```sh
 pnpm --filter @porcelain/mobile exec vitest run --config ../../vitest.config.ts --project @porcelain/mobile-e2e <file name>
 pnpm --filter @porcelain/mobile exec vitest run --config ../../vitest.config.ts --project @porcelain/mobile-e2e-tablet <file name>
 ```
+
+Sessions have no idle expiry. Stop your instance when finished. A failed stop exits nonzero and retains private runtime state; inspect its report before retrying. Repeat a confirmed stop with `$C stop --instance <id>`. The shared stop result confirms owned-process cleanup; it does not certify simulator shutdown.
 
 ## What a drive cannot prove
 

@@ -56,10 +56,12 @@ $C stop
 
 `stop` keeps the evidence folder.
 
+Sessions have no idle expiry. Stop your instance when finished. After stopping, `$C evidence --instance <id>` reads the retained evidence and `$C stop --instance <id>` repeats a confirmed stop without signaling processes. A failed stop exits nonzero and retains private runtime state; inspect its report before retrying.
+
 ## Gotchas
 
 - After you edit web, server or CLI code, commands refuse until you `stop` and `start` again; a fresh instance takes seconds.
-- With two instances in the checkout, every command needs `--instance <id>`. An instance idle for 30 minutes stops itself.
+- With two instances in the checkout, every command needs `--instance <id>`.
 
 ## Add or correct a map entry
 
