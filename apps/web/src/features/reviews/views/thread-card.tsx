@@ -1,6 +1,6 @@
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { formatDistanceToNowStrict } from 'date-fns';
+import { relativeTime } from '@/shared/lib/relative-time';
 import {
   CheckIcon,
   EllipsisIcon,
@@ -54,10 +54,7 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
-const relative = (iso?: string) =>
-  iso == null
-    ? null
-    : formatDistanceToNowStrict(new Date(iso), { addSuffix: true });
+const relative = (iso?: string) => (iso == null ? null : relativeTime(iso));
 
 function AuthorAvatar({ author }: { author: CommentMessageAuthor }) {
   const agent = author === 'agent';

@@ -8,7 +8,7 @@ import {
   LiveTicketStore,
   IssueLiveTicketOptions,
 } from '@porcelain/access/ports';
-import { Effect, Clock } from 'effect';
+import { Redacted, Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   DeviceViewerRequiredError,
@@ -49,7 +49,7 @@ describe('IssueLiveTicketService', () => {
     const issued = Effect.runSync(
       service.execute({ viewer, route: 'tailnet' }),
     );
-    const parts = parseCredential('pct', issued.ticket);
+    const parts = parseCredential('pct', Redacted.value(issued.ticket));
     expect(issued.expiresAt).toBe('2026-09-30T10:00:30.000Z');
     expect(parts).toBeDefined();
     expect(
@@ -68,8 +68,12 @@ describe('IssueLiveTicketService', () => {
     const { tickets, service } = await setup();
     const issued = Effect.runSync(service.execute({ viewer, route: 'lan' }));
     const [stored] = tickets.read().tickets;
-    const secret = parseCredential('pct', issued.ticket)?.secret ?? '';
-    expect(JSON.stringify(tickets.read())).not.toContain(secret);
+    const secret =
+      parseCredential('pct', Redacted.value(issued.ticket))?.secret ??
+      Redacted.make('');
+    expect(JSON.stringify(tickets.read())).not.toContain(
+      Redacted.value(secret),
+    );
     expect(secretMatches(stored?.secretHash ?? '', secret)).toBe(true);
   });
 
@@ -77,10 +81,10 @@ describe('IssueLiveTicketService', () => {
     const { service } = await setup();
     const first = Effect.runSync(service.execute({ viewer, route: 'lan' }));
     const second = Effect.runSync(service.execute({ viewer, route: 'lan' }));
-    expect(first.ticket).toBe(
+    expect(Redacted.value(first.ticket)).toBe(
       'pct_00000000-0000-4000-8000-000000000001_' + 's'.repeat(42) + '1',
     );
-    expect(second.ticket).toBe(
+    expect(Redacted.value(second.ticket)).toBe(
       'pct_00000000-0000-4000-8000-000000000002_' + 's'.repeat(42) + '2',
     );
   });
@@ -111,7 +115,7 @@ describe('IssueLiveTicketService', () => {
     );
     expect(tickets.read().tickets.map((ticket) => ticket.id)).toEqual(
       [kept, ...issued.slice(1)].map(
-        (entry) => parseCredential('pct', entry.ticket)?.id,
+        (entry) => parseCredential('pct', Redacted.value(entry.ticket))?.id,
       ),
     );
   });
@@ -142,10 +146,10 @@ describe('IssueLiveTicketService', () => {
     const third = Effect.runSync(service.execute({ viewer, route: 'lan' }));
     expect(tickets.read().tickets).toHaveLength(2);
     expect(tickets.read().tickets.map((ticket) => ticket.id)).not.toContain(
-      parseCredential('pct', first.ticket)?.id,
+      parseCredential('pct', Redacted.value(first.ticket))?.id,
     );
     expect(tickets.read().tickets.map((ticket) => ticket.id)).toContain(
-      parseCredential('pct', third.ticket)?.id,
+      parseCredential('pct', Redacted.value(third.ticket))?.id,
     );
   });
 

@@ -1,6 +1,6 @@
 import { handlerAudit } from './diagnostics.ts';
 import { basename, extname, isAbsolute, posix } from 'node:path';
-import { Layer, Effect, Stream } from 'effect';
+import { Layer, Effect } from 'effect';
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http';
 import { RequestError } from '../runtime/errors/request-error.ts';
 import type { WebRootReader } from '../ports/web-root-reader.ts';
@@ -102,28 +102,28 @@ function isClientRoute(urlPath: string): boolean {
   return !basename(normalized).includes('.');
 }
 
-async function findStaticFile(
+const findStaticFile = Effect.fn('StaticFiles.find')(function* (
   files: WebRootReader,
   urlPath: string,
-): Promise<StaticFile | null> {
+): Effect.fn.Return<StaticFile | null> {
   if (isApiRequestPath(urlPath)) return null;
   const path = requestedPath(urlPath);
   if (path === null) return null;
 
-  const direct = await files.find({ path });
+  const direct = yield* files.find({ path });
   if (direct) return { ...direct, fallback: false };
-  if (await files.exists({ path })) return null;
+  if (yield* files.exists({ path })) return null;
   if (!isClientRoute(urlPath)) return null;
 
-  const fallback = await files.find({ path: SHELL });
+  const fallback = yield* files.find({ path: SHELL });
   return fallback ? { ...fallback, fallback: true } : null;
-}
+});
 
 export function staticFiles(files: WebRootReader) {
   const answer = Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const urlPath = request.originalUrl;
-    const file = yield* Effect.promise(() => findStaticFile(files, urlPath));
+    const file = yield* findStaticFile(files, urlPath);
     if (file === null)
       return yield* Effect.die(
         new RequestError({ statusCode: 404, message: 'Not Found' }),
@@ -139,11 +139,7 @@ export function staticFiles(files: WebRootReader) {
     if (request.method === 'HEAD')
       return HttpServerResponse.empty({ status: 200, headers });
     return HttpServerResponse.stream(
-      Stream.fromReadableStream({
-        evaluate: () => files.open({ path: file.path, size: file.size }),
-        onError: (error) =>
-          new Error('Web asset could not be streamed', { cause: error }),
-      }),
+      files.open({ path: file.path, size: file.size }),
       { headers },
     );
   });

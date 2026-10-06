@@ -2,7 +2,7 @@ import { afterEach, describe, expect } from 'vitest';
 import { AtomRegistry } from 'effect/reactivity';
 import type { AccessPlatformValue } from '../ports/access-platform.ts';
 import { it } from '@effect/vitest';
-import { Deferred, Effect, Fiber } from 'effect';
+import { Redacted, Deferred, Effect, Fiber } from 'effect';
 import { TestClock } from 'effect/testing';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import { readRemoteEnvironment, readRemoteStatus } from './environments.ts';
@@ -129,7 +129,7 @@ const remote = {
   environmentId: environment.environmentId,
   name: 'Computer',
   address: 'http://127.0.0.1:3000',
-  credential: 'original-credential',
+  credential: Redacted.make('original-credential'),
 };
 const registries = new Set<AtomRegistry.AtomRegistry>();
 afterEach(() => {
@@ -200,7 +200,7 @@ it('keeps a re-paired identity separate from the old authorization failure', asy
       registry,
       readRemoteStatus(platform, {
         ...remote,
-        credential: 'replacement-credential',
+        credential: Redacted.make('replacement-credential'),
       }),
     ),
   );

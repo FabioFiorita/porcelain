@@ -1,4 +1,12 @@
-import { Cause, Deferred, Effect, Exit, Fiber, Semaphore } from 'effect';
+import {
+  Duration,
+  Cause,
+  Deferred,
+  Effect,
+  Exit,
+  Fiber,
+  Semaphore,
+} from 'effect';
 import { withSignal } from '@porcelain/effects';
 import { describe, expect, it } from '@effect/vitest';
 import { TestClock } from 'effect/testing';
@@ -21,7 +29,7 @@ function reader(failure: unknown) {
       run: (_key, work) => work(),
     },
     launches: Effect.runSync(Semaphore.make(1)),
-    timeoutMs: 5000,
+    timeout: Duration.seconds(5),
     worktreeId: (projectId, metadataIdentity) =>
       `${projectId}:${metadataIdentity}`,
     logger: { failure: (report) => reports.push(report) },
@@ -103,7 +111,7 @@ describe('GitWorktreeListingReader', () => {
               ),
           },
           launches,
-          timeoutMs: 5000,
+          timeout: Duration.seconds(5),
           worktreeId: (projectId, metadataIdentity) =>
             `${projectId}:${metadataIdentity}`,
           logger: { failure: () => undefined },
@@ -158,7 +166,7 @@ describe('GitWorktreeListingReader', () => {
           }),
           sharedReads: { run: (_key, work) => work() },
           launches: yield* Semaphore.make(1),
-          timeoutMs: 5000,
+          timeout: Duration.seconds(5),
           worktreeId: (projectId, metadataIdentity) =>
             `${projectId}:${metadataIdentity}`,
           logger: { failure: (report) => failures.push(report.error) },

@@ -1,4 +1,4 @@
-import { formatDistanceToNowStrict } from 'date-fns';
+import { relativeTime } from '@/shared/lib/relative-time';
 import { CopyIcon, GitMergeIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -63,9 +63,7 @@ export function CommitRow({
           <span className="truncate">{commit.author.name}</span>
           <span aria-hidden="true">·</span>
           <span className="shrink-0">
-            {formatDistanceToNowStrict(new Date(commit.author.timestamp), {
-              addSuffix: true,
-            })}
+            {relativeTime(commit.author.timestamp)}
           </span>
         </span>
         {children}

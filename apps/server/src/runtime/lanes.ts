@@ -332,11 +332,7 @@ export class Lanes extends Context.Service<
               Deferred.await(shutdown).pipe(Effect.andThen(Effect.interrupt)),
             ),
           ).pipe(
-            Effect.onExit(() =>
-              Effect.forkIn(Fiber.interrupt(worker), scope, {
-                startImmediately: true,
-              }).pipe(Effect.asVoid),
-            ),
+            Effect.onExit(() => Fiber.interrupt(worker).pipe(Effect.asVoid)),
           );
         });
       }

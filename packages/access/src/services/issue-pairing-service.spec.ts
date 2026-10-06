@@ -10,7 +10,7 @@ import {
   IssuePairingOptions,
 } from '@porcelain/access/ports';
 import type { Context } from 'effect';
-import { Effect, Clock } from 'effect';
+import { Redacted, Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   InvalidDeviceDetailsError,
@@ -81,20 +81,26 @@ describe('IssuePairingService', () => {
       }),
     );
     expect(grants.map(({ grant }) => grant.label)).toEqual(['Phone', 'Tablet']);
-    expect(grants.map(({ code }) => parseCredential('pcp', code)?.id)).toEqual(
-      grants.map(({ grant }) => grant.id),
+    expect(
+      grants.map(
+        ({ code }) => parseCredential('pcp', Redacted.value(code))?.id,
+      ),
+    ).toEqual(grants.map(({ grant }) => grant.id));
+    expect(new Set(grants.map(({ code }) => Redacted.value(code))).size).toBe(
+      2,
     );
-    expect(new Set(grants.map(({ code }) => code)).size).toBe(2);
   });
 
   it('keeps only a hash of the code, which the code matches', async () => {
     const { grants, service } = await setup();
     const issued = issueOne(service);
-    const secret = parseCredential('pcp', issued.code)?.secret ?? '';
+    const secret =
+      parseCredential('pcp', Redacted.value(issued.code))?.secret ??
+      Redacted.make('');
     const stored = await Effect.runPromise(
       grants.find({ grantId: issued.grant.id }),
     );
-    expect(stored?.secretHash).not.toContain(secret);
+    expect(stored?.secretHash).not.toContain(Redacted.value(secret));
     expect(secretMatches(stored?.secretHash ?? '', secret)).toBe(true);
   });
 

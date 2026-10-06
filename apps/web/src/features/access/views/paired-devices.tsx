@@ -1,6 +1,6 @@
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { formatDistanceToNowStrict } from 'date-fns';
+import { relativeTime } from '@/shared/lib/relative-time';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -55,11 +55,7 @@ export function PairedDevices({ connection }: { connection: Connection }) {
                 </Badge>
               </ItemTitle>
               <ItemDescription>
-                Last seen{' '}
-                {formatDistanceToNowStrict(new Date(device.lastSeenAt), {
-                  addSuffix: true,
-                })}{' '}
-                · {device.platform}
+                Last seen {relativeTime(device.lastSeenAt)} · {device.platform}
               </ItemDescription>
               {device.routeInferred && (
                 <ItemDescription>

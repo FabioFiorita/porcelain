@@ -5,7 +5,7 @@ import {
   deleteItemAsync,
   WHEN_UNLOCKED_THIS_DEVICE_ONLY,
 } from 'expo-secure-store';
-import { Cause, Effect, Schema } from 'effect';
+import { Cause, Effect, Redacted, Schema } from 'effect';
 import { EnvironmentStorage } from '@porcelain/client/access';
 
 const metadata = new SQLiteStorage('porcelain-environments.db');
@@ -38,7 +38,7 @@ export const environmentStorage = EnvironmentStorage.of({
               throw new Error(
                 `The saved credential for ${remote.name} could not be read. Pair that environment again.`,
               );
-            return { ...remote, credential };
+            return { ...remote, credential: Redacted.make(credential) };
           }),
         );
       },
@@ -57,7 +57,7 @@ export const environmentStorage = EnvironmentStorage.of({
             throw new Error('The paired environment sent no device identity.');
           await setItemAsync(
             `porcelain.device.${remote.deviceId}`,
-            remote.credential,
+            Redacted.value(remote.credential),
             { keychainAccessible: WHEN_UNLOCKED_THIS_DEVICE_ONLY },
           );
         }

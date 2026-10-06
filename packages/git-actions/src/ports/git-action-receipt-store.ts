@@ -11,6 +11,8 @@ import {
 export interface GitActionReceiptStore {
   read(input: GitActionReceiptKey): Effect.Effect<GitActionReceipt | undefined>;
   insert(input: GitActionReceipt): Effect.Effect<void>;
+  /** Claim foreign Git IO once; absent legacy claims are never replayable. */
+  claimExecution(input: GitActionReceiptKey): Effect.Effect<boolean>;
   save(input: GitActionReceipt): Effect.Effect<void>;
   running(): Effect.Effect<GitActionReceipt[]>;
   latestInterrupted(

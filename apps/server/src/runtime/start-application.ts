@@ -1,6 +1,13 @@
-import { Effect, type Clock } from 'effect';
-import { rmSync } from 'node:fs';
-import { join } from 'node:path';
+import {
+  Effect,
+  Exit,
+  FileSystem,
+  Path,
+  Scope,
+  type Clock,
+  type Duration,
+} from 'effect';
+import { nativeOperation } from '@porcelain/effects';
 import { networkInterfaces } from 'node:os';
 import type { HostPolicy, PairingReach } from '@porcelain/access/models';
 import type { OwnerStatus } from '@porcelain/kernel/models';
@@ -16,59 +23,38 @@ import { acquireDirectoryLock } from './directory-lock.ts';
 import { DataDirectoryOwnedError } from './errors/data-directory-owned-error.ts';
 import { OwnerSocketUnreadableError } from './errors/owner-socket-unreadable-error.ts';
 import { restrictOwnerSocket } from './owner-socket.ts';
+import { releaseInOrder } from './release-in-order.ts';
 
 export type OpenServer = (input: {
   settings: ServerSettings;
   pairingReach: () => PairingReach;
   runtimeStatus: () => OwnerStatus;
   signal: AbortSignal;
-}) => Promise<OpenedServer>;
-
+}) => Effect.Effect<OpenedServer, never, Scope.Scope>;
 type ApplicationStarter = {
   openServer: OpenServer;
   ownerProbe: OwnerProbe;
   clock: Clock.Clock;
 };
+type RuntimeParts = { opened?: OpenedServer | undefined; jobs: Job[] };
 
-type RuntimeParts = {
-  opened?: OpenedServer | undefined;
-  jobs?: readonly Job[] | undefined;
-};
-
-async function startJobs(jobs: readonly Job[]): Promise<readonly Job[]> {
-  const started: Job[] = [];
-  try {
-    for (const job of jobs) {
-      await Effect.runPromise(job.start());
-      started.push(job);
-    }
-  } catch (error) {
-    await stopJobs(started);
-    throw error;
-  }
-  return started;
-}
-
-async function stopJobs(jobs: readonly Job[]): Promise<void> {
-  for (const job of jobs) await Effect.runPromise(job.stop());
-}
-
-async function shutDown(parts: RuntimeParts, graceMs: number) {
-  const { opened, jobs } = parts;
-  const failures: unknown[] = [];
-  const stage = async (work: () => Promise<void>) => {
-    try {
-      await work();
-    } catch (error) {
-      failures.push(error);
-    }
-  };
-  if (opened) await stage(() => closeListener(opened.network, graceMs));
-  if (jobs) await stage(() => stopJobs(jobs));
-  if (opened) await stage(() => opened.close());
-  if (opened) await stage(() => closeListener(opened.owner, graceMs));
-  if (failures.length > 0) throw failures[0];
-}
+const shutDown = Effect.fn('Application.shutDown')(function* (
+  parts: RuntimeParts,
+  grace: Duration.Duration,
+) {
+  const opened = parts.opened;
+  const stopJobs = releaseInOrder(parts.jobs.map((job) => job.stop()));
+  yield* releaseInOrder(
+    opened
+      ? [
+          closeListener(opened.network, grace),
+          closeListener(opened.owner, grace),
+          stopJobs,
+          opened.close(),
+        ]
+      : [stopJobs],
+  );
+});
 
 function listeningOn(host: string): string[] {
   if (host !== '0.0.0.0' && host !== '::') return [host];
@@ -79,72 +65,93 @@ function listeningOn(host: string): string[] {
     .map((entry) => entry.address);
 }
 
-export async function startApplication(
+export const startApplication = Effect.fn('startApplication')(function* (
   settings: ServerSettings,
   signal: AbortSignal,
   starter: ApplicationStarter,
-): Promise<Runtime> {
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const pathApi = yield* Path.Path;
+  const applicationScope = yield* Scope.fork(yield* Scope.Scope, 'sequential');
   const { host, port, allowedHosts, limits } = settings;
-  signal.throwIfAborted();
-  const directory = prepareDataDirectory(settings.dataDirectory);
-  const socketPath = ownerSocketPath(directory);
-  const parts: RuntimeParts = {};
-  const reach: { port: number; policy: HostPolicy } = {
-    port: 0,
-    policy: { allowedHosts, localAddresses: [] },
-  };
-  let status: OwnerStatus = {
-    address: '',
-    dataDirectory: directory,
-    pid: process.pid,
-  };
-  const lock = await acquireDirectoryLock({
-    path: join(directory, 'server.lock'),
-    waitMs: limits.locks.startupWaitMs,
-    pollMs: limits.locks.pollMs,
-    staleTakeovers: limits.locks.staleTakeovers,
-    clock: starter.clock,
-    held: () => new DataDirectoryOwnedError(directory),
-  });
-  try {
-    signal.throwIfAborted();
-    const probe = await starter.ownerProbe.probe({
-      socketPath,
-      timeoutMs: limits.owner.probeTimeoutMs,
-    });
-    if (probe.kind === 'running') throw new DataDirectoryOwnedError(directory);
-    if (probe.kind === 'unreadable')
-      throw new OwnerSocketUnreadableError(socketPath, probe.reason);
-    rmSync(socketPath, { force: true });
-    signal.throwIfAborted();
-    parts.opened = await starter.openServer({
-      settings: { ...settings, dataDirectory: directory },
-      pairingReach: () => reach,
-      runtimeStatus: () => status,
-      signal,
-    });
-    const opened = parts.opened;
-    signal.throwIfAborted();
-    parts.jobs = await startJobs(opened.jobs);
-    const address = await opened.network.listen({ host, port });
-    status = { ...status, address };
-    reach.port = Number(new URL(address).port);
-    reach.policy = { allowedHosts, localAddresses: listeningOn(host) };
-    await opened.owner.listen({ path: socketPath });
-    restrictOwnerSocket(socketPath);
-    const closing: { started?: Promise<void> } = {};
-    return {
-      address,
-      socketPath,
-      close: () => {
-        closing.started ??= shutDown(parts, limits.listeners.closeGraceMs);
-        return closing.started;
-      },
-    };
-  } catch (error) {
-    await shutDown(parts, limits.listeners.closeGraceMs).catch(() => undefined);
-    throw error;
-  } finally {
-    await lock.release();
-  }
-}
+  const parts: RuntimeParts = { jobs: [] };
+  const startup = Effect.scoped(
+    Effect.gen(function* () {
+      yield* Effect.sync(() => signal.throwIfAborted());
+      const directory = yield* prepareDataDirectory(settings.dataDirectory);
+      const socketPath = ownerSocketPath(directory);
+      const reach: { port: number; policy: HostPolicy } = {
+        port: 0,
+        policy: { allowedHosts, localAddresses: [] },
+      };
+      let status: OwnerStatus = {
+        address: '',
+        dataDirectory: directory,
+        pid: process.pid,
+      };
+      // The lock outlives startup and releases after the resource child and shutdown finalizer.
+      yield* acquireDirectoryLock({
+        path: pathApi.join(directory, 'server.lock'),
+        waitMs: limits.locks.startupWaitMs,
+        pollMs: limits.locks.pollMs,
+        staleTakeovers: limits.locks.staleTakeovers,
+        clock: starter.clock,
+        held: () => new DataDirectoryOwnedError(directory),
+      }).pipe(Scope.provide(applicationScope));
+      yield* Effect.sync(() => signal.throwIfAborted());
+      const probe = yield* nativeOperation(() =>
+        starter.ownerProbe.probe({
+          socketPath,
+          timeoutMs: limits.owner.probeTimeoutMs,
+        }),
+      );
+      if (probe.kind === 'running')
+        return yield* Effect.fail(new DataDirectoryOwnedError(directory));
+      if (probe.kind === 'unreadable')
+        return yield* Effect.fail(
+          new OwnerSocketUnreadableError(socketPath, probe.reason),
+        );
+      yield* fs.remove(socketPath, { force: true });
+      yield* Effect.sync(() => signal.throwIfAborted());
+      // Register shutdown after the resource child: listeners and jobs drain before storage finalizers.
+      parts.opened = yield* starter
+        .openServer({
+          settings: { ...settings, dataDirectory: directory },
+          pairingReach: () => reach,
+          runtimeStatus: () => status,
+          signal,
+        })
+        .pipe(Scope.provide(applicationScope));
+      yield* Scope.addFinalizer(
+        applicationScope,
+        shutDown(parts, limits.listeners.closeGrace),
+      );
+      const opened = parts.opened;
+      yield* Effect.sync(() => signal.throwIfAborted());
+      for (const job of opened.jobs) {
+        // Record ownership before starting; stop also handles partially started jobs.
+        parts.jobs.push(job);
+        yield* job.start();
+      }
+      const address = yield* nativeOperation(() =>
+        opened.network.listen({ host, port }),
+      );
+      status = { ...status, address };
+      reach.port = Number(new URL(address).port);
+      reach.policy = { allowedHosts, localAddresses: listeningOn(host) };
+      yield* nativeOperation(() => opened.owner.listen({ path: socketPath }));
+      yield* restrictOwnerSocket(socketPath);
+      return {
+        address,
+        socketPath,
+        close: () => Scope.close(applicationScope, Exit.void),
+      } satisfies Runtime;
+    }),
+  );
+  return yield* startup.pipe(
+    Effect.onExit((exit) =>
+      Exit.isFailure(exit) ? Scope.close(applicationScope, exit) : Effect.void,
+    ),
+    Effect.orDie,
+  );
+});

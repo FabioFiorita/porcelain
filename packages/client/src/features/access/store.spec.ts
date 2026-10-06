@@ -1,4 +1,4 @@
-import { Cause, Effect, Fiber } from 'effect';
+import { Redacted, Cause, Effect, Fiber } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { AccessStore } from './store.ts';
 import { EnvironmentStorage } from '@porcelain/client/access';
@@ -8,14 +8,14 @@ const first: Remote = {
   environmentId: 'first',
   name: 'First computer',
   address: 'http://first.local:4738',
-  credential: 'first-credential',
+  credential: Redacted.make('first-credential'),
   deviceId: 'first-device',
 };
 const second: Remote = {
   environmentId: 'second',
   name: 'Second computer',
   address: 'http://second.local:4738',
-  credential: 'second-credential',
+  credential: Redacted.make('second-credential'),
   deviceId: 'second-device',
 };
 
@@ -88,7 +88,11 @@ describe('saved environments', () => {
       },
     });
     await Effect.runPromise(store.load());
-    const replacement = { ...first, credential: 'new', deviceId: 'new-device' };
+    const replacement = {
+      ...first,
+      credential: Redacted.make('new'),
+      deviceId: 'new-device',
+    };
     await Effect.runPromise(store.save(replacement));
     expect(observed).toEqual([[first, second]]);
     expect(store.state.value.remotes).toEqual([second, replacement]);

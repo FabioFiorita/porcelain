@@ -1,8 +1,13 @@
 import { describe, expect, it } from '@effect/vitest';
-import { Effect } from 'effect';
+import { Duration, Effect } from 'effect';
 import { TestClock } from 'effect/testing';
 import { nativeOperation } from '@porcelain/effects';
 import { makeIntervalJob } from './interval-job.ts';
+import { Observability } from './observability.ts';
+
+const observability = Effect.runSync(
+  Observability.pipe(Effect.provide(Observability.layer)),
+);
 
 function reporting() {
   const reports: unknown[] = [];
@@ -41,6 +46,7 @@ describe('IntervalJob', () => {
         work,
         { atStart: true },
         reporting().logger,
+        observability,
       );
       yield* job.start();
       yield* job.stop();
@@ -54,8 +60,9 @@ describe('IntervalJob', () => {
       const job = yield* makeIntervalJob(
         'job',
         work,
-        { everyMs: 1000 },
+        { every: Duration.seconds(1) },
         reporting().logger,
+        observability,
       );
       yield* Effect.addFinalizer(() => job.stop());
       yield* job.start();
@@ -75,8 +82,9 @@ describe('IntervalJob', () => {
       const job = yield* makeIntervalJob(
         'job',
         work,
-        { atStart: true, everyMs: 1000 },
+        { atStart: true, every: Duration.seconds(1) },
         reporting().logger,
+        observability,
       );
       yield* job.start();
       yield* TestClock.adjust(4000);
@@ -103,6 +111,7 @@ describe('IntervalJob', () => {
           work,
           { atStart: true },
           reporting().logger,
+          observability,
         );
         yield* job.start();
         let stopped = false;
@@ -128,6 +137,7 @@ describe('IntervalJob', () => {
         work,
         { atStart: true },
         logger,
+        observability,
       );
       yield* job.start();
       yield* job.stop();
@@ -145,6 +155,7 @@ describe('IntervalJob', () => {
         { execute: () => Effect.never },
         { atStart: true },
         logger,
+        observability,
       );
       yield* job.start();
       yield* job.stop();
@@ -160,6 +171,7 @@ describe('IntervalJob', () => {
         work,
         { atStop: true },
         reporting().logger,
+        observability,
       );
       yield* job.start();
       yield* job.stop();
@@ -174,6 +186,7 @@ describe('IntervalJob', () => {
         work,
         { atStart: true, atStop: true },
         reporting().logger,
+        observability,
       );
       yield* job.start();
       yield* job.start();

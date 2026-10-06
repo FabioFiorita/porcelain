@@ -8,8 +8,11 @@ import { AnnounceWorktreeChangeUseCasePort } from '../ports/announce-worktree-ch
 import { InventoryRefresh } from '../ports/inventory-refresh.ts';
 import { InvalidateReviewedMarksUseCasePort } from '../ports/invalidate-reviewed-marks-use-case-port.ts';
 import { LaneOptions } from '../ports/lane-options.ts';
-import { WorktreeCatalogStore } from '@porcelain/projects/ports';
-import { Context, Effect, Layer, Clock } from 'effect';
+import {
+  ProjectFolderReader,
+  WorktreeCatalogStore,
+} from '@porcelain/projects/ports';
+import { Context, Duration, Effect, Layer, Clock } from 'effect';
 import { storageLayer } from '@porcelain/storage';
 import { NodeServices } from '@effect/platform-node';
 import { cachedDeviceStoreLayer } from '../adapters/access/cached-device-store.ts';
@@ -18,7 +21,7 @@ import { nativeOperation } from '@porcelain/effects';
 import { releaseInOrder } from '../runtime/release-in-order.ts';
 import {
   ServerComponents,
-  ServerResources,
+  openServerResources,
 } from '../runtime/server-resources.ts';
 import { type Server } from 'node:http';
 import {
@@ -49,17 +52,19 @@ import { parcelWorktreeWatcherLayer } from '../adapters/events/parcel-worktree-w
 import { webSocketEventPublisherLayer } from '../adapters/events/web-socket-event-publisher.ts';
 import { processCommitDraftSourceLayer } from '../adapters/git-actions/process-commit-draft-source.ts';
 import { processCommitModelReaderLayer } from '../adapters/git-actions/process-commit-model-reader.ts';
-import { FilesystemProjectFolderReader } from '../adapters/projects/filesystem-project-folder-reader.ts';
+import { filesystemProjectFolderReaderLayer } from '../adapters/projects/filesystem-project-folder-reader.ts';
 import { InMemoryWorktreeCatalogStore } from '../adapters/projects/in-memory-worktree-catalog-store.ts';
 import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
 import { StderrLogger } from '../adapters/runtime/stderr-logger.ts';
-import { FilesystemWebRootReader } from '../adapters/web/filesystem-web-root-reader.ts';
-import { operationDeadlineMs } from '../config/operation-deadline.ts';
+import { filesystemWebRootReaderLayer } from '../adapters/web/filesystem-web-root-reader.ts';
+import { operationDeadline } from '../config/operation-deadline.ts';
 import { type Limits } from '../config/limits.ts';
 import { createOwnerServer } from '../http/owner-server.ts';
 import { createNetworkServer } from '../http/server.ts';
 import { makeIntervalJob, jobSequence } from '../runtime/interval-job.ts';
 import { type Job } from '../ports/job.ts';
+import { WebRootReader } from '../ports/web-root-reader.ts';
+import { Observability } from '../runtime/observability.ts';
 import { LaneKeys } from '../runtime/lane-keys.ts';
 import { Lanes } from '../runtime/lanes.ts';
 import { LiveConnections } from '../runtime/live-updates/live-connections.ts';
@@ -124,7 +129,15 @@ function serverResources(
       }).pipe(Layer.provide(NodeServices.layer)),
     ),
   );
-  const foundation = Layer.mergeAll(metadata, persistence);
+  const logging = StderrLogger.layer.pipe(
+    Layer.provideMerge(Observability.layer),
+  );
+  const foundation = Layer.mergeAll(
+    metadata,
+    persistence,
+    NodeServices.layer,
+    logging,
+  );
   const components = Layer.effect(
     ServerComponents,
     Effect.acquireRelease(
@@ -144,7 +157,9 @@ function serverResources(
         const laneContext = yield* Layer.build(Lanes.layer).pipe(
           Effect.provideService(LaneOptions, {
             deadlineMs: () =>
-              operationDeadlineMs(catalog.listObservations().length, limits),
+              Duration.toMillis(
+                operationDeadline(catalog.listObservations().length, limits),
+              ),
             readCapacity: limits.lanes.readCapacity,
             consistency: yield* ConfirmWorktreeService.pipe(
               Effect.provide(ConfirmWorktreeService.layer),
@@ -153,7 +168,16 @@ function serverResources(
           }),
         );
         const lanes = Context.get(laneContext, Lanes);
-        const logger = new StderrLogger(clock);
+        const logger = yield* Logger;
+        const observability = yield* Observability;
+        const filesystemContext = yield* Layer.build(
+          Layer.mergeAll(
+            filesystemProjectFolderReaderLayer({
+              gitDirectory: gitDirectoryName(),
+            }),
+            filesystemWebRootReaderLayer(settings.webRoot),
+          ),
+        );
         const liveContext = yield* Layer.build(
           webSocketEventPublisherLayer.pipe(
             Layer.provideMerge(
@@ -214,9 +238,10 @@ function serverResources(
         const projects = yield* composeProjects(context, {
           stores,
           shared,
-          projectFolderReader: new FilesystemProjectFolderReader({
-            gitDirectory: gitDirectoryName(),
-          }),
+          projectFolderReader: Context.get(
+            filesystemContext,
+            ProjectFolderReader,
+          ),
         });
         const { checkWorktree } = projects;
         const changes = yield* composeChanges(context, {
@@ -292,9 +317,10 @@ function serverResources(
         const jobs: readonly Job[] = [
           yield* makeIntervalJob(
             'recover-interrupted-git-actions',
-            gitActions.recoverInterruptedGitActions,
+            { execute: gitActions.gitActionWorkflow.recover },
             { atStart: true },
             logger,
+            observability,
           ),
           yield* makeIntervalJob(
             'refresh-inventory',
@@ -302,44 +328,51 @@ function serverResources(
               projects.refreshInventory,
               reviews.refreshReviewActivity,
             ]),
-            { atStart: true, everyMs: limits.jobs.refreshInventoryMs },
+            { atStart: true, every: limits.jobs.refreshInventory },
             logger,
+            observability,
           ),
           yield* makeIntervalJob(
             'collect-absent-worktrees',
             projects.collectAbsentWorktrees,
-            { everyMs: limits.jobs.collectAbsentWorktreesMs },
+            { every: limits.jobs.collectAbsentWorktrees },
             logger,
+            observability,
           ),
           yield* makeIntervalJob(
             'flush-device-activity',
             access.flushDeviceActivity,
-            { everyMs: limits.jobs.flushDeviceActivityMs, atStop: true },
+            { every: limits.jobs.flushDeviceActivity, atStop: true },
             logger,
+            observability,
           ),
           yield* makeIntervalJob(
             'open-remote-routes',
             access.openRemoteRoutes,
-            { atStart: true, everyMs: limits.jobs.openRemoteRoutesMs },
+            { atStart: true, every: limits.jobs.openRemoteRoutes },
             logger,
+            observability,
           ),
           yield* makeIntervalJob(
             'close-remote-routes',
             access.closeRemoteRoutes,
             { atStop: true },
             logger,
+            observability,
           ),
           yield* makeIntervalJob(
             'heartbeat',
             { execute: liveConnections.heartbeat },
-            { everyMs: limits.liveUpdates.heartbeatMs },
+            { every: limits.liveUpdates.heartbeat },
             logger,
+            observability,
           ),
           yield* makeIntervalJob(
             'ping-live-clients',
             { execute: liveConnections.ping },
-            { everyMs: limits.liveUpdates.pingMs },
+            { every: limits.liveUpdates.ping },
             logger,
+            observability,
           ),
         ];
         const useCases = {
@@ -360,8 +393,9 @@ function serverResources(
             tunnelConnections,
           },
           settings,
-          files: new FilesystemWebRootReader(settings.webRoot),
+          files: Context.get(filesystemContext, WebRootReader),
           logger,
+          observability,
         });
         return {
           jobs,
@@ -369,21 +403,21 @@ function serverResources(
           owner: createOwnerServer({
             application: { ...useCases, reviewTools: reviews },
             logger,
+            observability,
             limits,
           }),
           close: () =>
-            Effect.runPromise(
-              releaseInOrder([
-                routeListenerRunner.close({ route: 'lan' }),
-                routeListenerRunner.close({ route: 'tailnet' }),
-                worktreeWatches.close(),
-                liveConnections.close(),
-                lanes.close(),
-              ]),
-            ),
+            releaseInOrder([
+              routeListenerRunner.close({ route: 'lan' }),
+              routeListenerRunner.close({ route: 'tailnet' }),
+              worktreeWatches.close(),
+              liveConnections.close(),
+              gitActions.gitActionWorkflow.stop(),
+              lanes.close(),
+            ]),
         };
       }),
-      (opened) => nativeOperation(() => opened.close()),
+      (opened) => opened.close(),
     ),
   );
   return components.pipe(Layer.provide(foundation));
@@ -392,17 +426,18 @@ function serverResources(
 const openServerWith =
   (adapters: RemoteRouteAdapters, host: ServerHost): OpenServer =>
   (input) =>
-    new ServerResources(serverResources(adapters, host, input)).open(
-      input.signal,
-    );
+    openServerResources(serverResources(adapters, host, input));
 
 export const composeServer =
   (adapters: RemoteRouteAdapters): StartServer =>
   (settings, signal, host) =>
-    startApplication(settings, signal, {
-      openServer: openServerWith(adapters, host),
-      ownerProbe: new SocketOwnerProbe(),
-      clock: Effect.runSync(Clock.Clock),
+    Effect.gen(function* () {
+      const clock = yield* Clock.Clock;
+      return yield* startApplication(settings, signal, {
+        openServer: openServerWith(adapters, host),
+        ownerProbe: new SocketOwnerProbe(),
+        clock,
+      });
     });
 
 const networkReaders = {

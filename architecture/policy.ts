@@ -140,6 +140,7 @@ export const roles = [
   'process-api',
   'process',
   'runtime',
+  'workflow',
   'server-port',
   'bootstrap',
   'contract',
@@ -636,6 +637,8 @@ function classifyServer(inside: string) {
   if (/\.spec\.ts$/.test(inside)) return classified('test', owner);
   if (inside.startsWith('use-cases/')) return classified('use-case', owner);
   if (inside.startsWith('bootstrap/')) return classified('bootstrap', owner);
+  if (/^runtime\/.+-workflow\.ts$/.test(inside))
+    return classified('workflow', owner);
   if (inside.startsWith('runtime/')) return classified('runtime', owner);
   if (inside.startsWith('ports/')) return classified('server-port', owner);
   if (inside.startsWith('adapters/')) return classified('gateway', owner);
@@ -1086,6 +1089,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'kernel',
     'contract',
     'runtime',
+    'workflow',
     'server-port',
   ]),
   installer: new Set([
@@ -1162,6 +1166,17 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'server-port',
     'contract',
   ]),
+  workflow: new Set([
+    'runtime',
+    'workflow',
+    'domain-api',
+    'model-api',
+    'port-api',
+    'error-api',
+    'server-port',
+    'config',
+    'kernel',
+  ]),
   'server-port': new Set(['server-port', 'kernel', 'model-api']),
   bootstrap: new Set([
     'bootstrap',
@@ -1174,6 +1189,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'gateway-api',
     'repository-api',
     'runtime',
+    'workflow',
     'server-port',
     'config',
     'kernel',
@@ -1750,8 +1766,9 @@ export const externalPackages: Record<Role, readonly string[]> = {
   'process-api': [],
   process: ['effect', 'effect/process'],
   runtime: [],
+  workflow: ['effect/workflow', 'effect/cluster'],
   'server-port': [],
-  bootstrap: ['@effect/platform-node'],
+  bootstrap: ['@effect/platform-node', 'effect/cluster'],
   contract: ['effect/ai', 'effect/rpc'],
   config: [],
   kernel: [],
@@ -1821,6 +1838,7 @@ for (const role of [
   'use-case',
   'server-port',
   'runtime',
+  'workflow',
   'bootstrap',
   'transport',
   'contract',
@@ -2015,6 +2033,8 @@ const rolePurposes: Record<Role, string> = {
   process: 'packages/process internals, the only code that spawns a process',
   runtime:
     'the server runtime in apps/server/src/runtime: lanes, locks and the data directory',
+  workflow:
+    'durable Effect workflow orchestration in apps/server/src/runtime, using admitted domain services and persisted activities',
   'server-port':
     'a server port in apps/server/src/ports, an interface server adapters implement',
   bootstrap:

@@ -1,4 +1,5 @@
-import { Schema } from 'effect';
+import { Duration, Effect, Layer, ManagedRuntime, Schema, Scope } from 'effect';
+import { NodeServices } from '@effect/platform-node';
 import { ownerClient, runOwner } from '../../src/cli/owner-client.ts';
 import { execFile } from 'node:child_process';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
@@ -51,6 +52,9 @@ if (!installation) throw new Error('Missing development installation folder');
 const codingToolExecutable = process.env.PORCELAIN_DEV_CODING_TOOL;
 if (!codingToolExecutable)
   throw new Error('Missing development coding tool location');
+const runtime = ManagedRuntime.make(
+  Layer.merge(NodeServices.layer, Layer.effect(Scope.Scope, Effect.scope)),
+);
 let server: Runtime | undefined;
 const listeningPort = () =>
   Number(new URL(server?.address ?? 'http://127.0.0.1:0').port);
@@ -436,50 +440,55 @@ try {
     port,
     webRoot: web,
   });
-  server = await startServer(
-    {
-      ...settings,
-      limits: {
-        ...settings.limits,
-        jobs: {
-          ...settings.limits.jobs,
-          refreshInventoryMs: sample === 'perf' ? QUIET_INVENTORY_MS : 250,
-        },
-        access: {
-          ...settings.limits.access,
-          liveTicket: {
-            ...settings.limits.access.liveTicket,
-            lifetimeMs: fixture.liveTicketLifetimeMs,
+  server = await runtime.runPromise(
+    startServer(
+      {
+        ...settings,
+        limits: {
+          ...settings.limits,
+          jobs: {
+            ...settings.limits.jobs,
+            refreshInventory: Duration.millis(
+              sample === 'perf' ? QUIET_INVENTORY_MS : 250,
+            ),
           },
-        },
-        inventory: {
-          ...settings.limits.inventory,
-          staleAfterMs: fixture.inventoryStaleAfterMs,
-        },
-        gitActions: {
-          ...settings.limits.gitActions,
-          deadlineMs: fixture.gitActionDeadlineMs,
-        },
-        reviews: {
-          ...settings.limits.reviews,
-          summaryLink: {
-            ...settings.limits.reviews.summaryLink,
-            lifetimeMs: fixture.summaryLinkLifetimeMs,
+          access: {
+            ...settings.limits.access,
+            liveTicket: {
+              ...settings.limits.access.liveTicket,
+              lifetimeMs: fixture.liveTicketLifetimeMs,
+            },
+          },
+          inventory: {
+            ...settings.limits.inventory,
+            staleAfterMs: fixture.inventoryStaleAfterMs,
+          },
+          gitActions: {
+            ...settings.limits.gitActions,
+            deadlineMs: fixture.gitActionDeadlineMs,
+          },
+          reviews: {
+            ...settings.limits.reviews,
+            summaryLink: {
+              ...settings.limits.reviews.summaryLink,
+              lifetimeMs: fixture.summaryLinkLifetimeMs,
+            },
           },
         },
       },
-    },
-    shutdown.signal,
-    {
-      serviceUpdateRunner,
-      version: fixture.serviceUpdate.version,
-      desktopSession: {
-        deviceId: randomUUID(),
-        secretHash: createHash('sha256')
-          .update(desktopCredential)
-          .digest('hex'),
+      shutdown.signal,
+      {
+        serviceUpdateRunner,
+        version: fixture.serviceUpdate.version,
+        desktopSession: {
+          deviceId: randomUUID(),
+          secretHash: createHash('sha256')
+            .update(desktopCredential)
+            .digest('hex'),
+        },
       },
-    },
+    ),
+    { signal: shutdown.signal },
   );
   const [grant] = Schema.decodeUnknownSync(issuedPairingSchema)(
     await runOwner(
@@ -562,10 +571,14 @@ try {
 } finally {
   try {
     relay.close();
-    await server?.close();
+    if (server !== undefined) await runtime.runPromise(server.close());
   } finally {
-    process.stdin.destroy();
-    process.off('SIGINT', stop);
-    process.off('SIGTERM', stop);
+    try {
+      await runtime.dispose();
+    } finally {
+      process.stdin.destroy();
+      process.off('SIGINT', stop);
+      process.off('SIGTERM', stop);
+    }
   }
 }

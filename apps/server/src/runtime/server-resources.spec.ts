@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { Effect, Layer } from 'effect';
-import { ServerComponents, ServerResources } from './server-resources.ts';
+import { Cause, Effect, Exit, Layer, Scope } from 'effect';
+import { ServerComponents, openServerResources } from './server-resources.ts';
 
 describe('managed server resources', () => {
   it('disposes acquired resources exactly once when the opened server closes', async () => {
@@ -10,7 +10,7 @@ describe('managed server resources', () => {
       close: () => Promise.resolve(),
       server: { closeAllConnections() {} },
     };
-    const resources = new ServerResources(
+    const resources = openServerResources(
       Layer.effect(
         ServerComponents,
         Effect.gen(function* () {
@@ -29,22 +29,27 @@ describe('managed server resources', () => {
             jobs: [],
             network: listener,
             owner: listener,
-            close: () => Promise.resolve(),
+            close: () => Effect.void,
           };
         }),
       ),
     );
-    const opened = await resources.open(new AbortController().signal);
+    const scope = Effect.runSync(Scope.make());
+    const opened = await Effect.runPromise(
+      resources.pipe(Scope.provide(scope)),
+    );
     expect(order).toEqual(['opened']);
-    await opened.close();
-    await opened.close();
+    await Effect.runPromise(opened.close());
+    await Effect.runPromise(opened.close());
     expect(order).toEqual(['opened', 'workers', 'database']);
+    await Effect.runPromise(Scope.close(scope, Exit.void));
   });
 
-  it('rolls back every acquired resource and preserves the original startup failure', async () => {
+  it('rolls back every acquired resource and preserves startup and cleanup failures', async () => {
     const failure = new Error('Cannot bind the listener');
+    const cleanup = new Error('Cleanup failed');
     const order: string[] = [];
-    const resources = new ServerResources(
+    const resources = openServerResources(
       Layer.effect(
         ServerComponents,
         Effect.gen(function* () {
@@ -56,15 +61,21 @@ describe('managed server resources', () => {
           yield* Effect.addFinalizer(() =>
             Effect.sync(() => {
               order.push('workers');
-            }).pipe(Effect.andThen(Effect.die(new Error('Cleanup failed')))),
+            }).pipe(Effect.andThen(Effect.die(cleanup))),
           );
           return yield* Effect.die(failure);
         }),
       ),
     );
-    await expect(resources.open(new AbortController().signal)).rejects.toBe(
-      failure,
-    );
+    const exit = await Effect.runPromiseExit(Effect.scoped(resources));
+    expect(Exit.isFailure(exit)).toBe(true);
+    if (!Exit.isFailure(exit))
+      throw new Error('Resource acquisition should fail');
+    const defects = exit.cause.reasons
+      .filter(Cause.isDieReason)
+      .map((reason) => reason.defect);
+    expect(defects).toContain(failure);
+    expect(defects).toContain(cleanup);
     expect(order).toEqual(['workers', 'database']);
   });
 });

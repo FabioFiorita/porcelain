@@ -1,8 +1,5 @@
-import { type Clock, DateTime } from 'effect';
+import { Clock, DateTime, Effect, FileSystem, Path } from 'effect';
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { delay } from './delay.ts';
 import type { DirectoryLock } from '../ports/directory-lock.ts';
 
 type DirectoryLockOptions = {
@@ -13,100 +10,102 @@ type DirectoryLockOptions = {
   clock: Clock.Clock;
   held: () => Error;
 };
-
 type LockOwner = { pid: number; token: string };
-
 const OWNER_FILE = 'owner.json';
-
-function errorCode(error: unknown): unknown {
-  return error instanceof Error && 'code' in error ? error.code : undefined;
-}
-
 function processIsAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;
   } catch (error) {
-    return errorCode(error) === 'EPERM';
+    return error instanceof Error && 'code' in error && error.code === 'EPERM';
   }
 }
 
-async function ownerOf(lock: string): Promise<LockOwner | undefined> {
-  let owner: unknown;
-  try {
-    owner = JSON.parse(await readFile(join(lock, OWNER_FILE), 'utf8'));
-  } catch {
-    return undefined;
-  }
-  return typeof owner === 'object' &&
-    owner !== null &&
-    'pid' in owner &&
-    typeof owner.pid === 'number' &&
-    'token' in owner &&
-    typeof owner.token === 'string'
-    ? { pid: owner.pid, token: owner.token }
-    : undefined;
-}
-
-async function isStale(lock: string): Promise<boolean> {
-  const owner = await ownerOf(lock);
-  return owner === undefined || !processIsAlive(owner.pid);
-}
-
-async function claim(
-  candidate: string,
-  options: DirectoryLockOptions,
-): Promise<void> {
-  let waited = 0;
-  let takeovers = 0;
-  for (;;) {
-    try {
-      await rename(candidate, options.path);
-      return;
-    } catch (error) {
-      const code = errorCode(error);
-      if (code !== 'EEXIST' && code !== 'ENOTEMPTY') throw error;
-    }
-    if (takeovers < options.staleTakeovers && (await isStale(options.path))) {
-      takeovers += 1;
-      await rm(options.path, { recursive: true, force: true });
-      continue;
-    }
-    if (waited >= options.waitMs) throw options.held();
-    await delay(options.pollMs);
-    waited += options.pollMs;
-  }
-}
-
-export async function acquireDirectoryLock(
-  options: DirectoryLockOptions,
-): Promise<DirectoryLock> {
-  await mkdir(dirname(options.path), { recursive: true, mode: 0o700 });
-  const token = randomUUID();
-  const candidate = `${options.path}.candidate-${token}`;
-  await mkdir(candidate, { mode: 0o700 });
-  try {
-    await writeFile(
-      join(candidate, OWNER_FILE),
-      JSON.stringify({
-        pid: process.pid,
-        createdAt: DateTime.formatIso(
-          DateTime.makeUnsafe(options.clock.currentTimeMillisUnsafe()),
-        ),
-        token,
-      }),
-      { mode: 0o600 },
+export const acquireDirectoryLock = Effect.fn('acquireDirectoryLock')(
+  function* (options: DirectoryLockOptions) {
+    const fs = yield* FileSystem.FileSystem;
+    const pathApi = yield* Path.Path;
+    const ownerOf = Effect.fn('DirectoryLock.ownerOf')((lock: string) =>
+      fs.readFileString(pathApi.join(lock, OWNER_FILE)).pipe(
+        Effect.map((text): LockOwner | undefined => {
+          let owner: unknown;
+          try {
+            owner = JSON.parse(text);
+          } catch {
+            return undefined;
+          }
+          return typeof owner === 'object' &&
+            owner !== null &&
+            'pid' in owner &&
+            typeof owner.pid === 'number' &&
+            'token' in owner &&
+            typeof owner.token === 'string'
+            ? { pid: owner.pid, token: owner.token }
+            : undefined;
+        }),
+        Effect.catch(() => Effect.succeed(undefined)),
+      ),
     );
-    await claim(candidate, options);
-  } catch (error) {
-    await rm(candidate, { recursive: true, force: true });
-    throw error;
-  }
-  return {
-    release: async () => {
-      const owner = await ownerOf(options.path);
+    yield* fs.makeDirectory(pathApi.dirname(options.path), {
+      recursive: true,
+      mode: 0o700,
+    });
+    const token = randomUUID();
+    const candidate = `${options.path}.candidate-${token}`;
+    const release = Effect.gen(function* () {
+      const owner = yield* ownerOf(options.path);
       if (owner?.token === token)
-        await rm(options.path, { recursive: true, force: true });
-    },
-  };
-}
+        yield* fs.remove(options.path, { recursive: true, force: true });
+    }).pipe(Effect.orDie);
+    const claim = Effect.gen(function* () {
+      yield* fs.makeDirectory(candidate, { mode: 0o700 });
+      const createdAt = yield* DateTime.now.pipe(
+        Effect.provideService(Clock.Clock, options.clock),
+      );
+      yield* fs.writeFileString(
+        pathApi.join(candidate, OWNER_FILE),
+        JSON.stringify({
+          pid: process.pid,
+          createdAt: DateTime.formatIso(createdAt),
+          token,
+        }),
+        { mode: 0o600 },
+      );
+      let waited = 0;
+      let takeovers = 0;
+      for (;;) {
+        const renamed = yield* fs.rename(candidate, options.path).pipe(
+          Effect.as(true),
+          Effect.catch((error) =>
+            error.reason._tag === 'AlreadyExists' ||
+            (error.cause instanceof Error &&
+              'code' in error.cause &&
+              error.cause.code === 'ENOTEMPTY')
+              ? Effect.succeed(false)
+              : Effect.fail(error),
+          ),
+        );
+        if (renamed) return { release } satisfies DirectoryLock;
+        const owner = yield* ownerOf(options.path);
+        if (
+          takeovers < options.staleTakeovers &&
+          (owner === undefined || !processIsAlive(owner.pid))
+        ) {
+          takeovers += 1;
+          yield* fs.remove(options.path, { recursive: true, force: true });
+          continue;
+        }
+        if (waited >= options.waitMs) return yield* Effect.fail(options.held());
+        yield* Effect.sleep(options.pollMs);
+        waited += options.pollMs;
+      }
+    }).pipe(
+      Effect.ensuring(
+        fs
+          .remove(candidate, { recursive: true, force: true })
+          .pipe(Effect.orDie),
+      ),
+    );
+    return yield* Effect.acquireRelease(claim, (lock) => lock.release);
+  },
+);

@@ -4,7 +4,7 @@ import {
   DeviceSightingStore,
   AuthenticateDeviceOptions,
 } from '@porcelain/access/ports';
-import { Effect, Clock } from 'effect';
+import { Redacted, Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type { StoredDevice } from '@porcelain/access/models';
 import { credential } from '@porcelain/access/rules';
@@ -50,7 +50,7 @@ async function setup(device: Partial<StoredDevice> = {}) {
     sightings,
     clock,
     service,
-    token: credential('pcd', deviceId, secret).token,
+    token: Redacted.value(credential('pcd', deviceId, secret).token),
   };
 }
 
@@ -134,16 +134,19 @@ describe('AuthenticateDeviceService', () => {
     { name: 'a malformed credential', attempt: 'pcd_unknown' },
     {
       name: 'a pairing code',
-      attempt: credential('pcp', deviceId, secret).token,
+      attempt: Redacted.value(credential('pcp', deviceId, secret).token),
     },
     {
       name: 'an unknown device',
-      attempt: credential('pcd', '00000000-0000-4000-8000-000000000002', secret)
-        .token,
+      attempt: Redacted.value(
+        credential('pcd', '00000000-0000-4000-8000-000000000002', secret).token,
+      ),
     },
     {
       name: 'a wrong secret',
-      attempt: credential('pcd', deviceId, 'w'.repeat(43)).token,
+      attempt: Redacted.value(
+        credential('pcd', deviceId, 'w'.repeat(43)).token,
+      ),
     },
   ])('refuses $name', async ({ attempt }) => {
     const { service } = await setup();

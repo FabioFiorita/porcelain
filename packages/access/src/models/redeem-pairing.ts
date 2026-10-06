@@ -1,4 +1,5 @@
 import type { Device, DeviceDetailLimits, DeviceRoute } from './device.ts';
+import type { Redacted } from 'effect';
 
 export type RedeemPairingInput = {
   code: string;
@@ -7,6 +8,9 @@ export type RedeemPairingInput = {
   label?: string | undefined;
 };
 
-export type RedeemPairingResult = { device: Device; credential: string };
+export type RedeemPairingResult = {
+  device: Device;
+  credential: Redacted.Redacted<string>;
+};
 
 export type RedeemPairingOptions = DeviceDetailLimits;

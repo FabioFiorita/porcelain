@@ -8,6 +8,7 @@ import type { GitActionReceiptStore } from '../../src/ports/git-action-receipt-s
 export class InMemoryGitActionReceiptStore implements GitActionReceiptStore {
   private readonly rows: Map<string, GitActionReceipt>;
   private readonly saved = new Map<string, GitActionReceipt>();
+  private readonly queued = new Set<string>();
 
   constructor(receipts: readonly GitActionReceipt[] = []) {
     this.rows = new Map(
@@ -28,7 +29,12 @@ export class InMemoryGitActionReceiptStore implements GitActionReceiptStore {
     return Effect.sync(() => {
       this.rows.set(input.requestId, structuredClone(input));
       this.saved.delete(input.requestId);
+      this.queued.add(input.requestId);
     });
+  }
+
+  claimExecution(input: { requestId: string }): Effect.Effect<boolean> {
+    return Effect.sync(() => this.queued.delete(input.requestId));
   }
 
   save(input: GitActionReceipt): Effect.Effect<void> {
@@ -76,6 +82,7 @@ export class InMemoryGitActionReceiptStore implements GitActionReceiptStore {
       input.requestIds.forEach((requestId) => {
         this.rows.delete(requestId);
         this.saved.delete(requestId);
+        this.queued.delete(requestId);
       });
     });
   }

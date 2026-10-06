@@ -1,3 +1,4 @@
+import { Duration } from 'effect';
 import {
   BRANCH_BASES,
   CHANGED_PATHS,
@@ -181,26 +182,26 @@ export type Limits = {
   };
   inventory: {
     listingLaunches: number;
-    listingTimeoutMs: number;
+    listingTimeout: Duration.Duration;
     staleAfterMs: number;
   };
-  lanes: { readCapacity: number; operationTimeoutMs: number };
+  lanes: { readCapacity: number; operationTimeout: Duration.Duration };
   storage: { busyTimeoutMs: number };
   liveUpdates: {
     maxConnections: number;
     maxWatchedWorktrees: number;
     eventBuffer: number;
-    burstMs: number;
-    announcedEditMs: number;
-    heartbeatMs: number;
-    pingMs: number;
+    burst: Duration.Duration;
+    announcedEdit: Duration.Duration;
+    heartbeat: Duration.Duration;
+    ping: Duration.Duration;
     messageBytes: number;
   };
   jobs: {
-    refreshInventoryMs: number;
-    collectAbsentWorktreesMs: number;
-    flushDeviceActivityMs: number;
-    openRemoteRoutesMs: number;
+    refreshInventory: Duration.Duration;
+    collectAbsentWorktrees: Duration.Duration;
+    flushDeviceActivity: Duration.Duration;
+    openRemoteRoutes: Duration.Duration;
   };
   http: {
     bodyBytes: number;
@@ -217,7 +218,7 @@ export type Limits = {
     };
     health: { attempts: number; intervalMs: number };
   };
-  listeners: { closeGraceMs: number };
+  listeners: { closeGrace: Duration.Duration };
   cli: {
     printedAddressLength: number;
     printedIdLength: number;
@@ -417,26 +418,26 @@ export const LIMITS: Limits = {
   },
   inventory: {
     listingLaunches: 4,
-    listingTimeoutMs: 5 * SECOND_MS,
+    listingTimeout: Duration.seconds(5),
     staleAfterMs: 60 * SECOND_MS,
   },
-  lanes: { readCapacity: 4, operationTimeoutMs: 30 * SECOND_MS },
+  lanes: { readCapacity: 4, operationTimeout: Duration.seconds(30) },
   storage: { busyTimeoutMs: 5 * SECOND_MS },
   liveUpdates: {
     maxConnections: 64,
     maxWatchedWorktrees: 64,
     eventBuffer: 256,
-    burstMs: 150,
-    announcedEditMs: 300,
-    heartbeatMs: 25 * SECOND_MS,
-    pingMs: 30 * SECOND_MS,
+    burst: Duration.millis(150),
+    announcedEdit: Duration.millis(300),
+    heartbeat: Duration.seconds(25),
+    ping: Duration.seconds(30),
     messageBytes: 64 * KIBIBYTE,
   },
   jobs: {
-    refreshInventoryMs: 30 * SECOND_MS,
-    collectAbsentWorktreesMs: HOUR_MS,
-    flushDeviceActivityMs: MINUTE_MS,
-    openRemoteRoutesMs: 5 * SECOND_MS,
+    refreshInventory: Duration.seconds(30),
+    collectAbsentWorktrees: Duration.hours(1),
+    flushDeviceActivity: Duration.minutes(1),
+    openRemoteRoutes: Duration.seconds(5),
   },
   http: {
     bodyBytes: MEBIBYTE,
@@ -453,7 +454,7 @@ export const LIMITS: Limits = {
     },
     health: { attempts: 60, intervalMs: 250 },
   },
-  listeners: { closeGraceMs: 5 * SECOND_MS },
+  listeners: { closeGrace: Duration.seconds(5) },
   cli: {
     printedAddressLength: 60,
     printedIdLength: 80,

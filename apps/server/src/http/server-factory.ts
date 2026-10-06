@@ -7,7 +7,7 @@ import { NodeLiveSockets, nodeLiveSockets } from './node-live-socket.ts';
 import type { ListenOptions } from 'node:net';
 import { NodeHttpServer, NodeHttpServerRequest } from '@effect/platform-node';
 import type { Principal } from '@porcelain/contracts/access';
-import { ByteSize, Effect, Exit, Layer, Scope } from 'effect';
+import { ByteSize, Effect, Exit, Layer, Scope, type Context } from 'effect';
 import type { HttpServerError } from 'effect/http';
 import {
   HttpIncomingMessage,
@@ -20,6 +20,7 @@ import type { Logger } from '../ports/logger.ts';
 import { RequestContext, requestServices } from './request-context.ts';
 import { crossOriginHeaders } from './hooks/cross-origin-clients.ts';
 import { errorResponse } from './error-handler.ts';
+import type { Observability } from '../runtime/observability.ts';
 
 export function createHttpListener(options: {
   application: Layer.Layer<
@@ -167,6 +168,7 @@ export function createHttpListener(options: {
 export function requestBoundary(options: {
   principal: Principal | undefined;
   logger: Logger;
+  observability: Context.Service.Shape<typeof Observability>;
   bodyBytes: number;
 }) {
   return HttpRouter.middleware<{
@@ -202,24 +204,30 @@ export function requestBoundary(options: {
         path: request.originalUrl.split('?', 1)[0],
         kit: request.headers['x-porcelain-journey'] === 'kit',
       });
-      const answer = yield* Effect.provideService(
-        app,
-        RequestContext,
-        context,
-      ).pipe(
-        Effect.provideService(
-          HttpIncomingMessage.MaxBodySize,
-          ByteSize.fromInputUnsafe(options.bodyBytes),
-        ),
-        Effect.catchTags({
-          TooManyPairingAttemptsError: (error) =>
+      const answer = yield* options.observability.measure(
+        { kind: 'request', name: route.route.path, method: request.method },
+        Effect.provideService(app, RequestContext, context).pipe(
+          Effect.provideService(
+            HttpIncomingMessage.MaxBodySize,
+            ByteSize.fromInputUnsafe(options.bodyBytes),
+          ),
+          Effect.catchTags({
+            TooManyPairingAttemptsError: (error) =>
+              Effect.succeed(errorResponse(error, request, options.logger)),
+            HttpServerError: (error) =>
+              Effect.succeed(errorResponse(error, request, options.logger)),
+          }),
+          Effect.catchDefect((error) =>
             Effect.succeed(errorResponse(error, request, options.logger)),
-          HttpServerError: (error) =>
-            Effect.succeed(errorResponse(error, request, options.logger)),
-        }),
-        Effect.catchDefect((error) =>
-          Effect.succeed(errorResponse(error, request, options.logger)),
+          ),
+          Effect.tap((answer) =>
+            Effect.annotateCurrentSpan(
+              'http.response.status_code',
+              answer.status,
+            ),
+          ),
         ),
+        (answer) => (answer.status >= 500 ? 'failure' : 'success'),
       );
       httpEvent({
         event: 'response',

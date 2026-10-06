@@ -5,7 +5,7 @@ import {
   DeviceSightingStore,
   RedeemLiveTicketOptions,
 } from '@porcelain/access/ports';
-import { Effect, Clock } from 'effect';
+import { Redacted, Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type { StoredDevice } from '@porcelain/access/models';
 import { credential } from '@porcelain/access/rules';
@@ -21,7 +21,7 @@ const secret = 't'.repeat(43);
 const issuedAt = '2026-09-30T10:00:00.000Z';
 const expiresAt = '2026-09-30T10:00:30.000Z';
 const day = 24 * 60 * 60 * 1000;
-const ticket = credential('pct', ticketId, secret).token;
+const ticket = Redacted.value(credential('pct', ticketId, secret).token);
 
 async function setup(device: Partial<StoredDevice> = {}) {
   const devices = new InMemoryDeviceStore();
@@ -121,7 +121,9 @@ describe('RedeemLiveTicketService', () => {
     expect(
       Effect.runSync(
         service.execute({
-          ticket: credential('pct', ticketId, 'x'.repeat(43)).token,
+          ticket: Redacted.value(
+            credential('pct', ticketId, 'x'.repeat(43)).token,
+          ),
           route: 'tailnet',
         }),
       ),
@@ -129,9 +131,18 @@ describe('RedeemLiveTicketService', () => {
   });
 
   it.each([
-    ['an unknown ticket', credential('pct', deviceId, secret).token],
-    ['a device credential', credential('pcd', ticketId, secret).token],
-    ['a pairing code', credential('pcp', ticketId, secret).token],
+    [
+      'an unknown ticket',
+      Redacted.value(credential('pct', deviceId, secret).token),
+    ],
+    [
+      'a device credential',
+      Redacted.value(credential('pcd', ticketId, secret).token),
+    ],
+    [
+      'a pairing code',
+      Redacted.value(credential('pcp', ticketId, secret).token),
+    ],
     ['an empty value', ''],
     ['a malformed value', `pct_${ticketId}_short`],
   ])('refuses %s without spending the ticket', async (_, value) => {

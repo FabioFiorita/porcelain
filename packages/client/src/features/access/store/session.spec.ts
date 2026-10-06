@@ -1,4 +1,4 @@
-import { Crypto, Effect, Layer, ManagedRuntime } from 'effect';
+import { Redacted, Crypto, Effect, Layer, ManagedRuntime } from 'effect';
 import { expect, it } from 'vitest';
 import {
   AccessSession,
@@ -27,7 +27,7 @@ const remote: Remote = {
   environmentId: 'remote',
   name: 'Remote',
   address: 'https://remote.example',
-  credential: 'test-credential',
+  credential: Redacted.make('test-credential'),
   deviceId: 'first-device',
 };
 
@@ -216,7 +216,7 @@ it('invalidates a session immediately and waits for its platform release before 
 });
 
 it.each([
-  ['credential', { credential: 'new-credential' }],
+  ['credential', { credential: Redacted.make('new-credential') }],
   ['address', { address: 'https://other.example' }],
   ['device', { deviceId: 'second-device' }],
 ])(
@@ -328,7 +328,9 @@ it('serializes remote replacement and forgetting until the retired connection re
   try {
     await runtime.runPromise(connections.synchronize([remote]));
     const replacing = runtime.runPromise(
-      connections.synchronize([{ ...remote, credential: 'new-credential' }]),
+      connections.synchronize([
+        { ...remote, credential: Redacted.make('new-credential') },
+      ]),
     );
     await releasing.promise;
     const forgetting = runtime.runPromise(

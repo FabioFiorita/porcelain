@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from 'effect';
+import { Context, Effect, Layer, Redacted } from 'effect';
 import {
   type InvalidPairingError,
   type InvalidDeviceDetailsError,
@@ -41,7 +41,11 @@ export class RedeemPairingUseCase extends Context.Service<
             'write',
             () =>
               Effect.gen(function* () {
-                return yield* redeemPairingCapability.execute(input);
+                const paired = yield* redeemPairingCapability.execute(input);
+                return {
+                  ...paired,
+                  credential: Redacted.value(paired.credential),
+                };
               }),
           );
         }),

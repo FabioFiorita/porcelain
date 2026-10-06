@@ -1,11 +1,11 @@
 export { parsePairingLink, type PairingCode } from './pairing-link.ts';
 export {
-  remoteKey,
   sameRemoteConnection,
   remoteStatusText,
   remoteStatusNote,
   remoteStatus,
   parseRemotes,
+  serializeRemotes,
   type Remote,
   type RemoteStatus,
 } from './remotes.ts';

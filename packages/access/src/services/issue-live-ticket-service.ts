@@ -1,5 +1,5 @@
 import { IssueLiveTicketOptions } from '../ports/issue-live-ticket-options.ts';
-import { Effect, Context, Layer, Clock, DateTime } from 'effect';
+import { Redacted, Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { IdSource, SecretSource } from '@porcelain/kernel/ports';
 import { instantAfter, sha256Hex } from '@porcelain/kernel/rules';
 import { DeviceViewerRequiredError } from '../errors/device-viewer-required-error.ts';
@@ -55,7 +55,7 @@ export class IssueLiveTicketService extends Context.Service<
             liveTickets.read(),
             {
               id: issued.id,
-              secretHash: sha256Hex(issued.secret),
+              secretHash: sha256Hex(Redacted.value(issued.secret)),
               deviceId: viewer.deviceId,
               route: input.route,
               expiresAt,

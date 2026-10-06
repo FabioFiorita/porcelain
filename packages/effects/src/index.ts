@@ -5,6 +5,8 @@ export {
   WorktreeWrite,
   withReadLease,
   withWriteLease,
+  admittedRead,
+  admittedWrite,
   nativeRead,
   nativeWrite,
 } from './worktree-lease.ts';

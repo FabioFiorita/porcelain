@@ -1,5 +1,5 @@
 import { DesktopSession } from '../ports/desktop-session.ts';
-import { Effect, Context, Layer } from 'effect';
+import { Redacted, Effect, Context, Layer } from 'effect';
 import type {
   AuthenticateDeviceInput,
   AuthenticateDeviceResult,
@@ -29,7 +29,10 @@ export class AuthenticateDesktopSessionService extends Context.Service<
               if (
                 session === undefined ||
                 input.route !== 'loopback' ||
-                !secretMatches(session.secretHash, input.credential)
+                !secretMatches(
+                  session.secretHash,
+                  Redacted.make(input.credential),
+                )
               )
                 return { kind: 'refused' };
               return { kind: 'authenticated', deviceId: session.deviceId };

@@ -67,7 +67,7 @@ const keyTargets = new Set([...globalObjects, 'document']);
 const keyEvents = new Set(['keydown', 'keyup', 'keypress']);
 const historyGlobals = new Set(['history']);
 const pureRuleModules =
-  /^(?:@porcelain\/contracts(?:\/|$)|@porcelain\/client\/[^/]+\/rules$|date-fns(?:\/|$))/;
+  /^(?:@porcelain\/contracts(?:\/|$)|@porcelain\/client\/[^/]+\/rules$)/;
 const loopStatements = new Set([
   'ForStatement',
   'ForInStatement',
@@ -723,9 +723,8 @@ export const webRules = {
     create(context) {
       if (webPart(webPath(context)) !== 'query') return {};
       const message =
-        'A queries/ file exports only queryOptions factories, native reads and read hooks; pure decisions belong in rules/, and re-exports belong in index.ts, because mixing decisions with reads hides their independent owner.';
-      const readName = (name) =>
-        /^(?:use|read)[A-Z]/.test(name) || /QueryOptions$/.test(name);
+        'A queries/ file exports only native reads and read hooks; pure decisions belong in rules/, and re-exports belong in index.ts, because mixing decisions with reads hides their independent owner.';
+      const readName = (name) => /^(?:use|read)[A-Z]/.test(name);
       return {
         ExportAllDeclaration(node) {
           context.report({ node, message });
@@ -924,7 +923,7 @@ export const webRules = {
       const path = webPath(context);
       if (webPart(path) !== 'web-rule') return {};
       const message =
-        'features/<domain>/rules/ holds pure functions: no React, no I/O, only sibling rules, config/limits.ts, contracts and date-fns, because a decision must not depend on browser state or perform effects.';
+        'features/<domain>/rules/ holds pure functions: no React, no I/O, only sibling rules, config/limits.ts, contracts and shared client rules, because a decision must not depend on browser state or perform effects.';
       const check = (node) => {
         const specifier = sourceOf(node);
         if (specifier === undefined) return;

@@ -1,14 +1,15 @@
-import type { Effect } from 'effect';
-import { nativeOperation } from '@porcelain/effects';
-import { lstat, opendir, realpath, stat } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { Effect, FileSystem, Layer, Path } from 'effect';
+import { lstat, stat } from 'node:fs/promises';
 import type {
   FolderEntry,
-  ProjectFolderContents,
   ProjectFolderRead,
   ReadProjectFolderInput,
 } from '@porcelain/projects/models';
-import type { ProjectFolderReader } from '@porcelain/projects/ports';
+import { ProjectFolderReader } from '@porcelain/projects/ports';
+import {
+  openRawDirectory,
+  syscall,
+} from '../files/guarded-filesystem-syscalls.ts';
 
 const UNREADABLE_CODES = [
   'ENOENT',
@@ -19,9 +20,6 @@ const UNREADABLE_CODES = [
   'EISDIR',
   'ENXIO',
 ];
-
-const MISSING_CODES = ['ENOENT'];
-
 function decodedName(name: unknown): string | undefined {
   if (!Buffer.isBuffer(name)) return undefined;
   try {
@@ -32,98 +30,104 @@ function decodedName(name: unknown): string | undefined {
     return undefined;
   }
 }
-
 function hasCode(error: unknown, codes: readonly string[]): boolean {
-  return (
-    error instanceof Error &&
-    'code' in error &&
-    codes.includes(String(error.code))
+  if (error instanceof Error && 'code' in error)
+    return codes.includes(String(error.code));
+  if (error instanceof Error && 'cause' in error)
+    return hasCode(error.cause, codes);
+  return false;
+}
+
+export const filesystemProjectFolderReaderLayer = (options: {
+  gitDirectory: string;
+}) =>
+  Layer.effect(
+    ProjectFolderReader,
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const pathApi = yield* Path.Path;
+      return {
+        read: Effect.fn('FilesystemProjectFolderReader.read')(
+          (input: ReadProjectFolderInput) =>
+            Effect.scoped(
+              Effect.gen(function* () {
+                const path = yield* fs.realPath(input.path);
+                const directory = yield* openRawDirectory(path);
+                const directories: FolderEntry[] = [];
+                let count = 0;
+                let truncated = false;
+                for (;;) {
+                  const entry = yield* syscall(() => directory.read());
+                  if (entry === null) break;
+                  if (++count > input.maxEntries) {
+                    truncated = true;
+                    break;
+                  }
+                  const name = decodedName(entry.name);
+                  if (name === undefined)
+                    return {
+                      kind: 'unsupported-name',
+                    } satisfies ProjectFolderRead;
+                  const child = pathApi.join(path, name);
+                  const symbolicLink = entry.isSymbolicLink();
+                  const isDirectory =
+                    entry.isDirectory() ||
+                    (symbolicLink &&
+                      (yield* syscall(() => stat(child)).pipe(
+                        Effect.map((info) => info.isDirectory()),
+                        Effect.catch((error) =>
+                          hasCode(error, [
+                            'ENOENT',
+                            'ENOTDIR',
+                            'EACCES',
+                            'EPERM',
+                            'ELOOP',
+                          ])
+                            ? Effect.succeed(false)
+                            : Effect.fail(error),
+                        ),
+                      )));
+                  if (isDirectory)
+                    directories.push({ name, path: child, symbolicLink });
+                }
+                const gitMarker = yield* syscall(() =>
+                  lstat(pathApi.join(path, options.gitDirectory)),
+                ).pipe(
+                  Effect.map((info) => info.isDirectory() || info.isFile()),
+                  Effect.catch((error) =>
+                    hasCode(error, ['ENOENT', 'EACCES', 'EPERM'])
+                      ? Effect.succeed(false)
+                      : Effect.fail(error),
+                  ),
+                );
+                return {
+                  kind: 'read',
+                  contents: {
+                    path,
+                    parent:
+                      pathApi.dirname(path) === path
+                        ? undefined
+                        : pathApi.dirname(path),
+                    directories: directories.sort((a, b) =>
+                      a.name.localeCompare(b.name),
+                    ),
+                    gitMarker,
+                    truncated,
+                  },
+                } satisfies ProjectFolderRead;
+              }),
+            ).pipe(
+              Effect.catch((error) => {
+                if (hasCode(error, ['ENOENT']))
+                  return Effect.succeed<ProjectFolderRead>({ kind: 'missing' });
+                if (hasCode(error, UNREADABLE_CODES))
+                  return Effect.succeed<ProjectFolderRead>({
+                    kind: 'unreadable',
+                  });
+                return Effect.die(error);
+              }),
+            ),
+        ),
+      };
+    }),
   );
-}
-
-export class FilesystemProjectFolderReader implements ProjectFolderReader {
-  private readonly options: { gitDirectory: string };
-
-  constructor(options: { gitDirectory: string }) {
-    this.options = options;
-  }
-
-  read(input: ReadProjectFolderInput): Effect.Effect<ProjectFolderRead> {
-    return nativeOperation((signal) => this.readNative(input, signal));
-  }
-
-  private async readNative(
-    input: ReadProjectFolderInput,
-    signal?: AbortSignal,
-  ): Promise<ProjectFolderRead> {
-    try {
-      const contents = await this.contents(input, signal);
-      return contents
-        ? { kind: 'read', contents }
-        : { kind: 'unsupported-name' };
-    } catch (error) {
-      if (hasCode(error, MISSING_CODES)) return { kind: 'missing' };
-      if (hasCode(error, UNREADABLE_CODES)) return { kind: 'unreadable' };
-      throw error;
-    }
-  }
-
-  private async contents(
-    input: ReadProjectFolderInput,
-    signal?: AbortSignal,
-  ): Promise<ProjectFolderContents | undefined> {
-    signal?.throwIfAborted();
-    const path = await realpath(input.path);
-    const directory = await opendir(path, { encoding: 'buffer' });
-    const directories: FolderEntry[] = [];
-    let count = 0;
-    let truncated = false;
-    for await (const entry of directory) {
-      signal?.throwIfAborted();
-      if (++count > input.maxEntries) {
-        truncated = true;
-        break;
-      }
-      const name = decodedName(entry.name);
-      if (name === undefined) return undefined;
-      const child = join(path, name);
-      const symbolicLink = entry.isSymbolicLink();
-      if (
-        entry.isDirectory() ||
-        (symbolicLink &&
-          (await stat(child).then(
-            (info) => info.isDirectory(),
-            (error: unknown) => {
-              if (
-                hasCode(error, [
-                  'ENOENT',
-                  'ENOTDIR',
-                  'EACCES',
-                  'EPERM',
-                  'ELOOP',
-                ])
-              )
-                return false;
-              throw error;
-            },
-          )))
-      )
-        directories.push({ name, path: child, symbolicLink });
-    }
-    const gitMarker = await lstat(join(path, this.options.gitDirectory)).then(
-      (info) => info.isDirectory() || info.isFile(),
-      (error: unknown) => {
-        if (hasCode(error, ['ENOENT', 'EACCES', 'EPERM'])) return false;
-        throw error;
-      },
-    );
-    signal?.throwIfAborted();
-    return {
-      path,
-      parent: dirname(path) === path ? undefined : dirname(path),
-      directories: directories.sort((a, b) => a.name.localeCompare(b.name)),
-      gitMarker,
-      truncated,
-    };
-  }
-}

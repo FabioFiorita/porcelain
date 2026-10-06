@@ -1,18 +1,26 @@
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import type { ReadEnvironmentResponse } from '@porcelain/contracts/access';
+import { Redacted, Schema } from 'effect';
 
 export type RemoteAnswer =
   | { kind: 'described'; environment: ReadEnvironmentResponse }
   | { kind: 'unauthorized' }
   | { kind: 'unreachable' };
 
-export type Remote = {
-  readonly environmentId: string;
-  readonly name: string;
-  readonly address: string;
-  readonly credential: string;
-  readonly deviceId?: string | undefined;
-};
+const remoteSchema = Schema.Struct({
+  environmentId: Schema.String,
+  name: Schema.String,
+  address: Schema.String,
+  credential: Schema.RedactedFromValue(Schema.String),
+  deviceId: Schema.optional(Schema.String),
+});
+export type Remote = typeof remoteSchema.Type;
+
+// This codec is the browser/desktop storage boundary. In-memory remotes stay
+// redacted; the persisted JSON remains the format existing installations read.
+export function serializeRemotes(remotes: readonly Remote[]): string {
+  return JSON.stringify(Schema.encodeSync(Schema.Array(remoteSchema))(remotes));
+}
 
 export type RemoteStatus =
   | { kind: 'checking' }
@@ -59,7 +67,7 @@ function savedRemote(value: unknown): Remote[] {
           environmentId,
           name,
           address,
-          credential,
+          credential: Redacted.make(credential),
           ...(deviceId ? { deviceId } : {}),
         },
       ]
@@ -77,17 +85,15 @@ export function withRemote(remotes: readonly Remote[], remote: Remote) {
   ];
 }
 
-export function remoteKey(
-  remote: Pick<Remote, 'environmentId' | 'credential'>,
-) {
-  return `${remote.environmentId}:${remote.credential}`;
-}
+const sameCredential = Redacted.makeEquivalence<string>(
+  (left, right) => left === right,
+);
 
 export function sameRemoteConnection(left: Remote, right: Remote): boolean {
   return (
     left.environmentId === right.environmentId &&
     left.address === right.address &&
-    left.credential === right.credential &&
+    sameCredential(left.credential, right.credential) &&
     left.deviceId === right.deviceId
   );
 }

@@ -1,3 +1,4 @@
+import { Redacted } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { remoteStatus, parseRemotes, withRemote } from './remotes.ts';
 const environmentId = '1bc3e6b1-f849-4176-93b2-850147d4ebb3';
@@ -5,7 +6,7 @@ const remote = {
   environmentId,
   name: 'home-server',
   address: 'http://192.0.2.10:4738',
-  credential: 'pcd_secret',
+  credential: Redacted.make('pcd_secret'),
 };
 const environment = {
   environmentId,
@@ -45,7 +46,12 @@ describe('remoteStatus', () => {
 describe('parseRemotes', () => {
   it('keeps the saved remotes that are complete and drops the rest', () => {
     expect(
-      parseRemotes([remote, { ...remote, credential: '' }, 'junk', null]),
+      parseRemotes([
+        { ...remote, credential: 'pcd_secret' },
+        { ...remote, credential: '' },
+        'junk',
+        null,
+      ]),
     ).toEqual([remote]);
   });
 
@@ -56,7 +62,7 @@ describe('parseRemotes', () => {
 
 describe('withRemote', () => {
   it('replaces a remote paired again instead of listing it twice', () => {
-    const renewed = { ...remote, credential: 'pcd_new' };
+    const renewed = { ...remote, credential: Redacted.make('pcd_new') };
     expect(withRemote([remote], renewed)).toEqual([renewed]);
   });
 });

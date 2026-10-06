@@ -9,5 +9,5 @@ export { ListCommitModelsService } from './list-commit-models-service.ts';
 export { ReadGitActionReceiptService } from './read-git-action-receipt-service.ts';
 export { ReadInterruptedGitActionService } from './read-interrupted-git-action-service.ts';
 export { RecordGitActionProgressService } from './record-git-action-progress-service.ts';
-export { RecoverInterruptedGitActionsService } from './recover-interrupted-git-actions-service.ts';
 export { RunGitActionService } from './run-git-action-service.ts';
+export { BeginGitActionService } from './begin-git-action-service.ts';

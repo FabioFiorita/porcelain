@@ -73,6 +73,30 @@ export class WorktreeWrite extends Context.Service<WorktreeWrite, WriteLease>()(
 export const withReadLease = ReadLease.read;
 export const withWriteLease = ReadLease.write;
 
+export function admittedRead<A, E, R>(
+  worktreeId: string,
+  work: Effect.Effect<A, E, R>,
+): Effect.Effect<A, E, R | WorktreeRead> {
+  return Effect.flatMap(WorktreeRead, (lease) =>
+    Effect.zipRight(
+      Effect.sync(() => lease.assert(worktreeId)),
+      work,
+    ),
+  );
+}
+
+export function admittedWrite<A, E, R>(
+  worktreeId: string,
+  work: (committed: () => void) => Effect.Effect<A, E, R>,
+): Effect.Effect<A, E, R | WorktreeWrite> {
+  return Effect.flatMap(WorktreeWrite, (lease) =>
+    Effect.zipRight(
+      Effect.sync(() => lease.assertWrite(worktreeId)),
+      Effect.suspend(() => work(() => lease.confirmCommit(worktreeId))),
+    ),
+  );
+}
+
 export function nativeRead<A>(
   worktreeId: string,
   work: (signal: AbortSignal) => Promise<A>,

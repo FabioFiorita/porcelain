@@ -1,4 +1,5 @@
-import { Effect, Layer } from 'effect';
+import { Effect, Layer, type Context } from 'effect';
+import type { Observability } from '../runtime/observability.ts';
 import { HttpRouter } from 'effect/http';
 import type { ServerSettings } from '../config/server-settings.ts';
 import type { Logger } from '../ports/logger.ts';
@@ -16,6 +17,7 @@ export function createNetworkServer(options: {
   settings: Pick<ServerSettings, 'allowedHosts' | 'limits'>;
   files: WebRootReader;
   logger: Logger;
+  observability: Context.Service.Shape<typeof Observability>;
 }) {
   const { application, settings } = options;
   const boundary = HttpRouter.middleware((app) =>
@@ -26,6 +28,7 @@ export function createNetworkServer(options: {
   ).combine(
     requestBoundary({
       logger: options.logger,
+      observability: options.observability,
       principal: undefined,
       bodyBytes: settings.limits.http.bodyBytes,
     }),

@@ -687,7 +687,7 @@ test('access.pairing: works', async ({ workspace }) => {
     rule: 'web-queries-export-reads',
     path: 'packages/client/src/features/access/queries/environments.ts',
     valid:
-      "import { queryOptions } from '@tanstack/react-query'; export const environmentQueryOptions = () => queryOptions({ queryKey: ['environments'], queryFn: () => [] });",
+      "import { Effect } from 'effect'; export const readEnvironment = () => Effect.succeed([]);",
     invalid: 'export const defaultEnvironment = "local";',
     errors: 1,
   },
@@ -3894,18 +3894,6 @@ export const unusedQuery = () => ({ queryFn: () => { ${use} } });`,
   {
     rule: 'lane-per-table',
     valid: {
-      'packages/reviews/src/ports/review-store.ts':
-        'export interface ReviewStore { save(): void; }',
-    },
-    invalid: {
-      'packages/reviews/src/ports/new-review-store.ts':
-        'export interface NewReviewStore { save(): void; }',
-    },
-    errors: ['lane-per-table'],
-  },
-  {
-    rule: 'lane-per-table',
-    valid: {
       'packages/access/src/ports/device-store.ts':
         'export type DeviceStore = { save(): void };',
     },
@@ -3915,6 +3903,36 @@ export const unusedQuery = () => ({ queryFn: () => { ${use} } });`,
     },
     errors: ['lane-per-table'],
   },
+  ...[
+    {
+      rule: 'lane-per-table',
+      call: 'this.lanes.commit(this.laneKeys.access(), () => this.receipts.claimExecution());',
+      errors: ['lane-per-table'],
+    },
+    {
+      rule: 'lane-mode-matches-service',
+      call: "this.lanes.run(this.laneKeys.receipts(), 'read', () => this.receipts.claimExecution());",
+      errors: ['lane-mode-matches-service'],
+    },
+  ].map(({ rule, call, errors }) => ({
+    rule,
+    files: {
+      'packages/git-actions/src/ports/git-action-receipt-store.ts':
+        'export interface GitActionReceiptStore { claimExecution(): boolean; }',
+      'apps/server/src/runtime/lanes.ts':
+        'export class Lanes { commit(key: string, work: () => boolean): boolean { return work(); } run(key: string, mode: string, work: () => boolean): boolean { return work(); } }',
+      'apps/server/src/runtime/lane-keys.ts':
+        "export class LaneKeys { receipts(): string { return 'receipts'; } access(): string { return 'access'; } }",
+    },
+    valid: {
+      'apps/server/src/runtime/git-action-workflow.ts':
+        "import type { GitActionReceiptStore } from '../../../../../packages/git-actions/src/ports/git-action-receipt-store.ts'; import type { Lanes } from './lanes.ts'; import type { LaneKeys } from './lane-keys.ts'; export class GitActionWorkflow { constructor(private readonly receipts: GitActionReceiptStore, private readonly lanes: Lanes, private readonly laneKeys: LaneKeys) {} execute() { return this.lanes.commit(this.laneKeys.receipts(), () => this.receipts.claimExecution()); } }",
+    },
+    invalid: {
+      'apps/server/src/runtime/git-action-workflow.ts': `import type { GitActionReceiptStore } from '../../../../../packages/git-actions/src/ports/git-action-receipt-store.ts'; import type { Lanes } from './lanes.ts'; import type { LaneKeys } from './lane-keys.ts'; export class GitActionWorkflow { constructor(private readonly receipts: GitActionReceiptStore, private readonly lanes: Lanes, private readonly laneKeys: LaneKeys) {} execute() { ${call} } }`,
+    },
+    errors,
+  })),
   {
     rule: 'status-policy-complete',
     files: {

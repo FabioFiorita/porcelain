@@ -94,7 +94,7 @@ export function createCliRunner(
       }),
     ).pipe(Layer.provide(runtime));
     const services = Layer.mergeAll(
-      CliOperations.layer.pipe(Layer.provide(host)),
+      CliOperations.layer.pipe(Layer.provide(Layer.merge(host, platform))),
       Layer.succeed(CliInvocation, { homeDirectory, webRoot: defaultWebRoot }),
       EnvironmentSettings.layer,
       ConfigProvider.layer(ConfigProvider.fromEnvRecord({ ...environment })),

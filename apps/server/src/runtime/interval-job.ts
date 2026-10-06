@@ -1,6 +1,7 @@
 import {
   Cause,
-  Duration,
+  type Context,
+  type Duration,
   Effect,
   Exit,
   Schedule,
@@ -10,9 +11,10 @@ import {
 import type { Logger } from '../ports/logger.ts';
 import type { JobRunner } from '../ports/job-runner.ts';
 import type { Job } from '../ports/job.ts';
+import type { Observability } from './observability.ts';
 
 type JobSchedule = {
-  everyMs?: number | undefined;
+  every?: Duration.Duration | undefined;
   atStart?: boolean | undefined;
   atStop?: boolean | undefined;
 };
@@ -37,24 +39,30 @@ export const makeIntervalJob = <E>(
   work: JobRunner<E>,
   schedule: JobSchedule,
   logger: Logger,
+  observability: Context.Service.Shape<typeof Observability>,
 ) =>
   Effect.gen(function* () {
     const parent = yield* Scope.Scope;
     const state = yield* SynchronizedRef.make<JobState | undefined>(undefined);
     const attempt = Effect.fn('IntervalJob.attempt')(() =>
-      Effect.suspend(() => work.execute()).pipe(
-        Effect.catchCause((cause) =>
-          Cause.hasInterruptsOnly(cause)
-            ? Effect.interrupt
-            : Effect.sync(() =>
-                logger.failure({
-                  kind: 'job',
-                  job: name,
-                  error: Cause.squash(cause),
-                }),
-              ),
+      observability
+        .measure(
+          { kind: 'job', name },
+          Effect.suspend(() => work.execute()),
+        )
+        .pipe(
+          Effect.catchCause((cause) =>
+            Cause.hasInterruptsOnly(cause)
+              ? Effect.interrupt
+              : Effect.sync(() =>
+                  logger.failure({
+                    kind: 'job',
+                    job: name,
+                    error: Cause.squash(cause),
+                  }),
+                ),
+          ),
         ),
-      ),
     );
     const job: Job = {
       start: Effect.fn('IntervalJob.start')(() =>
@@ -74,19 +82,19 @@ export const makeIntervalJob = <E>(
                 ),
               ),
             );
-            const everyMs = schedule.everyMs;
-            if (schedule.atStart || everyMs !== undefined) {
+            const every = schedule.every;
+            if (schedule.atStart || every !== undefined) {
               const repeated =
-                everyMs === undefined
+                every === undefined
                   ? attempt()
                   : attempt().pipe(
-                      Effect.repeat(Schedule.fixed(Duration.millis(everyMs))),
+                      Effect.repeat(Schedule.fixed(every)),
                       Effect.asVoid,
                     );
               const scheduled =
-                schedule.atStart || everyMs === undefined
+                schedule.atStart || every === undefined
                   ? repeated
-                  : Effect.delay(repeated, Duration.millis(everyMs));
+                  : Effect.delay(repeated, every);
               yield* Effect.forkIn(scheduled, scope, {
                 startImmediately: true,
               });

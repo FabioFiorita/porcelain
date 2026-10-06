@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, type Clock } from 'effect';
+import { Context, Effect, FileSystem, Layer, Path, type Clock } from 'effect';
 import { nativeOperation } from '@porcelain/effects';
 import type { Limits } from '../config/limits.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
@@ -75,6 +75,8 @@ export class CliOperations extends Context.Service<
     this,
     Effect.gen(function* () {
       const host = yield* CliHost;
+      const fs = yield* FileSystem.FileSystem;
+      const pathApi = yield* Path.Path;
       const {
         homeDirectory,
         searchPath,
@@ -106,12 +108,14 @@ export class CliOperations extends Context.Service<
             ),
             (runner) => runner.close(),
           );
-          yield* nativeOperation((signal) =>
-            runLocalServer({ ...settings, webRoot }, signal, {
-              startServer: host.startServer,
-              host: { serviceUpdateRunner, version },
-              output: (message) => stdout(`${message}\n`),
-            }),
+          const signal = yield* Effect.abortSignal;
+          yield* runLocalServer({ ...settings, webRoot }, signal, {
+            startServer: host.startServer,
+            host: { serviceUpdateRunner, version },
+            output: (message) => stdout(`${message}\n`),
+          }).pipe(
+            Effect.provideService(FileSystem.FileSystem, fs),
+            Effect.provideService(Path.Path, pathApi),
           );
         }, Effect.scoped),
         status: Effect.fn('Cli.status')((settings) =>

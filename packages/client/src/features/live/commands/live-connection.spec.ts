@@ -1,5 +1,13 @@
 import { expect, it } from 'vitest';
-import { Crypto, Effect, Exit, Fiber, Layer, ManagedRuntime } from 'effect';
+import {
+  Redacted,
+  Crypto,
+  Effect,
+  Exit,
+  Fiber,
+  Layer,
+  ManagedRuntime,
+} from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import { FileDrafts, retainFileDraft } from '@porcelain/client/files';
 import { OperationStorage, operationKey } from '@porcelain/client/git-actions';
@@ -16,7 +24,7 @@ it('adopts a replacement remote connection without releasing application drafts 
         environmentId: 'environment',
         address,
         send,
-        credential: 'test-credential',
+        credential: Redacted.make('test-credential'),
         deviceId: 'device',
         timeoutMs: 1000,
         socket: () => Effect.die('This file save must not open a live socket'),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@effect/vitest';
-import { Context, Deferred, Effect, Fiber, Layer } from 'effect';
+import { Context, Deferred, Duration, Effect, Fiber, Layer } from 'effect';
 import { TestClock } from 'effect/testing';
 import { WorktreeWatcher } from '../../ports/worktree-watcher.ts';
 import { AnnounceWorktreeChangeUseCasePort } from '../../ports/announce-worktree-change-use-case-port.ts';
@@ -56,8 +56,8 @@ const subject = Effect.fn(function* (
     WatchWorktrees.layer({
       ...limits,
       eventBuffer: limits.eventBuffer ?? 256,
-      burstMs: 1,
-      announcedEditMs: 50,
+      burst: Duration.millis(1),
+      announcedEdit: Duration.millis(50),
     }).pipe(
       Layer.provide(
         Layer.mergeAll(

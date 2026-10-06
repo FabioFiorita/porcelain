@@ -12,6 +12,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@effect/platform-node": "4.0.0",
     "@porcelain/contracts": "workspace:*",
     "@porcelain/server": "workspace:*",
     "effect": "4.0.0",

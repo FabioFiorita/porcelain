@@ -1,3 +1,4 @@
+import { Effect, type FileSystem, type Path, type Scope } from 'effect';
 import type { ServerSettings } from '../config/server-settings.ts';
 import type { Runtime } from '../ports/runtime.ts';
 import type { ServerHost } from '../ports/server-host.ts';
@@ -6,7 +7,11 @@ export type StartServer = (
   settings: ServerSettings,
   signal: AbortSignal,
   host: ServerHost,
-) => Promise<Runtime>;
+) => Effect.Effect<
+  Runtime,
+  never,
+  Scope.Scope | FileSystem.FileSystem | Path.Path
+>;
 
 type LauncherDependencies = {
   startServer: StartServer;
@@ -14,32 +19,34 @@ type LauncherDependencies = {
   output: (message: string) => void;
 };
 
-async function waitForShutdown(signal: AbortSignal): Promise<void> {
-  if (signal.aborted) return;
-  await new Promise<void>((resolveShutdown) =>
-    signal.addEventListener('abort', () => resolveShutdown(), { once: true }),
-  );
-}
+const waitForShutdown = (signal: AbortSignal): Effect.Effect<void> =>
+  Effect.callback((resume) => {
+    const stop = () => resume(Effect.void);
+    signal.addEventListener('abort', stop, { once: true });
+    if (signal.aborted) stop();
+    return Effect.sync(() => signal.removeEventListener('abort', stop));
+  });
 
-export async function runLocalServer(
+export const runLocalServer = Effect.fn('runLocalServer')(function* (
   settings: ServerSettings,
   signal: AbortSignal,
   dependencies: LauncherDependencies,
-): Promise<void> {
-  const { output } = dependencies;
-  signal.throwIfAborted();
-  const server = await dependencies.startServer(
+) {
+  yield* Effect.sync(() => signal.throwIfAborted());
+  const server = yield* dependencies.startServer(
     settings,
     signal,
     dependencies.host,
   );
-  try {
+  yield* Effect.gen(function* () {
     if (signal.aborted) return;
-    output(`Porcelain listening at ${server.address}`);
-    output(`Owner socket: ${server.socketPath}`);
-    output('Pair a device with: porcelain pair <name> --address <origin>');
-    await waitForShutdown(signal);
-  } finally {
-    await server.close();
-  }
-}
+    yield* Effect.sync(() => {
+      dependencies.output(`Porcelain listening at ${server.address}`);
+      dependencies.output(`Owner socket: ${server.socketPath}`);
+      dependencies.output(
+        'Pair a device with: porcelain pair <name> --address <origin>',
+      );
+    });
+    yield* waitForShutdown(signal);
+  }).pipe(Effect.ensuring(server.close()));
+});

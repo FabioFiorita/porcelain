@@ -103,6 +103,33 @@ export function gitActionReceiptStoreContract(
       ).toEqual(committed);
     });
 
+    it('claims each exact request once without claiming another request', async () => {
+      await Effect.runPromise(store.insert(running('first')));
+      await Effect.runPromise(store.insert(running('second')));
+      expect(
+        await Effect.runPromise(store.claimExecution({ requestId: 'first' })),
+      ).toBe(true);
+      expect(
+        await Effect.runPromise(store.claimExecution({ requestId: 'first' })),
+      ).toBe(false);
+      expect(
+        await Effect.runPromise(store.claimExecution({ requestId: 'second' })),
+      ).toBe(true);
+      expect(
+        await Effect.runPromise(store.claimExecution({ requestId: 'unknown' })),
+      ).toBe(false);
+    });
+
+    it('atomically admits only one concurrent attempt for the same request', async () => {
+      await Effect.runPromise(store.insert(running('contended')));
+      expect(
+        await Promise.all([
+          Effect.runPromise(store.claimExecution({ requestId: 'contended' })),
+          Effect.runPromise(store.claimExecution({ requestId: 'contended' })),
+        ]),
+      ).toEqual(expect.arrayContaining([true, false]));
+    });
+
     it('reads a receipt back as it was last saved', async () => {
       await Effect.runPromise(store.insert(running('fetch')));
       const settled = running('fetch', {

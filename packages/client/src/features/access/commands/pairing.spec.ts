@@ -1,4 +1,4 @@
-import { Cause, Effect, Exit } from 'effect';
+import { Cause, Effect, Exit, Redacted } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
@@ -181,7 +181,7 @@ describe('pairing an environment', () => {
       environmentId: 'installation',
       address: 'http://computer.local:4738',
       name: 'Computer',
-      credential: 'paired-credential',
+      credential: Redacted.make('paired-credential'),
       deviceId: 'device',
     });
   });

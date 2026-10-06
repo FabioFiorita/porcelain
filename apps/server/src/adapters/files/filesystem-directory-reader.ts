@@ -1,6 +1,6 @@
-import { nativeRead, type WorktreeRead } from '@porcelain/effects';
+import { admittedRead, nativeOperation } from '@porcelain/effects';
 import type { Dirent } from 'node:fs';
-import { lstat, opendir, readlink } from 'node:fs/promises';
+import { lstat, readlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import type {
   DirectoryEntry,
@@ -8,9 +8,10 @@ import type {
   DirectoryReadInput,
   EntryKind,
 } from '@porcelain/files/models';
-import type { DirectoryReader } from '@porcelain/files/ports';
-import type { Effect } from 'effect';
+import { DirectoryReader } from '@porcelain/files/ports';
+import { Effect, Layer, type Scope } from 'effect';
 import { inspectPath, readFailure, verifyPath } from './inspect-path.ts';
+import { openRawDirectory, syscall } from './guarded-filesystem-syscalls.ts';
 import {
   listedWorktree,
   type ListedWorktrees,
@@ -18,71 +19,64 @@ import {
 
 const nameDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
-export class FilesystemDirectoryReader implements DirectoryReader {
-  private readonly worktrees: ListedWorktrees;
-  private readonly options: { gitDirectory: string };
-
-  constructor(worktrees: ListedWorktrees, options: { gitDirectory: string }) {
-    this.worktrees = worktrees;
-    this.options = options;
-  }
-  list(
-    input: DirectoryReadInput,
-  ): Effect.Effect<DirectoryRead, never, WorktreeRead> {
-    return nativeRead(input.worktreeId, (signal) =>
-      this.listFromDisk(input, signal),
-    );
-  }
-
-  private async listFromDisk(
-    input: DirectoryReadInput,
-    signal?: AbortSignal,
-  ): Promise<DirectoryRead> {
-    const checkout = await listedWorktree(
-      this.worktrees,
-      input.worktreeId,
-      signal,
-    );
-    const target = { root: checkout.path, path: input.path };
-    try {
-      const before = await inspectPath(target, signal);
-      if (!before.info.isDirectory())
-        return { kind: 'failed', failure: 'unreadable' };
-      const found: { name: string; entry: Dirent }[] = [];
-      let truncated = false;
-      for await (const entry of await opendir(before.path, {
-        encoding: 'buffer',
-      })) {
-        signal?.throwIfAborted();
-        const name = decodedName(entry.name);
-        if (name === undefined)
-          return { kind: 'failed', failure: 'unsupported-name' };
-        if (found.length === input.limit) {
-          truncated = true;
-          break;
-        }
-        found.push({ name, entry });
-      }
-      const entries: DirectoryEntry[] = [];
-      for (const { name, entry } of found)
-        entries.push(
-          await describe(
-            before.path,
-            name,
-            entry,
-            this.options.gitDirectory,
-            signal,
-          ),
-        );
-      await verifyPath(before, target, signal);
-      return { kind: 'listed', entries, truncated };
-    } catch (error) {
-      const failure = readFailure(error);
-      if (failure === undefined) throw error;
-      return { kind: 'failed', failure };
-    }
-  }
-}
+export const filesystemDirectoryReaderLayer = (
+  worktrees: ListedWorktrees,
+  options: { gitDirectory: string },
+) =>
+  Layer.succeed(DirectoryReader, {
+    list: Effect.fn('FilesystemDirectoryReader.list')(
+      (input: DirectoryReadInput) =>
+        admittedRead(
+          input.worktreeId,
+          Effect.gen(function* () {
+            const checkout = yield* nativeOperation((signal) =>
+              listedWorktree(worktrees, input.worktreeId, signal),
+            );
+            const target = { root: checkout.path, path: input.path };
+            return yield* Effect.scoped(
+              Effect.gen(function* (): Effect.fn.Return<
+                DirectoryRead,
+                unknown,
+                Scope.Scope
+              > {
+                const before = yield* inspectPath(target);
+                if (!before.info.isDirectory())
+                  return { kind: 'failed', failure: 'unreadable' };
+                const directory = yield* openRawDirectory(before.path);
+                const found: { name: string; entry: Dirent }[] = [];
+                let truncated = false;
+                for (;;) {
+                  const entry = yield* syscall(() => directory.read());
+                  if (entry === null) break;
+                  const name = decodedName(entry.name);
+                  if (name === undefined)
+                    return { kind: 'failed', failure: 'unsupported-name' };
+                  if (found.length === input.limit) {
+                    truncated = true;
+                    break;
+                  }
+                  found.push({ name, entry });
+                }
+                const entries = yield* Effect.forEach(
+                  found,
+                  ({ name, entry }) =>
+                    describe(before.path, name, entry, options.gitDirectory),
+                );
+                yield* verifyPath(before, target);
+                return { kind: 'listed', entries, truncated };
+              }),
+            ).pipe(
+              Effect.catch((error) => {
+                const failure = readFailure(error);
+                return failure === undefined
+                  ? Effect.die(error)
+                  : Effect.succeed<DirectoryRead>({ kind: 'failed', failure });
+              }),
+            );
+          }),
+        ),
+    ),
+  });
 
 function decodedName(name: unknown) {
   if (!(name instanceof Uint8Array))
@@ -94,29 +88,29 @@ function decodedName(name: unknown) {
   }
 }
 
-async function describe(
+const describe = Effect.fn('FilesystemDirectoryReader.describe')(function* (
   directory: string,
   name: string,
   entry: Dirent,
   gitDirectory: string,
-  signal?: AbortSignal,
-): Promise<DirectoryEntry> {
-  signal?.throwIfAborted();
+): Effect.fn.Return<DirectoryEntry> {
   const kind = entryKind(entry);
   const full = join(directory, name);
   if (kind === 'symlink') {
-    const target = await readlink(full).catch(() => undefined);
+    const target = yield* syscall(() => readlink(full)).pipe(
+      Effect.catch(() => Effect.succeed(undefined)),
+    );
     return target === undefined ? { name, kind } : { name, kind, target };
   }
   if (kind === 'directory') {
-    const nested = await lstat(join(full, gitDirectory)).then(
-      () => true,
-      () => false,
+    const nested = yield* syscall(() => lstat(join(full, gitDirectory))).pipe(
+      Effect.as(true),
+      Effect.catch(() => Effect.succeed(false)),
     );
     return { name, kind: nested ? 'submodule' : kind };
   }
   return { name, kind };
-}
+});
 
 function entryKind(entry: Dirent): EntryKind {
   if (entry.isSymbolicLink()) return 'symlink';

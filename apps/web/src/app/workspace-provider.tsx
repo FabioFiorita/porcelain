@@ -1,5 +1,4 @@
 import type { RemoteConnection } from '@porcelain/client/access';
-import { remoteKey } from '@porcelain/client/access/rules';
 import type { ReactNode } from 'react';
 import {
   remoteLiveOpen,
@@ -43,7 +42,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       {connection &&
         desktopShell &&
         remotes.map((remote) => (
-          <RemoteLive key={remoteKey(remote.remote)} remote={remote} />
+          <RemoteLive key={remote.remote.environmentId} remote={remote} />
         ))}
       {children}
     </>

@@ -1,3 +1,4 @@
+import { Redacted } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { remoteLiveOpen, savedRemotes } from './remotes.ts';
 
@@ -13,7 +14,10 @@ describe('savedRemotes', () => {
   it('reads the remotes saved on this computer', () => {
     expect(
       savedRemotes({ status: 'saved', value: JSON.stringify([remote]) }),
-    ).toEqual({ kind: 'readable', remotes: [remote] });
+    ).toEqual({
+      kind: 'readable',
+      remotes: [{ ...remote, credential: Redacted.make(remote.credential) }],
+    });
   });
 
   it('reads an empty store as nothing saved yet, which later saves may fill', () => {

@@ -42,9 +42,10 @@ const writingPort = /(?:Store|Writer|Runner)$/;
 const fakeFile = /\/(?:packages\/[^/]+|apps\/server)\/spec\/fakes\/.+\.ts$/;
 const recordingFake = /^Recording[A-Z]/;
 const readingMethod =
-  /^(?:read|list|find|count|by|seen|latest|last)(?:[A-Z]|$)/;
+  /^(?:read|list|find|count|by|seen|latest|last|running|finished)(?:[A-Z]|$)/;
 const serviceFile = /\/packages\/[^/]+\/src\/services\/.+-service\.ts$/;
 const useCaseFile = /\/apps\/server\/src\/use-cases\/.+\.ts$/;
+const workflowFile = /\/apps\/server\/src\/runtime\/.+-workflow\.ts$/;
 const useCaseOrPortFile =
   /\/apps\/server\/src\/(?:use-cases\/.+|ports\/.+-use-case-port)\.ts$/;
 const modelFile = /\/packages\/[^/]+\/src\/models\/.+\.ts$/;
@@ -560,7 +561,7 @@ function tableCalls(
   project: Project,
   declaration: Node,
 ): { store: string; method: string; allowed: readonly string[] }[] {
-  return descendants(declaration).flatMap((node) => {
+  return [declaration, ...descendants(declaration)].flatMap((node) => {
     if (!isCallExpression(node) || !isPropertyAccessExpression(node.expression))
       return [];
     const method = project.checker
@@ -722,14 +723,23 @@ function laneFindings(
       continue;
     const target = node.expression.expression;
     if (!isIdentifier(node.expression.name)) continue;
-    if (node.expression.name.text !== 'execute') continue;
+    const direct = workflowFile.test(file.fileName)
+      ? writingPortMethod(project, node)
+      : undefined;
     const field = thisMember(target) ?? target.getText();
-    const declaration = ownerDeclaration(project, target);
-    if (!declaration || !isClassDeclaration(declaration)) continue;
-    if (!serviceFile.test(declaration.getSourceFile().fileName)) continue;
-    result.push(...tableFindings(root, project, node, declaration, field));
-    const writer = writerCache.get(declaration) ?? writes(project, declaration);
-    writerCache.set(declaration, writer);
+    let writer: boolean;
+    if (direct && !readingMethod.test(methodName(direct))) {
+      result.push(...tableFindings(root, project, node, node, field));
+      writer = true;
+    } else {
+      if (node.expression.name.text !== 'execute') continue;
+      const declaration = ownerDeclaration(project, target);
+      if (!declaration || !isClassDeclaration(declaration)) continue;
+      if (!serviceFile.test(declaration.getSourceFile().fileName)) continue;
+      result.push(...tableFindings(root, project, node, declaration, field));
+      writer = writerCache.get(declaration) ?? writes(project, declaration);
+      writerCache.set(declaration, writer);
+    }
     if (!writer) continue;
     const lanes = laneSitesAround(project, node, new Set()).map(
       (site) => site.lane,
@@ -856,6 +866,8 @@ export function typeRuleFindings(root: string): TypeFinding[] {
         if (storePortFile.test(name) && !checked.has(name))
           findings.push(...storeLaneFindings(root, file));
         if (inServer) {
+          if (workflowFile.test(name))
+            findings.push(...laneFindings(root, project, file, writerCache));
           if (useCaseFile.test(name))
             findings.push(
               ...laneFindings(root, project, file, writerCache),

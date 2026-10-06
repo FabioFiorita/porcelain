@@ -1,4 +1,5 @@
-import { ListRecordedWorktreesService } from '@porcelain/projects/services';
+import { FindProjectService } from '@porcelain/projects/services';
+import { InventoryStore } from '@porcelain/projects/ports';
 import { GenerateCommitDraftUseCaseOptions } from '../ports/generate-commit-draft-use-case-options.ts';
 import { ListCommitModelsUseCaseOptions } from '../ports/list-commit-models-use-case-options.ts';
 import { RunGitActionUseCaseOptions } from '../ports/run-git-action-use-case-options.ts';
@@ -8,6 +9,8 @@ import { LaneKeys } from '../runtime/lane-keys.ts';
 import { Lanes } from '../runtime/lanes.ts';
 import { WorktreeConsistencyProbe } from '../ports/worktree-consistency-probe.ts';
 import { Effect, Layer, Clock } from 'effect';
+import { ClusterWorkflowEngine, SingleRunner } from 'effect/cluster';
+import { GitActionWorkflow } from '../runtime/git-action-workflow.ts';
 import { WorktreeAccess } from '../runtime/worktree-access.ts';
 import { gitActionsRoutes } from '../http/routes/git-actions/git-actions-api.ts';
 import {
@@ -29,6 +32,7 @@ import {
 } from '@porcelain/git-actions/ports';
 import {
   AcceptGitActionService,
+  BeginGitActionService,
   CaptureCommitDraftService,
   DismissInterruptedGitActionService,
   ExpireGitActionReceiptsService,
@@ -38,7 +42,6 @@ import {
   ListCommitModelsService,
   ReadGitActionReceiptService,
   RecordGitActionProgressService,
-  RecoverInterruptedGitActionsService,
   RunGitActionService,
 } from '@porcelain/git-actions/services';
 import { FilesystemUntrackedFileReader } from '../adapters/git-actions/filesystem-untracked-file-reader.ts';
@@ -48,7 +51,6 @@ import { DismissInterruptedGitActionUseCase } from '../use-cases/git-actions/dis
 import { GenerateCommitDraftUseCase } from '../use-cases/git-actions/generate-commit-draft.ts';
 import { ListCommitModelsUseCase } from '../use-cases/git-actions/list-commit-models.ts';
 import { ReadGitActionReceiptUseCase } from '../use-cases/git-actions/read-git-action-receipt.ts';
-import { RecoverInterruptedGitActionsUseCase } from '../use-cases/git-actions/recover-interrupted-git-actions.ts';
 import { RunGitActionUseCase } from '../use-cases/git-actions/run-git-action.ts';
 import { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
 import { RefreshWorktreeReviewUseCasePort } from '../ports/refresh-worktree-review-use-case-port.ts';
@@ -123,9 +125,10 @@ export function composeGitActions(
     Layer.succeed(GenerateCommitDraftUseCaseOptions, {
       deadlineMs: limits.processDeadlineMs,
     }),
-    Layer.succeed(ListRecordedWorktreesService, shared.listRecordedWorktrees),
+    Layer.succeed(InventoryStore, stores.inventory),
   );
   const services = Layer.mergeAll(
+    FindProjectService.layer,
     ExpireGitActionReceiptsService.layer,
     WorktreeAccess.layer,
     AcceptGitActionService.layer,
@@ -139,16 +142,25 @@ export function composeGitActions(
     ConfirmDiffObservationService.layer,
     CaptureCommitDraftService.layer,
     GenerateCommitDraftService.layer,
-    RecoverInterruptedGitActionsService.layer,
   ).pipe(Layer.provideMerge(ports));
+  const beginning = BeginGitActionService.layer.pipe(
+    Layer.provideMerge(services),
+  );
+  const engine = ClusterWorkflowEngine.layer.pipe(
+    Layer.provideMerge(SingleRunner.layer({ runnerStorage: 'memory' })),
+    Layer.orDie,
+  );
+  const workflow = GitActionWorkflow.layer.pipe(
+    Layer.provideMerge(beginning),
+    Layer.provideMerge(engine),
+  );
   const operations = Layer.mergeAll(
     RunGitActionUseCase.layer,
     ReadGitActionReceiptUseCase.layer,
     DismissInterruptedGitActionUseCase.layer,
     ListCommitModelsUseCase.layer,
     GenerateCommitDraftUseCase.layer,
-    RecoverInterruptedGitActionsUseCase.layer,
-  ).pipe(Layer.provideMerge(services));
+  ).pipe(Layer.provideMerge(workflow));
   return Effect.gen(function* () {
     const runtime = yield* Layer.build(operations);
     return yield* Effect.gen(function* () {
@@ -158,10 +170,12 @@ export function composeGitActions(
         dismissInterruptedGitAction: yield* DismissInterruptedGitActionUseCase,
         listCommitModels: yield* ListCommitModelsUseCase,
         generateCommitDraft: yield* GenerateCommitDraftUseCase,
-        recoverInterruptedGitActions:
-          yield* RecoverInterruptedGitActionsUseCase,
       };
-      return { ...useCases, routes: gitActionsRoutes(useCases) };
+      return {
+        ...useCases,
+        gitActionWorkflow: yield* GitActionWorkflow,
+        routes: gitActionsRoutes(useCases),
+      };
     }).pipe(Effect.provideContext(runtime));
   });
 }

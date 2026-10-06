@@ -1,4 +1,4 @@
-import { Cause, Duration, Effect, Exit, type Semaphore } from 'effect';
+import { Cause, type Duration, Effect, Exit, type Semaphore } from 'effect';
 import { nativeOperation } from '@porcelain/effects';
 import type { DiscoveryResult, GitFactory } from '@porcelain/git/discovery';
 import { isRepositoryUnavailable } from '@porcelain/git/errors';
@@ -15,7 +15,7 @@ type WorktreeListingOptions = {
   git: GitFactory;
   sharedReads: Pick<SharedReads<WorktreeListing>, 'run'>;
   launches: Semaphore.Semaphore;
-  timeoutMs: number;
+  timeout: Duration.Duration;
   worktreeId: (projectId: string, metadataIdentity: string) => string;
   logger: Logger;
 };
@@ -41,7 +41,7 @@ export class GitWorktreeListingReader implements WorktreeListingReader {
           this.options.git(project.commonDirectory).listWorktrees(signal),
         ).pipe(
           Effect.timeoutOrElse({
-            duration: Duration.millis(this.options.timeoutMs),
+            duration: this.options.timeout,
             orElse: () =>
               Effect.die(
                 new DOMException(

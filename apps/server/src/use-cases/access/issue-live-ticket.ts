@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from 'effect';
+import { Context, Effect, Layer, Redacted } from 'effect';
 import {
   type DeviceViewerRequiredError,
   type TooManyLiveTicketsError,
@@ -41,7 +41,8 @@ export class IssueLiveTicketUseCase extends Context.Service<
             'write',
             () =>
               Effect.gen(function* () {
-                return yield* issueLiveTicketCapability.execute(input);
+                const issued = yield* issueLiveTicketCapability.execute(input);
+                return { ...issued, ticket: Redacted.value(issued.ticket) };
               }),
           );
         }),

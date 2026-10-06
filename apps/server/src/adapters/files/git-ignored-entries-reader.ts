@@ -1,7 +1,7 @@
-import { nativeRead, type WorktreeRead } from '@porcelain/effects';
+import { admittedRead, nativeOperation } from '@porcelain/effects';
 import type { IgnoredEntriesReadInput } from '@porcelain/files/models';
-import type { IgnoredEntriesReader } from '@porcelain/files/ports';
-import type { Effect } from 'effect';
+import { IgnoredEntriesReader } from '@porcelain/files/ports';
+import { Effect, Layer } from 'effect';
 import { checkIgnored } from '@porcelain/git/inspection';
 import type { Limits } from '../../config/limits.ts';
 import {
@@ -9,31 +9,23 @@ import {
   type ListedWorktrees,
 } from '../projects/checkout-session.ts';
 
-export class GitIgnoredEntriesReader implements IgnoredEntriesReader {
-  private readonly worktrees: ListedWorktrees;
-  private readonly limits: Limits['git'];
-
-  constructor(worktrees: ListedWorktrees, limits: Limits['git']) {
-    this.worktrees = worktrees;
-    this.limits = limits;
-  }
-  read(
-    input: IgnoredEntriesReadInput,
-  ): Effect.Effect<ReadonlySet<string>, never, WorktreeRead> {
-    return nativeRead(input.worktreeId, (signal) =>
-      this.readIgnored(input, signal),
-    );
-  }
-
-  private async readIgnored(
-    input: IgnoredEntriesReadInput,
-    signal?: AbortSignal,
-  ): Promise<ReadonlySet<string>> {
-    const checkout = await listedWorktree(
-      this.worktrees,
-      input.worktreeId,
-      signal,
-    );
-    return checkIgnored(checkout.path, input.paths, this.limits, signal);
-  }
-}
+export const gitIgnoredEntriesReaderLayer = (
+  worktrees: ListedWorktrees,
+  limits: Limits['git'],
+) =>
+  Layer.succeed(IgnoredEntriesReader, {
+    read: Effect.fn('GitIgnoredEntriesReader.read')(
+      (input: IgnoredEntriesReadInput) =>
+        admittedRead(
+          input.worktreeId,
+          Effect.gen(function* () {
+            const checkout = yield* nativeOperation((signal) =>
+              listedWorktree(worktrees, input.worktreeId, signal),
+            );
+            return yield* nativeOperation((signal) =>
+              checkIgnored(checkout.path, input.paths, limits, signal),
+            );
+          }),
+        ),
+    ),
+  });

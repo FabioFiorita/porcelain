@@ -1,4 +1,12 @@
-import { Cause, Effect, Exit, Fiber, Layer, ManagedRuntime } from 'effect';
+import {
+  Redacted,
+  Cause,
+  Effect,
+  Exit,
+  Fiber,
+  Layer,
+  ManagedRuntime,
+} from 'effect';
 import { Atom, AtomRegistry } from 'effect/reactivity';
 import { afterEach, expect, it } from 'vitest';
 import {
@@ -23,7 +31,7 @@ const remote = (environmentId: string): Remote => ({
   environmentId,
   name: environmentId,
   address: `http://${environmentId}.local:4738`,
-  credential: `${environmentId}-credential`,
+  credential: Redacted.make(`${environmentId}-credential`),
   deviceId: `${environmentId}-device`,
 });
 const runtimes: { dispose: () => Promise<void> }[] = [];

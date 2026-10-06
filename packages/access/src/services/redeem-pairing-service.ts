@@ -1,5 +1,5 @@
 import { RedeemPairingOptions } from '../ports/redeem-pairing-options.ts';
-import { Effect, Context, Layer, Clock, DateTime } from 'effect';
+import { Redacted, Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { IdSource, SecretSource } from '@porcelain/kernel/ports';
 import { sha256Hex } from '@porcelain/kernel/rules';
 import { InvalidDeviceDetailsError } from '../errors/invalid-device-details-error.ts';
@@ -91,7 +91,10 @@ export class RedeemPairingService extends Context.Service<
           yield* pairingGrants.redeem({
             grant,
             redeemedAt: now,
-            device: { ...device, secretHash: sha256Hex(issued.secret) },
+            device: {
+              ...device,
+              secretHash: sha256Hex(Redacted.value(issued.secret)),
+            },
           });
           return { device, credential: issued.token };
         }),

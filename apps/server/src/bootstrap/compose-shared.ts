@@ -1,7 +1,6 @@
 import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
 import {
   ChangeStatusReader,
-  WorktreeSideReader,
   ReadChangeFingerprintsOptions,
   ChangeDiffReader,
   BranchRangeReader,
@@ -15,7 +14,6 @@ import {
 } from '@porcelain/reviews/ports';
 import {
   FileReader,
-  HeadTextReader,
   ReadTextFileOptions,
   ReadTextFilesOptions,
   ReadBinaryFilesOptions,
@@ -76,7 +74,7 @@ import {
 import { GitBranchRangeReader } from '../adapters/changes/git-branch-range-reader.ts';
 import { GitChangeDiffReader } from '../adapters/changes/git-change-diff-reader.ts';
 import { GitChangeStatusReader } from '../adapters/changes/git-change-status-reader.ts';
-import { GitWorktreeSideReader } from '../adapters/changes/git-worktree-side-reader.ts';
+import { gitWorktreeSideReaderLayer } from '../adapters/changes/git-worktree-side-reader.ts';
 import { inspectionCheckouts } from '../adapters/changes/inspection-checkouts.ts';
 import { gitSessionPerSignal } from '../adapters/projects/checkout-session.ts';
 import {
@@ -84,8 +82,8 @@ import {
   ReadTextFileService,
   ReadTextFilesService,
 } from '@porcelain/files/services';
-import { FilesystemFileReader } from '../adapters/files/filesystem-file-reader.ts';
-import { GitHeadTextReader } from '../adapters/files/git-head-text-reader.ts';
+import { filesystemFileReaderLayer } from '../adapters/files/filesystem-file-reader.ts';
+import { gitHeadTextReaderLayer } from '../adapters/files/git-head-text-reader.ts';
 import { GitWorktreeAccessReader } from '../adapters/projects/git-worktree-access-reader.ts';
 import { GitWorktreeListingReader } from '../adapters/projects/git-worktree-listing-reader.ts';
 import { type WorktreeListing } from '@porcelain/projects/models';
@@ -124,7 +122,7 @@ export function composeShared(dependencies: SharedDependencies) {
       git,
       sharedReads: inventoryReads,
       launches: yield* Semaphore.make(limits.inventory.listingLaunches),
-      timeoutMs: limits.inventory.listingTimeoutMs,
+      timeout: limits.inventory.listingTimeout,
       worktreeId: dependencies.worktreeId,
       logger: dependencies.logger,
     });
@@ -137,21 +135,17 @@ export function composeShared(dependencies: SharedDependencies) {
       gitSessions,
     );
     const changeStatusReader = new GitChangeStatusReader(openInspection);
-    const fileReader = new FilesystemFileReader(worktreeAccess);
     const branchRangeReader = new GitBranchRangeReader(
       worktreeAccess,
       commitGit,
     );
     const ports = Layer.mergeAll(
-      Layer.succeed(FileReader, fileReader),
-      Layer.succeed(HeadTextReader, new GitHeadTextReader(openInspection)),
+      filesystemFileReaderLayer(worktreeAccess),
+      gitHeadTextReaderLayer(openInspection),
       Layer.succeed(ReadTextFileOptions, limits.files.readTextFile),
       Layer.succeed(ReadTextFilesOptions, limits.files.readTextFile),
       Layer.succeed(ChangeStatusReader, changeStatusReader),
-      Layer.succeed(
-        WorktreeSideReader,
-        new GitWorktreeSideReader(openInspection, limits.changes.worktreeReads),
-      ),
+      gitWorktreeSideReaderLayer(openInspection, limits.changes.worktreeReads),
       Layer.succeed(ReadChangeFingerprintsOptions, limits.changes.fingerprints),
       Layer.succeed(ChangeDiffReader, new GitChangeDiffReader(openInspection)),
       Layer.succeed(WorktreeCatalogStore, catalog),
@@ -224,7 +218,7 @@ export function composeShared(dependencies: SharedDependencies) {
         gitSessions,
         openInspection,
         changeStatusReader,
-        fileReader,
+        fileReader: yield* FileReader,
         checkWorktreeService: yield* CheckWorktreeService,
         confirmWorktree: yield* ConfirmWorktreeService,
         checkRefreshedWorktree: yield* CheckRefreshedWorktreeService,

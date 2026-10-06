@@ -34,5 +34,5 @@ export function storageLayer(
     sqliteReviewedFileStoreLayer,
     sqliteReviewedLayerStoreLayer,
     sqliteGitActionReceiptStoreLayer,
-  ).pipe(Layer.provide(databaseLayer(dataDirectory, options)));
+  ).pipe(Layer.provideMerge(databaseLayer(dataDirectory, options)));
 }

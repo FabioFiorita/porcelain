@@ -1,5 +1,10 @@
 import { requestBoundary } from '../../server-factory.ts';
 import { Effect, Layer } from 'effect';
+import { Observability } from '../../../runtime/observability.ts';
+
+const observability = Effect.runSync(
+  Observability.pipe(Effect.provide(Observability.layer)),
+);
 import { expect, it } from 'vitest';
 import { openHttpApplication } from '@porcelain/server/kit/http';
 import { HttpRouter } from 'effect/http';
@@ -82,6 +87,7 @@ async function fixture(owner = false) {
               requestBoundary({
                 principal: undefined,
                 logger: { failure: () => undefined },
+                observability,
                 bodyBytes: 1024,
               }),
             ).layer,

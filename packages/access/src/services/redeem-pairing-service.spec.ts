@@ -8,7 +8,7 @@ import {
   PairingGrantStore,
   RedeemPairingOptions,
 } from '@porcelain/access/ports';
-import { Effect, Clock } from 'effect';
+import { Redacted, Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   InvalidDeviceDetailsError,
@@ -66,7 +66,7 @@ async function setup(grant: Partial<StoredPairingGrant> = {}) {
     grants,
     clock,
     service,
-    code: credential('pcp', grantId, secret).token,
+    code: Redacted.value(credential('pcp', grantId, secret).token),
   };
 }
 
@@ -88,14 +88,17 @@ describe('RedeemPairingService', () => {
       lastSeenAt: '2026-09-23T10:05:00.000Z',
       route: 'lan',
     });
-    const parts = parseCredential('pcd', issued);
+    const parts = parseCredential('pcd', Redacted.value(issued));
     expect(parts?.id).toBe(device.id);
     const stored = await Effect.runPromise(
       devices.find({ deviceId: device.id }),
     );
-    expect(secretMatches(stored?.secretHash ?? '', parts?.secret ?? '')).toBe(
-      true,
-    );
+    expect(
+      secretMatches(
+        stored?.secretHash ?? '',
+        parts?.secret ?? Redacted.make(''),
+      ),
+    ).toBe(true);
   });
 
   it('pairs a trusted device from a trusted grant', async () => {
@@ -167,16 +170,17 @@ describe('RedeemPairingService', () => {
     { name: 'a malformed code', attempt: 'pcp_unknown' },
     {
       name: 'an unknown grant',
-      attempt: credential('pcp', 'bbbbbbbb-0000-4000-8000-000000000002', secret)
-        .token,
+      attempt: Redacted.value(
+        credential('pcp', 'bbbbbbbb-0000-4000-8000-000000000002', secret).token,
+      ),
     },
     {
       name: 'a wrong secret',
-      attempt: credential('pcp', grantId, 'w'.repeat(43)).token,
+      attempt: Redacted.value(credential('pcp', grantId, 'w'.repeat(43)).token),
     },
     {
       name: 'a device credential',
-      attempt: credential('pcd', grantId, secret).token,
+      attempt: Redacted.value(credential('pcd', grantId, secret).token),
     },
   ])('refuses $name as an invalid pairing', async ({ attempt }) => {
     const { service } = await setup();

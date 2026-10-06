@@ -1,4 +1,5 @@
-import { Schema } from 'effect';
+import { Effect, Layer, ManagedRuntime, Schema, Scope } from 'effect';
+import { NodeServices } from '@effect/platform-node';
 import { join } from 'node:path';
 import {
   openAppManagedUpdateRunner,
@@ -27,20 +28,31 @@ const settings = readServerSettings({
   webRoot: join(packageRoot, 'web'),
 });
 
+const runtime = ManagedRuntime.make(
+  Layer.merge(NodeServices.layer, Layer.effect(Scope.Scope, Effect.scope)),
+);
+
 try {
-  const server = await startServer(settings, signal.signal, {
-    desktopSession: session,
-    version: undefined,
-    serviceUpdateRunner: openAppManagedUpdateRunner(),
-  });
+  const server = await runtime.runPromise(
+    startServer(settings, signal.signal, {
+      desktopSession: session,
+      version: undefined,
+      serviceUpdateRunner: openAppManagedUpdateRunner(),
+    }),
+    { signal: signal.signal },
+  );
   let closing: Promise<void> | undefined;
   const close = () => {
     signal.abort();
     closing ??= (async () => {
       try {
-        await server.close();
+        await runtime.runPromise(server.close());
       } finally {
-        await finishServerOutput(outputEnd);
+        try {
+          await runtime.dispose();
+        } finally {
+          await finishServerOutput(outputEnd);
+        }
       }
     })();
     return closing;
@@ -73,6 +85,7 @@ try {
   });
   parent.postMessage({ kind: 'ready', address: server.address });
 } catch (error) {
+  await runtime.dispose().catch(() => undefined);
   parent.postMessage({
     kind: 'failed',
     message:

@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from 'effect';
+import { Context, Effect, Layer, Redacted } from 'effect';
 import {
   type InvalidPairingAddressError,
   type InvalidDeviceDetailsError,
@@ -52,10 +52,17 @@ export class IssuePairingUseCase extends Context.Service<
               Effect.gen(function* () {
                 const { environmentId } =
                   yield* readEnvironmentCapability.execute();
-                return yield* issuePairingCapability.execute({
+                const issued = yield* issuePairingCapability.execute({
                   ...input,
                   environmentId,
                 });
+                return {
+                  grants: issued.grants.map(({ grant, code, link }) => ({
+                    grant,
+                    code: Redacted.value(code),
+                    link: { ...link, code: Redacted.value(link.code) },
+                  })),
+                };
               }),
           );
         }),

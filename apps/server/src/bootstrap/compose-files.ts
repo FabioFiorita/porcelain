@@ -4,15 +4,11 @@ import { LaneKeys } from '../runtime/lane-keys.ts';
 import { Lanes } from '../runtime/lanes.ts';
 import { WorktreeConsistencyProbe } from '../ports/worktree-consistency-probe.ts';
 import {
-  DirectoryReader,
-  IgnoredEntriesReader,
   ListDirectoryOptions,
   FileReader,
   ReadFileAssetOptions,
   ReadPreviewAssetsOptions,
-  FileWriter,
   EditFileOptions,
-  WorktreePathsReader,
 } from '@porcelain/files/ports';
 import { Effect, Layer } from 'effect';
 import {
@@ -24,10 +20,10 @@ import {
   ReadTextFileService,
 } from '@porcelain/files/services';
 import { gitDirectoryName, temporaryWriteName } from '@porcelain/kernel/rules';
-import { FilesystemDirectoryReader } from '../adapters/files/filesystem-directory-reader.ts';
-import { FilesystemFileWriter } from '../adapters/files/filesystem-file-writer.ts';
-import { GitIgnoredEntriesReader } from '../adapters/files/git-ignored-entries-reader.ts';
-import { GitWorktreePathsReader } from '../adapters/files/git-worktree-paths-reader.ts';
+import { filesystemDirectoryReaderLayer } from '../adapters/files/filesystem-directory-reader.ts';
+import { filesystemFileWriterLayer } from '../adapters/files/filesystem-file-writer.ts';
+import { gitIgnoredEntriesReaderLayer } from '../adapters/files/git-ignored-entries-reader.ts';
+import { gitWorktreePathsReaderLayer } from '../adapters/files/git-worktree-paths-reader.ts';
 import { filesRoutes } from '../http/routes/files/files-api.ts';
 import { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
 import { EditAnnouncementWriter } from '../ports/edit-announcement-writer.ts';
@@ -65,28 +61,19 @@ export function composeFiles(
     ),
     Layer.succeed(Lanes, lanes),
     Layer.succeed(LaneKeys, laneKeys),
-    Layer.succeed(
-      DirectoryReader,
-      new FilesystemDirectoryReader(worktreeAccess, {
-        gitDirectory: gitDirectoryName(),
-      }),
-    ),
-    Layer.succeed(
-      IgnoredEntriesReader,
-      new GitIgnoredEntriesReader(worktreeAccess, limits.git),
-    ),
+    filesystemDirectoryReaderLayer(worktreeAccess, {
+      gitDirectory: gitDirectoryName(),
+    }),
+    gitIgnoredEntriesReaderLayer(worktreeAccess, limits.git),
     Layer.succeed(ListDirectoryOptions, limits.files.listDirectory),
     Layer.succeed(ReadTextFileService, dependencies.shared.readTextFileService),
     Layer.succeed(FileReader, fileReader),
     Layer.succeed(ReadFileAssetOptions, limits.files.readFileAsset),
     Layer.succeed(ReadPreviewAssetsOptions, limits.files.readPreviewAssets),
-    Layer.succeed(
-      FileWriter,
-      new FilesystemFileWriter(worktreeAccess, {
-        ...limits.files.permissions,
-        temporaryName: temporaryWriteName,
-      }),
-    ),
+    filesystemFileWriterLayer(worktreeAccess, {
+      ...limits.files.permissions,
+      temporaryName: temporaryWriteName,
+    }),
     Layer.succeed(EditFileOptions, limits.files.editFile),
     Layer.succeed(
       InvalidateReviewedMarksUseCasePort,
@@ -95,10 +82,7 @@ export function composeFiles(
     Layer.succeed(EventPublisher, events),
     Layer.succeed(EditAnnouncementWriter, dependencies.editAnnouncements),
     Layer.succeed(Logger, logger),
-    Layer.succeed(
-      WorktreePathsReader,
-      new GitWorktreePathsReader(worktreeAccess, limits.git),
-    ),
+    gitWorktreePathsReaderLayer(worktreeAccess, limits.git),
   );
   const services = Layer.mergeAll(
     WorktreeAccess.layer,

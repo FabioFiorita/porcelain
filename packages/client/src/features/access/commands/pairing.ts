@@ -1,4 +1,4 @@
-import { type Context, Effect, Layer } from 'effect';
+import { type Context, Effect, Layer, Redacted } from 'effect';
 import { Atom } from 'effect/reactivity';
 import { withSignal } from '@porcelain/effects';
 import { remoteTransport } from '../../../shared/api/transport.ts';
@@ -76,8 +76,9 @@ function pairRemote(platform: AccessPlatformValue, value: string) {
           message: 'The remote paired but sent no credential.',
         }),
       );
+    const credential = Redacted.make(paired.credential);
     const answer = yield* readRemoteEnvironment(
-      remoteTransport(link.address, paired.credential, platform.send),
+      remoteTransport(link.address, credential, platform.send),
       link.environmentId,
     );
     const status = remoteStatus(link, answer);
@@ -96,7 +97,7 @@ function pairRemote(platform: AccessPlatformValue, value: string) {
       environmentId: link.environmentId,
       address: link.address,
       name: status.name,
-      credential: paired.credential,
+      credential,
       deviceId: paired.device.id,
     };
   });

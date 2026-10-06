@@ -1,5 +1,4 @@
-import { Context, ManagedRuntime } from 'effect';
-import type { Layer } from 'effect';
+import { Context, Effect, Exit, Layer, Scope } from 'effect';
 import type { OpenedServer } from '../ports/opened-server.ts';
 
 export class ServerComponents extends Context.Service<
@@ -7,24 +6,18 @@ export class ServerComponents extends Context.Service<
   OpenedServer
 >()('@porcelain/server/ServerComponents') {}
 
-export class ServerResources {
-  private readonly runtime: ManagedRuntime.ManagedRuntime<
-    ServerComponents,
-    never
-  >;
-
-  constructor(resources: Layer.Layer<ServerComponents>) {
-    this.runtime = ManagedRuntime.make(resources);
-  }
-
-  async open(signal: AbortSignal): Promise<OpenedServer> {
-    const runtime = this.runtime;
-    try {
-      const components = await runtime.runPromise(ServerComponents, { signal });
-      return { ...components, close: () => runtime.dispose() };
-    } catch (cause) {
-      await runtime.dispose().catch(() => undefined);
-      throw cause;
-    }
-  }
-}
+/** Build borrowed services in a child of the application's scope, never an Effect.provide scope. */
+export const openServerResources = Effect.fn('openServerResources')(function* (
+  resources: Layer.Layer<ServerComponents>,
+) {
+  const applicationScope = yield* Scope.Scope;
+  const scope = yield* Scope.fork(applicationScope, 'sequential');
+  const context = yield* Layer.build(resources).pipe(
+    Scope.provide(scope),
+    Effect.onExit((exit) =>
+      Exit.isFailure(exit) ? Scope.close(scope, exit) : Effect.void,
+    ),
+  );
+  const components = Context.get(context, ServerComponents);
+  return { ...components, close: () => Scope.close(scope, Exit.void) };
+});

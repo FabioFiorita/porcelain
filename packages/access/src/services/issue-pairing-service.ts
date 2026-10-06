@@ -1,5 +1,5 @@
 import { IssuePairingOptions } from '../ports/issue-pairing-options.ts';
-import { Effect, Context, Layer, Clock, DateTime } from 'effect';
+import { Redacted, Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { IdSource, SecretSource } from '@porcelain/kernel/ports';
 import { instantAfter, sha256Hex } from '@porcelain/kernel/rules';
 import { InvalidDeviceDetailsError } from '../errors/invalid-device-details-error.ts';
@@ -47,7 +47,7 @@ export class IssuePairingService extends Context.Service<
       );
       function operationIssued(
         grant: PairingGrant & { trusted: boolean },
-        code: string,
+        code: Redacted.Redacted<string>,
         environmentId: string,
       ): IssuedPairingGrant {
         return {
@@ -97,7 +97,7 @@ export class IssuePairingService extends Context.Service<
           yield* pairingGrants.add({
             grants: issued.map(({ grant, code }) => ({
               ...grant,
-              secretHash: sha256Hex(code.secret),
+              secretHash: sha256Hex(Redacted.value(code.secret)),
             })),
           });
           return {

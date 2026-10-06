@@ -1,7 +1,7 @@
 import {
   Cause,
   Context,
-  Duration,
+  type Duration,
   Effect,
   Exit,
   type Fiber,
@@ -34,8 +34,8 @@ type WatchWorktreesOptions = {
   maxConnections: number;
   maxWatchedWorktrees: number;
   eventBuffer: number;
-  burstMs: number;
-  announcedEditMs: number;
+  burst: Duration.Duration;
+  announcedEdit: Duration.Duration;
 };
 
 type Demand = {
@@ -143,9 +143,9 @@ export class WatchWorktrees extends Context.Service<
             [...entry.demands.values()].flatMap((paths) => [...paths]),
           ),
         ];
-        const later = (waitMs: number, event: WatchEvent) =>
+        const later = (wait: Duration.Duration, event: WatchEvent) =>
           Effect.forkIn(
-            Effect.sleep(Duration.millis(waitMs)).pipe(
+            Effect.sleep(wait).pipe(
               Effect.andThen(Queue.offer(events, event)),
               Effect.asVoid,
             ),
@@ -204,7 +204,7 @@ export class WatchWorktrees extends Context.Service<
         ) {
           for (const path of paths) entry.pendingPaths.add(path);
           if (!entry.timer)
-            entry.timer = yield* later(options.burstMs, {
+            entry.timer = yield* later(options.burst, {
               kind: 'flush-files',
               entry,
             });
@@ -243,7 +243,7 @@ export class WatchWorktrees extends Context.Service<
                       event.entry &&
                     !event.entry.timer
                   )
-                    event.entry.timer = yield* later(options.burstMs, {
+                    event.entry.timer = yield* later(options.burst, {
                       kind: 'flush-repository',
                       entry: event.entry,
                     });
@@ -539,7 +539,7 @@ export class WatchWorktrees extends Context.Service<
                     path,
                     (entry.announcedPaths.get(path) ?? 0) + 1,
                   );
-                yield* later(options.announcedEditMs, {
+                yield* later(options.announcedEdit, {
                   kind: 'expire',
                   entry,
                   paths: input.paths,

@@ -35,6 +35,12 @@ export const sqliteGitActionReceiptStoreLayer = Layer.effect(
   GitActionReceiptStore,
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
+    // Keep the execution fence separate from the public receipt's running state.
+    // Shipped receipts without a fence predate durable execution and are ambiguous.
+    yield* sql`CREATE TABLE IF NOT EXISTS porcelain_git_action_execution_v1 (
+      request_id TEXT PRIMARY KEY REFERENCES git_action_receipts(request_id) ON DELETE CASCADE,
+      phase TEXT NOT NULL CHECK (phase IN ('queued', 'started'))
+    )`.pipe(Effect.orDie);
     const read = SqlSchema.findOneOption({
       Request: Schema.Struct({ requestId: Schema.String }),
       Result: GitActionReceiptRow,
@@ -96,8 +102,20 @@ export const sqliteGitActionReceiptStoreLayer = Layer.effect(
             receiptRow(input),
           );
           yield* sql`INSERT INTO git_action_receipts ${sql.insert(row)}`;
+          yield* sql`INSERT INTO porcelain_git_action_execution_v1 (request_id, phase) VALUES (${input.requestId}, 'queued')`;
         }).pipe(sql.withTransaction, Effect.asVoid, Effect.orDie);
       }),
+      claimExecution: Effect.fn('GitActionReceiptStore.claimExecution')(
+        function* (
+          input: Parameters<GitActionReceiptStore['claimExecution']>[0],
+        ) {
+          const claimed =
+            yield* sql`UPDATE porcelain_git_action_execution_v1 SET phase = 'started' WHERE request_id = ${input.requestId} AND phase = 'queued' RETURNING request_id`.pipe(
+              Effect.orDie,
+            );
+          return claimed.length === 1;
+        },
+      ),
       save: Effect.fn('GitActionReceiptStore.save')(function* (
         input: Parameters<GitActionReceiptStore['save']>[0],
       ) {

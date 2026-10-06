@@ -1,9 +1,14 @@
+import { Effect, type Scope } from 'effect';
 import { createHash } from 'node:crypto';
 import type { BigIntStats } from 'node:fs';
 import { constants } from 'node:fs';
-import { lstat, open, readlink } from 'node:fs/promises';
+import { lstat, readlink } from 'node:fs/promises';
 import { dirname, join, sep } from 'node:path';
 import type { WorktreeEntry } from '@porcelain/changes/models';
+import {
+  openGuardedFile,
+  syscall,
+} from '../files/guarded-filesystem-syscalls.ts';
 import {
   fileIdentity,
   inspectPath,
@@ -15,103 +20,102 @@ import {
 
 export type WorktreeReadOptions = { chunkBytes: number; concurrency: number };
 
-export async function readWorktreeFiles(
+export const readWorktreeFiles = Effect.fn('readWorktreeFiles')(function* (
   root: string,
   paths: readonly string[],
   maxDigestBytes: number,
   options: WorktreeReadOptions,
-): Promise<Map<string, WorktreeEntry>> {
-  const entries = new Map<string, WorktreeEntry>();
-  const wanted = [...new Set(paths)];
-  let next = 0;
-  const worker = async () => {
-    const buffer = Buffer.alloc(options.chunkBytes);
-    while (next < wanted.length) {
-      const path = wanted[next];
-      next += 1;
-      if (path === undefined) continue;
-      try {
-        const entry = await readEntry(root, path, maxDigestBytes, buffer);
-        if (entry) entries.set(path, entry);
-      } catch (error) {
-        if (readFailure(error) !== 'missing')
-          entries.set(path, { kind: 'unreadable' });
-      }
-    }
-  };
-  await Promise.all(
-    Array.from(
-      { length: Math.min(options.concurrency, wanted.length) },
-      worker,
+) {
+  const entries = yield* Effect.forEach(
+    [...new Set(paths)],
+    (path) =>
+      readEntry(
+        root,
+        path,
+        maxDigestBytes,
+        Buffer.alloc(options.chunkBytes),
+      ).pipe(
+        Effect.map((entry) => [path, entry] as const),
+        Effect.catch((error) =>
+          Effect.succeed([
+            path,
+            readFailure(error) === 'missing'
+              ? undefined
+              : ({ kind: 'unreadable' } satisfies WorktreeEntry),
+          ] as const),
+        ),
+      ),
+    { concurrency: options.concurrency },
+  );
+  return new Map<string, WorktreeEntry>(
+    entries.flatMap(([path, entry]): [string, WorktreeEntry][] =>
+      entry === undefined ? [] : [[path, entry]],
     ),
   );
-  return entries;
-}
+});
 
-async function readEntry(
+const readEntry = Effect.fn('readWorktreeFiles.readEntry')(function* (
   root: string,
   path: string,
   maxDigestBytes: number,
   buffer: Buffer,
-): Promise<WorktreeEntry | undefined> {
+): Effect.fn.Return<WorktreeEntry | undefined, unknown> {
   const parent = dirname(path);
   const target = { root, path: parent === '.' ? '' : parent };
-  const before = await inspectPath(target);
+  const before = yield* inspectPath(target);
   if (!before.info.isDirectory()) return undefined;
   const full = join(before.path, path.split('/').at(-1) ?? '');
   if (!full.startsWith(before.path + sep)) return undefined;
-  const info = await lstat(full, { bigint: true });
+  const info = yield* syscall(() => lstat(full, { bigint: true }));
   if (info.isSymbolicLink()) {
-    const link = await readlink(full);
-    await verifyPath(before, target);
+    const link = yield* syscall(() => readlink(full));
+    yield* verifyPath(before, target);
     return { kind: 'symlink', target: link, stamp: fileIdentity(info) };
   }
   if (!info.isFile()) return { kind: 'other' };
-  const read = await digestFile(full, info, maxDigestBytes, buffer);
-  if (read.kind === 'file') await verifyPath(before, target);
+  const read = yield* digestFile(full, info, maxDigestBytes, buffer);
+  if (read.kind === 'file') yield* verifyPath(before, target);
   return read;
-}
+});
 
-export async function stampPath(path: string): Promise<string | undefined> {
-  try {
-    return fileIdentity(await lstat(path, { bigint: true }));
-  } catch {
-    return undefined;
-  }
-}
+export const stampPath = Effect.fn('stampPath')((path: string) =>
+  syscall(() => lstat(path, { bigint: true })).pipe(
+    Effect.map(fileIdentity),
+    Effect.catch(() => Effect.succeed(undefined)),
+  ),
+);
 
-async function digestFile(
-  full: string,
-  classified: BigIntStats,
-  maxBytes: number,
-  buffer: Buffer,
-): Promise<WorktreeEntry> {
-  const handle = await open(
-    full,
-    constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
-  );
-  try {
-    const opened = await handle.stat({ bigint: true });
-    if (!opened.isFile() || !sameFile(classified, opened))
-      return { kind: 'other' };
-    if (opened.size > BigInt(maxBytes)) return { kind: 'too-large' };
-    const hash = createHash('sha256');
-    let read = 0;
-    while (true) {
-      const { bytesRead } = await handle.read(buffer, 0, buffer.length, read);
-      if (bytesRead === 0) break;
-      read += bytesRead;
-      if (read > maxBytes) return { kind: 'too-large' };
-      hash.update(buffer.subarray(0, bytesRead));
-    }
-    const after = await handle.stat({ bigint: true });
-    if (!unchanged(opened, after)) return { kind: 'other' };
-    return {
-      kind: 'file',
-      digest: hash.digest('hex'),
-      stamp: fileIdentity(after),
-    };
-  } finally {
-    await handle.close();
-  }
-}
+const digestFile = Effect.fn('readWorktreeFiles.digestFile')(
+  (full: string, classified: BigIntStats, maxBytes: number, buffer: Buffer) =>
+    Effect.scoped(
+      Effect.gen(function* (): Effect.fn.Return<
+        WorktreeEntry,
+        unknown,
+        Scope.Scope
+      > {
+        const handle = yield* openGuardedFile(full, constants.O_RDONLY);
+        const opened = yield* syscall(() => handle.stat({ bigint: true }));
+        if (!opened.isFile() || !sameFile(classified, opened))
+          return { kind: 'other' };
+        if (opened.size > BigInt(maxBytes)) return { kind: 'too-large' };
+        const hash = createHash('sha256');
+        let read = 0;
+        for (;;) {
+          const { bytesRead } = yield* syscall(() =>
+            handle.read(buffer, 0, buffer.length, read),
+          );
+          if (bytesRead === 0) break;
+          read += bytesRead;
+          if (read > maxBytes) return { kind: 'too-large' };
+          hash.update(buffer.subarray(0, bytesRead));
+        }
+        const after = yield* syscall(() => handle.stat({ bigint: true }));
+        if (!unchanged(opened, after)) return { kind: 'other' };
+        return {
+          kind: 'file',
+          digest: hash.digest('hex'),
+          stamp: fileIdentity(after),
+        };
+      }),
+    ),
+);
