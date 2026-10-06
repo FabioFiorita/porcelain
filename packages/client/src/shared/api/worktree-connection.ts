@@ -6,15 +6,17 @@ import type { RuntimeConnection, WorktreeConnection } from './connection.ts';
 
 export function createWorktreeConnection(
   input: Omit<WorktreeConnection, 'request'> & { timeoutMs: number },
+  memoMap?: Layer.MemoMap,
 ) {
   const controller = new AbortController();
   const { timeoutMs, ...context } = input;
   const runtime = ManagedRuntime.make(
     Layer.mergeAll(
-      WriteQueues.layer,
+      Layer.fresh(WriteQueues.layer),
       Reactivity.layer,
-      ReadSubscriptions.layer,
+      Layer.fresh(ReadSubscriptions.layer),
     ),
+    { memoMap },
   );
   const atoms = Atom.context({ memoMap: runtime.memoMap });
   const close = () => {

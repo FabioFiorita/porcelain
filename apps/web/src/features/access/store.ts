@@ -36,7 +36,7 @@ import {
   sameOriginLiveUpdates,
   webSocket,
 } from '@/shared/adapters/live-socket';
-import { FileDrafts, fileDraftRuntime } from '@porcelain/client/files';
+import { FileDrafts } from '@porcelain/client/files';
 import {
   OperationStore,
   OperationStorage,
@@ -66,11 +66,14 @@ type AccessState = {
 };
 
 function createConnection(environmentId: string, server: Server): Connection {
-  const { connection: requests, controller } = createWorktreeConnection({
-    environmentId,
-    transport: server.transport,
-    timeoutMs: REQUEST_TIMEOUT_MS,
-  });
+  const { connection: requests, controller } = createWorktreeConnection(
+    {
+      environmentId,
+      transport: server.transport,
+      timeoutMs: REQUEST_TIMEOUT_MS,
+    },
+    applicationRuntime.memoMap,
+  );
   const operationRuntime = ManagedRuntime.make(
     OperationStore.layer.pipe(
       Layer.provide(
@@ -88,7 +91,7 @@ function createConnection(environmentId: string, server: Server): Connection {
     cryptoLayer: BrowserCrypto.layer,
     liveUpdates: server.liveUpdates,
   });
-  fileDraftRuntime.runSync(FileDrafts).adopt(connection);
+  applicationRuntime.runSync(FileDrafts).adopt(connection);
   return connection;
 }
 
@@ -129,7 +132,7 @@ const stores = Layer.merge(AccessStore.layer, EnvironmentMutations.layer).pipe(
 const services = Layer.mergeAll(
   stores,
   Layer.succeed(AccessPlatform, pairingPlatform),
-  Layer.succeed(FileDrafts, fileDraftRuntime.runSync(FileDrafts)),
+  FileDrafts.layer,
   Layer.succeed(WorkspaceSelectionCleanup, {
     forgetEnvironment: () => Effect.void,
   }),

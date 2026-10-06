@@ -6,7 +6,7 @@ export { editFile, retainFileDraft } from './commands/edit-file.ts';
 export {
   FileDrafts,
   FileDraftTiming,
-  fileDraftRuntime,
+  readFileDrafts,
   type FileDraftHandle,
   type FileDraftState,
 } from './store.ts';

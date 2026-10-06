@@ -28,6 +28,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const connection = useLocalConnection();
   const remotes = useRemoteConnections();
   useUnsavedDraftsGuard(
+    connection,
     connection
       ? [
           connection.environmentId,

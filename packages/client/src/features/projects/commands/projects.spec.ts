@@ -1,8 +1,8 @@
 import { afterEach, expect, it } from 'vitest';
-import { Effect, Layer, Option } from 'effect';
+import { Effect, Layer, ManagedRuntime, Option } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
-import { FileDrafts, fileDraftRuntime } from '@porcelain/client/files';
+import { FileDrafts } from '@porcelain/client/files';
 import { ContentChangedError } from '@porcelain/files/errors';
 import {
   createWorktreeConnection,
@@ -24,42 +24,50 @@ const initial: ReadInventoryResponse = {
 const owned = new Set<{
   connection: RuntimeConnection;
   registry: AtomRegistry.AtomRegistry;
+  application: ManagedRuntime.ManagedRuntime<FileDrafts, never>;
 }>();
 afterEach(async () => {
-  for (const { connection, registry } of owned) {
+  for (const { connection, registry, application } of owned) {
     registry.dispose();
     await connection.close();
+    await application.dispose();
   }
   owned.clear();
 });
 function fixture(steps: string[], transport?: Transport) {
   let deleted = false;
-  const { connection } = createWorktreeConnection({
-    environmentId: '44444444-4444-4444-8444-444444444444',
-    timeoutMs: 10_000,
-    transport:
-      transport ??
-      ((path) => {
-        if (path === '/api/inventory')
-          return Promise.resolve(
-            Response.json({
-              ...initial,
-              projects: deleted ? [] : initial.projects,
-            }),
-          );
-        steps.push(path);
-        deleted = true;
-        return Promise.resolve(Response.json({ deleted: true }));
-      }),
-  });
+  const application = ManagedRuntime.make(FileDrafts.layer);
+  application.runSync(FileDrafts);
+  const { connection } = createWorktreeConnection(
+    {
+      environmentId: '44444444-4444-4444-8444-444444444444',
+      timeoutMs: 10_000,
+      transport:
+        transport ??
+        ((path) => {
+          if (path === '/api/inventory')
+            return Promise.resolve(
+              Response.json({
+                ...initial,
+                projects: deleted ? [] : initial.projects,
+              }),
+            );
+          steps.push(path);
+          deleted = true;
+          return Promise.resolve(Response.json({ deleted: true }));
+        }),
+    },
+    application.memoMap,
+  );
   connection.atoms.addGlobalLayer(
     Layer.succeed(InventorySeed, Option.some(initial)),
   );
   const registry = AtomRegistry.make();
-  owned.add({ connection, registry });
+  owned.add({ connection, registry, application });
   const atom = removeProject(connection);
   return {
     connection,
+    application,
     registry,
     remove: () => {
       registry.set(atom, projectId);
@@ -76,14 +84,14 @@ function fixture(steps: string[], transport?: Transport) {
   };
 }
 function retain(
-  connection: RuntimeConnection,
+  subject: ReturnType<typeof fixture>,
   steps: string[],
   other = false,
   conflict = false,
 ) {
   return Effect.runSync(
-    fileDraftRuntime.runSync(FileDrafts).retain({
-      environmentId: connection.environmentId,
+    subject.application.runSync(FileDrafts).retain({
+      environmentId: subject.connection.environmentId,
       scope: { projectId: other ? 'other-project' : projectId, worktreeId },
       path: 'README.md',
       text: 'original',
@@ -103,7 +111,7 @@ function retain(
 it('saves a retained project draft before removing the project and publishing confirmed inventory', async () => {
   const steps: string[] = [];
   const subject = fixture(steps);
-  const draft = retain(subject.connection, steps);
+  const draft = retain(subject, steps);
   try {
     await Effect.runPromise(draft.change('updated'));
     expect(await subject.remove()).toEqual({ deleted: true });
@@ -121,7 +129,7 @@ it('saves a retained project draft before removing the project and publishing co
 it('keeps the project and its unsaved draft when a save conflicts', async () => {
   const steps: string[] = [];
   const subject = fixture(steps);
-  const draft = retain(subject.connection, steps, false, true);
+  const draft = retain(subject, steps, false, true);
   try {
     await Effect.runPromise(draft.change('unsaved'));
     await expect(subject.remove()).rejects.toThrow(
@@ -141,7 +149,7 @@ it('keeps the project and its unsaved draft when a save conflicts', async () => 
 it('leaves another project draft alone when removing the selected project', async () => {
   const steps: string[] = [];
   const subject = fixture(steps);
-  const draft = retain(subject.connection, steps, true);
+  const draft = retain(subject, steps, true);
   try {
     await Effect.runPromise(draft.change('unsaved'));
     expect(await subject.remove()).toEqual({ deleted: true });

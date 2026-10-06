@@ -1,16 +1,28 @@
-import { Deferred, Duration, Effect, Fiber } from 'effect';
+import { Deferred, Duration, Effect, Fiber, ManagedRuntime } from 'effect';
 import { TestClock } from 'effect/testing';
 import { nativeOperation } from '@porcelain/effects';
 import { ContentChangedError } from '@porcelain/files/errors';
-import { describe, expect } from 'vitest';
+import { afterEach, describe, expect } from 'vitest';
 import { it } from '@effect/vitest';
 import { ConnectionError } from '@porcelain/client/transport';
 import {
   FileDrafts,
   FileDraftTiming,
-  fileDraftRuntime,
   type FileDraftWriteFailure,
 } from '@porcelain/client/files';
+
+const applications = new Set<
+  ManagedRuntime.ManagedRuntime<FileDrafts, never>
+>();
+afterEach(async () => {
+  for (const application of applications) await application.dispose();
+  applications.clear();
+});
+function applicationRuntime() {
+  const application = ManagedRuntime.make(FileDrafts.layer);
+  applications.add(application);
+  return application;
+}
 
 function fixture(
   text: string,
@@ -21,26 +33,30 @@ function fixture(
   ) => Effect.Effect<string, FileDraftWriteFailure>,
   isBlockedError?: (error: unknown) => boolean,
 ) {
-  return Effect.runSync(
-    fileDraftRuntime.runSync(FileDrafts).retain({
-      environmentId: 'portable-draft',
-      scope: { projectId: 'project', worktreeId: 'tree' },
-      path: 'file.txt',
-      text,
-      fingerprint,
-      writer: {
-        write: (input) => write(input.text, input.expectedFingerprint),
-        ...(isBlockedError ? { isBlockedError } : {}),
-      },
-    }),
-  );
+  const application = applicationRuntime();
+  return {
+    application,
+    draft: Effect.runSync(
+      application.runSync(FileDrafts).retain({
+        environmentId: 'portable-draft',
+        scope: { projectId: 'project', worktreeId: 'tree' },
+        path: 'file.txt',
+        text,
+        fingerprint,
+        writer: {
+          write: (input) => write(input.text, input.expectedFingerprint),
+          ...(isBlockedError ? { isBlockedError } : {}),
+        },
+      }),
+    ),
+  };
 }
 
 describe('portable file draft', () => {
   it('saves changes made during a write against the newly confirmed fingerprint', async () => {
     const firstWrite = Promise.withResolvers<string>();
     const writes: { text: string; fingerprint: string }[] = [];
-    const draft = fixture(
+    const { draft } = fixture(
       'original',
       'version-1',
       (text, fingerprint) => {
@@ -80,7 +96,7 @@ describe('portable file draft', () => {
   it('retains a conflicting draft and refuses another write until explicit reset', async () => {
     const conflict = new ContentChangedError();
     let writes = 0;
-    const draft = fixture('original', 'version-1', () => {
+    const { draft } = fixture('original', 'version-1', () => {
       writes += 1;
       return Effect.fail(conflict);
     });
@@ -110,7 +126,7 @@ describe('portable file draft', () => {
   });
 
   it('admits only one editor owner and ignores another owner releasing it', async () => {
-    const draft = fixture(
+    const { draft } = fixture(
       'text',
       'version',
       () => Effect.succeed('saved'),
@@ -132,7 +148,7 @@ describe('portable file draft', () => {
     let writes = 0;
     let notifications = 0;
     let detachments = 0;
-    const draft = fixture(
+    const { draft } = fixture(
       'text',
       'version',
       () => {
@@ -169,7 +185,7 @@ describe('portable file draft', () => {
 
   it('releases a detached editor and retains its draft when saving fails', async () => {
     const failure = new ConnectionError({ message: 'Offline' });
-    const draft = fixture(
+    const { draft } = fixture(
       'text',
       'version',
       () => Effect.fail(failure),
@@ -211,7 +227,7 @@ it.effect(
   () =>
     Effect.gen(function* () {
       const writes: string[] = [];
-      const registry = fileDraftRuntime.runSync(FileDrafts);
+      const registry = applicationRuntime().runSync(FileDrafts);
       const draft = yield* registry
         .retain({
           environmentId: 'clock-draft',
@@ -264,7 +280,7 @@ it.effect(
   'expires each disk notice on the native clock and protects a replacement notice from an old timer',
   () =>
     Effect.gen(function* () {
-      const registry = fileDraftRuntime.runSync(FileDrafts);
+      const registry = applicationRuntime().runSync(FileDrafts);
       const draft = yield* registry
         .retain({
           environmentId: 'notice-draft',
@@ -306,7 +322,7 @@ it.effect('keeps an admitted save alive when one caller cancels its wait', () =>
     const entered = yield* Deferred.make<void>();
     const finish = yield* Deferred.make<string>();
     const writes: string[] = [];
-    const draft = fixture('original', 'v1', (text) =>
+    const { draft } = fixture('original', 'v1', (text) =>
       Effect.gen(function* () {
         writes.push(text);
         yield* Deferred.succeed(entered, undefined);
@@ -342,7 +358,7 @@ it('drains an aborted foreign write before disposal returns and removes its reta
   const entered = Promise.withResolvers<AbortSignal>();
   const aborted = Promise.withResolvers<void>();
   const drained = Promise.withResolvers<string>();
-  const draft = fixture('original', 'v1', () =>
+  const { draft, application } = fixture('original', 'v1', () =>
     nativeOperation((signal) => {
       signal.addEventListener('abort', () => aborted.resolve(), { once: true });
       entered.resolve(signal);
@@ -364,9 +380,8 @@ it('drains an aborted foreign write before disposal returns and removes its reta
   await saving;
   expect(draft.state.value.saving).toBe(false);
   expect(
-    fileDraftRuntime
-      .runSync(FileDrafts)
-      .entries({ environmentId: 'portable-draft' }).size,
+    application.runSync(FileDrafts).entries({ environmentId: 'portable-draft' })
+      .size,
   ).toBe(0);
   expect(draft.claim('replacement')).toBe(false);
 });

@@ -3,7 +3,7 @@ import { Atom } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { requestEffect } from '../../../shared/api/effect-client.ts';
-import { FileDrafts, fileDraftRuntime } from '../../files/store.ts';
+import { FileDrafts } from '../../files/store.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { InventoryState, inventoryRuntime } from '../store/inventory.ts';
 
@@ -11,6 +11,7 @@ function makeProjectCommands(connection: RuntimeConnection) {
   return Effect.gen(function* () {
     const api = yield* porcelainClient(connection);
     const inventory = yield* InventoryState;
+    const drafts = yield* FileDrafts;
     return {
       register: (path: string) =>
         inventory.confirm(
@@ -47,9 +48,7 @@ function makeProjectCommands(connection: RuntimeConnection) {
         inventory.confirm(
           Effect.gen(function* () {
             const prefix = `[${JSON.stringify(projectId)},`;
-            for (const [key, draft] of fileDraftRuntime
-              .runSync(FileDrafts)
-              .entries(connection))
+            for (const [key, draft] of drafts.entries(connection))
               if (key.startsWith(prefix) && !(yield* draft.save()))
                 return yield* Effect.fail(
                   new ConnectionError({
@@ -79,7 +78,7 @@ const projectCommandRuntime = Atom.family((connection: RuntimeConnection) =>
   connection.atoms((get) =>
     Layer.provideMerge(
       Layer.effect(ProjectCommands, makeProjectCommands(connection)),
-      get(inventoryRuntime(connection).layer),
+      Layer.merge(get(inventoryRuntime(connection).layer), FileDrafts.layer),
     ),
   ),
 );

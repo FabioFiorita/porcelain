@@ -15,7 +15,7 @@ import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { noticeReadKeys } from '../../live/commands/cache-updates.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
-import { FileDrafts, fileDraftRuntime } from '../store.ts';
+import { FileDrafts, fileDraftsRuntime } from '../store.ts';
 import type { FileDraftWriteFailure } from '../ports/file-draft-writer.ts';
 
 class FileEdits extends Context.Service<
@@ -145,10 +145,7 @@ const fileEditRuntime = Atom.family(
     connection.atoms((get) =>
       Layer.provideMerge(
         FileEdits.layer(connection, scope),
-        Layer.merge(
-          get(clientRuntime(connection).layer),
-          Layer.effectContext(fileDraftRuntime.contextEffect),
-        ),
+        Layer.merge(get(clientRuntime(connection).layer), FileDrafts.layer),
       ),
     ),
 );
@@ -167,11 +164,11 @@ export const retainFileDraft = Atom.family(
     readonly text: string;
     readonly fingerprint: string;
   }) =>
-    Atom.make((get) => {
-      const drafts = fileDraftRuntime.runSync(FileDrafts);
-      const registry = get.registry;
-      return fileDraftRuntime.runSync(
-        drafts.retain({
+    fileDraftsRuntime(input.connection).atom(
+      Effect.gen(function* () {
+        const drafts = yield* FileDrafts;
+        const registry = yield* AtomRegistry.AtomRegistry;
+        return yield* drafts.retain({
           ...input,
           environmentId: input.connection.environmentId,
           writer: {
@@ -210,7 +207,7 @@ export const retainFileDraft = Atom.family(
               );
             },
           },
-        }),
-      );
-    }),
+        });
+      }),
+    ),
 );

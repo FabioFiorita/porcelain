@@ -4,7 +4,7 @@ import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { requestEffect } from '../../../shared/api/effect-client.ts';
-import { FileDrafts, fileDraftRuntime } from '../../files/store.ts';
+import { FileDrafts } from '../../files/store.ts';
 import { UNSAVED_DRAFTS_MESSAGE } from '../rules/connection-error-message.ts';
 
 export const disconnectBrowserSession = Atom.family(
@@ -12,7 +12,7 @@ export const disconnectBrowserSession = Atom.family(
     const runtime = connection.atoms((get) =>
       Layer.merge(
         get(porcelainClient(connection).runtime.layer),
-        Layer.succeed(FileDrafts, fileDraftRuntime.runSync(FileDrafts)),
+        FileDrafts.layer,
       ),
     );
     return runtime.fn(

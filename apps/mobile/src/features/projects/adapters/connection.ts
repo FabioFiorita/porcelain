@@ -10,6 +10,8 @@ import { operationStorage } from './operation-storage';
 import { mobileSocket } from '../../../shared/adapters/live-socket';
 import { cryptoLayer } from './crypto';
 import { REQUEST_TIMEOUT_MS } from '../../../config/limits';
+import { applicationMemoMap } from '../../../shared/application/store';
+import { FileDrafts } from '@porcelain/client/files';
 
 export function createProjectConnection(
   input: Pick<
@@ -23,8 +25,11 @@ export function createProjectConnection(
       socket: mobileSocket,
       cryptoLayer,
       timeoutMs: REQUEST_TIMEOUT_MS,
+      memoMap: applicationMemoMap,
     }).pipe(
-      Layer.provide(OperationStore.layer),
+      Layer.provide(
+        Layer.merge(Layer.fresh(OperationStore.layer), FileDrafts.layer),
+      ),
       Layer.provide(
         Layer.succeed(
           OperationStorage,
@@ -38,6 +43,7 @@ export function createProjectConnection(
         ),
       ),
     ),
+    { memoMap: applicationMemoMap },
   );
   const connection = runtime.runSync(RemoteConnection);
   return {

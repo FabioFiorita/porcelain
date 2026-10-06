@@ -7,7 +7,7 @@ import {
   EnvironmentMutations,
   EnvironmentStorage,
 } from '@porcelain/client/access';
-import { FileDrafts, fileDraftRuntime } from '@porcelain/client/files';
+import { FileDrafts } from '@porcelain/client/files';
 import {
   ProjectSelectionCommands,
   ProjectSelectionStorage,
@@ -41,13 +41,14 @@ const services = Layer.mergeAll(
   stores,
   cleanup,
   Layer.succeed(AccessPlatform, accessPlatform),
-  Layer.succeed(FileDrafts, fileDraftRuntime.runSync(FileDrafts)),
+  FileDrafts.layer,
 );
 const application = Layer.merge(
   EnvironmentCommands.layer,
   ProjectSelectionCommands.layer,
 ).pipe(Layer.provideMerge(services));
 const applicationRuntime = ManagedRuntime.make(application);
+export const applicationMemoMap = applicationRuntime.memoMap;
 export const clientRuntime = Atom.context({
   memoMap: applicationRuntime.memoMap,
 })(application);

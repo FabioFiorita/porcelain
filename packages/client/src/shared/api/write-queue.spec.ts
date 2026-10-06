@@ -11,7 +11,10 @@ import {
   Scope,
 } from 'effect';
 import { WriteQueue, WriteQueues } from './write-queue.ts';
-import { ConnectionError } from '@porcelain/client/transport';
+import {
+  ConnectionError,
+  createWorktreeConnection,
+} from '@porcelain/client/transport';
 
 it.effect(
   'starts the next write only after the preceding write completes',
@@ -302,3 +305,48 @@ it.effect(
       expect(steps).toEqual(['started', 'cleaning', 'cleaned']);
     }),
 );
+
+it('shares an application memo map without sharing connection write admission', async () => {
+  const memoMap = Layer.makeMemoMapUnsafe();
+  const input = {
+    environmentId: 'same-environment',
+    transport: () => Promise.resolve(Response.json({})),
+    timeoutMs: 1000,
+  };
+  const first = createWorktreeConnection(input, memoMap);
+  const second = createWorktreeConnection(input, memoMap);
+  const entered = Deferred.makeUnsafe<void>();
+  first.connection.runtime.runFork(
+    WriteQueues.use((queues) =>
+      queues.run(
+        ['same-worktree'],
+        Effect.gen(function* () {
+          yield* Deferred.succeed(entered, undefined);
+          return yield* Effect.never;
+        }),
+      ),
+    ),
+  );
+  try {
+    await Effect.runPromise(Deferred.await(entered));
+    expect(
+      await second.connection.runtime.runPromise(
+        WriteQueues.use((queues) =>
+          queues.run(['same-worktree'], Effect.succeed('independent write')),
+        ),
+      ),
+    ).toBe('independent write');
+    await first.close();
+    expect(
+      await second.connection.runtime.runPromise(
+        WriteQueues.use((queues) =>
+          queues.run(['same-worktree'], Effect.succeed('still connected')),
+        ),
+      ),
+    ).toBe('still connected');
+    expect(second.connection.request().signal.aborted).toBe(false);
+  } finally {
+    await first.close();
+    await second.close();
+  }
+});

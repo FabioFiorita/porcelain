@@ -11,13 +11,12 @@ import {
   Exit,
   Fiber,
   Layer,
-  ManagedRuntime,
   Ref,
   Semaphore,
   Scope,
   SynchronizedRef,
 } from 'effect';
-import { AtomRef } from 'effect/reactivity';
+import { Atom, AtomRef } from 'effect/reactivity';
 import { ContentChangedError } from '@porcelain/files/errors';
 import {
   FILE_AUTOSAVE_WAIT_MS,
@@ -503,4 +502,9 @@ export class FileDrafts extends Context.Service<
   );
 }
 
-export const fileDraftRuntime = ManagedRuntime.make(FileDrafts.layer);
+export const fileDraftsRuntime = Atom.family((connection: RuntimeConnection) =>
+  connection.atoms(FileDrafts.layer),
+);
+export const readFileDrafts = Atom.family((connection: RuntimeConnection) =>
+  fileDraftsRuntime(connection).atom(FileDrafts),
+);

@@ -1,5 +1,6 @@
 import { Context, Effect, Equal, Layer } from 'effect';
 import { OperationStore } from '../../git-actions/store/operations.ts';
+import { FileDrafts } from '../../files/store.ts';
 import type { Remote } from '../../access/rules/remotes.ts';
 import type { AccessPlatformValue } from '../../access/ports/access-platform.ts';
 import { createWorktreeConnection } from '../../../shared/api/worktree-connection.ts';
@@ -20,28 +21,33 @@ export class RemoteConnection extends Context.Service<
       readonly send: AccessPlatformValue['send'];
       readonly timeoutMs: number;
       readonly socket: Parameters<typeof remoteLiveUpdates>[2];
+      readonly memoMap?: Layer.MemoMap;
     },
-  ): Layer.Layer<RemoteConnection, never, OperationStore> {
+  ): Layer.Layer<RemoteConnection, never, OperationStore | FileDrafts> {
     return Layer.effect(
       RemoteConnection,
       Effect.gen(function* () {
         const operations = yield* OperationStore;
+        const drafts = yield* FileDrafts;
         const lifetime = yield* Effect.acquireRelease(
           Effect.sync(() =>
-            createWorktreeConnection({
-              environmentId: input.environmentId,
-              transport: remoteTransport(
-                input.address,
-                input.credential,
-                input.send,
-              ),
-              cacheIdentity: [input.address, input.deviceId ?? ''],
-              timeoutMs: input.timeoutMs,
-            }),
+            createWorktreeConnection(
+              {
+                environmentId: input.environmentId,
+                transport: remoteTransport(
+                  input.address,
+                  input.credential,
+                  input.send,
+                ),
+                cacheIdentity: [input.address, input.deviceId ?? ''],
+                timeoutMs: input.timeoutMs,
+              },
+              input.memoMap,
+            ),
           ),
           (connection) => Effect.promise(connection.close),
         );
-        return Equal.byReference({
+        const connection = Equal.byReference({
           ...lifetime.connection,
           controller: lifetime.controller,
           operations,
@@ -52,6 +58,8 @@ export class RemoteConnection extends Context.Service<
             input.socket,
           ),
         });
+        drafts.adopt(connection);
+        return connection;
       }),
     );
   }

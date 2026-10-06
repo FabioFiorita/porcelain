@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Effect, ManagedRuntime } from 'effect';
 import type { EditFileRequest } from '@porcelain/contracts/files';
 
 import { describe, expect, it } from 'vitest';
@@ -9,7 +9,6 @@ import { createWorktreeConnection } from '@porcelain/client/transport';
 import { ConnectionError } from '@porcelain/client/transport';
 import {
   FileDrafts,
-  fileDraftRuntime,
   type FileDraftWriteFailure,
 } from '@porcelain/client/files';
 import { editFile, retainFileDraft } from './edit-file.ts';
@@ -21,12 +20,22 @@ const scope = {
 const key = (path: string) =>
   `${JSON.stringify([scope.projectId, scope.worktreeId])}/${path}`;
 
-function setup(environmentId: string, transport: Transport) {
-  const lifetime = createWorktreeConnection({
-    environmentId,
-    transport,
-    timeoutMs: 1000,
-  });
+function setup(
+  environmentId: string,
+  transport: Transport,
+  sharedApplication?: ManagedRuntime.ManagedRuntime<FileDrafts, never>,
+) {
+  const application =
+    sharedApplication ?? ManagedRuntime.make(FileDrafts.layer);
+  application.runSync(FileDrafts);
+  const lifetime = createWorktreeConnection(
+    {
+      environmentId,
+      transport,
+      timeoutMs: 1000,
+    },
+    application.memoMap,
+  );
   const registry = AtomRegistry.make();
   const command = editFile({ connection: lifetime.connection, scope });
   const execute = (input: EditFileRequest) => {
@@ -36,8 +45,7 @@ function setup(environmentId: string, transport: Transport) {
     );
   };
   return {
-    entries: () =>
-      fileDraftRuntime.runSync(FileDrafts).entries(lifetime.connection),
+    entries: () => application.runSync(FileDrafts).entries(lifetime.connection),
     draft: (
       write: (input: {
         path: string;
@@ -47,7 +55,7 @@ function setup(environmentId: string, transport: Transport) {
       isBlockedError: (error: unknown) => boolean,
     ) =>
       Effect.runPromise(
-        fileDraftRuntime.runSync(FileDrafts).retain({
+        application.runSync(FileDrafts).retain({
           environmentId,
           scope,
           path: 'source/file.txt',
@@ -68,15 +76,52 @@ function setup(environmentId: string, transport: Transport) {
     execute,
     close: async () => {
       await Effect.runPromise(
-        fileDraftRuntime.runSync(FileDrafts).drop(environmentId),
+        application.runSync(FileDrafts).drop(environmentId),
       );
       await lifetime.close();
       registry.dispose();
+      if (!sharedApplication) await application.dispose();
     },
   };
 }
 
 describe('shared file edit coordination', () => {
+  it('keeps drafts in separate applications isolated even when their environment and path match', async () => {
+    const first = setup('same-environment', () =>
+      Promise.resolve(Response.json({ path: 'destination' })),
+    );
+    const second = setup('same-environment', () =>
+      Promise.resolve(Response.json({ path: 'destination' })),
+    );
+    let firstClosed = false;
+    try {
+      const firstDraft = await first.draft(
+        () => Effect.succeed('first-version'),
+        () => false,
+      );
+      const secondDraft = await second.draft(
+        () => Effect.succeed('second-version'),
+        () => false,
+      );
+      await Effect.runPromise(firstDraft.change('First application'));
+      await Effect.runPromise(secondDraft.change('Second application'));
+      expect(firstDraft).not.toBe(secondDraft);
+      expect(firstDraft.state.value.text).toBe('First application');
+      expect(secondDraft.state.value.text).toBe('Second application');
+      await first.close();
+      firstClosed = true;
+      expect(firstDraft.claim('editor')).toBe(false);
+      expect(await Effect.runPromise(secondDraft.save())).toBe(true);
+      expect(secondDraft.state.value).toMatchObject({
+        text: 'Second application',
+        savedText: 'Second application',
+        fingerprint: 'second-version',
+      });
+    } finally {
+      if (!firstClosed) await first.close();
+      await second.close();
+    }
+  });
   it('keeps draft locations after a rejected move and releases its ownership', async () => {
     const subject = setup('rejected-move', () =>
       Promise.resolve(new Response('unavailable', { status: 503 })),
@@ -230,35 +275,47 @@ it('refuses to send a move while a child is owned by an editor', async () => {
 
 it('saves a retained draft through the adopted connection after its original connection closes', async () => {
   let staleWrites = 0;
-  const original = setup('adopted-draft', () => {
-    staleWrites += 1;
-    return Promise.resolve(Response.json({ path: 'README.md' }));
-  });
+  const application = ManagedRuntime.make(FileDrafts.layer);
+  const original = setup(
+    'adopted-draft',
+    () => {
+      staleWrites += 1;
+      return Promise.resolve(Response.json({ path: 'README.md' }));
+    },
+    application,
+  );
   const sent: { path: string; body: string }[] = [];
-  const replacement = setup('adopted-draft', (path, init) => {
-    const bytes = init?.body;
-    if (!(bytes instanceof Uint8Array))
-      throw new Error('Expected request bytes');
-    sent.push({ path, body: new TextDecoder().decode(bytes) });
-    return Promise.resolve(
-      Response.json({
+  const replacement = setup(
+    'adopted-draft',
+    (path, init) => {
+      const bytes = init?.body;
+      if (!(bytes instanceof Uint8Array))
+        throw new Error('Expected request bytes');
+      sent.push({ path, body: new TextDecoder().decode(bytes) });
+      return Promise.resolve(
+        Response.json({
+          path: 'README.md',
+          contentFingerprint: 'b'.repeat(64),
+        }),
+      );
+    },
+    application,
+  );
+  const draft = await Effect.runPromise(
+    AtomRegistry.getResult(
+      original.registry,
+      retainFileDraft({
+        connection: original.connection,
+        scope,
         path: 'README.md',
-        contentFingerprint: 'b'.repeat(64),
+        text: 'Saved',
+        fingerprint: 'a'.repeat(64),
       }),
-    );
-  });
-  const draft = original.registry.get(
-    retainFileDraft({
-      connection: original.connection,
-      scope,
-      path: 'README.md',
-      text: 'Saved',
-      fingerprint: 'a'.repeat(64),
-    }),
+    ),
   );
   try {
     await original.connection.close();
-    fileDraftRuntime.runSync(FileDrafts).adopt(replacement.connection);
+    application.runSync(FileDrafts).adopt(replacement.connection);
     await Effect.runPromise(draft.change('New text'));
     expect(await Effect.runPromise(draft.save())).toBe(true);
     expect(draft.state.value).toMatchObject({
@@ -283,6 +340,7 @@ it('saves a retained draft through the adopted connection after its original con
   } finally {
     await original.close();
     await replacement.close();
+    await application.dispose();
   }
 });
 

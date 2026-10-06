@@ -1,4 +1,5 @@
-import { useAtom, useAtomValue } from '@effect/atom-react';
+import { useAtom } from '@effect/atom-react';
+import { useConfirmedRead } from '@/shared/query/confirmed-read';
 import { Effect, Exit, Cause } from 'effect';
 import {
   editFile,
@@ -64,7 +65,7 @@ export function useFileDraft(
   text: string,
   fingerprint: string,
 ) {
-  const draft = useAtomValue(
+  const { value: draft } = useConfirmedRead(
     retainFileDraft({
       connection,
       scope,
