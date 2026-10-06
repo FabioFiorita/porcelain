@@ -59,7 +59,7 @@ export type Surface<Detail> = {
   stale: (
     instance: Instance<Detail>,
     buildChanged: boolean,
-  ) => string | undefined;
+  ) => string | undefined | Promise<string | undefined>;
   stopWithinMs: number;
 };
 
@@ -265,7 +265,7 @@ export class Registry<Detail> {
     return this.read(file);
   }
 
-  staleness(instance: Instance<Detail>): string | undefined {
+  async staleness(instance: Instance<Detail>): Promise<string | undefined> {
     return this.surface.stale(
       instance,
       this.fingerprint() !== instance.fingerprint,
@@ -288,7 +288,7 @@ export class Registry<Detail> {
   ): Promise<T> {
     const beat = () => touch(join(instance.folder, 'last-command'));
     beat();
-    const stale = this.staleness(instance);
+    const stale = await this.staleness(instance);
     if (stale !== undefined) await this.refuse(instance, command, stale);
     const heartbeat = setInterval(beat, heartbeatMs);
     try {

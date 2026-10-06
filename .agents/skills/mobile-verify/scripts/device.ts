@@ -194,8 +194,8 @@ export function remoteSimulator(
   return { udid: found.id, name: found.name };
 }
 
-export function resetRemoteApp(target: Hosted): void {
-  const client = sharedClientPath(nativeFingerprint());
+export async function resetRemoteApp(target: Hosted): Promise<void> {
+  const client = sharedClientPath(await nativeFingerprint());
   agentDevice(target, ['open', 'com.apple.Preferences']);
   const installed = run(target, [
     'reinstall',

@@ -33,8 +33,8 @@ export const registry = new Registry({
   }),
   inputs: { roots: ['apps/mobile/spec/kit'], apps: [] },
   format: 'text',
-  stale: (instance, changed) => {
-    if (nativeFingerprint() !== instance.detail.native)
+  stale: async (instance, changed) => {
+    if ((await nativeFingerprint()) !== instance.detail.native)
       return `Native code changed since instance ${instance.id} started; a JavaScript change refreshes through Metro, but this one needs a native rebuild. Run stop, ${buildCommand}, then start again.`;
     return changed
       ? `Server or CLI code changed since instance ${instance.id} started; run stop and start again so the evidence shows the code you changed.`

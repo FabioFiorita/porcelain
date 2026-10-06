@@ -144,7 +144,7 @@ async function doctor(): Promise<string> {
     const health = await fetch(`${instance.detail.server}/api/health`)
       .then((response) => response.status)
       .catch(() => 0);
-    const stale = registry.staleness(instance);
+    const stale = await registry.staleness(instance);
     lines.push(
       `instance ${instance.id} (${instance.detail.kind}, ${instance.detail.simulator})`,
       `  ${(await booted(instance)) ? 'ok  ' : 'FAIL'} its simulator ${instance.detail.udid} is booted`,

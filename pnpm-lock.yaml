@@ -308,6 +308,9 @@ importers:
       '@types/react':
         specifier: 19.2.18
         version: 19.2.18
+      tsx:
+        specifier: 4.23.13
+        version: 4.23.13
 
   apps/server:
     dependencies:
@@ -13176,7 +13179,6 @@ snapshots:
       esbuild: 0.28.2
     optionalDependencies:
       fsevents: 2.3.3
-    optional: true
 
   turbo@2.11.6:
     optionalDependencies:

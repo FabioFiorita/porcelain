@@ -115,8 +115,8 @@ async function localSimulator(
     agentDevice(target, ['close', '--shutdown'], { allowFailure: true });
     await shutdownSimulator(simulator.udid);
   });
-  const client = developmentClient();
-  if (client === undefined) throw new Error(buildProblem());
+  const client = await developmentClient();
+  if (client === undefined) throw new Error(await buildProblem());
   await phase(timings, 'install', () =>
     resetApp(simulator.udid, client, identity.bundleIdentifier),
   );
@@ -141,7 +141,7 @@ async function hostedSimulator(
   life.onStop(() => {
     agentDevice(target, ['close', '--shutdown'], { allowFailure: true });
   });
-  await phase(timings, 'install', async () => resetRemoteApp(target));
+  await phase(timings, 'install', () => resetRemoteApp(target));
   life.onStop(holdLease(target));
   return { target, name: simulator.name };
 }
@@ -153,7 +153,7 @@ export function serve(folder: string): Promise<void> {
     const evidence = registry.evidenceFolder(life.id);
     const session = `porcelain-mobile-${life.id}`;
     const timings: Timings = {};
-    const native = nativeFingerprint();
+    const native = await nativeFingerprint();
     const script = scriptFingerprint();
     const ports = host === null ? [] : await freeHostPorts(host, 2);
     if (host !== null && ports.length < 2)
@@ -263,7 +263,10 @@ export async function startProblems(
     problems.push(
       `To drive a Mac's simulator from here instead, describe the device host in ${mainCheckoutHostFile()}, as the skill's "A simulator on another machine" says.`,
     );
-  return [...problems, problems.length === 0 ? buildProblem() : undefined];
+  return [
+    ...problems,
+    problems.length === 0 ? await buildProblem() : undefined,
+  ];
 }
 
 export async function start(kind: DeviceKind): Promise<string> {

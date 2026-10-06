@@ -84,8 +84,8 @@ export const test = base
     };
   })
   .extend('app', async ({ device, evidence, recorders }) => {
-    const client = developmentClient();
-    if (client === undefined) throw new Error(buildProblem());
+    const client = await developmentClient();
+    if (client === undefined) throw new Error(await buildProblem());
     await resetApp(device.udid, client, identity.bundleIdentifier);
     const scrub = (text: string) =>
       recorders.reduce((scrubbed, recorder) => recorder.scrub(scrubbed), text);

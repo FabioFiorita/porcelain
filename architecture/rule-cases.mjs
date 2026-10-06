@@ -33,7 +33,6 @@ export class InMemoryCommentSeenStore implements CommentSeenStore {
   }
 }
 `;
-
 const filesystemDirectoryReader = `export class FilesystemDirectoryReader implements DirectoryReader {
   async list(
   ): Promise<DirectoryRead> {
@@ -47,7 +46,6 @@ const filesystemDirectoryReader = `export class FilesystemDirectoryReader implem
     }
   }
 }`;
-
 const remoteLinkCases = `import { describe, expect, it } from 'vitest';
 import { remoteLink } from './remotes.ts';
 
@@ -65,7 +63,6 @@ describe('remoteLink', () => {
   });
 });
 `;
-
 const apiErrorCases = `import { apiErrorSchema } from '@porcelain/contracts/shared';
 import { expect } from 'vitest';
 import { z } from 'zod';
@@ -4135,6 +4132,8 @@ export const scriptEvasions = [
 
 const ciRole = 'client-integration-test';
 export const externalCases = [
+  { role: 'mobile-config', valid: 'tsx/cjs', invalid: 'tsx' },
+  { role: 'mobile-test-kit', valid: 'expo/fingerprint', invalid: 'expo' },
   { role: ciRole, valid: 'effect/reactivity', invalid: 'effect/http' },
   { role: 'process', valid: 'effect/process', invalid: 'node:child_process' },
   { role: 'config', valid: 'effect', invalid: 'effect/FileSystem' },

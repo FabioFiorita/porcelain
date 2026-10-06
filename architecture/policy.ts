@@ -1689,7 +1689,7 @@ export const externalPackages: Record<Role, readonly string[]> = {
   'mobile-metro-config': ['expo', 'uniwind'],
   'mobile-generated-types': ['uniwind'],
   'mobile-store': [],
-  'mobile-config': ['expo'],
+  'mobile-config': ['expo', 'tsx/cjs'],
   'client-rules-api': [],
   'client-feature-api': [],
   'client-request-api': [],
@@ -1802,7 +1802,7 @@ export const externalPackages: Record<Role, readonly string[]> = {
   'desktop-e2e': [],
   'desktop-e2e-kit': ['@playwright/test'],
   'desktop-verify-cli': ['playwright', 'zod', '@electron/fuses'],
-  'mobile-test-kit': ['zod'],
+  'mobile-test-kit': ['zod', 'expo/fingerprint'],
   'mobile-e2e-spec': [],
   'mobile-e2e-kit': ['vitest'],
   'mobile-verify-cli': ['zod'],
@@ -1871,7 +1871,8 @@ function packageName(module: string): string {
 
 function allowedPackage(role: Role, module: string): boolean {
   const name = packageName(module);
-  if (name === 'effect') return externalPackages[role].includes(module);
+  if (externalPackages[role].includes(module)) return true;
+  if (name === 'effect') return false;
   return externalPackages[role].some((entry) =>
     entry.endsWith('/*') ? name.startsWith(entry.slice(0, -1)) : entry === name,
   );
