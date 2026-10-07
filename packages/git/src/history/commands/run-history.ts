@@ -1,70 +1,57 @@
+import { Effect } from 'effect';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
-import { GitCommandError } from '../../shared/errors/git-command-error.ts';
-import { GitOutputLimitError } from '../../shared/errors/git-output-limit-error.ts';
-import { runGitRead } from '../../shared/commands/run-git.ts';
+import type { GitCommandError } from '../../shared/errors/git-command-error.ts';
+import type { GitOutputLimitError } from '../../shared/errors/git-output-limit-error.ts';
+import type { GitTimeoutError } from '../../shared/errors/git-timeout-error.ts';
+import { gitRead } from '../../shared/commands/run-git.ts';
 import { HistorySnapshotUnavailableError } from '../../shared/errors/history-snapshot-unavailable-error.ts';
 import { ReadLimitExceededError } from '../../shared/errors/read-limit-exceeded-error.ts';
 
-export async function runHistory(
-  checkout: string,
-  args: readonly string[],
-  limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<Buffer> {
-  try {
-    return await read(checkout, args, limits, signal);
-  } catch (cause) {
-    throw historyFailure(cause);
-  }
-}
+export const runHistory = Effect.fn('Git.runHistory')(
+  (checkout: string, args: readonly string[], limits: GitLimits) =>
+    read(checkout, args, limits).pipe(Effect.mapError(historyFailure)),
+);
 
-export async function askHistory(
-  checkout: string,
-  args: readonly string[],
-  limits: GitLimits,
-  signal: AbortSignal | undefined,
-  answersNo: (failure: GitCommandError) => boolean,
-): Promise<boolean> {
-  try {
-    await read(checkout, args, limits, signal);
-    return true;
-  } catch (cause) {
-    if (cause instanceof GitCommandError && answersNo(cause)) return false;
-    throw historyFailure(cause);
-  }
-}
+export const askHistory = Effect.fn('Git.askHistory')(
+  (
+    checkout: string,
+    args: readonly string[],
+    limits: GitLimits,
+    answersNo: (failure: GitCommandError) => boolean,
+  ) =>
+    readHistoryAnswer(checkout, args, limits, answersNo).pipe(
+      Effect.map((answer) => answer !== null),
+    ),
+);
 
-export async function readHistoryAnswer(
-  checkout: string,
-  args: readonly string[],
-  limits: GitLimits,
-  signal: AbortSignal | undefined,
-  answersNone: (failure: GitCommandError) => boolean,
-): Promise<Buffer | null> {
-  try {
-    return await read(checkout, args, limits, signal);
-  } catch (cause) {
-    if (cause instanceof GitCommandError && answersNone(cause)) return null;
-    throw historyFailure(cause);
-  }
-}
+export const readHistoryAnswer = Effect.fn('Git.readHistoryAnswer')(
+  (
+    checkout: string,
+    args: readonly string[],
+    limits: GitLimits,
+    answersNone: (failure: GitCommandError) => boolean,
+  ) =>
+    read(checkout, args, limits).pipe(
+      Effect.catchTag('GitCommandError', (failure) =>
+        answersNone(failure) ? Effect.succeed(null) : Effect.fail(failure),
+      ),
+      Effect.mapError(historyFailure),
+    ),
+);
 
-function read(
-  checkout: string,
-  args: readonly string[],
-  limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<Buffer> {
-  return runGitRead(checkout, args, limits, signal, {
+function read(checkout: string, args: readonly string[], limits: GitLimits) {
+  return gitRead(checkout, args, limits, {
     leading: ['--literal-pathspecs'],
     config: ['log.showSignature=false'],
   });
 }
 
-function historyFailure(cause: unknown): unknown {
-  if (cause instanceof GitOutputLimitError)
+function historyFailure(
+  cause: GitCommandError | GitOutputLimitError | GitTimeoutError,
+) {
+  if (cause._tag === 'GitOutputLimitError')
     return new ReadLimitExceededError({ cause });
-  if (cause instanceof GitCommandError && cause.exitCode !== undefined)
+  if (cause._tag === 'GitCommandError' && cause.exitCode !== undefined)
     return new HistorySnapshotUnavailableError({ cause });
   return cause;
 }

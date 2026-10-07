@@ -1,7 +1,5 @@
-import { runGitEffect } from '../../shared/commands/run-git.ts';
+import { Effect, FileSystem, Path } from 'effect';
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { isMissing } from '../../shared/errors/is-missing.ts';
 import {
   readCommonDirectory,
@@ -14,60 +12,43 @@ import type {
 } from '../dtos/commit-history.ts';
 import { HistoryWorktreeUnavailableError } from '../../shared/errors/history-worktree-unavailable-error.ts';
 
-export async function confirmHistoryCheckout(
-  checkout: HistoryCheckout,
-  signal?: AbortSignal,
-): Promise<{ common: string }> {
-  signal?.throwIfAborted();
-  try {
-    const gitDirectory = await runGitEffect(
-      readGitDirectory(checkout.path),
-      signal,
-    );
-    if (gitDirectory === undefined) throw new HistoryWorktreeUnavailableError();
-    const common = await runGitEffect(
-      readCommonDirectory(gitDirectory),
-      signal,
-    );
+export const confirmHistoryCheckout = Effect.fn('Git.confirmHistoryCheckout')(
+  function* (checkout: HistoryCheckout) {
+    const gitDirectory = yield* readGitDirectory(checkout.path);
+    if (gitDirectory === undefined)
+      return yield* Effect.fail(new HistoryWorktreeUnavailableError());
+    const common = yield* readCommonDirectory(gitDirectory);
     if (
-      (await runGitEffect(identity(gitDirectory), signal)) !==
-        checkout.metadataIdentity ||
-      (await runGitEffect(identity(common), signal)) !==
-        checkout.repositoryIdentity
+      (yield* identity(gitDirectory)) !== checkout.metadataIdentity ||
+      (yield* identity(common)) !== checkout.repositoryIdentity
     )
-      throw new HistoryWorktreeUnavailableError();
+      return yield* Effect.fail(new HistoryWorktreeUnavailableError());
     return { common };
-  } catch (cause) {
-    if (cause instanceof HistoryWorktreeUnavailableError) throw cause;
-    throw new HistoryWorktreeUnavailableError({ cause });
-  }
-}
+  },
+  Effect.mapError((cause) =>
+    cause instanceof HistoryWorktreeUnavailableError
+      ? cause
+      : new HistoryWorktreeUnavailableError({ cause }),
+  ),
+);
 
-export async function inspectHistoryCheckout(
-  checkout: HistoryCheckout,
-  gitVersion: Buffer,
-  signal?: AbortSignal,
-): Promise<HistorySnapshot> {
-  const { common } = await confirmHistoryCheckout(checkout, signal);
-  try {
-    const shallow = await readShallowBoundary(join(common, 'shallow'));
+export const inspectHistoryCheckout = Effect.fn('Git.inspectHistoryCheckout')(
+  function* (checkout: HistoryCheckout, gitVersion: Buffer) {
+    const { common } = yield* confirmHistoryCheckout(checkout);
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const shallow = yield* fs.readFile(path.join(common, 'shallow')).pipe(
+      Effect.catchIf(isMissing, () => Effect.succeed(new Uint8Array())),
+      Effect.mapError(
+        (cause) => new HistoryWorktreeUnavailableError({ cause }),
+      ),
+    );
     return {
       graph: createHash('sha256')
         .update(gitVersion)
         .update(shallow)
         .digest('hex'),
       shallow: shallow.length > 0,
-    };
-  } catch (cause) {
-    throw new HistoryWorktreeUnavailableError({ cause });
-  }
-}
-
-async function readShallowBoundary(path: string): Promise<Buffer> {
-  try {
-    return await readFile(path);
-  } catch (error) {
-    if (isMissing(error)) return Buffer.alloc(0);
-    throw error;
-  }
-}
+    } satisfies HistorySnapshot;
+  },
+);

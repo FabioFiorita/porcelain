@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { InvalidGitDiffError } from '../../shared/errors/invalid-git-diff-error.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import {
@@ -25,58 +26,53 @@ import { readHistoryAnswer, runHistory } from './run-history.ts';
 
 const ABSENT = 1;
 
-export async function readBranchRange(
+export const readBranchRange = Effect.fn('Git.readBranchRange')(function* (
   checkout: HistoryCheckout,
   gitVersion: Buffer,
   request: BranchRangeRequest,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<BranchRange> {
-  await inspectHistoryCheckout(checkout, gitVersion, signal);
+) {
+  yield* inspectHistoryCheckout(checkout, gitVersion);
   if (request.base !== undefined && !isBranchRef(request.base))
-    throw new InvalidHistoryRequestError();
-  const range = await compare(checkout.path, request, limits, signal);
-  await confirmHistoryCheckout(checkout, signal);
+    return yield* Effect.fail(new InvalidHistoryRequestError());
+  const range = yield* compare(checkout.path, request, limits);
+  yield* confirmHistoryCheckout(checkout);
   return range;
-}
+});
 
-async function compare(
+const compare = Effect.fn('Git.compare')(function* (
   path: string,
   request: BranchRangeRequest,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<BranchRange> {
-  const head = await readHead(path, limits, signal);
-  if (head === null) return { kind: 'unborn' };
+) {
+  const head = yield* readHead(path, limits);
+  if (head === null) return { kind: 'unborn' } satisfies BranchRange;
   const base =
     request.base === undefined
-      ? await readDefaultBase(path, limits, signal)
-      : await readBase(path, request.base, limits, signal);
+      ? yield* readDefaultBase(path, limits)
+      : yield* readBase(path, request.base, limits);
   if (base === null)
     return request.base === undefined
-      ? { kind: 'no-default-base', head }
-      : { kind: 'missing-base' };
-  const mergeBase = await answer(
+      ? ({ kind: 'no-default-base', head } satisfies BranchRange)
+      : ({ kind: 'missing-base' } satisfies BranchRange);
+  const mergeBase = yield* answer(
     path,
     ['merge-base', base.oid, head.oid],
     limits,
-    signal,
   );
-  if (mergeBase === null) return { kind: 'unrelated' };
-  const files = await readFiles(path, mergeBase, head.oid, limits, signal);
+  if (mergeBase === null) return { kind: 'unrelated' } satisfies BranchRange;
+  const files = yield* readFiles(path, mergeBase, head.oid, limits);
   const commits = Number(
-    (
-      await runHistory(
-        path,
-        ['rev-list', '--count', `${mergeBase}..${head.oid}`],
-        limits,
-        signal,
-      )
-    )
+    (yield* runHistory(
+      path,
+      ['rev-list', '--count', `${mergeBase}..${head.oid}`],
+      limits,
+    ))
       .toString('utf8')
       .trim(),
   );
-  if (!Number.isSafeInteger(commits)) throw new UnsupportedHistoryDataError();
+  if (!Number.isSafeInteger(commits))
+    return yield* Effect.fail(new UnsupportedHistoryDataError());
   return {
     kind: 'found',
     head,
@@ -84,48 +80,39 @@ async function compare(
     mergeBaseOid: mergeBase,
     commits,
     files,
-  };
-}
+  } satisfies BranchRange;
+});
 
-async function readHead(
+const readHead = Effect.fn('Git.readHead')(function* (
   path: string,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<BranchHead | null> {
-  const oid = await answer(
+) {
+  const oid = yield* answer(
     path,
     ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}'],
     limits,
-    signal,
   );
   if (oid === null) return null;
-  const ref = await answer(
-    path,
-    ['symbolic-ref', '--quiet', 'HEAD'],
-    limits,
-    signal,
-  );
-  return { oid, ref };
-}
+  const ref = yield* answer(path, ['symbolic-ref', '--quiet', 'HEAD'], limits);
+  return { oid, ref } satisfies BranchHead;
+});
 
-async function readBase(
+const readBase = Effect.fn('Git.readBase')(function* (
   path: string,
   ref: string,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<{ ref: string; oid: string } | null> {
-  const oid = (await lookupBranchRefs(path, [ref], limits, signal)).get(ref);
+) {
+  const oid = (yield* lookupBranchRefs(path, [ref], limits)).get(ref);
   return oid === undefined ? null : { ref, oid };
-}
+});
 
-async function readFiles(
+const readFiles = Effect.fn('Git.readFiles')(function* (
   path: string,
   from: string,
   to: string,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<BranchFile[]> {
-  const output = await runHistory(
+) {
+  const output = yield* runHistory(
     path,
     [
       'diff-tree',
@@ -139,46 +126,47 @@ async function readFiles(
       '--',
     ],
     limits,
-    signal,
   );
-  let entries: RawDiffObjects[];
-  try {
-    entries = parseRawDiffObjects(output);
-  } catch (cause) {
-    if (cause instanceof InvalidGitDiffError)
-      throw new UnsupportedHistoryDataError({ cause });
-    throw cause;
-  }
+  const entries: RawDiffObjects[] = yield* Effect.try({
+    try: () => parseRawDiffObjects(output),
+    catch: (cause) => ({ cause }),
+  }).pipe(
+    Effect.catch(({ cause }) =>
+      cause instanceof InvalidGitDiffError
+        ? Effect.fail(new UnsupportedHistoryDataError({ cause }))
+        : Effect.die(cause),
+    ),
+  );
   if (entries.length > limits.history.maxCommitFiles)
-    throw new ReadLimitExceededError();
-  return entries.map((entry) => {
-    const status = fileStatus(entry.status);
-    return {
-      oldPath: status === 'added' ? null : entry.oldPath,
-      newPath: status === 'deleted' ? null : entry.newPath,
-      status,
-      oldMode: entry.oldMode,
-      newMode: entry.newMode,
-      oldOid: status === 'added' ? null : entry.oldOid,
-      newOid: status === 'deleted' ? null : entry.newOid,
-    };
-  });
-}
+    return yield* Effect.fail(new ReadLimitExceededError());
+  return yield* Effect.forEach(entries, (entry) =>
+    Effect.gen(function* () {
+      const status = yield* fileStatus(entry.status);
+      return {
+        oldPath: status === 'added' ? null : entry.oldPath,
+        newPath: status === 'deleted' ? null : entry.newPath,
+        status,
+        oldMode: entry.oldMode,
+        newMode: entry.newMode,
+        oldOid: status === 'added' ? null : entry.oldOid,
+        newOid: status === 'deleted' ? null : entry.newOid,
+      } satisfies BranchFile;
+    }),
+  );
+});
 
-async function answer(
+const answer = Effect.fn('Git.answer')(function* (
   path: string,
   args: readonly string[],
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<string | null> {
-  const output = await readHistoryAnswer(
+) {
+  const output = yield* readHistoryAnswer(
     path,
     args,
     limits,
-    signal,
     (failure) => failure.exitCode === ABSENT,
   );
   if (output === null) return null;
   const value = output.toString('utf8').trim();
   return value === '' ? null : value;
-}
+});

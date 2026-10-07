@@ -40,7 +40,6 @@ import {
   ActionsGit,
   type GitActionWriterFactory,
 } from '@porcelain/git/actions';
-import { HistoryGit, type CommitReaderFactory } from '@porcelain/git/history';
 import {
   InspectionGit,
   type InspectionFactory,
@@ -66,7 +65,7 @@ import {
   ReadReviewBadgesService,
   RecordReviewActivityService,
 } from '@porcelain/reviews/services';
-import { GitBranchRangeReader } from '../adapters/changes/git-branch-range-reader.ts';
+import { gitBranchRangeReaderLayer } from '../adapters/changes/git-branch-range-reader.ts';
 import { GitChangeDiffReader } from '../adapters/changes/git-change-diff-reader.ts';
 import { GitChangeStatusReader } from '../adapters/changes/git-change-status-reader.ts';
 import { gitWorktreeSideReaderLayer } from '../adapters/changes/git-worktree-side-reader.ts';
@@ -101,8 +100,6 @@ export function composeShared(dependencies: SharedDependencies) {
     const { limits } = dependencies.settings;
     const actionGit: GitActionWriterFactory = (checkout) =>
       new ActionsGit(checkout, limits.git);
-    const commitGit: CommitReaderFactory = (checkout) =>
-      new HistoryGit(checkout, gitVersion, limits.git);
     const inspection: InspectionFactory = (checkout) =>
       new InspectionGit(checkout, limits.git);
     const accessContext = yield* Layer.build(
@@ -122,10 +119,6 @@ export function composeShared(dependencies: SharedDependencies) {
       gitSessions,
     );
     const changeStatusReader = new GitChangeStatusReader(openInspection);
-    const branchRangeReader = new GitBranchRangeReader(
-      worktreeAccess,
-      commitGit,
-    );
     const ports = Layer.mergeAll(
       filesystemFileReaderLayer(worktreeAccess),
       gitHeadTextReaderLayer(openInspection),
@@ -139,7 +132,7 @@ export function composeShared(dependencies: SharedDependencies) {
       Layer.succeed(InventoryStore, stores.inventory),
       Layer.succeed(Clock.Clock, dependencies.clock),
       Layer.succeed(CheckWorktreeOptions, staleness),
-      Layer.succeed(BranchRangeReader, branchRangeReader),
+      gitBranchRangeReaderLayer(worktreeAccess, gitVersion, limits.git),
       Layer.succeed(GitActionReceiptStore, stores.gitActions),
       Layer.succeed(WorktreePresenceStore, stores.worktreePresence),
       Layer.succeed(ReviewStore, stores.reviews),
@@ -197,7 +190,7 @@ export function composeShared(dependencies: SharedDependencies) {
     return yield* Effect.gen(function* () {
       return {
         actionGit,
-        commitGit,
+        gitVersion,
         catalog,
         worktreeAccess,
         gitSessions,
@@ -213,7 +206,7 @@ export function composeShared(dependencies: SharedDependencies) {
         readTextFileService: yield* ReadTextFileService,
         readWorktreeStatus: yield* ReadWorktreeStatusService,
         readChangeFingerprints: yield* ReadChangeFingerprintsService,
-        branchRangeReader,
+        branchRangeReader: yield* BranchRangeReader,
         readBranchChanges: yield* ReadBranchChangesService,
         readChangeDiffs: yield* ReadChangeDiffsService,
         readInterruptedGitAction: yield* ReadInterruptedGitActionService,

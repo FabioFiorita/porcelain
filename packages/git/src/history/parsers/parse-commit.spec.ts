@@ -1,7 +1,18 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { fixture } from '../../../spec/fixtures/fixture.ts';
-import { parseCommitRecord, parseCommitRecords } from './parse-commit.ts';
+import {
+  parseCommitRecord as parseCommitRecordEffect,
+  parseCommitRecords as parseCommitRecordsEffect,
+} from './parse-commit.ts';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
+
+const parseCommitRecord = (
+  ...args: Parameters<typeof parseCommitRecordEffect>
+) => Effect.runSync(parseCommitRecordEffect(...args));
+const parseCommitRecords = (
+  ...args: Parameters<typeof parseCommitRecordsEffect>
+) => Effect.runSync(parseCommitRecordsEffect(...args));
 
 const page = fixture('log/page.txt').toString('utf8');
 

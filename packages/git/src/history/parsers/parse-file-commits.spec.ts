@@ -1,7 +1,11 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { fixture } from '../../../spec/fixtures/fixture.ts';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
-import { parseFileCommits } from './parse-file-commits.ts';
+import { parseFileCommits as parseFileCommitsEffect } from './parse-file-commits.ts';
+
+const parseFileCommits = (...args: Parameters<typeof parseFileCommitsEffect>) =>
+  Effect.runSync(parseFileCommitsEffect(...args));
 
 const timeline = fixture('log/file-timeline.txt');
 

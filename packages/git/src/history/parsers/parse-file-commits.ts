@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { InvalidGitDiffError } from '../../shared/errors/invalid-git-diff-error.ts';
 import { parseRawDiff } from '../../inspection/index.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
@@ -14,11 +15,11 @@ const STATUSES: Record<string, CommitFile['status']> = {
   T: 'type-changed',
 };
 
-export function parseFileCommits(
+export const parseFileCommits = Effect.fn('Git.parseFileCommits')(function* (
   output: Buffer,
   path: string,
   limits: GitLimits,
-): FileCommit[] {
+) {
   const commits: FileCommit[] = [];
   let followed = path;
   let at = 0;
@@ -26,12 +27,13 @@ export function parseFileCommits(
     const fields: string[] = [];
     for (let field = 0; field < COMMIT_FIELDS; field += 1) {
       const end = output.indexOf(0, at);
-      if (end === -1) throw new UnsupportedHistoryDataError();
-      fields.push(decodeHistory(output.subarray(at, end)));
+      if (end === -1)
+        return yield* Effect.fail(new UnsupportedHistoryDataError());
+      fields.push(yield* decodeHistory(output.subarray(at, end)));
       at = end + 1;
     }
-    const commit = parseCommitRecord(fields, limits);
-    const { entries, end } = readEntries(output, at);
+    const commit = yield* parseCommitRecord(fields, limits);
+    const { entries, end } = yield* readEntries(output, at);
     at = end;
     const entry = entries.find(
       (candidate) =>
@@ -39,7 +41,8 @@ export function parseFileCommits(
     );
     if (entry === undefined) continue;
     const status = STATUSES[entry.status];
-    if (status === undefined) throw new UnsupportedHistoryDataError();
+    if (status === undefined)
+      return yield* Effect.fail(new UnsupportedHistoryDataError());
     commits.push({
       commit,
       path: status === 'deleted' ? entry.oldPath : entry.newPath,
@@ -50,14 +53,20 @@ export function parseFileCommits(
     followed = entry.oldPath;
   }
   return commits;
-}
+});
 
-function readEntries(output: Buffer, start: number) {
-  try {
-    return parseRawDiff(output, start);
-  } catch (cause) {
-    if (cause instanceof InvalidGitDiffError)
-      throw new UnsupportedHistoryDataError({ cause });
-    throw cause;
-  }
-}
+const readEntries = Effect.fn('Git.readEntries')(function* (
+  output: Buffer,
+  start: number,
+) {
+  return yield* Effect.try({
+    try: () => parseRawDiff(output, start),
+    catch: (cause) => ({ cause }),
+  }).pipe(
+    Effect.catch(({ cause }) =>
+      cause instanceof InvalidGitDiffError
+        ? Effect.fail(new UnsupportedHistoryDataError({ cause }))
+        : Effect.die(cause),
+    ),
+  );
+});

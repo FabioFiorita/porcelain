@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { isOid } from '../../shared/parsers/oid.ts';
 import type {
@@ -19,14 +20,13 @@ import { readHistoryAnswer, runHistory } from './run-history.ts';
 
 const MISSING = 1;
 
-export async function listFileCommits(
+export const listFileCommits = Effect.fn('Git.listFileCommits')(function* (
   checkout: HistoryCheckout,
   gitVersion: Buffer,
   request: FileCommitsRequest,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<FileCommits> {
-  await inspectHistoryCheckout(checkout, gitVersion, signal);
+) {
+  yield* inspectHistoryCheckout(checkout, gitVersion);
   const limit = request.limit ?? limits.history.defaultCommits;
   if (
     !Number.isInteger(limit) ||
@@ -34,13 +34,13 @@ export async function listFileCommits(
     limit > limits.history.maxCommits ||
     request.path === ''
   )
-    throw new InvalidHistoryRequestError();
-  const tip = await readHead(checkout, limits, signal);
+    return yield* Effect.fail(new InvalidHistoryRequestError());
+  const tip = yield* readHead(checkout, limits);
   const commits =
     tip === undefined
       ? []
-      : parseFileCommits(
-          await runHistory(
+      : yield* parseFileCommits(
+          yield* runHistory(
             checkout.path,
             [
               'log',
@@ -57,29 +57,29 @@ export async function listFileCommits(
               request.path,
             ],
             limits,
-            signal,
           ),
           request.path,
           limits,
         );
-  await confirmHistoryCheckout(checkout, signal);
-  return { commits: commits.slice(0, limit), more: commits.length > limit };
-}
+  yield* confirmHistoryCheckout(checkout);
+  return {
+    commits: commits.slice(0, limit),
+    more: commits.length > limit,
+  } satisfies FileCommits;
+});
 
-async function readHead(
+const readHead = Effect.fn('Git.readHead')(function* (
   checkout: HistoryCheckout,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<string | undefined> {
-  const output = await readHistoryAnswer(
+) {
+  const output = yield* readHistoryAnswer(
     checkout.path,
     ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}'],
     limits,
-    signal,
     (failure) => failure.exitCode === MISSING,
   );
   if (output === null) return undefined;
-  const oid = decodeHistory(output).trim();
-  if (!isOid(oid)) throw new UnsupportedHistoryDataError();
+  const oid = (yield* decodeHistory(output)).trim();
+  if (!isOid(oid)) return yield* Effect.fail(new UnsupportedHistoryDataError());
   return oid;
-}
+});
