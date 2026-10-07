@@ -91,7 +91,5 @@ export function promiseCheckoutSession(
     path: checkout.path,
     verify: (signal) => runGitEffect(checkout.verify(), signal),
     confirm: (signal) => runGitEffect(checkout.confirm(), signal),
-    conversionFilters: (read) =>
-      runGitEffect(checkout.conversionFilters(Effect.promise(read))),
   };
 }
