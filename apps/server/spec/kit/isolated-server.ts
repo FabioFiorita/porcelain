@@ -499,7 +499,7 @@ type LoggedHit = Hit & { owner: boolean; handled: boolean };
 
 function hitsOf(lines: string): LoggedHit[] {
   const requests = new Map<string, LoggedHit>();
-  for (const line of lines.split('\n').filter(Boolean)) {
+  for (const line of lines.split('\n').slice(0, -1).filter(Boolean)) {
     const entry = record(JSON.parse(line));
     const id = text(entry.id);
     if (entry.event === 'request')
