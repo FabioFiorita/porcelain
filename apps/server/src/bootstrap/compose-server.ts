@@ -408,8 +408,8 @@ function serverResources(
               routeListenerRunner.close({ route: 'tailnet' }),
               worktreeWatches.close(),
               liveConnections.close(),
-              gitActions.gitActionWorkflow.stop(),
               lanes.close(),
+              gitActions.gitActionWorkflow.stop(),
             ]),
         };
       }),

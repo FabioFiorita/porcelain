@@ -18,5 +18,6 @@ export const openServerResources = Effect.fn('openServerResources')(function* (
     ),
   );
   const components = Context.get(context, ServerComponents);
-  return { ...components, close: () => Scope.close(scope, Exit.void) };
+  const close = yield* Effect.cached(Scope.close(scope, Exit.void));
+  return { ...components, close: () => close };
 });

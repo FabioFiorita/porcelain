@@ -138,10 +138,13 @@ export const startApplication = Effect.fn('startApplication')(function* (
       reach.policy = { allowedHosts, localAddresses: listeningOn(host) };
       yield* nativeOperation(() => opened.owner.listen({ path: socketPath }));
       yield* restrictOwnerSocket(socketPath);
+      const close = yield* Effect.cached(
+        Scope.close(applicationScope, Exit.void),
+      );
       return {
         address,
         socketPath,
-        close: () => Scope.close(applicationScope, Exit.void),
+        close: () => close,
       } satisfies Runtime;
     }),
   );

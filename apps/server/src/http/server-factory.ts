@@ -35,6 +35,7 @@ export function createHttpListener(options: {
 }) {
   const server = createServer();
   let scope: Scope.Closeable | undefined;
+  let closeScope: Effect.Effect<void> | undefined;
   const errors = HttpRouter.middleware<{
     handles: HttpServerError.HttpServerError;
   }>()(
@@ -61,6 +62,18 @@ export function createHttpListener(options: {
       if (scope !== undefined) throw new Error('HTTP listener is already open');
       const opened = await Effect.runPromise(Scope.make());
       scope = opened;
+      const closing = await Effect.runPromise(
+        Effect.cached(
+          Scope.close(opened, Exit.void).pipe(
+            Effect.ensuring(
+              Effect.sync(() => {
+                if (scope === opened) scope = undefined;
+              }),
+            ),
+          ),
+        ),
+      );
+      closeScope = closing;
       try {
         await Effect.runPromise(
           Effect.gen(function* () {
@@ -151,16 +164,12 @@ export function createHttpListener(options: {
           ? address
           : `http://${address.family === 'IPv6' ? `[${address.address}]` : address.address}:${address.port}`;
       } catch (error) {
-        await Effect.runPromise(Scope.close(opened, Exit.void));
+        await Effect.runPromise(closing);
         throw error;
       }
     },
     async close() {
-      if (scope !== undefined) {
-        const opened = scope;
-        scope = undefined;
-        await Effect.runPromise(Scope.close(opened, Exit.void));
-      }
+      await Effect.runPromise(closeScope ?? Effect.void);
     },
   };
 }
