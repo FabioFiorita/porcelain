@@ -37,9 +37,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 `;
 const binSource = `#!/usr/bin/env node
+import { NodeRuntime } from '@effect/platform-node';
+import { Exit, Runtime } from 'effect';
 import { runCli } from '../server/src/bootstrap/main.mjs';
 
-await runCli();
+NodeRuntime.runMain(runCli(), {
+  teardown: (exit, onExit) => Runtime.defaultTeardown(exit, (code) =>
+    onExit(Exit.isSuccess(exit) && typeof exit.value === 'number' ? exit.value : code)),
+});
 `;
 const packageJsonSchema = Schema.Struct({
   version: Schema.optional(Schema.String),

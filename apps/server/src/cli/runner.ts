@@ -21,7 +21,6 @@ import { CliHost, CliOperations } from './operations.ts';
 import { CliInvocation, defaultWebRoot } from './settings.ts';
 import { OwnerRequestError } from './errors/owner-request-error.ts';
 import { isServiceFailure, cliPackageRoot } from './service.ts';
-import { installShutdownSignals } from './signals.ts';
 import { writeStandardError, writeStandardOutput } from './standard-output.ts';
 import type { StartServer } from './launcher.ts';
 
@@ -67,15 +66,13 @@ export function createCliRunner(
     | Exclude<Layer.Services<typeof CliOperations.layer>, CliHost>
   >,
 ) {
-  return async function runCli(
+  return function runCli(
     args: readonly string[] = process.argv.slice(2),
     environment: PorcelainEnvironment = process.env,
     options: CliOptions = {},
-  ): Promise<void> {
+  ): Effect.Effect<number> {
     const stdout = options.stdout ?? writeStandardOutput;
     const stderr = options.stderr ?? writeStandardError;
-    const shutdown = new AbortController();
-    const removeShutdownSignals = installShutdownSignals(shutdown);
     const homeDirectory = options.homeDirectory ?? homedir();
     const host = Layer.effect(
       CliHost,
@@ -109,33 +106,27 @@ export function createCliRunner(
     };
     const program = Effect.gen(function* () {
       const configured = yield* CliRuntime;
-      const version = yield* readPackageVersion(cliPackageRoot()).pipe(
-        Effect.orDie,
-      );
-      return yield* cliProgram(args, version ?? '0.0.0').pipe(
+      return yield* Effect.gen(function* () {
+        const version = yield* readPackageVersion(cliPackageRoot()).pipe(
+          Effect.orDie,
+        );
+        return yield* cliProgram(args, version ?? '0.0.0');
+      }).pipe(
+        Effect.provideService(Console.Console, output),
+        Effect.provide(services),
         Effect.catchCause((cause) =>
-          Effect.sync(() => {
-            if (shutdown.signal.aborted) return 0;
-            stderr(
-              `${startupFailureMessage(Cause.squash(cause), configured.actionableErrors)}\n`,
-            );
-            return 1;
-          }),
+          Cause.hasInterruptsOnly(cause)
+            ? Effect.interrupt
+            : Effect.sync(() => {
+                stderr(
+                  `${startupFailureMessage(Cause.squash(cause), configured.actionableErrors)}\n`,
+                );
+                return 1;
+              }),
         ),
       );
-    }).pipe(
-      Effect.provideService(Console.Console, output),
-      Effect.provide(Layer.merge(services, runtime)),
-    );
-    try {
-      const exitCode = await Effect.runPromise(program, {
-        signal: shutdown.signal,
-      });
-      if (exitCode !== 0) process.exitCode = exitCode;
-    } catch (error) {
-      if (!shutdown.signal.aborted) throw error;
-    } finally {
-      removeShutdownSignals();
-    }
+    }).pipe(Effect.provide(runtime));
+
+    return program;
   };
 }

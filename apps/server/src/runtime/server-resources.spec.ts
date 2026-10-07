@@ -11,9 +11,11 @@ describe('managed server resources', () => {
       const failure = new Error('Cleanup failed');
       let releases = 0;
       const listener = {
-        listen: () => Promise.resolve('http://127.0.0.1:1'),
-        close: () => Promise.resolve(),
-        server: { closeAllConnections() {} },
+        start: () =>
+          Effect.succeed({
+            address: 'http://127.0.0.1:1',
+            close: () => Effect.void,
+          }),
       };
       const scope = Effect.runSync(Scope.make());
       const opened = await Effect.runPromise(
@@ -74,9 +76,11 @@ describe('managed server resources', () => {
   it('disposes acquired resources exactly once when the opened server closes', async () => {
     const order: string[] = [];
     const listener = {
-      listen: () => Promise.resolve('http://127.0.0.1:1'),
-      close: () => Promise.resolve(),
-      server: { closeAllConnections() {} },
+      start: () =>
+        Effect.succeed({
+          address: 'http://127.0.0.1:1',
+          close: () => Effect.void,
+        }),
     };
     const resources = openServerResources(
       Layer.effect(

@@ -1,13 +1,22 @@
 import type { TooManyPairingAttemptsError } from '@porcelain/access/errors';
 import { createServer } from 'node:http';
 import { HttpServer } from 'effect/http';
-import { auditedRouter, httpEvent } from './diagnostics.ts';
 import { NetAddress } from 'effect/net';
+import { auditedRouter, httpEvent } from './diagnostics.ts';
 import { NodeLiveSockets, nodeLiveSockets } from './node-live-socket.ts';
 import type { ListenOptions } from 'node:net';
 import { NodeHttpServer, NodeHttpServerRequest } from '@effect/platform-node';
 import type { Principal } from '@porcelain/contracts/access';
-import { ByteSize, Effect, Exit, Layer, Scope, type Context } from 'effect';
+import {
+  ByteSize,
+  Effect,
+  Exit,
+  Fiber,
+  Layer,
+  Scope,
+  Context,
+  type Duration,
+} from 'effect';
 import type { HttpServerError } from 'effect/http';
 import {
   HttpIncomingMessage,
@@ -32,10 +41,10 @@ export function createHttpListener(options: {
   principal: Principal | undefined;
   logger: Logger;
   websocketMaxBytes: number;
+  closeGrace: Duration.Duration;
 }) {
   const server = createServer();
-  let scope: Scope.Closeable | undefined;
-  let closeScope: Effect.Effect<void> | undefined;
+  let active = false;
   const errors = HttpRouter.middleware<{
     handles: HttpServerError.HttpServerError;
   }>()(
@@ -58,119 +67,128 @@ export function createHttpListener(options: {
   );
   return {
     server,
-    async listen(listenOptions: ListenOptions): Promise<string> {
-      if (scope !== undefined) throw new Error('HTTP listener is already open');
-      const opened = await Effect.runPromise(Scope.make());
-      scope = opened;
-      const closing = await Effect.runPromise(
-        Effect.cached(
-          Scope.close(opened, Exit.void).pipe(
-            Effect.ensuring(
-              Effect.sync(() => {
-                if (scope === opened) scope = undefined;
-              }),
+    start: Effect.fn('HttpListener.start')(function* (
+      listenOptions: ListenOptions,
+    ) {
+      const scope = yield* Scope.make();
+      const bindingScope = yield* Scope.fork(scope, 'sequential');
+      let live: ReturnType<typeof nodeLiveSockets> | undefined;
+      const close = yield* Effect.cached(
+        Effect.gen(function* () {
+          const deadline = yield* Effect.forkChild(
+            Effect.sleep(options.closeGrace).pipe(
+              Effect.andThen(
+                Effect.sync(() => {
+                  server.closeAllConnections();
+                  live?.terminate();
+                }),
+              ),
+            ),
+          );
+          const draining = yield* Effect.forkChild(
+            Effect.all(
+              [
+                Scope.close(bindingScope, Exit.void),
+                live?.close ?? Effect.void,
+              ],
+              { concurrency: 'unbounded', discard: true },
+            ),
+          );
+          yield* Fiber.await(draining).pipe(
+            Effect.timeoutOrElse({
+              duration: options.closeGrace,
+              orElse: () => Effect.succeed(Exit.void),
+            }),
+          );
+          yield* Scope.close(scope, Exit.void).pipe(
+            Effect.ensuring(Fiber.join(draining)),
+            Effect.ensuring(Fiber.interrupt(deadline)),
+          );
+        }).pipe(Effect.uninterruptible),
+      );
+      yield* Effect.addFinalizer(() => close);
+      return yield* Effect.gen(function* () {
+        yield* Effect.acquireRelease(
+          Effect.sync(() => {
+            if (active) throw new Error('HTTP listener is already open');
+            active = true;
+          }),
+          () =>
+            Effect.sync(() => {
+              active = false;
+            }),
+        );
+        const sockets = yield* Effect.acquireRelease(
+          Effect.sync(() => {
+            live = nodeLiveSockets(options.websocketMaxBytes);
+            return live;
+          }),
+          (live) => live.close,
+        );
+        const platform = yield* Layer.buildWithScope(
+          NodeHttpServer.layerServer(() => server, listenOptions),
+          bindingScope,
+        );
+        const nativeServer = Context.get(platform, HttpServer.HttpServer);
+        const serving = HttpServer.make({
+          address: nativeServer.address,
+          serve: <E>(
+            app: Effect.Effect<
+              HttpServerResponse.HttpServerResponse,
+              E,
+              HttpServerRequest.HttpServerRequest | Scope.Scope
+            >,
+          ) =>
+            Effect.gen(function* () {
+              const ownedScope = yield* Effect.scope;
+              const handler = yield* NodeHttpServer.makeHandler(
+                Effect.orDie(app),
+                { scope: ownedScope },
+              );
+              const upgrade = yield* NodeHttpServer.makeUpgradeHandler(
+                Effect.succeed(sockets.server),
+                Effect.orDie(app),
+                { scope: ownedScope },
+              );
+              server.on('request', handler);
+              server.on('upgrade', upgrade);
+              yield* Effect.addFinalizer(() =>
+                Effect.sync(() => {
+                  server.off('request', handler);
+                  server.off('upgrade', upgrade);
+                }),
+              );
+            }),
+        });
+        yield* Layer.buildWithScope(
+          HttpRouter.serve(application, {
+            disableLogger: true,
+            disableListenLog: true,
+          }).pipe(
+            Layer.provide(
+              Layer.mergeAll(
+                Layer.succeed(HttpServer.HttpServer, serving),
+                Layer.succeed(NodeLiveSockets, sockets),
+                NodeHttpServer.layerHttpServices,
+              ),
             ),
           ),
-        ),
-      );
-      closeScope = closing;
-      try {
-        await Effect.runPromise(
-          Effect.gen(function* () {
-            const live = yield* Effect.acquireRelease(
-              Effect.sync(() => nodeLiveSockets(options.websocketMaxBytes)),
-              (live) =>
-                Effect.callback<void>((resume) =>
-                  live.server.close(() => resume(Effect.void)),
-                ),
-            );
-            yield* Effect.callback<void, Error>((resume) => {
-              const failed = (error: Error) => resume(Effect.fail(error));
-              server.once('error', failed);
-              server.listen(listenOptions, () => {
-                server.off('error', failed);
-                resume(Effect.void);
-              });
-            });
-            yield* Effect.addFinalizer(() =>
-              Effect.callback<void>((resume) => {
-                server.close(() => resume(Effect.void));
-              }),
-            );
-            const address = server.address();
-            if (address === null)
-              return yield* Effect.die(
-                new Error('HTTP listener has no address'),
-              );
-            const nativeAddress =
-              typeof address === 'string'
-                ? NetAddress.unixPathAddress(address)
-                : yield* Effect.fromResult(
-                    NetAddress.inetAddressFromIpString(
-                      address.address,
-                      address.port,
-                    ),
-                  );
-            const nativeServer = HttpServer.make({
-              address: nativeAddress,
-              serve: <E>(
-                app: Effect.Effect<
-                  HttpServerResponse.HttpServerResponse,
-                  E,
-                  HttpServerRequest.HttpServerRequest | Scope.Scope
-                >,
-              ) =>
-                Effect.gen(function* () {
-                  const ownedScope = yield* Effect.scope;
-                  const handler = yield* NodeHttpServer.makeHandler(
-                    Effect.orDie(app),
-                    { scope: ownedScope },
-                  );
-                  const upgrade = yield* NodeHttpServer.makeUpgradeHandler(
-                    Effect.succeed(live.server),
-                    Effect.orDie(app),
-                    { scope: ownedScope },
-                  );
-                  server.on('request', handler);
-                  server.on('upgrade', upgrade);
-                  yield* Effect.addFinalizer(() =>
-                    Effect.sync(() => {
-                      server.off('request', handler);
-                      server.off('upgrade', upgrade);
-                    }),
-                  );
-                }),
-            });
-            yield* Layer.buildWithScope(
-              HttpRouter.serve(application, {
-                disableLogger: true,
-                disableListenLog: true,
-              }).pipe(
-                Layer.provide(
-                  Layer.mergeAll(
-                    Layer.succeed(HttpServer.HttpServer, nativeServer),
-                    Layer.succeed(NodeLiveSockets, live),
-                    NodeHttpServer.layerHttpServices,
-                  ),
-                ),
-              ),
-              opened,
-            );
-          }).pipe(Scope.provide(opened)),
+          scope,
         );
-        const address = server.address();
-        if (address === null) throw new Error('HTTP listener has no address');
-        return typeof address === 'string'
-          ? address
-          : `http://${address.family === 'IPv6' ? `[${address.address}]` : address.address}:${address.port}`;
-      } catch (error) {
-        await Effect.runPromise(closing);
-        throw error;
-      }
-    },
-    async close() {
-      await Effect.runPromise(closeScope ?? Effect.void);
-    },
+        const address = nativeServer.address;
+        return {
+          address:
+            address._tag === 'UnixPathAddress'
+              ? address.path
+              : `http://${NetAddress.formatInet(address)}`,
+          close: () => close,
+        };
+      }).pipe(
+        Scope.provide(scope),
+        Effect.onExit((exit) => (Exit.isFailure(exit) ? close : Effect.void)),
+        Effect.orDie,
+      );
+    }),
   };
 }
 

@@ -1,12 +1,4 @@
-import {
-  Effect,
-  Exit,
-  FileSystem,
-  Path,
-  Scope,
-  type Clock,
-  type Duration,
-} from 'effect';
+import { Effect, Exit, FileSystem, Path, Scope, type Clock } from 'effect';
 import { nativeOperation } from '@porcelain/effects';
 import { networkInterfaces } from 'node:os';
 import type { HostPolicy, PairingReach } from '@porcelain/access/models';
@@ -17,7 +9,7 @@ import type { Job } from '../ports/job.ts';
 import type { OpenedServer } from '../ports/opened-server.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
 import type { Runtime } from '../ports/runtime.ts';
-import { closeListener } from './close-listener.ts';
+import type { ClosableListener } from '../ports/closable-listener.ts';
 import { prepareDataDirectory } from './data-directory.ts';
 import { acquireDirectoryLock } from './directory-lock.ts';
 import { DataDirectoryOwnedError } from './errors/data-directory-owned-error.ts';
@@ -36,19 +28,21 @@ type ApplicationStarter = {
   ownerProbe: OwnerProbe;
   clock: Clock.Clock;
 };
-type RuntimeParts = { opened?: OpenedServer | undefined; jobs: Job[] };
+type RuntimeParts = {
+  opened?: OpenedServer | undefined;
+  jobs: Job[];
+  listeners: ClosableListener[];
+};
 
 const shutDown = Effect.fn('Application.shutDown')(function* (
   parts: RuntimeParts,
-  grace: Duration.Duration,
 ) {
   const opened = parts.opened;
   const stopJobs = releaseInOrder(parts.jobs.map((job) => job.stop()));
   yield* releaseInOrder(
     opened
       ? [
-          closeListener(opened.network, grace),
-          closeListener(opened.owner, grace),
+          ...parts.listeners.map((listener) => listener.close()),
           stopJobs,
           opened.close(),
         ]
@@ -74,7 +68,7 @@ export const startApplication = Effect.fn('startApplication')(function* (
   const pathApi = yield* Path.Path;
   const applicationScope = yield* Scope.fork(yield* Scope.Scope, 'sequential');
   const { host, port, allowedHosts, limits } = settings;
-  const parts: RuntimeParts = { jobs: [] };
+  const parts: RuntimeParts = { jobs: [], listeners: [] };
   const startup = Effect.scoped(
     Effect.gen(function* () {
       yield* Effect.sync(() => signal.throwIfAborted());
@@ -120,23 +114,25 @@ export const startApplication = Effect.fn('startApplication')(function* (
           signal,
         })
         .pipe(Scope.provide(applicationScope));
-      yield* Scope.addFinalizer(
-        applicationScope,
-        shutDown(parts, limits.listeners.closeGrace),
-      );
+      yield* Scope.addFinalizer(applicationScope, shutDown(parts));
       const opened = parts.opened;
       yield* Effect.sync(() => signal.throwIfAborted());
       for (const job of opened.jobs) {
         parts.jobs.push(job);
         yield* job.start();
       }
-      const address = yield* nativeOperation(() =>
-        opened.network.listen({ host, port }),
-      );
+      const network = yield* opened.network
+        .start({ host, port })
+        .pipe(Scope.provide(applicationScope));
+      parts.listeners.push(network);
+      const address = network.address;
       status = { ...status, address };
       reach.port = Number(new URL(address).port);
       reach.policy = { allowedHosts, localAddresses: listeningOn(host) };
-      yield* nativeOperation(() => opened.owner.listen({ path: socketPath }));
+      const owner = yield* opened.owner
+        .start({ path: socketPath })
+        .pipe(Scope.provide(applicationScope));
+      parts.listeners.push(owner);
       yield* restrictOwnerSocket(socketPath);
       const close = yield* Effect.cached(
         Scope.close(applicationScope, Exit.void),

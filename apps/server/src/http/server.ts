@@ -52,5 +52,6 @@ export function createNetworkServer(options: {
     logger: options.logger,
     principal: undefined,
     websocketMaxBytes: settings.limits.liveUpdates.messageBytes,
+    closeGrace: settings.limits.listeners.closeGrace,
   });
 }
