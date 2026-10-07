@@ -38,6 +38,6 @@ The ignored `.mobile-device-host.json` in the main checkout is shared by its wor
 
 ## Correct a map
 
-Copy the nearest map: frontmatter names the screen, exact source selectors, test files and `METHOD /api/...` routes. Include every entry point, deep link, observable end state and way back. Link it from `features/README.md`, run `pnpm features:check`, and drive the changed steps on a fresh instance. For a new flow, copy the nearest Maestro flow and e2e test; assert literal server state through the `environments` fixture.
+Keep useful navigation, entry points, observable end states and ways back in ordinary journey guides linked from `features/README.md`. Drive changed steps on a fresh instance and retain evidence. Guides have no mandatory metadata, source inventory or test-link gate. Add automated regression cases separately when a behavior needs a durable test.
 
 Report platforms driven, tests run, unproved behaviour and the evidence folder. Never call an untested platform complete.

@@ -1,6 +1,6 @@
 # Desktop feature map
 
-One file per native feature of the Mac app, named `<domain>.<capability>.md`: what only the Electron shell does, not the web inside it, which `web-verify` maps (its `shell: desktop` entries and `start --desktop`). Each says what the feature is, how a user reaches it, the exact CLI lines that drive it with the end state to look for, the tests that guard it and its gotchas. `pnpm check` runs `node scripts/feature-maps.ts`, which fails when a map names a test or selector that does not exist, or an e2e test in `apps/desktop/spec/e2e/` is named by no map.
+These journey guides cover native Electron behavior; `web-verify` covers the embedded web surface. They describe navigation, end states and practical gotchas, not a required source or test inventory. Correct drift against the actual surface; automated regression tests remain separate.
 
 | Feature                                                   | What it does                                                                                                                                                                                                         |
 | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

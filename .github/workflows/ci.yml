@@ -35,10 +35,17 @@ jobs:
         id: affected
         run: |
           pnpm exec turbo run test:integration test:e2e build db:check --affected --dry=json > "$RUNNER_TEMP/runtime.json"
-          echo "server=$(jq 'any(.tasks[]; .taskId == "@porcelain/server#test:integration" or .taskId == "@porcelain/client#test:integration")' "$RUNNER_TEMP/runtime.json")" >> "$GITHUB_OUTPUT"
-          echo "web=$(jq 'any(.tasks[]; .taskId == "@porcelain/web#test:integration" or .taskId == "@porcelain/web#test:e2e" or .taskId == "@porcelain/web#build")' "$RUNNER_TEMP/runtime.json")" >> "$GITHUB_OUTPUT"
-          echo "desktop=$(jq 'any(.tasks[]; .taskId == "@porcelain/desktop#test:e2e")' "$RUNNER_TEMP/runtime.json")" >> "$GITHUB_OUTPUT"
-          echo "storage=$(jq 'any(.tasks[]; .taskId == "@porcelain/storage#db:check")' "$RUNNER_TEMP/runtime.json")" >> "$GITHUB_OUTPUT"
+          jq -e '.tasks | type == "array"' "$RUNNER_TEMP/runtime.json" > /dev/null
+          server=$(jq 'any(.tasks[]; .taskId == "@porcelain/server#test:integration" or .taskId == "@porcelain/client#test:integration")' "$RUNNER_TEMP/runtime.json")
+          web=$(jq 'any(.tasks[]; .taskId == "@porcelain/web#test:integration" or .taskId == "@porcelain/web#test:e2e" or .taskId == "@porcelain/web#build")' "$RUNNER_TEMP/runtime.json")
+          desktop=$(jq 'any(.tasks[]; .taskId == "@porcelain/desktop#test:e2e")' "$RUNNER_TEMP/runtime.json")
+          storage=$(jq 'any(.tasks[]; .taskId == "@porcelain/storage#db:check")' "$RUNNER_TEMP/runtime.json")
+          for surface in server web desktop storage; do
+            case "${!surface}" in
+              true|false) printf '%s=%s\n' "$surface" "${!surface}" >> "$GITHUB_OUTPUT" ;;
+              *) exit 1 ;;
+            esac
+          done
           cat "$GITHUB_OUTPUT"
       - uses: actions/cache@v6
         with:
@@ -46,6 +53,8 @@ jobs:
           key: turbo-${{ runner.os }}-${{ github.sha }}
           restore-keys: turbo-${{ runner.os }}-
       - run: pnpm check --affected
+      - name: Test retained architecture rules
+        run: node architecture/rule-tests.mjs
 
   units:
     runs-on: ubuntu-latest

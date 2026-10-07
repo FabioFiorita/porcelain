@@ -65,4 +65,4 @@ Sessions have no idle expiry. Stop your instance when finished. After stopping, 
 
 ## Add or correct a map entry
 
-A new route, screen or flow gets its map in the same change; a map that drifted is corrected when you meet it. Copy the nearest entry, link it from `features/README.md`, and run `pnpm features:check`, which enforces the frontmatter and sections and fails on a route, selector, test or API route that does not exist or a web call no map lists. Spell selectors as the app's source does and API routes as `METHOD /api/...` with the server's parameter names. Drive the new lines once on a fresh instance and keep the evidence folder for the report.
+When a journey guide helps an agent reach a feature, copy a useful nearby entry and link it from `features/README.md`. Correct drift against the actual surface, drive the changed steps on a fresh instance and keep the evidence folder for the report. Guides have no mandatory metadata, source inventory or test-link gate; automated regression tests remain separate.

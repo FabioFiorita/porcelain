@@ -14,7 +14,7 @@ The codebase is the example. Copy the nearest feature's shape, and extract a sec
 
 1. **Killing by pattern.** Stop only processes you started, by the PID you captured; the verification CLIs stop their own instances. Your own agent's command line contains the worktree path, and other worktrees run on the same machine.
 2. **Touching the installed app.** Never build, install or launch the installed Porcelain app or service, and never point a test at its data. Development uses disposable instances and `pnpm dev --desktop` (Porcelain Dev, with its own profile).
-3. **Running whole suites locally.** CI runs every suite on each pull request, free. A full local run has exhausted these machines before.
+3. **Running whole suites locally.** CI owns the complete suites; locally, run the checks for what changed.
 
 ## Hit every surface
 
@@ -32,7 +32,7 @@ Declare application CLI commands, flags, arguments and help in `apps/server/src/
 
 ## Building a feature
 
-A feature crosses the repository in one order: the contract, the domain decision in `packages/<domain>`, the server use case and route, the shared client in `packages/client` (api, queries, commands, store, rules), then each app's views and adapters. The architecture check enforces each role.
+A feature crosses the repository in one order: the contract, the domain decision in `packages/<domain>`, the server use case and route, the shared client in `packages/client` (api, queries, commands, store, rules), then each app's views and adapters. The architecture check enforces import and capability boundaries.
 
 Domain services and server use cases use named `Context.Service` capabilities with one readonly typed `execute` and a static Layer. The Layer resolves dependencies with `yield*`; execute uses named `Effect.fn`. Ports declare the capability key and its shape; models declare canonical native Schema values and inferred types, with business behavior in rules and services. Bootstrap supplies implementations and configuration through Layers. Copy `packages/access/src/services/read-environment-service.ts`; do not add constructor injection or a forwarding file when migrating an owner. Build a scoped graph with `Layer.build` in its application scope before extracting capabilities; `Effect.provide` owns a shorter scope and cannot return borrowed resources for later use. Runtime jobs expose native Effect start and stop operations, and application shutdown drains foreign IO and durable recovery before releasing persistence.
 
@@ -50,9 +50,11 @@ Choose test setups with judgment: weigh what each layer of isolation, retry or e
 
 ## Verifying
 
-Prove a change with the smallest local proof: `pnpm check:local`, the test files you changed by name, and the feature driven through its surface's skill (`server-verify`, `web-verify`, `desktop-verify`, `mobile-verify`). Each skill's CLI at `scripts/cli` starts a disposable instance, drives it and records evidence; its feature map says how to reach each feature. CI runs `pnpm check` and owns the full suites. A guardrail change proves its rule with a fixture in `architecture/rule-cases.mjs`, or a probe in `architecture/probes/` run by name.
+Prove a change with the smallest local proof: `pnpm check` for static checks, the affected test files by name, and the feature driven through its surface's skill (`server-verify`, `web-verify`, `desktop-verify`, `mobile-verify`). Each skill supplies a disposable instance and the procedures for interaction, evidence and owned cleanup. Feature guides describe useful journeys; they are not contracts or required test inventories. CI runs the full selected suites separately from static checks. A guardrail change proves its retained rule with a valid/invalid fixture in `architecture/rule-cases.mjs` or `architecture/guardrail-tests.mjs`, run through `node architecture/rule-tests.mjs` by rule name or fixture group (`--lint`, `--types`, `--boundaries`). CI runs those fixtures once.
 
-The root integration command runs suite tasks sequentially, because each Vitest runner already owns a machine-sized worker budget. Keep parallelism inside the suite; concurrent runners must not multiply that budget or require longer product deadlines.
+Interactive verification follows a session: start, change, refresh or rebuild when needed, interact, inspect evidence, repeat and stop. Automated regression tests remain separate from this workflow.
+
+The root integration command runs suite tasks sequentially. Node units, browser integration and web E2E use one local worker and two in CI; Electron E2E uses one worker. Do not multiply that budget with concurrent local runners or extend product deadlines to hide contention.
 
 ## Pull requests
 

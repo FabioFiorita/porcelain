@@ -2,7 +2,7 @@
 
 `C=.agents/skills/web-verify/scripts/cli`, from the repository root; every map uses `$C` for commands.
 
-One file per feature the web offers, named `<domain>.<capability>.md`. Each says what the feature is, how a user reaches it, the exact CLI lines that drive it with the end state to look for, the tests that guard it and its gotchas. `pnpm check` runs `node scripts/feature-maps.ts`, which fails when a page route has no map, a map names a route, test, selector or API route that does not exist, or the web calls a route no map lists.
+These journey guides describe how to reach web features, the end states to inspect and practical gotchas. Correct them against the actual surface when they drift. They are navigation guidance, not a required source or test inventory; automated regression tests remain separate.
 
 What every map assumes about the CLI, proven in the live pass:
 
