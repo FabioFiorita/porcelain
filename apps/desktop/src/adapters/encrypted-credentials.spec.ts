@@ -1,174 +1,231 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import {
-  mkdtemp,
-  readFile,
-  readdir,
-  rm,
-  stat,
-  writeFile,
-} from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { Persistence } from '../../spec/kit/persistence.ts';
+import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import { expect, it } from '@effect/vitest';
+import { Effect } from 'effect';
 import { join } from 'node:path';
-import { EncryptedCredentials } from './encrypted-credentials.ts';
+import {
+  CredentialStorageError,
+  openEncryptedCredentials,
+} from './encrypted-credentials.ts';
 
-describe('EncryptedCredentials', () => {
-  let profile = '';
+const fixture = Effect.gen(function* () {
+  const profile = yield* Persistence;
   const encryptedValues = new Map<string, string>();
   const staleKeys = new Set<string>();
   const encryption = {
-    available: () => Promise.resolve(true),
-    encrypt: (value: string) => {
-      const encrypted = Buffer.from(`encrypted:${encryptedValues.size}`);
-      encryptedValues.set(encrypted.toString('hex'), value);
-      return Promise.resolve(encrypted);
-    },
-    decrypt: (value: Buffer) => {
-      const decrypted = encryptedValues.get(value.toString('hex'));
-      return decrypted === undefined
-        ? Promise.reject(new Error('Invalid ciphertext'))
-        : Promise.resolve({
-            value: decrypted,
-            reEncrypt: staleKeys.has(value.toString('hex')),
-          });
-    },
+    available: () => Effect.succeed(true),
+    encrypt: (value: string) =>
+      Effect.sync(() => {
+        const encrypted = Buffer.from(`encrypted:${encryptedValues.size}`);
+        encryptedValues.set(encrypted.toString('hex'), value);
+        return encrypted;
+      }),
+    decrypt: (value: Buffer) =>
+      Effect.suspend(() => {
+        const decrypted = encryptedValues.get(value.toString('hex'));
+        return decrypted === undefined
+          ? Effect.fail(
+              new CredentialStorageError({ message: 'Invalid ciphertext' }),
+            )
+          : Effect.succeed({
+              value: decrypted,
+              reEncrypt: staleKeys.has(value.toString('hex')),
+            });
+      }),
   };
-  beforeEach(async () => {
-    profile = await mkdtemp(join(tmpdir(), 'porcelain-encrypted-credentials-'));
-  });
-  afterEach(async () => {
-    await rm(profile, { recursive: true, force: true });
-  });
+  const credentials = yield* openEncryptedCredentials(profile, encryption);
+  return {
+    profile,
+    encryption,
+    credentials,
+    staleKeys,
+    file: join(profile, 'credentials.enc'),
+  };
+});
 
-  const saved = (value: string) => ({ status: 'saved', value });
+it.effect('reports nothing saved before any credential value is stored', () =>
+  Effect.gen(function* () {
+    const { credentials } = yield* fixture;
+    expect(yield* credentials.read()).toEqual({ status: 'empty' });
+  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+);
 
-  it('reports nothing saved before any credential value is stored', async () => {
-    const credentials = new EncryptedCredentials(profile, encryption);
-    expect(await credentials.read()).toEqual({ status: 'empty' });
-  });
-  it('stores one opaque string encrypted and restores it through a new instance', async () => {
-    const value = '[{"name":"Mac 💻","credential":"test-only-bearer"}]';
-    await new EncryptedCredentials(profile, encryption).write(value);
-    expect(await new EncryptedCredentials(profile, encryption).read()).toEqual(
-      saved(value),
-    );
+it.effect(
+  'encrypts opaque credentials with owner permissions and restores them through a new instance',
+  () =>
+    Effect.gen(function* () {
+      const { credentials, profile, encryption, file } = yield* fixture;
+      const value = '[{"name":"Mac 💻","credential":"test-only-bearer"}]';
+      yield* credentials.write(value);
+      const reopened = yield* openEncryptedCredentials(profile, encryption);
+      expect(yield* reopened.read()).toEqual({ status: 'saved', value });
+      expect(
+        Buffer.from(yield* Effect.tryPromise(() => readFile(file))).includes(
+          Buffer.from('test-only-bearer'),
+        ),
+      ).toBe(false);
+      expect((yield* Effect.tryPromise(() => stat(file))).mode & 0o777).toBe(
+        0o600,
+      );
+      expect(yield* Effect.tryPromise(() => readdir(profile))).toEqual([
+        'credentials.enc',
+      ]);
+    }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+);
+
+it.effect('keeps an empty string distinct from no stored value', () =>
+  Effect.gen(function* () {
+    const { credentials } = yield* fixture;
+    yield* credentials.write('');
+    expect(yield* credentials.read()).toEqual({ status: 'saved', value: '' });
+  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+);
+
+it.effect('rejects unavailable encryption without creating a file', () =>
+  Effect.gen(function* () {
+    const { profile, encryption } = yield* fixture;
+    const credentials = yield* openEncryptedCredentials(profile, {
+      ...encryption,
+      available: () => Effect.succeed(false),
+    });
     expect(
-      (await readFile(join(profile, 'credentials.enc'))).includes(
-        Buffer.from('test-only-bearer'),
-      ),
-    ).toBe(false);
-    expect((await stat(join(profile, 'credentials.enc'))).mode & 0o777).toBe(
-      0o600,
+      yield* Effect.flip(credentials.write('test-only-secret')),
+    ).toMatchObject({ message: 'Encrypted credential storage is unavailable' });
+    expect(yield* Effect.tryPromise(() => readdir(profile))).toEqual([]);
+  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+);
+
+it.effect(
+  'preserves previous ciphertext when encryption fails and accepts a later write',
+  () =>
+    Effect.gen(function* () {
+      const { profile, encryption, file } = yield* fixture;
+      let failing = false;
+      const credentials = yield* openEncryptedCredentials(profile, {
+        ...encryption,
+        encrypt: (value) =>
+          failing
+            ? Effect.fail(
+                new CredentialStorageError({ message: 'Encryption failed' }),
+              )
+            : encryption.encrypt(value),
+      });
+      yield* credentials.write('first');
+      const first = yield* Effect.tryPromise(() => readFile(file));
+      failing = true;
+      expect(yield* Effect.flip(credentials.write('second'))).toMatchObject({
+        message: 'Encryption failed',
+      });
+      expect(yield* Effect.tryPromise(() => readFile(file))).toEqual(first);
+      failing = false;
+      yield* credentials.write('third');
+      expect(yield* credentials.read()).toEqual({
+        status: 'saved',
+        value: 'third',
+      });
+    }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+);
+
+it.effect('serializes writes, reads and clear in request order', () =>
+  Effect.gen(function* () {
+    const { credentials, profile } = yield* fixture;
+    const [, , read] = yield* Effect.all(
+      [
+        credentials.write('first'),
+        credentials.write('second'),
+        credentials.read(),
+        credentials.clear(),
+      ],
+      { concurrency: 'unbounded' },
     );
-    expect(await readdir(profile)).toEqual(['credentials.enc']);
-  });
-  it('keeps an empty string distinct from no stored value', async () => {
-    const credentials = new EncryptedCredentials(profile, encryption);
-    await credentials.write('');
-    expect(await credentials.read()).toEqual(saved(''));
-  });
-  it('rejects unavailable encryption without creating a file', async () => {
-    const credentials = new EncryptedCredentials(profile, {
-      ...encryption,
-      available: () => Promise.resolve(false),
-    });
-    await expect(credentials.write('test-only-secret')).rejects.toThrow(
-      'unavailable',
-    );
-    expect(await readdir(profile)).toEqual([]);
-  });
-  it('preserves the previous ciphertext when encryption fails and accepts a later write', async () => {
-    let failing = false;
-    const credentials = new EncryptedCredentials(profile, {
-      ...encryption,
-      encrypt: (value) =>
-        failing
-          ? Promise.reject(new Error('Encryption failed'))
-          : encryption.encrypt(value),
-    });
-    await credentials.write('first');
-    const first = await readFile(join(profile, 'credentials.enc'));
-    failing = true;
-    await expect(credentials.write('second')).rejects.toThrow(
-      'Encryption failed',
-    );
-    expect(await readFile(join(profile, 'credentials.enc'))).toEqual(first);
-    failing = false;
-    await credentials.write('third');
-    expect(await credentials.read()).toEqual(saved('third'));
-  });
-  it('serializes writes, reads and clear in the order they are requested', async () => {
-    const credentials = new EncryptedCredentials(profile, encryption);
-    const first = credentials.write('first');
-    const second = credentials.write('second');
-    const read = credentials.read();
-    const clear = credentials.clear();
-    await Promise.all([first, second, clear]);
-    expect(await read).toEqual(saved('second'));
-    expect(await credentials.read()).toEqual({ status: 'empty' });
-    expect(await readdir(profile)).toEqual([]);
-  });
-  it('reports ciphertext it cannot decrypt as unreadable, saying why, and keeps it', async () => {
-    await writeFile(join(profile, 'credentials.enc'), 'damaged');
-    expect(await new EncryptedCredentials(profile, encryption).read()).toEqual({
-      status: 'unreadable',
-      message: 'The saved credentials could not be read: Invalid ciphertext',
-    });
-    expect(await readFile(join(profile, 'credentials.enc'), 'utf8')).toBe(
-      'damaged',
-    );
-  });
-  it('refuses to write over credentials it cannot read, as when the Keychain is denied', async () => {
-    await writeFile(join(profile, 'credentials.enc'), 'damaged');
-    const credentials = new EncryptedCredentials(profile, encryption);
-    await expect(credentials.write('[]')).rejects.toThrow(
-      'could not be read, so they are kept unchanged',
-    );
-    expect(await readFile(join(profile, 'credentials.enc'), 'utf8')).toBe(
-      'damaged',
-    );
-  });
-  it('accepts a write again once the unreadable credentials are cleared', async () => {
-    await writeFile(join(profile, 'credentials.enc'), 'damaged');
-    const credentials = new EncryptedCredentials(profile, encryption);
-    await credentials.clear();
-    await credentials.write('fresh');
-    expect(await credentials.read()).toEqual(saved('fresh'));
-  });
-  it('replaces the ciphertext with a fresh one when decryption asks for it', async () => {
-    const credentials = new EncryptedCredentials(profile, encryption);
-    await credentials.write('stale key');
-    const stale = await readFile(join(profile, 'credentials.enc'));
+    expect(read).toEqual({ status: 'saved', value: 'second' });
+    expect(yield* credentials.read()).toEqual({ status: 'empty' });
+    expect(yield* Effect.tryPromise(() => readdir(profile))).toEqual([]);
+  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+);
+
+it.effect(
+  'reports unreadable ciphertext without overwriting it and allows a write after clear',
+  () =>
+    Effect.gen(function* () {
+      const { credentials, file } = yield* fixture;
+      yield* Effect.tryPromise(() => writeFile(file, 'damaged'));
+      expect(yield* credentials.read()).toEqual({
+        status: 'unreadable',
+        message: 'The saved credentials could not be read: Invalid ciphertext',
+      });
+      expect(yield* Effect.flip(credentials.write('[]'))).toMatchObject({
+        message:
+          'The saved credentials could not be read, so they are kept unchanged',
+      });
+      expect(yield* Effect.tryPromise(() => readFile(file, 'utf8'))).toBe(
+        'damaged',
+      );
+      yield* credentials.clear();
+      yield* credentials.write('fresh');
+      expect(yield* credentials.read()).toEqual({
+        status: 'saved',
+        value: 'fresh',
+      });
+    }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+);
+
+it.effect('re-encrypts stale ciphertext and restores the same value', () =>
+  Effect.gen(function* () {
+    const { credentials, file, staleKeys } = yield* fixture;
+    yield* credentials.write('stale key');
+    const stale = Buffer.from(yield* Effect.tryPromise(() => readFile(file)));
     staleKeys.add(stale.toString('hex'));
-    expect(await credentials.read()).toEqual(saved('stale key'));
-    const fresh = await readFile(join(profile, 'credentials.enc'));
-    expect(fresh.equals(stale)).toBe(false);
-    expect(await credentials.read()).toEqual(saved('stale key'));
-  });
-  it('still returns the value when its re-encryption fails, keeping the old ciphertext', async () => {
-    await new EncryptedCredentials(profile, encryption).write('stale key');
-    const stale = await readFile(join(profile, 'credentials.enc'));
-    staleKeys.add(stale.toString('hex'));
-    const credentials = new EncryptedCredentials(profile, {
-      ...encryption,
-      encrypt: () => Promise.reject(new Error('Encryption failed')),
+    expect(yield* credentials.read()).toEqual({
+      status: 'saved',
+      value: 'stale key',
     });
-    expect(await credentials.read()).toEqual(saved('stale key'));
-    expect(await readFile(join(profile, 'credentials.enc'))).toEqual(stale);
-  });
-  it('clears saved credentials even when encryption is unavailable', async () => {
-    await new EncryptedCredentials(profile, encryption).write(
-      'test-only-secret',
-    );
-    const credentials = new EncryptedCredentials(profile, {
-      ...encryption,
-      available: () => Promise.resolve(false),
+    expect(yield* Effect.tryPromise(() => readFile(file))).not.toEqual(stale);
+    expect(yield* credentials.read()).toEqual({
+      status: 'saved',
+      value: 'stale key',
     });
-    expect(await credentials.read()).toEqual({
+  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+);
+
+it.effect(
+  'returns the value when re-encryption fails and preserves its ciphertext',
+  () =>
+    Effect.gen(function* () {
+      const { credentials, file, staleKeys, profile, encryption } =
+        yield* fixture;
+      yield* credentials.write('stale key');
+      const stale = Buffer.from(yield* Effect.tryPromise(() => readFile(file)));
+      staleKeys.add(stale.toString('hex'));
+      const reopened = yield* openEncryptedCredentials(profile, {
+        ...encryption,
+        encrypt: () =>
+          Effect.fail(
+            new CredentialStorageError({ message: 'Encryption failed' }),
+          ),
+      });
+      expect(yield* reopened.read()).toEqual({
+        status: 'saved',
+        value: 'stale key',
+      });
+      expect(yield* Effect.tryPromise(() => readFile(file))).toEqual(stale);
+    }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+);
+
+it.effect('clears saved credentials even when encryption is unavailable', () =>
+  Effect.gen(function* () {
+    const { credentials, profile, encryption } = yield* fixture;
+    yield* credentials.write('test-only-secret');
+    const reopened = yield* openEncryptedCredentials(profile, {
+      ...encryption,
+      available: () => Effect.succeed(false),
+    });
+    expect(yield* reopened.read()).toEqual({
       status: 'unreadable',
       message: 'Encrypted credential storage is unavailable',
     });
-    await credentials.clear();
-    await credentials.clear();
-    expect(await credentials.read()).toEqual({ status: 'empty' });
-  });
-});
+    yield* reopened.clear();
+    yield* reopened.clear();
+    expect(yield* reopened.read()).toEqual({ status: 'empty' });
+  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+);
