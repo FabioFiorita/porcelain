@@ -12,7 +12,7 @@ Run on request or an existing schedule; do not create a schedule. Follow AGENTS.
 1. Read `last-pass.json` beside this skill. `commit` is the checked source, `mode` and `maps` state coverage; `bootstrap` means no earlier completed pass is known. If the commit is missing or not an ancestor of HEAD, ask for a baseline.
 2. Select changed maps with `git diff --name-only <commit> -- '.agents/skills/*-verify/features/*.md'`. Check changed indexes and deletions against their files and source.
 3. Add three random unchanged maps without replacement from `git ls-files '.agents/skills/*-verify/features/*.md'`; exclude indexes and record the draw. Only an explicit full-pass request selects every map. Exclude `app.installed-lock.md` unless the owner requested that check.
-4. Read commits since the baseline for unmapped flows; add relevant maps. Run `pnpm features:check`.
+4. Read commits since the baseline for unmapped flows; add relevant maps. Run `pnpm features:check`: it checks frontmatter and one file per feature, page/screen coverage and declared page/screen existence, test paths, selectors in app or shared client source, API entries against contract endpoints in `packages/contracts`, index links and desktop e2e references. It does not check server registration, client call reachability, prose or section order; read the selected maps against source to assess their journeys.
 
 ## Drive
 

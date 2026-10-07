@@ -1287,7 +1287,7 @@ export default {
           const source = moduleSource(node);
           if (source === undefined) return;
           if (
-            path === 'scripts/api-calls.ts' &&
+            path === 'scripts/feature-api-routes.ts' &&
             /^@porcelain\/contracts\/(?:access|changes|files|git-actions|projects|reviews|shared)$/.test(
               source,
             )

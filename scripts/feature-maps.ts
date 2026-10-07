@@ -5,35 +5,17 @@ import { fileURLToPath } from 'node:url';
 import { parseDocument } from 'yaml';
 import { webDomains } from '../architecture/policy.ts';
 import { selectorAppears } from '../architecture/feature-selectors.ts';
-import {
-  apiCalls,
-  sameRoute,
-  serverRoutes,
-  type ApiCall,
-} from './api-calls.ts';
-export type Page = { file: string; path: string };
-export type Surface = {
+import { featureApiRoutes } from './feature-api-routes.ts';
+type Page = { file: string; path: string };
+type Surface = {
   name: string;
   page: 'route' | 'screen';
   features: string;
   domains: readonly string[];
   pages: ((root: string) => Page[]) | undefined;
   sources: readonly string[];
-  calls: (root: string) => {
-    calls: ApiCall[];
-    problems: string[];
-    sharedSources?: readonly string[];
-  };
   flows?: string;
 };
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const sections = [
-  'What it is',
-  'How a user reaches it',
-  'Driving it',
-  'What proves it works',
-  'Gotchas',
-];
 const skipped = new Set(['node_modules', 'dist', '.vite', '.turbo']);
 const sourceFile = /\.(?:tsx?|css|html)$/;
 const entrySchema = Schema.Struct({
@@ -46,30 +28,35 @@ const entrySchema = Schema.Struct({
     Schema.String.check(
       Schema.isPattern(/^(?:GET|POST|PUT|PATCH|DELETE) \/api\/\S*$/, {
         expected:
-          'an api entry is METHOD /api/<path> with the route parameters the server names',
+          'an api entry is METHOD /api/<path> with the route parameters the contract names',
       }),
     ),
   ),
 });
 type Entry = typeof entrySchema.Type & { file: string };
-function filesUnder(folder: string): string[] {
+function filesUnder(root: string, folder: string): string[] {
   const absolute = join(root, folder);
   if (!existsSync(absolute)) return [];
   if (!statSync(absolute).isDirectory()) return [folder];
   return readdirSync(absolute, { withFileTypes: true }).flatMap((entry) => {
     const path = join(folder, entry.name);
     if (entry.isDirectory())
-      return skipped.has(entry.name) ? [] : filesUnder(path);
+      return skipped.has(entry.name) ? [] : filesUnder(root, path);
     return [path];
   });
 }
 type RouteFile = { file: string; segments: string[]; index: boolean };
-function routeFiles(folder: string, inside: string[] = []): RouteFile[] {
+function routeFiles(
+  root: string,
+  folder: string,
+  inside: string[] = [],
+): RouteFile[] {
   return readdirSync(join(root, folder, ...inside), {
     withFileTypes: true,
   }).flatMap((entry) => {
     if (entry.name.startsWith('-')) return [];
-    if (entry.isDirectory()) return routeFiles(folder, [...inside, entry.name]);
+    if (entry.isDirectory())
+      return routeFiles(root, folder, [...inside, entry.name]);
     if (!/\.tsx?$/.test(entry.name)) return [];
     const stem = entry.name.replace(/(?:\.lazy)?\.tsx?$/, '');
     if (inside.length === 0 && stem === '__root') return [];
@@ -85,8 +72,8 @@ function routeFiles(folder: string, inside: string[] = []): RouteFile[] {
     ];
   });
 }
-export function fileRoutes(folder: string): Page[] {
-  const files = routeFiles(folder);
+function fileRoutes(root: string, folder: string): Page[] {
+  const files = routeFiles(root, folder);
   const layout = (route: RouteFile) =>
     !route.index &&
     files.some(
@@ -113,20 +100,8 @@ const web: Surface = {
   page: 'route',
   features: '.agents/skills/web-verify/features',
   domains: [...webDomains, 'app'],
-  pages: () => fileRoutes('apps/web/src/routes'),
-  sources: ['apps/web/src'],
-  calls: (from) =>
-    apiCalls(
-      from,
-      ['apps/web/src', 'packages/client/src'],
-      [
-        /^apps\/web\/src\/features\/[^/]+\/api\.ts$/,
-        /^apps\/web\/src\/shared\/(?:api|live)\/[^/]+\.ts$/,
-        /^apps\/web\/src\/shared\/adapters\/live-socket\.ts$/,
-        /^packages\/client\/src\/features\/[^/]+\/(?:api\.ts|(?:queries|commands)\/[a-z-]+\.ts)$/,
-      ],
-      ['apps/web/src'],
-    ),
+  pages: (root) => fileRoutes(root, 'apps/web/src/routes'),
+  sources: ['apps/web/src', 'packages/client/src'],
 };
 const desktop: Surface = {
   name: 'desktop',
@@ -134,25 +109,19 @@ const desktop: Surface = {
   features: '.agents/skills/desktop-verify/features',
   domains: ['app', 'projects', 'access'],
   pages: undefined,
-  sources: ['apps/desktop/src', 'apps/web/src'],
-  calls: (from) =>
-    apiCalls(
-      from,
-      ['apps/desktop/src', 'packages/client/src'],
-      [
-        /^apps\/desktop\/src\/features\/[^/]+\/api\.ts$/,
-        /^packages\/client\/src\/features\/[^/]+\/(?:api\.ts|(?:queries|commands)\/[a-z-]+\.ts)$/,
-      ],
-      ['apps/desktop/src'],
-    ),
+  sources: ['apps/desktop/src', 'apps/web/src', 'packages/client/src'],
   flows: 'apps/desktop/spec/e2e',
 };
-export function expoScreens(folder: string, inside: string[] = []): Page[] {
+function expoScreens(
+  root: string,
+  folder: string,
+  inside: string[] = [],
+): Page[] {
   return readdirSync(join(root, folder, ...inside), {
     withFileTypes: true,
   }).flatMap((entry) => {
     if (entry.isDirectory())
-      return expoScreens(folder, [...inside, entry.name]);
+      return expoScreens(root, folder, [...inside, entry.name]);
     const stem = entry.name.replace(/\.(?:ios|android)?\.?tsx?$/, '');
     if (!/\.tsx?$/.test(entry.name) || stem === '_layout') return [];
     const segments = [...inside, stem].filter(
@@ -171,31 +140,17 @@ const mobile: Surface = {
   page: 'screen',
   features: '.agents/skills/mobile-verify/features',
   domains: [...webDomains, 'app'],
-  pages: () => expoScreens('apps/mobile/src/app'),
-  sources: ['apps/mobile/src'],
-  calls: (from) =>
-    apiCalls(
-      from,
-      ['apps/mobile/src', 'packages/client/src'],
-      [
-        /^apps\/mobile\/src\/features\/[^/]+\/api\.ts$/,
-        /^apps\/mobile\/src\/shared\/api\/[^/]+\.ts$/,
-        /^packages\/client\/src\/features\/[^/]+\/(?:api\.ts|(?:queries|commands)\/[a-z-]+\.ts)$/,
-      ],
-      ['apps/mobile/src'],
-    ),
+  pages: (root) => expoScreens(root, 'apps/mobile/src/app'),
+  sources: ['apps/mobile/src', 'packages/client/src'],
 };
-export const surfaces: readonly Surface[] = [web, desktop, mobile];
-function frontmatter(text: string): { data: unknown; body: string } {
-  const match = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(text);
-  if (match === null) return { data: undefined, body: text };
+const surfaces: readonly Surface[] = [web, desktop, mobile];
+function frontmatter(text: string): unknown {
+  const match = /^---\n([\s\S]*?)\n---\n/.exec(text);
+  if (match === null) return undefined;
   const document = parseDocument(match[1] ?? '');
-  return {
-    data: document.errors.length > 0 ? undefined : document.toJS(),
-    body: match[2] ?? '',
-  };
+  return document.errors.length > 0 ? undefined : document.toJS();
 }
-function entries(surface: Surface, problems: string[]): Entry[] {
+function entries(root: string, surface: Surface, problems: string[]): Entry[] {
   const folder = join(root, surface.features);
   if (!existsSync(folder)) {
     problems.push(
@@ -216,9 +171,7 @@ function entries(surface: Surface, problems: string[]): Entry[] {
       );
       continue;
     }
-    const { data, body } = frontmatter(
-      readFileSync(join(folder, file), 'utf8'),
-    );
+    const data = frontmatter(readFileSync(join(folder, file), 'utf8'));
     const parsed = Schema.decodeUnknownResult(entrySchema, {
       onExcessProperty: 'error',
       errors: 'all',
@@ -229,11 +182,6 @@ function entries(surface: Surface, problems: string[]): Entry[] {
       );
       continue;
     }
-    const headings = [...body.matchAll(/^## (.+)$/gm)].map((match) => match[1]);
-    if (sections.some((section, index) => headings[index] !== section))
-      problems.push(
-        `${at}: its sections are ${sections.map((section) => `## ${section}`).join(', ')}, in that order`,
-      );
     found.push({
       ...parsed.success,
       file: at,
@@ -255,11 +203,12 @@ function entries(surface: Surface, problems: string[]): Entry[] {
   return found;
 }
 function surfaceProblems(
+  root: string,
   surface: Surface,
   routes: readonly string[],
 ): string[] {
   const problems: string[] = [];
-  const mapped = entries(surface, problems);
+  const mapped = entries(root, surface, problems);
   const pages = surface.pages?.(root);
   if (pages !== undefined) {
     const paths = new Set(pages.map((page) => page.path));
@@ -289,15 +238,14 @@ function surfaceProblems(
   }
   if (surface.flows !== undefined) {
     const named = new Set(mapped.flatMap((entry) => entry.tests));
-    for (const flow of filesUnder(surface.flows))
+    for (const flow of filesUnder(root, surface.flows))
       if (flow.endsWith('.e2e.ts') && !named.has(flow))
         problems.push(
           `${flow}: it tests a native ${surface.name} feature that no ${surface.name} map file names in its tests; add it to the tests of the map file of the feature it proves, or write that map file.`,
         );
   }
-  const { calls, problems: unread, sharedSources = [] } = surface.calls(root);
-  problems.push(...unread);
-  const sources = [...surface.sources.flatMap(filesUnder), ...sharedSources]
+  const sources = surface.sources
+    .flatMap((folder) => filesUnder(root, folder))
     .filter((file) => sourceFile.test(file))
     .map((file) => readFileSync(join(root, file), 'utf8'));
   for (const entry of mapped) {
@@ -312,33 +260,22 @@ function surfaceProblems(
     for (const api of entry.api)
       if (!routes.includes(api))
         problems.push(
-          `${entry.file}: api ${api} is no route the server registers under apps/server/src/http`,
+          `${entry.file}: api ${api} is no endpoint declared in packages/contracts`,
         );
   }
-  for (const entry of mapped)
-    for (const api of entry.api)
-      if (routes.includes(api) && !calls.some((call) => sameRoute(api, call)))
-        problems.push(
-          `${entry.file}: api ${api} is a route the ${surface.name} never calls from its api layer; list the routes this feature calls`,
-        );
-  const covered = mapped.flatMap((entry) => entry.api);
-  const uncovered = new Map<string, ApiCall>();
-  for (const call of calls)
-    if (!covered.some((api) => sameRoute(api, call)))
-      uncovered.set(`${call.method} ${call.path}`, call);
-  for (const [route, call] of uncovered)
-    problems.push(
-      `${call.file}:${call.line}: the ${surface.name} calls ${route}: no map file lists it in its api; add it to the map of the feature that calls it`,
-    );
   return problems;
 }
-const started = performance.now();
-const routes = serverRoutes(root);
-const problems = surfaces.flatMap((surface) =>
-  surfaceProblems(surface, routes),
-);
-for (const problem of problems) process.stderr.write(`${problem}\n`);
-process.stdout.write(
-  `Feature maps: ${problems.length} problems across ${surfaces.map((surface) => surface.name).join(', ')} in ${Math.round(performance.now() - started)} ms.\n`,
-);
-process.exitCode = problems.length > 0 ? 1 : 0;
+export function featureMapProblems(root: string): string[] {
+  const routes = featureApiRoutes();
+  return surfaces.flatMap((surface) => surfaceProblems(root, surface, routes));
+}
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const started = performance.now();
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+  const problems = featureMapProblems(root);
+  for (const problem of problems) process.stderr.write(`${problem}\n`);
+  process.stdout.write(
+    `Feature maps: ${problems.length} problems across ${surfaces.map((surface) => surface.name).join(', ')} in ${Math.round(performance.now() - started)} ms.\n`,
+  );
+  process.exitCode = problems.length > 0 ? 1 : 0;
+}

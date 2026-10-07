@@ -15,7 +15,7 @@ import { typeRuleFindings } from './type-rules.ts';
 import { duplicateScope, scanDuplicates } from './duplicate-policy.ts';
 import { selectorAppears } from './feature-selectors.ts';
 import { guardrailCases } from './rule-cases.mjs';
-import { apiCalls, sameRoute } from '../scripts/api-calls.ts';
+import { featureMapProblems } from '../scripts/feature-maps.ts';
 
 function nativeTypeFixture(source) {
   const root = mkdtempSync(join(tmpdir(), 'porcelain-effect-types-'));
@@ -124,30 +124,13 @@ function typeFixture(files) {
   }
 }
 
-function clientRoutesFixture(entry, source) {
-  const root = mkdtempSync(join(tmpdir(), 'porcelain-client-routes-'));
+function featureMapFixture(entry, files) {
+  const root = mkdtempSync(join(tmpdir(), 'porcelain-feature-maps-'));
   try {
-    writeFiles(root, { ...entry.files, [entry.app]: source });
-    const report = apiCalls(
-      root,
-      ['packages/client/src', dirname(entry.app)],
-      [
-        /^packages\/client\/src\/features\/[^/]+\/(?:api\.ts|(?:queries|commands)\/[^/]+\.ts)$/,
-      ],
-      [dirname(entry.app)],
-    );
-    for (const route of entry.mapped)
-      strictEqual(
-        report.calls.some((call) => sameRoute(route, call)),
-        true,
-        `${route}\n${source}`,
-      );
-    return [
-      ...report.calls
-        .filter((call) => !entry.mapped.some((route) => sameRoute(route, call)))
-        .map((call) => `${call.method} ${call.path}`),
-      ...report.problems.map((problem) => problem.replace(/^[^:]+:\d+: /, '')),
-    ];
+    writeFiles(root, { ...entry.files, ...files });
+    for (const file of files === entry.invalid ? (entry.remove ?? []) : [])
+      rmSync(join(root, file), { recursive: true });
+    return featureMapProblems(root);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -238,13 +221,16 @@ export function runGuardrailCases(named = []) {
         entry.errors,
         entry.rule,
       );
-    } else if (entry.rule === 'client-route-reachability') {
-      deepStrictEqual(clientRoutesFixture(entry, entry.valid), [], entry.valid);
-      deepStrictEqual(
-        clientRoutesFixture(entry, entry.invalid),
-        entry.errors,
-        entry.invalid,
-      );
+    } else if (entry.rule.startsWith('feature-map-')) {
+      deepStrictEqual(featureMapFixture(entry, entry.valid), [], entry.rule);
+      const invalid = featureMapFixture(entry, entry.invalid);
+      strictEqual(invalid.length, entry.errors.length, entry.rule);
+      for (const [index, expected] of entry.errors.entries())
+        strictEqual(
+          invalid[index].includes(expected),
+          true,
+          `${entry.rule}: ${invalid[index]}`,
+        );
     } else if (entry.rule === 'feature-selector') {
       strictEqual(
         selectorAppears(entry.valid, entry.selector),
