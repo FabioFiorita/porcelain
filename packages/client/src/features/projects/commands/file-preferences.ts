@@ -28,6 +28,7 @@ export const setFilePreference = Atom.family(
                 params: { projectId },
                 payload: input,
               }),
+              connection.request,
             ),
             (_, answer) => Option.some(answer),
           );

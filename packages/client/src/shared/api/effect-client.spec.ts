@@ -11,7 +11,7 @@ import { Effect } from 'effect';
 import { HttpApiClient } from 'effect/http-api';
 import { describe, expect, it } from 'vitest';
 
-import { runRequest, transportClient } from './effect-client.ts';
+import { requestEffect, runRequest, transportLayer } from './effect-client.ts';
 import { RequestError } from '@porcelain/client/transport';
 import type { Transport } from '@porcelain/client/transport';
 
@@ -19,15 +19,15 @@ const worktreeId = '0123456789abcdef0123456789abcdef';
 const signal = () => new AbortController().signal;
 const access = (transport: Transport) =>
   Effect.runSync(
-    HttpApiClient.makeWith(AccessApi, {
-      httpClient: transportClient(transport),
-    }),
+    HttpApiClient.make(AccessApi).pipe(
+      Effect.provide(transportLayer(transport)),
+    ),
   );
 const changes = (transport: Transport) =>
   Effect.runSync(
-    HttpApiClient.makeWith(ChangesApi, {
-      httpClient: transportClient(transport),
-    }),
+    HttpApiClient.make(ChangesApi).pipe(
+      Effect.provide(transportLayer(transport)),
+    ),
   ).changes;
 const linesInput = {
   params: { worktreeId },
@@ -205,11 +205,13 @@ describe('native HTTP client boundary', () => {
       message: 'Expectation mismatch',
     };
     const api = Effect.runSync(
-      HttpApiClient.makeWith(GitActionsApi, {
-        httpClient: transportClient(() =>
-          Promise.resolve(Response.json(body, { status: 409 })),
+      HttpApiClient.make(GitActionsApi).pipe(
+        Effect.provide(
+          transportLayer(() =>
+            Promise.resolve(Response.json(body, { status: 409 })),
+          ),
         ),
-      }),
+      ),
     ).gitActions;
     await expect(
       runRequest(
@@ -317,5 +319,27 @@ describe('native HTTP client boundary', () => {
         signal(),
       ),
     ).rejects.toThrow();
+  });
+  it('opens a fresh request lifetime each time a retained generated read runs', async () => {
+    const first = new AbortController();
+    const second = new AbortController();
+    let admitted = 0;
+    let sent = 0;
+    const retained = requestEffect(
+      access(() => {
+        sent += 1;
+        return Promise.resolve(Response.json(environment));
+      }).publicAccess.readEnvironment({}),
+      () => ({ signal: admitted++ === 0 ? first.signal : second.signal }),
+    );
+    expect(await Effect.runPromise(retained)).toMatchObject({
+      environmentId: 'remote',
+    });
+    first.abort();
+    expect(await Effect.runPromise(retained)).toMatchObject({
+      environmentId: 'remote',
+    });
+    expect(admitted).toBe(2);
+    expect(sent).toBe(2);
   });
 });

@@ -34,6 +34,7 @@ export const readChangeDiffs = Atom.family(
             params: { worktreeId: scope.worktreeId },
             payload: input,
           }),
+          connection.request,
         );
         yield* currentAnswerEffect(
           connection.request().signal,
@@ -65,6 +66,7 @@ export const readBranchDiffs = Atom.family(
             params: { worktreeId: scope.worktreeId },
             payload: input,
           }),
+          connection.request,
         );
       }),
       clientRuntime(connection),
@@ -97,6 +99,7 @@ export const readCommitDiffs = Atom.family(
               paths: paths.map((entry) => [...entry]),
             },
           }),
+          connection.request,
         );
         yield* currentAnswerEffect(
           connection.request().signal,
@@ -127,6 +130,7 @@ export const readChangeLines = Atom.family(
             params: { worktreeId: scope.worktreeId },
             query: { path, from, to, at: 'worktree' },
           }),
+          connection.request,
         );
         yield* currentAnswerEffect(
           connection.request().signal,

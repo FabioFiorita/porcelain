@@ -37,6 +37,7 @@ export const readHistory = Atom.family(
               params: { worktreeId: scope.worktreeId },
               query: { after: previous?.after, tip: previous?.tip },
             }),
+            connection.request,
           );
           yield* currentAnswerEffect(connection.request().signal);
           return [
@@ -74,6 +75,7 @@ export const readCommit = Atom.family(
             params: { worktreeId: scope.worktreeId, oid },
             query: parent === 1 ? {} : { parent },
           }),
+          connection.request,
         );
         yield* currentAnswerEffect(
           connection.request().signal,
@@ -108,6 +110,7 @@ export const readFileTimeline = Atom.family(
             params: { worktreeId: scope.worktreeId },
             query: { path, limit: COMMITS_PER_PAGE },
           }),
+          connection.request,
         );
       }),
       clientRuntime(connection),

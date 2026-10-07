@@ -50,8 +50,8 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
   const key = operationKey(scope, action);
   const accept = Effect.fn('GitActionController.accept')(function* (
     receipt: RunGitActionResponse,
+    signal: AbortSignal,
   ) {
-    const signal = connection.request().signal;
     yield* currentAnswerEffect(
       signal,
       receipt.requestId ===
@@ -67,12 +67,14 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
   });
   const send = Effect.fn('GitActionController.send')(function* (
     request: RunGitActionRequest,
+    signal: AbortSignal,
   ) {
     const result = yield* requestEffect(
       api.gitActions.runGitAction({
         params: { worktreeId: scope.worktreeId },
         payload: request,
       }),
+      signal,
     );
     if (!('requestId' in result))
       return yield* Effect.fail(
@@ -82,13 +84,13 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
         }),
       );
     yield* currentAnswerEffect(
-      connection.request().signal,
+      signal,
       result.projectId === scope.projectId &&
         result.worktreeId === scope.worktreeId &&
         result.requestId === request.requestId &&
         result.action === action,
     );
-    yield* accept(result);
+    yield* accept(result, signal);
     return yield* operations.wait(key, request.requestId);
   });
   return {
@@ -133,7 +135,7 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
               return request;
             }),
           );
-          return yield* send(request);
+          return yield* send(request, signal);
         }),
         signal,
       );
@@ -148,7 +150,7 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
             return yield* Effect.fail(
               new GitOperationStateError({ reason: 'missing' }),
             );
-          return yield* send(current.request);
+          return yield* send(current.request, signal);
         }),
         signal,
       );

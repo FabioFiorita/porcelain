@@ -28,6 +28,7 @@ export const readWorktreePaths = Atom.family(
           api.files.listWorktreePaths({
             params: { worktreeId: scope.worktreeId },
           }),
+          connection.request,
         ).pipe(
           Effect.tap((answer) =>
             currentAnswerEffect(

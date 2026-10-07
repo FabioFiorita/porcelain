@@ -65,6 +65,7 @@ export const reviewedCommands = Atom.family(
                 params,
                 payload: { ...input, reviewed: true },
               }),
+          connection.request,
         ),
       );
     });
@@ -77,6 +78,7 @@ export const reviewedCommands = Atom.family(
             params,
             query: { path, ...branch },
           }),
+          connection.request,
         ),
       );
     });
@@ -91,6 +93,7 @@ export const reviewedCommands = Atom.family(
                 payload: { files, scope: 'branch', base: range.base },
               })
             : api.reviews.setReviewedFiles({ params, payload: { files } }),
+          connection.request,
         ),
       );
     });
@@ -105,6 +108,7 @@ export const reviewedCommands = Atom.family(
             params,
             payload: { paths: [...paths], ...branch },
           }),
+          connection.request,
         ),
       );
     });

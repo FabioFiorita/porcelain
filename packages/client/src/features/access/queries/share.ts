@@ -5,6 +5,7 @@ import {
   SERVICE_UPDATE_POLL_MS,
 } from '../../../config/limits.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
+import { clientRuntime } from '../../../shared/api/runtime.ts';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
@@ -56,9 +57,17 @@ function pollWhile<A, E, R>(
   ).pipe(Atom.setIdleTTL(0));
 }
 export const readPairedAccess = Atom.family((connection: RuntimeConnection) =>
-  porcelainClient(connection).query('administration', 'listAccess', {
-    timeToLive: 0,
-  }),
+  clientRuntime(connection)
+    .atom(
+      Effect.gen(function* () {
+        const api = yield* porcelainClient(connection);
+        return yield* requestEffect(
+          api.administration.listAccess(),
+          connection.request,
+        );
+      }),
+    )
+    .pipe(Atom.setIdleTTL(0)),
 );
 export const readRemoteAccess = Atom.family((connection: RuntimeConnection) =>
   pollWhile(
@@ -69,7 +78,10 @@ export const readRemoteAccess = Atom.family((connection: RuntimeConnection) =>
       return yield* observe(
         connection,
         snapshots.remote,
-        requestEffect(api.administration.readRemoteAccess()).pipe(
+        requestEffect(
+          api.administration.readRemoteAccess(),
+          connection.request,
+        ).pipe(
           Effect.catch((error) =>
             error instanceof RequestError && error.status === 403
               ? Effect.succeed(null)
@@ -91,7 +103,10 @@ export const readServiceUpdate = Atom.family((connection: RuntimeConnection) =>
       return yield* observe(
         connection,
         snapshots.update,
-        requestEffect(api.serviceUpdates.readServiceUpdate()),
+        requestEffect(
+          api.serviceUpdates.readServiceUpdate(),
+          connection.request,
+        ),
       );
     }),
     SERVICE_UPDATE_POLL_MS,

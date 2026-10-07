@@ -31,6 +31,7 @@ export const readPublishedReview = Atom.family(
           api.reviews.readPublishedReview({
             params: { worktreeId: scope.worktreeId },
           }),
+          connection.request,
         );
         const result = review ?? null;
         yield* currentAnswerEffect(
@@ -69,6 +70,7 @@ export const readProofFile = Atom.family(
             params: { worktreeId: scope.worktreeId },
             query: { proofId },
           }),
+          connection.request,
         );
         yield* currentAnswerEffect(
           connection.request().signal,

@@ -24,7 +24,10 @@ export const disconnectBrowserSession = Atom.family(
             return yield* Effect.fail(
               new ConnectionError({ message: UNSAVED_DRAFTS_MESSAGE }),
             );
-          yield* requestEffect(api.browserAccess.clearBrowserSession());
+          yield* requestEffect(
+            api.browserAccess.clearBrowserSession(),
+            connection.request,
+          );
         },
         Effect.mapError((error) =>
           error instanceof ConnectionError

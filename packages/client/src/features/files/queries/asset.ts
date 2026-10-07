@@ -30,6 +30,7 @@ export const readAsset = Atom.family(
             params: { worktreeId: scope.worktreeId },
             query: { path },
           }),
+          connection.request,
         );
       }),
       clientRuntime(connection),

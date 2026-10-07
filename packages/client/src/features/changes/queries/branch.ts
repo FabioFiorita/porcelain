@@ -24,6 +24,7 @@ export const readBranchChanges = Atom.family(
             params: { worktreeId: scope.worktreeId },
             query: { base },
           }),
+          connection.request,
         );
         yield* currentAnswerEffect(
           connection.request().signal,
@@ -45,6 +46,7 @@ export const readBranchBases = Atom.family(({ connection, scope }: Selection) =>
         api.changes.listBranchBases({
           params: { worktreeId: scope.worktreeId },
         }),
+        connection.request,
       );
     }),
     clientRuntime(connection),

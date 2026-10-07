@@ -43,6 +43,7 @@ export const readTextFile = Atom.family(
             params: { worktreeId: scope.worktreeId },
             query: { path },
           }),
+          connection.request,
         ).pipe(
           Effect.tap((answer) =>
             currentAnswerEffect(

@@ -95,7 +95,9 @@ class FileEdits extends Context.Service<
                           return api.files.editFile({ params, payload: input });
                       }
                     })();
-                    const edited = yield* restore(requestEffect(request));
+                    const edited = yield* restore(
+                      requestEffect(request, signal),
+                    );
                     yield* currentAnswerEffect(
                       signal,
                       edited.path ===

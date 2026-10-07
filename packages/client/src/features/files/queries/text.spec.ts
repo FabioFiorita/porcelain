@@ -16,12 +16,16 @@ afterEach(async () => {
   for (const close of owned) await close();
   owned.length = 0;
 });
-function fixture(transport: Transport, cacheIdentity?: readonly string[]) {
+function fixture(
+  transport: Transport,
+  cacheIdentity?: readonly string[],
+  timeoutMs = 10_000,
+) {
   const lifetime = createWorktreeConnection(
     {
       environmentId: 'environment',
       transport,
-      timeoutMs: 10_000,
+      timeoutMs,
       ...(cacheIdentity ? { cacheIdentity } : {}),
     },
     undefined,
@@ -314,5 +318,109 @@ it('retries only the selected worktree on the selected connection', async () => 
     ]);
   } finally {
     for (const stop of unmount) stop();
+  }
+});
+
+it('closing a connection aborts its pending generated text transport', async () => {
+  const started = Promise.withResolvers<AbortSignal>();
+  const subject = fixture((_path, init) => {
+    const signal = init!.signal!;
+    started.resolve(signal);
+    return new Promise<Response>((_resolve, reject) =>
+      signal.addEventListener('abort', () => reject(signal.reason), {
+        once: true,
+      }),
+    );
+  });
+  subject.registry.mount(
+    readTextFile({ connection: subject.connection, scope, path: 'README.md' }),
+  );
+  const signal = await started.promise;
+  await subject.connection.close();
+  await expect.poll(() => signal.aborted).toBe(true);
+});
+
+it('the configured deadline aborts a pending generated text transport', async () => {
+  const started = Promise.withResolvers<AbortSignal>();
+  const subject = fixture(
+    (_path, init) => {
+      const signal = init!.signal!;
+      started.resolve(signal);
+      return new Promise<Response>((_resolve, reject) =>
+        signal.addEventListener('abort', () => reject(signal.reason), {
+          once: true,
+        }),
+      );
+    },
+    undefined,
+    5,
+  );
+  subject.registry.mount(
+    readTextFile({ connection: subject.connection, scope, path: 'README.md' }),
+  );
+  const signal = await started.promise;
+  await expect.poll(() => signal.aborted).toBe(true);
+  expect(subject.controller.signal.aborted).toBe(false);
+});
+
+it('one generated text deadline spans transport and pending response decoding', async () => {
+  const decoding = Promise.withResolvers<void>();
+  const held = Promise.withResolvers<void>();
+  let body: ReadableStreamDefaultController<Uint8Array> | undefined;
+  let sentSignal: AbortSignal | null | undefined;
+  let admissions = 0;
+  let admissionsAtSend = 0;
+  const deadline = new AbortController();
+  const subject = fixture((_path, init) => {
+    sentSignal = init?.signal;
+    admissionsAtSend = admissions;
+    return Promise.resolve(
+      new Response(
+        new ReadableStream<Uint8Array>(
+          {
+            start(controller) {
+              body = controller;
+            },
+            pull() {
+              decoding.resolve();
+              return held.promise;
+            },
+          },
+          { highWaterMark: 0 },
+        ),
+        { headers: { 'content-type': 'application/json' } },
+      ),
+    );
+  });
+  const request = subject.connection.request;
+  subject.connection.request = (signal) => {
+    admissions += 1;
+    return {
+      signal: AbortSignal.any([request(signal).signal, deadline.signal]),
+    };
+  };
+  const pending = Effect.runPromiseExit(
+    AtomRegistry.getResult(
+      subject.registry,
+      readTextFile({
+        connection: subject.connection,
+        scope,
+        path: 'README.md',
+      }),
+    ),
+  );
+  try {
+    await decoding.promise;
+    expect(admissionsAtSend).toBe(1);
+    expect(admissions).toBe(1);
+    deadline.abort(new Error('Request deadline elapsed'));
+    expect(Exit.isFailure(await pending)).toBe(true);
+    expect(sentSignal?.aborted).toBe(true);
+    expect(admissions).toBe(1);
+  } finally {
+    body?.error(new Error('Disposed test response'));
+    held.resolve();
+    subject.registry.dispose();
+    await subject.close();
   }
 });

@@ -15,7 +15,10 @@ function makeProjectCommands(connection: RuntimeConnection) {
     return {
       register: (path: string) =>
         inventory.confirm(
-          requestEffect(api.projects.registerProject({ payload: { path } })),
+          requestEffect(
+            api.projects.registerProject({ payload: { path } }),
+            connection.request,
+          ),
           (inventory, project) => ({
             ...inventory,
             projects: inventory.projects.some(
@@ -34,6 +37,7 @@ function makeProjectCommands(connection: RuntimeConnection) {
               params: { projectId: input.projectId },
               payload: { name: input.name },
             }),
+            connection.request,
           ),
           (inventory, project) => ({
             ...inventory,
@@ -58,6 +62,7 @@ function makeProjectCommands(connection: RuntimeConnection) {
                 );
             return yield* requestEffect(
               api.projects.removeProject({ params: { projectId } }),
+              connection.request,
             );
           }),
           (inventory) => ({

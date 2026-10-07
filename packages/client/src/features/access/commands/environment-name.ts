@@ -17,6 +17,7 @@ export const renameEnvironment = Atom.family((connection: RuntimeConnection) =>
         return yield* inventory.confirm(
           requestEffect(
             api.environmentName.renameEnvironment({ payload: { name } }),
+            connection.request,
           ),
           (current, environment) => ({ ...current, environment }),
         );

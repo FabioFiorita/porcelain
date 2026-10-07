@@ -5,6 +5,7 @@ import { porcelainClient } from '../../../shared/api/client.ts';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { accessRuntime, AccessSnapshots } from '../store/share.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
+import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { WriteQueues } from '../../../shared/api/write-queue.ts';
 import {
   readPairedAccess,
@@ -24,7 +25,7 @@ function makeAccessCommands(connection: RuntimeConnection) {
         [key],
         Effect.gen(function* () {
           yield* currentAnswerEffect(connection.request().signal);
-          const answer = yield* operation;
+          const answer = yield* requestEffect(operation, connection.request);
           yield* currentAnswerEffect(connection.request().signal);
           return answer;
         }),

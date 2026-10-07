@@ -40,6 +40,7 @@ export const readPreviewAssets = Atom.family(
                   params: { worktreeId: scope.worktreeId },
                   payload: { document, paths: [...paths] },
                 }),
+                connection.request,
               );
               yield* currentAnswerEffect(connection.request().signal);
               return new Map(

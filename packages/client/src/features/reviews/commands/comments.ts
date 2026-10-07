@@ -75,6 +75,7 @@ export const commentCommands = Atom.family(
           return yield* confirmThread(
             requestEffect(
               api.reviews.createCommentThread({ params, payload: input }),
+              connection.request,
             ),
           );
         }),
@@ -93,6 +94,7 @@ export const commentCommands = Atom.family(
                 params: { ...params, threadId },
                 payload: { body, messageId },
               }),
+              connection.request,
             ),
             true,
           );
@@ -111,6 +113,7 @@ export const commentCommands = Atom.family(
                 params: { ...params, threadId },
                 payload: { resolved },
               }),
+              connection.request,
             ),
           );
         }),
@@ -129,6 +132,7 @@ export const commentCommands = Atom.family(
                 params: { ...params, threadId },
                 payload: { messageId, body },
               }),
+              connection.request,
             ),
           );
         }),
@@ -148,6 +152,7 @@ export const commentCommands = Atom.family(
                   params: { ...params, threadId },
                   query: { messageId },
                 }),
+                connection.request,
               );
               yield* currentAnswerEffect(
                 connection.request().signal,
@@ -183,6 +188,7 @@ export const commentCommands = Atom.family(
                 params,
                 payload: { threads },
               }),
+              connection.request,
             ),
             (previous, answer) =>
               Option.some(
@@ -211,6 +217,7 @@ export const commentCommands = Atom.family(
                   params,
                   payload: { throughRevision },
                 }),
+                connection.request,
               );
               yield* currentAnswerEffect(
                 connection.request().signal,

@@ -45,6 +45,7 @@ export class LayerMarksState extends Context.Service<
               api.reviews.listReviewedLayers({
                 params: { worktreeId: scope.worktreeId },
               }),
+              connection.request,
             );
             yield* currentAnswerEffect(
               connection.request().signal,

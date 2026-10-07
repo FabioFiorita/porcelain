@@ -36,6 +36,7 @@ export class FilePreferencesState extends Context.Service<
           queryKeys.filePreferences(connection.environmentId, projectId),
           requestEffect(
             api.projects.listFilePreferences({ params: { projectId } }),
+            connection.request,
           ),
         );
       }),

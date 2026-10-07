@@ -42,6 +42,7 @@ export const toggleLayerMark = Atom.family(
                       reviewed: true,
                     },
                   }),
+              connection.request,
             );
             yield* currentAnswerEffect(
               connection.request().signal,

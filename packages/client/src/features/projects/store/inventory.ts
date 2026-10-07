@@ -57,7 +57,7 @@ export class InventoryState extends Context.Service<
         const resource = yield* confirmedResource(
           connection,
           queryKeys.inventory(connection.environmentId),
-          requestEffect(api.projects.readInventory()).pipe(
+          requestEffect(api.projects.readInventory(), connection.request).pipe(
             Effect.tap((inventory) =>
               currentAnswerEffect(
                 connection.request().signal,

@@ -1,6 +1,5 @@
 import { Effect } from 'effect';
 import { Atom, Reactivity } from 'effect/reactivity';
-import { withSignal } from '@porcelain/effects';
 import type { GenerateCommitDraftRequest } from '@porcelain/contracts/git-actions';
 import type {
   RuntimeConnection,
@@ -25,13 +24,11 @@ export const generateCommitDraft = Atom.family(
       }: GenerateCommitDraftRequest & { signal?: AbortSignal }) {
         const signal = connection.request(caller).signal;
         const api = yield* porcelainClient(connection);
-        const result = yield* withSignal(
-          requestEffect(
-            api.gitActions.generateCommitDraft({
-              params: { worktreeId: scope.worktreeId },
-              payload: input,
-            }),
-          ),
+        const result = yield* requestEffect(
+          api.gitActions.generateCommitDraft({
+            params: { worktreeId: scope.worktreeId },
+            payload: input,
+          }),
           signal,
         );
         yield* currentAnswerEffect(signal);
@@ -49,6 +46,7 @@ export const dismissInterruptedGitAction = Atom.family(
           api.gitActions.dismissInterruptedGitAction({
             params: { worktreeId: scope.worktreeId, requestId },
           }),
+          connection.request,
         );
         yield* currentAnswerEffect(connection.request().signal);
         yield* Reactivity.invalidate([

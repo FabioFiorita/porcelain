@@ -17,6 +17,7 @@ export const readChangesSnapshot = Effect.fn('Changes.readSnapshot')(
     const api = yield* porcelainClient(connection);
     const answer = yield* requestEffect(
       api.changes.readChanges({ params: { worktreeId: scope.worktreeId } }),
+      connection.request,
     );
     yield* currentAnswerEffect(
       connection.request().signal,
@@ -42,6 +43,7 @@ export const readGitStatusSnapshot = Effect.fn('Changes.readGitStatusSnapshot')(
     const api = yield* porcelainClient(connection);
     const answer = yield* requestEffect(
       api.changes.readGitStatus({ params: { worktreeId: scope.worktreeId } }),
+      connection.request,
     );
     yield* currentAnswerEffect(
       connection.request().signal,

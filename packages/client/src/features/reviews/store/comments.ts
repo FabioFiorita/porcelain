@@ -45,6 +45,7 @@ export class CommentThreadsState extends Context.Service<
               api.reviews.listCommentThreads({
                 params: { worktreeId: scope.worktreeId },
               }),
+              connection.request,
             );
             yield* currentAnswerEffect(
               connection.request().signal,

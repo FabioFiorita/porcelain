@@ -83,6 +83,7 @@ export class ReviewedFilesState extends Context.Service<
                     ? { scope: 'branch', branch: range.branch }
                     : {},
               }),
+              connection.request,
             );
             yield* currentAnswerEffect(
               connection.request().signal,
