@@ -1,5 +1,4 @@
-import { Effect } from 'effect';
-import { realpath, stat } from 'node:fs/promises';
+import { Effect, FileSystem } from 'effect';
 import type { DiscoveredRepository } from '../dtos/discovered-repository.ts';
 import { isRepositoryUnavailable } from '../../shared/errors/is-repository-unavailable.ts';
 import { parseWorktreeList } from '../parsers/parse-worktree-list.ts';
@@ -10,7 +9,6 @@ import {
   realpathOrSelf,
 } from '../../shared/commands/gitdir.ts';
 import { identity } from '../../shared/commands/identity.ts';
-import { readMetadata } from '../../shared/commands/read-metadata.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { gitRead } from '../../shared/commands/run-git.ts';
 
@@ -23,29 +21,25 @@ export const listWorktrees = Effect.fn('Git.listWorktrees')(function* (
     ['rev-parse', '--path-format=absolute', '--git-common-dir'],
     limits,
   );
-  const commonDirectory = yield* readMetadata(() =>
-    realpath(location.toString('utf8').slice(0, -1)),
+  const fs = yield* FileSystem.FileSystem;
+  const commonDirectory = yield* fs.realPath(
+    location.toString('utf8').slice(0, -1),
   );
-  const repositoryIdentity = yield* readMetadata(() =>
-    identity(commonDirectory),
-  );
+  const repositoryIdentity = yield* identity(commonDirectory);
   const inventory = yield* gitRead(
     checkout,
     ['worktree', 'list', '--porcelain', '-z'],
     limits,
   );
   const records = yield* parseWorktreeList(inventory.toString('utf8'));
-  const registry = yield* readMetadata(() =>
-    readWorktreeRegistry(commonDirectory),
-  );
+  const registry = yield* readWorktreeRegistry(commonDirectory);
   const worktrees = yield* Effect.forEach(records, (record, index) =>
     Effect.gen(function* () {
       const administrativeDirectory =
         index === 0
           ? commonDirectory
-          : (registry.get(
-              yield* readMetadata(() => realpathOrSelf(record.path)),
-            ) ?? registry.get(record.path));
+          : (registry.get(yield* realpathOrSelf(record.path)) ??
+            registry.get(record.path));
       const inspection = yield* inspectWorktree(
         record.path,
         administrativeDirectory,
@@ -77,25 +71,23 @@ const inspectWorktree = Effect.fn('Git.inspectWorktree')(function* (
 ) {
   if (
     !administrativeDirectory ||
-    !(yield* readMetadata(() =>
-      contained(administrativeDirectory, commonDirectory),
-    ))
+    !(yield* contained(administrativeDirectory, commonDirectory))
   )
     return unidentified;
-  const metadataIdentity = yield* readMetadata(() =>
-    identity(administrativeDirectory),
-  ).pipe(
+  const metadataIdentity = yield* identity(administrativeDirectory).pipe(
     Effect.catchIf(isRepositoryUnavailable, () => Effect.succeed(undefined)),
   );
   if (metadataIdentity === undefined) return unidentified;
   const available =
     (yield* reachable(path)) &&
-    (yield* readMetadata(() => corroborates(path, administrativeDirectory)));
+    (yield* corroborates(path, administrativeDirectory));
   return { metadataIdentity, available };
 });
 
-const reachable = (path: string) =>
-  readMetadata(() => stat(path)).pipe(
+const reachable = Effect.fn('Git.reachable')(function* (path: string) {
+  const fs = yield* FileSystem.FileSystem;
+  return yield* fs.stat(path).pipe(
     Effect.as(true),
     Effect.orElseSucceed(() => false),
   );
+});

@@ -18,7 +18,7 @@ import {
   ReadTextFilesOptions,
   ReadBinaryFilesOptions,
 } from '@porcelain/files/ports';
-import { Effect, Layer, Clock } from 'effect';
+import { Context, Effect, Layer, Clock } from 'effect';
 import {
   EnvironmentIdentityReader,
   EnvironmentNameStore,
@@ -79,7 +79,8 @@ import {
 } from '@porcelain/files/services';
 import { filesystemFileReaderLayer } from '../adapters/files/filesystem-file-reader.ts';
 import { gitHeadTextReaderLayer } from '../adapters/files/git-head-text-reader.ts';
-import { GitWorktreeAccessReader } from '../adapters/projects/git-worktree-access-reader.ts';
+import { gitWorktreeAccessReaderLayer } from '../adapters/projects/git-worktree-access-reader.ts';
+import { ListedWorktreeAccessReader } from '@porcelain/projects/ports';
 import { type ServerSettings } from '../config/server-settings.ts';
 import { ReadReviewEvidenceUseCase } from '../use-cases/reviews/read-review-evidence.ts';
 import { type Stores } from './compose-stores.ts';
@@ -104,7 +105,15 @@ export function composeShared(dependencies: SharedDependencies) {
       new HistoryGit(checkout, gitVersion, limits.git);
     const inspection: InspectionFactory = (checkout) =>
       new InspectionGit(checkout, limits.git);
-    const worktreeAccess = new GitWorktreeAccessReader(catalog);
+    const accessContext = yield* Layer.build(
+      gitWorktreeAccessReaderLayer.pipe(
+        Layer.provide(Layer.succeed(WorktreeCatalogStore, catalog)),
+      ),
+    );
+    const worktreeAccess = Context.get(
+      accessContext,
+      ListedWorktreeAccessReader,
+    );
     const staleness = { staleAfterMs: limits.inventory.staleAfterMs };
     const gitSessions = gitSessionPerSignal(limits.git);
     const openInspection = inspectionCheckouts(

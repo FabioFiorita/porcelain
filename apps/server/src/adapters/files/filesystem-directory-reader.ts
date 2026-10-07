@@ -1,4 +1,4 @@
-import { admittedRead, nativeOperation } from '@porcelain/effects';
+import { admittedRead } from '@porcelain/effects';
 import type { Dirent } from 'node:fs';
 import { lstat, readlink } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -18,7 +18,7 @@ import {
 } from './inspect-path.ts';
 import { openRawDirectory, syscall } from './guarded-filesystem-syscalls.ts';
 import {
-  listedWorktree,
+  listedWorktreeEffect,
   type ListedWorktrees,
 } from '../projects/checkout-session.ts';
 
@@ -34,9 +34,10 @@ export const filesystemDirectoryReaderLayer = (
         admittedRead(
           input.worktreeId,
           Effect.gen(function* () {
-            const checkout = yield* nativeOperation((signal) =>
-              listedWorktree(worktrees, input.worktreeId, signal),
-            );
+            const checkout = yield* listedWorktreeEffect(
+              worktrees,
+              input.worktreeId,
+            ).pipe(Effect.orDie);
             const target = { root: checkout.path, path: input.path };
             return yield* Effect.scoped(
               Effect.gen(function* (): Effect.fn.Return<

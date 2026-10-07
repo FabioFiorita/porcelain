@@ -1,3 +1,4 @@
+import { nativeOperation } from '@porcelain/effects';
 import {
   type GitIoFailure,
   isRepositoryUnavailable,
@@ -15,7 +16,7 @@ import {
 } from '@porcelain/git/errors';
 import { Effect } from 'effect';
 import {
-  nativeRead,
+  admittedRead,
   nativeWrite,
   type WorktreeRead,
   type WorktreeWrite,
@@ -51,11 +52,21 @@ function failedGit(error: unknown): Effect.Effect<never, GitIoFailure> {
   return Effect.die(error);
 }
 
+export function readGitEffect<A, E, R>(
+  worktreeId: string,
+  work: Effect.Effect<A, E, R>,
+): Effect.Effect<A, GitIoFailure, R | WorktreeRead> {
+  return admittedRead(
+    worktreeId,
+    work.pipe(Effect.catch(failedGit), Effect.catchDefect(failedGit)),
+  );
+}
+
 export function readGit<A>(
   worktreeId: string,
   work: (signal: AbortSignal) => Promise<A>,
 ): Effect.Effect<A, GitIoFailure, WorktreeRead> {
-  return Effect.catchDefect(nativeRead(worktreeId, work), failedGit);
+  return readGitEffect(worktreeId, nativeOperation(work));
 }
 
 export function writeGit<A>(

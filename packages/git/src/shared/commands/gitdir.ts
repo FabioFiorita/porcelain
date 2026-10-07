@@ -1,5 +1,4 @@
-import { readdir, readFile, realpath, stat } from 'node:fs/promises';
-import { join, resolve, sep } from 'node:path';
+import { Effect, FileSystem, Path } from 'effect';
 import { isMissing } from '../errors/is-missing.ts';
 
 export function parseGitdirFile(text: string): string | undefined {
@@ -9,99 +8,97 @@ export function parseGitdirFile(text: string): string | undefined {
   return target === '' || /[\0\r\n]/u.test(target) ? undefined : target;
 }
 
-export async function readGitDirectory(
+export const readGitDirectory = Effect.fn('Git.readGitDirectory')(function* (
   checkout: string,
-): Promise<string | undefined> {
-  const dotGit = join(checkout, '.git');
-  if ((await stat(dotGit)).isDirectory()) return dotGit;
-  const target = parseGitdirFile(await readFile(dotGit, 'utf8'));
-  return target === undefined ? undefined : resolve(checkout, target);
-}
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const dotGit = path.join(checkout, '.git');
+  if ((yield* fs.stat(dotGit)).type === 'Directory') return dotGit;
+  const target = parseGitdirFile(yield* fs.readFileString(dotGit));
+  return target === undefined ? undefined : path.resolve(checkout, target);
+});
 
-export async function readCommonDirectory(
-  gitDirectory: string,
-): Promise<string> {
-  try {
-    const target = (
-      await readFile(join(gitDirectory, 'commondir'), 'utf8')
-    ).trim();
-    return resolve(gitDirectory, target);
-  } catch (error) {
-    if (isMissing(error)) return gitDirectory;
-    throw error;
-  }
-}
+export const readCommonDirectory = Effect.fn('Git.readCommonDirectory')(
+  function* (gitDirectory: string) {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const target = yield* fs
+      .readFileString(path.join(gitDirectory, 'commondir'))
+      .pipe(Effect.catchIf(isMissing, () => Effect.succeed(undefined)));
+    return target === undefined
+      ? gitDirectory
+      : path.resolve(gitDirectory, target.trim());
+  },
+);
 
-export async function readGitdirPointer(
+export const readGitdirPointer = Effect.fn('Git.readGitdirPointer')(function* (
   administrativeDirectory: string,
-): Promise<string | null> {
-  let pointer: string;
-  try {
-    pointer = (
-      await readFile(join(administrativeDirectory, 'gitdir'), 'utf8')
-    ).trim();
-  } catch {
-    return null;
-  }
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const pointer = yield* fs
+    .readFileString(path.join(administrativeDirectory, 'gitdir'))
+    .pipe(
+      Effect.map((text) => text.trim()),
+      Effect.orElseSucceed(() => ''),
+    );
   if (pointer === '') return null;
-  return resolve(administrativeDirectory, pointer, '..');
-}
+  return path.resolve(administrativeDirectory, pointer, '..');
+});
 
-export async function readWorktreeRegistry(
-  commonDirectory: string,
-): Promise<Map<string, string>> {
-  const root = join(commonDirectory, 'worktrees');
-  let names: string[];
-  try {
-    names = await readdir(root);
-  } catch (error) {
-    if (!isMissing(error)) throw error;
-    return new Map();
-  }
-  const registry = new Map<string, string>();
-  for (const name of names) {
-    const administrativeDirectory = join(root, name);
-    const checkout = await readGitdirPointer(administrativeDirectory);
-    if (!checkout) continue;
-    registry.set(await realpathOrSelf(checkout), administrativeDirectory);
-  }
-  return registry;
-}
+export const readWorktreeRegistry = Effect.fn('Git.readWorktreeRegistry')(
+  function* (commonDirectory: string) {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const root = path.join(commonDirectory, 'worktrees');
+    const names = yield* fs
+      .readDirectory(root)
+      .pipe(
+        Effect.catchIf(isMissing, () => Effect.succeed<readonly string[]>([])),
+      );
+    const registry = new Map<string, string>();
+    for (const name of names) {
+      const administrativeDirectory = path.join(root, name);
+      const checkout = yield* readGitdirPointer(administrativeDirectory);
+      if (!checkout) continue;
+      registry.set(yield* realpathOrSelf(checkout), administrativeDirectory);
+    }
+    return registry;
+  },
+);
 
-export async function realpathOrSelf(path: string): Promise<string> {
-  try {
-    return await realpath(path);
-  } catch {
-    return path;
-  }
-}
+export const realpathOrSelf = Effect.fn('Git.realpathOrSelf')(function* (
+  path: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  return yield* fs.realPath(path).pipe(Effect.orElseSucceed(() => path));
+});
 
-export async function contained(
+export const contained = Effect.fn('Git.contained')(function* (
   administrativeDirectory: string,
   commonDirectory: string,
-): Promise<boolean> {
+) {
   if (administrativeDirectory === commonDirectory) return true;
-  try {
-    const root = await realpath(join(commonDirectory, 'worktrees'));
-    const real = await realpath(administrativeDirectory);
-    return real.startsWith(`${root}${sep}`);
-  } catch {
-    return false;
-  }
-}
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  return yield* Effect.gen(function* () {
+    const root = yield* fs.realPath(path.join(commonDirectory, 'worktrees'));
+    const real = yield* fs.realPath(administrativeDirectory);
+    return real.startsWith(`${root}${path.sep}`);
+  }).pipe(Effect.orElseSucceed(() => false));
+});
 
-export async function corroborates(
+export const corroborates = Effect.fn('Git.corroborates')(function* (
   path: string,
   administrativeDirectory: string,
-): Promise<boolean> {
-  try {
-    const gitDirectory = await readGitDirectory(path);
+) {
+  return yield* Effect.gen(function* () {
+    const gitDirectory = yield* readGitDirectory(path);
     return (
       gitDirectory !== undefined &&
-      (await realpathOrSelf(gitDirectory)) ===
-        (await realpathOrSelf(administrativeDirectory))
+      (yield* realpathOrSelf(gitDirectory)) ===
+        (yield* realpathOrSelf(administrativeDirectory))
     );
-  } catch {
-    return false;
-  }
-}
+  }).pipe(Effect.orElseSucceed(() => false));
+});

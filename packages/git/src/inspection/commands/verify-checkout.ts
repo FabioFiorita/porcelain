@@ -1,43 +1,43 @@
+import { Effect } from 'effect';
 import { RepositoryIdentityMismatchError } from '../../shared/errors/repository-identity-mismatch-error.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { identity } from '../../shared/commands/identity.ts';
-import { runInspection } from './run-inspection.ts';
+import { gitRead } from '../../shared/commands/run-git.ts';
+import { InspectionLimitError } from '../../shared/errors/inspection-limit-error.ts';
 
-export async function verifyCheckout(
+export const verifyCheckoutEffect = Effect.fn('Git.verifyCheckout')(function* (
   checkout: string,
   expectedIdentity: string,
   expectedRepositoryIdentity: string,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<void> {
-  const directory = await readDirectory(
+) {
+  const directory = yield* readDirectory(
     checkout,
     ['rev-parse', '--absolute-git-dir'],
     limits,
-    signal,
   );
-  if ((await identity(directory)) !== expectedIdentity)
-    throw new RepositoryIdentityMismatchError();
-  signal?.throwIfAborted();
-  const commonDirectory = await readDirectory(
+  if ((yield* identity(directory)) !== expectedIdentity)
+    return yield* new RepositoryIdentityMismatchError();
+  const commonDirectory = yield* readDirectory(
     checkout,
     ['rev-parse', '--path-format=absolute', '--git-common-dir'],
     limits,
-    signal,
   );
-  if ((await identity(commonDirectory)) !== expectedRepositoryIdentity)
-    throw new RepositoryIdentityMismatchError();
-  signal?.throwIfAborted();
-}
+  if ((yield* identity(commonDirectory)) !== expectedRepositoryIdentity)
+    return yield* new RepositoryIdentityMismatchError();
+});
 
-async function readDirectory(
+const readDirectory = Effect.fn('Git.readCheckoutDirectory')(function* (
   checkout: string,
   args: readonly string[],
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<string> {
-  const output = await runInspection(checkout, args, limits, signal, {
+) {
+  const output = yield* gitRead(checkout, args, limits, {
     maxBytes: limits.inspection.checkoutDirectoryBytes,
-  });
+  }).pipe(
+    Effect.catchTag('GitOutputLimitError', (cause) =>
+      Effect.fail(new InspectionLimitError({ cause })),
+    ),
+  );
   return new TextDecoder('utf-8', { fatal: true }).decode(output).slice(0, -1);
-}
+});

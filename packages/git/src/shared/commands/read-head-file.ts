@@ -1,9 +1,12 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { type HeadState, parseHeadFile } from '../parsers/refs.ts';
+import { Effect, FileSystem, Path } from 'effect';
+import { parseHeadFile } from '../parsers/refs.ts';
 
-export async function readHeadFile(
+export const readHeadFile = Effect.fn('Git.readHeadFile')(function* (
   gitDirectory: string,
-): Promise<HeadState | undefined> {
-  return parseHeadFile(await readFile(join(gitDirectory, 'HEAD'), 'utf8'));
-}
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  return parseHeadFile(
+    yield* fs.readFileString(path.join(gitDirectory, 'HEAD')),
+  );
+});

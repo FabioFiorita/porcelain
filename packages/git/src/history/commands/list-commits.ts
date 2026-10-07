@@ -1,3 +1,4 @@
+import { runGitEffect } from '../../shared/commands/run-git.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type {
   CommitPage,
@@ -86,7 +87,10 @@ async function readTop(
   limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<CommitPage> {
-  const head = await readHeadFile(checkout.administrativeDirectory);
+  const head = await runGitEffect(
+    readHeadFile(checkout.administrativeDirectory),
+    signal,
+  );
   if (head === undefined) throw new UnsupportedHistoryDataError();
   const parsed = await readLog(checkout, ['HEAD'], limit, limits, signal).catch(
     async (error: unknown) => {

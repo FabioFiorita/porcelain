@@ -1,5 +1,5 @@
 import { type Duration, Effect, Layer, Semaphore } from 'effect';
-import { ChildProcessSpawner } from 'effect/process';
+import { captureGitPlatform } from './git-platform.ts';
 import { listWorktrees } from '@porcelain/git/discovery';
 import { isRepositoryUnavailable } from '@porcelain/git/errors';
 import type {
@@ -25,7 +25,7 @@ export const gitWorktreeListingReaderLayer = (
   Layer.effect(
     WorktreeListingReader,
     Effect.gen(function* () {
-      const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+      const provideGit = yield* captureGitPlatform();
       const logger = yield* Logger;
       const sharedReads = yield* makeSharedReads<WorktreeListing>();
       const launches = yield* Semaphore.make(options.launches);
@@ -36,10 +36,7 @@ export const gitWorktreeListingReaderLayer = (
           project.commonDirectory,
           options.git,
         ).pipe(
-          Effect.provideService(
-            ChildProcessSpawner.ChildProcessSpawner,
-            spawner,
-          ),
+          provideGit,
           Effect.timeout(options.timeout),
           Effect.catch((failure) =>
             Effect.sync(() => {

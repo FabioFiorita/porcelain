@@ -1,9 +1,10 @@
-import { GitError } from './git-error.ts';
+import { Schema } from 'effect';
 
-export class RepositoryIdentityMismatchError extends GitError {
-  override readonly name = 'RepositoryIdentityMismatchError';
-
-  constructor() {
-    super('Checkout belongs to another repository');
+export class RepositoryIdentityMismatchError extends Schema.TaggedError<RepositoryIdentityMismatchError>()(
+  'RepositoryIdentityMismatchError',
+  {},
+) {
+  override get message() {
+    return 'Checkout belongs to another repository';
   }
 }

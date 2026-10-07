@@ -1,62 +1,103 @@
+import { Effect } from 'effect';
 import { RepositoryIdentityMismatchError } from '@porcelain/git/errors';
 import {
   RequestGitSession,
+  makeGitSession,
+  promiseCheckoutSession,
+  type EffectGitSession,
   type CheckoutSession,
-  type GitSession,
 } from '@porcelain/git/inspection';
 import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
-import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
+import type { ListedWorktreeAccessReader } from '@porcelain/projects/ports';
 import type { ListedWorktree } from '@porcelain/projects/models';
 import type { Limits } from '../../config/limits.ts';
 
-export type ListedWorktrees = Pick<
-  WorktreeAccessReader<ListedWorktree>,
-  'known'
->;
+export type ListedWorktrees = ListedWorktreeAccessReader;
 
 type OpenedCheckout = {
   worktree: ListedWorktree;
   checkout: CheckoutSession;
 };
 
-export type GitSessions = (signal?: AbortSignal) => GitSession;
+export type GitSessions = (signal?: AbortSignal) => RequestGitSession;
 
 export function gitSessionPerSignal(limits: Limits['git']): GitSessions {
-  const sessions = new WeakMap<AbortSignal, GitSession>();
+  const sessions = new WeakMap<AbortSignal, RequestGitSession>();
   return (signal) => {
-    if (signal === undefined) return new RequestGitSession(limits);
+    if (signal === undefined)
+      return new RequestGitSession(Effect.runSync(makeGitSession(limits)));
     const existing = sessions.get(signal);
     if (existing) return existing;
-    const created = new RequestGitSession(limits);
+    const created = new RequestGitSession(
+      Effect.runSync(makeGitSession(limits)),
+    );
     sessions.set(signal, created);
     return created;
   };
 }
+
+export const listedWorktreeEffect = Effect.fn('Git.listedWorktree')(function* (
+  worktrees: ListedWorktrees,
+  worktreeId: string,
+) {
+  const check = yield* worktrees.known({ worktreeId });
+  if (check.kind === 'missing') return yield* new WorktreeNotFoundError();
+  if (check.kind === 'unavailable')
+    return yield* new RepositoryIdentityMismatchError();
+  return check.worktree;
+});
 
 export async function listedWorktree(
   worktrees: ListedWorktrees,
   worktreeId: string,
   signal?: AbortSignal,
 ): Promise<ListedWorktree> {
-  const check = await worktrees.known({ worktreeId }, signal);
-  if (check.kind === 'missing') throw new WorktreeNotFoundError();
-  if (check.kind === 'unavailable') throw new RepositoryIdentityMismatchError();
-  return check.worktree;
+  signal?.throwIfAborted();
+  try {
+    return await Effect.runPromise(
+      listedWorktreeEffect(worktrees, worktreeId),
+      { signal },
+    );
+  } catch (failure) {
+    signal?.throwIfAborted();
+    throw failure;
+  }
 }
 
-export async function openCheckout(
+export const openCheckoutEffect = Effect.fn('Git.openCheckout')(function* (
   worktrees: ListedWorktrees,
-  session: GitSession,
+  session: EffectGitSession,
   worktreeId: string,
-  signal?: AbortSignal,
-): Promise<OpenedCheckout> {
-  const worktree = await listedWorktree(worktrees, worktreeId, signal);
+) {
+  const worktree = yield* listedWorktreeEffect(worktrees, worktreeId);
   return {
     worktree,
-    checkout: session.checkout(
+    checkout: yield* session.checkout(
       worktree.path,
       worktree.metadataIdentity,
       worktree.repositoryIdentity,
     ),
   };
+});
+
+export async function openCheckout(
+  worktrees: ListedWorktrees,
+  session: RequestGitSession,
+  worktreeId: string,
+  signal?: AbortSignal,
+): Promise<OpenedCheckout> {
+  signal?.throwIfAborted();
+  try {
+    const opened = await Effect.runPromise(
+      openCheckoutEffect(worktrees, session.native, worktreeId),
+      { signal },
+    );
+    return {
+      worktree: opened.worktree,
+      checkout: promiseCheckoutSession(opened.checkout),
+    };
+  } catch (failure) {
+    signal?.throwIfAborted();
+    throw failure;
+  }
 }

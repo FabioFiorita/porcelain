@@ -1,12 +1,11 @@
+import { Effect } from 'effect';
 import { readHeadFile } from '../../shared/commands/read-head-file.ts';
 
-export async function readHead(
+export const readHead = Effect.fn('Git.readHead')(function* (
   administrativeDirectory: string,
-): Promise<string | null> {
-  try {
-    const head = await readHeadFile(administrativeDirectory);
-    return head?.kind === 'attached' ? head.ref : null;
-  } catch {
-    return null;
-  }
-}
+) {
+  return yield* readHeadFile(administrativeDirectory).pipe(
+    Effect.map((head) => (head?.kind === 'attached' ? head.ref : null)),
+    Effect.orElseSucceed(() => null),
+  );
+});

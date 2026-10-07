@@ -1,86 +1,122 @@
-import { verifyCheckout } from './commands/verify-checkout.ts';
+import type { CheckoutFilterFailure } from './dtos/checkout-session-failure.ts';
+import { Duration, Effect, Exit } from 'effect';
+import { verifyCheckoutEffect } from './commands/verify-checkout.ts';
+import { runGitEffect } from '../shared/commands/run-git.ts';
 import type {
-  CheckoutSession as CheckoutSessionPort,
-  GitSession as GitSessionPort,
+  CheckoutSession,
+  GitSession,
+  EffectCheckoutSession,
+  EffectGitSession,
 } from './interfaces/git-session.ts';
+import type { ChildProcessSpawner } from 'effect/process';
 import type { GitLimits } from '../shared/dtos/git-limits.ts';
 
-class RequestCheckoutSession implements CheckoutSessionPort {
-  readonly path: string;
-  private readonly metadataIdentity: string;
-  private readonly repositoryIdentity: string;
-  private readonly limits: GitLimits;
-  private verified: Promise<void> | undefined;
-  private filters: Promise<string[]> | undefined;
+const makeCheckoutSession = Effect.fn('Git.makeCheckoutSession')(function* (
+  path: string,
+  metadataIdentity: string,
+  repositoryIdentity: string,
+  limits: GitLimits,
+) {
+  const [verified, invalidate] = yield* Effect.cachedInvalidateWithTTL(
+    verifyCheckoutEffect(path, metadataIdentity, repositoryIdentity, limits),
+    Duration.infinity,
+  );
+  const verify = verified.pipe(
+    Effect.onExit((exit) => (Exit.isFailure(exit) ? invalidate : Effect.void)),
+  );
+  let filters:
+    | Effect.Effect<
+        string[],
+        CheckoutFilterFailure,
+        ChildProcessSpawner.ChildProcessSpawner
+      >
+    | undefined;
+  return {
+    path,
+    verify: () => verify,
+    confirm: () => Effect.andThen(invalidate, verify),
+    conversionFilters: (
+      read: Effect.Effect<
+        string[],
+        CheckoutFilterFailure,
+        ChildProcessSpawner.ChildProcessSpawner
+      >,
+    ) =>
+      Effect.gen(function* () {
+        if (filters === undefined)
+          filters = (yield* Effect.cached(read)).pipe(
+            Effect.onExit((exit) =>
+              Effect.sync(() => {
+                if (Exit.isFailure(exit)) filters = undefined;
+              }),
+            ),
+          );
+        return yield* filters;
+      }),
+  } satisfies EffectCheckoutSession;
+});
 
-  constructor(
-    path: string,
-    metadataIdentity: string,
-    repositoryIdentity: string,
-    limits: GitLimits,
-  ) {
-    this.path = path;
-    this.metadataIdentity = metadataIdentity;
-    this.repositoryIdentity = repositoryIdentity;
-    this.limits = limits;
-  }
+export const makeGitSession = Effect.fn('Git.makeSession')(
+  (limits: GitLimits) =>
+    Effect.sync(() => {
+      const checkouts = new Map<string, EffectCheckoutSession>();
+      return {
+        checkout: Effect.fn('Git.checkoutSession')(function* (
+          path: string,
+          metadataIdentity: string,
+          repositoryIdentity: string,
+        ) {
+          const key = `${path}\0${metadataIdentity}\0${repositoryIdentity}`;
+          const existing = checkouts.get(key);
+          if (existing) return existing;
+          const created = yield* makeCheckoutSession(
+            path,
+            metadataIdentity,
+            repositoryIdentity,
+            limits,
+          );
+          checkouts.set(key, created);
+          return created;
+        }),
+        confirmAll: Effect.fn('Git.confirmAll')(function* () {
+          for (const checkout of checkouts.values()) yield* checkout.confirm();
+        }),
+      } satisfies EffectGitSession;
+    }),
+);
 
-  verify(signal?: AbortSignal): Promise<void> {
-    this.verified ??= verifyCheckout(
-      this.path,
-      this.metadataIdentity,
-      this.repositoryIdentity,
-      this.limits,
-      signal,
-    ).catch((cause: unknown) => {
-      this.verified = undefined;
-      throw cause;
-    });
-    return this.verified;
-  }
-
-  async confirm(signal?: AbortSignal): Promise<void> {
-    this.verified = undefined;
-    await this.verify(signal);
-  }
-
-  conversionFilters(read: () => Promise<string[]>): Promise<string[]> {
-    this.filters ??= read().catch((cause: unknown) => {
-      this.filters = undefined;
-      throw cause;
-    });
-    return this.filters;
-  }
+export function promiseCheckoutSession(
+  checkout: EffectCheckoutSession,
+): CheckoutSession {
+  return {
+    path: checkout.path,
+    verify: (signal) => runGitEffect(checkout.verify(), signal),
+    confirm: (signal) => runGitEffect(checkout.confirm(), signal),
+    conversionFilters: (read) =>
+      runGitEffect(checkout.conversionFilters(Effect.promise(read))),
+  };
 }
 
-export class RequestGitSession implements GitSessionPort {
-  private readonly checkouts = new Map<string, RequestCheckoutSession>();
-  private readonly limits: GitLimits;
+export class RequestGitSession implements GitSession {
+  readonly native: EffectGitSession;
 
-  constructor(limits: GitLimits) {
-    this.limits = limits;
+  constructor(native: EffectGitSession) {
+    this.native = native;
   }
 
-  async confirmAll(signal?: AbortSignal): Promise<void> {
-    for (const checkout of this.checkouts.values())
-      await checkout.confirm(signal);
+  confirmAll(signal?: AbortSignal): Promise<void> {
+    return runGitEffect(this.native.confirmAll(), signal);
   }
 
   checkout(
     path: string,
     metadataIdentity: string,
     repositoryIdentity: string,
-  ): CheckoutSessionPort {
-    const key = `${path}\0${metadataIdentity}\0${repositoryIdentity}`;
-    const existing = this.checkouts.get(key);
-    if (existing) return existing;
-    const created = new RequestCheckoutSession(
-      path,
-      metadataIdentity,
-      repositoryIdentity,
-      this.limits,
+  ): CheckoutSession {
+    return promiseCheckoutSession(
+      Effect.runSync(
+        this.native.checkout(path, metadataIdentity, repositoryIdentity),
+      ),
     );
-    this.checkouts.set(key, created);
-    return created;
   }
 }

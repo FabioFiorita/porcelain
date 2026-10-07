@@ -1,3 +1,4 @@
+import { PlatformError } from 'effect';
 import { isMissing } from './is-missing.ts';
 import { GitCommandError } from './git-command-error.ts';
 import { GitFilesystemError } from './git-filesystem-error.ts';
@@ -15,6 +16,12 @@ export function isRepositoryUnavailable(error: unknown): boolean {
   if (error instanceof GitCommandError) return error.exitCode !== undefined;
   if (error instanceof GitFilesystemError)
     return isRepositoryUnavailable(error.cause);
+  if (PlatformError.isPlatformError(error))
+    return (
+      error.reason._tag === 'NotFound' ||
+      error.reason._tag === 'PermissionDenied' ||
+      isRepositoryUnavailable(error.reason.cause)
+    );
   return (
     isMissing(error) ||
     (error instanceof Error &&
