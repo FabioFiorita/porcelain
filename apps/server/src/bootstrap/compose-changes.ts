@@ -7,7 +7,6 @@ import { Lanes } from '../runtime/lanes.ts';
 import { WorktreeConsistencyProbe } from '../ports/worktree-consistency-probe.ts';
 import {
   ChangeStatusReader,
-  CommitHistoryReader,
   BranchRangeReader,
   ReadChangeLinesOptions,
 } from '@porcelain/changes/ports';
@@ -32,7 +31,7 @@ import {
   ReadChangeFingerprintsService,
   ReadChangeDiffsService,
 } from '@porcelain/changes/services';
-import { GitCommitHistoryReader } from '../adapters/changes/git-commit-history-reader.ts';
+import { gitCommitHistoryReaderLayer } from '../adapters/changes/git-commit-history-reader.ts';
 import { ListBranchBasesUseCase } from '../use-cases/changes/list-branch-bases.ts';
 import { ReadBranchChangesUseCase } from '../use-cases/changes/read-branch-changes.ts';
 import { ReadBranchDiffsUseCase } from '../use-cases/changes/read-branch-diffs.ts';
@@ -68,10 +67,6 @@ export function composeChanges(
     readChangeFingerprints,
     readChangeDiffs,
   } = shared;
-  const commitHistoryReader = new GitCommitHistoryReader(
-    shared.worktreeAccess,
-    shared.commitGit,
-  );
   const { branchRangeReader } = shared;
   const ports = Layer.mergeAll(
     Layer.succeed(CheckWorktreeUseCasePort, checkWorktree),
@@ -79,7 +74,11 @@ export function composeChanges(
     Layer.succeed(Lanes, lanes),
     Layer.succeed(LaneKeys, laneKeys),
     Layer.succeed(ChangeStatusReader, shared.changeStatusReader),
-    Layer.succeed(CommitHistoryReader, commitHistoryReader),
+    gitCommitHistoryReaderLayer(
+      shared.worktreeAccess,
+      shared.gitVersion,
+      context.settings.limits.git,
+    ),
     Layer.succeed(ReadBranchChangesService, shared.readBranchChanges),
     Layer.succeed(BranchRangeReader, branchRangeReader),
     Layer.succeed(ReadWorktreeStatusService, readWorktreeStatus),
