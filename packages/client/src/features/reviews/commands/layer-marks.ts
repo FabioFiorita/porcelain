@@ -43,7 +43,7 @@ export const toggleLayerMark = Atom.family(
                   }),
             );
             yield* currentAnswerEffect(
-              connection.request().signal,
+              connection,
               result.worktreeId === scope.worktreeId,
             );
             return result;

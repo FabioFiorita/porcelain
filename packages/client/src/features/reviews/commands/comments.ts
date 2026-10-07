@@ -48,7 +48,7 @@ export const commentCommands = Atom.family(
           operation.pipe(
             Effect.tap((thread) =>
               currentAnswerEffect(
-                connection.request().signal,
+                connection,
                 thread.worktreeId === scope.worktreeId,
               ),
             ),
@@ -149,7 +149,7 @@ export const commentCommands = Atom.family(
                 }),
               );
               yield* currentAnswerEffect(
-                connection.request().signal,
+                connection,
                 answer.threadId === threadId &&
                   (!answer.thread ||
                     answer.thread.worktreeId === scope.worktreeId),
@@ -212,7 +212,7 @@ export const commentCommands = Atom.family(
                 }),
               );
               yield* currentAnswerEffect(
-                connection.request().signal,
+                connection,
                 answer.worktreeId === scope.worktreeId,
               );
               return answer;

@@ -83,7 +83,7 @@ describe('reading a connected project inventory', () => {
     let requests = 0;
     const subject = fixture(() => {
       requests += 1;
-      subject.controller.abort();
+      void subject.close();
       return Promise.resolve(Response.json(inventory()));
     });
     const answer = await Effect.runPromiseExit(
@@ -124,7 +124,7 @@ describe('reading a connected project inventory', () => {
           suspendOnWaiting: true,
         }),
       );
-      subject.controller.abort();
+      void subject.close();
       held.resolve(Response.json(inventory('Late computer')));
       const answer = await interrupted;
       expect(Exit.isFailure(answer)).toBe(true);
@@ -159,7 +159,7 @@ describe('reading a connected project inventory', () => {
     unmount();
     await cancelled.promise;
     expect(signal?.aborted).toBe(true);
-    expect(subject.controller.signal.aborted).toBe(false);
+    expect(subject.connection.isClosed()).toBe(false);
   });
   it('isolates devices on the same environment, including their reactive refreshes', async () => {
     let firstReads = 0;

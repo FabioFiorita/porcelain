@@ -6,7 +6,6 @@ import { Redacted, Deferred, Effect, Fiber } from 'effect';
 import { TestClock } from 'effect/testing';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import { readRemoteEnvironment, readRemoteStatus } from './environments.ts';
-import { runRequest } from '@porcelain/client/transport';
 import type { Transport } from '@porcelain/client/transport';
 const environment = {
   environmentId: 'saved-environment',
@@ -18,9 +17,9 @@ async function status(
   transport: Transport,
   signal = new AbortController().signal,
 ) {
-  return runRequest(
+  return Effect.runPromise(
     readRemoteEnvironment(transport, environment.environmentId),
-    signal,
+    { signal: signal },
   );
 }
 
@@ -92,7 +91,7 @@ describe('environment status', () => {
         controller.abort();
         return Promise.reject(controller.signal.reason);
       }, controller.signal),
-    ).rejects.toMatchObject({ name: 'AbortError' });
+    ).rejects.toThrow('All fibers interrupted without error');
   });
 });
 

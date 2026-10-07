@@ -19,9 +19,7 @@ function observe<A, E, R>(
 ) {
   return Effect.gen(function* () {
     const answer = yield* Effect.exit(
-      request.pipe(
-        Effect.tap(() => currentAnswerEffect(connection.request().signal)),
-      ),
+      request.pipe(Effect.tap(() => currentAnswerEffect(connection))),
     );
     if (Exit.isFailure(answer) && Cause.hasInterrupts(answer.cause))
       return yield* Effect.interrupt;

@@ -7,12 +7,19 @@ import {
   UnsupportedTextError,
 } from '@porcelain/files/errors';
 import { WorktreeChangedError } from '@porcelain/kernel/errors';
-import { Effect } from 'effect';
+import { Cause, Effect, Exit, Layer } from 'effect';
 import { HttpApiClient } from 'effect/http-api';
 import { describe, expect, it } from 'vitest';
 
-import { requestEffect, runRequest, transportLayer } from './effect-client.ts';
-import { RequestError } from '@porcelain/client/transport';
+import {
+  mapRequestErrors,
+  requestEffect,
+  transportLayer,
+} from './effect-client.ts';
+import {
+  createWorktreeConnection,
+  RequestError,
+} from '@porcelain/client/transport';
 import type { Transport } from '@porcelain/client/transport';
 
 const worktreeId = '0123456789abcdef0123456789abcdef';
@@ -43,12 +50,14 @@ const environment = {
 describe('native HTTP client boundary', () => {
   it('uses the contract method and decodes its nullable wire value', async () => {
     const sent: { path: string; init: RequestInit | undefined }[] = [];
-    const result = await runRequest(
-      access((path, init) => {
-        sent.push({ path, init });
-        return Promise.resolve(Response.json(environment));
-      }).publicAccess.readEnvironment({}),
-      signal(),
+    const result = await Effect.runPromise(
+      mapRequestErrors(
+        access((path, init) => {
+          sent.push({ path, init });
+          return Promise.resolve(Response.json(environment));
+        }).publicAccess.readEnvironment({}),
+      ),
+      { signal: signal() },
     );
     expect(result).toEqual({
       environmentId: 'remote',
@@ -74,21 +83,25 @@ describe('native HTTP client boundary', () => {
       return Promise.resolve(new Response('unavailable', { status: 503 }));
     });
     await expect(
-      runRequest(
-        api.readChangeLines({
-          ...linesInput,
-          query: { ...linesInput.query, path: 'a b/#?.txt' },
-        }),
-        signal(),
+      Effect.runPromise(
+        mapRequestErrors(
+          api.readChangeLines({
+            ...linesInput,
+            query: { ...linesInput.query, path: 'a b/#?.txt' },
+          }),
+        ),
+        { signal: signal() },
       ),
     ).rejects.toBeInstanceOf(RequestError);
     await expect(
-      runRequest(
-        api.listCommits({
-          params: { worktreeId },
-          query: { after: ['a'.repeat(40), 'b'.repeat(40)] },
-        }),
-        signal(),
+      Effect.runPromise(
+        mapRequestErrors(
+          api.listCommits({
+            params: { worktreeId },
+            query: { after: ['a'.repeat(40), 'b'.repeat(40)] },
+          }),
+        ),
+        { signal: signal() },
       ),
     ).rejects.toBeInstanceOf(RequestError);
     expect(paths).toEqual([
@@ -129,16 +142,18 @@ describe('native HTTP client boundary', () => {
   ])(
     'decodes the declared $code into its domain failure',
     async ({ code, status, error, message, failure }) => {
-      const failed = await runRequest(
-        changes(() =>
-          Promise.resolve(
-            Response.json(
-              { statusCode: status, error, message, code },
-              { status },
+      const failed = await Effect.runPromise(
+        mapRequestErrors(
+          changes(() =>
+            Promise.resolve(
+              Response.json(
+                { statusCode: status, error, message, code },
+                { status },
+              ),
             ),
-          ),
-        ).readChangeLines(linesInput),
-        signal(),
+          ).readChangeLines(linesInput),
+        ),
+        { signal: signal() },
       ).catch((error: unknown) => error);
       expect(failed).toBeInstanceOf(failure);
     },
@@ -158,16 +173,18 @@ describe('native HTTP client boundary', () => {
       expectedMessage: 'Request failed (409)',
     },
   ])('refuses to manufacture a domain failure from $message', async (body) => {
-    const error = await runRequest(
-      changes(() =>
-        Promise.resolve(
-          Response.json(
-            { ...body, statusCode: body.status, error: 'Refused' },
-            { status: body.status },
+    const error = await Effect.runPromise(
+      mapRequestErrors(
+        changes(() =>
+          Promise.resolve(
+            Response.json(
+              { ...body, statusCode: body.status, error: 'Refused' },
+              { status: body.status },
+            ),
           ),
-        ),
-      ).readChangeLines(linesInput),
-      signal(),
+        ).readChangeLines(linesInput),
+      ),
+      { signal: signal() },
     ).catch((error: unknown) => error);
     expect(error).toBeInstanceOf(RequestError);
     expect(error).toMatchObject({
@@ -179,21 +196,23 @@ describe('native HTTP client boundary', () => {
 
   it('does not grant an undeclared code to another endpoint', async () => {
     await expect(
-      runRequest(
-        access(() =>
-          Promise.resolve(
-            Response.json(
-              {
-                statusCode: 409,
-                error: 'Conflict',
-                message: 'Conflict',
-                code: 'content_changed',
-              },
-              { status: 409 },
+      Effect.runPromise(
+        mapRequestErrors(
+          access(() =>
+            Promise.resolve(
+              Response.json(
+                {
+                  statusCode: 409,
+                  error: 'Conflict',
+                  message: 'Conflict',
+                  code: 'content_changed',
+                },
+                { status: 409 },
+              ),
             ),
-          ),
-        ).publicAccess.readEnvironment({}),
-        signal(),
+          ).publicAccess.readEnvironment({}),
+        ),
+        { signal: signal() },
       ),
     ).rejects.toMatchObject({ status: 409, code: undefined });
   });
@@ -214,47 +233,53 @@ describe('native HTTP client boundary', () => {
       ),
     ).gitActions;
     await expect(
-      runRequest(
-        api.runGitAction({
-          params: { worktreeId },
-          payload: {
-            requestId: '8d349263-380b-4f05-946c-09f8220e5c93',
-            input: {
-              action: 'fetch',
-              remoteName: 'origin',
-              sourceRef: 'refs/heads/main',
+      Effect.runPromise(
+        mapRequestErrors(
+          api.runGitAction({
+            params: { worktreeId },
+            payload: {
+              requestId: '8d349263-380b-4f05-946c-09f8220e5c93',
+              input: {
+                action: 'fetch',
+                remoteName: 'origin',
+                sourceRef: 'refs/heads/main',
+              },
+              expected: {
+                headOid: undefined,
+                branch: undefined,
+                inProgress: undefined,
+                mergeHeadOid: undefined,
+              },
             },
-            expected: {
-              headOid: undefined,
-              branch: undefined,
-              inProgress: undefined,
-              mergeHeadOid: undefined,
-            },
-          },
-        }),
-        signal(),
+          }),
+        ),
+        { signal: signal() },
       ),
     ).resolves.toEqual(body);
   });
 
   it('accepts an empty acknowledgement without parsing JSON', async () => {
     await expect(
-      runRequest(
-        access(() =>
-          Promise.resolve(new Response(null, { status: 204 })),
-        ).browserAccess.clearBrowserSession({}),
-        signal(),
+      Effect.runPromise(
+        mapRequestErrors(
+          access(() =>
+            Promise.resolve(new Response(null, { status: 204 })),
+          ).browserAccess.clearBrowserSession({}),
+        ),
+        { signal: signal() },
       ),
     ).resolves.toBeUndefined();
   });
 
   it('reports unreadable HTTP failures and retains the original transport cause', async () => {
     await expect(
-      runRequest(
-        access(() =>
-          Promise.resolve(new Response('unavailable', { status: 503 })),
-        ).publicAccess.readEnvironment({}),
-        signal(),
+      Effect.runPromise(
+        mapRequestErrors(
+          access(() =>
+            Promise.resolve(new Response('unavailable', { status: 503 })),
+          ).publicAccess.readEnvironment({}),
+        ),
+        { signal: signal() },
       ),
     ).rejects.toMatchObject({
       status: 503,
@@ -263,66 +288,89 @@ describe('native HTTP client boundary', () => {
     });
     const failure = new TypeError('Network request failed');
     await expect(
-      runRequest(
-        access(() => Promise.reject(failure)).publicAccess.readEnvironment({}),
-        signal(),
+      Effect.runPromise(
+        mapRequestErrors(
+          access(() => Promise.reject(failure)).publicAccess.readEnvironment(
+            {},
+          ),
+        ),
+        { signal: signal() },
       ),
     ).rejects.toMatchObject({ name: 'ConnectionError', cause: failure });
   });
 
-  it('does no IO for an already cancelled request', async () => {
+  it('does no IO for a request admitted after connection close', async () => {
     let calls = 0;
-    const controller = new AbortController();
-    const cancelled = new Error('Workspace disconnected');
-    controller.abort(cancelled);
-    await expect(
-      runRequest(
+    const lifetime = createWorktreeConnection(
+      {
+        environmentId: 'closed',
+        transport: () => Promise.resolve(Response.json(environment)),
+        timeoutMs: 1000,
+      },
+      undefined,
+      Layer.empty,
+    );
+    await lifetime.close();
+    const exit = await Effect.runPromiseExit(
+      requestEffect(
         access(() => {
           calls += 1;
           return Promise.resolve(Response.json(environment));
         }).publicAccess.readEnvironment({}),
-        controller.signal,
+        lifetime.connection.request,
       ),
-    ).rejects.toBe(cancelled);
+    );
+    expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(
+      true,
+    );
     expect(calls).toBe(0);
   });
 
-  it('forwards cancellation through the runtime signal', async () => {
+  it('forwards native interruption to the actual fetch', async () => {
     const controller = new AbortController();
     const started = Promise.withResolvers<void>();
-    const request = runRequest(
-      access(
-        (_path, init) =>
-          new Promise<Response>((_resolve, reject) => {
-            init?.signal?.addEventListener(
-              'abort',
-              () => reject(init.signal?.reason),
-              { once: true },
-            );
-            started.resolve();
-          }),
-      ).publicAccess.readEnvironment({}),
-      controller.signal,
+    let aborted = false;
+    const request = Effect.runPromiseExit(
+      mapRequestErrors(
+        access(
+          (_path, init) =>
+            new Promise<Response>((_resolve, reject) => {
+              init?.signal?.addEventListener(
+                'abort',
+                () => {
+                  aborted = true;
+                  reject(init.signal?.reason);
+                },
+                { once: true },
+              );
+              started.resolve();
+            }),
+        ).publicAccess.readEnvironment({}),
+      ),
+      { signal: controller.signal },
     );
     await started.promise;
-    const cancelled = new Error('Workspace disconnected');
-    controller.abort(cancelled);
-    await expect(request).rejects.toBe(cancelled);
+    controller.abort();
+    const exit = await request;
+    expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(
+      true,
+    );
+    expect(aborted).toBe(true);
   });
 
   it('refuses a successful response that violates its contract', async () => {
     await expect(
-      runRequest(
-        access(() =>
-          Promise.resolve(Response.json({ malformed: true })),
-        ).publicAccess.readEnvironment({}),
-        signal(),
+      Effect.runPromise(
+        mapRequestErrors(
+          access(() =>
+            Promise.resolve(Response.json({ malformed: true })),
+          ).publicAccess.readEnvironment({}),
+        ),
+        { signal: signal() },
       ),
     ).rejects.toThrow();
   });
   it('opens a fresh request lifetime each time a retained generated read runs', async () => {
-    const first = new AbortController();
-    const second = new AbortController();
     let admitted = 0;
     let sent = 0;
     const retained = requestEffect(
@@ -330,12 +378,15 @@ describe('native HTTP client boundary', () => {
         sent += 1;
         return Promise.resolve(Response.json(environment));
       }).publicAccess.readEnvironment({}),
-      () => ({ signal: admitted++ === 0 ? first.signal : second.signal }),
+      (work) =>
+        Effect.suspend(() => {
+          admitted += 1;
+          return work;
+        }),
     );
     expect(await Effect.runPromise(retained)).toMatchObject({
       environmentId: 'remote',
     });
-    first.abort();
     expect(await Effect.runPromise(retained)).toMatchObject({
       environmentId: 'remote',
     });

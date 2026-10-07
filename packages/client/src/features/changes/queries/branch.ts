@@ -25,7 +25,7 @@ export const readBranchChanges = Atom.family(
           }),
         );
         yield* currentAnswerEffect(
-          connection.request().signal,
+          connection,
           answer.worktreeId === scope.worktreeId,
         );
         return answer;

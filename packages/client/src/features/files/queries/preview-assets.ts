@@ -40,7 +40,7 @@ export const readPreviewAssets = Atom.family(
                   payload: { document, paths: [...paths] },
                 }),
               );
-              yield* currentAnswerEffect(connection.request().signal);
+              yield* currentAnswerEffect(connection);
               return new Map(
                 response.assets.map((asset) => [
                   asset.path,

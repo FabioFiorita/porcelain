@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Effect, type Scope } from 'effect';
 import { Atom, Reactivity } from 'effect/reactivity';
 import type { GenerateCommitDraftRequest } from '@porcelain/contracts/git-actions';
 import type {
@@ -18,10 +18,9 @@ export const generateCommitDraft = Atom.family(
   ({ connection, scope }: Selection) =>
     clientRuntime(connection).fn(
       Effect.fn('GitActions.generateCommitDraft')(function* ({
-        signal: caller,
+        lifetime,
         ...input
-      }: GenerateCommitDraftRequest & { signal?: AbortSignal }) {
-        const signal = connection.request(caller).signal;
+      }: GenerateCommitDraftRequest & { lifetime?: Scope.Scope }) {
         const client = yield* porcelainClient(connection);
         const result = yield* client.request(
           (api) =>
@@ -29,9 +28,9 @@ export const generateCommitDraft = Atom.family(
               params: { worktreeId: scope.worktreeId },
               payload: input,
             }),
-          signal,
+          lifetime,
         );
-        yield* currentAnswerEffect(signal);
+        yield* currentAnswerEffect(connection);
         return result;
       }),
       { concurrent: true },
@@ -47,7 +46,7 @@ export const dismissInterruptedGitAction = Atom.family(
             params: { worktreeId: scope.worktreeId, requestId },
           }),
         );
-        yield* currentAnswerEffect(connection.request().signal);
+        yield* currentAnswerEffect(connection);
         yield* Reactivity.invalidate([
           queryKeys.reviewSurface(connection.environmentId, scope, ['changes']),
         ]);

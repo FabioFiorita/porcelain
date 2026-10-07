@@ -72,7 +72,6 @@ function setup(
         destination: 'destination',
       }),
     registry,
-    controller: lifetime.controller,
     connection: lifetime.connection,
     execute,
     close: async () => {
@@ -241,7 +240,7 @@ it('cancels a disconnected move, releases its draft claims, and rejects a late c
     const rejected = expect(completed).rejects.toThrow();
     await started.promise;
     expect(typeof draft.state.value.owner).toBe('symbol');
-    subject.controller.abort();
+    void subject.connection.close();
     held.resolve(Response.json({ path: 'destination' }));
     await rejected;
     expect(subject.entries().get(key('source/file.txt'))).toBe(draft);

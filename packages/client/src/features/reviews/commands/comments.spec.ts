@@ -249,7 +249,7 @@ it('rejects an already disconnected create before invoking transport', async () 
     sent += 1;
     return Promise.resolve(Response.json({}));
   });
-  subject.controller.abort();
+  void subject.close();
   subject.registry.set(subject.commands.create, {
     anchor: { kind: 'file', filePath: 'README.md' },
     body: 'Ready',

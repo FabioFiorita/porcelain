@@ -1,4 +1,4 @@
-import { Layer, Effect } from 'effect';
+import { Layer, Effect, Scope, Exit } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import { expect, it } from 'vitest';
 import {
@@ -38,7 +38,7 @@ function setup(transport: Transport) {
     scope,
   });
   return {
-    run: (request: typeof input & { signal?: AbortSignal }) => {
+    run: (request: typeof input & { lifetime?: Scope.Scope }) => {
       registry.set(command, request);
       return Effect.runPromise(
         AtomRegistry.getResult(registry, command, { suspendOnWaiting: true }),
@@ -107,13 +107,13 @@ it('cancels the generation transport when the form withdraws its draft', async (
     started.resolve();
     return response.promise;
   });
-  const controller = new AbortController();
+  const lifetime = Scope.makeUnsafe();
   try {
     const failure = expect(
-      subject.run({ ...input, signal: controller.signal }),
+      subject.run({ ...input, lifetime }),
     ).rejects.toThrow();
     await started.promise;
-    controller.abort();
+    await Effect.runPromise(Scope.close(lifetime, Exit.void));
     await cancelled.promise;
     response.resolve(Response.json(draft));
     await failure;

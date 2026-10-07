@@ -73,10 +73,12 @@ async function setup(
   const registry = AtomRegistry.make();
   const sent: LiveSubscription[] = [];
   const subscribed = Promise.withResolvers<void>();
+  const stopped = Promise.withResolvers<void>();
   let live: Parameters<LiveUpdatePort['connect']>[0] | undefined;
   const liveUpdates: LiveUpdatePort = {
-    connect: (options) => {
+    connect: Effect.fn(function* (options) {
       live = options;
+      yield* Effect.addFinalizer(() => Effect.sync(() => stopped.resolve()));
       return {
         subscribe: (value) => {
           sent.push(value);
@@ -84,23 +86,16 @@ async function setup(
           subscribed.resolve();
         },
       };
-    },
+    }),
   };
   const connection = Equal.byReference({
     ...lifetime.connection,
-    controller: lifetime.controller,
     operations,
     liveUpdates,
   });
   const owner = liveQueries({ connection, onUnauthorized: () => {} });
   const unmount = registry.mount(owner);
   const close = async () => {
-    const stopped = Promise.withResolvers<void>();
-    if (!live || live.signal.aborted) stopped.resolve();
-    else
-      live.signal.addEventListener('abort', () => stopped.resolve(), {
-        once: true,
-      });
     unmount();
     await stopped.promise;
   };
@@ -113,6 +108,7 @@ async function setup(
     sent,
     subscribed: subscribed.promise,
     live: () => live,
+    stopped: stopped.promise,
     close,
     cleanup: async () => {
       await close();
@@ -196,7 +192,7 @@ it('releases queued subscription work when its native scope closes', async () =>
   const subject = await setup();
   try {
     await subject.close();
-    const before = [...subject.sent];
+    expect(subject.sent).toEqual([{ projects: [], worktrees: [] }]);
     await Effect.runPromise(
       subject.operations.set(
         operationKey(
@@ -211,8 +207,8 @@ it('releases queued subscription work when its native scope closes', async () =>
         },
       ),
     );
-    expect(subject.live()?.signal.aborted).toBe(true);
-    expect(subject.sent).toEqual(before);
+    await subject.stopped;
+    expect(subject.sent).toEqual([{ projects: [], worktrees: [] }]);
   } finally {
     await subject.cleanup();
   }
@@ -228,12 +224,12 @@ it('ignores late notices and reconnect callbacks after closing the live session'
     });
   try {
     await subject.close();
-    const before = [...subject.sent];
+    expect(subject.sent).toEqual([{ projects: [], worktrees: [] }]);
     subject.live()?.onNotice({ type: 'inventory' });
     subject.live()?.onReconnect();
     await Promise.resolve();
     expect(refreshes).toBe(0);
-    expect(subject.sent).toEqual(before);
+    expect(subject.sent).toEqual([{ projects: [], worktrees: [] }]);
   } finally {
     unregister();
     await subject.cleanup();

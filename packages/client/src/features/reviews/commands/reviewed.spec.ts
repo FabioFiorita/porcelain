@@ -224,7 +224,7 @@ it('refuses a write completed after disconnect and never publishes its mark', as
     await started.promise;
     await shown(subject, ['kept.md', 'late.md']);
     const rolledBack = shown(subject, ['kept.md']);
-    subject.controller.abort();
+    void subject.close();
     held.resolve(
       Response.json({
         worktreeId: scope.worktreeId,

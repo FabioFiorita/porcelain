@@ -1,9 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { Effect, Layer } from 'effect';
+import { Cause, Effect, Exit, Layer } from 'effect';
 import { HtmlPreviewPlatform } from '@porcelain/client/files';
 import { AtomRegistry } from 'effect/reactivity';
 import {
-  runRequest,
   createWorktreeConnection,
   type Transport,
 } from '@porcelain/client/transport';
@@ -98,9 +97,9 @@ describe('portable file previews', () => {
         }),
       );
     });
-    const assets = await runRequest(
+    const assets = await Effect.runPromise(
       preview(subject, 'index.html', [image.path, 'missing.css']),
-      new AbortController().signal,
+      { signal: new AbortController().signal },
     );
     expect(assets.assets).toEqual([
       [image.path, { kind: 'asset', ...image }],
@@ -117,18 +116,17 @@ describe('portable file previews', () => {
   });
 
   it('refuses a preview answer when the connection changes during transport', async () => {
-    const disconnected = new Error('Another workspace is connected');
     const subject = fixture(() => {
-      subject.controller.abort(disconnected);
+      void subject.close();
       return Promise.resolve(
         Response.json({ assets: [{ kind: 'asset', ...image }] }),
       );
     });
-    await expect(
-      runRequest(
-        preview(subject, 'index.html', [image.path]),
-        subject.controller.signal,
-      ),
-    ).rejects.toBe(disconnected);
+    const exit = await Effect.runPromiseExit(
+      preview(subject, 'index.html', [image.path]),
+    );
+    expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(
+      true,
+    );
   });
 });

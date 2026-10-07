@@ -1,5 +1,5 @@
 import { expect, it } from '@effect/vitest';
-import { Cause, Effect, Queue, Scope, Stream } from 'effect';
+import { Cause, Effect, Exit, Queue, Scope, Stream } from 'effect';
 import { RpcSerialization, RpcServer } from 'effect/rpc';
 import { Socket, SocketServer } from 'effect/socket';
 import { NetAddress } from 'effect/net';
@@ -133,8 +133,7 @@ it.effect(
       const notices = yield* Queue.make<LiveNotice>();
       let reconnects = 0;
       let revoked = 0;
-      const signal = new AbortController();
-      yield* Effect.addFinalizer(() => Effect.sync(() => signal.abort()));
+      const scope = yield* Scope.fork(yield* Scope.Scope, 'sequential');
       const serverScope = yield* Scope.Scope;
       const port = createLiveUpdates(
         Effect.gen(function* () {
@@ -146,18 +145,19 @@ it.effect(
         }),
         yield* Effect.context(),
       );
-      const live = port.connect({
-        signal: signal.signal,
-        onNotice: (notice) => {
-          Queue.offerUnsafe(notices, notice);
-        },
-        onReconnect: () => {
-          reconnects += 1;
-        },
-        onUnauthorized: () => {
-          revoked += 1;
-        },
-      });
+      const live = yield* port
+        .connect({
+          onNotice: (notice) => {
+            Queue.offerUnsafe(notices, notice);
+          },
+          onReconnect: () => {
+            reconnects += 1;
+          },
+          onUnauthorized: () => {
+            revoked += 1;
+          },
+        })
+        .pipe(Effect.provideService(Scope.Scope, scope));
       const subscription = {
         projects: ['11111111-1111-4111-8111-111111111111'],
         worktrees: [],
@@ -177,7 +177,7 @@ it.effect(
       expect(yield* Queue.take(second.followed)).toStrictEqual(subscription);
       expect(reconnects).toBe(1);
       expect(revoked).toBe(0);
-      signal.abort();
+      yield* Scope.close(scope, Exit.void);
       yield* Queue.take(second.closed);
       yield* TestClock.adjust(20000);
       expect(yield* Queue.size(openings)).toBe(0);
@@ -192,9 +192,8 @@ it.effect(
       const revoked = yield* Queue.make<void>();
       const openings = yield* Queue.make<Effect.Success<typeof socketPort>>();
       let attempts = 0;
-      const signal = new AbortController();
-      yield* Effect.addFinalizer(() => Effect.sync(() => signal.abort()));
-      createLiveUpdates(
+      const scope = yield* Scope.fork(yield* Scope.Scope, 'sequential');
+      yield* createLiveUpdates(
         Effect.gen(function* () {
           attempts += 1;
           const opened = yield* socketPort.pipe(
@@ -204,14 +203,15 @@ it.effect(
           return opened.socket;
         }),
         yield* Effect.context(),
-      ).connect({
-        signal: signal.signal,
-        onNotice: () => {},
-        onReconnect: () => {},
-        onUnauthorized: () => {
-          Queue.offerUnsafe(revoked, undefined);
-        },
-      });
+      )
+        .connect({
+          onNotice: () => {},
+          onReconnect: () => {},
+          onUnauthorized: () => {
+            Queue.offerUnsafe(revoked, undefined);
+          },
+        })
+        .pipe(Effect.provideService(Scope.Scope, scope));
       const opened = yield* Queue.take(openings);
       opened.disconnect(4001);
       yield* Queue.take(revoked);
@@ -225,9 +225,8 @@ it.effect('a rejected live ticket stops before opening an RPC socket', () =>
   Effect.gen(function* () {
     const revoked = yield* Queue.make<void>();
     let attempts = 0;
-    const signal = new AbortController();
-    yield* Effect.addFinalizer(() => Effect.sync(() => signal.abort()));
-    createLiveUpdates(
+    const scope = yield* Scope.fork(yield* Scope.Scope, 'sequential');
+    yield* createLiveUpdates(
       Effect.suspend(() => {
         attempts += 1;
         return Effect.fail(
@@ -235,14 +234,15 @@ it.effect('a rejected live ticket stops before opening an RPC socket', () =>
         );
       }),
       yield* Effect.context(),
-    ).connect({
-      signal: signal.signal,
-      onNotice: () => {},
-      onReconnect: () => {},
-      onUnauthorized: () => {
-        Queue.offerUnsafe(revoked, undefined);
-      },
-    });
+    )
+      .connect({
+        onNotice: () => {},
+        onReconnect: () => {},
+        onUnauthorized: () => {
+          Queue.offerUnsafe(revoked, undefined);
+        },
+      })
+      .pipe(Effect.provideService(Scope.Scope, scope));
     yield* Queue.take(revoked);
     yield* TestClock.adjust(20000);
     expect(attempts).toBe(1);

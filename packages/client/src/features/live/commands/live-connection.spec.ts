@@ -77,7 +77,7 @@ it('adopts a replacement remote connection without releasing application drafts 
       ),
     );
     await original.close();
-    expect(originalConnection.request().signal.aborted).toBe(true);
+    expect(originalConnection.isClosed()).toBe(true);
     expect(originalConnection.operations.state.value.closed).toBe(true);
     expect(drafts.entries(originalConnection).size).toBe(1);
     expect(draft.claim('editor')).toBe(true);
@@ -120,7 +120,7 @@ it('closes the journal and interrupts receipt waits in the same lifetime as requ
       transport: () => Promise.resolve(Response.json({})),
       timeoutMs: 1000,
       liveUpdates: {
-        connect: () => ({ subscribe: () => {} }),
+        connect: () => Effect.succeed({ subscribe: () => {} }),
       },
     },
     Layer.merge(
@@ -180,9 +180,9 @@ it('closes the journal and interrupts receipt waits in the same lifetime as requ
     const waiting = connection.runtime.runFork(
       connection.operations.wait(key, requestId),
     );
-    const signal = connection.request().signal;
+    const closed = connection.isClosed;
     await connection.close();
-    expect(signal.aborted).toBe(true);
+    expect(closed()).toBe(true);
     expect(connection.operations.state.value).toMatchObject({
       closed: true,
       operations: new Map(),

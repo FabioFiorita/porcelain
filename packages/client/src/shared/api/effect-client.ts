@@ -1,13 +1,5 @@
 import { apiErrorSchema } from '@porcelain/contracts/shared';
-import {
-  Cause,
-  Effect,
-  Exit,
-  Layer,
-  Result,
-  Schema,
-  type Context,
-} from 'effect';
+import { Effect, Layer, Result, Schema, type Context } from 'effect';
 import {
   HttpClient,
   HttpClientError,
@@ -18,7 +10,6 @@ import { ConnectionError } from './connection-error.ts';
 import { RequestError } from './request-error.ts';
 import type { WorktreeConnection } from './connection.ts';
 import type { Transport } from './transport.ts';
-import { withSignal } from '@porcelain/effects';
 
 export function transportLayer(transport: Transport) {
   const send: Context.Service.Shape<typeof FetchHttpClient.Fetch> = (
@@ -102,26 +93,5 @@ export function requestEffect<A, E, R>(
   request: Effect.Effect<A, E, R>,
   lifetime: WorktreeConnection['request'],
 ): Effect.Effect<A, E | ConnectionError | RequestError, R> {
-  const checked = mapRequestErrors(request);
-  return Effect.suspend(() => withSignal(checked, lifetime().signal));
-}
-
-async function settleRequest<A, E>(
-  signal: AbortSignal,
-  execute: () => Promise<Exit.Exit<A, E>>,
-): Promise<A> {
-  signal.throwIfAborted();
-  const exit = await execute();
-  signal.throwIfAborted();
-  if (Exit.isSuccess(exit)) return exit.value;
-  throw Cause.squash(exit.cause);
-}
-
-export function runRequest<A, E>(
-  request: Effect.Effect<A, E>,
-  signal: AbortSignal,
-): Promise<A> {
-  return settleRequest(signal, () =>
-    Effect.runPromiseExit(mapRequestErrors(request), { signal }),
-  );
+  return lifetime(mapRequestErrors(request));
 }

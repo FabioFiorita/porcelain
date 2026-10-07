@@ -10,7 +10,6 @@ import type { WorktreeScope } from '../../../shared/api/connection.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { RequestError } from '../../../shared/api/request-error.ts';
-import { withSignal } from '@porcelain/effects';
 import { isTerminal, operationKey } from '../store/operations.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { GitReceiptRefresh, receiptRuntime } from './refresh-receipt.ts';
@@ -49,16 +48,15 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
   const key = operationKey(scope, action);
   const accept = Effect.fn('GitActionController.accept')(function* (
     receipt: RunGitActionResponse,
-    signal: AbortSignal,
   ) {
     yield* currentAnswerEffect(
-      signal,
+      connection,
       receipt.requestId ===
         operations.state.value.operations.get(key)?.requestId,
     );
     yield* refresh.refresh(receipt);
     yield* currentAnswerEffect(
-      signal,
+      connection,
       receipt.requestId ===
         operations.state.value.operations.get(key)?.requestId,
     );
@@ -66,15 +64,12 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
   });
   const send = Effect.fn('GitActionController.send')(function* (
     request: RunGitActionRequest,
-    signal: AbortSignal,
   ) {
-    const result = yield* client.request(
-      (api) =>
-        api.gitActions.runGitAction({
-          params: { worktreeId: scope.worktreeId },
-          payload: request,
-        }),
-      signal,
+    const result = yield* client.request((api) =>
+      api.gitActions.runGitAction({
+        params: { worktreeId: scope.worktreeId },
+        payload: request,
+      }),
     );
     if (!('requestId' in result))
       return yield* Effect.fail(
@@ -84,25 +79,24 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
         }),
       );
     yield* currentAnswerEffect(
-      signal,
+      connection,
       result.projectId === scope.projectId &&
         result.worktreeId === scope.worktreeId &&
         result.requestId === request.requestId &&
         result.action === action,
     );
-    yield* accept(result, signal);
+    yield* accept(result);
     return yield* operations.wait(key, request.requestId);
   });
   return {
     execute: Effect.fn('GitActionController.execute')(function* (
       input: Pick<RunGitActionRequest, 'input' | 'expected'>,
     ) {
-      const signal = connection.request().signal;
-      return yield* withSignal(
+      return yield* connection.request(
         Effect.gen(function* () {
           const request = yield* admission.withPermit(
             Effect.gen(function* () {
-              yield* currentAnswerEffect(signal);
+              yield* currentAnswerEffect(connection);
               const previous = operations.state.value.operations.get(key);
               if (
                 previous &&
@@ -135,24 +129,21 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
               return request;
             }),
           );
-          return yield* send(request, signal);
+          return yield* send(request);
         }),
-        signal,
       );
     }),
     recover: Effect.fn('GitActionController.recover')(function* () {
-      const signal = connection.request().signal;
-      return yield* withSignal(
+      return yield* connection.request(
         Effect.gen(function* () {
-          yield* currentAnswerEffect(signal);
+          yield* currentAnswerEffect(connection);
           const current = operations.state.value.operations.get(key);
           if (!current)
             return yield* Effect.fail(
               new GitOperationStateError({ reason: 'missing' }),
             );
-          return yield* send(current.request, signal);
+          return yield* send(current.request);
         }),
-        signal,
       );
     }),
     startNew: Effect.fn('GitActionController.startNew')(function* () {

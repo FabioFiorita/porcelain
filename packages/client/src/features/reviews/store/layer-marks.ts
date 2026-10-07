@@ -43,7 +43,7 @@ export class LayerMarksState extends Context.Service<
               }),
             );
             yield* currentAnswerEffect(
-              connection.request().signal,
+              connection,
               answer.worktreeId === scope.worktreeId,
             );
             return answer;

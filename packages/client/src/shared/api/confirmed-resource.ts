@@ -46,9 +46,7 @@ export function confirmedResource<A, E>(
         result: AsyncResult.waiting(current.result),
       }));
       const answer = yield* Effect.exit(
-        read.pipe(
-          Effect.tap(() => currentAnswerEffect(connection.request().signal)),
-        ),
+        read.pipe(Effect.tap(() => currentAnswerEffect(connection))),
       );
       yield* SubscriptionRef.update(state, (current) =>
         current.epoch === epoch
@@ -69,13 +67,13 @@ export function confirmedResource<A, E>(
       return queues.run(
         queryKeys.withIdentity(key, connection),
         Effect.gen(function* () {
-          yield* currentAnswerEffect(connection.request().signal);
+          yield* currentAnswerEffect(connection);
           yield* SubscriptionRef.update(state, (current) => ({
             ...current,
             epoch: current.epoch + 1,
           }));
           const answer = yield* operation;
-          yield* currentAnswerEffect(connection.request().signal);
+          yield* currentAnswerEffect(connection);
           yield* SubscriptionRef.update(state, (current) => ({
             epoch: current.epoch + 1,
             result: Option.match(

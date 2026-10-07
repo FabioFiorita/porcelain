@@ -28,7 +28,6 @@ export async function connection(server: IsolatedServer, session: Session) {
   lifetimes.add({ lifetime, registry });
   return {
     connected: lifetime.connection,
-    controller: lifetime.controller,
     scope: { projectId: session.projectId, worktreeId: session.worktreeId },
     registry,
     execute: <Input, A, E>(

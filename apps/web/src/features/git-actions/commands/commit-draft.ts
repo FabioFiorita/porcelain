@@ -1,5 +1,5 @@
 import { useAtom } from '@effect/atom-react';
-import { Cause, Exit } from 'effect';
+import { Cause, Effect, Exit, Scope } from 'effect';
 import { generateCommitDraft } from '@porcelain/client/git-actions';
 import type {
   CommitDraftInput,
@@ -21,12 +21,21 @@ export function useCommitDraft(
     submit: (input: CommitDraftInput) => {
       const controller = new AbortController();
       drafts.add(controller);
-      return generate({ ...input, signal: controller.signal })
+      const lifetime = Scope.makeUnsafe();
+      const interrupt = () => {
+        void Effect.runPromise(Scope.close(lifetime, Exit.void));
+      };
+      controller.signal.addEventListener('abort', interrupt, { once: true });
+      return generate({ ...input, lifetime })
         .then((completed) => {
           if (Exit.isFailure(completed)) throw Cause.squash(completed.cause);
           return completed.value;
         })
-        .finally(() => drafts.delete(controller));
+        .finally(() => {
+          interrupt();
+          controller.signal.removeEventListener('abort', interrupt);
+          drafts.delete(controller);
+        });
     },
   };
 }

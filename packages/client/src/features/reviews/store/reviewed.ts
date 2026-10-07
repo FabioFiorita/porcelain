@@ -81,7 +81,7 @@ export class ReviewedFilesState extends Context.Service<
               }),
             );
             yield* currentAnswerEffect(
-              connection.request().signal,
+              connection,
               answer.worktreeId === scope.worktreeId,
             );
             return answer;
@@ -104,9 +104,7 @@ export class ReviewedFilesState extends Context.Service<
           ) =>
             Effect.uninterruptibleMask((restore) =>
               Effect.gen(function* () {
-                yield* restore(
-                  currentAnswerEffect(connection.request().signal),
-                );
+                yield* restore(currentAnswerEffect(connection));
                 const intent = {
                   id: Symbol(),
                   changes,
@@ -121,7 +119,7 @@ export class ReviewedFilesState extends Context.Service<
                     operation.pipe(
                       Effect.tap((answer) =>
                         currentAnswerEffect(
-                          connection.request().signal,
+                          connection,
                           answer.worktreeId === scope.worktreeId,
                         ),
                       ),

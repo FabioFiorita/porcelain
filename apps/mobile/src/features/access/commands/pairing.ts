@@ -6,18 +6,11 @@ import { EnvironmentCommands } from '@porcelain/client/access';
 import { clientRuntime } from '../../../shared/application/store';
 
 const pairEnvironment = Atom.family((_identity: symbol) =>
-  clientRuntime.fn(
-    ({
-      value,
-      signal,
-    }: {
-      readonly value: string;
-      readonly signal: AbortSignal;
-    }) =>
-      Effect.gen(function* () {
-        const commands = yield* EnvironmentCommands;
-        return yield* commands.pair({ value, signal });
-      }),
+  clientRuntime.fn((value: string) =>
+    Effect.gen(function* () {
+      const commands = yield* EnvironmentCommands;
+      return yield* commands.pair({ value });
+    }),
   ),
 );
 const readEnvironments = clientRuntime.fn((_: void) =>
@@ -29,19 +22,23 @@ const readEnvironments = clientRuntime.fn((_: void) =>
 
 export function usePairEnvironment(onPaired: () => void) {
   const [identity] = useState(Symbol);
-  const controller = useRef<AbortController | null>(null);
+  const current = useRef(0);
   const [result, run] = useAtom(pairEnvironment(identity), {
     mode: 'promiseExit',
   });
-  useEffect(() => () => controller.current?.abort(), []);
+  useEffect(
+    () => () => {
+      current.current += 1;
+      void run(Atom.Interrupt);
+    },
+    [run],
+  );
   return {
     result,
     submit: (value: string) => {
-      controller.current?.abort();
-      const request = new AbortController();
-      controller.current = request;
-      void run({ value, signal: request.signal }).then((exit) => {
-        if (Exit.isSuccess(exit) && !request.signal.aborted) onPaired();
+      const request = ++current.current;
+      void run(value).then((exit) => {
+        if (Exit.isSuccess(exit) && current.current === request) onPaired();
       });
     },
   };

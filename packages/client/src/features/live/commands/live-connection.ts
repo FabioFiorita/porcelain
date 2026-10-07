@@ -12,7 +12,7 @@ import { remoteTransport } from '../../../shared/api/transport.ts';
 import { remoteLiveUpdates } from './remote-live-updates.ts';
 
 export function openLiveConnection(
-  input: Omit<WorktreeConnection, 'request'> & {
+  input: Omit<WorktreeConnection, 'request' | 'scope' | 'isClosed'> & {
     readonly address: string;
     readonly timeoutMs: number;
     readonly liveUpdates: LiveConnection['liveUpdates'];
@@ -24,7 +24,7 @@ export function openLiveConnection(
     Layer.fresh(operationStoreLayer),
     FileDrafts.layer,
   ).pipe(Layer.provideMerge(platform));
-  const { connection: requests, controller } = createWorktreeConnection(
+  const { connection: requests } = createWorktreeConnection(
     input,
     memoMap,
     services,
@@ -33,7 +33,6 @@ export function openLiveConnection(
     ...requests,
     address: input.address,
     liveUpdates: input.liveUpdates,
-    controller,
     operations: requests.runtime.runSync(OperationStore),
   });
   requests.runtime.runSync(FileDrafts).adopt(connection);

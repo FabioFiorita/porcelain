@@ -23,16 +23,16 @@ function makeAccessCommands(connection: RuntimeConnection) {
       return queues.run(
         [key],
         Effect.gen(function* () {
-          yield* currentAnswerEffect(connection.request().signal);
+          yield* currentAnswerEffect(connection);
           const answer = yield* operation;
-          yield* currentAnswerEffect(connection.request().signal);
+          yield* currentAnswerEffect(connection);
           return answer;
         }),
       );
     }
     function refresh<A>(atom: Atom.Atom<A>) {
       return Effect.sync(() => {
-        if (!connection.request().signal.aborted) registry.refresh(atom);
+        if (!connection.isClosed()) registry.refresh(atom);
       });
     }
     function confirm<A, E, F, R>(
@@ -128,11 +128,7 @@ function makeAccessCommands(connection: RuntimeConnection) {
               .request((api) =>
                 api.administration.setRemoteAccess({ payload: change }),
               )
-              .pipe(
-                Effect.tap(() =>
-                  currentAnswerEffect(connection.request().signal),
-                ),
-              ),
+              .pipe(Effect.tap(() => currentAnswerEffect(connection))),
           ),
         ),
       startUpdate: (version: string) =>
@@ -146,9 +142,7 @@ function makeAccessCommands(connection: RuntimeConnection) {
                 api.serviceUpdates.startServiceUpdate({ payload: { version } }),
               )
               .pipe(
-                Effect.tap(() =>
-                  currentAnswerEffect(connection.request().signal),
-                ),
+                Effect.tap(() => currentAnswerEffect(connection)),
                 Effect.tapError(() => refresh(readServiceUpdate(connection))),
               ),
           ),

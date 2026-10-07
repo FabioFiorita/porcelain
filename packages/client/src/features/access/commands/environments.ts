@@ -1,5 +1,4 @@
 import { Context, Effect, Layer } from 'effect';
-import { withSignal } from '@porcelain/effects';
 import { AccessStore } from '../store.ts';
 import { EnvironmentMutations } from '../store/environment-mutations.ts';
 import { FileDrafts } from '../../files/store.ts';
@@ -24,9 +23,8 @@ const makeEnvironmentCommands = Effect.gen(function* () {
       (input: {
         readonly value: string;
         readonly localEnvironmentId?: string | undefined;
-        readonly signal?: AbortSignal;
       }) => {
-        const work = mutations.run(
+        return mutations.run(
           'access',
           Effect.gen(function* () {
             if (
@@ -45,7 +43,6 @@ const makeEnvironmentCommands = Effect.gen(function* () {
             );
           }),
         );
-        return input.signal ? withSignal(work, input.signal) : work;
       },
     ),
     forget: Effect.fn('Environments.forget')((environmentId: string) =>

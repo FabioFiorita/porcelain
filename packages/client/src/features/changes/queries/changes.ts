@@ -18,7 +18,7 @@ export const readChangesSnapshot = Effect.fn('Changes.readSnapshot')(
       api.changes.readChanges({ params: { worktreeId: scope.worktreeId } }),
     );
     yield* currentAnswerEffect(
-      connection.request().signal,
+      connection,
       answer.environmentId === connection.environmentId &&
         answer.worktreeId === scope.worktreeId,
     );
@@ -43,7 +43,7 @@ export const readGitStatusSnapshot = Effect.fn('Changes.readGitStatusSnapshot')(
       api.changes.readGitStatus({ params: { worktreeId: scope.worktreeId } }),
     );
     yield* currentAnswerEffect(
-      connection.request().signal,
+      connection,
       answer.environmentId === connection.environmentId &&
         answer.worktreeId === scope.worktreeId,
     );

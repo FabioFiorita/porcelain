@@ -474,7 +474,7 @@ it('unmounting a diff window cancels each in-flight batch without disconnecting 
   stop();
   await aborted.promise;
   expect(cancellations).toBe(2);
-  expect(subject.controller.signal.aborted).toBe(false);
+  expect(subject.connection.isClosed()).toBe(false);
 });
 
 it('a failed stale-diff recovery finishes once per observation and remains independent across connections', async () => {
