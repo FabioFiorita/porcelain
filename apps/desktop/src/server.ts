@@ -34,7 +34,7 @@ const runtime = ManagedRuntime.make(
 
 try {
   const server = await runtime.runPromise(
-    startServer(settings, signal.signal, {
+    startServer(settings, {
       desktopSession: session,
       version: undefined,
       serviceUpdateRunner: openAppManagedUpdateRunner(),
