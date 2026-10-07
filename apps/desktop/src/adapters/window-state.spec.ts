@@ -1,5 +1,5 @@
 import { Persistence } from '../../spec/kit/persistence.ts';
-import { readdir, rm } from 'node:fs/promises';
+import { readdir } from 'node:fs/promises';
 import { expect, it } from '@effect/vitest';
 import { Effect } from 'effect';
 import { TestClock } from 'effect/testing';
