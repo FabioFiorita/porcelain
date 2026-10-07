@@ -1,9 +1,12 @@
 import { Effect, Layer } from 'effect';
-import { ChildProcessSpawner } from 'effect/process';
 import { networkInterfaces } from 'node:os';
 import { NetworkAddressReader } from '@porcelain/access/ports';
 import type { Limits } from '../../config/limits.ts';
-import { readMacPrimaryService, readMacRoute } from './mac-network-command.ts';
+import {
+  captureMacNetworkPlatform,
+  readMacPrimaryService,
+  readMacRoute,
+} from './mac-network-command.ts';
 import {
   macDefaultRoutes,
   macPhysicalInterface,
@@ -15,7 +18,7 @@ export const macNetworkAddressReaderLayer = (
   Layer.effect(
     NetworkAddressReader,
     Effect.gen(function* () {
-      const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+      const provideNetwork = yield* captureMacNetworkPlatform();
       return {
         list: () => {
           return Object.entries(networkInterfaces()).flatMap(
@@ -35,10 +38,7 @@ export const macNetworkAddressReaderLayer = (
           Effect.all([readMacRoute(limits), readMacPrimaryService(limits)], {
             concurrency: 'unbounded',
           }).pipe(
-            Effect.provideService(
-              ChildProcessSpawner.ChildProcessSpawner,
-              spawner,
-            ),
+            provideNetwork,
             Effect.map(([route, service]) => macDefaultRoutes(route, service)),
           ),
         ),

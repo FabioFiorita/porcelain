@@ -10,7 +10,7 @@ import {
 } from '@porcelain/git/inspection';
 import { ChangeStatusReader } from '@porcelain/changes/ports';
 import { readGitEffect } from '../../runtime/git-io.ts';
-import { captureGitPlatform } from '../projects/git-platform.ts';
+import { captureGitPlatform } from '@porcelain/git/discovery';
 import { fromGitChange } from './git-comparisons.ts';
 import type { OpenInspection } from './inspection-checkouts.ts';
 

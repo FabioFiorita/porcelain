@@ -8,7 +8,7 @@ import {
 import { ListedWorktreeAccessReader } from '@porcelain/projects/ports';
 import type { ListedWorktree } from '@porcelain/projects/models';
 import { WorktreeCatalogStore } from '@porcelain/projects/ports';
-import { captureGitPlatform } from './git-platform.ts';
+import { captureGitPlatform } from '@porcelain/git/discovery';
 
 export const gitWorktreeAccessReaderLayer = Layer.effect(
   ListedWorktreeAccessReader,

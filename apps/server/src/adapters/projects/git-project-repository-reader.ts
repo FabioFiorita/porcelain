@@ -1,5 +1,5 @@
 import { Effect, Layer } from 'effect';
-import { captureGitPlatform } from './git-platform.ts';
+import { captureGitPlatform } from '@porcelain/git/discovery';
 import { listWorktrees, readOriginUrl } from '@porcelain/git/discovery';
 import { isRepositoryUnavailable } from '@porcelain/git/errors';
 import type { RepositoryLocation } from '@porcelain/projects/models';

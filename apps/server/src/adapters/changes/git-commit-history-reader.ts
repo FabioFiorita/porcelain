@@ -1,6 +1,6 @@
 import { Effect, Layer } from 'effect';
 import { readGitEffect } from '../../runtime/git-io.ts';
-import { captureGitPlatform } from '../projects/git-platform.ts';
+import { captureGitPlatform } from '@porcelain/git/discovery';
 import { HistorySnapshotUnavailableError } from '@porcelain/git/errors';
 import { makeGitSession } from '@porcelain/git/inspection';
 import type { Limits } from '../../config/limits.ts';

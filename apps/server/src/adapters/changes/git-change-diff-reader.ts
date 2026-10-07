@@ -6,7 +6,7 @@ import { Effect, Layer } from 'effect';
 import { readDiffs } from '@porcelain/git/inspection';
 import { ChangeDiffReader } from '@porcelain/changes/ports';
 import { readGitEffect } from '../../runtime/git-io.ts';
-import { captureGitPlatform } from '../projects/git-platform.ts';
+import { captureGitPlatform } from '@porcelain/git/discovery';
 import { toGitChange } from './git-comparisons.ts';
 import type { OpenInspection } from './inspection-checkouts.ts';
 
