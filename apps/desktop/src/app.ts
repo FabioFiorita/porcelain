@@ -41,6 +41,7 @@ import { registerDesktopScheme, serveDesktop } from './app-protocol.ts';
 import fixPath from 'fix-path';
 import { desktopSettings } from './settings.ts';
 import { startLocalServer } from './server-host.ts';
+import { DesktopError } from './errors/desktop-error.ts';
 import {
   appDocument,
   desktopAddress,
@@ -117,11 +118,24 @@ function windowState(view: BrowserWindow) {
 
 function openExternal(url: string): void {
   if (externalNavigation(url))
-    void shell.openExternal(url).catch((error: unknown) => {
-      process.stderr.write(
-        `Porcelain: could not open ${url}: ${error instanceof Error ? error.message : 'unknown failure'}\n`,
-      );
-    });
+    runtime.runFork(
+      Effect.tryPromise({
+        try: () => shell.openExternal(url),
+        catch: (cause) =>
+          new DesktopError({
+            message: cause instanceof Error ? cause.message : 'unknown failure',
+            cause,
+          }),
+      }).pipe(
+        Effect.catch((error) =>
+          Effect.sync(() => {
+            process.stderr.write(
+              `Porcelain: could not open ${url}: ${error instanceof Error ? error.message : 'unknown failure'}\n`,
+            );
+          }),
+        ),
+      ),
+    );
 }
 
 function failure(error: unknown) {
