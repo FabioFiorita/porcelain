@@ -52,9 +52,11 @@ A test states a promise. Derive its cases from what the unit is for (its contrac
 
 Choose test setups with judgment: weigh what each layer of isolation, retry or extra job protects against what it costs, and add it where a case needs it.
 
+Prove a new or changed test can fail: revert the change it protects, watch it fail with the intended assertion, then restore.
+
 ## Verifying
 
-Prove a change with the smallest local proof: `pnpm check:local`, the test files you changed by name, and the feature driven through its surface's skill (`server-verify`, `web-verify`, `desktop-verify`, `mobile-verify`). Each skill's CLI at `scripts/cli` starts a disposable instance, drives it and records evidence; its feature map says how to reach each feature. CI runs `pnpm check` and owns the full suites. A guardrail change proves its rule with a fixture in `architecture/rule-cases.mjs`, or a probe in `architecture/probes/` run by name.
+Prove a change with the smallest local proof: `pnpm check:local`, the test files you changed by name, and the feature driven through its surface's skill (`server-verify`, `web-verify`, `desktop-verify`, `mobile-verify`). Each skill's CLI at `scripts/cli` starts a disposable instance, drives it and records evidence; its feature map says how to reach each feature. CI runs `pnpm check` and owns the full suites. A guardrail change proves its rule with a fixture in `architecture/rule-cases.mjs`.
 
 The root integration command runs suite tasks sequentially, because each Vitest runner already owns a machine-sized worker budget. Keep parallelism inside the suite; concurrent runners must not multiply that budget or require longer product deadlines.
 

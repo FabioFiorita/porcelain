@@ -161,7 +161,6 @@ export const styleRules = [
   'one-lint-config',
   'strict-json',
   'lint-config',
-  'probe-shape',
   'tsconfig',
   'package-scripts',
   'vitest-config',

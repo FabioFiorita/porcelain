@@ -49,7 +49,6 @@
     ".agents/skills/mobile-verify/scripts/**/*.ts",
     "apps/mobile/spec/**/*.ts",
     "architecture/*.ts",
-    "architecture/probes/*.ts",
     "apps/server/src/adapters/files/node-opendir.d.ts",
     "apps/mobile/app.config.ts"
   ]
