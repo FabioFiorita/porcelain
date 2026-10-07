@@ -4129,23 +4129,3 @@ export const scriptEvasions = [
   ['playwright test --list', [['playwright', 'test']]],
   ['turbo run test --dry-run', [['turbo', 'run', 'test']]],
 ];
-
-export const externalCases = [
-  ...['effect/process', 'effect/PlatformError', 'effect/Scope'].map(
-    (valid) => ({ role: 'installer', valid, invalid: 'effect/Stream' }),
-  ),
-  { role: 'rule', valid: 'effect/DateTime', invalid: 'effect' },
-  { role: 'kernel-test-kit', valid: 'effect/testing', invalid: 'node:fs' },
-  { role: 'kernel-test-kit', valid: 'vitest', invalid: 'effect/http' },
-  { role: 'mobile-config', valid: 'tsx/cjs', invalid: 'tsx' },
-  { role: 'mobile-test-kit', valid: 'expo/fingerprint', invalid: 'expo' },
-  ...['client-integration-test', 'client-test-kit'].map((role) => ({
-    role,
-    valid: 'effect/reactivity',
-    invalid: 'effect/http',
-  })),
-  { role: 'process', valid: 'effect/process', invalid: 'node:child_process' },
-  { role: 'config', valid: 'effect', invalid: 'effect/FileSystem' },
-  { role: 'transport', valid: '@effect/platform-node', invalid: 'fastify' },
-  { role: 'bootstrap', valid: '@effect/platform-node', invalid: 'effect/cli' },
-];

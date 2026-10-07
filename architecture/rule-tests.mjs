@@ -1,3 +1,8 @@
+import { runBoundaryCases } from './boundary-tests.mjs';
+
+await runBoundaryCases();
+if (process.argv.includes('--boundaries')) process.exit(0);
+
 import { fileURLToPath } from 'node:url';
 import { deepStrictEqual, throws, ok } from 'node:assert/strict';
 import { RuleTester } from 'oxlint/plugins-dev';
@@ -9,7 +14,6 @@ import ruleCases, {
   scriptCases,
   scriptEvasions,
   proseCases,
-  externalCases,
 } from './rule-cases.mjs';
 import { unownedProse } from './prose-policy.ts';
 import {
@@ -21,7 +25,6 @@ import { architectureLines } from './guardrail-budget.ts';
 import { readFileSync } from 'node:fs';
 import { manualAuditProblems } from './ci-policy.ts';
 import { preflightEdits } from './probe-edits.ts';
-import { classify, violation, forbiddenExternal } from './policy.ts';
 import {
   mobileGeneratedTypesValid,
   mobileMetroValid,
@@ -30,10 +33,6 @@ import {
   themeTokensValid,
 } from './theme-policy.ts';
 
-for (const entry of externalCases) {
-  deepStrictEqual(forbiddenExternal(entry.role, entry.valid), false);
-  deepStrictEqual(forbiddenExternal(entry.role, entry.invalid), true);
-}
 for (const entry of scriptCases) {
   deepStrictEqual(
     scriptInvokes(entry.valid, entry.required, entry.folder),
@@ -225,193 +224,6 @@ tester.run(
       },
     ],
   },
-);
-for (const [file, role] of [
-  ['index.ts', 'client-feature-api'],
-  ['api.ts', 'client-request-api'],
-  ['api.spec.ts', 'client-feature-spec'],
-  ['store.ts', 'store'],
-  ['store.spec.ts', 'client-feature-spec'],
-  ['queries/environments.ts', 'query'],
-  ['commands/pairing.ts', 'command'],
-  ['commands/pairing.spec.ts', 'client-feature-spec'],
-  ['ports/credentials.ts', 'client-port'],
-])
-  deepStrictEqual(classify(`packages/client/src/features/access/${file}`), {
-    role,
-    owner: 'client',
-  });
-for (const file of [
-  'views/environment.tsx',
-  'adapters/credentials.ts',
-  'commands/nested/pairing.ts',
-  'ports/credentials.spec.ts',
-])
-  deepStrictEqual(
-    classify(`packages/client/src/features/access/${file}`),
-    undefined,
-  );
-for (const role of ['api', 'command', 'query'])
-  deepStrictEqual(
-    violation(
-      { role, owner: role === 'api' ? 'web' : 'client' },
-      { role: 'client-request-api', owner: 'client' },
-    ),
-    undefined,
-  );
-deepStrictEqual(
-  violation(
-    { role: 'view', owner: 'mobile' },
-    { role: 'client-request-api', owner: 'client' },
-  ),
-  'view-cannot-import-client-request-api',
-);
-deepStrictEqual(
-  violation(
-    { role: 'client-feature-api', owner: 'client' },
-    { role: 'client-request-api', owner: 'client' },
-  ),
-  'client-feature-api-cannot-import-client-request-api',
-);
-deepStrictEqual(
-  violation(
-    { role: 'view', owner: 'mobile' },
-    { role: 'client-feature-api', owner: 'client' },
-  ),
-  undefined,
-);
-deepStrictEqual(
-  violation(
-    { role: 'api', owner: 'web' },
-    { role: 'client-port', owner: 'client' },
-  ),
-  'client-public-api-only',
-);
-deepStrictEqual(classify('packages/client/src/shared/api/index.ts'), {
-  role: 'client-transport-api',
-  owner: 'client',
-});
-deepStrictEqual(classify('packages/client/src/shared/api/request.ts'), {
-  role: 'web-shared',
-  owner: 'client',
-});
-deepStrictEqual(
-  classify('packages/client/src/shared/api/effect-client.spec.ts'),
-  {
-    role: 'client-transport-spec',
-    owner: 'client',
-  },
-);
-deepStrictEqual(
-  classify('packages/client/src/shared/api/nested/request.ts'),
-  undefined,
-);
-deepStrictEqual(
-  violation(
-    { role: 'api', owner: 'web' },
-    { role: 'client-transport-api', owner: 'client' },
-  ),
-  undefined,
-);
-deepStrictEqual(
-  violation(
-    { role: 'view', owner: 'mobile' },
-    { role: 'client-transport-api', owner: 'client' },
-  ),
-  'view-cannot-import-client-transport-api',
-);
-deepStrictEqual(
-  violation(
-    { role: 'live', owner: 'reviews' },
-    { role: 'client-transport-api', owner: 'client' },
-  ),
-  undefined,
-);
-deepStrictEqual(
-  violation(
-    { role: 'api', owner: 'web' },
-    { role: 'web-shared', owner: 'client' },
-  ),
-  'client-public-api-only',
-);
-deepStrictEqual(
-  classify('packages/client/src/features/access/rules/index.ts'),
-  {
-    role: 'client-rules-api',
-    owner: 'client',
-  },
-);
-deepStrictEqual(
-  classify('packages/client/src/features/access/rules/pairing-link.ts'),
-  {
-    role: 'web-rule',
-    owner: 'client',
-  },
-);
-deepStrictEqual(
-  classify('packages/client/src/features/access/rules/pairing-link.spec.ts'),
-  {
-    role: 'web-rule-spec',
-    owner: 'client',
-  },
-);
-deepStrictEqual(
-  classify('packages/client/src/features/access/rules/nested/pairing-link.ts'),
-  undefined,
-);
-deepStrictEqual(
-  violation(
-    { role: 'web-rule', owner: 'client' },
-    { role: 'contract', owner: 'contracts' },
-  ),
-  undefined,
-);
-deepStrictEqual(
-  violation(
-    { role: 'web-rule', owner: 'client' },
-    { role: 'web-rule', owner: 'web' },
-  ),
-  'client-imports-client-and-contracts-only',
-);
-deepStrictEqual(
-  violation(
-    { role: 'view', owner: 'web' },
-    { role: 'client-rules-api', owner: 'client' },
-  ),
-  undefined,
-);
-deepStrictEqual(
-  violation(
-    { role: 'view', owner: 'web' },
-    { role: 'web-rule', owner: 'client' },
-  ),
-  'client-public-api-only',
-);
-for (const [path, role] of [
-  [
-    'packages/client/spec/integration/files.integration.ts',
-    'client-integration-test',
-  ],
-  ['packages/client/spec/kit/connection.ts', 'client-test-kit'],
-])
-  deepStrictEqual(classify(path), { role, owner: 'client' });
-for (const [role, expected] of [
-  ['server-kit', undefined],
-  ['bootstrap', 'client-imports-client-and-contracts-only'],
-])
-  deepStrictEqual(
-    violation(
-      { role: 'client-integration-test', owner: 'client' },
-      { role, owner: 'server' },
-    ),
-    expected,
-  );
-deepStrictEqual(
-  violation(
-    { role: 'query', owner: 'client' },
-    { role: 'server-kit', owner: 'server' },
-  ),
-  'client-imports-client-and-contracts-only',
 );
 for (const entry of cases)
   tester.run(entry.rule, checkedRule(plugin.rules[entry.rule]), {
@@ -608,110 +420,6 @@ process.stdout.write(
   'PASS manual audit policy and read-only fixture preflight\n',
 );
 
-deepStrictEqual(classify('apps/mobile/src/app/index.tsx'), {
-  role: 'route',
-  owner: 'mobile',
-});
-deepStrictEqual(classify('apps/mobile/src/config/limits.ts'), {
-  role: 'web-limits',
-  owner: 'mobile',
-});
-deepStrictEqual(classify('apps/mobile/src/shared/icons/tab-icon.android.ts'), {
-  role: 'web-shared',
-  owner: 'mobile',
-});
-deepStrictEqual(
-  classify('apps/mobile/src/features/files/views/files-screen.tsx'),
-  { role: 'view', owner: 'mobile' },
-);
-deepStrictEqual(
-  classify('apps/mobile/src/features/files/views/nested/view.tsx'),
-  undefined,
-);
-deepStrictEqual(
-  violation(
-    { role: 'view', owner: 'mobile' },
-    { role: 'web-shared', owner: 'mobile' },
-  ),
-  undefined,
-);
-deepStrictEqual(
-  violation({ role: 'view', owner: 'mobile' }, { role: 'api', owner: 'web' }),
-  'mobile-imports-mobile-client-and-contracts-only',
-);
-process.stdout.write('PASS mobile classification and app boundary\n');
-for (const [file, role] of [
-  ['store.ts', 'mobile-store'],
-  ['api.ts', 'api'],
-  ['queries/environments.ts', 'query'],
-  ['commands/pairing.ts', 'command'],
-  ['adapters/environment-storage.ts', 'adapter'],
-])
-  deepStrictEqual(classify(`apps/mobile/src/features/access/${file}`), {
-    role,
-    owner: 'mobile',
-  });
-deepStrictEqual(
-  violation(
-    { role: 'mobile-store', owner: 'mobile' },
-    { role: 'adapter', owner: 'mobile' },
-  ),
-  undefined,
-);
-for (const role of ['query', 'command']) {
-  deepStrictEqual(
-    violation(
-      { role, owner: 'mobile' },
-      { role: 'mobile-store', owner: 'mobile' },
-    ),
-    undefined,
-  );
-  deepStrictEqual(
-    violation({ role, owner: 'mobile' }, { role: 'adapter', owner: 'mobile' }),
-    `${role}-cannot-import-adapter`,
-  );
-}
-deepStrictEqual(
-  violation({ role: 'store', owner: 'web' }, { role: 'adapter', owner: 'web' }),
-  undefined,
-);
-process.stdout.write(
-  'PASS native platform composition and shared state boundaries\n',
-);
-
-deepStrictEqual(classify('packages/theme/src/tokens.css'), {
-  role: 'theme-tokens',
-  owner: 'theme',
-});
-deepStrictEqual(classify('packages/theme/src/runtime.ts'), undefined);
-deepStrictEqual(classify('apps/mobile/src/app.css'), {
-  role: 'app-stylesheet',
-  owner: 'mobile',
-});
-deepStrictEqual(
-  classify('apps/mobile/src/features/files/views/styles.css'),
-  undefined,
-);
-deepStrictEqual(classify('apps/mobile/metro.config.cjs'), {
-  role: 'mobile-metro-config',
-  owner: 'mobile',
-});
-for (const owner of ['web', 'mobile'])
-  deepStrictEqual(
-    violation(
-      { role: 'app-stylesheet', owner },
-      { role: 'theme-tokens', owner: 'theme' },
-    ),
-    undefined,
-  );
-for (const owner of ['client', 'server', 'web', 'mobile'])
-  deepStrictEqual(
-    violation(
-      { role: 'view', owner },
-      { role: 'theme-tokens', owner: 'theme' },
-    ),
-    'theme-imports-stylesheets-only',
-  );
 const tokenSource =
   '@theme inline { --color-background: var(--background); } @layer theme { :root { --radius: 0.625rem; @variant light { --background: white; } @variant dark { --background: black; } } }';
 deepStrictEqual(themeTokensValid(tokenSource), true);
@@ -783,37 +491,4 @@ deepStrictEqual(
 );
 process.stdout.write(
   'PASS CSS-only theme ownership and native styling configuration\n',
-);
-
-deepStrictEqual(
-  violation(
-    { role: 'gateway', owner: 'server' },
-    { role: 'contract', owner: 'contracts' },
-  ),
-  undefined,
-);
-for (const owner of ['kernel', 'git', 'projects', 'reviews', 'access'])
-  deepStrictEqual(
-    violation(
-      { role: 'gateway', owner: 'server' },
-      { role: 'error-api', owner },
-    ),
-    ['kernel', 'git'].includes(owner)
-      ? undefined
-      : 'gateway-cannot-import-error-api',
-  );
-deepStrictEqual(
-  violation(
-    { role: 'client-transport-spec', owner: 'client' },
-    { role: 'contract', owner: 'contracts' },
-  ),
-  undefined,
-);
-
-deepStrictEqual(
-  violation(
-    { role: 'gateway', owner: 'git' },
-    { role: 'contract', owner: 'contracts' },
-  ),
-  'gateway-cannot-import-contract',
 );
