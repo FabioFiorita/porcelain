@@ -1,7 +1,7 @@
-import { Persistence } from '../../spec/kit/persistence.ts';
+import { NodeFileSystem } from '@effect/platform-node';
 import { readdir } from 'node:fs/promises';
 import { expect, it } from '@effect/vitest';
-import { Effect } from 'effect';
+import { Effect, FileSystem } from 'effect';
 import { TestClock } from 'effect/testing';
 import { openWindowState } from './window-state.ts';
 
@@ -16,7 +16,11 @@ const second = {
 const third = { ...second, maximized: true };
 
 const fixture = Effect.gen(function* () {
-  const profile = yield* Persistence;
+  const profile = yield* (yield* FileSystem.FileSystem).makeTempDirectoryScoped(
+    {
+      prefix: 'porcelain-desktop-persistence-',
+    },
+  );
   const state = yield* openWindowState(profile, 50);
   return { profile, state };
 });
@@ -31,7 +35,7 @@ it.effect('restores nothing for a fresh profile', () =>
       bounds: { x: 0, y: 0, width: 900, height: 700 },
       maximized: false,
     });
-  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+  }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
 
 it.effect('debounces movement and persists only the latest state', () =>
@@ -53,7 +57,7 @@ it.effect('debounces movement and persists only the latest state', () =>
     expect(yield* Effect.tryPromise(() => readdir(profile))).toEqual([
       'window.json',
     ]);
-  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+  }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
 
 it.effect('flush saves the pending state immediately', () =>
@@ -66,7 +70,7 @@ it.effect('flush saves the pending state immediately', () =>
       bounds: { x: 0, y: 0, width: 900, height: 700 },
       maximized: false,
     });
-  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+  }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
 
 it.effect('keeps the latest state while an earlier save is being written', () =>
@@ -85,7 +89,7 @@ it.effect('keeps the latest state while an earlier save is being written', () =>
       { concurrency: 'unbounded' },
     );
     expect(yield* state.read()).toEqual(third);
-  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+  }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
 
 it.effect('scope closure saves queued state without waiting for debounce', () =>
@@ -94,8 +98,8 @@ it.effect('scope closure saves queued state without waiting for debounce', () =>
     yield* Effect.gen(function* () {
       const state = yield* openWindowState(profile, 60_000);
       yield* state.schedule(third);
-    }).pipe(Effect.scoped, Effect.provide(Persistence.layer));
+    }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer));
     const reopened = yield* openWindowState(profile, 10);
     expect(yield* reopened.read()).toEqual(third);
-  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+  }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );

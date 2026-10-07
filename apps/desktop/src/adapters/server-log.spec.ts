@@ -1,12 +1,14 @@
-import { Persistence } from '../../spec/kit/persistence.ts';
+import { NodeFileSystem } from '@effect/platform-node';
 import { readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { expect, it } from '@effect/vitest';
-import { Effect } from 'effect';
+import { Effect, FileSystem } from 'effect';
 import { join } from 'node:path';
 import { openServerLog } from './server-log.ts';
 
 const fixture = Effect.gen(function* () {
-  const folder = yield* Persistence;
+  const folder = yield* (yield* FileSystem.FileSystem).makeTempDirectoryScoped({
+    prefix: 'porcelain-desktop-persistence-',
+  });
   return { directory: join(folder, 'logs') };
 });
 
@@ -22,7 +24,7 @@ it.effect('keeps server writes in order in a folder it creates', () =>
         readFile(join(directory, 'server.log'), 'utf8'),
       ),
     ).toBe('listening\nready\n');
-  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+  }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
 
 it.effect('rotates a full log and keeps at most twice the limit', () =>
@@ -46,7 +48,7 @@ it.effect('rotates a full log and keeps at most twice the limit', () =>
         readFile(join(directory, 'server.log'), 'utf8'),
       ),
     ).toBe('cccccccc\n');
-  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+  }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
 
 it.effect('keeps only the end of a write larger than the limit', () =>
@@ -60,7 +62,7 @@ it.effect('keeps only the end of a write larger than the limit', () =>
         readFile(join(directory, 'server.log'), 'utf8'),
       ),
     ).toBe('6789');
-  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+  }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
 
 it.effect('counts the previous launch log toward rotation', () =>
@@ -82,7 +84,7 @@ it.effect('counts the previous launch log toward rotation', () =>
         readFile(join(directory, 'server.log'), 'utf8'),
       ),
     ).toBe('after\n');
-  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+  }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
 
 it.effect('keeps writing after a filesystem failure', () =>
@@ -102,7 +104,7 @@ it.effect('keeps writing after a filesystem failure', () =>
         readFile(join(directory, 'server.log'), 'utf8'),
       ),
     ).toBe('kept\n');
-  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+  }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
 
 it.effect(
@@ -113,11 +115,11 @@ it.effect(
       yield* Effect.gen(function* () {
         const log = yield* openServerLog(directory, 64);
         yield* log.append(Buffer.from('last output\n'));
-      }).pipe(Effect.scoped, Effect.provide(Persistence.layer));
+      }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer));
       expect(
         yield* Effect.tryPromise(() =>
           readFile(join(directory, 'server.log'), 'utf8'),
         ),
       ).toBe('last output\n');
-    }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+    }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );

@@ -1,7 +1,7 @@
-import { Persistence } from '../../spec/kit/persistence.ts';
+import { NodeFileSystem } from '@effect/platform-node';
 import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { expect, it } from '@effect/vitest';
-import { Effect } from 'effect';
+import { Effect, FileSystem } from 'effect';
 import { join } from 'node:path';
 import {
   CredentialStorageError,
@@ -9,7 +9,11 @@ import {
 } from './encrypted-credentials.ts';
 
 const fixture = Effect.gen(function* () {
-  const profile = yield* Persistence;
+  const profile = yield* (yield* FileSystem.FileSystem).makeTempDirectoryScoped(
+    {
+      prefix: 'porcelain-desktop-persistence-',
+    },
+  );
   const encryptedValues = new Map<string, string>();
   const staleKeys = new Set<string>();
   const encryption = {
@@ -47,7 +51,7 @@ it.effect('reports nothing saved before any credential value is stored', () =>
   Effect.gen(function* () {
     const { credentials } = yield* fixture;
     expect(yield* credentials.read()).toEqual({ status: 'empty' });
-  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+  }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
 
 it.effect(
@@ -70,7 +74,7 @@ it.effect(
       expect(yield* Effect.tryPromise(() => readdir(profile))).toEqual([
         'credentials.enc',
       ]);
-    }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+    }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
 
 it.effect('keeps an empty string distinct from no stored value', () =>
@@ -78,7 +82,7 @@ it.effect('keeps an empty string distinct from no stored value', () =>
     const { credentials } = yield* fixture;
     yield* credentials.write('');
     expect(yield* credentials.read()).toEqual({ status: 'saved', value: '' });
-  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+  }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
 
 it.effect('rejects unavailable encryption without creating a file', () =>
@@ -92,7 +96,7 @@ it.effect('rejects unavailable encryption without creating a file', () =>
       yield* Effect.flip(credentials.write('test-only-secret')),
     ).toMatchObject({ message: 'Encrypted credential storage is unavailable' });
     expect(yield* Effect.tryPromise(() => readdir(profile))).toEqual([]);
-  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+  }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
 
 it.effect(
@@ -123,7 +127,7 @@ it.effect(
         status: 'saved',
         value: 'third',
       });
-    }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+    }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
 
 it.effect('serializes writes, reads and clear in request order', () =>
@@ -141,7 +145,7 @@ it.effect('serializes writes, reads and clear in request order', () =>
     expect(read).toEqual({ status: 'saved', value: 'second' });
     expect(yield* credentials.read()).toEqual({ status: 'empty' });
     expect(yield* Effect.tryPromise(() => readdir(profile))).toEqual([]);
-  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+  }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
 
 it.effect(
@@ -167,7 +171,7 @@ it.effect(
         status: 'saved',
         value: 'fresh',
       });
-    }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+    }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
 
 it.effect('re-encrypts stale ciphertext and restores the same value', () =>
@@ -185,7 +189,7 @@ it.effect('re-encrypts stale ciphertext and restores the same value', () =>
       status: 'saved',
       value: 'stale key',
     });
-  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+  }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
 
 it.effect(
@@ -209,7 +213,7 @@ it.effect(
         value: 'stale key',
       });
       expect(yield* Effect.tryPromise(() => readFile(file))).toEqual(stale);
-    }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+    }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
 
 it.effect('clears saved credentials even when encryption is unavailable', () =>
@@ -227,5 +231,5 @@ it.effect('clears saved credentials even when encryption is unavailable', () =>
     yield* reopened.clear();
     yield* reopened.clear();
     expect(yield* reopened.read()).toEqual({ status: 'empty' });
-  }).pipe(Effect.scoped, Effect.provide(Persistence.layer)),
+  }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
 );
