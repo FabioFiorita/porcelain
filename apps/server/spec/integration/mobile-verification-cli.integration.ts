@@ -12,7 +12,8 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { expect, test, type TestContext } from 'vitest';
+import { expect, type TestContext } from 'vitest';
+import { test } from '../kit/server-test.ts';
 import { list, record, text } from '../kit/session.ts';
 
 const root = resolve(import.meta.dirname, '../../../..');
