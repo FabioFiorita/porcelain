@@ -27,7 +27,8 @@
     "desktop:build": "node scripts/build-desktop.ts",
     "desktop:install": "node scripts/install-desktop.ts",
     "dev:mobile": "pnpm --filter @porcelain/mobile dev",
-    "check:local": "turbo run typecheck lint:server lint:web format:server:check format:web:check arch:check test:rules knip features:check --output-logs=errors-only --continue --concurrency=2",
+    "check:static": "turbo run typecheck lint:server lint:web format:server:check format:web:check arch:check test:rules knip features:check --output-logs=errors-only --continue",
+    "check:local": "pnpm check:static --concurrency=2",
     "knip": "knip --config architecture/knip.ts --no-progress"
   },
   "devDependencies": {
