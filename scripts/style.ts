@@ -16,6 +16,7 @@ import {
 
 const mobileGeneratedTypes = 'apps/mobile/src/config/uniwind-types.d.ts';
 const mobileMetroFile = 'apps/mobile/metro.config.cjs';
+const mobileBabelFile = 'apps/mobile/babel.config.js';
 const [mode, target] = process.argv.slice(2);
 if (
   (mode !== 'lint' && mode !== 'format') ||
@@ -37,6 +38,7 @@ const serverRoots = [
   'apps/mobile/spec',
   'apps/mobile/app.config.ts',
   mobileMetroFile,
+  mobileBabelFile,
   'apps/desktop/src',
   'apps/desktop/spec',
   'apps/desktop/playwright.config.ts',
@@ -471,6 +473,7 @@ async function lint(): Promise<number> {
         path !== generatedRouteTree &&
         path !== mobileGeneratedTypes &&
         path !== mobileMetroFile &&
+        path !== mobileBabelFile &&
         !path.startsWith(`${uiFolder}/`),
     );
   const result = spawnSync(
