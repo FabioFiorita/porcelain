@@ -66,7 +66,7 @@ jobs:
           path: .turbo/cache
           key: turbo-${{ runner.os }}-${{ github.sha }}
           restore-keys: turbo-${{ runner.os }}-
-      - run: pnpm check:local --affected --concurrency=100%
+      - run: pnpm check:static --affected --concurrency=100%
 
   units:
     runs-on: ubuntu-latest
