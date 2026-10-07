@@ -32,7 +32,7 @@ export function worktreeRead<A, E, R>(
             }).pipe(Effect.ignore, Effect.asVoid),
           });
           const result = yield* read;
-          yield* currentAnswerEffect(connection.request().signal);
+          yield* currentAnswerEffect(connection);
           return result;
         }),
       ),

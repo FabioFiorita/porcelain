@@ -344,7 +344,7 @@ it('shares an application memo map without sharing connection write admission', 
         ),
       ),
     ).toBe('still connected');
-    expect(second.connection.request().signal.aborted).toBe(false);
+    expect(second.connection.isClosed()).toBe(false);
   } finally {
     await first.close();
     await second.close();

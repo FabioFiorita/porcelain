@@ -1,6 +1,7 @@
 import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import { ConnectionError } from './connection-error.ts';
 import { Effect } from 'effect';
+import type { WorktreeConnection } from './connection.ts';
 
 function changedContext() {
   return new ConnectionError({
@@ -10,22 +11,18 @@ function changedContext() {
 }
 
 export function currentAnswerEffect(
-  signal: AbortSignal,
+  connection: Pick<WorktreeConnection, 'isClosed'>,
   matches = true,
 ): Effect.Effect<void, ConnectionError> {
-  if (signal.aborted) return Effect.interrupt;
-  return currentContextEffect(matches);
+  return Effect.suspend(() =>
+    connection.isClosed() ? Effect.interrupt : currentContextEffect(matches),
+  );
 }
 
 export function currentContextEffect(
   matches = true,
 ): Effect.Effect<void, ConnectionError> {
   return matches ? Effect.void : Effect.fail(changedContext());
-}
-
-export function assertCurrentAnswer(signal: AbortSignal, matches = true): void {
-  signal.throwIfAborted();
-  if (!matches) throw changedContext();
 }
 
 export function isStaleChangeObservation(

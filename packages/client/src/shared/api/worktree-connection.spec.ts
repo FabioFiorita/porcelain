@@ -1,4 +1,4 @@
-import { Layer } from 'effect';
+import { Cause, Deferred, Effect, Exit, Fiber, Layer, Scope } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { createWorktreeConnection } from './worktree-connection.ts';
 
@@ -9,65 +9,159 @@ const input = {
   cacheIdentity: ['https://machine', 'device'],
   timeoutMs: 15_000,
 };
+const interrupted = <A, E>(exit: Exit.Exit<A, E>) =>
+  Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause);
 
-describe('a worktree connection owns its request lifetime', async () => {
-  it('keeps the supplied transport and cache identity and cancels every request when closed', async () => {
+describe('a worktree connection owns its request lifetime', () => {
+  it('keeps its transport and identity and drains every request when closed', async () => {
     const lifetime = createWorktreeConnection(input, undefined, Layer.empty);
-    const first = lifetime.connection.request().signal;
-    const second = lifetime.connection.request().signal;
+    let released = 0;
+    const started = Deferred.makeUnsafe<void>();
+    const work = Effect.acquireUseRelease(
+      Effect.sync(() => {
+        released += 1;
+      }),
+      () => Effect.andThen(Deferred.succeed(started, undefined), Effect.never),
+      () =>
+        Effect.sync(() => {
+          released -= 1;
+        }),
+    );
+    const first = Effect.runFork(lifetime.connection.request(work));
+    await Effect.runPromise(Deferred.await(started));
+    const second = Effect.runFork(lifetime.connection.request(work));
     expect(lifetime.connection.transport).toBe(transport);
     expect(lifetime.connection.cacheIdentity).toEqual([
       'https://machine',
       'device',
     ]);
-    expect([first.aborted, second.aborted]).toEqual([false, false]);
     await lifetime.close();
-    expect([
-      first.aborted,
-      second.aborted,
-      lifetime.connection.request().signal.aborted,
-    ]).toEqual([true, true, true]);
+    expect(released).toBe(0);
+    expect(interrupted(await Effect.runPromise(Fiber.await(first)))).toBe(true);
+    expect(interrupted(await Effect.runPromise(Fiber.await(second)))).toBe(
+      true,
+    );
+    let calls = 0;
+    expect(
+      interrupted(
+        await Effect.runPromiseExit(
+          lifetime.connection.request(
+            Effect.sync(() => {
+              calls += 1;
+            }),
+          ),
+        ),
+      ),
+    ).toBe(true);
+    expect(calls).toBe(0);
   });
 
-  it('cancels a caller request without closing the whole connection', async () => {
+  it('interrupts a caller fiber and releases its work without closing its connection', async () => {
     const lifetime = createWorktreeConnection(input, undefined, Layer.empty);
-    const caller = new AbortController();
-    const request = lifetime.connection.request(caller.signal).signal;
-    caller.abort(new Error('Selection changed'));
-    expect(request.reason).toMatchObject({ message: 'Selection changed' });
-    expect(lifetime.connection.request().signal.aborted).toBe(false);
+    const started = Deferred.makeUnsafe<void>();
+    let released = false;
+    const fiber = Effect.runFork(
+      lifetime.connection.request(
+        Effect.andThen(Deferred.succeed(started, undefined), Effect.never).pipe(
+          Effect.ensuring(
+            Effect.sync(() => {
+              released = true;
+            }),
+          ),
+        ),
+      ),
+    );
+    await Effect.runPromise(Deferred.await(started));
+    await Effect.runPromise(Fiber.interrupt(fiber));
+    expect(released).toBe(true);
+    expect(
+      await Effect.runPromise(
+        lifetime.connection.request(Effect.succeed('connected')),
+      ),
+    ).toBe('connected');
     await lifetime.close();
   });
 
-  it('exposes the same controller to clients that already own their abort call', async () => {
+  it('closes one caller scope without cancelling another caller on the same connection', async () => {
     const lifetime = createWorktreeConnection(input, undefined, Layer.empty);
-    const request = lifetime.connection.request().signal;
-    lifetime.controller.abort();
-    expect(request.aborted).toBe(true);
-    expect(lifetime.connection.request().signal.aborted).toBe(true);
+    const caller = Scope.makeUnsafe();
+    const other = Scope.makeUnsafe();
+    const started = Deferred.makeUnsafe<void>();
+    const secondStarted = Deferred.makeUnsafe<void>();
+    let released = 0;
+    const work = Effect.andThen(
+      Deferred.succeed(started, undefined),
+      Effect.never,
+    ).pipe(
+      Effect.ensuring(
+        Effect.sync(() => {
+          released += 1;
+        }),
+      ),
+    );
+    const first = Effect.runFork(lifetime.connection.request(work, caller));
+    await Effect.runPromise(Deferred.await(started));
+    const second = Effect.runFork(
+      lifetime.connection.request(
+        Effect.andThen(
+          Deferred.succeed(secondStarted, undefined),
+          Effect.never,
+        ).pipe(
+          Effect.ensuring(
+            Effect.sync(() => {
+              released += 1;
+            }),
+          ),
+        ),
+        other,
+      ),
+    );
+    await Effect.runPromise(Deferred.await(secondStarted));
+    await Effect.runPromise(Scope.close(caller, Exit.void));
+    expect(interrupted(await Effect.runPromise(Fiber.await(first)))).toBe(true);
+    expect(released).toBe(1);
+    expect(lifetime.connection.isClosed()).toBe(false);
     await lifetime.close();
+    expect(interrupted(await Effect.runPromise(Fiber.await(second)))).toBe(
+      true,
+    );
+    expect(released).toBe(2);
+    await Effect.runPromise(Scope.close(other, Exit.void));
   });
 
-  it('gives each request a fresh timeout using the configured budget', async () => {
+  it('starts a fresh deadline on every execution of a retained request', async () => {
     const lifetime = createWorktreeConnection(
       { ...input, timeoutMs: 5 },
       undefined,
       Layer.empty,
     );
-    const firstRequest = lifetime.connection.request().signal;
-    await expect.poll(() => firstRequest.aborted).toBe(true);
-    expect(firstRequest.reason).toMatchObject({ name: 'TimeoutError' });
-    expect(lifetime.connection.request().signal.aborted).toBe(false);
+    let released = 0;
+    const request = lifetime.connection.request(
+      Effect.never.pipe(
+        Effect.ensuring(
+          Effect.sync(() => {
+            released += 1;
+          }),
+        ),
+      ),
+    );
+    expect(interrupted(await Effect.runPromiseExit(request))).toBe(true);
+    expect(interrupted(await Effect.runPromiseExit(request))).toBe(true);
+    expect(released).toBe(2);
+    expect(lifetime.connection.isClosed()).toBe(false);
     await lifetime.close();
   });
 
-  it('opens a fresh lifetime after cleanup without reviving old requests', async () => {
+  it('opens a fresh lifetime without reviving a closed connection', async () => {
     const old = createWorktreeConnection(input, undefined, Layer.empty);
-    const request = old.connection.request().signal;
     await old.close();
     const current = createWorktreeConnection(input, undefined, Layer.empty);
-    expect(request.aborted).toBe(true);
-    expect(current.connection.request().signal.aborted).toBe(false);
+    expect(old.connection.isClosed()).toBe(true);
+    expect(
+      await Effect.runPromise(
+        current.connection.request(Effect.succeed('new')),
+      ),
+    ).toBe('new');
     expect(current.connection).not.toBe(old.connection);
     await current.close();
   });

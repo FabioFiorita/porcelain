@@ -35,7 +35,7 @@ export const readChangeDiffs = Atom.family(
           }),
         );
         yield* currentAnswerEffect(
-          connection.request().signal,
+          connection,
           answer.environmentId === connection.environmentId &&
             answer.worktreeId === scope.worktreeId &&
             answer.statusToken === input.expectedStatusToken,
@@ -97,10 +97,7 @@ export const readCommitDiffs = Atom.family(
             },
           }),
         );
-        yield* currentAnswerEffect(
-          connection.request().signal,
-          answer.commitOid === oid,
-        );
+        yield* currentAnswerEffect(connection, answer.commitOid === oid);
         return answer;
       }),
       clientRuntime(connection),
@@ -128,7 +125,7 @@ export const readChangeLines = Atom.family(
           }),
         );
         yield* currentAnswerEffect(
-          connection.request().signal,
+          connection,
           answer.environmentId === connection.environmentId &&
             answer.worktreeId === scope.worktreeId,
         );

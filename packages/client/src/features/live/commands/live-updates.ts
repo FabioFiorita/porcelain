@@ -12,7 +12,6 @@ import {
 } from 'effect';
 import { RpcClient, RpcClientError, RpcSerialization } from 'effect/rpc';
 import { Socket } from 'effect/socket';
-import { withSignal } from '@porcelain/effects';
 import { LiveUpdatesRpc } from '@porcelain/contracts/access';
 import { RequestError } from '../../../shared/api/request-error.ts';
 import type { LiveSubscription, LiveUpdatePort } from '../ports/live-update.ts';
@@ -42,13 +41,17 @@ export function createLiveUpdates<E>(
   context: Context.Context<never> = Context.empty(),
 ): LiveUpdatePort {
   return {
-    connect({ signal, onNotice, onReconnect, onUnauthorized }) {
-      const desired = Ref.makeUnsafe<LiveSubscription>({
+    connect: Effect.fn('LiveUpdates.connect')(function* ({
+      onNotice,
+      onReconnect,
+      onUnauthorized,
+    }) {
+      const desired = yield* Ref.make<LiveSubscription>({
         projects: [],
         worktrees: [],
       });
-      const updates = Effect.runSync(
-        Queue.sliding<LiveSubscription>(LIVE_SUBSCRIPTION_BUFFER),
+      const updates = yield* Queue.sliding<LiveSubscription>(
+        LIVE_SUBSCRIPTION_BUFFER,
       );
       let readyCount = 0;
       let retryMs = LIVE_RECONNECT_FIRST_MS;
@@ -118,22 +121,22 @@ export function createLiveUpdates<E>(
           }
         }),
       );
-      Effect.runForkWith(context)(
-        withSignal(session, signal).pipe(
-          Effect.catchCause((cause) =>
-            Cause.hasInterrupts(cause)
-              ? Effect.void
-              : Effect.logError('Live updates stopped unexpectedly'),
-          ),
+      yield* session.pipe(
+        Effect.provideContext(context),
+        Effect.catchCause((cause) =>
+          Cause.hasInterrupts(cause)
+            ? Effect.void
+            : Effect.logError('Live updates stopped unexpectedly'),
         ),
+        Effect.forkScoped,
       );
       return {
         subscribe(value) {
-          if (signal.aborted) return;
+          if (updates.state._tag === 'Done') return;
           Effect.runSync(Ref.set(desired, value));
           Queue.offerUnsafe(updates, value);
         },
       };
-    },
+    }),
   };
 }

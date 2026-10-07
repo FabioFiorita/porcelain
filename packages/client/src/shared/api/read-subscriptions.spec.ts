@@ -52,7 +52,7 @@ it('keeps subscriptions scoped to their connection when applications share layer
     expect(
       await Effect.runPromise(Effect.map(reads.snapshot, HashMap.size)),
     ).toBe(0);
-    expect(second.connection.request().signal.aborted).toBe(false);
+    expect(second.connection.isClosed()).toBe(false);
   } finally {
     await first.close();
     await second.close();

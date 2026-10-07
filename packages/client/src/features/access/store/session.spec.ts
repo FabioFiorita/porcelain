@@ -48,7 +48,7 @@ function fixture(
         address,
         transport: () => Promise.resolve(Response.json({})),
         timeoutMs: 1000,
-        liveUpdates: { connect: () => ({ subscribe: () => {} }) },
+        liveUpdates: { connect: () => Effect.succeed({ subscribe: () => {} }) },
       },
       Layer.merge(
         Layer.effect(
@@ -173,7 +173,7 @@ it('keeps one writer connection and releases it when the authenticated principal
     });
     expect(opened).toHaveLength(2);
     expect(session.state.value.connection).toBe(opened[1]);
-    expect(original?.request().signal.aborted).toBe(true);
+    expect(original?.isClosed()).toBe(true);
     expect(original?.operations.state.value.closed).toBe(true);
     expect(closed).toEqual(['environment:0']);
   } finally {
@@ -202,7 +202,7 @@ it('invalidates a session immediately and waits for its platform release before 
     });
     await releasing.promise;
     expect(session.state.value.connection).toBeNull();
-    expect(opened[0]?.request().signal.aborted).toBe(true);
+    expect(opened[0]?.isClosed()).toBe(true);
     expect(finished).toBe(false);
     expect(closed).toEqual([]);
     released.resolve();
@@ -255,9 +255,7 @@ it.each([
       await runtime.dispose();
     }
     expect(closed).toEqual(['remote:0', 'remote:1']);
-    expect(
-      opened.every((connection) => connection.request().signal.aborted),
-    ).toBe(true);
+    expect(opened.every((connection) => connection.isClosed())).toBe(true);
   },
 );
 
@@ -282,9 +280,10 @@ it('releases every local and remote connection when the application scope closes
   expect(
     opened.map((connection) => connection.operations.state.value.closed),
   ).toEqual([true, true]);
-  expect(
-    opened.map((connection) => connection.request().signal.aborted),
-  ).toEqual([true, true]);
+  expect(opened.map((connection) => connection.isClosed())).toEqual([
+    true,
+    true,
+  ]);
 });
 
 it('releases a connection acquired after disconnect instead of publishing its stale result', async () => {
@@ -307,7 +306,7 @@ it('releases a connection acquired after disconnect instead of publishing its st
     expect(await completing).toBe(false);
     expect(session.state.value.connection).toBeNull();
     expect(closed).toEqual(['environment:0']);
-    expect(opened[0]?.request().signal.aborted).toBe(true);
+    expect(opened[0]?.isClosed()).toBe(true);
   } finally {
     acquired.resolve();
     await runtime.dispose();
@@ -379,7 +378,7 @@ it('keeps an application connection after a consuming screen scope releases', as
     expect(consumerClosed).toEqual(['screen']);
     expect(closed).toEqual([]);
     expect(connections.state.value[0]?.connection).toBe(opened[0]);
-    expect(opened[0]?.request().signal.aborted).toBe(false);
+    expect(opened[0]?.isClosed()).toBe(false);
     expect(opened[0]?.operations.state.value.closed).toBe(false);
   } finally {
     await runtime.dispose();

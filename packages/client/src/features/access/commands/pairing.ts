@@ -1,6 +1,5 @@
 import { type Context, Effect, Layer, Redacted } from 'effect';
 import { Atom } from 'effect/reactivity';
-import { withSignal } from '@porcelain/effects';
 import { remoteTransport } from '../../../shared/api/transport.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { RequestError } from '../../../shared/api/request-error.ts';
@@ -187,7 +186,5 @@ export const pairBrowserSession = Atom.family(
         BootstrapClient.layer(transport),
         Layer.succeed(PairingPlatform, platform),
       ),
-    ).fn(({ link, signal }: { link: PairingCode; signal: AbortSignal }) =>
-      withSignal(redeemBrowserPairing(link), signal),
-    ),
+    ).fn((link: PairingCode) => redeemBrowserPairing(link)),
 );

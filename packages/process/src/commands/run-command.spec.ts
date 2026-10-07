@@ -1,4 +1,4 @@
-import { Effect, Exit } from 'effect';
+import { Deferred, Effect, Exit, Fiber, Cause } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { describe, expect, it } from 'vitest';
 import { runCommand } from './run-command.ts';
@@ -56,33 +56,29 @@ describe('runCommand', () => {
     expect(output.exitCode).toBe(3);
   });
 
-  it('kills the child and the grandchild it started when the caller aborts', async () => {
-    const controller = new AbortController();
+  it('kills the child and grandchild before caller interruption completes', async () => {
+    const started = Deferred.makeUnsafe<void>();
     let grandchild = 0;
-    const output = await Effect.runPromise(
-      runCommand(
-        {
-          command: node,
-          args: ['-e', `${spawnGrandchild} ${forever}`],
-          maxBytes: 1024,
-          processGroup,
-          onStderr: (chunk) => {
-            grandchild = Number(chunk.toString('utf8'));
-            controller.abort();
-          },
+    const fiber = Effect.runFork(
+      runCommand({
+        command: node,
+        args: ['-e', `${spawnGrandchild} ${forever}`],
+        maxBytes: 1024,
+        processGroup,
+        onStderr: (chunk) => {
+          grandchild = Number(chunk.toString('utf8'));
+          Deferred.doneUnsafe(started, Effect.void);
         },
-        controller.signal,
-      ).pipe(Effect.provide(NodeServices.layer)),
+      }).pipe(Effect.provide(NodeServices.layer)),
     );
-    expect({
-      stopped: output.stopped,
-      groupStopped: output.groupStopped,
-      grandchildRunning: isRunning(grandchild),
-    }).toEqual({
-      stopped: 'aborted',
-      groupStopped: true,
-      grandchildRunning: false,
-    });
+    await Effect.runPromise(Deferred.await(started));
+    await Effect.runPromise(Fiber.interrupt(fiber));
+    const exit = await Effect.runPromise(Fiber.await(fiber));
+    expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(
+      true,
+    );
+    expect(grandchild).toBeGreaterThan(0);
+    expect(isRunning(grandchild)).toBe(false);
   });
 
   it('kills a grandchild left running after the child exits', async () => {
@@ -163,10 +159,13 @@ describe('runCommand', () => {
 
   it('refuses to start once the caller has aborted', async () => {
     const exit = await Effect.runPromiseExit(
-      runCommand(
-        { command: node, args: ['-e', ''], maxBytes: 1024, processGroup },
-        AbortSignal.abort(),
-      ).pipe(Effect.provide(NodeServices.layer)),
+      runCommand({
+        command: node,
+        args: ['-e', ''],
+        maxBytes: 1024,
+        processGroup,
+      }).pipe(Effect.provide(NodeServices.layer)),
+      { signal: AbortSignal.abort() },
     );
     expect(Exit.hasInterrupts(exit)).toBe(true);
   });

@@ -37,7 +37,7 @@ export const readHistory = Atom.family(
               query: { after: previous?.after, tip: previous?.tip },
             }),
           );
-          yield* currentAnswerEffect(connection.request().signal);
+          yield* currentAnswerEffect(connection);
           return [
             [page],
             page.nextAfter && page.tip
@@ -75,7 +75,7 @@ export const readCommit = Atom.family(
           }),
         );
         yield* currentAnswerEffect(
-          connection.request().signal,
+          connection,
           answer.commit.oid === oid &&
             (answer.comparison.kind === 'empty-tree' ||
               answer.comparison.parentNumber === parent),

@@ -1,3 +1,4 @@
+import { Deferred } from 'effect';
 import { afterEach, expect, it } from 'vitest';
 import { Cause, Layer, Effect, Exit } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
@@ -161,7 +162,7 @@ it('does not send a read after disconnect', async () => {
     sent += 1;
     return Promise.resolve(Response.json(response));
   });
-  subject.controller.abort();
+  void subject.close();
   await expect(read(subject)).rejects.toThrow();
   expect(sent).toBe(0);
 });
@@ -175,10 +176,10 @@ it('rejects a response after disconnect even when transport ignores cancellation
   const result = read(subject);
   const rejected = expect(result).rejects.toThrow();
   await started.promise;
-  subject.controller.abort();
+  void subject.close();
   held.resolve(Response.json(response));
   await rejected;
-  expect(subject.controller.signal.aborted).toBe(true);
+  expect(subject.connection.isClosed()).toBe(true);
 });
 it('unmount cancels the active transport read', async () => {
   const started = Promise.withResolvers<void>();
@@ -202,7 +203,7 @@ it('unmount cancels the active transport read', async () => {
   await started.promise;
   stop();
   await aborted.promise;
-  expect(subject.controller.signal.aborted).toBe(false);
+  expect(subject.connection.isClosed()).toBe(false);
 });
 
 it('retries a failed mounted text read through its native worktree owner', async () => {
@@ -360,7 +361,7 @@ it('the configured deadline aborts a pending generated text transport', async ()
   );
   const signal = await started.promise;
   await expect.poll(() => signal.aborted).toBe(true);
-  expect(subject.controller.signal.aborted).toBe(false);
+  expect(subject.connection.isClosed()).toBe(false);
 });
 
 it('one generated text deadline spans transport and pending response decoding', async () => {
@@ -370,7 +371,7 @@ it('one generated text deadline spans transport and pending response decoding', 
   let sentSignal: AbortSignal | null | undefined;
   let admissions = 0;
   let admissionsAtSend = 0;
-  const deadline = new AbortController();
+  const deadline = Deferred.makeUnsafe<void>();
   const subject = fixture((_path, init) => {
     sentSignal = init?.signal;
     admissionsAtSend = admissions;
@@ -393,17 +394,23 @@ it('one generated text deadline spans transport and pending response decoding', 
     );
   });
   const request = subject.connection.request;
-  subject.connection.request = (signal) => {
-    admissions += 1;
-    return {
-      signal: AbortSignal.any([request(signal).signal, deadline.signal]),
-    };
+  const connection = {
+    ...subject.connection,
+    request: <A, E, R>(work: Effect.Effect<A, E, R>) =>
+      Effect.suspend(() => {
+        admissions += 1;
+        return request(work).pipe(
+          Effect.raceFirst(
+            Effect.andThen(Deferred.await(deadline), Effect.interrupt),
+          ),
+        );
+      }),
   };
   const pending = Effect.runPromiseExit(
     AtomRegistry.getResult(
       subject.registry,
       readTextFile({
-        connection: subject.connection,
+        connection,
         scope,
         path: 'README.md',
       }),
@@ -413,7 +420,7 @@ it('one generated text deadline spans transport and pending response decoding', 
     await decoding.promise;
     expect(admissionsAtSend).toBe(1);
     expect(admissions).toBe(1);
-    deadline.abort(new Error('Request deadline elapsed'));
+    Deferred.doneUnsafe(deadline, Effect.void);
     const exit = await pending;
     expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(
       true,

@@ -1,10 +1,10 @@
+import { Effect } from 'effect';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ManagedRuntime } from 'effect';
 import {
   FilePreferenceLimitError,
   ProjectNotFoundError,
 } from '@porcelain/contracts/projects';
-import { runRequest } from '@porcelain/client/transport';
 import { BootstrapClient } from './bootstrap-client.ts';
 import type { Transport } from '@porcelain/client/transport';
 
@@ -40,11 +40,13 @@ describe('generated Projects client', () => {
       );
     });
     await expect(
-      runRequest(api.browseProjectFolders({ query: {} }), signal),
+      Effect.runPromise(api.browseProjectFolders({ query: {} }), {
+        signal: signal,
+      }),
     ).resolves.toMatchObject({ parent: undefined });
-    await runRequest(
+    await Effect.runPromise(
       api.browseProjectFolders({ query: { path: '/srv/a b/#?' } }),
-      signal,
+      { signal: signal },
     );
     expect(paths).toEqual([
       '/api/projects/folders',
@@ -58,12 +60,12 @@ describe('generated Projects client', () => {
       return Promise.resolve(Response.json({ id: projectId, name: 'Renamed' }));
     });
     await expect(
-      runRequest(
+      Effect.runPromise(
         api.renameProject({
           params: { projectId },
           payload: { name: 'Renamed' },
         }),
-        signal,
+        { signal: signal },
       ),
     ).resolves.toEqual({ id: projectId, name: 'Renamed' });
     expect(sent[0]).toMatchObject({
@@ -81,9 +83,9 @@ describe('generated Projects client', () => {
       throw new Error('Expected a JSON request encoded as bytes');
     expect(new TextDecoder().decode(body)).toBe('{"name":"Renamed"}');
     await expect(
-      runRequest(
+      Effect.runPromise(
         api.renameProject({ params: { projectId }, payload: { name: '' } }),
-        signal,
+        { signal: signal },
       ),
     ).rejects.toThrow();
     expect(sent).toHaveLength(1);
@@ -101,12 +103,12 @@ describe('generated Projects client', () => {
         ),
       ),
     );
-    const failure = await runRequest(
+    const failure = await Effect.runPromise(
       api.setFilePreference({
         params: { projectId },
         payload: { path: 'README.md', flag: 'pinned', value: true },
       }),
-      signal,
+      { signal: signal },
     ).catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(FilePreferenceLimitError);
   });
@@ -136,21 +138,21 @@ describe('generated Projects client', () => {
       ),
     );
     expect(
-      await runRequest(
+      await Effect.runPromise(
         valid.renameProject({
           params: { projectId },
           payload: { name: 'Renamed' },
         }),
-        signal,
+        { signal: signal },
       ).catch((error: unknown) => error),
     ).toBeInstanceOf(ProjectNotFoundError);
     expect(
-      await runRequest(
+      await Effect.runPromise(
         invalid.renameProject({
           params: { projectId },
           payload: { name: 'Renamed' },
         }),
-        signal,
+        { signal: signal },
       ).catch((error: unknown) => error),
     ).not.toBeInstanceOf(ProjectNotFoundError);
   });

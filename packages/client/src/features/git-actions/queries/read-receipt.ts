@@ -9,24 +9,20 @@ export function readGitReceipt(
     projectId: string;
     worktreeId: string;
     requestId: string;
-    signal: AbortSignal;
   },
 ) {
-  const { signal } = connection.request(request.signal);
   return Effect.gen(function* () {
     const client = yield* porcelainClient(connection);
-    const receipt = yield* client.request(
-      (api) =>
-        api.gitActions.readGitActionReceipt({
-          params: {
-            worktreeId: request.worktreeId,
-            requestId: request.requestId,
-          },
-        }),
-      signal,
+    const receipt = yield* client.request((api) =>
+      api.gitActions.readGitActionReceipt({
+        params: {
+          worktreeId: request.worktreeId,
+          requestId: request.requestId,
+        },
+      }),
     );
     yield* currentAnswerEffect(
-      signal,
+      connection,
       receipt.projectId === request.projectId &&
         receipt.worktreeId === request.worktreeId &&
         receipt.requestId === request.requestId,

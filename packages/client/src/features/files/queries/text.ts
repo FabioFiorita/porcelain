@@ -47,7 +47,7 @@ export const readTextFile = Atom.family(
           .pipe(
             Effect.tap((answer) =>
               currentAnswerEffect(
-                connection.request().signal,
+                connection,
                 answer.worktreeId === scope.worktreeId && answer.path === path,
               ),
             ),

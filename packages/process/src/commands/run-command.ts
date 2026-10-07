@@ -19,7 +19,7 @@ type RunCommandInput = {
   readonly onStderr?: ((chunk: Buffer) => void) | undefined;
 };
 
-type CommandStop = 'aborted' | 'deadline' | 'output-limit' | 'lingering';
+type CommandStop = 'deadline' | 'output-limit' | 'lingering';
 type Collected = {
   readonly chunks: readonly Uint8Array[];
   readonly bytes: number;
@@ -28,9 +28,7 @@ type Collected = {
 
 export const runCommand = Effect.fn('Process.runCommand')(function* (
   input: RunCommandInput,
-  signal?: AbortSignal,
 ) {
-  if (signal?.aborted) return yield* Effect.interrupt;
   const requested = yield* Deferred.make<CommandStop>();
   const stopped = yield* Ref.make<CommandStop | undefined>(undefined);
   const empty: Collected = { chunks: [], bytes: 0, truncated: false };
@@ -56,18 +54,6 @@ export const runCommand = Effect.fn('Process.runCommand')(function* (
     ),
     { startImmediately: true },
   );
-  if (signal) {
-    yield* Effect.acquireRelease(
-      Effect.sync(() => {
-        const abort = () =>
-          Deferred.doneUnsafe(requested, Effect.succeed('aborted'));
-        signal.addEventListener('abort', abort, { once: true });
-        if (signal.aborted) abort();
-        return abort;
-      }),
-      (abort) => Effect.sync(() => signal.removeEventListener('abort', abort)),
-    );
-  }
   if (input.timeoutMs !== undefined)
     yield* Effect.forkScoped(
       Effect.sleep(Duration.millis(input.timeoutMs)).pipe(

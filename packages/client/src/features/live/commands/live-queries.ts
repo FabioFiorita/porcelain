@@ -1,12 +1,21 @@
+import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { OperationStore } from '../../git-actions/ports/operation-store.ts';
 import type { LiveConnection } from '../ports/connection.ts';
 import type { LiveNotice } from '@porcelain/contracts/access';
-import { type Context, Effect, FiberMap, HashMap, Layer, Stream } from 'effect';
+import {
+  type Context,
+  Effect,
+  FiberMap,
+  HashMap,
+  Layer,
+  Stream,
+  Scope,
+  Exit,
+} from 'effect';
 import { AsyncResult, Atom, AtomRegistry, Reactivity } from 'effect/reactivity';
 import { Option } from 'effect';
 import { readInventory } from '../../projects/queries/inventory.ts';
 import { inventoryRuntime } from '../../projects/store/inventory.ts';
-import { withSignal } from '@porcelain/effects';
 import {
   LIVE_PATHS_PER_WORKTREE,
   LIVE_PROJECTS,
@@ -72,15 +81,13 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
   const operations = yield* OperationStore;
   const refresh = yield* GitReceiptRefresh;
   const reactivity = yield* Reactivity.Reactivity;
-  const lifecycle = yield* Effect.acquireRelease(
-    Effect.sync(() => new AbortController()),
-    (controller) => Effect.sync(() => controller.abort()),
+  const scope = yield* Effect.acquireRelease(
+    Scope.fork(connection.scope, 'sequential'),
+    (scope) => Scope.close(scope, Exit.void),
   );
-  const signal = AbortSignal.any([
-    connection.controller.signal,
-    lifecycle.signal,
-  ]);
-  const jobs = yield* FiberMap.make<string | symbol, void>();
+  const jobs = yield* FiberMap.make<string | symbol, void>().pipe(
+    Effect.provideService(Scope.Scope, scope),
+  );
   const run = yield* FiberMap.runtime(jobs)();
   const services =
     yield* Effect.context<Effect.Services<ReturnType<typeof readGitReceipt>>>();
@@ -106,69 +113,68 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
       if (operation.receipt && isTerminal(operation.receipt)) continue;
       run(
         Symbol(),
-        withSignal(
-          Effect.gen(function* () {
-            const receipt = yield* readGitReceipt(connection, {
-              ...operation,
-              signal,
-            }).pipe(Effect.provideContext(services));
-            if (signal.aborted) return;
-            yield* refresh.refresh(receipt);
-            if (!signal.aborted) yield* operations.accept(receipt);
-          }),
-          signal,
-        ).pipe(Effect.ignore, Effect.asVoid),
+        Effect.gen(function* () {
+          const receipt = yield* readGitReceipt(connection, {
+            ...operation,
+          }).pipe(Effect.provideContext(services));
+          yield* currentAnswerEffect(connection);
+          yield* refresh.refresh(receipt);
+          yield* operations.accept(receipt);
+        }).pipe(Effect.ignore, Effect.asVoid),
       );
     }
   };
-  const live = connection.liveUpdates.connect({
-    signal,
-    onNotice: (notice) => {
-      if (signal.aborted) return;
-      if (notice.type === 'ready') recoverPending();
-      run(
-        Symbol(),
-        withSignal(
+  const live = yield* connection.liveUpdates
+    .connect({
+      onNotice: (notice) => {
+        if (connection.isClosed() || scope.state._tag === 'Closed') return;
+        if (notice.type === 'ready') recoverPending();
+        run(
+          Symbol(),
           Effect.gen(function* () {
             yield* applyNotice(notice);
-            if (notice.type === 'git-action' && !signal.aborted)
+            if (
+              notice.type === 'git-action' &&
+              !connection.isClosed() &&
+              scope.state._tag !== 'Closed'
+            )
               yield* operations.accept(notice.receipt);
-          }),
-          signal,
-        ).pipe(
-          Effect.catchCause(() =>
-            Effect.sync(() => {
-              if (!signal.aborted) recoverPending();
-            }),
+          }).pipe(
+            Effect.catchCause(() =>
+              Effect.sync(() => {
+                if (!connection.isClosed() && scope.state._tag !== 'Closed')
+                  recoverPending();
+              }),
+            ),
+            Effect.asVoid,
           ),
-          Effect.asVoid,
-        ),
-      );
-    },
-    onReconnect: () => {
-      if (!signal.aborted)
-        run(
-          Symbol(),
-          reactivity.invalidate([
-            queryKeys.environment(connection.environmentId),
-          ]),
         );
-    },
-    onUnauthorized: () => {
-      if (signal.aborted) return;
-      if (onUnauthorized) onUnauthorized();
-      else
-        run(
-          Symbol(),
-          reactivity.invalidate([
-            queryKeys.inventory(connection.environmentId),
-          ]),
-        );
-    },
-  });
+      },
+      onReconnect: () => {
+        if (!connection.isClosed() && scope.state._tag !== 'Closed')
+          run(
+            Symbol(),
+            reactivity.invalidate([
+              queryKeys.environment(connection.environmentId),
+            ]),
+          );
+      },
+      onUnauthorized: () => {
+        if (connection.isClosed() || scope.state._tag === 'Closed') return;
+        if (onUnauthorized) onUnauthorized();
+        else
+          run(
+            Symbol(),
+            reactivity.invalidate([
+              queryKeys.inventory(connection.environmentId),
+            ]),
+          );
+      },
+    })
+    .pipe(Effect.provideService(Scope.Scope, scope));
   let sent = '';
   const send = Effect.gen(function* () {
-    if (signal.aborted) return;
+    if (connection.isClosed() || scope.state._tag === 'Closed') return;
     const subscription = liveSubscription(
       operations,
       Option.getOrUndefined(
@@ -182,7 +188,7 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
     live.subscribe(subscription);
   });
   const changed = () => {
-    if (!signal.aborted)
+    if (!connection.isClosed() && scope.state._tag !== 'Closed')
       run('subscription', Effect.andThen(Effect.yieldNow, send), {
         onlyIfMissing: true,
       });
@@ -190,11 +196,11 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
   yield* Effect.acquireRelease(
     Effect.sync(() => registry.subscribe(readInventory(connection), changed)),
     (unsubscribe) => Effect.sync(unsubscribe),
-  );
+  ).pipe(Effect.provideService(Scope.Scope, scope));
   yield* Effect.acquireRelease(
     Effect.sync(() => operations.state.subscribe(changed)),
     (unsubscribe) => Effect.sync(() => unsubscribe?.()),
-  );
+  ).pipe(Effect.provideService(Scope.Scope, scope));
   run(
     Symbol(),
     Stream.runForEach(reads.changes, () => Effect.sync(changed)),

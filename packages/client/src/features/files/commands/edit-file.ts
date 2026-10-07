@@ -2,7 +2,6 @@ import type {
   EditFileRequest,
   EditFileResponse,
 } from '@porcelain/contracts/files';
-import { withSignal } from '@porcelain/effects';
 import { Context, Effect, Layer } from 'effect';
 import { Atom, AtomRegistry, Reactivity } from 'effect/reactivity';
 import type {
@@ -35,7 +34,6 @@ class FileEdits extends Context.Service<
         const execute = Effect.fn('Files.edit')(function* (
           input: EditFileRequest,
         ) {
-          const signal = connection.request().signal;
           const prefix = `${JSON.stringify([scope.projectId, scope.worktreeId])}/`;
           const moving =
             input.kind === 'move' || input.kind === 'trash'
@@ -45,13 +43,13 @@ class FileEdits extends Context.Service<
                     key.startsWith(`${prefix}${input.path}/`),
                 )
               : [];
-          return yield* withSignal(
+          return yield* connection.request(
             Effect.acquireUseRelease(
               Effect.sync(Symbol),
               (owner) =>
                 Effect.uninterruptibleMask((restore) =>
                   Effect.gen(function* () {
-                    yield* restore(currentAnswerEffect(signal));
+                    yield* restore(currentAnswerEffect(connection));
                     if (
                       moving.some(
                         ([, draft]) => draft.state.value.owner !== null,
@@ -109,10 +107,10 @@ class FileEdits extends Context.Service<
                               payload: input,
                             });
                         }
-                      }, signal),
+                      }),
                     );
                     yield* currentAnswerEffect(
-                      signal,
+                      connection,
                       edited.path ===
                         (input.kind === 'move' || input.kind === 'copy'
                           ? input.destination
@@ -131,7 +129,7 @@ class FileEdits extends Context.Service<
               (owner) =>
                 Effect.gen(function* () {
                   for (const [, draft] of moving) draft.release(owner);
-                  if (!signal.aborted)
+                  if (!connection.isClosed())
                     yield* reactivity.invalidate(
                       noticeReadKeys(connection.environmentId, {
                         type: 'worktree',
@@ -141,7 +139,6 @@ class FileEdits extends Context.Service<
                     );
                 }),
             ),
-            signal,
           );
         });
         return { execute };

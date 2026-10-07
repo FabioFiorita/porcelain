@@ -43,7 +43,7 @@ export class CommentThreadsState extends Context.Service<
               }),
             );
             yield* currentAnswerEffect(
-              connection.request().signal,
+              connection,
               threads.every((thread) => thread.worktreeId === scope.worktreeId),
             );
             return threads;

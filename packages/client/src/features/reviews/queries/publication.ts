@@ -33,7 +33,7 @@ export const readPublishedReview = Atom.family(
         );
         const result = review ?? null;
         yield* currentAnswerEffect(
-          connection.request().signal,
+          connection,
           result === null ||
             (result.environmentId === connection.environmentId &&
               result.worktreeId === scope.worktreeId),
@@ -69,10 +69,7 @@ export const readProofFile = Atom.family(
             query: { proofId },
           }),
         );
-        yield* currentAnswerEffect(
-          connection.request().signal,
-          file.id === proofId,
-        );
+        yield* currentAnswerEffect(connection, file.id === proofId);
         return file;
       }),
       clientRuntime(connection),

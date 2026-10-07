@@ -6,5 +6,4 @@ export type { RuntimeConnection } from './connection.ts';
 export { createWorktreeConnection } from './worktree-connection.ts';
 
 export { queryKeys } from './query-keys.ts';
-export { runRequest } from './effect-client.ts';
 export { retryWorktreeReads } from './read-recovery.ts';

@@ -1,5 +1,5 @@
 import { Cause, Effect, Exit } from 'effect';
-import { AtomRegistry } from 'effect/reactivity';
+import { Atom, AtomRegistry } from 'effect/reactivity';
 import { pairBrowserSession } from '@porcelain/client/access';
 import { browserTransport } from '@/shared/api/transport';
 import { pairingPlatform } from '../store';
@@ -24,9 +24,13 @@ export async function pairBrowser(
     signal,
     AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   ]);
-  registry.set(pairing, { link, signal: requestSignal });
   const exit = await Effect.runPromiseExit(
-    AtomRegistry.getResult(registry, pairing, { suspendOnWaiting: true }),
+    Effect.acquireUseRelease(
+      Effect.sync(() => registry.set(pairing, link)),
+      () =>
+        AtomRegistry.getResult(registry, pairing, { suspendOnWaiting: true }),
+      () => Effect.sync(() => registry.set(pairing, Atom.Interrupt)),
+    ),
     { signal: requestSignal },
   );
   if (Exit.isFailure(exit))

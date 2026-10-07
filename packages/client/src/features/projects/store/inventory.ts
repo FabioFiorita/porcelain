@@ -58,7 +58,7 @@ export class InventoryState extends Context.Service<
             .pipe(
               Effect.tap((inventory) =>
                 currentAnswerEffect(
-                  connection.request().signal,
+                  connection,
                   inventory.environmentId === connection.environmentId,
                 ),
               ),

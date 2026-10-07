@@ -1,4 +1,4 @@
-import type { ManagedRuntime } from 'effect';
+import type { Effect, ManagedRuntime, Scope } from 'effect';
 import type { Atom, Reactivity } from 'effect/reactivity';
 import type { WriteQueues } from './write-queue.ts';
 import type { Transport } from './transport.ts';
@@ -7,7 +7,12 @@ import type { ReadSubscriptions } from './read-subscriptions.ts';
 export type WorktreeConnection = {
   environmentId: string;
   transport: Transport;
-  request: (signal?: AbortSignal) => { signal: AbortSignal };
+  readonly scope: Scope.Scope;
+  readonly isClosed: () => boolean;
+  readonly request: <A, E, R>(
+    work: Effect.Effect<A, E, R>,
+    caller?: Scope.Scope,
+  ) => Effect.Effect<A, E, R>;
   cacheIdentity?: readonly string[];
 };
 
