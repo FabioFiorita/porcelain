@@ -15,6 +15,6 @@
     "test": "vitest run --config ../../vitest.config.ts --project @porcelain/kernel"
   },
   "dependencies": {
-    "effect": "4.0.0"
+    "effect": "4.0.1"
   }
 }

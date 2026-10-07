@@ -15,7 +15,7 @@
     "test:perf": "vitest run --config ../../vitest.config.ts --project @porcelain/server-perf"
   },
   "dependencies": {
-    "@effect/platform-node": "4.0.0",
+    "@effect/platform-node": "4.0.1",
     "@parcel/watcher": "2.6.0",
     "@porcelain/access": "workspace:*",
     "@porcelain/agents": "workspace:*",
@@ -30,7 +30,7 @@
     "@porcelain/projects": "workspace:*",
     "@porcelain/reviews": "workspace:*",
     "@porcelain/storage": "workspace:*",
-    "effect": "4.0.0",
+    "effect": "4.0.1",
     "qrcode-terminal": "0.12.0",
     "trash": "10.1.1",
     "ws": "8.21.3"

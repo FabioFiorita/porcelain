@@ -25,6 +25,6 @@
     "@porcelain/kernel": "workspace:*",
     "@porcelain/projects": "workspace:*",
     "@porcelain/reviews": "workspace:*",
-    "effect": "4.0.0"
+    "effect": "4.0.1"
   }
 }
