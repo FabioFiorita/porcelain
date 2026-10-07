@@ -1,3 +1,4 @@
+import { runGitEffect } from '../../shared/commands/run-git.ts';
 import { lstat, readFile, realpath } from 'node:fs/promises';
 import { join } from 'node:path';
 import { isMissing } from '../../shared/errors/is-missing.ts';
@@ -10,7 +11,7 @@ type InProgress = {
 };
 
 export async function readInProgress(checkout: string): Promise<InProgress> {
-  const pointer = await readGitDirectory(checkout);
+  const pointer = await runGitEffect(readGitDirectory(checkout));
   if (pointer === undefined) return { inProgress: null, mergeHeadOid: null };
   const gitDirectory = await realpath(pointer);
   if (

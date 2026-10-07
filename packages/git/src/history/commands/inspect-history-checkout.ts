@@ -1,3 +1,4 @@
+import { runGitEffect } from '../../shared/commands/run-git.ts';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -19,12 +20,20 @@ export async function confirmHistoryCheckout(
 ): Promise<{ common: string }> {
   signal?.throwIfAborted();
   try {
-    const gitDirectory = await readGitDirectory(checkout.path);
+    const gitDirectory = await runGitEffect(
+      readGitDirectory(checkout.path),
+      signal,
+    );
     if (gitDirectory === undefined) throw new HistoryWorktreeUnavailableError();
-    const common = await readCommonDirectory(gitDirectory);
+    const common = await runGitEffect(
+      readCommonDirectory(gitDirectory),
+      signal,
+    );
     if (
-      (await identity(gitDirectory)) !== checkout.metadataIdentity ||
-      (await identity(common)) !== checkout.repositoryIdentity
+      (await runGitEffect(identity(gitDirectory), signal)) !==
+        checkout.metadataIdentity ||
+      (await runGitEffect(identity(common), signal)) !==
+        checkout.repositoryIdentity
     )
       throw new HistoryWorktreeUnavailableError();
     return { common };

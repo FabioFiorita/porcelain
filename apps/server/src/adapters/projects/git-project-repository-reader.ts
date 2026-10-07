@@ -1,5 +1,5 @@
 import { Effect, Layer } from 'effect';
-import { ChildProcessSpawner } from 'effect/process';
+import { captureGitPlatform } from './git-platform.ts';
 import { listWorktrees, readOriginUrl } from '@porcelain/git/discovery';
 import { isRepositoryUnavailable } from '@porcelain/git/errors';
 import type { RepositoryLocation } from '@porcelain/projects/models';
@@ -10,7 +10,7 @@ export const gitProjectRepositoryReaderLayer = (limits: Limits['git']) =>
   Layer.effect(
     ProjectRepositoryReader,
     Effect.gen(function* () {
-      const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+      const provideGit = yield* captureGitPlatform();
       return {
         find: Effect.fn('GitProjectRepositoryReader.find')(function* (
           input: RepositoryLocation,
@@ -19,10 +19,7 @@ export const gitProjectRepositoryReaderLayer = (limits: Limits['git']) =>
             Effect.catchIf(isRepositoryUnavailable, () =>
               Effect.succeed(undefined),
             ),
-            Effect.provideService(
-              ChildProcessSpawner.ChildProcessSpawner,
-              spawner,
-            ),
+            provideGit,
             Effect.orDie,
           );
           if (!repository) return undefined;
@@ -38,13 +35,7 @@ export const gitProjectRepositoryReaderLayer = (limits: Limits['git']) =>
         }),
         readOriginUrl: Effect.fn('GitProjectRepositoryReader.readOriginUrl')(
           (input: RepositoryLocation) =>
-            readOriginUrl(input.path, limits).pipe(
-              Effect.provideService(
-                ChildProcessSpawner.ChildProcessSpawner,
-                spawner,
-              ),
-              Effect.orDie,
-            ),
+            readOriginUrl(input.path, limits).pipe(provideGit, Effect.orDie),
         ),
       };
     }),

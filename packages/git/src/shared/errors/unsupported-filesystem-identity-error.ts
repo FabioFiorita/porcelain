@@ -1,11 +1,10 @@
-import { GitError } from './git-error.ts';
+import { Schema } from 'effect';
 
-export class UnsupportedFilesystemIdentityError extends GitError {
-  override readonly name = 'UnsupportedFilesystemIdentityError';
-
-  constructor() {
-    super(
-      'Filesystem birth time is required for conservative identity matching',
-    );
+export class UnsupportedFilesystemIdentityError extends Schema.TaggedError<UnsupportedFilesystemIdentityError>()(
+  'UnsupportedFilesystemIdentityError',
+  {},
+) {
+  override get message() {
+    return 'Filesystem birth time is required for conservative identity matching';
   }
 }

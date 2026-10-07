@@ -1,4 +1,5 @@
-import { admittedRead, nativeOperation } from '@porcelain/effects';
+import { readGitEffect } from '../../runtime/git-io.ts';
+import { nativeOperation } from '@porcelain/effects';
 import type {
   WorktreePathsRead,
   WorktreePathsReadInput,
@@ -20,7 +21,7 @@ export const gitWorktreePathsReaderLayer = (
   Layer.succeed(WorktreePathsReader, {
     read: Effect.fn('GitWorktreePathsReader.read')(
       (input: WorktreePathsReadInput) =>
-        admittedRead(
+        readGitEffect(
           input.worktreeId,
           Effect.gen(function* () {
             const checkout = yield* nativeOperation((signal) =>
@@ -41,6 +42,6 @@ export const gitWorktreePathsReaderLayer = (
               ),
             );
           }),
-        ),
+        ).pipe(Effect.orDie),
     ),
   });

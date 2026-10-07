@@ -219,9 +219,9 @@ export const parcelWorktreeWatcherLayer = (options: {
       return {
         findWorktree: Effect.fn('ParcelWorktreeWatcher.findWorktree')(
           function* (input) {
-            const check = yield* nativeOperation((signal) =>
-              options.worktrees.known({ worktreeId: input.worktreeId }, signal),
-            );
+            const check = yield* options.worktrees.known({
+              worktreeId: input.worktreeId,
+            });
             return check.kind === 'found'
               ? {
                   projectId: check.worktree.projectId,

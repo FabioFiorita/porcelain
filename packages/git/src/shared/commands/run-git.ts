@@ -82,6 +82,22 @@ export const gitWrite = Effect.fn('Git.write')(function* (
   return processResult(output);
 });
 
+export async function runGitEffect<A, E>(
+  operation: Effect.Effect<A, E, NodeServices.NodeServices>,
+  signal?: AbortSignal,
+): Promise<A> {
+  signal?.throwIfAborted();
+  try {
+    return await Effect.runPromise(
+      operation.pipe(Effect.provide(NodeServices.layer)),
+      { signal },
+    );
+  } catch (failure) {
+    signal?.throwIfAborted();
+    throw failure;
+  }
+}
+
 export async function runGitRead(
   checkout: string,
   args: readonly string[],
@@ -89,18 +105,7 @@ export async function runGitRead(
   signal?: AbortSignal,
   options: GitReadOptions = {},
 ): Promise<Buffer> {
-  signal?.throwIfAborted();
-  try {
-    return await Effect.runPromise(
-      gitRead(checkout, args, limits, options).pipe(
-        Effect.provide(NodeServices.layer),
-      ),
-      { signal },
-    );
-  } catch (failure) {
-    signal?.throwIfAborted();
-    throw failure;
-  }
+  return runGitEffect(gitRead(checkout, args, limits, options), signal);
 }
 
 export async function runGitWrite(

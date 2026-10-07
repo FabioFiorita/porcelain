@@ -16,7 +16,7 @@ import {
   type GitActionExpectation as GitExpectation,
   type GitActionWriterFactory,
 } from '@porcelain/git/actions';
-import { RequestGitSession } from '@porcelain/git/inspection';
+import { makeGitSession } from '@porcelain/git/inspection';
 import { type Limits } from '../../config/limits.ts';
 import {
   openCheckout,
@@ -54,7 +54,7 @@ export class GitGitActionRunner implements GitActionRunner {
     try {
       const { checkout } = await openCheckout(
         this.worktrees,
-        new RequestGitSession(this.limits),
+        Effect.runSync(makeGitSession(this.limits)),
         run.worktreeId,
         signal,
       );

@@ -1,10 +1,12 @@
+import { Effect } from 'effect';
+import { promiseCheckoutSession } from '@porcelain/git/inspection';
 import type {
   InspectionFactory,
   InspectionReader,
 } from '@porcelain/git/inspection';
 import type { ListedWorktree } from '@porcelain/projects/models';
 import {
-  openCheckout,
+  openCheckoutEffect,
   type GitSessions,
   type ListedWorktrees,
 } from '../projects/checkout-session.ts';
@@ -25,12 +27,11 @@ export function inspectionCheckouts(
   sessions: GitSessions,
 ): OpenInspection {
   return async (worktreeId, signal) => {
-    const { worktree, checkout } = await openCheckout(
-      worktrees,
-      sessions(signal),
-      worktreeId,
-      signal,
+    signal?.throwIfAborted();
+    const { worktree, checkout } = await Effect.runPromise(
+      openCheckoutEffect(worktrees, sessions(signal), worktreeId),
+      { signal },
     );
-    return { worktree, git: inspection(checkout) };
+    return { worktree, git: inspection(promiseCheckoutSession(checkout)) };
   };
 }
