@@ -3,17 +3,14 @@ export {
   fileName,
   type ActionInput,
   type CommitDraftInput,
-  type Expectation,
   type GitAction,
   type GitScope,
-  type Receipt,
 } from './git-action.ts';
 export {
   changedSinceLooked,
   expectationFor,
   gitErrorMessage,
   receiptFailed,
-  receiptWords,
   type GitNotice,
 } from './feedback.ts';
 export {
@@ -38,10 +35,7 @@ export {
 } from './commit-form.ts';
 export {
   isNetworkAction,
-  networkInput,
   networkLabel,
-  networkTarget,
-  networkTitle,
   primaryTooltip,
   type NetworkAction,
 } from './network.ts';

@@ -1,5 +1,11 @@
 import { AsyncResult } from 'effect/reactivity';
-import { Option } from 'effect';
+import { Cause, Effect, Option } from 'effect';
+import {
+  commitForm,
+  generateCommitForm,
+  lookAgainCommitForm,
+  recoverCommitForm,
+} from '@porcelain/client/git-actions';
 import {
   COMMIT_MESSAGE_BYTES,
   COMMIT_GROUPS,
@@ -17,19 +23,12 @@ import {
   type Group,
 } from '@porcelain/client/git-actions/rules';
 import { gitActionBlocker } from '@porcelain/client/git-actions/rules';
-import {
-  expectationFor,
-  receiptFailed,
-  receiptWords,
-} from '@porcelain/client/git-actions/rules';
 import { commitState, commitDraftControllers } from '../store';
 import { useAtomRef } from '@effect/atom-react';
 import { useCommitModels } from '../queries/git-actions';
 import { useGitAction } from './run-action';
 import { useCommitDraft } from './commit-draft';
 import { type ConnectionContext } from '@/shared/workspace/connection';
-const isAbort = (error: unknown) =>
-  error instanceof DOMException && error.name === 'AbortError';
 
 type CommitModelChoice = { value: string; set: (value: string) => void };
 
@@ -158,7 +157,13 @@ function useCommitFormState(
     scope,
     status,
     onBusy,
-    onLookAgain,
+    onLookAgain: onLookAgain
+      ? Effect.tryPromise({
+          try: onLookAgain,
+          catch: (cause) => new Cause.UnknownError(cause),
+        })
+      : undefined,
+    createId,
     mode,
     commitAction,
     git,
@@ -207,174 +212,6 @@ function useCommitFormState(
   };
 }
 
-async function generate(
-  controls: ReturnType<typeof useCommitFormState>,
-  mode: 'message' | 'groups',
-  selectedPaths = controls.paths,
-) {
-  const {
-    model,
-    working,
-    setBusy,
-    setError,
-    generator,
-    status,
-    setDrafted,
-    setDone,
-    setActiveGroup,
-    setMessage,
-    setGroups,
-  } = controls;
-  if (!model || !selectedPaths.length || working) return;
-  setBusy(true);
-  setError(null);
-  try {
-    const result = await generator.submit({
-      mode,
-      model,
-      paths: selectedPaths,
-      expectedStatusToken: status.statusToken,
-    });
-    setDrafted(mode, result.expectedFiles);
-    setDone(new Set());
-    setActiveGroup(null);
-    if (mode === 'message') {
-      setMessage(result.groups[0]?.message ?? '');
-      setGroups(null);
-    } else
-      setGroups(result.groups.map((group) => ({ ...group, id: createId() })));
-  } catch (error) {
-    if (!isAbort(error)) setError(error);
-  } finally {
-    setBusy(false);
-  }
-}
-
-async function commit(controls: ReturnType<typeof useCommitFormState>) {
-  const {
-    working,
-    uncertain,
-    setBusy,
-    setError,
-    currentMessage,
-    mode,
-    commitAction,
-    model,
-    paths,
-    generator,
-    status,
-    setMessage,
-    setDrafted,
-    groups,
-    done,
-    ownHead,
-    onBusy,
-    setActiveGroup,
-    git,
-    setOwnHead,
-    setDone,
-  } = controls;
-  if (working || uncertain) return;
-  setBusy(true);
-  setError(null);
-  let writing = false;
-  try {
-    let text = currentMessage;
-    if (mode !== 'groups' && !text.trim()) {
-      if (commitAction === 'amend')
-        throw new Error('Give the amended commit a message.');
-      if (!model || !paths.length)
-        throw new Error('Give every commit a message and at least one file.');
-      const result = await generator.submit({
-        mode: 'message',
-        model,
-        paths,
-        expectedStatusToken: status.statusToken,
-      });
-      text = result.groups[0]?.message ?? '';
-      setMessage(text);
-      setDrafted('message', result.expectedFiles);
-      if (draftIsStale(status, result.expectedFiles)) return;
-    }
-    const pending =
-      commitAction === 'amend'
-        ? [{ id: 'single', message: text, paths }]
-        : mode === 'groups' && groups
-          ? groups.filter((group) => !done.has(group.id))
-          : [{ id: 'single', message: text, paths }];
-    let expectedHead = ownHead ?? status.headOid ?? null;
-    writing = true;
-    onBusy(true);
-    for (const group of pending) {
-      if (
-        !group.message.trim() ||
-        (commitAction !== 'amend' &&
-          status.inProgress !== 'merge' &&
-          !group.paths.length)
-      )
-        throw new Error('Give every commit a message and at least one file.');
-      setActiveGroup(group.id);
-      const result = await git.run(
-        {
-          action: commitAction,
-          message: group.message,
-          paths: group.paths,
-        },
-        expectationFor(
-          { ...status, headOid: expectedHead },
-          status.inProgress === 'merge'
-            ? (status.files?.map((file) => file.path) ?? [])
-            : group.paths,
-          undefined,
-          true,
-        ),
-      );
-      if (receiptFailed(result)) throw new Error(receiptWords(result));
-      if (result.result?.headOid) {
-        expectedHead = result.result.headOid;
-        setOwnHead(expectedHead);
-      }
-      setDone((current) => new Set([...current, group.id]));
-      setActiveGroup(null);
-    }
-  } catch (error) {
-    if (!isAbort(error)) setError(error);
-  } finally {
-    if (writing) onBusy(false);
-    setBusy(false);
-  }
-}
-
-async function lookAgain(controls: ReturnType<typeof useCommitFormState>) {
-  const { onLookAgain, working, setBusy, setError, git, setOwnHead } = controls;
-  if (!onLookAgain || working) return;
-  setBusy(true);
-  setError(null);
-  try {
-    await onLookAgain();
-    await git.startNew();
-    setOwnHead(null);
-  } catch (error) {
-    setError(error);
-  } finally {
-    setBusy(false);
-  }
-}
-
-async function checkOutcome(controls: ReturnType<typeof useCommitFormState>) {
-  const { setError, git, activeGroup, setDone, setActiveGroup } = controls;
-  setError(null);
-  try {
-    const receipt = await git.recover();
-    if (activeGroup && ['succeeded', 'no-change'].includes(receipt.state)) {
-      setDone((current) => new Set([...current, activeGroup]));
-      setActiveGroup(null);
-    }
-  } catch (error) {
-    setError(error);
-  }
-}
-
 export function useCommitForm(
   props: CommitFormProps,
   context: ConnectionContext,
@@ -401,10 +238,10 @@ export function useCommitForm(
     ...controls,
     messageLimit: COMMIT_MESSAGE_BYTES,
     groupLimit: COMMIT_GROUPS,
-    commit: () => void commit(controls),
-    generate: () => void generate(controls, 'message'),
-    lookAgain: () => void lookAgain(controls),
-    checkOutcome: () => void checkOutcome(controls),
+    commit: () => Effect.runFork(commitForm(controls)),
+    generate: () => Effect.runFork(generateCommitForm(controls, 'message')),
+    lookAgain: () => Effect.runFork(lookAgainCommitForm(controls)),
+    checkOutcome: () => Effect.runFork(recoverCommitForm(controls)),
     setModel: commitModel.set,
     toggleEditingFiles: () =>
       state.update((current) => ({
@@ -423,7 +260,7 @@ export function useCommitForm(
         setDrafted('groups', null);
       }
       if (value === 'groups' && groups === null && !working)
-        void generate(controls, 'groups', commitPaths);
+        Effect.runFork(generateCommitForm(controls, 'groups', commitPaths));
     },
     setIncluded: (path: string, included: boolean) => {
       if (commitAction === 'amend') {

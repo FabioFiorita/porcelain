@@ -1,7 +1,7 @@
 import { OperationStore } from '../ports/operation-store.ts';
 import type { GitConnection } from '../ports/git-connection.ts';
 import { Context, Crypto, Effect, Layer, Schema, Semaphore } from 'effect';
-import { Atom } from 'effect/reactivity';
+import { Atom, AtomRegistry } from 'effect/reactivity';
 import type {
   RunGitActionRequest,
   RunGitActionResponse,
@@ -194,5 +194,54 @@ export const recoverGitAction = Atom.family((selection: Selection) =>
 export const startNewGitAction = Atom.family((selection: Selection) =>
   controllerRuntime(selection).fn((_: void) =>
     GitActionController.use((controller) => controller.startNew()),
+  ),
+);
+
+export function gitActionCommands(
+  selection: Selection,
+  registry: AtomRegistry.AtomRegistry,
+) {
+  const execute = runGitAction(selection);
+  const recovery = recoverGitAction(selection);
+  const start = startNewGitAction(selection);
+  const reset = () => {
+    registry.set(execute, Atom.Reset);
+    registry.set(recovery, Atom.Reset);
+  };
+  return {
+    run: Effect.fn('GitActions.run')(function* (
+      input: RunGitActionRequest['input'],
+      expected: RunGitActionRequest['expected'],
+    ) {
+      registry.set(execute, { input, expected });
+      return yield* AtomRegistry.getResult(registry, execute, {
+        suspendOnWaiting: true,
+      });
+    }),
+    recover: Effect.fn('GitActions.recover')(function* () {
+      registry.set(recovery, undefined);
+      return yield* AtomRegistry.getResult(registry, recovery, {
+        suspendOnWaiting: true,
+      });
+    }),
+    startNew: Effect.fn('GitActions.startNew')(function* () {
+      registry.set(start, undefined);
+      if (
+        yield* AtomRegistry.getResult(registry, start, {
+          suspendOnWaiting: true,
+        })
+      )
+        reset();
+    }),
+    reset,
+  };
+}
+
+export const readGitActionCommands = Atom.family((selection: Selection) =>
+  Atom.make(
+    Effect.gen(function* () {
+      const registry = yield* AtomRegistry.AtomRegistry;
+      return gitActionCommands(selection, registry);
+    }),
   ),
 );

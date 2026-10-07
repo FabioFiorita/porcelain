@@ -3,21 +3,19 @@ import { useAtom, useAtomSet } from '@effect/atom-react';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import { Cause, Effect, Option } from 'effect';
 import { useState } from 'react';
-import type { GitScope, Receipt } from '@porcelain/client/git-actions/rules';
+import type { GitScope } from '@porcelain/client/git-actions/rules';
 import {
-  changedSinceLooked,
   expectationFor,
   gitErrorMessage,
   type GitNotice,
-  receiptFailed,
-  receiptWords,
 } from '@porcelain/client/git-actions/rules';
-import {
-  type GitActionStatus,
-  statusFromChanges,
-} from '@porcelain/client/git-actions/rules';
+import { type GitActionStatus } from '@porcelain/client/git-actions/rules';
 import { DISCARD_RESTORE_TOAST_MS } from '@/config/limits';
-import { restoreStash } from './restore-stash';
+import {
+  finishDiscard,
+  type DiscardFailure,
+  type Discarding,
+} from '@porcelain/client/git-actions';
 import { useGitAction } from './run-action';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -26,88 +24,6 @@ type Hunk = {
   startLine: number;
   endLine: number;
 };
-
-type DiscardFailure = { text: string; moved: boolean };
-
-type Discarding = {
-  what: string;
-  readChanges: () => Promise<ReadChangesResponse>;
-  notify: (notice: GitNotice) => string;
-  dismissNotice: (id: string) => void;
-  close: () => void;
-  restore: ReturnType<typeof useGitAction>;
-};
-
-async function restoreDiscarded(
-  { what, readChanges, notify, dismissNotice, restore }: Discarding,
-  stashOid: string,
-  restoreIndex: boolean,
-  noticeId: string,
-) {
-  let restoreLook: GitActionStatus;
-  try {
-    restoreLook = statusFromChanges(await readChanges());
-  } catch (cause) {
-    notify({
-      title: `Could not restore ${what}`,
-      description: gitErrorMessage(cause),
-      type: 'error',
-    });
-    return;
-  }
-  const currentPaths =
-    restoreLook.files
-      ?.filter((entry) => entry.fingerprint != null)
-      .map((entry) => entry.path) ?? [];
-  dismissNotice(noticeId);
-  await restoreStash(
-    restore,
-    { stashOid, restoreIndex },
-    expectationFor(restoreLook, currentPaths, undefined, true),
-    notify,
-    { restored: `Restored ${what}`, failed: `Could not restore ${what}` },
-  );
-}
-
-function finish(
-  discarding: Discarding,
-  receipt: Receipt,
-): DiscardFailure | null {
-  const { what, notify, close } = discarding;
-  if (receiptFailed(receipt))
-    return { text: receiptWords(receipt), moved: changedSinceLooked(receipt) };
-  close();
-  const stashOid = receipt.result?.restoreStashOid;
-  if (receipt.state === 'no-change') {
-    notify({
-      title: 'Nothing to discard',
-      description: `${what} already matches the last commit.`,
-      type: 'info',
-    });
-    return null;
-  }
-  const restoreIndex = receipt.result?.restoreIndex ?? false;
-  const noticeId: string = notify({
-    title: `Discarded ${what}`,
-    type: 'success',
-    timeout: DISCARD_RESTORE_TOAST_MS,
-    ...(stashOid
-      ? {
-          actionProps: {
-            children: 'Restore',
-            onClick: () =>
-              void restoreDiscarded(
-                discarding,
-                stashOid,
-                restoreIndex,
-                noticeId,
-              ),
-          },
-        }
-      : {}),
-  });
-  return null;
-}
 
 export function useDiscard(
   scope: GitScope,
@@ -137,29 +53,33 @@ export function useDiscard(
   const uncertain = Boolean(discard.operation && !discard.canStartNew);
   const discarding = {
     what,
-    readChanges,
+    readChanges: () =>
+      Effect.tryPromise({
+        try: readChanges,
+        catch: (cause) => new Cause.UnknownError(cause, gitErrorMessage(cause)),
+      }),
     notify,
     dismissNotice,
     close,
     restore,
+    restoreTimeoutMs: DISCARD_RESTORE_TOAST_MS,
+    run: Effect.runFork,
   };
 
   const [submitCommand] = useState(() =>
-    Atom.fn((input: { run: () => Promise<Receipt>; discarding: Discarding }) =>
-      Effect.tryPromise({
-        try: async () => finish(input.discarding, await input.run()),
-        catch: (cause) => new Cause.UnknownError(cause, gitErrorMessage(cause)),
-      }),
+    Atom.fn(
+      (input: {
+        run: () => ReturnType<ReturnType<typeof useGitAction>['run']>;
+        discarding: Discarding;
+      }) => finishDiscard(input.run(), input.discarding),
     ),
   );
   const [recoverCommand] = useState(() =>
     Atom.fn(
-      (input: { recover: () => Promise<Receipt>; discarding: Discarding }) =>
-        Effect.tryPromise({
-          try: async () => finish(input.discarding, await input.recover()),
-          catch: (cause) =>
-            new Cause.UnknownError(cause, gitErrorMessage(cause)),
-        }),
+      (input: {
+        recover: () => ReturnType<ReturnType<typeof useGitAction>['run']>;
+        discarding: Discarding;
+      }) => finishDiscard(input.recover(), input.discarding),
     ),
   );
   const [submitted, submit] = useAtom(submitCommand, { mode: 'promiseExit' });
