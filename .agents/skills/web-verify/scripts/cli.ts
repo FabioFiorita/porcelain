@@ -76,17 +76,20 @@ const registry = new Registry({
   detail: detailSchema,
   inputs: {
     roots: [
-      'apps/web/src',
-      'apps/web/public',
-      'apps/web/index.html',
       'apps/web/vite.config.ts',
+      'apps/web/tsconfig.json',
+      'tsconfig.json',
+      'apps/web/package.json',
+      'apps/server/package.json',
+      'package.json',
+      'pnpm-workspace.yaml',
     ],
-    apps: ['apps/web'],
+    apps: [],
   },
   format: 'text',
   stale: (instance, changed) =>
     changed
-      ? `The web, server or CLI code changed since instance ${instance.id} started; run start again so the evidence shows the code you changed.`
+      ? `The server, launcher or dependency/configuration inputs changed since instance ${instance.id} started; run start again so the evidence shows the code you changed.`
       : undefined,
   stopWithinMs: 20_000,
 });
