@@ -1,3 +1,4 @@
+import { gitErrorMessage } from '@porcelain/client/git-actions/rules';
 import { Cause, Effect } from 'effect';
 import type {
   ReadChangesResponse,
@@ -50,7 +51,8 @@ export function useGitMenu(
       read: () =>
         Effect.tryPromise({
           try: menu.details.read,
-          catch: (cause) => new Cause.UnknownError(cause),
+          catch: (cause) =>
+            new Cause.UnknownError(cause, gitErrorMessage(cause)),
         }),
     },
   };
@@ -78,7 +80,8 @@ export function useGitMenu(
         refreshGitLook(
           Effect.tryPromise({
             try: menu.refreshLook,
-            catch: (cause) => new Cause.UnknownError(cause),
+            catch: (cause) =>
+              new Cause.UnknownError(cause, gitErrorMessage(cause)),
           }),
           menu.onLooked,
         ),

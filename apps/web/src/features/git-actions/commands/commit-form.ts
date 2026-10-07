@@ -1,3 +1,4 @@
+import { gitErrorMessage } from '@porcelain/client/git-actions/rules';
 import { AsyncResult } from 'effect/reactivity';
 import { Cause, Effect, Option } from 'effect';
 import {
@@ -160,7 +161,8 @@ function useCommitFormState(
     onLookAgain: onLookAgain
       ? Effect.tryPromise({
           try: onLookAgain,
-          catch: (cause) => new Cause.UnknownError(cause),
+          catch: (cause) =>
+            new Cause.UnknownError(cause, gitErrorMessage(cause)),
         })
       : undefined,
     createId,
