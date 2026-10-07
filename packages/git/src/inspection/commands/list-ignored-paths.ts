@@ -1,12 +1,12 @@
+import { Effect } from 'effect';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { runInspection } from './run-inspection.ts';
 
-export async function listIgnoredPaths(
+export const listIgnoredPaths = Effect.fn('Git.listIgnoredPaths')(function* (
   checkout: string,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<string[]> {
-  const output = await runInspection(
+) {
+  const output = yield* runInspection(
     checkout,
     [
       'ls-files',
@@ -17,7 +17,6 @@ export async function listIgnoredPaths(
       '--directory',
     ],
     limits,
-    signal,
     { maxBytes: limits.inspection.ignoredPathsBytes },
   );
   return output
@@ -25,4 +24,4 @@ export async function listIgnoredPaths(
     .split('\0')
     .filter(Boolean)
     .map((path) => (path.endsWith('/') ? path.slice(0, -1) : path));
-}
+});

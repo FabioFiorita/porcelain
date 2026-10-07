@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { NodeServices } from '@effect/platform-node';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -16,9 +18,9 @@ const write = (path: string, content: string) =>
 
 const session = (): Parameters<typeof sessionConversionFilters>[0] => ({
   path: checkout,
-  verify: () => Promise.resolve(),
-  confirm: () => Promise.resolve(),
-  conversionFilters: (read) => read(),
+  verify: () => Effect.void,
+  confirm: () => Effect.void,
+  conversionFilters: (read) => read,
 });
 
 const withoutAttributeListing = {
@@ -78,7 +80,7 @@ afterEach(() => {
 
 describe('sessionConversionFilters', () => {
   it('disables only the drivers the machine configures in a checkout without filters', async () => {
-    expect(await sessionConversionFilters(session(), gitLimits)).toEqual(
+    expect(await run(sessionConversionFilters(session(), gitLimits))).toEqual(
       driversAroundTheCheckout(),
     );
   });
@@ -86,7 +88,7 @@ describe('sessionConversionFilters', () => {
   it('disables every configured driver when no attribute gives the filter a value', async () => {
     git('config', 'filter.lfs.clean', 'git-lfs clean -- %f');
     write('.gitattributes', '*.txt filter\n*.bin -filter\n');
-    expect(await sessionConversionFilters(session(), gitLimits)).toEqual([
+    expect(await run(sessionConversionFilters(session(), gitLimits))).toEqual([
       'filter.lfs.clean=',
       'filter.lfs.smudge=',
       'filter.lfs.process=',
@@ -96,7 +98,7 @@ describe('sessionConversionFilters', () => {
   it("decides without reading every tracked path's attributes when none gives the filter a value", async () => {
     write('.gitattributes', '*.txt text\n*.bin !filter\n');
     expect(
-      await sessionConversionFilters(session(), withoutAttributeListing),
+      await run(sessionConversionFilters(session(), withoutAttributeListing)),
     ).toEqual(driversAroundTheCheckout());
   });
 
@@ -149,7 +151,7 @@ describe('sessionConversionFilters', () => {
     async ({ place }) => {
       place();
       await expect(
-        sessionConversionFilters(session(), gitLimits),
+        run(sessionConversionFilters(session(), gitLimits)),
       ).rejects.toMatchObject(refused);
     },
   );
@@ -157,7 +159,7 @@ describe('sessionConversionFilters', () => {
   it('refuses a filter assigned even when no driver is configured for it', async () => {
     write('.gitattributes', 'a.txt filter=secret\n');
     await expect(
-      sessionConversionFilters(session(), gitLimits),
+      run(sessionConversionFilters(session(), gitLimits)),
     ).rejects.toMatchObject(refused);
   });
 
@@ -165,7 +167,11 @@ describe('sessionConversionFilters', () => {
     git('config', 'filter.set.clean', 'cat');
     write('.gitattributes', '*.txt filter\n');
     await expect(
-      sessionConversionFilters(session(), gitLimits),
+      run(sessionConversionFilters(session(), gitLimits)),
     ).rejects.toMatchObject(refused);
   });
 });
+
+function run<A, E>(effect: Effect.Effect<A, E, NodeServices.NodeServices>) {
+  return Effect.runPromise(effect.pipe(Effect.provide(NodeServices.layer)));
+}

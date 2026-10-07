@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { createHash } from 'node:crypto';
 import type {
   GitChange,
@@ -21,31 +22,38 @@ const CONFLICT_CODES: readonly GitConflictCode[] = [
   'UU',
 ];
 
-type PathReader = (value: string | undefined) => string;
+type PathReader = (
+  value: string | undefined,
+) => Effect.Effect<string, UnsupportedPathEncodingError>;
 
-export function parseGitStatus(
+export const parseGitStatusEffect = Effect.fn('Git.parseStatus')(function* (
   output: Buffer,
   limits: GitLimits,
-): GitStatusObservation {
+) {
   const path = pathReader(limits.inspection.maxPathLength);
-  const text = decode(output);
-  if (!text.endsWith('\0')) throw new InvalidGitStatusError();
+  const text = yield* decode(output);
+  if (!text.endsWith('\0'))
+    return yield* Effect.fail(new InvalidGitStatusError());
   const records = text.slice(0, -1).split('\0');
-  const head = headOid(header(records, 'branch.oid'));
+  const head = yield* headOid(header(records, 'branch.oid'));
   const changes: GitChange[] = [];
   const iterator = records[Symbol.iterator]();
   for (const record of iterator) {
     if (record.startsWith('# ')) continue;
-    if (record.startsWith('1 ')) changes.push(...tracked(record, path));
+    if (record.startsWith('1 '))
+      changes.push(...(yield* tracked(record, path)));
     else if (record.startsWith('2 '))
-      changes.push(...tracked(record, path, path(iterator.next().value)));
+      changes.push(
+        ...(yield* tracked(record, path, yield* path(iterator.next().value))),
+      );
     else if (record.startsWith('? '))
       changes.push({
         scope: 'untracked',
-        path: path(record.slice(2).replace(/\/$/u, '')),
+        path: yield* path(record.slice(2).replace(/\/$/u, '')),
       });
-    else if (record.startsWith('u ')) changes.push(conflict(record, path));
-    else throw new InvalidGitStatusError();
+    else if (record.startsWith('u '))
+      changes.push(yield* conflict(record, path));
+    else return yield* Effect.fail(new InvalidGitStatusError());
   }
   const branch = header(records, 'branch.head');
   const counts = header(records, 'branch.ab');
@@ -64,15 +72,14 @@ export function parseGitStatus(
         }),
     changes,
   };
-}
+});
 
-function decode(output: Buffer): string {
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(output);
-  } catch (cause) {
-    throw new UnsupportedPathEncodingError({ cause });
-  }
-}
+const decode = Effect.fn('Git.decodeStatus')((output: Buffer) =>
+  Effect.try({
+    try: () => new TextDecoder('utf-8', { fatal: true }).decode(output),
+    catch: (cause) => new UnsupportedPathEncodingError({ cause }),
+  }),
+);
 
 function header(records: readonly string[], name: string): string | undefined {
   const prefix = `# ${name} `;
@@ -81,26 +88,31 @@ function header(records: readonly string[], name: string): string | undefined {
     ?.slice(prefix.length);
 }
 
-function headOid(value: string | undefined): string | null {
+const headOid = Effect.fn('Git.statusHeadOid')(function* (
+  value: string | undefined,
+) {
   if (value === '(initial)') return null;
-  if (value === undefined || !isOid(value)) throw new InvalidGitStatusError();
+  if (value === undefined || !isOid(value))
+    return yield* Effect.fail(new InvalidGitStatusError());
   return value;
-}
+});
 
 function pathReader(maxLength: number): PathReader {
-  return (value) => {
+  return Effect.fn('Git.statusPath')(function* (value: string | undefined) {
     if (
       !value ||
       value.startsWith('/') ||
       value.length > maxLength ||
       value.split('/').some((part) => ['', '.', '..'].includes(part))
     )
-      throw new UnsupportedPathEncodingError();
+      return yield* Effect.fail(new UnsupportedPathEncodingError());
     return value;
-  };
+  });
 }
 
-function ordinaryKind(code: string): GitOrdinaryChange['kind'] {
+const ordinaryKind = Effect.fn('Git.statusKind')(function* (
+  code: string,
+): Effect.fn.Return<GitOrdinaryChange['kind'], InvalidGitStatusError> {
   switch (code) {
     case 'A':
       return 'added';
@@ -113,22 +125,22 @@ function ordinaryKind(code: string): GitOrdinaryChange['kind'] {
     case 'T':
       return 'type-changed';
     default:
-      throw new InvalidGitStatusError();
+      return yield* Effect.fail(new InvalidGitStatusError());
   }
-}
+});
 
-function ordinary(
+const ordinary = Effect.fn('Git.statusOrdinary')(function* (
   scope: 'staged' | 'unstaged',
   code: string,
   paths: { current: string; previous: string },
   modes: { old: string; new: string },
   oids: { old: string | null; new: string | null },
   submodule: boolean,
-): GitOrdinaryChange[] {
+): Effect.fn.Return<GitOrdinaryChange[], InvalidGitStatusError> {
   if (code === '.') return [];
-  const kind = ordinaryKind(code);
+  const kind = yield* ordinaryKind(code);
   if (!MODE.test(modes.old) || !MODE.test(modes.new))
-    throw new InvalidGitStatusError();
+    return yield* Effect.fail(new InvalidGitStatusError());
   return [
     {
       scope,
@@ -147,47 +159,58 @@ function ordinary(
       supported: !submodule && modes.old !== '160000' && modes.new !== '160000',
     },
   ];
-}
+});
 
 function presentOid(oid: string | null): string | null {
   return !oid || isNullOid(oid) ? null : oid;
 }
 
-function tracked(
+const tracked = Effect.fn('Git.statusTracked')(function* (
   record: string,
   path: PathReader,
   previous?: string,
-): GitChange[] {
+): Effect.fn.Return<
+  GitChange[],
+  InvalidGitStatusError | UnsupportedPathEncodingError
+> {
   const fields = record.split(' ');
-  const current = path(fields.slice(record.startsWith('2 ') ? 9 : 8).join(' '));
+  const current = yield* path(
+    fields.slice(record.startsWith('2 ') ? 9 : 8).join(' '),
+  );
   const [, xy = '', sub = '', headMode = '', indexMode = '', workMode = ''] =
     fields;
   const headOid = fields[6] ?? '';
   const indexOid = fields[7] ?? '';
-  if (!/^..$/u.test(xy)) throw new InvalidGitStatusError();
+  if (!/^..$/u.test(xy)) return yield* Effect.fail(new InvalidGitStatusError());
   const paths = { current, previous: previous ?? current };
   const submodule = sub.startsWith('S');
   return [
-    ...ordinary(
+    ...(yield* ordinary(
       'staged',
       xy.charAt(0),
       paths,
       { old: headMode, new: indexMode },
       { old: headOid, new: indexOid },
       submodule,
-    ),
-    ...ordinary(
+    )),
+    ...(yield* ordinary(
       'unstaged',
       xy.charAt(1),
       paths,
       { old: indexMode, new: workMode },
       { old: indexOid, new: null },
       submodule,
-    ),
+    )),
   ];
-}
+});
 
-function conflict(record: string, path: PathReader): GitChange {
+const conflict = Effect.fn('Git.statusConflict')(function* (
+  record: string,
+  path: PathReader,
+): Effect.fn.Return<
+  GitChange,
+  InvalidGitStatusError | UnsupportedPathEncodingError
+> {
   const fields = record.split(' ');
   const code = CONFLICT_CODES.find((candidate) => candidate === fields[1]);
   const [, , , first, second, third, work, base, ours, theirs] = fields;
@@ -203,12 +226,19 @@ function conflict(record: string, path: PathReader): GitChange {
     ![first, second, third, work].every((mode) => MODE.test(mode)) ||
     ![base, ours, theirs].every(isOid)
   )
-    throw new InvalidGitStatusError();
+    return yield* Effect.fail(new InvalidGitStatusError());
   return {
     scope: 'unmerged',
-    path: path(fields.slice(10).join(' ')),
+    path: yield* path(fields.slice(10).join(' ')),
     conflict: code,
     modes: [first, second, third, work],
     oids: [base, ours, theirs],
   };
+});
+
+export function parseGitStatus(
+  output: Buffer,
+  limits: GitLimits,
+): GitStatusObservation {
+  return Effect.runSync(parseGitStatusEffect(output, limits));
 }

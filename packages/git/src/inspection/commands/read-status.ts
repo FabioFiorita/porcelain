@@ -1,18 +1,17 @@
+import { Effect } from 'effect';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
-import type { GitStatusObservation } from '../dtos/git-status.ts';
 import { InspectionLimitError } from '../../shared/errors/inspection-limit-error.ts';
-import type { CheckoutSession } from '../interfaces/git-session.ts';
-import { parseGitStatus } from '../parsers/parse-git-status.ts';
+import type { EffectCheckoutSession } from '../interfaces/git-session.ts';
+import { parseGitStatusEffect } from '../parsers/parse-git-status.ts';
 import { sessionConversionFilters } from './check-conversion-filters.ts';
 import { runInspection } from './run-inspection.ts';
 
-export async function readStatus(
-  session: CheckoutSession,
+export const readStatus = Effect.fn('Git.readStatus')(function* (
+  session: EffectCheckoutSession,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<GitStatusObservation> {
-  const config = await sessionConversionFilters(session, limits, signal);
-  const output = await runInspection(
+) {
+  const config = yield* sessionConversionFilters(session, limits);
+  const output = yield* runInspection(
     session.path,
     [
       'status',
@@ -25,11 +24,10 @@ export async function readStatus(
       `--find-renames=${limits.renames.similarityPercent}%`,
     ],
     limits,
-    signal,
     { maxBytes: limits.inspection.statusBytes, config },
   );
-  const status = parseGitStatus(output, limits);
+  const status = yield* parseGitStatusEffect(output, limits);
   if (status.changes.length > limits.inspection.maxChanges)
-    throw new InspectionLimitError();
+    return yield* Effect.fail(new InspectionLimitError());
   return status;
-}
+});
