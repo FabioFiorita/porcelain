@@ -131,10 +131,10 @@ export default [
   })),
 
   ...effectRuleCases,
-  ...['installer', 'adapters/access'].map((folder) => ({
+  ...['installer', 'adapters/access', 'desktop'].map((folder) => ({
     rule: 'spec-imports',
-    path: `apps/server/src/${folder}/records.spec.ts`,
-    valid: `import { capability } from '${folder === 'installer' ? '@effect/platform-node' : 'effect/http'}';${folder === 'installer' ? '' : " import { request } from '@porcelain/server/kit/http';"}`,
+    path: `apps/${folder === 'desktop' ? 'desktop/src/adapters' : `server/src/${folder}`}/records.spec.ts`,
+    valid: `import { capability } from '${folder === 'adapters/access' ? 'effect/http' : '@effect/platform-node'}';${folder === 'adapters/access' ? " import { request } from '@porcelain/server/kit/http';" : ''}`,
     invalid: "import { useQuery } from '@tanstack/react-query';",
     errors: 1,
   })),

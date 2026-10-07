@@ -1,6 +1,12 @@
-import { Schema, Result } from 'effect';
-import { readFileSync } from 'node:fs';
-import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
+import {
+  Cause,
+  Effect,
+  FileSystem,
+  Option,
+  Queue,
+  Deferred,
+  Schema,
+} from 'effect';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import {
@@ -8,65 +14,77 @@ import {
   type DesktopWindowState,
 } from '@porcelain/contracts/desktop';
 
-export class WindowState {
-  private readonly profile: string;
-  private readonly delayMs: number;
-  private latest: DesktopWindowState | undefined;
-  private timer: ReturnType<typeof setTimeout> | undefined;
-  private writing: Promise<void> = Promise.resolve();
+type Save =
+  | { state: DesktopWindowState }
+  | { barrier: Deferred.Deferred<void> };
 
-  constructor(profile: string, delayMs: number) {
-    this.profile = profile;
-    this.delayMs = delayMs;
-  }
-
-  read(): DesktopWindowState | undefined {
-    try {
-      const value: unknown = JSON.parse(
-        readFileSync(join(this.profile, 'window.json'), 'utf8'),
-      );
-      const result = Schema.decodeUnknownResult(desktopWindowStateSchema)(
-        value,
-      );
-      return Result.isSuccess(result) ? result.success : undefined;
-    } catch {
-      return undefined;
+export const openWindowState = Effect.fn('openWindowState')(function* (
+  profile: string,
+  delayMs: number,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const queue = yield* Queue.make<Save>();
+  const destination = join(profile, 'window.json');
+  let latest: DesktopWindowState | undefined;
+  const read = Effect.fn('WindowState.read')(() =>
+    fs.readFileString(destination).pipe(
+      Effect.flatMap(
+        Schema.decodeUnknownEffect(
+          Schema.fromJsonString(desktopWindowStateSchema),
+        ),
+      ),
+      Effect.catch(() => Effect.succeed(undefined)),
+    ),
+  );
+  const write = Effect.fn('WindowState.write')(
+    function* () {
+      const state = latest;
+      latest = undefined;
+      if (state === undefined) return;
+      yield* fs.makeDirectory(profile, { recursive: true });
+      const temporary = `${destination}.${randomUUID()}.tmp`;
+      yield* fs
+        .writeFileString(temporary, JSON.stringify(state))
+        .pipe(
+          Effect.andThen(fs.rename(temporary, destination)),
+          Effect.ensuring(
+            fs.remove(temporary, { force: true }).pipe(Effect.orDie),
+          ),
+        );
+    },
+    Effect.catchCause((cause) =>
+      Effect.sync(() => {
+        const error = Cause.squash(cause);
+        process.stderr.write(
+          `Porcelain: window state not saved: ${error instanceof Error ? error.message : Cause.pretty(cause)}\n`,
+        );
+      }),
+    ),
+  );
+  yield* Effect.gen(function* () {
+    while (true) {
+      const entry = yield* latest === undefined
+        ? Queue.take(queue).pipe(Effect.map(Option.some))
+        : Queue.take(queue).pipe(Effect.timeoutOption(delayMs));
+      if (Option.isNone(entry)) yield* write();
+      else if ('state' in entry.value) latest = entry.value.state;
+      else {
+        yield* write();
+        yield* Deferred.succeed(entry.value.barrier, undefined);
+      }
     }
-  }
-
-  schedule(state: DesktopWindowState): void {
-    this.latest = state;
-    clearTimeout(this.timer);
-    this.timer = setTimeout(() => {
-      void this.flush();
-    }, this.delayMs);
-  }
-
-  flush(): Promise<void> {
-    clearTimeout(this.timer);
-    this.timer = undefined;
-    const state = this.latest;
-    this.latest = undefined;
-    if (state !== undefined)
-      this.writing = this.writing.then(() =>
-        this.write(state).catch((error: unknown) => {
-          process.stderr.write(
-            `Porcelain: window state not saved: ${error instanceof Error ? error.message : 'unknown failure'}\n`,
-          );
-        }),
-      );
-    return this.writing;
-  }
-
-  private async write(state: DesktopWindowState): Promise<void> {
-    await mkdir(this.profile, { recursive: true });
-    const destination = join(this.profile, 'window.json');
-    const temporary = `${destination}.${randomUUID()}.tmp`;
-    try {
-      await writeFile(temporary, JSON.stringify(state));
-      await rename(temporary, destination);
-    } finally {
-      await rm(temporary, { force: true });
-    }
-  }
-}
+  }).pipe(Effect.forkScoped);
+  const schedule = Effect.fn('WindowState.schedule')(
+    (state: DesktopWindowState) =>
+      Queue.offer(queue, { state }).pipe(Effect.asVoid),
+  );
+  const flush = Effect.fn('WindowState.flush')(function* () {
+    const barrier = yield* Deferred.make<void>();
+    yield* Queue.offer(queue, { barrier });
+    yield* Deferred.await(barrier);
+  });
+  yield* Effect.addFinalizer(() =>
+    flush().pipe(Effect.ensuring(Queue.shutdown(queue))),
+  );
+  return { read, schedule, flush };
+});

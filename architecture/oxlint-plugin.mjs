@@ -1318,7 +1318,7 @@ function allowedSpecImport(filename, source) {
     (/\/packages\/(?:git|agents|process)\/src\/.+\.spec\.ts$/.test(path) ||
       storageSpec.test(path) ||
       adapterSpec.test(path) ||
-      /apps\/server\/src\/(?:runtime|use-cases|installer)\/.+\.spec\.ts$/.test(
+      /apps\/(?:server\/src\/(?:runtime|use-cases|installer)\/.+|desktop\/src\/adapters\/[^/]+)\.spec\.ts$/.test(
         path,
       ))
   )

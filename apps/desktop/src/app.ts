@@ -1,4 +1,14 @@
-import { Schema, Result } from 'effect';
+import { NodeServices } from '@effect/platform-node';
+import {
+  Cause,
+  Deferred,
+  Effect,
+  Exit,
+  ManagedRuntime,
+  Schema,
+  Result,
+  Scope,
+} from 'effect';
 import { LiveUpdatesApi } from '@porcelain/contracts/access';
 import { HttpApiClient } from 'effect/http-api';
 import {
@@ -20,14 +30,18 @@ import {
   desktopAppearanceSchema,
   type DesktopAction,
 } from '@porcelain/contracts/desktop';
-import { WindowState } from './adapters/window-state.ts';
-import { EncryptedCredentials } from './adapters/encrypted-credentials.ts';
+import { openWindowState } from './adapters/window-state.ts';
+import {
+  CredentialStorageError,
+  openEncryptedCredentials,
+} from './adapters/encrypted-credentials.ts';
 import { LocalAppUpdate } from './local-app-update.ts';
 import { restoreWindowBounds } from './rules/window-bounds.ts';
 import { registerDesktopScheme, serveDesktop } from './app-protocol.ts';
 import fixPath from 'fix-path';
 import { desktopSettings } from './settings.ts';
 import { startLocalServer } from './server-host.ts';
+import { DesktopError } from './errors/desktop-error.ts';
 import {
   appDocument,
   desktopAddress,
@@ -49,31 +63,17 @@ const settings = desktopSettings(
   app.isPackaged,
 );
 app.setPath('userData', settings.profile);
-let server: Awaited<ReturnType<typeof startLocalServer>> | undefined;
+let server: Effect.Success<ReturnType<typeof startLocalServer>> | undefined;
 let window: BrowserWindow | undefined;
 let quitting = false;
 let closed = false;
 let actionsReady = false;
 let pendingAction: DesktopAction | undefined;
 let stopServing: (() => void) | undefined;
-const savedWindow = new WindowState(
-  settings.profile,
-  settings.limits.desktop.windowStateSaveMs,
-);
-const credentials = new EncryptedCredentials(settings.profile, {
-  available: async () =>
-    (await safeStorage.isAsyncEncryptionAvailable()) &&
-    (process.platform !== 'linux' ||
-      safeStorage.getSelectedStorageBackend() !== 'basic_text'),
-  encrypt: (value) => safeStorage.encryptStringAsync(value),
-  decrypt: async (value) => {
-    const decrypted = await safeStorage.decryptStringAsync(value);
-    return {
-      value: decrypted.result,
-      reEncrypt: decrypted.shouldReEncrypt,
-    };
-  },
-});
+const runtime = ManagedRuntime.make(NodeServices.layer);
+const quit = Deferred.makeUnsafe<void>();
+let savedWindow: Effect.Success<ReturnType<typeof openWindowState>>;
+let credentials: Effect.Success<ReturnType<typeof openEncryptedCredentials>>;
 const appUpdate = new LocalAppUpdate((state) =>
   window?.webContents.send('porcelain:app-update-state', state),
 );
@@ -118,11 +118,24 @@ function windowState(view: BrowserWindow) {
 
 function openExternal(url: string): void {
   if (externalNavigation(url))
-    void shell.openExternal(url).catch((error: unknown) => {
-      process.stderr.write(
-        `Porcelain: could not open ${url}: ${error instanceof Error ? error.message : 'unknown failure'}\n`,
-      );
-    });
+    runtime.runFork(
+      Effect.tryPromise({
+        try: () => shell.openExternal(url),
+        catch: (cause) =>
+          new DesktopError({
+            message: cause instanceof Error ? cause.message : 'unknown failure',
+            cause,
+          }),
+      }).pipe(
+        Effect.catch((error) =>
+          Effect.sync(() => {
+            process.stderr.write(
+              `Porcelain: could not open ${url}: ${error instanceof Error ? error.message : 'unknown failure'}\n`,
+            );
+          }),
+        ),
+      ),
+    );
 }
 
 function failure(error: unknown) {
@@ -137,7 +150,7 @@ function failure(error: unknown) {
   app.quit();
 }
 
-async function openWindow() {
+const openWindow = Effect.fn('openWindow')(function* () {
   const local = server;
   if (local === undefined || quitting) return;
   if (window !== undefined) {
@@ -147,7 +160,7 @@ async function openWindow() {
     return;
   }
   const restored = restoreWindowBounds(
-    savedWindow.read(),
+    yield* savedWindow.read(),
     screen.getAllDisplays().map((display) => display.workArea),
     {
       width: settings.limits.desktop.minWidth,
@@ -187,12 +200,12 @@ async function openWindow() {
   );
   const save = () => {
     if (!quitting && !view.isDestroyed() && !view.isFullScreen())
-      savedWindow.schedule(windowState(view));
+      runtime.runFork(savedWindow.schedule(windowState(view)));
   };
   view.on('close', () => {
     if (!quitting) {
       save();
-      void savedWindow.flush();
+      runtime.runFork(savedWindow.flush());
     }
   });
   view.on('resize', save);
@@ -251,17 +264,25 @@ async function openWindow() {
   view.webContents.on('will-prevent-unload', (event) => {
     if (quitting) event.preventDefault();
   });
-  await view.loadURL(desktopAddress);
-}
+  yield* Effect.tryPromise(() => view.loadURL(desktopAddress));
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 app.on('activate', () => {
-  void openWindow().catch(failure);
+  runtime.runFork(
+    openWindow().pipe(
+      Effect.catch((error) => Effect.sync(() => failure(error))),
+    ),
+  );
 });
 app.on('second-instance', () => {
-  void openWindow().catch(failure);
+  runtime.runFork(
+    openWindow().pipe(
+      Effect.catch((error) => Effect.sync(() => failure(error))),
+    ),
+  );
 });
 app.on('before-quit', (event) => {
   if (closed) return;
@@ -271,78 +292,55 @@ app.on('before-quit', (event) => {
   process.stderr.write('Porcelain: stopping server\n');
   const views = BrowserWindow.getAllWindows();
   for (const view of views) {
-    if (!view.isFullScreen()) savedWindow.schedule(windowState(view));
+    if (!view.isFullScreen() && savedWindow !== undefined)
+      runtime.runFork(savedWindow.schedule(windowState(view)));
   }
-  void (async () => {
-    try {
-      await savedWindow.flush();
-    } finally {
-      await Promise.all(
-        views.map(
-          (view) =>
-            new Promise<void>((resolve) => {
-              if (view.isDestroyed()) {
-                resolve();
-                return;
-              }
-              view.once('closed', resolve);
-              view.close();
-            }),
-        ),
-      );
-      stopServing?.();
-      await server?.close();
-    }
-  })()
-    .catch((error: unknown) => {
-      process.stderr.write(
-        `${error instanceof Error ? error.message : 'Server shutdown failed'}\n`,
-      );
-    })
-    .finally(() => {
-      closed = true;
-      process.stderr.write('Porcelain: server stopped, exiting app\n');
-      app.quit();
-    });
+  Deferred.doneUnsafe(quit, Effect.void);
 });
 
-async function dispatch(action: DesktopAction) {
-  try {
-    await openWindow();
+const dispatch = Effect.fn('dispatch')(
+  function* (action: DesktopAction) {
+    yield* openWindow();
     if (actionsReady) window?.webContents.send('porcelain:action', action);
     else pendingAction = action;
-  } catch (error) {
-    failure(error);
-  }
-}
+  },
+  Effect.catch((error) => Effect.sync(() => failure(error))),
+);
 
-async function start() {
-  await app.whenReady();
-  ipcMain.handle('porcelain:pick-project-folder', async (event) => {
-    authorize(event);
-    const owner = window;
-    if (owner === undefined) throw new Error('The app window is unavailable');
-    const selected = await dialog.showOpenDialog(owner, {
-      title: 'Open project',
-      buttonLabel: 'Open project',
-      defaultPath: settings.projectHome,
-      properties: ['openDirectory'],
-    });
-    return selected.canceled ? null : (selected.filePaths[0] ?? null);
-  });
+const start = Effect.fn('start')(function* () {
+  yield* Effect.tryPromise(() => app.whenReady());
+  ipcMain.handle('porcelain:pick-project-folder', (event) =>
+    runtime.runPromise(
+      Effect.gen(function* () {
+        authorize(event);
+        const owner = window;
+        if (owner === undefined)
+          return yield* Effect.die(new Error('The app window is unavailable'));
+        const selected = yield* Effect.tryPromise(() =>
+          dialog.showOpenDialog(owner, {
+            title: 'Open project',
+            buttonLabel: 'Open project',
+            defaultPath: settings.projectHome,
+            properties: ['openDirectory'],
+          }),
+        );
+        return selected.canceled ? null : (selected.filePaths[0] ?? null);
+      }),
+    ),
+  );
   ipcMain.handle('porcelain:credentials-read', (event) => {
     authorize(event);
-    return credentials.read();
+    return runtime.runPromise(credentials.read());
   });
   ipcMain.handle('porcelain:credentials-write', (event, value: unknown) => {
     authorize(event);
     if (typeof value !== 'string')
       throw new Error('Credentials must be a string');
-    return credentials.write(value);
+    return runtime.runPromise(credentials.write(value));
   });
   ipcMain.handle('porcelain:credentials-clear', (event) => {
     authorize(event);
-    return credentials.clear();
+    return runtime.runPromise(credentials.clear());
   });
   ipcMain.handle('porcelain:app-update-check', (event) => {
     authorize(event);
@@ -369,7 +367,7 @@ async function start() {
             label: 'Settings…',
             accelerator: 'CommandOrControl+,',
             click: () => {
-              void dispatch('open-settings');
+              runtime.runFork(dispatch('open-settings'));
             },
           },
           { type: 'separator' },
@@ -390,7 +388,7 @@ async function start() {
             label: 'Open Project…',
             accelerator: 'CommandOrControl+O',
             click: () => {
-              void dispatch('open-project');
+              runtime.runFork(dispatch('open-project'));
             },
           },
           { type: 'separator' },
@@ -413,8 +411,8 @@ async function start() {
       { role: 'windowMenu' },
     ]),
   );
-  server = await startLocalServer(settings);
-  void server.exited.then(() => {
+  server = yield* startLocalServer(settings);
+  yield* server.watch(() => {
     if (!quitting)
       failure(new Error('The Porcelain server stopped unexpectedly'));
   });
@@ -475,12 +473,116 @@ async function start() {
     }
   });
   nativeTheme.on('updated', updateWindowBackground);
-  await openWindow();
-}
+  yield* openWindow();
+});
 
 if (!app.requestSingleInstanceLock()) {
   closed = true;
   app.quit();
 } else {
-  void start().catch(failure);
+  runtime.runFork(
+    Effect.gen(function* () {
+      savedWindow = yield* openWindowState(
+        settings.profile,
+        settings.limits.desktop.windowStateSaveMs,
+      );
+      credentials = yield* openEncryptedCredentials(settings.profile, {
+        available: () =>
+          Effect.tryPromise({
+            try: () => safeStorage.isAsyncEncryptionAvailable(),
+            catch: (cause) =>
+              new CredentialStorageError({
+                message:
+                  cause instanceof Error
+                    ? cause.message
+                    : 'Encrypted credential storage failed',
+                cause,
+              }),
+          }).pipe(
+            Effect.map(
+              (available) =>
+                available &&
+                (process.platform !== 'linux' ||
+                  safeStorage.getSelectedStorageBackend() !== 'basic_text'),
+            ),
+          ),
+        encrypt: (value) =>
+          Effect.tryPromise({
+            try: () => safeStorage.encryptStringAsync(value),
+            catch: (cause) =>
+              new CredentialStorageError({
+                message:
+                  cause instanceof Error
+                    ? cause.message
+                    : 'Encrypted credential storage failed',
+                cause,
+              }),
+          }),
+        decrypt: (value) =>
+          Effect.tryPromise({
+            try: () => safeStorage.decryptStringAsync(value),
+            catch: (cause) =>
+              new CredentialStorageError({
+                message:
+                  cause instanceof Error
+                    ? cause.message
+                    : 'Encrypted credential storage failed',
+                cause,
+              }),
+          }).pipe(
+            Effect.map((decrypted) => ({
+              value: decrypted.result,
+              reEncrypt: decrypted.shouldReEncrypt,
+            })),
+          ),
+      });
+      const serverScope = yield* Scope.make();
+      yield* Effect.addFinalizer(() =>
+        Effect.gen(function* () {
+          yield* savedWindow.flush();
+          yield* Effect.all(
+            BrowserWindow.getAllWindows().map((view) =>
+              Effect.callback<void>((resume) => {
+                if (view.isDestroyed()) {
+                  resume(Effect.void);
+                  return;
+                }
+                view.once('closed', () => resume(Effect.void));
+                view.close();
+              }),
+            ),
+            { concurrency: 'unbounded' },
+          );
+          stopServing?.();
+          yield* Scope.close(serverScope, Exit.void);
+        }),
+      );
+      yield* start().pipe(
+        Scope.provide(serverScope),
+        Effect.raceFirst(Deferred.await(quit)),
+      );
+      yield* Deferred.await(quit);
+    }).pipe(
+      Effect.scoped,
+      Effect.catchCause((cause) =>
+        Effect.sync(() => {
+          const error = Cause.squash(cause);
+          if (quitting)
+            process.stderr.write(
+              `${error instanceof Error ? error.message : Cause.pretty(cause)}\n`,
+            );
+          else failure(error);
+        }),
+      ),
+      Effect.ensuring(
+        Effect.sync(() => {
+          if (quitting) {
+            closed = true;
+            process.stderr.write('Porcelain: server stopped, exiting app\n');
+            app.quit();
+          }
+        }),
+      ),
+    ),
+  );
 }
