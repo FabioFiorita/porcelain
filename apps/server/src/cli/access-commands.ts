@@ -51,7 +51,11 @@ export const issuePairings = Effect.fn('issuePairings')(function* (
       dataDirectory,
       limits.owner.requestTimeoutMs,
     )).administration.issuePairing({
-      payload: pairing,
+      payload: {
+        labels: pairing.labels,
+        addresses: pairing.addresses,
+        trusted: pairing.trusted,
+      },
     }),
   );
   for (const grant of answer.grants) {
@@ -142,7 +146,7 @@ export const setDeviceTrust = Effect.fn('setDeviceTrust')(function* (
       dataDirectory,
       limits.owner.requestTimeoutMs,
     )).administration.setDeviceTrust({
-      payload: change,
+      payload: { id: change.id, trusted: change.trusted },
     }),
   );
   output.stdout(
