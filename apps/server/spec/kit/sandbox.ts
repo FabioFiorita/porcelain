@@ -359,7 +359,7 @@ function portOption(): number | undefined {
   const port = option('--port');
   return port === undefined ? undefined : Number(port);
 }
-function scratchFolder(): string {
+export function scratchFolder(): string {
   return process.platform === 'darwin' ? '/tmp' : tmpdir();
 }
 async function temporary(prefix: string, scratch: string[]): Promise<string> {
