@@ -1,99 +1,94 @@
-import { Cause, type Duration, Effect, Exit, type Semaphore } from 'effect';
-import { nativeOperation } from '@porcelain/effects';
-import type { DiscoveryResult, GitFactory } from '@porcelain/git/discovery';
+import { type Duration, Effect, Layer, Semaphore } from 'effect';
+import { ChildProcessSpawner } from 'effect/process';
+import { listWorktrees } from '@porcelain/git/discovery';
 import { isRepositoryUnavailable } from '@porcelain/git/errors';
 import type {
   ListableProject,
   ListedWorktree,
   WorktreeListing,
 } from '@porcelain/projects/models';
-import type { WorktreeListingReader } from '@porcelain/projects/ports';
-import type { Logger } from '../../ports/logger.ts';
-import type { SharedReads } from '../../runtime/shared-reads.ts';
+import { WorktreeListingReader } from '@porcelain/projects/ports';
+import type { Limits } from '../../config/limits.ts';
+import { Logger } from '../../ports/logger.ts';
+import { makeSharedReads } from '../../runtime/shared-reads.ts';
 
 type WorktreeListingOptions = {
-  git: GitFactory;
-  sharedReads: Pick<SharedReads<WorktreeListing>, 'run'>;
-  launches: Semaphore.Semaphore;
+  git: Limits['git'];
+  launches: number;
   timeout: Duration.Duration;
   worktreeId: (projectId: string, metadataIdentity: string) => string;
-  logger: Logger;
 };
 
-export class GitWorktreeListingReader implements WorktreeListingReader {
-  private readonly options: WorktreeListingOptions;
-
-  constructor(options: WorktreeListingOptions) {
-    this.options = options;
-  }
-
-  list(input: ListableProject): Effect.Effect<WorktreeListing> {
-    return this.options.sharedReads.run(
-      `worktrees\0${input.id}\0${input.commonDirectory}`,
-      () => this.options.launches.withPermit(this.listNow(input)),
-    );
-  }
-
-  private listNow(project: ListableProject): Effect.Effect<WorktreeListing> {
-    return Effect.gen({ self: this }, function* () {
-      const exit = yield* Effect.exit(
-        nativeOperation((signal) =>
-          this.options.git(project.commonDirectory).listWorktrees(signal),
+export const gitWorktreeListingReaderLayer = (
+  options: WorktreeListingOptions,
+) =>
+  Layer.effect(
+    WorktreeListingReader,
+    Effect.gen(function* () {
+      const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+      const logger = yield* Logger;
+      const sharedReads = yield* makeSharedReads<WorktreeListing>();
+      const launches = yield* Semaphore.make(options.launches);
+      const listNow = Effect.fn('GitWorktreeListingReader.listNow')(function* (
+        project: ListableProject,
+      ): Effect.fn.Return<WorktreeListing> {
+        const repository = yield* listWorktrees(
+          project.commonDirectory,
+          options.git,
         ).pipe(
-          Effect.timeoutOrElse({
-            duration: this.options.timeout,
-            orElse: () =>
-              Effect.die(
-                new DOMException(
-                  'The worktree listing exceeded its deadline',
-                  'TimeoutError',
-                ),
-              ),
-          }),
-        ),
-      );
-      if (Exit.isFailure(exit)) {
-        if (Cause.hasInterruptsOnly(exit.cause))
-          return yield* Effect.failCause(exit.cause);
-        const failure = Cause.squash(exit.cause);
-        if (!isRepositoryUnavailable(failure))
-          this.options.logger.failure({
-            kind: 'worktree-listing',
+          Effect.provideService(
+            ChildProcessSpawner.ChildProcessSpawner,
+            spawner,
+          ),
+          Effect.timeout(options.timeout),
+          Effect.catch((failure) =>
+            Effect.sync(() => {
+              if (!isRepositoryUnavailable(failure))
+                logger.failure({
+                  kind: 'worktree-listing',
+                  projectId: project.id,
+                  error: failure,
+                });
+              return undefined;
+            }),
+          ),
+        );
+        if (!repository) return { kind: 'unavailable', projectId: project.id };
+        const worktrees: ListedWorktree[] = [];
+        let unidentified = 0;
+        for (const worktree of repository.worktrees) {
+          if (!worktree.metadataIdentity) {
+            unidentified += 1;
+            continue;
+          }
+          worktrees.push({
+            id: options.worktreeId(project.id, worktree.metadataIdentity),
             projectId: project.id,
-            error: failure,
+            path: worktree.path,
+            branch: worktree.branch ?? undefined,
+            main: worktree.main,
+            available: worktree.available,
+            metadataIdentity: worktree.metadataIdentity,
+            administrativeDirectory: worktree.administrativeDirectory,
+            commonDirectory: repository.commonDirectory,
+            repositoryIdentity: repository.repositoryIdentity,
+            repositoryId: repository.repositoryIdentity,
           });
-        return { kind: 'unavailable', projectId: project.id };
-      }
-      const discovered: DiscoveryResult = exit.value;
-      const { repository } = discovered;
-      const worktrees: ListedWorktree[] = [];
-      let unidentified = 0;
-      for (const worktree of repository.worktrees) {
-        if (!worktree.metadataIdentity) {
-          unidentified += 1;
-          continue;
         }
-        worktrees.push({
-          id: this.options.worktreeId(project.id, worktree.metadataIdentity),
+        return {
+          kind: 'listed',
           projectId: project.id,
-          path: worktree.path,
-          branch: worktree.branch ?? undefined,
-          main: worktree.main,
-          available: worktree.available,
-          metadataIdentity: worktree.metadataIdentity,
-          administrativeDirectory: worktree.administrativeDirectory,
-          commonDirectory: repository.commonDirectory,
           repositoryIdentity: repository.repositoryIdentity,
-          repositoryId: repository.repositoryIdentity,
-        });
-      }
+          worktrees,
+          unidentified,
+        };
+      });
       return {
-        kind: 'listed',
-        projectId: project.id,
-        repositoryIdentity: repository.repositoryIdentity,
-        worktrees,
-        unidentified,
+        list: (input: ListableProject) =>
+          sharedReads.run(
+            `worktrees\0${input.id}\0${input.commonDirectory}`,
+            () => launches.withPermit(listNow(input)),
+          ),
       };
-    });
-  }
-}
+    }),
+  );

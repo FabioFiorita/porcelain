@@ -1,9 +1,10 @@
-import { GitError } from './git-error.ts';
+import { Schema } from 'effect';
 
-export class UnsupportedRepositoryError extends GitError {
-  override readonly name = 'UnsupportedRepositoryError';
-
-  constructor() {
-    super('Bare repositories are not supported');
+export class UnsupportedRepositoryError extends Schema.TaggedError<UnsupportedRepositoryError>()(
+  'UnsupportedRepositoryError',
+  {},
+) {
+  override get message() {
+    return 'Bare repositories are not supported';
   }
 }

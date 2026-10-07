@@ -18,7 +18,7 @@ import {
   ReadTextFilesOptions,
   ReadBinaryFilesOptions,
 } from '@porcelain/files/ports';
-import { Effect, Layer, Semaphore, Clock } from 'effect';
+import { Effect, Layer, Clock } from 'effect';
 import {
   EnvironmentIdentityReader,
   EnvironmentNameStore,
@@ -40,11 +40,6 @@ import {
   ActionsGit,
   type GitActionWriterFactory,
 } from '@porcelain/git/actions';
-import {
-  DiscoveryGit,
-  type GitFactory,
-  type readGitVersion,
-} from '@porcelain/git/discovery';
 import { HistoryGit, type CommitReaderFactory } from '@porcelain/git/history';
 import {
   InspectionGit,
@@ -85,11 +80,7 @@ import {
 import { filesystemFileReaderLayer } from '../adapters/files/filesystem-file-reader.ts';
 import { gitHeadTextReaderLayer } from '../adapters/files/git-head-text-reader.ts';
 import { GitWorktreeAccessReader } from '../adapters/projects/git-worktree-access-reader.ts';
-import { GitWorktreeListingReader } from '../adapters/projects/git-worktree-listing-reader.ts';
-import { type WorktreeListing } from '@porcelain/projects/models';
 import { type ServerSettings } from '../config/server-settings.ts';
-import { type Logger } from '../ports/logger.ts';
-import { makeSharedReads } from '../runtime/shared-reads.ts';
 import { ReadReviewEvidenceUseCase } from '../use-cases/reviews/read-review-evidence.ts';
 import { type Stores } from './compose-stores.ts';
 
@@ -99,33 +90,20 @@ type SharedDependencies = {
   settings: ServerSettings;
   stores: Stores;
   catalog: WorktreeCatalogStore;
-  gitVersion: Awaited<ReturnType<typeof readGitVersion>>;
-  worktreeId: (projectId: string, metadataIdentity: string) => string;
+  gitVersion: Buffer;
   clock: Clock.Clock;
-  logger: Logger;
 };
 
 export function composeShared(dependencies: SharedDependencies) {
   return Effect.gen(function* () {
     const { stores, catalog, gitVersion } = dependencies;
     const { limits } = dependencies.settings;
-    const git: GitFactory = (checkout) =>
-      new DiscoveryGit(checkout, limits.git);
     const actionGit: GitActionWriterFactory = (checkout) =>
       new ActionsGit(checkout, limits.git);
     const commitGit: CommitReaderFactory = (checkout) =>
       new HistoryGit(checkout, gitVersion, limits.git);
     const inspection: InspectionFactory = (checkout) =>
       new InspectionGit(checkout, limits.git);
-    const inventoryReads = yield* makeSharedReads<WorktreeListing>();
-    const worktreeListing = new GitWorktreeListingReader({
-      git,
-      sharedReads: inventoryReads,
-      launches: yield* Semaphore.make(limits.inventory.listingLaunches),
-      timeout: limits.inventory.listingTimeout,
-      worktreeId: dependencies.worktreeId,
-      logger: dependencies.logger,
-    });
     const worktreeAccess = new GitWorktreeAccessReader(catalog);
     const staleness = { staleAfterMs: limits.inventory.staleAfterMs };
     const gitSessions = gitSessionPerSignal(limits.git);
@@ -209,11 +187,9 @@ export function composeShared(dependencies: SharedDependencies) {
     const runtime = yield* Layer.build(operations);
     return yield* Effect.gen(function* () {
       return {
-        git,
         actionGit,
         commitGit,
         catalog,
-        worktreeListing,
         worktreeAccess,
         gitSessions,
         openInspection,

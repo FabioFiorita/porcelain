@@ -17,7 +17,6 @@ import { storageLayer } from '@porcelain/storage';
 import { NodeServices } from '@effect/platform-node';
 import { cachedDeviceStoreLayer } from '../adapters/access/cached-device-store.ts';
 import { cachedRemoteAccessStoreLayer } from '../adapters/access/cached-remote-access-store.ts';
-import { nativeOperation } from '@porcelain/effects';
 import { releaseInOrder } from '../runtime/release-in-order.ts';
 import {
   ServerComponents,
@@ -97,7 +96,7 @@ type RemoteRouteAdapters = {
 class ServerFoundation extends Context.Service<
   ServerFoundation,
   {
-    readonly gitVersion: Awaited<ReturnType<typeof readGitVersion>>;
+    readonly gitVersion: Buffer;
   }
 >()('@porcelain/server/ServerFoundation') {}
 
@@ -112,12 +111,10 @@ function serverResources(
       yield* Effect.addFinalizer(() => host.serviceUpdateRunner.close());
       const { settings } = input;
       const { limits } = settings;
-      const gitVersion = yield* nativeOperation((signal) =>
-        readGitVersion(limits.git, signal),
-      );
+      const gitVersion = yield* readGitVersion(limits.git).pipe(Effect.orDie);
       return { gitVersion };
     }),
-  );
+  ).pipe(Layer.provide(NodeServices.layer));
   const persistence = Layer.mergeAll(
     cachedDeviceStoreLayer,
     cachedRemoteAccessStoreLayer,
@@ -194,9 +191,7 @@ function serverResources(
           stores,
           catalog,
           gitVersion,
-          worktreeId,
           clock,
-          logger,
         });
         const context: ComposeContext = {
           lanes,
@@ -238,6 +233,7 @@ function serverResources(
         const projects = yield* composeProjects(context, {
           stores,
           shared,
+          worktreeId,
           projectFolderReader: Context.get(
             filesystemContext,
             ProjectFolderReader,
