@@ -1,4 +1,3 @@
-export { nativeOperation } from './native-operation.ts';
 export {
   WorktreeRead,
   WorktreeWrite,

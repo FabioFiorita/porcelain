@@ -1,6 +1,5 @@
 import { Deferred, Duration, Effect, Fiber, ManagedRuntime } from 'effect';
 import { TestClock } from 'effect/testing';
-import { nativeOperation } from '@porcelain/effects';
 import { ContentChangedError } from '@porcelain/files/errors';
 import { afterEach, describe, expect } from 'vitest';
 import { it } from '@effect/vitest';
@@ -61,11 +60,9 @@ describe('portable file draft', () => {
       'version-1',
       (text, fingerprint) => {
         writes.push({ text, fingerprint });
-        return nativeOperation(() =>
-          writes.length === 1
-            ? firstWrite.promise
-            : Promise.resolve('version-3'),
-        );
+        return writes.length === 1
+          ? Effect.promise(() => firstWrite.promise)
+          : Effect.succeed('version-3');
       },
       () => false,
     );
@@ -355,27 +352,30 @@ it.effect('keeps an admitted save alive when one caller cancels its wait', () =>
 );
 
 it('drains an aborted foreign write before disposal returns and removes its retained entry', async () => {
-  const entered = Promise.withResolvers<AbortSignal>();
-  const aborted = Promise.withResolvers<void>();
-  const drained = Promise.withResolvers<string>();
+  const entered = Deferred.makeUnsafe<void>();
+  const aborted = Deferred.makeUnsafe<void>();
+  const drained = Deferred.makeUnsafe<string>();
   const { draft, application } = fixture('original', 'v1', () =>
-    nativeOperation((signal) => {
-      signal.addEventListener('abort', () => aborted.resolve(), { once: true });
-      entered.resolve(signal);
-      return drained.promise;
-    }),
+    Deferred.succeed(entered, undefined).pipe(
+      Effect.andThen(Deferred.await(drained)),
+      Effect.onInterrupt(() =>
+        Deferred.succeed(aborted, undefined).pipe(
+          Effect.andThen(Deferred.await(drained)),
+          Effect.asVoid,
+        ),
+      ),
+    ),
   );
   await Effect.runPromise(draft.change('unsaved'));
   const saving = Effect.runPromise(draft.save()).catch(() => false);
-  const signal = await entered.promise;
+  await Effect.runPromise(Deferred.await(entered));
   let disposed = false;
   const disposing = Effect.runPromise(draft.dispose()).then(() => {
     disposed = true;
   });
-  await aborted.promise;
-  expect(signal.aborted).toBe(true);
+  await Effect.runPromise(Deferred.await(aborted));
   expect(disposed).toBe(false);
-  drained.resolve('v2');
+  await Effect.runPromise(Deferred.succeed(drained, 'v2'));
   await disposing;
   await saving;
   expect(draft.state.value.saving).toBe(false);
