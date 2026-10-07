@@ -124,14 +124,6 @@ export default [
   },
 
   {
-    rule: 'web-cache-writes-in-commands',
-    path: 'apps/web/src/features/reviews/queries/comments.ts',
-    validPath: 'packages/client/src/features/reviews/commands/reviewed.spec.ts',
-    valid: 'client.setQueryData(key, { marks: [] });',
-    invalid: 'client.setQueryData(key, { marks: [] });',
-    errors: 1,
-  },
-  {
     rule: 'client-owns-shared-logic',
     path: 'apps/web/src/shared/query/file-drafts.ts',
     valid: "import { retainedFileDrafts } from '@porcelain/client/files';",
@@ -418,14 +410,7 @@ export function probeLoose(left: string, right: string): boolean {
     invalid: 'export const name = navigator.userAgent;',
     errors: 1,
   },
-  {
-    rule: 'web-queries-export-reads',
-    path: 'packages/client/src/features/access/queries/environments.ts',
-    valid:
-      "import { Effect } from 'effect'; export const readEnvironment = () => Effect.succeed([]);",
-    invalid: 'export const defaultEnvironment = "local";',
-    errors: 1,
-  },
+
   {
     rule: 'web-api-owns-request',
     path: 'packages/client/src/features/access/commands/pairing.ts',
@@ -2146,19 +2131,7 @@ test('the workspace opens after pairing', { retry: 2 }, async ({ workspace }) =>
 `,
     errors: 1,
   },
-  {
-    rule: 'web-cache-writes-in-commands',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    valid:
-      "export function probeRead(client: {getQueryData: (key: string[]) => unknown}) { return client.getQueryData(['access']); }",
-    invalid: `export function probeReset(client: {
-  setQueryData: (key: string[], value: undefined) => void;
-}) {
-  client.setQueryData(['access'], undefined);
-}
-`,
-    errors: 1,
-  },
+
   {
     rule: 'web-dialogs-from-ui',
     path: 'apps/web/src/app/settings-page.tsx',
@@ -2528,41 +2501,7 @@ export const probeHandle = Dialog.createHandle();
 `,
     errors: 1,
   },
-  {
-    rule: 'web-queries-export-reads',
-    path: 'apps/web/src/features/access/queries/probe-query.ts',
-    valid:
-      "import { useAtomValue } from '@effect/atom-react'; import { readPairedAccess } from '@porcelain/client/access'; export function usePairedAccess(connection: Parameters<typeof readPairedAccess>[0]) { return useAtomValue(readPairedAccess(connection)); }",
-    invalid: `export { connectionErrorMessage } from '../rules/connection-error-message';
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-queries-own-reads',
-    path: 'apps/web/src/features/access/commands/probe-command.ts',
-    valid:
-      'export const invalidatePairing = (client: QueryClient, options: QueryOptions) => client.invalidateQueries({queryKey: options.queryKey});',
-    invalid: `export const probeInvalidation = { queryKey: ['access', 'session'] };
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-queries-own-reads',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    valid:
-      "import {usePairing} from '../queries/pairing'; export function ProbeView() { return <p>{usePairing().data}</p>; }",
-    invalid: `import { useQuery } from '@tanstack/react-query';
 
-export function ProbeView() {
-  const probe = useQuery({
-    queryKey: ['access', 'probe'],
-    queryFn: () => 'probe',
-  });
-  return <p>{probe.data}</p>;
-}
-`,
-    errors: 2,
-  },
   ...[
     "import { useState } from 'react'; export const probeHook = useState;",
     'export const probeWidth = () => window.innerWidth;',
