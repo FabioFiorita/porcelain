@@ -1,49 +1,60 @@
 import { apiErrorSchema } from '@porcelain/contracts/shared';
-import { Cause, Effect, Exit, Result, Schema } from 'effect';
+import {
+  Cause,
+  Effect,
+  Exit,
+  Layer,
+  Result,
+  Schema,
+  type Context,
+} from 'effect';
 import {
   HttpClient,
   HttpClientError,
-  HttpClientResponse,
+  FetchHttpClient,
   HttpClientRequest,
 } from 'effect/http';
 import { ConnectionError } from './connection-error.ts';
 import { RequestError } from './request-error.ts';
+import type { WorktreeConnection } from './connection.ts';
 import type { Transport } from './transport.ts';
 import { withSignal } from '@porcelain/effects';
 
-function bodyOf(request: HttpClientRequest.HttpClientRequest): RequestInit {
-  return request.body._tag === 'Uint8Array'
-    ? { body: new Uint8Array(request.body.body) }
-    : {};
-}
-
-export function transportClient(transport: Transport) {
-  const sent = HttpClient.make((request, url, signal) =>
-    Effect.map(
-      Effect.tryPromise({
-        try: () =>
-          transport(`${url.pathname}${url.search}`, {
-            method: request.method,
-            headers: request.headers,
-            ...bodyOf(request),
-            signal,
-            redirect: 'error',
-            cache: 'no-store',
-          }),
-        catch: (cause) =>
-          new HttpClientError.HttpClientError({
-            reason: new HttpClientError.TransportError({ request, cause }),
-          }),
-      }),
-      (response) => HttpClientResponse.fromWeb(request, response),
+export function transportLayer(transport: Transport) {
+  const send: Context.Service.Shape<typeof FetchHttpClient.Fetch> = (
+    url,
+    init,
+  ) =>
+    url instanceof URL
+      ? transport(`${url.pathname}${url.search}`, init)
+      : Promise.reject(
+          new TypeError('FetchHttpClient sends every request as a parsed URL.'),
+        );
+  return Layer.effect(
+    HttpClient.HttpClient,
+    Effect.map(HttpClient.HttpClient, (client) =>
+      client.pipe(
+        HttpClient.mapRequest(
+          HttpClientRequest.prependUrl('http://porcelain.invalid'),
+        ),
+        HttpClient.transformResponse(
+          Effect.provideService(HttpClient.TracerPropagationEnabled, false),
+        ),
+      ),
     ),
-  );
-  return sent.pipe(
-    HttpClient.mapRequest(
-      HttpClientRequest.prependUrl('http://porcelain.invalid'),
-    ),
-    HttpClient.transformResponse(
-      Effect.provideService(HttpClient.TracerPropagationEnabled, false),
+  ).pipe(
+    Layer.provide(
+      Layer.fresh(FetchHttpClient.layer).pipe(
+        Layer.provide(
+          Layer.merge(
+            Layer.succeed(FetchHttpClient.Fetch, send),
+            Layer.succeed(FetchHttpClient.RequestInit, {
+              redirect: 'error',
+              cache: 'no-store',
+            }),
+          ),
+        ),
+      ),
     ),
   );
 }
@@ -75,18 +86,24 @@ function unansweredRequest(
   );
 }
 
-export function requestEffect<A, E, R>(
+export function mapRequestErrors<A, E, R>(
   request: Effect.Effect<A, E, R>,
-  signal?: AbortSignal,
 ): Effect.Effect<A, E | ConnectionError | RequestError, R> {
-  const checked = Effect.catch(
+  return Effect.catch(
     request,
     (error): Effect.Effect<never, E | ConnectionError | RequestError> =>
       HttpClientError.isHttpClientError(error)
         ? Effect.flatMap(unansweredRequest(error), Effect.fail)
         : Effect.fail(error),
   );
-  return signal ? withSignal(checked, signal) : checked;
+}
+
+export function requestEffect<A, E, R>(
+  request: Effect.Effect<A, E, R>,
+  lifetime: WorktreeConnection['request'],
+): Effect.Effect<A, E | ConnectionError | RequestError, R> {
+  const checked = mapRequestErrors(request);
+  return Effect.suspend(() => withSignal(checked, lifetime().signal));
 }
 
 async function settleRequest<A, E>(
@@ -105,6 +122,6 @@ export function runRequest<A, E>(
   signal: AbortSignal,
 ): Promise<A> {
   return settleRequest(signal, () =>
-    Effect.runPromiseExit(requestEffect(request), { signal }),
+    Effect.runPromiseExit(mapRequestErrors(request), { signal }),
   );
 }

@@ -18,8 +18,8 @@ import { clientRuntime } from '../../../shared/api/runtime.ts';
 import type { PublishReviewRequest } from '@porcelain/contracts/reviews';
 export const probePublishRead = Atom.family(({ connection, worktreeId, body }: { connection: RuntimeConnection; worktreeId: string; body: PublishReviewRequest }) =>
   clientRuntime(connection).atom(Effect.gen(function* () {
-    const api = yield* porcelainClient(connection);
-    return yield* api.reviews.publishReview({ params: { worktreeId }, payload: body });
+    const client = yield* porcelainClient(connection);
+    return yield* client.request((api) => api.reviews.publishReview({ params: { worktreeId }, payload: body }));
   }))
 );
 `,

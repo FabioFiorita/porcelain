@@ -6,7 +6,6 @@ import type {
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
 import { worktreeRead } from '../../../shared/api/worktree-read.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { Effect } from 'effect';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import {
@@ -37,26 +36,28 @@ export const readTextFile = Atom.family(
       scope,
       ['text', path],
       Effect.gen(function* () {
-        const api = yield* porcelainClient(connection);
-        return yield* requestEffect(
-          api.files.readTextFile({
-            params: { worktreeId: scope.worktreeId },
-            query: { path },
-          }),
-        ).pipe(
-          Effect.tap((answer) =>
-            currentAnswerEffect(
-              connection.request().signal,
-              answer.worktreeId === scope.worktreeId && answer.path === path,
+        const client = yield* porcelainClient(connection);
+        return yield* client
+          .request((api) =>
+            api.files.readTextFile({
+              params: { worktreeId: scope.worktreeId },
+              query: { path },
+            }),
+          )
+          .pipe(
+            Effect.tap((answer) =>
+              currentAnswerEffect(
+                connection.request().signal,
+                answer.worktreeId === scope.worktreeId && answer.path === path,
+              ),
             ),
-          ),
-          Effect.catch((error) => {
-            const reason = unreadableFileReason(error);
-            return reason
-              ? Effect.succeed({ kind: 'unreadable' as const, reason })
-              : Effect.fail(error);
-          }),
-        );
+            Effect.catch((error) => {
+              const reason = unreadableFileReason(error);
+              return reason
+                ? Effect.succeed({ kind: 'unreadable' as const, reason })
+                : Effect.fail(error);
+            }),
+          );
       }),
       clientRuntime(connection),
       [path],

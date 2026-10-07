@@ -1,7 +1,10 @@
 import type { ListCommentThreadsResponse } from '@porcelain/contracts/reviews';
 import { Context, Effect, Layer, Option } from 'effect';
 import { Atom } from 'effect/reactivity';
-import { porcelainClient } from '../../../shared/api/client.ts';
+import {
+  porcelainClient,
+  type PorcelainApi,
+} from '../../../shared/api/client.ts';
 import {
   confirmedResource,
   type ConfirmedResource,
@@ -10,20 +13,13 @@ import type {
   RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import type { RequestError } from '../../../shared/api/request-error.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 
 type CommentsFailure =
-  | Effect.Error<
-      ReturnType<
-        Context.Service.Shape<
-          ReturnType<typeof porcelainClient>
-        >['reviews']['listCommentThreads']
-      >
-    >
+  | Effect.Error<ReturnType<PorcelainApi['reviews']['listCommentThreads']>>
   | RequestError;
 
 export class CommentThreadsState extends Context.Service<
@@ -34,14 +30,14 @@ export class CommentThreadsState extends Context.Service<
     return Layer.effect(
       CommentThreadsState,
       Effect.gen(function* () {
-        const api = yield* porcelainClient(connection);
+        const client = yield* porcelainClient(connection);
         return yield* confirmedResource(
           connection,
           queryKeys.reviewSurface(connection.environmentId, scope, [
             'comments',
           ]),
           Effect.gen(function* () {
-            const threads = yield* requestEffect(
+            const threads = yield* client.request((api) =>
               api.reviews.listCommentThreads({
                 params: { worktreeId: scope.worktreeId },
               }),

@@ -7,7 +7,6 @@ import type {
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { LayerMarksState, layerMarksRuntime } from '../store/layer-marks.ts';
 
 export const toggleLayerMark = Atom.family(
@@ -24,11 +23,11 @@ export const toggleLayerMark = Atom.family(
         fingerprint: string;
         reviewed: boolean;
       }) {
-        const api = yield* porcelainClient(connection);
+        const client = yield* porcelainClient(connection);
         const marks = yield* LayerMarksState;
         const answer = yield* marks.confirm(
           Effect.gen(function* () {
-            const result = yield* requestEffect(
+            const result = yield* client.request((api) =>
               input.reviewed
                 ? api.reviews.removeReviewedLayer({
                     params: { worktreeId: scope.worktreeId },

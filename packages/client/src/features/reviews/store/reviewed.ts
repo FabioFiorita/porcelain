@@ -11,7 +11,10 @@ import {
 import { Atom, AsyncResult } from 'effect/reactivity';
 import type { ConnectionError } from '../../../shared/api/connection-error.ts';
 import type { WriteNotSentError } from '../../../shared/api/write-queue.ts';
-import { porcelainClient } from '../../../shared/api/client.ts';
+import {
+  porcelainClient,
+  type PorcelainApi,
+} from '../../../shared/api/client.ts';
 import {
   confirmedResource,
   type ConfirmedResource,
@@ -21,7 +24,6 @@ import type {
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
 import type { RequestError } from '../../../shared/api/request-error.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
@@ -35,13 +37,7 @@ import {
 } from '../rules/reviewed.ts';
 
 type ReviewedFailure =
-  | Effect.Error<
-      ReturnType<
-        Context.Service.Shape<
-          ReturnType<typeof porcelainClient>
-        >['reviews']['listReviewedFiles']
-      >
-    >
+  | Effect.Error<ReturnType<PorcelainApi['reviews']['listReviewedFiles']>>
   | RequestError;
 type ReviewedResource = ConfirmedResource<
   ListReviewedFilesResponse,
@@ -66,7 +62,7 @@ export class ReviewedFilesState extends Context.Service<
     return Layer.effect(
       ReviewedFilesState,
       Effect.gen(function* () {
-        const api = yield* porcelainClient(connection);
+        const client = yield* porcelainClient(connection);
         const pending = yield* SubscriptionRef.make<readonly ReviewedIntent[]>(
           [],
         );
@@ -75,7 +71,7 @@ export class ReviewedFilesState extends Context.Service<
           connection,
           queryKeys.reviewSurface(connection.environmentId, scope, surface),
           Effect.gen(function* () {
-            const answer = yield* requestEffect(
+            const answer = yield* client.request((api) =>
               api.reviews.listReviewedFiles({
                 params: { worktreeId: scope.worktreeId },
                 query:

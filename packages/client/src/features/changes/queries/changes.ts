@@ -7,15 +7,14 @@ import type {
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { worktreeRead } from '../../../shared/api/worktree-read.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 
 type Selection = { connection: RuntimeConnection; scope: WorktreeScope };
 
 export const readChangesSnapshot = Effect.fn('Changes.readSnapshot')(
   function* ({ connection, scope }: Selection) {
-    const api = yield* porcelainClient(connection);
-    const answer = yield* requestEffect(
+    const client = yield* porcelainClient(connection);
+    const answer = yield* client.request((api) =>
       api.changes.readChanges({ params: { worktreeId: scope.worktreeId } }),
     );
     yield* currentAnswerEffect(
@@ -39,8 +38,8 @@ export const readChanges = Atom.family((selection: Selection) =>
 
 export const readGitStatusSnapshot = Effect.fn('Changes.readGitStatusSnapshot')(
   function* ({ connection, scope }: Selection) {
-    const api = yield* porcelainClient(connection);
-    const answer = yield* requestEffect(
+    const client = yield* porcelainClient(connection);
+    const answer = yield* client.request((api) =>
       api.changes.readGitStatus({ params: { worktreeId: scope.worktreeId } }),
     );
     yield* currentAnswerEffect(

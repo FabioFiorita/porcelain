@@ -5,7 +5,6 @@ import type {
   RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
 import type { PreviewAssetFailure } from '../ports/html-preview-platform.ts';
@@ -28,14 +27,14 @@ export const readPreviewAssets = Atom.family(
       static readonly layer = Layer.effect(
         PreviewAssets,
         Effect.gen(function* () {
-          const api = yield* porcelainClient(connection);
+          const client = yield* porcelainClient(connection);
           return {
             read: Effect.fn('PreviewAssets.read')(function* (
               scope: WorktreeScope,
               document: string,
               paths: readonly string[],
             ) {
-              const response = yield* requestEffect(
+              const response = yield* client.request((api) =>
                 api.files.readPreviewAssets({
                   params: { worktreeId: scope.worktreeId },
                   payload: { document, paths: [...paths] },

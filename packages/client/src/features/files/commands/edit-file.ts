@@ -12,7 +12,6 @@ import type {
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { noticeReadKeys } from '../../live/commands/cache-updates.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { FileDrafts, fileDraftsRuntime } from '../store.ts';
@@ -30,7 +29,7 @@ class FileEdits extends Context.Service<
     return Layer.effect(
       FileEdits,
       Effect.gen(function* () {
-        const api = yield* porcelainClient(connection);
+        const client = yield* porcelainClient(connection);
         const drafts = yield* FileDrafts;
         const reactivity = yield* Reactivity.Reactivity;
         const execute = Effect.fn('Files.edit')(function* (
@@ -81,21 +80,37 @@ class FileEdits extends Context.Service<
                           }),
                         );
                     const params = { worktreeId: scope.worktreeId };
-                    const request = (() => {
-                      switch (input.kind) {
-                        case 'write':
-                          return api.files.editFile({ params, payload: input });
-                        case 'create':
-                          return api.files.editFile({ params, payload: input });
-                        case 'move':
-                          return api.files.editFile({ params, payload: input });
-                        case 'copy':
-                          return api.files.editFile({ params, payload: input });
-                        case 'trash':
-                          return api.files.editFile({ params, payload: input });
-                      }
-                    })();
-                    const edited = yield* restore(requestEffect(request));
+                    const edited = yield* restore(
+                      client.request((api) => {
+                        switch (input.kind) {
+                          case 'write':
+                            return api.files.editFile({
+                              params,
+                              payload: input,
+                            });
+                          case 'create':
+                            return api.files.editFile({
+                              params,
+                              payload: input,
+                            });
+                          case 'move':
+                            return api.files.editFile({
+                              params,
+                              payload: input,
+                            });
+                          case 'copy':
+                            return api.files.editFile({
+                              params,
+                              payload: input,
+                            });
+                          case 'trash':
+                            return api.files.editFile({
+                              params,
+                              payload: input,
+                            });
+                        }
+                      }, signal),
+                    );
                     yield* currentAnswerEffect(
                       signal,
                       edited.path ===

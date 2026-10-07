@@ -8,7 +8,6 @@ import type {
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { worktreeRead } from '../../../shared/api/worktree-read.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { worktreeResource } from '../../../shared/api/worktree-read.ts';
 import { LayerMarksState, layerMarksRuntime } from '../store/layer-marks.ts';
@@ -26,8 +25,8 @@ export const readPublishedReview = Atom.family(
       scope,
       ['review'],
       Effect.gen(function* () {
-        const api = yield* porcelainClient(connection);
-        const { review } = yield* requestEffect(
+        const client = yield* porcelainClient(connection);
+        const { review } = yield* client.request((api) =>
           api.reviews.readPublishedReview({
             params: { worktreeId: scope.worktreeId },
           }),
@@ -63,8 +62,8 @@ export const readProofFile = Atom.family(
       scope,
       ['proof', proofId],
       Effect.gen(function* () {
-        const api = yield* porcelainClient(connection);
-        const file = yield* requestEffect(
+        const client = yield* porcelainClient(connection);
+        const file = yield* client.request((api) =>
           api.reviews.readProofFile({
             params: { worktreeId: scope.worktreeId },
             query: { proofId },

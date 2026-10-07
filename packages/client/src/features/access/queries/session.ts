@@ -3,7 +3,7 @@ import { Atom } from 'effect/reactivity';
 import type { Transport } from '../../../shared/api/transport.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { RequestError } from '../../../shared/api/request-error.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
+import { mapRequestErrors } from '../../../shared/api/effect-client.ts';
 import {
   BootstrapClient,
   bootstrapRuntime,
@@ -13,8 +13,8 @@ import type { BrowserSession } from '../rules/browser-session.ts';
 const restore = Effect.fn('BrowserSession.restore')(
   function* () {
     const api = yield* BootstrapClient;
-    const principal = yield* requestEffect(api.session.readSession());
-    const inventory = yield* requestEffect(api.projects.readInventory());
+    const principal = yield* mapRequestErrors(api.session.readSession());
+    const inventory = yield* mapRequestErrors(api.projects.readInventory());
     return { principal, inventory } satisfies BrowserSession;
   },
   Effect.catch((error) =>

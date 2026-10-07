@@ -15,7 +15,7 @@ import { issuedLink } from '../rules/share.ts';
 
 function makeAccessCommands(connection: RuntimeConnection) {
   return Effect.gen(function* () {
-    const api = yield* porcelainClient(connection);
+    const client = yield* porcelainClient(connection);
     const queues = yield* WriteQueues;
     const snapshots = yield* AccessSnapshots;
     const registry = yield* AtomRegistry.AtomRegistry;
@@ -88,28 +88,34 @@ function makeAccessCommands(connection: RuntimeConnection) {
       }) =>
         run(
           'paired-access',
-          api.administration
-            .issuePairing({
-              payload: {
-                labels: [input.label],
-                addresses: input.addresses,
-                ...(input.trusted ? { trusted: true } : {}),
-              },
-            })
+          client
+            .request((api) =>
+              api.administration.issuePairing({
+                payload: {
+                  labels: [input.label],
+                  addresses: input.addresses,
+                  ...(input.trusted ? { trusted: true } : {}),
+                },
+              }),
+            )
             .pipe(Effect.tap(() => refresh(readPairedAccess(connection)))),
         ),
       revoke: (id: string) =>
         run(
           'paired-access',
-          api.administration
-            .revokeAccess({ payload: { id } })
+          client
+            .request((api) =>
+              api.administration.revokeAccess({ payload: { id } }),
+            )
             .pipe(Effect.ensuring(refresh(readPairedAccess(connection)))),
         ),
       trust: (input: { id: string; trusted: boolean }) =>
         run(
           'paired-access',
-          api.administration
-            .setDeviceTrust({ payload: input })
+          client
+            .request((api) =>
+              api.administration.setDeviceTrust({ payload: input }),
+            )
             .pipe(Effect.ensuring(refresh(readPairedAccess(connection)))),
         ),
       setRemote: (change: SetRemoteAccessRequest) =>
@@ -118,8 +124,10 @@ function makeAccessCommands(connection: RuntimeConnection) {
           confirm(
             readRemoteAccess(connection),
             snapshots.remote,
-            api.administration
-              .setRemoteAccess({ payload: change })
+            client
+              .request((api) =>
+                api.administration.setRemoteAccess({ payload: change }),
+              )
               .pipe(
                 Effect.tap(() =>
                   currentAnswerEffect(connection.request().signal),
@@ -133,8 +141,10 @@ function makeAccessCommands(connection: RuntimeConnection) {
           confirm(
             readServiceUpdate(connection),
             snapshots.update,
-            api.serviceUpdates
-              .startServiceUpdate({ payload: { version } })
+            client
+              .request((api) =>
+                api.serviceUpdates.startServiceUpdate({ payload: { version } }),
+              )
               .pipe(
                 Effect.tap(() =>
                   currentAnswerEffect(connection.request().signal),

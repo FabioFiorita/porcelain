@@ -5,7 +5,7 @@ import {
   REMOTE_STATUS_REFRESH_MS,
   REMOTE_STATUS_TIMEOUT_MS,
 } from '../../../config/limits.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
+import { mapRequestErrors } from '../../../shared/api/effect-client.ts';
 import { RequestError } from '../../../shared/api/request-error.ts';
 import {
   remoteTransport,
@@ -25,14 +25,14 @@ export function readRemoteEnvironment(
 ): Effect.Effect<RemoteAnswer> {
   return Effect.gen(function* () {
     const api = yield* BootstrapClient;
-    const environment = yield* requestEffect(
+    const environment = yield* mapRequestErrors(
       api.publicAccess.readEnvironment(),
     );
     if (
       environment.environmentId === environmentId &&
       environment.protocol === ENVIRONMENT_PROTOCOL
     )
-      yield* requestEffect(api.session.readSession());
+      yield* mapRequestErrors(api.session.readSession());
     return { kind: 'described' as const, environment };
   }).pipe(
     Effect.provide(BootstrapClient.layer(transport)),
