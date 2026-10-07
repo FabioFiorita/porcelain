@@ -134,7 +134,7 @@ export default [
   ...['installer', 'adapters/access'].map((folder) => ({
     rule: 'spec-imports',
     path: `apps/server/src/${folder}/records.spec.ts`,
-    valid: `import { capability } from '${folder === 'installer' ? '@effect/platform-node' : 'effect/http'}';`,
+    valid: `import { capability } from '${folder === 'installer' ? '@effect/platform-node' : 'effect/http'}';${folder === 'installer' ? '' : " import { request } from '@porcelain/server/kit/http';"}`,
     invalid: "import { useQuery } from '@tanstack/react-query';",
     errors: 1,
   })),
