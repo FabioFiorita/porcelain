@@ -13,11 +13,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  checks:
+  affected:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
+      server: ${{ steps.affected.outputs.server }}
+      web: ${{ steps.affected.outputs.web }}
       desktop: ${{ steps.affected.outputs.desktop }}
+      storage: ${{ steps.affected.outputs.storage }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -28,37 +31,127 @@ jobs:
           cache: true
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
-      - name: Find the affected e2e suites
+      - name: Find affected runtime checks
         id: affected
         run: |
-          pnpm exec turbo run test:e2e --affected --dry=json > "$RUNNER_TEMP/e2e.json"
-          for app in web desktop; do
-            echo "$app=$(jq --arg task "@porcelain/$app#test:e2e" 'any(.tasks[]; .taskId == $task)' "$RUNNER_TEMP/e2e.json")" >> "$GITHUB_OUTPUT"
+          pnpm exec turbo run test:integration test:e2e build db:check --affected --dry=json > "$RUNNER_TEMP/runtime.json"
+          jq -e '.tasks | type == "array"' "$RUNNER_TEMP/runtime.json" > /dev/null
+          server=$(jq 'any(.tasks[]; .taskId == "@porcelain/server#test:integration" or .taskId == "@porcelain/client#test:integration")' "$RUNNER_TEMP/runtime.json")
+          web=$(jq 'any(.tasks[]; .taskId == "@porcelain/web#test:integration" or .taskId == "@porcelain/web#test:e2e" or .taskId == "@porcelain/web#build")' "$RUNNER_TEMP/runtime.json")
+          desktop=$(jq 'any(.tasks[]; .taskId == "@porcelain/desktop#test:e2e")' "$RUNNER_TEMP/runtime.json")
+          storage=$(jq 'any(.tasks[]; .taskId == "@porcelain/storage#db:check")' "$RUNNER_TEMP/runtime.json")
+          for surface in server web desktop storage; do
+            case "${!surface}" in
+              true|false) printf '%s=%s\n' "$surface" "${!surface}" >> "$GITHUB_OUTPUT" ;;
+              *) exit 1 ;;
+            esac
           done
           cat "$GITHUB_OUTPUT"
+
+  static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@24.20.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm install --frozen-lockfile
       - uses: actions/cache@v6
         with:
           path: .turbo/cache
           key: turbo-${{ runner.os }}-${{ github.sha }}
           restore-keys: turbo-${{ runner.os }}-
-      - run: pnpm check --affected
+      - run: pnpm check:local --affected --concurrency=100%
+
+  units:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@24.20.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+
+  server-integration:
+    needs: affected
+    if: ${{ needs.affected.outputs.server == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@24.20.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm install --frozen-lockfile
       - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
-      - name: Allow unprivileged user namespaces, which Ubuntu 24.04 restricts through AppArmor and bwrap needs
+      - name: Allow the disposable server's user namespace
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: pnpm exec playwright install --with-deps --only-shell chromium
-      - run: pnpm test:integration --affected --continue
-      - if: ${{ !cancelled() && steps.affected.outputs.web == 'true' }}
-        run: pnpm --filter @porcelain/web test:e2e
+      - run: pnpm exec turbo run test:integration --affected --filter=@porcelain/server --filter=@porcelain/client --concurrency=1 --continue
+
+  web:
+    needs: affected
+    if: ${{ needs.affected.outputs.web == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@24.20.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @porcelain/web build
+      - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
+      - name: Allow the disposable server's user namespace
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
+      - run: pnpm exec playwright install --with-deps --only-shell chromium
+      - run: pnpm --filter @porcelain/web test:integration
+      - run: pnpm --filter @porcelain/web test:e2e
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: web-e2e
+          name: web-tests
           path: apps/web/test-results/
 
+  migrations:
+    needs: affected
+    if: ${{ needs.affected.outputs.storage == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@24.20.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:check
+
   desktop-e2e:
-    needs: checks
-    if: ${{ !cancelled() && needs.checks.outputs.desktop == 'true' }}
+    needs: affected
+    if: ${{ needs.affected.outputs.desktop == 'true' }}
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
@@ -82,3 +175,22 @@ jobs:
           path: |
             apps/desktop/test-results/
             ~/Library/Logs/DiagnosticReports/
+
+  checks:
+    needs:
+      [
+        affected,
+        static,
+        units,
+        server-integration,
+        web,
+        migrations,
+        desktop-e2e,
+      ]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every selected check to succeed
+        run: test "$FAILED" = false
+        env:
+          FAILED: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
