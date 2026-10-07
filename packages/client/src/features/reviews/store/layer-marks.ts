@@ -5,25 +5,21 @@ import {
   confirmedResource,
   type ConfirmedResource,
 } from '../../../shared/api/confirmed-resource.ts';
-import { porcelainClient } from '../../../shared/api/client.ts';
+import {
+  porcelainClient,
+  type PorcelainApi,
+} from '../../../shared/api/client.ts';
 import type {
   RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
 import type { RequestError } from '../../../shared/api/request-error.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 
 type LayerMarksFailure =
-  | Effect.Error<
-      ReturnType<
-        Context.Service.Shape<
-          ReturnType<typeof porcelainClient>
-        >['reviews']['listReviewedLayers']
-      >
-    >
+  | Effect.Error<ReturnType<PorcelainApi['reviews']['listReviewedLayers']>>
   | RequestError;
 
 export class LayerMarksState extends Context.Service<
@@ -34,18 +30,17 @@ export class LayerMarksState extends Context.Service<
     return Layer.effect(
       LayerMarksState,
       Effect.gen(function* () {
-        const api = yield* porcelainClient(connection);
+        const client = yield* porcelainClient(connection);
         return yield* confirmedResource(
           connection,
           queryKeys.reviewSurface(connection.environmentId, scope, [
             'reviewed-layers',
           ]),
           Effect.gen(function* () {
-            const answer = yield* requestEffect(
+            const answer = yield* client.request((api) =>
               api.reviews.listReviewedLayers({
                 params: { worktreeId: scope.worktreeId },
               }),
-              connection.request,
             );
             yield* currentAnswerEffect(
               connection.request().signal,

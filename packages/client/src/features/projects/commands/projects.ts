@@ -2,22 +2,20 @@ import { Context, Effect, Layer } from 'effect';
 import { Atom } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { FileDrafts } from '../../files/store.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { InventoryState, inventoryRuntime } from '../store/inventory.ts';
 
 function makeProjectCommands(connection: RuntimeConnection) {
   return Effect.gen(function* () {
-    const api = yield* porcelainClient(connection);
+    const client = yield* porcelainClient(connection);
     const inventory = yield* InventoryState;
     const drafts = yield* FileDrafts;
     return {
       register: (path: string) =>
         inventory.confirm(
-          requestEffect(
+          client.request((api) =>
             api.projects.registerProject({ payload: { path } }),
-            connection.request,
           ),
           (inventory, project) => ({
             ...inventory,
@@ -32,12 +30,11 @@ function makeProjectCommands(connection: RuntimeConnection) {
         ),
       rename: (input: { projectId: string; name: string }) =>
         inventory.confirm(
-          requestEffect(
+          client.request((api) =>
             api.projects.renameProject({
               params: { projectId: input.projectId },
               payload: { name: input.name },
             }),
-            connection.request,
           ),
           (inventory, project) => ({
             ...inventory,
@@ -60,9 +57,8 @@ function makeProjectCommands(connection: RuntimeConnection) {
                       'Save or discard unsaved file drafts before removing this project.',
                   }),
                 );
-            return yield* requestEffect(
+            return yield* client.request((api) =>
               api.projects.removeProject({ params: { projectId } }),
-              connection.request,
             );
           }),
           (inventory) => ({

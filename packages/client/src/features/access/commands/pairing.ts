@@ -4,7 +4,7 @@ import { withSignal } from '@porcelain/effects';
 import { remoteTransport } from '../../../shared/api/transport.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { RequestError } from '../../../shared/api/request-error.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
+import { mapRequestErrors } from '../../../shared/api/effect-client.ts';
 import {
   AccessPlatform,
   type AccessPlatformValue,
@@ -48,7 +48,7 @@ function pairRemote(platform: AccessPlatformValue, value: string) {
         }),
       );
     const transport = remoteTransport(link.address, undefined, platform.send);
-    const paired = yield* requestEffect(
+    const paired = yield* mapRequestErrors(
       Effect.gen(function* () {
         const api = yield* BootstrapClient;
         return yield* api.pairing.redeemPairing({
@@ -124,7 +124,7 @@ const redeemBrowserPairing = Effect.fn('BrowserSession.pair')(function* (
 ) {
   const platform = yield* PairingPlatform;
   const api = yield* BootstrapClient;
-  const health = yield* requestEffect(api.publicAccess.readHealth()).pipe(
+  const health = yield* mapRequestErrors(api.publicAccess.readHealth()).pipe(
     Effect.mapError((error) =>
       !(error instanceof ConnectionError) &&
       !(error instanceof RequestError) &&
@@ -145,7 +145,7 @@ const redeemBrowserPairing = Effect.fn('BrowserSession.pair')(function* (
         message: 'This link was made for a different Porcelain installation.',
       }),
     );
-  const paired = yield* requestEffect(
+  const paired = yield* mapRequestErrors(
     api.pairing.redeemPairing({
       payload: { code: link.code, platform: platform.name() },
     }),
@@ -158,7 +158,7 @@ const redeemBrowserPairing = Effect.fn('BrowserSession.pair')(function* (
         : error,
     ),
   );
-  const inventory = yield* requestEffect(api.projects.readInventory()).pipe(
+  const inventory = yield* mapRequestErrors(api.projects.readInventory()).pipe(
     Effect.mapError((error) =>
       error instanceof RequestError
         ? new ConnectionError({

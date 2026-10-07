@@ -7,7 +7,6 @@ import {
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { RequestError } from '../../../shared/api/request-error.ts';
 import { routesSettling } from '../rules/share.ts';
@@ -60,11 +59,8 @@ export const readPairedAccess = Atom.family((connection: RuntimeConnection) =>
   clientRuntime(connection)
     .atom(
       Effect.gen(function* () {
-        const api = yield* porcelainClient(connection);
-        return yield* requestEffect(
-          api.administration.listAccess(),
-          connection.request,
-        );
+        const client = yield* porcelainClient(connection);
+        return yield* client.request((api) => api.administration.listAccess());
       }),
     )
     .pipe(Atom.setIdleTTL(0)),
@@ -73,21 +69,20 @@ export const readRemoteAccess = Atom.family((connection: RuntimeConnection) =>
   pollWhile(
     accessRuntime(connection),
     Effect.gen(function* () {
-      const api = yield* porcelainClient(connection);
+      const client = yield* porcelainClient(connection);
       const snapshots = yield* AccessSnapshots;
       return yield* observe(
         connection,
         snapshots.remote,
-        requestEffect(
-          api.administration.readRemoteAccess(),
-          connection.request,
-        ).pipe(
-          Effect.catch((error) =>
-            error instanceof RequestError && error.status === 403
-              ? Effect.succeed(null)
-              : Effect.fail(error),
+        client
+          .request((api) => api.administration.readRemoteAccess())
+          .pipe(
+            Effect.catch((error) =>
+              error instanceof RequestError && error.status === 403
+                ? Effect.succeed(null)
+                : Effect.fail(error),
+            ),
           ),
-        ),
       );
     }),
     REMOTE_ACCESS_SETTLING_POLL_MS,
@@ -98,15 +93,12 @@ export const readServiceUpdate = Atom.family((connection: RuntimeConnection) =>
   pollWhile(
     accessRuntime(connection),
     Effect.gen(function* () {
-      const api = yield* porcelainClient(connection);
+      const client = yield* porcelainClient(connection);
       const snapshots = yield* AccessSnapshots;
       return yield* observe(
         connection,
         snapshots.update,
-        requestEffect(
-          api.serviceUpdates.readServiceUpdate(),
-          connection.request,
-        ),
+        client.request((api) => api.serviceUpdates.readServiceUpdate()),
       );
     }),
     SERVICE_UPDATE_POLL_MS,

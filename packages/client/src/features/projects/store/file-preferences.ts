@@ -5,21 +5,17 @@ import {
   confirmedResource,
   type ConfirmedResource,
 } from '../../../shared/api/confirmed-resource.ts';
-import { porcelainClient } from '../../../shared/api/client.ts';
+import {
+  porcelainClient,
+  type PorcelainApi,
+} from '../../../shared/api/client.ts';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import type { RequestError } from '../../../shared/api/request-error.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 
 type FilePreferencesFailure =
-  | Effect.Error<
-      ReturnType<
-        Context.Service.Shape<
-          ReturnType<typeof porcelainClient>
-        >['projects']['listFilePreferences']
-      >
-    >
+  | Effect.Error<ReturnType<PorcelainApi['projects']['listFilePreferences']>>
   | RequestError;
 
 export class FilePreferencesState extends Context.Service<
@@ -30,13 +26,12 @@ export class FilePreferencesState extends Context.Service<
     return Layer.effect(
       FilePreferencesState,
       Effect.gen(function* () {
-        const api = yield* porcelainClient(connection);
+        const client = yield* porcelainClient(connection);
         return yield* confirmedResource(
           connection,
           queryKeys.filePreferences(connection.environmentId, projectId),
-          requestEffect(
+          client.request((api) =>
             api.projects.listFilePreferences({ params: { projectId } }),
-            connection.request,
           ),
         );
       }),

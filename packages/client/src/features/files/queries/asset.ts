@@ -7,7 +7,6 @@ import type {
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
 import { worktreeRead } from '../../../shared/api/worktree-read.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 
 export const readAsset = Atom.family(
   ({
@@ -24,13 +23,12 @@ export const readAsset = Atom.family(
       scope,
       ['asset', path],
       Effect.gen(function* () {
-        const api = yield* porcelainClient(connection);
-        return yield* requestEffect(
+        const client = yield* porcelainClient(connection);
+        return yield* client.request((api) =>
           api.files.readFileAsset({
             params: { worktreeId: scope.worktreeId },
             query: { path },
           }),
-          connection.request,
         );
       }),
       clientRuntime(connection),

@@ -8,7 +8,6 @@ import type {
 } from '@porcelain/contracts/git-actions';
 import type { WorktreeScope } from '../../../shared/api/connection.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { RequestError } from '../../../shared/api/request-error.ts';
 import { withSignal } from '@porcelain/effects';
@@ -42,7 +41,7 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
   scope,
   action,
 }: Selection) {
-  const api = yield* porcelainClient(connection);
+  const client = yield* porcelainClient(connection);
   const operations = yield* OperationStore;
   const crypto = yield* Crypto.Crypto;
   const refresh = yield* GitReceiptRefresh;
@@ -69,11 +68,12 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
     request: RunGitActionRequest,
     signal: AbortSignal,
   ) {
-    const result = yield* requestEffect(
-      api.gitActions.runGitAction({
-        params: { worktreeId: scope.worktreeId },
-        payload: request,
-      }),
+    const result = yield* client.request(
+      (api) =>
+        api.gitActions.runGitAction({
+          params: { worktreeId: scope.worktreeId },
+          payload: request,
+        }),
       signal,
     );
     if (!('requestId' in result))

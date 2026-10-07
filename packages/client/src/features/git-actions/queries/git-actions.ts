@@ -1,5 +1,4 @@
 import { Effect } from 'effect';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { Atom } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { COMMIT_MODELS_STALE_MS } from '../../../config/limits.ts';
@@ -10,10 +9,9 @@ const models = Atom.family((connection: RuntimeConnection) =>
   clientRuntime(connection)
     .atom(
       Effect.gen(function* () {
-        const api = yield* porcelainClient(connection);
-        return yield* requestEffect(
+        const client = yield* porcelainClient(connection);
+        return yield* client.request((api) =>
           api.gitActions.listCommitModels(),
-          connection.request,
         );
       }),
     )

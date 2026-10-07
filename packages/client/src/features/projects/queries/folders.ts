@@ -3,7 +3,6 @@ import { Atom } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 
 const folders = Atom.family(
   ({
@@ -15,12 +14,11 @@ const folders = Atom.family(
   }) =>
     clientRuntime(connection).atom(
       Effect.gen(function* () {
-        const api = yield* porcelainClient(connection);
-        return yield* requestEffect(
+        const client = yield* porcelainClient(connection);
+        return yield* client.request((api) =>
           api.projects.browseProjectFolders({
             query: path === undefined ? {} : { path },
           }),
-          connection.request,
         );
       }),
     ),

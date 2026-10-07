@@ -11,7 +11,6 @@ import type {
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { worktreeRead } from '../../../shared/api/worktree-read.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { selectionKey, type DiffContent } from '../rules/changes.ts';
 
@@ -28,13 +27,12 @@ export const readChangeDiffs = Atom.family(
       scope,
       ['change-diffs', input],
       Effect.gen(function* () {
-        const api = yield* porcelainClient(connection);
-        const answer = yield* requestEffect(
+        const client = yield* porcelainClient(connection);
+        const answer = yield* client.request((api) =>
           api.changes.readChangeDiffs({
             params: { worktreeId: scope.worktreeId },
             payload: input,
           }),
-          connection.request,
         );
         yield* currentAnswerEffect(
           connection.request().signal,
@@ -60,13 +58,12 @@ export const readBranchDiffs = Atom.family(
       scope,
       ['branch-diffs', input],
       Effect.gen(function* () {
-        const api = yield* porcelainClient(connection);
-        return yield* requestEffect(
+        const client = yield* porcelainClient(connection);
+        return yield* client.request((api) =>
           api.changes.readBranchDiffs({
             params: { worktreeId: scope.worktreeId },
             payload: input,
           }),
-          connection.request,
         );
       }),
       clientRuntime(connection),
@@ -90,8 +87,8 @@ export const readCommitDiffs = Atom.family(
       scope,
       ['commit-diffs', oid, parent, paths],
       Effect.gen(function* () {
-        const api = yield* porcelainClient(connection);
-        const answer = yield* requestEffect(
+        const client = yield* porcelainClient(connection);
+        const answer = yield* client.request((api) =>
           api.changes.readCommitDiffs({
             params: { worktreeId: scope.worktreeId, oid },
             payload: {
@@ -99,7 +96,6 @@ export const readCommitDiffs = Atom.family(
               paths: paths.map((entry) => [...entry]),
             },
           }),
-          connection.request,
         );
         yield* currentAnswerEffect(
           connection.request().signal,
@@ -124,13 +120,12 @@ export const readChangeLines = Atom.family(
       scope,
       ['step-lines', path, from, to],
       Effect.gen(function* () {
-        const api = yield* porcelainClient(connection);
-        const answer = yield* requestEffect(
+        const client = yield* porcelainClient(connection);
+        const answer = yield* client.request((api) =>
           api.changes.readChangeLines({
             params: { worktreeId: scope.worktreeId },
             query: { path, from, to, at: 'worktree' },
           }),
-          connection.request,
         );
         yield* currentAnswerEffect(
           connection.request().signal,

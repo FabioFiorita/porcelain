@@ -22,18 +22,14 @@ import { withSignal } from '@porcelain/effects';
 
 export function transportLayer(transport: Transport) {
   const send: Context.Service.Shape<typeof FetchHttpClient.Fetch> = (
-    input,
+    url,
     init,
-  ) => {
-    const url = new URL(
-      typeof input === 'string'
-        ? input
-        : input instanceof URL
-          ? input.href
-          : input.url,
-    );
-    return transport(`${url.pathname}${url.search}`, init);
-  };
+  ) =>
+    url instanceof URL
+      ? transport(`${url.pathname}${url.search}`, init)
+      : Promise.reject(
+          new TypeError('FetchHttpClient sends every request as a parsed URL.'),
+        );
   return Layer.effect(
     HttpClient.HttpClient,
     Effect.map(HttpClient.HttpClient, (client) =>
@@ -90,21 +86,24 @@ function unansweredRequest(
   );
 }
 
-export function requestEffect<A, E, R>(
+export function mapRequestErrors<A, E, R>(
   request: Effect.Effect<A, E, R>,
-  signal?: AbortSignal | WorktreeConnection['request'],
 ): Effect.Effect<A, E | ConnectionError | RequestError, R> {
-  const checked = Effect.catch(
+  return Effect.catch(
     request,
     (error): Effect.Effect<never, E | ConnectionError | RequestError> =>
       HttpClientError.isHttpClientError(error)
         ? Effect.flatMap(unansweredRequest(error), Effect.fail)
         : Effect.fail(error),
   );
-  return Effect.suspend(() => {
-    const current = typeof signal === 'function' ? signal().signal : signal;
-    return current ? withSignal(checked, current) : checked;
-  });
+}
+
+export function requestEffect<A, E, R>(
+  request: Effect.Effect<A, E, R>,
+  lifetime: WorktreeConnection['request'],
+): Effect.Effect<A, E | ConnectionError | RequestError, R> {
+  const checked = mapRequestErrors(request);
+  return Effect.suspend(() => withSignal(checked, lifetime().signal));
 }
 
 async function settleRequest<A, E>(
@@ -123,6 +122,6 @@ export function runRequest<A, E>(
   signal: AbortSignal,
 ): Promise<A> {
   return settleRequest(signal, () =>
-    Effect.runPromiseExit(requestEffect(request), { signal }),
+    Effect.runPromiseExit(mapRequestErrors(request), { signal }),
   );
 }

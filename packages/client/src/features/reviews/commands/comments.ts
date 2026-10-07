@@ -13,7 +13,6 @@ import type {
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { CommentThreadsState, commentsRuntime } from '../store/comments.ts';
 import {
   mergeCommentThreads,
@@ -71,11 +70,10 @@ export const commentCommands = Atom.family(
         Effect.fn('Reviews.createComment')(function* (
           input: CreateCommentThreadRequest,
         ) {
-          const api = yield* porcelainClient(connection);
+          const client = yield* porcelainClient(connection);
           return yield* confirmThread(
-            requestEffect(
+            client.request((api) =>
               api.reviews.createCommentThread({ params, payload: input }),
-              connection.request,
             ),
           );
         }),
@@ -87,14 +85,13 @@ export const commentCommands = Atom.family(
           body,
           messageId,
         }: ReplyCommentInput) {
-          const api = yield* porcelainClient(connection);
+          const client = yield* porcelainClient(connection);
           return yield* confirmThread(
-            requestEffect(
+            client.request((api) =>
               api.reviews.replyToComment({
                 params: { ...params, threadId },
                 payload: { body, messageId },
               }),
-              connection.request,
             ),
             true,
           );
@@ -106,14 +103,13 @@ export const commentCommands = Atom.family(
           threadId,
           resolved,
         }: ResolveCommentInput) {
-          const api = yield* porcelainClient(connection);
+          const client = yield* porcelainClient(connection);
           return yield* confirmThread(
-            requestEffect(
+            client.request((api) =>
               api.reviews.updateCommentThread({
                 params: { ...params, threadId },
                 payload: { resolved },
               }),
-              connection.request,
             ),
           );
         }),
@@ -125,14 +121,13 @@ export const commentCommands = Atom.family(
           messageId,
           body,
         }: EditCommentInput) {
-          const api = yield* porcelainClient(connection);
+          const client = yield* porcelainClient(connection);
           return yield* confirmThread(
-            requestEffect(
+            client.request((api) =>
               api.reviews.editCommentMessage({
                 params: { ...params, threadId },
                 payload: { messageId, body },
               }),
-              connection.request,
             ),
           );
         }),
@@ -143,16 +138,15 @@ export const commentCommands = Atom.family(
           threadId,
           messageId,
         }: DeleteCommentInput) {
-          const api = yield* porcelainClient(connection);
+          const client = yield* porcelainClient(connection);
           const state = yield* CommentThreadsState;
           const result = yield* state.confirm(
             Effect.gen(function* () {
-              const answer = yield* requestEffect(
+              const answer = yield* client.request((api) =>
                 api.reviews.deleteCommentMessage({
                   params: { ...params, threadId },
                   query: { messageId },
                 }),
-                connection.request,
               );
               yield* currentAnswerEffect(
                 connection.request().signal,
@@ -180,15 +174,14 @@ export const commentCommands = Atom.family(
         Effect.fn('Reviews.deleteResolvedComments')(function* (
           threads: ConfirmedThreads,
         ) {
-          const api = yield* porcelainClient(connection);
+          const client = yield* porcelainClient(connection);
           const state = yield* CommentThreadsState;
           const result = yield* state.confirm(
-            requestEffect(
+            client.request((api) =>
               api.reviews.deleteResolvedComments({
                 params,
                 payload: { threads },
               }),
-              connection.request,
             ),
             (previous, answer) =>
               Option.some(
@@ -208,16 +201,15 @@ export const commentCommands = Atom.family(
         Effect.fn('Reviews.markCommentsSeen')(function* (
           throughRevision: number,
         ) {
-          const api = yield* porcelainClient(connection);
+          const client = yield* porcelainClient(connection);
           const state = yield* CommentThreadsState;
           const result = yield* state.confirm(
             Effect.gen(function* () {
-              const answer = yield* requestEffect(
+              const answer = yield* client.request((api) =>
                 api.reviews.markCommentsSeen({
                   params,
                   payload: { throughRevision },
                 }),
-                connection.request,
               );
               yield* currentAnswerEffect(
                 connection.request().signal,

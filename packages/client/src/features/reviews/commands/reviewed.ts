@@ -7,7 +7,6 @@ import type {
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { ReviewedFilesState, reviewedRuntime } from '../store/reviewed.ts';
 import {
   bulkMarkPlan,
@@ -47,10 +46,10 @@ export const reviewedCommands = Atom.family(
       );
     }
     const set = Effect.fn('Reviews.markFile')(function* (input: Mark) {
-      const api = yield* porcelainClient(connection);
+      const client = yield* porcelainClient(connection);
       return yield* confirm(
         [input],
-        requestEffect(
+        client.request((api) =>
           range.kind === 'branch'
             ? api.reviews.setReviewedFile({
                 params,
@@ -65,50 +64,46 @@ export const reviewedCommands = Atom.family(
                 params,
                 payload: { ...input, reviewed: true },
               }),
-          connection.request,
         ),
       );
     });
     const remove = Effect.fn('Reviews.unmarkFile')(function* (path: string) {
-      const api = yield* porcelainClient(connection);
+      const client = yield* porcelainClient(connection);
       return yield* confirm(
         [{ path }],
-        requestEffect(
+        client.request((api) =>
           api.reviews.removeReviewedFile({
             params,
             query: { path, ...branch },
           }),
-          connection.request,
         ),
       );
     });
     const setAll = Effect.fn('Reviews.markFiles')(function* (files: Mark[]) {
-      const api = yield* porcelainClient(connection);
+      const client = yield* porcelainClient(connection);
       return yield* confirm(
         files,
-        requestEffect(
+        client.request((api) =>
           range.kind === 'branch'
             ? api.reviews.setReviewedFiles({
                 params,
                 payload: { files, scope: 'branch', base: range.base },
               })
             : api.reviews.setReviewedFiles({ params, payload: { files } }),
-          connection.request,
         ),
       );
     });
     const removeAll = Effect.fn('Reviews.unmarkFiles')(function* (
       paths: readonly string[],
     ) {
-      const api = yield* porcelainClient(connection);
+      const client = yield* porcelainClient(connection);
       return yield* confirm(
         paths.map((path) => ({ path })),
-        requestEffect(
+        client.request((api) =>
           api.reviews.removeReviewedFiles({
             params,
             payload: { paths: [...paths], ...branch },
           }),
-          connection.request,
         ),
       );
     });

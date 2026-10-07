@@ -3,7 +3,6 @@ import { Atom } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { FileDrafts } from '../../files/store.ts';
 import { UNSAVED_DRAFTS_MESSAGE } from '../rules/connection-error-message.ts';
 
@@ -19,14 +18,13 @@ export const disconnectBrowserSession = Atom.family(
       Effect.fn('BrowserSession.disconnect')(
         function* () {
           const drafts = yield* FileDrafts;
-          const api = yield* porcelainClient(connection);
+          const client = yield* porcelainClient(connection);
           if (!(yield* drafts.save(connection.environmentId)))
             return yield* Effect.fail(
               new ConnectionError({ message: UNSAVED_DRAFTS_MESSAGE }),
             );
-          yield* requestEffect(
+          yield* client.request((api) =>
             api.browserAccess.clearBrowserSession(),
-            connection.request,
           );
         },
         Effect.mapError((error) =>

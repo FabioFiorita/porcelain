@@ -7,7 +7,6 @@ import type {
 } from '../../../shared/api/connection.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 
@@ -23,12 +22,13 @@ export const generateCommitDraft = Atom.family(
         ...input
       }: GenerateCommitDraftRequest & { signal?: AbortSignal }) {
         const signal = connection.request(caller).signal;
-        const api = yield* porcelainClient(connection);
-        const result = yield* requestEffect(
-          api.gitActions.generateCommitDraft({
-            params: { worktreeId: scope.worktreeId },
-            payload: input,
-          }),
+        const client = yield* porcelainClient(connection);
+        const result = yield* client.request(
+          (api) =>
+            api.gitActions.generateCommitDraft({
+              params: { worktreeId: scope.worktreeId },
+              payload: input,
+            }),
           signal,
         );
         yield* currentAnswerEffect(signal);
@@ -41,12 +41,11 @@ export const dismissInterruptedGitAction = Atom.family(
   ({ connection, scope }: Selection) =>
     clientRuntime(connection).fn(
       Effect.fn('GitActions.dismissInterrupted')(function* (requestId: string) {
-        const api = yield* porcelainClient(connection);
-        yield* requestEffect(
+        const client = yield* porcelainClient(connection);
+        yield* client.request((api) =>
           api.gitActions.dismissInterruptedGitAction({
             params: { worktreeId: scope.worktreeId, requestId },
           }),
-          connection.request,
         );
         yield* currentAnswerEffect(connection.request().signal);
         yield* Reactivity.invalidate([

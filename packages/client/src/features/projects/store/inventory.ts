@@ -8,21 +8,17 @@ import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import type { ConnectionError } from '../../../shared/api/connection-error.ts';
 import type { RequestError } from '../../../shared/api/request-error.ts';
-import { porcelainClient } from '../../../shared/api/client.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
+import {
+  porcelainClient,
+  type PorcelainApi,
+} from '../../../shared/api/client.ts';
 import {
   confirmedResource,
   type ConfirmedResource,
 } from '../../../shared/api/confirmed-resource.ts';
 
 type InventoryFailure =
-  | Effect.Error<
-      ReturnType<
-        Context.Service.Shape<
-          ReturnType<typeof porcelainClient>
-        >['projects']['readInventory']
-      >
-    >
+  | Effect.Error<ReturnType<PorcelainApi['projects']['readInventory']>>
   | ConnectionError
   | RequestError;
 
@@ -53,18 +49,20 @@ export class InventoryState extends Context.Service<
       InventoryState,
       Effect.gen(function* () {
         const seed = yield* InventorySeed;
-        const api = yield* porcelainClient(connection);
+        const client = yield* porcelainClient(connection);
         const resource = yield* confirmedResource(
           connection,
           queryKeys.inventory(connection.environmentId),
-          requestEffect(api.projects.readInventory(), connection.request).pipe(
-            Effect.tap((inventory) =>
-              currentAnswerEffect(
-                connection.request().signal,
-                inventory.environmentId === connection.environmentId,
+          client
+            .request((api) => api.projects.readInventory())
+            .pipe(
+              Effect.tap((inventory) =>
+                currentAnswerEffect(
+                  connection.request().signal,
+                  inventory.environmentId === connection.environmentId,
+                ),
               ),
             ),
-          ),
           seed,
         );
         function confirm<A, E, R>(

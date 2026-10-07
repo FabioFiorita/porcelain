@@ -12,7 +12,6 @@ import {
   worktreePull,
   worktreeRead,
 } from '../../../shared/api/worktree-read.ts';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 
 type Continuation = { readonly after: readonly string[]; readonly tip: string };
@@ -31,13 +30,12 @@ export const readHistory = Atom.family(
       ['history'],
       Stream.paginate(undefined, (previous: Continuation | undefined) =>
         Effect.gen(function* () {
-          const api = yield* porcelainClient(connection);
-          const page = yield* requestEffect(
+          const client = yield* porcelainClient(connection);
+          const page = yield* client.request((api) =>
             api.changes.listCommits({
               params: { worktreeId: scope.worktreeId },
               query: { after: previous?.after, tip: previous?.tip },
             }),
-            connection.request,
           );
           yield* currentAnswerEffect(connection.request().signal);
           return [
@@ -69,13 +67,12 @@ export const readCommit = Atom.family(
       scope,
       ['commit', oid, parent],
       Effect.gen(function* () {
-        const api = yield* porcelainClient(connection);
-        const answer = yield* requestEffect(
+        const client = yield* porcelainClient(connection);
+        const answer = yield* client.request((api) =>
           api.changes.readCommitFiles({
             params: { worktreeId: scope.worktreeId, oid },
             query: parent === 1 ? {} : { parent },
           }),
-          connection.request,
         );
         yield* currentAnswerEffect(
           connection.request().signal,
@@ -104,13 +101,12 @@ export const readFileTimeline = Atom.family(
       scope,
       ['history', 'file', path],
       Effect.gen(function* () {
-        const api = yield* porcelainClient(connection);
-        return yield* requestEffect(
+        const client = yield* porcelainClient(connection);
+        return yield* client.request((api) =>
           api.changes.listFileCommits({
             params: { worktreeId: scope.worktreeId },
             query: { path, limit: COMMITS_PER_PAGE },
           }),
-          connection.request,
         );
       }),
       clientRuntime(connection),
