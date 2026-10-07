@@ -130,7 +130,9 @@ const porcelainStop: BrowserCommand<[string], string[]> = async (
   await stopping.keepEvidence(
     join(evidenceRoot, name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()),
   );
-  return stopping.stop();
+  const failures = await stopping.stop();
+  await context.page.requestGC();
+  return failures;
 };
 
 const porcelainRead: BrowserCommand<[ServerRead], ServerAnswer> = (
