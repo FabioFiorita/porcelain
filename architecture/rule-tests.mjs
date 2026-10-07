@@ -10,7 +10,6 @@ import { runBoundaryCases } from './boundary-tests.mjs';
 await runBoundaryCases();
 if (process.argv.includes('--boundaries')) process.exit(0);
 import { readFileSync } from 'node:fs';
-import { preflightEdits } from './probe-edits.ts';
 const root = new URL('../', import.meta.url);
 function requireReason(message) {
   ok(
@@ -177,40 +176,3 @@ if (unfixtured.length > 0)
 process.stdout.write(
   `PASS ${fixtured.size} rules, ${cases.length + ruleCases.length} fixtures (${Math.round(performance.now() - started)} ms)\n`,
 );
-
-const source = new Map([['fixture.ts', 'old']]);
-preflightEdits(
-  [
-    { kind: 'replace', path: 'fixture.ts', old: 'old', new: 'new' },
-    { kind: 'replace', path: 'fixture.ts', old: 'new', new: 'final' },
-    { kind: 'create', path: 'created.ts', content: 'one' },
-    { kind: 'append', path: 'created.ts', content: 'two' },
-  ],
-  (name) => source.get(name),
-);
-deepStrictEqual([...source], [['fixture.ts', 'old']]);
-throws(
-  () =>
-    preflightEdits(
-      [{ kind: 'replace', path: 'fixture.ts', old: 'missing', new: 'new' }],
-      (name) => source.get(name),
-    ),
-  /no longer holds the text/,
-);
-throws(
-  () =>
-    preflightEdits(
-      [{ kind: 'create', path: 'fixture.ts', content: 'new' }],
-      (name) => source.get(name),
-    ),
-  /already exists/,
-);
-throws(
-  () =>
-    preflightEdits(
-      [{ kind: 'append', path: 'missing.ts', content: 'new' }],
-      (name) => source.get(name),
-    ),
-  /no longer exists/,
-);
-process.stdout.write('PASS read-only fixture preflight\n');

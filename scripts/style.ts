@@ -8,7 +8,6 @@ import {
   generatedRouteTree,
   type StyleRule,
 } from '../architecture/policy.ts';
-import { lintPluginSchema } from '../architecture/probe.ts';
 import { pinProblems, uiFolder } from '../architecture/shadcn-pins.ts';
 import {
   duplicateScope,
@@ -168,6 +167,11 @@ function strayLintConfigs(): Problem[] {
       ),
     );
 }
+const lintPluginSchema = Schema.Struct({
+  default: Schema.Struct({
+    rules: Schema.Record(Schema.String, Schema.Unknown),
+  }),
+});
 const lintConfigSchema = Schema.Struct({
   plugins: Schema.Array(Schema.String),
   jsPlugins: Schema.Array(Schema.String),
