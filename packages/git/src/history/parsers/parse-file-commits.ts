@@ -1,6 +1,5 @@
 import { Effect } from 'effect';
-import { InvalidGitDiffError } from '../../shared/errors/invalid-git-diff-error.ts';
-import { parseRawDiff } from '../../inspection/index.ts';
+import { parseRawDiffEffect } from '../../inspection/index.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type { CommitFile, FileCommit } from '../dtos/commit-history.ts';
 import { UnsupportedHistoryDataError } from '../../shared/errors/unsupported-history-data-error.ts';
@@ -59,14 +58,7 @@ const readEntries = Effect.fn('Git.readEntries')(function* (
   output: Buffer,
   start: number,
 ) {
-  return yield* Effect.try({
-    try: () => parseRawDiff(output, start),
-    catch: (cause) => ({ cause }),
-  }).pipe(
-    Effect.catch(({ cause }) =>
-      cause instanceof InvalidGitDiffError
-        ? Effect.fail(new UnsupportedHistoryDataError({ cause }))
-        : Effect.die(cause),
-    ),
+  return yield* parseRawDiffEffect(output, start).pipe(
+    Effect.mapError((cause) => new UnsupportedHistoryDataError({ cause })),
   );
 });

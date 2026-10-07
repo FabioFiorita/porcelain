@@ -1,77 +1,53 @@
-import { nativeOperation } from '@porcelain/effects';
+import { Effect, type PlatformError } from 'effect';
 import {
   type GitIoFailure,
+  type GitCommandError,
+  type GitOutputLimitError,
+  type GitFilesystemError,
+  type RepositoryIdentityMismatchError,
+  type UnsupportedFilesystemIdentityError,
+  type UnsupportedRepositoryError,
   isRepositoryUnavailable,
-  HistorySnapshotUnavailableError,
-  HistoryWorktreeUnavailableError,
-  InvalidHistoryRequestError,
-  ReadLimitExceededError,
-  UnsupportedHistoryDataError,
-  GitTimeoutError,
-  InspectionLimitError,
-  InvalidGitDiffError,
-  InvalidGitStatusError,
-  UnsupportedGitFiltersError,
-  UnsupportedPathEncodingError,
 } from '@porcelain/git/errors';
-import { Effect } from 'effect';
-import {
-  admittedRead,
-  nativeWrite,
-  type WorktreeRead,
-  type WorktreeWrite,
-} from '@porcelain/effects/worktree';
-import {
-  WorktreeNotFoundError,
-  RepositoryUnavailableError,
-} from '@porcelain/kernel/errors';
+import { admittedRead, type WorktreeRead } from '@porcelain/effects/worktree';
+import { RepositoryUnavailableError } from '@porcelain/kernel/errors';
 
-function expectedFailure(
-  error: unknown,
-): error is Exclude<GitIoFailure, RepositoryUnavailableError> {
-  return (
-    error instanceof HistorySnapshotUnavailableError ||
-    error instanceof HistoryWorktreeUnavailableError ||
-    error instanceof InvalidHistoryRequestError ||
-    error instanceof ReadLimitExceededError ||
-    error instanceof UnsupportedHistoryDataError ||
-    error instanceof GitTimeoutError ||
-    error instanceof InspectionLimitError ||
-    error instanceof InvalidGitDiffError ||
-    error instanceof InvalidGitStatusError ||
-    error instanceof UnsupportedGitFiltersError ||
-    error instanceof UnsupportedPathEncodingError ||
-    error instanceof WorktreeNotFoundError
-  );
+type GitPlatformFailure =
+  | GitCommandError
+  | GitOutputLimitError
+  | GitFilesystemError
+  | RepositoryIdentityMismatchError
+  | UnsupportedFilesystemIdentityError
+  | UnsupportedRepositoryError
+  | PlatformError.PlatformError;
+
+function failedGit(
+  error: GitPlatformFailure,
+): Effect.Effect<never, RepositoryUnavailableError> {
+  return isRepositoryUnavailable(error)
+    ? Effect.fail(new RepositoryUnavailableError())
+    : Effect.die(error);
 }
 
-function failedGit(error: unknown): Effect.Effect<never, GitIoFailure> {
-  if (expectedFailure(error)) return Effect.fail(error);
-  if (isRepositoryUnavailable(error))
-    return Effect.fail(new RepositoryUnavailableError());
-  return Effect.die(error);
-}
-
-export function readGitEffect<A, E, R>(
+export function readGitEffect<A, R>(
   worktreeId: string,
-  work: Effect.Effect<A, E, R>,
+  work: Effect.Effect<A, GitIoFailure | GitPlatformFailure, R>,
 ): Effect.Effect<A, GitIoFailure, R | WorktreeRead> {
   return admittedRead(
     worktreeId,
-    work.pipe(Effect.catch(failedGit), Effect.catchDefect(failedGit)),
+    work.pipe(
+      Effect.catchTag(
+        [
+          'GitCommandError',
+          'GitOutputLimitError',
+          'GitFilesystemError',
+          'RepositoryIdentityMismatchError',
+          'UnsupportedFilesystemIdentityError',
+          'UnsupportedRepositoryError',
+          'PlatformError',
+        ],
+        failedGit,
+      ),
+    ),
   );
-}
-
-export function readGit<A>(
-  worktreeId: string,
-  work: (signal: AbortSignal) => Promise<A>,
-): Effect.Effect<A, GitIoFailure, WorktreeRead> {
-  return readGitEffect(worktreeId, nativeOperation(work));
-}
-
-export function writeGit<A>(
-  worktreeId: string,
-  work: (signal: AbortSignal) => Promise<A>,
-): Effect.Effect<A, GitIoFailure, WorktreeWrite> {
-  return Effect.catchDefect(nativeWrite(worktreeId, work), failedGit);
 }

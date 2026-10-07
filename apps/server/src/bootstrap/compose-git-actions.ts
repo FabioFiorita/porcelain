@@ -23,9 +23,7 @@ import {
   CommitModelReader,
   GitActionReceiptStore,
   ExpireGitActionReceiptsOptions,
-  GitActionRunner,
   RecordGitActionProgressOptions,
-  SelectedDiffReader,
   UntrackedFileReader,
   CaptureCommitDraftOptions,
   GenerateCommitDraftOptions,
@@ -46,8 +44,8 @@ import {
   RunGitActionService,
 } from '@porcelain/git-actions/services';
 import { FilesystemUntrackedFileReader } from '../adapters/git-actions/filesystem-untracked-file-reader.ts';
-import { GitGitActionRunner } from '../adapters/git-actions/git-git-action-runner.ts';
-import { GitSelectedDiffReader } from '../adapters/git-actions/git-selected-diff-reader.ts';
+import { gitGitActionRunnerLayer } from '../adapters/git-actions/git-git-action-runner.ts';
+import { gitSelectedDiffReaderLayer } from '../adapters/git-actions/git-selected-diff-reader.ts';
 import { DismissInterruptedGitActionUseCase } from '../use-cases/git-actions/dismiss-interrupted-git-action.ts';
 import { GenerateCommitDraftUseCase } from '../use-cases/git-actions/generate-commit-draft.ts';
 import { ListCommitModelsUseCase } from '../use-cases/git-actions/list-commit-models.ts';
@@ -88,14 +86,7 @@ export function composeGitActions(
     Layer.succeed(LaneKeys, laneKeys),
     Layer.succeed(ReadWorktreeStatusService, shared.readWorktreeStatus),
     Layer.succeed(ReadChangeFingerprintsService, shared.readChangeFingerprints),
-    Layer.succeed(
-      GitActionRunner,
-      new GitGitActionRunner(
-        shared.worktreeAccess,
-        shared.actionGit,
-        context.settings.limits.git,
-      ),
-    ),
+    gitGitActionRunnerLayer(shared.worktreeAccess, context.settings.limits.git),
     Layer.succeed(RecordGitActionProgressOptions, limits.progress),
     Layer.succeed(
       RefreshWorktreeReviewUseCasePort,
@@ -110,13 +101,9 @@ export function composeGitActions(
     Layer.succeed(ListCommitModelsUseCaseOptions, {
       deadlineMs: limits.processDeadlineMs,
     }),
-    Layer.succeed(
-      SelectedDiffReader,
-      new GitSelectedDiffReader(
-        shared.worktreeAccess,
-        shared.actionGit,
-        shared.gitSessions,
-      ),
+    gitSelectedDiffReaderLayer(
+      shared.worktreeAccess,
+      context.settings.limits.git,
     ),
     Layer.succeed(
       UntrackedFileReader,

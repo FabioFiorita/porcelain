@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { readRangePatches } from './read-history-patches.ts';
+import { readRangeDiffsEffect } from '../../inspection/index.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { isOid } from '../../shared/parsers/oid.ts';
 import type { BranchDiffs, BranchDiffsRequest } from '../dtos/branch-range.ts';
@@ -31,7 +31,7 @@ export const readBranchDiffs = Effect.fn('Git.readBranchDiffs')(function* (
     );
     if (commit === null) return { kind: 'missing' } satisfies BranchDiffs;
   }
-  const sections = yield* readRangePatches(
+  const sections = yield* readRangeDiffsEffect(
     checkout.path,
     request.baseOid,
     request.headOid,

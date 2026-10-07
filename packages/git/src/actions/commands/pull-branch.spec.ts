@@ -1,3 +1,5 @@
+import { NodeServices } from '@effect/platform-node';
+import { Effect } from 'effect';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -37,19 +39,20 @@ const publish = (file: string, content: string) => {
 
 const runner: Parameters<typeof pullBranch>[0] = {
   limits: gitLimits,
-  execute: (args) => {
-    const result = spawnSync('git', ['-C', clone, ...args], {
-      env: { ...process.env, GIT_EDITOR: ':', GIT_TERMINAL_PROMPT: '0' },
-    });
-    return Promise.resolve({
-      stdout: result.stdout,
-      stderr: result.stderr,
-      exitCode: result.status,
-      started: true,
-      interrupted: false,
-      descendantsStopped: true,
-    });
-  },
+  execute: (args) =>
+    Effect.sync(() => {
+      const result = spawnSync('git', ['-C', clone, ...args], {
+        env: { ...process.env, GIT_EDITOR: ':', GIT_TERMINAL_PROMPT: '0' },
+      });
+      return {
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.status,
+        started: true,
+        interrupted: false,
+        descendantsStopped: true,
+      };
+    }),
 };
 
 const remote = () => ({
@@ -83,8 +86,7 @@ const preparation = (
   },
 });
 
-const pull = (command: Command) =>
-  pullBranch(runner, command, remote(), AbortSignal.timeout(10_000));
+const pull = (command: Command) => run(pullBranch(runner, command, remote()));
 
 const head = () => git(clone, 'rev-parse', 'HEAD');
 
@@ -315,3 +317,12 @@ describe('pullBranch', () => {
     });
   });
 });
+
+function run<A, E>(operation: Effect.Effect<A, E, NodeServices.NodeServices>) {
+  return Effect.runPromise(
+    operation.pipe(
+      Effect.provide(NodeServices.layer),
+      Effect.timeout('20 seconds'),
+    ),
+  );
+}

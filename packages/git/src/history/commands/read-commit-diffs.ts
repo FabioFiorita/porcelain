@@ -7,7 +7,7 @@ import type {
 } from '../dtos/commit-history.ts';
 import { InvalidHistoryRequestError } from '../../shared/errors/invalid-history-request-error.ts';
 import { confirmHistoryCheckout } from './inspect-history-checkout.ts';
-import { readCommitPatches } from './read-history-patches.ts';
+import { readCommitDiffsEffect } from '../../inspection/index.ts';
 
 export const readCommitDiffs = Effect.fn('Git.readHistoryCommitDiffs')(
   function* (
@@ -24,7 +24,7 @@ export const readCommitDiffs = Effect.fn('Git.readHistoryCommitDiffs')(
     )
       return yield* Effect.fail(new InvalidHistoryRequestError());
     yield* confirmHistoryCheckout(checkout);
-    const diffs = yield* readCommitPatches(
+    const diffs = yield* readCommitDiffsEffect(
       checkout.path,
       request.oid,
       parent,

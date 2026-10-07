@@ -71,7 +71,7 @@ export const parseGitStatusEffect = Effect.fn('Git.parseStatus')(function* (
           },
         }),
     changes,
-  };
+  } satisfies GitStatusObservation;
 });
 
 const decode = Effect.fn('Git.decodeStatus')((output: Buffer) =>
@@ -235,10 +235,3 @@ const conflict = Effect.fn('Git.statusConflict')(function* (
     oids: [base, ours, theirs],
   };
 });
-
-export function parseGitStatus(
-  output: Buffer,
-  limits: GitLimits,
-): GitStatusObservation {
-  return Effect.runSync(parseGitStatusEffect(output, limits));
-}

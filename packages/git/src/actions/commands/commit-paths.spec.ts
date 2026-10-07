@@ -1,3 +1,5 @@
+import { NodeServices } from '@effect/platform-node';
+import { Effect } from 'effect';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
   chmodSync,
@@ -35,28 +37,28 @@ const message = () =>
 
 const runner: Runner = {
   limits: gitLimits,
-  execute: (args, signal, input, options) => {
-    signal.throwIfAborted();
-    const done = spawnSync('git', ['-C', checkout, ...args], {
-      input,
-      env: {
-        ...process.env,
-        LC_ALL: 'C',
-        GIT_EDITOR: ':',
-        ...(options?.indexFile === undefined
-          ? {}
-          : { GIT_INDEX_FILE: options.indexFile }),
-      },
-    });
-    return Promise.resolve({
-      stdout: done.stdout,
-      stderr: done.stderr,
-      exitCode: done.status,
-      started: true,
-      interrupted: done.status === null,
-      descendantsStopped: true,
-    });
-  },
+  execute: (args, input, options) =>
+    Effect.sync(() => {
+      const done = spawnSync('git', ['-C', checkout, ...args], {
+        input,
+        env: {
+          ...process.env,
+          LC_ALL: 'C',
+          GIT_EDITOR: ':',
+          ...(options?.indexFile === undefined
+            ? {}
+            : { GIT_INDEX_FILE: options.indexFile }),
+        },
+      });
+      return {
+        stdout: done.stdout,
+        stderr: done.stderr,
+        exitCode: done.status,
+        started: true,
+        interrupted: done.status === null,
+        descendantsStopped: true,
+      };
+    }),
 };
 
 const preview = (): Preview => ({
@@ -75,18 +77,19 @@ const commit = (
     seen?: Preview;
   } = {},
 ) =>
-  commitPaths(
-    runner,
-    {
-      id: 'req-1',
-      intent:
-        options.action === 'amend'
-          ? { action: 'amend', message: options.text ?? 'amended', paths }
-          : { action: 'commit', message: options.text ?? 'picked', paths },
-      preview: options.seen ?? preview(),
-    },
-    paths,
-    AbortSignal.timeout(20_000),
+  run(
+    commitPaths(
+      runner,
+      {
+        id: 'req-1',
+        intent:
+          options.action === 'amend'
+            ? { action: 'amend', message: options.text ?? 'amended', paths }
+            : { action: 'commit', message: options.text ?? 'picked', paths },
+        preview: options.seen ?? preview(),
+      },
+      paths,
+    ),
   );
 
 const write = (path: string, content: string) => {
@@ -414,3 +417,12 @@ describe('commitPaths', () => {
     });
   });
 });
+
+function run<A, E>(operation: Effect.Effect<A, E, NodeServices.NodeServices>) {
+  return Effect.runPromise(
+    operation.pipe(
+      Effect.provide(NodeServices.layer),
+      Effect.timeout('20 seconds'),
+    ),
+  );
+}

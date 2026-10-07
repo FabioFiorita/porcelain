@@ -1,17 +1,25 @@
-import { GitError } from './git-error.ts';
-import type { GitActionReason } from './git-action-reason.ts';
+import { Schema } from 'effect';
 
-export class GitActionRejectedError extends GitError {
-  override readonly name = 'GitActionRejectedError';
-  readonly reason: GitActionReason;
-  readonly detail: string | undefined;
-
-  constructor(
-    reason: GitActionReason,
-    options?: ErrorOptions & { detail?: string },
-  ) {
-    super('Git action rejected', options);
-    this.reason = reason;
-    this.detail = options?.detail;
+export class GitActionRejectedError extends Schema.TaggedError<GitActionRejectedError>()(
+  'GitActionRejectedError',
+  {
+    reason: Schema.Literals([
+      'CHANGED_SINCE_LOOKED',
+      'STALE_PREPARATION',
+      'REQUEST_MISMATCH',
+      'CHECKOUT_BUSY',
+      'UNSUPPORTED_CONFIGURATION',
+      'NON_FAST_FORWARD',
+      'GIT_REJECTED',
+      'DEADLINE_EXCEEDED',
+      'OUTCOME_UNKNOWN',
+      'PROCESS_GROUP_UNCONFIRMED',
+    ]),
+    detail: Schema.optional(Schema.String),
+    cause: Schema.optional(Schema.Unknown),
+  },
+) {
+  override get message() {
+    return 'Git action rejected';
   }
 }

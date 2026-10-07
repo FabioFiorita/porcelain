@@ -1,10 +1,6 @@
 import { Effect } from 'effect';
-import { runGitEffect } from '../../shared/commands/run-git.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
-import type {
-  CheckoutSession,
-  EffectCheckoutSession,
-} from '../interfaces/git-session.ts';
+import type { EffectCheckoutSession } from '../interfaces/git-session.ts';
 import { runInspection } from './run-inspection.ts';
 
 const selectedDiff = Effect.fn('Git.readSelectedDiff')(function* (
@@ -33,18 +29,14 @@ const selectedDiff = Effect.fn('Git.readSelectedDiff')(function* (
   return output.toString('utf8');
 });
 
-export async function readSelectedDiff(
-  session: CheckoutSession,
+export const readSelectedDiff = Effect.fn('Git.selectedDiff')(function* (
+  session: EffectCheckoutSession,
   headOid: string | null,
   paths: readonly string[],
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<string> {
-  await session.verify(signal);
-  const output = await runGitEffect(
-    selectedDiff(session, headOid, paths, limits),
-    signal,
-  );
-  await session.confirm(signal);
+) {
+  yield* session.verify();
+  const output = yield* selectedDiff(session, headOid, paths, limits);
+  yield* session.confirm();
   return output;
-}
+});

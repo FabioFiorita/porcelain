@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import type { ActionFailure, ActionPlatform } from '../dtos/action-failure.ts';
 import {
   HEAD_BRANCH_ARGS,
   parseSymbolicRef,
@@ -6,13 +8,14 @@ import { GitActionRejectedError } from '../../shared/errors/git-action-rejected-
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from '../parsers/parse-process-result.ts';
 
-export async function readActionBranch(
+export const readActionBranch = Effect.fn('Git.readActionBranch')(function* (
   process: GitProcessRunner,
-  signal: AbortSignal,
-): Promise<string | null> {
-  const result = await process.execute(HEAD_BRANCH_ARGS, signal);
+): Effect.fn.Return<string | null, ActionFailure, ActionPlatform> {
+  const result = yield* process.execute(HEAD_BRANCH_ARGS);
   const failure = processFailure(result);
   if (failure?.state === 'indeterminate')
-    throw new GitActionRejectedError(failure.reason ?? 'GIT_REJECTED');
+    return yield* new GitActionRejectedError({
+      reason: failure.reason ?? 'GIT_REJECTED',
+    });
   return parseSymbolicRef(result);
-}
+});

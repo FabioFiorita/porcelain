@@ -34,7 +34,7 @@ export const parseRawDiffEffect = Effect.fn('Git.parseRawDiff')(function* (
   };
 });
 
-const parseRawDiffObjectsEffect = Effect.fn('Git.parseRawDiffObjects')(
+export const parseRawDiffObjectsEffect = Effect.fn('Git.parseRawDiffObjects')(
   function* (output: Buffer) {
     const { entries, end } = yield* readEntries(output, 0);
     if (end !== output.length)
@@ -96,14 +96,3 @@ const readEntries = Effect.fn('Git.readRawDiffEntries')(function* (
   if (entries.length > 0 && output[at] === 0) at += 1;
   return { entries, end: at };
 });
-
-export function parseRawDiff(
-  output: Buffer,
-  start: number = 0,
-): { entries: RawDiffEntry[]; end: number } {
-  return Effect.runSync(parseRawDiffEffect(output, start));
-}
-
-export function parseRawDiffObjects(output: Buffer): RawDiffObjects[] {
-  return Effect.runSync(parseRawDiffObjectsEffect(output));
-}

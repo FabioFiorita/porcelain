@@ -1,6 +1,5 @@
 import { InspectionLimitError } from '../../shared/errors/inspection-limit-error.ts';
 import { Effect } from 'effect';
-import { runGitEffect } from '../../shared/commands/run-git.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type { GitDiffResult } from '../dtos/git-diff.ts';
 import type { GitOrdinaryChange } from '../dtos/git-status.ts';
@@ -91,7 +90,7 @@ const readScopes = Effect.fn('Git.readScopes')(function* (
             [],
             limits,
           )
-        : new Map(),
+        : new Map<string, GitDiffResult>(),
     unstaged:
       unstaged.length > 0
         ? yield* readSections(
@@ -101,7 +100,7 @@ const readScopes = Effect.fn('Git.readScopes')(function* (
             filters,
             limits,
           )
-        : new Map(),
+        : new Map<string, GitDiffResult>(),
   };
 });
 
@@ -166,7 +165,7 @@ const readPaths = Effect.fn('Git.readPaths')(function* (
   config: readonly string[],
   limits: GitLimits,
 ) {
-  if (paths.length === 0) return new Map();
+  if (paths.length === 0) return new Map<string, GitDiffResult>();
   const pathspecs = [...new Set(paths)].map((path) => `:(top,literal)${path}`);
   const output = yield* runInspection(
     checkout,
@@ -227,32 +226,4 @@ function diffArguments(
     '--',
     ...pathspecs,
   ];
-}
-
-export function readCommitDiffs(
-  checkout: string,
-  oid: string,
-  parent: number,
-  paths: readonly PathGroup[],
-  limits: GitLimits,
-  signal?: AbortSignal,
-) {
-  return runGitEffect(
-    readCommitDiffsEffect(checkout, oid, parent, paths, limits),
-    signal,
-  );
-}
-
-export function readRangeDiffs(
-  checkout: string,
-  from: string,
-  to: string,
-  paths: readonly PathGroup[],
-  limits: GitLimits,
-  signal?: AbortSignal,
-) {
-  return runGitEffect(
-    readRangeDiffsEffect(checkout, from, to, paths, limits),
-    signal,
-  );
 }

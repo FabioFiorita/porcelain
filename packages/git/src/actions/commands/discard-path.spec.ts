@@ -1,3 +1,5 @@
+import { NodeServices } from '@effect/platform-node';
+import { Effect } from 'effect';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
   existsSync,
@@ -28,34 +30,33 @@ const refExists = (ref: string) =>
 
 const runner: Runner = {
   limits: gitLimits,
-  execute: (args, signal, input, options) => {
-    signal.throwIfAborted();
-    const done = spawnSync('git', ['-C', checkout, ...args], {
-      input,
-      env: {
-        ...process.env,
-        LC_ALL: 'C',
-        GIT_EDITOR: ':',
-        ...(options?.indexFile === undefined
-          ? {}
-          : { GIT_INDEX_FILE: options.indexFile }),
-      },
-    });
-    return Promise.resolve({
-      stdout: done.stdout,
-      stderr: done.stderr,
-      exitCode: done.status,
-      started: true,
-      interrupted: done.status === null,
-      descendantsStopped: true,
-    });
-  },
+  execute: (args, input, options) =>
+    Effect.sync(() => {
+      const done = spawnSync('git', ['-C', checkout, ...args], {
+        input,
+        env: {
+          ...process.env,
+          LC_ALL: 'C',
+          GIT_EDITOR: ':',
+          ...(options?.indexFile === undefined
+            ? {}
+            : { GIT_INDEX_FILE: options.indexFile }),
+        },
+      });
+      return {
+        stdout: done.stdout,
+        stderr: done.stderr,
+        exitCode: done.status,
+        started: true,
+        interrupted: done.status === null,
+        descendantsStopped: true,
+      };
+    }),
 };
 
 const discard = (path: string, hunk?: Hunk) =>
-  discardPath(
-    runner,
-    {
+  run(
+    discardPath(runner, {
       id: 'req-1',
       intent: { action: 'discard', path, hunk },
       preview: {
@@ -65,8 +66,7 @@ const discard = (path: string, hunk?: Hunk) =>
         trackedChanges: true,
         untrackedCount: 0,
       },
-    },
-    AbortSignal.timeout(10_000),
+    }),
   );
 
 const write = (path: string, content: string) => {
@@ -269,3 +269,12 @@ describe('discardPath', () => {
     });
   });
 });
+
+function run<A, E>(operation: Effect.Effect<A, E, NodeServices.NodeServices>) {
+  return Effect.runPromise(
+    operation.pipe(
+      Effect.provide(NodeServices.layer),
+      Effect.timeout('20 seconds'),
+    ),
+  );
+}

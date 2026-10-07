@@ -1,6 +1,7 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { fixture } from '../../../spec/fixtures/fixture.ts';
-import { parseGitStatus } from './parse-git-status.ts';
+import { parseGitStatusEffect } from './parse-git-status.ts';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 
 const HEAD = 'f4e8dd3408852fb71b1581394612bcf35e414dfc';
@@ -13,9 +14,11 @@ const records = (...lines: string[]) =>
 
 const working = fixture('status/working.txt');
 
-describe('parseGitStatus', () => {
+describe('parseGitStatusEffect', () => {
   it('reads the branch, its upstream and how far it has diverged', () => {
-    expect(parseGitStatus(working, gitLimits).branch).toEqual({
+    expect(
+      Effect.runSync(parseGitStatusEffect(working, gitLimits)).branch,
+    ).toEqual({
       name: 'main',
       upstream: 'origin/main',
       ahead: 1,
@@ -24,7 +27,9 @@ describe('parseGitStatus', () => {
   });
 
   it('reads modified, added, renamed and untracked paths per scope', () => {
-    expect(parseGitStatus(working, gitLimits).changes).toEqual([
+    expect(
+      Effect.runSync(parseGitStatusEffect(working, gitLimits)).changes,
+    ).toEqual([
       {
         scope: 'unstaged',
         kind: 'modified',
@@ -64,7 +69,9 @@ describe('parseGitStatus', () => {
 
   it('reads a conflicted path with its three stages', () => {
     expect(
-      parseGitStatus(fixture('status/conflicted.txt'), gitLimits).changes,
+      Effect.runSync(
+        parseGitStatusEffect(fixture('status/conflicted.txt'), gitLimits),
+      ).changes,
     ).toEqual([
       {
         scope: 'unmerged',
@@ -81,45 +88,65 @@ describe('parseGitStatus', () => {
   });
 
   it('reads a repository without commits and a detached HEAD', () => {
-    const initial = parseGitStatus(fixture('status/initial.txt'), gitLimits);
-    const detached = parseGitStatus(fixture('status/detached.txt'), gitLimits);
+    const initial = Effect.runSync(
+      parseGitStatusEffect(fixture('status/initial.txt'), gitLimits),
+    );
+    const detached = Effect.runSync(
+      parseGitStatusEffect(fixture('status/detached.txt'), gitLimits),
+    );
     expect([initial.headOid, detached.branch?.name]).toEqual([null, null]);
   });
 
   it('marks a submodule change as unsupported', () => {
     expect(
-      parseGitStatus(fixture('status/submodule.txt'), gitLimits).changes,
+      Effect.runSync(
+        parseGitStatusEffect(fixture('status/submodule.txt'), gitLimits),
+      ).changes,
     ).toMatchObject([{ supported: false }]);
   });
 
   it('gives the same output the same token and different output another', () => {
-    const token = parseGitStatus(working, gitLimits).statusToken;
-    expect(parseGitStatus(Buffer.from(working), gitLimits).statusToken).toBe(
-      token,
-    );
+    const token = Effect.runSync(
+      parseGitStatusEffect(working, gitLimits),
+    ).statusToken;
     expect(
-      parseGitStatus(fixture('status/detached.txt'), gitLimits).statusToken,
+      Effect.runSync(parseGitStatusEffect(Buffer.from(working), gitLimits))
+        .statusToken,
+    ).toBe(token);
+    expect(
+      Effect.runSync(
+        parseGitStatusEffect(fixture('status/detached.txt'), gitLimits),
+      ).statusToken,
     ).not.toBe(token);
   });
 
   it('rejects output cut off before its final terminator', () => {
     expect(() =>
-      parseGitStatus(fixture('status/working-truncated.txt'), gitLimits),
+      Effect.runSync(
+        parseGitStatusEffect(
+          fixture('status/working-truncated.txt'),
+          gitLimits,
+        ),
+      ),
     ).toThrow('Invalid Git status output');
   });
 
   it('rejects a record with a malformed mode', () => {
     expect(() =>
-      parseGitStatus(
-        fixture('status/working-malformed-hand-edited.txt'),
-        gitLimits,
+      Effect.runSync(
+        parseGitStatusEffect(
+          fixture('status/working-malformed-hand-edited.txt'),
+          gitLimits,
+        ),
       ),
     ).toThrow('Invalid Git status output');
   });
 
   it('rejects output without a head object name', () => {
     expect(() =>
-      parseGitStatus(records('# branch.head main'), gitLimits),
+      Effect.runSync(
+        parseGitStatusEffect(records('# branch.head main'), gitLimits),
+      ),
     ).toThrow('Invalid Git status output');
   });
 
@@ -143,7 +170,12 @@ describe('parseGitStatus', () => {
     },
   ])('rejects $name', ({ record }) => {
     expect(() =>
-      parseGitStatus(records(`# branch.oid ${HEAD}`, record), gitLimits),
+      Effect.runSync(
+        parseGitStatusEffect(
+          records(`# branch.oid ${HEAD}`, record),
+          gitLimits,
+        ),
+      ),
     ).toThrow('Invalid Git status output');
   });
 
@@ -151,19 +183,26 @@ describe('parseGitStatus', () => {
     'refuses the path %j, which escapes the checkout',
     (path) => {
       expect(() =>
-        parseGitStatus(records(`# branch.oid ${HEAD}`, `? ${path}`), gitLimits),
+        Effect.runSync(
+          parseGitStatusEffect(
+            records(`# branch.oid ${HEAD}`, `? ${path}`),
+            gitLimits,
+          ),
+        ),
       ).toThrow('Git paths require valid UTF-8');
     },
   );
 
   it('refuses a path that is not valid UTF-8', () => {
     expect(() =>
-      parseGitStatus(
-        Buffer.concat([
-          records(`# branch.oid ${HEAD}`),
-          Buffer.from([0x3f, 0x20, 0xff, 0xfe, 0x00]),
-        ]),
-        gitLimits,
+      Effect.runSync(
+        parseGitStatusEffect(
+          Buffer.concat([
+            records(`# branch.oid ${HEAD}`),
+            Buffer.from([0x3f, 0x20, 0xff, 0xfe, 0x00]),
+          ]),
+          gitLimits,
+        ),
       ),
     ).toThrow('Git paths require valid UTF-8');
   });
