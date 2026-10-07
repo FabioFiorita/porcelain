@@ -13,6 +13,7 @@ import {
 import { nativeOperation } from '@porcelain/effects';
 import type { Limits } from '../../config/limits.ts';
 import { listIgnoredPaths } from '@porcelain/git/inspection';
+import { captureGitPlatform } from '../projects/git-platform.ts';
 import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
 import type {
   ListableProject,
@@ -56,6 +57,7 @@ export const parcelWorktreeWatcherLayer = (options: {
   Layer.effect(
     WorktreeWatcher,
     Effect.gen(function* () {
+      const provideGit = yield* captureGitPlatform();
       const fsCapability = yield* FileSystem.FileSystem;
       const pathCapability = yield* Path.Path;
       const turns = yield* RcMap.make({
@@ -194,9 +196,10 @@ export const parcelWorktreeWatcherLayer = (options: {
         scope: Scope.Scope,
       ): Effect.fn.Return<IgnoreRulesRefresh> {
         if (state.closed) return 'unchanged';
-        const ignored = yield* nativeOperation((signal) =>
-          listIgnoredPaths(state.root, options.limits, signal),
-        );
+        const ignored = yield* listIgnoredPaths(
+          state.root,
+          options.limits,
+        ).pipe(provideGit, Effect.orDie);
         if (sameList(ignored, state.ignored)) return 'unchanged';
         if (state.subscription) yield* state.subscription.unsubscribe;
         state.subscription = undefined;
@@ -250,9 +253,10 @@ export const parcelWorktreeWatcherLayer = (options: {
             const scope = yield* Effect.scope;
             const state: FileWatchState = {
               root: input.worktree.root,
-              ignored: yield* nativeOperation((signal) =>
-                listIgnoredPaths(input.worktree.root, options.limits, signal),
-              ),
+              ignored: yield* listIgnoredPaths(
+                input.worktree.root,
+                options.limits,
+              ).pipe(provideGit, Effect.orDie),
               explicit: [],
               subscription: undefined,
               supplements: new Map(),

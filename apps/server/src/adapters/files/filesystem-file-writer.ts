@@ -1,4 +1,4 @@
-import { admittedWrite, nativeOperation } from '@porcelain/effects';
+import { admittedWrite } from '@porcelain/effects';
 import { Effect, Layer, type Scope } from 'effect';
 import { randomUUID } from 'node:crypto';
 import { type BigIntStats, constants } from 'node:fs';
@@ -39,7 +39,7 @@ import {
 } from './inspect-path.ts';
 import { openGuardedFile, syscall } from './guarded-filesystem-syscalls.ts';
 import {
-  listedWorktree,
+  listedWorktreeEffect,
   type ListedWorktrees,
 } from '../projects/checkout-session.ts';
 
@@ -122,9 +122,10 @@ export const filesystemFileWriterLayer = (
     const locate = Effect.fn('FilesystemFileWriter.locate')(function* (
       location: FileLocation,
     ) {
-      const checkout = yield* nativeOperation((signal) =>
-        listedWorktree(worktrees, location.worktreeId, signal),
-      );
+      const checkout = yield* listedWorktreeEffect(
+        worktrees,
+        location.worktreeId,
+      ).pipe(Effect.orDie);
       return { root: checkout.path, path: location.path };
     });
     const attempt = (

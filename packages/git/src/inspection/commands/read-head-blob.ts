@@ -1,53 +1,40 @@
-import { GitCommandError } from '../../shared/errors/git-command-error.ts';
-import { GitOutputLimitError } from '../../shared/errors/git-output-limit-error.ts';
+import { Effect } from 'effect';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
-import { runGitRead } from '../../shared/commands/run-git.ts';
+import { gitRead } from '../../shared/commands/run-git.ts';
 import type { HeadBlob, HeadBlobRequest } from '../dtos/head-blob.ts';
-import type { CheckoutSession } from '../interfaces/git-session.ts';
+import type { EffectCheckoutSession } from '../interfaces/git-session.ts';
 
 const ABSENT = 1;
 
-export async function readHeadBlob(
-  session: Pick<CheckoutSession, 'path'>,
+export const readHeadBlob = Effect.fn('Git.readHeadBlob')(function* (
+  session: Pick<EffectCheckoutSession, 'path'>,
   request: HeadBlobRequest,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<HeadBlob> {
-  const oid = await readBlobOid(session.path, request.path, limits, signal);
-  if (oid === undefined) return { kind: 'missing' };
-  try {
-    const bytes = await runGitRead(
-      session.path,
-      ['cat-file', 'blob', oid],
-      limits,
-      signal,
-      { maxBytes: request.maxBytes },
-    );
-    signal?.throwIfAborted();
-    return { kind: 'bytes', bytes };
-  } catch (cause) {
-    if (cause instanceof GitOutputLimitError) return { kind: 'too-large' };
-    throw cause;
-  }
-}
+) {
+  const oid = yield* readBlobOid(session.path, request.path, limits);
+  if (oid === undefined) return { kind: 'missing' } as const;
+  return yield* gitRead(session.path, ['cat-file', 'blob', oid], limits, {
+    maxBytes: request.maxBytes,
+  }).pipe(
+    Effect.map((bytes): HeadBlob => ({ kind: 'bytes', bytes })),
+    Effect.catchTag('GitOutputLimitError', () =>
+      Effect.succeed<HeadBlob>({ kind: 'too-large' }),
+    ),
+  );
+});
 
-async function readBlobOid(
-  checkout: string,
-  path: string,
-  limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<string | undefined> {
-  try {
-    const output = await runGitRead(
+const readBlobOid = Effect.fn('Git.readBlobOid')(
+  (checkout: string, path: string, limits: GitLimits) =>
+    gitRead(
       checkout,
       ['rev-parse', '--verify', '--quiet', `HEAD:${path}`],
       limits,
-      signal,
-    );
-    return output.toString('utf8').trim();
-  } catch (cause) {
-    if (cause instanceof GitCommandError && cause.exitCode === ABSENT)
-      return undefined;
-    throw cause;
-  }
-}
+    ).pipe(
+      Effect.map((output) => output.toString('utf8').trim()),
+      Effect.catchTag('GitCommandError', (cause) =>
+        cause.exitCode === ABSENT
+          ? Effect.succeed(undefined)
+          : Effect.fail(cause),
+      ),
+    ),
+);

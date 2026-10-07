@@ -2,7 +2,6 @@ import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
 import {
   ChangeStatusReader,
   ReadChangeFingerprintsOptions,
-  ChangeDiffReader,
   BranchRangeReader,
 } from '@porcelain/changes/ports';
 import {
@@ -41,10 +40,6 @@ import {
   type GitActionWriterFactory,
 } from '@porcelain/git/actions';
 import {
-  InspectionGit,
-  type InspectionFactory,
-} from '@porcelain/git/inspection';
-import {
   WorktreeCatalogStore,
   InventoryStore,
   CheckWorktreeOptions,
@@ -66,8 +61,8 @@ import {
   RecordReviewActivityService,
 } from '@porcelain/reviews/services';
 import { gitBranchRangeReaderLayer } from '../adapters/changes/git-branch-range-reader.ts';
-import { GitChangeDiffReader } from '../adapters/changes/git-change-diff-reader.ts';
-import { GitChangeStatusReader } from '../adapters/changes/git-change-status-reader.ts';
+import { gitChangeDiffReaderLayer } from '../adapters/changes/git-change-diff-reader.ts';
+import { gitChangeStatusReaderLayer } from '../adapters/changes/git-change-status-reader.ts';
 import { gitWorktreeSideReaderLayer } from '../adapters/changes/git-worktree-side-reader.ts';
 import { inspectionCheckouts } from '../adapters/changes/inspection-checkouts.ts';
 import { gitSessionPerSignal } from '../adapters/projects/checkout-session.ts';
@@ -100,8 +95,6 @@ export function composeShared(dependencies: SharedDependencies) {
     const { limits } = dependencies.settings;
     const actionGit: GitActionWriterFactory = (checkout) =>
       new ActionsGit(checkout, limits.git);
-    const inspection: InspectionFactory = (checkout) =>
-      new InspectionGit(checkout, limits.git);
     const accessContext = yield* Layer.build(
       gitWorktreeAccessReaderLayer.pipe(
         Layer.provide(Layer.succeed(WorktreeCatalogStore, catalog)),
@@ -113,21 +106,16 @@ export function composeShared(dependencies: SharedDependencies) {
     );
     const staleness = { staleAfterMs: limits.inventory.staleAfterMs };
     const gitSessions = gitSessionPerSignal(limits.git);
-    const openInspection = inspectionCheckouts(
-      worktreeAccess,
-      inspection,
-      gitSessions,
-    );
-    const changeStatusReader = new GitChangeStatusReader(openInspection);
+    const openInspection = inspectionCheckouts(worktreeAccess, limits.git);
     const ports = Layer.mergeAll(
       filesystemFileReaderLayer(worktreeAccess),
       gitHeadTextReaderLayer(openInspection),
       Layer.succeed(ReadTextFileOptions, limits.files.readTextFile),
       Layer.succeed(ReadTextFilesOptions, limits.files.readTextFile),
-      Layer.succeed(ChangeStatusReader, changeStatusReader),
+      gitChangeStatusReaderLayer(openInspection),
       gitWorktreeSideReaderLayer(openInspection, limits.changes.worktreeReads),
       Layer.succeed(ReadChangeFingerprintsOptions, limits.changes.fingerprints),
-      Layer.succeed(ChangeDiffReader, new GitChangeDiffReader(openInspection)),
+      gitChangeDiffReaderLayer(openInspection),
       Layer.succeed(WorktreeCatalogStore, catalog),
       Layer.succeed(InventoryStore, stores.inventory),
       Layer.succeed(Clock.Clock, dependencies.clock),
@@ -195,7 +183,7 @@ export function composeShared(dependencies: SharedDependencies) {
         worktreeAccess,
         gitSessions,
         openInspection,
-        changeStatusReader,
+        changeStatusReader: yield* ChangeStatusReader,
         fileReader: yield* FileReader,
         checkWorktreeService: yield* CheckWorktreeService,
         confirmWorktree: yield* ConfirmWorktreeService,

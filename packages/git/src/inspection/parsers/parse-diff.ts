@@ -1,7 +1,8 @@
+import { Effect } from 'effect';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type { GitDiffResult } from '../dtos/git-diff.ts';
 import { InvalidGitDiffError } from '../../shared/errors/invalid-git-diff-error.ts';
-import { parseRawDiff } from './parse-raw-diff.ts';
+import { parseRawDiffEffect } from './parse-raw-diff.ts';
 
 const SECTION_HEADER = Buffer.from('diff --git ');
 const LINE_SECTION_HEADER = Buffer.from('\ndiff --git ');
@@ -12,11 +13,11 @@ export function diffKey(paths: readonly (string | null)[]): string {
     .join('\0');
 }
 
-export function parseDiff(
+export const parseDiff = Effect.fn('Git.parseDiff')(function* (
   output: Buffer,
   limits: GitLimits,
-): Map<string, GitDiffResult> {
-  const { entries, end } = parseRawDiff(output);
+) {
+  const { entries, end } = yield* parseRawDiffEffect(output);
   const sections = splitSections(output.subarray(end));
   const results = new Map<string, GitDiffResult>();
   let at = 0;
@@ -24,7 +25,7 @@ export function parseDiff(
     const first = sections[at];
     const second = entry.status === 'T' ? sections[at + 1] : undefined;
     if (first === undefined || (entry.status === 'T' && second === undefined))
-      throw new InvalidGitDiffError();
+      return yield* Effect.fail(new InvalidGitDiffError());
     const owned = second === undefined ? [first] : [first, second];
     results.set(
       diffKey([entry.oldPath, entry.newPath]),
@@ -32,9 +33,10 @@ export function parseDiff(
     );
     at += owned.length;
   }
-  if (at !== sections.length) throw new InvalidGitDiffError();
+  if (at !== sections.length)
+    return yield* Effect.fail(new InvalidGitDiffError());
   return results;
-}
+});
 
 function splitSections(patch: Buffer): Buffer[] {
   const starts: number[] = patch

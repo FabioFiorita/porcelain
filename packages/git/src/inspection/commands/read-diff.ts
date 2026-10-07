@@ -1,8 +1,10 @@
+import { InspectionLimitError } from '../../shared/errors/inspection-limit-error.ts';
+import { Effect } from 'effect';
+import { runGitEffect } from '../../shared/commands/run-git.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type { GitDiffResult } from '../dtos/git-diff.ts';
 import type { GitOrdinaryChange } from '../dtos/git-status.ts';
-import { InspectionLimitError } from '../../shared/errors/inspection-limit-error.ts';
-import type { CheckoutSession } from '../interfaces/git-session.ts';
+import type { EffectCheckoutSession } from '../interfaces/git-session.ts';
 import { diffKey, parseDiff } from '../parsers/parse-diff.ts';
 import { sessionConversionFilters } from './check-conversion-filters.ts';
 import { runInspection } from './run-inspection.ts';
@@ -17,100 +19,91 @@ type Sections = Map<string, GitDiffResult> | null;
 
 export type PathGroup = string | readonly string[];
 
-export async function readDiff(
-  session: CheckoutSession,
+export const readDiff = Effect.fn('Git.readDiff')(function* (
+  session: EffectCheckoutSession,
   change: GitOrdinaryChange,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<GitDiffResult> {
-  return diffFor(change, await readScopes(session, [change], limits, signal));
-}
+) {
+  return diffFor(change, yield* readScopes(session, [change], limits));
+});
 
-export async function readDiffs(
-  session: CheckoutSession,
+export const readDiffs = Effect.fn('Git.readDiffs')(function* (
+  session: EffectCheckoutSession,
   changes: readonly GitOrdinaryChange[],
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<GitDiffResult[]> {
-  const scopes = await readScopes(session, changes, limits, signal);
+) {
+  const scopes = yield* readScopes(session, changes, limits);
   return changes.map((change) => diffFor(change, scopes));
-}
+});
 
-export function readCommitDiffs(
-  checkout: string,
-  oid: string,
-  parent: number,
-  paths: readonly PathGroup[],
-  limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<Sections> {
-  return readSections(
-    checkout,
-    { kind: 'commit', oid, parent },
-    paths,
-    [],
-    limits,
-    signal,
-  );
-}
+export const readCommitDiffsEffect = Effect.fn('Git.readCommitDiffs')(
+  function* (
+    checkout: string,
+    oid: string,
+    parent: number,
+    paths: readonly PathGroup[],
+    limits: GitLimits,
+  ) {
+    return yield* readSections(
+      checkout,
+      { kind: 'commit', oid, parent },
+      paths,
+      [],
+      limits,
+    );
+  },
+);
 
-export function readRangeDiffs(
+export const readRangeDiffsEffect = Effect.fn('Git.readRangeDiffs')(function* (
   checkout: string,
   from: string,
   to: string,
   paths: readonly PathGroup[],
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<Sections> {
-  return readSections(
+) {
+  return yield* readSections(
     checkout,
     { kind: 'range', from, to },
     paths,
     [],
     limits,
-    signal,
   );
-}
+});
 
-async function readScopes(
-  session: CheckoutSession,
+const readScopes = Effect.fn('Git.readScopes')(function* (
+  session: EffectCheckoutSession,
   changes: readonly GitOrdinaryChange[],
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<Record<GitOrdinaryChange['scope'], Sections>> {
+) {
   const wanted = (scope: GitOrdinaryChange['scope']) =>
     changes.filter((change) => change.supported && change.scope === scope);
   const staged = wanted('staged');
   const unstaged = wanted('unstaged');
   const filters =
-    unstaged.length > 0
-      ? await sessionConversionFilters(session, limits, signal)
-      : [];
+    unstaged.length > 0 ? yield* sessionConversionFilters(session, limits) : [];
   return {
     staged:
       staged.length > 0
-        ? await readSections(
+        ? yield* readSections(
             session.path,
             { kind: 'staged' },
             staged.map(changePaths),
             [],
             limits,
-            signal,
           )
         : new Map(),
     unstaged:
       unstaged.length > 0
-        ? await readSections(
+        ? yield* readSections(
             session.path,
             { kind: 'unstaged' },
             unstaged.map(changePaths),
             filters,
             limits,
-            signal,
           )
         : new Map(),
   };
-}
+});
 
 function diffFor(
   change: GitOrdinaryChange,
@@ -134,66 +127,61 @@ function changePaths(change: GitOrdinaryChange): string[] {
   );
 }
 
-async function readSections(
+const readSections = Effect.fn('Git.readSections')(function* (
   checkout: string,
   comparison: DiffComparison,
   paths: readonly PathGroup[],
   config: readonly string[],
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<Sections> {
+) {
   const groups = paths.map((group) =>
     typeof group === 'string' ? [group] : [...new Set(group)],
   );
-  const alone = await readPaths(
+  const alone = yield* readPaths(
     checkout,
     comparison,
     groups.filter((group) => group.length === 1).flat(),
     false,
     config,
     limits,
-    signal,
   );
-  const paired = await readPaths(
+  const paired = yield* readPaths(
     checkout,
     comparison,
     groups.filter((group) => group.length > 1).flat(),
     true,
     config,
     limits,
-    signal,
   );
   return alone === null || paired === null
     ? null
     : new Map([...alone, ...paired]);
-}
+});
 
-async function readPaths(
+const readPaths = Effect.fn('Git.readPaths')(function* (
   checkout: string,
   comparison: DiffComparison,
   paths: readonly string[],
   renames: boolean,
   config: readonly string[],
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<Sections> {
+) {
   if (paths.length === 0) return new Map();
   const pathspecs = [...new Set(paths)].map((path) => `:(top,literal)${path}`);
-  let output: Buffer;
-  try {
-    output = await runInspection(
-      checkout,
-      diffArguments(comparison, pathspecs, renames, limits),
-      limits,
-      signal,
-      { maxBytes: limits.inspection.diffBatchBytes, config },
-    );
-  } catch (error) {
-    if (error instanceof InspectionLimitError) return null;
-    throw error;
-  }
-  return parseDiff(output, limits);
-}
+  const output = yield* runInspection(
+    checkout,
+    diffArguments(comparison, pathspecs, renames, limits),
+    limits,
+    { maxBytes: limits.inspection.diffBatchBytes, config },
+  ).pipe(
+    Effect.catchIf(
+      (error): error is InspectionLimitError =>
+        error instanceof InspectionLimitError,
+      () => Effect.succeed(undefined),
+    ),
+  );
+  return output === undefined ? null : yield* parseDiff(output, limits);
+});
 
 function diffArguments(
   comparison: DiffComparison,
@@ -239,4 +227,32 @@ function diffArguments(
     '--',
     ...pathspecs,
   ];
+}
+
+export function readCommitDiffs(
+  checkout: string,
+  oid: string,
+  parent: number,
+  paths: readonly PathGroup[],
+  limits: GitLimits,
+  signal?: AbortSignal,
+) {
+  return runGitEffect(
+    readCommitDiffsEffect(checkout, oid, parent, paths, limits),
+    signal,
+  );
+}
+
+export function readRangeDiffs(
+  checkout: string,
+  from: string,
+  to: string,
+  paths: readonly PathGroup[],
+  limits: GitLimits,
+  signal?: AbortSignal,
+) {
+  return runGitEffect(
+    readRangeDiffsEffect(checkout, from, to, paths, limits),
+    signal,
+  );
 }

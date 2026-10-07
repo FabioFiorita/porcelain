@@ -98,16 +98,6 @@ export async function runGitEffect<A, E>(
   }
 }
 
-export async function runGitRead(
-  checkout: string,
-  args: readonly string[],
-  limits: GitLimits,
-  signal?: AbortSignal,
-  options: GitReadOptions = {},
-): Promise<Buffer> {
-  return runGitEffect(gitRead(checkout, args, limits, options), signal);
-}
-
 export async function runGitWrite(
   checkout: string,
   args: readonly string[],

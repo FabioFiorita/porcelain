@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { NodeServices } from '@effect/platform-node';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -38,20 +40,24 @@ afterEach(() => {
 
 describe('readHeadBlob', () => {
   it('reads the committed bytes of a file, not the worktree edit', async () => {
-    const blob = await readHeadBlob(
-      { path: checkout },
-      { path: 'README.md', maxBytes: 100 },
-      gitLimits,
+    const blob = await run(
+      readHeadBlob(
+        { path: checkout },
+        { path: 'README.md', maxBytes: 100 },
+        gitLimits,
+      ),
     );
     expect(blob).toEqual({ kind: 'bytes', bytes: Buffer.from('committed\n') });
   });
 
   it('reads a blob exactly at the limit', async () => {
     expect(
-      await readHeadBlob(
-        { path: checkout },
-        { path: 'README.md', maxBytes: 'committed\n'.length },
-        gitLimits,
+      await run(
+        readHeadBlob(
+          { path: checkout },
+          { path: 'README.md', maxBytes: 'committed\n'.length },
+          gitLimits,
+        ),
       ),
     ).toEqual({ kind: 'bytes', bytes: Buffer.from('committed\n') });
   });
@@ -61,7 +67,13 @@ describe('readHeadBlob', () => {
     expect(
       await Promise.all(
         ['new.md', 'absent.md'].map((path) =>
-          readHeadBlob({ path: checkout }, { path, maxBytes: 100 }, gitLimits),
+          run(
+            readHeadBlob(
+              { path: checkout },
+              { path, maxBytes: 100 },
+              gitLimits,
+            ),
+          ),
         ),
       ),
     ).toEqual([{ kind: 'missing' }, { kind: 'missing' }]);
@@ -72,21 +84,29 @@ describe('readHeadBlob', () => {
     execFileSync('git', ['init', '-q', empty]);
     writeFileSync(join(empty, 'README.md'), 'not committed\n');
     expect(
-      await readHeadBlob(
-        { path: empty },
-        { path: 'README.md', maxBytes: 100 },
-        gitLimits,
+      await run(
+        readHeadBlob(
+          { path: empty },
+          { path: 'README.md', maxBytes: 100 },
+          gitLimits,
+        ),
       ),
     ).toEqual({ kind: 'missing' });
   });
 
   it('answers too large for a blob one byte past the limit', async () => {
     expect(
-      await readHeadBlob(
-        { path: checkout },
-        { path: 'README.md', maxBytes: 'committed\n'.length - 1 },
-        gitLimits,
+      await run(
+        readHeadBlob(
+          { path: checkout },
+          { path: 'README.md', maxBytes: 'committed\n'.length - 1 },
+          gitLimits,
+        ),
       ),
     ).toEqual({ kind: 'too-large' });
   });
 });
+
+function run<A, E>(effect: Effect.Effect<A, E, NodeServices.NodeServices>) {
+  return Effect.runPromise(effect.pipe(Effect.provide(NodeServices.layer)));
+}

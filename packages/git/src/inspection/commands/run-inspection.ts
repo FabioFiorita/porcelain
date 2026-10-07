@@ -1,23 +1,18 @@
+import { Effect } from 'effect';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
-import { GitOutputLimitError } from '../../shared/errors/git-output-limit-error.ts';
-import {
-  type GitReadOptions,
-  runGitRead,
-} from '../../shared/commands/run-git.ts';
+import { type GitReadOptions, gitRead } from '../../shared/commands/run-git.ts';
 import { InspectionLimitError } from '../../shared/errors/inspection-limit-error.ts';
 
-export async function runInspection(
-  checkout: string,
-  args: readonly string[],
-  limits: GitLimits,
-  signal?: AbortSignal,
-  options: GitReadOptions = {},
-): Promise<Buffer> {
-  try {
-    return await runGitRead(checkout, args, limits, signal, options);
-  } catch (cause) {
-    if (cause instanceof GitOutputLimitError)
-      throw new InspectionLimitError({ cause });
-    throw cause;
-  }
-}
+export const runInspection = Effect.fn('Git.runInspection')(
+  (
+    checkout: string,
+    args: readonly string[],
+    limits: GitLimits,
+    options: GitReadOptions = {},
+  ) =>
+    gitRead(checkout, args, limits, options).pipe(
+      Effect.catchTag('GitOutputLimitError', (cause) =>
+        Effect.fail(new InspectionLimitError({ cause })),
+      ),
+    ),
+);

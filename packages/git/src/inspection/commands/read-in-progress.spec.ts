@@ -1,5 +1,13 @@
+import { Effect } from 'effect';
+import { NodeServices } from '@effect/platform-node';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -23,7 +31,7 @@ afterEach(() => {
 
 describe('readInProgress', () => {
   it('reports nothing in progress in a quiet checkout', async () => {
-    expect(await readInProgress(checkout)).toEqual({
+    expect(await run(readInProgress(checkout))).toEqual({
       inProgress: null,
       mergeHeadOid: null,
     });
@@ -31,7 +39,7 @@ describe('readInProgress', () => {
 
   it('reports a merge and the commit being merged', async () => {
     writeFileSync(join(checkout, '.git', 'MERGE_HEAD'), `${ONE}\n`);
-    expect(await readInProgress(checkout)).toEqual({
+    expect(await run(readInProgress(checkout))).toEqual({
       inProgress: 'merge',
       mergeHeadOid: ONE,
     });
@@ -39,7 +47,7 @@ describe('readInProgress', () => {
 
   it('reports an octopus merge without naming one commit', async () => {
     writeFileSync(join(checkout, '.git', 'MERGE_HEAD'), `${ONE}\n${TWO}\n`);
-    expect(await readInProgress(checkout)).toEqual({
+    expect(await run(readInProgress(checkout))).toEqual({
       inProgress: 'merge',
       mergeHeadOid: null,
     });
@@ -48,7 +56,15 @@ describe('readInProgress', () => {
   it('reports a rebase even when a merge head is also left behind', async () => {
     writeFileSync(join(checkout, '.git', 'MERGE_HEAD'), `${ONE}\n`);
     mkdirSync(join(checkout, '.git', 'rebase-merge'));
-    expect(await readInProgress(checkout)).toEqual({
+    expect(await run(readInProgress(checkout))).toEqual({
+      inProgress: 'rebase',
+      mergeHeadOid: null,
+    });
+  });
+
+  it('reports rebase metadata even when its marker is a dangling symbolic link', async () => {
+    symlinkSync(join(base, 'missing'), join(checkout, '.git', 'rebase-apply'));
+    expect(await run(readInProgress(checkout))).toEqual({
       inProgress: 'rebase',
       mergeHeadOid: null,
     });
@@ -75,8 +91,8 @@ describe('readInProgress', () => {
       `${TWO}\n`,
     );
     expect([
-      await readInProgress(checkout),
-      await readInProgress(linked),
+      await run(readInProgress(checkout)),
+      await run(readInProgress(linked)),
     ]).toEqual([
       { inProgress: null, mergeHeadOid: null },
       { inProgress: 'merge', mergeHeadOid: TWO },
@@ -87,9 +103,13 @@ describe('readInProgress', () => {
     const broken = join(base, 'broken');
     mkdirSync(broken);
     writeFileSync(join(broken, '.git'), 'not a pointer\n');
-    expect(await readInProgress(broken)).toEqual({
+    expect(await run(readInProgress(broken))).toEqual({
       inProgress: null,
       mergeHeadOid: null,
     });
   });
 });
+
+function run<A, E>(effect: Effect.Effect<A, E, NodeServices.NodeServices>) {
+  return Effect.runPromise(effect.pipe(Effect.provide(NodeServices.layer)));
+}

@@ -1,8 +1,10 @@
 import { Effect, Layer } from 'effect';
 import { type WorktreeRead } from '@porcelain/effects/worktree';
-import { readGit } from '../../runtime/git-io.ts';
+import { readGitEffect } from '../../runtime/git-io.ts';
 import { type GitIoFailure } from '@porcelain/git/errors';
 import { join } from 'node:path';
+import { readSubmoduleHeads } from '@porcelain/git/inspection';
+import { captureGitPlatform } from '../projects/git-platform.ts';
 import {
   type StagingStampRequest,
   type SubmoduleHeadsRequest,
@@ -21,42 +23,52 @@ export const gitWorktreeSideReaderLayer = (
   open: OpenInspection,
   options: WorktreeReadOptions,
 ) =>
-  Layer.succeed(WorktreeSideReader, {
-    readEntries: Effect.fn('GitWorktreeSideReader.readEntries')(function* (
-      input: WorktreeEntriesRequest,
-    ): Effect.fn.Return<
-      ReadonlyMap<string, WorktreeEntry>,
-      GitIoFailure,
-      WorktreeRead
-    > {
-      const { worktree } = yield* readGit(input.worktreeId, (signal) =>
-        open(input.worktreeId, signal),
-      );
-      return yield* readWorktreeFiles(
-        worktree.path,
-        input.paths,
-        input.maxDigestBytes,
-        options,
-      );
+  Layer.effect(
+    WorktreeSideReader,
+    Effect.gen(function* () {
+      const provideGit = yield* captureGitPlatform();
+      return {
+        readEntries: Effect.fn('GitWorktreeSideReader.readEntries')(function* (
+          input: WorktreeEntriesRequest,
+        ): Effect.fn.Return<
+          ReadonlyMap<string, WorktreeEntry>,
+          GitIoFailure,
+          WorktreeRead
+        > {
+          const { worktree } = yield* readGitEffect(
+            input.worktreeId,
+            open(input.worktreeId).pipe(provideGit),
+          );
+          return yield* readWorktreeFiles(
+            worktree.path,
+            input.paths,
+            input.maxDigestBytes,
+            options,
+          );
+        }),
+        readSubmoduleHeads: Effect.fn(
+          'GitWorktreeSideReader.readSubmoduleHeads',
+        )(function* (input: SubmoduleHeadsRequest) {
+          return yield* readGitEffect(
+            input.worktreeId,
+            Effect.gen(function* () {
+              const { checkout, limits } = yield* open(input.worktreeId);
+              yield* checkout.verify();
+              return yield* readSubmoduleHeads(checkout, input.paths, limits);
+            }).pipe(provideGit),
+          );
+        }),
+        readStagingStamp: Effect.fn('GitWorktreeSideReader.readStagingStamp')(
+          function* (input: StagingStampRequest) {
+            const { worktree } = yield* readGitEffect(
+              input.worktreeId,
+              open(input.worktreeId).pipe(provideGit),
+            );
+            return yield* stampPath(
+              join(worktree.administrativeDirectory, 'index'),
+            );
+          },
+        ),
+      };
     }),
-    readSubmoduleHeads: Effect.fn('GitWorktreeSideReader.readSubmoduleHeads')(
-      function* (input: SubmoduleHeadsRequest) {
-        const { git } = yield* readGit(input.worktreeId, (signal) =>
-          open(input.worktreeId, signal),
-        );
-        return yield* readGit(input.worktreeId, (signal) =>
-          git.readSubmoduleHeads(input.paths, signal),
-        );
-      },
-    ),
-    readStagingStamp: Effect.fn('GitWorktreeSideReader.readStagingStamp')(
-      function* (input: StagingStampRequest) {
-        const { worktree } = yield* readGit(input.worktreeId, (signal) =>
-          open(input.worktreeId, signal),
-        );
-        return yield* stampPath(
-          join(worktree.administrativeDirectory, 'index'),
-        );
-      },
-    ),
-  });
+  );
