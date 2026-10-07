@@ -48,7 +48,7 @@ export function transportLayer(transport: Transport) {
     ),
   ).pipe(
     Layer.provide(
-      FetchHttpClient.layer.pipe(
+      Layer.fresh(FetchHttpClient.layer).pipe(
         Layer.provide(
           Layer.merge(
             Layer.succeed(FetchHttpClient.Fetch, send),
