@@ -19,7 +19,7 @@ import { list, record, text } from '../kit/session.ts';
 const root = resolve(import.meta.dirname, '../../../..');
 const cli = join(root, '.agents/skills/mobile-verify/scripts/cli.ts');
 
-async function fixture({ onTestFinished }: TestContext) {
+async function fixture(onTestFinished: TestContext['onTestFinished']) {
   const scratch = await mkdtemp(join(tmpdir(), 'porcelain-mobile-refresh-'));
   const id = randomBytes(4).toString('hex');
   const home = join(
@@ -143,8 +143,10 @@ function reloadCommand(id: string) {
   ];
 }
 
-test('a rejected mobile reload preserves the recorded source and retains its failure', async (context) => {
-  const owned = await fixture(context);
+test('a rejected mobile reload preserves the recorded source and retains its failure', async ({
+  onTestFinished,
+}) => {
+  const owned = await fixture(onTestFinished);
   const before = await readFile(owned.file, 'utf8');
   const outcome = await owned.run(7);
   expect(outcome.code).toBe(1);
@@ -159,8 +161,10 @@ test('a rejected mobile reload preserves the recorded source and retains its fai
   ).toContain('reload rejected');
 }, 60_000);
 
-test('an explicit mobile refresh records acceptance without certifying loaded JavaScript and remains repeatable', async (context) => {
-  const owned = await fixture(context);
+test('an explicit mobile refresh records acceptance without certifying loaded JavaScript and remains repeatable', async ({
+  onTestFinished,
+}) => {
+  const owned = await fixture(onTestFinished);
   for (const attempt of [1, 2]) {
     const outcome = await owned.run(0);
     expect(outcome.code).toBe(0);
