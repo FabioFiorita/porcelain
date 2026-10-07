@@ -10,7 +10,7 @@ import {
   Scope,
   Semaphore,
 } from 'effect';
-import { nativeOperation } from '@porcelain/effects';
+import { WorktreeWatchError } from '../../runtime/errors/worktree-watch-error.ts';
 import type { Limits } from '../../config/limits.ts';
 import { listIgnoredPaths } from '@porcelain/git/inspection';
 import { captureGitPlatform } from '../projects/git-platform.ts';
@@ -35,6 +35,12 @@ type FileWatchState = {
   changed: (paths: readonly string[]) => void;
   closed: boolean;
 };
+
+const parcelOperation = <A>(work: () => Promise<A>) =>
+  Effect.tryPromise({
+    try: work,
+    catch: (cause) => new WorktreeWatchError({ cause }),
+  }).pipe(Effect.orDie);
 
 function backend(): parcelWatcher.Options {
   return process.platform === 'linux' ? { backend: 'inotify' } : {};
@@ -77,14 +83,14 @@ export const parcelWorktreeWatcherLayer = (options: {
       ) {
         const subscription = yield* inTurn(
           directory,
-          nativeOperation(() =>
+          parcelOperation(() =>
             parcelWatcher.subscribe(directory, changed, settings),
           ),
         );
         return {
           unsubscribe: inTurn(
             directory,
-            nativeOperation(() => subscription.unsubscribe()),
+            parcelOperation(() => subscription.unsubscribe()),
           ),
         };
       });
