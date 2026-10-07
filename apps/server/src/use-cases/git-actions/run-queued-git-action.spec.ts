@@ -1,4 +1,4 @@
-import { testClock } from '@porcelain/kernel/test-kit';
+import { TestClock } from 'effect/testing';
 import { RunGitActionUseCaseOptions } from '../../ports/run-git-action-use-case-options.ts';
 import { Logger } from '../../ports/logger.ts';
 import { RefreshWorktreeReviewUseCasePort } from '../../ports/refresh-worktree-review-use-case-port.ts';
@@ -10,7 +10,7 @@ import {
   WorktreeSideReader,
   ReadChangeFingerprintsOptions,
 } from '@porcelain/changes/ports';
-import { nativeWrite } from '@porcelain/effects';
+import { admittedWrite } from '@porcelain/effects';
 import {
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
@@ -35,10 +35,19 @@ import {
   RunGitActionService,
 } from '@porcelain/git-actions/services';
 import { type ListedWorktree } from '@porcelain/projects/models';
-import { Cause, Effect, Layer, ManagedRuntime, Clock } from 'effect';
+import {
+  Cause,
+  Context,
+  Deferred,
+  Effect,
+  Fiber,
+  Layer,
+  Clock,
+  DateTime,
+} from 'effect';
 import { InventoryStore } from '@porcelain/projects/ports';
 import { FindProjectService } from '@porcelain/projects/services';
-import { expect, it } from 'vitest';
+import { expect, it } from '@effect/vitest';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
 import { Lanes } from '../../runtime/lanes.ts';
@@ -109,18 +118,21 @@ const input = {
   acceptedAt: '2026-10-05T05:00:00.000Z',
 };
 
-async function fixture() {
-  const clock = await testClock('2026-10-05T05:00:00.000Z');
+const fixture = Effect.fn(function* () {
+  yield* TestClock.setTime(
+    DateTime.toEpochMillis(DateTime.makeUnsafe('2026-10-05T05:00:00.000Z')),
+  );
+  const clock = yield* Clock.Clock;
   const receipts = new Receipts();
-  const started = Promise.withResolvers<void>();
-  const aborted = Promise.withResolvers<void>();
-  const finished = Promise.withResolvers<void>();
-  const cleanup = Promise.withResolvers<void>();
+  const started = yield* Deferred.make<void>();
+  const aborted = yield* Deferred.make<void>();
+  const finished = yield* Deferred.make<void>();
+  const cleanup = yield* Deferred.make<void>();
   const notifications: GitActionReceiptView[] = [];
   const failures: unknown[] = [];
   let calls = 0;
   const consistency = { execute: () => Effect.void };
-  const laneRuntime = ManagedRuntime.make(
+  const laneContext = yield* Layer.build(
     Lanes.layer.pipe(
       Layer.provide(
         Layer.succeed(LaneOptions, {
@@ -131,18 +143,16 @@ async function fixture() {
       ),
     ),
   );
-  const lanes = await laneRuntime.runPromise(Lanes);
-  const keys = Effect.runSync(LaneKeys.pipe(Effect.provide(LaneKeys.layer)));
-  const access = Effect.runSync(
-    WorktreeAccess.pipe(
-      Effect.provide(WorktreeAccess.layer),
-      Effect.provideService(CheckWorktreeUseCasePort, {
-        execute: () => Effect.succeed(worktree),
-      }),
-      Effect.provideService(WorktreeConsistencyProbe, consistency),
-      Effect.provideService(Lanes, lanes),
-      Effect.provideService(LaneKeys, keys),
-    ),
+  const lanes = Context.get(laneContext, Lanes);
+  const keys = yield* LaneKeys.pipe(Effect.provide(LaneKeys.layer));
+  const access = yield* WorktreeAccess.pipe(
+    Effect.provide(WorktreeAccess.layer),
+    Effect.provideService(CheckWorktreeUseCasePort, {
+      execute: () => Effect.succeed(worktree),
+    }),
+    Effect.provideService(WorktreeConsistencyProbe, consistency),
+    Effect.provideService(Lanes, lanes),
+    Effect.provideService(LaneKeys, keys),
   );
   const events: EventPublisher = {
     inventoryChanged: () => Effect.void,
@@ -152,22 +162,29 @@ async function fixture() {
     gitActionChanged: (receipt) =>
       Effect.sync(() => {
         notifications.push(receipt);
-        if (receipt.state !== 'running') finished.resolve();
+        if (receipt.state !== 'running')
+          Deferred.doneUnsafe(finished, Effect.void);
       }),
   };
   const runner: GitActionRunner = {
     run: (request) =>
-      nativeWrite(request.run.worktreeId, (signal) => {
-        calls += 1;
-        signal.addEventListener('abort', () => aborted.resolve(), {
-          once: true,
-        });
-        started.resolve();
-        return cleanup.promise.then(() => ({
-          kind: 'finished' as const,
-          outcome: { state: 'succeeded' as const, refreshRequired: false },
-        }));
-      }),
+      admittedWrite(request.run.worktreeId, () =>
+        Effect.gen(function* () {
+          calls += 1;
+          yield* Deferred.succeed(started, undefined);
+          yield* Deferred.await(cleanup).pipe(
+            Effect.onInterrupt(() =>
+              Deferred.succeed(aborted, undefined).pipe(
+                Effect.andThen(Deferred.await(cleanup)),
+              ),
+            ),
+          );
+          return {
+            kind: 'finished' as const,
+            outcome: { state: 'succeeded' as const, refreshRequired: false },
+          };
+        }),
+      ),
   };
   const unused = () =>
     Effect.die(new Error('Fetch must not inspect the selected file list'));
@@ -230,38 +247,34 @@ async function fixture() {
     ReadChangeFingerprintsService.layer,
     FindProjectService.layer,
   ).pipe(Layer.provideMerge(ports));
-  await Effect.runPromise(
-    receipts.insert({
-      requestId,
-      projectId: worktree.projectId,
-      worktreeId: worktree.id,
+  yield* receipts.insert({
+    requestId,
+    projectId: worktree.projectId,
+    worktreeId: worktree.id,
+    action: 'fetch',
+    intent: {
       action: 'fetch',
-      intent: {
-        action: 'fetch',
-        remoteName: 'origin',
-        sourceRef: 'refs/heads/main',
-      },
-      expected: { upstream: {} },
-      state: 'running',
-      progress: [],
-      refreshRequired: false,
-      acceptedAt: input.acceptedAt,
-    }),
-  );
-  const runtime = ManagedRuntime.make(
+      remoteName: 'origin',
+      sourceRef: 'refs/heads/main',
+    },
+    expected: { upstream: {} },
+    state: 'running',
+    progress: [],
+    refreshRequired: false,
+    acceptedAt: input.acceptedAt,
+  });
+  const context = yield* Layer.build(
     RunQueuedGitActionUseCase.layer.pipe(
       Layer.provideMerge(
         BeginGitActionService.layer.pipe(Layer.provideMerge(services)),
       ),
     ),
   );
-  const useCase = await runtime.runPromise(RunQueuedGitActionUseCase);
+  const useCase = Context.get(context, RunQueuedGitActionUseCase);
   return {
     useCase,
     receipts,
     lanes,
-    laneRuntime,
-    runtime,
     started,
     aborted,
     finished,
@@ -270,125 +283,134 @@ async function fixture() {
     failures,
     calls: () => calls,
   };
-}
-
-it('executes a queued request once and refuses duplicate execution after its outcome is durable', async () => {
-  const test = await fixture();
-  try {
-    const running = Effect.runPromise(test.useCase.execute(input));
-    await test.started.promise;
-    test.cleanup.resolve();
-    await running;
-    await Effect.runPromise(test.useCase.execute(input));
-    expect(test.calls()).toBe(1);
-    expect(test.notifications.map((receipt) => receipt.state)).toEqual([
-      'succeeded',
-    ]);
-  } finally {
-    test.cleanup.resolve();
-    await test.runtime.dispose();
-    await test.laneRuntime.dispose();
-  }
 });
 
-it('refuses a previously started durable request instead of replaying Git IO', async () => {
-  const test = await fixture();
-  try {
-    expect(
-      await Effect.runPromise(test.receipts.claimExecution({ requestId })),
-    ).toBe(true);
-    await Effect.runPromise(test.useCase.execute(input));
-    expect(test.calls()).toBe(0);
-    expect(
-      await Effect.runPromise(test.receipts.read({ requestId })),
-    ).toMatchObject({ state: 'interrupted', reason: 'OUTCOME_UNKNOWN' });
-    expect(test.notifications.map((receipt) => receipt.state)).toEqual([
-      'interrupted',
-    ]);
-  } finally {
-    test.cleanup.resolve();
-    await test.runtime.dispose();
-    await test.laneRuntime.dispose();
-  }
-});
+it.effect(
+  'executes a queued request once and refuses duplicate execution after its outcome is durable',
+  () =>
+    Effect.gen(function* () {
+      const test = yield* fixture();
+      try {
+        const running = yield* Effect.forkChild(test.useCase.execute(input), {
+          startImmediately: true,
+        });
+        yield* Deferred.await(test.started);
+        yield* Deferred.succeed(test.cleanup, undefined);
+        yield* Fiber.await(running);
+        yield* test.useCase.execute(input);
+        expect(test.calls()).toBe(1);
+        expect(test.notifications.map((receipt) => receipt.state)).toEqual([
+          'succeeded',
+        ]);
+      } finally {
+        yield* Deferred.succeed(test.cleanup, undefined);
+        yield* test.lanes.close();
+      }
+    }),
+);
 
-it('refuses a stale accepted timestamp before claiming or executing the request', async () => {
-  const test = await fixture();
-  try {
-    await Effect.runPromise(
-      test.useCase.execute({
-        ...input,
-        acceptedAt: '2026-10-06T00:00:00.000Z',
-      }),
-    );
-    expect(test.calls()).toBe(0);
-    expect(test.notifications).toEqual([]);
-    expect(
-      await Effect.runPromise(test.receipts.read({ requestId })),
-    ).toMatchObject({
-      state: 'running',
-      acceptedAt: '2026-10-05T05:00:00.000Z',
-    });
-    expect(
-      await Effect.runPromise(test.receipts.claimExecution({ requestId })),
-    ).toBe(true);
-  } finally {
-    test.cleanup.resolve();
-    await test.runtime.dispose();
-    await test.laneRuntime.dispose();
-  }
-});
+it.effect(
+  'refuses a previously started durable request instead of replaying Git IO',
+  () =>
+    Effect.gen(function* () {
+      const test = yield* fixture();
+      try {
+        expect(yield* test.receipts.claimExecution({ requestId })).toBe(true);
+        yield* test.useCase.execute(input);
+        expect(test.calls()).toBe(0);
+        expect(yield* test.receipts.read({ requestId })).toMatchObject({
+          state: 'interrupted',
+          reason: 'OUTCOME_UNKNOWN',
+        });
+        expect(test.notifications.map((receipt) => receipt.state)).toEqual([
+          'interrupted',
+        ]);
+      } finally {
+        yield* Deferred.succeed(test.cleanup, undefined);
+        yield* test.lanes.close();
+      }
+    }),
+);
 
-it('settles a cached native activity defect without replaying Git IO', async () => {
-  const test = await fixture();
-  try {
-    await Effect.runPromise(
-      test.useCase.execute({
-        ...input,
-        kind: 'recover',
-        cause: Cause.die(new Error('cached activity defect')),
-      }),
-    );
-    expect(test.calls()).toBe(0);
-    expect(
-      await Effect.runPromise(test.receipts.read({ requestId })),
-    ).toMatchObject({ state: 'interrupted', reason: 'OUTCOME_UNKNOWN' });
-    expect(test.notifications.map((receipt) => receipt.state)).toEqual([
-      'interrupted',
-    ]);
-    expect(test.failures).toHaveLength(1);
-  } finally {
-    test.cleanup.resolve();
-    await test.runtime.dispose();
-    await test.laneRuntime.dispose();
-  }
-});
+it.effect(
+  'refuses a stale accepted timestamp before claiming or executing the request',
+  () =>
+    Effect.gen(function* () {
+      const test = yield* fixture();
+      try {
+        yield* test.useCase.execute({
+          ...input,
+          acceptedAt: '2026-10-06T00:00:00.000Z',
+        });
+        expect(test.calls()).toBe(0);
+        expect(test.notifications).toEqual([]);
+        expect(yield* test.receipts.read({ requestId })).toMatchObject({
+          state: 'running',
+          acceptedAt: '2026-10-05T05:00:00.000Z',
+        });
+        expect(yield* test.receipts.claimExecution({ requestId })).toBe(true);
+      } finally {
+        yield* Deferred.succeed(test.cleanup, undefined);
+        yield* test.lanes.close();
+      }
+    }),
+);
 
-it('records interruption only after the owned native action has stopped', async () => {
-  const test = await fixture();
-  try {
-    const controller = new AbortController();
-    const running = Effect.runPromiseExit(test.useCase.execute(input), {
-      signal: controller.signal,
-    });
-    await test.started.promise;
-    controller.abort();
-    await test.aborted.promise;
-    expect(
-      (await Effect.runPromise(test.receipts.read({ requestId })))?.state,
-    ).toBe('running');
-    test.cleanup.resolve();
-    await running;
-    expect(
-      await Effect.runPromise(test.receipts.read({ requestId })),
-    ).toMatchObject({ state: 'interrupted', reason: 'OUTCOME_UNKNOWN' });
-    expect(test.notifications.map((receipt) => receipt.state)).toEqual([
-      'interrupted',
-    ]);
-    expect(test.failures).toHaveLength(1);
-  } finally {
-    test.cleanup.resolve();
-    await test.runtime.dispose();
-    await test.laneRuntime.dispose();
-  }
-});
+it.effect(
+  'settles a cached native activity defect without replaying Git IO',
+  () =>
+    Effect.gen(function* () {
+      const test = yield* fixture();
+      try {
+        yield* test.useCase.execute({
+          ...input,
+          kind: 'recover',
+          cause: Cause.die(new Error('cached activity defect')),
+        });
+        expect(test.calls()).toBe(0);
+        expect(yield* test.receipts.read({ requestId })).toMatchObject({
+          state: 'interrupted',
+          reason: 'OUTCOME_UNKNOWN',
+        });
+        expect(test.notifications.map((receipt) => receipt.state)).toEqual([
+          'interrupted',
+        ]);
+        expect(test.failures).toHaveLength(1);
+      } finally {
+        yield* Deferred.succeed(test.cleanup, undefined);
+        yield* test.lanes.close();
+      }
+    }),
+);
+
+it.effect(
+  'records interruption only after the owned native action has stopped',
+  () =>
+    Effect.gen(function* () {
+      const test = yield* fixture();
+      try {
+        const running = yield* Effect.forkChild(test.useCase.execute(input), {
+          startImmediately: true,
+        });
+        yield* Deferred.await(test.started);
+        const stopping = yield* Effect.forkChild(Fiber.interrupt(running));
+        yield* Deferred.await(test.aborted);
+        expect((yield* test.receipts.read({ requestId }))?.state).toBe(
+          'running',
+        );
+        yield* Deferred.succeed(test.cleanup, undefined);
+        yield* Fiber.join(stopping);
+        expect(yield* test.receipts.read({ requestId })).toMatchObject({
+          state: 'interrupted',
+          reason: 'OUTCOME_UNKNOWN',
+        });
+        expect(test.notifications.map((receipt) => receipt.state)).toEqual([
+          'interrupted',
+        ]);
+        expect(test.failures).toHaveLength(1);
+      } finally {
+        yield* Deferred.succeed(test.cleanup, undefined);
+        yield* test.lanes.close();
+      }
+    }),
+);

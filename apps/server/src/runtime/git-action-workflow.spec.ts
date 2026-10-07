@@ -1,9 +1,8 @@
-import { nativeOperation } from '@porcelain/effects';
 import { type GitActionReceipt } from '@porcelain/git-actions/models';
 import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
-import { Effect, Layer, ManagedRuntime } from 'effect';
+import { Context, Deferred, Effect, Exit, Fiber, Layer } from 'effect';
 import { WorkflowEngine } from 'effect/workflow';
-import { expect, it } from 'vitest';
+import { expect, it } from '@effect/vitest';
 import { RunQueuedGitActionUseCasePort } from '../ports/run-queued-git-action-use-case-port.ts';
 import { GitActionWorkflow } from './git-action-workflow.ts';
 
@@ -24,11 +23,11 @@ const receipt: GitActionReceipt = {
   acceptedAt: '2026-10-05T05:00:00.000Z',
 };
 
-async function fixture() {
-  const started = Promise.withResolvers<void>();
-  const aborted = Promise.withResolvers<void>();
-  const release = Promise.withResolvers<void>();
-  const settled = Promise.withResolvers<void>();
+const fixture = Effect.fn(function* () {
+  const started = yield* Deferred.make<void>();
+  const aborted = yield* Deferred.make<void>();
+  const release = yield* Deferred.make<void>();
+  const settled = yield* Deferred.make<void>();
   const order: string[] = [];
   let calls = 0;
   let aborts = 0;
@@ -48,37 +47,34 @@ async function fixture() {
     }),
     Layer.succeed(RunQueuedGitActionUseCasePort, {
       execute: () =>
-        nativeOperation((signal) => {
+        Effect.gen(function* () {
           calls += 1;
-          signal.addEventListener(
-            'abort',
-            () => {
-              aborts += 1;
-              aborted.resolve();
-            },
-            { once: true },
+          yield* Deferred.succeed(started, undefined);
+          yield* Deferred.await(release).pipe(
+            Effect.onInterrupt(() =>
+              Effect.gen(function* () {
+                aborts += 1;
+                yield* Deferred.succeed(aborted, undefined);
+                yield* Deferred.await(release);
+              }),
+            ),
+            Effect.ensuring(
+              Effect.gen(function* () {
+                order.push('cleanup');
+                order.push('settled');
+                yield* Deferred.succeed(settled, undefined);
+              }),
+            ),
           );
-          started.resolve();
-          return release.promise.then(() => {
-            order.push('cleanup');
-          });
-        }).pipe(
-          Effect.ensuring(
-            Effect.sync(() => {
-              order.push('settled');
-              settled.resolve();
-            }),
-          ),
-        ),
+        }),
     }),
     WorkflowEngine.layerMemory,
   );
-  const runtime = ManagedRuntime.make(
+  const context = yield* Layer.build(
     GitActionWorkflow.layer.pipe(Layer.provide(ports)),
   );
   return {
-    workflow: await runtime.runPromise(GitActionWorkflow),
-    runtime,
+    workflow: Context.get(context, GitActionWorkflow),
     started,
     aborted,
     release,
@@ -87,62 +83,52 @@ async function fixture() {
     calls: () => calls,
     aborts: () => aborts,
   };
-}
-
-it('keeps accepted native workflow execution alive when the requesting caller disconnects', async () => {
-  const test = await fixture();
-  try {
-    const controller = new AbortController();
-    const caller = Effect.runPromiseExit(
-      test.workflow
-        .execute({ requestId: receipt.requestId })
-        .pipe(Effect.andThen(Effect.never)),
-      { signal: controller.signal },
-    );
-    await test.started.promise;
-    controller.abort();
-    expect((await caller)._tag).toBe('Failure');
-    expect(test.calls()).toBe(1);
-    expect(test.aborts()).toBe(0);
-    expect(test.order).toEqual([]);
-    test.release.resolve();
-    await test.settled.promise;
-    expect(test.order).toEqual(['cleanup', 'settled']);
-  } finally {
-    test.release.resolve();
-    await test.runtime.dispose();
-  }
 });
 
-it('stops the owned native workflow and waits for foreign cleanup before returning', async () => {
-  const test = await fixture();
-  try {
-    await Effect.runPromise(
-      test.workflow.execute({ requestId: receipt.requestId }),
-    );
-    await test.started.promise;
-    let stopped = false;
-    const stopping = Effect.runPromise(test.workflow.stop()).then(() => {
-      stopped = true;
-    });
-    await test.aborted.promise;
-    expect(stopped).toBe(false);
-    expect(test.order).toEqual([]);
-    test.release.resolve();
-    await stopping;
-    expect(test.calls()).toBe(1);
-    expect(test.aborts()).toBe(1);
-    expect(test.order).toEqual(['cleanup', 'settled']);
-    expect(stopped).toBe(true);
-    expect(
-      (
-        await Effect.runPromiseExit(
-          test.workflow.execute({ requestId: receipt.requestId }),
-        )
-      )._tag,
-    ).toBe('Failure');
-  } finally {
-    test.release.resolve();
-    await test.runtime.dispose();
-  }
-});
+it.effect(
+  'keeps accepted workflow execution alive when the requesting caller disconnects',
+  () =>
+    Effect.gen(function* () {
+      const test = yield* fixture();
+      const caller = yield* Effect.forkChild(
+        test.workflow
+          .execute({ requestId: receipt.requestId })
+          .pipe(Effect.andThen(Effect.never)),
+      );
+      yield* Deferred.await(test.started);
+      yield* Fiber.interrupt(caller);
+      expect(Exit.hasInterrupts(yield* Fiber.await(caller))).toBe(true);
+      expect(test.calls()).toBe(1);
+      expect(test.aborts()).toBe(0);
+      expect(test.order).toEqual([]);
+      yield* Deferred.succeed(test.release, undefined);
+      yield* Deferred.await(test.settled);
+      expect(test.order).toEqual(['cleanup', 'settled']);
+    }),
+);
+
+it.effect(
+  'stops the owned workflow and waits for cleanup before returning',
+  () =>
+    Effect.gen(function* () {
+      const test = yield* fixture();
+      yield* test.workflow.execute({ requestId: receipt.requestId });
+      yield* Deferred.await(test.started);
+      const stopping = yield* Effect.forkChild(test.workflow.stop());
+      yield* Deferred.await(test.aborted);
+      expect(stopping.pollUnsafe()).toBeUndefined();
+      expect(test.order).toEqual([]);
+      yield* Deferred.succeed(test.release, undefined);
+      yield* Fiber.join(stopping);
+      expect(test.calls()).toBe(1);
+      expect(test.aborts()).toBe(1);
+      expect(test.order).toEqual(['cleanup', 'settled']);
+      expect(
+        Exit.isFailure(
+          yield* Effect.exit(
+            test.workflow.execute({ requestId: receipt.requestId }),
+          ),
+        ),
+      ).toBe(true);
+    }),
+);

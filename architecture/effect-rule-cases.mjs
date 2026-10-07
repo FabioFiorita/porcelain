@@ -158,7 +158,7 @@ export const effectRuleCases = [
   ].map((invalid) => ({
     rule: 'worktree-admission-owner',
     path: 'packages/files/src/services/read-text-file-service.ts',
-    valid: `import { nativeRead, type WorktreeRead } from '@porcelain/effects';`,
+    valid: `import { admittedRead, type WorktreeRead } from '@porcelain/effects';`,
     invalid,
     errors: 1,
   })),
