@@ -1,76 +1,97 @@
 ---
 name: desktop-verify
-description: Drive Porcelain Dev, the Mac app unpackaged from the checkout, through the desktop control CLI following the native feature map, run its Playwright Electron e2e tests, and check the installed app's lock. Use when changing apps/desktop, the desktop bridge contract or the Mac build, or a behaviour only the Electron shell has.
+description: Launch disposable unpackaged Porcelain Dev, publish its renderer CDP and raw Playwright Electron lifecycle, and verify native desktop features. macOS owns menus, sheets, Keychain and window transitions; Linux supports bounded renderer launch and shutdown.
 ---
 
 # Desktop verification
 
-This skill covers what only the Electron shell does: the native folder picker, the Keychain-backed remote credentials, the window, the menus and the installed app's lock. The web inside the app is `web-verify`'s, including `start --desktop` for UI only the desktop shows. Everything here needs macOS; on Linux `start` and the e2e tests stop and say so.
+The launcher prepares and records; the agent drives the surface. Never build, install, launch or point a test at the installed Porcelain app or its service/data. Each start stages unpackaged Porcelain Dev in instance-owned storage with a disposable profile and a real sample Git repository.
 
-`C=.agents/skills/desktop-verify/scripts/cli`, run from the repository root on the Mac. Run `$C` alone for every command. The CLI drives and records; it never asserts and never runs tests.
+`C=.agents/skills/desktop-verify/scripts/cli`, from the checkout root. Run `$C` alone for help. Commands are `start`, `doctor`, `status`, `logs`, `evidence`, `stop`; there are no UI commands, eval endpoint, picker interceptor or private RPC.
 
-## 1. Start
+## Start and connect
 
 ```sh
+$C doctor
 $C start
 ```
 
-It stages Porcelain Dev with a temporary profile and a sample repository, `desktop-smoke`, and prints the instance id, the evidence folder, the repository and the profile.
+The short card prints server/web/WebSocket URLs, the exact pairing and MCP commands, evidence and stop commands, renderer URL/CDP, and the lifecycle entry point. Private `connection.json` contains build identity, fixture paths, owner socket, credential file paths, app/server PIDs, staged path, disposable profile, launch-options file and platform capabilities. Launch options contain inherited environment values: keep that file private and never attach it to a PR.
 
-## 2. Find the feature
+The sample repository starts unregistered so the real folder-picker journey can prove registration. `fixtures.projectId` and `worktreeId` are empty until a project is opened; read `/api/inventory` through the app renderer for its IDs. The app's local server credential remains in the app host's memory. `credentialFiles.remoteEncrypted` names the disposable encrypted remote-store file, which may not exist yet.
 
-Read `.agents/skills/desktop-verify/features/README.md`, then the feature's map file.
+Use the published renderer CDP endpoint with a browser tool that supports attachment, or Computer Use on the exact development app identity. For a direct Playwright renderer connection:
 
-## 3. Drive it
-
-Run each line of the map's **Driving it** and compare the window with the end state it names. Web commands work as in `web-verify`; the native ones run in the main process:
-
-```sh
-$C menu "File/Open Project…"
-$C dialog <repository>
-$C window fullscreen on
-$C window
+```ts
+const browser = await chromium.connectOverCDP(card.rendererCdpEndpoint);
+try {
+  const page = browser
+    .contexts()
+    .flatMap((context) => context.pages())
+    .find((page) => page.url() === card.rendererUrl);
+  if (page === undefined) throw new Error('The app renderer is missing');
+  await page.getByRole('button', { name: 'Open project', exact: true }).click();
+  // Operate the real OS sheet with Computer Use, then inspect the renderer.
+} finally {
+  await browser.close();
+}
 ```
 
-The folder picker is held from `start`: a sheet the app opens never shows and waits for `dialog`. When the window is not where the map says, `snapshot` first.
+Do not pair or navigate this renderer as an ordinary HTTP browser: it uses `porcelain://app` and the app's trusted bridge. Direct HTTP/WebSocket clients must pair against the disposable server and use the origins in the card. The exact pairing command uses the owner socket; the exact MCP command operates in the sample repository. For protocol/auth/content-type details, read `server-verify/SKILL.md`.
 
-## 4. Read the evidence and stop
+## Main process and bridge
 
-```sh
-$C evidence
-$C stop
+A CDP renderer connection does not expose Electron's main process. For menus, BrowserWindow and bridge journeys, run an in-process script from this checkout and import `startDesktop` from `.agents/skills/desktop-verify/scripts/start.ts`. It returns `{ electron, card, stop }`: `electron` is the raw Playwright ElectronApplication, with no command wrapper.
+
+```ts
+const folder = await mkdtemp('/tmp/porcelain-desktop-journey-');
+const evidenceDirectory = join(folder, 'evidence');
+await mkdir(evidenceDirectory);
+const opened = await startDesktop({
+  id: '1234abcd',
+  folder,
+  evidenceDirectory,
+});
+try {
+  const page = await opened.electron.firstWindow();
+  const packaged = await opened.electron.evaluate(({ app }) => app.isPackaged);
+  if (packaged) throw new Error('Expected unpackaged Porcelain Dev');
+  // Drive page locators, the public bridge and native Electron APIs directly.
+} finally {
+  await opened.stop();
+  // Keep evidence before removing your instance folder.
+}
 ```
 
-One numbered file per command, redacted, plus the app's output in `supervisor.log` and, after `stop`, `server.log`. Report the folder and what it shows.
+The CLI supervisor calls this same entry point. The in-process caller owns `stop()`; its card's CLI stop/status commands belong to registered CLI instances only. Capture `electron.process()` before closing if the journey needs its exit code. Do not re-launch from the options file while the instance is running. A new lifecycle creates a fresh profile; regression fixtures prove restart persistence.
 
-## 5. Run the test file the entry names
+## Native sheets and feature evidence
 
-```sh
-pnpm --filter @porcelain/desktop exec playwright test spec/e2e/window.e2e.ts
-```
+Read `features/README.md`, then the feature map. Use Computer Use for the actual macOS folder sheet. The launcher never patches `dialog.showOpenDialog`. Existing picker regression tests substitute answers to prove bridge options, cancellation and registration; report that separately from observing a real sheet.
 
-A failed test keeps screenshots, the server log and renderer errors in `apps/desktop/test-results/e2e/`.
+Save screenshots and journey observations in the card's evidence directory. Scrub pairing codes, credentials and inherited environment values before retaining or attaching evidence. `status --instance <id>` reads passive CDP page targets plus captured identity/staleness; it does not resize, focus or reopen windows. After source changes, stop and start again before treating new observations as proof.
 
-Sessions have no idle expiry. Stop your instance when finished. After stopping, `$C evidence --instance <id>` reads the retained evidence and `$C stop --instance <id>` repeats a confirmed stop without signaling processes. A failed stop exits nonzero and retains private runtime state; inspect its report before retrying.
+## Linux and macOS boundaries
 
-## Gotchas
-
-- `safeStorage` fails over SSH with "User interaction is not allowed". Run a test or instance that writes credentials in a Terminal window of the logged-in session and read its log:
-
-  ```sh
-  osascript -e 'tell application "Terminal" to do script "cd <checkout> && caffeinate -d -u pnpm --filter @porcelain/desktop exec playwright test spec/e2e/bridge.e2e.ts > /tmp/desktop-e2e.log 2>&1; echo exit $? >> /tmp/desktop-e2e.log"'
-  tail -f /tmp/desktop-e2e.log
-  ```
-
-- macOS finishes a full screen transition only on an unlocked screen, so `window.e2e.ts`'s full screen test fails while the session is locked. Check with `ioreg -n Root -d1 -a | grep -A1 CGSSessionScreenIsLocked`. `folder-picker` and `menus` run fine over SSH.
-- After you edit desktop, web, server or CLI code, commands refuse until you `stop` and `start` again. With two instances, every command needs `--instance <id>`. The session ends if its app quits.
-
-## The installed app's lock
-
-`pnpm desktop:build` and `pnpm desktop:install` are the owner's. After the owner installs a build that changes the lock (`features/app.installed-lock.md`), and only when the owner asks, check it:
+Linux needs Electron and a display. Use a desktop session, or:
 
 ```sh
-$C installed-check
+xvfb-run -a $C start
 ```
 
-It needs no instance, runs over SSH, launches the installed app only with disposable profiles and debugging switches, and records what each launch did; the map says what to look for.
+The detached instance inherits that display, so keep the xvfb owner alive until `$C stop` completes (for a bounded script, run the entire start/renderer/stop journey under `xvfb-run`). `doctor` reports missing display or Electron; run the normal project install to obtain dependencies. If Electron remains missing, report the required binary/dependencies without changing install policy. `caffeinate` runs only on macOS.
+
+Linux proof is one launch, renderer inspection and stop. Keychain credentials, macOS menus/sheets and window transitions stay macOS-only. The existing desktop e2e suite still refuses Linux. On macOS, Keychain writes need the logged-in session; full screen needs an unlocked screen. If Computer Use is unavailable, report bridge proof only and leave real-sheet assurance open.
+
+## Stop and regressions
+
+```sh
+$C status --instance <id>
+$C logs --instance <id>
+$C stop --instance <id>
+$C evidence --instance <id>
+```
+
+Stop checks captured process ownership, removes private runtime data and keeps evidence (`supervisor.log`, `electron.log`, `server.log`, stop outcome). Repeated confirmed stops are safe. Incomplete shutdown exits nonzero and retains private state; inspect the report. Stop only captured PIDs or use the lifecycle's own stop. No idle expiry; quit also stops a registered instance.
+
+Run the changed test files and the feature's named regression file; CI owns full suites. The launcher spec is `apps/server/spec/integration/desktop-verification-cli.integration.ts`. Native picker/menu/window regressions are in `apps/desktop/spec/e2e/`. Packaged assurance belongs to release verification; this skill's `app.installed-lock` map points at `apps/desktop/src/rules/launch-refusal.spec.ts` and never launches an installed app.
