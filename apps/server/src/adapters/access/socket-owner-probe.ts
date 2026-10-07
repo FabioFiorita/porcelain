@@ -1,4 +1,4 @@
-import { Schema, Result } from 'effect';
+import { Effect, Schema, Result } from 'effect';
 import { request } from 'node:http';
 import { constants } from 'node:http2';
 import { ownerStatusSchema } from '@porcelain/kernel/models';
@@ -9,9 +9,13 @@ import type {
 } from '../../ports/owner-probe.ts';
 type Answer =
   | { kind: 'answered'; status: number; body: string }
-  | { kind: 'timed-out' };
-function ask(input: OwnerProbeRequest): Promise<Answer> {
-  return new Promise((resolve, reject) => {
+  | { kind: 'timed-out' }
+  | { kind: 'failed'; error: unknown };
+const ask = Effect.fn('SocketOwnerProbe.ask')((input: OwnerProbeRequest) =>
+  Effect.callback<Answer>((resume) => {
+    const resolve = (answer: Answer) => resume(Effect.succeed(answer));
+    const reject = (cause: unknown) =>
+      resolve({ kind: 'failed', error: cause });
     const outgoing = request(
       {
         socketPath: input.socketPath,
@@ -39,8 +43,11 @@ function ask(input: OwnerProbeRequest): Promise<Answer> {
     });
     outgoing.on('error', reject);
     outgoing.end();
-  });
-}
+    return Effect.sync(() => {
+      outgoing.destroy();
+    });
+  }),
+);
 function absent(error: unknown): boolean {
   return (
     error instanceof Error &&
@@ -56,11 +63,12 @@ function parsed(body: string): unknown {
   }
 }
 export class SocketOwnerProbe implements OwnerProbe {
-  async probe(input: OwnerProbeRequest): Promise<OwnerProbeResult> {
-    let answer: Answer;
-    try {
-      answer = await ask(input);
-    } catch (error) {
+  readonly probe = Effect.fn('SocketOwnerProbe.probe')(function* (
+    input: OwnerProbeRequest,
+  ): Effect.fn.Return<OwnerProbeResult> {
+    const answer = yield* ask(input);
+    if (answer.kind === 'failed') {
+      const error = answer.error;
       return absent(error)
         ? { kind: 'absent' }
         : {
@@ -90,5 +98,5 @@ export class SocketOwnerProbe implements OwnerProbe {
           kind: 'unreadable',
           reason: 'the owner socket answered something unrecognizable',
         };
-  }
+  });
 }

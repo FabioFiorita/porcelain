@@ -2,7 +2,16 @@ import { existsSync } from 'node:fs';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { NodeServices } from '@effect/platform-node';
-import { Cause, Clock, Effect, Exit, Fiber, Layer, Scope } from 'effect';
+import {
+  Cause,
+  Clock,
+  Deferred,
+  Effect,
+  Exit,
+  Fiber,
+  Layer,
+  Scope,
+} from 'effect';
 import { HttpRouter, HttpServerResponse } from 'effect/http';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -14,7 +23,10 @@ import {
 } from '../../src/runtime/server-resources.ts';
 import { startApplication } from '../../src/runtime/start-application.ts';
 
-export async function applicationStartFixture(ownerFails = false) {
+export async function applicationStartFixture(
+  ownerFails = false,
+  pauseAtJob = false,
+) {
   const root = await mkdtemp(
     join(process.platform === 'darwin' ? '/tmp' : tmpdir(), 'porcelain-start-'),
   );
@@ -24,8 +36,9 @@ export async function applicationStartFixture(ownerFails = false) {
     port: 0,
   });
   const events: string[] = [];
-  const started = Promise.withResolvers<void>();
-  const release = Promise.withResolvers<void>();
+  const started = Deferred.makeUnsafe<void>();
+  const release = Deferred.makeUnsafe<void>();
+  const startupEntered = Deferred.makeUnsafe<void>();
   const options = {
     logger: { failure: () => undefined },
     websocketMaxBytes: settings.limits.liveUpdates.messageBytes,
@@ -47,9 +60,9 @@ export async function applicationStartFixture(ownerFails = false) {
     ),
   });
   const scope = Effect.runSync(Scope.make());
-  const start = startApplication(settings, new AbortController().signal, {
+  const start = startApplication(settings, {
     clock: Effect.runSync(Clock.Clock),
-    ownerProbe: { probe: () => Promise.resolve({ kind: 'absent' as const }) },
+    ownerProbe: { probe: () => Effect.succeed({ kind: 'absent' as const }) },
     openServer: () =>
       openServerResources(
         Layer.effect(
@@ -71,14 +84,18 @@ export async function applicationStartFixture(ownerFails = false) {
               jobs: [
                 {
                   start: () =>
-                    Effect.sync(() => {
+                    Effect.gen(function* () {
                       events.push('job-started');
+                      if (pauseAtJob) {
+                        yield* Deferred.succeed(startupEntered, undefined);
+                        return yield* Effect.never;
+                      }
                     }),
                   stop: () =>
-                    Effect.promise(async () => {
+                    Effect.gen(function* () {
                       events.push('job-stopping');
-                      started.resolve();
-                      await release.promise;
+                      yield* Deferred.succeed(started, undefined);
+                      yield* Deferred.await(release);
                       events.push('job-stopped');
                     }),
                 },
@@ -97,8 +114,9 @@ export async function applicationStartFixture(ownerFails = false) {
     events,
     started,
     release,
+    startupEntered,
     cleanup: async () => {
-      release.resolve();
+      Deferred.doneUnsafe(release, Effect.void);
       await Effect.runPromiseExit(Scope.close(scope, Exit.void));
       await rm(root, { recursive: true, force: true });
     },
@@ -130,7 +148,7 @@ export async function closeStartedApplication() {
     const ownerBody = await readOwnerSocket(application.socketPath);
     const ownerMode = (await stat(application.socketPath)).mode & 0o777;
     const first = Effect.runFork(application.close());
-    await running.started.promise;
+    await Effect.runPromise(Deferred.await(running.started));
     const second = Effect.runFork(application.close());
     const duringDrain = {
       firstPending: first.pollUnsafe() === undefined,
@@ -139,7 +157,7 @@ export async function closeStartedApplication() {
       ownerListening: running.owner.server.listening,
       events: [...running.events],
     };
-    running.release.resolve();
+    Deferred.doneUnsafe(running.release, Effect.void);
     await Effect.runPromise(
       Effect.all([Fiber.join(first), Fiber.join(second)]),
     );
@@ -159,12 +177,32 @@ export async function closeStartedApplication() {
 
 export async function failOwnerStartup() {
   const running = await applicationStartFixture(true);
-  running.release.resolve();
+  Deferred.doneUnsafe(running.release, Effect.void);
   try {
     const exit = await Effect.runPromiseExit(running.start);
     const error = Exit.isFailure(exit) ? Cause.squash(exit.cause) : undefined;
     return {
       failure: error instanceof Error ? error.message : undefined,
+      networkListening: running.network.server.listening,
+      ownerListening: running.owner.server.listening,
+      events: [...running.events],
+      locked: existsSync(join(running.root, 'data', 'server.lock')),
+    };
+  } finally {
+    await running.cleanup();
+  }
+}
+
+export async function interruptApplicationStartup() {
+  const running = await applicationStartFixture(false, true);
+  Deferred.doneUnsafe(running.release, Effect.void);
+  try {
+    const fiber = Effect.runFork(running.start);
+    await Effect.runPromise(Deferred.await(running.startupEntered));
+    await Effect.runPromise(Fiber.interrupt(fiber));
+    const exit = await Effect.runPromise(Fiber.await(fiber));
+    return {
+      interrupted: Exit.hasInterrupts(exit),
       networkListening: running.network.server.listening,
       ownerListening: running.owner.server.listening,
       events: [...running.events],

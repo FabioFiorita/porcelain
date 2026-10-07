@@ -26,8 +26,7 @@ export const runCli = createCliRunner(
           settings: ServerSettings,
           host: ServerHost,
         ) {
-          const signal = yield* Effect.abortSignal;
-          return yield* startServer(settings, signal, host);
+          return yield* startServer(settings, host);
         }),
         ownerProbe: new SocketOwnerProbe(),
         clock: yield* Clock.Clock,

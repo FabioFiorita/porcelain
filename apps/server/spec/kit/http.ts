@@ -1,11 +1,24 @@
 import { createServer, type RequestListener } from 'node:http';
 import { connect } from 'node:net';
-import { NodeHttpServerRequest, NodeSocket } from '@effect/platform-node';
+import {
+  NodeHttpServerRequest,
+  NodeHttpServer,
+  NodeSocket,
+} from '@effect/platform-node';
 import { NodeLiveSockets } from '../../src/http/node-live-socket.ts';
-import { HttpRouter, HttpServerRequest } from 'effect/http';
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http';
 import { request } from 'node:http';
 import { LIMITS } from '../../src/config/limits.ts';
-import { Context, Effect, Exit, Layer, Scope } from 'effect';
+import {
+  Context,
+  Deferred,
+  Effect,
+  Exit,
+  FileSystem,
+  Layer,
+  Path,
+  Scope,
+} from 'effect';
 import type { Principal } from '@porcelain/contracts/access';
 import type { HttpApplication } from '../../src/http/application.ts';
 import {
@@ -186,3 +199,25 @@ export async function stalledUpgrade(address: string) {
   await upgraded.promise;
   return { socket, closed };
 }
+
+export const openOwnerProbePeer = Effect.fn('ownerPeer')(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const directory = yield* fs.makeTempDirectoryScoped({ prefix: 'pc-owner-' });
+  const socketPath = path.join(directory, 'peer.sock');
+  const server = yield* NodeHttpServer.make(createServer, { path: socketPath });
+  const received = yield* Deferred.make<void>();
+  const disconnected = yield* Deferred.make<void>();
+  const state = { status: 200, body: '', pending: false };
+  yield* server.serve(
+    Effect.gen(function* () {
+      yield* Deferred.succeed(received, undefined);
+      if (state.pending)
+        return yield* Effect.interruptible(Effect.never).pipe(
+          Effect.ensuring(Deferred.succeed(disconnected, undefined)),
+        );
+      return HttpServerResponse.text(state.body, { status: state.status });
+    }),
+  );
+  return { socketPath, state, received, disconnected };
+});
