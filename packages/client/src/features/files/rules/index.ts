@@ -5,7 +5,6 @@ export {
   entryName,
   nextCreatePath,
   selectedDirectories,
-  topLevelDraggedPaths,
   treeActions,
   type TreeAction,
 } from './tree-actions.ts';

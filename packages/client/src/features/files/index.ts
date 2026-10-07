@@ -2,7 +2,12 @@ export { readTextFile } from './queries/text.ts';
 export { readDirectory } from './queries/directory.ts';
 export { readWorktreePaths } from './queries/paths.ts';
 export { readAsset } from './queries/asset.ts';
-export { editFile, retainFileDraft } from './commands/edit-file.ts';
+export {
+  editFile,
+  retainFileDraft,
+  moveFileEntries,
+  completeFileDraft,
+} from './commands/edit-file.ts';
 export {
   FileDrafts,
   FileDraftTiming,
@@ -17,3 +22,5 @@ export {
   HtmlPreviewPlatform,
   HtmlPreviewUnavailable,
 } from './ports/html-preview-platform.ts';
+export { collectHtmlAssets } from './commands/html-assets.ts';
+export type { PreviewAssetFailure } from './ports/html-preview-platform.ts';

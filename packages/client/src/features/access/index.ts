@@ -32,3 +32,7 @@ export { readBrowserSession } from './queries/session.ts';
 export { disconnectBrowserSession } from './commands/session.ts';
 export { EnvironmentCommands } from './commands/environments.ts';
 export { EnvironmentMutations } from './store/environment-mutations.ts';
+export {
+  connectBrowserSession,
+  restoreBrowserConnection,
+} from './commands/session.ts';

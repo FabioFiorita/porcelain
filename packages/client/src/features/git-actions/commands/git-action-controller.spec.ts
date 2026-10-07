@@ -4,7 +4,8 @@ import { afterEach } from 'vitest';
 import type { Context } from 'effect';
 import { Atom, AtomRegistry } from 'effect/reactivity';
 import { readChanges } from '@porcelain/client/changes';
-import { expect, it } from 'vitest';
+import { expect } from 'vitest';
+import { it } from '@effect/vitest';
 import { Effect, Schema } from 'effect';
 import {
   runGitActionRequestSchema,
@@ -22,6 +23,7 @@ import {
 } from '@porcelain/client/git-actions';
 import {
   runGitAction,
+  gitActionCommands,
   recoverGitAction,
   startNewGitAction,
 } from './git-action-controller.ts';
@@ -103,6 +105,7 @@ function setup(
   };
   return {
     connection,
+    commands: gitActionCommands(selection, registry),
     key: operationKey(scope, 'commit'),
     command,
     operations,
@@ -110,6 +113,7 @@ function setup(
     ids: () => ids,
     run: (request: Pick<RunGitActionRequest, 'input' | 'expected'> = input) =>
       execute(command, request),
+    recovery: recover,
     recover: () => execute(recover, undefined),
     startNew: () => execute(startNew, undefined),
     close: async () => {
@@ -118,6 +122,43 @@ function setup(
     },
   };
 }
+
+it.effect(
+  'composes recovery and reset without losing the retained write identity',
+  () =>
+    Effect.gen(function* () {
+      const sent: string[] = [];
+      const subject = yield* Effect.acquireRelease(
+        Effect.sync(() =>
+          setup((_path, init) => {
+            if (!(init?.body instanceof Uint8Array))
+              throw new Error('Expected encoded write');
+            sent.push(new TextDecoder().decode(init.body));
+            return sent.length === 1
+              ? Promise.reject(new Error('Disconnected after send'))
+              : Promise.resolve(Response.json(receipt));
+          }),
+        ),
+        (subject) => Effect.promise(subject.close),
+      );
+      const failed = yield* Effect.exit(
+        subject.commands.run(input.input, input.expected),
+      );
+      expect(Exit.isFailure(failed)).toBe(true);
+      expect(
+        subject.operations.state.value.operations.get(subject.key)?.requestId,
+      ).toBe(requestId);
+      expect(yield* subject.commands.recover()).toEqual(receipt);
+      expect(sent).toEqual([sent[0], sent[0]]);
+      expect(subject.ids()).toBe(1);
+      yield* subject.commands.startNew();
+      expect(
+        subject.operations.state.value.operations.get(subject.key),
+      ).toBeUndefined();
+      expect(subject.registry.get(subject.command)._tag).toBe('Initial');
+      expect(subject.registry.get(subject.recovery)._tag).toBe('Initial');
+    }),
+);
 
 it('retains the original request after an unanswered write and resends that exact request on recovery', async () => {
   const sent: string[] = [];

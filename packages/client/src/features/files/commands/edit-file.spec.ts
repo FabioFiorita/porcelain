@@ -1,7 +1,8 @@
-import { Layer, Effect, ManagedRuntime } from 'effect';
-import type { EditFileRequest } from '@porcelain/contracts/files';
+import { Layer, Effect, ManagedRuntime, Exit } from 'effect';
+import { type EditFileRequest } from '@porcelain/contracts/files';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect } from 'vitest';
+import { it } from '@effect/vitest';
 import { AtomRegistry } from 'effect/reactivity';
 import { ContentChangedError } from '@porcelain/files/errors';
 import type { Transport } from '@porcelain/client/transport';
@@ -11,7 +12,12 @@ import {
   FileDrafts,
   type FileDraftWriteFailure,
 } from '@porcelain/client/files';
-import { editFile, retainFileDraft } from './edit-file.ts';
+import {
+  editFile,
+  retainFileDraft,
+  moveFileEntries,
+  completeFileDraft,
+} from './edit-file.ts';
 
 const scope = {
   projectId: 'project',
@@ -39,12 +45,14 @@ function setup(
   );
   const registry = AtomRegistry.make();
   const command = editFile({ connection: lifetime.connection, scope });
-  const execute = (input: EditFileRequest) => {
+  const executeEffect = Effect.fnUntraced(function* (input: EditFileRequest) {
     registry.set(command, input);
-    return Effect.runPromise(
-      AtomRegistry.getResult(registry, command, { suspendOnWaiting: true }),
-    );
-  };
+    return yield* AtomRegistry.getResult(registry, command, {
+      suspendOnWaiting: true,
+    });
+  });
+  const execute = (input: EditFileRequest) =>
+    Effect.runPromise(executeEffect(input));
   return {
     entries: () => application.runSync(FileDrafts).entries(lifetime.connection),
     draft: (
@@ -74,6 +82,7 @@ function setup(
     registry,
     connection: lifetime.connection,
     execute,
+    executeEffect,
     close: async () => {
       await Effect.runPromise(
         application.runSync(FileDrafts).drop(environmentId),
@@ -408,4 +417,101 @@ it.each([409, 422])(
       await subject.close();
     }
   },
+);
+
+it.effect(
+  'moves top-level entries in order and stops the batch at the first refused move',
+  () =>
+    Effect.gen(function* () {
+      const sent: string[] = [];
+      const subject = yield* Effect.acquireRelease(
+        Effect.sync(() =>
+          setup('batch', (_path, init) => {
+            if (!(init?.body instanceof Uint8Array))
+              throw new Error('Expected request bytes');
+            sent.push(new TextDecoder().decode(init.body));
+            return Promise.resolve(
+              sent.length === 1
+                ? Response.json({ path: 'destination/source' })
+                : Response.json(
+                    { statusCode: 409, message: 'Destination exists' },
+                    { status: 409 },
+                  ),
+            );
+          }),
+        ),
+        (subject) => Effect.promise(subject.close),
+      );
+      const result = yield* Effect.exit(
+        moveFileEntries(
+          [
+            'source/',
+            'source/file.txt',
+            'destination/source/',
+            'second.txt',
+            'third.txt',
+          ],
+          'destination/',
+          (path, destination) =>
+            subject
+              .executeEffect({
+                kind: 'move',
+                path: path.replace(/\/$/, ''),
+                destination,
+              })
+              .pipe(Effect.asVoid),
+        ),
+      );
+      expect(Exit.isFailure(result)).toBe(true);
+      expect(sent).toEqual([
+        JSON.stringify({
+          kind: 'move',
+          path: 'source',
+          destination: 'destination/source',
+        }),
+        JSON.stringify({
+          kind: 'move',
+          path: 'second.txt',
+          destination: 'destination/second.txt',
+        }),
+      ]);
+    }),
+);
+
+it.effect('completes an editor only after its real draft confirms a save', () =>
+  Effect.gen(function* () {
+    let refused = true;
+    let completed = 0;
+    const subject = yield* Effect.acquireRelease(
+      Effect.sync(() =>
+        setup('completion', () =>
+          Promise.resolve(Response.json({ path: 'destination' })),
+        ),
+      ),
+      (subject) => Effect.promise(subject.close),
+    );
+    const draft = yield* Effect.promise(() =>
+      subject.draft(
+        () =>
+          refused
+            ? Effect.fail(new ConnectionError({ message: 'Keep the draft' }))
+            : Effect.succeed('confirmed'),
+        () => false,
+      ),
+    );
+    yield* draft.change('Unsaved text');
+    yield* completeFileDraft(draft, () => {
+      completed++;
+    });
+    expect(completed).toBe(0);
+    expect(draft.state.value.savedText).toBe('saved');
+    expect(draft.state.value.text).toBe('Unsaved text');
+    refused = false;
+    yield* completeFileDraft(draft, () => {
+      completed++;
+    });
+    expect(completed).toBe(1);
+    expect(draft.state.value.savedText).toBe('Unsaved text');
+    expect(draft.state.value.fingerprint).toBe('confirmed');
+  }),
 );

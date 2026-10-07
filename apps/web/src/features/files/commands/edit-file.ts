@@ -3,6 +3,7 @@ import { useConfirmedRead } from '@/shared/query/confirmed-read';
 import { Effect, Exit, Cause } from 'effect';
 import {
   editFile,
+  completeFileDraft,
   retainFileDraft,
   type FileDraftHandle,
 } from '@porcelain/client/files';
@@ -18,26 +19,28 @@ export function useEditFile(connection: RuntimeConnection, scope: FilesScope) {
   const [result, submit] = useAtom(command, { mode: 'promiseExit' });
   return {
     result,
-    create: async (
+    create: (
       path: string,
       entryKind: 'file' | 'directory',
       onCreated: (path: string) => void,
     ) => {
-      const completed = await submit({
+      return submit({
         kind: 'create',
         path: withoutTrailingSlash(path),
         entryKind,
+      }).then((completed) => {
+        if (Exit.isFailure(completed)) throw Cause.squash(completed.cause);
+        if (entryKind === 'file') onCreated(path);
       });
-      if (Exit.isFailure(completed)) throw Cause.squash(completed.cause);
-      if (entryKind === 'file') onCreated(path);
     },
-    move: async (path: string, destination: string) => {
-      const completed = await submit({
+    move: (path: string, destination: string) => {
+      return submit({
         kind: 'move',
         path: withoutTrailingSlash(path),
         destination: withoutTrailingSlash(destination),
+      }).then((completed) => {
+        if (Exit.isFailure(completed)) throw Cause.squash(completed.cause);
       });
-      if (Exit.isFailure(completed)) throw Cause.squash(completed.cause);
     },
     duplicate: (
       path: string,
@@ -107,12 +110,13 @@ export function useFileDraftSaving(
         type: 'error',
       }),
     save: () => Effect.runPromise(draft.save()),
-    done: async (onDone: () => void) => {
-      if (await Effect.runPromise(draft.save())) {
-        clearEditorFile(draft, owner);
-        onDone();
-      }
-    },
+    done: (onDone: () => void) =>
+      Effect.runPromise(
+        completeFileDraft(draft, () => {
+          clearEditorFile(draft, owner);
+          onDone();
+        }),
+      ),
     discard: (onDiscard: () => void) => {
       clearEditorFile(draft, owner);
       onDiscard();

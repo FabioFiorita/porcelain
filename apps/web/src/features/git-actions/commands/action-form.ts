@@ -13,6 +13,7 @@ import {
   expectationFor,
   gitErrorMessage,
 } from '@porcelain/client/git-actions/rules';
+import { lookAgainGitAction } from '@porcelain/client/git-actions';
 import { useGitAction } from './run-action';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -33,15 +34,10 @@ export function useActionForm(
   const git = useGitAction(scope, action, context);
   const [lookCommand] = useState(() =>
     Atom.fn(
-      (input: { read: () => Promise<void>; startNew: () => Promise<void> }) =>
-        Effect.tryPromise({
-          try: async () => {
-            await input.read();
-            await input.startNew();
-          },
-          catch: (cause) =>
-            new Cause.UnknownError(cause, gitErrorMessage(cause)),
-        }),
+      (input: {
+        read: Effect.Effect<void, Cause.UnknownError>;
+        startNew: ReturnType<ReturnType<typeof useGitAction>['startNew']>;
+      }) => lookAgainGitAction(input.read, input.startNew),
     ),
   );
   const [look, reread] = useAtom(lookCommand, { mode: 'promiseExit' });
@@ -62,28 +58,39 @@ export function useActionForm(
       onBusy(true);
       resetLook(Atom.Reset);
       git.reset();
-      void git
-        .run(
-          input,
-          expectationFor(
-            expectedStatus,
-            expectedStatus.files?.map((file) => file.path) ?? [],
-            undefined,
-            true,
+      Effect.runFork(
+        git
+          .run(
+            input,
+            expectationFor(
+              expectedStatus,
+              expectedStatus.files?.map((file) => file.path) ?? [],
+              undefined,
+              true,
+            ),
+          )
+          .pipe(
+            Effect.ensuring(Effect.sync(() => onBusy(false))),
+            Effect.ignore,
           ),
-        )
-        .finally(() => onBusy(false))
-        .catch(() => undefined);
+      );
     },
     lookAgain: () => {
       if (!onLookAgain || busy) return;
       git.reset();
-      void reread({ read: onLookAgain, startNew: git.startNew });
+      void reread({
+        read: Effect.tryPromise({
+          try: onLookAgain,
+          catch: (cause) =>
+            new Cause.UnknownError(cause, gitErrorMessage(cause)),
+        }),
+        startNew: git.startNew(),
+      });
     },
     checkOutcome: () => {
       git.reset();
       resetLook(Atom.Reset);
-      void git.recover().catch(() => undefined);
+      Effect.runFork(git.recover().pipe(Effect.ignore));
     },
   };
 }

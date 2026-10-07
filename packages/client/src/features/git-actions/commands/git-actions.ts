@@ -1,5 +1,5 @@
 import { Effect, type Scope } from 'effect';
-import { Atom, Reactivity } from 'effect/reactivity';
+import { Atom, AtomRegistry, Reactivity } from 'effect/reactivity';
 import type { GenerateCommitDraftRequest } from '@porcelain/contracts/git-actions';
 import type {
   RuntimeConnection,
@@ -52,4 +52,22 @@ export const dismissInterruptedGitAction = Atom.family(
         ]);
       }),
     ),
+);
+
+export const readCommitDraftCommand = Atom.family((selection: Selection) =>
+  Atom.make(
+    Effect.gen(function* () {
+      const registry = yield* AtomRegistry.AtomRegistry;
+      const command = generateCommitDraft(selection);
+      return Effect.fn('CommitDraft.submit')(function* (
+        input: GenerateCommitDraftRequest,
+        lifetime: Scope.Scope,
+      ) {
+        registry.set(command, { ...input, lifetime });
+        return yield* AtomRegistry.getResult(registry, command, {
+          suspendOnWaiting: true,
+        });
+      });
+    }),
+  ),
 );
