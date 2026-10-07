@@ -27,7 +27,10 @@ export default defineConfig({
       semicolons: true,
     }),
     react(),
-    babel({ presets: [reactCompilerPreset({ panicThreshold: 'none' })] }),
+    babel({
+      exclude: [/node_modules/, /src\/components\/ui\//],
+      presets: [reactCompilerPreset({ panicThreshold: 'all_errors' })],
+    }),
     tailwindcss(),
   ],
   resolve: {

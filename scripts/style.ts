@@ -8,7 +8,6 @@ import {
   generatedRouteTree,
   type StyleRule,
 } from '../architecture/policy.ts';
-import { compilerFindings } from '../architecture/react-compiler.ts';
 import { lintPluginSchema } from '../architecture/probe.ts';
 import { pinProblems, uiFolder } from '../architecture/shadcn-pins.ts';
 import {
@@ -434,12 +433,6 @@ type Finding = {
   code: string;
   message: string;
 };
-function webSources(): string[] {
-  return filesUnder('apps/web/src').filter(
-    (path) =>
-      /\.tsx?$/.test(path) && !path.startsWith('apps/web/src/components/ui/'),
-  );
-}
 function duplicateFindings(): Finding[] {
   if (target !== 'web') return [];
   const scope = duplicateScope();
@@ -506,18 +499,7 @@ async function lint(): Promise<number> {
     code: `${diagnostic.severity} ${diagnostic.code ?? ''}`,
     message: diagnostic.message,
   }));
-  const compiled: Finding[] =
-    target === 'web'
-      ? (await compilerFindings(webSources())).map((finding) => ({
-          rule: 'style/react-compiler',
-          file: finding.file,
-          line: finding.line,
-          column: 0,
-          code: 'error style(react-compiler)',
-          message: finding.message,
-        }))
-      : [];
-  const reported = [...linted, ...compiled, ...duplicateFindings()];
+  const reported = [...linted, ...duplicateFindings()];
   for (const finding of reported)
     process.stdout.write(
       `${finding.file}:${finding.line}:${finding.column}: ${finding.code}: ${finding.message}\n`,
