@@ -1,4 +1,4 @@
-import { createServer } from 'node:http';
+import { createServer, type RequestListener } from 'node:http';
 import { connect } from 'node:net';
 import { NodeHttpServerRequest, NodeSocket } from '@effect/platform-node';
 import { NodeLiveSockets } from '../../src/http/node-live-socket.ts';
@@ -107,9 +107,18 @@ export async function openHttpApplication(
   }
 }
 
-export async function occupyPort() {
-  const server = createServer();
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+export async function openNodeHttpServer(
+  listener?: RequestListener,
+  host = '127.0.0.1',
+) {
+  const server = createServer(listener);
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen({ host, port: 0, ipv6Only: true }, () => {
+      server.off('error', reject);
+      resolve();
+    });
+  });
   return {
     server,
     close: () =>
@@ -117,6 +126,10 @@ export async function occupyPort() {
         server.close((error) => (error ? reject(error) : resolve())),
       ),
   };
+}
+
+export function occupyPort() {
+  return openNodeHttpServer();
 }
 
 export function liveSocketRoute(pong: { resolve(): void }) {

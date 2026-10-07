@@ -14,7 +14,7 @@ import {
 } from '@porcelain/projects/ports';
 import { Context, Duration, Effect, Layer, Clock } from 'effect';
 import { storageLayer } from '@porcelain/storage';
-import { NodeServices } from '@effect/platform-node';
+import { NodeServices, NodeHttpClient } from '@effect/platform-node';
 import { cachedDeviceStoreLayer } from '../adapters/access/cached-device-store.ts';
 import { cachedRemoteAccessStoreLayer } from '../adapters/access/cached-remote-access-store.ts';
 import { releaseInOrder } from '../runtime/release-in-order.ts';
@@ -24,9 +24,9 @@ import {
 } from '../runtime/server-resources.ts';
 import { type Server } from 'node:http';
 import {
-  type NetworkAddressReader,
-  type RouteListenerRunner,
-  type TunnelProbe,
+  NetworkAddressReader,
+  RouteListenerRunner,
+  TunnelProbe,
 } from '@porcelain/access/ports';
 import {
   CommitPlanner,
@@ -40,12 +40,12 @@ import { deriveWorktreeId } from '@porcelain/projects/rules';
 import { SocketOwnerProbe } from '../adapters/access/socket-owner-probe.ts';
 import { InMemoryDeviceConnectionStore } from '../adapters/access/in-memory-device-connection-store.ts';
 import { HttpPairingReachReader } from '../adapters/access/http-pairing-reach-reader.ts';
-import { HttpRouteListenerRunner } from '../adapters/access/http-route-listener-runner.ts';
-import { HttpTunnelProbe } from '../adapters/access/http-tunnel-probe.ts';
+import { httpRouteListenerRunnerLayer } from '../adapters/access/http-route-listener-runner.ts';
+import { httpTunnelProbeLayer } from '../adapters/access/http-tunnel-probe.ts';
 import { InMemoryTunnelConnectionStore } from '../adapters/access/in-memory-tunnel-connection-store.ts';
-import { MacNetworkAddressReader } from '../adapters/access/mac-network-address-reader.ts';
+import { macNetworkAddressReaderLayer } from '../adapters/access/mac-network-address-reader.ts';
 import { readNetworkPlatform } from '../config/network-platform.ts';
-import { OsNetworkAddressReader } from '../adapters/access/os-network-address-reader.ts';
+import { osNetworkAddressReaderLayer } from '../adapters/access/os-network-address-reader.ts';
 import { ProcessRuntimeStatusReader } from '../adapters/access/process-runtime-status-reader.ts';
 import { parcelWorktreeWatcherLayer } from '../adapters/events/parcel-worktree-watcher.ts';
 import { webSocketEventPublisherLayer } from '../adapters/events/web-socket-event-publisher.ts';
@@ -88,9 +88,22 @@ import { composeStores } from './compose-stores.ts';
 type RemoteRouteAdapters = {
   networkAddressReader: (
     limits: Limits['access']['networkDiscovery'],
-  ) => NetworkAddressReader;
-  routeListenerRunner: (target: () => Server) => RouteListenerRunner;
-  tunnelProbe: (options: { timeoutMs: number }) => TunnelProbe;
+  ) => Layer.Layer<
+    '@porcelain/access/NetworkAddressReader',
+    never,
+    | Layer.Services<ReturnType<typeof macNetworkAddressReaderLayer>>
+    | Layer.Services<typeof osNetworkAddressReaderLayer>
+  >;
+  routeListenerRunner: (
+    target: () => Server,
+  ) => Layer.Layer<'@porcelain/access/RouteListenerRunner'>;
+  tunnelProbe: (options: {
+    timeoutMs: number;
+  }) => Layer.Layer<
+    '@porcelain/access/TunnelProbe',
+    never,
+    Layer.Services<ReturnType<typeof httpTunnelProbeLayer>>
+  >;
 };
 
 class ServerFoundation extends Context.Service<
@@ -133,6 +146,7 @@ function serverResources(
     metadata,
     persistence,
     NodeServices.layer,
+    NodeHttpClient.layerFetch,
     logging,
   );
   const components = Layer.effect(
@@ -204,8 +218,18 @@ function serverResources(
         };
         const deviceConnections = new InMemoryDeviceConnectionStore();
         const tunnelConnections = new InMemoryTunnelConnectionStore();
-        const routeListenerRunner = adapters.routeListenerRunner(
-          () => network.server,
+        const remoteContext = yield* Layer.build(
+          Layer.mergeAll(
+            adapters.routeListenerRunner(() => network.server),
+            adapters.networkAddressReader(limits.access.networkDiscovery),
+            adapters.tunnelProbe({
+              timeoutMs: limits.access.remoteAccess.probeTimeoutMs,
+            }),
+          ),
+        );
+        const routeListenerRunner = Context.get(
+          remoteContext,
+          RouteListenerRunner,
         );
         const access = yield* composeAccess(context, {
           desktopSession: host.desktopSession,
@@ -222,13 +246,12 @@ function serverResources(
           ),
           serviceUpdateRunner: host.serviceUpdateRunner,
           serverVersion: host.version,
-          networkAddressReader: adapters.networkAddressReader(
-            limits.access.networkDiscovery,
+          networkAddressReader: Context.get(
+            remoteContext,
+            NetworkAddressReader,
           ),
           routeListenerRunner,
-          tunnelProbe: adapters.tunnelProbe({
-            timeoutMs: limits.access.remoteAccess.probeTimeoutMs,
-          }),
+          tunnelProbe: Context.get(remoteContext, TunnelProbe),
         });
         const projects = yield* composeProjects(context, {
           stores,
@@ -438,13 +461,13 @@ export const composeServer =
 
 const networkReaders = {
   darwin: (limits: Limits['access']['networkDiscovery']) =>
-    new MacNetworkAddressReader(limits),
+    macNetworkAddressReaderLayer(limits),
   linux: (_limits: Limits['access']['networkDiscovery']) =>
-    new OsNetworkAddressReader(),
+    osNetworkAddressReaderLayer,
 };
 
 export const startServer = composeServer({
   networkAddressReader: networkReaders[readNetworkPlatform()],
-  routeListenerRunner: (target) => new HttpRouteListenerRunner(target),
-  tunnelProbe: (options) => new HttpTunnelProbe(options),
+  routeListenerRunner: (target) => httpRouteListenerRunnerLayer(target),
+  tunnelProbe: (options) => httpTunnelProbeLayer(options),
 });

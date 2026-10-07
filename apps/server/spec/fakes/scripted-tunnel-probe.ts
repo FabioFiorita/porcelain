@@ -1,9 +1,11 @@
-import type { Effect } from 'effect';
+import { Layer, type Effect } from 'effect';
 import { nativeOperation } from '@porcelain/effects';
 import type { TunnelAnswer, TunnelTarget } from '@porcelain/access/models';
-import type { TunnelProbe } from '@porcelain/access/ports';
+import { TunnelProbe } from '@porcelain/access/ports';
 
 export class ScriptedTunnelProbe implements TunnelProbe {
+  readonly layer = Layer.succeed(TunnelProbe, this);
+
   private readonly answer: (target: TunnelTarget) => Promise<TunnelAnswer>;
 
   constructor(answer: (target: TunnelTarget) => Promise<TunnelAnswer>) {

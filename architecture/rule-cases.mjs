@@ -131,13 +131,13 @@ export default [
   })),
 
   ...effectRuleCases,
-  {
+  ...['installer', 'adapters/access'].map((folder) => ({
     rule: 'spec-imports',
-    path: 'apps/server/src/installer/records.spec.ts',
-    valid: "import { NodeServices } from '@effect/platform-node';",
+    path: `apps/server/src/${folder}/records.spec.ts`,
+    valid: `import { capability } from '${folder === 'installer' ? '@effect/platform-node' : 'effect/http'}';${folder === 'installer' ? '' : " import { request } from '@porcelain/server/kit/http';"}`,
     invalid: "import { useQuery } from '@tanstack/react-query';",
     errors: 1,
-  },
+  })),
   {
     rule: 'web-api-owns-request',
     path: 'apps/web/src/features/reviews/live.ts',

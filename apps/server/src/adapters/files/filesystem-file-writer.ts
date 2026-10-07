@@ -189,8 +189,8 @@ export const filesystemFileWriterLayer = (
                 ),
               ),
             );
-            yield* syscall((signal) =>
-              handle.writeFile(input.text, { encoding: 'utf8', signal }),
+            yield* syscall(() =>
+              handle.writeFile(input.text, { encoding: 'utf8' }),
             );
             yield* syscall(() => handle.sync());
             yield* verifyPath(before, target);
