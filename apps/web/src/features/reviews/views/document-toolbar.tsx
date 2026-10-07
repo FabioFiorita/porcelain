@@ -29,7 +29,7 @@ export function DocumentToolbar({
         >
           {title}
         </h1>
-        {subtitle != null && (
+        {subtitle !== null && subtitle !== undefined && (
           <p className="truncate text-[11px] leading-tight text-muted-foreground">
             {subtitle}
           </p>

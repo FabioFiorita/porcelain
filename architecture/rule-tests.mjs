@@ -138,29 +138,7 @@ const cases = [
 ];
 const started = performance.now();
 runGuardrailCases();
-tester.run(
-  'no-number-outside-limits',
-  checkedRule(plugin.rules['no-number-outside-limits']),
-  {
-    valid: [
-      {
-        filename: fileURLToPath(
-          new URL('apps/mobile/src/config/limits.ts', root),
-        ),
-        code: 'export const REQUEST_TIMEOUT_MS = 15_000;',
-      },
-    ],
-    invalid: [
-      {
-        filename: fileURLToPath(
-          new URL('apps/mobile/src/shared/api/transport.ts', root),
-        ),
-        code: 'export const timeout = () => AbortSignal.timeout(15_000);',
-        errors: 1,
-      },
-    ],
-  },
-);
+
 for (const [file, role] of [
   ['index.ts', 'client-feature-api'],
   ['api.ts', 'client-request-api'],

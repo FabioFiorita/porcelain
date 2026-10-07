@@ -48,7 +48,10 @@ const restoreDiscarded = Effect.fn('Discard.restore')(function* (
   if (!restoreLook) return;
   const currentPaths =
     restoreLook.files
-      ?.filter((entry) => entry.fingerprint != null)
+      ?.filter(
+        (entry) =>
+          entry.fingerprint !== null && entry.fingerprint !== undefined,
+      )
       .map((entry) => entry.path) ?? [];
   dismissNotice(noticeId);
   yield* restoreStash(

@@ -116,7 +116,7 @@ export class DesktopApp {
   async clickMenu(id: string): Promise<void> {
     await this.electron.evaluate(({ BrowserWindow, Menu }, id) => {
       const item = Menu.getApplicationMenu()?.getMenuItemById(id);
-      if (item == null)
+      if (item === null || item === undefined)
         throw new Error(`The native menu item ${id} is missing`);
       Reflect.apply(item.click, item, [
         undefined,

@@ -107,7 +107,7 @@ function BranchFiles({
       </div>
     );
   if (!AsyncResult.isSuccess(changes.result)) return <ComparingBranch />;
-  if (changes.result.value.base == null)
+  if (changes.result.value.base === undefined)
     return (
       <div className="p-3">
         <ReviewEmpty
@@ -164,10 +164,12 @@ function BranchFileList({
     (notice) => toast.add(notice),
     range,
   );
-  if (branch.base == null) return null;
+  if (branch.base === null || branch.base === undefined) return null;
   const items = mergeBranchChanges(branch.files, marks);
   const head =
-    branch.head.branch == null ? 'this commit' : branchName(branch.head.branch);
+    branch.head.branch === null || branch.head.branch === undefined
+      ? 'this commit'
+      : branchName(branch.head.branch);
   const commits = `${branch.commits} ${branch.commits === 1 ? 'commit' : 'commits'}`;
   return (
     <ScrollArea className="h-0 min-h-0 flex-1">
@@ -212,7 +214,9 @@ function BranchFileList({
               activeEntry === entryKey({ kind: 'branch-file', path: item.path })
             }
             onOpen={onOpen}
-            canReview={item.fingerprint != null}
+            canReview={
+              item.fingerprint !== null && item.fingerprint !== undefined
+            }
             onReview={() =>
               reviewed.toggle({
                 path: item.path,

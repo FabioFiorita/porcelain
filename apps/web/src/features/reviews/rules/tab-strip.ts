@@ -76,7 +76,7 @@ function knownEntries(entries: unknown): string[] {
   return Array.isArray(entries)
     ? entries.filter(
         (entry): entry is string =>
-          typeof entry === 'string' && parseEntry(entry) != null,
+          typeof entry === 'string' && (parseEntry(entry) ?? null) !== null,
       )
     : [];
 }

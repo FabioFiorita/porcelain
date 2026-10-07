@@ -70,7 +70,8 @@ export function matchesCommentTarget(
 
 export function commentIsStale(anchor: CommentAnchor, target: CommentTarget) {
   return (
-    anchor.contentFingerprint != null &&
+    anchor.contentFingerprint !== null &&
+    anchor.contentFingerprint !== undefined &&
     anchor.contentFingerprint !== target.contentFingerprint
   );
 }

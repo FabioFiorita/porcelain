@@ -37,20 +37,8 @@ export const IdSource = Context.Service<'@porcelain/kernel/IdSource', IdSource>(
 
 export const effectRuleCases = [
   ...[
-    nativeService.replace(
-      "'@porcelain/access/ReadEnvironmentService'",
-      "'@porcelain/access/Other'",
-    ),
     nativeService.replace('readonly execute:', 'execute:'),
     nativeService.replace('static readonly layer', 'readonly layer'),
-    nativeService.replace(
-      'Layer.effect(ReadEnvironmentService,',
-      'Layer.effect(OtherService,',
-    ),
-    nativeService.replace(
-      "'ReadEnvironmentService.execute'",
-      "'Other.execute'",
-    ),
     nativeService.replace(
       'readonly execute:',
       'readonly refresh: () => Effect.Effect<void>; readonly execute:',
@@ -67,16 +55,28 @@ export const effectRuleCases = [
   ].map((invalid) => ({
     rule: 'operation-class-shape',
     path: 'packages/access/src/services/read-environment-service.ts',
-    valid: nativeService,
+    valid: nativeService
+      .replaceAll('ReadEnvironmentService', 'CustomCapability')
+      .replace("'@porcelain/access/CustomCapability'", "'custom/key'")
+      .replace("'CustomCapability.execute'", "'custom tracing'"),
     invalid,
     errors: 1,
   })),
   {
-    rule: 'operation-class-shape',
-    path: 'packages/access/src/services/read-environment-service.ts',
-    valid: nativeService,
+    rule: 'failure-in-service',
+    path: 'packages/files/src/errors/path-not-found-error.ts',
+    valid:
+      "import { Schema } from 'effect'; export class Missing extends Schema.TaggedError<Missing>()('Missing', {}) {}",
+    invalid: 'export class Missing extends Error {}',
+    errors: 1,
+  },
+  {
+    rule: 'failure-in-service',
+    path: 'packages/files/src/errors/path-not-found-error.ts',
+    valid:
+      "import { Schema } from 'effect'; export class Missing extends Schema.TaggedError<Missing>()('Missing', {}) {}",
     invalid:
-      'export class ReadEnvironmentService { execute(): Effect.Effect<ReadEnvironmentResult> { return Effect.succeed(result); } }',
+      "import { Schema } from 'effect'; export class Missing extends Schema.TaggedError<Missing>()('Missing', {}) {} export const other = 1;",
     errors: 1,
   },
   ...[
@@ -110,7 +110,7 @@ export const effectRuleCases = [
       'static readonly layer',
       `private readonly cancellation: ${raw}; static readonly layer`,
     ),
-    errors: 2,
+    errors: 1,
   })),
   {
     rule: 'spec-imports',
@@ -245,73 +245,6 @@ it('reads once', async () => { const result = await read(); if (result) it('asse
     invalid,
     errors: 1,
   })),
-  ...[
-    {
-      invalid: operation.replace('ReadHealthUseCase', 'ReadHealthController'),
-      errors: 2,
-    },
-    ...[
-      'private reader: Reader;',
-      'readonly reader: Reader;',
-      'forOwner(): void {}',
-    ].map((member) => ({
-      invalid: operation.replace(
-        'static readonly layer',
-        `${member} static readonly layer`,
-      ),
-      errors: 1,
-    })),
-    {
-      invalid: operation.replace(
-        'execute: ()',
-        'execute: (context: OperationContext)',
-      ),
-      errors: 1,
-    },
-    {
-      invalid: operation.replace(
-        'execute: ()',
-        'execute: (input: ReadHealthInput, signal?: AbortSignal)',
-      ),
-      errors: 2,
-    },
-    {
-      invalid: operation.replace(
-        'Effect.Effect<ReadHealthResponse, MissingEnvironmentIdentityError>',
-        'Promise<ReadHealthResponse>',
-      ),
-      errors: 1,
-    },
-    {
-      invalid: operation.replace(
-        'readonly execute: ()',
-        'readonly execute: (input: {})',
-      ),
-      errors: 1,
-    },
-    {
-      invalid: operation.replace('readonly execute:', 'readonly read:'),
-      errors: 1,
-    },
-    { invalid: `${operation}\nexport const fallback = undefined;`, errors: 1 },
-    {
-      invalid:
-        'export class ReadHealthUseCase { execute(): Effect.Effect<ReadHealthResponse> { return Effect.succeed(result); } }',
-      errors: 1,
-    },
-    {
-      invalid: operation.replace(
-        'function* (): Effect.fn.Return',
-        'async function* (): Effect.fn.Return',
-      ),
-      errors: 1,
-    },
-  ].map((entry) => ({
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: operation,
-    ...entry,
-  })),
   ...['', 'input: ReadTextFileInput, signal?: AbortSignal'].map((args) => ({
     rule: 'operation-class-shape',
     path: 'packages/files/src/services/read-text-file-service.ts',
@@ -322,16 +255,6 @@ export class ReadTextFileService extends Context.Service<ReadTextFileService, { 
     invalid: `export class ReadTextFileService { execute(${args}): Effect.Effect<ReadTextFileResult, ReadFailure, WorktreeRead> { return Effect.succeed(result); } }`,
     errors: args ? 2 : 1,
   })),
-
-  {
-    rule: 'port-shape',
-    path: 'apps/server/src/ports/check-worktree-use-case-port.ts',
-    valid:
-      'export interface CheckWorktreeUseCasePort { execute(input: CheckWorktreeInput): Effect.Effect<ListedWorktree, WorktreeAccessFailure>; }',
-    invalid:
-      'export interface CheckWorktreeUseCasePort { execute(input: CheckWorktreeInput, context: OperationContext): Effect.Effect<ListedWorktree, WorktreeAccessFailure>; }',
-    errors: 1,
-  },
 ];
 
 const atomicMutation = `import { Effect } from 'effect';

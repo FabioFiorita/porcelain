@@ -65,7 +65,8 @@ export function HistoryHeading({
 }) {
   return (
     <>
-      {(history.snapshot != null || action !== undefined) && (
+      {((history.snapshot !== null && history.snapshot !== undefined) ||
+        action !== undefined) && (
         <div className="flex shrink-0 items-center gap-1.5 border-b py-1.5 pr-1.5 pl-3.5 text-[11.5px] text-muted-foreground">
           <GitBranchIcon className="size-3.5 shrink-0" />
           <span className="min-w-0 flex-1 truncate">

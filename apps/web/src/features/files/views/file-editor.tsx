@@ -93,7 +93,7 @@ function FileEditor({
           Saving edits the changes you are reviewing.
         </p>
       )}
-      {state.error != null && (
+      {state.error !== null && state.error !== undefined && (
         <div
           role="alert"
           className="flex items-center gap-2 border-b px-3.5 py-2 text-xs text-destructive"

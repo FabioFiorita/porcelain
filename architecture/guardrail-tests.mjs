@@ -188,7 +188,39 @@ export function runGuardrailCases(named = []) {
     'Name an existing guardrail fixture rule.',
   );
   for (const entry of cases) {
-    if (
+    if (entry.rule === 'eqeqeq') {
+      const root = mkdtempSync(join(tmpdir(), 'porcelain-equality-'));
+      try {
+        const repository = fileURLToPath(new URL('../', import.meta.url));
+        for (const [source, errors] of [
+          [entry.valid, []],
+          [entry.invalid, entry.errors],
+        ]) {
+          writeFiles(root, { 'fixture.ts': source });
+          const checked = spawnSync(
+            join(repository, 'node_modules/.bin/oxlint'),
+            [
+              '--config',
+              join(repository, '.oxlintrc.json'),
+              '--format',
+              'json',
+              join(root, 'fixture.ts'),
+            ],
+            { encoding: 'utf8' },
+          );
+          if (checked.error) throw checked.error;
+          const diagnostics = JSON.parse(checked.stdout).diagnostics;
+          deepStrictEqual(
+            diagnostics.map((diagnostic) => diagnostic.code),
+            errors,
+            checked.stdout + checked.stderr,
+          );
+          strictEqual(checked.status, errors.length === 0 ? 0 : 1);
+        }
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    } else if (
       [
         'worktree-capability-types',
         'native-transport-types',

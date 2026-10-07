@@ -46,14 +46,28 @@ export function useTabLayout({
   ]);
   const fallbackHandled = useRef(false);
   const urlActive: [string | undefined, string | undefined] = [
-    entry != null && parseEntry(entry) != null ? entry : undefined,
-    side != null && parseEntry(side) != null ? side : undefined,
+    entry !== null &&
+    entry !== undefined &&
+    (parseEntry(entry) ?? null) !== null
+      ? entry
+      : undefined,
+    side !== null && side !== undefined && (parseEntry(side) ?? null) !== null
+      ? side
+      : undefined,
   ];
 
   useEffect(() => {
-    if (entry != null && parseEntry(entry) == null)
+    if (
+      entry !== null &&
+      entry !== undefined &&
+      (parseEntry(entry) ?? null) === null
+    )
       onSearch({ entry: undefined }, { replace: true });
-    if (side != null && parseEntry(side) == null)
+    if (
+      side !== null &&
+      side !== undefined &&
+      (parseEntry(side) ?? null) === null
+    )
       onSearch({ side: undefined }, { replace: true });
   }, [entry, side, onSearch]);
 
@@ -63,22 +77,27 @@ export function useTabLayout({
   };
 
   const base: readonly Pane[] = stored ?? [
-    fallback == null ? emptyPane() : { tabs: [fallback], pinned: [] },
+    fallback === null || fallback === undefined
+      ? emptyPane()
+      : { tabs: [fallback], pinned: [] },
   ];
   const actives: [string | null, string | null] = [
     current(0) ??
-      (stored == null
+      (stored === null || stored === undefined
         ? fallback
         : (orderedTabs(base[0] ?? emptyPane()).at(-1) ?? null)),
     current(1) ??
-      (base[1] == null ? null : (orderedTabs(base[1]).at(-1) ?? null)),
+      (base[1] === null || base[1] === undefined
+        ? null
+        : (orderedTabs(base[1]).at(-1) ?? null)),
   ];
 
   const panes: Pane[] = [
     openInPane(base[0] ?? emptyPane(), actives[0] ?? '', lastActive[0]),
   ];
-  if (actives[0] == null) panes[0] = base[0] ?? emptyPane();
-  if (actives[1] != null)
+  if (actives[0] === null || actives[0] === undefined)
+    panes[0] = base[0] ?? emptyPane();
+  if (actives[1] !== null && actives[1] !== undefined)
     panes[1] = openInPane(base[1] ?? emptyPane(), actives[1], lastActive[1]);
   else if (base[1]?.tabs.length) panes[1] = base[1];
   const split = panes.length > 1;
@@ -94,7 +113,11 @@ export function useTabLayout({
     if (lastActive[0] !== actives[0] || lastActive[1] !== actives[1])
       setLastActive(actives);
     if (focused === 1 && !split) setFocused(0);
-    if (stored != null && JSON.stringify(stored) === JSON.stringify(panes))
+    if (
+      stored !== null &&
+      stored !== undefined &&
+      JSON.stringify(stored) === JSON.stringify(panes)
+    )
       return;
     save(panes);
   });
@@ -128,11 +151,12 @@ export function useTabLayout({
 
   useEffect(() => {
     if (
-      fallback == null ||
+      fallback === null ||
+      fallback === undefined ||
       fallbackHandled.current ||
       hadStoredLayout ||
-      entry != null ||
-      side != null
+      (entry !== null && entry !== undefined) ||
+      (side !== null && side !== undefined)
     )
       return;
     fallbackHandled.current = true;
@@ -172,7 +196,7 @@ export function useTabLayout({
       settle(
         index,
         next,
-        active != null && next.tabs.includes(active)
+        active !== null && active !== undefined && next.tabs.includes(active)
           ? active
           : (orderedTabs(next)[0] ?? null),
       );
@@ -197,7 +221,10 @@ export function useTabLayout({
     step(index: PaneIndex, delta: number) {
       const order = orderedTabs(panes[index] ?? emptyPane());
       if (order.length === 0) return;
-      const at = actives[index] == null ? -1 : order.indexOf(actives[index]);
+      const at =
+        actives[index] === null || actives[index] === undefined
+          ? -1
+          : order.indexOf(actives[index]);
       goPane(index, order[(at + delta + order.length) % order.length] ?? null);
     },
   };

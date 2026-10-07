@@ -73,7 +73,7 @@ export function BranchReadiness({
   const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
   const branch = Option.getOrUndefined(AsyncResult.value(changes.result));
-  if (branch?.base == null) return null;
+  if (branch?.base === null || branch?.base === undefined) return null;
   return (
     <Suspense fallback={null}>
       <BranchReadinessMarks
@@ -106,7 +106,7 @@ function BranchReadinessMarks({
   onSelect: Select;
 }) {
   const marks = useReviewedMarks(scope, context, branchReviewRange(branch));
-  if (branch.base == null) return null;
+  if (branch.base === null || branch.base === undefined) return null;
   const files = mergeBranchChanges(branch.files, marks);
   return (
     <ReadinessCard

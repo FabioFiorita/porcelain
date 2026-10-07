@@ -71,11 +71,13 @@ export function InlineComposer({
         {[
           anchorPath(anchor),
           anchorLabel(anchor),
-          anchor.kind === 'change' && anchor.revision != null
+          anchor.kind === 'change' &&
+          anchor.revision !== null &&
+          anchor.revision !== undefined
             ? `at ${anchor.revision.slice(0, HISTORY_OID_LENGTH)}`
             : undefined,
         ]
-          .filter((part) => part != null)
+          .filter((part) => part !== null && part !== undefined)
           .join(' · ')}
       </label>
       <Textarea

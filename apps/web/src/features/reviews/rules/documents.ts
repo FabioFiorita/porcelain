@@ -50,7 +50,7 @@ export function entryKey(ref: DocumentRef): string {
 }
 
 export function parseEntry(entry: string | undefined): DocumentRef | null {
-  if (entry == null || entry === '') return null;
+  if (entry === null || entry === undefined || entry === '') return null;
   if (entry === 'handoff') return HANDOFF;
   if (entry === 'unexplained') return UNEXPLAINED;
   if (entry === 'proof') return PROOF;
@@ -85,7 +85,8 @@ export function withDocument(
   after?: string | null,
 ): string[] {
   if (open.includes(key)) return [...open];
-  const index = after == null ? -1 : open.indexOf(after);
+  const index =
+    after === null || after === undefined ? -1 : open.indexOf(after);
   const next = [...open];
   next.splice(index === -1 ? next.length : index + 1, 0, key);
   return next;

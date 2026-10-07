@@ -390,7 +390,9 @@ function ScopedFileNavigation({
           <AlertDialogHeader>
             <AlertDialogTitle>Move {deleting} to the trash?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleting != null && changed.has(deleting)
+              {deleting !== null &&
+              deleting !== undefined &&
+              changed.has(deleting)
                 ? 'This is part of the agent’s changes. Deleting it changes what you are reviewing, and the agent may write it again. You can restore it from the system trash.'
                 : 'You can restore it from the system trash. This changes the files in your worktree.'}
             </AlertDialogDescription>

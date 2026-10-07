@@ -52,7 +52,7 @@ export function historyGraphWidth(rows: readonly GraphRow[]) {
     row.lane,
     ...row.outgoing,
     ...row.lanesAfter.flatMap((waitingFor, lane) =>
-      waitingFor == null ? [] : [lane],
+      waitingFor === null || waitingFor === undefined ? [] : [lane],
     ),
   ]);
   return (
