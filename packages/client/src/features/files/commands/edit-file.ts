@@ -1,3 +1,5 @@
+import { entryName, topLevelDraggedPaths } from '../rules/tree-actions.ts';
+import type { FileDraftHandle } from '../store.ts';
 import type {
   EditFileRequest,
   EditFileResponse,
@@ -223,3 +225,22 @@ export const retainFileDraft = Atom.family(
       }),
     ),
 );
+
+export const moveFileEntries = Effect.fn('Files.moveEntries')(function* <E>(
+  paths: readonly string[],
+  folder: string,
+  move: (from: string, to: string) => Effect.Effect<void, E>,
+) {
+  for (const from of topLevelDraggedPaths(paths)) {
+    const to = `${folder}${entryName(from)}`;
+    if (from.replace(/\/$/, '') !== to.replace(/\/$/, ''))
+      yield* move(from, to);
+  }
+});
+
+export const completeFileDraft = Effect.fn('Files.completeDraft')(function* (
+  draft: FileDraftHandle,
+  complete: () => void,
+) {
+  if (yield* draft.save()) complete();
+});

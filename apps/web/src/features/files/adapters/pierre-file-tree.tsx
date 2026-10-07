@@ -1,3 +1,5 @@
+import { Cause, Effect } from 'effect';
+import { moveFileEntries } from '@porcelain/client/files';
 import type { GitStatusEntry } from '@pierre/trees';
 import { FileTree, useFileTree } from '@pierre/trees/react';
 import {
@@ -15,7 +17,6 @@ import {
   entryName,
   nextCreatePath,
   selectedDirectories,
-  topLevelDraggedPaths,
 } from '@porcelain/client/files/rules';
 
 function focusFirstMenuItem(event: KeyboardEvent<HTMLDivElement>) {
@@ -136,18 +137,17 @@ export function PierreFileTree({
       canDrop: ({ draggedPaths, target }) =>
         canDropPaths(draggedPaths, target.directoryPath ?? ''),
       onDropComplete: (event) => {
-        const paths = topLevelDraggedPaths(event.draggedPaths);
-        void paths
-          .reduce<Promise<void>>(
-            (previous, from) =>
-              previous.then(async () => {
-                const to = `${event.target.directoryPath ?? ''}${entryName(from)}`;
-                if (from.replace(/\/$/, '') !== to.replace(/\/$/, ''))
-                  await latest.current.onMove(from, to);
+        void Effect.runPromise(
+          moveFileEntries(
+            event.draggedPaths,
+            event.target.directoryPath ?? '',
+            (from, to) =>
+              Effect.tryPromise({
+                try: () => latest.current.onMove(from, to),
+                catch: (cause) => new Cause.UnknownError(cause),
               }),
-            Promise.resolve(),
-          )
-          .catch(() => modelRef.current?.resetPaths(latest.current.paths));
+          ),
+        ).catch(() => modelRef.current?.resetPaths(latest.current.paths));
       },
     },
     renderRowDecoration: ({ item }) => {
