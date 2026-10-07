@@ -49,12 +49,3 @@ export interface CheckoutSession {
   confirm(signal?: AbortSignal): Promise<void>;
   conversionFilters(read: () => Promise<string[]>): Promise<string[]>;
 }
-
-export interface GitSession {
-  checkout(
-    path: string,
-    metadataIdentity: string,
-    repositoryIdentity: string,
-  ): CheckoutSession;
-  confirmAll(signal?: AbortSignal): Promise<void>;
-}

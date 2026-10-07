@@ -95,7 +95,7 @@ describe('Effect checkout session', () => {
     );
     onTestFinished(() => rmSync(root, { recursive: true, force: true }));
     const actual = repository(root);
-    const session = gitSessionPerSignal(gitLimits)().native;
+    const session = gitSessionPerSignal(gitLimits)();
     const opened = await run(
       openCheckoutEffect(
         answering({ kind: 'found', worktree: actual }),
@@ -140,7 +140,7 @@ describe('Effect checkout session', () => {
       actual.id,
     );
     await opened.checkout.verify();
-    await session.confirmAll();
+    await run(session.confirmAll());
     const controller = new AbortController();
     controller.abort();
     await expect(
@@ -157,7 +157,7 @@ describe('Effect checkout session', () => {
     );
     onTestFinished(() => rmSync(root, { recursive: true, force: true }));
     const actual = repository(root);
-    const session = gitSessionPerSignal(gitLimits)().native;
+    const session = gitSessionPerSignal(gitLimits)();
     const wrongMetadata = await run(
       session.checkout(
         actual.path,
@@ -188,7 +188,7 @@ describe('Effect checkout session', () => {
     );
     onTestFinished(() => rmSync(root, { recursive: true, force: true }));
     const actual = repository(root);
-    const session = gitSessionPerSignal(gitLimits)().native;
+    const session = gitSessionPerSignal(gitLimits)();
     const checkout = await run(
       session.checkout(
         actual.path,
@@ -229,8 +229,7 @@ describe('Effect checkout session', () => {
     const head = join(actual.administrativeDirectory, 'HEAD');
     rmSync(head);
     execFileSync('mkfifo', [head]);
-    const session = gitSessionPerSignal({ ...gitLimits, readTimeoutMs: 100 })()
-      .native;
+    const session = gitSessionPerSignal({ ...gitLimits, readTimeoutMs: 100 })();
     const checkout = await run(
       session.checkout(
         actual.path,
@@ -261,7 +260,7 @@ describe('Effect checkout session', () => {
     const session = gitSessionPerSignal({
       ...gitLimits,
       readTimeoutMs: 30_000,
-    })().native;
+    })();
     const checkout = await run(
       session.checkout(
         actual.path,

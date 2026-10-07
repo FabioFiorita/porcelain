@@ -1,7 +1,6 @@
 import { Effect } from 'effect';
 import { RepositoryIdentityMismatchError } from '@porcelain/git/errors';
 import {
-  RequestGitSession,
   makeGitSession,
   promiseCheckoutSession,
   type EffectGitSession,
@@ -19,18 +18,15 @@ type OpenedCheckout = {
   checkout: CheckoutSession;
 };
 
-export type GitSessions = (signal?: AbortSignal) => RequestGitSession;
+export type GitSessions = (signal?: AbortSignal) => EffectGitSession;
 
 export function gitSessionPerSignal(limits: Limits['git']): GitSessions {
-  const sessions = new WeakMap<AbortSignal, RequestGitSession>();
+  const sessions = new WeakMap<AbortSignal, EffectGitSession>();
   return (signal) => {
-    if (signal === undefined)
-      return new RequestGitSession(Effect.runSync(makeGitSession(limits)));
+    if (signal === undefined) return Effect.runSync(makeGitSession(limits));
     const existing = sessions.get(signal);
     if (existing) return existing;
-    const created = new RequestGitSession(
-      Effect.runSync(makeGitSession(limits)),
-    );
+    const created = Effect.runSync(makeGitSession(limits));
     sessions.set(signal, created);
     return created;
   };
@@ -82,14 +78,14 @@ export const openCheckoutEffect = Effect.fn('Git.openCheckout')(function* (
 
 export async function openCheckout(
   worktrees: ListedWorktrees,
-  session: RequestGitSession,
+  session: EffectGitSession,
   worktreeId: string,
   signal?: AbortSignal,
 ): Promise<OpenedCheckout> {
   signal?.throwIfAborted();
   try {
     const opened = await Effect.runPromise(
-      openCheckoutEffect(worktrees, session.native, worktreeId),
+      openCheckoutEffect(worktrees, session, worktreeId),
       { signal },
     );
     return {

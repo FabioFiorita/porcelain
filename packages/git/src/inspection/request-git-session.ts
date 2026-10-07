@@ -4,7 +4,6 @@ import { verifyCheckoutEffect } from './commands/verify-checkout.ts';
 import { runGitEffect } from '../shared/commands/run-git.ts';
 import type {
   CheckoutSession,
-  GitSession,
   EffectCheckoutSession,
   EffectGitSession,
 } from './interfaces/git-session.ts';
@@ -95,28 +94,4 @@ export function promiseCheckoutSession(
     conversionFilters: (read) =>
       runGitEffect(checkout.conversionFilters(Effect.promise(read))),
   };
-}
-
-export class RequestGitSession implements GitSession {
-  readonly native: EffectGitSession;
-
-  constructor(native: EffectGitSession) {
-    this.native = native;
-  }
-
-  confirmAll(signal?: AbortSignal): Promise<void> {
-    return runGitEffect(this.native.confirmAll(), signal);
-  }
-
-  checkout(
-    path: string,
-    metadataIdentity: string,
-    repositoryIdentity: string,
-  ): CheckoutSession {
-    return promiseCheckoutSession(
-      Effect.runSync(
-        this.native.checkout(path, metadataIdentity, repositoryIdentity),
-      ),
-    );
-  }
 }

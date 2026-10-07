@@ -29,7 +29,7 @@ export function inspectionCheckouts(
   return async (worktreeId, signal) => {
     signal?.throwIfAborted();
     const { worktree, checkout } = await Effect.runPromise(
-      openCheckoutEffect(worktrees, sessions(signal).native, worktreeId),
+      openCheckoutEffect(worktrees, sessions(signal), worktreeId),
       { signal },
     );
     return { worktree, git: inspection(promiseCheckoutSession(checkout)) };

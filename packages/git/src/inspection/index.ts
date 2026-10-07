@@ -1,6 +1,5 @@
 export { InspectionGit } from './inspection-git.ts';
 export {
-  RequestGitSession,
   makeGitSession,
   promiseCheckoutSession,
 } from './request-git-session.ts';
