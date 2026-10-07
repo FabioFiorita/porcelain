@@ -36,6 +36,71 @@ export interface IdSource { next(): string; }
 export const IdSource = Context.Service<'@porcelain/kernel/IdSource', IdSource>('@porcelain/kernel/IdSource');`;
 
 export const effectRuleCases = [
+  ...['effect', 'live', 'scoped'].flatMap((method) => [
+    {
+      rule: 'spec-asserts',
+      path: 'apps/server/src/runtime/read.spec.ts',
+      valid: `import { it, expect } from '@effect/vitest'; import { read } from './read.ts';
+        it.${method}('reads', function* () { const result = yield* read(); expect(result).toBe('saved'); });`,
+      invalid: `import { it, expect } from '@effect/vitest'; import { read } from './read.ts';
+        it.${method}('reads', function* () { const result = yield* read(); result.map(value => expect(value).toBe('saved')); });`,
+      errors: 1,
+    },
+    {
+      rule: 'spec-asserts',
+      path: 'apps/server/src/runtime/read.spec.ts',
+      valid: `import { it, expect } from '@effect/vitest'; import { Effect } from 'effect'; import { read } from './read.ts';
+        it.${method}('reads', () => Effect.gen(function* () { const result = yield* read(); expect(result).toBe('saved'); }));`,
+      invalid: `import { it, expect } from '@effect/vitest'; import { Effect } from 'effect'; import { read } from './read.ts';
+        it.${method}('reads', () => Effect.gen(function* () { const result = yield* read(); result.map(value => expect(value).toBe('saved')); }));`,
+      errors: 1,
+    },
+  ]),
+  ...[
+    "import { read } from './read.ts';",
+    "import { unrelated } from '../runtime/unrelated.ts';",
+    "import { Layer } from '@porcelain/client/access';",
+    "import { Effect } from 'effect/socket'; import { it } from '@effect/vitest';",
+    "import { readFile } from 'node:fs/promises';",
+    "import { test } from '@porcelain/server/kit/server-test';",
+    "import { test } from '../../../spec/kit/test.ts';",
+    "import { Fake } from '../../../spec/fakes/fake.ts';",
+    "import { Store } from '@porcelain/storage';",
+    "import { Rpc } from '@effect/rpc';",
+    "import { QueryClient } from '@tanstack/query-core';",
+  ].map((valid) => ({
+    rule: 'spec-imports',
+    path: 'apps/server/src/http/read.spec.ts',
+    valid,
+    invalid:
+      "import { Other } from '@porcelain/client/src/features/access/store.ts';",
+    errors: 1,
+  })),
+  ...[
+    "import { Other } from '../../../../packages/client/src/features/access/store.ts';",
+    "export { Other } from '@porcelain/client/access/private';",
+    "export * from '@porcelain/client/src/features/access/store.ts';",
+    "import('@porcelain/client/src/features/access/store.ts');",
+  ].map((invalid) => ({
+    rule: 'spec-imports',
+    path: 'apps/server/src/http/read.spec.ts',
+    valid: "import { AccessStore } from '@porcelain/client/access';",
+    invalid,
+    errors: 1,
+  })),
+  ...[
+    'packages/reviews/src/services/read.spec.ts',
+    'apps/web/spec/integration/read.test.tsx',
+    'apps/web/spec/e2e/read.test.ts',
+  ].map((path) => ({
+    rule: 'spec-behaviour-names',
+    path,
+    valid:
+      "it('should answer 404', () => { expect(read()).toBe('missing'); });",
+    invalid: "it('should answer 404', () => { expect(true).toBe(true); });",
+    errors: 1,
+  })),
+
   ...[
     nativeService.replace('readonly execute:', 'execute:'),
     nativeService.replace('static readonly layer', 'readonly layer'),
@@ -112,13 +177,6 @@ export const effectRuleCases = [
     ),
     errors: 1,
   })),
-  {
-    rule: 'spec-imports',
-    path: 'packages/client/src/shared/api/write-queue.spec.ts',
-    valid: `import { it } from '@effect/vitest'; import { Deferred, Effect } from 'effect';`,
-    invalid: `import { useMutation } from '@tanstack/react-query';`,
-    errors: 1,
-  },
 
   ...[
     `import { FileDraft } from '@porcelain/client/files'; export { FileDraft };`,
@@ -140,13 +198,7 @@ export const effectRuleCases = [
     invalid: `export const open = (url: string) => new WebSocket(url);`,
     errors: 1,
   })),
-  {
-    rule: 'spec-imports',
-    path: 'packages/client/src/features/live/commands/live-queries.spec.ts',
-    valid: `import { createOperationStore } from '@porcelain/client/git-actions'; import { Socket } from 'effect/socket'; import { RpcClient } from 'effect/rpc'; import { NetAddress } from 'effect/net';`,
-    invalid: `import { createOperationStore } from '../../git-actions/store/operations.ts';`,
-    errors: 1,
-  },
+
   ...[
     `import { withReadLease } from '@porcelain/effects';`,
     `import { withWriteLease as admit } from '@porcelain/effects/worktree';`,

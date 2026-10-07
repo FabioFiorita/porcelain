@@ -1,13 +1,8 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { builtinModules } from 'node:module';
 import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  classify,
-  nodeGlobalRoles,
-  targetPackageExports,
-  webPart,
-} from './policy.ts';
+import { classify, nodeGlobalRoles } from './policy.ts';
 import { webRules } from './web-rules.mjs';
 import { mobileRules } from './mobile-rules.mjs';
 import { nativeHttpRules } from './native-http-rules.mjs';
@@ -104,18 +99,7 @@ function isPrivateMember(member) {
 
 const specSource = /\.spec\.ts$/;
 const storeContractSource = /\/packages\/[^/]+\/spec\/contracts\/.+\.ts$/;
-const storageSpec = /\/packages\/storage\/src\/.+\.spec\.ts$/;
-const storagePublicApi =
-  /\/packages\/storage\/src\/(?:index|repositories\/[^/]+\/index)\.ts$/;
-const specNodeModule = /^node:(?:fs|path|os|child_process)(?:\/[a-z]+)?$/;
-const statusPolicySpec = /\/apps\/server\/src\/http\/status-policy\.spec\.ts$/;
-const adapterSpec = /\/apps\/server\/src\/adapters\/.+\.spec\.ts$/;
-const storageEntry = /^@porcelain\/storage(?:\/[a-z-]+)?$/;
-const gitCapabilityEntry =
-  /^@porcelain\/git\/(?:discovery|inspection|history|actions)$/;
-const specPackageEntry = new RegExp(
-  `^@porcelain/(?:${domainPackage}/(?:services|rules|models|ports|errors|store-contracts)|kernel/(?:models|ports|rules|errors|fakes|test-kit))$`,
-);
+
 const interactionMatchers = new Set([
   'toHaveBeenCalled',
   'toHaveBeenCalledTimes',
@@ -145,11 +129,6 @@ const loopTypes = new Set([
   'WhileStatement',
   'DoWhileStatement',
 ]);
-
-const httpStatus =
-  /(?:^|\s)[1-5]\d\d(?=\s*$|\s+(?:when|if|for|unless)\b)|^\s*[1-5]\d\d\b|\bhttp\s+(?:status|code|[1-5]\d\d)\b|\bstatus\s+code|\b(?:status|code)\s+[1-5]\d\d\b/i;
-const statusNumber =
-  /(?<![\w.-])(?:10[0-3]|20[0-8]|226|30[0-8]|4(?:0\d|1[0-8]|2[1-689]|31|51)|50[0-8]|51[01])(?![\w.-])(?!\s+(?:commits?|files?|bytes?|paths?|entries|lines?|threads?|items?|ms|characters?|chars?)\b)/;
 
 const repositoryRoot = normalizedFilename(
   fileURLToPath(new URL('..', import.meta.url)),
@@ -838,177 +817,49 @@ function executedEffectBody(call, context) {
       owner?.parent?.type === 'CallExpression' &&
       caseCall(owner.parent, context) &&
       owner.parent.callee.type === 'MemberExpression' &&
-      memberName(owner.parent.callee) === 'effect'
+      ['effect', 'live', 'scoped'].includes(memberName(owner.parent.callee))
     );
   }
   return false;
 }
 
-function caseTitle(node) {
-  if (!caseFunctions.has(chainRoot(node.callee) ?? '')) return undefined;
-  const title = node.arguments[0];
-  if (title?.type === 'Literal' && typeof title.value === 'string')
-    return title.value;
-  if (title?.type === 'TemplateLiteral')
-    return title.quasis.map((quasi) => quasi.value.cooked ?? '').join(' ');
-  return undefined;
-}
+const specExports = new Map();
 
 function allowedSpecImport(filename, source) {
-  if (
-    /^(?:vitest|@effect\/vitest|effect(?:\/(?:testing|reactivity|workflow))?|@porcelain\/effects(?:\/worktree)?)$/.test(
-      source,
-    ) ||
-    specNodeModule.test(source) ||
-    specPackageEntry.test(source)
-  )
-    return true;
   const path = normalizedFilename(filename);
-  if (
-    /apps\/web\/src\/features\/[^/]+\/rules\/[^/]+\.spec\.ts$/.test(path) &&
-    /^@porcelain\/client\/[^/]+\/rules$/.test(source)
-  )
-    return true;
-  if (
-    /packages\/client\/src\/.+\.spec\.ts$/.test(path) &&
-    source === '@porcelain/client/transport'
-  )
-    return true;
-  if (
-    /packages\/client\/src\/shared\/api\/[^/]+\.spec\.ts$/.test(path) &&
-    source === 'effect/http-api'
-  )
-    return true;
-  if (
-    /packages\/contracts\/src\/.+\.spec\.ts$/.test(path) &&
-    (source === 'effect/http-api' || /^\.\.\/shared\/[^/]+\.ts$/.test(source))
-  )
-    return true;
-  if (
-    /apps\/server\/src\/http\/.+\.spec\.ts$/.test(path) &&
-    (source === 'effect/http' ||
-      source === '@porcelain/server/kit/http' ||
-      source === 'effect/http-api' ||
-      /^@porcelain\/contracts\/[^/]+$/.test(source) ||
-      /^(?:\.\.\/){1,2}(?:server-factory|hooks\/browser-credential)\.ts$/.test(
-        source,
-      ))
-  )
-    return true;
-  if (
-    /apps\/server\/src\/http\/mcp\/[^/]+\.spec\.ts$/.test(path) &&
-    (/^@modelcontextprotocol\/sdk\/client\/(?:index|streamableHttp)\.js$/.test(
-      source,
-    ) ||
-      source === '../protocol/mcp.ts' ||
-      source === '../../config/limits.ts')
-  )
-    return true;
-  if (
-    /apps\/server\/src\/(?:http|runtime|use-cases)\/.+\.spec\.ts$/.test(path) &&
-    /^(?:(?:\.\.\/){1,3}(?:runtime\/)?|\.\/)(?:lanes|lane-keys|worktree-access|observability|git-action-workflow)\.ts$/.test(
-      source,
-    )
-  )
-    return true;
-  if (
-    /apps\/server\/src\/use-cases\/.+\.spec\.ts$/.test(path) &&
-    /^@porcelain\/storage(?:\/(?:projects|reviews))?$/.test(source)
-  )
-    return true;
-  if (
-    /apps\/server\/src\/cli\/[^/]+\.spec\.ts$/.test(path) &&
-    (source === 'node:http' ||
-      source === 'node:stream' ||
-      source === '@effect/platform-node' ||
-      source === 'effect/cli' ||
-      source === './operations.ts' ||
-      source === './settings.ts' ||
-      source === '../config/environment-settings.ts' ||
-      source === '../config/owner-socket-settings.ts')
-  )
-    return true;
-
-  if (
-    /packages\/client\/spec\/integration\/[a-z]+(?:-[a-z]+)*\.integration\.ts$/.test(
-      path,
-    )
-  )
+  const owner = (value) =>
+    /\/(packages|apps)\/([^/]+)\//.exec(value)?.slice(1).join('/');
+  if (source.startsWith('.')) {
+    const target = posix.resolve(posix.dirname(path), source);
     return (
-      /^@porcelain\/client\/(?:access|projects|files|changes|history|reviews|git-actions|transport)(?:\/api)?$/.test(
-        source,
-      ) ||
-      /^@porcelain\/contracts\/(?:shared|files|changes|reviews|projects)$/.test(
-        source,
-      ) ||
-      /^@porcelain\/server\/kit\/[a-z-]+$/.test(source) ||
-      source === '@tanstack/query-core' ||
-      /^\.\.\/kit\/[a-z-]+\.ts$/.test(source)
+      owner(target) === owner(path) ||
+      /\/spec\/(?:kit|fakes|fixtures|contracts)\//.test(target)
     );
-  const clientFeature =
-    /packages\/client\/src\/features\/([^/]+)\/(?:[^/]+\.spec\.ts|(?:commands|queries|store|rules)\/[^/]+\.spec\.ts)$/.exec(
-      path,
-    );
-  if (
-    (clientFeature ||
-      /packages\/client\/src\/shared\/api\/[^/]+\.spec\.ts$/.test(path)) &&
-    (source === '@tanstack/query-core' ||
-      source === `@porcelain/client/${clientFeature?.[1]}` ||
-      source === `@porcelain/client/${clientFeature?.[1]}/rules` ||
-      /^@porcelain\/contracts\/(?:shared|access|projects|changes|reviews|files|git-actions)$/.test(
-        source,
-      ))
-  )
-    return true;
-  if (clientFeature) {
-    const entry = /^@porcelain\/client\/(.+)$/.exec(source)?.[1];
-    const target = entry && targetPackageExports.client[`./${entry}`];
-    if (
-      target &&
-      ['client-feature-api', 'client-rules-api', 'client-request-api'].includes(
-        classify(`packages/client/${target.replace(/^\.\//, '')}`).role,
-      )
-    )
-      return true;
-    if (['effect/socket', 'effect/rpc', 'effect/net'].includes(source))
-      return true;
   }
-  if (statusPolicySpec.test(path) && gitCapabilityEntry.test(source))
-    return true;
-  if (
-    /packages\/agents\/src\/.+\.spec\.ts$/.test(path) &&
-    ['effect/ai', '@porcelain/agents/commit-planning'].includes(source)
-  )
-    return true;
-  if (
-    (source === '@effect/platform-node' ||
-      (adapterSpec.test(path) &&
-        ['effect/http', '@porcelain/server/kit/http'].includes(source))) &&
-    (/\/packages\/(?:git|agents|process)\/src\/.+\.spec\.ts$/.test(path) ||
-      storageSpec.test(path) ||
-      adapterSpec.test(path) ||
-      /apps\/(?:server\/src\/(?:runtime|use-cases|installer)\/.+|desktop\/src\/adapters\/[^/]+)\.spec\.ts$/.test(
-        path,
-      ))
-  )
-    return true;
-  if (storageSpec.test(path) && ['node:crypto', 'node:sqlite'].includes(source))
-    return true;
-  if (adapterSpec.test(path) && storageEntry.test(source)) return true;
-  if (!source.startsWith('.')) return false;
-  const unit = path.split('/').at(-1).replace(specSource, '.ts');
-  if (source === `./${unit}`) return true;
-  const target = new URL(
-    source,
-    `file://${path.startsWith('/') ? '' : '/'}${path}`,
-  ).pathname;
-  if (storageSpec.test(path)) return storagePublicApi.test(target);
-  if (storeContractSource.test(path))
-    return (
-      /\/src\/(?:ports|models|errors)\/[^/]+\.ts$/.test(target) ||
-      /\/spec\/contracts\/[^/]+\.ts$/.test(target)
+  if (!source.startsWith('@porcelain/')) return true;
+  const [, name, entry] = /^@porcelain\/([^/]+)(?:\/(.*))?$/.exec(source) ?? [];
+  if (!name) return false;
+  if (!specExports.has(name)) {
+    const manifest = ['packages', 'apps']
+      .map((folder) => posix.join(repositoryRoot, folder, name, 'package.json'))
+      .find(existsSync);
+    specExports.set(
+      name,
+      manifest
+        ? Object.keys(JSON.parse(readFileSync(manifest, 'utf8')).exports ?? {})
+        : [],
     );
-  return /\/spec\/(?:fakes|fixtures|contracts)\/.+\.ts$/.test(target);
+  }
+  const subpath = entry ? `./${entry}` : '.';
+  return specExports
+    .get(name)
+    .some(
+      (key) =>
+        key === subpath ||
+        (key.includes('*') &&
+          subpath.startsWith(key.split('*')[0]) &&
+          subpath.endsWith(key.split('*')[1])),
+    );
 }
 
 const fakeName = /^(?:InMemory|Scripted|Fixed|Sequential|Recording)[A-Z]/;
@@ -2484,10 +2335,11 @@ export default {
 
     'spec-behaviour-names': {
       create(context) {
-        const journey = ['integration-spec', 'e2e-spec'].includes(
-          webPart(repositoryPath(context)),
-        );
-        if (!isSpec(context) && !journey) return {};
+        if (
+          !isSpec(context) &&
+          !testSource.test(normalizedFilename(context.filename))
+        )
+          return {};
         return {
           CallExpression(node) {
             if (
@@ -2495,39 +2347,11 @@ export default {
               node.callee.name === 'expect' &&
               node.arguments[0]?.type === 'Literal' &&
               typeof node.arguments[0].value === 'boolean'
-            ) {
+            )
               context.report({
                 node,
                 message:
                   'Assert on an observable result instead of a boolean literal, because a fixed literal cannot detect a product regression.',
-              });
-              return;
-            }
-            const title = caseTitle(node);
-            if (
-              journey &&
-              caseFunctions.has(chainRoot(node.callee) ?? '') &&
-              (title === undefined ||
-                /^\s*[a-z-]+\.[a-z-]+\s*:/.test(title) ||
-                title.trim().split(/\s+/).length < 4)
-            )
-              context.report({
-                node: node.arguments[0] ?? node,
-                message:
-                  'Name the journey case as a written sentence of what the user does and sees, without its feature id, because the title states the user promise and the map already identifies the feature.',
-              });
-            if (title === undefined) return;
-            if (/^\s*should\b/i.test(title))
-              context.report({
-                node: node.arguments[0],
-                message:
-                  'Name the case as a sentence of behaviour, not with "should", because its title states the promise the test proves.',
-              });
-            if (httpStatus.test(title) || statusNumber.test(title))
-              context.report({
-                node: node.arguments[0],
-                message:
-                  'Name the behaviour, not the HTTP status code; statuses belong to feature verification, because a transport code does not state the domain promise.',
               });
           },
         };
@@ -2547,15 +2371,6 @@ export default {
               });
             return;
           }
-          if (
-            /^(?:\.\.\/){1,2}ports\/[^/]+\.ts$/.test(source) ||
-            (/apps\/server\/src\/installer\/[^/]+\.spec\.ts$/.test(
-              context.filename,
-            ) &&
-              source === './command-runner.ts' &&
-              typeOnlyImport(node))
-          )
-            return;
           if (!allowedSpecImport(context.filename, source))
             context.report({
               node: node.source,

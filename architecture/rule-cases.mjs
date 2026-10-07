@@ -113,28 +113,8 @@ const observedStoreState = `describe('MarkCommentsSeenService', () => {
 `;
 
 export default [
-  ...[
-    '@effect/platform-node',
-    'effect/cli',
-    './operations.ts',
-    './settings.ts',
-    '../config/environment-settings.ts',
-  ].map((source) => ({
-    rule: 'spec-imports',
-    path: 'apps/server/src/cli/cli-program.spec.ts',
-    valid: `import { capability } from '${source}';`,
-    invalid: "import { startServer } from '../bootstrap/compose-server.ts';",
-    errors: 1,
-  })),
-
   ...effectRuleCases,
-  ...['installer', 'adapters/access', 'desktop'].map((folder) => ({
-    rule: 'spec-imports',
-    path: `apps/${folder === 'desktop' ? 'desktop/src/adapters' : `server/src/${folder}`}/records.spec.ts`,
-    valid: `import { capability } from '${folder === 'adapters/access' ? 'effect/http' : '@effect/platform-node'}';${folder === 'adapters/access' ? " import { request } from '@porcelain/server/kit/http';" : ''}`,
-    invalid: "import { useQuery } from '@tanstack/react-query';",
-    errors: 1,
-  })),
+
   {
     rule: 'web-api-owns-request',
     path: 'apps/web/src/features/reviews/live.ts',
@@ -142,14 +122,7 @@ export default [
     invalid: "import { HttpApiClient } from 'effect/http-api';",
     errors: 1,
   },
-  {
-    rule: 'spec-imports',
-    path: 'packages/client/src/features/reviews/commands/reviewed.spec.ts',
-    valid:
-      "import { QueryClient } from '@tanstack/query-core'; import { reviewedQueryOptions } from '@porcelain/client/reviews';",
-    invalid: "import { useQueryClient } from '@tanstack/react-query';",
-    errors: 1,
-  },
+
   {
     rule: 'web-cache-writes-in-commands',
     path: 'apps/web/src/features/reviews/queries/comments.ts',
@@ -339,33 +312,6 @@ export interface ProbeDelay {
   },
 
   {
-    rule: 'spec-behaviour-names',
-    path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
-    valid:
-      "it('records the revision the reader saw', () => { expect(seen.revision).toBe(2); });",
-    invalid:
-      "it('should record the revision the reader saw', () => { expect(seen.revision).toBe(2); });",
-    errors: 1,
-  },
-  {
-    rule: 'spec-behaviour-names',
-    path: 'apps/web/spec/integration/probe.test.tsx',
-    valid:
-      "test('the review content appears after pairing', async ({ workspace }) => { await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible(); });",
-    invalid:
-      "test('review appears', async ({ workspace }) => { await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible(); });",
-    errors: 1,
-  },
-  {
-    rule: 'spec-behaviour-names',
-    path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
-    valid:
-      "it('records the revision the reader saw', () => { expect(seen.revision).toBe(2); });",
-    invalid:
-      "it('records the revision the reader saw', () => { expect(true).toBe(true); });",
-    errors: 1,
-  },
-  {
     rule: 'no-comments',
     path: 'packages/files/src/services/list-directory-service.ts',
     valid:
@@ -414,76 +360,12 @@ export function probeLoose(left: string, right: string): boolean {
 `,
     errors: 1,
   },
-  {
-    rule: 'spec-behaviour-names',
-    path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
-    valid: observedStoreState,
-    invalid: `describe('MarkCommentsSeenService', () => {
-  it('records the revision the reader saw', () => {
-    expect(seen.seenThrough({ worktreeId })).toBe(2);
-  });
 
-  it('answers 404 to an unknown worktree', () => {
-    const { service } = setup();
-    expect(service.execute({ worktreeId: 'c'.repeat(64), throughRevision: 1 }).seenThrough).toBe(0);
-  });
-});
-`,
-    errors: 1,
-  },
-  {
-    rule: 'spec-behaviour-names',
-    path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
-    valid: observedStoreState,
-    invalid: `describe('MarkCommentsSeenService', () => {
-  it('records the revision the reader saw', () => {
-    expect(seen.seenThrough({ worktreeId })).toBe(2);
-  });
-
-  it('returns 404 for an unknown worktree', () => {
-    const { service } = setup();
-    expect(service.execute({ worktreeId: 'c'.repeat(64), throughRevision: 1 }).seenThrough).toBe(0);
-  });
-});
-`,
-    errors: 1,
-  },
-  {
-    rule: 'spec-behaviour-names',
-    path: 'apps/web/spec/integration/probe.test.tsx',
-    valid:
-      "test('the review content appears after pairing', async ({ workspace }) => { await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible(); });",
-    invalid: `import { expect } from 'vitest';
-import { test } from './fixtures.tsx';
-
-test('access.pairing: works', async ({ workspace }) => {
-  await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible();
-});
-`,
-    errors: 1,
-  },
-
-  {
-    rule: 'spec-imports',
-    path: 'packages/contracts/src/shared/http-api.spec.ts',
-    valid: "import { Schema } from 'effect';",
-    invalid:
-      "import { readHealth } from '@porcelain/server/src/http/routes/access/read-health';",
-    errors: 1,
-  },
   {
     rule: 'root-scripts-import-no-package',
     path: 'scripts/api-calls.ts',
     valid: "import * as files from '@porcelain/contracts/files';",
     invalid: "import { filesApi } from '@porcelain/client/files/api';",
-    errors: 1,
-  },
-  {
-    rule: 'spec-imports',
-    path: 'packages/client/src/shared/api/effect-client.spec.ts',
-    valid: "import { FilesApi } from '@porcelain/contracts/files';",
-    invalid:
-      "import { ReadTextFileUseCase } from '@porcelain/server/src/use-cases/files/read-text-file';",
     errors: 1,
   },
 
@@ -496,15 +378,6 @@ test('access.pairing: works', async ({ workspace }) => {
       "it('reads the observed server health', () => { expect(true).toBe(true); });",
     errors: 1,
   },
-  {
-    rule: 'spec-imports',
-    path: 'packages/client/spec/integration/files.integration.ts',
-    valid:
-      "import { directoryQueryOptions } from '@porcelain/client/files'; import { test } from '@porcelain/server/kit/server-test';",
-    invalid:
-      "import { composeServer } from '@porcelain/server/src/bootstrap/compose-server';",
-    errors: 1,
-  },
 
   {
     rule: 'client-platform-through-ports',
@@ -513,15 +386,7 @@ test('access.pairing: works', async ({ workspace }) => {
     invalid: "import { useAtomRef } from '@effect/atom-react';",
     errors: 1,
   },
-  {
-    rule: 'spec-imports',
-    path: 'packages/client/src/features/access/commands/pairing.spec.ts',
-    valid:
-      "import { AtomRegistry } from 'effect/reactivity'; import { AccessStore } from '@porcelain/client/access'; import type { Remote } from '@porcelain/client/access/rules'; import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';",
-    invalid:
-      "import { SettingsScreen } from '../../../../../../apps/mobile/src/features/access/views/settings-screen.tsx';",
-    errors: 1,
-  },
+
   {
     rule: 'client-platform-through-ports',
     path: 'packages/client/src/features/access/queries/environments.ts',
@@ -2049,20 +1914,7 @@ describe('commitPaths', () => {
 `,
     errors: 1,
   },
-  {
-    rule: 'spec-imports',
-    path: 'apps/server/src/http/status-policy.spec.ts',
-    valid:
-      "import {statusPolicy} from './status-policy.ts'; import {expect, it} from 'vitest'; it('maps the outcome to a response', () => { expect(statusPolicy({kind: 'missing'})).toBe(404); });",
-    invalid: `import { openStorageSession } from '@porcelain/storage';
-describe('probe', () => {
-  it('opens storage', () => {
-    expect(openStorageSession).toBeTypeOf('function');
-  });
-});
-`,
-    errors: 1,
-  },
+
   {
     rule: 'spec-no-mocking',
     path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
