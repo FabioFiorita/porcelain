@@ -1,4 +1,6 @@
 import { existsSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
@@ -352,6 +354,7 @@ type DesktopFixtures = {
     profile: string;
     folder: string;
     launch: (profile?: string) => Promise<DesktopApp>;
+    launchSecondInstance: () => Promise<number | null>;
   };
 };
 
@@ -427,7 +430,32 @@ export const test = base.extend<DesktopFixtures, WorkerFixtures>({
       });
       return desktop;
     };
-    await use({ ...workspace, launch });
+    const launchSecondInstance = async () => {
+      const options = launchOptions({
+        app,
+        profile: workspace.profile,
+        projectHome: workspace.repository,
+      });
+      const secondary = spawn(options.executablePath, options.args, {
+        env: options.env,
+        stdio: 'ignore',
+      });
+      try {
+        await once(secondary, 'exit', {
+          signal: AbortSignal.timeout(options.timeout),
+        });
+        await keepLog(
+          testInfo,
+          'second-instance.txt',
+          `App process ${secondary.pid} exited ${secondary.exitCode}\n`,
+        );
+        return secondary.exitCode;
+      } finally {
+        if (secondary.exitCode === null && secondary.signalCode === null)
+          secondary.kill('SIGKILL');
+      }
+    };
+    await use({ ...workspace, launch, launchSecondInstance });
     const failed = testInfo.status !== testInfo.expectedStatus;
     if (failed) await keepScreenshots(launched, testInfo);
     const closed = await Promise.allSettled(

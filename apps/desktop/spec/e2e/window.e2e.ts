@@ -386,6 +386,25 @@ test('closing the last window keeps the same server, the Dock reopens the window
   expect(app.errors).toEqual([]);
 });
 
+test('a second instance reopens the primary window and exits without starting another server', async ({
+  desktop,
+}) => {
+  const app = await desktop.launch();
+  const page = await app.window();
+  const { pid } = await app.server();
+  await closeWindow(app, page);
+  const reopened = app.nextWindow();
+  expect(await desktop.launchSecondInstance()).toBe(0);
+  await expect(
+    (await reopened).getByRole('button', { name: 'Open project', exact: true }),
+  ).toBeVisible();
+  expect(app.electron.windows()).toHaveLength(1);
+  expect((await app.server()).pid).toBe(pid);
+  await app.quit();
+  expect(processAlive(pid)).toBe(false);
+  expect(app.errors).toEqual([]);
+});
+
 test('Quit drains server output and persists its log before letting the server exit', async ({
   desktop,
 }) => {
