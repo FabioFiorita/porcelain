@@ -19,7 +19,7 @@ class AppManagedUpdateRunner implements ServiceUpdateRunner {
   }
 
   start(): Effect.Effect<void> {
-    return Effect.die(new AppManagedUpdateError());
+    return Effect.fail(new AppManagedUpdateError()).pipe(Effect.orDie);
   }
 
   close(): Effect.Effect<void> {

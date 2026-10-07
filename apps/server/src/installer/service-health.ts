@@ -1,23 +1,39 @@
-import type { OwnerProbe } from '../ports/owner-probe.ts';
-import { delay } from '../runtime/delay.ts';
+import { Effect } from 'effect';
+import type { OwnerProbe, OwnerProbeRequest } from '../ports/owner-probe.ts';
+import { InstallerOperationError } from './errors/installer-operation-error.ts';
+import { failureDetail } from './failure-detail.ts';
 
-export async function waitForHealthyService(options: {
+export const probeOwner = Effect.fn('Installer.probeOwner')(
+  (ownerProbe: OwnerProbe, input: OwnerProbeRequest) =>
+    Effect.tryPromise({
+      try: () => ownerProbe.probe(input),
+      catch: (cause) =>
+        new InstallerOperationError({ message: failureDetail(cause), cause }),
+    }),
+);
+
+export const waitForHealthyService = Effect.fn(
+  'Installer.waitForHealthyService',
+)(function* (options: {
   ownerProbe: OwnerProbe;
   socketPath: string;
   dataDirectory: string;
-  processId: () => Promise<number | undefined>;
+  processId: () => Effect.Effect<number | undefined>;
   probeTimeoutMs: number;
   attempts: number;
   intervalMs: number;
-}): Promise<boolean> {
+}) {
   for (let attempt = 0; attempt < options.attempts; attempt++) {
-    const [probe, servicePid] = await Promise.all([
-      options.ownerProbe.probe({
-        socketPath: options.socketPath,
-        timeoutMs: options.probeTimeoutMs,
-      }),
-      options.processId(),
-    ]);
+    const [probe, servicePid] = yield* Effect.all(
+      [
+        probeOwner(options.ownerProbe, {
+          socketPath: options.socketPath,
+          timeoutMs: options.probeTimeoutMs,
+        }),
+        options.processId(),
+      ],
+      { concurrency: 'unbounded' },
+    );
     if (
       probe.kind === 'running' &&
       probe.status.dataDirectory === options.dataDirectory &&
@@ -25,7 +41,7 @@ export async function waitForHealthyService(options: {
       probe.status.pid === servicePid
     )
       return true;
-    await delay(options.intervalMs);
+    yield* Effect.sleep(options.intervalMs);
   }
   return false;
-}
+});

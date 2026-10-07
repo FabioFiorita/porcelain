@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { NodeServices } from '@effect/platform-node';
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
@@ -44,26 +46,37 @@ function npmInstall(args: readonly string[]): Answer {
   return npmAnswer;
 }
 
-async function runner(command: string, args: readonly string[]) {
-  commands.push(command);
-  if (command === 'npm' && args[0] === 'install' && args.at(-1) === source)
-    return npmInstall(args);
-  if (command === serviceNode) {
-    const run = spawnSync(
-      process.execPath,
-      sqliteAvailable ? args : ['--no-experimental-sqlite', ...args],
-      {
-        encoding: 'utf8',
-        env: { ...process.env, NODE_PATH: '' },
-      },
-    );
-    return { code: run.status ?? 1, stdout: run.stdout, stderr: run.stderr };
-  }
-  return { code: 1, stdout: '', stderr: `unexpected ${command}` };
-}
+const runner = Effect.fn('Test.runtimeCommand')(
+  (command: string, args: readonly string[]) =>
+    Effect.sync(() => {
+      commands.push(command);
+      if (command === 'npm' && args[0] === 'install' && args.at(-1) === source)
+        return npmInstall(args);
+      if (command === serviceNode) {
+        const run = spawnSync(
+          process.execPath,
+          sqliteAvailable ? args : ['--no-experimental-sqlite', ...args],
+          {
+            encoding: 'utf8',
+            env: { ...process.env, NODE_PATH: '' },
+          },
+        );
+        return {
+          code: run.status ?? 1,
+          stdout: run.stdout,
+          stderr: run.stderr,
+        };
+      }
+      return { code: 1, stdout: '', stderr: `unexpected ${command}` };
+    }),
+);
 
 const install = () =>
-  installRuntime(runner, serviceNode, source, destination, '1.2.0');
+  Effect.runPromise(
+    installRuntime(runner, serviceNode, source, destination, '1.2.0').pipe(
+      Effect.provide(NodeServices.layer),
+    ),
+  );
 
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'porcelain-runtime-'));

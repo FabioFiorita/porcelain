@@ -1,8 +1,10 @@
-import { InstallerError } from './installer-error.ts';
+import { Schema } from 'effect';
 
-export class NoUserIdError extends InstallerError {
-  override readonly name = 'NoUserIdError';
-  constructor() {
-    super('Porcelain services require a user id.');
+export class NoUserIdError extends Schema.TaggedError<NoUserIdError>()(
+  'NoUserIdError',
+  {},
+) {
+  override get message() {
+    return 'Porcelain services require a user id.';
   }
 }

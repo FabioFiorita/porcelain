@@ -1,10 +1,10 @@
-import { InstallerError } from './installer-error.ts';
+import { Schema } from 'effect';
 
-export class NotInstalledError extends InstallerError {
-  override readonly name = 'NotInstalledError';
-  constructor() {
-    super(
-      'Porcelain service is not installed. Run `porcelain service install`.',
-    );
+export class NotInstalledError extends Schema.TaggedError<NotInstalledError>()(
+  'NotInstalledError',
+  {},
+) {
+  override get message() {
+    return 'Porcelain service is not installed. Run `porcelain service install`.';
   }
 }

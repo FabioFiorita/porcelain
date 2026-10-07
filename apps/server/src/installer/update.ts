@@ -1,5 +1,5 @@
-import { DateTime } from 'effect';
-import { rename, rm } from 'node:fs/promises';
+import { DateTime, Effect, FileSystem } from 'effect';
+import { probeOwner } from './service-health.ts';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import {
   serviceIsHealthy,
@@ -33,64 +33,72 @@ export type UpdateOutcome = {
   localNetworkHint: string | undefined;
 };
 
-async function restartPrevious(
+const restartPrevious = Effect.fn('Installer.restartPrevious')(function* (
   context: InstallerContext,
   dataDirectory: string,
-): Promise<void> {
-  await context.systemd.start();
-  if (!(await serviceIsHealthy(context, dataDirectory)))
-    throw new PreviousServiceUnhealthyError();
-}
+) {
+  yield* context.systemd.start();
+  if (!(yield* serviceIsHealthy(context, dataDirectory)))
+    return yield* Effect.fail(new PreviousServiceUnhealthyError());
+});
 
-export async function update(
+export const update = Effect.fn('Installer.update')(function* (
   context: InstallerContext,
   allowDowngrade: boolean,
-): Promise<UpdateOutcome> {
+) {
   const { paths } = context;
   let progress = { from: '', target: context.packageVersion };
-  try {
-    await recoverInterruptedUpdate(context);
-    const installed = await readInstalledRecord(paths.installed);
-    if (installed === undefined) throw new NotInstalledError();
+  return yield* Effect.gen(function* () {
+    yield* recoverInterruptedUpdate(context);
+    const installed = yield* readInstalledRecord(paths.installed);
+    if (installed === undefined)
+      return yield* Effect.fail(new NotInstalledError());
     progress = { ...progress, from: installed.version };
     if (
       !allowDowngrade &&
-      isDowngrade(context.packageVersion, installed.version)
+      (yield* isDowngrade(context.packageVersion, installed.version))
     )
-      throw new ServiceDowngradeError(
-        installed.version,
-        context.packageVersion,
+      return yield* Effect.fail(
+        new ServiceDowngradeError({
+          installed: installed.version,
+          candidate: context.packageVersion,
+        }),
       );
-    const configuration = await readServiceConfiguration(paths.configuration);
-    await writeJsonFile(paths.updateRecord, {
+    const configuration = yield* readServiceConfiguration(paths.configuration);
+    yield* writeJsonFile(paths.updateRecord, {
       ...progress,
       stage: 'installing',
     });
-    const outcome = await replaceRuntime(
+    const outcome = yield* replaceRuntime(
       context,
       configuration,
       installed,
       () =>
         writeJsonFile(paths.updateRecord, { ...progress, stage: 'restarting' }),
     );
-    await writeJsonFile(paths.updateRecord, { ...progress, stage: 'updated' });
+    yield* writeJsonFile(paths.updateRecord, { ...progress, stage: 'updated' });
     return outcome;
-  } catch (error) {
-    await writeJsonFile(paths.updateRecord, {
-      ...progress,
-      stage: 'failed',
-      reason: failureDetail(error),
-    });
-    throw error;
-  }
-}
+  }).pipe(
+    Effect.catch(
+      Effect.fn('Installer.recordFailedUpdate')(function* (error) {
+        yield* writeJsonFile(paths.updateRecord, {
+          ...progress,
+          stage: 'failed',
+          reason: failureDetail(error),
+        });
+        return yield* Effect.fail(error);
+      }),
+    ),
+  );
+});
 
-async function replaceRuntime(
+const replaceRuntime = Effect.fn('Installer.replaceRuntime')(function* (
   context: InstallerContext,
   configuration: ServiceConfiguration,
   installed: InstalledRecord,
-  restarting: () => Promise<void>,
-): Promise<UpdateOutcome> {
+  restarting: () => ReturnType<typeof writeJsonFile>,
+) {
+  const fs = yield* FileSystem.FileSystem;
   const { paths, systemd, runner } = context;
   const staging = paths.nextRuntime;
   const previous = paths.previousRuntime;
@@ -100,8 +108,9 @@ async function replaceRuntime(
       DateTime.makeUnsafe(context.clock.currentTimeMillisUnsafe()),
     ),
     installed.version,
+    context.pathApi,
   );
-  await installRuntime(
+  yield* installRuntime(
     runner,
     context.nodeExecutable,
     context.packageRoot,
@@ -110,61 +119,81 @@ async function replaceRuntime(
   );
   let stopped = false;
   let replaced = false;
-  try {
-    await restarting();
-    await systemd.stop();
+  yield* Effect.gen(function* () {
+    yield* restarting();
+    yield* systemd.stop();
     stopped = true;
-    const socket = await context.ownerProbe.probe({
+    const socket = yield* probeOwner(context.ownerProbe, {
       socketPath: ownerSocketPath(configuration.dataDirectory),
       timeoutMs: context.limits.owner.quickProbeTimeoutMs,
     });
     if (socket.kind !== 'absent')
-      throw new DataDirectoryBusyError(socket.kind, 'update');
-    await backupDatabase(configuration.dataDirectory, backup);
-    await writeJsonFile(paths.updateJournal, {
+      return yield* Effect.fail(
+        new DataDirectoryBusyError({ state: socket.kind, phase: 'update' }),
+      );
+    yield* backupDatabase(configuration.dataDirectory, backup);
+    yield* writeJsonFile(paths.updateJournal, {
       installed,
       backup,
       target: context.packageVersion,
     });
-    await rename(paths.runtime, previous);
+    yield* fs.rename(paths.runtime, previous);
     replaced = true;
-    await rename(staging, paths.runtime);
-    await writeJsonFile(paths.installed, { version: context.packageVersion });
-    await systemd.write(servicePlan(context, configuration));
-    await systemd.enableAndStart();
-    if (!(await serviceIsHealthy(context, configuration.dataDirectory)))
-      throw new UpdatedServiceUnhealthyError();
-    await writeJsonFile(paths.updateJournal, {
+    yield* fs.rename(staging, paths.runtime);
+    yield* writeJsonFile(paths.installed, { version: context.packageVersion });
+    yield* systemd.write(servicePlan(context, configuration));
+    yield* systemd.enableAndStart();
+    if (!(yield* serviceIsHealthy(context, configuration.dataDirectory)))
+      return yield* Effect.fail(new UpdatedServiceUnhealthyError());
+    yield* writeJsonFile(paths.updateJournal, {
       installed,
       backup,
       target: context.packageVersion,
       healthy: true,
     });
-  } catch (error) {
-    let hint: string | undefined;
-    if (await exists(paths.updateJournal)) {
-      try {
-        hint = (await recoverInterruptedUpdate(context)).localNetworkHint;
-      } catch (recoveryError) {
-        throw new UpdateRecoveryError(failureDetail(recoveryError));
-      }
-    } else if (stopped) {
-      try {
-        await restartPrevious(context, configuration.dataDirectory);
-      } catch (recoveryError) {
-        throw new UpdateRestartError(failureDetail(recoveryError));
-      }
-    }
-    const recovery = replaced
-      ? 'the previous runtime and database were restored'
-      : stopped
-        ? 'the previous runtime was restarted before replacement'
-        : 'the installed service was left unchanged';
-    throw new UpdateFailedError(recovery, failureDetail(error), hint);
-  } finally {
-    await rm(staging, { recursive: true, force: true });
-  }
-  await rm(previous, { recursive: true, force: true });
-  await rm(paths.updateJournal, { force: true });
+  }).pipe(
+    Effect.catch(
+      Effect.fn('Installer.rollbackUpdate')(function* (error) {
+        let hint: string | undefined;
+        if (yield* exists(paths.updateJournal)) {
+          const recovered = yield* recoverInterruptedUpdate(context).pipe(
+            Effect.mapError(
+              (recoveryError) =>
+                new UpdateRecoveryError({
+                  detail: failureDetail(recoveryError),
+                }),
+            ),
+          );
+          hint = recovered.localNetworkHint;
+        } else if (stopped) {
+          yield* restartPrevious(context, configuration.dataDirectory).pipe(
+            Effect.mapError(
+              (recoveryError) =>
+                new UpdateRestartError({
+                  detail: failureDetail(recoveryError),
+                }),
+            ),
+          );
+        }
+        const recovery = replaced
+          ? 'the previous runtime and database were restored'
+          : stopped
+            ? 'the previous runtime was restarted before replacement'
+            : 'the installed service was left unchanged';
+        return yield* Effect.fail(
+          new UpdateFailedError({
+            recovery: recovery,
+            detail: failureDetail(error),
+            hint: hint,
+          }),
+        );
+      }),
+    ),
+    Effect.ensuring(
+      fs.remove(staging, { recursive: true, force: true }).pipe(Effect.orDie),
+    ),
+  );
+  yield* fs.remove(previous, { recursive: true, force: true });
+  yield* fs.remove(paths.updateJournal, { force: true });
   return { backup, localNetworkHint: localNetworkHint(configuration.host) };
-}
+});

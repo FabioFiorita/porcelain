@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { NodeServices } from '@effect/platform-node';
+import { ChildProcessSpawner } from 'effect/process';
 import {
   runCommand as runProcess,
   type ProcessGroupLimits,
@@ -10,29 +10,29 @@ type CommandResult = { code: number; stdout: string; stderr: string };
 export type CommandRunner = (
   command: string,
   args: readonly string[],
-  options?: { cwd?: string | undefined; signal?: AbortSignal | undefined },
-) => Promise<CommandResult>;
+  options?: { cwd?: string | undefined },
+) => Effect.Effect<CommandResult>;
 
-export function commandRunner(limits: {
+export const commandRunner = Effect.fn('commandRunner')(function* (limits: {
   timeoutMs: number;
   maxBytes: number;
   processGroup: ProcessGroupLimits;
-}): CommandRunner {
-  return async (command, args, options) => {
-    try {
-      const output = await Effect.runPromise(
-        runProcess(
-          {
-            command,
-            args,
-            cwd: options?.cwd,
-            timeoutMs: limits.timeoutMs,
-            maxBytes: limits.maxBytes,
-            processGroup: limits.processGroup,
-          },
-          options?.signal,
-        ).pipe(Effect.provide(NodeServices.layer)),
-      );
+}) {
+  const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+  return Effect.fn('Installer.runCommand')(
+    function* (
+      command: string,
+      args: readonly string[],
+      options?: { cwd?: string | undefined },
+    ) {
+      const output = yield* runProcess({
+        command,
+        args,
+        cwd: options?.cwd,
+        timeoutMs: limits.timeoutMs,
+        maxBytes: limits.maxBytes,
+        processGroup: limits.processGroup,
+      });
       const stdout = output.stdout.toString('utf8');
       const stderr = output.stderr.toString('utf8');
       const completed =
@@ -47,12 +47,10 @@ export function commandRunner(limits: {
             ? stderr
             : `Command failed: ${[command, ...args].join(' ')}`,
       };
-    } catch (error) {
-      return {
-        code: 1,
-        stdout: '',
-        stderr: error instanceof Error ? error.message : String(error),
-      };
-    }
-  };
-}
+    },
+    Effect.catch((error) =>
+      Effect.succeed({ code: 1, stdout: '', stderr: error.message }),
+    ),
+    Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner),
+  ) satisfies CommandRunner;
+});

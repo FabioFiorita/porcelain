@@ -1,3 +1,5 @@
+import { Effect, type FileSystem, type Path } from 'effect';
+import { NodeServices } from '@effect/platform-node';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,6 +10,10 @@ import {
   readUpdateJournal,
   readUpdateRecord,
 } from './records.ts';
+
+const run = <A, E>(
+  effect: Effect.Effect<A, E, FileSystem.FileSystem | Path.Path>,
+) => Effect.runPromise(effect.pipe(Effect.provide(NodeServices.layer)));
 
 let folder: string;
 let path: string;
@@ -27,7 +33,7 @@ describe('readServiceConfiguration', () => {
       path,
       JSON.stringify({ dataDirectory: '/home/u/.porcelain', port: 4738 }),
     );
-    expect(await readServiceConfiguration(path)).toEqual({
+    expect(await run(readServiceConfiguration(path))).toEqual({
       dataDirectory: '/home/u/.porcelain',
       port: 4738,
     });
@@ -43,7 +49,7 @@ describe('readServiceConfiguration', () => {
         allowedHosts: ['192.0.2.10'],
       }),
     );
-    expect(await readServiceConfiguration(path)).toEqual({
+    expect(await run(readServiceConfiguration(path))).toEqual({
       dataDirectory: '/home/u/.porcelain',
       port: 4738,
       host: '192.0.2.10',
@@ -55,16 +61,16 @@ describe('readServiceConfiguration', () => {
       path,
       JSON.stringify({ dataDirectory: '/home/u/.porcelain' }),
     );
-    await expect(readServiceConfiguration(path)).rejects.toThrow(
+    await expect(run(readServiceConfiguration(path))).rejects.toThrow(
       'The saved service configuration is invalid.',
     );
   });
 });
 
 it('distinguishes a missing install record from malformed saved installation data', async () => {
-  expect(await readInstalledRecord(path)).toBeUndefined();
+  expect(await run(readInstalledRecord(path))).toBeUndefined();
   writeFileSync(path, '{broken');
-  await expect(readInstalledRecord(path)).rejects.toThrow(
+  await expect(run(readInstalledRecord(path))).rejects.toThrow(
     'The installed service record is invalid. Preserve the service directory for manual recovery.',
   );
 });
@@ -79,7 +85,7 @@ it('reads the saved rollback journal and refuses an invalid installed version', 
       healthy: false,
     }),
   );
-  expect(await readUpdateJournal(path)).toEqual({
+  expect(await run(readUpdateJournal(path))).toEqual({
     installed: { version: '0.1.0' },
     backup: '/tmp/backup',
     target: '0.2.0',
@@ -89,7 +95,7 @@ it('reads the saved rollback journal and refuses an invalid installed version', 
     path,
     JSON.stringify({ installed: { version: 1 }, backup: '/tmp/backup' }),
   );
-  await expect(readUpdateJournal(path)).rejects.toThrow(
+  await expect(run(readUpdateJournal(path))).rejects.toThrow(
     `The interrupted update record at ${path} is invalid. Preserve it and the service runtime for manual recovery.`,
   );
 });
@@ -99,7 +105,7 @@ it('accepts a known update stage and ignores an unreadable progress record', asy
     path,
     JSON.stringify({ from: '0.1.0', target: '0.2.0', stage: 'restarting' }),
   );
-  expect(await readUpdateRecord(path)).toEqual({
+  expect(await run(readUpdateRecord(path))).toEqual({
     from: '0.1.0',
     target: '0.2.0',
     stage: 'restarting',
@@ -108,7 +114,7 @@ it('accepts a known update stage and ignores an unreadable progress record', asy
     path,
     JSON.stringify({ from: '0.1.0', target: '0.2.0', stage: 'complete' }),
   );
-  expect(await readUpdateRecord(path)).toBeUndefined();
+  expect(await run(readUpdateRecord(path))).toBeUndefined();
 });
 
 it('refuses a fractional saved listen port', async () => {
@@ -116,7 +122,7 @@ it('refuses a fractional saved listen port', async () => {
     path,
     JSON.stringify({ dataDirectory: '/tmp/profile', port: 4738.5 }),
   );
-  await expect(readServiceConfiguration(path)).rejects.toThrow(
+  await expect(run(readServiceConfiguration(path))).rejects.toThrow(
     'The saved service configuration is invalid.',
   );
 });

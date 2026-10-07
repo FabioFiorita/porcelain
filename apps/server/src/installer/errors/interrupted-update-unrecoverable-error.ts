@@ -1,10 +1,10 @@
-import { InstallerError } from './installer-error.ts';
+import { Schema } from 'effect';
 
-export class InterruptedUpdateUnrecoverableError extends InstallerError {
-  override readonly name = 'InterruptedUpdateUnrecoverableError';
-  constructor() {
-    super(
-      'An interrupted update has neither the installed nor previous runtime. Preserve the service directory for manual recovery.',
-    );
+export class InterruptedUpdateUnrecoverableError extends Schema.TaggedError<InterruptedUpdateUnrecoverableError>()(
+  'InterruptedUpdateUnrecoverableError',
+  {},
+) {
+  override get message() {
+    return 'An interrupted update has neither the installed nor previous runtime. Preserve the service directory for manual recovery.';
   }
 }

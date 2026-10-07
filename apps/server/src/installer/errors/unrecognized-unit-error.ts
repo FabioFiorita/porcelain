@@ -1,8 +1,12 @@
-import { InstallerError } from './installer-error.ts';
+import { Schema } from 'effect';
 
-export class UnrecognizedUnitError extends InstallerError {
-  override readonly name = 'UnrecognizedUnitError';
-  constructor(unitPath: string) {
-    super(`Refusing to remove an unrecognized service unit at ${unitPath}.`);
+export class UnrecognizedUnitError extends Schema.TaggedError<UnrecognizedUnitError>()(
+  'UnrecognizedUnitError',
+  {
+    unitPath: Schema.String,
+  },
+) {
+  override get message() {
+    return `Refusing to remove an unrecognized service unit at ${this.unitPath}.`;
   }
 }

@@ -1,13 +1,11 @@
-import { Cause, Effect, Exit, Scope } from 'effect';
-import { nativeOperation } from '@porcelain/effects';
-import { join } from 'node:path';
+import { Cause, Effect, Exit, FileSystem, Path, Scope } from 'effect';
 import type { ServiceUpdateRunner } from '../ports/service-update-runner.ts';
 import { commandRunner, type CommandRunner } from './command-runner.ts';
 import { UpdateHandOffError } from './errors/update-hand-off-error.ts';
 import { failureDetail } from './failure-detail.ts';
 import { exists, writeJsonFile } from './json-file.ts';
 import { readPackageVersion } from './package-identity.ts';
-import { servicePaths, type ServicePaths } from './paths.ts';
+import { servicePaths } from './paths.ts';
 import {
   installRuntime,
   PACKAGE_NAME,
@@ -20,9 +18,6 @@ import { UPDATE_UNIT_NAME } from './systemd-unit.ts';
 import { updaterUnitArguments } from './updater-unit.ts';
 import { compareVersions } from './version-policy.ts';
 
-type ServiceUpdateState = Effect.Success<
-  ReturnType<ServiceUpdateRunner['read']>
->;
 type ServiceUpdateCheck = Parameters<ServiceUpdateRunner['read']>[0];
 type ServiceUpdateTarget = Parameters<ServiceUpdateRunner['start']>[0];
 
@@ -35,190 +30,161 @@ type ServiceUpdateRunnerOptions = {
   runner?: CommandRunner | undefined;
 };
 
-function newer(latest: string | undefined, version: string | undefined) {
-  return (
-    latest !== undefined &&
-    version !== undefined &&
-    compareVersions(latest, version) > 0
-  );
-}
-
-class InstalledServiceUpdateRunner implements ServiceUpdateRunner {
-  private readonly paths: ServicePaths;
-  private readonly options: ServiceUpdateRunnerOptions;
-  private readonly runner: CommandRunner;
-  private readonly nodeExecutable: string;
-  private latest:
-    | { version: string | undefined; checkedAt: string }
-    | undefined;
-  private preparing = false;
-  private readonly scope = Scope.makeUnsafe();
-  private closing = false;
-
-  constructor(options: ServiceUpdateRunnerOptions) {
-    this.options = options;
-    this.paths = servicePaths(options.homeDirectory);
-    this.runner = options.runner ?? commandRunner(options.command);
-    this.nodeExecutable = options.nodeExecutable ?? process.execPath;
-  }
-
-  read(input: ServiceUpdateCheck): Effect.Effect<ServiceUpdateState> {
-    return nativeOperation((signal) => this.readNative(input, signal));
-  }
-
-  private async readNative(
-    input: ServiceUpdateCheck,
-    signal?: AbortSignal,
-  ): Promise<ServiceUpdateState> {
-    const version = await this.runningVersion();
-    const managed = version !== undefined && (await this.managed());
-    const running = this.preparing || (managed && (await this.updaterActive()));
-    const latest = managed
-      ? await this.latestVersion(input, running, signal)
-      : undefined;
-    return {
-      managed,
-      version,
-      latest,
-      available: newer(latest, version),
-      running,
-      last: presentedUpdate(
-        await readUpdateRecord(this.paths.updateRecord),
-        running,
-      ),
-    };
-  }
-
-  start(input: ServiceUpdateTarget): Effect.Effect<void> {
-    return Effect.uninterruptibleMask((restore) =>
-      Effect.gen({ self: this }, function* () {
-        if (this.closing) return yield* Effect.interrupt;
-        const from = yield* restore(
-          nativeOperation(() => this.runningVersion()),
+export const openServiceUpdateRunner = Effect.fn('openServiceUpdateRunner')(
+  function* (options: ServiceUpdateRunnerOptions) {
+    const fs = yield* FileSystem.FileSystem;
+    const pathApi = yield* Path.Path;
+    const paths = servicePaths(options.homeDirectory, pathApi);
+    const runner = options.runner ?? (yield* commandRunner(options.command));
+    const nodeExecutable = options.nodeExecutable ?? process.execPath;
+    const scope = yield* Scope.make();
+    let latest: { version: string | undefined; checkedAt: string } | undefined;
+    let preparing = false;
+    let closing = false;
+    const provideFiles = <A, E>(
+      effect: Effect.Effect<A, E, FileSystem.FileSystem | Path.Path>,
+    ) =>
+      effect.pipe(
+        Effect.provideService(FileSystem.FileSystem, fs),
+        Effect.provideService(Path.Path, pathApi),
+      );
+    const runningVersion = () => readPackageVersion(options.packageRoot);
+    const updaterActive = Effect.fn('ServiceUpdate.updaterActive')(
+      function* () {
+        const state = yield* runner('systemctl', [
+          '--user',
+          'is-active',
+          UPDATE_UNIT_NAME,
+        ]);
+        const answer = state.stdout.trim();
+        return answer === 'active' || answer === 'activating';
+      },
+    );
+    const latestVersion = Effect.fn('ServiceUpdate.latestVersion')(function* (
+      input: ServiceUpdateCheck,
+      running: boolean,
+    ) {
+      const known = latest;
+      if (
+        known !== undefined &&
+        (running || known.checkedAt >= input.staleBefore)
+      )
+        return known.version;
+      if (running) return undefined;
+      const viewed = yield* runner('npm', [
+        'view',
+        PACKAGE_NAME,
+        'version',
+        '--json',
+      ]);
+      const version =
+        viewed.code === 0 ? publishedVersion(viewed.stdout) : undefined;
+      latest = { version, checkedAt: input.now };
+      return version;
+    });
+    const prepareAndHandOff = Effect.fn('ServiceUpdate.prepareAndHandOff')(
+      function* (target: string) {
+        yield* installRuntime(
+          runner,
+          nodeExecutable,
+          `${PACKAGE_NAME}@${target}`,
+          paths.updater,
+          target,
         );
-        if (this.closing) return yield* Effect.interrupt;
-        const progress = { from: from ?? '', target: input.version };
-        yield* nativeOperation(() =>
-          writeJsonFile(this.paths.updateRecord, {
-            ...progress,
-            stage: 'downloading',
+        const handedOff = yield* runner(
+          'systemd-run',
+          updaterUnitArguments({
+            nodeExecutable,
+            entryPoint: runtimeEntryPoint(paths.updater, pathApi),
+            searchPath: serviceSearchPath(
+              nodeExecutable,
+              options.searchPath,
+              pathApi,
+            ),
           }),
         );
-        this.preparing = true;
-        const preparation = nativeOperation((signal) =>
-          this.prepareAndHandOff(input.version, signal),
-        ).pipe(
-          Effect.onExit((exit) =>
-            Exit.isSuccess(exit)
-              ? Effect.void
-              : nativeOperation(() =>
-                  writeJsonFile(this.paths.updateRecord, {
-                    ...progress,
-                    stage: 'failed',
-                    reason: Cause.hasInterruptsOnly(exit.cause)
-                      ? 'The server stopped before the update was handed off.'
-                      : failureDetail(Cause.squash(exit.cause)),
+        if (handedOff.code !== 0)
+          return yield* Effect.fail(
+            new UpdateHandOffError({ detail: handedOff.stderr.trim() }),
+          );
+      },
+    );
+    return {
+      read: Effect.fn('ServiceUpdate.read')(
+        function* (input: ServiceUpdateCheck) {
+          const version = yield* runningVersion();
+          const managed =
+            version !== undefined &&
+            options.packageRoot ===
+              pathApi.join(paths.runtime, 'node_modules', PACKAGE_NAME) &&
+            (yield* exists(paths.installed));
+          const running = preparing || (managed && (yield* updaterActive()));
+          const published = managed
+            ? yield* latestVersion(input, running)
+            : undefined;
+          return {
+            managed,
+            version,
+            latest: published,
+            available:
+              published !== undefined &&
+              version !== undefined &&
+              (yield* compareVersions(published, version)) > 0,
+            running,
+            last: presentedUpdate(
+              yield* readUpdateRecord(paths.updateRecord),
+              running,
+            ),
+          };
+        },
+        provideFiles,
+        Effect.orDie,
+      ),
+      start: Effect.fn('ServiceUpdate.start')(
+        (input: ServiceUpdateTarget) =>
+          Effect.uninterruptibleMask((restore) =>
+            Effect.gen(function* () {
+              if (closing) return yield* Effect.interrupt;
+              const from = yield* restore(runningVersion());
+              if (closing) return yield* Effect.interrupt;
+              const progress = { from: from ?? '', target: input.version };
+              yield* writeJsonFile(paths.updateRecord, {
+                ...progress,
+                stage: 'downloading',
+              });
+              preparing = true;
+              const preparation = prepareAndHandOff(input.version).pipe(
+                Effect.onExit((exit) =>
+                  Exit.isSuccess(exit)
+                    ? Effect.void
+                    : writeJsonFile(paths.updateRecord, {
+                        ...progress,
+                        stage: 'failed',
+                        reason: Cause.hasInterruptsOnly(exit.cause)
+                          ? 'The server stopped before the update was handed off.'
+                          : failureDetail(Cause.squash(exit.cause)),
+                      }).pipe(Effect.ignoreCause),
+                ),
+                Effect.ensuring(
+                  Effect.sync(() => {
+                    preparing = false;
                   }),
-                ).pipe(Effect.ignoreCause),
-          ),
-          Effect.ensuring(
-            Effect.sync(() => {
-              this.preparing = false;
+                ),
+                provideFiles,
+              );
+              yield* Effect.forkIn(preparation, scope, {
+                startImmediately: true,
+              });
             }),
           ),
-        );
-        yield* Effect.forkIn(preparation, this.scope, {
-          startImmediately: true,
-        });
-      }),
-    );
-  }
-
-  close(): Effect.Effect<void> {
-    return Effect.sync(() => {
-      this.closing = true;
-    }).pipe(Effect.andThen(Scope.close(this.scope, Exit.void)));
-  }
-
-  private async prepareAndHandOff(
-    target: string,
-    signal: AbortSignal,
-  ): Promise<void> {
-    await installRuntime(
-      this.runner,
-      this.nodeExecutable,
-      `${PACKAGE_NAME}@${target}`,
-      this.paths.updater,
-      target,
-      signal,
-    );
-    signal.throwIfAborted();
-    const handedOff = await this.runner(
-      'systemd-run',
-      updaterUnitArguments({
-        nodeExecutable: this.nodeExecutable,
-        entryPoint: runtimeEntryPoint(this.paths.updater),
-        searchPath: serviceSearchPath(
-          this.nodeExecutable,
-          this.options.searchPath,
-        ),
-      }),
-      { signal },
-    );
-    signal.throwIfAborted();
-    if (handedOff.code !== 0)
-      throw new UpdateHandOffError(handedOff.stderr.trim());
-  }
-
-  private runningVersion(): Promise<string | undefined> {
-    return readPackageVersion(this.options.packageRoot);
-  }
-
-  private async managed(): Promise<boolean> {
-    return (
-      this.options.packageRoot ===
-        join(this.paths.runtime, 'node_modules', PACKAGE_NAME) &&
-      (await exists(this.paths.installed))
-    );
-  }
-
-  private async latestVersion(
-    input: ServiceUpdateCheck,
-    running: boolean,
-    signal?: AbortSignal,
-  ): Promise<string | undefined> {
-    const known = this.latest;
-    if (
-      known !== undefined &&
-      (running || known.checkedAt >= input.staleBefore)
-    )
-      return known.version;
-    if (running) return undefined;
-    const viewed = await this.runner(
-      'npm',
-      ['view', PACKAGE_NAME, 'version', '--json'],
-      { signal },
-    );
-    signal?.throwIfAborted();
-    const version =
-      viewed.code === 0 ? publishedVersion(viewed.stdout) : undefined;
-    this.latest = { version, checkedAt: input.now };
-    return version;
-  }
-
-  private async updaterActive(): Promise<boolean> {
-    const state = await this.runner('systemctl', [
-      '--user',
-      'is-active',
-      UPDATE_UNIT_NAME,
-    ]);
-    const answer = state.stdout.trim();
-    return answer === 'active' || answer === 'activating';
-  }
-}
-
-export function openServiceUpdateRunner(
-  options: ServiceUpdateRunnerOptions,
-): ServiceUpdateRunner {
-  return new InstalledServiceUpdateRunner(options);
-}
+        provideFiles,
+        Effect.orDie,
+      ),
+      close: Effect.fn('ServiceUpdate.close')(() =>
+        Effect.sync(() => {
+          closing = true;
+        }).pipe(Effect.andThen(Scope.close(scope, Exit.void))),
+      ),
+    } satisfies ServiceUpdateRunner;
+  },
+);

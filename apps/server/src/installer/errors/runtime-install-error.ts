@@ -1,8 +1,12 @@
-import { InstallerError } from './installer-error.ts';
+import { Schema } from 'effect';
 
-export class RuntimeInstallError extends InstallerError {
-  override readonly name = 'RuntimeInstallError';
-  constructor(detail: string) {
-    super(`Could not install the persistent runtime: ${detail}`);
+export class RuntimeInstallError extends Schema.TaggedError<RuntimeInstallError>()(
+  'RuntimeInstallError',
+  {
+    detail: Schema.String,
+  },
+) {
+  override get message() {
+    return `Could not install the persistent runtime: ${this.detail}`;
   }
 }

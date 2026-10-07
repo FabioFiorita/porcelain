@@ -1,4 +1,4 @@
-import { Schema } from 'effect';
+import { Effect, Schema } from 'effect';
 import { InvalidInstalledRecordError } from './errors/invalid-installed-record-error.ts';
 import { InvalidServiceConfigurationError } from './errors/invalid-service-configuration-error.ts';
 import { InvalidUpdateJournalError } from './errors/invalid-update-journal-error.ts';
@@ -37,30 +37,33 @@ export const packageManifestSchema = Schema.Struct({
   name: Schema.optional(Schema.String),
   version: Schema.optional(Schema.String),
 });
-export async function readInstalledRecord(
-  path: string,
-): Promise<InstalledRecord | undefined> {
-  const file = await readJsonFile(path, installedRecordSchema);
-  if (file.kind === 'invalid') throw new InvalidInstalledRecordError();
-  return file.kind === 'value' ? file.value : undefined;
-}
-export async function readServiceConfiguration(
-  path: string,
-): Promise<ServiceConfiguration> {
-  const file = await readJsonFile(path, serviceConfigurationSchema);
-  if (file.kind !== 'value') throw new InvalidServiceConfigurationError();
+export const readInstalledRecord = Effect.fn('Installer.readInstalledRecord')(
+  function* (path: string) {
+    const file = yield* readJsonFile(path, installedRecordSchema);
+    if (file.kind === 'invalid')
+      return yield* Effect.fail(new InvalidInstalledRecordError());
+    return file.kind === 'value' ? file.value : undefined;
+  },
+);
+export const readServiceConfiguration = Effect.fn(
+  'Installer.readServiceConfiguration',
+)(function* (path: string) {
+  const file = yield* readJsonFile(path, serviceConfigurationSchema);
+  if (file.kind !== 'value')
+    return yield* Effect.fail(new InvalidServiceConfigurationError());
   return file.value;
-}
-export async function readUpdateRecord(
-  path: string,
-): Promise<UpdateRecord | undefined> {
-  const file = await readJsonFile(path, updateRecordSchema);
-  return file.kind === 'value' ? file.value : undefined;
-}
-export async function readUpdateJournal(
-  path: string,
-): Promise<UpdateJournal | undefined> {
-  const file = await readJsonFile(path, updateJournalSchema);
-  if (file.kind === 'invalid') throw new InvalidUpdateJournalError(path);
-  return file.kind === 'value' ? file.value : undefined;
-}
+});
+export const readUpdateRecord = Effect.fn('Installer.readUpdateRecord')(
+  function* (path: string) {
+    const file = yield* readJsonFile(path, updateRecordSchema);
+    return file.kind === 'value' ? file.value : undefined;
+  },
+);
+export const readUpdateJournal = Effect.fn('Installer.readUpdateJournal')(
+  function* (path: string) {
+    const file = yield* readJsonFile(path, updateJournalSchema);
+    if (file.kind === 'invalid')
+      return yield* Effect.fail(new InvalidUpdateJournalError({ path: path }));
+    return file.kind === 'value' ? file.value : undefined;
+  },
+);

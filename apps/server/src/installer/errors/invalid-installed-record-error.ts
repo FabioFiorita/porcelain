@@ -1,10 +1,10 @@
-import { InstallerError } from './installer-error.ts';
+import { Schema } from 'effect';
 
-export class InvalidInstalledRecordError extends InstallerError {
-  override readonly name = 'InvalidInstalledRecordError';
-  constructor() {
-    super(
-      'The installed service record is invalid. Preserve the service directory for manual recovery.',
-    );
+export class InvalidInstalledRecordError extends Schema.TaggedError<InvalidInstalledRecordError>()(
+  'InvalidInstalledRecordError',
+  {},
+) {
+  override get message() {
+    return 'The installed service record is invalid. Preserve the service directory for manual recovery.';
   }
 }

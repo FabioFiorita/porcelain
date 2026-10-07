@@ -1,8 +1,10 @@
-import { InstallerError } from './installer-error.ts';
+import { Schema } from 'effect';
 
-export class UpdatedServiceUnhealthyError extends InstallerError {
-  override readonly name = 'UpdatedServiceUnhealthyError';
-  constructor() {
-    super('The updated service did not become healthy.');
+export class UpdatedServiceUnhealthyError extends Schema.TaggedError<UpdatedServiceUnhealthyError>()(
+  'UpdatedServiceUnhealthyError',
+  {},
+) {
+  override get message() {
+    return 'The updated service did not become healthy.';
   }
 }

@@ -1,8 +1,12 @@
-import { InstallerError } from './installer-error.ts';
+import { Schema } from 'effect';
 
-export class UpdateHandOffError extends InstallerError {
-  override readonly name = 'UpdateHandOffError';
-  constructor(detail: string) {
-    super(`Could not start the updater beside the running service: ${detail}`);
+export class UpdateHandOffError extends Schema.TaggedError<UpdateHandOffError>()(
+  'UpdateHandOffError',
+  {
+    detail: Schema.String,
+  },
+) {
+  override get message() {
+    return `Could not start the updater beside the running service: ${this.detail}`;
   }
 }

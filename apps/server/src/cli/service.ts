@@ -1,11 +1,12 @@
-import type { Clock } from 'effect';
+import { Effect, Layer, type Clock } from 'effect';
 import { ServiceCommandError } from './errors/service-command-error.ts';
 import type { Limits } from '../config/limits.ts';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  InstallerError,
-  openInstaller,
+  isInstallerError,
+  Installer,
+  InstallerOptions,
   readPackageIdentity,
   type ServiceStatus,
 } from '../installer/index.ts';
@@ -26,9 +27,7 @@ export function cliPackageRoot(moduleUrl: string = import.meta.url): string {
 }
 
 export function isServiceFailure(error: unknown): boolean {
-  return (
-    error instanceof InstallerError || error instanceof ServiceCommandError
-  );
+  return isInstallerError(error) || error instanceof ServiceCommandError;
 }
 
 function formatStatus(status: ServiceStatus): string {
@@ -44,76 +43,90 @@ function formatStatus(status: ServiceStatus): string {
   ].join('\n');
 }
 
-export async function runServiceCommand(
-  settings: ServiceSettings,
-  dependencies: ServiceCommandDependencies,
-  moduleUrl: string = import.meta.url,
-): Promise<void> {
-  try {
-    await runService(settings, dependencies, moduleUrl);
-  } catch (error) {
-    if (error instanceof InstallerError) throw error;
-    throw new ServiceCommandError(
-      error instanceof Error ? error.message : String(error),
-    );
-  }
-}
-
-async function runService(
-  settings: ServiceSettings,
-  dependencies: ServiceCommandDependencies,
-  moduleUrl: string,
-): Promise<void> {
-  const identity = await readPackageIdentity(cliPackageRoot(moduleUrl));
-  const installer = openInstaller({
-    homeDirectory: dependencies.homeDirectory,
-    packageRoot: identity.packageRoot,
-    packageVersion: identity.packageVersion,
-    searchPath: dependencies.searchPath,
-    ownerProbe: dependencies.ownerProbe,
-    clock: dependencies.clock,
-    limits: dependencies.limits,
-  });
-  if (settings.action === 'status') {
-    dependencies.stdout(`${formatStatus(await installer.status())}\n`);
-    return;
-  }
-  if (settings.action === 'install') {
-    const result = await installer.install(settings);
-    dependencies.stdout(
-      `Installed Porcelain ${identity.packageVersion} as a user service. It listens on this computer only; share it with: porcelain share lan on\n`,
-    );
-    if (result.backup !== undefined)
-      dependencies.stdout(`Database backup: ${result.backup}\n`);
-    if (result.lingerCommand !== undefined)
+export const runServiceCommand = Effect.fn('runServiceCommand')(
+  function* (
+    settings: ServiceSettings,
+    dependencies: ServiceCommandDependencies,
+    moduleUrl: string = import.meta.url,
+  ) {
+    const identity = yield* readPackageIdentity(cliPackageRoot(moduleUrl));
+    const options = {
+      homeDirectory: dependencies.homeDirectory,
+      packageRoot: identity.packageRoot,
+      packageVersion: identity.packageVersion,
+      searchPath: dependencies.searchPath,
+      ownerProbe: dependencies.ownerProbe,
+      clock: dependencies.clock,
+      limits: dependencies.limits,
+    };
+    return yield* Effect.gen(function* () {
+      const installer = yield* Installer;
+      if (settings.action === 'status') {
+        const outcome = yield* installer.execute({ action: 'status' });
+        if (outcome.action === 'status')
+          dependencies.stdout(`${formatStatus(outcome.status)}\n`);
+        return;
+      }
+      if (settings.action === 'install') {
+        const outcome = yield* installer.execute({
+          action: 'install',
+          settings,
+        });
+        if (outcome.action !== 'install') return;
+        const result = outcome.result;
+        dependencies.stdout(
+          `Installed Porcelain ${identity.packageVersion} as a user service. It listens on this computer only; share it with: porcelain share lan on\n`,
+        );
+        if (result.backup !== undefined)
+          dependencies.stdout(`Database backup: ${result.backup}\n`);
+        if (result.lingerCommand !== undefined)
+          dependencies.stdout(
+            `Lingering needs administrator permission. Run exactly:\n${result.lingerCommand}\n`,
+          );
+        return;
+      }
+      if (settings.action === 'update') {
+        const outcome = yield* installer.execute({
+          action: 'update',
+          allowDowngrade: settings.allowDowngrade,
+        });
+        if (outcome.action !== 'update') return;
+        const result = outcome.result;
+        dependencies.stdout(
+          `Updated the Porcelain service to ${identity.packageVersion}.\nDatabase backup: ${result.backup}\n`,
+        );
+        if (result.localNetworkHint !== undefined)
+          dependencies.stdout(`${result.localNetworkHint}\n`);
+        return;
+      }
+      if (settings.action === 'recover') {
+        const outcome = yield* installer.execute({ action: 'recover' });
+        if (outcome.action !== 'recover') return;
+        const recovery = outcome.result;
+        dependencies.stdout(
+          recovery.recovered
+            ? 'Recovered the Porcelain service.\n'
+            : 'The Porcelain service needed no recovery.\n',
+        );
+        if (recovery.localNetworkHint !== undefined)
+          dependencies.stdout(`${recovery.localNetworkHint}\n`);
+        return;
+      }
+      const outcome = yield* installer.execute({ action: 'uninstall' });
       dependencies.stdout(
-        `Lingering needs administrator permission. Run exactly:\n${result.lingerCommand}\n`,
+        outcome.action === 'uninstall' && outcome.removed
+          ? 'Uninstalled the Porcelain service. User data was retained.\n'
+          : 'Porcelain service is not installed. User data was retained.\n',
       );
-    return;
-  }
-  if (settings.action === 'update') {
-    const result = await installer.update(settings.allowDowngrade);
-    dependencies.stdout(
-      `Updated the Porcelain service to ${identity.packageVersion}.\nDatabase backup: ${result.backup}\n`,
+    }).pipe(
+      Effect.provide(
+        Installer.layer.pipe(
+          Layer.provide(Layer.succeed(InstallerOptions, options)),
+        ),
+      ),
     );
-    if (result.localNetworkHint !== undefined)
-      dependencies.stdout(`${result.localNetworkHint}\n`);
-    return;
-  }
-  if (settings.action === 'recover') {
-    const recovery = await installer.recover();
-    dependencies.stdout(
-      recovery.recovered
-        ? 'Recovered the Porcelain service.\n'
-        : 'The Porcelain service needed no recovery.\n',
-    );
-    if (recovery.localNetworkHint !== undefined)
-      dependencies.stdout(`${recovery.localNetworkHint}\n`);
-    return;
-  }
-  dependencies.stdout(
-    (await installer.uninstall())
-      ? 'Uninstalled the Porcelain service. User data was retained.\n'
-      : 'Porcelain service is not installed. User data was retained.\n',
-  );
-}
+  },
+  Effect.mapError((error) =>
+    isInstallerError(error) ? error : new ServiceCommandError(error.message),
+  ),
+);
