@@ -1,17 +1,16 @@
+import { Effect } from 'effect';
 import {
   type ReadRemoteAccessResponse,
   type SetRemoteAccessRequest,
 } from '@porcelain/contracts/access';
 import type { Limits } from '../config/limits.ts';
 import type { ShareAction } from './settings.ts';
-import { ownerClient, runOwner } from './owner-client.ts';
+import { ownerClient, ownerRequest } from './owner-client.ts';
 
 type Output = {
   stdout: (message: string) => void;
   stderr: (message: string) => void;
 };
-
-type Wait = (ms: number) => Promise<void>;
 
 type RouteName = keyof ReadRemoteAccessResponse['routes'];
 type Route = ReadRemoteAccessResponse['routes'][RouteName];
@@ -149,38 +148,39 @@ function failing(
   );
 }
 
-async function readSharing(dataDirectory: string, limits: Limits) {
-  return runOwner(
-    ownerClient(
+const readSharing = Effect.fn('readSharing')(function* (
+  dataDirectory: string,
+  limits: Limits,
+) {
+  return yield* ownerRequest(
+    (yield* ownerClient(
       dataDirectory,
       limits.owner.requestTimeoutMs,
-    ).administration.readRemoteAccess(),
+    )).administration.readRemoteAccess(),
   );
-}
+});
 
-async function settled(
+const settled = Effect.fn('settled')(function* (
   dataDirectory: string,
   changed: ReadRemoteAccessResponse,
   limits: Limits,
-  wait: Wait,
-): Promise<ReadRemoteAccessResponse> {
+) {
   const polls = limits.cli.shareSettleMs / limits.cli.sharePollMs;
   let access = changed;
   for (let poll = 0; poll < polls && settling(access); poll += 1) {
-    await wait(limits.cli.sharePollMs);
-    access = await readSharing(dataDirectory, limits);
+    yield* Effect.sleep(limits.cli.sharePollMs);
+    access = yield* readSharing(dataDirectory, limits);
   }
   return access;
-}
+});
 
-export async function shareRemoteAccess(
+export const shareRemoteAccess = Effect.fn('shareRemoteAccess')(function* (
   dataDirectory: string,
   action: ShareAction,
   output: Output,
   limits: Limits,
-  wait: Wait,
-): Promise<number> {
-  const current = await readSharing(dataDirectory, limits);
+) {
+  const current = yield* readSharing(dataDirectory, limits);
   const requested = change(action, current);
   if (requested === undefined) {
     output.stdout(report(current));
@@ -188,17 +188,17 @@ export async function shareRemoteAccess(
       output.stderr('Nothing is shared, so there is nothing to check.\n');
     return action.kind === 'check' ? 1 : 0;
   }
-  const changed = await runOwner(
-    ownerClient(
+  const changed = yield* ownerRequest(
+    (yield* ownerClient(
       dataDirectory,
       limits.owner.requestTimeoutMs,
-    ).administration.setRemoteAccess({ payload: requested }),
+    )).administration.setRemoteAccess({ payload: requested }),
   );
-  const access = await settled(dataDirectory, changed, limits, wait);
+  const access = yield* settled(dataDirectory, changed, limits);
   output.stdout(report(access));
   if (settling(access))
     output.stdout(
       'Still checking; run porcelain share to see how it settles.\n',
     );
   return failing(access, touched(action)) ? 1 : 0;
-}
+});

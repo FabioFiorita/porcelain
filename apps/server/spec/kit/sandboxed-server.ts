@@ -1,6 +1,6 @@
 import { Duration, Effect, Layer, ManagedRuntime, Schema, Scope } from 'effect';
 import { NodeServices } from '@effect/platform-node';
-import { ownerClient, runOwner } from '../../src/cli/owner-client.ts';
+import { ownerClient, ownerRequest } from '../../src/cli/owner-client.ts';
 import { execFile } from 'node:child_process';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { subscribe } from 'node:diagnostics_channel';
@@ -490,17 +490,23 @@ try {
     ),
     { signal: shutdown.signal },
   );
+  const serverAddress = server.address;
   const [grant] = Schema.decodeUnknownSync(issuedPairingSchema)(
-    await runOwner(
-      ownerClient(
-        state,
-        settings.limits.owner.requestTimeoutMs,
-      ).administration.issuePairing({
-        payload: {
-          labels: [fixture.device.label],
-          addresses: [new URL(server.address).origin],
-          trusted: false,
-        },
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const client = yield* ownerClient(
+          state,
+          settings.limits.owner.requestTimeoutMs,
+        );
+        return yield* ownerRequest(
+          client.administration.issuePairing({
+            payload: {
+              labels: [fixture.device.label],
+              addresses: [new URL(serverAddress).origin],
+              trusted: false,
+            },
+          }),
+        );
       }),
     ),
   ).grants;

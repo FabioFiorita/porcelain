@@ -1,3 +1,8 @@
-export class OwnerRequestError extends Error {
-  override readonly name = 'OwnerRequestError';
-}
+import { Schema } from 'effect';
+
+export class OwnerRequestError extends Schema.TaggedError<OwnerRequestError>()(
+  'OwnerRequestError',
+  {
+    message: Schema.String,
+  },
+) {}

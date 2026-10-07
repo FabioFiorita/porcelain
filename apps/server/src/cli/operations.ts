@@ -1,5 +1,5 @@
 import { Context, Effect, FileSystem, Layer, Path, type Clock } from 'effect';
-import { nativeOperation } from '@porcelain/effects';
+import type { OwnerRequestError } from './errors/owner-request-error.ts';
 import type { Limits } from '../config/limits.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
@@ -37,14 +37,11 @@ export class CliHost extends Context.Service<
     readonly ownerProbe: OwnerProbe;
     readonly clock: Clock.Clock;
     readonly limits: Limits;
-    readonly wait: (ms: number) => Promise<void>;
     readonly homeDirectory: string;
     readonly searchPath: string;
     readonly stdout: (message: string) => void;
     readonly stderr: (message: string) => void;
-    readonly prepareWebRoot:
-      | ((signal: AbortSignal) => Promise<string>)
-      | undefined;
+    readonly prepareWebRoot: Effect.Effect<string> | undefined;
   }
 >()('@porcelain/server/CliHost') {}
 
@@ -53,20 +50,24 @@ export class CliOperations extends Context.Service<
   {
     readonly serve: (settings: ServerSettings) => Effect.Effect<void>;
     readonly status: (settings: StatusSettings) => Effect.Effect<number>;
-    readonly pair: (settings: PairSettings) => Effect.Effect<void>;
-    readonly devices: (settings: StatusSettings) => Effect.Effect<void>;
+    readonly pair: (
+      settings: PairSettings,
+    ) => Effect.Effect<void, OwnerRequestError>;
+    readonly devices: (
+      settings: StatusSettings,
+    ) => Effect.Effect<void, OwnerRequestError>;
     readonly revoke: (
       settings: StatusSettings & { readonly id: string },
-    ) => Effect.Effect<number>;
+    ) => Effect.Effect<number, OwnerRequestError>;
     readonly trust: (
       settings: StatusSettings & {
         readonly id: string;
         readonly trusted: boolean;
       },
-    ) => Effect.Effect<void>;
+    ) => Effect.Effect<void, OwnerRequestError>;
     readonly share: (
       settings: StatusSettings & { readonly action: ShareAction },
-    ) => Effect.Effect<number>;
+    ) => Effect.Effect<number, OwnerRequestError>;
     readonly mcp: (settings: StatusSettings) => Effect.Effect<void>;
     readonly service: (settings: ServiceSettings) => Effect.Effect<void>;
   }
@@ -97,7 +98,7 @@ export class CliOperations extends Context.Service<
             const webRoot =
               host.prepareWebRoot === undefined
                 ? settings.webRoot
-                : yield* nativeOperation(host.prepareWebRoot);
+                : yield* host.prepareWebRoot;
             const packageRoot = cliPackageRoot();
             const version = yield* readPackageVersion(packageRoot).pipe(
               Effect.orDie,
@@ -111,12 +112,14 @@ export class CliOperations extends Context.Service<
               }),
               (runner) => runner.close(),
             );
-            const signal = yield* Effect.abortSignal;
-            yield* runLocalServer({ ...settings, webRoot }, signal, {
-              startServer: host.startServer,
-              host: { serviceUpdateRunner, version },
-              output: (message) => stdout(`${message}\n`),
-            }).pipe(
+            return yield* runLocalServer(
+              { ...settings, webRoot },
+              {
+                startServer: host.startServer,
+                host: { serviceUpdateRunner, version },
+                output: (message) => stdout(`${message}\n`),
+              },
+            ).pipe(
               Effect.provideService(FileSystem.FileSystem, fs),
               Effect.provideService(Path.Path, pathApi),
             );
@@ -127,50 +130,35 @@ export class CliOperations extends Context.Service<
           Effect.provide(installerEnvironment),
         ),
         status: Effect.fn('Cli.status')((settings) =>
-          nativeOperation(() =>
-            reportStatus(
-              settings,
-              output,
-              ownerProbe,
-              limits.owner.probeTimeoutMs,
-            ),
-          ),
+          reportStatus(settings, output, limits.owner.probeTimeoutMs),
         ),
         pair: Effect.fn('Cli.pair')((settings) =>
-          nativeOperation(() =>
-            issuePairings(settings.dataDirectory, settings, output, limits),
-          ),
+          issuePairings(settings.dataDirectory, settings, output, limits),
         ),
         devices: Effect.fn('Cli.devices')((settings) =>
-          nativeOperation(() =>
-            listAccess(settings.dataDirectory, output, limits),
-          ),
+          listAccess(settings.dataDirectory, output, limits),
         ),
         revoke: Effect.fn('Cli.revoke')((settings) =>
-          nativeOperation(() =>
-            revokeAccess(settings.dataDirectory, settings.id, output, limits),
+          revokeAccess(
+            settings.dataDirectory,
+            settings.id,
+            output,
+            limits,
           ).pipe(Effect.map((revoked) => (revoked ? 0 : 1))),
         ),
         trust: Effect.fn('Cli.trust')((settings) =>
-          nativeOperation(() =>
-            setDeviceTrust(settings.dataDirectory, settings, output, limits),
-          ),
+          setDeviceTrust(settings.dataDirectory, settings, output, limits),
         ),
         share: Effect.fn('Cli.share')((settings) =>
-          nativeOperation(() =>
-            shareRemoteAccess(
-              settings.dataDirectory,
-              settings.action,
-              output,
-              limits,
-              host.wait,
-            ),
+          shareRemoteAccess(
+            settings.dataDirectory,
+            settings.action,
+            output,
+            limits,
           ),
         ),
         mcp: Effect.fn('Cli.mcp')((settings) =>
-          nativeOperation(() =>
-            runMcpBridge(settings.dataDirectory, limits.owner.mcpTimeoutMs),
-          ),
+          runMcpBridge(settings.dataDirectory, limits.owner.mcpTimeoutMs),
         ),
         service: Effect.fn('Cli.service')((settings) =>
           runServiceCommand(settings, {
