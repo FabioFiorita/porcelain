@@ -1,4 +1,5 @@
-import { Effect, Layer, ManagedRuntime, Schema, Scope } from 'effect';
+import { DesktopError } from './errors/desktop-error.ts';
+import { Cause, Deferred, Effect, Queue, Schema, Stream } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { join } from 'node:path';
 import {
@@ -9,87 +10,102 @@ import {
 import { hostMessage } from './protocol.ts';
 import { finishServerOutput } from './adapters/server-output.ts';
 
-const parent = process.parentPort;
-if (parent === null)
-  throw new Error('The desktop server requires its app host');
-const message = await new Promise<unknown>((resolveStart) =>
-  parent.once('message', (event) => resolveStart(event.data)),
-);
-const startup = Schema.decodeUnknownSync(hostMessage)(message);
-if (startup.kind !== 'start')
-  throw new Error('The desktop server requires private startup configuration');
-const { profile, projectHome, packageRoot, session, outputEnd } = startup;
-const signal = new AbortController();
-const settings = readServerSettings({
-  dataDirectory: join(profile, 'server'),
-  projectHome,
-  host: '127.0.0.1',
-  port: 0,
-  webRoot: join(packageRoot, 'web'),
-});
-
-const runtime = ManagedRuntime.make(
-  Layer.merge(NodeServices.layer, Layer.effect(Scope.Scope, Effect.scope)),
-);
-
-try {
-  const server = await runtime.runPromise(
-    startServer(settings, {
+const application = Effect.gen(function* () {
+  const parent = process.parentPort;
+  if (parent === null)
+    return yield* Effect.fail(
+      new DesktopError({ message: 'The desktop server requires its app host' }),
+    );
+  const messages = yield* Queue.make<unknown>();
+  const receive = (event: { data: unknown }) => {
+    Queue.offerUnsafe(messages, event.data);
+  };
+  yield* Effect.acquireRelease(
+    Effect.sync(() => parent.on('message', receive)),
+    () => Effect.sync(() => parent.removeListener('message', receive)),
+  );
+  const startup = yield* Queue.take(messages).pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(hostMessage)),
+  );
+  if (startup.kind !== 'start')
+    return yield* Effect.fail(
+      new DesktopError({
+        message: 'The desktop server requires private startup configuration',
+      }),
+    );
+  const { profile, projectHome, packageRoot, session, outputEnd } = startup;
+  const stop = yield* Deferred.make<void>();
+  const exit = yield* Deferred.make<void>();
+  yield* Stream.fromQueue(messages).pipe(
+    Stream.runForEach((message) =>
+      Schema.decodeUnknownEffect(hostMessage)(message).pipe(
+        Effect.flatMap((command) =>
+          command.kind === 'stop'
+            ? Deferred.succeed(stop, undefined).pipe(Effect.asVoid)
+            : command.kind === 'exit' && Deferred.isDoneUnsafe(stop)
+              ? Deferred.succeed(exit, undefined).pipe(Effect.asVoid)
+              : Effect.fail(
+                  new DesktopError({
+                    message: 'The desktop server is already started',
+                  }),
+                ),
+        ),
+        Effect.catch((error) =>
+          Effect.sync(() =>
+            parent.postMessage({ kind: 'failed', message: error.message }),
+          ),
+        ),
+      ),
+    ),
+    Effect.forkScoped,
+  );
+  const terminate = () => {
+    Deferred.doneUnsafe(stop, Effect.void);
+  };
+  yield* Effect.acquireRelease(
+    Effect.sync(() => process.on('SIGTERM', terminate)),
+    () => Effect.sync(() => process.removeListener('SIGTERM', terminate)),
+  );
+  const settings = readServerSettings({
+    dataDirectory: join(profile, 'server'),
+    projectHome,
+    host: '127.0.0.1',
+    port: 0,
+    webRoot: join(packageRoot, 'web'),
+  });
+  yield* Effect.gen(function* () {
+    const server = yield* startServer(settings, {
       desktopSession: session,
       version: undefined,
       serviceUpdateRunner: openAppManagedUpdateRunner(),
-    }),
-    { signal: signal.signal },
-  );
-  let closing: Promise<void> | undefined;
-  const close = () => {
-    signal.abort();
-    closing ??= (async () => {
-      try {
-        await runtime.runPromise(server.close());
-      } finally {
-        try {
-          await runtime.dispose();
-        } finally {
-          await finishServerOutput(outputEnd);
-        }
-      }
-    })();
-    return closing;
-  };
-  const handle = async (message: unknown) => {
-    const parsed = Schema.decodeUnknownSync(hostMessage)(message);
-    if (parsed.kind === 'stop') {
-      await close();
-      return;
-    }
-    if (parsed.kind === 'exit' && closing !== undefined) {
-      await closing;
-      process.exit();
-    }
-    throw new Error('The desktop server is already started');
-  };
-  parent.on('message', (event) => {
-    void handle(event.data).catch((error: unknown) => {
-      parent.postMessage({
+    });
+    yield* Effect.addFinalizer(() => server.close());
+    parent.postMessage({ kind: 'ready', address: server.address });
+    yield* Deferred.await(stop);
+  }).pipe(Effect.scoped);
+  yield* finishServerOutput(outputEnd);
+  yield* Deferred.await(exit);
+  process.exitCode = 0;
+}).pipe(
+  Effect.scoped,
+  Effect.provide(NodeServices.layer),
+  Effect.catchCause((cause) =>
+    Effect.sync(() => {
+      const error = Cause.squash(cause);
+      process.parentPort?.postMessage({
         kind: 'failed',
         message:
           error instanceof Error
             ? error.message
-            : 'Local server command failed',
+            : 'Local server startup failed',
       });
-    });
-  });
-  process.on('SIGTERM', () => {
-    void close();
-  });
-  parent.postMessage({ kind: 'ready', address: server.address });
-} catch (error) {
-  await runtime.dispose().catch(() => undefined);
-  parent.postMessage({
-    kind: 'failed',
-    message:
-      error instanceof Error ? error.message : 'Local server startup failed',
-  });
-  process.exitCode = 1;
-}
+      process.exitCode = 1;
+    }),
+  ),
+);
+
+Effect.runFork(
+  application.pipe(
+    Effect.ensuring(Effect.sync(() => process.exit(process.exitCode ?? 0))),
+  ),
+);

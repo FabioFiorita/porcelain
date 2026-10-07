@@ -193,26 +193,31 @@ export class DesktopApp {
         const released = new Promise<void>((resolveRelease) => {
           Reflect.set(fs.promises, 'porcelainReleaseWrite', resolveRelease);
         });
-        const hold = async (target: unknown) => {
-          if (target !== file) return;
-          process.stderr.write(`${marker}\n`);
-          await released;
-        };
-        if (method === 'rename') {
-          const rename = fs.promises.rename.bind(fs.promises);
-          fs.promises.rename = async (...args: Parameters<typeof rename>) => {
-            await hold(args[1]);
-            return rename(...args);
-          };
-        } else {
-          const append = fs.promises.appendFile.bind(fs.promises);
-          fs.promises.appendFile = async (
-            ...args: Parameters<typeof append>
-          ) => {
-            await hold(args[0]);
-            return append(...args);
-          };
-        }
+        const write = fs.writeFile.bind(fs);
+        fs.writeFile = Object.assign(
+          (target: Parameters<typeof write>[0], ...args: unknown[]) => {
+            const options = args[1];
+            const flag: unknown =
+              typeof options === 'object' && options !== null
+                ? Reflect.get(options, 'flag')
+                : undefined;
+            const held =
+              method === 'rename'
+                ? typeof target === 'string' &&
+                  target.startsWith(`${file}.`) &&
+                  target.endsWith('.tmp')
+                : target === file && flag === 'a';
+            if (!held) {
+              Reflect.apply(write, fs, [target, ...args]);
+              return;
+            }
+            process.stderr.write(`${marker}\n`);
+            void released.then(() => {
+              Reflect.apply(write, fs, [target, ...args]);
+            });
+          },
+          fs.writeFile,
+        );
         syncBuiltinESMExports();
       },
       { file, method, marker },
