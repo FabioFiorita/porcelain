@@ -1,5 +1,5 @@
-import { NodeRuntime } from '@effect/platform-node';
-import { Effect, Exit, Runtime } from 'effect';
+import { Effect } from 'effect';
+import { runMain } from '../apps/server/src/cli/runner.ts';
 import { spawn } from 'node:child_process';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -178,12 +178,12 @@ async function assertWebRoot(webRoot: string): Promise<void> {
 const main = Effect.suspend(() => {
   let webRoot: string | undefined;
   return runCli(process.argv.slice(2), process.env, {
-    prepareWebRoot: async (signal) => {
+    prepareWebRoot: Effect.promise(async (signal) => {
       webRoot = await mkdtemp(join(tmpdir(), 'porcelain-web-'));
       await buildWeb(repositoryRoot, webRoot, signal);
       await assertWebRoot(webRoot);
       return webRoot;
-    },
+    }),
   }).pipe(
     Effect.ensuring(
       Effect.promise(async () => {
@@ -194,14 +194,4 @@ const main = Effect.suspend(() => {
   );
 });
 
-if (process.argv[1] === fileURLToPath(import.meta.url))
-  NodeRuntime.runMain(main, {
-    teardown: (exit, onExit) =>
-      Runtime.defaultTeardown(exit, (code) =>
-        onExit(
-          Exit.isSuccess(exit) && typeof exit.value === 'number'
-            ? exit.value
-            : code,
-        ),
-      ),
-  });
+if (process.argv[1] === fileURLToPath(import.meta.url)) runMain(main);

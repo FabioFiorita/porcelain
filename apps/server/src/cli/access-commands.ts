@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { pairingLink } from '@porcelain/contracts/access';
 import {
   DEVICE_LABEL_LENGTH,
@@ -5,7 +6,7 @@ import {
 } from '@porcelain/contracts/shared';
 import qrcode from 'qrcode-terminal';
 import { MINUTE_MS, type Limits } from '../config/limits.ts';
-import { ownerClient, runOwner } from './owner-client.ts';
+import { ownerClient, ownerRequest } from './owner-client.ts';
 
 type Output = {
   stdout: (message: string) => void;
@@ -23,9 +24,11 @@ function printable(value: string, limit = DEVICE_PLATFORM_LENGTH): string {
     .join('');
 }
 
-function qr(link: string): Promise<string> {
-  return new Promise((resolve) => {
-    qrcode.generate(link, { small: true }, (code: string) => resolve(code));
+function qr(link: string) {
+  return Effect.callback<string>((resume) => {
+    qrcode.generate(link, { small: true }, (code: string) =>
+      resume(Effect.succeed(code)),
+    );
   });
 }
 
@@ -35,25 +38,27 @@ type PairingRequest = {
   trusted: boolean;
 };
 
-export async function issuePairings(
+export const issuePairings = Effect.fn('issuePairings')(function* (
   dataDirectory: string,
   pairing: PairingRequest,
   output: Output,
   limits: Limits,
   withQr = true,
-): Promise<void> {
+) {
   const minutes = limits.access.pairingGrant.lifetimeMs / MINUTE_MS;
-  const answer = await runOwner(
-    ownerClient(
+  const answer = yield* ownerRequest(
+    (yield* ownerClient(
       dataDirectory,
       limits.owner.requestTimeoutMs,
-    ).administration.issuePairing({ payload: pairing }),
+    )).administration.issuePairing({
+      payload: pairing,
+    }),
   );
   for (const grant of answer.grants) {
     output.stdout(`${printable(grant.grant.label, DEVICE_LABEL_LENGTH)}\n`);
     const link = pairingLink(grant.link);
     output.stdout(`${link}\n`);
-    if (withQr) output.stdout(`${await qr(link)}\n`);
+    if (withQr) output.stdout(`${yield* qr(link)}\n`);
     output.stdout(`Expires ${grant.grant.expiresAt}\n\n`);
   }
   output.stdout(
@@ -65,18 +70,18 @@ export async function issuePairings(
     output.stdout(
       'A device paired with it is trusted: it may update Porcelain.\n',
     );
-}
+});
 
-export async function listAccess(
+export const listAccess = Effect.fn('listAccess')(function* (
   dataDirectory: string,
   output: Output,
   limits: Limits,
-): Promise<void> {
-  const listing = await runOwner(
-    ownerClient(
+) {
+  const listing = yield* ownerRequest(
+    (yield* ownerClient(
       dataDirectory,
       limits.owner.requestTimeoutMs,
-    ).administration.listAccess(),
+    )).administration.listAccess(),
   );
   if (listing.grants.length > 0) {
     output.stdout('Pending links\n');
@@ -98,19 +103,19 @@ export async function listAccess(
         `${device.trusted ? 'trusted' : 'not trusted'}  ` +
         `last seen ${device.lastSeenAt}${device.lastSeenAddress ? ` from ${printable(device.lastSeenAddress, limits.cli.printedAddressLength)}` : ''}\n`,
     );
-}
+});
 
-export async function revokeAccess(
+export const revokeAccess = Effect.fn('revokeAccess')(function* (
   dataDirectory: string,
   id: string,
   output: Output,
   limits: Limits,
-): Promise<boolean> {
-  const answer = await runOwner(
-    ownerClient(
+) {
+  const answer = yield* ownerRequest(
+    (yield* ownerClient(
       dataDirectory,
       limits.owner.requestTimeoutMs,
-    ).administration.revokeAccess({ payload: { id } }),
+    )).administration.revokeAccess({ payload: { id } }),
   );
   if (!answer.revoked) {
     output.stderr(
@@ -124,23 +129,25 @@ export async function revokeAccess(
       : 'That device is revoked; anything it had open is closed.\n',
   );
   return true;
-}
+});
 
-export async function setDeviceTrust(
+export const setDeviceTrust = Effect.fn('setDeviceTrust')(function* (
   dataDirectory: string,
   change: { id: string; trusted: boolean },
   output: Output,
   limits: Limits,
-): Promise<void> {
-  const answer = await runOwner(
-    ownerClient(
+) {
+  const answer = yield* ownerRequest(
+    (yield* ownerClient(
       dataDirectory,
       limits.owner.requestTimeoutMs,
-    ).administration.setDeviceTrust({ payload: change }),
+    )).administration.setDeviceTrust({
+      payload: change,
+    }),
   );
   output.stdout(
     answer.trusted
       ? 'That device is trusted: it may update Porcelain.\n'
       : 'That device is no longer trusted to update Porcelain.\n',
   );
-}
+});

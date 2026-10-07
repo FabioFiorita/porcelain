@@ -73,7 +73,6 @@ function cliRunner() {
           },
           clock: yield* Clock.Clock,
           limits: LIMITS,
-          wait: () => Promise.resolve(),
           actionableErrors: [],
         };
       }),

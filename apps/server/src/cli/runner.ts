@@ -49,7 +49,6 @@ export class CliRuntime extends Context.Service<
     readonly ownerProbe: OwnerProbe;
     readonly clock: Clock.Clock;
     readonly limits: Limits;
-    readonly wait: (ms: number) => Promise<void>;
     readonly actionableErrors: readonly ActionableError[];
   }
 >()('@porcelain/server/CliRuntime') {}
@@ -72,7 +71,7 @@ type CliOptions = {
   readonly startServer?: StartServer;
   readonly stdout?: (message: string) => void;
   readonly stderr?: (message: string) => void;
-  readonly prepareWebRoot?: (signal: AbortSignal) => Promise<string>;
+  readonly prepareWebRoot?: Effect.Effect<string>;
 };
 
 export function createCliRunner(
@@ -99,7 +98,6 @@ export function createCliRunner(
           ownerProbe: configured.ownerProbe,
           clock: configured.clock,
           limits: configured.limits,
-          wait: configured.wait,
           homeDirectory,
           searchPath: environment.PATH ?? '',
           stdout,

@@ -13,7 +13,8 @@ import { DataDirectoryInsecureError } from '../runtime/errors/data-directory-ins
 import { DataDirectoryOwnedError } from '../runtime/errors/data-directory-owned-error.ts';
 import { OwnerSocketUnreadableError } from '../runtime/errors/owner-socket-unreadable-error.ts';
 import { OwnerSocketModeError } from '../runtime/errors/owner-socket-mode-error.ts';
-import { delay } from '../runtime/delay.ts';
+import type { ServerSettings } from '../config/server-settings.ts';
+import type { ServerHost } from '../ports/server-host.ts';
 import { startServer } from './compose-server.ts';
 
 export const runCli = createCliRunner(
@@ -21,11 +22,16 @@ export const runCli = createCliRunner(
     CliRuntime,
     Effect.gen(function* () {
       return {
-        startServer,
+        startServer: Effect.fn('CliHost.startServer')(function* (
+          settings: ServerSettings,
+          host: ServerHost,
+        ) {
+          const signal = yield* Effect.abortSignal;
+          return yield* startServer(settings, signal, host);
+        }),
         ownerProbe: new SocketOwnerProbe(),
         clock: yield* Clock.Clock,
         limits: readCliSettings().limits,
-        wait: delay,
         actionableErrors: [
           ServeConfigurationError,
           DataDirectoryOwnedError,

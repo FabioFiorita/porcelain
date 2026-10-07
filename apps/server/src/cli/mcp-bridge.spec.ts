@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { createServer } from 'node:http';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -38,16 +39,18 @@ it('keeps the negotiated owner session and protocol across stdio requests', asyn
       server.once('error', reject);
       server.listen(ownerSocketPath(directory), resolve);
     });
-    await runMcpBridge(
-      directory,
-      1000,
-      Readable.from([
-        `${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' })}\n`,
-        `${JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' })}\n`,
-      ]),
-      (line) => {
-        output.push(line);
-      },
+    await Effect.runPromise(
+      runMcpBridge(
+        directory,
+        1000,
+        Readable.from([
+          `${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' })}\n`,
+          `${JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' })}\n`,
+        ]),
+        (line) => {
+          output.push(line);
+        },
+      ),
     );
     expect(headers).toEqual([
       { session: undefined, protocol: undefined, cwd: process.cwd() },

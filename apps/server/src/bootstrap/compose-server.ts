@@ -69,7 +69,7 @@ import { Lanes } from '../runtime/lanes.ts';
 import { LiveConnections } from '../runtime/live-updates/live-connections.ts';
 import { WatchWorktrees } from '../runtime/live-updates/watch-worktrees.ts';
 import { AnnounceWorktreeChangeUseCase } from '../use-cases/files/announce-worktree-change.ts';
-import { type StartServer } from '../cli/launcher.ts';
+import type { ServerSettings } from '../config/server-settings.ts';
 import { type ServerHost } from '../ports/server-host.ts';
 import {
   startApplication,
@@ -425,8 +425,8 @@ const openServerWith =
     openServerResources(serverResources(adapters, host, input));
 
 export const composeServer =
-  (adapters: RemoteRouteAdapters): StartServer =>
-  (settings, signal, host) =>
+  (adapters: RemoteRouteAdapters) =>
+  (settings: ServerSettings, signal: AbortSignal, host: ServerHost) =>
     Effect.gen(function* () {
       const clock = yield* Clock.Clock;
       return yield* startApplication(settings, signal, {
@@ -443,7 +443,7 @@ const networkReaders = {
     new OsNetworkAddressReader(),
 };
 
-export const startServer: StartServer = composeServer({
+export const startServer = composeServer({
   networkAddressReader: networkReaders[readNetworkPlatform()],
   routeListenerRunner: (target) => new HttpRouteListenerRunner(target),
   tunnelProbe: (options) => new HttpTunnelProbe(options),

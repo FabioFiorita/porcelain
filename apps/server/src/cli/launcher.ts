@@ -5,7 +5,6 @@ import type { ServerHost } from '../ports/server-host.ts';
 
 export type StartServer = (
   settings: ServerSettings,
-  signal: AbortSignal,
   host: ServerHost,
 ) => Effect.Effect<
   Runtime,
@@ -21,17 +20,10 @@ type LauncherDependencies = {
 
 export const runLocalServer = Effect.fn('runLocalServer')(function* (
   settings: ServerSettings,
-  signal: AbortSignal,
   dependencies: LauncherDependencies,
 ) {
-  yield* Effect.sync(() => signal.throwIfAborted());
-  const server = yield* dependencies.startServer(
-    settings,
-    signal,
-    dependencies.host,
-  );
-  yield* Effect.gen(function* () {
-    if (signal.aborted) return;
+  const server = yield* dependencies.startServer(settings, dependencies.host);
+  return yield* Effect.gen(function* () {
     yield* Effect.sync(() => {
       dependencies.output(`Porcelain listening at ${server.address}`);
       dependencies.output(`Owner socket: ${server.socketPath}`);

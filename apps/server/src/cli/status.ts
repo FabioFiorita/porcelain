@@ -1,5 +1,6 @@
+import { Effect } from 'effect';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
-import type { OwnerProbe } from '../ports/owner-probe.ts';
+import { probeOwner } from './owner-client.ts';
 import type { StatusSettings } from './settings.ts';
 
 const statusExitCodes = {
@@ -8,12 +9,11 @@ const statusExitCodes = {
   failed: 2,
 } as const;
 
-export async function reportStatus(
+export const reportStatus = Effect.fn('reportStatus')(function* (
   settings: StatusSettings,
   output: { stdout: (message: string) => void; stderr: (m: string) => void },
-  ownerProbe: OwnerProbe,
   timeoutMs: number,
-): Promise<number> {
+) {
   let socketPath: string;
   try {
     socketPath = ownerSocketPath(settings.dataDirectory);
@@ -23,7 +23,7 @@ export async function reportStatus(
     );
     return statusExitCodes.failed;
   }
-  const probe = await ownerProbe.probe({ socketPath, timeoutMs });
+  const probe = yield* probeOwner({ socketPath, timeoutMs });
   if (probe.kind === 'running') {
     output.stdout(
       `Porcelain is running at ${probe.status.address}\n` +
@@ -38,4 +38,4 @@ export async function reportStatus(
   }
   output.stderr(`Could not read the Porcelain status: ${probe.reason}\n`);
   return statusExitCodes.failed;
-}
+});
