@@ -132,6 +132,13 @@ export default [
 
   ...effectRuleCases,
   {
+    rule: 'spec-imports',
+    path: 'apps/server/src/installer/records.spec.ts',
+    valid: "import { NodeServices } from '@effect/platform-node';",
+    invalid: "import { useQuery } from '@tanstack/react-query';",
+    errors: 1,
+  },
+  {
     rule: 'web-api-owns-request',
     path: 'apps/web/src/features/reviews/live.ts',
     valid: "import { RequestError } from '@porcelain/client/transport';",
