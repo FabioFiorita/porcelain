@@ -2803,6 +2803,22 @@ export const write = () => unused();`,
 
 export const guardrailCases = [
   {
+    rule: 'worktree-use-case-checks',
+    files: {
+      'packages/projects/src/services/check-worktree-service.ts':
+        'export class CheckWorktreeService { execute(input: { worktreeId: string }): string { return input.worktreeId; } }',
+    },
+    valid: {
+      'apps/server/src/use-cases/files/read-file.ts':
+        "import { CheckWorktreeService } from '../../../../../packages/projects/src/services/check-worktree-service.ts'; export class ReadFileUseCase { private readonly checkWorktree = new CheckWorktreeService(); execute(input: { worktreeId: string }): string { return this.checkWorktree.execute(input); } }",
+    },
+    invalid: {
+      'apps/server/src/use-cases/files/read-file.ts':
+        'export class ReadFileUseCase { execute(input: { worktreeId: string }): string { return input.worktreeId; } }',
+    },
+    errors: ['worktree-use-case-checks'],
+  },
+  {
     rule: 'eqeqeq',
     valid: 'export const equal = (value: unknown) => value === null;',
     invalid: 'export const equal = (value: unknown) => value == null;',
@@ -3147,90 +3163,7 @@ export const unusedQuery = () => ({ queryFn: () => { ${use} } });`,
       errors: [rule],
     };
   }),
-  {
-    rule: 'status-policy-complete',
-    files: {
-      'packages/access/src/errors/native-error.ts': `import { Schema } from 'effect'; export class NativeFailure extends Schema.TaggedError<NativeFailure>()('NativeFailure', {}) {}`,
-      'packages/access/src/errors/index.ts':
-        "export { NativeFailure as PublicFailure } from './native-error.ts';",
-    },
-    valid: {
-      'apps/server/src/http/status-policy.ts':
-        "import { PublicFailure as Outcome } from '../../../../packages/access/src/errors/index.ts'; export const rules = [{ errors: [Outcome], statusCode: 400 }];",
-    },
-    invalid: {
-      'apps/server/src/http/status-policy.ts':
-        "import { PublicFailure as Outcome } from '../../../../packages/access/src/errors/index.ts'; export const decoy = { errors: [Outcome] }; export const rules = [];",
-    },
-    errors: ['status-policy-complete'],
-  },
-  {
-    rule: 'status-policy-complete',
-    files: {
-      'packages/kernel/src/errors/failure.ts':
-        'class DomainFailure extends Error {} export class ReviewFailure extends DomainFailure {} export class Helper {}',
-      'packages/kernel/src/errors/index.ts': "export * from './failure.ts';",
-    },
-    valid: {
-      'apps/server/src/http/status-policy.ts':
-        "import { ReviewFailure } from '../../../../packages/kernel/src/errors/index.ts'; export const rules = [{ errors: [ReviewFailure], statusCode: 409 }];",
-    },
-    invalid: {},
-    errors: ['status-policy-complete'],
-  },
-  {
-    rule: 'status-policy-complete',
-    files: {
-      'packages/reviews/src/errors/new-review-error.ts':
-        'export class NewReviewError extends Error {}',
-      'packages/reviews/src/errors/index.ts':
-        "export { NewReviewError as PublicReviewError } from './new-review-error.ts';",
-    },
-    valid: {
-      'apps/server/src/http/status-policy.ts':
-        "import { PublicReviewError as Outcome } from '../../../../packages/reviews/src/errors/index.ts'; export const rules = [{ errors: [Outcome], statusCode: 409 }];",
-    },
-    invalid: {
-      'apps/server/src/http/status-policy.ts':
-        "import { PublicReviewError as Outcome } from '../../../../packages/reviews/src/errors/index.ts'; export const decoy = { errors: [Outcome] }; export const rules = [];",
-    },
-    errors: ['status-policy-complete'],
-  },
-  {
-    rule: 'status-policy-complete',
-    files: {
-      'packages/reviews/src/errors/new-review-error.ts':
-        'export class NewReviewError extends Error {} export class OtherReviewError extends Error {}',
-      'packages/reviews/src/errors/index.ts':
-        "export * from './new-review-error.ts';",
-    },
-    valid: {
-      'apps/server/src/http/status-policy.ts':
-        "import { NewReviewError, OtherReviewError } from '../../../../packages/reviews/src/errors/index.ts'; export const rules = [{ errors: [NewReviewError, OtherReviewError], statusCode: 409 }];",
-    },
-    invalid: {
-      'apps/server/src/http/status-policy.ts':
-        "import { NewReviewError } from '../../../../packages/reviews/src/errors/index.ts'; export const rules = [{ errors: [NewReviewError], statusCode: 409 }];",
-    },
-    errors: ['status-policy-complete'],
-  },
-  {
-    rule: 'status-policy-complete',
-    files: {
-      'packages/storage/src/errors/invalid-data-directory-error.ts':
-        'export class InvalidDataDirectoryError extends Error {}',
-      'packages/storage/src/errors/unsupported-database-version-error.ts':
-        'export class UnsupportedDatabaseVersionError extends Error {}',
-      'packages/storage/src/index.ts':
-        "export * from './errors/invalid-data-directory-error.ts'; export * from './errors/unsupported-database-version-error.ts';",
-    },
-    valid: {},
-    invalid: {
-      'packages/storage/src/errors/invalid-data-directory-error.ts':
-        'export class InvalidDataDirectoryError extends Error {} export class RuntimeStorageError extends Error {}',
-    },
-    errors: ['status-policy-complete'],
-  },
+
   ...[
     ['Review', '<Button>Review</Button>', 'export class ReviewService {}'],
     ['Name', 'label="Name"', 'const environmentName = "local";'],

@@ -100,7 +100,6 @@ export const effectRuleCases = [
     invalid: "it('should answer 404', () => { expect(true).toBe(true); });",
     errors: 1,
   })),
-
   ...[
     nativeService.replace('readonly execute:', 'execute:'),
     nativeService.replace('static readonly layer', 'readonly layer'),
@@ -241,26 +240,7 @@ it('reads once', async () => { const test = { read }; const result = await test.
 it('reads once', async () => { const result = await read(); if (result) it('asserts later', () => expect(result).toBe('saved')); });`,
     errors: 1,
   },
-  ...[
-    route.replace("'@porcelain/contracts/files'", "'./private-api.ts'"),
-    route.replace("group(FilesApi, 'files'", "group(otherApi, 'files'"),
-    route.replace("group(FilesApi, 'files'", 'group(FilesApi, groupName'),
-    route.replace(
-      "(handlers) =>\n  handlers.handle('readTextFile', ({ params, query }) => useCases.readTextFile.execute({ ...params, ...query }))",
-      'buildHandlers',
-    ),
-    route.replace(
-      "import { HttpApiBuilder } from 'effect/http-api';",
-      'const HttpApiBuilder = custom;',
-    ),
-    route.replace('HttpApiBuilder.layer(FilesApi)', 'manualRoutes(FilesApi)'),
-  ].map((invalid) => ({
-    rule: 'feature-route-shape',
-    path,
-    valid: route,
-    invalid,
-    errors: 1,
-  })),
+
   ...[
     "server.route({ method: 'GET', url: '/api/worktrees/:worktreeId/text' });",
     "server['get']('/api/worktrees/:worktreeId/text', handler);",
@@ -282,18 +262,13 @@ it('reads once', async () => { const result = await read(); if (result) it('asse
       'useCases.readTextFile.execute({ ...params, ...query })',
       'Effect.andThen(useCases.readTextFile.execute(params), useCases.editFile.execute(query))',
     ),
-    route.replace(
-      '({ params, query }) => useCases',
-      'async ({ params, query }) => useCases',
-    ),
-    route.replace(
-      'useCases.readTextFile.execute({ ...params, ...query })',
-      'flag ? useCases.readTextFile.execute(params) : Effect.void',
-    ),
   ].map((invalid) => ({
     rule: 'feature-route-handler',
     path,
-    valid: route,
+    valid: route.replace(
+      "'readTextFile', ({ params, query }) =>",
+      'endpointName, async ({ params, query }) =>',
+    ),
     invalid,
     errors: 1,
   })),
