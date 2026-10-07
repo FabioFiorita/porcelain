@@ -1,15 +1,8 @@
 import { Effect } from 'effect';
 import type { OwnerProbe, OwnerProbeRequest } from '../ports/owner-probe.ts';
-import { InstallerOperationError } from './errors/installer-operation-error.ts';
-import { failureDetail } from './failure-detail.ts';
 
 export const probeOwner = Effect.fn('Installer.probeOwner')(
-  (ownerProbe: OwnerProbe, input: OwnerProbeRequest) =>
-    Effect.tryPromise({
-      try: () => ownerProbe.probe(input),
-      catch: (cause) =>
-        new InstallerOperationError({ message: failureDetail(cause), cause }),
-    }),
+  (ownerProbe: OwnerProbe, input: OwnerProbeRequest) => ownerProbe.probe(input),
 );
 
 export const waitForHealthyService = Effect.fn(

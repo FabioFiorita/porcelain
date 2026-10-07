@@ -10,7 +10,6 @@ import {
   Scope,
 } from 'effect';
 import { TestClock } from 'effect/testing';
-import { nativeOperation } from '@porcelain/effects';
 import { Lanes } from './lanes.ts';
 import { LaneOptions } from '../ports/lane-options.ts';
 
@@ -60,22 +59,26 @@ it.effect(
         Effect.map((context) => Context.get(context, Lanes)),
         Effect.provideService(LaneOptions, options),
       );
-      const started = Promise.withResolvers<void>();
-      const aborted = Promise.withResolvers<void>();
-      const cleanup = Promise.withResolvers<void>();
+      const started = yield* Deferred.make<void>();
+      const aborted = yield* Deferred.make<void>();
+      const cleanup = yield* Deferred.make<void>();
       const order: string[] = [];
       yield* subject.background(
         'repository',
         () =>
-          nativeOperation((signal) => {
-            signal.addEventListener('abort', () => aborted.resolve(), {
-              once: true,
-            });
-            started.resolve();
-            return cleanup.promise.then(() => {
-              order.push('cleanup');
-            });
-          }),
+          Deferred.succeed(started, undefined).pipe(
+            Effect.andThen(Effect.never),
+            Effect.ensuring(
+              Deferred.succeed(aborted, undefined).pipe(
+                Effect.andThen(Deferred.await(cleanup)),
+                Effect.andThen(
+                  Effect.sync(() => {
+                    order.push('cleanup');
+                  }),
+                ),
+              ),
+            ),
+          ),
         () =>
           subject.finish('repository', () =>
             Effect.sync(() => {
@@ -83,16 +86,22 @@ it.effect(
             }),
           ),
       );
-      yield* Effect.promise(() => started.promise);
+      yield* Deferred.await(started);
       let closed = false;
-      const closing = Effect.runPromise(subject.close()).then(() => {
-        closed = true;
-      });
-      yield* Effect.promise(() => aborted.promise);
+      const closing = yield* Effect.forkChild(
+        subject.close().pipe(
+          Effect.tap(
+            Effect.sync(() => {
+              closed = true;
+            }),
+          ),
+        ),
+      );
+      yield* Deferred.await(aborted);
       expect(order).toEqual([]);
       expect(closed).toBe(false);
-      cleanup.resolve();
-      yield* Effect.promise(() => closing);
+      yield* Deferred.succeed(cleanup, undefined);
+      yield* Fiber.join(closing);
       expect(order).toEqual(['cleanup', 'interrupted']);
       expect(closed).toBe(true);
     }),
@@ -120,7 +129,7 @@ it.effect('finish claims handed over before and during close are drained', () =>
       ),
     );
     yield* Deferred.await(started);
-    const closing = Effect.runPromise(subject.close());
+    const closing = yield* Effect.forkChild(subject.close());
     const after = yield* Effect.forkChild(
       subject.finish('second', () =>
         Effect.sync(() => {
@@ -131,7 +140,7 @@ it.effect('finish claims handed over before and during close are drained', () =>
     yield* Effect.yieldNow;
     yield* Deferred.succeed(release, undefined);
     yield* Fiber.joinAll([before, after]);
-    yield* Effect.promise(() => closing);
+    yield* Fiber.join(closing);
     expect(recorded.toSorted()).toEqual(['after close', 'before close']);
   }),
 );
@@ -144,32 +153,37 @@ it.effect(
         Effect.map((context) => Context.get(context, Lanes)),
         Effect.provideService(LaneOptions, options),
       );
-      const started = Promise.withResolvers<void>();
-      const release = Promise.withResolvers<string>();
+      const started = yield* Deferred.make<void>();
+      const release = yield* Deferred.make<string>();
       const task = yield* Effect.forkChild(
         subject.unqueued(
           () =>
-            nativeOperation(() => {
-              started.resolve();
-              return release.promise;
-            }),
+            Deferred.succeed(started, undefined).pipe(
+              Effect.andThen(Effect.uninterruptible(Deferred.await(release))),
+            ),
           { deadlineMs: 5 },
         ),
       );
-      yield* Effect.promise(() => started.promise);
+      yield* Deferred.await(started);
       yield* TestClock.adjust(5);
       const exit = yield* Fiber.await(task);
       expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toMatchObject({
         name: 'TimeoutError',
       });
       let closed = false;
-      const closing = Effect.runPromise(subject.close()).then(() => {
-        closed = true;
-      });
+      const closing = yield* Effect.forkChild(
+        subject.close().pipe(
+          Effect.tap(
+            Effect.sync(() => {
+              closed = true;
+            }),
+          ),
+        ),
+      );
       yield* Effect.yieldNow;
       expect(closed).toBe(false);
-      release.resolve('late');
-      yield* Effect.promise(() => closing);
+      yield* Deferred.succeed(release, 'late');
+      yield* Fiber.join(closing);
       expect(closed).toBe(true);
     }),
 );
@@ -234,22 +248,24 @@ it.effect(
         Effect.provideService(LaneOptions, options),
       );
       yield* Effect.addFinalizer(() => lanes.close());
-      const started = Promise.withResolvers<void>();
-      const aborted = Promise.withResolvers<void>();
-      const native = Promise.withResolvers<string>();
+      const started = yield* Deferred.make<void>();
+      const aborted = yield* Deferred.make<void>();
+      const native = yield* Deferred.make<string>();
       let followers = 0;
       const first = yield* Effect.forkChild(
         lanes.run('repo', 'write', () =>
-          nativeOperation((signal) => {
-            signal.addEventListener('abort', () => aborted.resolve(), {
-              once: true,
-            });
-            started.resolve();
-            return native.promise;
-          }),
+          Deferred.succeed(started, undefined).pipe(
+            Effect.andThen(Effect.never),
+            Effect.ensuring(
+              Deferred.succeed(aborted, undefined).pipe(
+                Effect.andThen(Deferred.await(native)),
+                Effect.asVoid,
+              ),
+            ),
+          ),
         ),
       );
-      yield* Effect.promise(() => started.promise);
+      yield* Deferred.await(started);
       const second = yield* Effect.forkChild(
         lanes.run('repo', 'write', () =>
           Effect.sync(() => {
@@ -263,9 +279,9 @@ it.effect(
       expect(
         Exit.isFailure(expired) && Cause.squash(expired.cause),
       ).toMatchObject({ name: 'TimeoutError' });
-      yield* Effect.promise(() => aborted.promise);
+      yield* Deferred.await(aborted);
       expect(followers).toBe(0);
-      native.resolve('late');
+      yield* Deferred.succeed(native, 'late');
       expect(yield* Fiber.join(second)).toBe('second');
       expect(followers).toBe(1);
     }),
@@ -591,21 +607,25 @@ it.effect(
         }),
       );
       const subject = Context.get(context, Lanes);
-      const started = Promise.withResolvers<void>();
-      const aborted = Promise.withResolvers<void>();
-      const cleanup = Promise.withResolvers<void>();
+      const started = yield* Deferred.make<void>();
+      const aborted = yield* Deferred.make<void>();
+      const cleanup = yield* Deferred.make<void>();
       yield* subject.background(
         'repository',
         () =>
-          nativeOperation((signal) => {
-            signal.addEventListener('abort', () => aborted.resolve(), {
-              once: true,
-            });
-            started.resolve();
-            return cleanup.promise.then(() => {
-              order.push('cleanup');
-            });
-          }),
+          Deferred.succeed(started, undefined).pipe(
+            Effect.andThen(Effect.never),
+            Effect.ensuring(
+              Deferred.succeed(aborted, undefined).pipe(
+                Effect.andThen(Deferred.await(cleanup)),
+                Effect.andThen(
+                  Effect.sync(() => {
+                    order.push('cleanup');
+                  }),
+                ),
+              ),
+            ),
+          ),
         () =>
           subject.finish('repository', () =>
             Effect.sync(() => {
@@ -613,12 +633,12 @@ it.effect(
             }),
           ),
       );
-      yield* Effect.promise(() => started.promise);
-      const closing = Effect.runPromise(Scope.close(owner, Exit.void));
-      yield* Effect.promise(() => aborted.promise);
+      yield* Deferred.await(started);
+      const closing = yield* Effect.forkChild(Scope.close(owner, Exit.void));
+      yield* Deferred.await(aborted);
       expect(order).toEqual([]);
-      cleanup.resolve();
-      yield* Effect.promise(() => closing);
+      yield* Deferred.succeed(cleanup, undefined);
+      yield* Fiber.join(closing);
       expect(order).toEqual(['cleanup', 'recovered', 'resources']);
     }),
 );

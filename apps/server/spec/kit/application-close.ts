@@ -2,8 +2,7 @@ import { InMemoryRouteListenerRunner } from '../fakes/in-memory-route-listener-r
 import { ScriptedTunnelProbe } from '../fakes/scripted-tunnel-probe.ts';
 import { NodeServices } from '@effect/platform-node';
 import { PorcelainClientApi } from '@porcelain/contracts/shared';
-import { nativeOperation } from '@porcelain/effects';
-import { Effect, Layer, ManagedRuntime, Scope } from 'effect';
+import { Deferred, Effect, Layer, ManagedRuntime, Scope } from 'effect';
 import { FetchHttpClient, HttpClient, HttpClientRequest } from 'effect/http';
 import { HttpApiClient } from 'effect/http-api';
 import { execFile } from 'node:child_process';
@@ -55,8 +54,8 @@ export async function closeRunningCommit(): Promise<CloseRunningCommit> {
   const state = join(root, 'state');
   const gatePath = join(root, 'hook.sock');
   const hookStarted = Promise.withResolvers<number>();
-  const routeDraining = Promise.withResolvers<void>();
-  const routeReleased = Promise.withResolvers<void>();
+  const routeDraining = Deferred.makeUnsafe<void>();
+  const routeReleased = Deferred.makeUnsafe<void>();
   const requestId = randomUUID();
   const credential = randomUUID();
   const events: string[] = [];
@@ -89,17 +88,17 @@ export async function closeRunningCommit(): Promise<CloseRunningCommit> {
         listen: () => Effect.die(new Error('No remote listener requested')),
         close: ({ route }) =>
           closing && route === 'lan' && !events.includes('lan-route-closing')
-            ? nativeOperation(async () => {
+            ? Effect.gen(function* () {
                 events.push('lan-route-closing');
-                routeDraining.resolve();
-                await routeReleased.promise;
+                yield* Deferred.succeed(routeDraining, undefined);
+                yield* Deferred.await(routeReleased);
                 events.push('lan-route-closed');
               })
             : Effect.void,
       }),
     tunnelProbe: () =>
       new ScriptedTunnelProbe(() =>
-        Promise.resolve({ kind: 'unreachable' as const }),
+        Effect.succeed({ kind: 'unreachable' as const }),
       ).layer,
   });
   const host = {
@@ -129,7 +128,6 @@ export async function closeRunningCommit(): Promise<CloseRunningCommit> {
           projectHome: root,
           port: 0,
         }),
-        new AbortController().signal,
         host,
       ),
     );
@@ -217,14 +215,14 @@ export async function closeRunningCommit(): Promise<CloseRunningCommit> {
     first = runtime
       .runPromise(opened.close())
       .then(() => void events.push('first-close-returned'));
-    await routeDraining.promise;
+    await runtime.runPromise(Deferred.await(routeDraining));
     second = runtime
       .runPromise(opened.close())
       .then(() => void events.push('second-close-returned'));
     await delay(SECOND_CLOSE_WINDOW_MS);
     const duringDrain = [...events];
     const hookRunningDuringDrain = running(hookPid);
-    routeReleased.resolve();
+    Deferred.doneUnsafe(routeReleased, Effect.void);
     const drained = await Promise.race([
       Promise.all([first, second]).then(() => 'closed' as const),
       delay(DRAIN_BOUND_MS).then(() => 'still closing' as const),
@@ -264,7 +262,7 @@ export async function closeRunningCommit(): Promise<CloseRunningCommit> {
     };
   } finally {
     closing = false;
-    routeReleased.resolve();
+    Deferred.doneUnsafe(routeReleased, Effect.void);
     hookSocket?.destroy();
     try {
       if (hookPid !== 0 && running(hookPid)) process.kill(hookPid, 'SIGKILL');

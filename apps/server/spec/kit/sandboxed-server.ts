@@ -113,19 +113,23 @@ const startServer = composeServer({
       new InMemoryRouteListenerRunner(listeningPort, () => 41000),
     ),
   tunnelProbe: () =>
-    new ScriptedTunnelProbe(async ({ origin }) => {
-      const { hostname } = new URL(origin);
-      if (hostname.split('.').includes('invalid'))
-        return { kind: 'unreachable' };
-      if (hostname.endsWith('.test')) return { kind: 'foreign' };
-      const health = await fetch(`${server?.address ?? ''}/api/health`);
-      return {
-        kind: 'answered',
-        environmentId: Schema.decodeUnknownSync(healthSchema)(
-          await health.json(),
-        ).environmentId,
-      };
-    }).layer,
+    new ScriptedTunnelProbe(
+      Effect.fn(function* ({ origin }) {
+        const { hostname } = new URL(origin);
+        if (hostname.split('.').includes('invalid'))
+          return { kind: 'unreachable' };
+        if (hostname.endsWith('.test')) return { kind: 'foreign' };
+        const health = yield* Effect.promise(() =>
+          fetch(`${server?.address ?? ''}/api/health`),
+        );
+        return {
+          kind: 'answered',
+          environmentId: Schema.decodeUnknownSync(healthSchema)(
+            yield* Effect.promise(() => health.json()),
+          ).environmentId,
+        };
+      }),
+    ).layer,
 });
 const relay = createServer((incoming) => {
   const address = new URL(server?.address ?? 'http://127.0.0.1:0');
@@ -478,7 +482,6 @@ try {
           },
         },
       },
-      shutdown.signal,
       {
         serviceUpdateRunner,
         version: fixture.serviceUpdate.version,

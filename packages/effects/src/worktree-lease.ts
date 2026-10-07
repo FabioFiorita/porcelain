@@ -1,5 +1,4 @@
 import { Context, Effect } from 'effect';
-import { nativeOperation } from './native-operation.ts';
 
 class ReadLease {
   private active = true;
@@ -94,29 +93,5 @@ export function admittedWrite<A, E, R>(
       Effect.sync(() => lease.assertWrite(worktreeId)),
       Effect.suspend(() => work(() => lease.confirmCommit(worktreeId))),
     ),
-  );
-}
-
-export function nativeRead<A>(
-  worktreeId: string,
-  work: (signal: AbortSignal) => Promise<A>,
-): Effect.Effect<A, never, WorktreeRead> {
-  return Effect.flatMap(WorktreeRead, (lease) =>
-    nativeOperation((signal) => {
-      lease.assert(worktreeId);
-      return work(signal);
-    }),
-  );
-}
-
-export function nativeWrite<A>(
-  worktreeId: string,
-  work: (signal: AbortSignal, committed: () => void) => Promise<A>,
-): Effect.Effect<A, never, WorktreeWrite> {
-  return Effect.flatMap(WorktreeWrite, (lease) =>
-    nativeOperation((signal) => {
-      lease.assertWrite(worktreeId);
-      return work(signal, () => lease.confirmCommit(worktreeId));
-    }),
   );
 }

@@ -1,13 +1,8 @@
 import { describe, expect, it } from '@effect/vitest';
-import { Duration, Effect } from 'effect';
+import { Deferred, Duration, Effect, Fiber } from 'effect';
 import { TestClock } from 'effect/testing';
-import { nativeOperation } from '@porcelain/effects';
 import { makeIntervalJob } from './interval-job.ts';
 import { Observability } from './observability.ts';
-
-const observability = Effect.runSync(
-  Observability.pipe(Effect.provide(Observability.layer)),
-);
 
 function reporting() {
   const reports: unknown[] = [];
@@ -21,18 +16,15 @@ function reporting() {
   };
 }
 
-function counting(
-  work: (signal: AbortSignal) => Promise<void> = () => Promise.resolve(),
-) {
-  const runs: AbortSignal[] = [];
+function counting(work: Effect.Effect<void> = Effect.void) {
+  const runs: number[] = [];
   return {
     runs,
     work: {
       execute: () =>
-        nativeOperation((signal) => {
-          runs.push(signal);
-          return work(signal);
-        }),
+        Effect.sync(() => {
+          runs.push(runs.length);
+        }).pipe(Effect.andThen(work)),
     },
   };
 }
@@ -46,7 +38,7 @@ describe('IntervalJob', () => {
         work,
         { atStart: true },
         reporting().logger,
-        observability,
+        yield* Observability.pipe(Effect.provide(Observability.layer)),
       );
       yield* job.start();
       yield* job.stop();
@@ -62,7 +54,7 @@ describe('IntervalJob', () => {
         work,
         { every: Duration.seconds(1) },
         reporting().logger,
-        observability,
+        yield* Observability.pipe(Effect.provide(Observability.layer)),
       );
       yield* Effect.addFinalizer(() => job.stop());
       yield* job.start();
@@ -77,19 +69,19 @@ describe('IntervalJob', () => {
 
   it.effect('never overlaps a run even when multiple deadlines pass', () =>
     Effect.gen(function* () {
-      const release = Promise.withResolvers<void>();
-      const { runs, work } = counting(() => release.promise);
+      const release = yield* Deferred.make<void>();
+      const { runs, work } = counting(Deferred.await(release));
       const job = yield* makeIntervalJob(
         'job',
         work,
         { atStart: true, every: Duration.seconds(1) },
         reporting().logger,
-        observability,
+        yield* Observability.pipe(Effect.provide(Observability.layer)),
       );
       yield* job.start();
       yield* TestClock.adjust(4000);
       expect(runs).toHaveLength(1);
-      release.resolve();
+      yield* Deferred.succeed(release, undefined);
       yield* job.stop();
     }),
   );
@@ -98,31 +90,40 @@ describe('IntervalJob', () => {
     'aborts running work and holds stop until its native cleanup settles',
     () =>
       Effect.gen(function* () {
-        const aborted = Promise.withResolvers<void>();
-        const cleanup = Promise.withResolvers<void>();
-        const { runs, work } = counting((signal) => {
-          signal.addEventListener('abort', () => aborted.resolve(), {
-            once: true,
-          });
-          return cleanup.promise;
-        });
+        const aborted = yield* Deferred.make<void>();
+        const cleanup = yield* Deferred.make<void>();
+        const { runs, work } = counting(
+          Effect.never.pipe(
+            Effect.ensuring(
+              Deferred.succeed(aborted, undefined).pipe(
+                Effect.andThen(Deferred.await(cleanup)),
+              ),
+            ),
+          ),
+        );
         const job = yield* makeIntervalJob(
           'job',
           work,
           { atStart: true },
           reporting().logger,
-          observability,
+          yield* Observability.pipe(Effect.provide(Observability.layer)),
         );
         yield* job.start();
         let stopped = false;
-        const stopping = Effect.runPromise(job.stop()).then(() => {
-          stopped = true;
-        });
-        yield* Effect.promise(() => aborted.promise);
-        expect(runs[0]?.aborted).toBe(true);
+        const stopping = yield* Effect.forkChild(
+          job.stop().pipe(
+            Effect.tap(
+              Effect.sync(() => {
+                stopped = true;
+              }),
+            ),
+          ),
+        );
+        yield* Deferred.await(aborted);
+        expect(runs).toHaveLength(1);
         expect(stopped).toBe(false);
-        cleanup.resolve();
-        yield* Effect.promise(() => stopping);
+        yield* Deferred.succeed(cleanup, undefined);
+        yield* Fiber.join(stopping);
         expect(stopped).toBe(true);
       }),
   );
@@ -137,7 +138,7 @@ describe('IntervalJob', () => {
         work,
         { atStart: true },
         logger,
-        observability,
+        yield* Observability.pipe(Effect.provide(Observability.layer)),
       );
       yield* job.start();
       yield* job.stop();
@@ -155,7 +156,7 @@ describe('IntervalJob', () => {
         { execute: () => Effect.never },
         { atStart: true },
         logger,
-        observability,
+        yield* Observability.pipe(Effect.provide(Observability.layer)),
       );
       yield* job.start();
       yield* job.stop();
@@ -163,7 +164,7 @@ describe('IntervalJob', () => {
     }),
   );
 
-  it.effect('runs once at stop with a live native signal', () =>
+  it.effect('runs once at stop without interruption', () =>
     Effect.gen(function* () {
       const { runs, work } = counting();
       const job = yield* makeIntervalJob(
@@ -171,11 +172,11 @@ describe('IntervalJob', () => {
         work,
         { atStop: true },
         reporting().logger,
-        observability,
+        yield* Observability.pipe(Effect.provide(Observability.layer)),
       );
       yield* job.start();
       yield* job.stop();
-      expect(runs.map((signal) => signal.aborted)).toEqual([false]);
+      expect(runs).toEqual([0]);
     }),
   );
   it.effect('starts once, shares stop and can start fresh after stopping', () =>
@@ -186,7 +187,7 @@ describe('IntervalJob', () => {
         work,
         { atStart: true, atStop: true },
         reporting().logger,
-        observability,
+        yield* Observability.pipe(Effect.provide(Observability.layer)),
       );
       yield* job.start();
       yield* job.start();

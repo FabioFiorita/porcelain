@@ -449,10 +449,10 @@ const openServerWith =
 
 export const composeServer =
   (adapters: RemoteRouteAdapters) =>
-  (settings: ServerSettings, signal: AbortSignal, host: ServerHost) =>
+  (settings: ServerSettings, host: ServerHost) =>
     Effect.gen(function* () {
       const clock = yield* Clock.Clock;
-      return yield* startApplication(settings, signal, {
+      return yield* startApplication(settings, {
         openServer: openServerWith(adapters, host),
         ownerProbe: new SocketOwnerProbe(),
         clock,

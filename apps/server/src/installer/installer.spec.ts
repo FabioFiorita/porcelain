@@ -167,28 +167,29 @@ const execute = (
                     },
                   },
                   ownerProbe: {
-                    probe: async () => {
-                      if (service === undefined)
-                        return { kind: 'absent' as const };
-                      if (
-                        rejectCandidate &&
-                        readFileSync(manifest(runtime()), 'utf8').includes(
-                          '2.0.0',
+                    probe: () =>
+                      Effect.sync(() => {
+                        if (service === undefined)
+                          return { kind: 'absent' as const };
+                        if (
+                          rejectCandidate &&
+                          readFileSync(manifest(runtime()), 'utf8').includes(
+                            '2.0.0',
+                          )
                         )
-                      )
+                          return {
+                            kind: 'unreadable' as const,
+                            reason: 'candidate cannot start',
+                          };
                         return {
-                          kind: 'unreadable' as const,
-                          reason: 'candidate cannot start',
+                          kind: 'running' as const,
+                          status: {
+                            address: 'http://127.0.0.1:4737',
+                            dataDirectory: data,
+                            pid: service.pid ?? 0,
+                          },
                         };
-                      return {
-                        kind: 'running' as const,
-                        status: {
-                          address: 'http://127.0.0.1:4737',
-                          dataDirectory: data,
-                          pid: service.pid ?? 0,
-                        },
-                      };
-                    },
+                      }),
                   },
                 };
               }),

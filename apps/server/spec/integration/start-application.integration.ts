@@ -2,6 +2,7 @@ import { expect } from 'vitest';
 import {
   closeStartedApplication,
   failOwnerStartup,
+  interruptApplicationStartup,
 } from '../kit/application-start.ts';
 import { test } from '../kit/server-test.ts';
 
@@ -33,6 +34,16 @@ test('the application owns network and private Unix listeners and concurrent clo
 test('an owner startup failure releases both listeners, started jobs, persistence and the directory lock', async () => {
   expect(await failOwnerStartup()).toEqual({
     failure: 'Owner routes failed',
+    networkListening: false,
+    ownerListening: false,
+    events: closedEvents,
+    locked: false,
+  });
+});
+
+test('native startup interruption drains acquired jobs, persistence and the directory lock', async () => {
+  expect(await interruptApplicationStartup()).toEqual({
+    interrupted: true,
     networkListening: false,
     ownerListening: false,
     events: closedEvents,

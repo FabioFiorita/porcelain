@@ -3663,23 +3663,23 @@ const save = Effect.fail(new Error('Refused'));`,
   {
     rule: 'worktree-transaction-types',
     valid:
-      "import { Effect, type Context } from 'effect';\nimport { nativeRead, withReadLease } from '__ADMISSION__';\nimport type { Lanes } from '__LANES__';\ndeclare const lanes: Context.Service.Shape<typeof Lanes>;\nconst transaction = lanes.transaction('review', () => withReadLease('tree', nativeRead('tree', () => Promise.resolve('text'))), (text) => Effect.succeed(text), () => Effect.void);",
+      "import { Effect, type Context } from 'effect';\nimport { admittedRead, withReadLease } from '__ADMISSION__';\nimport type { Lanes } from '__LANES__';\ndeclare const lanes: Context.Service.Shape<typeof Lanes>;\nconst transaction = lanes.transaction('review', () => withReadLease('tree', admittedRead('tree', Effect.succeed('text'))), (text) => Effect.succeed(text), () => Effect.void);",
     invalid:
-      "import { Effect, type Context } from 'effect';\nimport { nativeRead, withReadLease } from '__ADMISSION__';\nimport type { Lanes } from '__LANES__';\ndeclare const lanes: Context.Service.Shape<typeof Lanes>;\nconst transaction = lanes.transaction('review', () => Effect.succeed('prepared'), () => nativeRead('tree', () => Promise.resolve('text')), () => Effect.void);",
+      "import { Effect, type Context } from 'effect';\nimport { admittedRead, withReadLease } from '__ADMISSION__';\nimport type { Lanes } from '__LANES__';\ndeclare const lanes: Context.Service.Shape<typeof Lanes>;\nconst transaction = lanes.transaction('review', () => Effect.succeed('prepared'), () => admittedRead('tree', Effect.succeed('text')), () => Effect.void);",
     errors: ['TS2375', 'TS377004'],
   },
   {
     rule: 'worktree-capability-types',
     valid: `import { Effect } from 'effect';
-import { nativeRead, nativeWrite, withReadLease, withWriteLease } from '__ADMISSION__';
-const read = nativeRead('tree', () => Promise.resolve('text'));
-const write = nativeWrite('tree', () => Promise.resolve('written'));
+import { admittedRead, admittedWrite, withReadLease, withWriteLease } from '__ADMISSION__';
+const read = admittedRead('tree', Effect.succeed('text'));
+const write = admittedWrite('tree', () => Effect.succeed('written'));
 Effect.runPromise(withReadLease('tree', read));
 Effect.runPromise(withWriteLease('tree', Effect.andThen(read, write)));`,
     invalid: `import { Effect } from 'effect';
-import { nativeRead, nativeWrite, withReadLease, WorktreeRead } from '__ADMISSION__';
-const read = nativeRead('tree', () => Promise.resolve('text'));
-const write = nativeWrite('tree', () => Promise.resolve('written'));
+import { admittedRead, admittedWrite, withReadLease, WorktreeRead } from '__ADMISSION__';
+const read = admittedRead('tree', Effect.succeed('text'));
+const write = admittedWrite('tree', () => Effect.succeed('written'));
 Effect.runPromise(read);
 Effect.runPromise(withReadLease('tree', write));
 Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => undefined }));`,

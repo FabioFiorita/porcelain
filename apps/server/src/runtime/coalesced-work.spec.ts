@@ -1,185 +1,170 @@
-import { describe, expect, it } from 'vitest';
-import { Effect, Exit, Queue, Scope } from 'effect';
-import { nativeOperation } from '@porcelain/effects';
+import { describe, expect, it } from '@effect/vitest';
+import { Cause, Deferred, Effect, Exit, Fiber, Queue, Scope } from 'effect';
 import { makeCoalescedWork } from './coalesced-work.ts';
 
-async function held() {
-  const started = await Effect.runPromise(
-    Queue.unbounded<PromiseWithResolvers<void>>(),
-  );
+const held = Effect.fn(function* () {
+  const started = yield* Queue.unbounded<Deferred.Deferred<void>>();
   let active = 0;
   let mostAtOnce = 0;
   let runs = 0;
   return {
-    next: () => Effect.runPromise(Queue.take(started)),
+    next: () => Queue.take(started),
     runs: () => runs,
     mostAtOnce: () => mostAtOnce,
     work: {
       execute: () =>
-        nativeOperation(() => {
-          const run = Promise.withResolvers<void>();
+        Effect.gen(function* () {
+          const run = yield* Deferred.make<void>();
           runs += 1;
           active += 1;
           mostAtOnce = Math.max(mostAtOnce, active);
-          Queue.offerUnsafe(started, run);
-          return run.promise.finally(() => {
-            active -= 1;
-          });
+          yield* Queue.offer(started, run);
+          yield* Deferred.await(run).pipe(
+            Effect.ensuring(
+              Effect.sync(() => {
+                active -= 1;
+              }),
+            ),
+          );
         }),
     },
   };
-}
+});
 
 describe('CoalescedWork', () => {
-  it('runs the work once for a single request', async () => {
-    const subject = await held();
-    const scope = await Effect.runPromise(Scope.make());
-    const refresh = await Effect.runPromise(
-      makeCoalescedWork(subject.work).pipe(Scope.provide(scope)),
-    );
-    try {
-      const done = Effect.runPromise(refresh.execute());
-      (await subject.next()).resolve();
-      await done;
+  it.effect('runs the work once for a single request', () =>
+    Effect.gen(function* () {
+      const subject = yield* held();
+      const refresh = yield* makeCoalescedWork(subject.work);
+      const done = yield* Effect.forkChild(refresh.execute());
+      yield* Deferred.succeed(yield* subject.next(), undefined);
+      yield* Fiber.join(done);
       expect(subject.runs()).toBe(1);
-    } finally {
-      await Effect.runPromise(Scope.close(scope, Exit.void));
-    }
-  });
-
-  it('gives requests made during a run one shared following run', async () => {
-    const subject = await held();
-    const scope = await Effect.runPromise(Scope.make());
-    const refresh = await Effect.runPromise(
-      makeCoalescedWork(subject.work).pipe(Scope.provide(scope)),
-    );
-    try {
-      const first = Effect.runPromise(refresh.execute());
-      const firstRun = await subject.next();
+    }),
+  );
+  it.effect('gives requests made during a run one shared following run', () =>
+    Effect.gen(function* () {
+      const subject = yield* held();
+      const refresh = yield* makeCoalescedWork(subject.work);
+      const first = yield* Effect.forkChild(refresh.execute());
+      const firstRun = yield* subject.next();
       let laterSettled = 0;
-      const later = [1, 2, 3].map(() =>
-        Effect.runPromise(refresh.execute()).then(() => {
-          laterSettled += 1;
-        }),
+      const later = yield* Effect.forEach([1, 2, 3], () =>
+        Effect.forkChild(
+          refresh.execute().pipe(
+            Effect.tap(
+              Effect.sync(() => {
+                laterSettled += 1;
+              }),
+            ),
+          ),
+          { startImmediately: true },
+        ),
       );
       expect(subject.runs()).toBe(1);
-      firstRun.resolve();
-      await first;
-      const following = await subject.next();
+      yield* Deferred.succeed(firstRun, undefined);
+      yield* Fiber.join(first);
+      const following = yield* subject.next();
       expect({ runs: subject.runs(), laterSettled }).toEqual({
         runs: 2,
         laterSettled: 0,
       });
-      following.resolve();
-      await Promise.all(later);
+      yield* Deferred.succeed(following, undefined);
+      yield* Fiber.joinAll(later);
       expect({
         runs: subject.runs(),
         mostAtOnce: subject.mostAtOnce(),
       }).toEqual({ runs: 2, mostAtOnce: 1 });
-    } finally {
-      await Effect.runPromise(Scope.close(scope, Exit.void));
-    }
-  });
-
-  it('starts a new run for a request made after the last one settled', async () => {
-    const subject = await held();
-    const scope = await Effect.runPromise(Scope.make());
-    const refresh = await Effect.runPromise(
-      makeCoalescedWork(subject.work).pipe(Scope.provide(scope)),
-    );
-    try {
-      const first = Effect.runPromise(refresh.execute());
-      (await subject.next()).resolve();
-      await first;
-      const second = Effect.runPromise(refresh.execute());
-      (await subject.next()).resolve();
-      await second;
-      expect(subject.runs()).toBe(2);
-    } finally {
-      await Effect.runPromise(Scope.close(scope, Exit.void));
-    }
-  });
-
-  it('preserves each failed run and allows a fresh following request', async () => {
-    const subject = await held();
-    const scope = await Effect.runPromise(Scope.make());
-    const refresh = await Effect.runPromise(
-      makeCoalescedWork(subject.work).pipe(Scope.provide(scope)),
-    );
-    try {
-      const first = Effect.runPromise(refresh.execute());
-      const firstRun = await subject.next();
-      const firstFailed = expect(first).rejects.toThrow('listing failed');
-      const shared = Effect.runPromise(refresh.execute());
-      const sharedFailed = expect(shared).rejects.toThrow(
-        'listing failed again',
-      );
-      firstRun.reject(new Error('listing failed'));
-      await firstFailed;
-      (await subject.next()).reject(new Error('listing failed again'));
-      await sharedFailed;
-      const next = Effect.runPromise(refresh.execute());
-      (await subject.next()).resolve();
-      await next;
-      expect(subject.runs()).toBe(3);
-    } finally {
-      await Effect.runPromise(Scope.close(scope, Exit.void));
-    }
-  });
-
-  it('lets a cancelled caller leave while shared refresh work continues', async () => {
-    const subject = await held();
-    const scope = await Effect.runPromise(Scope.make());
-    const refresh = await Effect.runPromise(
-      makeCoalescedWork(subject.work).pipe(Scope.provide(scope)),
-    );
-    try {
-      const leaving = new AbortController();
-      const cancelled = Effect.runPromiseExit(refresh.execute(), {
-        signal: leaving.signal,
-      });
-      const firstRun = await subject.next();
-      const staying = Effect.runPromise(refresh.execute());
-      leaving.abort();
-      expect(Exit.hasInterrupts(await cancelled)).toBe(true);
-      firstRun.resolve();
-      (await subject.next()).resolve();
-      await staying;
-      expect(subject.runs()).toBe(2);
-    } finally {
-      await Effect.runPromise(Scope.close(scope, Exit.void));
-    }
-  });
-  it('waits for the running refresh to settle native cleanup when its owning scope closes', async () => {
-    const aborted = Promise.withResolvers<void>();
-    const started = Promise.withResolvers<void>();
-    const cleanup = Promise.withResolvers<void>();
-    const scope = await Effect.runPromise(Scope.make());
-    const refresh = await Effect.runPromise(
-      makeCoalescedWork({
+    }),
+  );
+  it.effect(
+    'starts a new run for a request made after the last one settled',
+    () =>
+      Effect.gen(function* () {
+        const subject = yield* held();
+        const refresh = yield* makeCoalescedWork(subject.work);
+        const first = yield* Effect.forkChild(refresh.execute());
+        yield* Deferred.succeed(yield* subject.next(), undefined);
+        yield* Fiber.join(first);
+        const second = yield* Effect.forkChild(refresh.execute());
+        yield* Deferred.succeed(yield* subject.next(), undefined);
+        yield* Fiber.join(second);
+        expect(subject.runs()).toBe(2);
+      }),
+  );
+  it.effect(
+    'preserves each failed run and allows a fresh following request',
+    () =>
+      Effect.gen(function* () {
+        const subject = yield* held();
+        const refresh = yield* makeCoalescedWork(subject.work);
+        const first = yield* Effect.forkChild(Effect.exit(refresh.execute()));
+        const firstRun = yield* subject.next();
+        const shared = yield* Effect.forkChild(Effect.exit(refresh.execute()), {
+          startImmediately: true,
+        });
+        const failure = new Error('listing failed');
+        const again = new Error('listing failed again');
+        yield* Deferred.done(firstRun, Exit.die(failure));
+        const failed = yield* Fiber.join(first);
+        expect(Exit.isFailure(failed) && Cause.squash(failed.cause)).toBe(
+          failure,
+        );
+        yield* Deferred.done(yield* subject.next(), Exit.die(again));
+        const sharedFailed = yield* Fiber.join(shared);
+        expect(
+          Exit.isFailure(sharedFailed) && Cause.squash(sharedFailed.cause),
+        ).toBe(again);
+        const next = yield* Effect.forkChild(refresh.execute());
+        yield* Deferred.succeed(yield* subject.next(), undefined);
+        yield* Fiber.join(next);
+        expect(subject.runs()).toBe(3);
+      }),
+  );
+  it.effect(
+    'lets a cancelled caller leave while shared refresh work continues',
+    () =>
+      Effect.gen(function* () {
+        const subject = yield* held();
+        const refresh = yield* makeCoalescedWork(subject.work);
+        const cancelled = yield* Effect.forkChild(refresh.execute());
+        const firstRun = yield* subject.next();
+        const staying = yield* Effect.forkChild(refresh.execute(), {
+          startImmediately: true,
+        });
+        yield* Fiber.interrupt(cancelled);
+        expect(Exit.hasInterrupts(yield* Fiber.await(cancelled))).toBe(true);
+        yield* Deferred.succeed(firstRun, undefined);
+        yield* Deferred.succeed(yield* subject.next(), undefined);
+        yield* Fiber.join(staying);
+        expect(subject.runs()).toBe(2);
+      }),
+  );
+  it.effect('waits for running cleanup when its owning scope closes', () =>
+    Effect.gen(function* () {
+      const interrupted = yield* Deferred.make<void>();
+      const started = yield* Deferred.make<void>();
+      const cleanup = yield* Deferred.make<void>();
+      const scope = yield* Scope.make();
+      const refresh = yield* makeCoalescedWork({
         execute: () =>
-          nativeOperation((signal) => {
-            signal.addEventListener('abort', () => aborted.resolve(), {
-              once: true,
-            });
-            started.resolve();
-            return cleanup.promise;
-          }),
-      }).pipe(Scope.provide(scope)),
-    );
-    const request = Effect.runPromiseExit(refresh.execute());
-    await started.promise;
-    let closed = false;
-    const closing = Effect.runPromise(Scope.close(scope, Exit.void)).then(
-      () => {
-        closed = true;
-      },
-    );
-    await aborted.promise;
-    expect(closed).toBe(false);
-    cleanup.resolve();
-    await closing;
-    expect(closed).toBe(true);
-    expect(Exit.hasInterrupts(await request)).toBe(true);
-  });
+          Deferred.succeed(started, undefined).pipe(
+            Effect.andThen(Effect.never),
+            Effect.ensuring(
+              Deferred.succeed(interrupted, undefined).pipe(
+                Effect.andThen(Deferred.await(cleanup)),
+              ),
+            ),
+          ),
+      }).pipe(Scope.provide(scope));
+      const request = yield* Effect.forkChild(refresh.execute());
+      yield* Deferred.await(started);
+      const closing = yield* Effect.forkChild(Scope.close(scope, Exit.void));
+      yield* Deferred.await(interrupted);
+      expect(closing.pollUnsafe()).toBeUndefined();
+      yield* Deferred.succeed(cleanup, undefined);
+      yield* Fiber.join(closing);
+      expect(Exit.hasInterrupts(yield* Fiber.await(request))).toBe(true);
+    }),
+  );
 });

@@ -1,5 +1,4 @@
 import { Effect, Exit, FileSystem, Path, Scope, type Clock } from 'effect';
-import { nativeOperation } from '@porcelain/effects';
 import { networkInterfaces } from 'node:os';
 import type { HostPolicy, PairingReach } from '@porcelain/access/models';
 import type { OwnerStatus } from '@porcelain/kernel/models';
@@ -21,7 +20,6 @@ export type OpenServer = (input: {
   settings: ServerSettings;
   pairingReach: () => PairingReach;
   runtimeStatus: () => OwnerStatus;
-  signal: AbortSignal;
 }) => Effect.Effect<OpenedServer, never, Scope.Scope>;
 type ApplicationStarter = {
   openServer: OpenServer;
@@ -61,7 +59,6 @@ function listeningOn(host: string): string[] {
 
 export const startApplication = Effect.fn('startApplication')(function* (
   settings: ServerSettings,
-  signal: AbortSignal,
   starter: ApplicationStarter,
 ) {
   const fs = yield* FileSystem.FileSystem;
@@ -71,7 +68,6 @@ export const startApplication = Effect.fn('startApplication')(function* (
   const parts: RuntimeParts = { jobs: [], listeners: [] };
   const startup = Effect.scoped(
     Effect.gen(function* () {
-      yield* Effect.sync(() => signal.throwIfAborted());
       const directory = yield* prepareDataDirectory(settings.dataDirectory);
       const socketPath = ownerSocketPath(directory);
       const reach: { port: number; policy: HostPolicy } = {
@@ -91,13 +87,10 @@ export const startApplication = Effect.fn('startApplication')(function* (
         clock: starter.clock,
         held: () => new DataDirectoryOwnedError(directory),
       }).pipe(Scope.provide(applicationScope));
-      yield* Effect.sync(() => signal.throwIfAborted());
-      const probe = yield* nativeOperation(() =>
-        starter.ownerProbe.probe({
-          socketPath,
-          timeoutMs: limits.owner.probeTimeoutMs,
-        }),
-      );
+      const probe = yield* starter.ownerProbe.probe({
+        socketPath,
+        timeoutMs: limits.owner.probeTimeoutMs,
+      });
       if (probe.kind === 'running')
         return yield* Effect.fail(new DataDirectoryOwnedError(directory));
       if (probe.kind === 'unreadable')
@@ -105,18 +98,15 @@ export const startApplication = Effect.fn('startApplication')(function* (
           new OwnerSocketUnreadableError(socketPath, probe.reason),
         );
       yield* fs.remove(socketPath, { force: true });
-      yield* Effect.sync(() => signal.throwIfAborted());
       parts.opened = yield* starter
         .openServer({
           settings: { ...settings, dataDirectory: directory },
           pairingReach: () => reach,
           runtimeStatus: () => status,
-          signal,
         })
         .pipe(Scope.provide(applicationScope));
       yield* Scope.addFinalizer(applicationScope, shutDown(parts));
       const opened = parts.opened;
-      yield* Effect.sync(() => signal.throwIfAborted());
       for (const job of opened.jobs) {
         parts.jobs.push(job);
         yield* job.start();

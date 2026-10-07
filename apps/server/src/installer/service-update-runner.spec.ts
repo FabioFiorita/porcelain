@@ -1,10 +1,10 @@
-import { Effect } from 'effect';
+import { TestClock } from 'effect/testing';
+import { Deferred, Effect, Exit, Fiber } from 'effect';
 import { NodeServices } from '@effect/platform-node';
-import { nativeOperation, withSignal } from '@porcelain/effects';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from '@effect/vitest';
 import { openServiceUpdateRunner } from './service-update-runner.ts';
 import type { CommandRunner } from './command-runner.ts';
 
@@ -16,7 +16,6 @@ let updaterActive: boolean;
 let npmViews: number;
 let nativeModulesLoad: Answer;
 let commands: string[];
-const owned: Effect.Success<ReturnType<typeof openServiceUpdateRunner>>[] = [];
 
 const packageName = '@fabiofiorita/porcelain';
 const serviceNode = '/opt/service/bin/node';
@@ -74,27 +73,25 @@ function install(version: string) {
   );
 }
 
-const runner = async (
-  packageRoot = runtimePackage(),
-  command: CommandRunner = answer,
-) => {
-  const updates = await Effect.runPromise(
-    openServiceUpdateRunner({
-      homeDirectory: home,
-      packageRoot,
-      searchPath: '/usr/bin',
-      command: {
-        timeoutMs: 1000,
-        maxBytes: 1024,
-        processGroup: { lingerMs: 10, cleanupMs: 10, pollMs: 1 },
-      },
-      runner: command,
-      nodeExecutable: serviceNode,
-    }).pipe(Effect.provide(NodeServices.layer)),
-  );
-  owned.push(updates);
+const runner = Effect.fn('Test.openUpdateRunner')(function* (
+  packageRoot: string = runtimePackage(),
+  command: CommandRunner = (command, args) => answer(command, args),
+) {
+  const updates = yield* openServiceUpdateRunner({
+    homeDirectory: home,
+    packageRoot,
+    searchPath: '/usr/bin',
+    command: {
+      timeoutMs: 1000,
+      maxBytes: 1024,
+      processGroup: { lingerMs: 10, cleanupMs: 10, pollMs: 1 },
+    },
+    runner: command,
+    nodeExecutable: serviceNode,
+  }).pipe(Effect.provide(NodeServices.layer));
+  yield* Effect.addFinalizer(() => updates.close());
   return updates;
-};
+});
 const check = (now: string, staleBefore: string) => ({ now, staleBefore });
 
 beforeEach(() => {
@@ -107,187 +104,197 @@ beforeEach(() => {
   install('1.0.0');
 });
 
-afterEach(async () => {
-  await Promise.all(
-    owned.splice(0).map((updates) => Effect.runPromise(updates.close())),
-  );
+afterEach(() => {
   rmSync(home, { recursive: true, force: true });
 });
 
 describe('the installed service update runner', () => {
-  it('owns accepted preparation after caller disconnect and waits for native cleanup before recording shutdown', async () => {
-    const started = Promise.withResolvers<AbortSignal>();
-    const aborted = Promise.withResolvers<void>();
-    const cleanup = Promise.withResolvers<Answer>();
-    const updates = await runner(runtimePackage(), (command, args) => {
-      if (command !== 'npm' || args[0] !== 'install')
-        return answer(command, args);
-      return nativeOperation((signal) => {
-        signal.addEventListener('abort', () => aborted.resolve(), {
-          once: true,
+  it.effect(
+    'owns accepted preparation after caller disconnect and waits for native cleanup before recording shutdown',
+    () =>
+      Effect.gen(function* () {
+        const started = Deferred.makeUnsafe<void>();
+        const aborted = Deferred.makeUnsafe<void>();
+        const cleanup = Deferred.makeUnsafe<Answer>();
+        let interrupted = false;
+        const updates = yield* runner(runtimePackage(), (command, args) => {
+          if (command !== 'npm' || args[0] !== 'install')
+            return answer(command, args);
+          return Deferred.succeed(started, undefined).pipe(
+            Effect.andThen(Deferred.await(cleanup)),
+            Effect.onInterrupt(() =>
+              Effect.gen(function* () {
+                interrupted = true;
+                yield* Deferred.succeed(aborted, undefined);
+                yield* Deferred.await(cleanup);
+              }),
+            ),
+          );
         });
-        started.resolve(signal);
-        return cleanup.promise;
+        const caller = yield* Effect.forkChild(
+          updates
+            .start({ version: '1.1.0' })
+            .pipe(Effect.andThen(Effect.never)),
+        );
+        yield* Deferred.await(started);
+        yield* Fiber.interrupt(caller);
+        expect(interrupted).toBe(false);
+        const closing = yield* Effect.forkChild(updates.close());
+        yield* Deferred.await(aborted);
+        expect(
+          (yield* updates.read(
+            check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+          )).running,
+        ).toBe(true);
+        yield* Deferred.succeed(cleanup, {
+          code: 1,
+          stdout: '',
+          stderr: 'Stopped',
+        });
+        yield* Fiber.join(closing);
+        expect(
+          yield* updates.read(
+            check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+          ),
+        ).toMatchObject({
+          running: false,
+          last: {
+            from: '1.0.0',
+            target: '1.1.0',
+            stage: 'failed',
+            reason: 'The server stopped before the update was handed off.',
+          },
+        });
+        expect(commands).not.toContain('systemd-run');
+      }).pipe(TestClock.withLive),
+  );
+
+  it.effect('offers the newer published version to the installed service', () =>
+    Effect.gen(function* () {
+      expect(
+        yield* (yield* runner()).read(
+          check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+        ),
+      ).toEqual({
+        managed: true,
+        version: '1.0.0',
+        latest: '1.1.0',
+        available: true,
+        running: false,
+        last: undefined,
       });
-    });
-    const caller = new AbortController();
-    await Effect.runPromise(
-      withSignal(updates.start({ version: '1.1.0' }), caller.signal),
-    );
-    const preparation = await started.promise;
-    caller.abort();
-    expect(preparation.aborted).toBe(false);
-    const closing = Effect.runPromise(updates.close());
-    await aborted.promise;
-    expect(
-      (
-        await Effect.runPromise(
-          updates.read(
-            check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
-          ),
-        )
-      ).running,
-    ).toBe(true);
-    cleanup.resolve({ code: 1, stdout: '', stderr: 'Stopped' });
-    await closing;
-    expect(
-      await Effect.runPromise(
-        updates.read(
+    }).pipe(TestClock.withLive),
+  );
+
+  it.effect(
+    'asks the registry again only once its last answer is older than the freshness window',
+    () =>
+      Effect.gen(function* () {
+        const updates = yield* runner();
+        yield* updates.read(
           check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
-        ),
-      ),
-    ).toMatchObject({
-      running: false,
-      last: {
-        from: '1.0.0',
-        target: '1.1.0',
-        stage: 'failed',
-        reason: 'The server stopped before the update was handed off.',
-      },
-    });
-    expect(commands).not.toContain('systemd-run');
-  });
+        );
+        published = '1.2.0';
+        const fresh = yield* updates.read(
+          check('2026-09-29T12:05:00.000Z', '2026-09-29T11:55:00.000Z'),
+        );
+        expect(fresh.latest).toBe('1.1.0');
+        expect(npmViews).toBe(1);
+        const stale = yield* updates.read(
+          check('2026-09-29T12:11:00.000Z', '2026-09-29T12:01:00.000Z'),
+        );
+        expect(stale.latest).toBe('1.2.0');
+        expect(npmViews).toBe(2);
+      }).pipe(TestClock.withLive),
+  );
 
-  it('offers the newer published version to the installed service', async () => {
-    expect(
-      await Effect.runPromise(
-        (await runner()).read(
-          check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
-        ),
-      ),
-    ).toEqual({
-      managed: true,
-      version: '1.0.0',
-      latest: '1.1.0',
-      available: true,
-      running: false,
-      last: undefined,
-    });
-  });
-
-  it('asks the registry again only once its last answer is older than the freshness window', async () => {
-    const updates = await runner();
-    await Effect.runPromise(
-      updates.read(
+  it.effect('does not ask the registry while an update runs', () =>
+    Effect.gen(function* () {
+      updaterActive = true;
+      const state = yield* (yield* runner()).read(
         check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
-      ),
-    );
-    published = '1.2.0';
-    const fresh = await Effect.runPromise(
-      updates.read(
-        check('2026-09-29T12:05:00.000Z', '2026-09-29T11:55:00.000Z'),
-      ),
-    );
-    expect(fresh.latest).toBe('1.1.0');
-    expect(npmViews).toBe(1);
-    const stale = await Effect.runPromise(
-      updates.read(
-        check('2026-09-29T12:11:00.000Z', '2026-09-29T12:01:00.000Z'),
-      ),
-    );
-    expect(stale.latest).toBe('1.2.0');
-    expect(npmViews).toBe(2);
-  });
+      );
+      expect(state.running).toBe(true);
+      expect(npmViews).toBe(0);
+    }).pipe(TestClock.withLive),
+  );
 
-  it('does not ask the registry while an update runs', async () => {
-    updaterActive = true;
-    const state = await Effect.runPromise(
-      (await runner()).read(
-        check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
-      ),
-    );
-    expect(state.running).toBe(true);
-    expect(npmViews).toBe(0);
-  });
-
-  it('stops a read whose request went away before the registry answered', async () => {
-    const aborted = new AbortController();
-    aborted.abort();
-    await expect(
-      Effect.runPromise(
-        withSignal(
-          (await runner()).read(
-            check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
-          ),
-          aborted.signal,
-        ),
-      ),
-    ).rejects.toThrow();
-  });
-
-  it('starts nothing for a request that went away before the update was claimed', async () => {
-    const updates = await runner();
-    const aborted = new AbortController();
-    aborted.abort();
-    await expect(
-      Effect.runPromise(
-        withSignal(updates.start({ version: '1.1.0' }), aborted.signal),
-      ),
-    ).rejects.toThrow();
-    const state = await Effect.runPromise(
-      updates.read(
-        check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
-      ),
-    );
-    expect(state).toMatchObject({ running: false, last: undefined });
-  });
-
-  it('offers nothing to a server that does not run from the installed runtime', async () => {
-    const state = await Effect.runPromise(
-      (await runner(join(home, 'elsewhere'))).read(
-        check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
-      ),
-    );
-    expect(state).toMatchObject({ managed: false, available: false });
-    expect(npmViews).toBe(0);
-  });
-
-  it('fails the update with the reason and hands nothing over when the downloaded runtime cannot load its native modules', async () => {
-    nativeModulesLoad = {
-      code: 1,
-      stdout: '',
-      stderr: 'Could not locate the bindings file.',
-    };
-    const updates = await runner();
-    await Effect.runPromise(updates.start({ version: '1.1.0' }));
-    await expect
-      .poll(
-        async () =>
-          (
-            await Effect.runPromise(
+  it.effect(
+    'stops a read whose request went away before the registry answered',
+    () =>
+      Effect.gen(function* () {
+        const updates = yield* runner();
+        const exit = yield* Effect.exit(
+          Effect.interrupt.pipe(
+            Effect.andThen(
               updates.read(
                 check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
               ),
-            )
-          ).last,
-      )
-      .toEqual({
-        from: '1.0.0',
-        target: '1.1.0',
-        stage: 'failed',
-        reason:
-          'The persistent runtime cannot load its native modules (node:sqlite, @parcel/watcher): Could not locate the bindings file.',
-      });
-    expect(commands).not.toContain('systemd-run');
-  });
+            ),
+          ),
+        );
+        expect(Exit.hasInterrupts(exit)).toBe(true);
+        expect(npmViews).toBe(0);
+      }).pipe(TestClock.withLive),
+  );
+
+  it.effect(
+    'starts nothing for a request that went away before the update was claimed',
+    () =>
+      Effect.gen(function* () {
+        const updates = yield* runner();
+        const exit = yield* Effect.exit(
+          Effect.interrupt.pipe(
+            Effect.andThen(updates.start({ version: '1.1.0' })),
+          ),
+        );
+        expect(Exit.hasInterrupts(exit)).toBe(true);
+        const state = yield* updates.read(
+          check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+        );
+        expect(state).toMatchObject({ running: false, last: undefined });
+      }).pipe(TestClock.withLive),
+  );
+
+  it.effect(
+    'offers nothing to a server that does not run from the installed runtime',
+    () =>
+      Effect.gen(function* () {
+        const state = yield* (yield* runner(join(home, 'elsewhere'))).read(
+          check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+        );
+        expect(state).toMatchObject({ managed: false, available: false });
+        expect(npmViews).toBe(0);
+      }).pipe(TestClock.withLive),
+  );
+
+  it.effect(
+    'fails the update with the reason and hands nothing over when the downloaded runtime cannot load its native modules',
+    () =>
+      Effect.gen(function* () {
+        nativeModulesLoad = {
+          code: 1,
+          stdout: '',
+          stderr: 'Could not locate the bindings file.',
+        };
+        const updates = yield* runner();
+        yield* updates.start({ version: '1.1.0' });
+        const state = yield* updates
+          .read(check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'))
+          .pipe(
+            Effect.repeat({
+              until: (state) => !state.running && state.last !== undefined,
+            }),
+            Effect.timeout(1000),
+          );
+        expect(state.last).toEqual({
+          from: '1.0.0',
+          target: '1.1.0',
+          stage: 'failed',
+          reason:
+            'The persistent runtime cannot load its native modules (node:sqlite, @parcel/watcher): Could not locate the bindings file.',
+        });
+        expect(commands).not.toContain('systemd-run');
+      }).pipe(TestClock.withLive),
+  );
 });

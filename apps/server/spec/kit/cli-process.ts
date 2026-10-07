@@ -69,7 +69,7 @@ function cliRunner() {
         return {
           startServer: () => Effect.die(new Error('Serve was not requested')),
           ownerProbe: {
-            probe: () => Promise.resolve({ kind: 'absent' as const }),
+            probe: () => Effect.succeed({ kind: 'absent' as const }),
           },
           clock: yield* Clock.Clock,
           limits: LIMITS,
