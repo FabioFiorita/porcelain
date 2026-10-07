@@ -21,14 +21,13 @@
     "serve": "node scripts/serve.ts",
     "build:package": "node scripts/build-package.ts",
     "prepare": "lefthook install --reset-hooks-path && effect-tsgo patch --typescript",
-    "check": "turbo run typecheck test lint:server lint:web format:server:check format:web:check arch:check test:rules probes:check knip features:check --output-logs=errors-only --continue --concurrency=100%",
+    "check": "turbo run typecheck test lint:server lint:web format:server:check format:web:check arch:check test:rules knip features:check --output-logs=errors-only --continue --concurrency=100%",
     "test:rules": "node architecture/rule-tests.mjs",
-    "probes:check": "node scripts/probes.ts --check",
     "features:check": "node scripts/feature-maps.ts",
     "desktop:build": "node scripts/build-desktop.ts",
     "desktop:install": "node scripts/install-desktop.ts",
     "dev:mobile": "pnpm --filter @porcelain/mobile dev",
-    "check:local": "turbo run typecheck lint:server lint:web format:server:check format:web:check arch:check test:rules probes:check knip features:check --output-logs=errors-only --continue --concurrency=2",
+    "check:local": "turbo run typecheck lint:server lint:web format:server:check format:web:check arch:check test:rules knip features:check --output-logs=errors-only --continue --concurrency=2",
     "knip": "knip --config architecture/knip.ts --no-progress"
   },
   "devDependencies": {

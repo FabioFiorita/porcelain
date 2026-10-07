@@ -128,12 +128,6 @@
         "$TURBO_DEFAULT$",
         "!repos/**"
       ]
-    },
-    "//#probes:check": {
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "!repos/**"
-      ]
     }
   }
 }

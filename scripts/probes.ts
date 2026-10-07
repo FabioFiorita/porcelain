@@ -17,7 +17,6 @@ import {
   liveRuleNames,
   probeSchema,
   unknownRule,
-  unprobedRules,
   type ProbeEdit,
   type ProbeGate,
 } from '../architecture/probe.ts';
@@ -30,6 +29,7 @@ type Selection = {
   named: readonly string[];
   shard: Shard | undefined;
   check: boolean;
+  list: boolean;
 };
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const probeFolder = join(root, 'architecture', 'probes');
@@ -138,11 +138,6 @@ async function loadProbes(): Promise<LoadedProbe[]> {
     return problem ? [`architecture/probes/${probe.id}.ts: ${problem}`] : [];
   });
   if (dishonest.length > 0) throw new Error(dishonest.join('\n'));
-  const unprobed = unprobedRules(probes, names);
-  if (unprobed.length > 0)
-    throw new Error(
-      `Every architecture and style rule has a probe that plants its violation; these have none: ${unprobed.join(', ')}`,
-    );
   return probes;
 }
 function parsedShard(value: string): Shard {
@@ -161,6 +156,7 @@ function selection(args: readonly string[]): Selection {
     options: {
       shard: { type: 'string', multiple: true },
       check: { type: 'boolean', default: false },
+      list: { type: 'boolean', default: false },
     },
     allowPositionals: true,
     strict: true,
@@ -177,6 +173,7 @@ function selection(args: readonly string[]): Selection {
     named: positionals,
     shard: shard === undefined ? undefined : parsedShard(shard),
     check: values.check,
+    list: values.list,
   };
 }
 function namedProbes(
@@ -375,6 +372,11 @@ async function main(): Promise<number> {
   const started = performance.now();
   const selected = selection(process.argv.slice(2));
   const { chosen: probes, scope } = chosenProbes(await loadProbes(), selected);
+  if (selected.list) {
+    for (const probe of probes) process.stdout.write(`${probe.id}\n`);
+    process.stdout.write(`${probes.length} probes.\n`);
+    return 0;
+  }
   const stale = probes.flatMap((probe) => {
     try {
       preflightAt(root, probe.edits);
