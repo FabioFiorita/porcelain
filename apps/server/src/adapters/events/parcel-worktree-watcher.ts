@@ -13,7 +13,7 @@ import {
 import { WorktreeWatchError } from '../../runtime/errors/worktree-watch-error.ts';
 import type { Limits } from '../../config/limits.ts';
 import { listIgnoredPaths } from '@porcelain/git/inspection';
-import { captureGitPlatform } from '../projects/git-platform.ts';
+import { captureGitPlatform } from '@porcelain/git/discovery';
 import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
 import type {
   ListableProject,

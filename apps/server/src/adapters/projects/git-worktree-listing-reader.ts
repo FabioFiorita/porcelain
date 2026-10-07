@@ -1,5 +1,5 @@
 import { type Duration, Effect, Layer, Semaphore } from 'effect';
-import { captureGitPlatform } from './git-platform.ts';
+import { captureGitPlatform } from '@porcelain/git/discovery';
 import { listWorktrees } from '@porcelain/git/discovery';
 import { isRepositoryUnavailable } from '@porcelain/git/errors';
 import type {

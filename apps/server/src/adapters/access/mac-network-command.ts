@@ -1,9 +1,22 @@
 import { Effect } from 'effect';
+import { ChildProcessSpawner } from 'effect/process';
 import { runCommand } from '@porcelain/process';
 import type { Limits } from '../../config/limits.ts';
 import { macPrimaryService } from './mac-network-output.ts';
 
 type NetworkDiscoveryLimits = Limits['access']['networkDiscovery'];
+
+export const captureMacNetworkPlatform = Effect.fn(
+  'MacNetwork.capturePlatform',
+)(function* () {
+  const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+  return <A, E, R>(operation: Effect.Effect<A, E, R>) =>
+    Effect.provideService(
+      operation,
+      ChildProcessSpawner.ChildProcessSpawner,
+      spawner,
+    );
+});
 
 const output = Effect.fn('MacNetwork.output')(
   function* (

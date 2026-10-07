@@ -4,7 +4,7 @@ import { readGitEffect } from '../../runtime/git-io.ts';
 import { type GitIoFailure } from '@porcelain/git/errors';
 import { join } from 'node:path';
 import { readSubmoduleHeads } from '@porcelain/git/inspection';
-import { captureGitPlatform } from '../projects/git-platform.ts';
+import { captureGitPlatform } from '@porcelain/git/discovery';
 import {
   type StagingStampRequest,
   type SubmoduleHeadsRequest,

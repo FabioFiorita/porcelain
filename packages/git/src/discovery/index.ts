@@ -4,3 +4,4 @@ export { readGitVersion } from './commands/read-git-version.ts';
 export { identity } from '../shared/commands/identity.ts';
 export { corroborates, readGitdirPointer } from '../shared/commands/gitdir.ts';
 export { readHead } from './commands/read-head.ts';
+export { captureGitPlatform } from './capture-platform.ts';

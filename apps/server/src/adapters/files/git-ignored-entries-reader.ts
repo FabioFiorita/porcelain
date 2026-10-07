@@ -1,4 +1,4 @@
-import { captureGitPlatform } from '../projects/git-platform.ts';
+import { captureGitPlatform } from '@porcelain/git/discovery';
 import { readGitEffect } from '../../runtime/git-io.ts';
 import type { IgnoredEntriesReadInput } from '@porcelain/files/models';
 import { IgnoredEntriesReader } from '@porcelain/files/ports';

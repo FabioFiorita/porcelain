@@ -3,7 +3,7 @@ import { HeadTextReader } from '@porcelain/files/ports';
 import { readHeadBlob } from '@porcelain/git/inspection';
 import { Effect, Layer } from 'effect';
 import { readGitEffect } from '../../runtime/git-io.ts';
-import { captureGitPlatform } from '../projects/git-platform.ts';
+import { captureGitPlatform } from '@porcelain/git/discovery';
 import type { OpenInspection } from '../changes/inspection-checkouts.ts';
 import { decodedText } from './filesystem-file-reader.ts';
 

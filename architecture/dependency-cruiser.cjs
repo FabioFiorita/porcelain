@@ -82,7 +82,7 @@ module.exports = {
     {
       name: 'process-importable-by-git-agents-installer',
       comment:
-        'Only process owners execute commands so business and transport code cannot gain shell access; the process implementation, fixed macOS network discovery and two platform-capture adapters retain their existing infrastructure access.',
+        'Only Git, Agents and the installer import process capabilities so business and transport code cannot gain shell access; the process implementation owns execution, and exactly apps/server/src/adapters/access/mac-network-command.ts runs fixed macOS network tools through the process owner.',
       severity: 'error',
       from: {
         path: '^(?:apps/[^/]+|packages/[^/]+)/src/',
@@ -91,8 +91,6 @@ module.exports = {
           '^packages/(?:git|agents|process)/src/',
           '^apps/server/src/installer/',
           '^apps/server/src/adapters/access/mac-network-command\\.ts$',
-          '^apps/server/src/adapters/access/mac-network-address-reader\\.ts$',
-          '^apps/server/src/adapters/projects/git-platform\\.ts$',
         ],
       },
       to: {
@@ -166,7 +164,7 @@ module.exports = {
     {
       name: 'portable-imports-no-node',
       comment:
-        'Domain decisions and shared clients run independently of Node; rule-folder crypto is the existing hashing exception.',
+        'Domain decisions and shared clients run independently of Node; only node:crypto in domain/kernel rules retains the existing hashing exception.',
       severity: 'error',
       from: {
         path: '^packages/(?:(?:access|changes|files|git-actions|projects|reviews)|kernel|contracts|client)/src/',
@@ -257,6 +255,19 @@ module.exports = {
       to: {
         path: '^(?:apps/|packages/)',
         pathNot: ['^apps/mobile/src/', '^packages/(?:client|contracts)/src/'],
+      },
+    },
+    {
+      name: 'runtime-imports-no-specs',
+      comment:
+        'Product code cannot import sibling specs so test-only Node and process allowances cannot leak into runtime.',
+      severity: 'error',
+      from: {
+        path: '^(?:apps/[^/]+|packages/[^/]+)/src/',
+        pathNot: '\\.spec\\.tsx?$',
+      },
+      to: {
+        path: '^(?:apps/[^/]+|packages/[^/]+)/src/.+\\.(?:spec|test)\\.[jt]sx?$',
       },
     },
     {

@@ -13,7 +13,7 @@ import {
 import { makeGitSession } from '@porcelain/git/inspection';
 import { readGitEffect } from '../../runtime/git-io.ts';
 import type { Limits } from '../../config/limits.ts';
-import { captureGitPlatform } from '../projects/git-platform.ts';
+import { captureGitPlatform } from '@porcelain/git/discovery';
 import {
   openCheckoutEffect,
   type ListedWorktrees,

@@ -161,16 +161,17 @@ export default [
   ...[
     'apps/server/src/adapters/access/mac-network-address-reader.ts',
     'apps/server/src/adapters/projects/git-platform.ts',
+    'apps/server/src/adapters/access/mac-network-command-other.ts',
   ].map((path) =>
     pair(
       'process-importable-by-git-agents-installer',
       {
-        [path]:
-          "import { ChildProcessSpawner } from 'effect/process'; export const value = ChildProcessSpawner;",
+        'apps/server/src/adapters/access/mac-network-command.ts':
+          "import { value } from '@porcelain/process'; export const result = value;",
       },
       {
-        'apps/server/src/adapters/access/other-command.ts':
-          "import { ChildProcessSpawner } from 'effect/process'; export const value = ChildProcessSpawner;",
+        [path]:
+          "import { value } from '@porcelain/process'; export const result = value;",
       },
     ),
   ),
@@ -221,6 +222,13 @@ export default [
       portable(owner, '@effect/platform-node'),
     ),
   ]),
+  ...['contracts', 'client'].map((owner) =>
+    pair(
+      'portable-crypto-only-in-rules',
+      portable(owner, 'effect'),
+      portable(owner, 'node:crypto'),
+    ),
+  ),
   pair('portable-crypto-only-in-rules', portable('kernel', 'node:crypto'), {
     'packages/kernel/src/models/read.ts':
       "import * as dependency from 'node:crypto'; export const value = dependency;",
@@ -276,6 +284,19 @@ export default [
       'apps/mobile/src/shared/read.ts',
       'packages/storage/src/index.ts',
       '../../../../packages/storage/src/index.ts',
+    ),
+  ),
+  pair(
+    'runtime-imports-no-specs',
+    edge(
+      'packages/kernel/src/rules/read.ts',
+      'packages/kernel/src/rules/value.ts',
+      './value.ts',
+    ),
+    edge(
+      'packages/kernel/src/rules/read.ts',
+      'packages/kernel/src/rules/value.spec.ts',
+      './value.spec.ts',
     ),
   ),
   pair(

@@ -1,5 +1,5 @@
 import { InspectionLimitError } from '@porcelain/git/errors';
-import { captureGitPlatform } from '../projects/git-platform.ts';
+import { captureGitPlatform } from '@porcelain/git/discovery';
 import { readGitEffect } from '../../runtime/git-io.ts';
 import type {
   WorktreePathsRead,
