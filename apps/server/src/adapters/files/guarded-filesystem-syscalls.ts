@@ -4,28 +4,14 @@ import { constants } from 'node:fs';
 import { open, opendir } from 'node:fs/promises';
 
 export function syscall<A>(
-  work: (signal: AbortSignal) => Promise<A>,
+  work: () => Promise<A>,
 ): Effect.Effect<A, GuardedFilesystemError> {
-  return Effect.callback((resume, signal) => {
-    let pending: Promise<A>;
-    try {
-      pending = work(signal);
-    } catch (cause) {
-      resume(Effect.fail(new GuardedFilesystemError({ cause })));
-      return;
-    }
-    void pending.then(
-      (value) => resume(Effect.succeed(value)),
-      (cause: unknown) =>
-        resume(Effect.fail(new GuardedFilesystemError({ cause }))),
-    );
-    return Effect.promise(() =>
-      pending.then(
-        () => undefined,
-        () => undefined,
-      ),
-    );
-  });
+  return Effect.uninterruptible(
+    Effect.tryPromise({
+      try: work,
+      catch: (cause) => new GuardedFilesystemError({ cause }),
+    }),
+  );
 }
 
 export const openGuardedFile = (path: string, flags: number, mode?: number) =>
