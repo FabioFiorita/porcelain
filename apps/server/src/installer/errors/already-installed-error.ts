@@ -1,10 +1,10 @@
-import { InstallerError } from './installer-error.ts';
+import { Schema } from 'effect';
 
-export class AlreadyInstalledError extends InstallerError {
-  override readonly name = 'AlreadyInstalledError';
-  constructor() {
-    super(
-      'Porcelain is already installed; run porcelain service update to change it.',
-    );
+export class AlreadyInstalledError extends Schema.TaggedError<AlreadyInstalledError>()(
+  'AlreadyInstalledError',
+  {},
+) {
+  override get message() {
+    return 'Porcelain is already installed; run porcelain service update to change it.';
   }
 }

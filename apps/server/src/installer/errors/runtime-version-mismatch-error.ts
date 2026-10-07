@@ -1,10 +1,13 @@
-import { InstallerError } from './installer-error.ts';
+import { Schema } from 'effect';
 
-export class RuntimeVersionMismatchError extends InstallerError {
-  override readonly name = 'RuntimeVersionMismatchError';
-  constructor(reported: string | undefined, expected: string) {
-    super(
-      `Persistent runtime reported ${reported ?? 'no version'} instead of ${expected}.`,
-    );
+export class RuntimeVersionMismatchError extends Schema.TaggedError<RuntimeVersionMismatchError>()(
+  'RuntimeVersionMismatchError',
+  {
+    reported: Schema.optional(Schema.String),
+    expected: Schema.String,
+  },
+) {
+  override get message() {
+    return `Persistent runtime reported ${this.reported ?? 'no version'} instead of ${this.expected}.`;
   }
 }

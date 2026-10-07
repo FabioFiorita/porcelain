@@ -1,4 +1,4 @@
-import { delimiter, dirname } from 'node:path';
+import type { Path } from 'effect';
 
 const systemDirectories = [
   '/usr/local/bin',
@@ -11,11 +11,12 @@ const systemDirectories = [
 export function serviceSearchPath(
   nodeExecutable: string,
   hostSearchPath: string,
+  pathApi: Path.Path,
 ): string {
   const directories = [
-    dirname(nodeExecutable),
+    pathApi.dirname(nodeExecutable),
     ...hostSearchPath
-      .split(delimiter)
+      .split(':')
       .filter(
         (directory) =>
           directory.length > 0 &&
@@ -24,5 +25,5 @@ export function serviceSearchPath(
       ),
     ...systemDirectories,
   ];
-  return [...new Set(directories)].join(delimiter);
+  return [...new Set(directories)].join(':');
 }

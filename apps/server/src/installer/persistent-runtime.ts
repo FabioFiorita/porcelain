@@ -1,5 +1,4 @@
-import { mkdir, rm } from 'node:fs/promises';
-import { join } from 'node:path';
+import { Effect, FileSystem, Path } from 'effect';
 import type { CommandRunner } from './command-runner.ts';
 import { RuntimeInstallError } from './errors/runtime-install-error.ts';
 import { RuntimeNativeModulesError } from './errors/runtime-native-modules-error.ts';
@@ -23,55 +22,63 @@ const NATIVE_MODULES_LOAD = [
   '}',
 ].join('\n');
 
-export function runtimeEntryPoint(runtime: string): string {
-  return join(runtime, 'node_modules', PACKAGE_NAME, 'bin/porcelain.js');
+export function runtimeEntryPoint(runtime: string, pathApi: Path.Path): string {
+  return pathApi.join(
+    runtime,
+    'node_modules',
+    PACKAGE_NAME,
+    'bin/porcelain.js',
+  );
 }
 
-export async function installRuntime(
+export const installRuntime = Effect.fn('Installer.installRuntime')(function* (
   runner: CommandRunner,
   nodeExecutable: string,
   source: string,
   destination: string,
   version: string,
-  signal?: AbortSignal,
-): Promise<void> {
-  signal?.throwIfAborted();
-  await rm(destination, { recursive: true, force: true });
-  await mkdir(destination, { recursive: true, mode: 0o700 });
-  const result = await runner(
-    'npm',
-    [
-      'install',
-      '--no-audit',
-      '--no-fund',
-      '--package-lock=false',
-      '--install-links=true',
-      '--prefix',
-      destination,
-      source,
-    ],
-    { signal },
-  );
-  signal?.throwIfAborted();
-  if (result.code !== 0) throw new RuntimeInstallError(result.stderr.trim());
-  const manifestPath = join(
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const pathApi = yield* Path.Path;
+  yield* fs.remove(destination, { recursive: true, force: true });
+  yield* fs.makeDirectory(destination, { recursive: true, mode: 0o700 });
+  const result = yield* runner('npm', [
+    'install',
+    '--no-audit',
+    '--no-fund',
+    '--package-lock=false',
+    '--install-links=true',
+    '--prefix',
+    destination,
+    source,
+  ]);
+  if (result.code !== 0)
+    return yield* Effect.fail(
+      new RuntimeInstallError({ detail: result.stderr.trim() }),
+    );
+  const manifestPath = pathApi.join(
     destination,
     'node_modules',
     PACKAGE_NAME,
     'package.json',
   );
-  const manifest = await readJsonFile(manifestPath, packageManifestSchema);
+  const manifest = yield* readJsonFile(manifestPath, packageManifestSchema);
   const reported =
     manifest.kind === 'value' ? manifest.value.version : undefined;
   if (reported !== version)
-    throw new RuntimeVersionMismatchError(reported, version);
-  signal?.throwIfAborted();
-  const loaded = await runner(
-    nodeExecutable,
-    ['-e', NATIVE_MODULES_LOAD, manifestPath],
-    { signal },
-  );
-  signal?.throwIfAborted();
+    return yield* Effect.fail(
+      new RuntimeVersionMismatchError({
+        reported: reported,
+        expected: version,
+      }),
+    );
+  const loaded = yield* runner(nodeExecutable, [
+    '-e',
+    NATIVE_MODULES_LOAD,
+    manifestPath,
+  ]);
   if (loaded.code !== 0)
-    throw new RuntimeNativeModulesError(loaded.stderr.trim());
-}
+    return yield* Effect.fail(
+      new RuntimeNativeModulesError({ detail: loaded.stderr.trim() }),
+    );
+});

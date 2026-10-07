@@ -1,7 +1,6 @@
-import { DateTime } from 'effect';
+import { DateTime, Effect, FileSystem } from 'effect';
 import { randomUUID } from 'node:crypto';
-import { chmod, mkdir, rename, rm, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { probeOwner } from './service-health.ts';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import {
   serviceIsHealthy,
@@ -33,21 +32,27 @@ export type InstallOutcome = {
 
 const LINGER_COMMAND = 'sudo loginctl enable-linger "$(id -un)"';
 
-export async function install(
+export const install = Effect.fn('Installer.install')(function* (
   context: InstallerContext,
   settings: InstallSettings,
-): Promise<InstallOutcome> {
+) {
+  const fs = yield* FileSystem.FileSystem;
   const { paths, systemd, runner } = context;
-  await recoverInterruptedUpdate(context);
-  if ((await readInstalledRecord(paths.installed)) !== undefined)
-    throw new AlreadyInstalledError();
-  if (await systemd.unitExists()) throw new UnitExistsError(systemd.unitPath);
-  const socket = await context.ownerProbe.probe({
+  yield* recoverInterruptedUpdate(context);
+  if ((yield* readInstalledRecord(paths.installed)) !== undefined)
+    return yield* Effect.fail(new AlreadyInstalledError());
+  if (yield* systemd.unitExists())
+    return yield* Effect.fail(
+      new UnitExistsError({ unitPath: systemd.unitPath }),
+    );
+  const socket = yield* probeOwner(context.ownerProbe, {
     socketPath: ownerSocketPath(settings.dataDirectory),
     timeoutMs: context.limits.owner.quickProbeTimeoutMs,
   });
   if (socket.kind !== 'absent')
-    throw new DataDirectoryBusyError(socket.kind, 'install');
+    return yield* Effect.fail(
+      new DataDirectoryBusyError({ state: socket.kind, phase: 'install' }),
+    );
   const staging = `${paths.runtime}.next-${randomUUID()}`;
   const backup = backupLocation(
     paths.backups,
@@ -55,53 +60,65 @@ export async function install(
       DateTime.makeUnsafe(context.clock.currentTimeMillisUnsafe()),
     ),
     'preinstall',
+    context.pathApi,
   );
   let backupComplete = false;
   let unitWritten = false;
-  try {
-    await installRuntime(
+  return yield* Effect.gen(function* () {
+    yield* installRuntime(
       runner,
       context.nodeExecutable,
       context.packageRoot,
       staging,
       context.packageVersion,
     );
-    await mkdir(dirname(paths.stdoutLog), { recursive: true, mode: 0o700 });
+    yield* fs.makeDirectory(context.pathApi.dirname(paths.stdoutLog), {
+      recursive: true,
+      mode: 0o700,
+    });
     for (const log of [paths.stdoutLog, paths.stderrLog]) {
-      await writeFile(log, '', { flag: 'a', mode: 0o600 });
-      await chmod(log, 0o600);
+      yield* fs.writeFileString(log, '', { flag: 'a', mode: 0o600 });
+      yield* fs.chmod(log, 0o600);
     }
-    await rename(staging, paths.runtime);
+    yield* fs.rename(staging, paths.runtime);
     const configuration: ServiceConfiguration = {
       dataDirectory: settings.dataDirectory,
       port: settings.port,
     };
-    await writeJsonFile(paths.configuration, configuration);
-    await writeJsonFile(paths.installed, { version: context.packageVersion });
-    await backupDatabase(settings.dataDirectory, backup);
+    yield* writeJsonFile(paths.configuration, configuration);
+    yield* writeJsonFile(paths.installed, { version: context.packageVersion });
+    yield* backupDatabase(settings.dataDirectory, backup);
     backupComplete = true;
-    await systemd.write(servicePlan(context, configuration));
+    yield* systemd.write(servicePlan(context, configuration));
     unitWritten = true;
-    const lingerEnabled = await systemd.enableLinger();
-    await systemd.enableAndStart();
-    if (!(await serviceIsHealthy(context, settings.dataDirectory)))
-      throw new InstalledServiceUnhealthyError();
+    const lingerEnabled = yield* systemd.enableLinger();
+    yield* systemd.enableAndStart();
+    if (!(yield* serviceIsHealthy(context, settings.dataDirectory)))
+      return yield* Effect.fail(new InstalledServiceUnhealthyError());
     return {
       backup,
       lingerCommand: lingerEnabled ? undefined : LINGER_COMMAND,
     };
-  } catch (error) {
-    if (unitWritten) {
-      try {
-        await systemd.uninstall();
-      } catch (cleanupError) {
-        throw new InstallCleanupError(failureDetail(cleanupError));
-      }
-    }
-    if (backupComplete) await restoreDatabase(settings.dataDirectory, backup);
-    await rm(paths.runtime, { recursive: true, force: true });
-    await rm(paths.installed, { force: true });
-    await rm(staging, { recursive: true, force: true });
-    throw error;
-  }
-}
+  }).pipe(
+    Effect.catch(
+      Effect.fn('Installer.cleanupInstall')(function* (error) {
+        if (unitWritten) {
+          yield* systemd.uninstall().pipe(
+            Effect.mapError(
+              (cleanupError) =>
+                new InstallCleanupError({
+                  detail: failureDetail(cleanupError),
+                }),
+            ),
+          );
+        }
+        if (backupComplete)
+          yield* restoreDatabase(settings.dataDirectory, backup);
+        yield* fs.remove(paths.runtime, { recursive: true, force: true });
+        yield* fs.remove(paths.installed, { force: true });
+        yield* fs.remove(staging, { recursive: true, force: true });
+        return yield* Effect.fail(error);
+      }),
+    ),
+  );
+});

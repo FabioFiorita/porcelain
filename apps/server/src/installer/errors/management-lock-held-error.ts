@@ -1,10 +1,10 @@
-import { InstallerError } from './installer-error.ts';
+import { Schema } from 'effect';
 
-export class ManagementLockHeldError extends InstallerError {
-  override readonly name = 'ManagementLockHeldError';
-  constructor() {
-    super(
-      'Another Porcelain service command is already running. Wait for it to finish.',
-    );
+export class ManagementLockHeldError extends Schema.TaggedError<ManagementLockHeldError>()(
+  'ManagementLockHeldError',
+  {},
+) {
+  override get message() {
+    return 'Another Porcelain service command is already running. Wait for it to finish.';
   }
 }

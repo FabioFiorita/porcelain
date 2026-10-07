@@ -1,4 +1,4 @@
-import { join } from 'node:path';
+import type { Path } from 'effect';
 
 export type ServicePaths = {
   root: string;
@@ -15,20 +15,23 @@ export type ServicePaths = {
   stderrLog: string;
 };
 
-export function servicePaths(homeDirectory: string): ServicePaths {
-  const root = join(homeDirectory, '.local/share/porcelain/service');
+export function servicePaths(
+  homeDirectory: string,
+  pathApi: Path.Path,
+): ServicePaths {
+  const root = pathApi.join(homeDirectory, '.local/share/porcelain/service');
   return {
     root,
-    runtime: join(root, 'runtime'),
-    nextRuntime: join(root, 'runtime.next'),
-    previousRuntime: join(root, 'runtime.previous'),
-    updateJournal: join(root, 'update.json'),
-    updateRecord: join(root, 'update-record.json'),
-    updater: join(root, 'updater'),
-    installed: join(root, 'installed.json'),
-    configuration: join(root, 'config.json'),
-    backups: join(root, 'database-backups'),
-    stdoutLog: join(root, 'logs/stdout.log'),
-    stderrLog: join(root, 'logs/stderr.log'),
+    runtime: pathApi.join(root, 'runtime'),
+    nextRuntime: pathApi.join(root, 'runtime.next'),
+    previousRuntime: pathApi.join(root, 'runtime.previous'),
+    updateJournal: pathApi.join(root, 'update.json'),
+    updateRecord: pathApi.join(root, 'update-record.json'),
+    updater: pathApi.join(root, 'updater'),
+    installed: pathApi.join(root, 'installed.json'),
+    configuration: pathApi.join(root, 'config.json'),
+    backups: pathApi.join(root, 'database-backups'),
+    stdoutLog: pathApi.join(root, 'logs/stdout.log'),
+    stderrLog: pathApi.join(root, 'logs/stderr.log'),
   };
 }

@@ -1,4 +1,4 @@
-import type { Clock } from 'effect';
+import { Effect, type Path, type Clock } from 'effect';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import type { CommandRunner } from './command-runner.ts';
 import type { ServicePaths } from './paths.ts';
@@ -12,6 +12,7 @@ import type { ServicePlan } from './systemd-unit.ts';
 
 export type InstallerContext = {
   paths: ServicePaths;
+  pathApi: Path.Path;
   runner: CommandRunner;
   systemd: SystemdService;
   packageRoot: string;
@@ -20,7 +21,7 @@ export type InstallerContext = {
   searchPath: string;
   ownerProbe: OwnerProbe;
   clock: Clock.Clock;
-  limits: Limits;
+  limits: Pick<Limits, 'installer' | 'locks' | 'owner'>;
 };
 
 export function servicePlan(
@@ -29,7 +30,7 @@ export function servicePlan(
 ): ServicePlan {
   return {
     nodeExecutable: context.nodeExecutable,
-    entryPoint: runtimeEntryPoint(context.paths.runtime),
+    entryPoint: runtimeEntryPoint(context.paths.runtime, context.pathApi),
     dataDirectory: configuration.dataDirectory,
     port: configuration.port,
     stdoutLog: context.paths.stdoutLog,
@@ -38,10 +39,10 @@ export function servicePlan(
   };
 }
 
-export function serviceIsHealthy(
+export const serviceIsHealthy = Effect.fn('Installer.serviceIsHealthy')((
   context: InstallerContext,
   dataDirectory: string,
-): Promise<boolean> {
+) => {
   return waitForHealthyService({
     ownerProbe: context.ownerProbe,
     socketPath: ownerSocketPath(dataDirectory),
@@ -51,4 +52,4 @@ export function serviceIsHealthy(
     attempts: context.limits.installer.health.attempts,
     intervalMs: context.limits.installer.health.intervalMs,
   });
-}
+});

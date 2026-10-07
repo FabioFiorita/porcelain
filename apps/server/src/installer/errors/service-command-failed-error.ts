@@ -1,8 +1,13 @@
-import { InstallerError } from './installer-error.ts';
+import { Schema } from 'effect';
 
-export class ServiceCommandFailedError extends InstallerError {
-  override readonly name = 'ServiceCommandFailedError';
-  constructor(description: string, detail: string) {
-    super(`${description} failed: ${detail}`);
+export class ServiceCommandFailedError extends Schema.TaggedError<ServiceCommandFailedError>()(
+  'ServiceCommandFailedError',
+  {
+    description: Schema.String,
+    detail: Schema.String,
+  },
+) {
+  override get message() {
+    return `${this.description} failed: ${this.detail}`;
   }
 }

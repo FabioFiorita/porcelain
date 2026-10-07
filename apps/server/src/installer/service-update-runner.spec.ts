@@ -1,5 +1,6 @@
 import { Effect } from 'effect';
-import { withSignal } from '@porcelain/effects';
+import { NodeServices } from '@effect/platform-node';
+import { nativeOperation, withSignal } from '@porcelain/effects';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -15,7 +16,7 @@ let updaterActive: boolean;
 let npmViews: number;
 let nativeModulesLoad: Answer;
 let commands: string[];
-const owned: ReturnType<typeof openServiceUpdateRunner>[] = [];
+const owned: Effect.Success<ReturnType<typeof openServiceUpdateRunner>>[] = [];
 
 const packageName = '@fabiofiorita/porcelain';
 const serviceNode = '/opt/service/bin/node';
@@ -35,28 +36,31 @@ function downloadInto(prefix: string, version: string) {
   );
 }
 
-async function answer(command: string, args: readonly string[]) {
-  const ok = (stdout: string): Answer => ({ code: 0, stdout, stderr: '' });
-  commands.push(command);
-  const target = args.at(-1) ?? '';
-  if (command === 'npm' && args[0] === 'install') {
-    downloadInto(
-      args[args.indexOf('--prefix') + 1] ?? '',
-      target.slice(`${packageName}@`.length),
-    );
-    return ok('');
-  }
-  if (command === serviceNode) return nativeModulesLoad;
-  if (command === 'npm' && args[0] === 'view') {
-    npmViews += 1;
-    return ok(JSON.stringify(published));
-  }
-  if (command === 'systemctl')
-    return updaterActive
-      ? ok('active\n')
-      : { code: 3, stdout: 'inactive\n', stderr: '' };
-  return { code: 1, stdout: '', stderr: `unexpected ${command}` };
-}
+const answer = Effect.fn('Test.updateCommand')(
+  (command: string, args: readonly string[]) =>
+    Effect.sync(() => {
+      const ok = (stdout: string): Answer => ({ code: 0, stdout, stderr: '' });
+      commands.push(command);
+      const target = args.at(-1) ?? '';
+      if (command === 'npm' && args[0] === 'install') {
+        downloadInto(
+          args[args.indexOf('--prefix') + 1] ?? '',
+          target.slice(`${packageName}@`.length),
+        );
+        return ok('');
+      }
+      if (command === serviceNode) return nativeModulesLoad;
+      if (command === 'npm' && args[0] === 'view') {
+        npmViews += 1;
+        return ok(JSON.stringify(published));
+      }
+      if (command === 'systemctl')
+        return updaterActive
+          ? ok('active\n')
+          : { code: 3, stdout: 'inactive\n', stderr: '' };
+      return { code: 1, stdout: '', stderr: `unexpected ${command}` };
+    }),
+);
 
 function install(version: string) {
   mkdirSync(runtimePackage(), { recursive: true });
@@ -70,22 +74,24 @@ function install(version: string) {
   );
 }
 
-const runner = (
+const runner = async (
   packageRoot = runtimePackage(),
   command: CommandRunner = answer,
 ) => {
-  const updates = openServiceUpdateRunner({
-    homeDirectory: home,
-    packageRoot,
-    searchPath: '/usr/bin',
-    command: {
-      timeoutMs: 1000,
-      maxBytes: 1024,
-      processGroup: { lingerMs: 10, cleanupMs: 10, pollMs: 1 },
-    },
-    runner: command,
-    nodeExecutable: serviceNode,
-  });
+  const updates = await Effect.runPromise(
+    openServiceUpdateRunner({
+      homeDirectory: home,
+      packageRoot,
+      searchPath: '/usr/bin',
+      command: {
+        timeoutMs: 1000,
+        maxBytes: 1024,
+        processGroup: { lingerMs: 10, cleanupMs: 10, pollMs: 1 },
+      },
+      runner: command,
+      nodeExecutable: serviceNode,
+    }).pipe(Effect.provide(NodeServices.layer)),
+  );
   owned.push(updates);
   return updates;
 };
@@ -113,14 +119,16 @@ describe('the installed service update runner', () => {
     const started = Promise.withResolvers<AbortSignal>();
     const aborted = Promise.withResolvers<void>();
     const cleanup = Promise.withResolvers<Answer>();
-    const updates = runner(runtimePackage(), (command, args, options) => {
+    const updates = await runner(runtimePackage(), (command, args) => {
       if (command !== 'npm' || args[0] !== 'install')
         return answer(command, args);
-      const signal = options?.signal;
-      if (!signal) throw new Error('Update preparation needs a cleanup signal');
-      signal.addEventListener('abort', () => aborted.resolve(), { once: true });
-      started.resolve(signal);
-      return cleanup.promise;
+      return nativeOperation((signal) => {
+        signal.addEventListener('abort', () => aborted.resolve(), {
+          once: true,
+        });
+        started.resolve(signal);
+        return cleanup.promise;
+      });
     });
     const caller = new AbortController();
     await Effect.runPromise(
@@ -163,7 +171,7 @@ describe('the installed service update runner', () => {
   it('offers the newer published version to the installed service', async () => {
     expect(
       await Effect.runPromise(
-        runner().read(
+        (await runner()).read(
           check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
         ),
       ),
@@ -178,7 +186,7 @@ describe('the installed service update runner', () => {
   });
 
   it('asks the registry again only once its last answer is older than the freshness window', async () => {
-    const updates = runner();
+    const updates = await runner();
     await Effect.runPromise(
       updates.read(
         check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
@@ -204,7 +212,7 @@ describe('the installed service update runner', () => {
   it('does not ask the registry while an update runs', async () => {
     updaterActive = true;
     const state = await Effect.runPromise(
-      runner().read(
+      (await runner()).read(
         check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
       ),
     );
@@ -218,7 +226,7 @@ describe('the installed service update runner', () => {
     await expect(
       Effect.runPromise(
         withSignal(
-          runner().read(
+          (await runner()).read(
             check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
           ),
           aborted.signal,
@@ -228,7 +236,7 @@ describe('the installed service update runner', () => {
   });
 
   it('starts nothing for a request that went away before the update was claimed', async () => {
-    const updates = runner();
+    const updates = await runner();
     const aborted = new AbortController();
     aborted.abort();
     await expect(
@@ -246,7 +254,7 @@ describe('the installed service update runner', () => {
 
   it('offers nothing to a server that does not run from the installed runtime', async () => {
     const state = await Effect.runPromise(
-      runner(join(home, 'elsewhere')).read(
+      (await runner(join(home, 'elsewhere'))).read(
         check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
       ),
     );
@@ -260,7 +268,7 @@ describe('the installed service update runner', () => {
       stdout: '',
       stderr: 'Could not locate the bindings file.',
     };
-    const updates = runner();
+    const updates = await runner();
     await Effect.runPromise(updates.start({ version: '1.1.0' }));
     await expect
       .poll(

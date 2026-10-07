@@ -1,34 +1,30 @@
-import { join } from 'node:path';
+import { Effect, Path } from 'effect';
 import { NotPackagedCliError } from './errors/not-packaged-cli-error.ts';
 import { readJsonFile } from './json-file.ts';
 import { PACKAGE_NAME } from './persistent-runtime.ts';
 import { packageManifestSchema } from './records.ts';
 
-type PackageIdentity = { packageRoot: string; packageVersion: string };
+export const readPackageIdentity = Effect.fn('Installer.readPackageIdentity')(
+  function* (packageRoot: string) {
+    const pathApi = yield* Path.Path;
+    const manifest = yield* readJsonFile(
+      pathApi.join(packageRoot, 'package.json'),
+      packageManifestSchema,
+    );
+    if (
+      manifest.kind !== 'value' ||
+      manifest.value.name !== PACKAGE_NAME ||
+      manifest.value.version === undefined
+    )
+      return yield* Effect.fail(new NotPackagedCliError());
+    return { packageRoot, packageVersion: manifest.value.version };
+  },
+);
 
-export async function readPackageIdentity(
-  packageRoot: string,
-): Promise<PackageIdentity> {
-  const manifest = await readJsonFile(
-    join(packageRoot, 'package.json'),
-    packageManifestSchema,
-  );
-  if (
-    manifest.kind !== 'value' ||
-    manifest.value.name !== PACKAGE_NAME ||
-    manifest.value.version === undefined
-  )
-    throw new NotPackagedCliError();
-  return { packageRoot, packageVersion: manifest.value.version };
-}
-
-export async function readPackageVersion(
-  packageRoot: string,
-): Promise<string | undefined> {
-  try {
-    return (await readPackageIdentity(packageRoot)).packageVersion;
-  } catch (error) {
-    if (error instanceof NotPackagedCliError) return undefined;
-    throw error;
-  }
-}
+export const readPackageVersion = Effect.fn('Installer.readPackageVersion')(
+  (packageRoot: string) =>
+    readPackageIdentity(packageRoot).pipe(
+      Effect.map((identity) => identity.packageVersion),
+      Effect.catchTag('NotPackagedCliError', () => Effect.succeed(undefined)),
+    ),
+);

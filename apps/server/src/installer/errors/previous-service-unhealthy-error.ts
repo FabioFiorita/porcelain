@@ -1,8 +1,10 @@
-import { InstallerError } from './installer-error.ts';
+import { Schema } from 'effect';
 
-export class PreviousServiceUnhealthyError extends InstallerError {
-  override readonly name = 'PreviousServiceUnhealthyError';
-  constructor() {
-    super('The previous service was restarted but did not become healthy.');
+export class PreviousServiceUnhealthyError extends Schema.TaggedError<PreviousServiceUnhealthyError>()(
+  'PreviousServiceUnhealthyError',
+  {},
+) {
+  override get message() {
+    return 'The previous service was restarted but did not become healthy.';
   }
 }

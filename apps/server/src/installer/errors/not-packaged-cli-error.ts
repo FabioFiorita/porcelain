@@ -1,10 +1,10 @@
-import { InstallerError } from './installer-error.ts';
+import { Schema } from 'effect';
 
-export class NotPackagedCliError extends InstallerError {
-  override readonly name = 'NotPackagedCliError';
-  constructor() {
-    super(
-      'Service management requires the packaged Porcelain CLI. Run it with `npx @fabiofiorita/porcelain@latest service ...`.',
-    );
+export class NotPackagedCliError extends Schema.TaggedError<NotPackagedCliError>()(
+  'NotPackagedCliError',
+  {},
+) {
+  override get message() {
+    return 'Service management requires the packaged Porcelain CLI. Run it with `npx @fabiofiorita/porcelain@latest service ...`.';
   }
 }

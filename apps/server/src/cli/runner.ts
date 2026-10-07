@@ -9,7 +9,6 @@ import {
   type Clock,
 } from 'effect';
 import type { Command } from 'effect/cli';
-import { nativeOperation } from '@porcelain/effects';
 import {
   EnvironmentSettings,
   type PorcelainEnvironment,
@@ -63,7 +62,10 @@ type CliOptions = {
 
 export function createCliRunner(
   runtime: Layer.Layer<CliRuntime>,
-  platform: Layer.Layer<Command.Environment>,
+  platform: Layer.Layer<
+    | Command.Environment
+    | Exclude<Layer.Services<typeof CliOperations.layer>, CliHost>
+  >,
 ) {
   return async function runCli(
     args: readonly string[] = process.argv.slice(2),
@@ -107,8 +109,8 @@ export function createCliRunner(
     };
     const program = Effect.gen(function* () {
       const configured = yield* CliRuntime;
-      const version = yield* nativeOperation(() =>
-        readPackageVersion(cliPackageRoot()),
+      const version = yield* readPackageVersion(cliPackageRoot()).pipe(
+        Effect.orDie,
       );
       return yield* cliProgram(args, version ?? '0.0.0').pipe(
         Effect.catchCause((cause) =>

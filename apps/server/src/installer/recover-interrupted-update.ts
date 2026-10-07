@@ -1,4 +1,4 @@
-import { rename, rm } from 'node:fs/promises';
+import { Effect, FileSystem } from 'effect';
 import {
   serviceIsHealthy,
   servicePlan,
@@ -22,24 +22,25 @@ const NOTHING_RECOVERED: RecoveryOutcome = {
   localNetworkHint: undefined,
 };
 
-export async function recoverInterruptedUpdate(
-  context: InstallerContext,
-): Promise<RecoveryOutcome> {
+export const recoverInterruptedUpdate = Effect.fn(
+  'Installer.recoverInterruptedUpdate',
+)(function* (context: InstallerContext) {
+  const fs = yield* FileSystem.FileSystem;
   const { paths, systemd } = context;
-  const journal = await readUpdateJournal(paths.updateJournal);
+  const journal = yield* readUpdateJournal(paths.updateJournal);
   const plan = recoveryPlan({
     journal,
-    runtimeExists: await exists(paths.runtime),
-    previousExists: await exists(paths.previousRuntime),
+    runtimeExists: yield* exists(paths.runtime),
+    previousExists: yield* exists(paths.previousRuntime),
   });
   if (plan === 'nothing') return NOTHING_RECOVERED;
   if (plan === 'discard-previous') {
-    await rm(paths.previousRuntime, { recursive: true, force: true });
+    yield* fs.remove(paths.previousRuntime, { recursive: true, force: true });
     return NOTHING_RECOVERED;
   }
   if (plan === 'unrecoverable' || journal === undefined)
-    throw new InterruptedUpdateUnrecoverableError();
-  const configuration = await readServiceConfiguration(paths.configuration);
+    return yield* Effect.fail(new InterruptedUpdateUnrecoverableError());
+  const configuration = yield* readServiceConfiguration(paths.configuration);
   const recovered = {
     recovered: true,
     localNetworkHint: localNetworkHint(configuration.host),
@@ -49,41 +50,41 @@ export async function recoverInterruptedUpdate(
     target: journal.target ?? '',
   };
   if (plan === 'finish-update') {
-    await rm(paths.previousRuntime, { recursive: true, force: true });
-    await rm(paths.nextRuntime, { recursive: true, force: true });
-    await rm(paths.updateJournal, { force: true });
-    await writeJsonFile(paths.updateRecord, { ...progress, stage: 'updated' });
-    if (!(await systemd.probe()).running) await systemd.start();
+    yield* fs.remove(paths.previousRuntime, { recursive: true, force: true });
+    yield* fs.remove(paths.nextRuntime, { recursive: true, force: true });
+    yield* fs.remove(paths.updateJournal, { force: true });
+    yield* writeJsonFile(paths.updateRecord, { ...progress, stage: 'updated' });
+    if (!(yield* systemd.probe()).running) yield* systemd.start();
     return recovered;
   }
-  if ((await systemd.probe()).running) await systemd.stop();
+  if ((yield* systemd.probe()).running) yield* systemd.stop();
   if (plan === 'restore-previous') {
-    await rm(paths.runtime, { recursive: true, force: true });
-    await rename(paths.previousRuntime, paths.runtime);
+    yield* fs.remove(paths.runtime, { recursive: true, force: true });
+    yield* fs.rename(paths.previousRuntime, paths.runtime);
   }
-  await restoreDatabase(configuration.dataDirectory, journal.backup);
-  await writeJsonFile(paths.installed, journal.installed);
-  await systemd.write(servicePlan(context, configuration));
-  await systemd.start();
-  if (!(await serviceIsHealthy(context, configuration.dataDirectory)))
-    throw new RestoredServiceUnhealthyError();
-  await rm(paths.nextRuntime, { recursive: true, force: true });
-  await rm(paths.updateJournal, { force: true });
-  await writeJsonFile(paths.updateRecord, {
+  yield* restoreDatabase(configuration.dataDirectory, journal.backup);
+  yield* writeJsonFile(paths.installed, journal.installed);
+  yield* systemd.write(servicePlan(context, configuration));
+  yield* systemd.start();
+  if (!(yield* serviceIsHealthy(context, configuration.dataDirectory)))
+    return yield* Effect.fail(new RestoredServiceUnhealthyError());
+  yield* fs.remove(paths.nextRuntime, { recursive: true, force: true });
+  yield* fs.remove(paths.updateJournal, { force: true });
+  yield* writeJsonFile(paths.updateRecord, {
     ...progress,
     stage: 'failed',
     reason: `The update was interrupted, so Porcelain went back to ${journal.installed.version} and the database it had before the update.`,
   });
   return recovered;
-}
+});
 
-export async function recoverService(
+export const recoverService = Effect.fn('Installer.recoverService')(function* (
   context: InstallerContext,
-): Promise<RecoveryOutcome> {
-  const interrupted = await recoverInterruptedUpdate(context);
+) {
+  const interrupted = yield* recoverInterruptedUpdate(context);
   if (interrupted.recovered) return interrupted;
-  if (!(await exists(context.paths.installed))) return NOTHING_RECOVERED;
-  if ((await context.systemd.probe()).running) return NOTHING_RECOVERED;
-  await context.systemd.start();
+  if (!(yield* exists(context.paths.installed))) return NOTHING_RECOVERED;
+  if ((yield* context.systemd.probe()).running) return NOTHING_RECOVERED;
+  yield* context.systemd.start();
   return { recovered: true, localNetworkHint: undefined };
-}
+});

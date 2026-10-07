@@ -1,10 +1,12 @@
-import { InstallerError } from './installer-error.ts';
+import { Schema } from 'effect';
 
-export class InvalidUpdateJournalError extends InstallerError {
-  override readonly name = 'InvalidUpdateJournalError';
-  constructor(path: string) {
-    super(
-      `The interrupted update record at ${path} is invalid. Preserve it and the service runtime for manual recovery.`,
-    );
+export class InvalidUpdateJournalError extends Schema.TaggedError<InvalidUpdateJournalError>()(
+  'InvalidUpdateJournalError',
+  {
+    path: Schema.String,
+  },
+) {
+  override get message() {
+    return `The interrupted update record at ${this.path} is invalid. Preserve it and the service runtime for manual recovery.`;
   }
 }

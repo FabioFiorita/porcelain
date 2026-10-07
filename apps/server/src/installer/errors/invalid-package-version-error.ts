@@ -1,8 +1,12 @@
-import { InstallerError } from './installer-error.ts';
+import { Schema } from 'effect';
 
-export class InvalidPackageVersionError extends InstallerError {
-  override readonly name = 'InvalidPackageVersionError';
-  constructor(version: string) {
-    super(`Invalid package version: ${version}`);
+export class InvalidPackageVersionError extends Schema.TaggedError<InvalidPackageVersionError>()(
+  'InvalidPackageVersionError',
+  {
+    version: Schema.String,
+  },
+) {
+  override get message() {
+    return `Invalid package version: ${this.version}`;
   }
 }

@@ -77,6 +77,10 @@ export class CliOperations extends Context.Service<
       const host = yield* CliHost;
       const fs = yield* FileSystem.FileSystem;
       const pathApi = yield* Path.Path;
+      const installerEnvironment =
+        yield* Effect.context<
+          Effect.Services<ReturnType<typeof openServiceUpdateRunner>>
+        >();
       const {
         homeDirectory,
         searchPath,
@@ -88,36 +92,40 @@ export class CliOperations extends Context.Service<
       } = host;
       const output = { stdout, stderr };
       return CliOperations.of({
-        serve: Effect.fn('Cli.serve')(function* (settings) {
-          const webRoot =
-            host.prepareWebRoot === undefined
-              ? settings.webRoot
-              : yield* nativeOperation(host.prepareWebRoot);
-          const packageRoot = cliPackageRoot();
-          const version = yield* nativeOperation(() =>
-            readPackageVersion(packageRoot),
-          );
-          const serviceUpdateRunner = yield* Effect.acquireRelease(
-            Effect.sync(() =>
+        serve: Effect.fn('Cli.serve')(
+          function* (settings) {
+            const webRoot =
+              host.prepareWebRoot === undefined
+                ? settings.webRoot
+                : yield* nativeOperation(host.prepareWebRoot);
+            const packageRoot = cliPackageRoot();
+            const version = yield* readPackageVersion(packageRoot).pipe(
+              Effect.orDie,
+            );
+            const serviceUpdateRunner = yield* Effect.acquireRelease(
               openServiceUpdateRunner({
                 homeDirectory,
                 packageRoot,
                 searchPath,
                 command: limits.installer.command,
               }),
-            ),
-            (runner) => runner.close(),
-          );
-          const signal = yield* Effect.abortSignal;
-          yield* runLocalServer({ ...settings, webRoot }, signal, {
-            startServer: host.startServer,
-            host: { serviceUpdateRunner, version },
-            output: (message) => stdout(`${message}\n`),
-          }).pipe(
-            Effect.provideService(FileSystem.FileSystem, fs),
-            Effect.provideService(Path.Path, pathApi),
-          );
-        }, Effect.scoped),
+              (runner) => runner.close(),
+            );
+            const signal = yield* Effect.abortSignal;
+            yield* runLocalServer({ ...settings, webRoot }, signal, {
+              startServer: host.startServer,
+              host: { serviceUpdateRunner, version },
+              output: (message) => stdout(`${message}\n`),
+            }).pipe(
+              Effect.provideService(FileSystem.FileSystem, fs),
+              Effect.provideService(Path.Path, pathApi),
+            );
+          },
+          Effect.scoped,
+          Effect.provideService(FileSystem.FileSystem, fs),
+          Effect.provideService(Path.Path, pathApi),
+          Effect.provide(installerEnvironment),
+        ),
         status: Effect.fn('Cli.status')((settings) =>
           nativeOperation(() =>
             reportStatus(
@@ -165,15 +173,18 @@ export class CliOperations extends Context.Service<
           ),
         ),
         service: Effect.fn('Cli.service')((settings) =>
-          nativeOperation(() =>
-            runServiceCommand(settings, {
-              homeDirectory,
-              searchPath,
-              clock,
-              ownerProbe,
-              limits,
-              stdout,
-            }),
+          runServiceCommand(settings, {
+            homeDirectory,
+            searchPath,
+            clock,
+            ownerProbe,
+            limits,
+            stdout,
+          }).pipe(
+            Effect.orDie,
+            Effect.provideService(FileSystem.FileSystem, fs),
+            Effect.provideService(Path.Path, pathApi),
+            Effect.provide(installerEnvironment),
           ),
         ),
       });

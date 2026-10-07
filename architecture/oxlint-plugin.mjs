@@ -1316,7 +1316,9 @@ function allowedSpecImport(filename, source) {
     (/\/packages\/(?:git|agents|process)\/src\/.+\.spec\.ts$/.test(path) ||
       storageSpec.test(path) ||
       adapterSpec.test(path) ||
-      /apps\/server\/src\/(?:runtime|use-cases)\/.+\.spec\.ts$/.test(path))
+      /apps\/server\/src\/(?:runtime|use-cases|installer)\/.+\.spec\.ts$/.test(
+        path,
+      ))
   )
     return true;
   if (storageSpec.test(path) && ['node:crypto', 'node:sqlite'].includes(source))

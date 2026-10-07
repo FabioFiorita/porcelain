@@ -1,12 +1,20 @@
-import { InstallerError } from './installer-error.ts';
+import { Schema } from 'effect';
 
-export class UpdateFailedError extends InstallerError {
-  override readonly name = 'UpdateFailedError';
-  constructor(recovery: string, detail: string, hint: string | undefined) {
-    super(
-      [`Porcelain update failed; ${recovery}.`, detail, hint ?? '']
-        .filter((part) => part !== '')
-        .join(' '),
-    );
+export class UpdateFailedError extends Schema.TaggedError<UpdateFailedError>()(
+  'UpdateFailedError',
+  {
+    recovery: Schema.String,
+    detail: Schema.String,
+    hint: Schema.optional(Schema.String),
+  },
+) {
+  override get message() {
+    return [
+      `Porcelain update failed; ${this.recovery}.`,
+      this.detail,
+      this.hint ?? '',
+    ]
+      .filter((part) => part !== '')
+      .join(' ');
   }
 }
