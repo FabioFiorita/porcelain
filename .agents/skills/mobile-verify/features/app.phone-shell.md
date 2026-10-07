@@ -23,17 +23,7 @@ On a phone the app is four native tabs, Review, Files, History and Settings, eac
 
 ## Driving it
 
-Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli tap --label Review
-.agents/skills/mobile-verify/scripts/cli tap --label Files
-.agents/skills/mobile-verify/scripts/cli tap --label History
-.agents/skills/mobile-verify/scripts/cli tap --label Settings
-.agents/skills/mobile-verify/scripts/cli screenshot
-```
-
-Look for: each tap shows that destination's heading; the screenshot shows the native tab bar with Settings selected.
+Start an iPhone instance, then use direct Maestro to select Review, Files, History, Settings and Files. Inspect after each action: require the matching heading and selected native tab, using a screenshot when a selected trait is absent. A cold launch selects Review; verify startup separately from workspace persistence.
 
 ## What proves it works
 

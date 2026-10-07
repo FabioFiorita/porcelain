@@ -19,19 +19,11 @@ Files is the second destination. It does not read files from the server yet: it 
 ## How a user reaches it
 
 - phone: the Files tab; iPad: Files in the sidebar
-- the deep link `porcelain.dev://files` (the CLI opens it as `/files`)
+- the deep link `porcelain.dev://files`
 
 ## Driving it
 
-Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli open /files
-.agents/skills/mobile-verify/scripts/cli snapshot
-.agents/skills/mobile-verify/scripts/cli screenshot
-```
-
-Look for: the static text “Files” and “Select a worktree to continue.”, with the Files tab selected in the screenshot.
+Use direct Maestro to select Files, then inspect the heading, “Select a worktree to continue.” and the selected tab/sidebar row. Use a screenshot if selection is missing from the hierarchy. Workspace selection does not turn this screen into a file list.
 
 ## What proves it works
 
@@ -42,4 +34,4 @@ Look for: the static text “Files” and “Select a worktree to continue.”, 
 ## Gotchas
 
 - The empty state is the only state; a server whose project has no files shows the same screen.
-- On iPad in portrait the sidebar is hidden; `open /files` reaches the screen without it.
+- On iPad in portrait the sidebar is hidden; the Files development deep link reaches the screen without it.

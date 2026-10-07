@@ -31,25 +31,7 @@ The workspace picker in each destination's toolbar (the detail toolbar on iPad) 
 
 ## Driving it
 
-Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli open /files
-.agents/skills/mobile-verify/scripts/cli tap --label Workspace
-.agents/skills/mobile-verify/scripts/cli tap --label Environment
-.agents/skills/mobile-verify/scripts/cli snapshot
-```
-
-Look for: the menu lists the environment “Mobile Verification …”. Tap it by its label, then open the picker again:
-
-```sh
-.agents/skills/mobile-verify/scripts/cli tap --label "Mobile Verification <id from the snapshot>"
-.agents/skills/mobile-verify/scripts/cli tap --label "Mobile Verification <id from the snapshot>"
-.agents/skills/mobile-verify/scripts/cli tap --label Project
-.agents/skills/mobile-verify/scripts/cli snapshot
-```
-
-Look for: the sample project with its main worktree. Tap the project, then the worktree; the toolbar label becomes `<project> · <worktree>` and Files stays selected.
+From Files, inspect and open Workspace → Environment → the full current environment label. Reopen the renamed toolbar control, choose Project → the sample project → main, and verify the accessible toolbar label `<project> · <worktree>` while Files remains selected. Reopen and dismiss the native picker, then verify its menu is gone and selection retained. Visit Settings, return to Files and cold-launch through the printed development link; verify the workspace survives. Do not claim the selected tab persists.
 
 ## What proves it works
 

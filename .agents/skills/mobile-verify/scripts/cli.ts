@@ -2,19 +2,13 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import {
-  buildDevelopmentClient,
-  identity,
-  screenLink,
-} from '../../../../apps/mobile/spec/kit/development-client.ts';
-import { issuePairingLink } from '../../../../apps/mobile/spec/kit/environment.ts';
+import { buildDevelopmentClient } from '../../../../apps/mobile/spec/kit/development-client.ts';
 import { deviceHost } from '../../../../apps/mobile/spec/kit/device-host.ts';
 import {
   isBooted,
   shutdownSimulator,
 } from '../../../../apps/mobile/spec/kit/simulator.ts';
 import { missingTools } from '../../../../apps/mobile/spec/kit/tools.ts';
-import { ServerHandle } from '../../../../apps/server/spec/kit/isolated-server.ts';
 import {
   refuseMissing,
   runCli,
@@ -25,10 +19,8 @@ import {
   agentDevice,
   connectHub,
   disconnectHub,
-  fillField,
   isHosted,
   remoteBooted,
-  selector,
   type Target,
 } from './device.ts';
 import {
@@ -36,10 +28,8 @@ import {
   scriptFingerprint,
   type MobileInstance,
 } from './instance.ts';
-import { pairingLabel, serve, start, startProblems } from './serve.ts';
+import { serve, start, startProblems } from './serve.ts';
 
-const freshLink = '{pairing-link}';
-const holdMs = 1500;
 const logWindow = '10m';
 const logTail = 400;
 const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--instance <id>]
@@ -49,13 +39,7 @@ const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--inst
   doctor                   check the tools, the development client build and the live instances
   stop                     stop owned processes and request simulator shutdown; the evidence stays
   evidence                 print the evidence folder and what it holds
-  open <screen|deep link>  open a screen such as /files, or a ${identity.scheme}:// deep link
-  tap --id <testID> | --label <label> [--long]
-                           --long holds the element, for a context menu
-  fill <value> --id <testID> | --label <label>
-                           the value ${freshLink} types a fresh pairing link from the instance's server, never recorded
-  snapshot                 record the accessibility tree
-  screenshot               record a screenshot
+  refresh                  request a Metro reload; inspect the changed behavior with Maestro
   logs                     record the app, Metro and server logs
 `;
 
@@ -75,52 +59,21 @@ async function booted(instance: MobileInstance): Promise<boolean> {
     : isBooted(instance.detail.udid);
 }
 
-function linkOf(destination: string | undefined): string {
-  if (destination === undefined)
-    throw new Usage('open takes a screen such as /files or a deep link.');
-  if (destination.startsWith('/')) return screenLink(destination);
-  const scheme = `${identity.scheme}://`;
-  if (destination.startsWith(scheme))
-    return destination.includes('?')
-      ? destination
-      : screenLink(destination.slice(scheme.length));
-  throw new Usage(
-    `open takes a screen path starting with / or a ${identity.scheme}:// deep link.`,
-  );
-}
-
-function reloaded(instance: MobileInstance): string {
+function refresh(instance: MobileInstance): string {
   const script = scriptFingerprint();
-  if (script === instance.detail.script) return '';
-  agentDevice(
-    targetOf(instance),
-    [
-      'metro',
-      'reload',
-      '--metro-host',
-      'localhost',
-      '--metro-port',
-      new URL(instance.detail.metro).port,
-    ],
-    { allowFailure: true },
-  );
+  const output = agentDevice(targetOf(instance), [
+    'metro',
+    'reload',
+    '--metro-host',
+    'localhost',
+    '--metro-port',
+    new URL(instance.detail.metro).port,
+  ]);
   registry.update(instance, (current) => ({
     ...current,
     detail: { ...current.detail, script },
   }));
-  return 'JavaScript changed since the last command; Metro reloaded the app from it.\n';
-}
-
-async function issueLink(instance: MobileInstance): Promise<MobileInstance> {
-  const link = await issuePairingLink(
-    await ServerHandle.attach(instance.detail.manifest),
-    registry.redactor(instance).recorder(),
-    pairingLabel,
-  );
-  return registry.update(instance, (current) => ({
-    ...current,
-    secrets: [...current.secrets, link],
-  }));
+  return `${output}\nMetro accepted a reload request; inspect the changed behavior with Maestro.\n`;
 }
 
 async function doctor(): Promise<string> {
@@ -134,7 +87,7 @@ async function doctor(): Promise<string> {
       ? problems.map((problem) => `FAIL ${problem}`)
       : [
           host === undefined
-            ? 'ok   Xcode simulators and agent-device are installed, and the development client is built for this native code'
+            ? 'ok   Xcode simulators and the agent-device setup tool are installed, and the development client is built for this native code'
             : `ok   the device host ${host.hub} answers, its token is set and the ports are free`,
         ]),
   ];
@@ -156,6 +109,7 @@ async function doctor(): Promise<string> {
       `  ${metro.includes('packager-status:running') ? 'ok  ' : 'FAIL'} Metro answers at ${instance.detail.metro}`,
       `  ${health === 200 ? 'ok  ' : 'FAIL'} the server health route answers 200`,
       `  ${stale === undefined ? 'ok   the server, native and CLI code match the checkout' : `FAIL ${stale}`}`,
+      `  ${scriptFingerprint() === instance.detail.script ? 'ok   JavaScript matches the last start or accepted reload request; inspect the app to verify it' : 'FAIL JavaScript changed; run refresh and inspect the changed behavior with Maestro'}`,
     );
   }
   if (lines.some((line) => line.includes('FAIL'))) process.exitCode = 1;
@@ -209,9 +163,6 @@ async function command(args: readonly string[]): Promise<string> {
     options: {
       instance: { type: 'string' },
       device: { type: 'string', default: 'iphone' },
-      id: { type: 'string' },
-      label: { type: 'string' },
-      long: { type: 'boolean', default: false },
     },
     allowPositionals: true,
     strict: true,
@@ -272,58 +223,22 @@ async function command(args: readonly string[]): Promise<string> {
         secrets: [],
       })
       .listing();
+  if (name !== 'refresh' && name !== 'logs') throw new Usage(usage);
   const instance = registry.chosen(values.instance);
   return registry.drive(instance, args, async () => {
-    const note = reloaded(instance);
-    const target = targetOf(instance);
     const evidence = registry.evidence(instance);
     const redactor = registry.redactor(instance);
-    if (name === 'open') {
-      const output = agentDevice(target, [
-        'open',
-        identity.bundleIdentifier,
-        linkOf(rest[0]),
-      ]);
-      const accepted = agentDevice(target, ['alert', 'accept', '3000'], {
-        allowFailure: true,
-      });
-      const settled = accepted.trim().startsWith('accepted')
-        ? `${output}\naccepted the system confirmation to open the link\n`
-        : output;
-      return `${note}${redactor.text(settled)}\nrecorded ${await evidence.record('open', args, settled)}\n`;
+    if (name === 'refresh') {
+      try {
+        const output = refresh(instance);
+        return `${redactor.text(output)}\nrecorded ${await evidence.record('refresh', args, output)}\n`;
+      } catch (error) {
+        if (error instanceof Error)
+          await evidence.record('refresh', args, error.message);
+        throw error;
+      }
     }
-    if (name === 'tap') {
-      const output = agentDevice(
-        target,
-        values.long
-          ? ['longpress', selector(values), String(holdMs), '--settle']
-          : ['press', selector(values), '--settle'],
-      );
-      return `${note}${redactor.text(output)}\nrecorded ${await evidence.record('tap', args, output)}\n`;
-    }
-    if (name === 'fill') {
-      const value = rest[0];
-      if (value === undefined)
-        throw new Usage('fill takes <value> and --id or --label.');
-      const latest = value === freshLink ? await issueLink(instance) : instance;
-      const typed = value === freshLink ? (latest.secrets.at(-1) ?? '') : value;
-      const output = fillField(target, selector(values), typed);
-      return `${note}${registry.redactor(latest).text(output)}\nrecorded ${await registry.evidence(latest).record('fill', args, output)}\n`;
-    }
-    if (name === 'snapshot') {
-      const output = agentDevice(target, ['snapshot']);
-      return `${note}${redactor.known(output)}\nrecorded ${await evidence.record('snapshot', args, output)}\n`;
-    }
-    if (name === 'screenshot') {
-      const claimed = await evidence.claim('screenshot', 'txt');
-      const file = evidence.sibling(claimed, 'png');
-      agentDevice(target, ['screenshot', file]);
-      await evidence.write(claimed, args, `screenshot in ${file}\n`);
-      return `${note}recorded ${file}\n(${claimed})\n`;
-    }
-    if (name === 'logs')
-      return `${note}recorded ${await evidence.record('logs', args, logs(instance))}\n`;
-    throw new Usage(usage);
+    return `recorded ${await evidence.record('logs', args, logs(instance))}\n`;
   });
 }
 

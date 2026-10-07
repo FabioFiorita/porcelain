@@ -19,19 +19,11 @@ History is the third destination. It does not read commits from the server yet: 
 ## How a user reaches it
 
 - phone: the History tab; iPad: History in the sidebar
-- the deep link `porcelain.dev://history` (the CLI opens it as `/history`), warm or straight after a cold launch
+- the deep link `porcelain.dev://history`, warm or straight after a cold launch
 
 ## Driving it
 
-Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli open /history
-.agents/skills/mobile-verify/scripts/cli snapshot
-.agents/skills/mobile-verify/scripts/cli screenshot
-```
-
-Look for: the static text “History” and “Select a worktree to continue.”, with the History tab selected in the screenshot.
+Use direct Maestro to select History and inspect its heading, empty state and selected tab/sidebar row. Repeat using the development deep link if deep-link behavior changed. This screen does not load commits yet.
 
 ## What proves it works
 

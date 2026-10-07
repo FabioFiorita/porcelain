@@ -1,6 +1,6 @@
 # Mobile feature map
 
-One file per screen and flow the mobile app offers, named `<domain>.<capability>.md`. Each says what it is, how a user reaches it, the exact CLI lines that drive it with the end state to look for, the e2e tests that guard it and its gotchas. Its frontmatter names the `screen` it lives on (as Expo Router names `apps/mobile/src/app`), the `selectors` its steps use (test ids and accessible names spelled as `apps/mobile/src` spells them), the `tests` and the `api` routes it calls. `pnpm check` runs `node scripts/feature-maps.ts`, which fails when a screen has no map, a map names a screen, test, selector or API route that does not exist, or the app calls a route no map lists.
+These are optional navigation notes for current screens and flows. Use direct Maestro as described in [mobile-verify](../SKILL.md), inspect the actual hierarchy and compare observable state. Source labels, related tests and routes are references, not a checked inventory or an API contract. Keep a note only while it helps a drive; no frontmatter format or synchronization checker is required.
 
 | Feature | Screen | What it does |
 | --- | --- | --- |
@@ -19,4 +19,4 @@ One file per screen and flow the mobile app offers, named `<domain>.<capability>
 
 ## Platform coverage
 
-iPhone and iPad simulators are proven; `pairing.e2e.ts` runs on both. Android has its own native views (`*.android.tsx`) and is not proven yet: it needs its own build and native proof. The iOS Local Network permission prompt needs a physical device.
+The direct interactive procedure was exercised on an iPhone simulator. Existing regression files include iPad cases; an iPhone drive does not prove them. Android and physical-device Local Network permission need separate native evidence.

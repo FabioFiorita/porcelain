@@ -25,20 +25,11 @@ Settings lists the paired environments, each with its status, and offers Add env
 ## How a user reaches it
 
 - phone: the Settings tab; iPad: Settings in the sidebar
-- the deep link `porcelain.dev://settings` (the CLI opens it as `/settings`)
+- the deep link `porcelain.dev://settings`
 
 ## Driving it
 
-Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`. Start pairs the app with its server, so Settings lists one environment.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli open /settings
-.agents/skills/mobile-verify/scripts/cli snapshot
-```
-
-Look for: “Settings”, “Environments”, one environment named “Mobile Verification …” marked “Online”, and “Add environment”.
-
-To see the empty state, forget that environment (`access.forget-environment`) and take another snapshot: “No environments paired.” shows.
+Start pairs one disposable environment. Select Settings with direct Maestro and inspect the exact environment label, its Online status and Add environment. Forget that environment to inspect “No environments paired.”. Read saved-storage failures as a separate case, not from normal startup.
 
 ## What proves it works
 

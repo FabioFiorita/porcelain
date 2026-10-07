@@ -32,25 +32,7 @@ The sheet opens at half height and can expand to full height. Its React Native c
 
 ## Driving it
 
-Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`. Start itself pairs through this flow; drive it again to pair a second time with a fresh link from the same server.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli open /settings
-.agents/skills/mobile-verify/scripts/cli tap --id add-environment
-.agents/skills/mobile-verify/scripts/cli fill invalid-link --id pairing-link
-.agents/skills/mobile-verify/scripts/cli tap --id pair-environment
-.agents/skills/mobile-verify/scripts/cli snapshot
-```
-
-Look for: the sheet “Pair an environment” stays open and says to paste the whole link `porcelain pair` printed, starting with http.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli fill {pairing-link} --id pairing-link
-.agents/skills/mobile-verify/scripts/cli tap --id pair-environment
-.agents/skills/mobile-verify/scripts/cli snapshot
-```
-
-Look for: the sheet closes and the environment shows “Online”. `{pairing-link}` makes the CLI issue a fresh one-time link from its server and type it; the evidence records the placeholder, never the link.
+Start itself pairs through this flow. To inspect invalid input, select Settings → Add environment, type `invalid-link` into the observed pairing-link field through Maestro, wait for the keyboard animation, and select Pair. Verify the sheet remains open with its invalid-link message; Cancel must dismiss it. For successful additional pairing, obtain a fresh one-time link from that disposable server with `porcelain pair`, keep it private, then paste and submit through the same native controls. Verify the sheet closes, the exact environment becomes Online and the server records the native device. Direct tool transcripts do not receive the lifecycle CLI's redaction.
 
 ## What proves it works
 
@@ -58,7 +40,7 @@ Look for: the sheet closes and the environment shows “Online”. `{pairing-lin
 
 ## Gotchas
 
-- Wait for the sheet's keyboard animation to settle before tapping Pair; the CLI's `fill` waits for it, and the flows use `waitForAnimationToEnd`. Maestro's iOS `hideKeyboard` dismissed this sheet, so the flows never use it.
-- A link works once, for a few minutes; `{pairing-link}` issues a new one each time.
+- Wait for the sheet's keyboard animation to settle before tapping Pair; the regression flows use `waitForAnimationToEnd`. Maestro's iOS `hideKeyboard` dismissed this sheet, so the flows never use it.
+- A link works once, for a few minutes; issue a fresh link for each pairing attempt.
 - The invalid-link message comes from the shared client, so the map names the sheet title instead.
 - Use the button test ids when driving pairing: XCTest snapshots can also label a button's enclosing native host, making a label-only selector ambiguous.

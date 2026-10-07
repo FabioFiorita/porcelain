@@ -27,15 +27,7 @@ Expo Router opens each screen from the app's scheme, `porcelain.dev://` for the 
 
 ## Driving it
 
-Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli open /history
-.agents/skills/mobile-verify/scripts/cli open porcelain.dev://settings
-.agents/skills/mobile-verify/scripts/cli snapshot
-```
-
-Look for: History, then Settings listing the paired environment. `open` takes a screen path or a `porcelain.dev://` link and adds the developer-menu flags to a link that carries no query of its own.
+Use Maestro's openLink with the development scheme to open History and Settings. Include the developer-overlay flags printed in the lifecycle development link, accept the system confirmation when visible, and inspect the heading and selected destination. Repeat from a cold launch without clearing app data.
 
 ## What proves it works
 
@@ -45,4 +37,4 @@ Look for: History, then Settings listing the paired environment. `open` takes a 
 ## Gotchas
 
 - Only screens have links. Pairing and choosing a worktree have none, so a test that needs a paired environment or a selected worktree walks those steps first.
-- iOS asks to confirm opening a link from outside the app; the flows and the CLI accept it.
+- iOS asks to confirm opening a link from outside the app; accept it only when it is visible.

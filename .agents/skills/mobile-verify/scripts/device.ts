@@ -10,7 +10,7 @@ import {
   simulatorLimitProblem,
   type DeviceKind,
 } from '../../../../apps/mobile/spec/kit/simulator.ts';
-import { Refusal, Usage } from '../../verify-core/cli.ts';
+import { Refusal } from '../../verify-core/cli.ts';
 import { hubToken, hubUrl, type HostDetail } from './host.ts';
 const keyboardSettleMs = 1500;
 const leaseBeatMs = 2 * 60 * 1000;
@@ -83,17 +83,6 @@ export function fillField(
   const filled = agentDevice(target, ['fill', address, value, '--settle']);
   agentDevice(target, ['wait', String(keyboardSettleMs)]);
   return filled;
-}
-export function selector(values: {
-  id?: string | undefined;
-  label?: string | undefined;
-}): string {
-  if (values.id !== undefined) return `id=${JSON.stringify(values.id)}`;
-  if (values.label !== undefined)
-    return `label=${JSON.stringify(values.label)}`;
-  throw new Usage(
-    'Address the element with --id <testID> or --label <accessibility label>.',
-  );
 }
 function remoteDevices(target: Hosted) {
   const result = run({ ...target, udid: undefined }, ['devices', '--json']);

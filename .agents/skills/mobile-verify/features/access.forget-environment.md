@@ -20,22 +20,7 @@ Holding an environment row in Settings opens its native context menu with “For
 
 ## Driving it
 
-Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli open /settings
-.agents/skills/mobile-verify/scripts/cli snapshot
-```
-
-Look for: the environment row; its name starts with “Mobile Verification”. Hold it by that label:
-
-```sh
-.agents/skills/mobile-verify/scripts/cli tap --long --label "Mobile Verification <id from the snapshot>"
-.agents/skills/mobile-verify/scripts/cli tap --label "Forget environment"
-.agents/skills/mobile-verify/scripts/cli snapshot
-```
-
-Look for: the row is gone and “No environments paired.” shows.
+Select Settings, inspect the full environment label, then use direct Maestro to long-press that row and choose Forget environment. Verify the row disappears and the empty state appears when it was the last environment. Cold-launch through the printed development link and confirm removal persists; with two environments, also verify the other remains.
 
 ## What proves it works
 

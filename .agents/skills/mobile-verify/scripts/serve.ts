@@ -47,7 +47,7 @@ import {
 import { freeHostPorts, hostProblems } from './host.ts';
 import { registry, scriptFingerprint } from './instance.ts';
 const startLimitMs = 25 * 60 * 1000;
-export const pairingLabel = 'Verification simulator';
+const pairingLabel = 'Verification simulator';
 const optionsSchema = Schema.Struct({
   kind: Schema.Literals(['iphone', 'ipad']),
   host: Schema.NullOr(
@@ -269,5 +269,5 @@ export async function start(kind: DeviceKind): Promise<string> {
     { kind, host: remote ?? null, simulatorLimit: simulatorLimit ?? null },
     startLimitMs,
   );
-  return `instance ${instance.id}\nsimulator ${instance.detail.udid} (${instance.detail.simulator})${instance.detail.host === null ? '' : ` on the device host ${instance.detail.host.hub}`}\nevidence ${instance.evidence}\nstarted in ${Math.round(performance.now() - began)} ms\n`;
+  return `instance ${instance.id}\nsimulator ${instance.detail.udid} (${instance.detail.simulator})${instance.detail.host === null ? '' : ` on the device host ${instance.detail.host.hub}`}\ndevelopment link ${developmentLink(instance.detail.metro)}\nevidence ${instance.evidence}\nstarted in ${Math.round(performance.now() - began)} ms\n`;
 }
