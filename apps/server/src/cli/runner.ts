@@ -1,11 +1,14 @@
 import { homedir } from 'node:os';
+import { NodeRuntime } from '@effect/platform-node';
 import {
   Cause,
   ConfigProvider,
   Console,
   Context,
   Effect,
+  Exit,
   Layer,
+  Runtime,
   type Clock,
 } from 'effect';
 import type { Command } from 'effect/cli';
@@ -25,6 +28,19 @@ import { writeStandardError, writeStandardOutput } from './standard-output.ts';
 import type { StartServer } from './launcher.ts';
 
 type ActionableError = abstract new (...args: never[]) => Error;
+
+export function runMain(program: Effect.Effect<number>): void {
+  NodeRuntime.runMain(program, {
+    teardown: (exit, onExit) =>
+      Runtime.defaultTeardown(exit, (code) =>
+        onExit(
+          Exit.isSuccess(exit) && typeof exit.value === 'number'
+            ? exit.value
+            : code,
+        ),
+      ),
+  });
+}
 
 export class CliRuntime extends Context.Service<
   CliRuntime,

@@ -12,19 +12,19 @@ import { fileURLToPath } from 'node:url';
 
 const repository = fileURLToPath(new URL('../../../../', import.meta.url));
 const PROGRAM = `
-import { NodeRuntime } from '@effect/platform-node';
-import { Effect, Exit, Runtime } from 'effect';
+import { Effect } from 'effect';
 import { writeFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import { join } from 'node:path';
 import { runCli } from './apps/server/src/bootstrap/main.ts';
+import { runMain } from './apps/server/src/cli/runner.ts';
 const root = process.argv[1];
-NodeRuntime.runMain(runCli(['serve', '--port', '0', '--data-directory', join(root, 'data')], { PORCELAIN_PROJECT_HOME: root }, { homeDirectory: root }).pipe(
+runMain(runCli(['serve', '--port', '0', '--data-directory', join(root, 'data')], { PORCELAIN_PROJECT_HOME: root }, { homeDirectory: root }).pipe(
   Effect.ensuring(Effect.promise(async () => {
     await delay(100);
     await writeFile(join(root, 'drained'), 'drained');
   })),
-), { teardown: (exit, onExit) => Runtime.defaultTeardown(exit, code => onExit(Exit.isSuccess(exit) && typeof exit.value === 'number' ? exit.value : code)) });
+));
 `;
 
 export function cliProcess(root: string) {
