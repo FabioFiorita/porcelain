@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { branchRefName, isBranchRef } from '../../shared/parsers/refs.ts';
 import type { BranchBases } from '../dtos/branch-range.ts';
@@ -9,14 +10,13 @@ import {
 import { readDefaultBase } from './read-default-base.ts';
 import { runHistory } from './run-history.ts';
 
-export async function listBranchBases(
+export const listBranchBases = Effect.fn('Git.listBranchBases')(function* (
   checkout: HistoryCheckout,
   gitVersion: Buffer,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<BranchBases> {
-  await inspectHistoryCheckout(checkout, gitVersion, signal);
-  const output = await runHistory(
+) {
+  yield* inspectHistoryCheckout(checkout, gitVersion);
+  const output = yield* runHistory(
     checkout.path,
     [
       'for-each-ref',
@@ -27,7 +27,6 @@ export async function listBranchBases(
       'refs/remotes/',
     ],
     limits,
-    signal,
   );
   const bases = output
     .toString('utf8')
@@ -44,7 +43,7 @@ export async function listBranchBases(
           ]
         : [];
     });
-  const found = await readDefaultBase(checkout.path, limits, signal);
-  await confirmHistoryCheckout(checkout, signal);
-  return { defaultRef: found?.ref ?? null, bases };
-}
+  const found = yield* readDefaultBase(checkout.path, limits);
+  yield* confirmHistoryCheckout(checkout);
+  return { defaultRef: found?.ref ?? null, bases } satisfies BranchBases;
+});

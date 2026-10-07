@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { NodeServices } from '@effect/platform-node';
 import { execFileSync } from 'node:child_process';
 import {
   mkdirSync,
@@ -10,7 +12,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
-import { listFileCommits } from './list-file-commits.ts';
+import { listFileCommits as listFileCommitsEffect } from './list-file-commits.ts';
+
+const listFileCommits = (...args: Parameters<typeof listFileCommitsEffect>) =>
+  Effect.runPromise(
+    listFileCommitsEffect(...args).pipe(Effect.provide(NodeServices.layer)),
+  );
 
 let checkout: string;
 

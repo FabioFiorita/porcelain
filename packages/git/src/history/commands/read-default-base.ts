@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { isOid } from '../../shared/parsers/oid.ts';
 import { isBranchRef } from '../../shared/parsers/refs.ts';
@@ -12,20 +13,16 @@ const REMOTE_FALLBACKS = [
 ];
 const LOCAL_FALLBACKS = ['refs/heads/main', 'refs/heads/master'];
 
-export async function readDefaultBase(
+export const readDefaultBase = Effect.fn('Git.readDefaultBase')(function* (
   path: string,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<{ ref: string; oid: string } | null> {
-  const remoteHead = (
-    await readHistoryAnswer(
-      path,
-      ['symbolic-ref', '--quiet', REMOTE_HEAD],
-      limits,
-      signal,
-      (failure) => failure.exitCode === ABSENT,
-    )
-  )
+) {
+  const remoteHead = (yield* readHistoryAnswer(
+    path,
+    ['symbolic-ref', '--quiet', REMOTE_HEAD],
+    limits,
+    (failure) => failure.exitCode === ABSENT,
+  ))
     ?.toString('utf8')
     .trim();
   const candidates = [
@@ -33,23 +30,22 @@ export async function readDefaultBase(
     ...REMOTE_FALLBACKS,
     ...LOCAL_FALLBACKS,
   ].filter(isBranchRef);
-  const found = await lookupBranchRefs(path, candidates, limits, signal);
+  const found = yield* lookupBranchRefs(path, candidates, limits);
   for (const ref of candidates) {
     const oid = found.get(ref);
     if (oid !== undefined) return { ref, oid };
   }
   return null;
-}
+});
 
-export async function lookupBranchRefs(
+export const lookupBranchRefs = Effect.fn('Git.lookupBranchRefs')(function* (
   path: string,
   refs: readonly string[],
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<Map<string, string>> {
+) {
   const wanted = new Set(refs.filter(isBranchRef));
-  if (wanted.size === 0) return new Map();
-  const output = await runHistory(
+  if (wanted.size === 0) return new Map<string, string>();
+  const output = yield* runHistory(
     path,
     [
       'for-each-ref',
@@ -58,7 +54,6 @@ export async function lookupBranchRefs(
       ...wanted,
     ],
     limits,
-    signal,
   );
   const found = new Map<string, string>();
   for (const line of output.toString('utf8').split('\n')) {
@@ -66,4 +61,4 @@ export async function lookupBranchRefs(
     if (wanted.has(ref) && type === 'commit' && isOid(oid)) found.set(ref, oid);
   }
   return found;
-}
+});

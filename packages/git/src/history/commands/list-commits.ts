@@ -1,4 +1,4 @@
-import { runGitEffect } from '../../shared/commands/run-git.ts';
+import { Effect } from 'effect';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type {
   CommitPage,
@@ -20,83 +20,76 @@ import {
 import { isAncestorOfHead } from './is-ancestor.ts';
 import { runHistory } from './run-history.ts';
 
-export async function listCommits(
+export const listCommits = Effect.fn('Git.listCommits')(function* (
   checkout: HistoryCheckout,
   gitVersion: Buffer,
   request: CommitPageRequest,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<CommitPage> {
-  const { shallow } = await inspectHistoryCheckout(
-    checkout,
-    gitVersion,
-    signal,
-  );
+) {
+  const { shallow } = yield* inspectHistoryCheckout(checkout, gitVersion);
   const { history } = limits;
   const limit = request.limit ?? history.defaultCommits;
   if (!Number.isInteger(limit) || limit < 1 || limit > history.maxCommits)
-    throw new InvalidHistoryRequestError();
+    return yield* Effect.fail(new InvalidHistoryRequestError());
   const after = request.after ?? [];
   if (after.some((oid) => !isOid(oid)) || after.length > history.maxFrontier)
-    throw new InvalidHistoryRequestError();
+    return yield* Effect.fail(new InvalidHistoryRequestError());
   if (request.tip !== undefined && !isOid(request.tip))
-    throw new InvalidHistoryRequestError();
+    return yield* Effect.fail(new InvalidHistoryRequestError());
   const page =
     after.length === 0 || request.tip === undefined
-      ? await readTop(checkout, limit, shallow, limits, signal)
-      : await continueFrom(
+      ? yield* readTop(checkout, limit, shallow, limits)
+      : yield* continueFrom(
           checkout,
           request.tip,
           after,
           limit,
           shallow,
           limits,
-          signal,
         );
-  await confirmHistoryCheckout(checkout, signal);
+  yield* confirmHistoryCheckout(checkout);
   return page;
-}
+});
 
-async function continueFrom(
+const continueFrom = Effect.fn('Git.continueFrom')(function* (
   checkout: HistoryCheckout,
   tip: string,
   frontier: readonly string[],
   limit: number,
   shallow: boolean,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<CommitPage> {
-  if (!(await isAncestorOfHead(checkout.path, tip, limits, signal)))
+) {
+  if (!(yield* isAncestorOfHead(checkout.path, tip, limits)))
     return {
-      ...(await readTop(checkout, limit, shallow, limits, signal)),
+      ...(yield* readTop(checkout, limit, shallow, limits)),
       restarted: true,
-    };
-  const parsed = await readLog(checkout, frontier, limit, limits, signal);
+    } satisfies CommitPage;
+  const parsed = yield* readLog(checkout, frontier, limit, limits);
   return {
     snapshot: null,
     ...trim(parsed, limit, shallow, limits),
     tip,
     restarted: false,
-  };
-}
+  } satisfies CommitPage;
+});
 
-async function readTop(
+const readTop = Effect.fn('Git.readTop')(function* (
   checkout: HistoryCheckout,
   limit: number,
   shallow: boolean,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<CommitPage> {
-  const head = await runGitEffect(
-    readHeadFile(checkout.administrativeDirectory),
-    signal,
-  );
-  if (head === undefined) throw new UnsupportedHistoryDataError();
-  const parsed = await readLog(checkout, ['HEAD'], limit, limits, signal).catch(
-    async (error: unknown) => {
-      if (await hasHead(checkout.path, limits, signal)) throw error;
-      return undefined;
-    },
+) {
+  const head = yield* readHeadFile(checkout.administrativeDirectory);
+  if (head === undefined)
+    return yield* Effect.fail(new UnsupportedHistoryDataError());
+  const parsed = yield* readLog(checkout, ['HEAD'], limit, limits).pipe(
+    Effect.catch((error) =>
+      Effect.gen(function* () {
+        if (yield* hasHead(checkout.path, limits))
+          return yield* Effect.fail(error);
+        return undefined;
+      }),
+    ),
   );
   if (parsed === undefined)
     return {
@@ -109,15 +102,15 @@ async function readTop(
       tip: null,
       boundary: null,
       restarted: false,
-    };
+    } satisfies CommitPage;
   const [first] = parsed;
-  if (!first) throw new UnsupportedHistoryDataError();
+  if (!first) return yield* Effect.fail(new UnsupportedHistoryDataError());
   return {
     snapshot: { tipOid: first.oid, head },
     ...trim(parsed, limit, shallow, limits),
     restarted: false,
-  };
-}
+  } satisfies CommitPage;
+});
 
 function trim(
   parsed: readonly CommitSummary[],
@@ -145,14 +138,13 @@ function trim(
   };
 }
 
-async function readLog(
+const readLog = Effect.fn('Git.readLog')(function* (
   checkout: HistoryCheckout,
   range: readonly string[],
   limit: number,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<CommitSummary[]> {
-  const output = await runHistory(
+) {
+  const output = yield* runHistory(
     checkout.path,
     [
       'log',
@@ -165,7 +157,6 @@ async function readLog(
       '--',
     ],
     limits,
-    signal,
   );
-  return parseCommitRecords(decodeHistory(output), limits);
-}
+  return yield* parseCommitRecords(yield* decodeHistory(output), limits);
+});

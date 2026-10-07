@@ -1,10 +1,17 @@
+import { Effect } from 'effect';
+import { NodeServices } from '@effect/platform-node';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { isAncestorOfHead } from './is-ancestor.ts';
+import { isAncestorOfHead as isAncestorOfHeadEffect } from './is-ancestor.ts';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
+
+const isAncestorOfHead = (...args: Parameters<typeof isAncestorOfHeadEffect>) =>
+  Effect.runPromise(
+    isAncestorOfHeadEffect(...args).pipe(Effect.provide(NodeServices.layer)),
+  );
 
 let checkout: string;
 let first: string;

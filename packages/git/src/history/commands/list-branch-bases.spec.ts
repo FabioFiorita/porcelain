@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { NodeServices } from '@effect/platform-node';
 import { execFileSync } from 'node:child_process';
 import {
   mkdtempSync,
@@ -10,7 +12,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
-import { listBranchBases } from './list-branch-bases.ts';
+import { listBranchBases as listBranchBasesEffect } from './list-branch-bases.ts';
+
+const listBranchBases = (...args: Parameters<typeof listBranchBasesEffect>) =>
+  Effect.runPromise(
+    listBranchBasesEffect(...args).pipe(Effect.provide(NodeServices.layer)),
+  );
 
 let checkout: string;
 

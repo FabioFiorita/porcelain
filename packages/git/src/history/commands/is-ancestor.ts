@@ -9,13 +9,11 @@ export function isAncestorOfHead(
   checkout: string,
   tip: string,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<boolean> {
+) {
   return askHistory(
     checkout,
     ['merge-base', '--is-ancestor', tip, 'HEAD'],
     limits,
-    signal,
     (failure) =>
       failure.exitCode === ancestryExitCodes.notAncestor ||
       (failure.exitCode === ancestryExitCodes.fatal &&

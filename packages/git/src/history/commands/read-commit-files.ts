@@ -1,9 +1,9 @@
+import { Effect } from 'effect';
 import { InvalidGitDiffError } from '../../shared/errors/invalid-git-diff-error.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { parseRawDiff, type RawDiffEntry } from '../../inspection/index.ts';
 import { isOid } from '../../shared/parsers/oid.ts';
 import type {
-  CommitFile,
   CommitFiles,
   CommitFilesRequest,
   HistoryCheckout,
@@ -32,18 +32,17 @@ export function diffFlags(limits: GitLimits): string[] {
   ];
 }
 
-export async function readCommitFiles(
+export const readCommitFiles = Effect.fn('Git.readCommitFiles')(function* (
   checkout: HistoryCheckout,
   gitVersion: Buffer,
   request: CommitFilesRequest,
   limits: GitLimits,
-  signal?: AbortSignal,
-): Promise<CommitFiles> {
-  await inspectHistoryCheckout(checkout, gitVersion, signal);
+) {
+  yield* inspectHistoryCheckout(checkout, gitVersion);
   const parent = request.parent ?? 1;
   if (!Number.isInteger(parent) || parent < 1 || !isOid(request.oid))
-    throw new InvalidHistoryRequestError();
-  const output = await runHistory(
+    return yield* Effect.fail(new InvalidHistoryRequestError());
+  const output = yield* runHistory(
     checkout.path,
     [
       'show',
@@ -56,18 +55,23 @@ export async function readCommitFiles(
       '--',
     ],
     limits,
-    signal,
   );
-  const header = decodeHistory(output).split('\0').slice(0, COMMIT_FIELDS);
-  const commit = parseCommitRecord(header, limits);
+  const header = (yield* decodeHistory(output))
+    .split('\0')
+    .slice(0, COMMIT_FIELDS);
+  const commit = yield* parseCommitRecord(header, limits);
   const parentOid = commit.parentOids[parent - 1];
   if (request.parent !== undefined && parentOid === undefined)
-    throw new InvalidHistoryRequestError();
+    return yield* Effect.fail(new InvalidHistoryRequestError());
   const files =
     parent === 1 || parentOid === undefined
-      ? parseFiles(output, Buffer.byteLength(`${header.join('\0')}\0`), limits)
-      : parseFiles(
-          await runHistory(
+      ? yield* parseFiles(
+          output,
+          Buffer.byteLength(`${header.join('\0')}\0`),
+          limits,
+        )
+      : yield* parseFiles(
+          yield* runHistory(
             checkout.path,
             [
               'diff-tree',
@@ -81,12 +85,11 @@ export async function readCommitFiles(
               '--',
             ],
             limits,
-            signal,
           ),
           0,
           limits,
         );
-  await confirmHistoryCheckout(checkout, signal);
+  yield* confirmHistoryCheckout(checkout);
   return {
     commit,
     comparison:
@@ -94,49 +97,53 @@ export async function readCommitFiles(
         ? { kind: 'empty-tree' }
         : { kind: 'parent', parentNumber: parent, baseOid: parentOid },
     files,
-  };
-}
+  } satisfies CommitFiles;
+});
 
-function parseFiles(
+const parseFiles = Effect.fn('Git.parseFiles')(function* (
   output: Buffer,
   start: number,
   limits: GitLimits,
-): CommitFile[] {
-  let entries: RawDiffEntry[];
-  try {
-    entries = parseRawDiff(output, start).entries;
-  } catch (cause) {
-    if (cause instanceof InvalidGitDiffError)
-      throw new UnsupportedHistoryDataError({ cause });
-    throw cause;
-  }
+) {
+  const entries: RawDiffEntry[] = yield* Effect.try({
+    try: () => parseRawDiff(output, start).entries,
+    catch: (cause) => ({ cause }),
+  }).pipe(
+    Effect.catch(({ cause }) =>
+      cause instanceof InvalidGitDiffError
+        ? Effect.fail(new UnsupportedHistoryDataError({ cause }))
+        : Effect.die(cause),
+    ),
+  );
   if (entries.length > limits.history.maxCommitFiles)
-    throw new ReadLimitExceededError();
-  return entries.map((entry) => {
-    const status = fileStatus(entry.status);
-    return {
-      oldPath: status === 'added' ? null : entry.oldPath,
-      newPath: status === 'deleted' ? null : entry.newPath,
-      oldMode: entry.oldMode,
-      newMode: entry.newMode,
-      status,
-    };
-  });
-}
+    return yield* Effect.fail(new ReadLimitExceededError());
+  return yield* Effect.forEach(entries, (entry) =>
+    Effect.gen(function* () {
+      const status = yield* fileStatus(entry.status);
+      return {
+        oldPath: status === 'added' ? null : entry.oldPath,
+        newPath: status === 'deleted' ? null : entry.newPath,
+        oldMode: entry.oldMode,
+        newMode: entry.newMode,
+        status,
+      };
+    }),
+  );
+});
 
-export function fileStatus(code: string): CommitFile['status'] {
+export const fileStatus = Effect.fn('Git.fileStatus')(function* (code: string) {
   switch (code) {
     case 'A':
-      return 'added';
+      return 'added' as const;
     case 'D':
-      return 'deleted';
+      return 'deleted' as const;
     case 'M':
-      return 'modified';
+      return 'modified' as const;
     case 'R':
-      return 'renamed';
+      return 'renamed' as const;
     case 'T':
-      return 'type-changed';
+      return 'type-changed' as const;
     default:
-      throw new UnsupportedHistoryDataError();
+      return yield* Effect.fail(new UnsupportedHistoryDataError());
   }
-}
+});
