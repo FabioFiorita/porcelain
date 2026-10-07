@@ -1,20 +1,20 @@
-import { agentActs } from '../../../../apps/server/spec/kit/agent.ts';
+import { agentActs } from '../../../apps/server/spec/kit/agent.ts';
 import {
   kitHeaders,
   Recorder,
   ServerHandle,
-} from '../../../../apps/server/spec/kit/isolated-server.ts';
+} from '../../../apps/server/spec/kit/isolated-server.ts';
 import {
   pairingGrant,
   toolText,
-} from '../../../../apps/server/spec/kit/requests.ts';
+} from '../../../apps/server/spec/kit/requests.ts';
 import type {
   AgentAction,
   ProofCheckStep,
   Session,
-} from '../../../../apps/server/spec/kit/session.ts';
-import { serverReaders } from '../../../../apps/server/spec/kit/typed-readers.ts';
-import { Usage } from '../../verify-core/cli.ts';
+} from '../../../apps/server/spec/kit/session.ts';
+import { serverReaders } from '../../../apps/server/spec/kit/typed-readers.ts';
+import { Usage } from './cli.ts';
 
 export const serverOptions = {
   context: { type: 'boolean', default: false },
@@ -31,7 +31,7 @@ export const serverUsage = `  agent publish-review "<title>" [--context] [--summ
   agent publish-proof "<title>" --check "<name>=pass|fail|skipped" [--output "<name>=<text>"] --screenshot "<title>"
   agent comment <path> "<body>"
   agent reply <threadId|latest> "<body>"
-  server reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | pending-links | receipt <requestId>
+  server published-review | reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | pending-links | receipt <requestId>
                           print the server's state as JSON
       agent and server take --remote to act on the second computer
   pair                    pair the browser through a fresh one-time link
@@ -48,9 +48,8 @@ type ServerValues = {
   screenshot?: string | undefined;
 };
 
-async function attach(manifest: string) {
+async function attach(manifest: string, recorder = new Recorder()) {
   const handle = await ServerHandle.attach(manifest);
-  const recorder = new Recorder();
   recorder.phase = 'follow-up';
   recorder.secret(handle.credential);
   recorder.secret(handle.desktopCredential);
@@ -166,8 +165,9 @@ export async function agentCommand(
   manifest: string,
   rest: readonly string[],
   values: ServerValues,
+  recorder?: Recorder,
 ): Promise<string> {
-  const { handle, session } = await attach(manifest);
+  const { handle, session } = await attach(manifest, recorder);
   const action = await actionOf(handle, session, rest, values);
   if (action === undefined)
     throw new Usage(
@@ -180,31 +180,34 @@ export async function agentCommand(
 export async function serverRead(
   manifest: string,
   rest: readonly string[],
+  recorder?: Recorder,
 ): Promise<string> {
-  const { handle, session } = await attach(manifest);
+  const { handle, session } = await attach(manifest, recorder);
   const readers = readersOf(handle, session);
   const [what, argument] = rest;
   const state =
-    what === 'reviewed-files'
-      ? await readers.reviewedFiles(argument)
-      : what === 'reviewed-layers'
-        ? await readers.reviewedLayers()
-        : what === 'comment-threads'
-          ? await readers.commentThreads()
-          : what === 'project'
-            ? await readers.project()
-            : what === 'devices'
-              ? await readers.devices()
-              : what === 'pending-links'
-                ? await readers.pendingLinks()
-                : what === 'receipt'
-                  ? await readers.receipt(
-                      required(argument, 'the Git action request id'),
-                    )
-                  : undefined;
+    what === 'published-review'
+      ? await readers.publishedReview()
+      : what === 'reviewed-files'
+        ? await readers.reviewedFiles(argument)
+        : what === 'reviewed-layers'
+          ? await readers.reviewedLayers()
+          : what === 'comment-threads'
+            ? await readers.commentThreads()
+            : what === 'project'
+              ? await readers.project()
+              : what === 'devices'
+                ? await readers.devices()
+                : what === 'pending-links'
+                  ? await readers.pendingLinks()
+                  : what === 'receipt'
+                    ? await readers.receipt(
+                        required(argument, 'the Git action request id'),
+                      )
+                    : undefined;
   if (state === undefined)
     throw new Usage(
-      'Use server reviewed-files [<branch ref>], reviewed-layers, comment-threads, project, devices, pending-links or receipt <requestId>.',
+      'Use server published-review | reviewed-files [<branch ref>], reviewed-layers, comment-threads, project, devices, pending-links or receipt <requestId>.',
     );
   return `${JSON.stringify(state, null, 2)}\n`;
 }
@@ -213,7 +216,8 @@ export async function issuedLink(
   manifest: string,
   label: string,
   trusted: boolean,
+  recorder?: Recorder,
 ) {
-  const { session } = await attach(manifest);
+  const { session } = await attach(manifest, recorder);
   return pairingGrant(session, label, trusted);
 }

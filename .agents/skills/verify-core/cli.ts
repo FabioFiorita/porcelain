@@ -23,6 +23,13 @@ export function onPath(name: string): boolean {
 
 export function sandboxProblems(): string[] {
   const problems: string[] = [];
+  if (
+    Number(process.versions.node.split('.')[0]) !== 24 ||
+    Number(process.versions.node.split('.')[1]) < 20
+  )
+    problems.push(
+      'Node 24.20 or newer in the 24.x series is required; select the version declared in package.json',
+    );
   if (process.platform === 'linux' && !onPath('bwrap'))
     problems.push(
       'bwrap is missing: install bubblewrap (sudo apt-get install bubblewrap); the disposable server runs inside its sandbox',
@@ -39,7 +46,18 @@ export function sandboxProblems(): string[] {
     problems.push(
       'git is missing: install Git (https://git-scm.com/downloads); the sample repository is a real Git repository',
     );
+  if (!onPath('ps'))
+    problems.push(
+      'ps is missing: install procps on Linux or restore the macOS system PATH; captured process ownership requires ps',
+    );
   return problems;
+}
+
+export function optionalDrivers(): string[] {
+  return ['curl'].map(
+    (name) =>
+      `${name}: ${onPath(name) ? 'available' : 'missing (optional; Node fetch can drive HTTP)'}`,
+  );
 }
 
 export function refuseMissing(problems: readonly (string | undefined)[]) {

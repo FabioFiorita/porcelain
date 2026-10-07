@@ -15,6 +15,7 @@ import { dirname, join, resolve } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { Refusal } from './cli.ts';
+import type { Connection } from './connection.ts';
 import { Evidence, Redactor, type EvidenceFormat } from './evidence.ts';
 import { buildFingerprint, type BuildInputs } from './fingerprint.ts';
 import {
@@ -40,6 +41,7 @@ const instanceSchema = Schema.Struct({
   startedAt: Schema.String,
   secrets: Schema.Array(Schema.String),
   detail: Schema.Unknown,
+  connectionPath: Schema.optional(Schema.String),
 });
 const processSchema = Schema.Struct({
   pid: Schema.Finite,
@@ -62,6 +64,7 @@ export type Surface<Detail> = {
   detail: Schema.Codec<Detail>;
   inputs: BuildInputs;
   format: EvidenceFormat;
+  connection?: (instance: Instance<Detail>) => Connection | Promise<Connection>;
   stale: (
     instance: Instance<Detail>,
     buildChanged: boolean,
@@ -267,6 +270,17 @@ export class Registry<Detail> {
       (entry) => entry.instance.id === instance.id && entry.alive,
     );
   }
+  async status(requested?: string) {
+    const instance = this.chosen(requested, { includeStopped: true });
+    return {
+      instanceId: instance.id,
+      alive: this.alive(instance),
+      startedAt: instance.startedAt,
+      stale: (await this.staleness(instance)) ?? null,
+      connectionPath: instance.connectionPath ?? null,
+      evidenceDirectory: instance.evidence,
+    };
+  }
   chosen(
     requested: string | undefined,
     { includeStopped = false } = {},
@@ -422,7 +436,12 @@ export class Registry<Detail> {
     };
     let result: StopResult;
     try {
-      for (const name of ['instance.json', 'processes.json', 'pending.json']) {
+      for (const name of [
+        'instance.json',
+        'processes.json',
+        'pending.json',
+        'connection.json',
+      ]) {
         const file = join(instance.folder, name);
         if (existsSync(file))
           snapshots.push({ name, content: readFileSync(file, 'utf8') });
@@ -643,7 +662,7 @@ export class Registry<Detail> {
     try {
       const detail = await start(life);
       own(process.pid);
-      this.save({
+      const instance: Instance<Detail> = {
         id: pending.id,
         pid: process.pid,
         folder,
@@ -652,7 +671,17 @@ export class Registry<Detail> {
         startedAt: new Date().toISOString(),
         secrets,
         detail,
-      });
+      };
+      if (this.surface.connection !== undefined) {
+        const connection = await this.surface.connection(instance);
+        const connectionPath = join(folder, 'connection.json');
+        await writeFile(
+          connectionPath,
+          `${JSON.stringify(connection, null, 2)}\n`,
+          { mode: 0o600 },
+        );
+        this.save({ ...instance, connectionPath });
+      } else this.save(instance);
       await rm(join(folder, 'pending.json'));
     } catch (error) {
       await evidence().note(

@@ -51,7 +51,7 @@ import {
   serverOptions,
   serverRead,
   serverUsage,
-} from './server.ts';
+} from '../../verify-core/fixtures.ts';
 const vite = join(root, 'apps/web/node_modules/.bin/vite');
 const readyTimeoutMs = 60 * 1000;
 const remoteReadyMs = 90 * 1000;
