@@ -23,6 +23,14 @@ const versionRowsSchema = Schema.Array(
   Schema.Struct({ user_version: Schema.Int }),
 );
 
+const nativeColumnSchema = Schema.Array(
+  Schema.Struct({
+    name: Schema.String,
+    notnull: Schema.Int,
+    dflt_value: Schema.NullOr(Schema.String),
+  }),
+);
+
 const nativeHistorySchema = Schema.Array(
   Schema.Struct({ migration_id: Schema.Int, name: Schema.String }),
 );
@@ -83,7 +91,7 @@ function assertNativeMigrationHistory(
       throw new UnsupportedDatabaseVersionError(
         'invalid native migration table',
       );
-    const columns = Schema.decodeUnknownSync(tableRowsSchema)(
+    const columns = Schema.decodeUnknownSync(nativeColumnSchema)(
       database.prepare('PRAGMA table_info(porcelain_migrations)').all(),
     );
     const expectedColumns = ['migration_id', 'name', 'created_at'];
@@ -95,6 +103,16 @@ function assertNativeMigrationHistory(
     )
       throw new UnsupportedDatabaseVersionError(
         'invalid native migration table',
+      );
+    const createdAt = columns.find((column) => column.name === 'created_at');
+    if (
+      createdAt?.notnull === 1 &&
+      (createdAt.dflt_value === null ||
+        database.prepare(`SELECT ${createdAt.dflt_value} AS value`).get()
+          ?.value === null)
+    )
+      throw new UnsupportedDatabaseVersionError(
+        'invalid native migration timestamp',
       );
     const history = Schema.decodeUnknownSync(nativeHistorySchema)(
       database

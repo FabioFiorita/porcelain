@@ -293,6 +293,27 @@ describe('Native storage adoption', () => {
       rows: '',
     },
     {
+      history:
+        'an empty native ledger with a required timestamp and no default',
+      schema:
+        'CREATE TABLE porcelain_migrations (migration_id integer PRIMARY KEY, name text NOT NULL, created_at TEXT NOT NULL)',
+      rows: '',
+    },
+    {
+      history:
+        'an empty native ledger with a required timestamp defaulting to null',
+      schema:
+        'CREATE TABLE porcelain_migrations (migration_id integer PRIMARY KEY, name text NOT NULL, created_at TEXT NOT NULL DEFAULT NULL)',
+      rows: '',
+    },
+    {
+      history:
+        'an empty native ledger whose required timestamp default evaluates to null',
+      schema:
+        'CREATE TABLE porcelain_migrations (migration_id integer PRIMARY KEY, name text NOT NULL, created_at TEXT NOT NULL DEFAULT (lower(NULL)))',
+      rows: '',
+    },
+    {
       history: 'a native ledger with an unknown column',
       schema:
         'CREATE TABLE porcelain_migrations (migration_id integer PRIMARY KEY, name text NOT NULL, created_at text, future text)',
@@ -383,6 +404,59 @@ describe('Native storage adoption', () => {
       database.close();
     }
   });
+
+  it.each([
+    { timestamp: 'a nullable timestamp', definition: 'TEXT' },
+    {
+      timestamp: 'the native migrator timestamp default',
+      definition: 'DATETIME NOT NULL DEFAULT current_timestamp',
+    },
+    {
+      timestamp: 'a non-null timestamp expression',
+      definition:
+        "TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S', 'now'))",
+    },
+  ])(
+    'adopts an empty compatible native ledger with $timestamp and reopens its recorded history',
+    async ({ definition }) => {
+      legacyDatabase(directory, 27);
+      const database = new DatabaseSync(join(directory, 'inventory.sqlite'));
+      database.exec(
+        `CREATE TABLE porcelain_migrations (migration_id integer PRIMARY KEY NOT NULL, name VARCHAR(255) NOT NULL, created_at ${definition})`,
+      );
+      database.close();
+      const open = async () => {
+        const session = runtime(directory);
+        try {
+          return await session.runPromise(
+            Effect.gen(function* () {
+              const identity = yield* EnvironmentIdentityReader;
+              return yield* identity.environmentId();
+            }),
+          );
+        } finally {
+          await session.dispose();
+        }
+      };
+      expect(await open()).toBe(environmentId);
+      expect(await open()).toBe(environmentId);
+      const stored = new DatabaseSync(join(directory, 'inventory.sqlite'));
+      try {
+        expect(
+          stored
+            .prepare('SELECT migration_id, name FROM porcelain_migrations')
+            .all(),
+        ).toEqual([{ migration_id: 1, name: 'adopt_legacy_schema' }]);
+        expect(
+          stored
+            .prepare('SELECT count(*) AS count FROM __drizzle_migrations')
+            .get(),
+        ).toEqual({ count: 28 });
+      } finally {
+        stored.close();
+      }
+    },
+  );
 
   it('preserves reviewed-file values and their derived worktree identity when upgrading older legacy data', async () => {
     const database = applyLegacyMigrations(directory, 4);
