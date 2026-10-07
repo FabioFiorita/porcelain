@@ -19,14 +19,6 @@ type LauncherDependencies = {
   output: (message: string) => void;
 };
 
-const waitForShutdown = (signal: AbortSignal): Effect.Effect<void> =>
-  Effect.callback((resume) => {
-    const stop = () => resume(Effect.void);
-    signal.addEventListener('abort', stop, { once: true });
-    if (signal.aborted) stop();
-    return Effect.sync(() => signal.removeEventListener('abort', stop));
-  });
-
 export const runLocalServer = Effect.fn('runLocalServer')(function* (
   settings: ServerSettings,
   signal: AbortSignal,
@@ -47,6 +39,6 @@ export const runLocalServer = Effect.fn('runLocalServer')(function* (
         'Pair a device with: porcelain pair <name> --address <origin>',
       );
     });
-    yield* waitForShutdown(signal);
+    return yield* Effect.never;
   }).pipe(Effect.ensuring(server.close()));
 });

@@ -8,7 +8,7 @@
     "./kit/*": "./spec/kit/*.ts"
   },
   "scripts": {
-    "start": "node --input-type=module --eval \"const { runCli } = await import('./src/bootstrap/main.ts'); await runCli();\"",
+    "start": "node ../../scripts/server.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config ../../vitest.config.ts --project @porcelain/server",
     "test:integration": "vitest run --config ../../vitest.config.ts --project @porcelain/server-integration",

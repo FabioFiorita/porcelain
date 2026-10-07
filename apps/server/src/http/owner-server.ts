@@ -24,5 +24,6 @@ export function createOwnerServer(options: {
     logger: options.logger,
     principal: { kind: 'owner' },
     websocketMaxBytes: options.limits.liveUpdates.messageBytes,
+    closeGrace: options.limits.listeners.closeGrace,
   });
 }

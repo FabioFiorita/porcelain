@@ -37,9 +37,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 `;
 const binSource = `#!/usr/bin/env node
-import { runCli } from '../server/src/bootstrap/main.mjs';
-
-await runCli();
+import '../server/src/cli/main.mjs';
 `;
 const packageJsonSchema = Schema.Struct({
   version: Schema.optional(Schema.String),
@@ -136,7 +134,7 @@ async function buildServer(
 ): Promise<void> {
   await mkdir(dirname(serverOutput), { recursive: true });
   await build({
-    entryPoints: [join(repositoryRoot, 'apps/server/src/bootstrap/main.ts')],
+    entryPoints: [join(repositoryRoot, 'scripts/server.ts')],
     outfile: serverOutput,
     bundle: true,
     format: 'esm',
@@ -225,7 +223,7 @@ export async function buildPackage(): Promise<string> {
   await mkdir(packageOutput, { recursive: true });
 
   const webOutput = join(packageOutput, 'web/dist');
-  const serverOutput = join(packageOutput, 'server/src/bootstrap/main.mjs');
+  const serverOutput = join(packageOutput, 'server/src/cli/main.mjs');
   await buildWeb(webOutput);
   await requiredFile(join(webOutput, 'index.html'));
   await buildServer(serverOutput, Object.keys(dependencies));

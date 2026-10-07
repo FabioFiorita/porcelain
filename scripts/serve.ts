@@ -1,3 +1,5 @@
+import { NodeRuntime } from '@effect/platform-node';
+import { Effect, Exit, Runtime } from 'effect';
 import { spawn } from 'node:child_process';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -173,21 +175,33 @@ async function assertWebRoot(webRoot: string): Promise<void> {
   );
 }
 
-async function main(): Promise<void> {
+const main = Effect.suspend(() => {
   let webRoot: string | undefined;
-  try {
-    await runCli(process.argv.slice(2), process.env, {
-      prepareWebRoot: async (signal) => {
-        webRoot = await mkdtemp(join(tmpdir(), 'porcelain-web-'));
-        await buildWeb(repositoryRoot, webRoot, signal);
-        await assertWebRoot(webRoot);
-        return webRoot;
-      },
-    });
-  } finally {
-    if (webRoot !== undefined)
-      await rm(webRoot, { recursive: true, force: true });
-  }
-}
+  return runCli(process.argv.slice(2), process.env, {
+    prepareWebRoot: async (signal) => {
+      webRoot = await mkdtemp(join(tmpdir(), 'porcelain-web-'));
+      await buildWeb(repositoryRoot, webRoot, signal);
+      await assertWebRoot(webRoot);
+      return webRoot;
+    },
+  }).pipe(
+    Effect.ensuring(
+      Effect.promise(async () => {
+        if (webRoot !== undefined)
+          await rm(webRoot, { recursive: true, force: true });
+      }),
+    ),
+  );
+});
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) await main();
+if (process.argv[1] === fileURLToPath(import.meta.url))
+  NodeRuntime.runMain(main, {
+    teardown: (exit, onExit) =>
+      Runtime.defaultTeardown(exit, (code) =>
+        onExit(
+          Exit.isSuccess(exit) && typeof exit.value === 'number'
+            ? exit.value
+            : code,
+        ),
+      ),
+  });

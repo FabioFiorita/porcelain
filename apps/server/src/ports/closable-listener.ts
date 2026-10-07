@@ -1,12 +1,19 @@
+import type { Effect, Scope } from 'effect';
+
 export type ClosableListener = {
-  close(): PromiseLike<unknown>;
-  server: { closeAllConnections(): void };
+  address: string;
+  close(): Effect.Effect<void>;
 };
 
-export type NetworkListener = ClosableListener & {
-  listen(options: { host: string; port: number }): Promise<string>;
+export type NetworkListener = {
+  start(options: {
+    host: string;
+    port: number;
+  }): Effect.Effect<ClosableListener, never, Scope.Scope>;
 };
 
-export type SocketListener = ClosableListener & {
-  listen(options: { path: string }): Promise<string>;
+export type SocketListener = {
+  start(options: {
+    path: string;
+  }): Effect.Effect<ClosableListener, never, Scope.Scope>;
 };
