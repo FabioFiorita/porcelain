@@ -11,13 +11,13 @@
     "test:e2e": "vitest run --config ../../vitest.config.ts --project @porcelain/mobile-e2e && vitest run --config ../../vitest.config.ts --project @porcelain/mobile-e2e-tablet"
   },
   "dependencies": {
-    "@effect/atom-react": "4.0.0",
+    "@effect/atom-react": "4.0.1",
     "@expo/material-symbols": "0.1.1",
     "@expo/ui": "58.0.9",
     "@porcelain/client": "workspace:*",
     "@porcelain/contracts": "workspace:*",
     "@porcelain/theme": "workspace:*",
-    "effect": "4.0.0",
+    "effect": "4.0.1",
     "expo": "58.0.0",
     "expo-build-properties": "58.0.9",
     "expo-crypto": "58.0.3",

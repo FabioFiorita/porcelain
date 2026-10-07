@@ -33,7 +33,7 @@
   "devDependencies": {
     "@babel/core": "7.29.7",
     "@effect/tsgo": "0.48.0",
-    "@effect/vitest": "4.0.0",
+    "@effect/vitest": "4.0.1",
     "@electron/fuses": "2.1.3",
     "@electron/packager": "20.3.0",
     "@porcelain/contracts": "workspace:*",
@@ -45,7 +45,7 @@
     "@vitest/browser-playwright": "5.0.1",
     "babel-plugin-react-compiler": "1.0.0",
     "dependency-cruiser": "18.4.0",
-    "effect": "4.0.0",
+    "effect": "4.0.1",
     "esbuild": "0.28.2",
     "jscpd": "5.3.3",
     "knip": "6.39.0",
