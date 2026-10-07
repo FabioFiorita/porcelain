@@ -363,11 +363,7 @@ export const archRules = [
   'agents-public-api-only',
   'process-public-api-only',
   'process-importable-by-git-agents-installer',
-  'no-undefined-union-result',
-  'models-file-shape',
-  'recording-fake-for-write-only-port',
   'lane-per-table',
-  'status-policy-complete',
   'lane-mode-matches-service',
   'worktree-use-case-checks',
   'unused-export',
@@ -2219,16 +2215,8 @@ const archRuleReasons = {
     'Import process through @porcelain/process; its inside stays free to change.',
   'process-importable-by-git-agents-installer':
     'Reach git or a coding agent through its port instead of running a process; only packages/git, packages/agents, the installer and the gateways serverProcessImporters names spawn processes, so every spawn lives in a few audited places.',
-  'no-undefined-union-result':
-    'Return a named outcome or throw a named error from execute, never undefined or null; the caller then handles every case by name.',
-  'models-file-shape':
-    'Name a Result outcome without undefined, void or null, and import a kernel type from @porcelain/kernel instead of declaring it again; one shape has one definition.',
-  'recording-fake-for-write-only-port':
-    'Give a port with a read-back an InMemory fake that specs read through the port; a Recording fake fits only ports whose methods answer nothing, so specs assert behaviour, not calls.',
   'lane-per-table':
     'Run the store call inside the lane that owns its table, as tableLanes in architecture/type-rules.ts names; a lane serializes the writes to its tables, so a call outside it races them.',
-  'status-policy-complete':
-    'Map every exported domain error in http/status-policy.ts, except the explicit startup-only errors; an unmapped domain failure silently becomes a 500 instead of its intended HTTP outcome.',
   'lane-mode-matches-service':
     "Call a service that writes inside a 'write' lane, lanes.background or lanes.finish; reads share a lane, so a write in a read lane races them.",
   'worktree-use-case-checks':

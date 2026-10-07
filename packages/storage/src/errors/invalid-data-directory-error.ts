@@ -1,6 +1,10 @@
-export class InvalidDataDirectoryError extends Error {
-  override readonly name = 'InvalidDataDirectoryError';
-  constructor() {
-    super('An absolute data directory is required');
+import { Schema } from 'effect';
+
+export class InvalidDataDirectoryError extends Schema.TaggedError<InvalidDataDirectoryError>()(
+  'InvalidDataDirectoryError',
+  {},
+) {
+  override get message() {
+    return 'An absolute data directory is required';
   }
 }

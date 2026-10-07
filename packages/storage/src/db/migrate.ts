@@ -88,9 +88,9 @@ function assertNativeMigrationHistory(
   if (objects.length === 0) return;
   try {
     if (objects.length !== 1 || objects[0]?.type !== 'table')
-      throw new UnsupportedDatabaseVersionError(
-        'invalid native migration table',
-      );
+      throw new UnsupportedDatabaseVersionError({
+        version: 'invalid native migration table',
+      });
     const columns = Schema.decodeUnknownSync(nativeColumnSchema)(
       database.prepare('PRAGMA table_info(porcelain_migrations)').all(),
     );
@@ -101,9 +101,9 @@ function assertNativeMigrationHistory(
         (name) => !columns.some((column) => column.name === name),
       )
     )
-      throw new UnsupportedDatabaseVersionError(
-        'invalid native migration table',
-      );
+      throw new UnsupportedDatabaseVersionError({
+        version: 'invalid native migration table',
+      });
     const createdAt = columns.find((column) => column.name === 'created_at');
     if (
       createdAt?.notnull === 1 &&
@@ -111,9 +111,9 @@ function assertNativeMigrationHistory(
         database.prepare(`SELECT ${createdAt.dflt_value} AS value`).get()
           ?.value === null)
     )
-      throw new UnsupportedDatabaseVersionError(
-        'invalid native migration timestamp',
-      );
+      throw new UnsupportedDatabaseVersionError({
+        version: 'invalid native migration timestamp',
+      });
     const history = Schema.decodeUnknownSync(nativeHistorySchema)(
       database
         .prepare(
@@ -128,13 +128,13 @@ function assertNativeMigrationHistory(
           entry.name !== available[index]?.[1],
       )
     )
-      throw new UnsupportedDatabaseVersionError(
-        'incompatible native migration history',
-      );
+      throw new UnsupportedDatabaseVersionError({
+        version: 'incompatible native migration history',
+      });
   } catch {
-    throw new UnsupportedDatabaseVersionError(
-      'incompatible native migration history',
-    );
+    throw new UnsupportedDatabaseVersionError({
+      version: 'incompatible native migration history',
+    });
   }
 }
 
@@ -154,7 +154,9 @@ function assertMigrationHistory(
       database.prepare('PRAGMA user_version').all(),
     );
     if (tables.length > 0 || version[0]?.user_version !== 0)
-      throw new UnsupportedDatabaseVersionError('untracked schema');
+      throw new UnsupportedDatabaseVersionError({
+        version: 'untracked schema',
+      });
     return;
   }
   const applied = appliedHashes(database);
@@ -162,7 +164,9 @@ function assertMigrationHistory(
     (applied.length === 0 && tables.length > 1) ||
     applied.some((hash, index) => hash !== shipped[index]?.hash)
   )
-    throw new UnsupportedDatabaseVersionError('incompatible migration history');
+    throw new UnsupportedDatabaseVersionError({
+      version: 'incompatible migration history',
+    });
 }
 
 export const upgradeLegacyDatabase = Effect.fn('Storage.upgradeLegacyDatabase')(
@@ -209,7 +213,9 @@ export const upgradeLegacyDatabase = Effect.fn('Storage.upgradeLegacyDatabase')(
               record.run(migration.hash, migration.timestamp);
             }
             if (database.prepare('PRAGMA foreign_key_check').all().length > 0)
-              throw new UnsupportedDatabaseVersionError('orphaned rows');
+              throw new UnsupportedDatabaseVersionError({
+                version: 'orphaned rows',
+              });
             database.exec('COMMIT');
           } catch (error) {
             database.exec('ROLLBACK');

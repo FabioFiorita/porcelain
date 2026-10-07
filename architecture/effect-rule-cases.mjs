@@ -213,6 +213,15 @@ export const effectRuleCases = [
     invalid,
     errors: 1,
   })),
+  ...['effect', 'live', 'scoped'].map((modifier) => ({
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/read.integration.ts',
+    valid: `import { it, expect } from '@effect/vitest'; import { read } from './read.ts';
+it.${modifier}('reads the saved value', function* () { const result = yield* read(); expect(result).toBe('saved'); });`,
+    invalid: `import { it, expect } from '@effect/vitest'; import { Effect } from 'effect'; import { read } from './read.ts';
+it.${modifier}('reads the saved value', () => Effect.gen(function* () { const result = yield* read(); expect(result).toBeDefined(); }));`,
+    errors: 1,
+  })),
   {
     rule: 'spec-asserts',
     path: 'apps/server/src/runtime/read.spec.ts',
