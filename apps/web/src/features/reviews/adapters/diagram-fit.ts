@@ -13,7 +13,7 @@ export function useFitOnResize(
 ) {
   useEffect(() => {
     const element = host.current;
-    if (element == null) return;
+    if (element === null || element === undefined) return;
     const resized = Stream.callback<void>(
       (queue) =>
         Effect.acquireRelease(

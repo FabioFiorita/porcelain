@@ -35,7 +35,10 @@ export function BranchBasePicker({
   const [open, setOpen] = useState(false);
   const bases = useBranchBases(scope, connection, open);
   const branches = Option.getOrUndefined(AsyncResult.value(bases.result));
-  const label = base == null ? 'the default branch' : branchName(base);
+  const label =
+    base === null || base === undefined
+      ? 'the default branch'
+      : branchName(base);
   const defaultRef = branches?.defaultRef ?? null;
   const chosen = base ?? defaultRef;
   const groups = [

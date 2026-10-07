@@ -20,7 +20,7 @@ export function serviceUpdateProgress(
 
 export function serviceUpdateOutcome(state: ServiceUpdate): Outcome | null {
   const { last } = state;
-  if (state.running || last == null) return null;
+  if (state.running || last === null || last === undefined) return null;
   if (last.stage === 'updated' && last.target === state.version)
     return { kind: 'updated', from: last.from, target: last.target };
   if (last.stage === 'failed')

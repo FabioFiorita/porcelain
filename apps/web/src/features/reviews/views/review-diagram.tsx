@@ -73,10 +73,16 @@ const CHANGE_BADGE = {
 const estimateHeight = (box: GraphBox) =>
   26 +
   Math.ceil(box.label.length / 26) * 18 +
-  (box.change != null && box.label.length > 18 ? 20 : 0) +
+  (box.change !== null && box.change !== undefined && box.label.length > 18
+    ? 20
+    : 0) +
   Math.ceil((box.detail?.length ?? 0) / 34) * 16 +
-  (box.problem != null ? 22 + Math.ceil(box.problem.length / 32) * 15 : 0) +
-  (box.warning != null ? 22 + Math.ceil(box.warning.length / 32) * 15 : 0);
+  (box.problem !== null && box.problem !== undefined
+    ? 22 + Math.ceil(box.problem.length / 32) * 15
+    : 0) +
+  (box.warning !== null && box.warning !== undefined
+    ? 22 + Math.ceil(box.warning.length / 32) * 15
+    : 0);
 
 type BoxData = GraphBox & { width: number };
 type LaneData = { label: string; height: number; width: number };
@@ -99,7 +105,10 @@ function Note({ tone, text }: { tone: 'danger' | 'warn'; text: string }) {
 
 function Box({ data }: NodeProps<Node<BoxData>>) {
   const Icon = data.icon ?? KIND_ICON[data.kind];
-  const change = data.change == null ? undefined : CHANGE_BADGE[data.change];
+  const change =
+    data.change === null || data.change === undefined
+      ? undefined
+      : CHANGE_BADGE[data.change];
   const Surface = data.clickable ? 'button' : 'div';
   return (
     <Surface
@@ -108,7 +117,9 @@ function Box({ data }: NodeProps<Node<BoxData>>) {
       style={{ width: data.width }}
       className={cn(
         'text-left rounded-xl border bg-card px-3 py-2 text-card-foreground shadow-xs transition-[box-shadow,border-color]',
-        data.problem != null && 'border-destructive/45',
+        data.problem !== null &&
+          data.problem !== undefined &&
+          'border-destructive/45',
         data.change === 'removed' && 'opacity-60',
         data.dimmed && 'opacity-45',
         data.clickable &&
@@ -138,7 +149,7 @@ function Box({ data }: NodeProps<Node<BoxData>>) {
             <span className="max-w-full min-w-0 text-[13px] leading-snug font-medium [overflow-wrap:anywhere]">
               {data.label}
             </span>
-            {change != null && (
+            {change !== null && change !== undefined && (
               <span
                 className={cn(
                   'ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium',
@@ -149,13 +160,17 @@ function Box({ data }: NodeProps<Node<BoxData>>) {
               </span>
             )}
           </div>
-          {data.detail != null && (
+          {data.detail !== null && data.detail !== undefined && (
             <p className="mt-0.5 text-[11px] leading-4 break-words text-muted-foreground">
               {data.detail}
             </p>
           )}
-          {data.problem != null && <Note tone="danger" text={data.problem} />}
-          {data.warning != null && <Note tone="warn" text={data.warning} />}
+          {data.problem !== null && data.problem !== undefined && (
+            <Note tone="danger" text={data.problem} />
+          )}
+          {data.warning !== null && data.warning !== undefined && (
+            <Note tone="warn" text={data.warning} />
+          )}
         </div>
       </div>
     </Surface>
@@ -188,7 +203,7 @@ function place(graph: Graph, bands: GraphBox[][]): Map<string, number> {
     const wanted = band.map((box, index) => {
       const above = joined(box.id).flatMap((other) => {
         const x = centre.get(other);
-        return x == null ? [] : [x];
+        return x === null || x === undefined ? [] : [x];
       });
       const fallback = (index - (band.length - 1) / 2) * step;
       return {
@@ -207,7 +222,9 @@ function place(graph: Graph, bands: GraphBox[][]): Map<string, number> {
     wanted.forEach((entry, index) => {
       const previous = at[index - 1];
       at.push(
-        previous == null ? entry.want : Math.max(entry.want, previous + step),
+        previous === null || previous === undefined
+          ? entry.want
+          : Math.max(entry.want, previous + step),
       );
     });
     const shift =
@@ -371,7 +388,8 @@ function ReviewDiagram({
     for (const change of changes) {
       if (
         change.type !== 'dimensions' ||
-        change.dimensions == null ||
+        change.dimensions === null ||
+        change.dimensions === undefined ||
         !boxIds.has(change.id)
       )
         continue;

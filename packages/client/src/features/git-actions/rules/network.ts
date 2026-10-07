@@ -75,7 +75,7 @@ export function networkInput(
     action,
     remoteName,
     destinationRef: ref,
-    allowCreate: branch?.upstream == null,
+    allowCreate: branch?.upstream === null || branch?.upstream === undefined,
   };
 }
 

@@ -21,27 +21,10 @@ const routerDataHooks = new Set([
   'useRouterState',
   'useSearch',
 ]);
-const readHooks = new Set([
-  'useQuery',
-  'useSuspenseQuery',
-  'useQueries',
-  'useSuspenseQueries',
-  'useInfiniteQuery',
-  'useSuspenseInfiniteQuery',
-  'queryOptions',
-  'infiniteQueryOptions',
-]);
+
 const writeHooks = new Set(['useMutation', 'mutationOptions']);
 const promiseContinuations = new Set(['then', 'catch', 'finally']);
-const cacheWrites = new Set([
-  'setQueryData',
-  'setQueriesData',
-  'invalidateQueries',
-  'removeQueries',
-  'resetQueries',
-  'refetchQueries',
-  'cancelQueries',
-]);
+
 const timerGlobals = new Set(['setTimeout', 'setInterval']);
 const storageGlobals = new Set(['localStorage', 'sessionStorage']);
 const globalObjects = new Set(['window', 'globalThis', 'self']);
@@ -686,72 +669,7 @@ export const webRules = {
       };
     },
   },
-  'web-queries-own-reads': {
-    create(context) {
-      const path = webPath(context);
-      if (!runtimeWeb(path) || webPart(path) === 'query') return {};
-      let imports = { locals: new Map(), namespaces: new Set() };
-      return {
-        Program(program) {
-          imports = importedFrom(program, (source) => queryModules.has(source));
-        },
-        CallExpression(node) {
-          const name = calledImport(node.callee, imports);
-          if (name !== undefined && readHooks.has(name))
-            context.report({
-              node,
-              message: `\`${name}\` belongs to features/<domain>/queries/: one queryOptions factory and the read hook views use, per resource, because duplicated read definitions can use inconsistent keys or freshness.`,
-            });
-        },
-        Property(node) {
-          if (
-            !node.computed &&
-            node.key.type === 'Identifier' &&
-            node.key.name === 'queryKey' &&
-            node.value.type === 'ArrayExpression'
-          )
-            context.report({
-              node,
-              message:
-                'A query key is built in features/<domain>/queries/ only; elsewhere read it from the factory as options.queryKey, because duplicated read definitions can use inconsistent keys or freshness.',
-            });
-        },
-      };
-    },
-  },
-  'web-queries-export-reads': {
-    create(context) {
-      if (webPart(webPath(context)) !== 'query') return {};
-      const message =
-        'A queries/ file exports only native reads and read hooks; pure decisions belong in rules/, and re-exports belong in index.ts, because mixing decisions with reads hides their independent owner.';
-      const readName = (name) => /^(?:use|read)[A-Z]/.test(name);
-      return {
-        ExportAllDeclaration(node) {
-          context.report({ node, message });
-        },
-        ExportDefaultDeclaration(node) {
-          context.report({ node, message });
-        },
-        ExportNamedDeclaration(node) {
-          if (node.source || node.specifiers.length > 0) {
-            context.report({ node, message });
-            return;
-          }
-          const declaration = node.declaration;
-          const names =
-            declaration?.type === 'FunctionDeclaration'
-              ? [declaration.id?.name]
-              : declaration?.type === 'VariableDeclaration'
-                ? declaration.declarations.map((entry) =>
-                    entry.id.type === 'Identifier' ? entry.id.name : undefined,
-                  )
-                : [];
-          if (names.length === 0 || names.some((name) => !readName(name ?? '')))
-            context.report({ node, message });
-        },
-      };
-    },
-  },
+
   'web-commands-own-writes': hookBan({
     names: writeHooks,
     modules: queryModules,
@@ -759,29 +677,7 @@ export const webRules = {
     message: (name) =>
       `\`${name}\` belongs to features/<domain>/commands/: one mutation and the command hook views use, per write, because one command must own mutation completion and optimistic updates.`,
   }),
-  'web-cache-writes-in-commands': {
-    create(context) {
-      const path = webPath(context);
-      const part = webPart(path);
-      if (
-        !runtimeWeb(path) ||
-        part === 'command' ||
-        part === 'live' ||
-        /^packages\/client\/src\/.+\.spec\.ts$/.test(path)
-      )
-        return {};
-      return {
-        CallExpression(node) {
-          const name = methodName(node.callee);
-          if (name !== undefined && cacheWrites.has(name))
-            context.report({
-              node,
-              message: `\`${name}\` writes the Query cache, which only a command in features/<domain>/commands/ or the feature live.ts does; everyone else reads it, because uncoordinated cache changes can race optimistic mutations.`,
-            });
-        },
-      };
-    },
-  },
+
   'web-overlays-own-handles': {
     create(context) {
       const path = webPath(context);

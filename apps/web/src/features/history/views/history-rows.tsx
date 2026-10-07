@@ -48,7 +48,7 @@ export function HistoryEnd({ history }: { history: History }) {
             Retry
           </Button>
         </div>
-      ) : history.nextAfter == null ? (
+      ) : history.nextAfter === null || history.nextAfter === undefined ? (
         <p className="px-2 py-3 text-[11px] text-muted-foreground">
           {history.boundary === 'shallow'
             ? 'Shallow clone: older history is not available.'
@@ -59,7 +59,8 @@ export function HistoryEnd({ history }: { history: History }) {
       ) : null}
       <HistorySentinel
         enabled={
-          history.nextAfter != null &&
+          history.nextAfter !== null &&
+          history.nextAfter !== undefined &&
           !history.result.waiting &&
           !AsyncResult.isFailure(history.result)
         }

@@ -1,8 +1,10 @@
-export class UnsupportedDatabaseVersionError extends Error {
-  override readonly name = 'UnsupportedDatabaseVersionError';
-  readonly version: unknown;
-  constructor(version: unknown) {
-    super('Unsupported inventory database version');
-    this.version = version;
+import { Schema } from 'effect';
+
+export class UnsupportedDatabaseVersionError extends Schema.TaggedError<UnsupportedDatabaseVersionError>()(
+  'UnsupportedDatabaseVersionError',
+  { version: Schema.Unknown },
+) {
+  override get message() {
+    return 'Unsupported inventory database version';
   }
 }

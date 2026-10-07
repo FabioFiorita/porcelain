@@ -83,7 +83,7 @@ function BranchCode({
       </div>
     );
   if (!AsyncResult.isSuccess(changes.result)) return <ComparingBranch />;
-  if (changes.result.value.base == null)
+  if (changes.result.value.base === undefined)
     return (
       <ReviewEmpty
         title="No default branch"
@@ -128,13 +128,13 @@ function BranchMarkedCode({
 }) {
   const range = branchReviewRange(branch);
   const marks = useReviewedMarks(scope, context, range);
-  if (branch.base == null) return null;
+  if (branch.base === null || branch.base === undefined) return null;
   const items = mergeBranchChanges(
     branch.files,
     marks,
-    path == null ? undefined : [path],
+    path === null || path === undefined ? undefined : [path],
   );
-  if (path != null && items.length === 0)
+  if (path !== null && path !== undefined && items.length === 0)
     return (
       <ReviewEmpty
         title="Not changed on this branch"
@@ -148,7 +148,7 @@ function BranchMarkedCode({
       interaction={interaction}
       range={range}
       items={items}
-      single={path != null}
+      single={path !== null && path !== undefined}
       branch={{
         base: branch.base.ref,
         head: branch.head,
@@ -216,7 +216,7 @@ function BranchDiffs({
   );
   const entries = reached.flatMap((item): CodeEntry[] => {
     const entry = commitEntry(branch.head.oid, item, patchOf(item));
-    if (entry == null) return [];
+    if (entry === null || entry === undefined) return [];
     return [
       {
         ...entry,
@@ -329,7 +329,9 @@ function BranchHeader({
   control: (item: BranchChangeItem) => ReactNode;
 }) {
   const head =
-    branch.head.branch == null ? 'This commit' : branchName(branch.head.branch);
+    branch.head.branch === null || branch.head.branch === undefined
+      ? 'This commit'
+      : branchName(branch.head.branch);
   return (
     <section className="mx-4 mt-3 rounded-xl border px-4 py-3">
       {!single && (

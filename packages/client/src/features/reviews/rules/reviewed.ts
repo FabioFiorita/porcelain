@@ -69,7 +69,11 @@ export function bulkMarkPlan(entries: readonly ReviewableItem[]) {
       report.skipped.push({ path: entry.path, reason: 'already-reviewed' });
       continue;
     }
-    if (!isFingerprintable(entry) || entry.fingerprint == null) {
+    if (
+      !isFingerprintable(entry) ||
+      entry.fingerprint === null ||
+      entry.fingerprint === undefined
+    ) {
       report.skipped.push({ path: entry.path, reason: 'not-fingerprintable' });
       continue;
     }
@@ -120,7 +124,10 @@ export function markAllPlan(
   const unique = uniqueByPath(entries);
   const fingerprintable = unique.filter(isFingerprintable);
   const eligible = fingerprintable.filter(
-    (entry) => entry.fingerprint != null && entry.reviewStatus !== 'reviewed',
+    (entry) =>
+      entry.fingerprint !== null &&
+      entry.fingerprint !== undefined &&
+      entry.reviewStatus !== 'reviewed',
   );
   const reviewed = fingerprintable.filter(
     (entry) => entry.reviewStatus === 'reviewed',

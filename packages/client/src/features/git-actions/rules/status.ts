@@ -52,9 +52,10 @@ export function shownBranch(
   listed: ListedBranch | null | undefined,
   looked: GitBranchStatus | null | undefined,
 ): GitBranchStatus | null | undefined {
-  if (listed == null) return looked;
+  if (listed === null || listed === undefined) return looked;
   if (
-    looked == null ||
+    looked === null ||
+    looked === undefined ||
     looked.name !== listed.name ||
     looked.upstream !== listed.upstream
   )
@@ -94,24 +95,31 @@ export function gitActionBlocker(
         : null;
     case 'amend':
       if (hasConflicts(status)) return 'Resolve the conflicts before amending.';
-      return status.headOid == null ? 'There is no commit to amend.' : null;
+      return status.headOid === null || status.headOid === undefined
+        ? 'There is no commit to amend.'
+        : null;
     case 'push':
       if (!branch) return null;
-      if (branch.name == null)
+      if (branch.name === null || branch.name === undefined)
         return 'Detached HEAD: check out a branch before pushing.';
       if (branch.behind > 0) return 'Pull the upstream changes before pushing.';
-      return branch.ahead > 0 || branch.upstream == null
+      return branch.ahead > 0 ||
+        branch.upstream === null ||
+        branch.upstream === undefined
         ? null
         : 'No local commits to push.';
     case 'pull':
-      if (branch?.upstream == null) return 'No upstream branch to pull from.';
+      if (branch?.upstream === null || branch?.upstream === undefined)
+        return 'No upstream branch to pull from.';
       if (status.changes.length)
         return 'Commit or stash local changes before pulling.';
       if (branch?.name === null)
         return 'Detached HEAD: check out a branch before pulling.';
       return null;
     case 'fetch':
-      return branch?.upstream == null ? 'No upstream branch to fetch.' : null;
+      return branch?.upstream === null || branch?.upstream === undefined
+        ? 'No upstream branch to fetch.'
+        : null;
     case 'stash-create':
       return null;
     case 'stash-apply':
@@ -141,12 +149,12 @@ export function gitActionReason(
         ? 'Choose which changed files to add to the last commit.'
         : 'Change the last commit message.';
     case 'push':
-      return branch == null
+      return branch === null || branch === undefined
         ? 'Enter the configured remote and full branch ref.'
         : null;
     case 'pull':
     case 'fetch':
-      return branch == null
+      return branch === null || branch === undefined
         ? 'Enter the configured remote and full branch ref.'
         : null;
     case 'stash-create':
@@ -155,7 +163,9 @@ export function gitActionReason(
         : null;
     case 'stash-apply':
     case 'stash-pop':
-      return branch?.stashes == null ? 'Enter a full stash object ID.' : null;
+      return branch?.stashes === null || branch?.stashes === undefined
+        ? 'Enter a full stash object ID.'
+        : null;
     case 'discard':
       return null;
   }
@@ -172,7 +182,8 @@ export function suggestedCount(
   status: GitActionStatus,
 ): number | null {
   const branch = branchStatus(status);
-  if (primary.kind !== 'run' || branch == null) return null;
+  if (primary.kind !== 'run' || branch === null || branch === undefined)
+    return null;
   return primary.action === 'pull' ? branch.behind : branch.ahead;
 }
 
@@ -190,13 +201,13 @@ export function primaryGitAction(status: GitActionStatus): PrimaryGitAction {
     return { kind: 'commit', label: 'Commit' };
 
   const branch = branchStatus(status);
-  if (branch == null)
+  if (branch === null || branch === undefined)
     return {
       kind: 'hint',
       label: 'Commit',
       hint: 'Nothing to commit. Choose a Git action to continue.',
     };
-  if (branch.name == null)
+  if (branch.name === null || branch.name === undefined)
     return {
       kind: 'hint',
       label: 'Commit',

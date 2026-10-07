@@ -103,7 +103,8 @@ export function PierreFileTree({
     gitStatus,
     search: false,
     onSearchChange: (value) => {
-      if (value == null) latest.current.onFilterChange('');
+      if (value === null || value === undefined)
+        latest.current.onFilterChange('');
     },
     renaming: {
       onError: (error) => {
@@ -194,7 +195,7 @@ export function PierreFileTree({
     const path = nextCreatePath(
       creating.kind,
       creating.folder,
-      (candidate) => model.getItem(candidate) != null,
+      (candidate) => (model.getItem(candidate) ?? null) !== null,
     );
     pendingCreate.current = { path, kind: creating.kind };
     model.add(path);

@@ -126,7 +126,8 @@ function useCommitFormState(
   const activeDraft = groups ? drafted.groups : drafted.message;
   const staleDraft =
     commitAction === 'commit' &&
-    activeDraft != null &&
+    activeDraft !== null &&
+    activeDraft !== undefined &&
     draftIsStale(
       status,
       activeDraft,

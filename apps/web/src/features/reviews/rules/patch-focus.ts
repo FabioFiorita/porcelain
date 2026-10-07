@@ -11,7 +11,7 @@ function splitPatch(patch: string): { header: string[]; hunks: PatchHunk[] } {
   const hunks: PatchHunk[] = [];
   for (const line of patch.split('\n')) {
     const match = HUNK_HEADER.exec(line);
-    if (match != null) {
+    if (match !== null && match !== undefined) {
       hunks.push({
         oldStart: Number(match[1]),
         newStart: Number(match[2]),
@@ -58,7 +58,7 @@ function walk(hunk: PatchHunk): Walked[] {
 
 function joinRun(run: Walked[]): string[] {
   const first = run[0];
-  if (first == null) return [];
+  if (first === null || first === undefined) return [];
   const oldCount = run.filter(
     (line) => line.text.startsWith(' ') || line.text.startsWith('-'),
   ).length;

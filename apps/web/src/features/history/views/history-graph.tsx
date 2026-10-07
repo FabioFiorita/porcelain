@@ -41,7 +41,13 @@ export function HistoryGraph({
         const y = index * HISTORY_ROW_HEIGHT + HISTORY_ROW_HEIGHT * 0.5;
         const next = rows[index + 1];
         const segments = row.lanesAfter.flatMap((waitingFor, lane) => {
-          if (waitingFor == null || next == null) return [];
+          if (
+            waitingFor === null ||
+            waitingFor === undefined ||
+            next === null ||
+            next === undefined
+          )
+            return [];
           const startX = row.outgoing.includes(lane)
             ? laneX(row.lane)
             : laneX(lane);

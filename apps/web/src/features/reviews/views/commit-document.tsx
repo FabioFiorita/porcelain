@@ -26,7 +26,11 @@ import { ReadMoreFiles } from './read-more-files';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 const pathList = (file: CommitFile) => [
-  ...new Set([file.oldPath, file.newPath].filter((path) => path != null)),
+  ...new Set(
+    [file.oldPath, file.newPath].filter(
+      (path) => path !== null && path !== undefined,
+    ),
+  ),
 ];
 const pathKey = (file: CommitFile) => pathList(file).join('\0');
 
@@ -71,7 +75,7 @@ export function CommitDocument({
   const patchOf = (file: CommitFile) => diffs.patches.get(pathKey(file));
   const entries = reached.flatMap((file) => {
     const entry = commitEntry(oid, file, patchOf(file));
-    return entry == null
+    return entry === null || entry === undefined
       ? []
       : [
           {
@@ -86,7 +90,7 @@ export function CommitDocument({
         ];
   });
   const omitted = reached.filter(
-    (file) => commitEntry(oid, file, patchOf(file)) == null,
+    (file) => (commitEntry(oid, file, patchOf(file)) ?? null) === null,
   );
   const more = commit.files.length - reached.length;
 
@@ -185,7 +189,7 @@ function CommitHeader({
   return (
     <section className="mx-4 mt-3 rounded-xl border px-4 py-3">
       <h2 className="text-sm font-semibold">{commit.commit.subject}</h2>
-      {commit.commit.body != null && (
+      {commit.commit.body !== null && commit.commit.body !== undefined && (
         <p className="mt-1 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-muted-foreground">
           {commit.commit.body}
         </p>
@@ -196,7 +200,7 @@ function CommitHeader({
         </p>
       )}
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted-foreground">
-        {commit.commit != null && (
+        {commit.commit !== null && commit.commit !== undefined && (
           <span>
             {commit.commit.author.name} ·{' '}
             {relativeTime(commit.commit.author.timestamp)}

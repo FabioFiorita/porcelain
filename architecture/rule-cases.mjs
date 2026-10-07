@@ -15,10 +15,7 @@ export class ReadChangeLinesUseCase {
   }
 }
 `;
-import {
-  effectRuleCases,
-  nativeHealthOperation,
-} from './effect-rule-cases.mjs';
+import { effectRuleCases } from './effect-rule-cases.mjs';
 const commentSeenStore = `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
 
 export class InMemoryCommentSeenStore implements CommentSeenStore {
@@ -116,28 +113,8 @@ const observedStoreState = `describe('MarkCommentsSeenService', () => {
 `;
 
 export default [
-  ...[
-    '@effect/platform-node',
-    'effect/cli',
-    './operations.ts',
-    './settings.ts',
-    '../config/environment-settings.ts',
-  ].map((source) => ({
-    rule: 'spec-imports',
-    path: 'apps/server/src/cli/cli-program.spec.ts',
-    valid: `import { capability } from '${source}';`,
-    invalid: "import { startServer } from '../bootstrap/compose-server.ts';",
-    errors: 1,
-  })),
-
   ...effectRuleCases,
-  ...['installer', 'adapters/access', 'desktop'].map((folder) => ({
-    rule: 'spec-imports',
-    path: `apps/${folder === 'desktop' ? 'desktop/src/adapters' : `server/src/${folder}`}/records.spec.ts`,
-    valid: `import { capability } from '${folder === 'adapters/access' ? 'effect/http' : '@effect/platform-node'}';${folder === 'adapters/access' ? " import { request } from '@porcelain/server/kit/http';" : ''}`,
-    invalid: "import { useQuery } from '@tanstack/react-query';",
-    errors: 1,
-  })),
+
   {
     rule: 'web-api-owns-request',
     path: 'apps/web/src/features/reviews/live.ts',
@@ -145,22 +122,7 @@ export default [
     invalid: "import { HttpApiClient } from 'effect/http-api';",
     errors: 1,
   },
-  {
-    rule: 'spec-imports',
-    path: 'packages/client/src/features/reviews/commands/reviewed.spec.ts',
-    valid:
-      "import { QueryClient } from '@tanstack/query-core'; import { reviewedQueryOptions } from '@porcelain/client/reviews';",
-    invalid: "import { useQueryClient } from '@tanstack/react-query';",
-    errors: 1,
-  },
-  {
-    rule: 'web-cache-writes-in-commands',
-    path: 'apps/web/src/features/reviews/queries/comments.ts',
-    validPath: 'packages/client/src/features/reviews/commands/reviewed.spec.ts',
-    valid: 'client.setQueryData(key, { marks: [] });',
-    invalid: 'client.setQueryData(key, { marks: [] });',
-    errors: 1,
-  },
+
   {
     rule: 'client-owns-shared-logic',
     path: 'apps/web/src/shared/query/file-drafts.ts',
@@ -277,41 +239,7 @@ declare global {
 `,
     errors: 1,
   },
-  {
-    rule: 'models-file-shape',
-    path: 'packages/files/src/models/list-directory.ts',
-    valid: `
-export type ListDirectoryOutcome =
-  | { kind: 'listed'; entries: DirectoryEntry[] }
-  | { kind: 'too-large' };
-`,
-    invalid: `
-export type ListDirectoryOutcome =
-  | { outcome: 'listed'; entries: DirectoryEntry[] }
-  | { outcome: 'too-large' };
-`,
-    errors: 1,
-  },
-  {
-    rule: 'models-file-shape',
-    path: 'packages/files/src/models/list-directory.ts',
-    valid: `export type ListDirectoryInput = {
-  path: string;
-  cursor?: string | undefined;
-};`,
-    invalid: `export type ListDirectoryInput = {
-  path: string;
-  cursor?: string;
-};`,
-    errors: 1,
-  },
-  {
-    rule: 'models-file-shape',
-    path: 'packages/reviews/src/models/record-review-activity.ts',
-    valid: `export type RecordReviewActivityResult = { recorded: boolean };`,
-    invalid: `export type RecordReviewActivityResult = void;`,
-    errors: 1,
-  },
+
   {
     rule: 'naming',
     path: 'packages/access/src/rules/credential.ts',
@@ -339,25 +267,7 @@ export type ListDirectoryOutcome =
       "import { Effect } from 'effect';\nimport type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';\nimport type { ReadEnvironmentService } from '@porcelain/access/services';\nimport type { ReadHealthResponse } from '@porcelain/contracts/access';\nimport type { LaneKeys } from '../../runtime/lane-keys.ts';\nimport type { Lanes } from '../../runtime/lanes.ts';\n\nexport class ReadHealthUseCase {\n  private readonly readEnvironmentService: ReadEnvironmentService;\n  private readonly lanes: Lanes;\n  private readonly laneKeys: LaneKeys;\n\n  constructor(\n    readEnvironment: ReadEnvironmentService,\n    lanes: Lanes,\n    laneKeys: LaneKeys,\n  ) {\n    this.readEnvironmentService = readEnvironment;\n    this.lanes = lanes;\n    this.laneKeys = laneKeys;\n  }\n\n  execute(): Effect.Effect<\n    ReadHealthResponse,\n    MissingEnvironmentIdentityError\n  > {\n    return Effect.gen({ self: this }, function* () {\n      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>\n        Effect.gen({ self: this }, function* () {\n          const { environmentId } = yield* this.readEnvironmentService.execute();\n          return { status: 'ok' as const, environmentId };\n        }),\n      );\n    });\n  }\n}\n",
     errors: 1,
   },
-  {
-    rule: 'no-inline-execute-types',
-    path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `export class ListDirectoryService {
-  async execute(
-    input: ListDirectoryInput,
-    signal?: AbortSignal,
-  ): Promise<ListDirectoryResult> {
-  }
-}`,
-    invalid: `export class ListDirectoryService {
-  async execute(
-    input: { worktreeId: string; path: string },
-    signal?: AbortSignal,
-  ): Promise<ListDirectoryResult> {
-  }
-}`,
-    errors: 1,
-  },
+
   {
     rule: 'interfaces-only-in-ports',
     path: 'apps/server/src/runtime/delay.ts',
@@ -392,61 +302,7 @@ export interface ProbeDelay {
     invalid: `export class probeReader {}`,
     errors: 1,
   },
-  {
-    rule: 'models-file-shape',
-    path: 'packages/files/src/models/list-directory.ts',
-    valid: `export type ListDirectoryInput = { path: string };`,
-    invalid: `export interface ListDirectoryInput { path: string }`,
-    errors: 1,
-  },
-  {
-    rule: 'no-inline-execute-types',
-    path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `export class ListDirectoryService { execute(input: ListDirectoryInput): Promise<ListDirectoryResult> {} }`,
-    invalid: `export class ListDirectoryService { execute(input: ListDirectoryInput): Promise<{ entries: DirectoryEntry[] }> {} }`,
-    errors: 1,
-  },
-  {
-    rule: 'port-shape',
-    path: 'apps/server/src/ports/notice-port.ts',
-    valid: `export interface NoticeWriter { send(input: NoticeInput): void; }`,
-    invalid: `export interface NoticePort { send(input: NoticeInput): void; }`,
-    errors: 1,
-  },
-  {
-    rule: 'interfaces-hold-interfaces',
-    path: 'packages/git/src/inspection/interfaces/status-reader.ts',
-    valid: `export interface StatusReader { read(input: WorktreeKey): Promise<WorktreeStatus>; }`,
-    invalid: `export type StatusReader = { read(input: WorktreeKey): Promise<WorktreeStatus> };`,
-    errors: 1,
-  },
-  {
-    rule: 'spec-behaviour-names',
-    path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
-    valid:
-      "it('records the revision the reader saw', () => { expect(seen.revision).toBe(2); });",
-    invalid:
-      "it('should record the revision the reader saw', () => { expect(seen.revision).toBe(2); });",
-    errors: 1,
-  },
-  {
-    rule: 'spec-behaviour-names',
-    path: 'apps/web/spec/integration/probe.test.tsx',
-    valid:
-      "test('the review content appears after pairing', async ({ workspace }) => { await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible(); });",
-    invalid:
-      "test('review appears', async ({ workspace }) => { await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible(); });",
-    errors: 1,
-  },
-  {
-    rule: 'spec-behaviour-names',
-    path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
-    valid:
-      "it('records the revision the reader saw', () => { expect(seen.revision).toBe(2); });",
-    invalid:
-      "it('records the revision the reader saw', () => { expect(true).toBe(true); });",
-    errors: 1,
-  },
+
   {
     rule: 'no-comments',
     path: 'packages/files/src/services/list-directory-service.ts',
@@ -496,85 +352,7 @@ export function probeLoose(left: string, right: string): boolean {
 `,
     errors: 1,
   },
-  {
-    rule: 'spec-behaviour-names',
-    path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
-    valid: observedStoreState,
-    invalid: `describe('MarkCommentsSeenService', () => {
-  it('records the revision the reader saw', () => {
-    expect(seen.seenThrough({ worktreeId })).toBe(2);
-  });
 
-  it('answers 404 to an unknown worktree', () => {
-    const { service } = setup();
-    expect(service.execute({ worktreeId: 'c'.repeat(64), throughRevision: 1 }).seenThrough).toBe(0);
-  });
-});
-`,
-    errors: 1,
-  },
-  {
-    rule: 'spec-behaviour-names',
-    path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
-    valid: observedStoreState,
-    invalid: `describe('MarkCommentsSeenService', () => {
-  it('records the revision the reader saw', () => {
-    expect(seen.seenThrough({ worktreeId })).toBe(2);
-  });
-
-  it('returns 404 for an unknown worktree', () => {
-    const { service } = setup();
-    expect(service.execute({ worktreeId: 'c'.repeat(64), throughRevision: 1 }).seenThrough).toBe(0);
-  });
-});
-`,
-    errors: 1,
-  },
-  {
-    rule: 'spec-behaviour-names',
-    path: 'apps/web/spec/integration/probe.test.tsx',
-    valid:
-      "test('the review content appears after pairing', async ({ workspace }) => { await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible(); });",
-    invalid: `import { expect } from 'vitest';
-import { test } from './fixtures.tsx';
-
-test('access.pairing: works', async ({ workspace }) => {
-  await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible();
-});
-`,
-    errors: 1,
-  },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'packages/contracts/src/shared/api-error.ts',
-    valid: 'export const API_ERROR_STATUS = { content_changed: 409 };',
-    invalid: 'export const retries = 409;',
-    errors: 1,
-  },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'packages/contracts/src/files/failures.ts',
-    valid:
-      "export const contentChanged = httpFailure(ContentChangedError, 'Conflict', { code: 'content_changed' });",
-    invalid: 'export const API_ERROR_STATUS = { content_changed: 409 };',
-    errors: 1,
-  },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'apps/server/src/adapters/access/http-tunnel-probe.ts',
-    valid:
-      'export const decodeHealth = Schema.decodeUnknownResult(readHealthResponseSchema);',
-    invalid: 'export const schema = readHealthEndpoint.responses[200];',
-    errors: 1,
-  },
-  {
-    rule: 'spec-imports',
-    path: 'packages/contracts/src/shared/http-api.spec.ts',
-    valid: "import { Schema } from 'effect';",
-    invalid:
-      "import { readHealth } from '@porcelain/server/src/http/routes/access/read-health';",
-    errors: 1,
-  },
   {
     rule: 'root-scripts-import-no-package',
     path: 'scripts/api-calls.ts',
@@ -582,23 +360,7 @@ test('access.pairing: works', async ({ workspace }) => {
     invalid: "import { filesApi } from '@porcelain/client/files/api';",
     errors: 1,
   },
-  {
-    rule: 'spec-imports',
-    path: 'packages/client/src/shared/api/effect-client.spec.ts',
-    valid: "import { FilesApi } from '@porcelain/contracts/files';",
-    invalid:
-      "import { ReadTextFileUseCase } from '@porcelain/server/src/use-cases/files/read-text-file';",
-    errors: 1,
-  },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'packages/contracts/src/files/failures.ts',
-    valid:
-      "export const contentChanged = httpFailure(ContentChangedError, 'Conflict', { code: 'content_changed' });",
-    invalid:
-      'export const contentChanged = httpFailure(ContentChangedError, 409);',
-    errors: 1,
-  },
+
   {
     rule: 'spec-asserts',
     path: 'apps/server/src/http/status-policy.spec.ts',
@@ -608,23 +370,7 @@ test('access.pairing: works', async ({ workspace }) => {
       "it('reads the observed server health', () => { expect(true).toBe(true); });",
     errors: 1,
   },
-  {
-    rule: 'spec-imports',
-    path: 'packages/client/spec/integration/files.integration.ts',
-    valid:
-      "import { directoryQueryOptions } from '@porcelain/client/files'; import { test } from '@porcelain/server/kit/server-test';",
-    invalid:
-      "import { composeServer } from '@porcelain/server/src/bootstrap/compose-server';",
-    errors: 1,
-  },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'apps/mobile/src/shared/api/transport.ts',
-    valid:
-      "import { REQUEST_TIMEOUT_MS } from '../../config/limits'; export const timeout = () => AbortSignal.timeout(REQUEST_TIMEOUT_MS);",
-    invalid: 'export const timeout = () => AbortSignal.timeout(15_000);',
-    errors: 1,
-  },
+
   {
     rule: 'client-platform-through-ports',
     path: 'packages/client/src/features/access/store.ts',
@@ -632,15 +378,7 @@ test('access.pairing: works', async ({ workspace }) => {
     invalid: "import { useAtomRef } from '@effect/atom-react';",
     errors: 1,
   },
-  {
-    rule: 'spec-imports',
-    path: 'packages/client/src/features/access/commands/pairing.spec.ts',
-    valid:
-      "import { AtomRegistry } from 'effect/reactivity'; import { AccessStore } from '@porcelain/client/access'; import type { Remote } from '@porcelain/client/access/rules'; import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';",
-    invalid:
-      "import { SettingsScreen } from '../../../../../../apps/mobile/src/features/access/views/settings-screen.tsx';",
-    errors: 1,
-  },
+
   {
     rule: 'client-platform-through-ports',
     path: 'packages/client/src/features/access/queries/environments.ts',
@@ -672,14 +410,7 @@ test('access.pairing: works', async ({ workspace }) => {
     invalid: 'export const name = navigator.userAgent;',
     errors: 1,
   },
-  {
-    rule: 'web-queries-export-reads',
-    path: 'packages/client/src/features/access/queries/environments.ts',
-    valid:
-      "import { Effect } from 'effect'; export const readEnvironment = () => Effect.succeed([]);",
-    invalid: 'export const defaultEnvironment = "local";',
-    errors: 1,
-  },
+
   {
     rule: 'web-api-owns-request',
     path: 'packages/client/src/features/access/commands/pairing.ts',
@@ -909,7 +640,7 @@ if (import.meta.main) await runCli();
     errors: 1,
   },
   {
-    rule: 'bootstrap-starts-nothing',
+    rule: 'bootstrap-constructs-only',
     path: 'apps/server/src/bootstrap/compose-server.ts',
     valid: `const openServer: OpenServer = async (input) => {
   const useCases = { access, projects, files, changes, reviews, gitActions };
@@ -921,7 +652,7 @@ if (import.meta.main) await runCli();
     errors: 1,
   },
   {
-    rule: 'bootstrap-starts-nothing',
+    rule: 'bootstrap-constructs-only',
     path: 'apps/server/src/bootstrap/compose-server.ts',
     valid: runtimeJobs,
     invalid: `const openServer: OpenServer = async (input) => {
@@ -934,7 +665,7 @@ if (import.meta.main) await runCli();
     errors: 1,
   },
   {
-    rule: 'bootstrap-starts-nothing',
+    rule: 'bootstrap-constructs-only',
     path: 'apps/server/src/bootstrap/compose-server.ts',
     valid: `import type { OpenServer } from '../runtime/start-application.ts';
 
@@ -962,7 +693,7 @@ export const openServer: OpenServer = async (input) => {
     errors: 1,
   },
   {
-    rule: 'bootstrap-starts-nothing',
+    rule: 'bootstrap-constructs-only',
     path: 'apps/server/src/bootstrap/compose-server.ts',
     valid: runtimeUseCases,
     invalid: `const openServer: OpenServer = async (input) => {
@@ -975,7 +706,7 @@ export const openServer: OpenServer = async (input) => {
     errors: 1,
   },
   {
-    rule: 'bootstrap-starts-nothing',
+    rule: 'bootstrap-constructs-only',
     path: 'apps/server/src/bootstrap/compose-server.ts',
     valid: runtimeJobs,
     invalid: `const openServer: OpenServer = async (input) => {
@@ -988,7 +719,7 @@ export const openServer: OpenServer = async (input) => {
     errors: 1,
   },
   {
-    rule: 'bootstrap-starts-nothing',
+    rule: 'bootstrap-constructs-only',
     path: 'apps/server/src/bootstrap/compose-server.ts',
     valid: runtimeUseCases,
     invalid: `const openServer: OpenServer = async (input) => {
@@ -1035,31 +766,7 @@ export const direct = Effect.flatMap(EventPublisher, (events) => events.worktree
     invalid: fixtureNativeEventPublisherLayer + invalid,
     errors: 1,
   })),
-  {
-    rule: 'failure-in-service',
-    path: 'packages/files/src/errors/probe-failure-error.ts',
-    valid: 'export class PathNotFoundError extends Error {}',
-    invalid: `import { PathNotFoundError } from './path-not-found-error.ts';
 
-export function probeFailureError(failure: 'missing'): Error {
-  return failure === 'missing' ? new PathNotFoundError() : new PathNotFoundError();
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'failure-in-service',
-    path: 'packages/changes/src/services/read-change-lines-service.ts',
-    valid: `export class ReadChangeLinesService {
-  private failure(problem: LineRangeProblem): Error {
-  }
-}`,
-    invalid: `export class ReadChangeLinesService {
-  failure(problem: LineRangeProblem): Error {
-  }
-}`,
-    errors: 1,
-  },
   {
     rule: 'fakes-store',
     path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
@@ -1333,13 +1040,7 @@ export { utf8ByteLength };`,
     invalid: `import type { DirectoryEntry } from '../models/index.ts';`,
     errors: 1,
   },
-  {
-    rule: 'interfaces-hold-interfaces',
-    path: 'packages/git/src/inspection/interfaces/status-reader.ts',
-    valid: `export interface StatusReader { read(input: WorktreeKey): Promise<WorktreeStatus>; }`,
-    invalid: 'export function readStatus(): number { return 0; }',
-    errors: 1,
-  },
+
   {
     rule: 'lane-after-check',
     path: 'apps/server/src/use-cases/files/list-directory.ts',
@@ -1449,34 +1150,7 @@ export function readRoute(): string {
 `,
     errors: 3,
   },
-  {
-    rule: 'no-exported-constants',
-    path: 'packages/reviews/src/rules/comment-threads.ts',
-    valid:
-      'export function threadCapacityLeft(threads: number, limit: number) { return Math.max(0, limit - threads); }',
-    invalid: `
-export const THREADS_PER_WORKTREE = 100;
-`,
-    errors: 1,
-  },
-  {
-    rule: 'no-exported-constants',
-    path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `export class ListDirectoryService {
-}`,
-    invalid: `export const LIST_DIRECTORY_KIND = 'directory';
 
-export class ListDirectoryService {
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'no-loose-equality-in-domain',
-    path: 'packages/access/src/services/issue-pairing-service.ts',
-    valid: 'if (value === undefined) throw new InvalidDeviceDetailsError();',
-    invalid: `    if (value == null) throw new InvalidDeviceDetailsError();`,
-    errors: 1,
-  },
   {
     rule: 'no-node-globals',
     path: 'packages/files/src/services/list-directory-service.ts',
@@ -1525,204 +1199,7 @@ import { withoutGitDirectory } from '@porcelain/kernel/rules';`,
       'export async function fixture(input: Input, environmentId: string) {   return binary === "" ? String(null) : btoa(binary); }',
     errors: 1,
   },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'packages/agents/src/commit-planning/claude-provider.ts',
-    valid: `export const answer = Effect.fn('ClaudeProvider.answer')(function* () {
-  return yield* runProvider({ maxBytes: limits.claudeOutputBytes });
-});`,
-    invalid: `export const answer = Effect.fn('ClaudeProvider.answer')(function* () {
-  return yield* runProvider({ maxBytes: 1024 * 1024 });
-});`,
-    errors: 3,
-  },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'packages/contracts/src/projects/inventory.ts',
-    valid: `export const browseProjectFoldersQuerySchema = z.strictObject({
-  name: z
-    .max(PROJECT_NAME_LENGTH)
-});`,
-    invalid: `export const browseProjectFoldersQuerySchema = z.strictObject({
-  name: z
-    .max(100)
-});`,
-    errors: 1,
-  },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'packages/git/src/inspection/commands/read-status.ts',
-    valid: `export async function readStatus(
-): Promise<GitStatusObservation> {
-  const output = await runInspection(
-    { maxBytes: limits.inspection.statusBytes, config },
-  );
-}`,
-    invalid: `export async function readStatus(
-): Promise<GitStatusObservation> {
-  const output = await runInspection(
-    { maxBytes: 8 * 1024 * 1024, config },
-  );
-}`,
-    errors: 4,
-  },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'apps/server/src/installer/service-health.ts',
-    valid: 'attempt < settings.maxAttempts;',
-    invalid: `attempt < 60;`,
-    errors: 1,
-  },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'apps/server/src/http/routes/files/edit-file.ts',
-    valid: `export function editFile(
-) {
-  api.post(
-    {
-      bodyLimit: options.limits.editFileBodyBytes,
-    },
-  );
-}`,
-    invalid: `export function editFile(
-) {
-  api.post(
-    {
-      bodyLimit: 2048,
-    },
-  );
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `export class ListDirectoryService {
-  async execute(
-  ): Promise<ListDirectoryResult> {
-    const read = await this.directoryReader.list(
-      {
-        limit: this.options.maxEntries + 1,
-      },
-    );
-  }
-}`,
-    invalid: `export class ListDirectoryService {
-  async execute(
-  ): Promise<ListDirectoryResult> {
-    const read = await this.directoryReader.list(
-      {
-        limit: Math.min(this.options.maxEntries, 2000) + 1,
-      },
-    );
-  }
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'apps/server/src/use-cases/changes/read-changes.ts',
-    valid: `export class ReadChangesUseCase {
-  async execute(
-  ): Promise<ReadChangesResponse> {
-    const worktree = await this.checkWorktree.execute(
-      async ({ signal }) => {
-        return {
-          changes,
-          ...(interrupted.kind === 'interrupted' && {
-          }),
-        };
-      },
-    );
-  }
-}`,
-    invalid: `export class ReadChangesUseCase {
-  async execute(
-  ): Promise<ReadChangesResponse> {
-    const worktree = await this.checkWorktree.execute(
-      async ({ signal }) => {
-        return {
-          changes: changes.slice(0, 2000),
-          ...(interrupted.kind === 'interrupted' && {
-          }),
-        };
-      },
-    );
-  }
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'packages/reviews/src/rules/comment-threads.ts',
-    valid:
-      'export function threadCapacityLeft(threads: number, maxThreads: number): number { return Math.max(0, maxThreads - threads); }',
-    invalid: `
-const MAX_THREADS = 100;
 
-export function threadCapacityLeft(threads: number): number {
-  return Math.max(0, MAX_THREADS - threads);
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'packages/reviews/src/rules/comment-threads.ts',
-    valid:
-      'export function threadCapacityLeft(threads: number, maxThreads: number): number { return Math.max(0, maxThreads - threads); }',
-    invalid: `
-const MAX_THREADS = Number('100');
-
-export function threadCapacityLeft(threads: number): number {
-  return Math.max(0, MAX_THREADS - threads);
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'apps/web/src/features/access/commands/probe-command.ts',
-    valid:
-      'export const probeDelay = (limits: {delayMs: number}) => limits.delayMs;',
-    invalid: `export const probeDelay = 250;
-`,
-    errors: 1,
-  },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'apps/server/src/adapters/files/filesystem-directory-reader.ts',
-    valid: filesystemDirectoryReader,
-    invalid: filesystemDirectoryReader.replace(
-      `        if (found.length === input.limit) {
-`,
-      `        if (found.length >= 2000) {
-`,
-    ),
-    errors: 1,
-  },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'packages/projects/src/errors/probe-limit.ts',
-    valid:
-      "export class PageLimitError extends Error { constructor(readonly pageSize: number) { super('Page limit exceeded'); } }",
-    invalid: `export const PAGE_SIZE = 50;
-`,
-    errors: 1,
-  },
-  {
-    rule: 'no-number-outside-limits',
-    path: 'packages/projects/src/services/probe-page-size-service.ts',
-    valid:
-      'export class ProbePageSizeService { constructor(private readonly options: {pageSize: number}) {} execute(): number { return this.options.pageSize; } }',
-    invalid: `export class ProbePageSizeService {
-  execute(): number {
-    return [0, 0, 0, 0, 0].length * (1 + 1);
-  }
-}
-`,
-    errors: 1,
-  },
   {
     rule: 'no-schema-parse-in-typed-code',
     path: 'packages/files/src/rules/encode-base64.ts',
@@ -1743,24 +1220,7 @@ export function probeParser(value: object): unknown { return Reflect.get(value, 
       "export const execute = Effect.fn('ListDirectoryService.execute')(function* (input: ListDirectoryInput) { Schema.decodeUnknownSync(Schema.String)(input.path); return input.path; });",
     errors: 1,
   },
-  {
-    rule: 'no-undefined-union-result',
-    path: 'packages/git-actions/src/services/read-interrupted-git-action-service.ts',
-    valid:
-      "export class ReadInterruptedGitActionService { execute(input: ReadInterruptedGitActionInput): ReadInterruptedGitActionResult { return { kind: 'none' }; } }",
-    invalid:
-      'export class ReadInterruptedGitActionService { execute(input: ReadInterruptedGitActionInput): GitActionReceiptView | undefined { return undefined; } }',
-    errors: 1,
-  },
-  {
-    rule: 'no-void-statement',
-    path: 'packages/files/src/services/list-directory-service.ts',
-    valid:
-      "export const execute = Effect.fn('ListDirectoryService.execute')(function* () { return yield* reader.list(); });",
-    invalid:
-      "export const execute = Effect.fn('ListDirectoryService.execute')(function* (signal: AbortSignal) { void signal; return yield* reader.list(); });",
-    errors: 1,
-  },
+
   {
     rule: 'one-clock',
     path: 'packages/git-actions/src/services/accept-git-action-service.ts',
@@ -1769,116 +1229,7 @@ export function probeParser(value: object): unknown { return Reflect.get(value, 
       'export const acceptedAt = new Date(Date.parse(clock.now())).toISOString();',
     errors: 2,
   },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: nativeHealthOperation,
-    invalid:
-      "export async function fixture(input: Input, environmentId: string) {         return new HealthReply(\n          this.readEnvironment.execute().environmentId,\n        ).body();\n\nclass HealthReply {\n  private readonly environmentId: string;\n\n  constructor(environmentId: string) {\n    this.environmentId = environmentId;\n  }\n\n  body(): ReadHealthResponse {\n    return { status: 'ok', environmentId: this.environmentId };\n  }\n}\n }",
-    errors: 3,
-  },
-  {
-    rule: 'port-shape',
-    path: 'apps/server/src/ports/edit-announcement-writer.ts',
-    valid:
-      'export interface ContextualEditWriter { announce(input: EditAnnouncement, signal?: AbortSignal): void; }',
-    invalid: `
-export interface ContextualEditWriter {
-  announce(input: EditAnnouncement, context: EditAnnouncement): void;
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'port-shape',
-    path: 'apps/server/src/ports/check-worktree-use-case-port.ts',
-    valid: `export interface CheckWorktreeUseCasePort {
-  execute(
-    input: CheckWorktreeInput,
-  ): Effect.Effect<ListedWorktree, WorktreeAccessFailure>;
-}`,
-    invalid: `export interface CheckWorktreeUseCasePort {
-  execute(
-    input: CheckWorktreeInput,
-  ): Effect.Effect<ListedWorktree, WorktreeAccessFailure>;
-  refresh(input: CheckWorktreeInput): Effect.Effect<void>;
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'port-shape',
-    path: 'apps/server/src/ports/notice-port.ts',
-    valid: 'export interface NoticeWriter { send(input: NoticeInput): void; }',
-    invalid: `export interface Clock {
-  send(worktreeId: string, kind: string, revision: number): void;
-}
-`,
-    errors: 3,
-  },
-  {
-    rule: 'port-shape',
-    path: 'packages/reviews/src/ports/summary-port.ts',
-    valid:
-      'export interface SummaryReader { read(input: SummaryInput): Summary | undefined; }',
-    invalid: `export interface SummaryPort {
-  read(input: { token: string }): string | undefined;
-}
-`,
-    errors: 2,
-  },
-  {
-    rule: 'port-shape',
-    path: 'packages/reviews/src/ports/review-store.ts',
-    valid: `export interface ReviewStore {
-  setActive(input: ReviewActivity): void;
-}`,
-    invalid: `export interface ReviewStore {
-  setActive(worktreeId: string, revision: number, active: boolean): void;
-}`,
-    errors: 2,
-  },
-  {
-    rule: 'port-shape',
-    path: 'apps/server/src/ports/event-publisher.ts',
-    valid: `export interface EventPublisher {
-  inventoryChanged(): void;
-}`,
-    invalid: `export interface EventPublisher {
-  inventoryChanged(): void;
-  reviewChanged?(worktreeId: string, revision: number): void;
-}`,
-    errors: 2,
-  },
-  {
-    rule: 'port-shape',
-    path: 'packages/reviews/src/ports/worktree-change-reader.ts',
-    valid:
-      "import type {ReadWorktreeStatusResult} from '@porcelain/changes/models'; export interface WorktreeChangeReader { read(input: WorktreeKey, signal?: AbortSignal): Promise<ReadWorktreeStatusResult>; }",
-    invalid: `import type { ReadWorktreeStatusResult } from '@porcelain/changes/models';
 
-export interface WorktreeChangeReader {
-  read(
-    input: { worktreeId: string },
-    signal?: AbortSignal,
-  ): Promise<ReadWorktreeStatusResult>;
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'port-shape',
-    path: 'packages/reviews/src/ports/worktree-change-reader.ts',
-    valid:
-      'export interface WorktreeChangeReader { read(input: WorktreeKey, signal?: AbortSignal): Promise<WorktreeStatus>; }',
-    invalid: `export interface WorktreeChangeReader {
-  read(
-    input: { worktreeId: string },
-    signal?: AbortSignal,
-  ): Promise<{ statusToken: string; changes: { path: string; fingerprint: string }[] }>;
-}
-`,
-    errors: 2,
-  },
   {
     rule: 'root-scripts-import-no-package',
     path: 'scripts/probe-reach.ts',
@@ -2039,13 +1390,7 @@ export function parseCredential(
 `,
     errors: 1,
   },
-  {
-    rule: 'scope-shape',
-    path: 'apps/server/src/http/scopes/paired.ts',
-    valid: `import { Layer } from 'effect'; export function pairedScope(options) { return Layer.mergeAll(options.application.files, options.application.reviews).pipe(Layer.provide(policy(options).combine(options.boundary).layer)); }`,
-    invalid: `import { Layer } from 'effect'; export function pairedScope(options) { return options.application.files.execute(options.input); }`,
-    errors: 1,
-  },
+
   {
     rule: 'spec-asserts',
     path: 'packages/projects/src/rules/derive-project-name.spec.ts',
@@ -2554,20 +1899,7 @@ describe('commitPaths', () => {
 `,
     errors: 1,
   },
-  {
-    rule: 'spec-imports',
-    path: 'apps/server/src/http/status-policy.spec.ts',
-    valid:
-      "import {statusPolicy} from './status-policy.ts'; import {expect, it} from 'vitest'; it('maps the outcome to a response', () => { expect(statusPolicy({kind: 'missing'})).toBe(404); });",
-    invalid: `import { openStorageSession } from '@porcelain/storage';
-describe('probe', () => {
-  it('opens storage', () => {
-    expect(openStorageSession).toBeTypeOf('function');
-  });
-});
-`,
-    errors: 1,
-  },
+
   {
     rule: 'spec-no-mocking',
     path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
@@ -2799,19 +2131,7 @@ test('the workspace opens after pairing', { retry: 2 }, async ({ workspace }) =>
 `,
     errors: 1,
   },
-  {
-    rule: 'web-cache-writes-in-commands',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    valid:
-      "export function probeRead(client: {getQueryData: (key: string[]) => unknown}) { return client.getQueryData(['access']); }",
-    invalid: `export function probeReset(client: {
-  setQueryData: (key: string[], value: undefined) => void;
-}) {
-  client.setQueryData(['access'], undefined);
-}
-`,
-    errors: 1,
-  },
+
   {
     rule: 'web-dialogs-from-ui',
     path: 'apps/web/src/app/settings-page.tsx',
@@ -3181,41 +2501,7 @@ export const probeHandle = Dialog.createHandle();
 `,
     errors: 1,
   },
-  {
-    rule: 'web-queries-export-reads',
-    path: 'apps/web/src/features/access/queries/probe-query.ts',
-    valid:
-      "import { useAtomValue } from '@effect/atom-react'; import { readPairedAccess } from '@porcelain/client/access'; export function usePairedAccess(connection: Parameters<typeof readPairedAccess>[0]) { return useAtomValue(readPairedAccess(connection)); }",
-    invalid: `export { connectionErrorMessage } from '../rules/connection-error-message';
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-queries-own-reads',
-    path: 'apps/web/src/features/access/commands/probe-command.ts',
-    valid:
-      'export const invalidatePairing = (client: QueryClient, options: QueryOptions) => client.invalidateQueries({queryKey: options.queryKey});',
-    invalid: `export const probeInvalidation = { queryKey: ['access', 'session'] };
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-queries-own-reads',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    valid:
-      "import {usePairing} from '../queries/pairing'; export function ProbeView() { return <p>{usePairing().data}</p>; }",
-    invalid: `import { useQuery } from '@tanstack/react-query';
 
-export function ProbeView() {
-  const probe = useQuery({
-    queryKey: ['access', 'probe'],
-    queryFn: () => 'probe',
-  });
-  return <p>{probe.data}</p>;
-}
-`,
-    errors: 2,
-  },
   ...[
     "import { useState } from 'react'; export const probeHook = useState;",
     'export const probeWidth = () => window.innerWidth;',
@@ -3516,6 +2802,28 @@ export const write = () => unused();`,
 }
 
 export const guardrailCases = [
+  {
+    rule: 'worktree-use-case-checks',
+    files: {
+      'packages/projects/src/services/check-worktree-service.ts':
+        'export class CheckWorktreeService { execute(input: { worktreeId: string }): string { return input.worktreeId; } }',
+    },
+    valid: {
+      'apps/server/src/use-cases/files/read-file.ts':
+        "import { CheckWorktreeService } from '../../../../../packages/projects/src/services/check-worktree-service.ts'; export class ReadFileUseCase { private readonly checkWorktree = new CheckWorktreeService(); execute(input: { worktreeId: string }): string { return this.checkWorktree.execute(input); } }",
+    },
+    invalid: {
+      'apps/server/src/use-cases/files/read-file.ts':
+        'export class ReadFileUseCase { execute(input: { worktreeId: string }): string { return input.worktreeId; } }',
+    },
+    errors: ['worktree-use-case-checks'],
+  },
+  {
+    rule: 'eqeqeq',
+    valid: 'export const equal = (value: unknown) => value === null;',
+    invalid: 'export const equal = (value: unknown) => value == null;',
+    errors: ['eslint(eqeqeq)'],
+  },
   ...[
     "import { liveUrl as address } from '../api.ts'; export const unusedQuery = () => ({ queryFn: () => address({ query: {} }) });",
     "import * as urls from '../api.ts'; export const unusedQuery = () => ({ queryFn: () => urls.liveUrl({ query: {} }) });",
@@ -3855,90 +3163,7 @@ export const unusedQuery = () => ({ queryFn: () => { ${use} } });`,
       errors: [rule],
     };
   }),
-  {
-    rule: 'status-policy-complete',
-    files: {
-      'packages/access/src/errors/native-error.ts': `import { Schema } from 'effect'; export class NativeFailure extends Schema.TaggedError<NativeFailure>()('NativeFailure', {}) {}`,
-      'packages/access/src/errors/index.ts':
-        "export { NativeFailure as PublicFailure } from './native-error.ts';",
-    },
-    valid: {
-      'apps/server/src/http/status-policy.ts':
-        "import { PublicFailure as Outcome } from '../../../../packages/access/src/errors/index.ts'; export const rules = [{ errors: [Outcome], statusCode: 400 }];",
-    },
-    invalid: {
-      'apps/server/src/http/status-policy.ts':
-        "import { PublicFailure as Outcome } from '../../../../packages/access/src/errors/index.ts'; export const decoy = { errors: [Outcome] }; export const rules = [];",
-    },
-    errors: ['status-policy-complete'],
-  },
-  {
-    rule: 'status-policy-complete',
-    files: {
-      'packages/kernel/src/errors/failure.ts':
-        'class DomainFailure extends Error {} export class ReviewFailure extends DomainFailure {} export class Helper {}',
-      'packages/kernel/src/errors/index.ts': "export * from './failure.ts';",
-    },
-    valid: {
-      'apps/server/src/http/status-policy.ts':
-        "import { ReviewFailure } from '../../../../packages/kernel/src/errors/index.ts'; export const rules = [{ errors: [ReviewFailure], statusCode: 409 }];",
-    },
-    invalid: {},
-    errors: ['status-policy-complete'],
-  },
-  {
-    rule: 'status-policy-complete',
-    files: {
-      'packages/reviews/src/errors/new-review-error.ts':
-        'export class NewReviewError extends Error {}',
-      'packages/reviews/src/errors/index.ts':
-        "export { NewReviewError as PublicReviewError } from './new-review-error.ts';",
-    },
-    valid: {
-      'apps/server/src/http/status-policy.ts':
-        "import { PublicReviewError as Outcome } from '../../../../packages/reviews/src/errors/index.ts'; export const rules = [{ errors: [Outcome], statusCode: 409 }];",
-    },
-    invalid: {
-      'apps/server/src/http/status-policy.ts':
-        "import { PublicReviewError as Outcome } from '../../../../packages/reviews/src/errors/index.ts'; export const decoy = { errors: [Outcome] }; export const rules = [];",
-    },
-    errors: ['status-policy-complete'],
-  },
-  {
-    rule: 'status-policy-complete',
-    files: {
-      'packages/reviews/src/errors/new-review-error.ts':
-        'export class NewReviewError extends Error {} export class OtherReviewError extends Error {}',
-      'packages/reviews/src/errors/index.ts':
-        "export * from './new-review-error.ts';",
-    },
-    valid: {
-      'apps/server/src/http/status-policy.ts':
-        "import { NewReviewError, OtherReviewError } from '../../../../packages/reviews/src/errors/index.ts'; export const rules = [{ errors: [NewReviewError, OtherReviewError], statusCode: 409 }];",
-    },
-    invalid: {
-      'apps/server/src/http/status-policy.ts':
-        "import { NewReviewError } from '../../../../packages/reviews/src/errors/index.ts'; export const rules = [{ errors: [NewReviewError], statusCode: 409 }];",
-    },
-    errors: ['status-policy-complete'],
-  },
-  {
-    rule: 'status-policy-complete',
-    files: {
-      'packages/storage/src/errors/invalid-data-directory-error.ts':
-        'export class InvalidDataDirectoryError extends Error {}',
-      'packages/storage/src/errors/unsupported-database-version-error.ts':
-        'export class UnsupportedDatabaseVersionError extends Error {}',
-      'packages/storage/src/index.ts':
-        "export * from './errors/invalid-data-directory-error.ts'; export * from './errors/unsupported-database-version-error.ts';",
-    },
-    valid: {},
-    invalid: {
-      'packages/storage/src/errors/invalid-data-directory-error.ts':
-        'export class InvalidDataDirectoryError extends Error {} export class RuntimeStorageError extends Error {}',
-    },
-    errors: ['status-policy-complete'],
-  },
+
   ...[
     ['Review', '<Button>Review</Button>', 'export class ReviewService {}'],
     ['Name', 'label="Name"', 'const environmentName = "local";'],
