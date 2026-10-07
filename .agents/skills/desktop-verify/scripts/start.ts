@@ -24,6 +24,7 @@ export const desktopInputs = {
     'apps/desktop/spec/kit',
     'apps/web/src',
     'apps/web/public',
+    'apps/web/index.html',
     'apps/web/vite.config.ts',
   ],
   apps: ['apps/desktop', 'apps/web'],
