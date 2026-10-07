@@ -3516,65 +3516,6 @@ export const write = () => unused();`,
 }
 
 export const guardrailCases = [
-  {
-    rule: 'unused-export',
-    files: {
-      'package.json': '{"private":true,"type":"module"}',
-      'apps/desktop/package.json': '{"private":true}',
-      'apps/mobile/package.json':
-        '{"private":true,"dependencies":{"expo":"58.0.0"}}',
-      'apps/mobile/tsconfig.json':
-        '{"compilerOptions":{"moduleResolution":"Bundler","moduleSuffixes":[".ios",".android",""]}}',
-      'apps/web/package.json': '{"private":true}',
-      'packages/client/package.json':
-        '{"name":"@porcelain/client","private":true,"exports":{".":"./src/index.ts"}}',
-      'apps/desktop/src/main.ts':
-        "import { kept as alias } from '@porcelain/client'; console.log(alias); void import('./dynamic.ts').then(module => console.log(module));",
-      'apps/desktop/src/dynamic.ts': 'export const dynamicLive = true;',
-      'apps/web/src/main.tsx':
-        "import * as names from './namespace.ts'; console.log(names.live);",
-      'apps/web/src/namespace.ts': 'export const live = true;',
-      'packages/client/src/index.ts': "export { kept } from './owner.ts';",
-      'packages/client/src/owner.ts': 'export const kept = true;',
-      'apps/mobile/src/app/_layout.tsx':
-        "export { RootLayout as default } from '../shell/root-layout.tsx';",
-      'apps/mobile/src/shell/root-layout.tsx':
-        "import { native } from './native'; export function RootLayout() { return native(); }",
-      'apps/mobile/src/shell/native.ios.tsx':
-        'export function native() { return null; }',
-      'apps/mobile/src/shell/native.android.tsx':
-        'export function native() { return null; }',
-    },
-    valid: {},
-    invalid: {
-      'apps/desktop/src/unread.ts': 'export const unread = true;',
-      'apps/mobile/src/app/_layout.tsx':
-        "export { RootLayout as default } from '../shell/root-layout.tsx';\nexport const unusedRoute = true;",
-      'apps/web/src/namespace.ts':
-        'export const live = true; export const unusedMember = true;',
-      'packages/client/src/owner.ts':
-        'export const kept = true; export const unused = true;',
-    },
-    errors: [
-      'unused-export: apps/desktop/src/unread.ts: apps/desktop/src/unread.ts',
-      'unused-export: apps/mobile/src/app/_layout.tsx: unusedRoute',
-      'unused-export: apps/web/src/namespace.ts: unusedMember',
-      'unused-export: packages/client/src/owner.ts: unused',
-    ],
-  },
-  {
-    rule: 'unused-dependency',
-    files: {
-      'package.json': '{"private":true,"type":"module"}',
-      'apps/web/package.json':
-        '{"private":true,"dependencies":{"cmdk":"1.1.1","tailwindcss":"4.3.3"}}',
-      'apps/web/src/main.tsx': "import './app.css';",
-      'apps/web/src/app.css': "@import 'tailwindcss';",
-    },
-    valid: { 'apps/web/src/main.tsx': "import 'cmdk'; import './app.css';" },
-    invalid: {},
-    errors: ['unused-dependency: apps/web/package.json: cmdk'],
-  },
   ...[
     "import { liveUrl as address } from '../api.ts'; export const unusedQuery = () => ({ queryFn: () => address({ query: {} }) });",
     "import * as urls from '../api.ts'; export const unusedQuery = () => ({ queryFn: () => urls.liveUrl({ query: {} }) });",
@@ -4015,108 +3956,13 @@ export const unusedQuery = () => ({ queryFn: () => { ${use} } });`,
     valid,
     invalid,
   })),
-  ...[
-    ['apps/server/src/copy.ts', 'packages/reviews/src/copy.ts'],
-    ['packages/client/src/copy.ts', 'packages/reviews/src/copy.ts'],
-    ['apps/mobile/src/copy.ts', 'apps/desktop/src/copy.ts'],
-    ['apps/web/src/copy.ts', 'packages/client/src/copy.ts'],
-    ['apps/web/src/copy.ts', 'apps/web/src/copy-again.ts', 'web'],
-  ].map(([first, second, scope = 'repository']) => ({
+  {
     rule: 'duplicate-code',
-    first,
-    second,
-    scope,
+    first: 'apps/web/src/copy.ts',
+    second: 'apps/web/src/copy-again.ts',
     valid: 'export const label = "Unique";',
     invalid: duplicateFixtureSource,
-  })),
-  {
-    rule: 'duplicate-count-ratchet',
-    source: duplicateFixtureSource,
-    ceiling: 7,
-    valid: {
-      before: { duplicatedLines: 7, clones: 1, rejected: false },
-      afterDeletion: { duplicatedLines: 7, clones: 1, rejected: false },
-    },
-    invalid: { duplicatedLines: 14, clones: 2, rejected: true },
   },
-];
-
-export const scriptCases = [
-  {
-    folder: '.',
-    required: [['node', 'scripts/probes.ts', '--check']],
-    valid: 'node "./scripts/probes.ts" --check',
-    invalid: 'node -e 0',
-  },
-  {
-    folder: '.',
-    required: [['turbo', 'run', 'typecheck', 'test:rules', 'probes:check']],
-    valid: 'turbo run probes:check typecheck test:rules --continue',
-    invalid: 'turbo run typecheck test:rules --continue',
-  },
-  {
-    folder: 'apps/web',
-    required: [
-      ['tsc', '--noEmit'],
-      ['tsc', '--noEmit', '-p', 'tsconfig.node.json'],
-    ],
-    valid: 'tsc --noEmit && tsc -p tsconfig.node.json --noEmit',
-    invalid: 'tsc -p tsconfig.node.json --noEmit',
-  },
-  {
-    folder: 'packages/storage',
-    required: [['node', 'scripts/check-migrations.ts']],
-    valid: 'node "./scripts/check-migrations.ts"',
-    invalid: 'node scripts/unrelated-check.ts',
-  },
-  {
-    folder: 'apps/mobile',
-    required: [
-      ['vitest', 'run', '--project', '@porcelain/mobile-e2e'],
-      ['vitest', 'run', '--project', '@porcelain/mobile-e2e-tablet'],
-    ],
-    valid:
-      'vitest run --project "@porcelain/mobile-e2e" && vitest run --project "@porcelain/mobile-e2e-tablet"',
-    invalid: 'vitest run --project "@porcelain/mobile-e2e"',
-  },
-  {
-    folder: '.',
-    required: [['tsc', '--noEmit']],
-    valid: 'tsc --noEmit --pretty',
-    invalid: 'tsc --noEmit --help',
-  },
-  {
-    folder: '.',
-    required: [['tsc', '--noEmit']],
-    valid: 'tsc --noEmit',
-    invalid: 'tsc --noEmit || true',
-  },
-];
-
-export const proseCases = [
-  { valid: 'AGENTS.md', invalid: 'architecture/README.md' },
-  { valid: '.github/PULL_REQUEST_TEMPLATE.md', invalid: 'apps/web/README.mdx' },
-  {
-    valid: '.agents/skills/web-verify/SKILL.md',
-    invalid: 'apps/desktop/ARCHITECTURE.md',
-  },
-  {
-    valid: 'architecture/policy.ts',
-    invalid: 'packages/client/README.MARKDOWN',
-  },
-];
-
-export const scriptEvasions = [
-  ['node scripts/probes.ts --check', [['node', 'scripts/probes.ts']]],
-  ['node other.ts scripts/probes.ts', [['node', 'scripts/probes.ts']]],
-  ['tsc --noEmit false', [['tsc', '--noEmit']]],
-  ['tsc --noEmit --noCheck', [['tsc', '--noEmit']]],
-  [
-    'vitest run --project wrong @porcelain/client',
-    [['vitest', 'run', '--project', '@porcelain/client']],
-  ],
-  ['playwright test --list', [['playwright', 'test']]],
-  ['turbo run test --dry-run', [['turbo', 'run', 'test']]],
 ];
 
 export const externalCases = [

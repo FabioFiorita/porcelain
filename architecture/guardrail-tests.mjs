@@ -5,7 +5,6 @@ import {
   mkdtempSync,
   rmSync,
   symlinkSync,
-  unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -13,7 +12,6 @@ import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { domainPackages } from './policy.ts';
 import { typeRuleFindings } from './type-rules.ts';
-import { knipFindings } from './knip.ts';
 import { duplicateScope, scanDuplicates } from './duplicate-policy.ts';
 import { selectorAppears } from './feature-selectors.ts';
 import { guardrailCases } from './rule-cases.mjs';
@@ -159,7 +157,7 @@ function duplicateFixture(entry, source) {
   const root = mkdtempSync(join(tmpdir(), 'porcelain-clone-rule-'));
   try {
     const scope = {
-      ...duplicateScope(entry.scope, ['reviews', 'client']),
+      ...duplicateScope(),
       ceiling: 0,
     };
     for (const folder of scope.sources)
@@ -175,66 +173,6 @@ function duplicateFixture(entry, source) {
         ].toSorted((left, right) => left.localeCompare(right)),
       ),
     };
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-}
-
-function duplicateRatchetFixture(entry) {
-  const root = mkdtempSync(join(tmpdir(), 'porcelain-clone-ratchet-'));
-  try {
-    const scope = {
-      ...duplicateScope('repository', ['reviews', 'client']),
-      ceiling: entry.ceiling,
-    };
-    for (const folder of scope.sources)
-      mkdirSync(join(root, folder), { recursive: true });
-    const unique = Array.from(
-      { length: 800 },
-      (_, index) => `export const unique${index} = ${index};`,
-    ).join('\n');
-    writeFiles(root, {
-      'apps/server/src/copy.ts': entry.source,
-      'packages/reviews/src/copy.ts': entry.source,
-      'packages/client/src/unique.ts': unique,
-    });
-    const before = scanDuplicates(root, scope);
-    unlinkSync(join(root, 'packages/client/src/unique.ts'));
-    const afterDeletion = scanDuplicates(root, scope);
-    strictEqual(
-      afterDeletion.statistics.total.percentage >
-        before.statistics.total.percentage,
-      true,
-    );
-    writeFiles(root, { 'apps/server/src/copy-again.ts': entry.source });
-    const afterCopy = scanDuplicates(root, scope);
-    const result = (report) => ({
-      duplicatedLines: report.statistics.total.duplicatedLines,
-      clones: report.statistics.total.clones,
-      rejected: report.exceeded,
-    });
-    deepStrictEqual(
-      { before: result(before), afterDeletion: result(afterDeletion) },
-      entry.valid,
-    );
-    deepStrictEqual(result(afterCopy), entry.invalid);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-}
-
-function knipFixture(files) {
-  const root = mkdtempSync(join(tmpdir(), 'porcelain-knip-'));
-  try {
-    symlinkSync(
-      fileURLToPath(new URL('../node_modules', import.meta.url)),
-      join(root, 'node_modules'),
-      'dir',
-    );
-    writeFiles(root, files);
-    return knipFindings(root)
-      .map(({ rule, from, to }) => `${rule}: ${from}: ${to.split(':')[0]}`)
-      .sort();
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -268,17 +206,6 @@ export function runGuardrailCases(named = []) {
         entry.errors,
         entry.rule,
       );
-    } else if (['unused-export', 'unused-dependency'].includes(entry.rule)) {
-      deepStrictEqual(
-        knipFixture({ ...entry.files, ...entry.valid }),
-        [],
-        entry.rule,
-      );
-      deepStrictEqual(
-        knipFixture({ ...entry.files, ...entry.invalid }),
-        entry.errors,
-        entry.rule,
-      );
     } else if (entry.rule === 'client-route-reachability') {
       deepStrictEqual(clientRoutesFixture(entry, entry.valid), [], entry.valid);
       deepStrictEqual(
@@ -297,8 +224,6 @@ export function runGuardrailCases(named = []) {
         false,
         entry.selector,
       );
-    } else if (entry.rule === 'duplicate-count-ratchet') {
-      duplicateRatchetFixture(entry);
     } else if (entry.rule === 'duplicate-code') {
       deepStrictEqual(duplicateFixture(entry, entry.valid), {
         rejected: false,
@@ -326,7 +251,7 @@ export function runGuardrailCases(named = []) {
       );
     }
   }
-  deepStrictEqual(duplicateScope('web', []), {
+  deepStrictEqual(duplicateScope(), {
     name: 'web',
     sources: ['apps/web/src'],
     metric: 'clones',
