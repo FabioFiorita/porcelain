@@ -13,6 +13,8 @@ const caseModifiers = new Set([
   'each',
   'for',
   'effect',
+  'live',
+  'scoped',
 ]);
 const assertionEntries = new Set(['soft', 'poll', 'element']);
 const equalityMatchers = new Set(['toBe', 'toEqual', 'toStrictEqual']);

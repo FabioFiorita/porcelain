@@ -1,10 +1,11 @@
+import { OwnerProbe } from '../ports/owner-probe.ts';
 import { NodeServices } from '@effect/platform-node';
 import { Config, Layer, Schema, Clock, Effect } from 'effect';
 import {
   InvalidDataDirectoryError,
   UnsupportedDatabaseVersionError,
 } from '@porcelain/storage';
-import { SocketOwnerProbe } from '../adapters/access/socket-owner-probe.ts';
+import { socketOwnerProbeLayer } from '../adapters/access/socket-owner-probe.ts';
 import { CliRuntime, createCliRunner } from '../cli/runner.ts';
 import { readCliSettings } from '../config/cli-settings.ts';
 import { ServeConfigurationError } from '../config/errors/serve-configuration-error.ts';
@@ -28,7 +29,7 @@ export const runCli = createCliRunner(
         ) {
           return yield* startServer(settings, host);
         }),
-        ownerProbe: new SocketOwnerProbe(),
+        ownerProbe: yield* OwnerProbe,
         clock: yield* Clock.Clock,
         limits: readCliSettings().limits,
         actionableErrors: [
@@ -45,6 +46,6 @@ export const runCli = createCliRunner(
         ],
       };
     }),
-  ),
+  ).pipe(Layer.provide(socketOwnerProbeLayer)),
   NodeServices.layer,
 );

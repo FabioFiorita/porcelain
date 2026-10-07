@@ -1,13 +1,8 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { builtinModules } from 'node:module';
 import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  classify,
-  nodeGlobalRoles,
-  targetPackageExports,
-  webPart,
-} from './policy.ts';
+import { classify, nodeGlobalRoles } from './policy.ts';
 import { webRules } from './web-rules.mjs';
 import { mobileRules } from './mobile-rules.mjs';
 import { nativeHttpRules } from './native-http-rules.mjs';
@@ -102,58 +97,9 @@ function isPrivateMember(member) {
   );
 }
 
-function parameterName(parameter) {
-  return parameter?.type === 'Identifier' ? parameter.name : undefined;
-}
-
-function executeSignatureProblem(role, execute) {
-  const parameters = execute.value.params;
-  const returned = execute.value.returnType?.typeAnnotation;
-  if (
-    execute.value.async ||
-    returned?.type !== 'TSTypeReference' ||
-    returned.typeName.type !== 'TSQualifiedName' ||
-    returned.typeName.left.type !== 'Identifier' ||
-    returned.typeName.left.name !== 'Effect' ||
-    returned.typeName.right.name !== 'Effect'
-  )
-    return `${role} execute returns Effect.Effect, because expected failures, dependencies and cancellation must remain part of the typed operation.`;
-  return parameters.length === 0 ||
-    (parameters.length === 1 && parameterName(parameters[0]) === 'input')
-    ? undefined
-    : `${role} execute takes () or (input), because Effect owns cancellation and capabilities rather than a separate context or signal argument.`;
-}
-
-function openParameterType(annotation) {
-  if (!annotation) return false;
-  if (openTypes.has(annotation.type)) return true;
-  if (annotation.type === 'TSTypeLiteral')
-    return annotation.members.length === 0;
-  if (
-    annotation.type !== 'TSTypeReference' ||
-    annotation.typeName.type !== 'Identifier' ||
-    annotation.typeName.name !== 'Record'
-  )
-    return false;
-  const [key] =
-    (annotation.typeArguments ?? annotation.typeParameters)?.params ?? [];
-  return key?.type === 'TSNeverKeyword';
-}
-
 const specSource = /\.spec\.ts$/;
 const storeContractSource = /\/packages\/[^/]+\/spec\/contracts\/.+\.ts$/;
-const storageSpec = /\/packages\/storage\/src\/.+\.spec\.ts$/;
-const storagePublicApi =
-  /\/packages\/storage\/src\/(?:index|repositories\/[^/]+\/index)\.ts$/;
-const specNodeModule = /^node:(?:fs|path|os|child_process)(?:\/[a-z]+)?$/;
-const statusPolicySpec = /\/apps\/server\/src\/http\/status-policy\.spec\.ts$/;
-const adapterSpec = /\/apps\/server\/src\/adapters\/.+\.spec\.ts$/;
-const storageEntry = /^@porcelain\/storage(?:\/[a-z-]+)?$/;
-const gitCapabilityEntry =
-  /^@porcelain\/git\/(?:discovery|inspection|history|actions)$/;
-const specPackageEntry = new RegExp(
-  `^@porcelain/(?:${domainPackage}/(?:services|rules|models|ports|errors|store-contracts)|kernel/(?:models|ports|rules|errors|fakes|test-kit))$`,
-);
+
 const interactionMatchers = new Set([
   'toHaveBeenCalled',
   'toHaveBeenCalledTimes',
@@ -183,11 +129,6 @@ const loopTypes = new Set([
   'WhileStatement',
   'DoWhileStatement',
 ]);
-
-const httpStatus =
-  /(?:^|\s)[1-5]\d\d(?=\s*$|\s+(?:when|if|for|unless)\b)|^\s*[1-5]\d\d\b|\bhttp\s+(?:status|code|[1-5]\d\d)\b|\bstatus\s+code|\b(?:status|code)\s+[1-5]\d\d\b/i;
-const statusNumber =
-  /(?<![\w.-])(?:10[0-3]|20[0-8]|226|30[0-8]|4(?:0\d|1[0-8]|2[1-689]|31|51)|50[0-8]|51[01])(?![\w.-])(?!\s+(?:commits?|files?|bytes?|paths?|entries|lines?|threads?|items?|ms|characters?|chars?)\b)/;
 
 const repositoryRoot = normalizedFilename(
   fileURLToPath(new URL('..', import.meta.url)),
@@ -223,7 +164,7 @@ const nodeGlobals = new Set([
 
 const pureConstructors = new Set(['Map', 'Set', 'RegExp']);
 const pureCrypto = new Set(['createHash', 'timingSafeEqual']);
-const useCasePortName = /UseCasePort$/;
+
 const recordingFake = /^Recording[A-Z]/;
 const mutatingMethods = new Set([
   'set',
@@ -246,7 +187,7 @@ const nodeGlobalScope =
 const serverSource = /^(?:packages\/[^/]+|apps\/server)\/src\//;
 const childProcessModules = new Set(['node:child_process', 'child_process']);
 const blockingChildProcess = new Set(['execFileSync', 'execSync', 'spawnSync']);
-const serviceFile = /^packages\/[^/]+\/src\/services\//;
+
 const ruleFile = /^packages\/[^/]+\/src\/rules\//;
 const portFile = /^packages\/([^/]+)\/src\/ports\//;
 const anyPortFile = /^(?:packages\/[^/]+|apps\/server)\/src\/ports\//;
@@ -256,7 +197,7 @@ const infrastructureInterfaceFile =
 const serverAppFile = /^apps\/server\/src\//;
 const timerGlobals = new Set(['setTimeout', 'setInterval', 'setImmediate']);
 const timerModule = /^(?:node:)?timers(?:\/promises)?$/;
-const scopeFile = /^apps\/server\/src\/http\/scopes\/.+\.ts$/;
+
 const fixtureFile = /^packages\/[^/]+\/spec\/fixtures\//;
 const fixtureModules = new Set(['node:fs', 'node:path', 'node:url']);
 const captureFile = /^packages\/[^/]+\/spec\/fixtures\/capture\.ts$/;
@@ -269,186 +210,7 @@ const captureModules = new Set([
 ]);
 const fixtureModelSource =
   /^(?:\.\.\/\.\.\/src\/models\/[a-z0-9-]+\.ts|@porcelain\/kernel\/models)$/;
-const openTypes = new Set([
-  'TSObjectKeyword',
-  'TSUnknownKeyword',
-  'TSAnyKeyword',
-]);
-const numberFreeFile = new RegExp(
-  `^(?:packages/[^/]+/src/|apps/(?:server|web|mobile)/src/)`,
-);
-const visualViewFile =
-  /^apps\/(?:web|mobile)\/src\/(?:app|features\/[^/]+)\/views\//;
-const limitsFile =
-  /^(?:packages\/(?:contracts\/src\/shared|client\/src\/config)\/limits|apps\/(?:server|web|mobile)\/src\/config\/limits)\.ts$/;
-const statusName = /(?:^|\.)status(?:Code)?$/i;
-const positionMethods = new Set(['slice', 'at', 'substring', 'padStart']);
-const FIELD_POSITION_MAX = 16;
 
-function enclosingFunctionName(node) {
-  for (let current = node.parent; current; current = current.parent) {
-    if (current.type === 'FunctionDeclaration') return current.id?.name ?? '';
-    if (
-      (current.type === 'ArrowFunctionExpression' ||
-        current.type === 'FunctionExpression') &&
-      current.parent?.type === 'VariableDeclarator'
-    )
-      return current.parent.id?.name ?? '';
-  }
-  return '';
-}
-
-function declaredName(node) {
-  let current = node?.parent;
-  while (current?.type === 'TSAsExpression') current = current.parent;
-  return current?.type === 'VariableDeclarator' ? (current.id.name ?? '') : '';
-}
-
-function calledMethod(callee) {
-  return callee.type === 'MemberExpression' ? memberName(callee) : undefined;
-}
-
-function allowedNumberContext(node, value, path, context) {
-  let current = node;
-  while (
-    current.parent?.type === 'ConditionalExpression' ||
-    current.parent?.type === 'UnaryExpression'
-  )
-    current = current.parent;
-  const parent = current.parent;
-  if (node.raw?.startsWith('0o')) return true;
-  const status = value >= 100 && value <= 599;
-  if (
-    status &&
-    parent?.type === 'CallExpression' &&
-    parent.arguments[0] === current &&
-    parent.callee.type === 'MemberExpression' &&
-    memberName(parent.callee) === 'status' &&
-    parent.callee.object.type === 'Identifier'
-  ) {
-    const definition = findVariable(
-      context.sourceCode.getScope(parent),
-      parent.callee.object.name,
-    )?.defs[0];
-    if (
-      definition?.type === 'ImportBinding' &&
-      definition.parent.source.value === 'effect/http-api' &&
-      definition.node.imported?.name === 'HttpApiSchema'
-    )
-      return true;
-  }
-  if (status && parent?.type === 'Property' && parent.key === current)
-    return true;
-  if (
-    status &&
-    path === 'packages/contracts/src/shared/api-error.ts' &&
-    parent?.type === 'Property' &&
-    parent.value === current &&
-    declaredName(parent.parent) === 'API_ERROR_STATUS'
-  )
-    return true;
-  if (
-    status &&
-    parent?.type === 'Property' &&
-    parent.value === current &&
-    statusName.test(parent.key.name ?? '')
-  )
-    return true;
-  if (
-    status &&
-    parent?.type === 'BinaryExpression' &&
-    ['===', '!==', '>=', '<=', '>', '<'].includes(parent.operator) &&
-    statusName.test(
-      memberPath(parent.left === current ? parent.right : parent.left)?.join(
-        '.',
-      ) ?? '',
-    )
-  )
-    return true;
-  if (
-    status &&
-    parent?.type === 'CallExpression' &&
-    parent.arguments[0] === current &&
-    (calledMethod(parent.callee) === 'code' ||
-      (parent.callee.type === 'Identifier' &&
-        parent.callee.name === 'response'))
-  )
-    return true;
-  if (
-    status &&
-    parent?.type === 'ReturnStatement' &&
-    /Status$/.test(enclosingFunctionName(current))
-  )
-    return true;
-  if (
-    value >= 1000 &&
-    value <= 4999 &&
-    parent?.type === 'CallExpression' &&
-    parent.arguments[0] === current &&
-    calledMethod(parent.callee) === 'close'
-  )
-    return true;
-  const position = value <= FIELD_POSITION_MAX;
-  if (
-    position &&
-    parent?.type === 'MemberExpression' &&
-    parent.computed &&
-    parent.property === current
-  )
-    return true;
-  if (
-    parent?.type === 'CallExpression' &&
-    parent.arguments[0] === current &&
-    ['toString', 'charCodeAt'].includes(calledMethod(parent.callee) ?? '')
-  )
-    return true;
-  if (
-    parent?.type === 'CallExpression' &&
-    parent.arguments[2] === current &&
-    memberPath(parent.callee)?.join('.') === 'JSON.stringify'
-  )
-    return true;
-  const signed =
-    current.type === 'UnaryExpression' && current.operator === '-'
-      ? -value
-      : value;
-  if (
-    node.raw?.startsWith('0x') &&
-    parent?.type === 'BinaryExpression' &&
-    /code$/i.test(
-      (parent.left === current ? parent.right : parent.left).name ?? '',
-    )
-  )
-    return true;
-  if (
-    signed >= -32768 &&
-    signed <= -32000 &&
-    parent?.type === 'Property' &&
-    parent.value === current &&
-    parent.key.name === 'code'
-  )
-    return true;
-  if (
-    parent?.type === 'Property' &&
-    parent.value === current &&
-    /ExitCodes$/.test(declaredName(parent.parent))
-  )
-    return true;
-  if (
-    position &&
-    ((parent?.type === 'AssignmentExpression' &&
-      /index$/i.test(parent.left.name ?? '')) ||
-      (parent?.type === 'VariableDeclarator' &&
-        /index$/i.test(parent.id.name ?? '')))
-  )
-    return true;
-  return (
-    position &&
-    parent?.type === 'CallExpression' &&
-    parent.arguments.includes(current) &&
-    positionMethods.has(calledMethod(parent.callee) ?? '')
-  );
-}
 const rootScriptFile = /^scripts\/[^/]+\.ts$/;
 const evaluatingFile =
   /^(?:scripts\/|\.agents\/skills\/|apps\/[^/]+\/spec\/|packages\/[^/]+\/spec\/)|\.spec\.tsx?$/;
@@ -457,17 +219,13 @@ const evaluationMethods = new Set([
   'evaluateHandle',
   'waitForFunction',
 ]);
-const arithmeticOperators = new Set(['+', '-', '*', '/', '%', '**', '<<', '|']);
+
 const useCaseFile = /^apps\/server\/src\/use-cases\/.+\.ts$/;
 const adapterFile = /^apps\/server\/src\/adapters\//;
-const storageRepositoryFile = /^packages\/storage\/src\/repositories\//;
 const fakeFile = /^(?:packages\/[^/]+|apps\/server)\/spec\/fakes\//;
 const clockFile =
   /^(?:packages\/[^/]+\/src\/rules|packages\/client\/src\/features\/[^/]+\/rules|apps\/server\/src\/adapters)\//;
 const indexFile = /^packages\/[^/]+\/src\/(?:.+\/)?index\.ts$/;
-const domainCode = new RegExp(
-  `^(?:packages/${domainPackage}/src/(?:services|rules|models|ports|errors)/|packages/kernel/src/|apps/server/src/use-cases/)`,
-);
 
 function repositoryPath(context) {
   const path = normalizedFilename(context.filename);
@@ -511,57 +269,6 @@ function staticString(node, context, depth = 0) {
     definition.parent?.kind === 'const'
     ? staticString(definition.node.init, context, depth + 1)
     : undefined;
-}
-
-function literalNumber(node, depth = 0) {
-  if (!node || depth > 16) return undefined;
-  if (
-    node.type === 'TSAsExpression' ||
-    node.type === 'TSSatisfiesExpression' ||
-    node.type === 'ParenthesizedExpression'
-  )
-    return literalNumber(node.expression, depth + 1);
-  if (node.type === 'Literal')
-    return typeof node.value === 'number' ? node.value : undefined;
-  if (
-    node.type === 'UnaryExpression' &&
-    (node.operator === '-' || node.operator === '+')
-  ) {
-    const value = literalNumber(node.argument, depth + 1);
-    return value === undefined
-      ? undefined
-      : node.operator === '-'
-        ? -value
-        : value;
-  }
-  if (
-    node.type === 'MemberExpression' &&
-    !node.computed &&
-    node.property.type === 'Identifier' &&
-    node.property.name === 'length'
-  ) {
-    if (node.object.type === 'ArrayExpression')
-      return node.object.elements.length;
-    if (node.object.type === 'Literal' && typeof node.object.value === 'string')
-      return node.object.value.length;
-    return undefined;
-  }
-  if (
-    node.type !== 'BinaryExpression' ||
-    !arithmeticOperators.has(node.operator)
-  )
-    return undefined;
-  const left = literalNumber(node.left, depth + 1);
-  const right = literalNumber(node.right, depth + 1);
-  if (left === undefined || right === undefined) return undefined;
-  if (node.operator === '+') return left + right;
-  if (node.operator === '-') return left - right;
-  if (node.operator === '*') return left * right;
-  if (node.operator === '/') return left / right;
-  if (node.operator === '%') return left % right;
-  if (node.operator === '**') return left ** right;
-  if (node.operator === '<<') return left << right;
-  return left | right;
 }
 
 function propertyName(node, context) {
@@ -713,17 +420,6 @@ function within(node, container) {
   );
 }
 
-function containsType(node, type, visitorKeys) {
-  if (!node) return false;
-  if (node.type === type) return true;
-  return (visitorKeys[node.type] ?? []).some((key) => {
-    const child = node[key];
-    return Array.isArray(child)
-      ? child.some((entry) => containsType(entry, type, visitorKeys))
-      : containsType(child, type, visitorKeys);
-  });
-}
-
 function nodesOf(node, visitorKeys, accept) {
   if (!node || typeof node.type !== 'string') return [];
   const found = accept(node) ? [node] : [];
@@ -835,25 +531,6 @@ function isFunction(node) {
   return (
     node?.type === 'ArrowFunctionExpression' ||
     node?.type === 'FunctionExpression'
-  );
-}
-
-function unwrapPromise(node) {
-  const argument = (node?.typeArguments ?? node?.typeParameters)?.params[0];
-  return node?.type === 'TSTypeReference' &&
-    node.typeName.type === 'Identifier' &&
-    node.typeName.name === 'Promise' &&
-    argument
-    ? argument
-    : node;
-}
-
-function isExecuteMethod(node) {
-  return (
-    node.kind === 'method' &&
-    !node.computed &&
-    node.key.type === 'Identifier' &&
-    node.key.name === 'execute'
   );
 }
 
@@ -1055,67 +732,38 @@ function nativeOperation(node, context) {
     : undefined;
 }
 
-function nativeOperationProblem(node, context, role, name) {
+function nativeOperationProblem(node, context) {
   const base = nativeOperation(node, context);
-  const [self, shape] = base.callee.typeArguments?.params ?? [];
-  const key = `@porcelain/${capabilityOwner(context)}/${name}`;
-  if (
-    self?.typeName?.name !== name ||
-    base.callee.arguments.length !== 0 ||
-    base.arguments.length !== 1 ||
-    base.arguments[0].type !== 'Literal' ||
-    base.arguments[0].value !== key
-  )
-    return `Use Context.Service<${name}, Shape>()('${key}') for this capability`;
+  if (!base)
+    return 'Declare a native Context.Service capability with a static Layer';
+  const shape = base.callee.typeArguments?.params?.[1];
   const execute =
     shape?.type === 'TSTypeLiteral' && shape.members.length === 1
       ? shape.members[0]
       : undefined;
-  const signature = execute?.typeAnnotation?.typeAnnotation;
   if (
     execute?.type !== 'TSPropertySignature' ||
     execute.key.name !== 'execute' ||
     !execute.readonly ||
     execute.optional ||
-    signature?.type !== 'TSFunctionType'
+    execute.typeAnnotation?.typeAnnotation.type !== 'TSFunctionType'
   )
     return 'Declare one readonly execute function in the capability shape';
-  const problem = executeSignatureProblem(role, { value: signature });
-  if (problem) return problem;
-  if (
-    signature.params.some((input) =>
-      openParameterType(input.typeAnnotation?.typeAnnotation),
-    )
-  )
-    return 'Name the execute input in models/ or omit it when the operation has no input';
-  const [layer] = node.body.body;
-  if (
-    node.body.body.length !== 1 ||
-    layer?.type !== 'PropertyDefinition' ||
-    layer.key.name !== 'layer' ||
-    !layer.static ||
-    !layer.readonly ||
-    isPrivateMember(layer)
-  )
-    return 'Declare only static readonly layer; resolve collaborators with yield* in its factory';
-  const factory = layer.value?.arguments?.[1];
-  const returned = factory?.arguments?.[0]?.body?.body?.at(-1)?.argument;
-  const executeValue = returned?.properties?.[0]?.value;
-  const implementation = executeValue?.arguments?.[0];
-  if (
-    !nativeMember(layer.value, context, 'Layer', new Set(['effect'])) ||
-    layer.value.arguments[0]?.name !== name ||
-    !effectMember(factory, context, new Set(['gen', 'sync'])) ||
-    returned?.type !== 'ObjectExpression' ||
-    returned.properties.length !== 1 ||
-    returned.properties[0].key?.name !== 'execute' ||
-    !effectMember(executeValue?.callee, context, new Set(['fn'])) ||
-    executeValue.callee.arguments[0]?.value !== `${name}.execute` ||
-    implementation?.type !== 'FunctionExpression' ||
-    !implementation.generator ||
-    implementation.async
-  )
-    return `Build Layer.effect(${name}, Effect.gen or Effect.sync) and return only a typed Effect.fn('${name}.execute')`;
+  const layer = node.body.body.find(
+    (member) =>
+      member.type === 'PropertyDefinition' &&
+      member.static &&
+      member.readonly &&
+      nativeMember(
+        member.value,
+        context,
+        'Layer',
+        new Set(['effect', 'sync', 'succeed']),
+      ),
+  );
+  if (!layer) return 'Declare a static readonly Layer';
+  if (node.body.body.some((member) => member.kind === 'constructor'))
+    return 'Resolve dependencies through Layers instead of constructor injection';
   return undefined;
 }
 
@@ -1169,204 +817,50 @@ function executedEffectBody(call, context) {
       owner?.parent?.type === 'CallExpression' &&
       caseCall(owner.parent, context) &&
       owner.parent.callee.type === 'MemberExpression' &&
-      memberName(owner.parent.callee) === 'effect'
+      ['effect', 'live', 'scoped'].includes(memberName(owner.parent.callee))
     );
   }
   return false;
 }
 
-function caseTitle(node) {
-  if (!caseFunctions.has(chainRoot(node.callee) ?? '')) return undefined;
-  const title = node.arguments[0];
-  if (title?.type === 'Literal' && typeof title.value === 'string')
-    return title.value;
-  if (title?.type === 'TemplateLiteral')
-    return title.quasis.map((quasi) => quasi.value.cooked ?? '').join(' ');
-  return undefined;
-}
+const specExports = new Map();
 
 function allowedSpecImport(filename, source) {
-  if (
-    /^(?:vitest|@effect\/vitest|effect(?:\/(?:testing|reactivity|workflow))?|@porcelain\/effects(?:\/worktree)?)$/.test(
-      source,
-    ) ||
-    specNodeModule.test(source) ||
-    specPackageEntry.test(source)
-  )
-    return true;
   const path = normalizedFilename(filename);
-  if (
-    /apps\/web\/src\/features\/[^/]+\/rules\/[^/]+\.spec\.ts$/.test(path) &&
-    /^@porcelain\/client\/[^/]+\/rules$/.test(source)
-  )
-    return true;
-  if (
-    /packages\/client\/src\/.+\.spec\.ts$/.test(path) &&
-    source === '@porcelain/client/transport'
-  )
-    return true;
-  if (
-    /packages\/client\/src\/shared\/api\/[^/]+\.spec\.ts$/.test(path) &&
-    source === 'effect/http-api'
-  )
-    return true;
-  if (
-    /packages\/contracts\/src\/.+\.spec\.ts$/.test(path) &&
-    (source === 'effect/http-api' || /^\.\.\/shared\/[^/]+\.ts$/.test(source))
-  )
-    return true;
-  if (
-    /apps\/server\/src\/http\/.+\.spec\.ts$/.test(path) &&
-    (source === 'effect/http' ||
-      source === '@porcelain/server/kit/http' ||
-      source === 'effect/http-api' ||
-      /^@porcelain\/contracts\/[^/]+$/.test(source) ||
-      /^(?:\.\.\/){1,2}(?:server-factory|hooks\/browser-credential)\.ts$/.test(
-        source,
-      ))
-  )
-    return true;
-  if (
-    /apps\/server\/src\/http\/mcp\/[^/]+\.spec\.ts$/.test(path) &&
-    (/^@modelcontextprotocol\/sdk\/client\/(?:index|streamableHttp)\.js$/.test(
-      source,
-    ) ||
-      source === '../protocol/mcp.ts' ||
-      source === '../../config/limits.ts')
-  )
-    return true;
-  if (
-    /apps\/server\/src\/(?:http|runtime|use-cases)\/.+\.spec\.ts$/.test(path) &&
-    /^(?:(?:\.\.\/){1,3}(?:runtime\/)?|\.\/)(?:lanes|lane-keys|worktree-access|observability|git-action-workflow)\.ts$/.test(
-      source,
-    )
-  )
-    return true;
-  if (
-    /apps\/server\/src\/use-cases\/.+\.spec\.ts$/.test(path) &&
-    /^@porcelain\/storage(?:\/(?:projects|reviews))?$/.test(source)
-  )
-    return true;
-  if (
-    /apps\/server\/src\/cli\/[^/]+\.spec\.ts$/.test(path) &&
-    (source === 'node:http' ||
-      source === 'node:stream' ||
-      source === '@effect/platform-node' ||
-      source === 'effect/cli' ||
-      source === './operations.ts' ||
-      source === './settings.ts' ||
-      source === '../config/environment-settings.ts' ||
-      source === '../config/owner-socket-settings.ts')
-  )
-    return true;
-
-  if (
-    /packages\/client\/spec\/integration\/[a-z]+(?:-[a-z]+)*\.integration\.ts$/.test(
-      path,
-    )
-  )
+  const owner = (value) =>
+    /\/(packages|apps)\/([^/]+)\//.exec(value)?.slice(1).join('/');
+  if (source.startsWith('.')) {
+    const target = posix.resolve(posix.dirname(path), source);
     return (
-      /^@porcelain\/client\/(?:access|projects|files|changes|history|reviews|git-actions|transport)(?:\/api)?$/.test(
-        source,
-      ) ||
-      /^@porcelain\/contracts\/(?:shared|files|changes|reviews|projects)$/.test(
-        source,
-      ) ||
-      /^@porcelain\/server\/kit\/[a-z-]+$/.test(source) ||
-      source === '@tanstack/query-core' ||
-      /^\.\.\/kit\/[a-z-]+\.ts$/.test(source)
+      owner(target) === owner(path) ||
+      /\/spec\/(?:kit|fakes|fixtures|contracts)\//.test(target)
     );
-  const clientFeature =
-    /packages\/client\/src\/features\/([^/]+)\/(?:[^/]+\.spec\.ts|(?:commands|queries|store|rules)\/[^/]+\.spec\.ts)$/.exec(
-      path,
-    );
-  if (
-    (clientFeature ||
-      /packages\/client\/src\/shared\/api\/[^/]+\.spec\.ts$/.test(path)) &&
-    (source === '@tanstack/query-core' ||
-      source === `@porcelain/client/${clientFeature?.[1]}` ||
-      source === `@porcelain/client/${clientFeature?.[1]}/rules` ||
-      /^@porcelain\/contracts\/(?:shared|access|projects|changes|reviews|files|git-actions)$/.test(
-        source,
-      ))
-  )
-    return true;
-  if (clientFeature) {
-    const entry = /^@porcelain\/client\/(.+)$/.exec(source)?.[1];
-    const target = entry && targetPackageExports.client[`./${entry}`];
-    if (
-      target &&
-      ['client-feature-api', 'client-rules-api', 'client-request-api'].includes(
-        classify(`packages/client/${target.replace(/^\.\//, '')}`).role,
-      )
-    )
-      return true;
-    if (['effect/socket', 'effect/rpc', 'effect/net'].includes(source))
-      return true;
   }
-  if (statusPolicySpec.test(path) && gitCapabilityEntry.test(source))
-    return true;
-  if (
-    /packages\/agents\/src\/.+\.spec\.ts$/.test(path) &&
-    ['effect/ai', '@porcelain/agents/commit-planning'].includes(source)
-  )
-    return true;
-  if (
-    (source === '@effect/platform-node' ||
-      (adapterSpec.test(path) &&
-        ['effect/http', '@porcelain/server/kit/http'].includes(source))) &&
-    (/\/packages\/(?:git|agents|process)\/src\/.+\.spec\.ts$/.test(path) ||
-      storageSpec.test(path) ||
-      adapterSpec.test(path) ||
-      /apps\/(?:server\/src\/(?:runtime|use-cases|installer)\/.+|desktop\/src\/adapters\/[^/]+)\.spec\.ts$/.test(
-        path,
-      ))
-  )
-    return true;
-  if (storageSpec.test(path) && ['node:crypto', 'node:sqlite'].includes(source))
-    return true;
-  if (adapterSpec.test(path) && storageEntry.test(source)) return true;
-  if (!source.startsWith('.')) return false;
-  const unit = path.split('/').at(-1).replace(specSource, '.ts');
-  if (source === `./${unit}`) return true;
-  const target = new URL(
-    source,
-    `file://${path.startsWith('/') ? '' : '/'}${path}`,
-  ).pathname;
-  if (storageSpec.test(path)) return storagePublicApi.test(target);
-  if (storeContractSource.test(path))
-    return (
-      /\/src\/(?:ports|models|errors)\/[^/]+\.ts$/.test(target) ||
-      /\/spec\/contracts\/[^/]+\.ts$/.test(target)
+  if (!source.startsWith('@porcelain/')) return true;
+  const [, name, entry] = /^@porcelain\/([^/]+)(?:\/(.*))?$/.exec(source) ?? [];
+  if (!name) return false;
+  if (!specExports.has(name)) {
+    const manifest = ['packages', 'apps']
+      .map((folder) => posix.join(repositoryRoot, folder, name, 'package.json'))
+      .find(existsSync);
+    specExports.set(
+      name,
+      manifest
+        ? Object.keys(JSON.parse(readFileSync(manifest, 'utf8')).exports ?? {})
+        : [],
     );
-  return /\/spec\/(?:fakes|fixtures|contracts)\/.+\.ts$/.test(target);
+  }
+  const subpath = entry ? `./${entry}` : '.';
+  return specExports
+    .get(name)
+    .some(
+      (key) =>
+        key === subpath ||
+        (key.includes('*') &&
+          subpath.startsWith(key.split('*')[0]) &&
+          subpath.endsWith(key.split('*')[1])),
+    );
 }
-
-function expectedClassName(filename, role) {
-  const fileName = normalizedFilename(filename).split('/').at(-1);
-  const operationName = fileName.slice(0, -3);
-  const words = operationName.split('-');
-  const classWords = words.map((word) => word[0].toUpperCase() + word.slice(1));
-  const name = classWords.join('');
-  return role === 'UseCase' ? `${name}UseCase` : name;
-}
-
-const primitiveTypes = new Set([
-  'TSVoidKeyword',
-  'TSUndefinedKeyword',
-  'TSNullKeyword',
-  'TSStringKeyword',
-  'TSNumberKeyword',
-  'TSBooleanKeyword',
-  'TSBigIntKeyword',
-  'TSSymbolKeyword',
-  'TSNeverKeyword',
-  'TSLiteralType',
-  'TSTemplateLiteralType',
-]);
-
-const portName =
-  /(?:Store|Reader|Writer|Runner|Source|Publisher|Watcher|Probe|Logger|UseCasePort)$/;
 
 const fakeName = /^(?:InMemory|Scripted|Fixed|Sequential|Recording)[A-Z]/;
 
@@ -1376,25 +870,9 @@ const camelCase = /^[a-z][A-Za-z0-9]*$/;
 
 const screamingCase = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$/;
 
-const modelFile = /^packages\/[^/]+\/src\/models\//;
-
 const portShapedScope = new RegExp(
   `^(?:apps/server/src/|packages/(?:${domainPackage}|kernel|git|agents|process)/src/)`,
 );
-
-function discriminants(member) {
-  return new Set(
-    member.members
-      .filter(
-        (property) =>
-          property.type === 'TSPropertySignature' &&
-          !property.optional &&
-          property.key.type === 'Identifier' &&
-          property.typeAnnotation?.typeAnnotation.type === 'TSLiteralType',
-      )
-      .map((property) => property.key.name),
-  );
-}
 
 function primitiveValue(node) {
   if (!node) return false;
@@ -1722,22 +1200,7 @@ export default {
         };
       },
     },
-    'no-loose-equality-in-domain': {
-      create(context) {
-        if (!domainCode.test(repositoryPath(context)) || isSpec(context))
-          return {};
-        return {
-          BinaryExpression(node) {
-            if (node.operator === '==' || node.operator === '!=')
-              context.report({
-                node,
-                message:
-                  'Compare with === or !==, because loose equality confuses null with a missing domain value.',
-              });
-          },
-        };
-      },
-    },
+
     'no-node-globals': {
       create(context) {
         const path = repositoryPath(context);
@@ -1759,25 +1222,7 @@ export default {
         };
       },
     },
-    'no-void-statement': {
-      create(context) {
-        return {
-          ExpressionStatement(node) {
-            const expression = node.expression;
-            if (
-              expression.type === 'UnaryExpression' &&
-              expression.operator === 'void' &&
-              expression.argument.type === 'Identifier'
-            )
-              context.report({
-                node,
-                message:
-                  'Remove the parameter instead of voiding it; execute takes no input when there is none, because discarding input hides an unused operation dependency.',
-              });
-          },
-        };
-      },
-    },
+
     'adapters-never-import-services': {
       create(context) {
         const path = repositoryPath(context);
@@ -1808,56 +1253,6 @@ export default {
                 'A port names only its own domain and @porcelain/kernel; another domain is read through its services in the use case, because cross-domain orchestration belongs in the use case.',
             });
         });
-      },
-    },
-    'scope-shape': {
-      create(context) {
-        if (!scopeFile.test(repositoryPath(context))) return {};
-        const report = (node) =>
-          context.report({
-            node,
-            message:
-              'A scope composes native handler Layers and request policies only, because endpoint declarations and domain decisions need their contract and hook owners.',
-          });
-        return {
-          AwaitExpression: report,
-          IfStatement: report,
-          SwitchStatement: report,
-          ConditionalExpression: report,
-          ForStatement: report,
-          ForOfStatement: report,
-          WhileStatement: report,
-          TryStatement: report,
-          ThrowStatement: report,
-          CallExpression(node) {
-            if (node.callee.type !== 'MemberExpression') return;
-            if (
-              [
-                'execute',
-                'handle',
-                'handleRaw',
-                'add',
-                'get',
-                'post',
-                'put',
-                'patch',
-                'delete',
-                'route',
-                'all',
-              ].includes(propertyName(node.callee, context))
-            )
-              report(node);
-          },
-          ImportDeclaration(node) {
-            if (
-              !typeOnlyImport(node) &&
-              /use-cases|@porcelain\/[^/]+\/services|effect\/http-api/.test(
-                node.source.value,
-              )
-            )
-              report(node);
-          },
-        };
       },
     },
 
@@ -1933,29 +1328,6 @@ export default {
               message:
                 'Pass a function, never source text, to evaluate: a typed function stops compiling when the desktop bridge or the page it reads changes, while a string only breaks at runtime on the machine that runs it, because source strings escape TypeScript and only fail at runtime.',
             });
-          },
-        };
-      },
-    },
-    'interfaces-hold-interfaces': {
-      create(context) {
-        if (!infrastructureInterfaceFile.test(repositoryPath(context)))
-          return {};
-        return {
-          Program(program) {
-            for (const statement of program.body) {
-              if (statement.type === 'ImportDeclaration') continue;
-              if (
-                statement.type === 'ExportNamedDeclaration' &&
-                statement.declaration?.type === 'TSInterfaceDeclaration'
-              )
-                continue;
-              context.report({
-                node: statement,
-                message:
-                  'An interfaces/ file of git, agents or process declares exported interfaces only; a type, a function or a value belongs in dtos/, commands/ or parsers/, because keeping dependency contracts separate from data gives agents one declaration pattern in each folder.',
-              });
-            }
           },
         };
       },
@@ -2159,52 +1531,39 @@ export default {
     },
     'failure-in-service': {
       create(context) {
-        const path = repositoryPath(context);
-        if (isSpec(context)) return {};
-        const service = serviceFile.test(path);
-        const useCase = useCaseFile.test(path);
-        const errors =
-          /^packages\/[^/]+\/src\/errors\/(?!index\.ts$)[^/]+\.ts$/.test(path);
-        if (!service && !useCase && !errors) return {};
+        if (
+          isSpec(context) ||
+          !/^packages\/[^/]+\/src\/errors\/(?!index\.ts$)[^/]+\.ts$/.test(
+            repositoryPath(context),
+          )
+        )
+          return {};
         return {
-          ExportNamedDeclaration(node) {
+          Program(node) {
+            const exports = node.body.filter(
+              (entry) =>
+                entry.type === 'ExportNamedDeclaration' ||
+                entry.type === 'ExportDefaultDeclaration' ||
+                entry.type === 'ExportAllDeclaration',
+            );
+            const declaration = exports[0]?.declaration;
+            const tagged =
+              declaration?.superClass?.type === 'CallExpression' &&
+              nativeMember(
+                declaration.superClass.callee,
+                context,
+                'Schema',
+                new Set(['TaggedError']),
+              );
             if (
-              errors &&
-              node.declaration &&
-              node.declaration.type !== 'ClassDeclaration'
+              exports.length !== 1 ||
+              declaration?.type !== 'ClassDeclaration' ||
+              !tagged
             )
               context.report({
                 node,
                 message:
-                  'An errors/ file exports its one error class; the problem-to-error switch is a private failure(problem) in the service that meets the problem, because a single mapping keeps failures consistent for every caller.',
-              });
-          },
-          ClassBody(node) {
-            const failures = node.body.filter(
-              (member) =>
-                member.type === 'MethodDefinition' &&
-                member.key.type === 'Identifier' &&
-                member.key.name === 'failure',
-            );
-            for (const member of failures) {
-              if (useCase)
-                context.report({
-                  node: member,
-                  message:
-                    'A use case maps no problem to an error; the service that meets the problem owns its one private failure(problem), because a single mapping keeps failures consistent for every caller.',
-                });
-              else if (member.accessibility !== 'private')
-                context.report({
-                  node: member,
-                  message:
-                    'A service keeps its problem-to-error switch private: private failure(problem), because a single mapping keeps failures consistent for every caller.',
-                });
-            }
-            if (service && failures.length > 1)
-              context.report({
-                node: failures[1],
-                message:
-                  'A service has one failure(problem): one switch from its problems to its errors, because a single mapping keeps failures consistent for every caller.',
+                  'An errors/ file exports one tagged error, because a named failure gives every caller the same typed outcome.',
               });
           },
         };
@@ -2583,31 +1942,7 @@ export default {
         };
       },
     },
-    'no-undefined-union-result': {
-      create(context) {
-        if (!serviceFile.test(repositoryPath(context)) || isSpec(context))
-          return {};
-        return {
-          MethodDefinition(node) {
-            if (!isExecuteMethod(node)) return;
-            const result = unwrapPromise(node.value.returnType?.typeAnnotation);
-            if (
-              result?.type === 'TSUnionType' &&
-              result.types.some(
-                (member) =>
-                  member.type === 'TSUndefinedKeyword' ||
-                  member.type === 'TSVoidKeyword',
-              )
-            )
-              context.report({
-                node: result,
-                message:
-                  'Return a named outcome or throw the named error; execute never answers T | undefined, because callers need an explicit outcome for an absent result.',
-              });
-          },
-        };
-      },
-    },
+
     'imports-by-path': {
       create(context) {
         const path = repositoryPath(context);
@@ -2654,317 +1989,7 @@ export default {
         };
       },
     },
-    'port-shape': {
-      create(context) {
-        const path = repositoryPath(context);
-        if (!anyPortFile.test(path) || indexFile.test(path) || isSpec(context))
-          return {};
-        const visitorKeys = context.sourceCode.visitorKeys;
-        const checkParameters = (node, parameters, returned, useCase) => {
-          const names = parameters.map(parameterName);
-          if (useCase) {
-            if (
-              node.type !== 'TSMethodSignature' ||
-              propertyName(node, context) !== 'execute' ||
-              parameters.length > 1 ||
-              (parameters.length === 1 && names[0] !== 'input')
-            )
-              context.report({
-                node,
-                message:
-                  'A *UseCasePort declares only execute() or execute(input) returning Effect, because the port must preserve the typed use case and its cancellation ownership.',
-              });
-          } else if (
-            parameters.length > 2 ||
-            (parameters.length >= 1 && names[0] !== 'input') ||
-            (parameters.length === 2 && names[1] !== 'signal')
-          )
-            context.report({
-              node,
-              message:
-                'A port method takes (), (input) or (input, signal): one input object, then the signal; only a *UseCasePort under apps/server/src/ports declares execute(input, context), because consistent role names and method shapes give agents one dependency contract pattern to copy.',
-            });
-          const input = parameters[0]?.typeAnnotation?.typeAnnotation;
-          if (input && input.type !== 'TSTypeReference')
-            context.report({
-              node: input,
-              message:
-                'A port input is a named model from models/ or the kernel, never an inline or primitive type, because consistent role names and method shapes give agents one dependency contract pattern to copy.',
-            });
-          if (containsType(returned, 'TSTypeLiteral', visitorKeys))
-            context.report({
-              node: returned,
-              message:
-                'A port answers a named model from its own models/ or the kernel; an inline shape copies another domain unseen, because consistent role names and method shapes give agents one dependency contract pattern to copy.',
-            });
-        };
-        return {
-          TSInterfaceDeclaration(node) {
-            const useCase =
-              useCasePortName.test(node.id.name) && serverAppFile.test(path);
-            if (
-              !portName.test(node.id.name) ||
-              (useCasePortName.test(node.id.name) && !useCase)
-            )
-              context.report({
-                node: node.id,
-                message:
-                  'Name a port for its role: it ends in Store, Reader, Writer, Runner, Source, Publisher, Watcher, Probe or Logger; time uses native Effect Clock. A server port standing for a use case ends in UseCasePort, because consistent role names and method shapes give agents one dependency contract pattern to copy.',
-              });
-            for (const member of node.body.body) {
-              if (useCase && member.type !== 'TSMethodSignature')
-                checkParameters(member, [], undefined, true);
-              if (member.type === 'TSMethodSignature')
-                checkParameters(
-                  member,
-                  member.params,
-                  member.returnType?.typeAnnotation,
-                  useCase,
-                );
-              const annotation = member.typeAnnotation?.typeAnnotation;
-              if (
-                member.type === 'TSPropertySignature' &&
-                annotation?.type === 'TSFunctionType'
-              )
-                checkParameters(
-                  member,
-                  annotation.params,
-                  annotation.returnType?.typeAnnotation,
-                );
-            }
-          },
-        };
-      },
-    },
-    'no-exported-constants': {
-      create(context) {
-        const path = repositoryPath(context);
-        const service = serviceFile.test(path);
-        if ((!service && !ruleFile.test(path)) || isSpec(context)) return {};
-        const message =
-          'A limit arrives as a typed option from config through compose; rules and services export no constants, because hard-coded limits cannot be supplied by composition or varied by tests.';
-        const constants = new Set();
-        return {
-          Program(program) {
-            for (const statement of program.body) {
-              const declaration =
-                statement.type === 'ExportNamedDeclaration'
-                  ? statement.declaration
-                  : statement;
-              if (declaration?.type === 'VariableDeclaration')
-                for (const declarator of declaration.declarations)
-                  if (declarator.id.type === 'Identifier')
-                    constants.add(declarator.id.name);
-            }
-          },
-          ExportNamedDeclaration(node) {
-            if (node.declaration?.type === 'VariableDeclaration')
-              context.report({ node, message });
-            if (node.source) return;
-            for (const specifier of node.specifiers)
-              if (
-                specifier.local.type === 'Identifier' &&
-                constants.has(specifier.local.name)
-              )
-                context.report({ node: specifier, message });
-          },
-          Literal(node) {
-            if (
-              service &&
-              typeof node.value === 'number' &&
-              node.value > 1 &&
-              node.parent?.type !== 'TSLiteralType'
-            )
-              context.report({
-                node,
-                message:
-                  'A service takes its numbers as options from config; no numeric literal above 1, because hard-coded limits cannot be supplied by composition or varied by tests.',
-              });
-          },
-        };
-      },
-    },
-    'no-number-outside-limits': {
-      create(context) {
-        const path = repositoryPath(context);
-        if (
-          !numberFreeFile.test(path) ||
-          limitsFile.test(path) ||
-          visualViewFile.test(path) ||
-          webPart(path) === 'ui' ||
-          isSpec(context)
-        )
-          return {};
-        const message =
-          'An operational number above 1 lives in contracts/shared/limits.ts when the server enforces it too, otherwise in its owning client, server, web or mobile config/limits.ts, and arrives as a parameter or an option. Visual values in views are outside this rule, because duplicated operational limits drift between clients and server.';
-        const hiddenNumber = (node) => {
-          const text = staticString(node, context);
-          return text !== undefined && Number(text) > 1;
-        };
-        const computed = (node) => {
-          const parent = node.parent;
-          if (
-            parent &&
-            (parent.type === 'BinaryExpression' ||
-              parent.type === 'ParenthesizedExpression' ||
-              parent.type === 'UnaryExpression') &&
-            literalNumber(parent) !== undefined
-          )
-            return;
-          const value = literalNumber(node);
-          if (
-            value !== undefined &&
-            value > 1 &&
-            !allowedNumberContext(node, value, path, context)
-          )
-            context.report({ node, message });
-        };
-        return {
-          BinaryExpression: computed,
-          'MemberExpression[property.name="length"]': computed,
-          CallExpression(node) {
-            const callee = memberPath(node.callee)?.join('.');
-            if (
-              [
-                'Number',
-                'parseInt',
-                'parseFloat',
-                'Number.parseInt',
-                'Number.parseFloat',
-              ].includes(callee ?? '') &&
-              hiddenNumber(node.arguments[0])
-            )
-              context.report({ node, message });
-          },
-          UnaryExpression(node) {
-            if (
-              (node.operator === '+' || node.operator === '-') &&
-              hiddenNumber(node.argument)
-            )
-              context.report({ node, message });
-          },
-          Literal(node) {
-            if (
-              typeof node.value === 'number' &&
-              node.value > 1 &&
-              node.parent?.type !== 'TSLiteralType' &&
-              !allowedNumberContext(node, node.value, path, context)
-            )
-              context.report({ node, message });
-          },
-        };
-      },
-    },
 
-    'implementation-name': {
-      create(context) {
-        const path = repositoryPath(context);
-        if (
-          (!adapterFile.test(path) && !storageRepositoryFile.test(path)) ||
-          isSpec(context)
-        )
-          return {};
-        const repository = storageRepositoryFile.test(path);
-        const layers = [];
-        const message =
-          'A repository exports one native Layer.effect for one canonical domain port, named sqlite<Port>Layer, because one owner and one construction pattern constrain agent choices.';
-        return {
-          ExportNamedDeclaration(node) {
-            if (!repository || node.declaration?.type !== 'VariableDeclaration')
-              return;
-            for (const declaration of node.declaration.declarations) {
-              layers.push(declaration);
-              const port = declaration.init?.arguments?.[0];
-              const definition =
-                port?.type === 'Identifier' &&
-                findVariable(context.sourceCode.getScope(port), port.name)
-                  ?.defs[0];
-              if (
-                !nativeMember(
-                  declaration.init,
-                  context,
-                  'Layer',
-                  new Set(['effect']),
-                ) ||
-                declaration.init.arguments.length !== 2 ||
-                definition?.type !== 'ImportBinding' ||
-                !/^@porcelain\/[^/]+\/ports$/.test(
-                  definition.parent.source.value,
-                ) ||
-                declaration.id.name !==
-                  `sqlite${definition.node.imported?.name}Layer`
-              )
-                context.report({ node: declaration, message });
-            }
-          },
-          'Program:exit'(node) {
-            if (repository && layers.length !== 1)
-              context.report({ node, message });
-          },
-          ClassDeclaration(node) {
-            if (repository) {
-              context.report({ node, message });
-              return;
-            }
-            const implemented = node.implements ?? [];
-            if (implemented.length !== 1) {
-              context.report({
-                node: node.id ?? node,
-                message:
-                  'An implementation class implements exactly one port interface, because one port and a technology-plus-port name give agents one implementation pattern to copy.',
-              });
-              return;
-            }
-            const expression = implemented[0].expression;
-            const port =
-              expression.type === 'Identifier'
-                ? expression.name
-                : expression.right?.name;
-            if (port && !node.id?.name.endsWith(port))
-              context.report({
-                node: node.id ?? node,
-                message: `Name the class for its technology followed by the port: <Technology>${port}, because one port and a technology-plus-port name give agents one implementation pattern to copy.`,
-              });
-          },
-        };
-      },
-    },
-    'bootstrap-starts-nothing': {
-      create(context) {
-        if (!composeSource.test(normalizedFilename(context.filename)))
-          return {};
-        const message =
-          'Composition builds objects only; defaults belong in config, starting and running in runtime, because construction must not start work that the runtime cannot shut down.';
-        return {
-          LogicalExpression(node) {
-            context.report({ node, message });
-          },
-          AssignmentExpression(node) {
-            if (node.operator !== '=') context.report({ node, message });
-          },
-          AssignmentPattern(node) {
-            context.report({ node, message });
-          },
-          'Program:exit'(program) {
-            for (const identifier of globalReferences(
-              context,
-              program,
-              new Set(['process', 'globalThis', 'global']),
-            ))
-              context.report({ node: identifier, message });
-          },
-          CallExpression(node) {
-            if (
-              node.callee.type === 'MemberExpression' &&
-              ['catch', 'then', 'execute', 'start'].includes(
-                propertyName(node.callee, context) ?? '',
-              )
-            )
-              context.report({ node, message });
-          },
-        };
-      },
-    },
     'fakes-store': {
       create(context) {
         const fake = fakeFile.test(repositoryPath(context));
@@ -3310,10 +2335,11 @@ export default {
 
     'spec-behaviour-names': {
       create(context) {
-        const journey = ['integration-spec', 'e2e-spec'].includes(
-          webPart(repositoryPath(context)),
-        );
-        if (!isSpec(context) && !journey) return {};
+        if (
+          !isSpec(context) &&
+          !testSource.test(normalizedFilename(context.filename))
+        )
+          return {};
         return {
           CallExpression(node) {
             if (
@@ -3321,39 +2347,11 @@ export default {
               node.callee.name === 'expect' &&
               node.arguments[0]?.type === 'Literal' &&
               typeof node.arguments[0].value === 'boolean'
-            ) {
+            )
               context.report({
                 node,
                 message:
                   'Assert on an observable result instead of a boolean literal, because a fixed literal cannot detect a product regression.',
-              });
-              return;
-            }
-            const title = caseTitle(node);
-            if (
-              journey &&
-              caseFunctions.has(chainRoot(node.callee) ?? '') &&
-              (title === undefined ||
-                /^\s*[a-z-]+\.[a-z-]+\s*:/.test(title) ||
-                title.trim().split(/\s+/).length < 4)
-            )
-              context.report({
-                node: node.arguments[0] ?? node,
-                message:
-                  'Name the journey case as a written sentence of what the user does and sees, without its feature id, because the title states the user promise and the map already identifies the feature.',
-              });
-            if (title === undefined) return;
-            if (/^\s*should\b/i.test(title))
-              context.report({
-                node: node.arguments[0],
-                message:
-                  'Name the case as a sentence of behaviour, not with "should", because its title states the promise the test proves.',
-              });
-            if (httpStatus.test(title) || statusNumber.test(title))
-              context.report({
-                node: node.arguments[0],
-                message:
-                  'Name the behaviour, not the HTTP status code; statuses belong to feature verification, because a transport code does not state the domain promise.',
               });
           },
         };
@@ -3373,15 +2371,6 @@ export default {
               });
             return;
           }
-          if (
-            /^(?:\.\.\/){1,2}ports\/[^/]+\.ts$/.test(source) ||
-            (/apps\/server\/src\/installer\/[^/]+\.spec\.ts$/.test(
-              context.filename,
-            ) &&
-              source === './command-runner.ts' &&
-              typeOnlyImport(node))
-          )
-            return;
           if (!allowedSpecImport(context.filename, source))
             context.report({
               node: node.source,
@@ -3469,10 +2458,10 @@ export default {
     },
     'bootstrap-constructs-only': {
       create(context) {
-        const path = normalizedFilename(context.filename);
-        if (!composeSource.test(path)) return {};
+        if (!composeSource.test(normalizedFilename(context.filename)))
+          return {};
         const message =
-          'Composition constructs only; decisions belong in use cases and services, starting and scheduling in runtime, because decisions and scheduling need owners that can be tested independently.';
+          'Composition builds objects only; defaults belong in config, starting and running in runtime, because construction must not start work that the runtime cannot shut down.';
         const report = (node) => context.report({ node, message });
         return {
           IfStatement: report,
@@ -3481,6 +2470,23 @@ export default {
           ConditionalExpression: report,
           WhileStatement: report,
           DoWhileStatement: report,
+          LogicalExpression(node) {
+            context.report({ node, message });
+          },
+          AssignmentExpression(node) {
+            if (node.operator !== '=') context.report({ node, message });
+          },
+          AssignmentPattern(node) {
+            context.report({ node, message });
+          },
+          'Program:exit'(program) {
+            for (const identifier of globalReferences(
+              context,
+              program,
+              new Set(['process', 'globalThis', 'global']),
+            ))
+              context.report({ node: identifier, message });
+          },
           CallExpression(node) {
             if (
               node.callee.type === 'Identifier' &&
@@ -3489,11 +2495,17 @@ export default {
               )
             )
               context.report({ node, message });
+            if (
+              node.callee.type === 'MemberExpression' &&
+              ['catch', 'then', 'execute', 'start'].includes(
+                propertyName(node.callee, context) ?? '',
+              )
+            )
+              context.report({ node, message });
           },
         };
       },
     },
-
     'no-comments': {
       create(context) {
         return {
@@ -3596,26 +2608,13 @@ export default {
     },
     'operation-class-shape': {
       create(context) {
-        const role = operationRole(context.filename);
-        if (!role || isSpec(context)) return {};
-        const expectedName = expectedClassName(context.filename, role);
+        if (!operationRole(context.filename) || isSpec(context)) return {};
         const report = (node, requirement) =>
           context.report({
             node,
-            message: `${requirement}, because an operation has one named class and typed execute shape; hidden members and alternate call shapes escape its reviewed boundary.`,
+            message: `${requirement}, because operations expose one execute capability and Layers own their dependencies and cancellation.`,
           });
-        const exportMessage = `Export only the ${expectedName} class and types from this file`;
-        let found = 0;
-        const checkClass = (node) => {
-          if (node.parent?.type !== 'ExportNamedDeclaration')
-            report(
-              node,
-              'An operation file declares only its exported class; move other classes into their own module',
-            );
-        };
         return {
-          ClassDeclaration: checkClass,
-          ClassExpression: checkClass,
           TSTypeReference(node) {
             if (
               node.typeName.type === 'Identifier' &&
@@ -3623,60 +2622,16 @@ export default {
             )
               report(
                 node,
-                'Operations use Effect interruption and scopes; raw cancellation belongs to the runtime and its foreign IO adapters',
+                'Use Effect interruption instead of raw cancellation',
               );
           },
-          ExportNamedDeclaration(node) {
-            const declaration = node.declaration;
-            if (!declaration) {
-              if (node.exportKind !== 'type') report(node, exportMessage);
-              return;
-            }
-            if (
-              ['TSTypeAliasDeclaration', 'TSInterfaceDeclaration'].includes(
-                declaration.type,
-              )
-            )
-              return;
-            if (declaration.type !== 'ClassDeclaration') {
-              report(node, exportMessage);
-              return;
-            }
-            if (declaration.id?.name !== expectedName) {
-              report(
-                declaration.id ?? declaration,
-                `Name this class ${expectedName}`,
-              );
-              return;
-            }
-            found += 1;
-            if (nativeOperation(declaration, context)) {
-              const problem = nativeOperationProblem(
-                declaration,
-                context,
-                role,
-                expectedName,
-              );
-              if (problem) report(declaration, problem);
-              return;
-            }
-            report(
-              declaration,
-              'Declare a native Context.Service capability with a static Layer factory',
-            );
+          ClassDeclaration(node) {
+            const problem = nativeOperationProblem(node, context);
+            if (problem) report(node, problem);
           },
-          ExportDefaultDeclaration(node) {
-            report(node, exportMessage);
-          },
-          ExportAllDeclaration(node) {
-            report(node, exportMessage);
-          },
-          'Program:exit'(node) {
-            if (found !== 1)
-              report(
-                node,
-                `Export exactly one ${expectedName} class from this file`,
-              );
+          ClassExpression(node) {
+            const problem = nativeOperationProblem(node, context);
+            if (problem) report(node, problem);
           },
         };
       },
@@ -3753,42 +2708,7 @@ export default {
         };
       },
     },
-    'no-inline-execute-types': {
-      create(context) {
-        const path = repositoryPath(context);
-        if (
-          (!serviceFile.test(path) && !useCaseFile.test(path)) ||
-          isSpec(context)
-        )
-          return {};
-        return {
-          MethodDefinition(node) {
-            if (!isExecuteMethod(node)) return;
-            const annotations = [
-              ...node.value.params.map((parameter) =>
-                parameter.type === 'TSParameterProperty'
-                  ? parameter.parameter.typeAnnotation
-                  : parameter.typeAnnotation,
-              ),
-              node.value.returnType,
-            ];
-            for (const annotation of annotations)
-              if (
-                containsType(
-                  annotation,
-                  'TSTypeLiteral',
-                  context.sourceCode.visitorKeys,
-                )
-              )
-                context.report({
-                  node: annotation,
-                  message:
-                    'Name the execute input and result in models/<operation>.ts instead of an inline object type, because named operation models give agents one contract to find and reuse.',
-                });
-          },
-        };
-      },
-    },
+
     'interfaces-only-in-ports': {
       create(context) {
         const path = repositoryPath(context);
@@ -3837,83 +2757,6 @@ export default {
               message:
                 'An object type with a method is a port in all but name: declare it in ports/ (interfaces/ in git, agents and process), where the port rules see it, because method-bearing contracts must follow the same port conventions instead of a second shape for agents to copy.',
             });
-          },
-        };
-      },
-    },
-    'models-file-shape': {
-      create(context) {
-        if (!modelFile.test(repositoryPath(context)) || isSpec(context))
-          return {};
-        const aliases = new Map();
-        const resolved = (node) =>
-          node.type === 'TSTypeReference' &&
-          node.typeName.type === 'Identifier' &&
-          aliases.has(node.typeName.name)
-            ? aliases.get(node.typeName.name)
-            : node;
-        return {
-          Program(program) {
-            for (const statement of program.body) {
-              const declaration =
-                statement.type === 'ExportNamedDeclaration'
-                  ? statement.declaration
-                  : statement;
-              if (declaration?.type === 'TSTypeAliasDeclaration')
-                aliases.set(declaration.id.name, declaration.typeAnnotation);
-            }
-          },
-          TSInterfaceDeclaration(node) {
-            context.report({
-              node,
-              message:
-                'Write a model as a type alias, never an interface, because one model declaration convention keeps agents from copying competing contract shapes.',
-            });
-          },
-          TSPropertySignature(node) {
-            if (!node.optional) return;
-            const annotation = node.typeAnnotation?.typeAnnotation;
-            if (
-              annotation?.type !== 'TSUnionType' ||
-              !annotation.types.some(
-                (member) => member.type === 'TSUndefinedKeyword',
-              )
-            )
-              context.report({
-                node,
-                message:
-                  'Write an optional property as ?: T | undefined, because one model declaration convention keeps agents from copying competing contract shapes.',
-              });
-          },
-          TSTypeAliasDeclaration(node) {
-            if (!/Result$/.test(node.id.name)) return;
-            const annotation = node.typeAnnotation;
-            const members =
-              annotation.type === 'TSUnionType'
-                ? annotation.types
-                : [annotation];
-            if (members.every((member) => primitiveTypes.has(member.type)))
-              context.report({
-                node,
-                message: `${node.id.name} is an object or a domain type; a service with nothing to return returns void and names no Result, because one model declaration convention keeps agents from copying competing contract shapes.`,
-              });
-          },
-          TSUnionType(node) {
-            const members = node.types.map(resolved);
-            if (
-              members.length < 2 ||
-              !members.every((member) => member.type === 'TSTypeLiteral')
-            )
-              return;
-            const [first, ...rest] = members.map(discriminants);
-            const shared = [...first].filter((key) =>
-              rest.every((keys) => keys.has(key)),
-            );
-            if (shared.length > 0 && !shared.includes('kind'))
-              context.report({
-                node,
-                message: `Discriminate the union on kind, not ${shared.join(' or ')}, because one model declaration convention keeps agents from copying competing contract shapes.`,
-              });
           },
         };
       },

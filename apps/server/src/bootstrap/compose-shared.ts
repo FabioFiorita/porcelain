@@ -27,7 +27,7 @@ import {
   ReadEnvironmentNameService,
   ReadEnvironmentService,
 } from '@porcelain/access/services';
-import { OsHostNameReader } from '../adapters/access/os-host-name-reader.ts';
+import { osHostNameReaderLayer } from '../adapters/access/os-host-name-reader.ts';
 import {
   ReadBranchChangesService,
   ReadChangeDiffsService,
@@ -137,7 +137,7 @@ export function composeShared(dependencies: SharedDependencies) {
               EnvironmentNameStore,
               dependencies.stores.environmentName,
             ),
-            Layer.succeed(HostNameReader, new OsHostNameReader()),
+            osHostNameReaderLayer,
           ),
         ),
       )

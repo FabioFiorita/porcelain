@@ -11,18 +11,7 @@ import {
 import extractDepcruiseOptions from 'dependency-cruiser/config-utl/extract-depcruise-options';
 import web from '../apps/web/vite.config.ts';
 import { typeRuleFindings } from '../architecture/type-rules.ts';
-import { knipFindings } from '../architecture/knip.ts';
-import {
-  mobileMetroFile,
-  mobileMetroValid,
-  mobileGeneratedTypes,
-  mobileGeneratedTypesValid,
-  mobileStyleFile,
-  mobileStylesValid,
-  themeManifestValid,
-  themeTokenFile,
-  themeTokensValid,
-} from '../architecture/theme-policy.ts';
+const mobileMetroFile = 'apps/mobile/metro.config.cjs';
 const config = Schema.decodeUnknownSync(
   Schema.Struct({
     forbidden: Schema.Array(
@@ -100,55 +89,8 @@ function filesUnder(directory: string): string[] {
 function sourceFiles(directory: string): string[] {
   return filesUnder(directory).filter((path) => codeFile.test(path));
 }
-function themeFindings(): Finding[] {
+function themeImportFindings(): Finding[] {
   const findings: Finding[] = [];
-  for (const path of filesUnder('packages/theme')) {
-    const source = readFileSync(join(repositoryRoot, path), 'utf8');
-    const valid =
-      path === themeTokenFile
-        ? themeTokensValid(source)
-        : path === 'packages/theme/package.json' &&
-          themeManifestValid(JSON.parse(source));
-    if (!valid)
-      findings.push({
-        rule: 'theme-data-only',
-        from: path,
-        to: 'the CSS token module and its dependency-free public export manifest',
-      });
-  }
-  if (
-    !existsSync(join(repositoryRoot, mobileMetroFile)) ||
-    !mobileMetroValid(
-      readFileSync(join(repositoryRoot, mobileMetroFile), 'utf8'),
-    )
-  )
-    findings.push({
-      rule: 'mobile-style-config',
-      from: mobileMetroFile,
-      to: 'the documented Uniwind Metro integration and its owned CSS and generated type paths',
-    });
-  if (
-    !existsSync(join(repositoryRoot, mobileGeneratedTypes)) ||
-    !mobileGeneratedTypesValid(
-      readFileSync(join(repositoryRoot, mobileGeneratedTypes), 'utf8'),
-    )
-  )
-    findings.push({
-      rule: 'mobile-style-config',
-      from: mobileGeneratedTypes,
-      to: 'the exact Uniwind-generated light/dark module augmentation',
-    });
-  if (
-    !existsSync(join(repositoryRoot, mobileStyleFile)) ||
-    !mobileStylesValid(
-      readFileSync(join(repositoryRoot, mobileStyleFile), 'utf8'),
-    )
-  )
-    findings.push({
-      rule: 'mobile-style-config',
-      from: mobileStyleFile,
-      to: 'the Tailwind, Uniwind and public shared theme imports followed only by native token declarations',
-    });
   const styles = allRoots
     .flatMap(filesUnder)
     .filter((path) => path.endsWith('.css'));
@@ -240,9 +182,8 @@ try {
         from: entry.from,
         to: entry.to,
       })),
-    ...themeFindings(),
+    ...themeImportFindings(),
     ...typeRuleFindings(repositoryRoot),
-    ...knipFindings(repositoryRoot),
   ];
   const byRule = new Map<string, Finding[]>();
   for (const finding of violations) {

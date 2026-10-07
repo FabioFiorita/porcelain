@@ -6,7 +6,11 @@ export type BranchRange = { baseOid: string; headOid: string };
 
 export function branchFilePaths(file: BranchFile): string[] {
   return [
-    ...new Set([file.oldPath, file.newPath].filter((path) => path != null)),
+    ...new Set(
+      [file.oldPath, file.newPath].filter(
+        (path) => path !== null && path !== undefined,
+      ),
+    ),
   ];
 }
 
@@ -17,7 +21,7 @@ export function branchName(ref: string): string {
 }
 
 export function branchRange(changes: BranchChanges): BranchRange | null {
-  return changes.mergeBaseOid == null
+  return changes.mergeBaseOid === null || changes.mergeBaseOid === undefined
     ? null
     : { baseOid: changes.mergeBaseOid, headOid: changes.head.oid };
 }

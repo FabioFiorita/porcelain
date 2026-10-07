@@ -77,7 +77,7 @@ const application = Effect.gen(function* () {
     const server = yield* startServer(settings, {
       desktopSession: session,
       version: undefined,
-      serviceUpdateRunner: openAppManagedUpdateRunner(),
+      serviceUpdateRunner: yield* openAppManagedUpdateRunner(),
     });
     yield* Effect.addFinalizer(() => server.close());
     parent.postMessage({ kind: 'ready', address: server.address });

@@ -364,7 +364,9 @@ function CodeSurface({
       </Button>
     ) : null;
   const selectionAnchor =
-    selection != null && composer == null
+    selection !== null &&
+    selection !== undefined &&
+    (composer === null || composer === undefined)
       ? (() => {
           const entry = byId.get(selection.id);
           return entry?.comment
@@ -383,7 +385,8 @@ function CodeSurface({
           {rangeError}
         </p>
       ) : (
-        selectionAnchor != null && (
+        selectionAnchor !== null &&
+        selectionAnchor !== undefined && (
           <div
             role="status"
             aria-live="polite"

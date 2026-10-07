@@ -23,5 +23,5 @@ export function visibleFileTreePaths(
 ) {
   return showHidden
     ? paths
-    : paths.filter((path) => hiddenPathFor(path, hidden) == null);
+    : paths.filter((path) => hiddenPathFor(path, hidden) === null);
 }

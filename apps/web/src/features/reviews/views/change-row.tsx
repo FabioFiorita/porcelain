@@ -61,7 +61,9 @@ export function ChangeRow({
             type="button"
             aria-pressed={active}
             aria-label={label}
-            title={note == null ? path : `${path}\n${note}`}
+            title={
+              note === null || note === undefined ? path : `${path}\n${note}`
+            }
             className={cn(
               ROW,
               'text-muted-foreground',

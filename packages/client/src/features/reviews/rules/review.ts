@@ -53,7 +53,8 @@ function reviewStatus(
   change: Pick<FileChange, 'path' | 'fingerprint'>,
   marks: readonly ReviewedMark[],
 ): ReviewStatus {
-  if (change.fingerprint == null) return 'unreviewed';
+  if (change.fingerprint === null || change.fingerprint === undefined)
+    return 'unreviewed';
   const mark = marks.find((candidate) => candidate.path === change.path);
   if (!mark) return 'unreviewed';
   return mark.fingerprint === change.fingerprint ? 'reviewed' : 'stale';
@@ -71,7 +72,8 @@ export function mergeReviewChanges(
   reviewed: ReviewedMarksResponse,
   paths?: readonly string[],
 ): ReviewChangeItem[] {
-  const selected = paths == null ? null : new Set(paths);
+  const selected =
+    paths === null || paths === undefined ? null : new Set(paths);
   return list.changes.flatMap((entry) => {
     if (selected && !selected.has(entry.path)) return [];
     const mark = reviewMark(entry, reviewed.marks);
@@ -93,7 +95,8 @@ export function mergeBranchChanges(
   reviewed: ReviewedMarksResponse,
   paths?: readonly string[],
 ): BranchChangeItem[] {
-  const selected = paths == null ? null : new Set(paths);
+  const selected =
+    paths === null || paths === undefined ? null : new Set(paths);
   return files.flatMap((file) => {
     if (selected && !selected.has(file.path)) return [];
     const mark = reviewMark(file, reviewed.marks);
@@ -117,7 +120,7 @@ export function reviewErrorMessage(error: unknown) {
 export function isFingerprintable<
   T extends { fingerprint: string | null | undefined },
 >(change: T): change is T & { fingerprint: string } {
-  return change.fingerprint != null;
+  return change.fingerprint !== null && change.fingerprint !== undefined;
 }
 
 export function basename(path: string) {

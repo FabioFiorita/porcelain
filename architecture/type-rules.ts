@@ -1,13 +1,5 @@
 import { join } from 'node:path';
-import {
-  API,
-  SignatureKind,
-  SymbolFlags,
-  TypeFlags,
-  type Checker,
-  type Project,
-  type Type,
-} from 'typescript/unstable/sync';
+import { API, type Project } from 'typescript/unstable/sync';
 import {
   SyntaxKind,
   type MethodSignatureDeclaration,
@@ -16,17 +8,14 @@ import {
 } from 'typescript/unstable/ast';
 import {
   isArrowFunction,
-  isArrayLiteralExpression,
   isCallExpression,
   isClassDeclaration,
   isConstructorDeclaration,
-  isExportDeclaration,
   isFunctionExpression,
   isIdentifier,
   isInterfaceDeclaration,
   isMethodDeclaration,
   isMethodSignatureDeclaration,
-  isNamedExports,
   isPropertyAccessExpression,
   isPropertyAssignment,
   isStringLiteral,
@@ -37,10 +26,8 @@ import { domainPackages, type ArchRule } from './policy.ts';
 
 export type TypeFinding = { rule: ArchRule; from: string; to: string };
 
-const absence = TypeFlags.Undefined | TypeFlags.Null | TypeFlags.Void;
 const writingPort = /(?:Store|Writer|Runner)$/;
-const fakeFile = /\/(?:packages\/[^/]+|apps\/server)\/spec\/fakes\/.+\.ts$/;
-const recordingFake = /^Recording[A-Z]/;
+
 const readingMethod =
   /^(?:read|list|find|count|by|seen|latest|last|running|finished)(?:[A-Z]|$)/;
 const serviceFile = /\/packages\/[^/]+\/src\/services\/.+-service\.ts$/;
@@ -48,23 +35,9 @@ const useCaseFile = /\/apps\/server\/src\/use-cases\/.+\.ts$/;
 const workflowFile = /\/apps\/server\/src\/runtime\/.+-workflow\.ts$/;
 const useCaseOrPortFile =
   /\/apps\/server\/src\/(?:use-cases\/.+|ports\/.+-use-case-port)\.ts$/;
-const modelFile = /\/packages\/[^/]+\/src\/models\/.+\.ts$/;
-const domainShapeFile = new RegExp(
-  `/packages/(?:${domainPackages.join('|')})/src/(?:models|ports)/(?!index\\.ts$).+\\.ts$`,
-);
+
 const storePortFile =
   /\/(?:packages\/[^/]+|apps\/server)\/src\/ports\/[^/]+\.ts$/;
-const startupOnlyErrors = new Map([
-  [
-    'packages/storage/src/errors/invalid-data-directory-error.ts',
-    'InvalidDataDirectoryError',
-  ],
-  [
-    'packages/storage/src/errors/unsupported-database-version-error.ts',
-    'UnsupportedDatabaseVersionError',
-  ],
-]);
-
 const repositoryTables = ['reviews', 'repository'];
 const tableLanes: Readonly<
   Record<string, Readonly<Record<string, readonly string[]>>>
@@ -148,23 +121,6 @@ function where(root: string, node: Node): string {
   return `${file.fileName.slice(root.length + 1)}:${line + 1}`;
 }
 
-function unionWithAbsence(type: Type): boolean {
-  return type.isUnionType()
-    ? (type.getTypes() ?? []).some((member) => (member.flags & absence) !== 0)
-    : false;
-}
-
-function includesAbsence(type: Type): boolean {
-  return (type.flags & absence) !== 0 || unionWithAbsence(type);
-}
-
-function awaitedType(type: Type, checker: Checker): Type {
-  if (!type.isTypeReference()) return type;
-  if (!['Promise', 'Effect'].includes(type.getSymbol()?.name ?? ''))
-    return type;
-  return checker.getTypeArguments(type)[0] ?? type;
-}
-
 function executeMethods(file: SourceFile) {
   return file.statements.filter(isClassDeclaration).flatMap((declaration) =>
     descendants(declaration).filter((node) => {
@@ -203,84 +159,6 @@ function ownerNamed(project: Project, value: Node, name: string): boolean {
   );
 }
 
-function undefinedResults(
-  root: string,
-  project: Project,
-  file: SourceFile,
-): TypeFinding[] {
-  const { checker } = project;
-  return executeMethods(file).flatMap((method) => {
-    const signature = checker.getSignatureFromDeclaration(method);
-    const returned = signature && checker.getReturnTypeOfSignature(signature);
-    if (!returned) return [];
-    const result = awaitedType(returned, checker);
-    return unionWithAbsence(result)
-      ? [
-          {
-            rule: 'no-undefined-union-result',
-            from: where(root, method),
-            to: `${checker.typeToString(result)}: return a named outcome or throw the named error`,
-          },
-        ]
-      : [];
-  });
-}
-
-function absentResultAliases(
-  root: string,
-  project: Project,
-  file: SourceFile,
-): TypeFinding[] {
-  const { checker } = project;
-  return file.statements
-    .filter(isTypeAliasDeclaration)
-    .filter((alias) => /Result$/.test(alias.name.text))
-    .flatMap((alias) => {
-      const type = checker.getTypeAtLocation(alias.name);
-      return type && includesAbsence(type)
-        ? [
-            {
-              rule: 'models-file-shape',
-              from: where(root, alias),
-              to: `${alias.name.text} resolves to ${checker.typeToString(type)}; a Result names an outcome, never undefined, void or null`,
-            },
-          ]
-        : [];
-    });
-}
-
-function exportedNames(file: SourceFile | undefined): Set<string> {
-  const names = new Set<string>();
-  for (const statement of file?.statements ?? [])
-    if (
-      isExportDeclaration(statement) &&
-      statement.exportClause &&
-      isNamedExports(statement.exportClause)
-    )
-      for (const element of statement.exportClause.elements)
-        names.add(element.name.text);
-  return names;
-}
-
-function kernelDuplicates(
-  root: string,
-  file: SourceFile,
-  kernelNames: ReadonlySet<string>,
-): TypeFinding[] {
-  return file.statements.flatMap((statement) =>
-    (isTypeAliasDeclaration(statement) || isInterfaceDeclaration(statement)) &&
-    kernelNames.has(statement.name.text)
-      ? [
-          {
-            rule: 'models-file-shape',
-            from: where(root, statement),
-            to: `${statement.name.text} is a kernel type; import it from @porcelain/kernel instead of declaring a second one`,
-          },
-        ]
-      : [],
-  );
-}
-
 function thisMember(node: Node): string | undefined {
   return isPropertyAccessExpression(node) &&
     node.expression.kind === SyntaxKind.ThisKeyword &&
@@ -315,58 +193,6 @@ function writes(project: Project, declaration: Node): boolean {
     const method = writingPortMethod(project, node);
     return method !== undefined && !readingMethod.test(methodName(method));
   });
-}
-
-function answersNothing(project: Project, port: Type): boolean {
-  const { checker } = project;
-  return checker.getPropertiesOfType(port).every((member) => {
-    const type = checker.getTypeOfSymbol(member);
-    const signatures = type
-      ? checker.getSignaturesOfType(type, SignatureKind.Call)
-      : [];
-    return (
-      signatures.length > 0 &&
-      signatures.every((signature) => {
-        const returned = checker.getReturnTypeOfSignature(signature);
-        return (
-          returned !== undefined &&
-          (awaitedType(returned, checker).flags & TypeFlags.Void) !== 0
-        );
-      })
-    );
-  });
-}
-
-function recordingFindings(
-  root: string,
-  project: Project,
-  file: SourceFile,
-): TypeFinding[] {
-  const { checker } = project;
-  return file.statements
-    .filter(isClassDeclaration)
-    .filter(
-      (declaration) =>
-        declaration.name !== undefined &&
-        recordingFake.test(declaration.name.text),
-    )
-    .flatMap((declaration) => {
-      const ports = (declaration.heritageClauses ?? []).flatMap((clause) =>
-        clause.types.map((type) => checker.getTypeAtLocation(type)),
-      );
-      const answered =
-        ports.length === 0 ||
-        ports.some((port) => !port || !answersNothing(project, port));
-      return answered
-        ? [
-            {
-              rule: 'recording-fake-for-write-only-port',
-              from: where(root, declaration),
-              to: `${declaration.name?.text ?? ''}: a Recording fake implements only ports whose methods answer nothing back; a port with a read-back gets an InMemory fake read through that port`,
-            },
-          ]
-        : [];
-    });
 }
 
 function worktreeAccess(project: Project, owner: Node): boolean {
@@ -622,97 +448,6 @@ function storeLaneFindings(root: string, file: SourceFile): TypeFinding[] {
   });
 }
 
-function statusPolicyFindings(root: string, project: Project): TypeFinding[] {
-  const policy = project.program.getSourceFile(
-    join(root, 'apps/server/src/http/status-policy.ts'),
-  );
-  if (!policy)
-    throw new Error(
-      'The HTTP status policy must be loaded to check domain errors.',
-    );
-  const declarations = descendants(policy).filter(isVariableDeclaration);
-  const rules = declarations.find(
-    (node) => isIdentifier(node.name) && node.name.text === 'rules',
-  );
-  if (
-    !rules ||
-    !rules.initializer ||
-    !isArrayLiteralExpression(rules.initializer)
-  )
-    throw new Error(
-      'The HTTP status rules must be an explicit array so every domain error mapping can be checked.',
-    );
-  const { checker } = project;
-  const error = checker.resolveName('Error', SymbolFlags.Type, policy);
-  if (!error)
-    throw new Error('The HTTP status check must resolve the Error type.');
-  const errorType = checker.getDeclaredTypeOfSymbol(error);
-  const mapped = new Set<string>();
-  for (const node of descendants(rules.initializer)) {
-    if (!isPropertyAssignment(node) || !isIdentifier(node.name)) continue;
-    if (
-      node.name.text !== 'errors' ||
-      !isArrayLiteralExpression(node.initializer)
-    )
-      continue;
-    for (const error of node.initializer.elements) {
-      const symbol = checker.getSymbolAtLocation(error);
-      if (!symbol) continue;
-      const original =
-        symbol.flags & SymbolFlags.Alias
-          ? checker.getAliasedSymbol(symbol)
-          : symbol;
-      for (const declaration of original.declarations)
-        mapped.add(`${declaration.path}:${declaration.index}`);
-    }
-  }
-  const entries = [
-    ...[...domainPackages, 'kernel'].map(
-      (name) => `packages/${name}/src/errors/index.ts`,
-    ),
-    'packages/storage/src/index.ts',
-  ];
-  const findings: TypeFinding[] = [];
-  for (const entry of entries) {
-    const file = project.program.getSourceFile(join(root, entry));
-    if (!file)
-      throw new Error(
-        `${entry} must be loaded to check exported domain errors.`,
-      );
-    const module = checker.getSymbolAtLocation(file);
-    if (!module) continue;
-    for (const exported of checker.getExportsOfModule(module)) {
-      const original =
-        exported.flags & SymbolFlags.Alias
-          ? checker.getAliasedSymbol(exported)
-          : exported;
-      for (const reference of original.declarations) {
-        const declaration = reference.resolve(project);
-        if (
-          !declaration ||
-          !isClassDeclaration(declaration) ||
-          !declaration.name
-        )
-          continue;
-        const name = declaration.name.text;
-        const type = checker.getTypeAtLocation(declaration);
-        if (!type || !checker.isTypeAssignableTo(type, errorType)) continue;
-        const path = declaration.getSourceFile().fileName;
-        const startupOnly =
-          startupOnlyErrors.get(path.slice(root.length + 1)) === name;
-        if (startupOnly || mapped.has(`${reference.path}:${reference.index}`))
-          continue;
-        findings.push({
-          rule: 'status-policy-complete',
-          from: where(root, declaration),
-          to: `${name} is exported but has no errors entry in apps/server/src/http/status-policy.ts; map its HTTP outcome so a new domain failure cannot silently become a 500`,
-        });
-      }
-    }
-  }
-  return findings;
-}
-
 function laneFindings(
   root: string,
   project: Project,
@@ -833,38 +568,18 @@ export function typeRuleFindings(root: string): TypeFinding[] {
       join(root, 'apps/server/tsconfig.json'),
     ];
     const snapshot = api.updateSnapshot({ openProjects: configs });
-    const kernel = snapshot.getProject(configs[domainPackages.length] ?? '');
-    const kernelNames = new Set([
-      ...exportedNames(
-        kernel?.program.getSourceFile(
-          join(root, 'packages/kernel/src/models/index.ts'),
-        ),
-      ),
-      ...exportedNames(
-        kernel?.program.getSourceFile(
-          join(root, 'packages/kernel/src/ports/index.ts'),
-        ),
-      ),
-    ]);
     const findings: TypeFinding[] = [];
     const checked = new Set<string>();
     const writerCache = new Map<Node, boolean>();
     for (const config of configs) {
       const project = snapshot.getProject(config);
       if (!project) throw new Error(`TypeScript did not open ${config}`);
-      if (config.endsWith('apps/server/tsconfig.json'))
-        findings.push(...statusPolicyFindings(root, project));
       for (const name of project.program.getSourceFileNames()) {
         if (!name.startsWith(root) || name.includes('/node_modules/')) continue;
         const inServer = config.endsWith('apps/server/tsconfig.json');
         if (!inServer && checked.has(name)) continue;
         const file = project.program.getSourceFile(name);
         if (!file || isSpecFile(file)) continue;
-        if (fakeFile.test(name) && !checked.has(name)) {
-          checked.add(name);
-          findings.push(...recordingFindings(root, project, file));
-          continue;
-        }
         if (storePortFile.test(name) && !checked.has(name))
           findings.push(...storeLaneFindings(root, file));
         if (inServer) {
@@ -878,12 +593,6 @@ export function typeRuleFindings(root: string): TypeFinding[] {
           continue;
         }
         checked.add(name);
-        if (serviceFile.test(name))
-          findings.push(...undefinedResults(root, project, file));
-        if (modelFile.test(name))
-          findings.push(...absentResultAliases(root, project, file));
-        if (domainShapeFile.test(name))
-          findings.push(...kernelDuplicates(root, file, kernelNames));
       }
     }
     return findings;

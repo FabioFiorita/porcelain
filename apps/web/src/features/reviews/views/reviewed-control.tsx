@@ -81,7 +81,7 @@ export function ReviewedControl({
       ? Cause.squash(unmark.result.cause)
       : undefined;
 
-  if (fingerprint == null)
+  if (fingerprint === null || fingerprint === undefined)
     return (
       <span
         title={`${path} cannot be marked as reviewed because its current state could not be established`}

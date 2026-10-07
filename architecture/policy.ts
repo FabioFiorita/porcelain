@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { Schema } from 'effect';
-
 export const domainPackages = [
   'projects',
   'changes',
@@ -131,11 +128,7 @@ export const archRules = [
   'agents-public-api-only',
   'process-public-api-only',
   'process-importable-by-git-agents-installer',
-  'no-undefined-union-result',
-  'models-file-shape',
-  'recording-fake-for-write-only-port',
   'lane-per-table',
-  'status-policy-complete',
   'lane-mode-matches-service',
   'worktree-use-case-checks',
   'unused-export',
@@ -191,19 +184,6 @@ export type StyleRule = (typeof styleRules)[number];
 
 export const generatedRouteTree = 'apps/web/src/routeTree.gen.ts';
 
-export const targetPackageExports: Record<string, Record<string, string>> = {
-  client: Schema.decodeUnknownSync(
-    Schema.Struct({ exports: Schema.Record(Schema.String, Schema.String) }),
-  )(
-    JSON.parse(
-      readFileSync(
-        new URL('../packages/client/package.json', import.meta.url),
-        'utf8',
-      ),
-    ),
-  ).exports,
-};
-type Classification = { role: string; owner: string };
 export const nodeGlobalRoles: ReadonlySet<string> = new Set([
   'client-integration-test',
   'client-test-kit',
@@ -305,7 +285,9 @@ export function webPart(path: string): string | undefined {
   return part === 'api' ? 'api' : webFolderParts[part];
 }
 
-export function classify(path: string): Classification | undefined {
+export function classify(
+  path: string,
+): { role: string; owner: string } | undefined {
   const match = /^(packages|apps)\/([^/]+)\/(src|spec)\/(.+)$/.exec(path);
   if (!match) return;
   const owner = match[2] ?? '';

@@ -54,7 +54,8 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
-const relative = (iso?: string) => (iso == null ? null : relativeTime(iso));
+const relative = (iso?: string) =>
+  iso === null || iso === undefined ? null : relativeTime(iso);
 
 function AuthorAvatar({ author }: { author: CommentMessageAuthor }) {
   const agent = author === 'agent';
@@ -225,10 +226,10 @@ function ThreadMessage({
       <MessageContent>
         <MessageHeader>
           {mine ? 'You' : 'Agent'}
-          {timestamp != null && (
+          {timestamp !== null && timestamp !== undefined && (
             <span className="font-normal">{timestamp}</span>
           )}
-          {message.editedAt != null && (
+          {message.editedAt !== null && message.editedAt !== undefined && (
             <span className="font-normal">edited</span>
           )}
           {mine && !editing && (
@@ -281,7 +282,7 @@ export function ThreadCard({
   const reply = useReplyComment(scope, context);
   const resolve = useResolveComment(scope, context);
   const state = threadState(thread);
-  const listed = onReveal != null;
+  const listed = onReveal !== null && onReveal !== undefined;
   const owner = { scope, context, threadId: thread.id };
 
   const where = listed ? (
@@ -299,11 +300,12 @@ export function ThreadCard({
       <span className="shrink-0 font-sans text-muted-foreground">
         {anchorLabel(thread.anchor)}
       </span>
-      {thread.anchor.revision != null && (
-        <span className="shrink-0 text-muted-foreground">
-          in {thread.anchor.revision.slice(0, 7)}
-        </span>
-      )}
+      {thread.anchor.revision !== null &&
+        thread.anchor.revision !== undefined && (
+          <span className="shrink-0 text-muted-foreground">
+            in {thread.anchor.revision.slice(0, 7)}
+          </span>
+        )}
     </button>
   ) : (
     <span>{anchorLabel(thread.anchor)}</span>

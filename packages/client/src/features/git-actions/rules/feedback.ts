@@ -17,7 +17,9 @@ export function expectationFor(
     ...(includeFiles
       ? {
           files: (status.files ?? []).flatMap((file) =>
-            wanted.has(file.path) && file.fingerprint != null
+            wanted.has(file.path) &&
+            file.fingerprint !== null &&
+            file.fingerprint !== undefined
               ? [{ path: file.path, fingerprint: file.fingerprint }]
               : [],
           ),

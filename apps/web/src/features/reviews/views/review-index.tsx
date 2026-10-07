@@ -320,7 +320,10 @@ function LayersView({
             }
             active={activeEntry === entryKey({ kind: 'change', path })}
             onOpen={onOpen}
-            canReview={changeByPath.get(path)?.fingerprint != null}
+            canReview={
+              changeByPath.get(path)?.fingerprint !== null &&
+              changeByPath.get(path)?.fingerprint !== undefined
+            }
             onReview={() =>
               reviewed.toggle({
                 path,
@@ -416,7 +419,7 @@ function ChangeComment({
         variant="outline"
         size="sm"
         className="w-full"
-        disabled={anchor == null}
+        disabled={anchor === null || anchor === undefined}
         onClick={() => setOpen(true)}
       >
         <MessageSquarePlusIcon data-icon="inline-start" />
@@ -445,7 +448,7 @@ function BranchChangeComment({
       scope={scope}
       context={context}
       anchor={
-        ref == null || tip == null
+        ref === null || ref === undefined || tip === null || tip === undefined
           ? undefined
           : changeAnchor({ base: ref, tip })
       }
@@ -515,7 +518,7 @@ function CommentsView({
     const ref: DocumentRef =
       anchor.comparison?.kind === 'branch'
         ? { kind: 'branch-file', path: anchor.filePath }
-        : anchor.revision != null
+        : anchor.revision !== null && anchor.revision !== undefined
           ? { kind: 'commit', oid: anchor.revision }
           : anchor.comparison?.kind !== 'file' && changed.has(anchor.filePath)
             ? { kind: 'change', path: anchor.filePath }

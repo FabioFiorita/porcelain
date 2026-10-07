@@ -70,7 +70,8 @@ async function quitDuringRequestSetup(app: DesktopApp, path: string) {
 function sidebarInset(page: Page) {
   return page.evaluate(() => {
     const header = document.querySelector('.desktop-sidebar-header');
-    if (header == null) throw new Error('The sidebar header is missing');
+    if (header === null || header === undefined)
+      throw new Error('The sidebar header is missing');
     return getComputedStyle(header).paddingLeft;
   });
 }
@@ -162,7 +163,12 @@ test('the sidebar leaves room for the traffic lights with its button clickable, 
     await page.evaluate(() => {
       const header = document.querySelector('.desktop-sidebar-header');
       const button = header?.querySelector('button');
-      if (header == null || button == null)
+      if (
+        header === null ||
+        header === undefined ||
+        button === null ||
+        button === undefined
+      )
         throw new Error('The sidebar header and its button are missing');
       return {
         inset: getComputedStyle(header).paddingLeft,

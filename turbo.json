@@ -8,7 +8,9 @@
   },
   "globalEnv": ["CI"],
   "tasks": {
-    "transit": { "dependsOn": ["^transit"] },
+    "transit": {
+      "dependsOn": ["^transit"]
+    },
     "typecheck": {
       "dependsOn": ["transit"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/tsconfig.json"]
@@ -33,28 +35,47 @@
     },
     "test:e2e": {
       "dependsOn": ["transit"],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/.github/workflows/ci.yml"
-      ],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.github/workflows/ci.yml"],
       "cache": false
     },
     "@porcelain/desktop#test:e2e": {
       "dependsOn": ["transit", "@porcelain/web#transit"],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/.github/workflows/ci.yml"
-      ],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.github/workflows/ci.yml"],
       "cache": false
     },
-    "//#typecheck": { "inputs": ["$TURBO_DEFAULT$", "!repos/**"] },
-    "//#lint:server": { "inputs": ["$TURBO_DEFAULT$", "!repos/**"] },
-    "//#lint:web": { "inputs": ["$TURBO_DEFAULT$", "!repos/**"] },
-    "//#format:server:check": { "inputs": ["$TURBO_DEFAULT$", "!repos/**"] },
-    "//#format:web:check": { "inputs": ["$TURBO_DEFAULT$", "!repos/**"] },
-    "//#arch:check": { "inputs": ["$TURBO_DEFAULT$", "!repos/**"] },
-    "//#test:rules": { "inputs": ["$TURBO_DEFAULT$", "!repos/**"] },
-    "//#probes:check": { "inputs": ["$TURBO_DEFAULT$", "!repos/**"] },
-    "//#features:check": { "inputs": ["$TURBO_DEFAULT$", "!repos/**"] }
+    "//#typecheck": {
+      "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
+    },
+    "//#lint:server": {
+      "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
+    },
+    "//#lint:web": {
+      "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
+    },
+    "//#format:server:check": {
+      "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
+    },
+    "//#format:web:check": {
+      "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
+    },
+    "//#arch:check": {
+      "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
+    },
+    "//#test:rules": {
+      "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
+    },
+    "//#features:check": {
+      "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
+    },
+    "//#knip": {
+      "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
+    },
+    "build": {
+      "dependsOn": ["transit"]
+    },
+    "db:check": {
+      "dependsOn": ["transit"],
+      "cache": false
+    }
   }
 }

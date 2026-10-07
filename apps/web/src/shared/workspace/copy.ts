@@ -30,7 +30,11 @@ export function copyText(text: string, label: string) {
       type: 'error',
     });
 
-  if (window.isSecureContext && navigator.clipboard != null) {
+  if (
+    window.isSecureContext &&
+    navigator.clipboard !== null &&
+    navigator.clipboard !== undefined
+  ) {
     navigator.clipboard.writeText(text).then(done, () => {
       if (legacyCopy(text)) done();
       else failed();

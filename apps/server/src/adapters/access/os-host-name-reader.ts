@@ -1,8 +1,14 @@
+import { Effect, Layer } from 'effect';
 import { hostname } from 'node:os';
-import type { HostNameReader } from '@porcelain/access/ports';
+import { HostNameReader } from '@porcelain/access/ports';
 
-export class OsHostNameReader implements HostNameReader {
-  hostName(): string {
-    return hostname();
-  }
-}
+export const osHostNameReaderLayer = Layer.effect(
+  HostNameReader,
+  Effect.sync(() => {
+    return {
+      hostName(): string {
+        return hostname();
+      },
+    };
+  }),
+);

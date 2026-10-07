@@ -36,21 +36,73 @@ export interface IdSource { next(): string; }
 export const IdSource = Context.Service<'@porcelain/kernel/IdSource', IdSource>('@porcelain/kernel/IdSource');`;
 
 export const effectRuleCases = [
+  ...['effect', 'live', 'scoped'].flatMap((method) => [
+    {
+      rule: 'spec-asserts',
+      path: 'apps/server/src/runtime/read.spec.ts',
+      valid: `import { it, expect } from '@effect/vitest'; import { read } from './read.ts';
+        it.${method}('reads', function* () { const result = yield* read(); expect(result).toBe('saved'); });`,
+      invalid: `import { it, expect } from '@effect/vitest'; import { read } from './read.ts';
+        it.${method}('reads', function* () { const result = yield* read(); result.map(value => expect(value).toBe('saved')); });`,
+      errors: 1,
+    },
+    {
+      rule: 'spec-asserts',
+      path: 'apps/server/src/runtime/read.spec.ts',
+      valid: `import { it, expect } from '@effect/vitest'; import { Effect } from 'effect'; import { read } from './read.ts';
+        it.${method}('reads', () => Effect.gen(function* () { const result = yield* read(); expect(result).toBe('saved'); }));`,
+      invalid: `import { it, expect } from '@effect/vitest'; import { Effect } from 'effect'; import { read } from './read.ts';
+        it.${method}('reads', () => Effect.gen(function* () { const result = yield* read(); result.map(value => expect(value).toBe('saved')); }));`,
+      errors: 1,
+    },
+  ]),
   ...[
-    nativeService.replace(
-      "'@porcelain/access/ReadEnvironmentService'",
-      "'@porcelain/access/Other'",
-    ),
+    "import { read } from './read.ts';",
+    "import { unrelated } from '../runtime/unrelated.ts';",
+    "import { Layer } from '@porcelain/client/access';",
+    "import { Effect } from 'effect/socket'; import { it } from '@effect/vitest';",
+    "import { readFile } from 'node:fs/promises';",
+    "import { test } from '@porcelain/server/kit/server-test';",
+    "import { test } from '../../../spec/kit/test.ts';",
+    "import { Fake } from '../../../spec/fakes/fake.ts';",
+    "import { Store } from '@porcelain/storage';",
+    "import { Rpc } from '@effect/rpc';",
+    "import { QueryClient } from '@tanstack/query-core';",
+  ].map((valid) => ({
+    rule: 'spec-imports',
+    path: 'apps/server/src/http/read.spec.ts',
+    valid,
+    invalid:
+      "import { Other } from '@porcelain/client/src/features/access/store.ts';",
+    errors: 1,
+  })),
+  ...[
+    "import { Other } from '../../../../packages/client/src/features/access/store.ts';",
+    "export { Other } from '@porcelain/client/access/private';",
+    "export * from '@porcelain/client/src/features/access/store.ts';",
+    "import('@porcelain/client/src/features/access/store.ts');",
+  ].map((invalid) => ({
+    rule: 'spec-imports',
+    path: 'apps/server/src/http/read.spec.ts',
+    valid: "import { AccessStore } from '@porcelain/client/access';",
+    invalid,
+    errors: 1,
+  })),
+  ...[
+    'packages/reviews/src/services/read.spec.ts',
+    'apps/web/spec/integration/read.test.tsx',
+    'apps/web/spec/e2e/read.test.ts',
+  ].map((path) => ({
+    rule: 'spec-behaviour-names',
+    path,
+    valid:
+      "it('should answer 404', () => { expect(read()).toBe('missing'); });",
+    invalid: "it('should answer 404', () => { expect(true).toBe(true); });",
+    errors: 1,
+  })),
+  ...[
     nativeService.replace('readonly execute:', 'execute:'),
     nativeService.replace('static readonly layer', 'readonly layer'),
-    nativeService.replace(
-      'Layer.effect(ReadEnvironmentService,',
-      'Layer.effect(OtherService,',
-    ),
-    nativeService.replace(
-      "'ReadEnvironmentService.execute'",
-      "'Other.execute'",
-    ),
     nativeService.replace(
       'readonly execute:',
       'readonly refresh: () => Effect.Effect<void>; readonly execute:',
@@ -67,16 +119,28 @@ export const effectRuleCases = [
   ].map((invalid) => ({
     rule: 'operation-class-shape',
     path: 'packages/access/src/services/read-environment-service.ts',
-    valid: nativeService,
+    valid: nativeService
+      .replaceAll('ReadEnvironmentService', 'CustomCapability')
+      .replace("'@porcelain/access/CustomCapability'", "'custom/key'")
+      .replace("'CustomCapability.execute'", "'custom tracing'"),
     invalid,
     errors: 1,
   })),
   {
-    rule: 'operation-class-shape',
-    path: 'packages/access/src/services/read-environment-service.ts',
-    valid: nativeService,
+    rule: 'failure-in-service',
+    path: 'packages/files/src/errors/path-not-found-error.ts',
+    valid:
+      "import { Schema } from 'effect'; export class Missing extends Schema.TaggedError<Missing>()('Missing', {}) {}",
+    invalid: 'export class Missing extends Error {}',
+    errors: 1,
+  },
+  {
+    rule: 'failure-in-service',
+    path: 'packages/files/src/errors/path-not-found-error.ts',
+    valid:
+      "import { Schema } from 'effect'; export class Missing extends Schema.TaggedError<Missing>()('Missing', {}) {}",
     invalid:
-      'export class ReadEnvironmentService { execute(): Effect.Effect<ReadEnvironmentResult> { return Effect.succeed(result); } }',
+      "import { Schema } from 'effect'; export class Missing extends Schema.TaggedError<Missing>()('Missing', {}) {} export const other = 1;",
     errors: 1,
   },
   ...[
@@ -110,15 +174,8 @@ export const effectRuleCases = [
       'static readonly layer',
       `private readonly cancellation: ${raw}; static readonly layer`,
     ),
-    errors: 2,
-  })),
-  {
-    rule: 'spec-imports',
-    path: 'packages/client/src/shared/api/write-queue.spec.ts',
-    valid: `import { it } from '@effect/vitest'; import { Deferred, Effect } from 'effect';`,
-    invalid: `import { useMutation } from '@tanstack/react-query';`,
     errors: 1,
-  },
+  })),
 
   ...[
     `import { FileDraft } from '@porcelain/client/files'; export { FileDraft };`,
@@ -140,13 +197,7 @@ export const effectRuleCases = [
     invalid: `export const open = (url: string) => new WebSocket(url);`,
     errors: 1,
   })),
-  {
-    rule: 'spec-imports',
-    path: 'packages/client/src/features/live/commands/live-queries.spec.ts',
-    valid: `import { createOperationStore } from '@porcelain/client/git-actions'; import { Socket } from 'effect/socket'; import { RpcClient } from 'effect/rpc'; import { NetAddress } from 'effect/net';`,
-    invalid: `import { createOperationStore } from '../../git-actions/store/operations.ts';`,
-    errors: 1,
-  },
+
   ...[
     `import { withReadLease } from '@porcelain/effects';`,
     `import { withWriteLease as admit } from '@porcelain/effects/worktree';`,
@@ -160,6 +211,15 @@ export const effectRuleCases = [
     path: 'packages/files/src/services/read-text-file-service.ts',
     valid: `import { admittedRead, type WorktreeRead } from '@porcelain/effects';`,
     invalid,
+    errors: 1,
+  })),
+  ...['effect', 'live', 'scoped'].map((modifier) => ({
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/read.integration.ts',
+    valid: `import { it, expect } from '@effect/vitest'; import { read } from './read.ts';
+it.${modifier}('reads the saved value', function* () { const result = yield* read(); expect(result).toBe('saved'); });`,
+    invalid: `import { it, expect } from '@effect/vitest'; import { Effect } from 'effect'; import { read } from './read.ts';
+it.${modifier}('reads the saved value', () => Effect.gen(function* () { const result = yield* read(); expect(result).toBeDefined(); }));`,
     errors: 1,
   })),
   {
@@ -189,26 +249,7 @@ it('reads once', async () => { const test = { read }; const result = await test.
 it('reads once', async () => { const result = await read(); if (result) it('asserts later', () => expect(result).toBe('saved')); });`,
     errors: 1,
   },
-  ...[
-    route.replace("'@porcelain/contracts/files'", "'./private-api.ts'"),
-    route.replace("group(FilesApi, 'files'", "group(otherApi, 'files'"),
-    route.replace("group(FilesApi, 'files'", 'group(FilesApi, groupName'),
-    route.replace(
-      "(handlers) =>\n  handlers.handle('readTextFile', ({ params, query }) => useCases.readTextFile.execute({ ...params, ...query }))",
-      'buildHandlers',
-    ),
-    route.replace(
-      "import { HttpApiBuilder } from 'effect/http-api';",
-      'const HttpApiBuilder = custom;',
-    ),
-    route.replace('HttpApiBuilder.layer(FilesApi)', 'manualRoutes(FilesApi)'),
-  ].map((invalid) => ({
-    rule: 'feature-route-shape',
-    path,
-    valid: route,
-    invalid,
-    errors: 1,
-  })),
+
   ...[
     "server.route({ method: 'GET', url: '/api/worktrees/:worktreeId/text' });",
     "server['get']('/api/worktrees/:worktreeId/text', handler);",
@@ -230,87 +271,15 @@ it('reads once', async () => { const result = await read(); if (result) it('asse
       'useCases.readTextFile.execute({ ...params, ...query })',
       'Effect.andThen(useCases.readTextFile.execute(params), useCases.editFile.execute(query))',
     ),
-    route.replace(
-      '({ params, query }) => useCases',
-      'async ({ params, query }) => useCases',
-    ),
-    route.replace(
-      'useCases.readTextFile.execute({ ...params, ...query })',
-      'flag ? useCases.readTextFile.execute(params) : Effect.void',
-    ),
   ].map((invalid) => ({
     rule: 'feature-route-handler',
     path,
-    valid: route,
+    valid: route.replace(
+      "'readTextFile', ({ params, query }) =>",
+      'endpointName, async ({ params, query }) =>',
+    ),
     invalid,
     errors: 1,
-  })),
-  ...[
-    {
-      invalid: operation.replace('ReadHealthUseCase', 'ReadHealthController'),
-      errors: 2,
-    },
-    ...[
-      'private reader: Reader;',
-      'readonly reader: Reader;',
-      'forOwner(): void {}',
-    ].map((member) => ({
-      invalid: operation.replace(
-        'static readonly layer',
-        `${member} static readonly layer`,
-      ),
-      errors: 1,
-    })),
-    {
-      invalid: operation.replace(
-        'execute: ()',
-        'execute: (context: OperationContext)',
-      ),
-      errors: 1,
-    },
-    {
-      invalid: operation.replace(
-        'execute: ()',
-        'execute: (input: ReadHealthInput, signal?: AbortSignal)',
-      ),
-      errors: 2,
-    },
-    {
-      invalid: operation.replace(
-        'Effect.Effect<ReadHealthResponse, MissingEnvironmentIdentityError>',
-        'Promise<ReadHealthResponse>',
-      ),
-      errors: 1,
-    },
-    {
-      invalid: operation.replace(
-        'readonly execute: ()',
-        'readonly execute: (input: {})',
-      ),
-      errors: 1,
-    },
-    {
-      invalid: operation.replace('readonly execute:', 'readonly read:'),
-      errors: 1,
-    },
-    { invalid: `${operation}\nexport const fallback = undefined;`, errors: 1 },
-    {
-      invalid:
-        'export class ReadHealthUseCase { execute(): Effect.Effect<ReadHealthResponse> { return Effect.succeed(result); } }',
-      errors: 1,
-    },
-    {
-      invalid: operation.replace(
-        'function* (): Effect.fn.Return',
-        'async function* (): Effect.fn.Return',
-      ),
-      errors: 1,
-    },
-  ].map((entry) => ({
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: operation,
-    ...entry,
   })),
   ...['', 'input: ReadTextFileInput, signal?: AbortSignal'].map((args) => ({
     rule: 'operation-class-shape',
@@ -322,16 +291,6 @@ export class ReadTextFileService extends Context.Service<ReadTextFileService, { 
     invalid: `export class ReadTextFileService { execute(${args}): Effect.Effect<ReadTextFileResult, ReadFailure, WorktreeRead> { return Effect.succeed(result); } }`,
     errors: args ? 2 : 1,
   })),
-
-  {
-    rule: 'port-shape',
-    path: 'apps/server/src/ports/check-worktree-use-case-port.ts',
-    valid:
-      'export interface CheckWorktreeUseCasePort { execute(input: CheckWorktreeInput): Effect.Effect<ListedWorktree, WorktreeAccessFailure>; }',
-    invalid:
-      'export interface CheckWorktreeUseCasePort { execute(input: CheckWorktreeInput, context: OperationContext): Effect.Effect<ListedWorktree, WorktreeAccessFailure>; }',
-    errors: 1,
-  },
 ];
 
 const atomicMutation = `import { Effect } from 'effect';

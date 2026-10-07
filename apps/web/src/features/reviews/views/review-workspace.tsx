@@ -307,7 +307,9 @@ function DocumentArea({
   const layers = published.review?.active ? published.review.layers : [];
   const hasHandoff =
     Boolean(published.review?.active) ||
-    (overview != null && overview.changes.length > 0);
+    (overview !== null &&
+      overview !== undefined &&
+      overview.changes.length > 0);
   const layout = useTabLayout({
     worktreeId,
     entry,
@@ -332,13 +334,16 @@ function DocumentArea({
   useHotkey(
     SHORTCUTS.closeTab,
     () =>
-      focusedPane.active != null && layout.close(focused, focusedPane.active),
+      focusedPane.active !== null &&
+      focusedPane.active !== undefined &&
+      layout.close(focused, focusedPane.active),
     shortcuts,
   );
   useHotkey(
     SHORTCUTS.openToSide,
     () =>
-      focusedPane.active != null &&
+      focusedPane.active !== null &&
+      focusedPane.active !== undefined &&
       layout.openToSide(focused, focusedPane.active),
     shortcuts,
   );
@@ -458,7 +463,7 @@ function PaneView({
         onOpenToSide={(key) => layout.openToSide(index, key)}
         trailing={!split || index === 1 ? tabControls : undefined}
       />
-      {document == null ? (
+      {document === null || document === undefined ? (
         <EmptyDocument handoff={handoff} onOpen={onOpen} />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">

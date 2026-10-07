@@ -1,3 +1,4 @@
+import { Context } from 'effect';
 import type { TunnelHostnames } from '@porcelain/access/models';
 import type {
   HeldConnection,
@@ -13,3 +14,8 @@ export interface TunnelConnectionStore {
   insert(input: TunnelConnection): ReleaseConnection;
   retain(input: TunnelHostnames): void;
 }
+
+export const TunnelConnectionStore = Context.Service<
+  '@porcelain/server/TunnelConnectionStore',
+  TunnelConnectionStore
+>('@porcelain/server/TunnelConnectionStore');

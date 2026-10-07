@@ -70,10 +70,8 @@ export const ruleShapes: Readonly<
       'error TS<code>, as TypeScript or native Effect diagnostics print a diagnostic',
   },
   test: {
-    pattern:
-      /^(?:(?:[A-Z][A-Za-z]*)?Error: \S.*|\S.* (?:does not run as a plain case; every spec runs every time|ran no spec; a package that decides keeps its specs)\.)$/,
-    shape:
-      '<Name>Error: <message>, as vitest prints a failed case, or a line the spec-discipline reporter prints',
+    pattern: /^(?:[A-Z][A-Za-z]*)?Error: \S.*$/,
+    shape: '<Name>Error: <message>, as vitest prints a failed case',
   },
   db: {
     pattern:
@@ -207,21 +205,4 @@ export function unknownRule(
   if (named === undefined || names[named.family].includes(named.name))
     return undefined;
   return `${probe.rule} names no ${named.family} rule the gates define; a probe proves a rule that exists`;
-}
-
-export function unprobedRules(
-  probes: readonly Pick<Probe, 'gate' | 'rule'>[],
-  names: RuleNames,
-): string[] {
-  const probed = new Set(
-    probes.flatMap((probe) => {
-      const named = namedRule(probe.gate, probe.rule);
-      return named ? [`${named.family} ${named.name}`] : [];
-    }),
-  );
-  return (['style', 'arch'] as const).flatMap((family) =>
-    names[family]
-      .filter((name) => !probed.has(`${family} ${name}`))
-      .map((name) => (family === 'arch' ? `${name}:` : `${family}(${name})`)),
-  );
 }

@@ -42,7 +42,7 @@ type TabIcon = LucideIcon | ComponentType<SVGProps<SVGSVGElement>>;
 
 const fileTypeIcon = (path: string): TabIcon =>
   function TabFileIcon(props: SVGProps<SVGSVGElement>) {
-    return props.className == null ? (
+    return props.className === null || props.className === undefined ? (
       <FileTypeIcon path={path} />
     ) : (
       <FileTypeIcon path={path} className={props.className} />
@@ -157,10 +157,10 @@ export function DocumentTabs({
     <div
       className={cn(
         'flex h-10 shrink-0 items-center border-b',
-        side != null && focused && 'bg-muted/40',
+        side !== null && side !== undefined && focused && 'bg-muted/40',
       )}
     >
-      {leading != null && (
+      {leading !== null && leading !== undefined && (
         <div className="flex shrink-0 items-center pl-1">{leading}</div>
       )}
       <ScrollAreaPrimitive.Root className="relative h-full min-w-0 flex-1">
@@ -168,7 +168,9 @@ export function DocumentTabs({
           <div
             role="tablist"
             aria-label={
-              side == null ? 'Open documents' : `Open documents, ${side} pane`
+              side === null || side === undefined
+                ? 'Open documents'
+                : `Open documents, ${side} pane`
             }
             className="flex h-full w-max min-w-full items-center gap-1 px-1.5"
           >
@@ -210,7 +212,7 @@ export function DocumentTabs({
           className="absolute inset-x-0 bottom-0 data-horizontal:h-1.5"
         />
       </ScrollAreaPrimitive.Root>
-      {trailing != null && (
+      {trailing !== null && trailing !== undefined && (
         <div className="flex shrink-0 items-center gap-0.5 px-1.5">
           {trailing}
         </div>
@@ -243,7 +245,7 @@ function DocumentTab({
   const { Icon, title, hint } = describeTab(tabKey, layers);
   const tabRef = useRef<HTMLDivElement>(null);
   const openToSideLabel =
-    side == null
+    side === null || side === undefined
       ? 'Open to the side'
       : side === 'left'
         ? 'Open in the right pane'

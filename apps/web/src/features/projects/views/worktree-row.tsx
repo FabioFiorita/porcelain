@@ -99,7 +99,7 @@ export function WorktreeRow({
           onClick={() =>
             copyText(worktreeDisplayLabel(worktree), 'branch name')
           }
-          disabled={worktree.branch == null}
+          disabled={worktree.branch === null || worktree.branch === undefined}
         >
           <GitBranchIcon />
           Copy name

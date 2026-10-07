@@ -1,14 +1,15 @@
+import { Effect, Layer } from 'effect';
 import type { OwnerStatus } from '@porcelain/kernel/models';
-import type { RuntimeStatusReader } from '@porcelain/access/ports';
+import { RuntimeStatusReader } from '@porcelain/access/ports';
 
-export class ProcessRuntimeStatusReader implements RuntimeStatusReader {
-  private readonly status: () => OwnerStatus;
-
-  constructor(status: () => OwnerStatus) {
-    this.status = status;
-  }
-
-  current(): OwnerStatus {
-    return this.status();
-  }
-}
+export const processRuntimeStatusReaderLayer = (status: () => OwnerStatus) =>
+  Layer.effect(
+    RuntimeStatusReader,
+    Effect.sync(() => {
+      return {
+        current(): OwnerStatus {
+          return status();
+        },
+      };
+    }),
+  );

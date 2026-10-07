@@ -82,10 +82,10 @@ function Offer({
 }) {
   const [start, startUpdate] = useStartServiceUpdate(connection);
   const { latest } = state;
-  if (!state.available || latest == null)
+  if (!state.available || latest === null || latest === undefined)
     return (
       <p className="text-xs text-muted-foreground">
-        {latest == null
+        {latest === null || latest === undefined
           ? 'Could not check for a newer version.'
           : 'This is the newest version.'}
       </p>

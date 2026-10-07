@@ -20,6 +20,7 @@ type Runner = Parameters<typeof commitPaths>[0];
 type Preview = Parameters<typeof commitPaths>[1]['preview'];
 
 let checkout: string;
+let fixtureRoot: string;
 
 const gitWithInput = (input: string, ...args: string[]) =>
   execFileSync('git', ['-C', checkout, ...args], {
@@ -103,7 +104,8 @@ const initialise = () => {
 };
 
 beforeEach(() => {
-  checkout = mkdtempSync(join(tmpdir(), 'porcelain-commit-paths-'));
+  fixtureRoot = mkdtempSync(join(tmpdir(), 'porcelain-commit-paths-'));
+  checkout = fixtureRoot;
   initialise();
   write('a.txt', 'a\n');
   write('b.txt', 'b\n');
@@ -113,7 +115,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  rmSync(checkout, {
+  rmSync(fixtureRoot, {
     recursive: true,
     force: true,
     maxRetries: 3,
@@ -191,8 +193,7 @@ describe('commitPaths', () => {
   });
 
   it('makes the first commit on an unborn branch', async () => {
-    rmSync(checkout, { recursive: true, force: true });
-    mkdirSync(checkout);
+    checkout = mkdtempSync(join(fixtureRoot, 'unborn-'));
     initialise();
     write('first.txt', 'first\n');
     const outcome = await commit(['first.txt'], {

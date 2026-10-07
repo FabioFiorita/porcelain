@@ -63,7 +63,10 @@ export function useGitMenu(
       operation: runners[name].operation,
       canStartNew: runners[name].canStartNew,
     }))
-    .find(({ operation, canStartNew }) => operation != null && !canStartNew);
+    .find(
+      ({ operation, canStartNew }) =>
+        operation !== null && operation !== undefined && !canStartNew,
+    );
   return {
     running,
     runNetwork: (

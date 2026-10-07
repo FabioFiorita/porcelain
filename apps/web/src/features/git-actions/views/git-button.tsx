@@ -76,7 +76,8 @@ export function GitButton({
   const [detailsEnabled, setDetailsEnabled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const settled =
-    overview != null &&
+    overview !== null &&
+    overview !== undefined &&
     primaryGitAction(statusFromChanges(overview)).kind === 'hint';
   const detailsLive = detailsEnabled || settled;
   const details = useGitStatus(scope, connection, detailsLive);
@@ -113,7 +114,7 @@ export function GitButton({
     refreshLook,
     onLooked: setOpenedStatus,
   });
-  if (overview == null) return null;
+  if (overview === null || overview === undefined) return null;
   const status = {
     ...statusFromChanges(overview),
     branch: shownBranch(
@@ -142,7 +143,10 @@ export function GitButton({
     <>
       <ButtonGroup aria-label="Git controls" className="shrink-0">
         <Popover
-          open={(running != null && progressOpen) || result != null}
+          open={
+            (running !== null && running !== undefined && progressOpen) ||
+            (result !== null && result !== undefined)
+          }
           onOpenChange={(open) => {
             if (!open) setResult(null);
             if (running) setProgressOpen(open);
@@ -163,7 +167,10 @@ export function GitButton({
                     ? `${networkLabel(running.name)} in progress`
                     : primaryTip
                 }
-                disabled={running == null && primary.kind === 'hint'}
+                disabled={
+                  (running === null || running === undefined) &&
+                  primary.kind === 'hint'
+                }
                 focusableWhenDisabled
                 className="aria-disabled:cursor-default"
                 onClick={() => {
@@ -193,7 +200,7 @@ export function GitButton({
             {suggested && !running && (
               <span aria-hidden="true">
                 {primary.label}
-                {count != null && ` ${count}`}
+                {count !== null && count !== undefined && ` ${count}`}
               </span>
             )}
           </PopoverTrigger>
@@ -244,7 +251,7 @@ export function GitButton({
                 size="icon-sm"
                 aria-label="Git actions"
                 title="Git actions menu"
-                disabled={running != null}
+                disabled={running !== null && running !== undefined}
               />
             }
           >
@@ -283,20 +290,24 @@ export function GitButton({
                     return (
                       <DropdownMenuItem
                         key={candidate.id}
-                        disabled={blocker != null}
+                        disabled={blocker !== null && blocker !== undefined}
                         onClick={() => choose(candidate.id)}
                         className="items-start"
                       >
                         <GitActionIcon
                           action={candidate.id}
                           className={
-                            blocker != null ? 'mt-0.5 opacity-50' : 'mt-0.5'
+                            blocker !== null && blocker !== undefined
+                              ? 'mt-0.5 opacity-50'
+                              : 'mt-0.5'
                           }
                         />
                         <span className="flex min-w-0 flex-col">
                           <span
                             className={
-                              blocker != null ? 'opacity-50' : undefined
+                              blocker !== null && blocker !== undefined
+                                ? 'opacity-50'
+                                : undefined
                             }
                           >
                             {candidate.label}
@@ -354,7 +365,7 @@ export function GitButton({
         </DropdownMenu>
       </ButtonGroup>
 
-      {action != null ? (
+      {action !== null && action !== undefined ? (
         <Dialog
           open
           disablePointerDismissal
