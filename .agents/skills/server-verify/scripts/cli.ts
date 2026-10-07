@@ -43,7 +43,7 @@ async function doctor(requested: string | undefined): Promise<string> {
     'Startup dependencies:',
     ...(missing.length > 0
       ? missing.map((problem) => `FAIL ${problem}`)
-      : [`ready: Node ${process.versions.node}, Git, ps and server sandbox`]),
+      : ['ready: Node, Git, ps and server sandbox']),
     'Optional drivers:',
     'Node fetch and WebSocket: built in',
     ...optionalDrivers(),

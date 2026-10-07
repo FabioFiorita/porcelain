@@ -417,6 +417,7 @@ test('server doctor diagnoses startup separately from optional drivers before st
   const doctor = await cli(copy, SERVER_CLI, 'doctor');
   expect(doctor.code).toBe(0);
   expect(doctor.stdout).toContain('Startup dependencies:');
+  expect(doctor.stdout).toContain('ready: Node, Git, ps and server sandbox');
   expect(doctor.stdout).toContain('Optional drivers:');
   expect(doctor.stdout).toContain('live instances: none');
   const bin = join(copy, 'doctor-path');
@@ -480,6 +481,9 @@ test('a server card exposes private connections and deterministic operations ret
   const build = record(connection.build);
   const origins = record(connection.requiredOrigin);
   const files = record(connection.credentialFiles);
+  const manifest = record(
+    JSON.parse(await readFile(text(instance.detail.manifestPath), 'utf8')),
+  );
   const routes = record(connection.routes);
   const protocol = record(record(connection.live).protocolExample);
   const server = (...args: string[]) =>
@@ -544,13 +548,20 @@ test('a server card exposes private connections and deterministic operations ret
   });
   expect(existsSync(text(connection.ownerSocketPath))).toBe(false);
   expect(text(connection.serverDataDirectory)).toContain('/state');
-  expect(files.paired).toBe(files.desktop);
+  expect(files).toStrictEqual({ fixture: manifest.credentialFile });
   expect(connectionMode).toBe(0o600);
   expect(folderMode).toBe(0o700);
   expect(list(routes.owner)).toContain('POST /pairings');
   expect(list(routes.owner)).toContain('POST /mcp');
-  expect(list(routes.public)).toContain('GET /api/health');
-  expect(list(routes.paired)).toContain('PATCH /api/projects/:projectId');
+  expect(Object.keys(routes).toSorted()).toStrictEqual(['network', 'owner']);
+  expect(list(routes.network)).toContain('GET /api/health');
+  expect(list(routes.network)).toContain('PATCH /api/projects/:projectId');
+  expect(
+    [
+      ...list(routes.owner).map((route) => `owner ${text(route)}`),
+      ...list(routes.network).map(text),
+    ].toSorted(),
+  ).toStrictEqual(list(manifest.routes).map(text).toSorted());
   expect(record(protocol.notices)).toStrictEqual({
     _tag: 'Request',
     id: '1',

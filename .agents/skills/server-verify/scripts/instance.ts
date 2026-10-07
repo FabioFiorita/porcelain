@@ -39,12 +39,6 @@ function serverConnection(instance: ServerInstance) {
   const cli = join(repositoryRoot, '.agents/skills/server-verify/scripts/cli');
   const command = (name: string) =>
     shellCommand([cli, name, '--instance', instance.id]);
-  const publicRoutes = new Set([
-    'GET /api/health',
-    'GET /api/environment',
-    'POST /api/pair',
-    'DELETE /api/session',
-  ]);
   return {
     instanceId: instance.id,
     surface: 'server' as const,
@@ -85,13 +79,7 @@ function serverConnection(instance: ServerInstance) {
       owner: detail.routes
         .filter((route) => route.startsWith('owner '))
         .map((route) => route.slice(6)),
-      public: detail.routes.filter((route) => publicRoutes.has(route)),
-      paired: detail.routes.filter(
-        (route) =>
-          !route.startsWith('owner ') &&
-          !publicRoutes.has(route) &&
-          /^[A-Z]+ \/api\//.test(route),
-      ),
+      network: detail.routes.filter((route) => !route.startsWith('owner ')),
     },
     live: {
       protocolExample: {

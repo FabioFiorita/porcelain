@@ -93,8 +93,7 @@ export function serve(folder: string): Promise<void> {
       ownerSocketPath: server.socketPath,
       serverDataDirectory: manifest.dataDirectory,
       credentialFiles: {
-        paired: manifest.credentialFile,
-        desktop: manifest.credentialFile,
+        fixture: manifest.credentialFile,
       },
       routes: server.routes,
       projectId: ids.projectId,

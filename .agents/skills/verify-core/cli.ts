@@ -23,13 +23,6 @@ export function onPath(name: string): boolean {
 
 export function sandboxProblems(): string[] {
   const problems: string[] = [];
-  if (
-    Number(process.versions.node.split('.')[0]) !== 24 ||
-    Number(process.versions.node.split('.')[1]) < 20
-  )
-    problems.push(
-      'Node 24.20 or newer in the 24.x series is required; select the version declared in package.json',
-    );
   if (process.platform === 'linux' && !onPath('bwrap'))
     problems.push(
       'bwrap is missing: install bubblewrap (sudo apt-get install bubblewrap); the disposable server runs inside its sandbox',
