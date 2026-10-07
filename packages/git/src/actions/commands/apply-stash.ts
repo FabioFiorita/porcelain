@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import type { ActionFailure, ActionPlatform } from '../dtos/action-failure.ts';
 import {
   DISCARDED_REF_PREFIX,
   parseRecoveryBlob,
@@ -8,65 +10,52 @@ import { processFailure } from '../parsers/parse-process-result.ts';
 import { readActionCommand } from './read-action-command.ts';
 import { removeAppliedStash } from './remove-applied-stash.ts';
 
-export async function applyStash(
+export const applyStash = Effect.fn('Git.applyStash')(function* (
   process: GitProcessRunner,
   command: GitActionCommand<'stash-apply' | 'stash-pop'>,
   stashLog: string,
-  signal: AbortSignal,
-): Promise<GitActionOutcome> {
+): Effect.fn.Return<GitActionOutcome, ActionFailure, ActionPlatform> {
   const intent = command.intent;
-  const objectType = (
-    await readActionCommand(
-      process,
-      ['cat-file', '-t', intent.stashOid],
-      signal,
-    )
-  ).trimEnd();
-  if (objectType === 'blob') return applyRecoveryBlob(process, intent, signal);
+  const objectType = (yield* readActionCommand(process, [
+    'cat-file',
+    '-t',
+    intent.stashOid,
+  ])).trimEnd();
+  if (objectType === 'blob') return yield* applyRecoveryBlob(process, intent);
   const result = { stashOid: intent.stashOid, stashRetained: true };
-  const applied = await process.execute(
-    [
-      'stash',
-      'apply',
-      ...(intent.restoreIndex ? ['--index'] : []),
-      intent.stashOid,
-    ],
-    signal,
-  );
+  const applied = yield* process.execute([
+    'stash',
+    'apply',
+    ...(intent.restoreIndex ? ['--index'] : []),
+    intent.stashOid,
+  ]);
   const failure = processFailure(applied);
   if (failure) {
     if (failure.state === 'indeterminate') return { ...failure, result };
-    const unmerged = await readActionCommand(
-      process,
-      ['ls-files', '--unmerged', '-z'],
-      signal,
-    );
+    const unmerged = yield* readActionCommand(process, [
+      'ls-files',
+      '--unmerged',
+      '-z',
+    ]);
     return { ...failure, ...(unmerged ? { state: 'conflicted' } : {}), result };
   }
   if (intent.action === 'stash-apply')
     return { state: 'succeeded', result, refreshRequired: true };
-  return removeAppliedStash(process, intent.stashOid, stashLog, signal);
-}
+  return yield* removeAppliedStash(process, intent.stashOid, stashLog);
+});
 
-async function applyRecoveryBlob(
+const applyRecoveryBlob = Effect.fn('Git.applyRecoveryBlob')(function* (
   process: GitProcessRunner,
   intent: GitActionCommand<'stash-apply' | 'stash-pop'>['intent'],
-  signal: AbortSignal,
-): Promise<GitActionOutcome> {
+): Effect.fn.Return<GitActionOutcome, ActionFailure, ActionPlatform> {
   const oid = intent.stashOid;
-  const refs = (
-    await readActionCommand(
-      process,
-      [
-        'for-each-ref',
-        '--format=%(refname)',
-        '--points-at',
-        oid,
-        DISCARDED_REF_PREFIX,
-      ],
-      signal,
-    )
-  )
+  const refs = (yield* readActionCommand(process, [
+    'for-each-ref',
+    '--format=%(refname)',
+    '--points-at',
+    oid,
+    DISCARDED_REF_PREFIX,
+  ]))
     .trimEnd()
     .split('\n')
     .filter(Boolean);
@@ -78,11 +67,7 @@ async function applyRecoveryBlob(
       message: 'The discarded hunk recovery object is no longer available.',
       refreshRequired: false,
     };
-  const content = await readActionCommand(
-    process,
-    ['cat-file', 'blob', oid],
-    signal,
-  );
+  const content = yield* readActionCommand(process, ['cat-file', 'blob', oid]);
   const blob = parseRecoveryBlob(content);
   const patches = blob
     ? [
@@ -93,7 +78,7 @@ async function applyRecoveryBlob(
   const retained = { stashOid: oid, stashRetained: true };
   for (const item of patches) {
     if (!item.patch) continue;
-    const applied = await process.execute(
+    const applied = yield* process.execute(
       [
         'apply',
         ...(item.index ? ['--index'] : []),
@@ -101,7 +86,6 @@ async function applyRecoveryBlob(
         '--whitespace=nowarn',
         '-',
       ],
-      signal,
       item.patch,
     );
     const failure = processFailure(applied);
@@ -109,7 +93,7 @@ async function applyRecoveryBlob(
   }
   if (intent.action === 'stash-apply')
     return { state: 'succeeded', result: retained, refreshRequired: true };
-  const removed = await process.execute(['update-ref', '-d', ref], signal);
+  const removed = yield* process.execute(['update-ref', '-d', ref]);
   const failure = processFailure(removed);
   if (failure) return { ...failure, result: retained };
   return {
@@ -117,4 +101,4 @@ async function applyRecoveryBlob(
     result: { stashOid: oid, stashRetained: false },
     refreshRequired: true,
   };
-}
+});

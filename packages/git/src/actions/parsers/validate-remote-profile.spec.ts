@@ -1,15 +1,20 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { validateRemoteProfile } from './validate-remote-profile.ts';
 
 describe('validateRemoteProfile', () => {
   it('names a local repository without exposing its path', () => {
-    expect(validateRemoteProfile('/srv/git/repo.git')).toBe('local repository');
+    expect(Effect.runSync(validateRemoteProfile('/srv/git/repo.git'))).toBe(
+      'local repository',
+    );
   });
 
   it('accepts SSH remotes in both spellings', () => {
     expect([
-      validateRemoteProfile('git@github.com:owner/repo.git'),
-      validateRemoteProfile('ssh://git@github.com/owner/repo.git'),
+      Effect.runSync(validateRemoteProfile('git@github.com:owner/repo.git')),
+      Effect.runSync(
+        validateRemoteProfile('ssh://git@github.com/owner/repo.git'),
+      ),
     ]).toEqual([
       'git@github.com:owner/repo.git',
       'ssh://github.com/owner/repo.git',
@@ -17,9 +22,11 @@ describe('validateRemoteProfile', () => {
   });
 
   it('accepts HTTPS without credentials', () => {
-    expect(validateRemoteProfile('https://github.com/owner/repo.git')).toBe(
-      'https://github.com/owner/repo.git',
-    );
+    expect(
+      Effect.runSync(
+        validateRemoteProfile('https://github.com/owner/repo.git'),
+      ),
+    ).toBe('https://github.com/owner/repo.git');
   });
 
   it.each([
@@ -34,7 +41,9 @@ describe('validateRemoteProfile', () => {
   ])(
     'refuses the remote %j, which carries credentials, a query, a fragment or another protocol',
     (url) => {
-      expect(() => validateRemoteProfile(url)).toThrow('Git action rejected');
+      expect(() => Effect.runSync(validateRemoteProfile(url))).toThrow(
+        'Git action rejected',
+      );
     },
   );
 });

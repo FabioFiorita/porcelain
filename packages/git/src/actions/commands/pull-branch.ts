@@ -1,6 +1,7 @@
+import { Effect } from 'effect';
+import type { ActionFailure, ActionPlatform } from '../dtos/action-failure.ts';
 import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
 import type { ActionRemote } from '../dtos/git-action-snapshot.ts';
-import { GitActionRejectedError } from '../../shared/errors/git-action-rejected-error.ts';
 import { rejectBusyCheckout } from './reject-busy-checkout.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from '../parsers/parse-process-result.ts';
@@ -10,13 +11,12 @@ import { readActionAncestry } from './read-action-ancestry.ts';
 import { readActionHead } from './read-action-head.ts';
 import { readActionStatus } from './read-action-status.ts';
 
-export async function pullBranch(
+export const pullBranch = Effect.fn('Git.pullBranch')(function* (
   process: GitProcessRunner,
   preparation: GitActionCommand<'pull'>,
   remote: ActionRemote,
-  signal: AbortSignal,
-): Promise<GitActionOutcome> {
-  const fetched = await fetchBranch(process, preparation, remote, signal);
+): Effect.fn.Return<GitActionOutcome, ActionFailure, ActionPlatform> {
+  const fetched = yield* fetchBranch(process, preparation, remote);
   if (fetched.state !== 'succeeded' && fetched.state !== 'no-change')
     return fetched;
   const candidate = fetched.result?.trackingOid;
@@ -26,9 +26,9 @@ export async function pullBranch(
       reason: 'OUTCOME_UNKNOWN',
       refreshRequired: true,
     };
-  const head = await readActionHead(process, signal);
-  const branch = await readActionBranch(process, signal);
-  const changes = await readActionStatus(process, signal);
+  const head = yield* readActionHead(process);
+  const branch = yield* readActionBranch(process);
+  const changes = yield* readActionStatus(process);
   if (
     head !== preparation.preview.headOid ||
     branch !== preparation.preview.branch ||
@@ -46,10 +46,10 @@ export async function pullBranch(
       refreshRequired: true,
     };
   const strategy = preparation.intent.strategy ?? 'ff-only';
-  const ancestry = await readActionAncestry(process, head, candidate, signal);
+  const ancestry = yield* readActionAncestry(process, head, candidate);
   if (ancestry.kind === 'failed') return ancestry.outcome;
   if (ancestry.kind === 'not-ancestor') {
-    const ahead = await readActionAncestry(process, candidate, head, signal);
+    const ahead = yield* readActionAncestry(process, candidate, head);
     if (ahead.kind === 'failed') return ahead.outcome;
     if (ahead.kind === 'ancestor')
       return {
@@ -64,7 +64,7 @@ export async function pullBranch(
         refreshRequired: true,
       };
   }
-  const integrated = await process.execute(
+  const integrated = yield* process.execute(
     strategy === 'rebase'
       ? [
           'rebase',
@@ -85,29 +85,28 @@ export async function pullBranch(
           '--no-stat',
           candidate,
         ],
-    signal,
   );
   const failure = processFailure(integrated);
   if (failure) {
     if (failure.state === 'indeterminate') return failure;
-    try {
-      await rejectBusyCheckout(process, signal);
-    } catch (error) {
-      if (
-        error instanceof GitActionRejectedError &&
+    const busy = yield* rejectBusyCheckout(process).pipe(
+      Effect.map(() => false),
+      Effect.catchTag('GitActionRejectedError', (error) =>
         error.reason === 'CHECKOUT_BUSY'
-      )
-        return {
-          state: 'conflicted',
-          result: { trackingOid: candidate },
-          refreshRequired: true,
-        };
-      throw error;
-    }
+          ? Effect.succeed(true)
+          : Effect.fail(error),
+      ),
+    );
+    if (busy)
+      return {
+        state: 'conflicted',
+        result: { trackingOid: candidate },
+        refreshRequired: true,
+      };
     return failure;
   }
-  const result = await readActionHead(process, signal);
-  const contains = await readActionAncestry(process, candidate, result, signal);
+  const result = yield* readActionHead(process);
+  const contains = yield* readActionAncestry(process, candidate, result);
   if (contains.kind === 'failed' && contains.outcome.state === 'indeterminate')
     return contains.outcome;
   return contains.kind === 'ancestor'
@@ -121,4 +120,4 @@ export async function pullBranch(
         reason: 'OUTCOME_UNKNOWN',
         refreshRequired: true,
       };
-}
+});

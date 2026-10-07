@@ -1,15 +1,21 @@
+import { Effect } from 'effect';
 import { parseConfigList } from '../../shared/parsers/conversion-filters.ts';
 import { GitActionRejectedError } from '../../shared/errors/git-action-rejected-error.ts';
 
 const TERMINAL = 'Run this action from a terminal instead.';
 
-export function validateActionConfig(config: string): void {
-  for (const { key, value } of parseConfigList(config)) {
-    const detail = unsupportedSetting(key, value);
-    if (detail)
-      throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', { detail });
-  }
-}
+export const validateActionConfig = Effect.fn('Git.validateActionConfig')(
+  function* (config: string) {
+    for (const { key, value } of parseConfigList(config)) {
+      const detail = unsupportedSetting(key, value);
+      if (detail)
+        return yield* new GitActionRejectedError({
+          reason: 'UNSUPPORTED_CONFIGURATION',
+          detail,
+        });
+    }
+  },
+);
 
 function unsupportedSetting(key: string, value: string): string | undefined {
   const name = key.toLowerCase();

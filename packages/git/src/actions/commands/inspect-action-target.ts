@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import type { ActionFailure, ActionPlatform } from '../dtos/action-failure.ts';
 import { shortBranchName } from '../../shared/parsers/refs.ts';
 import type {
   GitActionExpectation,
@@ -16,78 +18,86 @@ import { readOptionalActionOid } from './read-optional-action-oid.ts';
 import { readStashLog } from './read-stash-log.ts';
 import { rejectBusyCheckout } from './reject-busy-checkout.ts';
 
-export async function inspectActionTarget(
-  process: GitProcessRunner,
-  intent: GitActionIntent,
-  expected: GitActionExpectation,
-  signal: AbortSignal,
-): Promise<GitActionSnapshot> {
-  const inProgress = await rejectBusyCheckout(
-    process,
-    signal,
-    intent.action === 'commit',
-  );
-  if (inProgress !== expected.inProgress)
-    throw new GitActionRejectedError('CHANGED_SINCE_LOOKED');
-  const mergeHeadOid =
-    inProgress === 'merge'
-      ? await readOptionalActionOid(process, 'MERGE_HEAD', signal)
-      : null;
-  if (mergeHeadOid !== expected.mergeHeadOid)
-    throw new GitActionRejectedError('CHANGED_SINCE_LOOKED');
-  await inspectActionConfig(process, signal, intent.action);
-  const headOid = await readOptionalActionOid(process, 'HEAD', signal);
-  const branch = await readActionBranch(process, signal);
-  if (
-    headOid !== expected.headOid ||
-    (branch === null ? null : shortBranchName(branch)) !== expected.branch
-  )
-    throw new GitActionRejectedError('CHANGED_SINCE_LOOKED');
-
-  const remote =
-    intent.action === 'fetch' ||
-    intent.action === 'pull' ||
-    intent.action === 'push'
-      ? await inspectActionRemote(process, intent, signal)
-      : undefined;
-  const trackingOid = remote
-    ? await readOptionalActionOid(process, remote.trackingRef, signal)
-    : null;
-  if (remote && trackingOid !== expected.upstreamOid)
-    throw new GitActionRejectedError('CHANGED_SINCE_LOOKED');
-
-  const stash =
-    intent.action === 'stash-apply' || intent.action === 'stash-pop';
-  const changes =
-    intent.action === 'pull' || intent.action === 'stash-create' || stash
-      ? await readActionStatus(process, signal)
-      : [];
-  if (intent.action === 'pull' && changes.length > 0)
-    throw new GitActionRejectedError('CHECKOUT_BUSY');
-  const stashLog = stash ? await readStashLog(process, signal) : '';
-  if (stash) {
-    const objectType = await readActionCommand(
+export const inspectActionTarget = Effect.fn('Git.inspectActionTarget')(
+  function* (
+    process: GitProcessRunner,
+    intent: GitActionIntent,
+    expected: GitActionExpectation,
+  ): Effect.fn.Return<GitActionSnapshot, ActionFailure, ActionPlatform> {
+    const inProgress = yield* rejectBusyCheckout(
       process,
-      ['cat-file', '-t', intent.stashOid],
-      signal,
+      intent.action === 'commit',
     );
-    if (objectType.trimEnd() !== 'blob')
-      await checkStashCollisions(process, intent.stashOid, signal);
-  }
-  return {
-    stashLog,
-    ...(remote ? { remote } : {}),
-    preview: {
-      headOid,
-      branch,
-      staged: false,
-      trackedChanges: changes.some((change) => change.scope !== 'untracked'),
-      untrackedCount: changes.filter((change) => change.scope === 'untracked')
-        .length,
-      inProgress,
-      mergeHeadOid,
-      ...(remote ? { destination: remote.display, trackingOid } : {}),
-      ...('stashOid' in intent ? { stashOid: intent.stashOid } : {}),
-    },
-  };
-}
+    if (inProgress !== expected.inProgress)
+      return yield* new GitActionRejectedError({
+        reason: 'CHANGED_SINCE_LOOKED',
+      });
+    const mergeHeadOid =
+      inProgress === 'merge'
+        ? yield* readOptionalActionOid(process, 'MERGE_HEAD')
+        : null;
+    if (mergeHeadOid !== expected.mergeHeadOid)
+      return yield* new GitActionRejectedError({
+        reason: 'CHANGED_SINCE_LOOKED',
+      });
+    yield* inspectActionConfig(process, intent.action);
+    const headOid = yield* readOptionalActionOid(process, 'HEAD');
+    const branch = yield* readActionBranch(process);
+    if (
+      headOid !== expected.headOid ||
+      (branch === null ? null : shortBranchName(branch)) !== expected.branch
+    )
+      return yield* new GitActionRejectedError({
+        reason: 'CHANGED_SINCE_LOOKED',
+      });
+
+    const remote =
+      intent.action === 'fetch' ||
+      intent.action === 'pull' ||
+      intent.action === 'push'
+        ? yield* inspectActionRemote(process, intent)
+        : undefined;
+    const trackingOid = remote
+      ? yield* readOptionalActionOid(process, remote.trackingRef)
+      : null;
+    if (remote && trackingOid !== expected.upstreamOid)
+      return yield* new GitActionRejectedError({
+        reason: 'CHANGED_SINCE_LOOKED',
+      });
+
+    const stash =
+      intent.action === 'stash-apply' || intent.action === 'stash-pop';
+    const changes =
+      intent.action === 'pull' || intent.action === 'stash-create' || stash
+        ? yield* readActionStatus(process)
+        : [];
+    if (intent.action === 'pull' && changes.length > 0)
+      return yield* new GitActionRejectedError({ reason: 'CHECKOUT_BUSY' });
+    const stashLog = stash ? yield* readStashLog(process) : '';
+    if (stash) {
+      const objectType = yield* readActionCommand(process, [
+        'cat-file',
+        '-t',
+        intent.stashOid,
+      ]);
+      if (objectType.trimEnd() !== 'blob')
+        yield* checkStashCollisions(process, intent.stashOid);
+    }
+    return {
+      stashLog,
+      ...(remote ? { remote } : {}),
+      preview: {
+        headOid,
+        branch,
+        staged: false,
+        trackedChanges: changes.some((change) => change.scope !== 'untracked'),
+        untrackedCount: changes.filter((change) => change.scope === 'untracked')
+          .length,
+        inProgress,
+        mergeHeadOid,
+        ...(remote ? { destination: remote.display, trackingOid } : {}),
+        ...('stashOid' in intent ? { stashOid: intent.stashOid } : {}),
+      },
+    };
+  },
+);

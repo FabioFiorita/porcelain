@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import type { ActionFailure, ActionPlatform } from '../dtos/action-failure.ts';
 import type { GitOrdinaryChange } from '../../inspection/index.ts';
 import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
 import { GitActionRejectedError } from '../../shared/errors/git-action-rejected-error.ts';
@@ -10,44 +12,38 @@ import { saveRecoveryBlob } from './save-recovery-blob.ts';
 
 type DiscardCommand = GitActionCommand<'discard'>;
 
-export async function discardPath(
+export const discardPath = Effect.fn('Git.discardPath')(function* (
   process: GitProcessRunner,
   command: DiscardCommand,
-  signal: AbortSignal,
-): Promise<GitActionOutcome> {
+): Effect.fn.Return<GitActionOutcome, ActionFailure, ActionPlatform> {
   if (command.intent.hunk)
-    return discardHunk(process, command, command.intent.hunk, signal);
+    return yield* discardHunk(process, command, command.intent.hunk);
   const path = command.intent.path;
-  const renamed = (await readActionStatus(process, signal)).find(
+  const renamed = (yield* readActionStatus(process)).find(
     (change): change is GitOrdinaryChange =>
       'kind' in change && change.kind === 'renamed' && change.newPath === path,
   );
   if (renamed?.oldPath)
-    return discardRename(process, command, renamed.oldPath, signal);
-  const saved = await process.execute(
-    [
-      '--literal-pathspecs',
-      'stash',
-      'push',
-      '--include-untracked',
-      '--message',
-      `Porcelain discarded ${path}`,
-      '--',
-      path,
-    ],
-    signal,
-  );
+    return yield* discardRename(process, command, renamed.oldPath);
+  const saved = yield* process.execute([
+    '--literal-pathspecs',
+    'stash',
+    'push',
+    '--include-untracked',
+    '--message',
+    `Porcelain discarded ${path}`,
+    '--',
+    path,
+  ]);
   const failure = processFailure(saved);
   if (failure) return failure;
   if (/No local changes to save/iu.test(saved.stdout.toString('utf8')))
     return { state: 'no-change', refreshRequired: false };
-  const restoreStashOid = (
-    await readActionCommand(
-      process,
-      ['rev-parse', '--verify', 'refs/stash'],
-      signal,
-    )
-  ).trimEnd();
+  const restoreStashOid = (yield* readActionCommand(process, [
+    'rev-parse',
+    '--verify',
+    'refs/stash',
+  ])).trimEnd();
   return {
     state: 'succeeded',
     result: {
@@ -58,51 +54,45 @@ export async function discardPath(
     },
     refreshRequired: true,
   };
-}
+});
 
-async function discardHunk(
+const discardHunk = Effect.fn('Git.discardHunk')(function* (
   process: GitProcessRunner,
   command: DiscardCommand,
   hunk: { scope: 'staged' | 'unstaged'; startLine: number; endLine: number },
-  signal: AbortSignal,
-): Promise<GitActionOutcome> {
+): Effect.fn.Return<GitActionOutcome, ActionFailure, ActionPlatform> {
   const staged = hunk.scope === 'staged';
-  const diff = await readActionCommand(
-    process,
-    [
-      '--literal-pathspecs',
-      'diff',
-      ...(staged ? ['--cached'] : []),
-      '--no-ext-diff',
-      '--no-textconv',
-      '--unified=0',
-      '--',
-      command.intent.path,
-    ],
-    signal,
-  );
+  const diff = yield* readActionCommand(process, [
+    '--literal-pathspecs',
+    'diff',
+    ...(staged ? ['--cached'] : []),
+    '--no-ext-diff',
+    '--no-textconv',
+    '--unified=0',
+    '--',
+    command.intent.path,
+  ]);
   const selection = selectHunk(diff, hunk);
   if (selection.kind === 'partial')
-    throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
+    return yield* new GitActionRejectedError({
+      reason: 'UNSUPPORTED_CONFIGURATION',
       detail:
         'The selected lines cover only part of a change. Select the whole change to discard it.',
     });
   if (selection.kind === 'missing')
-    throw new GitActionRejectedError('CHANGED_SINCE_LOOKED');
-  const saved = await saveRecoveryBlob(
-    process,
-    {
-      id: command.id,
-      path: command.intent.path,
-      kind: 'hunk',
-      cached: staged ? selection.patch : '',
-      unstaged: staged ? '' : selection.patch,
-      zero: true,
-    },
-    signal,
-  );
+    return yield* new GitActionRejectedError({
+      reason: 'CHANGED_SINCE_LOOKED',
+    });
+  const saved = yield* saveRecoveryBlob(process, {
+    id: command.id,
+    path: command.intent.path,
+    kind: 'hunk',
+    cached: staged ? selection.patch : '',
+    unstaged: staged ? '' : selection.patch,
+    zero: true,
+  });
   if ('failure' in saved) return saved.failure;
-  const applied = await process.execute(
+  const applied = yield* process.execute(
     [
       'apply',
       '--reverse',
@@ -111,7 +101,6 @@ async function discardHunk(
       '--whitespace=nowarn',
       '-',
     ],
-    signal,
     selection.patch,
   );
   const applyFailure = processFailure(applied);
@@ -121,41 +110,44 @@ async function discardHunk(
     result: { restoreStashOid: saved.oid, stashRetained: true },
     refreshRequired: true,
   };
-}
+});
 
-async function discardRename(
+const discardRename = Effect.fn('Git.discardRename')(function* (
   process: GitProcessRunner,
   command: DiscardCommand,
   renamedFrom: string,
-  signal: AbortSignal,
-): Promise<GitActionOutcome> {
+): Effect.fn.Return<GitActionOutcome, ActionFailure, ActionPlatform> {
   const path = command.intent.path;
   const paths = [renamedFrom, path];
-  const cached = await readActionCommand(
-    process,
-    [
-      '--literal-pathspecs',
-      'diff',
-      '--cached',
-      '--binary',
-      '--full-index',
-      '--',
-      ...paths,
-    ],
-    signal,
-  );
-  const unstaged = await readActionCommand(
-    process,
-    ['--literal-pathspecs', 'diff', '--binary', '--full-index', '--', ...paths],
-    signal,
-  );
-  const saved = await saveRecoveryBlob(
-    process,
-    { id: command.id, path, kind: 'rename', cached, unstaged, zero: false },
-    signal,
-  );
+  const cached = yield* readActionCommand(process, [
+    '--literal-pathspecs',
+    'diff',
+    '--cached',
+    '--binary',
+    '--full-index',
+    '--',
+    ...paths,
+  ]);
+  const unstaged = yield* readActionCommand(process, [
+    '--literal-pathspecs',
+    'diff',
+    '--binary',
+    '--full-index',
+    '--',
+    ...paths,
+  ]);
+  const saved = yield* saveRecoveryBlob(process, {
+    id: command.id,
+    path,
+    kind: 'rename',
+    cached,
+    unstaged,
+    zero: false,
+  });
   if ('failure' in saved)
-    throw new GitActionRejectedError(saved.failure.reason ?? 'GIT_REJECTED');
+    return yield* new GitActionRejectedError({
+      reason: saved.failure.reason ?? 'GIT_REJECTED',
+    });
   for (const args of [
     [
       '--literal-pathspecs',
@@ -177,7 +169,7 @@ async function discardRename(
     ],
     ['--literal-pathspecs', 'clean', '-f', '--', path],
   ]) {
-    const reverted = await process.execute(args, signal);
+    const reverted = yield* process.execute(args);
     const failure = processFailure(reverted);
     if (failure) return failure;
   }
@@ -190,4 +182,4 @@ async function discardRename(
     },
     refreshRequired: true,
   };
-}
+});

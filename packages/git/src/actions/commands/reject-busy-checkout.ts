@@ -1,44 +1,40 @@
-import { lstat } from 'node:fs/promises';
-import { isMissing } from '../../shared/errors/is-missing.ts';
+import { readActionFile } from './read-action-file.ts';
+import { Effect } from 'effect';
+import type { ActionFailure, ActionPlatform } from '../dtos/action-failure.ts';
 import { readActionCommand } from './read-action-command.ts';
 import { GitActionRejectedError } from '../../shared/errors/git-action-rejected-error.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 
-export async function rejectBusyCheckout(
-  process: GitProcessRunner,
-  signal: AbortSignal,
-  allowMerge = false,
-  ignoreIndexLock = false,
-): Promise<'merge' | null> {
-  let merge = false;
-  for (const name of [
-    'MERGE_HEAD',
-    'CHERRY_PICK_HEAD',
-    'REVERT_HEAD',
-    'rebase-merge',
-    'rebase-apply',
-    'sequencer',
-    'index.lock',
-  ]) {
-    const path = (
-      await readActionCommand(
-        process,
-        ['rev-parse', '--path-format=absolute', '--git-path', name],
-        signal,
-      )
-    ).trimEnd();
-    try {
-      await lstat(path);
-    } catch (error) {
-      if (isMissing(error)) continue;
-      throw error;
+export const rejectBusyCheckout = Effect.fn('Git.rejectBusyCheckout')(
+  function* (
+    process: GitProcessRunner,
+    allowMerge = false,
+    ignoreIndexLock = false,
+  ): Effect.fn.Return<'merge' | null, ActionFailure, ActionPlatform> {
+    let merge = false;
+    for (const name of [
+      'MERGE_HEAD',
+      'CHERRY_PICK_HEAD',
+      'REVERT_HEAD',
+      'rebase-merge',
+      'rebase-apply',
+      'sequencer',
+      'index.lock',
+    ]) {
+      const path = (yield* readActionCommand(process, [
+        'rev-parse',
+        '--path-format=absolute',
+        '--git-path',
+        name,
+      ])).trimEnd();
+      if ((yield* readActionFile(path)) === null) continue;
+      if (name === 'MERGE_HEAD' && allowMerge) {
+        merge = true;
+        continue;
+      }
+      if (name === 'index.lock' && ignoreIndexLock) continue;
+      return yield* new GitActionRejectedError({ reason: 'CHECKOUT_BUSY' });
     }
-    if (name === 'MERGE_HEAD' && allowMerge) {
-      merge = true;
-      continue;
-    }
-    if (name === 'index.lock' && ignoreIndexLock) continue;
-    throw new GitActionRejectedError('CHECKOUT_BUSY');
-  }
-  return merge ? 'merge' : null;
-}
+    return merge ? 'merge' : null;
+  },
+);
