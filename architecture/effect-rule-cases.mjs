@@ -447,7 +447,7 @@ for (const invalid of [
   "const Client = import('effect/http-api');",
   "export { HttpApiClient as Client } from 'effect/http-api';",
   "export * from 'effect/http-api';",
-  "import { transportClient as Client } from '../../../shared/api/effect-client.ts';",
+  "import { transportLayer as Client } from '../../../shared/api/effect-client.ts';",
 ])
   effectRuleCases.push({
     rule: 'web-api-owns-request',

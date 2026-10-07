@@ -3475,16 +3475,16 @@ function createReviewsApi(transport) {
 export const reviewsApi = perConnection(createReviewsApi);`,
 };
 
-const clientAtomRouteFiles = {
+const clientRequestRouteFiles = {
   ...clientRouteFiles,
-  'packages/client/src/features/files/api.ts': `import { FilesApi } from '@porcelain/contracts/files'; import { Atom, AtomHttpApi } from 'effect/reactivity'; export const filesApi = Atom.family((connection) => { class Client extends AtomHttpApi.Service<Client>()('FilesClient', { api: FilesApi, httpClient }) {} return Client; });`,
-  'packages/client/src/features/reviews/api.ts': `import { ReviewsApi } from '@porcelain/contracts/reviews'; import { Atom, AtomHttpApi } from 'effect/reactivity'; export const reviewsApi = Atom.family((connection) => { class Client extends AtomHttpApi.Service<Client>()('ReviewsClient', { api: ReviewsApi, httpClient }) {} return Client; });`,
-  'packages/client/src/features/files/queries/text.ts': `import { filesApi } from '../api.ts'; const shadow = (reviewsApi: () => void) => reviewsApi(); export const textQuery = () => { shadow(() => undefined); return filesApi(connection).query('files', 'readTextFile', { params, query }); };`,
-  'packages/client/src/features/files/queries/unused.ts': `import { reviewsApi } from '../../reviews/api.ts'; export const unusedQuery = () => reviewsApi(connection).mutation('reviews', 'publishReview');`,
+  'packages/client/src/features/files/api.ts': `import { FilesApi } from '@porcelain/contracts/files'; import { Context, Effect, Layer } from 'effect'; import { HttpApiClient } from 'effect/http-api'; import { Atom } from 'effect/reactivity'; export const filesApi = Atom.family((connection) => { class Client extends Context.Service()('FilesApiClient') { static runtime = connection.atoms(Layer.effect(Client, Effect.map(HttpApiClient.make(FilesApi), (api) => ({ request: (use) => withLifetime(use(api), connection.request) })))); } return Client; });`,
+  'packages/client/src/features/reviews/api.ts': `import { ReviewsApi } from '@porcelain/contracts/reviews'; import { Context, Effect, Layer } from 'effect'; import { HttpApiClient } from 'effect/http-api'; import { Atom } from 'effect/reactivity'; export const reviewsApi = Atom.family((connection) => { class Client extends Context.Service()('ReviewsApiClient') { static runtime = connection.atoms(Layer.effect(Client, Effect.map(HttpApiClient.make(ReviewsApi), (api) => ({ request: (use) => withLifetime(use(api), connection.request) })))); } return Client; });`,
+  'packages/client/src/features/files/queries/text.ts': `import { Effect } from 'effect'; import { filesApi } from '../api.ts'; const shadow = (reviewsApi: () => void) => reviewsApi(); export const textQuery = () => Effect.gen(function* () { shadow(() => undefined); const client = yield* filesApi(connection); return yield* client.request((api) => api.files.readTextFile({ params, query })); });`,
+  'packages/client/src/features/files/queries/unused.ts': `import { Effect } from 'effect'; import { reviewsApi } from '../../reviews/api.ts'; export const unusedQuery = () => Effect.gen(function* () { const client = yield* reviewsApi(connection); return yield* client.request((api) => api.reviews.publishReview({ params, payload })); });`,
 };
 
 const clientInjectedRouteFiles = {
-  ...clientAtomRouteFiles,
+  ...clientRequestRouteFiles,
   'packages/client/src/features/files/queries/text.ts': `import { Effect, Layer } from 'effect'; import { Atom } from 'effect/reactivity'; import { filesApi } from '../api.ts'; export const textQuery = () => { const runtime = Atom.runtime((get) => Layer.merge(base, get(filesApi(connection).runtime.layer))); return runtime.atom(Effect.gen(function* () { const api = yield* filesApi(connection); return yield* api.files.readTextFile({ params, query }); })); };`,
 };
 
@@ -3698,7 +3698,7 @@ Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => unde
     errors: ['TS2379', 'TS377004', 'TS2379', 'TS377004', 'TS2739'],
   },
   ...['web', 'desktop', 'mobile'].flatMap((app) =>
-    [clientAtomRouteFiles, clientInjectedRouteFiles].map((files) =>
+    [clientRequestRouteFiles, clientInjectedRouteFiles].map((files) =>
       clientRoutesCase(files, {
         app: `apps/${app}/src/app.ts`,
         valid: `import { textQueryOptions as options, type unusedQueryOptions } from '@porcelain/client/files'; import '@porcelain/client/files'; export const read = () => options();`,
@@ -3770,9 +3770,9 @@ export const write = () => {
     `const { readTextFile, ...rest } = filesApi(connection); return rest;`,
     `let api = filesApi(connection); api = other; return api.readTextFile({ params, query });`,
     `return filesApi(connection).unknown();`,
-    `return filesApi(connection).query(group, 'readTextFile', { params, query });`,
-    `return filesApi(connection).query('files', endpoint, { params, query });`,
-    `return filesApi(connection).mutation('files', endpoint);`,
+    `return filesApi(connection).request((api) => api[method]({ params, query }));`,
+    `return filesApi(connection).request((api) => consume(api));`,
+    `return filesApi(connection).request(consume);`,
   ].map((use) =>
     clientRoutesCase(
       {
@@ -3784,7 +3784,7 @@ export const unusedQuery = () => ({ queryFn: () => { ${use} } });`,
       {
         errors: [
           'select a literal generated endpoint, because an escaped or dynamic client binding cannot prove feature route coverage.',
-          ...(use.includes('let api') || /\.(?:query|mutation)\(/.test(use)
+          ...(use.includes('let api')
             ? [
                 'keep the generated client binding traceable so its feature map can name the route.',
               ]

@@ -839,7 +839,7 @@ export const webRules = {
               node.specifiers?.some(
                 (binding) =>
                   binding.type === 'ImportNamespaceSpecifier' ||
-                  binding.imported?.name === 'transportClient',
+                  binding.imported?.name === 'transportLayer',
               )))
         )
           context.report({
