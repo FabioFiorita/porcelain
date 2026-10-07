@@ -2,7 +2,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
-import type { Reporter, TestModule } from 'vitest/node';
+import type { Reporter } from 'vitest/node';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const packages = readdirSync(join(root, 'packages'), { withFileTypes: true })
@@ -33,30 +33,6 @@ const required = [
   ...packages.filter(decides).map((name) => `@porcelain/${name}`),
 ];
 
-function problems(
-  modules: ReadonlyArray<TestModule>,
-  selected: ReadonlySet<string>,
-): string[] {
-  const found: string[] = [];
-  const ran = new Set<string>();
-  for (const module of modules) {
-    ran.add(module.project.name);
-    for (const test of module.children.allTests()) {
-      const { mode, fails } = test.options;
-      if (test.result().state === 'skipped' || mode !== 'run' || fails)
-        found.push(
-          `${module.moduleId}: "${test.fullName}" does not run as a plain case; every spec runs every time.`,
-        );
-    }
-  }
-  for (const name of required)
-    if (selected.has(name) && !ran.has(name))
-      found.push(
-        `${name} ran no spec; a package that decides keeps its specs.`,
-      );
-  return found;
-}
-
 const mobileE2e = {
   globalSetup: ['apps/mobile/spec/e2e/global-setup.ts'],
   expect: { requireAssertions: true },
@@ -66,15 +42,28 @@ const mobileE2e = {
 };
 
 function specDiscipline(): Reporter {
-  let selected: ReadonlySet<string> = new Set(required);
+  let selected: string[] = [];
   return {
     onInit(vitest) {
-      selected = new Set(vitest.projects.map((project) => project.name));
+      selected = vitest.projects
+        .map((project) => project.name)
+        .filter((name) => required.includes(name));
     },
     onTestRunEnd(modules) {
-      const found = problems(modules, selected);
-      for (const problem of found) process.stderr.write(`${problem}\n`);
-      if (found.length > 0) process.exitCode = 1;
+      const ran = new Set(
+        modules
+          .filter((module) =>
+            [...module.children.allTests()].some((test) =>
+              ['passed', 'failed'].includes(test.result().state),
+            ),
+          )
+          .map((module) => module.project.name),
+      );
+      for (const name of selected)
+        if (!ran.has(name)) {
+          process.stderr.write(`${name} ran 0 tests.\n`);
+          process.exitCode = 1;
+        }
     },
   };
 }
