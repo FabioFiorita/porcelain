@@ -460,7 +460,6 @@ const evaluationMethods = new Set([
 const arithmeticOperators = new Set(['+', '-', '*', '/', '%', '**', '<<', '|']);
 const useCaseFile = /^apps\/server\/src\/use-cases\/.+\.ts$/;
 const adapterFile = /^apps\/server\/src\/adapters\//;
-const storageRepositoryFile = /^packages\/storage\/src\/repositories\//;
 const fakeFile = /^(?:packages\/[^/]+|apps\/server)\/spec\/fakes\//;
 const clockFile =
   /^(?:packages\/[^/]+\/src\/rules|packages\/client\/src\/features\/[^/]+\/rules|apps\/server\/src\/adapters)\//;
@@ -2856,79 +2855,6 @@ export default {
       },
     },
 
-    'implementation-name': {
-      create(context) {
-        const path = repositoryPath(context);
-        if (
-          (!adapterFile.test(path) && !storageRepositoryFile.test(path)) ||
-          isSpec(context)
-        )
-          return {};
-        const repository = storageRepositoryFile.test(path);
-        const layers = [];
-        const message =
-          'A repository exports one native Layer.effect for one canonical domain port, named sqlite<Port>Layer, because one owner and one construction pattern constrain agent choices.';
-        return {
-          ExportNamedDeclaration(node) {
-            if (!repository || node.declaration?.type !== 'VariableDeclaration')
-              return;
-            for (const declaration of node.declaration.declarations) {
-              layers.push(declaration);
-              const port = declaration.init?.arguments?.[0];
-              const definition =
-                port?.type === 'Identifier' &&
-                findVariable(context.sourceCode.getScope(port), port.name)
-                  ?.defs[0];
-              if (
-                !nativeMember(
-                  declaration.init,
-                  context,
-                  'Layer',
-                  new Set(['effect']),
-                ) ||
-                declaration.init.arguments.length !== 2 ||
-                definition?.type !== 'ImportBinding' ||
-                !/^@porcelain\/[^/]+\/ports$/.test(
-                  definition.parent.source.value,
-                ) ||
-                declaration.id.name !==
-                  `sqlite${definition.node.imported?.name}Layer`
-              )
-                context.report({ node: declaration, message });
-            }
-          },
-          'Program:exit'(node) {
-            if (repository && layers.length !== 1)
-              context.report({ node, message });
-          },
-          ClassDeclaration(node) {
-            if (repository) {
-              context.report({ node, message });
-              return;
-            }
-            const implemented = node.implements ?? [];
-            if (implemented.length !== 1) {
-              context.report({
-                node: node.id ?? node,
-                message:
-                  'An implementation class implements exactly one port interface, because one port and a technology-plus-port name give agents one implementation pattern to copy.',
-              });
-              return;
-            }
-            const expression = implemented[0].expression;
-            const port =
-              expression.type === 'Identifier'
-                ? expression.name
-                : expression.right?.name;
-            if (port && !node.id?.name.endsWith(port))
-              context.report({
-                node: node.id ?? node,
-                message: `Name the class for its technology followed by the port: <Technology>${port}, because one port and a technology-plus-port name give agents one implementation pattern to copy.`,
-              });
-          },
-        };
-      },
-    },
     'bootstrap-starts-nothing': {
       create(context) {
         if (!composeSource.test(normalizedFilename(context.filename)))

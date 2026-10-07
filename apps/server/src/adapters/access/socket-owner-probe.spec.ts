@@ -1,16 +1,17 @@
+import { OwnerProbe } from '../../ports/owner-probe.ts';
 import { expect, it } from '@effect/vitest';
 import { NodeServices } from '@effect/platform-node';
 import { Deferred, Effect, Exit, Fiber } from 'effect';
 import { TestClock } from 'effect/testing';
 import { openOwnerProbePeer } from '@porcelain/server/kit/http';
-import { SocketOwnerProbe } from './socket-owner-probe.ts';
+import { socketOwnerProbeLayer } from './socket-owner-probe.ts';
 
 it.effect(
   'distinguishes a running owner, absent socket, rejected status and malformed body',
   () =>
     Effect.gen(function* () {
       const test = yield* openOwnerProbePeer();
-      const probe = new SocketOwnerProbe();
+      const probe = yield* OwnerProbe;
       const status = {
         address: 'http://127.0.0.1:4737',
         dataDirectory: '/data',
@@ -48,7 +49,10 @@ it.effect(
         kind: 'unreadable',
         reason: 'the owner socket answered something unrecognizable',
       });
-    }).pipe(Effect.provide(NodeServices.layer), TestClock.withLive),
+    }).pipe(
+      Effect.provide([NodeServices.layer, socketOwnerProbeLayer]),
+      TestClock.withLive,
+    ),
 );
 
 it.effect('times out an owner socket that never answers', () =>
@@ -56,7 +60,7 @@ it.effect('times out an owner socket that never answers', () =>
     const test = yield* openOwnerProbePeer();
     test.state.pending = true;
     expect(
-      yield* new SocketOwnerProbe().probe({
+      yield* (yield* OwnerProbe).probe({
         socketPath: test.socketPath,
         timeoutMs: 20,
       }),
@@ -64,7 +68,10 @@ it.effect('times out an owner socket that never answers', () =>
       kind: 'unreadable',
       reason: 'the owner socket did not answer in time',
     });
-  }).pipe(Effect.provide(NodeServices.layer), TestClock.withLive),
+  }).pipe(
+    Effect.provide([NodeServices.layer, socketOwnerProbeLayer]),
+    TestClock.withLive,
+  ),
 );
 
 it.effect(
@@ -74,7 +81,7 @@ it.effect(
       const test = yield* openOwnerProbePeer();
       test.state.pending = true;
       const fiber = yield* Effect.forkChild(
-        new SocketOwnerProbe().probe({
+        (yield* OwnerProbe).probe({
           socketPath: test.socketPath,
           timeoutMs: 1000,
         }),
@@ -83,5 +90,8 @@ it.effect(
       yield* Fiber.interrupt(fiber);
       yield* Deferred.await(test.disconnected);
       expect(Exit.hasInterrupts(yield* Fiber.await(fiber))).toBe(true);
-    }).pipe(Effect.provide(NodeServices.layer), TestClock.withLive),
+    }).pipe(
+      Effect.provide([NodeServices.layer, socketOwnerProbeLayer]),
+      TestClock.withLive,
+    ),
 );

@@ -1,3 +1,7 @@
+import { IdSource } from '@porcelain/kernel/ports';
+import { DeviceConnectionStore } from '../ports/device-connection-store.ts';
+import { TunnelConnectionStore } from '../ports/tunnel-connection-store.ts';
+import { OwnerProbe } from '../ports/owner-probe.ts';
 import {
   CommitDraftSource,
   CommitModelReader,
@@ -27,6 +31,9 @@ import {
   NetworkAddressReader,
   RouteListenerRunner,
   TunnelProbe,
+  RouteStateStore,
+  PairingReachReader,
+  RuntimeStatusReader,
 } from '@porcelain/access/ports';
 import {
   CommitPlanner,
@@ -37,23 +44,23 @@ import { readGitVersion } from '@porcelain/git/discovery';
 import { ConfirmWorktreeService } from '@porcelain/projects/services';
 import { gitDirectoryName, isTemporaryWrite } from '@porcelain/kernel/rules';
 import { deriveWorktreeId } from '@porcelain/projects/rules';
-import { SocketOwnerProbe } from '../adapters/access/socket-owner-probe.ts';
-import { InMemoryDeviceConnectionStore } from '../adapters/access/in-memory-device-connection-store.ts';
-import { HttpPairingReachReader } from '../adapters/access/http-pairing-reach-reader.ts';
+import { socketOwnerProbeLayer } from '../adapters/access/socket-owner-probe.ts';
+import { inMemoryDeviceConnectionStoreLayer } from '../adapters/access/in-memory-device-connection-store.ts';
+import { httpPairingReachReaderLayer } from '../adapters/access/http-pairing-reach-reader.ts';
 import { httpRouteListenerRunnerLayer } from '../adapters/access/http-route-listener-runner.ts';
 import { httpTunnelProbeLayer } from '../adapters/access/http-tunnel-probe.ts';
-import { InMemoryTunnelConnectionStore } from '../adapters/access/in-memory-tunnel-connection-store.ts';
+import { inMemoryTunnelConnectionStoreLayer } from '../adapters/access/in-memory-tunnel-connection-store.ts';
 import { macNetworkAddressReaderLayer } from '../adapters/access/mac-network-address-reader.ts';
 import { readNetworkPlatform } from '../config/network-platform.ts';
 import { osNetworkAddressReaderLayer } from '../adapters/access/os-network-address-reader.ts';
-import { ProcessRuntimeStatusReader } from '../adapters/access/process-runtime-status-reader.ts';
+import { processRuntimeStatusReaderLayer } from '../adapters/access/process-runtime-status-reader.ts';
 import { parcelWorktreeWatcherLayer } from '../adapters/events/parcel-worktree-watcher.ts';
 import { webSocketEventPublisherLayer } from '../adapters/events/web-socket-event-publisher.ts';
 import { processCommitDraftSourceLayer } from '../adapters/git-actions/process-commit-draft-source.ts';
 import { processCommitModelReaderLayer } from '../adapters/git-actions/process-commit-model-reader.ts';
 import { filesystemProjectFolderReaderLayer } from '../adapters/projects/filesystem-project-folder-reader.ts';
-import { InMemoryWorktreeCatalogStore } from '../adapters/projects/in-memory-worktree-catalog-store.ts';
-import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
+import { inMemoryWorktreeCatalogStoreLayer } from '../adapters/projects/in-memory-worktree-catalog-store.ts';
+import { randomIdSourceLayer } from '../adapters/runtime/random-id-source.ts';
 import { StderrLogger } from '../adapters/runtime/stderr-logger.ts';
 import { filesystemWebRootReaderLayer } from '../adapters/web/filesystem-web-root-reader.ts';
 import { operationDeadline } from '../config/operation-deadline.ts';
@@ -148,6 +155,10 @@ function serverResources(
     NodeServices.layer,
     NodeHttpClient.layerFetch,
     logging,
+    inMemoryWorktreeCatalogStoreLayer,
+    randomIdSourceLayer,
+    inMemoryDeviceConnectionStoreLayer,
+    inMemoryTunnelConnectionStoreLayer,
   );
   const components = Layer.effect(
     ServerComponents,
@@ -163,7 +174,7 @@ function serverResources(
             limits.projects.worktreeIds.length,
           );
         const stores = yield* composeStores();
-        const catalog = new InMemoryWorktreeCatalogStore();
+        const catalog = yield* WorktreeCatalogStore;
         const clock = yield* Clock.Clock;
         const laneContext = yield* Layer.build(Lanes.layer).pipe(
           Effect.provideService(LaneOptions, {
@@ -213,11 +224,11 @@ function serverResources(
           events,
           settings,
           clock,
-          ids: new RandomIdSource(),
+          ids: yield* IdSource,
           logger,
         };
-        const deviceConnections = new InMemoryDeviceConnectionStore();
-        const tunnelConnections = new InMemoryTunnelConnectionStore();
+        const deviceConnections = yield* DeviceConnectionStore;
+        const tunnelConnections = yield* TunnelConnectionStore;
         const remoteContext = yield* Layer.build(
           Layer.mergeAll(
             adapters.routeListenerRunner(() => network.server),
@@ -231,19 +242,22 @@ function serverResources(
           remoteContext,
           RouteListenerRunner,
         );
+        const accessContext = yield* Layer.build(
+          Layer.mergeAll(
+            httpPairingReachReaderLayer(input.pairingReach).pipe(
+              Layer.provide(Layer.succeed(RouteStateStore, stores.routeStates)),
+            ),
+            processRuntimeStatusReaderLayer(input.runtimeStatus),
+          ),
+        );
         const access = yield* composeAccess(context, {
           desktopSession: host.desktopSession,
           stores,
           shared,
           deviceConnections,
           tunnelConnections,
-          pairingReachReader: new HttpPairingReachReader(
-            input.pairingReach,
-            stores.routeStates,
-          ),
-          runtimeStatusReader: new ProcessRuntimeStatusReader(
-            input.runtimeStatus,
-          ),
+          pairingReachReader: Context.get(accessContext, PairingReachReader),
+          runtimeStatusReader: Context.get(accessContext, RuntimeStatusReader),
           serviceUpdateRunner: host.serviceUpdateRunner,
           serverVersion: host.version,
           networkAddressReader: Context.get(
@@ -452,9 +466,10 @@ export const composeServer =
   (settings: ServerSettings, host: ServerHost) =>
     Effect.gen(function* () {
       const clock = yield* Clock.Clock;
+      const ownerContext = yield* Layer.build(socketOwnerProbeLayer);
       return yield* startApplication(settings, {
         openServer: openServerWith(adapters, host),
-        ownerProbe: new SocketOwnerProbe(),
+        ownerProbe: Context.get(ownerContext, OwnerProbe),
         clock,
       });
     });

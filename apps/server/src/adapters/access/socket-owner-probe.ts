@@ -1,11 +1,11 @@
-import { Effect, Schema, Result } from 'effect';
+import { Effect, Schema, Result, Layer } from 'effect';
 import { request } from 'node:http';
 import { constants } from 'node:http2';
 import { ownerStatusSchema } from '@porcelain/kernel/models';
-import type {
+import {
   OwnerProbe,
-  OwnerProbeRequest,
-  OwnerProbeResult,
+  type OwnerProbeRequest,
+  type OwnerProbeResult,
 } from '../../ports/owner-probe.ts';
 type Answer =
   | { kind: 'answered'; status: number; body: string }
@@ -62,41 +62,46 @@ function parsed(body: string): unknown {
     return undefined;
   }
 }
-export class SocketOwnerProbe implements OwnerProbe {
-  readonly probe = Effect.fn('SocketOwnerProbe.probe')(function* (
-    input: OwnerProbeRequest,
-  ): Effect.fn.Return<OwnerProbeResult> {
-    const answer = yield* ask(input);
-    if (answer.kind === 'failed') {
-      const error = answer.error;
-      return absent(error)
-        ? { kind: 'absent' }
-        : {
-            kind: 'unreadable',
-            reason: error instanceof Error ? error.message : String(error),
-          };
-    }
-    if (answer.kind === 'timed-out')
-      return {
-        kind: 'unreadable',
-        reason: 'the owner socket did not answer in time',
-      };
-    if (answer.status !== constants.HTTP_STATUS_OK)
-      return {
-        kind: 'unreadable',
-        reason: `the owner socket answered ${answer.status || 'nothing'}`,
-      };
-    const status = Schema.decodeUnknownResult(ownerStatusSchema)(
-      parsed(answer.body),
-    );
-    return Result.isSuccess(status)
-      ? {
-          kind: 'running',
-          status: status.success,
+export const socketOwnerProbeLayer = Layer.effect(
+  OwnerProbe,
+  Effect.sync(() => {
+    return {
+      probe: Effect.fn('SocketOwnerProbe.probe')(function* (
+        input: OwnerProbeRequest,
+      ): Effect.fn.Return<OwnerProbeResult> {
+        const answer = yield* ask(input);
+        if (answer.kind === 'failed') {
+          const error = answer.error;
+          return absent(error)
+            ? { kind: 'absent' }
+            : {
+                kind: 'unreadable',
+                reason: error instanceof Error ? error.message : String(error),
+              };
         }
-      : {
-          kind: 'unreadable',
-          reason: 'the owner socket answered something unrecognizable',
-        };
-  });
-}
+        if (answer.kind === 'timed-out')
+          return {
+            kind: 'unreadable',
+            reason: 'the owner socket did not answer in time',
+          };
+        if (answer.status !== constants.HTTP_STATUS_OK)
+          return {
+            kind: 'unreadable',
+            reason: `the owner socket answered ${answer.status || 'nothing'}`,
+          };
+        const status = Schema.decodeUnknownResult(ownerStatusSchema)(
+          parsed(answer.body),
+        );
+        return Result.isSuccess(status)
+          ? {
+              kind: 'running',
+              status: status.success,
+            }
+          : {
+              kind: 'unreadable',
+              reason: 'the owner socket answered something unrecognizable',
+            };
+      }),
+    };
+  }),
+);

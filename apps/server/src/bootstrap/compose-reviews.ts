@@ -21,7 +21,6 @@ import { LaneKeys } from '../runtime/lane-keys.ts';
 import { Lanes } from '../runtime/lanes.ts';
 import { WorktreeConsistencyProbe } from '../ports/worktree-consistency-probe.ts';
 import {
-  SignatureSource,
   ResolvePublishedReviewOptions,
   ReviewedFileStore,
   SetReviewedFilesOptions,
@@ -35,7 +34,7 @@ import {
   CommentSeenStore,
   ReadProofFileOptions,
 } from '@porcelain/reviews/ports';
-import { IdSource, SecretSource } from '@porcelain/kernel/ports';
+import { IdSource } from '@porcelain/kernel/ports';
 import { Effect, Layer, Clock } from 'effect';
 import { summaryRoutes } from '../http/routes/reviews/summary-api.ts';
 import { reviewsRoutes } from '../http/routes/reviews/reviews-api.ts';
@@ -67,8 +66,8 @@ import {
   InvalidateReviewedMarksService,
   ListReviewedLayerPathsService,
 } from '@porcelain/reviews/services';
-import { HmacSignatureSource } from '../adapters/reviews/hmac-signature-source.ts';
-import { RandomSecretSource } from '../adapters/runtime/random-secret-source.ts';
+import { hmacSignatureSourceLayer } from '../adapters/reviews/hmac-signature-source.ts';
+import { randomSecretSourceLayer } from '../adapters/runtime/random-secret-source.ts';
 import { AtWorktreePathUseCase } from '../use-cases/reviews/at-worktree-path.ts';
 import { CreateCommentThreadUseCase } from '../use-cases/reviews/create-comment-thread.ts';
 import { DeleteCommentMessageUseCase } from '../use-cases/reviews/delete-comment-message.ts';
@@ -112,7 +111,6 @@ export function composeReviews(
   const { stores, shared } = dependencies;
   const { readEnvironment } = shared;
   const { checkWorktree } = dependencies;
-  const signatureSource = new HmacSignatureSource();
   const commentStore = stores.comments;
   const reviewStore = stores.reviews;
   const reviewedFileStore = stores.reviewedFiles;
@@ -126,7 +124,7 @@ export function composeReviews(
     Layer.succeed(Lanes, lanes),
     Layer.succeed(LaneKeys, laneKeys),
     Layer.succeed(Clock.Clock, clock),
-    Layer.succeed(SignatureSource, signatureSource),
+    hmacSignatureSourceLayer,
     Layer.succeed(ResolvePublishedReviewOptions, limits.summaryLink),
     Layer.succeed(ReviewedFileStore, reviewedFileStore),
     Layer.succeed(SetReviewedFilesOptions, limits.reviewedFiles),
@@ -138,7 +136,7 @@ export function composeReviews(
     Layer.succeed(ReviewStore, reviewStore),
     Layer.succeed(ReadReviewEvidenceUseCasePort, shared.readReviewEvidence),
     Layer.succeed(ReadBinaryFilesService, shared.readBinaryFiles),
-    Layer.succeed(SecretSource, new RandomSecretSource(limits.summaryLink)),
+    randomSecretSourceLayer(limits.summaryLink),
     Layer.succeed(ProofLimits, limits.proof),
     Layer.succeed(ReadEnvironmentService, readEnvironment),
     Layer.succeed(ReadPublishedReviewService, readPublishedReview),

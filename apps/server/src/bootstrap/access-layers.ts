@@ -39,7 +39,6 @@ import {
   DeviceSightingStore,
   AuthenticateDeviceOptions,
   DesktopSession,
-  LiveTicketStore,
   IssueLiveTicketOptions,
   RedeemLiveTicketOptions,
   EnvironmentNameStore,
@@ -54,9 +53,9 @@ import {
   TakePairingAttemptOptions,
   RefundPairingAttemptOptions,
 } from '@porcelain/access/ports';
-import { IdSource, SecretSource } from '@porcelain/kernel/ports';
-import { InMemoryLiveTicketStore } from '../adapters/access/in-memory-live-ticket-store.ts';
-import { RandomSecretSource } from '../adapters/runtime/random-secret-source.ts';
+import { IdSource } from '@porcelain/kernel/ports';
+import { inMemoryLiveTicketStoreLayer } from '../adapters/access/in-memory-live-ticket-store.ts';
+import { randomSecretSourceLayer } from '../adapters/runtime/random-secret-source.ts';
 import type { ComposeContext } from './compose-context.ts';
 import type { AccessDependencies } from './compose-context.ts';
 
@@ -70,8 +69,6 @@ export function accessServicesLayer(
   const deviceStore = stores.devices;
   const deviceSightingStore = stores.deviceSightings;
   const limits = context.settings.limits.access;
-  const secretSource = new RandomSecretSource(limits.credentials);
-  const liveTickets = new InMemoryLiveTicketStore();
   const LOOPBACK_ADDRESS = '127.0.0.1';
   return Layer.mergeAll(
     OpenRemoteRoutesService.layer,
@@ -114,9 +111,9 @@ export function accessServicesLayer(
       Layer.succeed(DeviceSightingStore, deviceSightingStore),
       Layer.succeed(AuthenticateDeviceOptions, limits.device),
       Layer.succeed(DesktopSession, dependencies.desktopSession),
-      Layer.succeed(LiveTicketStore, liveTickets),
+      inMemoryLiveTicketStoreLayer,
       Layer.succeed(IdSource, ids),
-      Layer.succeed(SecretSource, secretSource),
+      randomSecretSourceLayer(limits.credentials),
       Layer.succeed(IssueLiveTicketOptions, limits.liveTicket),
       Layer.succeed(RedeemLiveTicketOptions, limits.device),
       Layer.succeed(EnvironmentNameStore, stores.environmentName),
