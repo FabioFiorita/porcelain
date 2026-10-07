@@ -90,7 +90,7 @@ module.exports = {
     {
       name: 'domains-no-platform-libraries',
       severity: 'error',
-      from: { path: domainSource, pathNot: tests },
+      from: { path: `^packages/(?:${domains}|kernel)/src/`, pathNot: tests },
       to: {
         path: [
           '(?:^|node_modules/)@effect/platform',
@@ -106,7 +106,7 @@ module.exports = {
       severity: 'error',
       from: { path: '^packages/contracts/src/', pathNot: tests },
       to: {
-        path: `^(?:apps/|packages/(?:client|effects|storage|agents|process)/|packages/${domains}/src/(?!errors/)|packages/git/src/(?!shared/errors/))`,
+        path: `^(?:apps/|packages/(?:client|effects|storage|agents|process)/|packages/${domains}/src/(?!(?:errors|models)/)|packages/git/src/(?!shared/errors/))`,
       },
     },
     {

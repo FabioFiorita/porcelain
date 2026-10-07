@@ -190,6 +190,18 @@ export function runBoundaryCases() {
       invalid: 'effect/process',
     },
     {
+      rule: 'domains-no-platform-libraries',
+      from: 'packages/kernel/src/rules/read.ts',
+      valid: 'effect',
+      invalid: 'effect/FileSystem',
+    },
+    {
+      rule: 'domains-no-platform-libraries',
+      from: 'packages/kernel/src/rules/read.ts',
+      valid: 'effect',
+      invalid: '@effect/platform-node',
+    },
+    {
       rule: 'client-no-app-or-platform',
       from: 'packages/client/src/features/projects/queries/read.ts',
       valid: 'packages/client/src/features/projects/rules/project.ts',
@@ -212,6 +224,12 @@ export function runBoundaryCases() {
       from: 'packages/contracts/src/projects/read.ts',
       valid: 'packages/contracts/src/shared/response.ts',
       invalid: 'packages/projects/src/services/read-service.ts',
+    },
+    {
+      rule: 'contracts-no-implementation',
+      from: 'packages/contracts/src/access/read.ts',
+      valid: 'packages/access/src/models/index.ts',
+      invalid: 'packages/access/src/services/index.ts',
     },
     {
       rule: 'contracts-no-node-io',
@@ -292,6 +310,12 @@ export function runBoundaryCases() {
           'packages/client/package.json': JSON.stringify({
             exports: { '.': './src/index.ts' },
           }),
+          'packages/access/package.json': JSON.stringify({
+            exports: {
+              './models': './src/models/index.ts',
+              './services': './src/services/index.ts',
+            },
+          }),
         });
         mkdirSync(join(root, 'node_modules/@effect'), { recursive: true });
         symlinkSync(
@@ -331,6 +355,15 @@ export function runBoundaryCases() {
           );
           specifier = '@porcelain/kernel/value';
         }
+        if (target.startsWith('packages/access/src/')) {
+          mkdirSync(join(root, 'node_modules/@porcelain'), { recursive: true });
+          symlinkSync(
+            join(root, 'packages/access'),
+            join(root, 'node_modules/@porcelain/access'),
+            'dir',
+          );
+          specifier = `@porcelain/access/${variant === 'valid' ? 'models' : 'services'}`;
+        }
         writeFiles(root, {
           [entry.from]: `import * as owner from '${specifier}'; export const result = owner;`,
         });
@@ -348,8 +381,18 @@ export function runBoundaryCases() {
         if (run.error) throw run.error;
         const output = run.stdout + run.stderr;
         strictEqual(run.signal, null, output);
-        strictEqual(run.status === 0, variant === 'valid', output);
-        if (variant === 'invalid') match(output, new RegExp(entry.rule));
+        strictEqual(
+          run.status === 0,
+          variant === 'valid',
+          `${entry.from}: ${specifier}\n${output}`,
+        );
+        if (variant === 'invalid') {
+          match(output, new RegExp(entry.rule));
+          if (target === 'effect/FileSystem')
+            match(output, /node_modules\/effect\/(?:src|dist)\/FileSystem\./);
+          if (target === '@effect/platform-node')
+            match(output, /node_modules\/@effect\/platform-node\//);
+        }
       } finally {
         rmSync(root, { recursive: true, force: true });
       }
