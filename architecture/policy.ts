@@ -1738,7 +1738,12 @@ export const externalPackages: Record<Role, readonly string[]> = {
   ],
   'status-policy': ['effect/http', 'effect/http-api'],
   'use-case': [],
-  installer: ['@effect/platform-node'],
+  installer: [
+    '@effect/platform-node',
+    'effect/process',
+    'effect/PlatformError',
+    'effect/Scope',
+  ],
   'installer-api': [],
   'domain-api': [],
   service: [],

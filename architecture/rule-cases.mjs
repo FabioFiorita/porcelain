@@ -161,7 +161,6 @@ export default [
     invalid: 'client.setQueryData(key, { marks: [] });',
     errors: 1,
   },
-
   {
     rule: 'client-owns-shared-logic',
     path: 'apps/web/src/shared/query/file-drafts.ts',
@@ -418,7 +417,6 @@ export interface ProbeDelay {
     invalid: `export class ListDirectoryService { execute(input: ListDirectoryInput): Promise<{ entries: DirectoryEntry[] }> {} }`,
     errors: 1,
   },
-
   {
     rule: 'port-shape',
     path: 'apps/server/src/ports/notice-port.ts',
@@ -433,7 +431,6 @@ export interface ProbeDelay {
     invalid: `export type StatusReader = { read(input: WorktreeKey): Promise<WorktreeStatus> };`,
     errors: 1,
   },
-
   {
     rule: 'spec-behaviour-names',
     path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
@@ -573,7 +570,6 @@ test('access.pairing: works', async ({ workspace }) => {
     invalid: 'export const API_ERROR_STATUS = { content_changed: 409 };',
     errors: 1,
   },
-
   {
     rule: 'no-number-outside-limits',
     path: 'apps/server/src/adapters/access/http-tunnel-probe.ts',
@@ -582,7 +578,6 @@ test('access.pairing: works', async ({ workspace }) => {
     invalid: 'export const schema = readHealthEndpoint.responses[200];',
     errors: 1,
   },
-
   {
     rule: 'spec-imports',
     path: 'packages/contracts/src/shared/http-api.spec.ts',
@@ -591,7 +586,6 @@ test('access.pairing: works', async ({ workspace }) => {
       "import { readHealth } from '@porcelain/server/src/http/routes/access/read-health';",
     errors: 1,
   },
-
   {
     rule: 'root-scripts-import-no-package',
     path: 'scripts/api-calls.ts',
@@ -616,7 +610,6 @@ test('access.pairing: works', async ({ workspace }) => {
       'export const contentChanged = httpFailure(ContentChangedError, 409);',
     errors: 1,
   },
-
   {
     rule: 'spec-asserts',
     path: 'apps/server/src/http/status-policy.spec.ts',
@@ -793,7 +786,6 @@ test('access.pairing: works', async ({ workspace }) => {
       'export const pair = async (command: () => Promise<void>) => { await command(); };',
     errors: 1,
   },
-
   {
     rule: 'web-rules-are-pure',
     path: 'packages/client/src/features/access/rules/probe-rule.ts',
@@ -1033,7 +1025,6 @@ export interface ReviewStatusReader {
 `,
     errors: 1,
   },
-
   {
     rule: 'events-from-use-cases',
     path: 'apps/server/src/runtime/live-updates/watch-worktrees.ts',
@@ -1277,7 +1268,6 @@ export function probeFailureError(failure: 'missing'): Error {
       'export class InMemoryCommentSeenStore { private readonly seen = new Map<string, number>(); write(input: {worktreeId: string; seenThrough: number}) {     const current = this.seen.get(input.worktreeId) ?? 0;\n    this.seen.set(\n      input.worktreeId,\n      current > input.seenThrough ? current : input.seenThrough,\n    ); } }',
     errors: 1,
   },
-
   {
     rule: 'fixture-imports',
     path: 'packages/git/spec/fixtures/capture.ts',
@@ -1332,7 +1322,6 @@ export const probeRule = isRelativePath;
 `,
     errors: 1,
   },
-
   {
     rule: 'imports-by-path',
     path: 'packages/kernel/src/rules/index.ts',
@@ -1362,7 +1351,6 @@ export { utf8ByteLength };`,
     invalid: 'export function readStatus(): number { return 0; }',
     errors: 1,
   },
-
   {
     rule: 'lane-after-check',
     path: 'apps/server/src/use-cases/files/list-directory.ts',
@@ -1434,7 +1422,6 @@ export function reviewMcpHandlers() { return ReviewToolkit.toLayer({ read_review
     invalid: `import type { ProjectKey } from '../project.ts'; export type ProbeResult = ProjectKey | undefined; export function probeKey(projectId: string): ProjectKey { return { projectId }; }`,
     errors: 1,
   },
-
   {
     rule: 'models-are-types',
     path: 'packages/projects/src/models/probe/probe-model.ts',
@@ -1473,7 +1460,6 @@ export function readRoute(): string {
 `,
     errors: 3,
   },
-
   {
     rule: 'no-exported-constants',
     path: 'packages/reviews/src/rules/comment-threads.ts',
@@ -1495,7 +1481,6 @@ export class ListDirectoryService {
 }`,
     errors: 1,
   },
-
   {
     rule: 'no-loose-equality-in-domain',
     path: 'packages/access/src/services/issue-pairing-service.ts',
@@ -1749,7 +1734,6 @@ export function threadCapacityLeft(threads: number): number {
 `,
     errors: 1,
   },
-
   {
     rule: 'no-schema-parse-in-typed-code',
     path: 'packages/files/src/rules/encode-base64.ts',
@@ -1804,7 +1788,6 @@ export function probeParser(value: object): unknown { return Reflect.get(value, 
       "export async function fixture(input: Input, environmentId: string) {         return new HealthReply(\n          this.readEnvironment.execute().environmentId,\n        ).body();\n\nclass HealthReply {\n  private readonly environmentId: string;\n\n  constructor(environmentId: string) {\n    this.environmentId = environmentId;\n  }\n\n  body(): ReadHealthResponse {\n    return { status: 'ok', environmentId: this.environmentId };\n  }\n}\n }",
     errors: 3,
   },
-
   {
     rule: 'port-shape',
     path: 'apps/server/src/ports/edit-announcement-writer.ts',
@@ -2074,7 +2057,6 @@ export function parseCredential(
     invalid: `import { Layer } from 'effect'; export function pairedScope(options) { return options.application.files.execute(options.input); }`,
     errors: 1,
   },
-
   {
     rule: 'spec-asserts',
     path: 'packages/projects/src/rules/derive-project-name.spec.ts',
@@ -2583,7 +2565,6 @@ describe('commitPaths', () => {
 `,
     errors: 1,
   },
-
   {
     rule: 'spec-imports',
     path: 'apps/server/src/http/status-policy.spec.ts',
@@ -4150,6 +4131,9 @@ export const scriptEvasions = [
 ];
 
 export const externalCases = [
+  ...['effect/process', 'effect/PlatformError', 'effect/Scope'].map(
+    (valid) => ({ role: 'installer', valid, invalid: 'effect/Stream' }),
+  ),
   { role: 'rule', valid: 'effect/DateTime', invalid: 'effect' },
   { role: 'kernel-test-kit', valid: 'effect/testing', invalid: 'node:fs' },
   { role: 'kernel-test-kit', valid: 'vitest', invalid: 'effect/http' },
