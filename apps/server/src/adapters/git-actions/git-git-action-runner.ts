@@ -1,85 +1,93 @@
-import { writeGit } from '../../runtime/git-io.ts';
-import {
-  type GitIoFailure,
-  GitActionRejectedError,
-  GitTimeoutError,
-} from '@porcelain/git/errors';
-import { Effect } from 'effect';
-import { type WorktreeWrite } from '@porcelain/effects/worktree';
-import {
-  type GitActionExpectation,
-  type GitActionRunnerOutcome,
-  type GitActionRunRequest,
+import { type Cause, Effect, Fiber, Layer, Queue, Stream } from 'effect';
+import { admittedWrite } from '@porcelain/effects/worktree';
+import { GitActionRunner } from '@porcelain/git-actions/ports';
+import type {
+  GitActionExpectation,
+  GitActionRunRequest,
+  GitActionRunnerOutcome,
 } from '@porcelain/git-actions/models';
-import { type GitActionRunner } from '@porcelain/git-actions/ports';
 import {
+  executeGitAction,
   type GitActionExpectation as GitExpectation,
-  type GitActionWriterFactory,
 } from '@porcelain/git/actions';
 import { makeGitSession } from '@porcelain/git/inspection';
-import { type Limits } from '../../config/limits.ts';
+import { readGitEffect } from '../../runtime/git-io.ts';
+import type { Limits } from '../../config/limits.ts';
+import { captureGitPlatform } from '../projects/git-platform.ts';
 import {
-  openCheckout,
+  openCheckoutEffect,
   type ListedWorktrees,
 } from '../projects/checkout-session.ts';
 
-export class GitGitActionRunner implements GitActionRunner {
-  private readonly worktrees: ListedWorktrees;
-  private readonly git: GitActionWriterFactory;
-  private readonly limits: Limits['git'];
-
-  constructor(
-    worktrees: ListedWorktrees,
-    git: GitActionWriterFactory,
-    limits: Limits['git'],
-  ) {
-    this.worktrees = worktrees;
-    this.git = git;
-    this.limits = limits;
-  }
-
-  run(
-    input: GitActionRunRequest,
-  ): Effect.Effect<GitActionRunnerOutcome, GitIoFailure, WorktreeWrite> {
-    return writeGit(input.run.worktreeId, (signal) =>
-      this.runNative(input, signal),
-    );
-  }
-
-  private async runNative(
-    input: GitActionRunRequest,
-    signal?: AbortSignal,
-  ): Promise<GitActionRunnerOutcome> {
-    const { run, onProgress } = input;
-    try {
-      const { checkout } = await openCheckout(
-        this.worktrees,
-        Effect.runSync(makeGitSession(this.limits)),
-        run.worktreeId,
-        signal,
-      );
+export const gitGitActionRunnerLayer = (
+  worktrees: ListedWorktrees,
+  limits: Limits['git'],
+) =>
+  Layer.effect(
+    GitActionRunner,
+    Effect.gen(function* () {
+      const provideGit = yield* captureGitPlatform();
       return {
-        kind: 'finished',
-        outcome: await this.git(checkout).executeDirect(
-          run.requestId,
-          run.intent,
-          gitExpectation(run.expected),
-          signal ?? new AbortController().signal,
-          onProgress === undefined
-            ? undefined
-            : (line) => {
-                Effect.runSync(onProgress(line));
-              },
+        run: Effect.fn('GitActionRunner.run')((input: GitActionRunRequest) =>
+          admittedWrite(input.run.worktreeId, () =>
+            readGitEffect(
+              input.run.worktreeId,
+              Effect.gen(function* () {
+                const session = yield* makeGitSession(limits);
+                const { checkout } = yield* openCheckoutEffect(
+                  worktrees,
+                  session,
+                  input.run.worktreeId,
+                );
+                const onProgress = input.onProgress;
+                const lines = yield* Queue.unbounded<string, Cause.Done>();
+                const progress = yield* Effect.forkScoped(
+                  Stream.runForEach(
+                    Stream.fromQueue(lines),
+                    onProgress ?? (() => Effect.void),
+                  ),
+                  { startImmediately: true },
+                );
+                const outcome = yield* executeGitAction(
+                  checkout,
+                  limits,
+                  input.run.requestId,
+                  input.run.intent,
+                  gitExpectation(input.run.expected),
+                  onProgress === undefined
+                    ? undefined
+                    : (line) => {
+                        Queue.offerUnsafe(lines, line);
+                      },
+                ).pipe(
+                  Effect.ensuring(
+                    Effect.andThen(Queue.end(lines), Fiber.join(progress)),
+                  ),
+                );
+                return {
+                  kind: 'finished',
+                  outcome,
+                } satisfies GitActionRunnerOutcome;
+              }).pipe(
+                Effect.catchTag('GitActionRejectedError', (error) =>
+                  Effect.succeed({
+                    kind: 'refused' as const,
+                    reason: error.reason,
+                    detail: error.detail,
+                  }),
+                ),
+                Effect.catchTag('GitTimeoutError', () =>
+                  Effect.succeed({ kind: 'timed-out' as const }),
+                ),
+                Effect.scoped,
+                provideGit,
+              ),
+            ),
+          ),
         ),
       };
-    } catch (error) {
-      if (error instanceof GitActionRejectedError)
-        return { kind: 'refused', reason: error.reason, detail: error.detail };
-      if (error instanceof GitTimeoutError) return { kind: 'timed-out' };
-      throw error;
-    }
-  }
-}
+    }),
+  );
 
 function gitExpectation(expected: GitActionExpectation): GitExpectation {
   return {

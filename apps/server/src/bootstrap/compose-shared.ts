@@ -36,10 +36,6 @@ import {
 } from '@porcelain/changes/services';
 import { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
 import {
-  ActionsGit,
-  type GitActionWriterFactory,
-} from '@porcelain/git/actions';
-import {
   WorktreeCatalogStore,
   InventoryStore,
   CheckWorktreeOptions,
@@ -65,7 +61,6 @@ import { gitChangeDiffReaderLayer } from '../adapters/changes/git-change-diff-re
 import { gitChangeStatusReaderLayer } from '../adapters/changes/git-change-status-reader.ts';
 import { gitWorktreeSideReaderLayer } from '../adapters/changes/git-worktree-side-reader.ts';
 import { inspectionCheckouts } from '../adapters/changes/inspection-checkouts.ts';
-import { gitSessionPerSignal } from '../adapters/projects/checkout-session.ts';
 import {
   ReadBinaryFilesService,
   ReadTextFileService,
@@ -93,8 +88,6 @@ export function composeShared(dependencies: SharedDependencies) {
   return Effect.gen(function* () {
     const { stores, catalog, gitVersion } = dependencies;
     const { limits } = dependencies.settings;
-    const actionGit: GitActionWriterFactory = (checkout) =>
-      new ActionsGit(checkout, limits.git);
     const accessContext = yield* Layer.build(
       gitWorktreeAccessReaderLayer.pipe(
         Layer.provide(Layer.succeed(WorktreeCatalogStore, catalog)),
@@ -105,7 +98,6 @@ export function composeShared(dependencies: SharedDependencies) {
       ListedWorktreeAccessReader,
     );
     const staleness = { staleAfterMs: limits.inventory.staleAfterMs };
-    const gitSessions = gitSessionPerSignal(limits.git);
     const openInspection = inspectionCheckouts(worktreeAccess, limits.git);
     const ports = Layer.mergeAll(
       filesystemFileReaderLayer(worktreeAccess),
@@ -177,11 +169,9 @@ export function composeShared(dependencies: SharedDependencies) {
     const runtime = yield* Layer.build(operations);
     return yield* Effect.gen(function* () {
       return {
-        actionGit,
         gitVersion,
         catalog,
         worktreeAccess,
-        gitSessions,
         openInspection,
         changeStatusReader: yield* ChangeStatusReader,
         fileReader: yield* FileReader,
