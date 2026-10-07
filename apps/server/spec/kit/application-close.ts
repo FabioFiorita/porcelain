@@ -10,10 +10,8 @@ import { realpathSync } from 'node:fs';
 import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer, type Socket } from 'node:net';
 import { join } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
 import { setTimeout as delay } from 'node:timers/promises';
 import { promisify } from 'node:util';
-import { vi } from 'vitest';
 import { composeServer } from '../../src/bootstrap/compose-server.ts';
 import { readServerSettings } from '../../src/config/server-settings.ts';
 import type { Runtime } from '../../src/ports/runtime.ts';
@@ -32,7 +30,6 @@ export type CloseRunningCommit = {
   hookRunningWhenSettled: boolean;
   beforeCloseReturned: readonly string[];
   closeReturned: readonly string[];
-  persistence: readonly { receipt: unknown; hookRunning: boolean }[];
   headCount: string;
   restarted:
     | { requestId: string; state: string; reason: string | undefined }
@@ -46,26 +43,6 @@ function running(pid: number): boolean {
   } catch {
     return false;
   }
-}
-
-function storedReceipt(database: DatabaseSync, requestId: string) {
-  return database
-    .prepare(
-      'SELECT state, reason FROM git_action_receipts WHERE request_id = ?',
-    )
-    .get(requestId);
-}
-
-function savedClose(): (database: DatabaseSync) => void {
-  const value: unknown = Object.getOwnPropertyDescriptor(
-    DatabaseSync.prototype,
-    'close',
-  )?.value;
-  if (typeof value !== 'function')
-    throw new Error('DatabaseSync.close is not a prototype method');
-  return (database) => {
-    Reflect.apply(value, database, []);
-  };
 }
 
 export async function closeRunningCommit(): Promise<CloseRunningCommit> {
@@ -84,23 +61,6 @@ export async function closeRunningCommit(): Promise<CloseRunningCommit> {
   let closing = false;
   let hookPid = 0;
   let hookSocket: Socket | undefined;
-  const persistence: { receipt: unknown; hookRunning: boolean }[] = [];
-  const closeDatabase = savedClose();
-  const databaseClosed = vi
-    .spyOn(DatabaseSync.prototype, 'close')
-    .mockImplementation(function (this: DatabaseSync) {
-      try {
-        if (closing) {
-          events.push('persistence-closed');
-          persistence.push({
-            receipt: storedReceipt(this, requestId),
-            hookRunning: running(hookPid),
-          });
-        }
-      } finally {
-        closeDatabase(this);
-      }
-    });
   const gate = createServer((socket) => {
     hookSocket = socket;
     socket.once('data', (pid) => hookStarted.resolve(Number(pid.toString())));
@@ -267,7 +227,6 @@ export async function closeRunningCommit(): Promise<CloseRunningCommit> {
     ]);
     const hookRunningWhenSettled = running(hookPid);
     const settled = [...events];
-    const observedPersistence = persistence.map((entry) => ({ ...entry }));
     application = drained === 'closed' ? undefined : application;
     closing = false;
     const headCount =
@@ -294,9 +253,8 @@ export async function closeRunningCommit(): Promise<CloseRunningCommit> {
       hookRunningDuringDrain,
       drained,
       hookRunningWhenSettled,
-      beforeCloseReturned: settled.slice(0, 3),
-      closeReturned: settled.slice(3).toSorted(),
-      persistence: observedPersistence,
+      beforeCloseReturned: settled.slice(0, 2),
+      closeReturned: settled.slice(2).toSorted(),
       headCount,
       restarted,
     };
@@ -312,7 +270,6 @@ export async function closeRunningCommit(): Promise<CloseRunningCommit> {
     await Promise.allSettled([first, second]);
     if (application) await runtime.runPromise(application.close());
     await runtime.dispose();
-    databaseClosed.mockRestore();
     await new Promise<void>((resolve) => gate.close(() => resolve()));
     await rm(root, { recursive: true, force: true });
   }

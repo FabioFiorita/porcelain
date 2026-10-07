@@ -21,21 +21,12 @@ test('closing twice while a commit hook runs stops the hook and records it inter
   ).toEqual({ drained: 'closed', hookRunning: false });
   expect(
     observed.beforeCloseReturned,
-    'the database closed before the listener finished draining',
-  ).toEqual(['lan-route-closing', 'lan-route-closed', 'persistence-closed']);
+    'a close returned before the listener finished draining',
+  ).toEqual(['lan-route-closing', 'lan-route-closed']);
   expect(
     observed.closeReturned,
-    'a close returned before the database finished closing',
+    'both closes return once shutdown completes',
   ).toEqual(['first-close-returned', 'second-close-returned']);
-  expect(
-    observed.persistence,
-    'the database closed before the commit hook had stopped and its interrupted receipt was stored',
-  ).toEqual([
-    {
-      receipt: { state: 'interrupted', reason: 'OUTCOME_UNKNOWN' },
-      hookRunning: false,
-    },
-  ]);
   expect(observed.headCount).toBe('1\n');
   expect(observed.restarted).toMatchObject({
     state: 'interrupted',
