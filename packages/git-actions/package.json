@@ -18,6 +18,6 @@
     "@porcelain/effects": "workspace:*",
     "@porcelain/git": "workspace:*",
     "@porcelain/kernel": "workspace:*",
-    "effect": "4.0.0"
+    "effect": "4.0.1"
   }
 }

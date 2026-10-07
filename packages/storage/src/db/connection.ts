@@ -26,7 +26,7 @@ export function databaseLayer(
         transformQueryNames: String.camelToSnake,
       });
     }).pipe(Effect.orDie),
-  );
+  ).pipe(Layer.orDie);
   const migration = Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`PRAGMA foreign_keys = ON`;
