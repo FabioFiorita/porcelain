@@ -1,3 +1,5 @@
+import { InMemoryRouteListenerRunner } from '../fakes/in-memory-route-listener-runner.ts';
+import { ScriptedTunnelProbe } from '../fakes/scripted-tunnel-probe.ts';
 import { NodeServices } from '@effect/platform-node';
 import { PorcelainClientApi } from '@porcelain/contracts/shared';
 import { nativeOperation } from '@porcelain/effects';
@@ -81,22 +83,24 @@ export async function closeRunningCommit(): Promise<CloseRunningCommit> {
       },
     });
   const start = composeServer({
-    networkAddressReader: () => new FixedNetworkAddressReader([], []),
-    routeListenerRunner: () => ({
-      listen: () => Effect.die(new Error('No remote listener requested')),
-      close: ({ route }) =>
-        closing && route === 'lan' && !events.includes('lan-route-closing')
-          ? nativeOperation(async () => {
-              events.push('lan-route-closing');
-              routeDraining.resolve();
-              await routeReleased.promise;
-              events.push('lan-route-closed');
-            })
-          : Effect.void,
-    }),
-    tunnelProbe: () => ({
-      probe: () => Effect.succeed({ kind: 'unreachable' as const }),
-    }),
+    networkAddressReader: () => new FixedNetworkAddressReader([], []).layer,
+    routeListenerRunner: () =>
+      InMemoryRouteListenerRunner.layer({
+        listen: () => Effect.die(new Error('No remote listener requested')),
+        close: ({ route }) =>
+          closing && route === 'lan' && !events.includes('lan-route-closing')
+            ? nativeOperation(async () => {
+                events.push('lan-route-closing');
+                routeDraining.resolve();
+                await routeReleased.promise;
+                events.push('lan-route-closed');
+              })
+            : Effect.void,
+      }),
+    tunnelProbe: () =>
+      new ScriptedTunnelProbe(() =>
+        Promise.resolve({ kind: 'unreachable' as const }),
+      ).layer,
   });
   const host = {
     version: undefined,

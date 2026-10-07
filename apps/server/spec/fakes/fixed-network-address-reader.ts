@@ -1,8 +1,10 @@
-import { Effect } from 'effect';
+import { Effect, Layer } from 'effect';
 import type { DefaultRoute, NetworkAddress } from '@porcelain/access/models';
-import type { NetworkAddressReader } from '@porcelain/access/ports';
+import { NetworkAddressReader } from '@porcelain/access/ports';
 
 export class FixedNetworkAddressReader implements NetworkAddressReader {
+  readonly layer = Layer.succeed(NetworkAddressReader, this);
+
   private readonly addresses: NetworkAddress[];
   private readonly routes: DefaultRoute[];
 

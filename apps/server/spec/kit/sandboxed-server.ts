@@ -107,9 +107,11 @@ const startServer = composeServer({
           gatewayHardware: '02:00:5e:10:00:01',
         },
       ],
-    ),
+    ).layer,
   routeListenerRunner: () =>
-    new InMemoryRouteListenerRunner(listeningPort, () => 41000),
+    InMemoryRouteListenerRunner.layer(
+      new InMemoryRouteListenerRunner(listeningPort, () => 41000),
+    ),
   tunnelProbe: () =>
     new ScriptedTunnelProbe(async ({ origin }) => {
       const { hostname } = new URL(origin);
@@ -123,7 +125,7 @@ const startServer = composeServer({
           await health.json(),
         ).environmentId,
       };
-    }),
+    }).layer,
 });
 const relay = createServer((incoming) => {
   const address = new URL(server?.address ?? 'http://127.0.0.1:0');

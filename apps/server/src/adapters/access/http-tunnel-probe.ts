@@ -1,55 +1,57 @@
-import { Result, Schema, type Effect } from 'effect';
-import { nativeOperation } from '@porcelain/effects';
-import { readHealthResponseSchema } from '@porcelain/contracts/access';
+import { Clock, Effect, Layer, Result, Schema } from 'effect';
+import {
+  readHealthResponseSchema,
+  PublicAccessApi,
+} from '@porcelain/contracts/access';
 import type { TunnelAnswer, TunnelTarget } from '@porcelain/access/models';
-import type { TunnelProbe } from '@porcelain/access/ports';
-import { PublicAccessApi } from '@porcelain/contracts/access';
+import { TunnelProbe } from '@porcelain/access/ports';
 import { HttpApiClient } from 'effect/http-api';
+import { FetchHttpClient, HttpClient } from 'effect/http';
 
-export class HttpTunnelProbe implements TunnelProbe {
-  private readonly timeoutMs: number;
-
-  constructor(options: { timeoutMs: number }) {
-    this.timeoutMs = options.timeoutMs;
-  }
-
-  probe(input: TunnelTarget): Effect.Effect<TunnelAnswer> {
-    return nativeOperation((signal) => this.probeNative(input, signal));
-  }
-
-  private async probeNative(
-    input: TunnelTarget,
-    signal?: AbortSignal,
-  ): Promise<TunnelAnswer> {
-    let response: Response;
-    try {
-      response = await fetch(
-        new URL(
-          HttpApiClient.urlBuilder(PublicAccessApi).publicAccess.readHealth(),
-          input.origin,
-        ),
-        {
-          method:
-            PublicAccessApi.groups.publicAccess.endpoints.readHealth.method,
-          headers: { accept: 'application/json' },
-          redirect: 'error',
-          signal: AbortSignal.any([
-            ...(signal ? [signal] : []),
-            AbortSignal.timeout(this.timeoutMs),
-          ]),
-        },
-      );
-    } catch {
-      signal?.throwIfAborted();
-      return { kind: 'unreachable' };
-    }
-    if (response.status >= 500) return { kind: 'unreachable' };
-    if (!response.ok) return { kind: 'foreign' };
-    const health = Schema.decodeUnknownResult(readHealthResponseSchema)(
-      await response.json().catch(() => undefined),
-    );
-    return Result.isSuccess(health)
-      ? { kind: 'answered', environmentId: health.success.environmentId }
-      : { kind: 'foreign' };
-  }
-}
+export const httpTunnelProbeLayer = (options: { timeoutMs: number }) =>
+  Layer.effect(
+    TunnelProbe,
+    Effect.gen(function* () {
+      const client = yield* HttpClient.HttpClient;
+      return {
+        probe: Effect.fn('HttpTunnelProbe.probe')(function* (
+          input: TunnelTarget,
+        ): Effect.fn.Return<TunnelAnswer> {
+          const deadline = (yield* Clock.currentTimeMillis) + options.timeoutMs;
+          const response = yield* client
+            .get(
+              new URL(
+                HttpApiClient.urlBuilder(
+                  PublicAccessApi,
+                ).publicAccess.readHealth(),
+                input.origin,
+              ).href,
+              { headers: { accept: 'application/json' } },
+            )
+            .pipe(
+              Effect.provideService(FetchHttpClient.RequestInit, {
+                redirect: 'error',
+              }),
+              Effect.timeout(options.timeoutMs),
+              Effect.catch(() => Effect.succeed(undefined)),
+            );
+          if (response === undefined || response.status >= 500)
+            return { kind: 'unreachable' };
+          if (response.status < 200 || response.status >= 300)
+            return { kind: 'foreign' };
+          const body = yield* response.json.pipe(
+            Effect.timeout(
+              Math.max(0, deadline - (yield* Clock.currentTimeMillis)),
+            ),
+            Effect.catch(() => Effect.succeed(undefined)),
+          );
+          const health = Schema.decodeUnknownResult(readHealthResponseSchema)(
+            body,
+          );
+          return Result.isSuccess(health)
+            ? { kind: 'answered', environmentId: health.success.environmentId }
+            : { kind: 'foreign' };
+        }),
+      };
+    }),
+  );

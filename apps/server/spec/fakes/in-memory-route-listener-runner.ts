@@ -1,12 +1,15 @@
-import { Effect } from 'effect';
+import { Effect, Layer } from 'effect';
 import type {
   ListenOutcome,
   RouteAddresses,
   RouteKey,
 } from '@porcelain/access/models';
-import type { RouteListenerRunner } from '@porcelain/access/ports';
+import { RouteListenerRunner } from '@porcelain/access/ports';
 
 export class InMemoryRouteListenerRunner implements RouteListenerRunner {
+  static readonly layer = (runner: RouteListenerRunner) =>
+    Layer.succeed(RouteListenerRunner, runner);
+
   private readonly ports: Record<string, () => number>;
   private readonly listening = new Map<string, string[]>();
 

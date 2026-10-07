@@ -1,139 +1,152 @@
-import type { Effect } from 'effect';
-import { nativeOperation } from '@porcelain/effects';
-import { once } from 'node:events';
+import { Effect, Exit, Layer, Scope } from 'effect';
+import { NodeHttpServer } from '@effect/platform-node';
 import { createServer, type Server } from 'node:http';
 import type { Socket } from 'node:net';
 import type {
   ListenedRoute,
-  ListenOutcome,
   RouteAddresses,
   RouteKey,
 } from '@porcelain/access/models';
-import type { RouteListenerRunner } from '@porcelain/access/ports';
+import { RouteListenerRunner } from '@porcelain/access/ports';
 
-type Bound = { server: Server; sockets: Set<Socket> };
+type Bound = { port: number; scope: Scope.Closeable };
 
-type Bind =
-  | { kind: 'bound'; bound: Bound }
-  | { kind: 'failed'; failure: 'address-in-use' | 'address-unavailable' };
-
-function listeningPort(bound: Bound): number {
-  const address = bound.server.address();
-  return address === null || typeof address === 'string' ? 0 : address.port;
-}
-
-export class HttpRouteListenerRunner implements RouteListenerRunner {
-  private readonly target: () => Server;
-  private readonly routes = new Map<ListenedRoute, Map<string, Bound>>();
-
-  constructor(target: () => Server) {
-    this.target = target;
-  }
-
-  listen(input: RouteAddresses): Effect.Effect<ListenOutcome> {
-    return nativeOperation((signal) => this.listenNative(input, signal));
-  }
-
-  private async listenNative(
-    input: RouteAddresses,
-    signal: AbortSignal,
-  ): Promise<ListenOutcome> {
-    const shared = await this.wantedPort(input.port, signal);
-    const open = this.routes.get(input.route) ?? new Map<string, Bound>();
-    this.routes.set(input.route, open);
-    for (const [address, bound] of open)
-      if (
-        !input.addresses.includes(address) ||
-        (shared !== 0 && listeningPort(bound) !== shared)
+export const httpRouteListenerRunnerLayer = (target: () => Server) =>
+  Layer.effect(
+    RouteListenerRunner,
+    Effect.gen(function* () {
+      const scope = yield* Scope.Scope;
+      const routes = new Map<ListenedRoute, Map<string, Bound>>();
+      const close = Effect.fn('HttpRouteListenerRunner.close')(function* (
+        input: RouteKey,
       ) {
-        open.delete(address);
-        await this.stop(bound);
-      }
-    const failures: ('address-in-use' | 'address-unavailable')[] = [];
-    for (const address of input.addresses) {
-      if (open.has(address)) continue;
-      const result = await this.bind(address, shared);
-      if (result.kind === 'bound') open.set(address, result.bound);
-      else failures.push(result.failure);
-    }
-    const failure = failures.includes('address-in-use')
-      ? 'address-in-use'
-      : failures[0];
-    const bound = input.addresses.filter((address) => open.has(address));
-    const first = bound[0] === undefined ? undefined : open.get(bound[0]);
-    return {
-      port: input.port === 'server' || !first ? shared : listeningPort(first),
-      bound,
-      ...(failure === undefined ? {} : { failure }),
-    };
-  }
-
-  close(input: RouteKey): Effect.Effect<void> {
-    return nativeOperation(() => this.closeNative(input));
-  }
-
-  private async closeNative(input: RouteKey): Promise<void> {
-    const open = this.routes.get(input.route);
-    this.routes.delete(input.route);
-    await Promise.all(
-      [...(open?.values() ?? [])].map((bound) => this.stop(bound)),
-    );
-  }
-
-  private async wantedPort(
-    port: RouteAddresses['port'],
-    signal: AbortSignal | undefined,
-  ): Promise<number> {
-    if (port === 'server') return this.port(signal);
-    return port === 'own' ? 0 : port;
-  }
-
-  private async port(signal: AbortSignal | undefined): Promise<number> {
-    const target = this.target();
-    if (!target.listening)
-      await once(target, 'listening', signal ? { signal } : {});
-    const address = target.address();
-    if (address === null || typeof address === 'string')
-      throw new Error('The server does not listen on a network port');
-    return address.port;
-  }
-
-  private bind(address: string, port: number): Promise<Bind> {
-    const sockets = new Set<Socket>();
-    const server = createServer();
-    server.on('connection', (socket) => {
-      sockets.add(socket);
-      socket.once('close', () => sockets.delete(socket));
-    });
-    const target = this.target();
-    server.on('request', (request, response) =>
-      target.emit('request', request, response),
-    );
-    server.on('upgrade', (request, socket, head) =>
-      target.emit('upgrade', request, socket, head),
-    );
-    return new Promise((resolve) => {
-      server.once('error', (error: NodeJS.ErrnoException) => {
-        server.close();
-        resolve({
-          kind: 'failed',
-          failure:
-            error.code === 'EADDRINUSE'
-              ? 'address-in-use'
-              : 'address-unavailable',
-        });
+        const open = routes.get(input.route);
+        routes.delete(input.route);
+        yield* Effect.forEach(
+          open?.values() ?? [],
+          (bound) => Scope.close(bound.scope, Exit.void),
+          { discard: true },
+        );
       });
-      server.listen({ host: address, port, exclusive: true }, () =>
-        resolve({ kind: 'bound', bound: { server, sockets } }),
+      yield* Effect.addFinalizer(() =>
+        Effect.forEach(routes.keys(), (route) => close({ route }), {
+          discard: true,
+        }),
       );
-    });
-  }
-
-  private async stop(bound: Bound): Promise<void> {
-    const closed = new Promise<void>((resolve) =>
-      bound.server.close(() => resolve()),
-    );
-    for (const socket of bound.sockets) socket.destroy();
-    await closed;
-  }
-}
+      const wantedPort = Effect.fn('HttpRouteListenerRunner.wantedPort')(
+        function* (port: RouteAddresses['port']) {
+          if (port !== 'server') return port === 'own' ? 0 : port;
+          const server = target();
+          if (!server.listening)
+            yield* Effect.callback<void>((resume) => {
+              const listening = () => resume(Effect.void);
+              server.once('listening', listening);
+              return Effect.sync(() => server.off('listening', listening));
+            });
+          const address = server.address();
+          if (address === null || typeof address === 'string')
+            return yield* Effect.die(
+              new Error('The server does not listen on a network port'),
+            );
+          return address.port;
+        },
+      );
+      const bind = Effect.fn('HttpRouteListenerRunner.bind')(function* (
+        address: string,
+        port: number,
+      ) {
+        const binding = yield* Scope.fork(scope);
+        const sockets = new Set<Socket>();
+        const server = createServer();
+        server.on('connection', (socket) => {
+          sockets.add(socket);
+          socket.once('close', () => sockets.delete(socket));
+        });
+        const destination = target();
+        server.on('request', (request, response) =>
+          destination.emit('request', request, response),
+        );
+        server.on('upgrade', (request, socket, head) =>
+          destination.emit('upgrade', request, socket, head),
+        );
+        const opened = yield* NodeHttpServer.make(() => server, {
+          host: address,
+          port,
+          exclusive: true,
+        }).pipe(Scope.provide(binding), Effect.result);
+        if (opened._tag === 'Failure') {
+          yield* Scope.close(binding, Exit.void);
+          const cause = opened.failure.cause;
+          return {
+            kind: 'failed' as const,
+            failure:
+              cause instanceof Error &&
+              'code' in cause &&
+              cause.code === 'EADDRINUSE'
+                ? ('address-in-use' as const)
+                : ('address-unavailable' as const),
+          };
+        }
+        yield* Scope.addFinalizer(
+          binding,
+          Effect.sync(() => {
+            for (const socket of sockets) socket.destroy();
+          }),
+        );
+        const boundAddress = server.address();
+        return {
+          kind: 'bound' as const,
+          bound: {
+            scope: binding,
+            port:
+              boundAddress !== null && typeof boundAddress !== 'string'
+                ? boundAddress.port
+                : 0,
+          },
+        };
+      });
+      return {
+        listen: Effect.fn('HttpRouteListenerRunner.listen')(function* (
+          input: RouteAddresses,
+        ) {
+          const shared = yield* wantedPort(input.port);
+          return yield* Effect.uninterruptible(
+            Effect.gen(function* () {
+              const open = routes.get(input.route) ?? new Map<string, Bound>();
+              routes.set(input.route, open);
+              for (const [address, bound] of open) {
+                if (
+                  !input.addresses.includes(address) ||
+                  (shared !== 0 && bound.port !== shared)
+                ) {
+                  open.delete(address);
+                  yield* Scope.close(bound.scope, Exit.void);
+                }
+              }
+              const failures: ('address-in-use' | 'address-unavailable')[] = [];
+              for (const address of input.addresses) {
+                if (open.has(address)) continue;
+                const result = yield* bind(address, shared);
+                if (result.kind === 'bound') open.set(address, result.bound);
+                else failures.push(result.failure);
+              }
+              const failure = failures.includes('address-in-use')
+                ? 'address-in-use'
+                : failures[0];
+              const bound = input.addresses.filter((address) =>
+                open.has(address),
+              );
+              const first =
+                bound[0] === undefined ? undefined : open.get(bound[0]);
+              return {
+                port: input.port === 'server' || !first ? shared : first.port,
+                bound,
+                ...(failure === undefined ? {} : { failure }),
+              };
+            }),
+          );
+        }),
+        close: (input) => Effect.uninterruptible(close(input)),
+      };
+    }),
+  );
