@@ -1,9 +1,10 @@
-import { GitError } from './git-error.ts';
+import { Schema } from 'effect';
 
-export class GitOutputLimitError extends GitError {
-  override readonly name = 'GitOutputLimitError';
-
-  constructor(options?: ErrorOptions) {
-    super('Git output exceeds its limit', options);
+export class GitOutputLimitError extends Schema.TaggedError<GitOutputLimitError>()(
+  'GitOutputLimitError',
+  {},
+) {
+  override get message() {
+    return 'Git output exceeds its limit';
   }
 }

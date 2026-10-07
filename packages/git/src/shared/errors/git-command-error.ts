@@ -1,22 +1,16 @@
-import { GitError } from './git-error.ts';
+import { Schema } from 'effect';
 
-export class GitCommandError extends GitError {
-  override readonly name = 'GitCommandError';
-  readonly checkout: string;
-  readonly args: readonly string[];
-  readonly exitCode: number | undefined;
-  readonly stderr: string;
-
-  constructor(
-    checkout: string,
-    args: readonly string[],
-    failure: { exitCode: number | undefined; stderr: string },
-    options?: ErrorOptions,
-  ) {
-    super('Git command failed', options);
-    this.checkout = checkout;
-    this.args = [...args];
-    this.exitCode = failure.exitCode;
-    this.stderr = failure.stderr;
+export class GitCommandError extends Schema.TaggedError<GitCommandError>()(
+  'GitCommandError',
+  {
+    checkout: Schema.String,
+    args: Schema.Array(Schema.String),
+    exitCode: Schema.UndefinedOr(Schema.Number),
+    stderr: Schema.String,
+    cause: Schema.optional(Schema.Unknown),
+  },
+) {
+  override get message() {
+    return 'Git command failed';
   }
 }

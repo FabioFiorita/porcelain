@@ -20,11 +20,9 @@ import { Context, Effect, Layer, Clock } from 'effect';
 import { projectsRoutes } from '../http/routes/projects/projects-api.ts';
 import {
   ProjectFolderReader,
-  WorktreeListingReader,
   WorktreeCatalogStore,
   InventoryStore,
   WorktreePresenceStore,
-  ProjectRepositoryReader,
   FilePreferenceStore,
   BrowseProjectFoldersOptions,
   SetFilePreferenceOptions,
@@ -55,7 +53,9 @@ import {
   CheckWorktreeService,
   CheckRefreshedWorktreeService,
 } from '@porcelain/projects/services';
-import { GitProjectRepositoryReader } from '../adapters/projects/git-project-repository-reader.ts';
+import { gitProjectRepositoryReaderLayer } from '../adapters/projects/git-project-repository-reader.ts';
+import { gitWorktreeListingReaderLayer } from '../adapters/projects/git-worktree-listing-reader.ts';
+import { Logger } from '../ports/logger.ts';
 import { makeCoalescedWork } from '../runtime/coalesced-work.ts';
 import { WorktreeAccess } from '../runtime/worktree-access.ts';
 import { ReadInventoryBadgesUseCase } from '../use-cases/projects/read-inventory-badges.ts';
@@ -77,6 +77,7 @@ import { type Stores } from './compose-stores.ts';
 type ProjectsDependencies = {
   stores: Stores;
   shared: Shared;
+  worktreeId: (projectId: string, metadataIdentity: string) => string;
   projectFolderReader: ProjectFolderReader;
 };
 
@@ -94,17 +95,22 @@ export function composeProjects(
   context: ComposeContext,
   dependencies: ProjectsDependencies,
 ) {
-  const { lanes, laneKeys, events, clock, ids, settings } = context;
+  const { lanes, laneKeys, events, clock, ids, settings, logger } = context;
   const limits = settings.limits.projects;
   const { stores, shared, projectFolderReader } = dependencies;
   const inventory = stores.inventory;
   const worktreePresence = stores.worktreePresence;
   const filePreference = stores.filePreferences;
   const { catalog, readWorktreeStatuses } = shared;
-  const projectRepositoryReader = new GitProjectRepositoryReader(shared.git);
   const { listRegisteredProjects, listKnownWorktrees } = shared;
   const ports = Layer.mergeAll(
-    Layer.succeed(WorktreeListingReader, shared.worktreeListing),
+    gitWorktreeListingReaderLayer({
+      git: settings.limits.git,
+      launches: settings.limits.inventory.listingLaunches,
+      timeout: settings.limits.inventory.listingTimeout,
+      worktreeId: dependencies.worktreeId,
+    }).pipe(Layer.provide(Layer.succeed(Logger, logger))),
+    gitProjectRepositoryReaderLayer(settings.limits.git),
     Layer.succeed(WorktreeCatalogStore, catalog),
     Layer.succeed(InventoryStore, inventory),
     Layer.succeed(WorktreePresenceStore, worktreePresence),
@@ -122,7 +128,6 @@ export function composeProjects(
     Layer.succeed(ReadReviewBadgesService, readWorktreeStatuses),
     Layer.succeed(ReadEnvironmentService, shared.readEnvironment),
     Layer.succeed(ReadEnvironmentNameService, shared.readEnvironmentName),
-    Layer.succeed(ProjectRepositoryReader, projectRepositoryReader),
     Layer.succeed(IdSource, ids),
     Layer.succeed(FilePreferenceStore, filePreference),
     Layer.succeed(ProjectFolderReader, projectFolderReader),

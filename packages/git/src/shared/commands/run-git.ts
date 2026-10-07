@@ -1,4 +1,5 @@
 import { Effect } from 'effect';
+import type { ChildProcessSpawner } from 'effect/process';
 import { NodeServices } from '@effect/platform-node';
 import { devNull } from 'node:os';
 import { runCommand } from '@porcelain/process';
@@ -17,7 +18,7 @@ export type GitReadOptions = {
   input?: Buffer;
 };
 
-type GitWriteOptions = {
+export type GitWriteOptions = {
   maxBytes?: number;
   input?: string;
   indexFile?: string;
@@ -34,21 +35,52 @@ export type GitProcessResult = {
   failure?: 'output-limit';
 };
 
-function modeConfig(mode: GitMode, limits: GitLimits): readonly string[] {
-  return mode === 'read'
-    ? [
-        'core.fsmonitor=false',
-        'core.untrackedCache=false',
-        'core.quotePath=true',
-        `diff.renameLimit=${limits.renames.limit}`,
-      ]
-    : [
-        'core.fsmonitor=false',
-        'core.untrackedCache=false',
-        'maintenance.auto=false',
-        'gc.auto=0',
-      ];
-}
+export const gitRead = Effect.fn('Git.read')(function* (
+  checkout: string,
+  args: readonly string[],
+  limits: GitLimits,
+  options: GitReadOptions = {},
+): Effect.fn.Return<
+  Buffer,
+  GitCommandError | GitOutputLimitError | GitTimeoutError,
+  ChildProcessSpawner.ChildProcessSpawner
+> {
+  const output = yield* runCommand(
+    readCommand(checkout, args, limits, options),
+  ).pipe(Effect.mapError((cause) => notStarted(checkout, args, cause)));
+  const completed =
+    output.stopped === undefined || output.stopped === 'lingering';
+  if (completed && output.exitCode === 0) return output.stdout;
+  if (output.stopped === 'output-limit')
+    return yield* new GitOutputLimitError();
+  if (output.stopped === 'deadline') return yield* new GitTimeoutError();
+  return yield* new GitCommandError({
+    checkout,
+    args,
+    exitCode: output.exitCode,
+    stderr: output.stderr.toString('utf8'),
+  });
+});
+
+export const gitWrite = Effect.fn('Git.write')(function* (
+  checkout: string,
+  args: readonly string[],
+  limits: GitLimits,
+  options: GitWriteOptions = {},
+): Effect.fn.Return<
+  GitProcessResult,
+  GitCommandError,
+  ChildProcessSpawner.ChildProcessSpawner
+> {
+  const progress = options.onProgress
+    ? progressReader(options.onProgress)
+    : undefined;
+  const output = yield* runCommand(
+    writeCommand(checkout, args, limits, options, progress),
+  ).pipe(Effect.mapError((cause) => notStarted(checkout, args, cause)));
+  progress?.finish();
+  return processResult(output);
+});
 
 export async function runGitRead(
   checkout: string,
@@ -58,38 +90,17 @@ export async function runGitRead(
   options: GitReadOptions = {},
 ): Promise<Buffer> {
   signal?.throwIfAborted();
-  const output = await Effect.runPromise(
-    runCommand(
-      {
-        command: 'git',
-        args: gitArguments('read', checkout, args, limits, options),
-        env: gitEnvironment('read'),
-        stdin: options.input,
-        timeoutMs: options.timeoutMs ?? limits.readTimeoutMs,
-        maxBytes: options.maxBytes ?? limits.outputBytes,
-        processGroup: limits.processGroup,
-      },
-      signal,
-    ).pipe(Effect.provide(NodeServices.layer)),
-  ).catch((cause: unknown) => {
-    signal?.throwIfAborted();
-    throw new GitCommandError(
-      checkout,
-      args,
-      { exitCode: undefined, stderr: '' },
-      { cause },
+  try {
+    return await Effect.runPromise(
+      gitRead(checkout, args, limits, options).pipe(
+        Effect.provide(NodeServices.layer),
+      ),
+      { signal },
     );
-  });
-  const completed =
-    output.stopped === undefined || output.stopped === 'lingering';
-  if (completed && output.exitCode === 0) return output.stdout;
-  signal?.throwIfAborted();
-  if (output.stopped === 'output-limit') throw new GitOutputLimitError();
-  if (output.stopped === 'deadline') throw new GitTimeoutError();
-  throw new GitCommandError(checkout, args, {
-    exitCode: output.exitCode,
-    stderr: output.stderr.toString('utf8'),
-  });
+  } catch (failure) {
+    signal?.throwIfAborted();
+    throw failure;
+  }
 }
 
 export async function runGitWrite(
@@ -105,19 +116,67 @@ export async function runGitWrite(
     : undefined;
   const output = await Effect.runPromise(
     runCommand(
-      {
-        command: 'git',
-        args: gitArguments('write', checkout, args, limits, {}),
-        env: gitEnvironment('write', options.indexFile),
-        stdin: options.input,
-        maxBytes: options.maxBytes ?? limits.outputBytes,
-        processGroup: limits.processGroup,
-        onStderr: progress?.read,
-      },
+      writeCommand(checkout, args, limits, options, progress),
       signal,
     ).pipe(Effect.provide(NodeServices.layer)),
   );
   progress?.finish();
+  return processResult(output);
+}
+
+type CommandOutput = Effect.Success<ReturnType<typeof runCommand>>;
+type ProgressReader = ReturnType<typeof progressReader>;
+
+function readCommand(
+  checkout: string,
+  args: readonly string[],
+  limits: GitLimits,
+  options: GitReadOptions,
+) {
+  return {
+    command: 'git',
+    args: gitArguments('read', checkout, args, limits, options),
+    env: gitEnvironment('read'),
+    stdin: options.input,
+    timeoutMs: options.timeoutMs ?? limits.readTimeoutMs,
+    maxBytes: options.maxBytes ?? limits.outputBytes,
+    processGroup: limits.processGroup,
+  };
+}
+
+function writeCommand(
+  checkout: string,
+  args: readonly string[],
+  limits: GitLimits,
+  options: GitWriteOptions,
+  progress: ProgressReader | undefined,
+) {
+  return {
+    command: 'git',
+    args: gitArguments('write', checkout, args, limits, {}),
+    env: gitEnvironment('write', options.indexFile),
+    stdin: options.input,
+    maxBytes: options.maxBytes ?? limits.outputBytes,
+    processGroup: limits.processGroup,
+    onStderr: progress?.read,
+  };
+}
+
+function notStarted(
+  checkout: string,
+  args: readonly string[],
+  cause: unknown,
+): GitCommandError {
+  return new GitCommandError({
+    checkout,
+    args,
+    exitCode: undefined,
+    stderr: '',
+    cause,
+  });
+}
+
+function processResult(output: CommandOutput): GitProcessResult {
   return {
     stdout: output.stdout,
     stderr: output.stderr,
@@ -127,6 +186,22 @@ export async function runGitWrite(
     descendantsStopped: output.groupStopped,
     ...(output.stopped === 'output-limit' ? { failure: 'output-limit' } : {}),
   };
+}
+
+function modeConfig(mode: GitMode, limits: GitLimits): readonly string[] {
+  return mode === 'read'
+    ? [
+        'core.fsmonitor=false',
+        'core.untrackedCache=false',
+        'core.quotePath=true',
+        `diff.renameLimit=${limits.renames.limit}`,
+      ]
+    : [
+        'core.fsmonitor=false',
+        'core.untrackedCache=false',
+        'maintenance.auto=false',
+        'gc.auto=0',
+      ];
 }
 
 function progressReader(onProgress: (line: string) => void) {

@@ -1,10 +1,7 @@
+import { Effect } from 'effect';
 import { realpath, stat } from 'node:fs/promises';
 import type { DiscoveredRepository } from '../dtos/discovered-repository.ts';
-import type { DiscoveryIssue } from '../dtos/discovery-issue.ts';
-import type { DiscoveryResult } from '../dtos/discovery-result.ts';
-import { InvalidWorktreeInventoryError } from '../../shared/errors/invalid-worktree-inventory-error.ts';
 import { isRepositoryUnavailable } from '../../shared/errors/is-repository-unavailable.ts';
-import { RepositoryIdentityMismatchError } from '../../shared/errors/repository-identity-mismatch-error.ts';
 import { parseWorktreeList } from '../parsers/parse-worktree-list.ts';
 import {
   contained,
@@ -13,120 +10,92 @@ import {
   realpathOrSelf,
 } from '../../shared/commands/gitdir.ts';
 import { identity } from '../../shared/commands/identity.ts';
+import { readMetadata } from '../../shared/commands/read-metadata.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
-import { runGitRead } from '../../shared/commands/run-git.ts';
+import { gitRead } from '../../shared/commands/run-git.ts';
 
-export async function listWorktrees(
+export const listWorktrees = Effect.fn('Git.listWorktrees')(function* (
   checkout: string,
   limits: GitLimits,
-  signal?: AbortSignal,
-  known?: { commonDirectory: string },
-): Promise<DiscoveryResult> {
-  const issues: DiscoveryIssue[] = [];
-  const commonDirectory = await realpath(
-    known?.commonDirectory ??
-      (
-        await runGitRead(
-          checkout,
-          ['rev-parse', '--path-format=absolute', '--git-common-dir'],
-          limits,
-          signal,
-        )
-      )
-        .toString('utf8')
-        .slice(0, -1),
+) {
+  const location = yield* gitRead(
+    checkout,
+    ['rev-parse', '--path-format=absolute', '--git-common-dir'],
+    limits,
   );
-  const repositoryIdentity = await identity(commonDirectory);
-  const records = parseWorktreeList(
-    (
-      await runGitRead(
-        checkout,
-        ['worktree', 'list', '--porcelain', '-z'],
-        limits,
-        signal,
-      )
-    ).toString('utf8'),
+  const commonDirectory = yield* readMetadata(() =>
+    realpath(location.toString('utf8').slice(0, -1)),
   );
-  const registry = await readWorktreeRegistry(commonDirectory);
-  const worktrees: DiscoveredRepository['worktrees'] = [];
-  for (const [index, record] of records.entries()) {
-    const administrativeDirectory =
-      index === 0
-        ? commonDirectory
-        : (registry.get(await realpathOrSelf(record.path)) ??
-          registry.get(record.path));
-    const inspection = await inspectWorktree(
-      record.path,
-      administrativeDirectory,
-      commonDirectory,
-    );
-    issues.push(...inspection.issues);
-    worktrees.push({
-      path: record.path,
-      metadataIdentity: inspection.metadataIdentity,
-      administrativeDirectory: administrativeDirectory ?? '',
-      main: index === 0,
-      branch: record.branch,
-      available: inspection.available,
-    });
-  }
-  signal?.throwIfAborted();
+  const repositoryIdentity = yield* readMetadata(() =>
+    identity(commonDirectory),
+  );
+  const inventory = yield* gitRead(
+    checkout,
+    ['worktree', 'list', '--porcelain', '-z'],
+    limits,
+  );
+  const records = yield* parseWorktreeList(inventory.toString('utf8'));
+  const registry = yield* readMetadata(() =>
+    readWorktreeRegistry(commonDirectory),
+  );
+  const worktrees = yield* Effect.forEach(records, (record, index) =>
+    Effect.gen(function* () {
+      const administrativeDirectory =
+        index === 0
+          ? commonDirectory
+          : (registry.get(
+              yield* readMetadata(() => realpathOrSelf(record.path)),
+            ) ?? registry.get(record.path));
+      const inspection = yield* inspectWorktree(
+        record.path,
+        administrativeDirectory,
+        commonDirectory,
+      );
+      return {
+        path: record.path,
+        metadataIdentity: inspection.metadataIdentity,
+        administrativeDirectory: administrativeDirectory ?? '',
+        main: index === 0,
+        branch: record.branch,
+        available: inspection.available,
+      };
+    }),
+  );
   return {
-    repository: { commonDirectory, repositoryIdentity, worktrees },
-    issues,
-  };
-}
+    commonDirectory,
+    repositoryIdentity,
+    worktrees,
+  } satisfies DiscoveredRepository;
+});
 
-async function inspectWorktree(
+const unidentified = { metadataIdentity: null, available: false } as const;
+
+const inspectWorktree = Effect.fn('Git.inspectWorktree')(function* (
   path: string,
   administrativeDirectory: string | undefined,
   commonDirectory: string,
-): Promise<{
-  metadataIdentity: string | null;
-  available: boolean;
-  issues: DiscoveryIssue[];
-}> {
+) {
   if (
     !administrativeDirectory ||
-    !(await contained(administrativeDirectory, commonDirectory))
+    !(yield* readMetadata(() =>
+      contained(administrativeDirectory, commonDirectory),
+    ))
   )
-    return {
-      metadataIdentity: null,
-      available: false,
-      issues: [{ path, error: new InvalidWorktreeInventoryError() }],
-    };
-  try {
-    const metadataIdentity = await identity(administrativeDirectory);
-    const failure = await unreachable(path);
-    if (failure)
-      return {
-        metadataIdentity,
-        available: false,
-        issues: [{ path, error: failure }],
-      };
-    if (!(await corroborates(path, administrativeDirectory)))
-      return {
-        metadataIdentity,
-        available: false,
-        issues: [{ path, error: new RepositoryIdentityMismatchError() }],
-      };
-    return { metadataIdentity, available: true, issues: [] };
-  } catch (error) {
-    if (!isRepositoryUnavailable(error)) throw error;
-    return {
-      metadataIdentity: null,
-      available: false,
-      issues: [{ path, error }],
-    };
-  }
-}
+    return unidentified;
+  const metadataIdentity = yield* readMetadata(() =>
+    identity(administrativeDirectory),
+  ).pipe(
+    Effect.catchIf(isRepositoryUnavailable, () => Effect.succeed(undefined)),
+  );
+  if (metadataIdentity === undefined) return unidentified;
+  const available =
+    (yield* reachable(path)) &&
+    (yield* readMetadata(() => corroborates(path, administrativeDirectory)));
+  return { metadataIdentity, available };
+});
 
-async function unreachable(path: string): Promise<Error | undefined> {
-  try {
-    await stat(path);
-    return undefined;
-  } catch (error) {
-    if (error instanceof Error) return error;
-    throw error;
-  }
-}
+const reachable = (path: string) =>
+  readMetadata(() => stat(path)).pipe(
+    Effect.as(true),
+    Effect.orElseSucceed(() => false),
+  );

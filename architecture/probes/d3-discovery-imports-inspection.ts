@@ -8,8 +8,8 @@ export default {
   edits: [
     {
       kind: 'prepend',
-      path: 'packages/git/src/discovery/discovery-git.ts',
-      content: "import '../inspection/index.ts';\n",
+      path: 'packages/git/src/discovery/commands/list-worktrees.ts',
+      content: "import '../../inspection/index.ts';\n",
     },
   ],
 } satisfies Probe;

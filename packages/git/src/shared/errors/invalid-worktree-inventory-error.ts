@@ -1,9 +1,10 @@
-import { GitError } from './git-error.ts';
+import { Schema } from 'effect';
 
-export class InvalidWorktreeInventoryError extends GitError {
-  override readonly name = 'InvalidWorktreeInventoryError';
-
-  constructor() {
-    super('Git worktree inventory is invalid');
+export class InvalidWorktreeInventoryError extends Schema.TaggedError<InvalidWorktreeInventoryError>()(
+  'InvalidWorktreeInventoryError',
+  {},
+) {
+  override get message() {
+    return 'Git worktree inventory is invalid';
   }
 }
