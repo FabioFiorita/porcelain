@@ -1,8 +1,4 @@
-import {
-  admittedRead,
-  nativeOperation,
-  type WorktreeRead,
-} from '@porcelain/effects';
+import { admittedRead, type WorktreeRead } from '@porcelain/effects';
 import { constants } from 'node:fs';
 import type {
   FileRead,
@@ -22,7 +18,7 @@ import {
   verifyPath,
 } from './inspect-path.ts';
 import {
-  listedWorktree,
+  listedWorktreeEffect,
   type ListedWorktrees,
 } from '../projects/checkout-session.ts';
 
@@ -35,9 +31,10 @@ export const filesystemFileReaderLayer = (worktrees: ListedWorktrees) =>
         admittedRead(
           input.worktreeId,
           Effect.gen(function* () {
-            const checkout = yield* nativeOperation((signal) =>
-              listedWorktree(worktrees, input.worktreeId, signal),
-            );
+            const checkout = yield* listedWorktreeEffect(
+              worktrees,
+              input.worktreeId,
+            ).pipe(Effect.orDie);
             const target = { root: checkout.path, path: input.path };
             return yield* Effect.scoped(
               Effect.gen(function* (): Effect.fn.Return<

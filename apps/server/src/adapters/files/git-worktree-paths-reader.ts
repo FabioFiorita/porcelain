@@ -1,16 +1,16 @@
+import { InspectionLimitError } from '@porcelain/git/errors';
+import { captureGitPlatform } from '../projects/git-platform.ts';
 import { readGitEffect } from '../../runtime/git-io.ts';
-import { nativeOperation } from '@porcelain/effects';
 import type {
   WorktreePathsRead,
   WorktreePathsReadInput,
 } from '@porcelain/files/models';
 import { WorktreePathsReader } from '@porcelain/files/ports';
 import { Effect, Layer } from 'effect';
-import { InspectionLimitError } from '@porcelain/git/errors';
 import { listTrackedPaths } from '@porcelain/git/inspection';
 import type { Limits } from '../../config/limits.ts';
 import {
-  listedWorktree,
+  listedWorktreeEffect,
   type ListedWorktrees,
 } from '../projects/checkout-session.ts';
 
@@ -18,30 +18,36 @@ export const gitWorktreePathsReaderLayer = (
   worktrees: ListedWorktrees,
   limits: Limits['git'],
 ) =>
-  Layer.succeed(WorktreePathsReader, {
-    read: Effect.fn('GitWorktreePathsReader.read')(
-      (input: WorktreePathsReadInput) =>
-        readGitEffect(
-          input.worktreeId,
-          Effect.gen(function* () {
-            const checkout = yield* nativeOperation((signal) =>
-              listedWorktree(worktrees, input.worktreeId, signal),
-            );
-            return yield* nativeOperation((signal) =>
-              listTrackedPaths(checkout.path, limits, signal),
-            ).pipe(
-              Effect.map((listed): WorktreePathsRead =>
-                listed.complete
-                  ? { kind: 'listed', paths: listed.paths }
-                  : { kind: 'too-large' },
-              ),
-              Effect.catchDefect((error) =>
-                error instanceof InspectionLimitError
-                  ? Effect.succeed<WorktreePathsRead>({ kind: 'too-large' })
-                  : Effect.die(error),
-              ),
-            );
-          }),
-        ).pipe(Effect.orDie),
-    ),
-  });
+  Layer.effect(
+    WorktreePathsReader,
+    Effect.gen(function* () {
+      const provideGit = yield* captureGitPlatform();
+      return {
+        read: Effect.fn('GitWorktreePathsReader.read')(
+          (input: WorktreePathsReadInput) =>
+            readGitEffect(
+              input.worktreeId,
+              Effect.gen(function* () {
+                const checkout = yield* listedWorktreeEffect(
+                  worktrees,
+                  input.worktreeId,
+                );
+                return yield* listTrackedPaths(checkout.path, limits).pipe(
+                  Effect.map((listed): WorktreePathsRead =>
+                    listed.complete
+                      ? { kind: 'listed', paths: listed.paths }
+                      : { kind: 'too-large' },
+                  ),
+                  Effect.catchIf(
+                    (error): error is InspectionLimitError =>
+                      error instanceof InspectionLimitError,
+                    () =>
+                      Effect.succeed<WorktreePathsRead>({ kind: 'too-large' }),
+                  ),
+                );
+              }).pipe(provideGit),
+            ).pipe(Effect.orDie),
+        ),
+      };
+    }),
+  );
