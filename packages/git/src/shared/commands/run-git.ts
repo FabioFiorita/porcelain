@@ -1,6 +1,5 @@
 import { Effect } from 'effect';
 import type { ChildProcessSpawner } from 'effect/process';
-import { NodeServices } from '@effect/platform-node';
 import { devNull } from 'node:os';
 import { runCommand } from '@porcelain/process';
 import { GitCommandError } from '../errors/git-command-error.ts';
@@ -77,47 +76,12 @@ export const gitWrite = Effect.fn('Git.write')(function* (
     : undefined;
   const output = yield* runCommand(
     writeCommand(checkout, args, limits, options, progress),
-  ).pipe(Effect.mapError((cause) => notStarted(checkout, args, cause)));
-  progress?.finish();
+  ).pipe(
+    Effect.mapError((cause) => notStarted(checkout, args, cause)),
+    Effect.ensuring(Effect.sync(() => progress?.finish())),
+  );
   return processResult(output);
 });
-
-export async function runGitEffect<A, E>(
-  operation: Effect.Effect<A, E, NodeServices.NodeServices>,
-  signal?: AbortSignal,
-): Promise<A> {
-  signal?.throwIfAborted();
-  try {
-    return await Effect.runPromise(
-      operation.pipe(Effect.provide(NodeServices.layer)),
-      { signal },
-    );
-  } catch (failure) {
-    signal?.throwIfAborted();
-    throw failure;
-  }
-}
-
-export async function runGitWrite(
-  checkout: string,
-  args: readonly string[],
-  limits: GitLimits,
-  signal: AbortSignal,
-  options: GitWriteOptions = {},
-): Promise<GitProcessResult> {
-  signal.throwIfAborted();
-  const progress = options.onProgress
-    ? progressReader(options.onProgress)
-    : undefined;
-  const output = await Effect.runPromise(
-    runCommand(
-      writeCommand(checkout, args, limits, options, progress),
-      signal,
-    ).pipe(Effect.provide(NodeServices.layer)),
-  );
-  progress?.finish();
-  return processResult(output);
-}
 
 type CommandOutput = Effect.Success<ReturnType<typeof runCommand>>;
 type ProgressReader = ReturnType<typeof progressReader>;

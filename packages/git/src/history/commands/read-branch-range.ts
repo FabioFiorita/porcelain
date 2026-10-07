@@ -1,8 +1,7 @@
 import { Effect } from 'effect';
-import { InvalidGitDiffError } from '../../shared/errors/invalid-git-diff-error.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import {
-  parseRawDiffObjects,
+  parseRawDiffObjectsEffect,
   type RawDiffObjects,
 } from '../../inspection/index.ts';
 import { isBranchRef } from '../../shared/parsers/refs.ts';
@@ -127,15 +126,10 @@ const readFiles = Effect.fn('Git.readFiles')(function* (
     ],
     limits,
   );
-  const entries: RawDiffObjects[] = yield* Effect.try({
-    try: () => parseRawDiffObjects(output),
-    catch: (cause) => ({ cause }),
-  }).pipe(
-    Effect.catch(({ cause }) =>
-      cause instanceof InvalidGitDiffError
-        ? Effect.fail(new UnsupportedHistoryDataError({ cause }))
-        : Effect.die(cause),
-    ),
+  const entries: RawDiffObjects[] = yield* parseRawDiffObjectsEffect(
+    output,
+  ).pipe(
+    Effect.mapError((cause) => new UnsupportedHistoryDataError({ cause })),
   );
   if (entries.length > limits.history.maxCommitFiles)
     return yield* Effect.fail(new ReadLimitExceededError());

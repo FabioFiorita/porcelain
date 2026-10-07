@@ -42,9 +42,3 @@ export interface EffectGitSession {
     ChildProcessSpawner.ChildProcessSpawner
   >;
 }
-
-export interface CheckoutSession {
-  readonly path: string;
-  verify(signal?: AbortSignal): Promise<void>;
-  confirm(signal?: AbortSignal): Promise<void>;
-}

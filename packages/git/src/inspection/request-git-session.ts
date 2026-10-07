@@ -1,9 +1,7 @@
 import type { CheckoutFilterFailure } from './dtos/checkout-session-failure.ts';
 import { Duration, Effect, Exit } from 'effect';
 import { verifyCheckoutEffect } from './commands/verify-checkout.ts';
-import { runGitEffect } from '../shared/commands/run-git.ts';
 import type {
-  CheckoutSession,
   EffectCheckoutSession,
   EffectGitSession,
 } from './interfaces/git-session.ts';
@@ -83,13 +81,3 @@ export const makeGitSession = Effect.fn('Git.makeSession')(
       } satisfies EffectGitSession;
     }),
 );
-
-export function promiseCheckoutSession(
-  checkout: EffectCheckoutSession,
-): CheckoutSession {
-  return {
-    path: checkout.path,
-    verify: (signal) => runGitEffect(checkout.verify(), signal),
-    confirm: (signal) => runGitEffect(checkout.confirm(), signal),
-  };
-}

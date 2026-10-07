@@ -1,12 +1,16 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { fixture } from '../../../spec/fixtures/fixture.ts';
-import { parseRawDiff, parseRawDiffObjects } from './parse-raw-diff.ts';
+import {
+  parseRawDiffEffect,
+  parseRawDiffObjectsEffect,
+} from './parse-raw-diff.ts';
 
 const worktree = fixture('diff/worktree.txt');
 
-describe('parseRawDiff', () => {
+describe('parseRawDiffEffect', () => {
   it('reads every entry and stops where the patch starts', () => {
-    const { entries, end } = parseRawDiff(worktree);
+    const { entries, end } = Effect.runSync(parseRawDiffEffect(worktree));
     expect(entries).toEqual([
       {
         status: 'M',
@@ -43,7 +47,10 @@ describe('parseRawDiff', () => {
   });
 
   it('reads a rename with its old and new path', () => {
-    expect(parseRawDiff(fixture('diff/staged-rename.txt')).entries).toEqual([
+    expect(
+      Effect.runSync(parseRawDiffEffect(fixture('diff/staged-rename.txt')))
+        .entries,
+    ).toEqual([
       {
         status: 'R',
         oldMode: '100644',
@@ -60,7 +67,9 @@ describe('parseRawDiff', () => {
     for (let field = 0; field < 7; field += 1)
       header = output.indexOf(0, header) + 1;
     expect(
-      parseRawDiff(output, header).entries.map((entry) => entry.newPath),
+      Effect.runSync(parseRawDiffEffect(output, header)).entries.map(
+        (entry) => entry.newPath,
+      ),
     ).toEqual(['c.txt']);
   });
 
@@ -68,25 +77,28 @@ describe('parseRawDiff', () => {
     const output = Buffer.from(
       `:000000 100644 ${'0'.repeat(40)} ${'7'.repeat(40)} A\0my file.txt\0`,
     );
-    expect(parseRawDiff(output).entries).toMatchObject([
+    expect(Effect.runSync(parseRawDiffEffect(output)).entries).toMatchObject([
       { status: 'A', oldMode: '000000', newPath: 'my file.txt' },
     ]);
   });
 
   it('reads no entries from output that has none', () => {
-    expect(parseRawDiff(Buffer.alloc(0))).toEqual({ entries: [], end: 0 });
+    expect(Effect.runSync(parseRawDiffEffect(Buffer.alloc(0)))).toEqual({
+      entries: [],
+      end: 0,
+    });
   });
 
   it('rejects an entry cut off before its path ends', () => {
-    expect(() => parseRawDiff(fixture('diff/raw-truncated.txt'))).toThrow(
-      'Invalid Git diff output',
-    );
+    expect(() =>
+      Effect.runSync(parseRawDiffEffect(fixture('diff/raw-truncated.txt'))),
+    ).toThrow('Invalid Git diff output');
   });
 
   it('rejects a rename missing its destination', () => {
-    expect(() => parseRawDiff(fixture('diff/rename-truncated.txt'))).toThrow(
-      'Invalid Git diff output',
-    );
+    expect(() =>
+      Effect.runSync(parseRawDiffEffect(fixture('diff/rename-truncated.txt'))),
+    ).toThrow('Invalid Git diff output');
   });
 
   it.each([
@@ -101,9 +113,9 @@ describe('parseRawDiff', () => {
       meta: ':100644 100644 XYZ 0000000 M',
     },
   ])('rejects an entry header with $name', ({ meta }) => {
-    expect(() => parseRawDiff(Buffer.from(`${meta}\0b.txt\0`))).toThrow(
-      'Invalid Git diff output',
-    );
+    expect(() =>
+      Effect.runSync(parseRawDiffEffect(Buffer.from(`${meta}\0b.txt\0`))),
+    ).toThrow('Invalid Git diff output');
   });
 
   it('rejects a path that is not valid UTF-8', () => {
@@ -111,15 +123,21 @@ describe('parseRawDiff', () => {
       Buffer.from(':100644 100644 b89df23 0000000 M\0'),
       Buffer.from([0xff, 0xfe, 0x00]),
     ]);
-    expect(() => parseRawDiff(output)).toThrow('Invalid Git diff output');
+    expect(() => Effect.runSync(parseRawDiffEffect(output))).toThrow(
+      'Invalid Git diff output',
+    );
   });
 });
 
-describe('parseRawDiffObjects', () => {
+describe('parseRawDiffObjectsEffect', () => {
   const none = '0'.repeat(40);
 
   it('reads each changed file between two trees with both object names', () => {
-    expect(parseRawDiffObjects(fixture('history/range-files.txt'))).toEqual([
+    expect(
+      Effect.runSync(
+        parseRawDiffObjectsEffect(fixture('history/range-files.txt')),
+      ),
+    ).toEqual([
       {
         status: 'M',
         oldMode: '100644',
@@ -160,28 +178,34 @@ describe('parseRawDiffObjects', () => {
   });
 
   it('reads no files when the trees are the same', () => {
-    expect(parseRawDiffObjects(Buffer.alloc(0))).toEqual([]);
+    expect(Effect.runSync(parseRawDiffObjectsEffect(Buffer.alloc(0)))).toEqual(
+      [],
+    );
   });
 
   it('rejects output cut off inside a path', () => {
     expect(() =>
-      parseRawDiffObjects(fixture('history/range-files-truncated.txt')),
+      Effect.runSync(
+        parseRawDiffObjectsEffect(fixture('history/range-files-truncated.txt')),
+      ),
     ).toThrow('Invalid Git diff output');
   });
 
   it('rejects abbreviated object names', () => {
-    expect(() => parseRawDiffObjects(fixture('diff/worktree.txt'))).toThrow(
-      'Invalid Git diff output',
-    );
+    expect(() =>
+      Effect.runSync(parseRawDiffObjectsEffect(fixture('diff/worktree.txt'))),
+    ).toThrow('Invalid Git diff output');
   });
 
   it('rejects output that continues after the last file', () => {
     expect(() =>
-      parseRawDiffObjects(
-        Buffer.concat([
-          fixture('history/range-files.txt'),
-          Buffer.from('diff --git a/a.txt b/a.txt\n'),
-        ]),
+      Effect.runSync(
+        parseRawDiffObjectsEffect(
+          Buffer.concat([
+            fixture('history/range-files.txt'),
+            Buffer.from('diff --git a/a.txt b/a.txt\n'),
+          ]),
+        ),
       ),
     ).toThrow('Invalid Git diff output');
   });

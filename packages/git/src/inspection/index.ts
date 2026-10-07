@@ -1,24 +1,24 @@
-export {
-  makeGitSession,
-  promiseCheckoutSession,
-} from './request-git-session.ts';
+export { makeGitSession } from './request-git-session.ts';
 export { checkIgnored } from './commands/check-ignored.ts';
 export { listIgnoredPaths } from './commands/list-ignored-paths.ts';
 export { listTrackedPaths } from './commands/list-tracked-paths.ts';
 export {
   readDiffs,
-  readCommitDiffs,
-  readRangeDiffs,
+  readCommitDiffsEffect,
+  readRangeDiffsEffect,
 } from './commands/read-diff.ts';
 export { readSelectedDiff } from './commands/read-selected-diff.ts';
-export { parseGitStatus } from './parsers/parse-git-status.ts';
-export { parseRawDiff, parseRawDiffObjects } from './parsers/parse-raw-diff.ts';
+export { parseGitStatusEffect } from './parsers/parse-git-status.ts';
+export {
+  parseRawDiffEffect,
+  parseRawDiffObjectsEffect,
+} from './parsers/parse-raw-diff.ts';
 export type { GitDiffResult } from './dtos/git-diff.ts';
 export type { GitChange, GitOrdinaryChange } from './dtos/git-status.ts';
 export type { RawDiffEntry, RawDiffObjects } from './parsers/parse-raw-diff.ts';
 export type {
-  CheckoutSession,
   EffectGitSession,
+  EffectCheckoutSession,
 } from './interfaces/git-session.ts';
 export { readCheckoutStatus, readBranchDetails } from './inspection-git.ts';
 export { readSubmoduleHeads } from './commands/read-submodule-heads.ts';

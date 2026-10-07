@@ -13,3 +13,8 @@ export { UnsupportedGitFiltersError } from './unsupported-git-filters-error.ts';
 export { UnsupportedPathEncodingError } from './unsupported-path-encoding-error.ts';
 export { isRepositoryUnavailable } from './is-repository-unavailable.ts';
 export type { GitIoFailure } from './git-io-failure.ts';
+export type { GitCommandError } from './git-command-error.ts';
+export type { GitFilesystemError } from './git-filesystem-error.ts';
+export type { UnsupportedFilesystemIdentityError } from './unsupported-filesystem-identity-error.ts';
+export type { UnsupportedRepositoryError } from './unsupported-repository-error.ts';
+export type { GitOutputLimitError } from './git-output-limit-error.ts';
