@@ -47,14 +47,14 @@
       ],
       "cache": false
     },
-    "//#typecheck": {},
-    "//#lint:server": {},
-    "//#lint:web": {},
-    "//#format:server:check": {},
-    "//#format:web:check": {},
-    "//#arch:check": {},
-    "//#test:rules": {},
-    "//#probes:check": {},
-    "//#features:check": {}
+    "//#typecheck": { "inputs": ["$TURBO_DEFAULT$", "!repos/**"] },
+    "//#lint:server": { "inputs": ["$TURBO_DEFAULT$", "!repos/**"] },
+    "//#lint:web": { "inputs": ["$TURBO_DEFAULT$", "!repos/**"] },
+    "//#format:server:check": { "inputs": ["$TURBO_DEFAULT$", "!repos/**"] },
+    "//#format:web:check": { "inputs": ["$TURBO_DEFAULT$", "!repos/**"] },
+    "//#arch:check": { "inputs": ["$TURBO_DEFAULT$", "!repos/**"] },
+    "//#test:rules": { "inputs": ["$TURBO_DEFAULT$", "!repos/**"] },
+    "//#probes:check": { "inputs": ["$TURBO_DEFAULT$", "!repos/**"] },
+    "//#features:check": { "inputs": ["$TURBO_DEFAULT$", "!repos/**"] }
   }
 }

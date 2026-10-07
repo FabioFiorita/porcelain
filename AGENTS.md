@@ -26,6 +26,10 @@ Before calling a change done, check each of these and say which applied:
 - **The way back:** a way in needs a way out and a way to see it.
 - **Connections:** local, local network and remote environments behave differently.
 
+## Effect reference
+
+`repos/effect` vendors the Effect source as read-only reference. Before writing Effect code, read `repos/effect/LLMS.md`; the vendored source, not memory, is the truth for idiomatic Effect v4. Never edit or import from `repos/`; no tool builds, lints or installs it. Refresh it with `git subtree pull --prefix=repos/effect https://github.com/Effect-TS/effect.git main --squash`.
+
 ## Native Effect CLI
 
 Declare application CLI commands, flags, arguments and help in `apps/server/src/cli/command-tree.ts` with `effect/cli`. Commands obtain `CliOperations` through `yield*`; its Layer obtains machine capabilities through `CliHost`. Bootstrap composes the complete Layers and Node platform services. Configuration uses Effect Config and Schema. Change callers directly when removing an entry point; keep no forwarding files or compatibility exports.
@@ -66,3 +70,4 @@ Work on your own branch from `main`, in your own worktree, and open a pull reque
 - `apps/mobile`: Expo, with Expo UI controls and Uniwind.
 - `packages/contracts`, `packages/client` and the domain packages.
 - `.agents/skills`: the verification skills and their feature maps.
+- `repos/`: vendored reference source, read-only.

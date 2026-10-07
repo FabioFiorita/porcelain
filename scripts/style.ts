@@ -124,7 +124,7 @@ function filesUnder(path: string): string[] {
     const child = join(path, entry.name);
     if (entry.isDirectory())
       return skippedDirectories.has(entry.name) ||
-        /^apps\/mobile\/(?:ios|android|\.expo)$/.test(child)
+        /^(?:apps\/mobile\/(?:ios|android|\.expo)|repos)$/.test(child)
         ? []
         : filesUnder(child);
     return entry.isFile() ? [child] : [];
@@ -155,7 +155,12 @@ function repositoryFiles(): string[] {
   if (listed.error) throw listed.error;
   return listed.stdout
     .split('\n')
-    .filter((path) => existsSync(path) && !path.startsWith('.claude/'));
+    .filter(
+      (path) =>
+        existsSync(path) &&
+        !path.startsWith('.claude/') &&
+        !path.startsWith('repos/'),
+    );
 }
 function codeOutsideLintRoots(files: readonly string[]): Problem[] {
   return files
