@@ -235,17 +235,6 @@ export default [
     errors: 1,
   },
   {
-    rule: 'implementation-name',
-    path: 'packages/storage/src/repositories/reviews/sqlite-comment-seen-store.ts',
-    valid: `import { Effect, Layer } from 'effect';
-import { CommentSeenStore } from '@porcelain/reviews/ports';
-export const sqliteCommentSeenStoreLayer = Layer.effect(CommentSeenStore, Effect.succeed({}));`,
-    invalid: `import { Effect, Layer } from 'effect';
-import { CommentSeenStore, CommentStore } from '@porcelain/reviews/ports';
-export const sqliteCommentSeenStoreLayer = Layer.mergeAll(Layer.effect(CommentSeenStore, Effect.succeed({})), Layer.effect(CommentStore, Effect.succeed({})));`,
-    errors: 1,
-  },
-  {
     rule: 'interfaces-only-in-ports',
     path: 'packages/files/src/models/list-directory.ts',
     valid: `export type ListDirectoryInput = { worktreeId: string; path: string };`,

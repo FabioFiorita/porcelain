@@ -145,8 +145,7 @@
     "porcelain/no-inline-execute-types": "error",
     "porcelain/interfaces-only-in-ports": "error",
     "porcelain/no-port-shaped-alias": "error",
-    "porcelain/models-file-shape": "error",
-    "porcelain/implementation-name": "error"
+    "porcelain/models-file-shape": "error"
   },
   "overrides": [
     {

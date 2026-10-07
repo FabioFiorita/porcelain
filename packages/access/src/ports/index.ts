@@ -3,7 +3,7 @@ export { DeviceStore } from './device-store.ts';
 export { EnvironmentIdentityReader } from './environment-identity-reader.ts';
 export { EnvironmentNameStore } from './environment-name-store.ts';
 export { HostNameReader } from './host-name-reader.ts';
-export type { PairingAttemptStore } from './pairing-attempt-store.ts';
+export { PairingAttemptStore } from './pairing-attempt-store.ts';
 export { PairingGrantStore } from './pairing-grant-store.ts';
 export { PairingReachReader } from './pairing-reach-reader.ts';
 export { RuntimeStatusReader } from './runtime-status-reader.ts';

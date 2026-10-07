@@ -1,3 +1,4 @@
+import { FileReader } from '@porcelain/files/ports';
 import { FindProjectService } from '@porcelain/projects/services';
 import { InventoryStore } from '@porcelain/projects/ports';
 import { GenerateCommitDraftUseCaseOptions } from '../ports/generate-commit-draft-use-case-options.ts';
@@ -24,7 +25,6 @@ import {
   GitActionReceiptStore,
   ExpireGitActionReceiptsOptions,
   RecordGitActionProgressOptions,
-  UntrackedFileReader,
   CaptureCommitDraftOptions,
   GenerateCommitDraftOptions,
 } from '@porcelain/git-actions/ports';
@@ -43,7 +43,7 @@ import {
   RecordGitActionProgressService,
   RunGitActionService,
 } from '@porcelain/git-actions/services';
-import { FilesystemUntrackedFileReader } from '../adapters/git-actions/filesystem-untracked-file-reader.ts';
+import { filesystemUntrackedFileReaderLayer } from '../adapters/git-actions/filesystem-untracked-file-reader.ts';
 import { gitGitActionRunnerLayer } from '../adapters/git-actions/git-git-action-runner.ts';
 import { gitSelectedDiffReaderLayer } from '../adapters/git-actions/git-selected-diff-reader.ts';
 import { DismissInterruptedGitActionUseCase } from '../use-cases/git-actions/dismiss-interrupted-git-action.ts';
@@ -105,9 +105,8 @@ export function composeGitActions(
       shared.worktreeAccess,
       context.settings.limits.git,
     ),
-    Layer.succeed(
-      UntrackedFileReader,
-      new FilesystemUntrackedFileReader(shared.fileReader),
+    filesystemUntrackedFileReaderLayer.pipe(
+      Layer.provide(Layer.succeed(FileReader, shared.fileReader)),
     ),
     Layer.succeed(CaptureCommitDraftOptions, limits.commitDraft),
     Layer.succeed(CommitDraftSource, dependencies.commitDraftSource),
