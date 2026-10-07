@@ -23,27 +23,11 @@ The Mac app's application menu: Porcelain (About, Settings… with ⌘,, Service
 
 ## Driving it
 
-Start an instance first: `.agents/skills/desktop-verify/scripts/cli start`.
+Start a disposable instance with `.agents/skills/desktop-verify/scripts/cli start`. For the real menu bar, use Computer Use and open Porcelain Dev › Settings…; the renderer should show Settings, the app version and the reinstall message under This computer. Repeat with ⌘,.
 
-### The menu tree has no developer items
+For a main-process journey, import `startDesktop` as the skill describes. Use the raw `electron.evaluate(({ Menu }) => ...)` to inspect the application menu: View has resetZoom, zoomIn, zoomOut and togglefullscreen, with no reload, forceReload or toggleDevTools. Invoke the `open-settings` menu item's click through the raw handle, then observe Settings through `electron.firstWindow()`. There is no menu RPC or CLI UI command.
 
-```sh
-.agents/skills/desktop-verify/scripts/cli menu
-```
-
-Look for: View holds Actual Size, Zoom In, Zoom Out and Toggle Full Screen; no item anywhere has the role `reload`, `forcereload` or `toggledevtools`.
-
-### Settings opens from the menu
-
-```sh
-.agents/skills/desktop-verify/scripts/cli menu "Porcelain/Settings…"
-.agents/skills/desktop-verify/scripts/cli click --role button --name "This computer"
-.agents/skills/desktop-verify/scripts/cli snapshot
-```
-
-After the snapshot, look for: the Settings page, “Porcelain app 0.1.0” and “This build updates by reinstalling; there is no update feed yet.”
-
-Open Project from the menu is driven in `projects.folder-picker`.
+File › Open Project… and ⌘O are covered by [projects.folder-picker](projects.folder-picker.md).
 
 ## What proves it works
 
@@ -52,4 +36,5 @@ Open Project from the menu is driven in `projects.folder-picker`.
 
 ## Gotchas
 
-- `menu <path>` matches labels with or without their trailing “…”, segment by segment.
+- Use the card's Porcelain Dev identity to select the development app; never select the installed app.
+- Native menu roles and keyboard dispatch remain macOS checks. Linux launch proof covers renderer startup and shutdown.

@@ -27,33 +27,13 @@ The Mac app keeps the remote computers the owner pairs, with their bearer creden
 
 ## Driving it
 
-Start two instances, the app under test and a second computer: `.agents/skills/desktop-verify/scripts/cli start`, twice. Every command then takes `--instance <id>`.
+Start two disposable desktop instances and read their connection files. Run the second card's exact `pairing.command` to issue a one-time link. In the first app, use renderer browser tools or Computer Use to open Settings › Remote computers, enter the link and choose Add.
 
-### A paired computer is kept encrypted in the profile
+Observe the second environment in the list. Inspect the first card's `credentialFiles.remoteEncrypted`: it must have mode 0600 and contain ciphertext. Do not retain the pairing code or decrypted credentials in screenshots or logs.
 
-Issue a pairing link on the second instance's server, with the profile its `start` printed:
+For direct bridge proof, import the shared lifecycle and use `electron.firstWindow()` with the app's public `porcelainDesktop.credentials` bridge. Verify write/read/clear against the disposable profile; never expose that bridge through a helper RPC. Keychain writes require a macOS logged-in session.
 
-```sh
-pnpm --filter @porcelain/server start status --data-directory <second profile>/server
-pnpm --filter @porcelain/server start pair "Desktop verification" --data-directory <second profile>/server --address <its address>
-```
-
-Then, on the first instance:
-
-```sh
-.agents/skills/desktop-verify/scripts/cli click --role button --name "Settings" --instance <first>
-.agents/skills/desktop-verify/scripts/cli click --role button --name "Remote computers" --instance <first>
-.agents/skills/desktop-verify/scripts/cli fill --role textbox --name "Pairing link" "<link>" --instance <first>
-.agents/skills/desktop-verify/scripts/cli click --role button --name "Add" --instance <first>
-.agents/skills/desktop-verify/scripts/cli snapshot --instance <first>
-ls -l <first profile>/credentials.enc
-```
-
-After the snapshot, look for: the second computer's name in the Remote computers list. `ls` shows `credentials.enc` with mode `-rw-------`; its bytes are ciphertext, never the pairing link or a bearer. The evidence records the link as `[redacted]`.
-
-### The paired computer's summary stays sandboxed
-
-Open the second computer's worktree from its sidebar group, then its Review summary, and `screenshot`. Publishing a review there is part of the e2e test; driving it needs a published review on the second computer.
+Open a published review summary from the paired computer's sidebar. Inspect theme and layer navigation, and verify the summary cannot reach Node or the app bridge. The named e2e test supplies the remote review and checks network isolation.
 
 ## What proves it works
 
