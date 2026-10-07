@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from 'vitest';
-import { Layer, Effect, Exit } from 'effect';
+import { Cause, Layer, Effect, Exit } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import {
   createWorktreeConnection,
@@ -414,7 +414,10 @@ it('one generated text deadline spans transport and pending response decoding', 
     expect(admissionsAtSend).toBe(1);
     expect(admissions).toBe(1);
     deadline.abort(new Error('Request deadline elapsed'));
-    expect(Exit.isFailure(await pending)).toBe(true);
+    const exit = await pending;
+    expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(
+      true,
+    );
     expect(sentSignal?.aborted).toBe(true);
     expect(admissions).toBe(1);
   } finally {

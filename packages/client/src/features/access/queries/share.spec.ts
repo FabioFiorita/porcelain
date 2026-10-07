@@ -4,11 +4,16 @@ import { it } from '@effect/vitest';
 import { AsyncResult, AtomRegistry } from 'effect/reactivity';
 import { afterEach, expect } from 'vitest';
 import {
+  ConnectionError,
   createWorktreeConnection,
   type RuntimeConnection,
   type Transport,
 } from '@porcelain/client/transport';
-import { readRemoteAccess, readServiceUpdate } from './share.ts';
+import {
+  readPairedAccess,
+  readRemoteAccess,
+  readServiceUpdate,
+} from './share.ts';
 import { setRemoteAccess, startServiceUpdate } from '@porcelain/client/access';
 
 const scopes = new Set<{
@@ -85,6 +90,21 @@ it('treats a remotely managed sharing configuration as unavailable here, while p
       ),
     ),
   ).rejects.toMatchObject({ status: 503 });
+});
+
+it('reports an unreachable server as a connection failure for paired access', async () => {
+  const paths: string[] = [];
+  const failure = new TypeError('Network request failed');
+  const { connection, registry } = fixture((path) => {
+    paths.push(path);
+    return Promise.reject(failure);
+  });
+  const error = await Effect.runPromise(
+    Effect.flip(AtomRegistry.getResult(registry, readPairedAccess(connection))),
+  );
+  expect(error).toBeInstanceOf(ConnectionError);
+  expect(error).toMatchObject({ cause: failure });
+  expect(paths).toEqual(['/api/access']);
 });
 
 it.effect('does not poll a settled sharing configuration', () =>
