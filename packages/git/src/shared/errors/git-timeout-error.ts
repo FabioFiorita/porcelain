@@ -1,9 +1,10 @@
-import { GitError } from './git-error.ts';
+import { Schema } from 'effect';
 
-export class GitTimeoutError extends GitError {
-  override readonly name = 'GitTimeoutError';
-
-  constructor(options?: ErrorOptions) {
-    super('Git command exceeded its deadline', options);
+export class GitTimeoutError extends Schema.TaggedError<GitTimeoutError>()(
+  'GitTimeoutError',
+  {},
+) {
+  override get message() {
+    return 'Git command exceeded its deadline';
   }
 }
