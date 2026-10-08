@@ -15,3 +15,5 @@ dist/
 .tanstack/
 test-results/
 .mobile-device-host.json
+
+.playwright-mcp/
