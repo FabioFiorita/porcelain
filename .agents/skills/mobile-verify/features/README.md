@@ -14,7 +14,7 @@ One file per screen and flow the mobile app offers, named `<domain>.<capability>
 | [app.tablet-shell](app.tablet-shell.md) | / | On iPad, a SwiftUI three-column split that keeps its master and detail through sidebar collapse and rotation. |
 | [files.files](files.files.md) | /files | Files shows its empty state; it reads no files yet. |
 | [history.history](history.history.md) | /history | History shows its empty state; it reads no commits yet. |
-| [projects.workspace-picker](projects.workspace-picker.md) | /files | The toolbar picker chooses an environment, project and worktree without leaving the destination and restores each environment's choice. |
+| [projects.workspace-picker](projects.workspace-picker.md) | /files | The toolbar lists projects from every paired environment together; expanding a project shows its worktrees, and choosing one restores after a cold launch. |
 | [reviews.review](reviews.review.md) | /review | Review, the second destination after Files, shows its empty state; it reads no review yet. |
 
 ## Platform coverage

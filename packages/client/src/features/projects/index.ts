@@ -1,4 +1,4 @@
-export { readInventory } from './queries/inventory.ts';
+export { readInventory, readInventories } from './queries/inventory.ts';
 export { InventorySeed } from './store/inventory.ts';
 export { ProjectSelectionStore } from './store.ts';
 export {

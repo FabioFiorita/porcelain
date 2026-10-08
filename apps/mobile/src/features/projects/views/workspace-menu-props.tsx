@@ -3,16 +3,24 @@ import type { Project } from '@porcelain/client/projects/rules';
 export type WorkspaceMenuProps = {
   presentation: 'phone' | 'tablet';
   label: string;
-  environments: { environmentId: string; name: string }[];
   environmentId: string | undefined;
-  projects: readonly Project[];
+  projects: readonly {
+    environmentId: string;
+    environmentName: string;
+    project: Project;
+    unavailable: boolean;
+  }[];
   projectId: string | undefined;
   worktreeId: string | undefined;
   disabled: boolean;
-  projectMessage: string | undefined;
+  messages: readonly string[];
+  canReadInventory: boolean;
   error: string | undefined;
   onRead: () => void;
   onReadInventory: () => void;
-  onEnvironment: (environmentId: string) => void;
-  onWorktree: (projectId: string, worktreeId: string) => void;
+  onWorktree: (
+    environmentId: string,
+    projectId: string,
+    worktreeId: string,
+  ) => void;
 };

@@ -221,7 +221,7 @@ it('shares the application queue with native atoms and refuses a selection queue
     const exit = await choosing;
     expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toMatchObject({
       message:
-        'That environment is no longer paired. Open the environment picker again.',
+        'That environment is no longer paired. Open the workspace picker again.',
     });
     expect(f.saved()).toEqual({
       environments: [remote('second')],
@@ -326,6 +326,30 @@ it('refuses a stale worktree after switching to another environment', async () =
   expect(f.writes).toEqual([]);
 });
 
+it('selects a workspace from another paired environment in one saved update', async () => {
+  const f = fixture();
+  await f.runtime.runPromise(f.environments.read());
+  await f.runtime.runPromise(f.commands.execute({ kind: 'read' }));
+  f.writes.length = 0;
+  const exit = await f.runtime.runPromiseExit(
+    f.commands.execute({
+      kind: 'workspace',
+      environmentId: 'second',
+      projectId: 'shared-project',
+      worktreeId: 'second-tree',
+    }),
+  );
+  expect(Exit.isSuccess(exit)).toBe(true);
+  expect(f.saved().selection).toEqual({
+    currentEnvironmentId: 'second',
+    selections: {
+      first: { projectId: 'one', worktreeId: 'one-tree' },
+      second: { projectId: 'shared-project', worktreeId: 'second-tree' },
+    },
+  });
+  expect(f.writes).toEqual(['selection']);
+});
+
 it('retains pairing and workspace selections when an unsaved draft cannot be written', async () => {
   const f = fixture();
   await f.runtime.runPromise(f.environments.read());
@@ -395,7 +419,7 @@ it('keeps failed workspace cleanup visible and repairs it by rereading before an
   );
   expect(Exit.isFailure(stale) && Cause.squash(stale.cause)).toMatchObject({
     message:
-      'That environment is no longer paired. Open the environment picker again.',
+      'That environment is no longer paired. Open the workspace picker again.',
   });
   storageAvailable = true;
   await f.runtime.runPromise(f.commands.execute({ kind: 'read' }));

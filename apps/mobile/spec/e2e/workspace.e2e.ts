@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures.ts';
 
-test('the toolbar workspace picker selects an environment, project and worktree without leaving Files and restores each environment worktree after a cold launch', async ({
+test('the toolbar lists projects from both environments before selection and restores the chosen workspace after a cold launch', async ({
   app,
   device,
   environments,
@@ -20,7 +20,7 @@ test('the toolbar workspace picker selects an environment, project and worktree 
       SECOND_WORKTREE_LABEL: 'mobile-second',
     }),
   ).toEqual({
-    name: 'Select and restore environment project and worktree without leaving Files',
+    name: 'Select projects across environments and restore the workspace without leaving Files',
     status: 'passed',
   });
 
