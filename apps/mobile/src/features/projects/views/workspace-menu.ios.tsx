@@ -3,6 +3,7 @@ import { Button, Host, Label, Menu, Text, Toggle } from '@expo/ui/swift-ui';
 import {
   accessibilityLabel,
   disabled,
+  foregroundStyle,
   labelStyle,
 } from '@expo/ui/swift-ui/modifiers';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
@@ -37,7 +38,10 @@ function ProjectMenu(props: WorkspaceMenuProps) {
         )
       }
       systemImage={workspaceIcon}
-      modifiers={[accessibilityLabel(props.label)]}
+      modifiers={[
+        accessibilityLabel(props.label),
+        foregroundStyle({ type: 'hierarchical', style: 'primary' }),
+      ]}
     >
       {props.choices.map(
         ({ key, environmentId, environmentName, project, unavailable }) => (
