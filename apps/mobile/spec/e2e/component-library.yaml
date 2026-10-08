@@ -10,6 +10,8 @@ name: Inspect primitives through the development catalog
 - tapOn: Default
 - assertVisible: 'Actions: 1'
 - tapOn: Back
+- assertVisible: Open a primitive to inspect its variants.
+- waitForAnimationToEnd
 - swipe:
     start: 50%, 70%
     end: 50%, 30%
@@ -24,7 +26,7 @@ name: Inspect primitives through the development catalog
 - tapOn: Open README.md
 - assertVisible: 'Selected: readme'
 - tapOn: Back
-- assertVisible: Open a primitive to inspect its variants.
+- assertVisible: Explore FileTree
 - tapOn: Back
 - assertVisible: No environments paired.
 - assertVisible: Component library
