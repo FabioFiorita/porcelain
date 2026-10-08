@@ -355,7 +355,7 @@ export function probeLoose(left: string, right: string): boolean {
 
   {
     rule: 'root-scripts-import-no-package',
-    path: 'scripts/api-calls.ts',
+    path: 'scripts/feature-api-routes.ts',
     valid: "import * as files from '@porcelain/contracts/files';",
     invalid: "import { filesApi } from '@porcelain/client/files/api';",
     errors: 1,
@@ -2697,111 +2697,301 @@ const duplicateFixtureSource = `export function matchPaths(paths: readonly strin
   return { needle, shown, more: ranked.length > shown.length };
 }`;
 
-const clientRouteFiles = {
-  'packages/client/package.json': JSON.stringify({
-    exports: {
-      './files': './src/features/files/index.ts',
-      './reviews': './src/features/reviews/index.ts',
-      './access': './src/features/access/index.ts',
-    },
-  }),
-  'packages/client/src/features/files/index.ts': `
-export { textQuery as textQueryOptions } from './queries/text.ts';
-export { unusedQuery as unusedQueryOptions } from './queries/unused.ts';
-export { filesApi } from './api.ts';`,
-  'packages/client/src/features/reviews/index.ts': `export { reviewsApi } from './api.ts';`,
-  'packages/client/src/shared/api/per-connection.ts': `
-export const perConnection = (create) => (connection) => create(connection.transport);`,
-  'packages/client/src/features/files/queries/text.ts': `
-import { filesApi } from '../api.ts';
-export const textQuery = () => ({ queryFn: () => filesApi(connection).readTextFile({ params, query }) });`,
-  'packages/client/src/features/files/queries/unused.ts': `
-import { reviewsApi } from '../../reviews/api.ts';
-export const unusedQuery = () => ({ queryFn: () => reviewsApi(connection).publishReview({ params, payload }) });`,
-  'packages/client/src/features/files/api.ts': `
-import { FilesApi } from '@porcelain/contracts/files';
-import { Effect } from 'effect';
-import { HttpApiClient } from 'effect/http-api';
-import { perConnection } from '../../shared/api/per-connection.ts';
-function createFilesApi(transport) {
-  return Effect.runSync(HttpApiClient.makeWith(FilesApi, { httpClient })).files;
+const featureFolders = Object.fromEntries(
+  ['web', 'desktop', 'mobile'].map((surface) => [
+    surface,
+    `.agents/skills/${surface}-verify/features`,
+  ]),
+);
+function featureMap(page, changes = '') {
+  return `---
+${page}
+selectors: [Review]
+tests: [spec/feature.test.ts]
+api: [GET /api/session]
+${changes}
+---
+Free-form instructions with no required headings.
+`;
 }
-export const filesApi = perConnection(createFilesApi);`,
-  'packages/client/src/features/reviews/api.ts': `
-import { ReviewsApi } from '@porcelain/contracts/reviews';
-import { Effect } from 'effect';
-import { HttpApiClient } from 'effect/http-api';
-import { perConnection } from '../../shared/api/per-connection.ts';
-function createReviewsApi(transport) {
-  return Effect.runSync(HttpApiClient.makeWith(ReviewsApi, { httpClient })).reviews;
-}
-export const reviewsApi = perConnection(createReviewsApi);`,
+const featureMapFiles = {
+  'apps/web/src/routes/__root.tsx': 'export default Layout;',
+  'apps/web/src/routes/-ignored.tsx': 'export default Ignored;',
+  'apps/web/src/routes/index.tsx': '<Button>Review</Button>',
+  'apps/mobile/src/app/(tabs)/_layout.tsx': 'export default Layout;',
+  'apps/mobile/src/app/(tabs)/index.tsx': '<Button>Review</Button>',
+  'apps/desktop/src/window.ts': 'export const title = "Review";',
+  'spec/feature.test.ts': 'export {};',
+  [`${featureFolders.web}/app.fixture.md`]: featureMap('route: /'),
+  [`${featureFolders.desktop}/app.fixture.md`]: featureMap('shell: desktop'),
+  [`${featureFolders.mobile}/app.fixture.md`]: featureMap('screen: /'),
+  ...Object.fromEntries(
+    Object.values(featureFolders).map((folder) => [
+      `${folder}/README.md`,
+      '[Fixture](app.fixture.md)',
+    ]),
+  ),
 };
-
-const clientRequestRouteFiles = {
-  ...clientRouteFiles,
-  'packages/client/src/features/files/api.ts': `import { FilesApi } from '@porcelain/contracts/files'; import { Context, Effect, Layer } from 'effect'; import { HttpApiClient } from 'effect/http-api'; import { Atom } from 'effect/reactivity'; export const filesApi = Atom.family((connection) => { class Client extends Context.Service()('FilesApiClient') { static runtime = connection.atoms(Layer.effect(Client, Effect.map(HttpApiClient.make(FilesApi), (api) => ({ request: (use) => withLifetime(use(api), connection.request) })))); } return Client; });`,
-  'packages/client/src/features/reviews/api.ts': `import { ReviewsApi } from '@porcelain/contracts/reviews'; import { Context, Effect, Layer } from 'effect'; import { HttpApiClient } from 'effect/http-api'; import { Atom } from 'effect/reactivity'; export const reviewsApi = Atom.family((connection) => { class Client extends Context.Service()('ReviewsApiClient') { static runtime = connection.atoms(Layer.effect(Client, Effect.map(HttpApiClient.make(ReviewsApi), (api) => ({ request: (use) => withLifetime(use(api), connection.request) })))); } return Client; });`,
-  'packages/client/src/features/files/queries/text.ts': `import { Effect } from 'effect'; import { filesApi } from '../api.ts'; const shadow = (reviewsApi: () => void) => reviewsApi(); export const textQuery = () => Effect.gen(function* () { shadow(() => undefined); const client = yield* filesApi(connection); return yield* client.request((api) => api.files.readTextFile({ params, query })); });`,
-  'packages/client/src/features/files/queries/unused.ts': `import { Effect } from 'effect'; import { reviewsApi } from '../../reviews/api.ts'; export const unusedQuery = () => Effect.gen(function* () { const client = yield* reviewsApi(connection); return yield* client.request((api) => api.reviews.publishReview({ params, payload })); });`,
-};
-
-const clientInjectedRouteFiles = {
-  ...clientRequestRouteFiles,
-  'packages/client/src/features/files/queries/text.ts': `import { Effect, Layer } from 'effect'; import { Atom } from 'effect/reactivity'; import { filesApi } from '../api.ts'; export const textQuery = () => { const runtime = Atom.runtime((get) => Layer.merge(base, get(filesApi(connection).runtime.layer))); return runtime.atom(Effect.gen(function* () { const api = yield* filesApi(connection); return yield* api.files.readTextFile({ params, query }); })); };`,
-};
-
-const clientMethodReads = [
-  `return filesApi(connection).readTextFile({ params, query });`,
-  `const api = filesApi(connection); const alias = api; return alias.readTextFile({ params, query });`,
-  `const read = filesApi(connection).readTextFile; const alias = read; return alias({ params, query });`,
-  `const { readTextFile: read } = filesApi(connection); return read({ params, query });`,
-  `const factory = filesApi; return factory(connection)["readTextFile"]({ params, query });`,
-];
-
-const clientNestedMethodFiles = {
-  ...clientRouteFiles,
-  'packages/client/src/features/access/index.ts': `export { accessApi } from './api.ts';`,
-  'packages/client/src/features/access/api.ts': `
-import { AccessApi } from '@porcelain/contracts/access';
-import { Effect } from 'effect';
-import { HttpApiClient } from 'effect/http-api';
-import { perConnection } from '../../shared/api/per-connection.ts';
-function createAccessApi(transport) {
-  return Effect.runSync(HttpApiClient.makeWith(AccessApi, { httpClient }));
-}
-export const accessApi = perConnection(createAccessApi);`,
-  'packages/client/src/features/files/queries/unused.ts': `
-import { accessApi } from '../../access/api.ts';
-export const unusedQuery = () => ({ queryFn: () => accessApi(connection).session.issueLiveTicket() });`,
-};
-
-const clientNestedMethodReads = [
-  `return accessApi(connection).session.readSession();`,
-  `const { session: group } = accessApi(connection); const { readSession: read } = group; return read();`,
-  `const group = accessApi(connection).session; const alias = group; return alias.readSession();`,
-  `const { session: { readSession: read } } = accessApi(connection); return read();`,
-];
-
-function clientRoutesCase(files = clientRouteFiles, overrides = {}) {
+function featureMapCase(rule, invalid, errors, options = {}) {
   return {
-    rule: 'client-route-reachability',
-    app: 'apps/web/src/app.ts',
-    files,
-    mapped: ['GET /api/worktrees/:worktreeId/text'],
-    valid: `
-import { textQueryOptions as options } from '@porcelain/client/files';
-export const read = () => options();`,
-    invalid: `
-import { textQueryOptions as options, unusedQueryOptions as unused } from '@porcelain/client/files';
-export const read = () => options();
-export const write = () => unused();`,
-    errors: ['PUT /api/worktrees/:worktreeId/review'],
-    ...overrides,
+    rule: `feature-map-${rule}`,
+    files: featureMapFiles,
+    valid: {},
+    invalid,
+    errors,
+    ...options,
   };
 }
+const featureMapCases = [
+  ...[
+    ['missing', 'Instructions without frontmatter.'],
+    ['yaml', '---\nroute: [\n---\nInstructions.'],
+    ['field', featureMap('route: /', 'extra: value')],
+    [
+      'shell',
+      featureMap('route: /').replace('route: /', 'route: /\nshell: web'),
+    ],
+    ['route', featureMap('route: home')],
+    ['screen', featureMap('screen: home')],
+    [
+      'selectors',
+      featureMap('route: /').replace('selectors: [Review]', 'selectors: []'),
+    ],
+    [
+      'tests',
+      featureMap('route: /').replace(
+        'tests: [spec/feature.test.ts]',
+        'tests: []',
+      ),
+    ],
+    [
+      'api',
+      featureMap('route: /').replace('GET /api/session', 'get /api/session'),
+    ],
+  ].map(([name, content]) =>
+    featureMapCase(
+      `frontmatter-${name}`,
+      {
+        [`${featureFolders.web}/app.fixture.md`]: content,
+      },
+      [
+        'its frontmatter holds',
+        'the web feature map is empty',
+        'which no web map file names',
+      ],
+    ),
+  ),
+  featureMapCase(
+    'file-name',
+    {
+      [`${featureFolders.web}/misc.md`]: featureMap('route: /'),
+    },
+    ['misc.md: a map file is <domain>.<capability>.md'],
+  ),
+  featureMapCase(
+    'file-domain',
+    {
+      [`${featureFolders.desktop}/reviews.fixture.md`]:
+        featureMap('shell: desktop'),
+    },
+    ['reviews.fixture.md: a map file is <domain>.<capability>.md'],
+  ),
+  featureMapCase('folder', {}, ['the desktop feature map folder is missing'], {
+    remove: [featureFolders.desktop],
+  }),
+  featureMapCase('empty', {}, ['the desktop feature map is empty'], {
+    remove: [`${featureFolders.desktop}/app.fixture.md`],
+  }),
+  ...['web', 'mobile'].flatMap((surface) => {
+    const page = surface === 'web' ? 'route' : 'screen';
+    const wrong = surface === 'web' ? 'screen' : 'route';
+    const path = `${featureFolders[surface]}/app.fixture.md`;
+    return [
+      featureMapCase(
+        `${page}-exists`,
+        {
+          [path]: featureMap(`${page}: /missing`),
+        },
+        [
+          `${page} /missing is no page under the routes folder`,
+          `which no ${surface} map file names`,
+        ],
+      ),
+      featureMapCase(
+        `${page}-required`,
+        {
+          [path]: featureMap(''),
+        },
+        [
+          `${page} names the page this feature lives on`,
+          `which no ${surface} map file names`,
+        ],
+      ),
+      featureMapCase(
+        `${page}-field`,
+        {
+          [path]: featureMap(`${wrong}: /`),
+        },
+        [
+          `a ${surface} map file names its page as ${page}`,
+          `which no ${surface} map file names`,
+        ],
+      ),
+      featureMapCase(
+        `${page}-coverage`,
+        {
+          [surface === 'web'
+            ? 'apps/web/src/routes/new.tsx'
+            : 'apps/mobile/src/app/new.ios.tsx']: 'export default NewPage;',
+        },
+        [`page at /new, which no ${surface} map file names as its ${page}`],
+      ),
+    ];
+  }),
+  ...[
+    ['web', 'route: /', 'routes-folder'],
+    ['mobile', 'screen: /', 'screen-folder'],
+    ['desktop', 'shell: desktop', 'desktop-folder'],
+  ].map(([surface, page, name]) =>
+    featureMapCase(
+      `selector-${name}`,
+      {
+        [`${featureFolders[surface]}/app.fixture.md`]: featureMap(page).replace(
+          'selectors: [Review]',
+          'selectors: [Missing]',
+        ),
+      },
+      ['selector "Missing" appears nowhere'],
+    ),
+  ),
+  featureMapCase(
+    'selector-shared',
+    {
+      'packages/client/src/label.ts': 'export const label = "SharedSuffix";',
+    },
+    ['selector "Shared" appears nowhere'],
+    {
+      files: {
+        ...featureMapFiles,
+        'packages/client/src/label.ts': 'export const label = "Shared";',
+        [`${featureFolders.web}/app.fixture.md`]: featureMap(
+          'route: /',
+        ).replace('selectors: [Review]', 'selectors: [Shared]'),
+      },
+    },
+  ),
+  featureMapCase(
+    'test-exists',
+    {
+      [`${featureFolders.web}/app.fixture.md`]: featureMap('route: /').replace(
+        'spec/feature.test.ts',
+        'spec/missing.test.ts',
+      ),
+    },
+    ['test spec/missing.test.ts does not exist'],
+  ),
+  ...[
+    'GET /api/missing',
+    'POST /api/session',
+    'GET /api/worktrees/:id/text',
+  ].map((api) =>
+    featureMapCase(
+      'api-endpoint',
+      {
+        [`${featureFolders.web}/app.fixture.md`]: featureMap(
+          'route: /',
+        ).replace('GET /api/session', api),
+      },
+      [`api ${api} is no endpoint declared in packages/contracts`],
+      {
+        valid: {
+          [`${featureFolders.web}/app.fixture.md`]: featureMap(
+            'route: /',
+          ).replace(
+            'api: [GET /api/session]',
+            'api: [GET /api/health, GET /api/session, GET /api/worktrees/:worktreeId/changes, GET /api/worktrees/:worktreeId/text, GET /api/worktrees/:worktreeId/git/status, PATCH /api/projects/:projectId, PUT /api/worktrees/:worktreeId/review]',
+          ),
+          'apps/web/src/client.ts':
+            'const endpoint = client[dynamicName]; export { endpoint };',
+        },
+      },
+    ),
+  ),
+  ...['web', 'desktop', 'mobile'].map((surface) =>
+    featureMapCase(
+      'index-links',
+      {
+        [`${featureFolders[surface]}/README.md`]: 'No links.',
+      },
+      ['the index links every map file, and app.fixture.md is missing from it'],
+    ),
+  ),
+  featureMapCase('index-exists', {}, ['the index links every map file'], {
+    remove: [`${featureFolders.desktop}/README.md`],
+  }),
+  featureMapCase(
+    'desktop-e2e-coverage',
+    {
+      'apps/desktop/spec/e2e/window.e2e.ts': 'export {};',
+    },
+    [
+      'window.e2e.ts: it tests a native desktop feature that no desktop map file names',
+    ],
+    {
+      valid: {
+        'apps/desktop/spec/e2e/window.e2e.ts': 'export {};',
+        [`${featureFolders.desktop}/app.fixture.md`]: featureMap(
+          'shell: desktop',
+        ).replace(
+          'spec/feature.test.ts',
+          'apps/desktop/spec/e2e/window.e2e.ts',
+        ),
+      },
+    },
+  ),
+  featureMapCase(
+    'route-layout',
+    {
+      'apps/web/src/routes/_connected.projects.$projectId.files.lazy.tsx':
+        'export default Files;',
+    },
+    ['page at /projects/$projectId/files, which no web map file names'],
+    {
+      valid: {
+        'apps/web/src/routes/_connected.tsx': 'export default Layout;',
+        'apps/web/src/routes/_connected.projects.$projectId.files.lazy.tsx':
+          'export default Files;',
+        [`${featureFolders.web}/files.fixture.md`]: featureMap(
+          'route: /projects/$projectId/files',
+        ),
+        [`${featureFolders.web}/README.md`]:
+          '[Home](app.fixture.md) [Files](files.fixture.md)',
+      },
+    },
+  ),
+  featureMapCase(
+    'screen-group',
+    {
+      'apps/mobile/src/app/(tabs)/worktrees/[worktreeId]/index.android.tsx':
+        'export default Files;',
+    },
+    ['page at /worktrees/[worktreeId], which no mobile map file names'],
+    {
+      valid: {
+        'apps/mobile/src/app/(tabs)/worktrees/[worktreeId]/index.android.tsx':
+          'export default Files;',
+        [`${featureFolders.mobile}/files.fixture.md`]: featureMap(
+          'screen: /worktrees/[worktreeId]',
+        ),
+        [`${featureFolders.mobile}/README.md`]:
+          '[Home](app.fixture.md) [Files](files.fixture.md)',
+      },
+    },
+  ),
+];
 
 export const guardrailCases = [
+  ...featureMapCases,
   {
     rule: 'worktree-use-case-checks',
     files: {
@@ -2824,23 +3014,6 @@ export const guardrailCases = [
     invalid: 'export const equal = (value: unknown) => value == null;',
     errors: ['eslint(eqeqeq)'],
   },
-  ...[
-    "import { liveUrl as address } from '../api.ts'; export const unusedQuery = () => ({ queryFn: () => address({ query: {} }) });",
-    "import * as urls from '../api.ts'; export const unusedQuery = () => ({ queryFn: () => urls.liveUrl({ query: {} }) });",
-  ].map((query) =>
-    clientRoutesCase(
-      {
-        ...clientRouteFiles,
-        'packages/client/src/features/files/api.ts':
-          clientRouteFiles['packages/client/src/features/files/api.ts'] +
-          `
-import { LiveUpdatesApi } from '@porcelain/contracts/access';
-export const liveUrl = HttpApiClient.urlBuilder(LiveUpdatesApi).live.liveUpdates;`,
-        'packages/client/src/features/files/queries/unused.ts': query,
-      },
-      { errors: ['GET /api/live'] },
-    ),
-  ),
   {
     rule: 'native-effect-diagnostics',
     valid: `import { Effect, Schema } from 'effect';
@@ -2923,169 +3096,6 @@ Effect.runPromise(withReadLease('tree', write));
 Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => undefined }));`,
     errors: ['TS2379', 'TS377004', 'TS2379', 'TS377004', 'TS2739'],
   },
-  ...['web', 'desktop', 'mobile'].flatMap((app) =>
-    [clientRequestRouteFiles, clientInjectedRouteFiles].map((files) =>
-      clientRoutesCase(files, {
-        app: `apps/${app}/src/app.ts`,
-        valid: `import { textQueryOptions as options, type unusedQueryOptions } from '@porcelain/client/files'; import '@porcelain/client/files'; export const read = () => options();`,
-      }),
-    ),
-  ),
-  clientRoutesCase(clientRouteFiles, {
-    invalid: `
-import * as files from '@porcelain/client/files';
-export const read = () => files.textQueryOptions();
-export const write = () => files.unusedQueryOptions();`,
-  }),
-  clientRoutesCase(
-    {
-      ...clientRouteFiles,
-      'packages/client/src/features/files/commands/startup.ts': `
-import { reviewsApi } from '../../reviews/api.ts';
-reviewsApi(connection).publishReview({ params, payload });`,
-    },
-    {
-      invalid: `
-import { textQueryOptions } from '@porcelain/client/files';
-import '../../../packages/client/src/features/files/commands/startup.ts';
-export const read = () => textQueryOptions();`,
-    },
-  ),
-  ...['web', 'desktop', 'mobile'].flatMap((app) =>
-    clientMethodReads.map((read) =>
-      clientRoutesCase(
-        {
-          ...clientRouteFiles,
-          'packages/client/src/features/files/queries/text.ts': `
-import { filesApi } from '../api.ts';
-export const textQuery = () => ({
-  queryFn: () => {
-    ${read}
-  },
-});`,
-        },
-        { app: `apps/${app}/src/app.ts` },
-      ),
-    ),
-  ),
-  ...clientMethodReads.map((read) =>
-    clientRoutesCase(clientRouteFiles, {
-      app: 'apps/mobile/src/app.ts',
-      valid: `
-import { filesApi } from '@porcelain/client/files';
-export const read = () => {
-  ${read}
-};`,
-      invalid: `
-import { filesApi } from '@porcelain/client/files';
-import { reviewsApi } from '@porcelain/client/reviews';
-export const read = () => {
-  ${read}
-};
-export const write = () => {
-  const api = reviewsApi(connection);
-  const alias = api;
-  const { publishReview: write } = alias;
-  return write({ params, payload });
-};`,
-    }),
-  ),
-  ...[
-    `return filesApi(connection)[method]();`,
-    `return consume(filesApi(connection));`,
-    `const { readTextFile, ...rest } = filesApi(connection); return rest;`,
-    `let api = filesApi(connection); api = other; return api.readTextFile({ params, query });`,
-    `return filesApi(connection).unknown();`,
-    `return filesApi(connection).request((api) => api[method]({ params, query }));`,
-    `return filesApi(connection).request((api) => consume(api));`,
-    `return filesApi(connection).request(consume);`,
-  ].map((use) =>
-    clientRoutesCase(
-      {
-        ...clientRouteFiles,
-        'packages/client/src/features/files/queries/unused.ts': `
-import { filesApi } from '../api.ts';
-export const unusedQuery = () => ({ queryFn: () => { ${use} } });`,
-      },
-      {
-        errors: [
-          'select a literal generated endpoint, because an escaped or dynamic client binding cannot prove feature route coverage.',
-          ...(use.includes('let api')
-            ? [
-                'keep the generated client binding traceable so its feature map can name the route.',
-              ]
-            : []),
-        ],
-      },
-    ),
-  ),
-  ...[
-    `if (dirty) yield* reviewsApi(connection).publishReview({ params, payload });`,
-    `const read = filesApi(connection).readTextFile; const write = reviewsApi(connection).publishReview; yield* read({ params, query }); if (dirty) yield* write({ params, payload });`,
-    `const plan = { ...other, dirty }; if (plan.dirty) yield* reviewsApi(connection).publishReview({ params, payload });`,
-  ].map((decision) =>
-    clientRoutesCase({
-      ...clientRouteFiles,
-      'packages/client/src/features/files/queries/unused.ts': `
-import { Effect } from 'effect';
-import { filesApi } from '../api.ts';
-import { reviewsApi } from '../../reviews/api.ts';
-export const unusedQuery = () => ({ queryFn: () => Effect.gen(function* () {
-  yield* filesApi(connection).readTextFile({ params, query });
-  ${decision}
-}) });`,
-    }),
-  ),
-  ...['web', 'desktop', 'mobile'].flatMap((app) =>
-    clientNestedMethodReads.map((read) =>
-      clientRoutesCase(
-        {
-          ...clientNestedMethodFiles,
-          'packages/client/src/features/files/queries/text.ts': `
-import { accessApi } from '../../access/api.ts';
-export const textQuery = () => ({
-  queryFn: () => {
-    ${read}
-  },
-});`,
-        },
-        {
-          app: `apps/${app}/src/app.ts`,
-          mapped: ['GET /api/session'],
-          errors: ['POST /api/live/tickets'],
-        },
-      ),
-    ),
-  ),
-  ...[
-    `return accessApi(connection).session[method]();`,
-    `return accessApi(connection).session.unknown();`,
-    `const { session: group } = accessApi(connection); return consume(group);`,
-    `let group = accessApi(connection).session; group = other; return group.readSession();`,
-  ].map((use) =>
-    clientRoutesCase(
-      {
-        ...clientNestedMethodFiles,
-        'packages/client/src/features/files/queries/text.ts': `
-import { accessApi } from '../../access/api.ts';
-export const textQuery = () => ({ queryFn: () => accessApi(connection).session.readSession() });`,
-        'packages/client/src/features/files/queries/unused.ts': `
-import { accessApi } from '../../access/api.ts';
-export const unusedQuery = () => ({ queryFn: () => { ${use} } });`,
-      },
-      {
-        mapped: ['GET /api/session'],
-        errors: [
-          'select a literal generated endpoint, because an escaped or dynamic client binding cannot prove feature route coverage.',
-          ...(use.includes('let group')
-            ? [
-                'keep the generated client binding traceable so its feature map can name the route.',
-              ]
-            : []),
-        ],
-      },
-    ),
-  ),
   {
     rule: 'lane-per-table',
     valid: {

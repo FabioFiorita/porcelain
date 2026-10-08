@@ -2,7 +2,7 @@
 
 `C=.agents/skills/web-verify/scripts/cli`, from the repository root; every map uses `$C` for commands.
 
-One file per feature the web offers, named `<domain>.<capability>.md`. Each says what the feature is, how a user reaches it, the exact CLI lines that drive it with the end state to look for, the tests that guard it and its gotchas. `pnpm check` runs `node scripts/feature-maps.ts`, which fails when a page route has no map, a map names a route, test, selector or API route that does not exist, or the web calls a route no map lists.
+One file per feature the web offers, named `<domain>.<capability>.md`. Each says what the feature is, how a user reaches it, the exact CLI lines that drive it with the end state to look for, the tests that guard it and its gotchas. `pnpm check` runs `node scripts/feature-maps.ts`, which checks frontmatter and file names, that every page route has a map, that declared routes and tests exist, that selectors appear in app or shared client source, that API entries match endpoints declared in packages/contracts, and that this index links every map. It does not scan client call reachability or enforce prose or section order.
 
 What every map assumes about the CLI, proven in the live pass:
 
