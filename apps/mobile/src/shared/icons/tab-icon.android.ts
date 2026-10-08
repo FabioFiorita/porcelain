@@ -2,7 +2,7 @@ import { type MaterialIcon } from 'expo-router/native-tabs';
 import { type IconName } from './icon';
 
 const symbols = {
-  review: 'fork_right',
+  review: 'exposure',
   files: 'folder',
   history: 'history',
   settings: 'settings',
