@@ -11,7 +11,7 @@ From the repository root, `C=.agents/skills/mobile-verify/scripts/cli`.
 2. Read the short card and private `connection.json`. Use **the entire pinned agent-device invocation** on every call: config, session, platform and owned UDID. Drive with that CLI, never agent-device MCP or interaction commands on `$C`. See [driving](references/driving.md).
 3. Read [the feature map](features/README.md), drive its entry points and way back, and check each end state with fresh interactive snapshots, screenshots and independent server/storage reads. Save evidence in the card's folder. Pairing links and host tokens stay private.
 4. Run the card's logs and stop commands. Stop closes only this run's sessions, stops captured processes and releases its claim; pooled simulators are shut down and never deleted. A borrowed `--udid` stays booted. Evidence remains. A failed stop retains private runtime state; inspect and retry by instance id.
-5. Run `pnpm check:local` and only the changed specs by name. CI owns full suites. Stop the live instance before an e2e test claims a simulator.
+5. Run `pnpm check:local` and only the changed specs by name. CI owns full suites. Keep the live instance running while you iterate; Metro reloads JavaScript edits. Run the changed e2e specs once, when the work is done, after stopping the instance.
 
 The shared fixed pool has two iPhones and one iPad; at most two simulators may be booted. Busy devices cause refusal, never a new-device fallback. Each start clears app data and keychain; installation runs only when the native build fingerprint changes or the app is missing.
 

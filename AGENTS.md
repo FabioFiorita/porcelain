@@ -26,6 +26,10 @@ Before calling a change done, check each of these and say which applied:
 - **The way back:** a way in needs a way out and a way to see it.
 - **Connections:** local, local network and remote environments behave differently.
 
+## Library documentation
+
+Learn a library's API from its official documentation, never from `node_modules`: Expo from docs.expo.dev, other libraries from their own docs sites, Effect from `repos/effect`.
+
 ## Effect reference
 
 `repos/effect` vendors the Effect source as read-only reference. Before writing Effect code, read `repos/effect/LLMS.md`; the vendored source, not memory, is the truth for idiomatic Effect v4. Never edit or import from `repos/`; no tool builds, lints or installs it. Refresh it with `git subtree pull --prefix=repos/effect https://github.com/Effect-TS/effect.git main --squash`.
@@ -58,11 +62,13 @@ Prove a new or changed test can fail: revert the change it protects, watch it fa
 
 Prove a change with the smallest local proof: `pnpm check:local`, the test files you changed by name, and the feature driven through its surface's skill (`server-verify`, `web-verify`, `desktop-verify`, `mobile-verify`). Each skill's CLI at `scripts/cli` prepares a disposable instance, publishes its connections, records deterministic fixture operations and owns cleanup; the agent drives the surface with its harness tools and retains evidence. Its feature map (or the server contract) says how to reach each feature. CI runs `pnpm check` and owns the full suites. A guardrail change proves its rule with a fixture in `architecture/rule-cases.mjs`.
 
+While you iterate with the developer, keep one verification instance running between edits and restart it only when its skill says the edit requires it; it is their preview too. Run the changed E2E specs once, when the work is done.
+
 The root integration command runs suite tasks sequentially, because each Vitest runner already owns a machine-sized worker budget. Keep parallelism inside the suite; concurrent runners must not multiply that budget or require longer product deadlines.
 
 ## Pull requests
 
-Work on your own branch from `main`, in your own worktree, and open a pull request into `main` from the template. One concern per pull request. The developer reviews and merges, so make the body easy to read: what and why in a few sentences, how it was verified, screenshots attached with `gh pr create --attach` inside a collapsed section, and the risks. Commit only the paths you changed, each commit one short imperative sentence. Plans and scratch notes stay out of the repository.
+Work on your own branch from `main`, in your own worktree. Open a pull request into `main` from the template once the work is done; while the developer is still iterating with you, keep commits local and push nothing, not even a draft. One concern per pull request. The developer reviews and merges, so make the body easy to read: what and why in a few sentences, how it was verified, screenshots attached with `gh pr create --attach` inside a collapsed section, and the risks. Commit only the paths you changed, each commit one short imperative sentence. Plans and scratch notes stay out of the repository.
 
 ## Where code lives
 
