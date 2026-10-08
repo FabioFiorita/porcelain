@@ -25,7 +25,7 @@ Each layer has a persistent Explore the layer panel, with short code-location li
 Use `$C start --review-sample`. Pair the browser, open the Review sidebar, then Publish an immutable note.
 
 1. In Code, expect All files selected, six changed files and one existing context location. Explore the layer lists all seven locations and their paths without requiring graph panning.
-2. Click Explore Prepare a bounded request. One file is selected; the client file's entire current diff is shown, while the web file is absent. Mark the client file reviewed. The server's reviewed-files readback names only that path, and reviewed-layers keeps its existing marks unchanged.
+2. Click Explore Prepare a bounded request. One file is selected; the client file's entire current diff is shown, while the web file is absent. Mark the client file reviewed and wait for its Unmark control to become enabled, confirming the write finished. The server's reviewed-files readback names only that path, and reviewed-layers keeps its existing marks unchanged.
 3. Click Full layer diff. All files is selected and the web diff returns. Collapse and expand files independently as usual.
 4. Click Graph. The graph stays on the left and Explore the layer on the right, with all seven numbered links and no code preview. Click Explore Authorize and persist the outcome: a dialog with that title shows the complete server diff and its individual reviewed control; the client diff is absent.
 5. Close the dialog. Graph stays selected and the server node is highlighted. Clicking a node also opens its file in a dialog. Escape closes it and restores focus to the node.

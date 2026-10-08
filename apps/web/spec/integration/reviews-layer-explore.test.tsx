@@ -57,13 +57,19 @@ test('a layer keeps its code locations reachable beside its graph and can read o
   const layerMarks = (await server.reviewedLayers()).marks;
   await clientMark.click();
   await expect
-    .poll(async () =>
-      (await server.reviewedFiles()).marks.map((mark) => mark.path),
+    .element(
+      layer.getByRole('button', {
+        name: 'Unmark packages/client/src/publish-note.ts as unreviewed',
+        exact: true,
+      }),
     )
-    .toEqual(['packages/client/src/publish-note.ts']);
-  await expect
-    .poll(async () => (await server.reviewedLayers()).marks)
-    .toEqual(layerMarks);
+    .toBeEnabled();
+  await expect(
+    server.reviewedFiles().then(({ marks }) => marks.map((mark) => mark.path)),
+  ).resolves.toEqual(['packages/client/src/publish-note.ts']);
+  await expect(
+    server.reviewedLayers().then(({ marks }) => marks),
+  ).resolves.toEqual(layerMarks);
   await explorer
     .getByRole('button', { name: 'Full layer diff', exact: true })
     .click();
