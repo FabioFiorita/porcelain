@@ -5,7 +5,7 @@ test('deep links open Files, History, Settings and Review directly, each in its 
 }) => {
   expect(
     await app.run('destinations.yaml', {
-      REVIEW_LINK: app.link('/'),
+      REVIEW_LINK: app.link('/review'),
       FILES_LINK: app.link('/files'),
       HISTORY_LINK: app.link('/history'),
       SETTINGS_LINK: app.link('/settings'),

@@ -4,12 +4,12 @@ name: Unpaired phone destinations
 - runFlow: connect.yaml
 - assertNotVisible: Workspaces
 - assertVisible:
-    text: Review
+    text: Files
     selected: true
 - assertVisible: Select a worktree to continue.
-- tapOn: Files
+- tapOn: Review
 - assertVisible:
-    text: Files
+    text: Review
     selected: true
 - assertVisible: Select a worktree to continue.
 - tapOn: History
@@ -31,6 +31,6 @@ name: Unpaired phone destinations
 - stopApp
 - runFlow: launch.yaml
 - assertVisible:
-    text: Review
+    text: Files
     selected: true
 - assertVisible: Select a worktree to continue.
