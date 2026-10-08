@@ -1,5 +1,9 @@
 import { Effect } from 'effect';
-import { createServer } from 'node:http';
+import {
+  createServer,
+  type IncomingMessage,
+  type ServerResponse,
+} from 'node:http';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,17 +12,52 @@ import { expect, it } from 'vitest';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import { runMcpBridge } from './mcp-bridge.ts';
 
-it('keeps the negotiated owner session and protocol across stdio requests', async () => {
+async function relayThroughOwner(
+  answer: (request: IncomingMessage, response: ServerResponse) => void,
+  messages: readonly unknown[],
+): Promise<unknown[]> {
   const directory = await mkdtemp(join(tmpdir(), 'pc-mcp-bridge-'));
-  const headers: unknown[] = [];
   const server = createServer((request, response) => {
-    headers.push({
-      session: request.headers['mcp-session-id'],
-      protocol: request.headers['mcp-protocol-version'],
-      cwd: request.headers['x-porcelain-cwd'],
-    });
     request.resume();
-    request.once('end', () => {
+    request.once('end', () => answer(request, response));
+  });
+  const output: string[] = [];
+  try {
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(ownerSocketPath(directory), resolve);
+    });
+    await Effect.runPromise(
+      runMcpBridge(
+        directory,
+        1000,
+        Readable.from(
+          messages.map((message) => `${JSON.stringify(message)}\n`),
+        ),
+        (line) => {
+          output.push(line);
+        },
+      ),
+    );
+    return output.map((line): unknown => JSON.parse(line));
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+it('keeps the negotiated owner session and protocol across stdio requests', async () => {
+  const headers: unknown[] = [];
+  const output = await relayThroughOwner(
+    (request, response) => {
+      headers.push({
+        session: request.headers['mcp-session-id'],
+        protocol: request.headers['mcp-protocol-version'],
+        cwd: request.headers['x-porcelain-cwd'],
+      });
       response.writeHead(200, {
         'content-type': 'application/json',
         'mcp-session-id': 'negotiated-session',
@@ -31,44 +70,45 @@ it('keeps the negotiated owner session and protocol across stdio requests', asyn
           result: { accepted: true },
         }),
       );
-    });
-  });
-  const output: string[] = [];
-  try {
-    await new Promise<void>((resolve, reject) => {
-      server.once('error', reject);
-      server.listen(ownerSocketPath(directory), resolve);
-    });
-    await Effect.runPromise(
-      runMcpBridge(
-        directory,
-        1000,
-        Readable.from([
-          `${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' })}\n`,
-          `${JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' })}\n`,
-        ]),
-        (line) => {
-          output.push(line);
-        },
-      ),
-    );
-    expect(headers).toEqual([
-      { session: undefined, protocol: undefined, cwd: process.cwd() },
-      {
-        session: 'negotiated-session',
-        protocol: '2025-11-25',
-        cwd: process.cwd(),
+    },
+    [
+      { jsonrpc: '2.0', id: 1, method: 'initialize' },
+      { jsonrpc: '2.0', id: 2, method: 'tools/list' },
+    ],
+  );
+  expect(headers).toEqual([
+    { session: undefined, protocol: undefined, cwd: process.cwd() },
+    {
+      session: 'negotiated-session',
+      protocol: '2025-11-25',
+      cwd: process.cwd(),
+    },
+  ]);
+  expect(output).toEqual([
+    { jsonrpc: '2.0', id: 1, result: { accepted: true } },
+    { jsonrpc: '2.0', id: 2, result: { accepted: true } },
+  ]);
+});
+
+it('answers a request the owner refuses with an empty body, and leaves a refused notification silent', async () => {
+  const output = await relayThroughOwner(
+    (_request, response) => {
+      response.writeHead(400);
+      response.end();
+    },
+    [
+      { jsonrpc: '2.0', method: 'notifications/initialized' },
+      { jsonrpc: '2.0', id: 7, method: 'tools/list' },
+    ],
+  );
+  expect(output).toEqual([
+    {
+      jsonrpc: '2.0',
+      id: 7,
+      error: {
+        code: -32000,
+        message: 'The Porcelain server refused the request with HTTP 400.',
       },
-    ]);
-    expect(output.map((line): unknown => JSON.parse(line))).toEqual([
-      { jsonrpc: '2.0', id: 1, result: { accepted: true } },
-      { jsonrpc: '2.0', id: 2, result: { accepted: true } },
-    ]);
-  } finally {
-    server.closeAllConnections();
-    await new Promise<void>((resolve, reject) =>
-      server.close((error) => (error ? reject(error) : resolve())),
-    );
-    await rm(directory, { recursive: true, force: true });
-  }
+    },
+  ]);
 });

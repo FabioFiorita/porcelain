@@ -2,6 +2,7 @@ import { Effect, FileSystem, Path } from 'effect';
 import type { CommandRunner } from './command-runner.ts';
 import { RuntimeInstallError } from './errors/runtime-install-error.ts';
 import { RuntimeNativeModulesError } from './errors/runtime-native-modules-error.ts';
+import { RuntimeSplitEffectError } from './errors/runtime-split-effect-error.ts';
 import { RuntimeVersionMismatchError } from './errors/runtime-version-mismatch-error.ts';
 import { readJsonFile } from './json-file.ts';
 import { packageManifestSchema } from './records.ts';
@@ -48,6 +49,7 @@ export const installRuntime = Effect.fn('Installer.installRuntime')(function* (
     '--no-fund',
     '--package-lock=false',
     '--install-links=true',
+    '--install-strategy=shallow',
     '--prefix',
     destination,
     source,
@@ -71,6 +73,20 @@ export const installRuntime = Effect.fn('Installer.installRuntime')(function* (
         reported: reported,
         expected: version,
       }),
+    );
+  const effectManifest = pathApi.join('node_modules', 'effect', 'package.json');
+  const effectCopies = (yield* fs.readDirectory(destination, {
+    recursive: true,
+  }))
+    .filter(
+      (entry) =>
+        entry === effectManifest ||
+        entry.endsWith(`${pathApi.sep}${effectManifest}`),
+    )
+    .map((entry) => pathApi.dirname(entry));
+  if (effectCopies.length !== 1)
+    return yield* Effect.fail(
+      new RuntimeSplitEffectError({ copies: effectCopies.sort() }),
     );
   const loaded = yield* runner(nodeExecutable, [
     '-e',

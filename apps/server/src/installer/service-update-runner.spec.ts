@@ -33,6 +33,8 @@ function downloadInto(prefix: string, version: string) {
     join(folder, 'package.json'),
     JSON.stringify({ name: packageName, version }),
   );
+  mkdirSync(join(folder, 'node_modules/effect'), { recursive: true });
+  writeFileSync(join(folder, 'node_modules/effect/package.json'), '{}');
 }
 
 const answer = Effect.fn('Test.updateCommand')(
