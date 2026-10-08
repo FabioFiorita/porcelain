@@ -46,10 +46,17 @@ test.each(['open', 'tap', 'fill', 'snapshot', 'screenshot'])(
 );
 
 test.runIf(process.platform === 'darwin')(
-  'reuses the fixed simulator and installed build while clearing data, refuses a foreign release, and leaves a borrowed UDID booted',
+  'reuses an existing shared simulator and installed build while clearing data, refuses a foreign release, and leaves a borrowed UDID booted',
   async ({ onTestFinished }) => {
     const owner = `test-${randomUUID()}`;
+    const simulators = async () =>
+      (
+        await execute('xcrun', ['simctl', 'list', 'devices', '-j'])
+      ).stdout.match(/"udid"/g)?.length;
+    const simulatorCount = await simulators();
     const first = await bootSimulator('iphone', owner);
+    expect(await simulators()).toBe(simulatorCount);
+    expect(['iPhone 17', 'iPhone 18 Pro']).toContain(first.name);
     let active = true;
     onTestFinished(async () => {
       if (active) await releaseSimulator(first);
@@ -101,7 +108,6 @@ test.runIf(process.platform === 'darwin')(
       if (secondActive) await releaseSimulator(second);
     });
     expect(second.udid).toBe(first.udid);
-    expect(second.name).toBe('Porcelain verify iPhone 1');
     expect(await resetApp(second.udid, client, identity.bundleIdentifier)).toBe(
       false,
     );
