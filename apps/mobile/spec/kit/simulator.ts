@@ -28,37 +28,14 @@ export const simulatorSchema = Schema.Struct({
 export type Simulator = typeof simulatorSchema.Type;
 const poolDirectory = '/tmp/porcelain-simulator-pool';
 const poolNames: Record<DeviceKind, readonly string[]> = {
-  iphone: ['Porcelain verify iPhone 1', 'Porcelain verify iPhone 2'],
-  ipad: ['Porcelain verify iPad'],
+  iphone: ['iPhone 17', 'iPhone 18 Pro'],
+  ipad: ['iPad Air 11-inch (M4)'],
 };
 const execute = promisify(execFile);
-const minimumRuntime = 26;
 const language = 'en-US';
 const locale = 'en_US';
 const settleMs = 500;
 const shutdownLimitMs = 60 * 1000;
-const families: Record<DeviceKind, string> = { iphone: 'iPhone', ipad: 'iPad' };
-const preferred: Record<DeviceKind, readonly string[]> = {
-  iphone: ['iPhone 17', 'iPhone 18 Pro'],
-  ipad: ['iPad Air 11-inch (M4)', 'iPad (A16)'],
-};
-const runtimesSchema = Schema.Struct({
-  runtimes: Schema.Array(
-    Schema.Struct({
-      identifier: Schema.String,
-      version: Schema.String,
-      platform: Schema.optional(Schema.String),
-      isAvailable: Schema.Boolean,
-      supportedDeviceTypes: Schema.Array(
-        Schema.Struct({
-          identifier: Schema.String,
-          name: Schema.String,
-          productFamily: Schema.String,
-        }),
-      ),
-    }),
-  ),
-});
 const devicesSchema = Schema.Struct({
   devices: Schema.Record(
     Schema.String,
@@ -77,47 +54,6 @@ async function simctl(...args: string[]): Promise<string> {
     maxBuffer: 16 * 1024 * 1024,
   });
   return stdout;
-}
-function versionOf(version: string): number[] {
-  return version.split('.').map(Number);
-}
-function newer(left: string, right: string): number {
-  const a = versionOf(left);
-  const b = versionOf(right);
-  for (let index = 0; index < Math.max(a.length, b.length); index++) {
-    const difference = (b[index] ?? 0) - (a[index] ?? 0);
-    if (difference !== 0) return difference;
-  }
-  return 0;
-}
-async function deviceFor(kind: DeviceKind) {
-  const { runtimes } = Schema.decodeUnknownSync(runtimesSchema)(
-    JSON.parse(await simctl('list', 'runtimes', '-j')),
-  );
-  const [runtime] = runtimes
-    .filter(
-      (candidate) =>
-        candidate.isAvailable &&
-        (candidate.platform ?? 'iOS') === 'iOS' &&
-        (versionOf(candidate.version)[0] ?? 0) >= minimumRuntime,
-    )
-    .toSorted((left, right) => newer(left.version, right.version));
-  if (runtime === undefined)
-    throw new Error(
-      `No iOS ${minimumRuntime} or newer simulator runtime is installed; install one in Xcode > Settings > Components.`,
-    );
-  const family = runtime.supportedDeviceTypes.filter(
-    (type) => type.productFamily === families[kind],
-  );
-  const type =
-    preferred[kind]
-      .map((name) => family.find((candidate) => candidate.name === name))
-      .find((candidate) => candidate !== undefined) ?? family[0];
-  if (type === undefined)
-    throw new Error(
-      `The iOS ${runtime.version} runtime has no ${families[kind]} simulator type.`,
-    );
-  return { runtime, type };
 }
 async function devices() {
   return Schema.decodeUnknownSync(devicesSchema)(
@@ -166,18 +102,14 @@ export async function bootSimulator(
   }
   let claimed: { path: string; claim: PoolClaim } | undefined;
   try {
-    for (const family of ['iphone', 'ipad'] as const) {
-      const { runtime, type } = await deviceFor(family);
-      for (const name of poolNames[family]) {
-        if (
-          !Object.values(await devices())
-            .flat()
-            .some((device) => device.name === name)
-        )
-          await simctl('create', name, type.identifier, runtime.identifier);
-      }
-    }
     const available = Object.values(await devices()).flat();
+    const missing = poolNames[kind].filter(
+      (name) => !available.some((device) => device.name === name),
+    );
+    if (missing.length === poolNames[kind].length)
+      throw new Error(
+        `No ${missing.join(' or ')} simulator exists. Create it once in Xcode > Window > Devices and Simulators; verification shares the Mac's existing simulators and never creates one.`,
+      );
     const unclaimed = [];
     for (const candidate of available) {
       const path = join(poolDirectory, `${candidate.udid}.claim`);
