@@ -2,12 +2,8 @@ import { Stack } from 'expo-router';
 import { Button, Host, Label, Menu, Text, Toggle } from '@expo/ui/swift-ui';
 import {
   accessibilityLabel,
-  buttonBorderShape,
-  buttonStyle,
-  controlSize,
   disabled,
-  font,
-  frame,
+  foregroundStyle,
   labelStyle,
 } from '@expo/ui/swift-ui/modifiers';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
@@ -18,8 +14,8 @@ export function WorkspaceMenu(props: WorkspaceMenuProps) {
   if (props.presentation === 'tablet') return <ProjectMenu {...props} />;
   return (
     <Stack.Toolbar placement="right">
-      <Stack.Toolbar.View hidesSharedBackground>
-        <Host style={{ width: 44, height: 44 }}>
+      <Stack.Toolbar.View>
+        <Host matchContents>
           <ProjectMenu {...props} />
         </Host>
       </Stack.Toolbar.View>
@@ -35,11 +31,7 @@ function ProjectMenu(props: WorkspaceMenuProps) {
           <Label
             title={props.label}
             systemImage={workspaceIcon}
-            modifiers={[
-              labelStyle('iconOnly'),
-              font({ size: 20 }),
-              frame({ width: 28, height: 28 }),
-            ]}
+            modifiers={[labelStyle('iconOnly')]}
           />
         ) : (
           props.label
@@ -48,19 +40,13 @@ function ProjectMenu(props: WorkspaceMenuProps) {
       systemImage={workspaceIcon}
       modifiers={[
         accessibilityLabel(props.label),
-        ...(props.presentation === 'phone'
-          ? [
-              buttonStyle('glass'),
-              buttonBorderShape('circle'),
-              controlSize('regular'),
-            ]
-          : []),
+        foregroundStyle({ type: 'hierarchical', style: 'primary' }),
       ]}
     >
-      {props.projects.map(
-        ({ environmentId, environmentName, project, unavailable }) => (
+      {props.choices.map(
+        ({ key, environmentId, environmentName, project, unavailable }) => (
           <Menu
-            key={JSON.stringify([environmentId, project.id])}
+            key={key}
             label={
               <>
                 <Text>{project.name}</Text>

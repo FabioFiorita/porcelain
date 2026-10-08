@@ -22,14 +22,6 @@ export class ProjectSelectionStore extends Context.Service<
   {
     readonly state: AtomRef.ReadonlyRef<ProjectSelectionState>;
     readonly load: () => Effect.Effect<void, WriteFailure>;
-    readonly selectEnvironment: (
-      environmentId: string,
-    ) => Effect.Effect<void, WriteFailure>;
-    readonly selectWorktree: (
-      environmentId: string,
-      projectId: string,
-      worktreeId: string,
-    ) => Effect.Effect<void, WriteFailure>;
     readonly selectWorkspace: (
       environmentId: string,
       projectId: string,
@@ -126,34 +118,6 @@ export class ProjectSelectionStore extends Context.Service<
             }),
           );
         }),
-        selectEnvironment: Effect.fn('ProjectSelectionStore.selectEnvironment')(
-          (environmentId: string) =>
-            write(({ selections }) =>
-              Effect.succeed({
-                currentEnvironmentId: environmentId,
-                selections,
-              }),
-            ),
-        ),
-        selectWorktree: Effect.fn('ProjectSelectionStore.selectWorktree')(
-          (environmentId: string, projectId: string, worktreeId: string) =>
-            write(({ currentEnvironmentId, selections }) => {
-              if (currentEnvironmentId !== environmentId)
-                return Effect.fail(
-                  new ConnectionError({
-                    message:
-                      'The selected environment changed. Open its project picker again.',
-                  }),
-                );
-              return Effect.succeed({
-                currentEnvironmentId,
-                selections: {
-                  ...selections,
-                  [environmentId]: { projectId, worktreeId },
-                },
-              });
-            }),
-        ),
         selectWorkspace: Effect.fn('ProjectSelectionStore.selectWorkspace')(
           (environmentId: string, projectId: string, worktreeId: string) =>
             write(({ selections }) =>

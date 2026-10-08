@@ -11,10 +11,10 @@ export function WorkspaceMenu(props: WorkspaceMenuProps) {
         accessibilityLabel={props.label}
         title={props.label}
       >
-        {props.projects.map(
-          ({ environmentId, environmentName, project, unavailable }) => (
+        {props.choices.map(
+          ({ key, environmentId, environmentName, project, unavailable }) => (
             <Stack.Toolbar.Menu
-              key={JSON.stringify([environmentId, project.id])}
+              key={key}
               title={`${project.name} · ${environmentName}`}
               disabled={props.disabled || unavailable || !project.available}
             >

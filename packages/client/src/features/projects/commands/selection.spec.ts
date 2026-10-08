@@ -204,7 +204,12 @@ it('shares the application queue with native atoms and refuses a selection queue
   const choose = atomRuntime.fn((environmentId: string) =>
     Effect.gen(function* () {
       const commands = yield* ProjectSelectionCommands;
-      yield* commands.execute({ kind: 'environment', environmentId });
+      yield* commands.execute({
+        kind: 'workspace',
+        environmentId,
+        projectId: 'one',
+        worktreeId: 'one-tree',
+      });
     }),
   );
   try {
@@ -250,11 +255,21 @@ it('releases a cancelled queued choice without saving it or hiding the active se
   await f.runtime.runPromise(f.commands.execute({ kind: 'read' }));
   f.writes.length = 0;
   const first = f.runtime.runPromise(
-    f.commands.execute({ kind: 'environment', environmentId: 'second' }),
+    f.commands.execute({
+      kind: 'workspace',
+      environmentId: 'second',
+      projectId: 'two',
+      worktreeId: 'two-tree',
+    }),
   );
   await writing.promise;
   const queued = f.runtime.runFork(
-    f.commands.execute({ kind: 'environment', environmentId: 'first' }),
+    f.commands.execute({
+      kind: 'workspace',
+      environmentId: 'first',
+      projectId: 'one',
+      worktreeId: 'one-tree',
+    }),
   );
   try {
     expect(f.commands.pending.value).toBe(2);
@@ -297,33 +312,6 @@ it('finishes both persistence steps after an admitted forget is cancelled', asyn
   });
   expect(f.writes).toEqual(['environments', 'selection']);
   expect(f.commands.pending.value).toBe(0);
-});
-
-it('refuses a stale worktree after switching to another environment', async () => {
-  const f = fixture();
-  await f.runtime.runPromise(f.environments.read());
-  await f.runtime.runPromise(f.commands.execute({ kind: 'read' }));
-  await f.runtime.runPromise(
-    f.commands.execute({ kind: 'environment', environmentId: 'second' }),
-  );
-  f.writes.length = 0;
-  const exit = await f.runtime.runPromiseExit(
-    f.commands.execute({
-      kind: 'worktree',
-      environmentId: 'first',
-      projectId: 'wrong',
-      worktreeId: 'wrong-tree',
-    }),
-  );
-  expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toMatchObject({
-    message: 'The selected environment changed. Open its project picker again.',
-  });
-  expect(f.saved().selection.currentEnvironmentId).toBe('second');
-  expect(f.saved().selection.selections.first).toEqual({
-    projectId: 'one',
-    worktreeId: 'one-tree',
-  });
-  expect(f.writes).toEqual([]);
 });
 
 it('selects a workspace from another paired environment in one saved update', async () => {
@@ -415,7 +403,12 @@ it('keeps failed workspace cleanup visible and repairs it by rereading before an
   expect(f.selection.state.value.status).toBe('unreadable');
   expect(f.saved().selection.currentEnvironmentId).toBe('first');
   const stale = await f.runtime.runPromiseExit(
-    f.commands.execute({ kind: 'environment', environmentId: 'first' }),
+    f.commands.execute({
+      kind: 'workspace',
+      environmentId: 'first',
+      projectId: 'one',
+      worktreeId: 'one-tree',
+    }),
   );
   expect(Exit.isFailure(stale) && Cause.squash(stale.cause)).toMatchObject({
     message:
@@ -424,7 +417,12 @@ it('keeps failed workspace cleanup visible and repairs it by rereading before an
   storageAvailable = true;
   await f.runtime.runPromise(f.commands.execute({ kind: 'read' }));
   await f.runtime.runPromise(
-    f.commands.execute({ kind: 'environment', environmentId: 'second' }),
+    f.commands.execute({
+      kind: 'workspace',
+      environmentId: 'second',
+      projectId: 'two',
+      worktreeId: 'two-tree',
+    }),
   );
   expect(f.saved().selection).toEqual({
     currentEnvironmentId: 'second',
