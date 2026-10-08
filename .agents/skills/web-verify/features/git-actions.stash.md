@@ -27,51 +27,51 @@ Stashing sets the changes aside and popping the stash brings them back and drops
 
 ## Driving it
 
-Start with `$C start`. Section 1 needs no setup; `REPO` is the repository path `start` printed.
+Start with `$C start`; pair your browser using the card’s pairing-link command. Section 1 needs no setup; `REPO` is `connection.json`’s `fixtures.repositoryPath`.
 
 ### 1. Stash and pop bring the changes back
 
-1. `$C click --role button --name "Git actions"`
+1. Click button named `Git actions`
    Look for: menuitems starting "Stash changes" and "Pop stash".
-2. `$C click --role menuitem --name "/^Stash changes/"`
+2. Click menuitem named `/^Stash changes/`
    Look for: dialog "Stash changes" with textbox "Message" reading "Porcelain review" and checkbox "Include untracked files" checked.
-3. `$C fill --role textbox --name "Message" "Journey stash"`
+3. Replace the contents of textbox named `Message` with 'Journey stash'
    Look for: the textbox reads "Journey stash".
-4. `$C click --role button --name "Stash changes"`
+4. Click button named `Stash changes`
    Look for: `status` "succeeded" in the dialog.
-5. `$C press Escape`
+5. Press `Escape`
    Look for: dialog "Stash changes" is gone; README.md is no longer listed (no button "Mark README.md as reviewed"). On disk `git -C "$REPO" stash list` prints `stash@{0}: On main: Journey stash` and `git -C "$REPO" status --short` prints nothing.
-6. `$C click --role button --name "Git actions"`
+6. Click button named `Git actions`
    Look for: the menu is open; menuitem starting "Pop stash" is enabled.
-7. `$C click --role menuitem --name "/^Pop stash/"`
+7. Click menuitem named `/^Pop stash/`
    Look for: dialog "Pop stash" whose combobox "Stash" shows "On main: Journey stash · <7-character id>".
-8. `$C click --role button --name "Pop stash"`
+8. Click button named `Pop stash`
    Look for: `status` "succeeded" in the dialog.
-9. `$C press Escape`
+9. Press `Escape`
    Look for: dialog "Pop stash" is gone; README.md is listed again. `git -C "$REPO" stash list` prints nothing and `tail -1 "$REPO/README.md"` prints `A change to review.`
 
-10. `$C click --role button --name "Git actions"`, then `$C click --role menuitem --name "/^Stash changes/"`
+10. Click button named `Git actions`, then click menuitem named `/^Stash changes/`
    Look for: dialog "Stash changes" with button "Stash changes" enabled, no `status` "succeeded" and no button "Check outcome": the dialog starts fresh.
-11. `$C click --role button --name "Stash changes"`, `$C press Escape`, `$C click --role button --name "Git actions"`, `$C click --role menuitem --name "/^Pop stash/"`
+11. Click button named `Stash changes`, Press `Escape`, click button named `Git actions`, click menuitem named `/^Pop stash/`
    Look for: dialog "Pop stash" with button "Pop stash" enabled, no `status` "succeeded" and no button "Check outcome", although the pop of step 8 succeeded in this page.
 
 ### 2. Popping over a file changed since is refused and keeps the stash
 
 On a fresh instance (or after section 1):
 
-1. `$C click --role button --name "Git actions"`
+1. Click button named `Git actions`
    Look for: the menu is open.
-2. `$C click --role menuitem --name "/^Stash changes/"`
+2. Click menuitem named `/^Stash changes/`
    Look for: dialog "Stash changes".
-3. `$C click --role button --name "Stash changes"`
+3. Click button named `Stash changes`
    Look for: `status` "succeeded".
-4. `$C press Escape`
+4. Press `Escape`
    Look for: the dialog is gone. Then on disk: `printf 'Changed while the stash was set aside\n' > "$REPO/README.md"`; the review lists README.md again.
-5. `$C click --role button --name "Git actions"`
+5. Click button named `Git actions`
    Look for: the menu is open.
-6. `$C click --role menuitem --name "/^Pop stash/"`
+6. Click menuitem named `/^Pop stash/`
    Look for: dialog "Pop stash" with the stash "On main: Porcelain review · <id>" selected.
-7. `$C click --role button --name "Pop stash"`
+7. Click button named `Pop stash`
    Look for: an `alert` in the dialog with Git's message containing "would be overwritten".
 
 ## What proves it works

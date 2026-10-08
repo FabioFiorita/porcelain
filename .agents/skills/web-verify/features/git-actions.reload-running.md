@@ -27,7 +27,7 @@ A Git action still running when the page reloads is still followed after the rel
 
 ## Driving it
 
-Start with `$C start`; `REPO` is the repository path it printed. The CLI's server ends a blocked Git action after 1.5 seconds (`gitActionDeadlineMs: 1500`); cutting the live connection before the commit keeps the page from hearing that outcome, so the reload happens while the page still follows a running action, as the test's held live notices do.
+Start with `$C start`; pair your browser using the card’s pairing-link command; `REPO` is `connection.json` → `fixtures.repositoryPath`. The CLI's server ends a blocked Git action after 1.5 seconds (`gitActionDeadlineMs: 1500`); holding incoming live frames before the commit keeps the page from hearing that outcome, so the reload happens while the page still follows a running action, as the test's held live notices do.
 
 ### Setup
 
@@ -38,26 +38,26 @@ rm "$REPO/.git/logs/HEAD"
 mkfifo "$REPO/.git/logs/HEAD"
 ```
 
-1. `$C click --role button --name "Commit"`
+1. Click button named `Commit`
    Look for: dialog "Commit changes" with textbox "Message".
-2. `$C fill --role textbox --name "Message" "Commit across a reload"`
+2. Replace the contents of textbox named `Message` with 'Commit across a reload'
    Look for: button "Commit selected files" is enabled.
-3. `$C live drop`, then `$C click --role button --name "Commit selected files"`
+3. Hold incoming live frames while forwarding the real connection (see [routing recipes](../SKILL.md#inject-browser-failures)), then click button named `Commit selected files`
    Look for: button "Committing…" [disabled] in the dialog.
-4. `$C open /`
-   Look for: the page reloads to the workspace (new live connections still close); region "Review content" shows the status "A Git action was interrupted: commit" once the app has read the receipt.
-5. `$C click --role button --name "Commit"`
+4. Navigate to `/` on the card’s web URL (full page load)
+   Look for: the page reloads in the same browser context; keep incoming frames held so the UI has not yet confirmed the action outcome.
+5. Click button named `Commit`
    Look for: dialog "Commit changes" with status "Outcome not yet confirmed" and button "Commit selected files" [disabled]: the reloaded page still follows the commit.
-6. `$C live restore`, then `$C wait --text "interrupted"`
-   Look for: "the live connection is back after <n> ms"; the dialog's status now reads "interrupted" and "Outcome not yet confirmed" is gone.
+6. Keep frames held until `$C server receipt <requestId>` reports `"state": "interrupted"` (take the ID from the accepted action POST), then release held incoming frames (see [routing recipes](../SKILL.md#inject-browser-failures)), then wait for text 'interrupted' to be visible
+   Look for: the held live frames arrive; the dialog's status now reads "interrupted" and "Outcome not yet confirmed" is gone.
 
 ## What proves it works
 
-- After a reload while the action runs: "Outcome not yet confirmed" with Commit selected files disabled, then the `status` "interrupted" and "Outcome not yet confirmed" gone; `network` shows `GET /api/worktrees/<id>/git/receipts/<requestId>` with status 200 after the reload, and `server receipt <requestId>` prints the commit's receipt.
+- After a reload while the action runs: "Outcome not yet confirmed" with Commit selected files disabled, then the `status` "interrupted" and "Outcome not yet confirmed" gone; the browser network evidence shows `GET /api/worktrees/<id>/git/receipts/<requestId>` with status 200 after the reload, and `$C server receipt <requestId>` prints the commit's receipt.
 - `git -C "$REPO" log --format=%s` still prints only `Initial commit`.
 - `apps/web/spec/e2e/git-actions-reload-running.e2e.ts`: with live notices held, the commit is running ("Committing…" disabled, "running") when the page reloads; after the reload the commit form shows "Outcome not yet confirmed" and a disabled Commit selected files; releasing the live notices shows "interrupted" and removes "Outcome not yet confirmed"; the server reports the commit as the interrupted action.
 
 ## Gotchas
 
-- `live drop` must come before the commit click: the 1.5-second deadline passes long before an `open` can reload, and a connected page hears the outcome at once and forgets the action.
+- Arm the incoming-frame hold before submitting the commit and keep it across the reload. The server deadline is 1.5 seconds; use one bounded browser operation so inspection does not miss the followed state. After inspecting the reloaded pending form, await the terminal server receipt before releasing held frames; a fast reload can otherwise still read `running`.
 - The server kills the stuck Git with SIGKILL, leaving lock files: run `rm -f "$REPO/.git/logs/HEAD" "$REPO"/.git/*.lock "$REPO/.git/refs/heads/main.lock"` and dismiss the notice with button "Got it" before driving another Git feature, or start a fresh instance.

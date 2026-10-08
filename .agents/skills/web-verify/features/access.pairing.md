@@ -25,24 +25,24 @@ Opening a one-time pairing link checks the server's health, redeems the code as 
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start --unpaired`: the browser starts on the not-paired page. `pair` then issues a one-time link for "Verification browser" through the owner socket and opens it in this tab, as a person opens the link `porcelain pair` prints; neither prints the code.
+`$C start`; open the web URL in a fresh unpaired browser context: the browser starts on the not-paired page. `$C pairing-link` then mints a one-time link for "Verification browser" through the owner socket which you open in this tab, as a person opens the link `porcelain pair` prints; the link command prints its code locally, while its recorded evidence redacts it.
 
 ### Setup
 
 None.
 
-1. `$C open /`
+1. Navigate to `/` on the card’s web URL (full page load)
    Look for: Page URL `/pair` and heading "This browser is not paired".
-2. `$C pair`, then `$C wait --role region --name "Review content"`
-   Look for: the `pair` output names `/pair#c=[redacted]&e=<environmentId>`; the workspace shows within a few seconds.
-3. `$C click --role button --name "Review"`
+2. Run `$C pairing-link` and navigate this same tab to its fresh one-time link, then wait for region named `Review content` to be visible
+   Look for: the local `pairing-link` output names `/pair#c=<one-time code>&e=<environmentId>`; the workspace shows within a few seconds.
+3. Click button named `Review`
    Look for: Page URL `/<projectId>/<worktreeId>?entry=handoff` with no `#c=` fragment, Page Title "Changes — repository".
-4. `$C network` (before any `open`)
+4. Inspect HTTP requests and responses (before any a full page load)
    Look for: `GET /api/health` 200, `POST /api/pair` 200, `GET /api/inventory` 200. `$C server devices` lists "Verification browser" beside "Development setup".
-5. `$C open /`
+5. Navigate to `/` on the card’s web URL (full page load)
    Look for: the workspace again (region "Review content"), not `/pair`: the pairing left a working session.
-6. `$C open /pair`, then `$C snapshot`
-   Look for: region "Review content" and no heading "This browser is not paired": the paired browser is sent from `/pair` to its workspace (the CLI may still print Page URL `/pair` for the `open`; the `snapshot` prints the settled page).
+6. Navigate to `/pair` on the card’s web URL (full page load), then inspect the accessibility tree
+   Look for: region "Review content" and no heading "This browser is not paired": the paired browser is sent from `/pair` to its workspace (wait for the redirect to settle).
 
 ## What proves it works
 
@@ -52,6 +52,6 @@ None.
 
 ## Gotchas
 
-- A plain `start` pairs the browser through this same flow before the first command; `--unpaired` leaves it to `pair` so each step can be watched. Each `pair` issues a fresh link; a used code cannot be replayed (the page would show "This pairing link is not usable. Ask for a new one.").
-- Neither `start` nor `pair` prints the code; their evidence shows `c=[redacted]`.
-- `$C network` may no longer include the pairing requests after an `open`; read it first.
+- Startup never pairs a browser. Open the card’s web URL in a fresh context to watch the unpaired state, then redeem a link from `$C pairing-link`. Each invocation issues a fresh link; a used code cannot be replayed (the page would show "This pairing link is not usable. Ask for a new one.").
+- `start` prints no code; `pairing-link` prints the one-time code locally and redacts it in recorded evidence. Sanitize browser artifacts before sharing them.
+- Inspect HTTP requests and responses may no longer include the pairing requests after an a full page load; read it first.

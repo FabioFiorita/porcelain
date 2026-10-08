@@ -36,7 +36,7 @@ In the desktop app, Settings splits sharing into four sections, each its own pag
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start --desktop`. Desktop mode is required: `$C start` (web mode) does not render these sections.
+`$C start --desktop`; pair your browser using the card’s pairing-link command. Desktop mode is required: `$C start`; pair your browser using the card’s pairing-link command (web mode) does not render these sections.
 
 ### Setup
 
@@ -44,25 +44,25 @@ None.
 
 ### Steps
 
-1. `$C open /`
+1. Navigate to `/` on the card’s web URL (full page load)
    Look for: Page Title "Changes — repository"; button "Toggle Sidebar".
-2. `$C click --role button --name "Toggle Sidebar"`, then `$C click --role button --name "Settings"`
+2. Click button named `Toggle Sidebar`, then click button named `Settings`
    Look for: Page URL `/settings/appearance`; main "Settings"; navigation "Settings sections" with buttons Appearance, Git and agents, This computer, Ways in, Devices, Remote computers, Connection; no button "Sharing" and no button "Updates".
-3. `$C click --role button --name "This computer"`
+3. Click button named `This computer`
    Look for: Page URL `/settings/computer`; heading "This computer"; textbox "Name of this computer"; legend text "Updates".
-4. `$C click --role button --name "Ways in"`
+4. Click button named `Ways in`
    Look for: Page URL `/settings/ways-in`; heading "Ways in"; switches "Local network", "Tailscale" and "Cloudflare tunnel"; textbox "Name of this computer" is gone.
-5. `$C click --role button --name "Devices"`
+5. Click button named `Devices`
    Look for: Page URL `/settings/devices`; switch "Local network" is gone; text "Pair a device" and "Paired devices"; listitem "Verification browser" with the badge "This browser".
-6. `$C click --role button --name "Remote computers"`
+6. Click button named `Remote computers`
    Look for: Page URL `/settings/remotes`; text "Add a remote computer"; text "No remote computers yet".
-7. `$C network`
+7. Inspect HTTP requests and responses
    Look for: `GET /api/remote-access` with status 200 (sent when Ways in or Devices opened).
 
 ## What proves it works
 
 - Each of the four sections has its own URL and content, and content of one (switch "Local network", textbox "Name of this computer") is absent from the others.
-- `$C open /settings/ways-in` (a fresh page load) lands directly on heading "Ways in": the section is in the URL, not in page state.
+- Navigate to `/settings/ways-in` on the card’s web URL (full page load) (a fresh page load) lands directly on heading "Ways in": the section is in the URL, not in page state.
 - `apps/web/spec/e2e/app-settings-scope.desktop.e2e.ts` (desktop project, 414x896): Ways in shows heading "Ways in" and switch "Local network"; Devices removes that switch and shows "Paired devices"; Remote computers shows "No remote computers yet". It does not click This computer (`app.settings-page` covers it).
 
 ## Gotchas

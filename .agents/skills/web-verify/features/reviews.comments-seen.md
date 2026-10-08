@@ -25,31 +25,31 @@ Showing the comment list marks the agent's comments as seen and clears the workt
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start`.
+`$C start`; pair your browser using the card’s pairing-link command.
 
 ### Setup
 
 The agent comments on README.md: `$C agent comment README.md "I added a line to the readme"`. `$C server project` reads the flag back: the main worktree's `"status": "replied"` while it is raised, and no `status` once cleared.
 
-1. `$C open /`, then `$C wait --text "I added a line to the readme"`
+1. Navigate to `/` on the card’s web URL (full page load), then wait for text 'I added a line to the readme' to be visible
    Look for: the comment inline under README.md, with the badge text "From the agent".
-2. `$C click --role button --name "Toggle Sidebar"`
-   Look for: navigation "Projects and worktrees" with the main worktree row (button "main <repository path> repository The agent replied Main worktree") holding img "The agent replied". Then `$C press Escape`.
-3. `$C click --role button --name "Review"`, then `$C click --role tab --name "/^Comments/"`
+2. Click button named `Toggle Sidebar`
+   Look for: navigation "Projects and worktrees" with the main worktree row (button "main <repository path> repository The agent replied Main worktree") holding img "The agent replied". Then Press `Escape`.
+3. Click button named `Review`, then click tab named `/^Comments/`
    Look for: dialog "Worktree review" with tab "Comments 1" selected; region "Comments" listing "I added a line to the readme" with "From the agent".
-4. `$C network`
+4. Inspect HTTP requests and responses
    Look for: `POST /api/worktrees/<id>/comments/seen` answered 200.
-5. `$C press Escape`, then `$C click --role button --name "Toggle Sidebar"`
-   Look for: dialog "Worktree review" is gone; the worktree row no longer has img "The agent replied"; `$C server project` shows no `status` on the worktree. Then `$C press Escape`.
-6. `$C agent comment README.md "I also checked the other files"`, then `$C wait --text "/I also checked the other files/"`
-   Look for: the new comment inline under README.md; `$C server project` shows `"status": "replied"` again, and `$C click --role button --name "Toggle Sidebar"` shows img "The agent replied" back (seen only inline does not clear it). Then `$C press Escape`.
-7. `$C click --role button --name "Review"`, then `$C click --role tab --name "/^Comments/"`
-   Look for: tab "Comments 2" selected listing "I also checked the other files"; a newer `POST .../comments/seen` answered 200 in `$C network`; `$C server project` shows no `status` again.
+5. Press `Escape`, then click button named `Toggle Sidebar`
+   Look for: dialog "Worktree review" is gone; the worktree row no longer has img "The agent replied"; `$C server project` shows no `status` on the worktree. Then Press `Escape`.
+6. `$C agent comment README.md "I also checked the other files"`, then wait for text '/I also checked the other files/' to be visible
+   Look for: the new comment inline under README.md; `$C server project` shows `"status": "replied"` again, and click button named `Toggle Sidebar` shows img "The agent replied" back (seen only inline does not clear it). Then Press `Escape`.
+7. Click button named `Review`, then click tab named `/^Comments/`
+   Look for: tab "Comments 2" selected listing "I also checked the other files"; a newer `POST .../comments/seen` answered 200 in the browser network log; `$C server project` shows no `status` again.
 
 ## What proves it works
 
 - The navigator dot "The agent replied" disappears after the list shows the comments (steps 5 and 7) and comes back after a newer agent comment seen only inline (step 6); each list view sends a 200 `POST .../comments/seen`.
-- Persistence: `open /` after step 5 still shows no "The agent replied" dot, since the server holds the seen revision.
+- Persistence: a full reload of `/` after step 5 still shows no "The agent replied" dot, since the server holds the seen revision.
 - `apps/web/spec/integration/reviews-comments-seen.test.tsx`: after an agent comment `server.project()` reads worktree status `replied` and stays so while the comment shows only inline; showing Comments clears it to undefined; Escape closes the dialog; a second agent comment raises `replied` again until Comments shows it.
 
 ## Gotchas

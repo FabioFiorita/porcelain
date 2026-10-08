@@ -26,11 +26,11 @@ Moving a file to the trash from the tree, after a confirmation, moves it to the 
 
 ## Driving it
 
-Start with `$C start`. Set `REPO` to the path it prints after `repository`.
+Start with `$C start`; pair your browser using the card’s pairing-link command. Set `REPO` to `fixtures.repositoryPath` in the card’s `connection.json`.
 
 ### Setup
 
-Before `open`:
+Before a full page load:
 
 ```sh
 printf 'Notes to throw away\n' > "$REPO/old-notes.md"
@@ -41,39 +41,39 @@ On Linux the sandboxed server keeps its XDG data home in the instance folder, so
 
 ### 1. Trash removes the file
 
-1. `$C open /`
+1. Navigate to `/` on the card’s web URL (full page load)
    Look for: Page Title "Changes — repository".
-2. `$C click --role button --name "Review"`
+2. Click button named `Review`
    Look for: dialog "Worktree review".
-3. `$C click --role tab --name "Files"`
+3. Click tab named `Files`
    Look for: treeitems "old-notes.md" and "gone-notes.md" in the tree of region "All files".
-4. `$C click --role treeitem --name "old-notes.md" --button right`
+4. Right-click treeitem named `old-notes.md`
    Look for: a menu whose last menuitem is "Move to trash".
-5. `$C click --role menuitem --name "Move to trash"`
+5. Click menuitem named `Move to trash`
    Look for: alertdialog "Move old-notes.md to the trash?" with buttons "Cancel" and "Move to trash". The file is untracked, so the description begins "This is part of the agent’s changes."
-6. `$C click --role button --name "Move to trash"`
+6. Click button named `Move to trash`
    Look for: the alertdialog is gone and treeitem "old-notes.md" is gone; the sheet stays open.
    Disk: `test -e "$REPO/old-notes.md" || echo gone` prints `gone`; `grep -l 'old-notes.md' "$REPO"/../data/Trash/info/*.trashinfo` prints one file. The content sits under `$REPO/../data/Trash/files/`.
 
 ### 2. Trashing a file already removed is refused
 
-7. `$C click --role treeitem --name "gone-notes.md" --button right`
+7. Right-click treeitem named `gone-notes.md`
    Look for: the menu opens.
-8. `$C click --role menuitem --name "Move to trash"`
+8. Click menuitem named `Move to trash`
    Look for: alertdialog "Move gone-notes.md to the trash?".
 9. With the dialog open, remove the file on disk: `rm "$REPO/gone-notes.md"`.
-10. `$C click --role button --name "Move to trash"`
+10. Click button named `Move to trash`
     Look for: inside the alertdialog, an alert reading "Path not found"; the dialog stays open.
-11. `$C click --role button --name "Cancel"`
+11. Click button named `Cancel`
     Look for: the alertdialog is gone; treeitem "README.md" still shows.
     Disk: `test -e "$REPO/README.md" && echo kept` prints `kept`.
-12. `$C network`
+12. Inspect HTTP requests and responses
     Look for: `POST /api/worktrees/<worktreeId>/files` with a 2xx status (step 6), then one with an error status (step 10).
 
 ## What proves it works
 
 - On disk: `old-notes.md` is gone from the worktree and its `.trashinfo` in the instance trash names its old path. After the refusal, `README.md` is untouched.
-- `open /`, then Review → Files, no longer shows "old-notes.md".
+- a full reload of `/`, then Review → Files, no longer shows "old-notes.md".
 - `apps/web/spec/integration/files-trash.test.tsx` covers both parts. The first test asserts the confirmation text, that the dialog and the row disappear, and that the server's root no longer lists the file. The second removes the file while the dialog is open, then asserts the alert "Path not found", that Cancel closes the dialog, and that the server still lists `README.md`.
 
 ## Gotchas

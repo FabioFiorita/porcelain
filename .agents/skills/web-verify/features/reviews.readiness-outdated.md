@@ -27,20 +27,20 @@ A comment the agent left for you and checks that ran before the latest code chan
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start` (prints `repository <path>`; call it `$REPO`).
+`$C start`; pair your browser using the card’s pairing-link command (set `$REPO` from `connection.json` → `fixtures.repositoryPath`).
 
 ### Setup
 
 - The agent publishes a review with two passing checks: `$C agent publish-proof "Readme layer" --check "Unit tests=pass" --check "Save journey=pass" --screenshot "Saved notice"`.
 - The agent comments on README.md: `$C agent comment README.md "Should the note mention the new flag?"`.
 
-1. `$C open /`
+1. Navigate to `/` on the card’s web URL (full page load)
    Look for: tab "Review Close Review", region "Published review".
-2. `$C click --role button --name "Review"`
+2. Click button named `Review`
    Look for: in the dialog, region "Readiness" with header button "Readiness 2 things to check" and buttons "0 of 1 file reviewed", "No marks went stale", "Every change explained", "1 comment waiting on you" and "2 checks passed".
-3. On disk: `printf '# Sample repository\n\nA change to review.\nAnother line.\n' > "$REPO/README.md"`, then `$C wait --role button --name "Checks ran before the latest changes"` and `$C snapshot`
+3. On disk: `printf '# Sample repository\n\nA change to review.\nAnother line.\n' > "$REPO/README.md"`, then wait for button named `Checks ran before the latest changes` to be visible and inspect the accessibility tree
    Look for: in region "Readiness", button "Checks ran before the latest changes" in place of "2 checks passed"; "1 comment waiting on you" still there; header "Readiness 3 things to check"; the proof row reads "Proof · outdated".
-4. `$C click --role button --name "Checks ran before the latest changes"`
+4. Click button named `Checks ran before the latest changes`
    Look for: the sheet closes; Page Title "Proof — repository"; region "Proof" with heading "Proof", paragraph "Published <date, time> · checks outdated · 1 attachment", and alert "These checks ran before the latest changes The code changed after the agent published this proof. Ask it to run the checks again.".
 
 ## What proves it works
@@ -50,5 +50,5 @@ A comment the agent left for you and checks that ran before the latest code chan
 
 ## Gotchas
 
-- The sheet stays open across the disk write; the server's watcher and the live connection carry the change, which the `wait` in step 3 follows.
+- The sheet stays open across the disk write; the server's watcher and the live connection carry the change, which the visible-image wait in step 3 follows.
 - Restore README.md afterwards: `printf '# Sample repository\n\nA change to review.\n' > "$REPO/README.md"`.

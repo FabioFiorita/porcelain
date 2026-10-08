@@ -36,43 +36,43 @@ The desktop app pairs with another Porcelain from the link `porcelain pair` prin
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start --desktop`; `WEB` is the web URL it printed. Steps 8 to 12 add the second computer `remote start` runs beside this one.
+`$C start --desktop`; pair your browser using the card’s pairing-link command; `WEB` is the web URL it printed. Steps 8 to 12 add the second computer `remote start` runs beside this one.
 
 ### Refusals (this computer alone)
 
-1. `$C open /settings/remotes`
+1. Navigate to `/settings/remotes` on the card’s web URL (full page load)
    Look for: heading "Remote computers"; the text "No remote computers yet"; button "Add" [disabled].
-2. `$C fill --role textbox --name "Pairing link" "not a link"`
+2. Replace the contents of textbox named `Pairing link` with 'not a link'
    Look for: button "Add" enabled.
-3. `$C click --role button --name "Add"`
+3. Click button named `Add`
    Look for: alert "Paste the whole link porcelain pair printed, starting with http."
-4. `ENV=$(curl -s "$WEB/api/health" | python3 -c "import json,sys; print(json.load(sys.stdin)['environmentId'])")` (this computer's environment id), then `$C fill --role textbox --name "Pairing link" "http://127.0.0.1:9/pair#c=pcp_unused&e=$ENV"`
+4. `ENV=$(curl -s "$WEB/api/health" | python3 -c "import json,sys; print(json.load(sys.stdin)['environmentId'])")` (this computer's environment id), then replace the contents of textbox named `Pairing link` with the expanded value `http://127.0.0.1:9/pair#c=pcp_unused&e=$ENV`
    Look for: the previous alert is gone.
-5. `$C click --role button --name "Add"`
+5. Click button named `Add`
    Look for: alert "That link is for this computer." (checked before any request).
-6. `$C fill --role textbox --name "Pairing link" "$WEB/pair#c=pcp_bogus&e=another-computer"`
+6. Replace the contents of textbox named `Pairing link` with the expanded value `$WEB/pair#c=pcp_bogus&e=another-computer`
    Look for: the previous alert is gone.
-7. `$C click --role button --name "Add"`, then `$C wait --text "/That link was not accepted/"`
+7. Click button named `Add`, then wait for text '/That link was not accepted/' to be visible
    Look for: alert "That link was not accepted. It works once, for a few minutes; run porcelain pair again." (`POST /api/pair` refused the code; a used link shows the same message).
 
 ### Pair, refuse the reused link, forget
 
-8. `$C remote start`, then `LINK=$($C remote pairing-link | head -1)`, `$C fill --role textbox --name "Pairing link" "$LINK"` and `$C click --role button --name "Add"`
-   Look for: "remote computer Remote journey computer, project remote-sample" and its address; then `$C wait --text "Online"` returns; list "Remote computers" with listitem "Remote journey computer" holding "http://127.0.0.1:<remote port> · Porcelain 1.0.0" and "Online"; textbox "Pairing link" empty again.
-9. `$C fill --role textbox --name "Pairing link" "$LINK"`, `$C click --role button --name "Add"`, then `$C wait --text "/That link was not accepted/"`
+8. `$C remote start`, then `LINK=$($C remote pairing-link | head -1)`, replace the contents of textbox named `Pairing link` with the expanded value `$LINK` and click button named `Add`
+   Look for: "remote computer Remote journey computer, project remote-sample" and its address; then wait for text 'Online' to be visible returns; list "Remote computers" with listitem "Remote journey computer" holding "http://127.0.0.1:<remote port> · Porcelain 1.0.0" and "Online"; textbox "Pairing link" empty again.
+9. Replace the contents of textbox named `Pairing link` with the expanded value `$LINK`, click button named `Add`, then wait for text '/That link was not accepted/' to be visible
    Look for: alert "That link was not accepted. It works once, for a few minutes; run porcelain pair again."; "Remote journey computer" still listed once.
-10. `$C open /settings/remotes`, then `$C wait --text "Online"`
+10. Navigate to `/settings/remotes` on the card’s web URL (full page load), then wait for text 'Online' to be visible
     Look for: listitem "Remote journey computer" still listed with "Online" (without the desktop bridge the app keeps remotes in `localStorage`, `porcelain.remotes`).
 11. `$C server devices --remote`
     Look for: a device labelled "Remote computer" beside the remote's "Development setup": the remote holds this app's own credential.
-12. `$C click --role button --name "Remove Remote journey computer"`
+12. Click button named `Remove Remote journey computer`
     Look for: the text "No remote computers yet".
 
 ## What proves it works
 
 - Steps 3, 5 and 7: each refusal shows its alert, and the list stays empty.
-- Step 8: "Online" means the remote answered `GET /api/environment` and authenticated `GET /api/session` with the new credential; `$C network` run right after it lists the cross-origin `POST <remote>/api/pair` (200), `GET <remote>/api/environment` (200) and `GET <remote>/api/session` (200). Step 11 reads the new device on the remote under the label its link was issued for.
-- `apps/web/spec/e2e/access-remote-computers.desktop.e2e.ts` also revokes the remote device, reloads Settings, and checks “Needs pairing” before forgetting it. It starts a second server named "Remote journey computer". It checks the empty state and the "Paste the whole link …" refusal, and "That link is for this computer." for a link with this server's id. With a real link from the remote, it checks the listitem named after the remote containing "Online", and that the remote's devices include "Remote computer". A reused link gets "That link was not accepted …". `Remove <name>` brings back "No remote computers yet".
+- Step 8: "Online" means the remote answered `GET /api/environment` and authenticated `GET /api/session` with the new credential; Inspect HTTP requests and responses run right after it lists the cross-origin `POST <remote>/api/pair` (200), `GET <remote>/api/environment` (200) and `GET <remote>/api/session` (200). Step 11 reads the new device on the remote under the label its link was issued for.
+- `apps/web/spec/e2e/access-remote-computers.desktop.e2e.ts` also revokes the remote device, reloads Settings, and checks “Needs pairing” before forgetting it. It starts a second server named `Remote journey computer`. It checks the empty state and the "Paste the whole link …" refusal, and "That link is for this computer." for a link with this server's id. With a real link from the remote, it checks the listitem named after the remote containing "Online", and that the remote's devices include "Remote computer". A reused link gets "That link was not accepted …". `Remove <name>` brings back "No remote computers yet".
 
 ## Gotchas
 

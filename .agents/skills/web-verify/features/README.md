@@ -1,24 +1,23 @@
 # Web feature map
 
-`C=.agents/skills/web-verify/scripts/cli`, from the repository root; every map uses `$C` for commands.
+`C=.agents/skills/web-verify/scripts/cli`, from the repository root, prepares fixtures and owns server/Vite lifecycle. Read [the skill](../SKILL.md) for its connection card, browser-driver ladder and failure-routing recipes. Browser steps here describe roles, accessible names, keyboard actions and observable states; use your chosen driver.
 
-One file per feature the web offers, named `<domain>.<capability>.md`. Each says what the feature is, how a user reaches it, the exact CLI lines that drive it with the end state to look for, the tests that guard it and its gotchas. `pnpm check` runs `node scripts/feature-maps.ts`, which checks frontmatter and file names, that every page route has a map, that declared routes and tests exist, that selectors appear in app or shared client source, that API entries match endpoints declared in packages/contracts, and that this index links every map. It does not scan client call reachability or enforce prose or section order.
+One file per feature, named `<domain>.<capability>.md`. `pnpm features:check` validates frontmatter, file names, page coverage, declared routes/tests/source literals/contract endpoints and index links. It does not drive behavior or enforce prose order or client call reachability.
 
-What every map assumes about the CLI, proven in the live pass:
+## Shared setup and interpretation
 
-- `start` gives a phone-width browser: the project navigator sits behind `Toggle Sidebar` and the review sidebar (Changes, Files, History) behind `Review`; opening a document closes that sheet.
-- `open` prints the URL and title of the first load, before the app redirects (`/` and "Porcelain"); the next command prints the settled ones. `click` and `press` include a snapshot even for changes at the same URL; they append one only when Playwright supplied none.
-- Right after `start` or `open` the diffs load after the toolbar; `click`, `fill`, `select` and `drag` wait up to 10 s for their target, and `wait` waits for something a step expects (a disk write reaching the page, a dialog's status).
-- An address must match one element. Two panes, a file and its timeline, or the toolbar and diff-header mark buttons repeat a name; scope it with `--within-role`/`--within-name`, pick one with `--nth`, or use the address the map names.
-- `network` lists only the requests since the last page load; add `--static` to include successful scripts, styles and images; `[FAILED] net::ERR_ABORTED` lines are requests the page cancelled and sent again.
-- The aria snapshot shows neither the editor's text nor an iframe's content nor a native select's choice; check those with `screenshot`, `wait --frame`, or the disk.
-- `fill` on the file editor replaces its whole text.
-- Disk setup runs in the `repository` folder `start` printed; the sample repository already commits as "Porcelain Development". `stop` and `start` give a clean instance in a few seconds, which most maps assume.
-- `start --desktop` adds This computer, Ways in, Devices and Remote computers. A remote computer is the second disposable server `remote start` runs, added from the link `remote pairing-link` prints.
-- `start --unpaired` begins on the not-paired page and `pair` pairs through a fresh link; `start --coding-tool` lets commits be drafted.
-- Agent actions (`agent publish-review`, `publish-proof`, `comment`, `reply`) go through the server's MCP route as an agent's would; `server …` prints what the server holds. A review publishes once per instance's worktree.
-- `network hold`/`fail` and `live drop` act from the browser's side, as the e2e fixtures do; release, restore or `stop` before handing the instance on.
-- The disposable servers sign a summary link for 2 seconds from the review read: a summary frame mounted later stays blank until `open` reads the review again.
+- Use a fresh disposable instance unless the map says otherwise. Read `connection.json` for fixture IDs, `fixtures.repositoryPath` (`REPO`), `fixtures.projectHome` (`HOME_DIR`), and `webUrl` (`WEB`). Startup opens no browser. Redeem a fresh link from the card's pairing command in your browser except for maps that explicitly start unpaired.
+- Set the browser viewport to 414 × 896 for these steps. The navigator sits behind button `Toggle Sidebar`; the review panel (Changes, Files, History) behind button `Review`. Opening a document closes its sheet. Desktop-mode maps use `$C start --desktop` for web views; native bridge/menu/sheet behavior belongs to desktop verification.
+- Navigating to a route means a full page load at the card's web URL. Wait for the app's settled URL/title and each expected state; the toolbar can appear before the diffs. Reloads keep the same browser context/session.
+- Roles and quoted names identify exact accessible targets. Slash-delimited patterns mean regex matching, not literal slashes. Scope repeated targets by region/dialog/tablist, then by document order where specified. Inspect the current accessibility tree when a step differs.
+- Accessibility snapshots may omit editor contents, iframe content or a select's chosen option. Inspect the frame's contents, a screenshot, the select value or the real file as appropriate. Replacing editor contents means select-all and insert text for contenteditable, without an unintended blur.
+- Inspect HTTP requests with their method, path, status, content type and relevant payload. Distinguish cancelled requests from failed responses. Attach console diagnostics and browser evidence using your driver's tools; no Porcelain CLI browser commands exist.
+- Disk/Git setup runs in `REPO`; the sample already commits as "Porcelain Development". Agent actions go through disposable MCP; `$C server …` gives typed readbacks. A review publishes once per instance worktree.
+- `$C remote start` owns a second disposable server. `$C remote pairing-link` mints its link; `--trusted` grants update permission. Desktop-mode views connect across origins using that computer's credential. `$C start --coding-tool` enables fixture drafting.
+- Use [the seven routing recipes](../SKILL.md#inject-browser-failures) for refusal/hold/live-outage steps, with routes installed before navigation and restoration in `finally`. Browser cleanup is yours; `$C stop` stops only fixture/server/Vite ownership.
+- Summary links expire two seconds after the disposable review read. A frame mounted later needs a fresh full page load to reread the review.
+
+These instructions are source-reviewed guidance. Report exactly which maps and branches you drove live; passing named specs or converting prose does not establish a live pass of the index.
 
 | Feature | Route | What it does |
 | --- | --- | --- |

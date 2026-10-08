@@ -32,7 +32,7 @@ The web the server serves (web mode) leaves sharing and remote computers to the 
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start` (web mode; `--desktop` shows the other section list).
+`$C start`; pair your browser using the card’s pairing-link command (web mode; `--desktop` shows the other section list).
 
 ### Setup
 
@@ -40,17 +40,17 @@ None. Note the computer's name with `hostname` on the machine running the instan
 
 ### Steps
 
-1. `$C open /`
-   Look for: button "Toggle Sidebar" (the next command prints Page Title "Changes — repository").
-2. `$C click --role button --name "Toggle Sidebar"`
+1. Navigate to `/` on the card’s web URL (full page load)
+   Look for: button "Toggle Sidebar"; wait for Page Title "Changes — repository".
+2. Click button named `Toggle Sidebar`
    Look for: navigation "Projects and worktrees" whose header reads "Porcelain" and, under it, the `hostname` output; button "repository"; no group "This computer" (that group is desktop-only).
-3. `$C click --role button --name "Settings"`
+3. Click button named `Settings`
    Look for: Page URL `/settings/appearance`; Page Title "Settings"; main "Settings"; heading "Appearance"; navigation "Settings sections" holding exactly the buttons "Appearance", "Git and agents", "Connection", "Updates" and "Back"; no button "Sharing", "This computer", "Ways in", "Devices" or "Remote computers".
-4. `$C click --role button --name "Updates"`
-   Look for: Page URL `/settings/updates`; heading "Updates"; the CLI's server offers a scripted update, so the list reads "Porcelain 1.0.0", "Porcelain 1.1.0 is available." and button "Update to 1.1.0". (A server that runs outside the installed service shows "This server runs outside the installed service. Update it with npm, then run porcelain service update." instead.)
-5. `$C network`
+4. Click button named `Updates`
+   Look for: Page URL `/settings/updates`; heading "Updates"; the fixture's server offers a scripted update, so the list reads "Porcelain 1.0.0", "Porcelain 1.1.0 is available." and button "Update to 1.1.0". (A server that runs outside the installed service shows "This server runs outside the installed service. Update it with npm, then run porcelain service update." instead.)
+5. Inspect HTTP requests and responses
    Look for: `GET /api/service/update` with status 200.
-6. `$C open /settings/devices`
+6. Navigate to `/settings/devices` on the card’s web URL (full page load)
    Look for: Page URL `/settings/appearance` (redirected); heading "Appearance".
 
 ## What proves it works

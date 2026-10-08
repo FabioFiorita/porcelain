@@ -27,23 +27,23 @@ The Graph tab of a published layer loads the diagram lazily and draws the layer'
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start`.
+`$C start`; pair your browser using the card’s pairing-link command.
 
 ### Setup
 
 - The agent publishes a review: `$C agent publish-review "Readme layer"` (one layer "Readme layer", lane "Docs", one step "New line" with text "A line is added" on README.md line 3).
 
-1. `$C open /`
+1. Navigate to `/` on the card’s web URL (full page load)
    Look for: tab "Review Close Review", region "Published review".
-2. `$C click --role button --name "Review"`
+2. Click button named `Review`
    Look for: the review sheet (a dialog) with a button whose name contains "Readme layer".
-3. `$C click --role button --name "/Readme layer/"`
+3. Click button named `/Readme layer/`
    Look for: region "Review layer Readme layer"; tab "Code" selected in the layer's tablist (its "Layer presentation" label does not show in the snapshot); article "Step New line".
-4. `$C click --role tab --name "Graph"`, then `$C wait --role button --name "New line"`
+4. Click tab named `Graph`, then wait for button named `New line` to be visible
    Look for: tab "Graph" [selected]; an application holding text "Docs" (the lane) and button "New line" with "New line Changed" and paragraph "A line is added"; buttons "Zoom In", "Zoom Out", "Fit View"; no "Loading diagram…" left.
-5. `$C click --role button --name "New line"`
+5. Click button named `New line`
    Look for: region "Selected step code" with button "Close code" and article "Step New line" holding heading "New line" and the README.md diff (button "Mark README.md as reviewed").
-6. `$C click --role button --name "Close code"`
+6. Click button named `Close code`
    Look for: region "Selected step code" gone; the diagram stays.
 
 ## What proves it works
@@ -53,7 +53,7 @@ The Graph tab of a published layer loads the diagram lazily and draws the layer'
 
 ## Gotchas
 
-- The diagram module loads on first use; "Loading diagram…" shows for a moment after the tab click, which the `wait` in step 4 covers.
+- The diagram module loads on first use; "Loading diagram…" shows for a moment after the tab click, which the visible-state wait in step 4 covers.
 - At phone width the code panel stacks under the diagram (`md:` breakpoint); scroll or screenshot to see it.
 - The step box button is named by the step title only; in the Code view "New line" is a heading, not a button.
-- Address the sidebar's layer button by `/Readme layer/` only while no layer tab is open (its "Close 1. Readme layer" button matches too); afterwards use `$C click --role tab --name "/Readme layer/"`.
+- Address the sidebar's layer button by `/Readme layer/` only while no layer tab is open (its "Close 1. Readme layer" button matches too); afterwards use Click tab named `/Readme layer/`.
