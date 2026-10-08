@@ -6,6 +6,8 @@ import { repositoryRoot } from './development-client.ts';
 export const hostFileName = '.mobile-device-host.json';
 const hubFields = ['hub', 'tokenVariable', 'ports'] as const;
 const fileSchema = Schema.Struct({
+  ssh: Schema.optional(Schema.String),
+  checkout: Schema.optional(Schema.String),
   hub: Schema.optional(
     Schema.String.check(
       Schema.makeFilter((value) => {
@@ -31,6 +33,8 @@ const fileSchema = Schema.Struct({
   ),
 });
 export type RemoteHost = {
+  ssh?: string | undefined;
+  checkout?: string | undefined;
   hub: string;
   tokenVariable: string;
   ports: readonly number[];
@@ -58,7 +62,7 @@ function fileProblem(hostFile: string, wrong: readonly string[]): Error {
   return new Error(
     [
       `${hostFile} describes this machine's simulators; every field is optional:`,
-      '  "simulatorLimit": the most simulators the device host may have booted at once, a positive integer; without it there is no limit',
+      '  "simulatorLimit": the most simulators the device host may have booted at once, a positive integer; defaults to two, and mobile verification never exceeds two',
       "and, to drive a Mac's simulators from another machine, all three of:",
       '  "hub": the agent-device hub URL as this machine reaches it, such as "http://127.0.0.1:4310"',
       '  "tokenVariable": the name of the environment variable that holds the hub token, such as "AGENT_DEVICE_DAEMON_AUTH_TOKEN"',
@@ -82,9 +86,19 @@ export function deviceHost(): DeviceHost {
   const parsed = Schema.decodeUnknownResult(fileSchema)(value);
   if (!Result.isSuccess(parsed))
     throw fileProblem(hostFile, [parsed.failure.message]);
-  const { hub, tokenVariable, ports, simulatorLimit } = parsed.success;
+  const { hub, tokenVariable, ports, simulatorLimit, ssh, checkout } =
+    parsed.success;
   if (hub !== undefined && tokenVariable !== undefined && ports !== undefined)
-    return { remote: { hub, tokenVariable, ports }, simulatorLimit };
+    return {
+      remote: {
+        hub,
+        tokenVariable,
+        ports,
+        ...(ssh === undefined ? {} : { ssh }),
+        ...(checkout === undefined ? {} : { checkout }),
+      },
+      simulatorLimit,
+    };
   const present = hubFields.filter(
     (field) => parsed.success[field] !== undefined,
   );

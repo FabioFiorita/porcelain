@@ -19,19 +19,14 @@ Files is the second destination. It does not read files from the server yet: it 
 ## How a user reaches it
 
 - phone: the Files tab; iPad: Files in the sidebar
-- the deep link `porcelain.dev://files` (the CLI opens it as `/files`)
+- the deep link `porcelain.dev://files`
 
 ## Driving it
 
-Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli open /files
-.agents/skills/mobile-verify/scripts/cli snapshot
-.agents/skills/mobile-verify/scripts/cli screenshot
-```
-
-Look for: the static text “Files” and “Select a worktree to continue.”, with the Files tab selected in the screenshot.
+1. Select the Files tab or sidebar row, then also reach it through porcelain.dev://files. Expect Files and Select a worktree to continue.
+2. Inspect a screenshot for the matching native selection.
+3. Select a workspace through projects.workspace-picker. Expect the toolbar label to update; the current Files placeholder still shows its empty state.
+4. Return through Review and reopen Files. Expect the same heading and workspace label. File browsing and editing are not implemented by this screen.
 
 ## What proves it works
 
@@ -42,4 +37,4 @@ Look for: the static text “Files” and “Select a worktree to continue.”, 
 ## Gotchas
 
 - The empty state is the only state; a server whose project has no files shows the same screen.
-- On iPad in portrait the sidebar is hidden; `open /files` reaches the screen without it.
+- On iPad in portrait the sidebar is hidden; the Files deep link reaches the screen without it.

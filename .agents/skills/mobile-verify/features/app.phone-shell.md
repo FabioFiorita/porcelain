@@ -23,17 +23,10 @@ On a phone the app is four native tabs, Review, Files, History and Settings, eac
 
 ## Driving it
 
-Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli tap --label Review
-.agents/skills/mobile-verify/scripts/cli tap --label Files
-.agents/skills/mobile-verify/scripts/cli tap --label History
-.agents/skills/mobile-verify/scripts/cli tap --label Settings
-.agents/skills/mobile-verify/scripts/cli screenshot
-```
-
-Look for: each tap shows that destination's heading; the screenshot shows the native tab bar with Settings selected.
+1. On the iPhone, select the Review tab. Expect the Review heading and its empty state.
+2. Select Files, then History, then Settings. Expect each matching heading and content.
+3. Inspect a screenshot: Settings is selected and all four native tabs are present.
+4. Cold-launch the development client with the card's Metro URL. Expect Review ready within 30 seconds; confirm the selected tab visually.
 
 ## What proves it works
 

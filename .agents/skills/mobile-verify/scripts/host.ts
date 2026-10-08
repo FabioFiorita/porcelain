@@ -6,13 +6,7 @@ import {
 } from '../../../../apps/mobile/spec/kit/device-host.ts';
 import { onPath, sandboxProblems } from '../../verify-core/cli.ts';
 const hubLimitMs = 5000;
-export const hostDetail = Schema.NullOr(
-  Schema.Struct({
-    hub: Schema.String,
-    tokenVariable: Schema.String,
-  }),
-);
-export type HostDetail = typeof hostDetail.Type;
+const healthSchema = Schema.Struct({ ok: Schema.Boolean });
 export function hubToken(host: { tokenVariable: string }): string {
   return process.env[host.tokenVariable] ?? '';
 }
@@ -41,6 +35,10 @@ export async function freeHostPorts(
 }
 export async function hostProblems(host: RemoteHost): Promise<string[]> {
   const problems = [...sandboxProblems()];
+  if (host.ssh === undefined || host.checkout === undefined)
+    problems.push(
+      'Add ssh (the Mac SSH alias) and checkout (a matching Mac worktree) to the private device-host config; the launcher prepares and releases simulators there.',
+    );
   if (!onPath('agent-device'))
     problems.push(
       'agent-device is missing: install it with npm install --global agent-device',
@@ -49,14 +47,19 @@ export async function hostProblems(host: RemoteHost): Promise<string[]> {
     problems.push(
       `the environment variable ${host.tokenVariable} named in ${hostFileName} is empty; set it to the token of the agent-device hub at ${host.hub}`,
     );
-  const health = await fetch(`${hubUrl(host)}/health`, {
+  const health = await fetch(`${host.hub}/health`, {
     signal: AbortSignal.timeout(hubLimitMs),
   })
-    .then((response) => response.status)
+    .then(async (response) =>
+      response.status === 200 &&
+      Schema.decodeUnknownSync(healthSchema)(await response.json()).ok
+        ? 200
+        : 0,
+    )
     .catch(() => 0);
   if (health !== 200)
     problems.push(
-      `the agent-device hub at ${host.hub} does not answer ${hubUrl(host)}/health; on the device host run agent-device proxy and make its port reachable from this machine`,
+      `the agent-device hub at ${host.hub} does not answer ${host.hub}/health; on the device host run agent-device proxy and make its port reachable from this machine`,
     );
   if ((await freeHostPorts(host, 2)).length < 2)
     problems.push(

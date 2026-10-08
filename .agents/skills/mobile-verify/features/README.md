@@ -1,12 +1,12 @@
 # Mobile feature map
 
-One file per screen and flow the mobile app offers, named `<domain>.<capability>.md`. Each says what it is, how a user reaches it, the exact CLI lines that drive it with the end state to look for, the e2e tests that guard it and its gotchas. Its frontmatter names the `screen` it lives on (as Expo Router names `apps/mobile/src/app`), the `selectors` its steps use (test ids and accessible names spelled as `apps/mobile/src` spells them), the `tests` and the `api` routes it calls. `pnpm check` runs `node scripts/feature-maps.ts`, which checks frontmatter and file names, that every screen has a map, that declared screens and tests exist, that selectors appear in app or shared client source, that API entries match endpoints declared in packages/contracts, and that this index links every map. It does not scan client call reachability or enforce prose or section order.
+One file per screen and flow the mobile app offers, named `<domain>.<capability>.md`. Each says what it is, how a user reaches it, tool-neutral steps, stable roles, labels and test ids, and the expected end state, the e2e tests that guard it and its gotchas. Its frontmatter names the `screen` it lives on (as Expo Router names `apps/mobile/src/app`), the `selectors` its steps use (test ids and accessible names spelled as `apps/mobile/src` spells them), the `tests` and the `api` routes it calls. `pnpm check` runs `node scripts/feature-maps.ts`, which checks frontmatter and file names, that every screen has a map, that declared screens and tests exist, that selectors appear in app or shared client source, that API entries match endpoints declared in packages/contracts, and that this index links every map. It does not scan client call reachability or enforce prose or section order.
 
 | Feature | Screen | What it does |
 | --- | --- | --- |
 | [access.environment-status](access.environment-status.md) | /settings | Each environment row says Checking, Online, Offline, Needs pairing, Another server or Update needed from what its server answered. |
 | [access.forget-environment](access.forget-environment.md) | /settings | Holding an environment row offers Forget environment, which removes it, its credential and its remembered workspace from this device, through a cold launch. |
-| [access.lan-pairing](access.lan-pairing.md) | /settings | Pairing with a Porcelain on another computer over the local network and reconnecting after a cold launch; a manual checkpoint against a real LAN server. |
+| [access.lan-pairing](access.lan-pairing.md) | /settings | Pairing with a Porcelain on another computer over the local network and reconnecting after a cold launch; a checkpoint against a separate disposable LAN server. |
 | [access.pairing](access.pairing.md) | /settings | Add environment pairs through a pasted link, refuses an invalid one, pairs several and restores them after a cold launch. |
 | [access.settings](access.settings.md) | /settings | Settings lists the paired environments with their status and offers Add environment, or says none is paired. |
 | [app.deep-links](app.deep-links.md) | / | The app's scheme opens Review, Files, History and Settings directly, warm or after a cold launch. |
@@ -19,4 +19,4 @@ One file per screen and flow the mobile app offers, named `<domain>.<capability>
 
 ## Platform coverage
 
-iPhone and iPad simulators are proven; `pairing.e2e.ts` runs on both. Android has its own native views (`*.android.tsx`) and is not proven yet: it needs its own build and native proof. The iOS Local Network permission prompt needs a physical device.
+Existing iPhone and iPad e2e coverage is referenced in each map; `pairing.e2e.ts` runs on both. Android has its own native views (`*.android.tsx`) and is not proven yet: it needs its own build and native proof. The iOS Local Network permission prompt needs a physical device.

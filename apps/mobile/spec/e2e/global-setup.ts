@@ -9,7 +9,7 @@ import { deviceHost } from '../kit/device-host.ts';
 import {
   bootSimulator,
   localBootProblem,
-  shutdownSimulator,
+  releaseSimulator,
   type DeviceKind,
 } from '../kit/simulator.ts';
 import { missingTools } from '../kit/tools.ts';
@@ -52,8 +52,13 @@ export default async function setup(project: TestProject) {
     await buildIsolatedServer(build);
     const metro = await startMetro(join(evidence, 'metro.log'));
     cleanups.push(async () => metro.stop());
-    const simulator = await bootSimulator(kind, 'e2e');
-    cleanups.push(() => shutdownSimulator(simulator.udid));
+    const simulator = await bootSimulator(
+      kind,
+      `e2e-${process.pid}`,
+      undefined,
+      deviceHost().simulatorLimit,
+    );
+    cleanups.push(() => releaseSimulator(simulator));
     project.provide('mobileServerBuild', build);
     project.provide('mobileDevice', {
       udid: simulator.udid,

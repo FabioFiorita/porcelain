@@ -23,16 +23,11 @@ On iPad the app is Expo UI's SwiftUI three-column NavigationSplitView: the sideb
 
 ## Driving it
 
-Start an iPad instance: `.agents/skills/mobile-verify/scripts/cli start --device ipad`.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli snapshot
-.agents/skills/mobile-verify/scripts/cli tap --label Files
-.agents/skills/mobile-verify/scripts/cli tap --label Settings
-.agents/skills/mobile-verify/scripts/cli screenshot
-```
-
-Look for: the sidebar “Porcelain”, then Files with “No worktree selected.” in the content column, then Settings with the Environments section and “Add environment”.
+1. On the iPad, show the sidebar if it is hidden; expect the Porcelain sidebar and destination rows.
+2. Select Files. Expect Files in the detail pane and Changes / No worktree selected. in the content pane.
+3. Hide and show the sidebar. Expect the same selection, master and detail.
+4. Select Settings, rotate between landscape and portrait, then return. Expect Environments and Add environment throughout.
+5. Return to Review and confirm its heading.
 
 ## What proves it works
 
@@ -40,5 +35,5 @@ Look for: the sidebar “Porcelain”, then Files with “No worktree selected.�
 
 ## Gotchas
 
-- The simulator starts in portrait, where the sidebar is hidden behind Show Sidebar; the e2e flow rotates to landscape first, and `open <screen>` reaches a destination in either orientation.
+- The simulator starts in portrait, where the sidebar is hidden behind Show Sidebar; the e2e flow rotates to landscape first, and a development deep link reaches a destination in either orientation.
 - “Hide Sidebar” and “Show Sidebar” are SwiftUI's own labels, so the map cannot name them as selectors.
