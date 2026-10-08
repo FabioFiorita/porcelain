@@ -13,3 +13,8 @@ export {
   type SetPinnedInput,
   visibleFileTreePaths,
 } from './file-preferences.ts';
+export {
+  workspaceChoices,
+  type EnvironmentInventory,
+  type WorkspaceChoice,
+} from './workspace-choices.ts';

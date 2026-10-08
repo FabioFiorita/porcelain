@@ -1,15 +1,10 @@
-import type { Project } from '@porcelain/client/projects/rules';
+import type { WorkspaceChoice } from '@porcelain/client/projects/rules';
 
 export type WorkspaceMenuProps = {
   presentation: 'phone' | 'tablet';
   label: string;
   environmentId: string | undefined;
-  projects: readonly {
-    environmentId: string;
-    environmentName: string;
-    project: Project;
-    unavailable: boolean;
-  }[];
+  choices: readonly WorkspaceChoice[];
   projectId: string | undefined;
   worktreeId: string | undefined;
   disabled: boolean;

@@ -1,7 +1,9 @@
+import { Option } from 'effect';
 import { useAtomRef, useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { readInventory, readInventories } from '@porcelain/client/projects';
+import type { EnvironmentInventory } from '@porcelain/client/projects/rules';
 import { liveQueries } from '@porcelain/client/live';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { remoteConnectionState } from '../../../shared/application/store';
@@ -26,7 +28,33 @@ const allInventories = Atom.family((remotes: readonly RemoteConnection[]) => {
   );
 });
 
-export function useInventories() {
+export function useInventories(
+  environments: readonly { environmentId: string; name: string }[],
+) {
   const atom = allInventories(useAtomRef(remoteConnectionState));
-  return { results: useAtomValue(atom), read: useAtomRefresh(atom) };
+  const results = useAtomValue(atom);
+  return {
+    environments: environments.map(
+      ({ environmentId, name }): EnvironmentInventory => {
+        const result = results.find(
+          (entry) => entry.connection.environmentId === environmentId,
+        )?.result;
+        return {
+          environmentId,
+          name,
+          status:
+            result === undefined || AsyncResult.isInitial(result)
+              ? 'reading'
+              : AsyncResult.isFailure(result)
+                ? 'failed'
+                : 'ready',
+          inventory:
+            result === undefined
+              ? undefined
+              : Option.getOrUndefined(AsyncResult.value(result)),
+        };
+      },
+    ),
+    read: useAtomRefresh(atom),
+  };
 }
