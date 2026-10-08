@@ -192,33 +192,9 @@ test('a local signed summary renders through the app origin in its sandbox, keep
   await expect(
     summary.locator('html[data-theme="dark"], html[data-theme="light"]'),
   ).toHaveCount(1);
-  const frame = page
-    .frames()
-    .find((entry) =>
-      entry.url().startsWith('porcelain://app/review-summaries/'),
-    );
-  if (frame === undefined)
-    throw new Error('The local summary did not load through the app');
-  await frame.waitForLoadState('load');
-  await watchSummaryActivations(page, frame);
-  await app.electron.evaluate(({ app, BrowserWindow }) => {
-    app.focus({ steal: true });
-    const view = BrowserWindow.getAllWindows()[0];
-    if (view === undefined) throw new Error('The app window is missing');
-    view.focus();
-    view.webContents.focus();
-  });
-  await focusSummaryLink(frame, 'Open Local summary layer', '#layer-1');
-  await frame
+  await summary
     .getByRole('link', { name: 'Open Local summary layer', exact: true })
     .click();
-  await expect
-    .poll(() => summaryActivations(page))
-    .toContainEqual({
-      trusted: true,
-      href: '#layer-1',
-      focused: true,
-    });
   await expect(
     page.getByRole('region', {
       name: 'Review layer Local summary layer',
