@@ -1,3 +1,4 @@
+import { stripVTControlCharacters } from 'node:util';
 import { deepStrictEqual, ok } from 'node:assert/strict';
 import {
   mkdirSync,
@@ -68,9 +69,9 @@ async function planted(files) {
       outputType: 'err',
     });
     ok(typeof result.output === 'string');
-    const violations = [...result.output.matchAll(/error ([a-z-]+):/g)].map(
-      (match) => match[1],
-    );
+    const violations = [
+      ...stripVTControlCharacters(result.output).matchAll(/error ([a-z-]+):/g),
+    ].map((match) => match[1]);
     deepStrictEqual(
       result.exitCode === 0,
       violations.length === 0,
