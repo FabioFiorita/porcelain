@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
   mkdtempSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -17,8 +18,12 @@ import { selectorAppears } from './feature-selectors.ts';
 import { guardrailCases } from './rule-cases.mjs';
 import { featureMapProblems } from '../scripts/feature-maps.ts';
 
+function fixtureRoot(prefix) {
+  return realpathSync(mkdtempSync(join(tmpdir(), prefix)));
+}
+
 function nativeTypeFixture(source) {
-  const root = mkdtempSync(join(tmpdir(), 'porcelain-effect-types-'));
+  const root = fixtureRoot('porcelain-effect-types-');
   const repository = fileURLToPath(new URL('../', import.meta.url));
   try {
     symlinkSync(
@@ -88,7 +93,7 @@ function writeFiles(root, files) {
 }
 
 function typeFixture(files) {
-  const root = mkdtempSync(join(tmpdir(), 'porcelain-type-rules-'));
+  const root = fixtureRoot('porcelain-type-rules-');
   try {
     symlinkSync(
       fileURLToPath(new URL('../node_modules', import.meta.url)),
@@ -125,7 +130,7 @@ function typeFixture(files) {
 }
 
 function featureMapFixture(entry, files) {
-  const root = mkdtempSync(join(tmpdir(), 'porcelain-feature-maps-'));
+  const root = fixtureRoot('porcelain-feature-maps-');
   try {
     writeFiles(root, { ...entry.files, ...files });
     for (const file of files === entry.invalid ? (entry.remove ?? []) : [])
@@ -137,7 +142,7 @@ function featureMapFixture(entry, files) {
 }
 
 function duplicateFixture(entry, source) {
-  const root = mkdtempSync(join(tmpdir(), 'porcelain-clone-rule-'));
+  const root = fixtureRoot('porcelain-clone-rule-');
   try {
     const scope = {
       ...duplicateScope(),
@@ -172,7 +177,7 @@ export function runGuardrailCases(named = []) {
   );
   for (const entry of cases) {
     if (entry.rule === 'eqeqeq') {
-      const root = mkdtempSync(join(tmpdir(), 'porcelain-equality-'));
+      const root = fixtureRoot('porcelain-equality-');
       try {
         const repository = fileURLToPath(new URL('../', import.meta.url));
         for (const [source, errors] of [
