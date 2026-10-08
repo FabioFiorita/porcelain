@@ -16,6 +16,7 @@ test('choosing another base compares the branch against it and the default bring
   await expect.poll(async () => (await server.branchChanges()).commits).toBe(2);
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
+  await pairedPage.getByRole('tab', { name: 'Changes', exact: true }).click();
   await pairedPage.getByRole('tab', { name: 'Branch', exact: true }).click();
   await expect(
     pairedPage.getByText('2 commits on feature since main', { exact: true }),
@@ -73,6 +74,7 @@ test('a branch deep link keeps valid selections when another optional search val
     `${workspace}?surface=changes&scope=branch&base=refs%2Fheads%2Fmain&side=42&entry=%7B%22invalid%22%3Atrue%7D`,
   );
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
+  await pairedPage.getByRole('tab', { name: 'Changes', exact: true }).click();
   await expect(
     pairedPage.getByRole('tab', { name: 'Changes', exact: true }),
   ).toHaveAttribute('aria-selected', 'true');

@@ -14,6 +14,7 @@ test('the reviewer comments on the whole uncommitted change and then on the whol
     }));
 
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
   await workspace.getByRole('tab', { name: 'Comments', exact: true }).click();
   await workspace
     .getByRole('button', { name: 'Comment on the whole change', exact: true })

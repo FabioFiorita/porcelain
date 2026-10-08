@@ -25,7 +25,7 @@ Hiding a file from the Files tree's context menu takes it out of the tree and th
 - Workspace → `Review` (phone width; at desktop width the review sidebar stands beside the document) → tab `Files` → right-click a file → `Hide file`. A folder gets `Hide folder`.
 - With at least one hidden entry, the Files toolbar shows the toggle button `Hidden (N)`; pressed, it is named `Showing hidden` and the hidden entries reappear in the tree.
 - On a revealed hidden entry, right-click → `Show file` (`Show folder`; a file inside a hidden folder offers `Show <folder name>`).
-- `Alt+2` goes to the Files surface (the tree itself still needs the `Review` sheet at phone width).
+- `Alt+1` goes to the Files surface (the tree itself still needs the `Review` sheet at phone width).
 
 ## Driving it
 
@@ -40,7 +40,7 @@ None: the sample's `README.md` is the file to hide.
 1. Navigate to `/` on the card’s web URL (full page load)
    Look for: Page Title "Changes — repository"; button "Review".
 2. Click button named `Review`
-   Look for: the review sheet (dialog "Worktree review") with tabs "Changes", "Files", "History".
+   Look for: the review sheet (dialog "Worktree review") with tabs "Files", "Changes", "History".
 3. Click tab named `Files`
    Look for: tab "Files" selected; treeitem "README.md"; no button "Hidden (1)".
 4. Right-click treeitem named `README.md`

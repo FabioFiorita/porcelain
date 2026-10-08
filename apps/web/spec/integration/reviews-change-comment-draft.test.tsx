@@ -13,6 +13,7 @@ test('a whole-branch comment being written survives a new commit and is saved at
   await expect.poll(async () => (await server.branchChanges()).commits).toBe(1);
 
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
   await workspace.getByRole('tab', { name: 'Comments', exact: true }).click();
   await workspace.getByRole('tab', { name: 'Branch', exact: true }).click();
   await workspace

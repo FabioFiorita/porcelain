@@ -42,9 +42,9 @@ git -C "$REPO" log --oneline main..feature | wc -l   # prints 2
 ```
 
 1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: Page Title "Changes — repository" (the working tree is clean now, so the Changes document lists no file).
-2. Click button named `Review`
-   Look for: the sheet shows tabs "Changes", "Files", "History" and, under them, tabs "Uncommitted" [selected] and "Branch".
+   Look for: Page Title "Files — repository" (the working tree is clean, so no Changes document is opened by default).
+2. Click button named `Review`, then click tab named `Changes`
+   Look for: the sheet shows tabs "Files", "Changes", "History" and, under them, tabs "Uncommitted" [selected] and "Branch".
 3. Click tab named `Branch`
    Look for: text "2 commits on feature since main"; button "Compare against the default branch"; buttons "README.md · modified", "first.md · added", "second.md · added"; the Page URL contains `scope=branch` and no `base=`.
 4. Click button named `Compare against the default branch`

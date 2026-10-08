@@ -24,7 +24,7 @@ While the page stays open, a file another writer rewrites, creates or removes on
 ## How a user reaches it
 
 - Nothing to click: it happens on any open workspace when the worktree changes on disk.
-- To watch it: button "Review" → tab "Files" (shortcut `Alt+2`) shows the tree; tab "Changes" (`Alt+1`) shows the change list; right-click a changed file in the tree → menuitem "Open file" opens its text (a Markdown file opens on tab "Reader" unless the Markdown default preference says Source; tab "Source" shows the raw text).
+- To watch it: button "Review" → tab "Files" (shortcut `Alt+1`) shows the tree; tab "Changes" (`Alt+2`) shows the change list; right-click a changed file in the tree → menuitem "Open file" opens its text (a Markdown file opens on tab "Reader" unless the Markdown default preference says Source; tab "Source" shows the raw text).
 
 ## Driving it
 
@@ -39,7 +39,7 @@ None before a full page load: every disk write below happens while the page is o
 1. Navigate to `/` on the card’s web URL (full page load)
    Look for: Page Title "Changes — repository".
 2. Click button named `Review`
-   Look for: tabs "Changes" [selected], "Files", "History".
+   Look for: tabs "Files" [selected], "Changes", "History".
 3. Click tab named `Files`
    Look for: treeitem "README.md".
 4. Right-click treeitem named `README.md`

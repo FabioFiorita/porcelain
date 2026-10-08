@@ -14,6 +14,7 @@ test('marking a published layer reviewed keeps the mark, a change to its code as
 
   await agent.publishReview(title);
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'Review', exact: true }).click();
   await workspace.getByRole('button', { name: new RegExp(title) }).click();
   const layer = workspace.getByRole('region', {
     name: `Review layer ${title}`,

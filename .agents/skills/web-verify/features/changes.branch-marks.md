@@ -27,7 +27,7 @@ A file marked reviewed in the branch review is reviewed only for the checked-out
 
 ## How a user reaches it
 
-- Workspace → button "Review" → tab "Branch" → button "<file> · <status>" → in the document toolbar the button "Mark <file> as reviewed" (visible text "Mark reviewed"); the same control, icon-only, sits in the file's diff header.
+- Workspace → button "Review" → tab "Changes" → tab "Branch" → button "<file> · <status>" → in the document toolbar the button "Mark <file> as reviewed" (visible text "Mark reviewed"); the same control, icon-only, sits in the file's diff header.
 - Right-click the file row in the Branch list → menuitem "Mark as reviewed" (it reads "Unmark as reviewed" once marked).
 - The Branch document ("All branch changes") toolbar has a bulk "Mark all … reviewed" button.
 
@@ -44,8 +44,8 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 ```
 
 1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: Page Title "Changes — repository".
-2. Click button named `Review`
+   Look for: Page Title "Files — repository".
+2. Click button named `Review`, then click tab named `Changes`
    Look for: tabs "Uncommitted" and "Branch".
 3. Click tab named `Branch`
    Look for: text "1 commit on feature since main"; buttons "README.md · modified" and "notes.md · added".

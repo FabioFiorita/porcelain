@@ -16,6 +16,7 @@ test('while a published layer is read again after its code changed, its mark wai
   await agent.publishReview(title);
   const opened = await render.workspace();
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('tab', { name: 'Review', exact: true }).click();
   await opened.getByRole('button', { name: new RegExp(title) }).click();
   const layer = opened.getByRole('region', {
     name: `Review layer ${title}`,

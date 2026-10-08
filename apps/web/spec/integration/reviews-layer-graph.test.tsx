@@ -8,6 +8,7 @@ test('opening the graph of a published layer draws its lane and step, and choosi
 
   await agent.publishReview(title);
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'Review', exact: true }).click();
   await workspace.getByRole('button', { name: new RegExp(title) }).click();
   const layer = workspace.getByRole('region', {
     name: `Review layer ${title}`,

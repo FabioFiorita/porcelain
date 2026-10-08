@@ -14,12 +14,14 @@ test('a file changed before its diff request reaches the server recovers to the 
   await repo.write(repo.readme.path, `# Sample repository\n\n${first}\n`);
   const opened = await render.workspace();
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('tab', { name: 'Changes', exact: true }).click();
   await opened
     .getByRole('button', { name: 'All changes', exact: true })
     .click();
   await expect.element(opened.getByText(first, { exact: true })).toBeVisible();
   held.arm();
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('tab', { name: 'Changes', exact: true }).click();
   await opened
     .getByRole('button', {
       name: `${repo.readme.path} · unstaged`,

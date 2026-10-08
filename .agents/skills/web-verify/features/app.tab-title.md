@@ -20,7 +20,7 @@ api:
 
 ## What it is
 
-The browser tab (document title) names what is shown: the open document, or the surface when no document is open, followed by ` — <project name>`; Settings and the empty workspace have their own titles.
+The browser tab (document title) names what is shown: the open document, or the surface when no document is open, followed by ` — <project name>`; Files is the default surface when none is selected; Settings and the empty workspace have their own titles.
 
 The exact strings (`apps/web/src/features/reviews/rules/documents.ts`, `apps/web/src/app/connected-workspace.tsx`, `apps/web/src/app/settings-page.tsx`), with `P` = project name ("repository" in the disposable instance):
 
@@ -51,8 +51,8 @@ None before step 1. Step 5 commits on disk; do it only after step 4, because "Op
 
 1. Navigate to `/` on the card’s web URL (full page load)
    Look for: Page Title "Changes — repository".
-2. Click button named `Review`, then click tab named `Files`
-   Look for: the review sheet with tab "Files" selected and treeitem "README.md"; Page Title "Files — repository" (with the Changes document selected, the title follows the sidebar surface).
+2. Click button named `Review`
+   Look for: the review sheet with tab "Files" selected and treeitem "README.md"; the sidebar tabs appear in order "Files", "Changes", "History", with Files selected. The open Changes document keeps Page Title "Changes — repository". Use `Alt+2` to select Changes, reload and reopen Review to confirm that explicit selection is restored, then use `Alt+1` to return to Files.
 3. Right-click treeitem named `README.md`
    Look for: menu with menuitems "Open diff" and "Open file".
 4. Click menuitem named `Open file`
@@ -77,6 +77,6 @@ None before step 1. Step 5 commits on disk; do it only after step 4, because "Op
 
 - Order matters: after the commit README.md has no changes, so its tree menu offers "Open" instead of "Open file".
 - The separator is an em dash with spaces (` — `), and the computer-name suffix uses ` · `.
-- Switching the sidebar surface does not change the title while a file or commit document is selected (step 6 keeps "README.md — repository"); with the Changes document selected the title follows the surface (`Files — P`, `History — P`).
+- Switching the sidebar surface does not change the title while a file or commit document is selected (step 6 keeps "README.md — repository"); with the Changes document selected the title stays `Changes — P`. With no document open the title follows the surface, defaulting to `Files — P`.
 - Phone width: the review sidebar is a sheet behind the "Review" button; opening a document closes it, so click "Review" again before the next sidebar step.
 - In an instance where another feature committed, renamed the project or gave this computer a custom name, the strings change accordingly (`Settings · <name>`, ` · <name>` suffix).

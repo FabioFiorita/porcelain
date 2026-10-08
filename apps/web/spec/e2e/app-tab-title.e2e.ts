@@ -5,13 +5,30 @@ test('the browser tab follows the open surface, file and commit', async ({
   app,
   repo,
   server,
-}) => {
+}, testInfo) => {
   const project = (await server.project()).name;
   const title = () => app.title();
   await expect.poll(title).toBe(`Changes — ${project}`);
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'Files', exact: true }).click();
+  const sidebar = pairedPage.getByRole('complementary', {
+    name: 'Review sidebar',
+    exact: true,
+  });
+  await expect(
+    sidebar.getByRole('tablist').first().getByRole('tab'),
+  ).toHaveText(['Files', 'Changes', 'History']);
+  const files = sidebar.getByRole('tab', { name: 'Files', exact: true });
+  const changes = sidebar.getByRole('tab', { name: 'Changes', exact: true });
+  await expect(files).toHaveAttribute('aria-selected', 'true');
+  await pairedPage.screenshot({ path: testInfo.outputPath('files-first.png') });
+  await pairedPage.keyboard.press('Alt+2');
+  await expect(changes).toHaveAttribute('aria-selected', 'true');
+  await app.reload();
+  await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
+  await expect(changes).toHaveAttribute('aria-selected', 'true');
+  await pairedPage.keyboard.press('Alt+1');
+  await expect(files).toHaveAttribute('aria-selected', 'true');
   const file = pairedPage.getByRole('treeitem', {
     name: repo.readme.path,
     exact: true,

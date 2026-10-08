@@ -16,6 +16,7 @@ test("the reviewer deletes the resolved threads they started after confirming, a
 
   await agent.comment(repo.readme.path, fromAgent);
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
   await workspace.getByRole('tab', { name: /^Comments/ }).click();
   const comments = workspace.getByRole('dialog');
   await expect
