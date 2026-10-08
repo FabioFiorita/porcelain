@@ -41,8 +41,8 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 Do not make the second commit yet: it lands in step 6, while the draft is open.
 
 1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: Page Title "Changes — repository".
-2. Click button named `Review`
+   Look for: Page Title "Files — repository".
+2. Click button named `Review`, then click tab named `Changes`
    Look for: dialog "Worktree review" with tabs "Uncommitted" and "Branch", "Changed files" and "Comments".
 3. Click tab named `Branch`
    Look for: tab "Branch" selected; Page URL contains `scope=branch`.

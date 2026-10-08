@@ -6,6 +6,7 @@ async function openBranchFile(page: Page, repo: Repo) {
   await repo.write('notes.md', 'first line\nsecond line\n');
   await repo.commit('Add notes');
   await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('tab', { name: 'Changes', exact: true }).click();
   await page.getByRole('tab', { name: 'Branch', exact: true }).click();
   await page
     .getByRole('button', { name: 'notes.md · added', exact: true })
@@ -30,6 +31,7 @@ test('reviewing the branch lists the files committed since the default branch an
     .toEqual([repo.readme.path, 'notes.md']);
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
+  await pairedPage.getByRole('tab', { name: 'Changes', exact: true }).click();
   await pairedPage.getByRole('tab', { name: 'Branch', exact: true }).click();
   await expect(
     pairedPage.getByText('1 commit on feature since main', { exact: true }),

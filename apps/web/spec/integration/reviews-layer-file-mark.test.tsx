@@ -12,6 +12,7 @@ test('a file inside a published layer is marked and unmarked reviewed on its own
     (await server.reviewedFiles()).marks.map((mark) => mark.path);
   await agent.publishReview(title);
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'Review', exact: true }).click();
   await workspace.getByRole('button', { name: new RegExp(title) }).click();
   const layer = workspace.getByRole('region', {
     name: `Review layer ${title}`,

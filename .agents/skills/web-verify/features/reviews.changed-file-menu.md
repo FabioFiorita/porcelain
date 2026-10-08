@@ -28,7 +28,7 @@ Right-clicking a changed file in the review sidebar marks it reviewed (and then 
 
 ## How a user reaches it
 
-- Review (phone; the right sidebar on desktop) → surface tab "Changes" (`Alt+1`) → tab "Changed files" (selected by default) → right-click a file row. The row's name is `<file name> · <scopes>`, for the sample `README.md · unstaged`.
+- Review (phone; the right sidebar on desktop) → surface tab "Changes" (`Alt+2`) → tab "Changed files" (selected by default) → right-click a file row. The row's name is `<file name> · <scopes>`, for the sample `README.md · unstaged`.
 - Menu items: "Mark as reviewed" ("Unmark as reviewed" when reviewed, "Mark as reviewed again" when changed since), "Comment", "Open diff", "Open file", "Show timeline", "Copy relative path", "Discard".
 - `Alt+Shift+R` toggles the Review sheet at phone width.
 
@@ -40,7 +40,7 @@ Start with `$C start`; pair your browser using the card’s pairing-link command
 
 None: the sample `README.md` is already modified.
 
-1. Navigate to `/` on the card’s web URL (full page load) then click button named `Review`
+1. Navigate to `/` on the card’s web URL (full page load) then click button named `Review`, then click tab named `Changes`
    Look for: dialog "Worktree review" with tab "Changes" selected and a button `README.md · unstaged`.
 2. Right-click button named `/^README\.md( · .+)?$/`
    Look for: a menu with menuitems "Mark as reviewed", "Comment", "Open diff", "Open file", "Show timeline", "Copy relative path", "Discard".

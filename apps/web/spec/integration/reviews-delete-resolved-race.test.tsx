@@ -13,6 +13,7 @@ test('a resolved thread the agent answers while the reviewer confirms the deleti
     );
 
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
   await workspace.getByRole('tab', { name: /^Comments/ }).click();
   const comments = workspace.getByRole('dialog');
   await comments

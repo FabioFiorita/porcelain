@@ -49,7 +49,7 @@ None before step 1. Step 5 writes README.md on disk in the middle of the flow (a
 1. Navigate to `/` on the card’s web URL (full page load)
    Look for: Page URL `/<projectId>/<worktreeId>`, Page Title "Changes — repository", button "Review".
 2. Click button named `Review`
-   Look for: the review sheet opens with tabs "Changes", "Files", "History".
+   Look for: the review sheet opens with tabs "Files", "Changes", "History".
 3. Click tab named `Files`
    Look for: tab "Files" selected; treeitem "README.md"; Page URL gains `?surface=files`.
 4. Right-click treeitem named `README.md`, then click menuitem named `Open file`

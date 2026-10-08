@@ -36,7 +36,7 @@ The branch review lists every file committed on the checked-out branch since it 
 
 ## How a user reaches it
 
-- Workspace → button "Review" → tab "Branch" (next to "Uncommitted"; the address gains `scope=branch`) → button "<file> · <status>" opens that file's branch diff (`entry=branch:<path>`); button "All branch changes" opens every file.
+- Workspace → button "Review" → tab "Changes" → tab "Branch" (next to "Uncommitted"; the address gains `scope=branch`) → button "<file> · <status>" opens that file's branch diff (`entry=branch:<path>`); button "All branch changes" opens every file.
 - In the file's document: toolbar button "Mark <file> as reviewed" (text "Mark reviewed"), and button "Comment on <file> (<status>)" in the diff header.
 - Right-click a file row → menu "Mark as reviewed", "Comment", "Open diff", "Open file", "Show timeline", "Copy relative path".
 
@@ -56,8 +56,8 @@ git -C "$REPO" diff --name-only main feature   # prints README.md and notes.md
 ### 1. The branch lists its committed files and opens one
 
 1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: Page Title "Changes — repository".
-2. Click button named `Review`
+   Look for: Page Title "Files — repository".
+2. Click button named `Review`, then click tab named `Changes`
    Look for: tabs "Uncommitted" [selected] and "Branch".
 3. Click tab named `Branch`
    Look for: text "1 commit on feature since main"; buttons "README.md · modified" and "notes.md · added"; the Page URL contains `scope=branch`.

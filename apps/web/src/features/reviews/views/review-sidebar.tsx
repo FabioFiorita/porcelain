@@ -68,12 +68,12 @@ export function ReviewSidebar({
       >
         <div className="shrink-0 p-1.5">
           <TabsList className="h-8 w-full">
-            <TabsTrigger value="changes" className="min-w-0">
-              <ChangesSurfaceLabel scope={scope} context={context} />
-            </TabsTrigger>
             <TabsTrigger value="files" className="min-w-0">
               <FilesIcon className="size-3.5" />
               <span className="truncate">Files</span>
+            </TabsTrigger>
+            <TabsTrigger value="changes" className="min-w-0">
+              <ChangesSurfaceLabel scope={scope} context={context} />
             </TabsTrigger>
             <TabsTrigger value="history" className="min-w-0">
               <HistoryIcon className="size-3.5" />

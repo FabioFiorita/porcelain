@@ -87,7 +87,7 @@ export function ReviewWorkspace({
     open: navigatorOpen,
     openMobile: navigatorOpenMobile,
   } = useSidebar();
-  const surface = search.surface ?? 'changes';
+  const surface = search.surface ?? 'files';
   const scope = { projectId, worktreeId: worktree.id };
 
   const toggleSidebar = () => {

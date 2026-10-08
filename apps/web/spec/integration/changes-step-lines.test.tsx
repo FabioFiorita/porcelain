@@ -7,6 +7,7 @@ async function openStep(agent: Agent, render: Render) {
   await agent.publishReview(layer, 'context');
   const opened = await render.workspace();
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('tab', { name: 'Review', exact: true }).click();
   await opened
     .getByRole('button', { name: `1. ${layer}`, exact: true })
     .click();

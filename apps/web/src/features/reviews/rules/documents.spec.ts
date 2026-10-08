@@ -51,7 +51,7 @@ describe('workspaceTitle', () => {
     ).toBe('History — p');
     expect(
       workspaceTitle({ entry: '', surface: undefined, project: 'p' }),
-    ).toBe('Changes — p');
+    ).toBe('Files — p');
   });
 
   it('leaves the project out when it is unknown', () => {

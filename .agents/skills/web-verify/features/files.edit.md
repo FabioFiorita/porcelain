@@ -39,7 +39,7 @@ None: the sample repository's `README.md` is already modified, so the tree menu 
 1. Navigate to `/` on the card’s web URL (full page load)
    Look for: Page Title "Changes — repository".
 2. Click button named `Review`
-   Look for: dialog "Worktree review" with tabs "Changes", "Files", "History".
+   Look for: dialog "Worktree review" with tabs "Files", "Changes", "History".
 3. Click tab named `Files`
    Look for: treeitem "README.md" under region "All files".
 4. Right-click treeitem named `README.md`

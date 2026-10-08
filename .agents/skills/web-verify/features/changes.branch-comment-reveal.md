@@ -29,7 +29,7 @@ A comment written in the branch review remembers the base it was compared agains
 
 ## How a user reaches it
 
-- Workspace → button "Review" → tab "Branch" → tab "Comments" (named `Comments` plus the open-comment count) → the thread's location button (file name, "Whole file" or the line label, "in <short sha>"; title "Show in the code").
+- Workspace → button "Review" → tab "Changes" → tab "Branch" → tab "Comments" (named `Comments` plus the open-comment count) → the thread's location button (file name, "Whole file" or the line label, "in <short sha>"; title "Show in the code").
 - Writing the comment: open a branch file (button "<file> · <status>" in the Branch list), then button "Comment on <file> (<status>)" in the file's diff header, or right-click the file row → menuitem "Comment".
 
 ## Driving it
@@ -46,8 +46,8 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 ```
 
 1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: Page Title "Changes — repository".
-2. Click button named `Review`
+   Look for: Page Title "Files — repository".
+2. Click button named `Review`, then click tab named `Changes`
    Look for: tabs "Uncommitted" and "Branch".
 3. Click tab named `Branch`
    Look for: text "1 commit on feature since main"; button "Compare against the default branch".

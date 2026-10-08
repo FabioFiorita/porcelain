@@ -13,6 +13,7 @@ test('the proof an agent published shows its checks and screenshot, with the fai
     screenshot: 'Saved notice',
   });
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'Review', exact: true }).click();
   await workspace
     .getByRole('button', { name: 'Proof · 1 failing', exact: true })
     .click();

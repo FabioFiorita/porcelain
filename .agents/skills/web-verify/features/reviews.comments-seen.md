@@ -3,6 +3,7 @@ route: /$projectId/$worktreeId
 selectors:
   - "Review"
   - "Comments"
+  - "Changes"
   - "Toggle Sidebar"
   - "Projects and worktrees"
   - "The agent replied"
@@ -20,7 +21,7 @@ Showing the comment list marks the agent's comments as seen and clears the workt
 
 ## How a user reaches it
 
-- Review (phone; the right sidebar on desktop) → tab "Comments". The list marks comments seen once every filter that has threads ("open", and "resolved" when it has any) has been shown since the threads last changed.
+- Review (phone; the right sidebar on desktop) → tab "Changes" → tab "Comments". The list marks comments seen once every filter that has threads ("open", and "resolved" when it has any) has been shown since the threads last changed.
 - The flag is the dot with img name "The agent replied" on the worktree row in navigation "Projects and worktrees" (behind "Toggle Sidebar" at phone width).
 
 ## Driving it
@@ -35,7 +36,7 @@ The agent comments on README.md: `$C agent comment README.md "I added a line to 
    Look for: the comment inline under README.md, with the badge text "From the agent".
 2. Click button named `Toggle Sidebar`
    Look for: navigation "Projects and worktrees" with the main worktree row (button "main <repository path> repository The agent replied Main worktree") holding img "The agent replied". Then Press `Escape`.
-3. Click button named `Review`, then click tab named `/^Comments/`
+3. Click button named `Review`, then click tab named `Changes`, then click tab named `/^Comments/`
    Look for: dialog "Worktree review" with tab "Comments 1" selected; region "Comments" listing "I added a line to the readme" with "From the agent".
 4. Inspect HTTP requests and responses
    Look for: `POST /api/worktrees/<id>/comments/seen` answered 200.

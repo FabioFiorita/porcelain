@@ -37,7 +37,7 @@ git -C "$REPO" branch before-commit
 ### 1. A commit made on disk shows above the start of history
 
 1. Click button named `Review`
-   Look for: dialog "Worktree review" with a tablist holding tabs "Changes", "Files", "History".
+   Look for: dialog "Worktree review" with a tablist holding tabs "Files", "Changes", "History".
 2. Click tab named `History`
    Look for: tab "History" selected; Page URL has `surface=history`; the current document stays open (Page Title "Changes — repository" on the start fixture); one row, a button whose name starts "Initial commit" and goes on with the 7-character id, "Porcelain Development", the age and the ref chips "before-commit" and "main"; text "Start of history." below it.
 3. On disk: `git -C "$REPO" commit -am "Commit made on disk"`, then inspect the accessibility tree

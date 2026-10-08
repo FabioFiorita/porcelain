@@ -12,5 +12,5 @@ name: Connect the freshly installed development client to this run's Metro
     text: Continue
     optional: true
 - extendedWaitUntil:
-    visible: Review
+    visible: Files
     timeout: 30000

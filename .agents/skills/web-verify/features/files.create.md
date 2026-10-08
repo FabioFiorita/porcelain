@@ -25,7 +25,7 @@ New file and New folder add a row to the file tree with an inline name field; En
 
 - Review (phone width; opens the sheet "Worktree review") → tab Files → button "New file" or button "New folder" beside "Search files". These create at the worktree root.
 - Right-click a folder row in the tree → menuitem "New file" or "New folder": creates inside that folder.
-- Keyboard: `Alt+Shift+R` opens the review sheet at phone width, `Alt+2` selects the Files tab.
+- Keyboard: `Alt+Shift+R` opens the review sheet at phone width, `Alt+1` selects the Files tab.
 
 ## Driving it
 
@@ -40,7 +40,7 @@ None. Before you drive again on the same instance, remove what the last run made
 1. Navigate to `/` on the card’s web URL (full page load)
    Look for: Page Title "Changes — repository" and button "Review".
 2. Click button named `Review`
-   Look for: dialog "Worktree review" with tabs "Changes", "Files" and "History".
+   Look for: dialog "Worktree review" with tabs "Files", "Changes" and "History".
 3. Click tab named `Files`
    Look for: tab "Files" [selected], textbox "Search files", buttons "New file" and "New folder", the tree in region "All files" with treeitem "README.md".
 4. Click button named `New file`

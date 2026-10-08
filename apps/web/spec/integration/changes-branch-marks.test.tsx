@@ -14,6 +14,7 @@ test('a branch mark belongs to its branch: another branch starts fresh and switc
     .toBe('refs/heads/feature');
 
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
   await workspace.getByRole('tab', { name: 'Branch', exact: true }).click();
   await workspace
     .getByRole('button', { name: 'notes.md · added', exact: true })

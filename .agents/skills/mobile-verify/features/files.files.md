@@ -19,7 +19,7 @@ Files is the second destination. It does not read files from the server yet: it 
 ## How a user reaches it
 
 - phone: the Files tab; iPad: Files in the sidebar
-- the deep link `porcelain.dev://files`
+- the deep link `porcelain.dev://files` (the root link opens Files too)
 
 ## Driving it
 

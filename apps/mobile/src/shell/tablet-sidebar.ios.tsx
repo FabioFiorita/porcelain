@@ -5,8 +5,8 @@ import { tabIcon } from '../shared/icons/tab-icon';
 import { type IconName } from '../shared/icons/icon';
 
 const destinations = [
-  { path: '/', title: 'Review', icon: 'review' },
   { path: '/files', title: 'Files', icon: 'files' },
+  { path: '/review', title: 'Review', icon: 'review' },
   { path: '/history', title: 'History', icon: 'history' },
   { path: '/settings', title: 'Settings', icon: 'settings' },
 ] satisfies { path: string; title: string; icon: IconName }[];

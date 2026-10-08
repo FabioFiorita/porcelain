@@ -15,7 +15,7 @@ api: []
 
 ## What it is
 
-On iPad the app is Expo UI's SwiftUI three-column NavigationSplitView: the sidebar “Porcelain” lists Review, Files, History and Settings; the content column holds the destination's master pane (“Changes” with “No worktree selected.” in themed React Native content, or Settings' native Environments section); Expo Router renders the detail column, whose toolbar carries the workspace picker. Collapsing the sidebar keeps the master and detail; rotating keeps Settings. In portrait iPadOS shows two columns. The tablet never embeds the phone's tab navigator. The owner chose the SwiftUI split view over Router's, which cannot customize its header.
+On iPad the app is Expo UI's SwiftUI three-column NavigationSplitView: the sidebar “Porcelain” lists Files, Review, History and Settings; the content column holds the destination's master pane (“Files” by default or “Changes” on Review, with “No worktree selected.” in themed React Native content, or Settings' native Environments section); Expo Router renders the detail column, whose toolbar carries the workspace picker. Collapsing the sidebar keeps the master and detail; rotating keeps Settings. In portrait iPadOS shows two columns. The tablet never embeds the phone's tab navigator. The owner chose the SwiftUI split view over Router's, which cannot customize its header.
 
 ## How a user reaches it
 
@@ -23,8 +23,8 @@ On iPad the app is Expo UI's SwiftUI three-column NavigationSplitView: the sideb
 
 ## Driving it
 
-1. On the iPad, show the sidebar if it is hidden; expect the Porcelain sidebar and destination rows.
-2. Select Files. Expect Files in the detail pane and Changes / No worktree selected. in the content pane.
+1. Launch on the iPad, then show the sidebar if it is hidden; expect Files as the first and selected destination in the Porcelain sidebar.
+2. Select Files. Expect Files in the detail pane and Files / No worktree selected. in the content pane.
 3. Hide and show the sidebar. Expect the same selection, master and detail.
 4. Select Settings, rotate between landscape and portrait, then return. Expect Environments and Add environment throughout.
 5. Return to Review and confirm its heading.

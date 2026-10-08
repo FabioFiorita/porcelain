@@ -15,6 +15,7 @@ test('showing a branch comment opens its file against the base it was written ag
   const search = () => new URLSearchParams(app.address().query);
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
+  await pairedPage.getByRole('tab', { name: 'Changes', exact: true }).click();
   await pairedPage.getByRole('tab', { name: 'Branch', exact: true }).click();
   await pairedPage
     .getByRole('button', {
@@ -45,6 +46,7 @@ test('showing a branch comment opens its file against the base it was written ag
     .toEqual([{ kind: 'branch', base: 'refs/heads/checkpoint' }]);
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
+  await pairedPage.getByRole('tab', { name: 'Changes', exact: true }).click();
   await pairedPage
     .getByRole('button', { name: 'Compare against checkpoint', exact: true })
     .click();

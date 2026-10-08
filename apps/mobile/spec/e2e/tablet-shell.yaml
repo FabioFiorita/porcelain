@@ -4,6 +4,10 @@ name: Three-column tablet destinations
 - runFlow: connect.yaml
 - setOrientation: LANDSCAPE_LEFT
 - assertVisible: Porcelain
+- assertVisible:
+    text: Files
+    selected: true
+- assertVisible: No worktree selected.
 - tapOn: Review
 - assertVisible:
     text: Review

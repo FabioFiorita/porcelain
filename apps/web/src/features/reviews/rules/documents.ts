@@ -147,7 +147,7 @@ export function workspaceTitle(input: {
   const ref = parseEntry(input.entry);
   const shown = ref
     ? documentTitle(ref)
-    : surfaceTitles[input.surface ?? 'changes'];
+    : surfaceTitles[input.surface ?? 'files'];
   const titled = input.project ? `${shown} — ${input.project}` : shown;
   return input.environment ? `${titled} · ${input.environment}` : titled;
 }

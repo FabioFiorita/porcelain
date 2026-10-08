@@ -49,7 +49,7 @@ git -C "$REPO" log -1 --format='%s %p'
 The last line prints `Merge branch 'topic'` and two parent ids.
 
 1. Click button named `Review`
-   Look for: dialog "Worktree review" with tabs "Changes", "Files", "History".
+   Look for: dialog "Worktree review" with tabs "Files", "Changes", "History".
 2. Click tab named `History`
    Look for, in the snapshot of the sheet:
    - four row buttons, the merge first (the two commits made in the same second may come in either order, a live run showed "Add the topic notes" above "Describe every step…"): one starting "Merge commit Merge branch 'topic'" that holds img "Merge commit" and the chip "main"; one starting "Describe every step the reviewer takes before approving the change" with that whole subject as text and no img "Merge commit"; one starting "Add the topic notes" with the chip "topic"; one starting "Initial commit";

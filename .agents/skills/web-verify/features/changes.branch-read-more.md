@@ -24,7 +24,7 @@ The Branch document ("All branch changes") reads diffs for the first 25 files (`
 
 ## How a user reaches it
 
-- Workspace → button "Review" → tab "Branch" → button "All branch changes" (its name ends with the file count) → at the bottom of the document, button "Read <n> more of <m>" (while further files remain, shows "Reading…", disabled, during a read).
+- Workspace → button "Review" → tab "Changes" → tab "Branch" → button "All branch changes" (its name ends with the file count) → at the bottom of the document, button "Read <n> more of <m>" (while further files remain, shows "Reading…", disabled, during a read).
 
 ## Driving it
 
@@ -42,8 +42,8 @@ git -C "$REPO" diff --name-only main feature | wc -l   # prints 27
 ```
 
 1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: Page Title "Changes — repository".
-2. Click button named `Review`
+   Look for: Page Title "Files — repository".
+2. Click button named `Review`, then click tab named `Changes`
    Look for: tabs "Uncommitted" and "Branch".
 3. Click tab named `Branch`
    Look for: text "1 commit on feature since main"; a button whose name starts "All branch changes" and ends "27"; rows "README.md · modified", "notes-00.md · added" … "notes-25.md · added".

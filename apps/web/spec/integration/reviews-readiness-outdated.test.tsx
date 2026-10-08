@@ -21,6 +21,7 @@ test('an agent question and checks older than the code keep the readiness panel 
   });
   await agent.comment(readme, 'Should the note mention the new flag?');
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'Review', exact: true }).click();
   await expect.element(line('2 checks passed')).toBeVisible();
   await expect.element(line('1 comment waiting on you')).toBeVisible();
 
