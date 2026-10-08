@@ -1,15 +1,8 @@
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { parsePatchFiles } from '@pierre/diffs';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { selectionKey } from '@porcelain/client/changes/rules';
 import {
@@ -68,6 +61,7 @@ export function PublishedLayer({
   const toggle = useToggleLayerMark(scope, context);
   const { reviewed, label } = mark;
   const [view, setView] = useState('code');
+  const [singleFile, setSingleFile] = useState(false);
   const [focus, setFocus] = useState<string>();
   const selectedStep = layer.steps.find((step) => step.id === focus);
   const diagram = layerDiagram(layer);
@@ -129,49 +123,85 @@ export function PublishedLayer({
           The layer mark could not be updated. Try again.
         </p>
       )}
-      {view === 'graph' ? (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div className="shrink-0 border-b px-4 py-2">
-            <Select
-              items={layer.steps.map((step) => ({
-                value: step.id,
-                label: step.title,
-              }))}
-              value={focus ?? null}
-              onValueChange={(value) => setFocus(value ?? undefined)}
-            >
-              <SelectTrigger
-                size="sm"
-                aria-label="Select code location"
-                className="max-w-full"
-              >
-                <SelectValue placeholder="Select a code location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>Select a code location</SelectItem>
-                {layer.steps.map((step) => (
-                  <SelectItem key={step.id} value={step.id}>
-                    {step.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Agent-described relationships · scroll to explore
-            </p>
-          </div>
-          <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-            <ReviewDiagram
-              graph={graph}
-              className="min-w-0"
-              onBoxClick={(box) => setFocus(box.id)}
-            />
-            {selectedStep && (
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <div className="flex min-h-64 min-w-0 flex-1 flex-col">
+          {view === 'graph' ? (
+            <>
+              <p className="shrink-0 border-b px-4 py-2 text-xs text-muted-foreground">
+                Agent-described relationships · select a code location to
+                explore
+              </p>
+              <ReviewDiagram
+                graph={graph}
+                className="min-w-0"
+                onBoxClick={(box) => setFocus(box.id)}
+              />
+            </>
+          ) : (
+            <>
+              <div className="shrink-0 border-b px-4 py-2">
+                <Tabs
+                  aria-label="Layer diff scope"
+                  value={singleFile ? 'file' : 'all'}
+                  onValueChange={(value) => {
+                    setSingleFile(value === 'file');
+                    if (value === 'file' && !selectedStep)
+                      setFocus(layer.steps[0]?.id);
+                  }}
+                >
+                  <TabsList>
+                    <TabsTrigger value="all">All files</TabsTrigger>
+                    <TabsTrigger value="file">One file</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+              <LayerFiles
+                key={singleFile ? selectedStep?.pointer.path : 'all'}
+                {...props}
+                layer={layer}
+                steps={
+                  singleFile && selectedStep
+                    ? layer.steps.filter(
+                        (step) =>
+                          step.pointer.path === selectedStep.pointer.path,
+                      )
+                    : layer.steps
+                }
+              />
+            </>
+          )}
+        </div>
+        <LayerExplorer
+          {...props}
+          layer={layer}
+          proof={proof}
+          selected={focus}
+          onSelect={(id) => {
+            setFocus(id);
+            if (view === 'code') setSingleFile(true);
+          }}
+          onFullDiff={() => {
+            setView('code');
+            setSingleFile(false);
+          }}
+          selectedCode={
+            view === 'graph' &&
+            selectedStep && (
               <section
                 aria-label="Selected step code"
-                className="flex min-h-0 min-w-0 flex-1 flex-col border-t md:border-t-0 md:border-l"
+                className="mt-4 border-t pt-3"
               >
-                <div className="flex shrink-0 justify-end px-3 py-1">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setView('code');
+                      setSingleFile(true);
+                    }}
+                  >
+                    Read full file diff
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -180,37 +210,127 @@ export function PublishedLayer({
                     Close code
                   </Button>
                 </div>
-                <div className="min-h-0 flex-1 overflow-auto p-4">
-                  <LayerSteps
-                    {...props}
-                    layer={layer}
-                    steps={[selectedStep]}
-                    focus={undefined}
-                  />
-                </div>
+                <LayerSteps
+                  {...props}
+                  layer={layer}
+                  steps={[selectedStep]}
+                  focus={undefined}
+                />
               </section>
-            )}
-          </div>
-        </div>
-      ) : (
-        <LayerFiles {...props} layer={layer} proof={proof} />
-      )}
+            )
+          }
+        />
+      </div>
     </section>
+  );
+}
+
+function LayerExplorer({
+  layer,
+  proof,
+  selected,
+  onSelect,
+  onFullDiff,
+  selectedCode,
+  scope,
+  context,
+}: {
+  layer: ReviewLayer;
+  proof: ReviewProof;
+  selected: string | undefined;
+  onSelect: (id: string) => void;
+  onFullDiff: () => void;
+  selectedCode: ReactNode;
+  scope: ReviewScope;
+  context: ConnectionContext;
+}) {
+  return (
+    <aside
+      aria-label="Explore the layer"
+      className="max-h-[35vh] shrink-0 overflow-auto border-t p-4 lg:max-h-none lg:w-80 lg:border-t-0 lg:border-l xl:w-96"
+    >
+      <h2 className="text-sm font-semibold">Explore the layer</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {layer.steps.length} code locations · select one to read its code.
+      </p>
+      <details className="mt-3 text-sm">
+        <summary className="cursor-pointer text-muted-foreground">
+          Architectural intent
+        </summary>
+        <MarkdownView
+          text={layer.summary}
+          className="mt-2 text-sm text-muted-foreground"
+        />
+      </details>
+      <Button variant="outline" size="sm" className="mt-3" onClick={onFullDiff}>
+        Full layer diff
+      </Button>
+      {selectedCode}
+      <ol className="mt-3 space-y-1">
+        {layer.steps.map((step, index) => (
+          <li key={step.id}>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={`Explore ${step.title}`}
+              aria-pressed={selected === step.id}
+              className="h-auto w-full justify-start text-left"
+              onClick={() => onSelect(step.id)}
+            >
+              <span className="self-start text-xs text-muted-foreground">
+                {index + 1}.
+              </span>
+              <span className="min-w-0 whitespace-normal">
+                <span className="block">{step.title}</span>
+                <span className="block break-all text-xs text-muted-foreground">
+                  {step.pointer.path}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {layer.lanes[step.lane]} ·{' '}
+                  {step.kind === 'context'
+                    ? 'Existing context'
+                    : 'Changed code'}
+                </span>
+                {step.location.state === 'changed' && (
+                  <span className="block text-xs text-graph-4">
+                    Explanation needs updating
+                  </span>
+                )}
+              </span>
+            </Button>
+          </li>
+        ))}
+      </ol>
+      {(proof.checks.length > 0 || proof.assets.length > 0) && (
+        <details className="mt-4 border-t pt-3 text-sm">
+          <summary className="cursor-pointer text-muted-foreground">
+            Verification evidence
+          </summary>
+          <ProofList
+            scope={scope}
+            context={context}
+            proof={proof}
+            layers={[layer]}
+            inLayer
+          />
+        </details>
+      )}
+    </aside>
   );
 }
 
 function LayerFiles({
   layer,
-  proof,
+  steps: visibleSteps,
   ...props
-}: LayerProps & { layer: ReviewLayer; proof: ReviewProof }) {
-  const steps = layer.steps.filter((step) => step.kind === 'changed');
+}: LayerProps & { layer: ReviewLayer; steps: readonly ReviewStep[] }) {
+  const steps = visibleSteps.filter((step) => step.kind === 'changed');
   const changes = useChanges(props.scope, props.context.connection);
   const currentPaths = new Set(changes.changes.map((change) => change.path));
   const paths = [...new Set(steps.map((step) => step.pointer.path))].filter(
     (path) => currentPaths.has(path),
   );
-  const contextSteps = layer.steps.filter(
+  const contextSteps = visibleSteps.filter(
     (step) => step.kind === 'context' || !currentPaths.has(step.pointer.path),
   );
   const agentNotes = Object.fromEntries(
@@ -241,29 +361,6 @@ function LayerFiles({
             {paths.length} changed files · All changes in these files ·{' '}
             {contextSteps.length} existing code locations
           </p>
-          <details className="mb-3 max-w-3xl">
-            <summary className="cursor-pointer text-muted-foreground">
-              Architectural intent
-            </summary>
-            <MarkdownView
-              text={layer.summary}
-              className="mt-2 text-sm text-muted-foreground"
-            />
-          </details>
-          {(proof.checks.length > 0 || proof.assets.length > 0) && (
-            <details className="mb-3 max-w-3xl">
-              <summary className="cursor-pointer text-muted-foreground">
-                Verification evidence
-              </summary>
-              <ProofList
-                scope={props.scope}
-                context={props.context}
-                proof={proof}
-                layers={[layer]}
-                inLayer
-              />
-            </details>
-          )}
           {steps.some((step) => step.location.state === 'changed') && (
             <p role="status" className="mb-3 text-xs text-graph-4">
               Code changed since the review was written. Full current file
@@ -302,7 +399,7 @@ function LayerSteps({
   ...props
 }: LayerProps & {
   layer: ReviewLayer;
-  steps: ReviewStep[];
+  steps: readonly ReviewStep[];
   focus: string | undefined;
 }) {
   const { scope, context } = props;

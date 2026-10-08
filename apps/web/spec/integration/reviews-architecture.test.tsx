@@ -152,11 +152,8 @@ test('a substantial review reveals shared owners, before and after, stale code a
   });
   await layer.getByRole('tab', { name: 'Graph', exact: true }).click();
   await layer
-    .getByRole('combobox', { name: 'Select code location', exact: true })
-    .click();
-  await page
-    .getByRole('option', {
-      name: 'Keep the domain decision in its owner',
+    .getByRole('button', {
+      name: 'Explore Keep the domain decision in its owner',
       exact: true,
     })
     .click();

@@ -18,7 +18,7 @@ api:
 
 ## What it is
 
-The Graph tab of a published layer loads the diagram lazily and draws the layer's lanes and steps; Only explicitly published arrows describe relationships; reading order does not create arrows. Choosing a step opens its code in a "Selected step code" panel beside (below, at phone width) the diagram.
+The Graph tab of a published layer loads the diagram lazily and draws the layer's lanes and steps; Only explicitly published arrows describe relationships; reading order does not create arrows. The "Explore the layer" panel stays beside (below, at phone width) the diagram. Its code-location links and graph nodes open one explicit excerpt at a time in "Selected step code". "Read full file diff" switches to a complete single-file diff; "Full layer diff" restores the continuous document.
 
 ## How a user reaches it
 
@@ -44,7 +44,7 @@ The Graph tab of a published layer loads the diagram lazily and draws the layer'
 5. Click button named `New line`
    Look for: region "Selected step code" with button "Close code" and article "Step New line" holding heading "New line", the README.md excerpt and a short "Agent note" after the code. No whole-file mark is available.
 6. Click button named `Close code`
-   Look for: region "Selected step code" gone; the diagram stays.
+   Look for: region "Selected step code" gone; the diagram and "Explore the layer" navigation stay.
 
 ## What proves it works
 
