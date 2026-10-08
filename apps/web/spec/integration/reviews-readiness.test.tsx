@@ -14,8 +14,12 @@ test('the readiness panel follows reviewed and stale files, unexplained lines, w
   });
   const line = (text: string) =>
     readiness.getByRole('button', { name: text, exact: true });
-  const showReadiness = () =>
-    workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  const showReadiness = async () => {
+    await workspace
+      .getByRole('button', { name: 'Review', exact: true })
+      .click();
+    await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  };
   const hideReadiness = async () => {
     await userEvent.keyboard('{Escape}');
     await expect.element(sidebar).not.toBeInTheDocument();

@@ -2,6 +2,7 @@
 route: /
 selectors:
   - "Review"
+  - "Changes"
   - "Readiness"
   - " to check"
   - "No marks went stale"
@@ -39,7 +40,7 @@ The readiness panel at the top of the review sidebar counts reviewed files, mark
 
 ## How a user reaches it
 
-- Review (sheet at phone width; sidebar at 1280px and wider) → region "Readiness" (expanded by default; header button "Readiness <summary>" collapses it).
+- Review (sheet at phone width; sidebar at 1280px and wider) → tab "Changes" ("Review" once the agent publishes a review) → region "Readiness" (expanded by default; header button "Readiness <summary>" collapses it).
 - `Alt+Shift+R` toggles the review sheet; `Escape` closes it.
 
 ## Driving it
@@ -51,7 +52,7 @@ The readiness panel at the top of the review sidebar counts reviewed files, mark
 - None up front. The disk writes come in steps 7 and 8.
 - Step 9 publishes the agent's proof with `$C agent publish-proof`.
 
-1. Navigate to `/` on the card’s web URL (full page load), then click button named `Review`
+1. Navigate to `/` on the card’s web URL (full page load), then click button named `Review`, then click tab named `Changes`
    Look for: in the dialog, region "Readiness" with buttons "0 of 1 file reviewed", "No marks went stale", "No review published", "No open comments", "No checks attached"; header button "Readiness 3 things to check".
 2. Press `Escape`
    Look for: the dialog is gone.
