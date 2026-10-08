@@ -1,9 +1,12 @@
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
-  NativeSelect,
-  NativeSelectOption,
-} from '@/components/ui/native-select';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { desktopAppAddress } from '@/shared/adapters/desktop';
 import { useTheme } from '@/features/preferences/index';
@@ -137,28 +140,34 @@ export function PublishedOverview({
             </div>
             {diagram && (
               <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3.5 py-2">
-                <NativeSelect
-                  size="sm"
-                  aria-label="Select architecture component"
+                <Select
+                  items={diagram.boxes.map((box) => ({
+                    value: box.id,
+                    label: box.label,
+                  }))}
                   value={
                     diagram.boxes.some((box) => box.id === selected)
                       ? selected
-                      : ''
+                      : null
                   }
-                  onChange={(event) =>
-                    selectComponent(event.target.value || undefined)
-                  }
-                  className="max-w-full"
+                  onValueChange={(value) => selectComponent(value ?? undefined)}
                 >
-                  <NativeSelectOption value="">
-                    Select a component
-                  </NativeSelectOption>
-                  {diagram.boxes.map((box) => (
-                    <NativeSelectOption key={box.id} value={box.id}>
-                      {box.label}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
+                  <SelectTrigger
+                    size="sm"
+                    aria-label="Select architecture component"
+                    className="max-w-full"
+                  >
+                    <SelectValue placeholder="Select a component" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={null}>Select a component</SelectItem>
+                    {diagram.boxes.map((box) => (
+                      <SelectItem key={box.id} value={box.id}>
+                        {box.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Button
                   variant="ghost"
                   size="xs"

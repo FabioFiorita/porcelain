@@ -4,9 +4,12 @@ import { parsePatchFiles } from '@pierre/diffs';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
-  NativeSelect,
-  NativeSelectOption,
-} from '@/components/ui/native-select';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { selectionKey } from '@porcelain/client/changes/rules';
 import {
@@ -129,22 +132,30 @@ export function PublishedLayer({
       {view === 'graph' ? (
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="shrink-0 border-b px-4 py-2">
-            <NativeSelect
-              size="sm"
-              aria-label="Select code location"
-              value={focus ?? ''}
-              onChange={(event) => setFocus(event.target.value || undefined)}
-              className="max-w-full"
+            <Select
+              items={layer.steps.map((step) => ({
+                value: step.id,
+                label: step.title,
+              }))}
+              value={focus ?? null}
+              onValueChange={(value) => setFocus(value ?? undefined)}
             >
-              <NativeSelectOption value="">
-                Select a code location
-              </NativeSelectOption>
-              {layer.steps.map((step) => (
-                <NativeSelectOption key={step.id} value={step.id}>
-                  {step.title}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+              <SelectTrigger
+                size="sm"
+                aria-label="Select code location"
+                className="max-w-full"
+              >
+                <SelectValue placeholder="Select a code location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={null}>Select a code location</SelectItem>
+                {layer.steps.map((step) => (
+                  <SelectItem key={step.id} value={step.id}>
+                    {step.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <p className="mt-1 text-xs text-muted-foreground">
               Agent-described relationships · scroll to explore
             </p>

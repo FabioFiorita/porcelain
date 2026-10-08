@@ -12,9 +12,12 @@ import {
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
-  NativeSelect,
-  NativeSelectOption,
-} from '@/components/ui/native-select';
+  Select,
+  SelectContent,
+  SelectTrigger,
+  SelectValue,
+  SelectItem,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { HISTORY_OID_LENGTH } from '@/config/limits';
 import { useActionForm } from '../commands/action-form';
@@ -279,17 +282,27 @@ function ActionForm({
           <Field>
             <FieldLabel htmlFor="git-stash">Stash</FieldLabel>
             {branch?.stashes?.length ? (
-              <NativeSelect
-                id="git-stash"
+              <Select
+                items={branch.stashes.map((stash) => ({
+                  value: stash.oid,
+                  label: `${stash.message} · ${stash.oid.slice(0, HISTORY_OID_LENGTH)}`,
+                }))}
                 value={stashOid}
-                onChange={(event) => setStash(event.target.value)}
+                onValueChange={(value) => {
+                  if (value) setStash(value);
+                }}
               >
-                {branch.stashes.map((stash) => (
-                  <NativeSelectOption key={stash.oid} value={stash.oid}>
-                    {stash.message} · {stash.oid.slice(0, HISTORY_OID_LENGTH)}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
+                <SelectTrigger id="git-stash">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {branch.stashes.map((stash) => (
+                    <SelectItem key={stash.oid} value={stash.oid}>
+                      {stash.message} · {stash.oid.slice(0, HISTORY_OID_LENGTH)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             ) : (
               <Input
                 id="git-stash"

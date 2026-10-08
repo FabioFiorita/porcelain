@@ -1,4 +1,4 @@
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('with a coding CLI the chosen model drafts the message, and the drafted commit becomes the newest', async ({
@@ -17,8 +17,11 @@ test('with a coding CLI the chosen model drafts the message, and the drafted com
     exact: true,
   });
   await expect.element(models).toBeEnabled();
-  await models.selectOptions('Haiku');
-  await expect.element(models).toHaveDisplayValue('Haiku');
+  await models.click();
+  await page.getByRole('option', { name: 'Haiku', exact: true }).click();
+  await expect
+    .element(models.getByText('Haiku', { exact: true }))
+    .toBeVisible();
 
   await dialog
     .getByRole('button', { name: 'Generate with AI', exact: true })

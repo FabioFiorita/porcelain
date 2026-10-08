@@ -2531,6 +2531,31 @@ export const probeHandle = Dialog.createHandle();
     errors: 1,
   })),
   {
+    rule: 'web-no-native-select',
+    path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid:
+      "import { Select } from '@/components/ui/select'; export const Picker = Select;",
+    invalid:
+      "import { NativeSelect as Picker } from '@/components/ui/native-select'; export { Picker };",
+    errors: 1,
+  },
+  {
+    rule: 'web-no-native-select',
+    path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid: "export { Select } from '../../../components/ui/select';",
+    invalid: "export * from '../../../components/ui/native-select.tsx';",
+    errors: 1,
+  },
+  {
+    rule: 'web-no-native-select',
+    path: 'apps/web/src/app/probe-view.tsx',
+    valid:
+      "import * as Picker from '../components/ui/select'; export { Picker };",
+    invalid:
+      "import * as Picker from '../components/ui/native-select'; export { Picker };",
+    errors: 1,
+  },
+  {
     rule: 'web-shadcn-wrapper',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
     valid:

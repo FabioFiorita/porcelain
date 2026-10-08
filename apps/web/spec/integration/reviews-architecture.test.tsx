@@ -1,3 +1,4 @@
+import { page } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('a substantial review reveals shared owners, before and after, stale code and partial coverage independently of walkthrough progress', async ({
@@ -57,10 +58,39 @@ test('a substantial review reveals shared owners, before and after, stale code a
       name: 'Select architecture component',
       exact: true,
     })
-    .selectOptions('Delivery outbox');
+    .click();
+  await page
+    .getByRole('option', { name: 'Delivery outbox', exact: true })
+    .click();
   await expect
     .element(overview.getByText('Showing 3 of 13 components', { exact: true }))
     .toBeVisible();
+  await overview
+    .getByRole('combobox', {
+      name: 'Select architecture component',
+      exact: true,
+    })
+    .click();
+  await page
+    .getByRole('option', { name: 'Select a component', exact: true })
+    .click();
+  await expect
+    .element(overview.getByText('Showing 13 of 13 components', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      overview.getByRole('heading', { name: 'Delivery outbox', exact: true }),
+    )
+    .not.toBeInTheDocument();
+  await overview
+    .getByRole('combobox', {
+      name: 'Select architecture component',
+      exact: true,
+    })
+    .click();
+  await page
+    .getByRole('option', { name: 'Delivery outbox', exact: true })
+    .click();
   await overview
     .getByRole('button', { name: 'Show entire map', exact: true })
     .click();
@@ -123,7 +153,13 @@ test('a substantial review reveals shared owners, before and after, stale code a
   await layer.getByRole('tab', { name: 'Graph', exact: true }).click();
   await layer
     .getByRole('combobox', { name: 'Select code location', exact: true })
-    .selectOptions('Keep the domain decision in its owner');
+    .click();
+  await page
+    .getByRole('option', {
+      name: 'Keep the domain decision in its owner',
+      exact: true,
+    })
+    .click();
   await expect
     .element(
       layer.getByText('Code changed since the review was written.', {

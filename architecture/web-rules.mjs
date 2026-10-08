@@ -1084,6 +1084,31 @@ export const webRules = {
       };
     },
   },
+  'web-no-native-select': {
+    create(context) {
+      const path = webPath(context);
+      if (!inWeb(path)) return {};
+      const check = (node) => {
+        const source = sourceOf(node);
+        if (source === undefined) return;
+        if (
+          localTarget(path, source)?.replace(/\.tsx?$/, '') !==
+          'components/ui/native-select'
+        )
+          return;
+        context.report({
+          node,
+          message:
+            'Use Select from @/components/ui/select, because NativeSelect delegates the dropdown to the browser and breaks the shared menu presentation and interaction.',
+        });
+      };
+      return {
+        ImportDeclaration: check,
+        ExportNamedDeclaration: check,
+        ExportAllDeclaration: check,
+      };
+    },
+  },
   'web-browser-spec-no-mocks': {
     create(context) {
       const role = journeyRole(context);
