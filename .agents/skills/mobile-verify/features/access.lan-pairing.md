@@ -25,17 +25,11 @@ Pairing with a Porcelain that runs on another computer on the local network, thr
 
 ## Driving it
 
-This is a checkpoint against a real LAN server, not a disposable one. Start an instance: `.agents/skills/mobile-verify/scripts/cli start`. On the LAN server, issue a link with `porcelain pair` for its LAN address and keep it out of any file you share.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli open /settings
-.agents/skills/mobile-verify/scripts/cli tap --id add-environment
-.agents/skills/mobile-verify/scripts/cli fill '<the LAN link>' --id pairing-link
-.agents/skills/mobile-verify/scripts/cli tap --id pair-environment
-.agents/skills/mobile-verify/scripts/cli snapshot
-```
-
-Look for: the LAN environment marked “Online”. Then on that server, `porcelain devices` lists the new device labelled as issued, platform `iOS` or `iPadOS`, over lan. An HTTP request from the Mac alone is not proof of the native transport. The CLI redacts the link's pairing code from the evidence.
+1. Prepare a separate disposable server reachable through its LAN address. Issue a pairing link for that address; never use the installed service or its data.
+2. In Settings select Add environment (test id add-environment), paste the link into pairing-link and select Pair (test id pair-environment).
+3. Expect the LAN environment to show Online. Independently read its native device registration and successful app requests from that disposable server.
+4. Cold-launch and expect the same environment to reconnect over the LAN address.
+5. On a physical iOS device, separately check Local Network permission, denial and retry. A simulator does not prove those permission paths.
 
 ## What proves it works
 

@@ -26,14 +26,12 @@ Each environment row in Settings says what its server answered: “Checking” u
 
 ## Driving it
 
-Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli open /settings
-.agents/skills/mobile-verify/scripts/cli snapshot
-```
-
-Look for: the environment “Mobile Verification …” marked “Online”. The other states need the server changed under the app (stopped); the e2e test sets them up, since the CLI keeps its server running for the whole session.
+1. Select Settings. Expect the environment named on the card to show Online.
+2. Suspend only the captured HTTP listener PID of this disposable server; verify HTTP becomes unresponsive. Do not suspend only its launcher.
+3. Wait up to 45 seconds. Expect Offline without reloading the app.
+4. Resume that exact listener in a finally block. Verify JSON health 200 returns, then expect Online within 45 seconds without reloading.
+5. To verify Needs pairing, revoke only this fixture's native device through its owner socket, then cold-launch or reload. Expect Needs pairing.
+6. Another server and Update needed require dedicated identity/protocol fixtures; do not infer them from an outage.
 
 ## What proves it works
 

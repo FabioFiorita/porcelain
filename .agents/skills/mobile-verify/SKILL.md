@@ -1,43 +1,18 @@
 ---
 name: mobile-verify
-description: Drive the Porcelain Expo development client against a disposable server through the mobile control CLI and feature maps. Use before calling a mobile change done, for native rebuilds or map corrections.
+description: Prepare a disposable Porcelain mobile run, drive its development client with the pinned agent-device CLI, and retain evidence. Use before calling a mobile change done or correcting maps.
 ---
 
 # Mobile verification
 
-`C=.agents/skills/mobile-verify/scripts/cli`, from the repository root. Run `$C` alone for commands and options. It drives and records; read the evidence against the map's promises. It never asserts or runs tests.
+From the repository root, `C=.agents/skills/mobile-verify/scripts/cli`.
 
-Use macOS, or the `workstation` skill for the owner's Mac and simulator hub. Native builds stay on the Mac. Use only the development client and disposable server.
+1. Run `$C doctor`, then `$C start` (or `--device ipad`). Native changes need `$C build` on the Mac first. The launcher owns a disposable server, Metro, pairing and a simulator claim; it closes its setup session before handing over.
+2. Read the short card and private `connection.json`. Use **the entire pinned agent-device invocation** on every call: config, session, platform and owned UDID. Drive with that CLI, never agent-device MCP or interaction commands on `$C`. See [driving](references/driving.md).
+3. Read [the feature map](features/README.md), drive its entry points and way back, and check each end state with fresh interactive snapshots, screenshots and independent server/storage reads. Save evidence in the card's folder. Pairing links and host tokens stay private.
+4. Run the card's logs and stop commands. Stop closes only this run's sessions, stops captured processes and releases its claim; pooled simulators are shut down and never deleted. A borrowed `--udid` stays booted. Evidence remains. A failed stop retains private runtime state; inspect and retry by instance id.
+5. Run `pnpm check:local` and only the changed specs by name. CI owns full suites. Stop the live instance before an e2e test claims a simulator.
 
-## Drive the feature
+The shared fixed pool has two iPhones and one iPad; at most two simulators may be booted. Busy devices cause refusal, never a new-device fallback. Each start clears app data and keychain; installation runs only when the native build fingerprint changes or the app is missing.
 
-1. Run `$C doctor`. After native dependencies, app config or owned native modules change, run `$C build` on the Mac. JavaScript changes need no native build; the CLI reloads them. Follow a stale-code refusal's restart instructions.
-2. Run `$C start` for iPhone, or `$C start --device ipad`. It owns its simulator, Metro and server; only stop your instance. With multiple instances, include `--instance <id>` on every command.
-3. Read `features/README.md` and the feature's map. Follow **Driving it** and compare each end state with snapshots, screenshots and server state. If navigation differs, run `$C snapshot` before another action.
-4. Run `$C evidence`, read the numbered files and logs, then `$C stop`. Evidence remains; use `$C evidence --instance <id>` after stopping. Text is redacted; screenshots can contain a pairing link, so keep those local.
-5. Run only the test files named by the changed map. Stop the CLI instance first: tests boot their own simulator on the shared Mac.
-
-```sh
-pnpm --filter @porcelain/mobile exec vitest run --config ../../vitest.config.ts --project @porcelain/mobile-e2e <file name>
-pnpm --filter @porcelain/mobile exec vitest run --config ../../vitest.config.ts --project @porcelain/mobile-e2e-tablet <file name>
-```
-
-Sessions have no idle expiry. Stop your instance when finished. A failed stop exits nonzero and retains private runtime state; inspect its report before retrying. Repeat a confirmed stop with `$C stop --instance <id>`. The shared stop result confirms owned-process cleanup; it does not certify simulator shutdown.
-
-## What a drive cannot prove
-
-- iPhone and iPad need separate drives. Android needs its own build and native proof; an iOS drive does not cover it.
-- A simulator proves loopback and LAN transport, but iOS Local Network permission, denial and retry require a physical device.
-- The iOS accessibility backend can omit a native tab's selected trait; inspect a screenshot. Maestro uses XCTest to assert selection.
-- In portrait, iPadOS hides the sidebar behind Show Sidebar; use the map's deep link to reach its screen.
-- Native labels match the snapshot exactly; copy an environment label whole rather than shortening it.
-
-## A simulator on another machine
-
-The ignored `.mobile-device-host.json` in the main checkout is shared by its worktrees. `doctor` diagnoses its hub, token variable, forwarded ports and simulator limit. Use `workstation` for the owner's existing setup; do not overwrite it. The CLI reads configuration in `scripts/host.ts`; tool installation, native freshness and missing simulator instructions come from `doctor` and `start`.
-
-## Correct a map
-
-Copy the nearest map: frontmatter names the screen, exact source selectors, test files and `METHOD /api/...` routes. Include every entry point, deep link, observable end state and way back. Link it from `features/README.md`, run `pnpm features:check`, and drive the changed steps on a fresh instance. For a new flow, copy the nearest Maestro flow and e2e test; assert literal server state through the `environments` fixture.
-
-Report platforms driven, tests run, unproved behaviour and the evidence folder. Never call an untested platform complete.
+For T3-owned devices use [T3 handoff](references/driving.md#t3-owned-device). For Linux use [the Mac hub setup](references/remote.md); builds stay on the Mac. Report clients/platforms, local/LAN/remote connections, proof results and what remains unproved. iPhone does not prove iPad or Android; Local Network permission needs a physical device.

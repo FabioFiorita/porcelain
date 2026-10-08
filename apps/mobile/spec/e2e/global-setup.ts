@@ -8,8 +8,7 @@ import { startMetro } from '../kit/metro.ts';
 import { deviceHost } from '../kit/device-host.ts';
 import {
   bootSimulator,
-  localBootProblem,
-  shutdownSimulator,
+  releaseSimulator,
   type DeviceKind,
 } from '../kit/simulator.ts';
 import { missingTools } from '../kit/tools.ts';
@@ -35,8 +34,6 @@ export default async function setup(project: TestProject) {
     throw new Error(
       `The mobile e2e tests need macOS with a simulator, Maestro and the development client:\n${[...problems, ...(unbuilt === undefined ? [] : [unbuilt])].join('\n')}`,
     );
-  const crowded = await localBootProblem(deviceHost().simulatorLimit);
-  if (crowded !== undefined) throw new Error(crowded);
   const kind: DeviceKind = project.name.endsWith('-tablet') ? 'ipad' : 'iphone';
   const evidence = join(mobileRoot, 'test-results', 'e2e', kind);
   await rm(evidence, { recursive: true, force: true });
@@ -52,8 +49,13 @@ export default async function setup(project: TestProject) {
     await buildIsolatedServer(build);
     const metro = await startMetro(join(evidence, 'metro.log'));
     cleanups.push(async () => metro.stop());
-    const simulator = await bootSimulator(kind, 'e2e');
-    cleanups.push(() => shutdownSimulator(simulator.udid));
+    const simulator = await bootSimulator(
+      kind,
+      `e2e-${process.pid}`,
+      undefined,
+      deviceHost().simulatorLimit,
+    );
+    cleanups.push(() => releaseSimulator(simulator));
     project.provide('mobileServerBuild', build);
     project.provide('mobileDevice', {
       udid: simulator.udid,

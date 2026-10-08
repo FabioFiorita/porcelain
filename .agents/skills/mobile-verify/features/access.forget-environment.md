@@ -20,22 +20,11 @@ Holding an environment row in Settings opens its native context menu with “For
 
 ## Driving it
 
-Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli open /settings
-.agents/skills/mobile-verify/scripts/cli snapshot
-```
-
-Look for: the environment row; its name starts with “Mobile Verification”. Hold it by that label:
-
-```sh
-.agents/skills/mobile-verify/scripts/cli tap --long --label "Mobile Verification <id from the snapshot>"
-.agents/skills/mobile-verify/scripts/cli tap --label "Forget environment"
-.agents/skills/mobile-verify/scripts/cli snapshot
-```
-
-Look for: the row is gone and “No environments paired.” shows.
+1. Select Settings and locate the full environment name from the card.
+2. Hold that environment row. Expect a native menu containing Forget environment.
+3. Select Forget environment. Expect the row to disappear and No environments paired. if it was the last one.
+4. Cold-launch. Expect the forgotten environment and workspace selection to remain absent.
+5. With two disposable environments, forget one and expect the other to remain. The server retains its registered device; forgetting is a local action.
 
 ## What proves it works
 

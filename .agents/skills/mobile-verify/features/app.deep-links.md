@@ -27,15 +27,11 @@ Expo Router opens each screen from the app's scheme, `porcelain.dev://` for the 
 
 ## Driving it
 
-Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli open /history
-.agents/skills/mobile-verify/scripts/cli open porcelain.dev://settings
-.agents/skills/mobile-verify/scripts/cli snapshot
-```
-
-Look for: History, then Settings listing the paired environment. `open` takes a screen path or a `porcelain.dev://` link and adds the developer-menu flags to a link that carries no query of its own.
+1. Open porcelain.dev://history in the development client. Expect History and the matching selected tab or sidebar row.
+2. Open porcelain.dev://settings. Expect Settings and the paired environment.
+3. Repeat with porcelain.dev://files and porcelain.dev://. Expect Files and Review respectively.
+4. Cold-launch using the History link. Expect History directly, with the matching native selection.
+5. Accept an iOS open-link confirmation when it appears. Keep the development-menu flags from references/driving.md on links.
 
 ## What proves it works
 

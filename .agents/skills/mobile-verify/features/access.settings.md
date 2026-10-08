@@ -25,20 +25,14 @@ Settings lists the paired environments, each with its status, and offers Add env
 ## How a user reaches it
 
 - phone: the Settings tab; iPad: Settings in the sidebar
-- the deep link `porcelain.dev://settings` (the CLI opens it as `/settings`)
+- the deep link `porcelain.dev://settings`
 
 ## Driving it
 
-Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`. Start pairs the app with its server, so Settings lists one environment.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli open /settings
-.agents/skills/mobile-verify/scripts/cli snapshot
-```
-
-Look for: “Settings”, “Environments”, one environment named “Mobile Verification …” marked “Online”, and “Add environment”.
-
-To see the empty state, forget that environment (`access.forget-environment`) and take another snapshot: “No environments paired.” shows.
+1. Select the Settings tab or sidebar row, or open porcelain.dev://settings. Expect Settings, Environments, the card's paired environment marked Online and Add environment.
+2. Follow access.forget-environment for the only paired fixture. Expect No environments paired.
+3. Return through Review, Files and History and reopen Settings. Expect the same environment state.
+4. Reading saved environments… is transient. Read saved environments again requires a storage-error fixture; do not claim it from normal startup.
 
 ## What proves it works
 

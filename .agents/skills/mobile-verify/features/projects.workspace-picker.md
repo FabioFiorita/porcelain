@@ -31,25 +31,13 @@ The workspace picker in each destination's toolbar (the detail toolbar on iPad) 
 
 ## Driving it
 
-Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli open /files
-.agents/skills/mobile-verify/scripts/cli tap --label Workspace
-.agents/skills/mobile-verify/scripts/cli tap --label Environment
-.agents/skills/mobile-verify/scripts/cli snapshot
-```
-
-Look for: the menu lists the environment “Mobile Verification …”. Tap it by its label, then open the picker again:
-
-```sh
-.agents/skills/mobile-verify/scripts/cli tap --label "Mobile Verification <id from the snapshot>"
-.agents/skills/mobile-verify/scripts/cli tap --label "Mobile Verification <id from the snapshot>"
-.agents/skills/mobile-verify/scripts/cli tap --label Project
-.agents/skills/mobile-verify/scripts/cli snapshot
-```
-
-Look for: the sample project with its main worktree. Tap the project, then the worktree; the toolbar label becomes `<project> · <worktree>` and Files stays selected.
+1. Select Files, then the Workspace toolbar button. Expect the Environment menu.
+2. Open Environment and select the full environment name from the connection card. Expect the toolbar label to become that name while Files stays selected.
+3. Reopen the toolbar picker by its new label. Open Project, select the sample project, then its main worktree. Expect <project> · <worktree> in the toolbar and Files still selected.
+4. Dismiss the native menu. Expect the same worktree and destination.
+5. Cold-launch the development client against the same Metro URL. Expect the remembered workspace after returning to Files.
+6. Read the app's saved selection IDs from its SQLite store and compare them to fixtures.environmentId, projectId and worktreeId in connection.json; also retain the native inventory/live requests from the server log.
+7. With a second paired disposable environment, select a different workspace, switch environments and expect each remembered choice. Forgetting an environment removes its saved choice.
 
 ## What proves it works
 
@@ -59,6 +47,6 @@ Look for: the sample project with its main worktree. Tap the project, then the w
 
 - Live tickets and receipt recovery use the shared client. An iPhone development-client drive selected the sample worktree, observed a server-side project rename update the picker without reloading, restored the selection after a cold launch, and forgot the environment. The server recorded the native inventory read, live ticket and live subscription. This proves the phone's shared connection graph; iPad and Android need separate native proof.
 
-- After an environment is chosen the toolbar label becomes its name, so the second tap above reopens the picker through the new label.
+- After an environment is chosen the toolbar label becomes its name, so reopen the picker through the new label.
 - The phone uses Expo Router's toolbar menu; the iPad uses a SwiftUI Menu with Pickers, which the e2e test does not drive yet.
 - The shared forget-environments flow ends in Settings. The workspace flow returns to Files before checking its toolbar's reset label and absence of the old worktree labels.

@@ -22,26 +22,14 @@ Review is the first destination and the screen the app opens on. It does not rea
 
 - the app opens on it after a cold launch
 - phone: the Review tab; iPad: Review in the sidebar
-- the deep link `porcelain.dev://` (the CLI opens it as `/`)
+- the deep link `porcelain.dev://`
 
 ## Driving it
 
-Start an instance first: `.agents/skills/mobile-verify/scripts/cli start` (add `--device ipad` for the tablet layout).
-
-```sh
-.agents/skills/mobile-verify/scripts/cli open /
-.agents/skills/mobile-verify/scripts/cli snapshot
-```
-
-Look for: the static text “Review” and “Select a worktree to continue.”; on iPad also “Changes” and “No worktree selected.”.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli tap --label Files
-.agents/skills/mobile-verify/scripts/cli tap --label Review
-.agents/skills/mobile-verify/scripts/cli screenshot
-```
-
-Look for: the same empty state again, with the Review tab or sidebar row selected in the screenshot.
+1. Select Review through its native tab or sidebar row, or open porcelain.dev://. Expect Review and Select a worktree to continue.
+2. On iPad also expect Changes and No worktree selected. in the content column.
+3. Select Files and return to Review. Expect the same empty state and matching native selection.
+4. Cold-launch against the card's Metro URL. Expect Review ready with its selected tab. Review data and editing are not implemented by this screen.
 
 ## What proves it works
 

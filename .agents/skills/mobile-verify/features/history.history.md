@@ -19,19 +19,14 @@ History is the third destination. It does not read commits from the server yet: 
 ## How a user reaches it
 
 - phone: the History tab; iPad: History in the sidebar
-- the deep link `porcelain.dev://history` (the CLI opens it as `/history`), warm or straight after a cold launch
+- the deep link `porcelain.dev://history`, warm or straight after a cold launch
 
 ## Driving it
 
-Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`.
-
-```sh
-.agents/skills/mobile-verify/scripts/cli open /history
-.agents/skills/mobile-verify/scripts/cli snapshot
-.agents/skills/mobile-verify/scripts/cli screenshot
-```
-
-Look for: the static text “History” and “Select a worktree to continue.”, with the History tab selected in the screenshot.
+1. Select the History tab or sidebar row, then reach it through porcelain.dev://history. Expect History and Select a worktree to continue.
+2. Inspect a screenshot for the matching native selection.
+3. Cold-launch with the History link. Expect History directly.
+4. Return through Files and reopen History. Expect the same placeholder; commit reading is not implemented by this screen.
 
 ## What proves it works
 
