@@ -30,7 +30,7 @@ export function PinnedFiles({
   if (paths.length === 0) return null;
   return (
     <section aria-label="Pinned files" className="shrink-0 px-2 pt-1.5 pb-1">
-      <p className="px-1.5 pt-1 pb-0.5 text-[11px] font-medium text-muted-foreground">
+      <p className="px-1.5 pt-1 pb-0.5 text-2xs font-medium text-muted-foreground">
         Pinned
       </p>
       <ul>
@@ -47,7 +47,7 @@ export function PinnedFiles({
                   aria-current={path === selected ? 'page' : undefined}
                   title={path}
                   className={cn(
-                    'flex h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 text-left text-[12.5px] hover:bg-accent',
+                    'flex h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 text-left text-caption hover:bg-accent',
                     path === selected && 'bg-accent',
                   )}
                   onClick={() => onOpen(path)}

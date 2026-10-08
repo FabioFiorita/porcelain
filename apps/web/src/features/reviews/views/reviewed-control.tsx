@@ -85,7 +85,7 @@ export function ReviewedControl({
     return (
       <span
         title={`${path} cannot be marked as reviewed because its current state could not be established`}
-        className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
+        className="inline-flex items-center gap-1 text-2xs text-muted-foreground"
       >
         <EyeOffIcon className="size-3" aria-hidden="true" />
         <span className={cn(compact && 'sr-only')}>Not reviewable</span>
@@ -129,7 +129,7 @@ export function ReviewedControl({
       {error !== undefined && (
         <span
           role="alert"
-          className="max-w-52 truncate text-[11px] text-destructive"
+          className="max-w-52 truncate text-2xs text-destructive"
         >
           {reviewErrorMessage(error)}
         </span>
@@ -189,7 +189,7 @@ export function MarkAllReviewed({
       {AsyncResult.isFailure(bulk.result) && (
         <span
           role="alert"
-          className="max-w-64 text-right text-[11px] text-destructive"
+          className="max-w-64 text-right text-2xs text-destructive"
         >
           {reviewErrorMessage(Cause.squash(bulk.result.cause))}
         </span>
@@ -204,7 +204,7 @@ function BulkReport({ report }: { report: BulkReviewReport }) {
     <span
       role={failed > 0 ? 'alert' : 'status'}
       className={cn(
-        'max-w-64 text-right text-[11px] leading-tight',
+        'max-w-64 text-right text-2xs leading-tight',
         failed > 0 ? 'text-destructive' : 'text-muted-foreground',
       )}
     >

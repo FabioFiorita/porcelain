@@ -190,16 +190,16 @@ function CommitHeader({
     <section className="mx-4 mt-3 rounded-xl border px-4 py-3">
       <h2 className="text-sm font-semibold">{commit.commit.subject}</h2>
       {commit.commit.body !== null && commit.commit.body !== undefined && (
-        <p className="mt-1 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-muted-foreground">
+        <p className="mt-1 whitespace-pre-wrap break-words text-caption leading-relaxed text-muted-foreground">
           {commit.commit.body}
         </p>
       )}
       {commit.commit.bodyTruncated && (
-        <p className="mt-1 text-[11px] text-muted-foreground">
+        <p className="mt-1 text-2xs text-muted-foreground">
           Commit message truncated
         </p>
       )}
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted-foreground">
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted-foreground">
         {commit.commit !== null && commit.commit !== undefined && (
           <span>
             {commit.commit.author.name} ·{' '}
@@ -292,7 +292,7 @@ function OmittedCommitChanges({
                 </span>
               </div>
               {submodule && content?.kind === 'text' && (
-                <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-mono text-[11px] text-muted-foreground">
+                <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-mono text-2xs text-muted-foreground">
                   {content.patch
                     .split('\n')
                     .filter((line) => /^[+-]Subproject commit /.test(line))

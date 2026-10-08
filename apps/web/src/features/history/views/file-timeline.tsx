@@ -44,13 +44,13 @@ export function FileTimeline({
               onSelect({ oid: entry.commit.oid, path: entry.path })
             }
           >
-            <span className="truncate text-[10.5px] text-muted-foreground">
+            <span className="truncate text-2xs text-muted-foreground">
               {timelineChange(entry, path)}
             </span>
           </CommitRow>
         </li>
       ))}
-      <li className="flex flex-col gap-1 px-2 py-3 text-[11px] text-muted-foreground">
+      <li className="flex flex-col gap-1 px-2 py-3 text-2xs text-muted-foreground">
         <span>
           {timeline.more
             ? `Showing the latest ${timeline.commits.length} commits.`

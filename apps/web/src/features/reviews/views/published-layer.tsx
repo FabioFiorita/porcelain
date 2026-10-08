@@ -354,7 +354,7 @@ function Step({
       aria-label={`Step ${step.title}`}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[10px] font-medium uppercase text-muted-foreground">
+        <span className="text-2xs font-medium uppercase text-muted-foreground">
           {lane}
         </span>
         <h2 className="min-w-0 flex-1 text-sm font-medium">{step.title}</h2>

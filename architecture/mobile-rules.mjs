@@ -12,6 +12,56 @@ const controls = new Set([
 ]);
 
 export const mobileRules = {
+  'mobile-system-chrome': {
+    create(context) {
+      const path = context.filename.replaceAll('\\', '/');
+      if (!path.includes('/apps/mobile/src/')) return {};
+      const message =
+        'Let the system size and draw native chrome: a fixed frame, font size or Host size, or a hidden shared background, copies the system look by hand, because a hand-made copy breaks on the next OS design.';
+      const numeric = (property) =>
+        property.type === 'Property' &&
+        property.value.type === 'Literal' &&
+        typeof property.value.value === 'number';
+      const keyOf = (property) => property.key?.name ?? property.key?.value;
+      const sized = (node, keys) =>
+        node?.type === 'ObjectExpression' &&
+        node.properties.some(
+          (property) => numeric(property) && keys.has(keyOf(property)),
+        );
+      const lengths = new Set([
+        'width',
+        'height',
+        'minWidth',
+        'minHeight',
+        'maxWidth',
+        'maxHeight',
+      ]);
+      return {
+        CallExpression(node) {
+          if (node.callee.type !== 'Identifier') return;
+          const [argument] = node.arguments;
+          if (
+            (node.callee.name === 'frame' && sized(argument, lengths)) ||
+            (node.callee.name === 'font' && sized(argument, new Set(['size'])))
+          )
+            context.report({ node, message });
+        },
+        JSXAttribute(node) {
+          const name = node.name.name;
+          const element = node.parent;
+          if (name === 'hidesSharedBackground')
+            context.report({ node, message });
+          if (
+            name === 'style' &&
+            element?.name?.name === 'Host' &&
+            node.value?.type === 'JSXExpressionContainer' &&
+            sized(node.value.expression, lengths)
+          )
+            context.report({ node, message });
+        },
+      };
+    },
+  },
   'mobile-native-ui': {
     create(context) {
       const path = context.filename.replaceAll('\\', '/');

@@ -227,7 +227,7 @@ function ReadableFileDocument({
           }}
         >
           <PencilIcon />
-          <span className="max-[720px]:sr-only">
+          <span className="max-narrow:sr-only">
             {draftState.text !== draftState.savedText ? 'Resume edit' : 'Edit'}
           </span>
         </Button>
@@ -239,7 +239,7 @@ function ReadableFileDocument({
           onClick={() => onOpen({ kind: 'change', path })}
         >
           <FileDiffIcon />
-          <span className="max-[720px]:sr-only">Open diff</span>
+          <span className="max-narrow:sr-only">Open diff</span>
         </Button>
       )}
       <TimelineButton path={path} onOpen={onOpen} />
@@ -293,7 +293,7 @@ function ReadableFileDocument({
             </ButtonGroup>
           </FileToolbar>
           <div className="flex min-h-0 flex-1 flex-col bg-background">
-            <p className="border-b bg-muted/40 px-3.5 py-1.5 text-[11px] text-muted-foreground">
+            <p className="border-b bg-muted/40 px-3.5 py-1.5 text-2xs text-muted-foreground">
               Sandboxed preview: scripts run, and cannot read Porcelain, your
               cookies or the review API, load anything from the network, submit
               a form, or move the page around them. A script can still send what
@@ -394,7 +394,7 @@ function TimelineButton({
       onClick={() => onOpen({ kind: 'timeline', path })}
     >
       <HistoryIcon />
-      <span className="max-[720px]:sr-only">Timeline</span>
+      <span className="max-narrow:sr-only">Timeline</span>
     </Button>
   );
 }
@@ -409,7 +409,7 @@ function CopyPath({ path }: { path: string }) {
       onClick={() => copyText(path, 'path')}
     >
       <CopyIcon />
-      <span className="max-[720px]:sr-only">Copy path</span>
+      <span className="max-narrow:sr-only">Copy path</span>
     </Button>
   );
 }

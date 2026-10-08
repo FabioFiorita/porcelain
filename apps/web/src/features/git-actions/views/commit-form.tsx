@@ -96,7 +96,7 @@ export function CommitForm(
             : 'Committed steps fold away in the review and show up in History.'}
         </DialogDescription>
       </DialogHeader>
-      <div className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2 text-[12.5px]">
+      <div className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2 text-caption">
         <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
         <span className="truncate font-medium">
           {liveBranch?.name?.replace(/^refs\/heads\//, '') ?? 'Detached HEAD'}
@@ -153,7 +153,7 @@ export function CommitForm(
       >
         {mode !== 'groups' ? (
           <>
-            <div className="flex items-center gap-1.5 text-[12.5px]">
+            <div className="flex items-center gap-1.5 text-caption">
               <span className="font-medium">
                 {commitAction === 'amend' ? 'Files to add' : 'Files'}
               </span>

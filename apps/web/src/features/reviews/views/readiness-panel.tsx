@@ -140,7 +140,7 @@ function ReadinessCard({
           render={
             <button
               type="button"
-              className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-[12.5px] hover:bg-accent"
+              className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-caption hover:bg-accent"
             />
           }
         >
@@ -148,7 +148,7 @@ function ReadinessCard({
           <span className="font-medium">Readiness</span>
           <span
             className={cn(
-              'ml-auto truncate text-[11.5px] text-muted-foreground',
+              'ml-auto truncate text-2xs text-muted-foreground',
               tone === 'failing' && 'text-destructive',
             )}
           >
@@ -166,7 +166,7 @@ function ReadinessCard({
                 <button
                   type="button"
                   className={cn(
-                    'flex w-full min-w-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left text-[12px] text-muted-foreground hover:bg-accent hover:text-foreground',
+                    'flex w-full min-w-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left text-caption text-muted-foreground hover:bg-accent hover:text-foreground',
                     item.tone === 'failing' && 'font-medium text-destructive',
                   )}
                   onClick={() => onSelect(item.key)}

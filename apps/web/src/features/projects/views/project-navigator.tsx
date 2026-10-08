@@ -66,13 +66,13 @@ export function ProjectNavigator({
   return (
     <nav
       aria-label="Projects and worktrees"
-      className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card text-[13px]"
+      className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card text-ui"
     >
       <header className="desktop-sidebar-header flex h-11 shrink-0 items-center gap-2 border-b px-3">
         <div className="flex min-w-0 flex-col leading-tight">
           <span className="text-sm font-semibold">Porcelain</span>
           <span
-            className="truncate text-[11px] text-muted-foreground"
+            className="truncate text-2xs text-muted-foreground"
             title={`Connected to ${inventory.environment.name}`}
           >
             {inventory.environment.name}

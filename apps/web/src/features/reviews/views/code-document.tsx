@@ -482,7 +482,7 @@ function CodeSurface({
             const actions = item.id === entries[0]?.id ? headerActions : null;
             const leading = item.id === entries[0]?.id ? headerLeading : null;
             const stale = entry.review?.stale ? (
-              <span className="rounded-md bg-graph-4/15 px-1.5 py-0.5 font-sans text-[10.5px] text-graph-4">
+              <span className="rounded-md bg-graph-4/15 px-1.5 py-0.5 font-sans text-2xs text-graph-4">
                 Changed since reviewed
               </span>
             ) : null;
@@ -494,7 +494,7 @@ function CodeSurface({
                 onClick={() => openFileComment(entry)}
               >
                 <MessageSquarePlusIcon />
-                <span className="max-[720px]:sr-only">Comment</span>
+                <span className="max-narrow:sr-only">Comment</span>
               </Button>
             ) : null;
             if (!stale && !leading && !actions && !comment) return null;
@@ -553,7 +553,7 @@ function CodeSurface({
             if (!entry) return null;
             return entry.note ? (
               <span
-                className="ml-2 hidden max-w-48 truncate font-sans text-xs text-muted-foreground @min-[640px]/code:block"
+                className="ml-2 hidden max-w-48 truncate font-sans text-xs text-muted-foreground @code-wide/code:block"
                 title={entry.note}
               >
                 {entry.note}

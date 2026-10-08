@@ -331,7 +331,7 @@ export function SettingsPage({ section }: { section: string }) {
   };
   useHotkey('Escape', leave, { target: page, ignoreInputs: true });
   return (
-    <div className="h-svh min-w-0 flex-1 bg-muted text-[13px] text-foreground md:p-2">
+    <div className="h-svh min-w-0 flex-1 bg-muted text-ui text-foreground md:p-2">
       <main
         ref={page}
         aria-label="Settings"

@@ -43,7 +43,7 @@ export function RemoteMachine({
     >
       {status.kind !== 'online' ? (
         <SidebarMenuSubItem>
-          <div className="flex flex-col items-start gap-1 px-2 pb-2 text-[11px] text-muted-foreground">
+          <div className="flex flex-col items-start gap-1 px-2 pb-2 text-2xs text-muted-foreground">
             {note && <p>{note}</p>}
             {status.kind !== 'checking' && (
               <Button variant="link" size="xs" onClick={onOpenRemotes}>
@@ -54,16 +54,13 @@ export function RemoteMachine({
         </SidebarMenuSubItem>
       ) : inventory === undefined ? (
         <SidebarMenuSubItem>
-          <p
-            role="status"
-            className="px-2 pb-2 text-[11px] text-muted-foreground"
-          >
+          <p role="status" className="px-2 pb-2 text-2xs text-muted-foreground">
             Loading projects…
           </p>
         </SidebarMenuSubItem>
       ) : inventory.projects.length === 0 ? (
         <SidebarMenuSubItem>
-          <p className="px-2 pb-2 text-[11px] text-muted-foreground">
+          <p className="px-2 pb-2 text-2xs text-muted-foreground">
             No projects registered.
           </p>
         </SidebarMenuSubItem>

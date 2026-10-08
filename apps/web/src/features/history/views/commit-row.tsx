@@ -49,7 +49,7 @@ export function CommitRow({
           />
         }
       >
-        <span className="flex min-w-0 items-center gap-1 text-[12.5px] leading-tight">
+        <span className="flex min-w-0 items-center gap-1 text-caption leading-tight">
           {commit.parentOids.length > 1 && (
             <GitMergeIcon
               aria-label="Merge commit"
@@ -58,7 +58,7 @@ export function CommitRow({
           )}
           <span className="truncate">{commit.subject}</span>
         </span>
-        <span className="flex gap-1.5 text-[10.5px] text-muted-foreground">
+        <span className="flex gap-1.5 text-2xs text-muted-foreground">
           <code className="font-mono">{shortOid(commit.oid)}</code>
           <span className="truncate">{commit.author.name}</span>
           <span aria-hidden="true">·</span>

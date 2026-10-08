@@ -339,7 +339,7 @@ function BranchHeader({
           <h2 className="text-sm font-semibold">
             {head} since {branchName(branch.base)}
           </h2>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted-foreground">
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted-foreground">
             <span>
               {branch.commits} {branch.commits === 1 ? 'commit' : 'commits'}
             </span>
@@ -355,7 +355,7 @@ function BranchHeader({
         </>
       )}
       {uncommitted > 0 && (
-        <p className="mt-1 text-[11.5px] text-muted-foreground">
+        <p className="mt-1 text-2xs text-muted-foreground">
           Uncommitted changes are not part of the branch review. Review them
           under Uncommitted.
         </p>

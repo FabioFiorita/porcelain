@@ -53,7 +53,7 @@ export function ProjectSection({
           >
             <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none group-data-open/project:rotate-90" />
             <FolderGit2Icon className="size-3.5 shrink-0 text-muted-foreground" />
-            <h3 className="min-w-0 flex-1 truncate text-left text-[12.5px] font-medium">
+            <h3 className="min-w-0 flex-1 truncate text-left text-caption font-medium">
               {project.name}
             </h3>
             {!project.available && (
@@ -97,14 +97,14 @@ export function ProjectSection({
       <CollapsibleContent>
         {path && (
           <p
-            className="truncate pb-1 pl-8 font-mono text-[10.5px] text-muted-foreground"
+            className="truncate pb-1 pl-8 font-mono text-2xs text-muted-foreground"
             title={path}
           >
             {path}
           </p>
         )}
         {project.worktrees.length === 0 ? (
-          <p className="px-2 py-2 text-[11px] text-muted-foreground">
+          <p className="px-2 py-2 text-2xs text-muted-foreground">
             No worktrees found.
           </p>
         ) : (

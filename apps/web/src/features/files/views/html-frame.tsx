@@ -20,7 +20,7 @@ export function HtmlFrame({
       srcDoc={html}
       style={{ colorScheme: dark ? 'dark' : 'light' }}
       className={cn(
-        'block min-h-[32rem] w-full border-0 bg-transparent',
+        'block min-h-128 w-full border-0 bg-transparent',
         className,
       )}
     />

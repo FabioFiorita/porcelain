@@ -327,7 +327,7 @@ function ScopedFileNavigation({
         aria-label="All files"
         className="flex min-h-0 flex-1 flex-col pt-1"
       >
-        <p className="px-3.5 pt-1 pb-0.5 text-[11px] font-medium text-muted-foreground">
+        <p className="px-3.5 pt-1 pb-0.5 text-2xs font-medium text-muted-foreground">
           All files
         </p>
         <PierreFileTree
