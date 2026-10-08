@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { workspaceTitle } from './documents.ts';
+import { entryKey, parseEntry, workspaceTitle } from './documents.ts';
 
 describe('workspaceTitle', () => {
   it('names the open file by its name, then the project', () => {
@@ -74,4 +74,14 @@ describe('workspaceTitle', () => {
       }),
     ).toBe('app.ts — p · Workstation');
   });
+});
+
+it('restores distinct all-changes and Specs documents after navigation or reload', () => {
+  expect(parseEntry('all-changes')).toEqual({ kind: 'all-changes' });
+  expect(parseEntry('specs')).toEqual({ kind: 'specs' });
+  expect(entryKey({ kind: 'all-changes' })).toBe('all-changes');
+  expect(entryKey({ kind: 'specs' })).toBe('specs');
+  expect(
+    workspaceTitle({ entry: 'specs', surface: 'changes', project: 'p' }),
+  ).toBe('Specs — p');
 });

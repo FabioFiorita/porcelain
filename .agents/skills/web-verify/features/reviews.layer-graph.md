@@ -38,7 +38,7 @@ The Graph tab of a published layer loads the diagram lazily and draws the layer'
 2. Click button named `Review`
    Look for: the review sheet (a dialog) with a button whose name contains "Readme layer".
 3. Click button named `/Readme layer/`
-   Look for: region "Review layer Readme layer"; tab "Code" selected in the layer's tablist (its "Layer presentation" label does not show in the snapshot); article "Step New line".
+   Look for: region "Review layer Readme layer"; tab "Code" selected in the layer's tablist (its "Layer presentation" label does not show in the snapshot); the full README.md changes and an individual file mark.
 4. Click tab named `Graph`, then wait for button named `New line` to be visible
    Look for: tab "Graph" [selected]; an application holding text "Docs" (the lane) and button "New line" with "New line Changed" without the explanatory paragraph "A line is added"; buttons "Zoom In", "Zoom Out", "Fit View"; no "Loading diagram…" left.
 5. Click button named `New line`
@@ -55,5 +55,5 @@ The Graph tab of a published layer loads the diagram lazily and draws the layer'
 
 - The diagram module loads on first use; "Loading diagram…" shows for a moment after the tab click, which the visible-state wait in step 4 covers.
 - At phone width the code panel stacks under the diagram (`md:` breakpoint); scroll or screenshot to see it.
-- The step box button is named by the step title only; in the Code view "New line" is a heading, not a button.
+- The step box button is named by the step title only; Code shows all file changes; agent-note titles are disclosure labels.
 - Address the sidebar's layer button by `/Readme layer/` only while no layer tab is open (its "Close 1. Readme layer" button matches too); afterwards use Click tab named `/Readme layer/`.

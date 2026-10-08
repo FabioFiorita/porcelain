@@ -27,7 +27,7 @@ import { cn } from '@/shared/lib/utils';
 import type { CssVariables } from '@/shared/lib/css-variables';
 import { usePreferences } from '@/features/preferences/index';
 import type { Diagram, DiagramBox } from '@porcelain/client/reviews/rules';
-import { useFitOnResize } from '../adapters/diagram-fit';
+import { diagramGrid } from '../rules/diagram-grid';
 
 type GraphBox = DiagramBox & {
   dimmed?: boolean;
@@ -41,12 +41,10 @@ export type Graph = {
   lanes: readonly string[];
   boxes: readonly GraphBox[];
   arrows: Diagram['arrows'];
+  trace?: string;
 };
 
 const BOX_WIDTH = 240;
-const BOX_GAP = 28;
-const BAND_GAP = 44;
-const BAND_LABEL = 140;
 
 const KIND_ICON = {
   actor: User,
@@ -186,7 +184,7 @@ function Lane({ data }: NodeProps<Node<LaneData>>) {
       style={{ width: data.width, height: data.height }}
       className="flex rounded-2xl border border-dashed bg-muted/40"
     >
-      <div className="w-31 shrink-0 px-3 pt-3 text-2xs font-medium tracking-wide break-words text-muted-foreground uppercase">
+      <div className="shrink-0 px-4 pt-2 text-2xs font-medium tracking-wide break-words text-muted-foreground uppercase">
         {data.label}
       </div>
     </div>
@@ -195,151 +193,67 @@ function Lane({ data }: NodeProps<Node<LaneData>>) {
 
 const nodeTypes = { box: Box, lane: Lane };
 
-function place(graph: Graph, bands: GraphBox[][]): Map<string, number> {
-  const step = BOX_WIDTH + BOX_GAP;
-  const centre = new Map<string, number>();
-  const joined = (id: string) =>
-    graph.arrows.flatMap((arrow) =>
-      arrow.from === id ? [arrow.to] : arrow.to === id ? [arrow.from] : [],
-    );
-  for (const band of bands) {
-    const wanted = band.map((box, index) => {
-      const above = joined(box.id).flatMap((other) => {
-        const x = centre.get(other);
-        return x === null || x === undefined ? [] : [x];
-      });
-      const fallback = (index - (band.length - 1) / 2) * step;
-      return {
-        box,
-        index,
-        want:
-          above.length === 0
-            ? fallback
-            : above.reduce((sum, x) => sum + x, 0) / above.length,
-      };
-    });
-    wanted.sort(
-      (left, right) => left.want - right.want || left.index - right.index,
-    );
-    const at: number[] = [];
-    wanted.forEach((entry, index) => {
-      const previous = at[index - 1];
-      at.push(
-        previous === null || previous === undefined
-          ? entry.want
-          : Math.max(entry.want, previous + step),
-      );
-    });
-    const shift =
-      wanted.reduce(
-        (sum, entry, index) => sum + entry.want - (at[index] ?? 0),
-        0,
-      ) / Math.max(1, wanted.length);
-    wanted.forEach((entry, index) => {
-      centre.set(entry.box.id, (at[index] ?? 0) + shift);
-    });
-  }
-  return centre;
-}
-
-function layout(graph: Graph, measured: ReadonlyMap<string, number>) {
-  const bands = graph.lanes.map((_, lane) =>
-    graph.boxes.filter((box) => box.lane === lane),
+function layout(
+  graph: Graph,
+  measured: ReadonlyMap<string, number>,
+  availableWidth: number,
+) {
+  const grid = diagramGrid(
+    graph.lanes,
+    graph.boxes.map((box) => ({
+      id: box.id,
+      lane: box.lane,
+      height: measured.get(box.id) ?? estimateHeight(box),
+    })),
+    availableWidth,
+    graph.trace,
   );
-  const height = (box: GraphBox) => measured.get(box.id) ?? estimateHeight(box);
-  const bandHeight = bands.map(
-    (boxes) => Math.max(64, ...boxes.map(height)) + 24,
-  );
-  const top = (lane: number) =>
-    bandHeight
-      .slice(0, lane)
-      .reduce((sum, height) => sum + height + BAND_GAP, 0);
-  const centres = place(graph, bands);
-  const values = [...centres.values()];
-  const left = Math.min(0, ...values) - BOX_WIDTH / 2;
-  const right = Math.max(0, ...values) + BOX_WIDTH / 2;
-  const x = (id: string) =>
-    BAND_LABEL + (centres.get(id) ?? 0) - left - BOX_WIDTH / 2;
-  const width = BAND_LABEL + (right - left) + 16;
-  const middle = BAND_LABEL + (right - left) / 2;
-  const nodes: Node[] = [];
-  bands.forEach((band, lane) => {
-    nodes.push({
-      id: `lane-${lane}`,
-      type: 'lane',
-      position: { x: 0, y: top(lane) },
-      data: {
-        label: graph.lanes[lane] ?? '',
-        height: bandHeight[lane] ?? 88,
-        width,
-      },
-      draggable: false,
-      selectable: false,
-      focusable: false,
-      zIndex: -1,
-    } satisfies Node<LaneData>);
-    for (const box of band) {
-      nodes.push({
-        id: box.id,
-        type: 'box',
-        position: { x: x(box.id), y: top(lane) + 12 },
-        data: { ...box, width: BOX_WIDTH },
+  const nodes: Node[] = grid.bands.map(
+    (band, lane) =>
+      ({
+        id: `lane-${lane}`,
+        type: 'lane',
+        position: { x: 0, y: band.y },
+        data: { label: band.label, height: band.height, width: grid.width },
         draggable: false,
         selectable: false,
-        focusable: box.clickable === true,
-      } satisfies Node<BoxData>);
-    }
-  });
-  const laneOf = new Map(graph.boxes.map((box) => [box.id, box.lane]));
-  const blocked = (from: string, to: string, low: number, high: number) => {
-    const span = [
-      Math.min(x(from), x(to)),
-      Math.max(x(from), x(to)) + BOX_WIDTH,
-    ];
-    return graph.boxes.some(
-      (box) =>
-        box.lane > low &&
-        box.lane < high &&
-        x(box.id) < (span[1] ?? 0) &&
-        x(box.id) + BOX_WIDTH > (span[0] ?? 0),
-    );
-  };
-  const outermost = (id: string, side: 'Left' | 'Right') =>
-    !graph.boxes.some(
-      (box) =>
-        box.id !== id &&
-        box.lane === laneOf.get(id) &&
-        (side === 'Left' ? x(box.id) < x(id) : x(box.id) > x(id)),
-    );
+        focusable: false,
+        zIndex: -1,
+      }) satisfies Node<LaneData>,
+  );
+  for (const box of graph.boxes) {
+    const position = grid.positions.get(box.id);
+    if (!position) continue;
+    nodes.push({
+      id: box.id,
+      type: 'box',
+      position,
+      data: { ...box, width: BOX_WIDTH },
+      draggable: false,
+      selectable: false,
+      focusable: box.clickable === true,
+    } satisfies Node<BoxData>);
+  }
   const edges: Edge[] = graph.arrows
-    .filter((arrow) => laneOf.has(arrow.from) && laneOf.has(arrow.to))
+    .filter(
+      (arrow) => grid.positions.has(arrow.from) && grid.positions.has(arrow.to),
+    )
     .map((arrow, index) => {
-      const fromLane = laneOf.get(arrow.from) ?? 0;
-      const toLane = laneOf.get(arrow.to) ?? 0;
-      let source: string;
-      let target: string;
-      if (fromLane === toLane) {
-        [source, target] =
-          x(arrow.from) < x(arrow.to) ? ['Right', 'Left'] : ['Left', 'Right'];
-      } else if (
-        blocked(
-          arrow.from,
-          arrow.to,
-          Math.min(fromLane, toLane),
-          Math.max(fromLane, toLane),
-        )
-      ) {
-        const outer =
-          (x(arrow.from) + x(arrow.to)) / 2 + BOX_WIDTH / 2 < middle
-            ? 'Left'
-            : 'Right';
-        const down = fromLane < toLane;
-        source = outermost(arrow.from, outer) ? outer : down ? 'Bottom' : 'Top';
-        target = outermost(arrow.to, outer) ? outer : down ? 'Top' : 'Bottom';
-      } else {
-        [source, target] =
-          fromLane < toLane ? ['Bottom', 'Top'] : ['Top', 'Bottom'];
-      }
+      const from = grid.positions.get(arrow.from)!;
+      const to = grid.positions.get(arrow.to)!;
+      const [source, target] = graph.trace
+        ? from.x === to.x
+          ? ['Left', 'Left']
+          : from.x < to.x
+            ? ['Right', 'Left']
+            : ['Left', 'Right']
+        : from.y === to.y
+          ? from.x < to.x
+            ? ['Right', 'Left']
+            : ['Left', 'Right']
+          : from.y < to.y
+            ? ['Bottom', 'Top']
+            : ['Top', 'Bottom'];
       return {
         id: `${arrow.from}->${arrow.to}:${index}`,
         source: arrow.from,
@@ -357,7 +271,7 @@ function layout(graph: Graph, measured: ReadonlyMap<string, number>) {
         focusable: false,
       };
     });
-  return { nodes, edges };
+  return { nodes, edges, width: grid.width, height: grid.height };
 }
 
 const FLOW_STYLE: CssVariables = {
@@ -384,7 +298,18 @@ function ReviewDiagram({
   const [measured, setMeasured] = useState<ReadonlyMap<string, number>>(
     () => new Map(),
   );
-  const laidOut = layout(graph, measured);
+  const host = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const element = host.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setWidth(entry.contentRect.width);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const laidOut = layout(graph, measured, width);
   const boxIds = new Set(graph.boxes.map((box) => box.id));
   const onNodesChange = (changes: NodeChange[]) => {
     const next = new Map(measured);
@@ -406,10 +331,11 @@ function ReviewDiagram({
       setMeasured(next);
   };
   return (
-    <div className={cn('relative min-h-0 flex-1', className)}>
+    <div ref={host} className={cn('relative min-h-0 flex-1', className)}>
       <ReactFlowProvider>
         <Canvas
           graph={laidOut}
+          availableWidth={width}
           boxes={graph.boxes}
           onBoxClick={onBoxClick}
           onNodesChange={onNodesChange}
@@ -422,30 +348,40 @@ function ReviewDiagram({
 function Canvas({
   graph,
   boxes,
+  availableWidth,
   onBoxClick,
   onNodesChange,
 }: {
-  graph: { nodes: Node[]; edges: Edge[] };
+  graph: { nodes: Node[]; edges: Edge[]; width: number; height: number };
+  availableWidth: number;
   boxes: readonly GraphBox[];
   onBoxClick?: ((box: GraphBox) => void) | undefined;
   onNodesChange: (changes: NodeChange[]) => void;
 }) {
   const flow = useReactFlow();
   const { resolvedTheme } = usePreferences();
-  const host = useRef<HTMLDivElement>(null);
-
+  const geometry = graph.nodes
+    .map((node) => `${node.id}:${node.position.x}:${node.position.y}`)
+    .join('|');
   useEffect(() => {
-    if (graph.nodes.length === 0) return;
+    if (availableWidth <= 0 || graph.nodes.length === 0) return;
+    const zoom = Math.min(
+      1,
+      Math.max(0.2, (availableWidth - 24) / graph.width),
+    );
     const frame = requestAnimationFrame(
-      () => void flow.fitView({ padding: 0.06, maxZoom: 1, duration: 200 }),
+      () =>
+        void flow.setViewport({
+          x: Math.max(12, (availableWidth - graph.width * zoom) / 2),
+          y: 16,
+          zoom,
+        }),
     );
     return () => cancelAnimationFrame(frame);
-  }, [graph, flow]);
-
-  useFitOnResize(host, flow);
+  }, [availableWidth, geometry, graph.width, flow]);
 
   return (
-    <div ref={host} className="absolute inset-0">
+    <div className="absolute inset-0">
       <ReactFlow
         nodes={graph.nodes}
         edges={graph.edges}
@@ -464,8 +400,6 @@ function Canvas({
           const box = boxes.find((candidate) => candidate.id === node.id);
           if (box?.clickable) onBoxClick?.(box);
         }}
-        fitView
-        fitViewOptions={{ padding: 0.06, maxZoom: 1 }}
         minZoom={0.2}
         proOptions={{ hideAttribution: true }}
       >

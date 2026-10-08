@@ -3,6 +3,10 @@ import { AsyncResult } from 'effect/reactivity';
 import { parsePatchFiles } from '@pierre/diffs';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from '@/components/ui/native-select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { selectionKey } from '@porcelain/client/changes/rules';
 import {
@@ -35,6 +39,8 @@ import type { Graph } from './review-diagram';
 import { ReviewDiagram } from './lazy-review-diagram';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import { spansLabel } from '../rules/patch-focus';
+import { AgentNote } from './agent-note';
+import { ReviewCodeDocument } from './review-code-document';
 import { ReviewProgress } from './review-progress';
 
 type LayerProps = {
@@ -61,7 +67,6 @@ export function PublishedLayer({
   const [view, setView] = useState('code');
   const [focus, setFocus] = useState<string>();
   const selectedStep = layer.steps.find((step) => step.id === focus);
-  const codeStep = selectedStep ?? layer.steps[0];
   const diagram = layerDiagram(layer);
   const graph: Graph = {
     ...diagram,
@@ -123,10 +128,27 @@ export function PublishedLayer({
       )}
       {view === 'graph' ? (
         <div className="flex min-h-0 flex-1 flex-col">
-          <p className="shrink-0 border-b px-4 py-2 text-xs text-muted-foreground">
-            Agent-described relationships · select a component to inspect its
-            code
-          </p>
+          <div className="shrink-0 border-b px-4 py-2">
+            <NativeSelect
+              size="sm"
+              aria-label="Select code location"
+              value={focus ?? ''}
+              onChange={(event) => setFocus(event.target.value || undefined)}
+              className="max-w-full"
+            >
+              <NativeSelectOption value="">
+                Select a code location
+              </NativeSelectOption>
+              {layer.steps.map((step) => (
+                <NativeSelectOption key={step.id} value={step.id}>
+                  {step.title}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Agent-described relationships · scroll to explore
+            </p>
+          </div>
           <div className="flex min-h-0 flex-1 flex-col md:flex-row">
             <ReviewDiagram
               graph={graph}
@@ -160,8 +182,55 @@ export function PublishedLayer({
           </div>
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-auto p-4">
-          <details className="mb-4 max-w-3xl text-sm">
+        <LayerFiles {...props} layer={layer} proof={proof} />
+      )}
+    </section>
+  );
+}
+
+function LayerFiles({
+  layer,
+  proof,
+  ...props
+}: LayerProps & { layer: ReviewLayer; proof: ReviewProof }) {
+  const steps = layer.steps.filter((step) => step.kind === 'changed');
+  const changes = useChanges(props.scope, props.context.connection);
+  const currentPaths = new Set(changes.changes.map((change) => change.path));
+  const paths = [...new Set(steps.map((step) => step.pointer.path))].filter(
+    (path) => currentPaths.has(path),
+  );
+  const contextSteps = layer.steps.filter(
+    (step) => step.kind === 'context' || !currentPaths.has(step.pointer.path),
+  );
+  const agentNotes = Object.fromEntries(
+    paths.map((path) => [
+      path,
+      steps
+        .filter((step) => step.pointer.path === path)
+        .map((step) => ({
+          title: step.title,
+          text: step.text,
+          line:
+            step.location.state === 'changed'
+              ? step.pointer.endLine
+              : step.location.endLine,
+          stale: step.location.state === 'changed',
+        })),
+    ]),
+  );
+  return (
+    <ReviewCodeDocument
+      {...props}
+      paths={paths}
+      files={paths.map((path) => ({ path }))}
+      agentNotes={agentNotes}
+      header={() => (
+        <div className="px-4 pt-3 text-sm">
+          <p className="mb-3 text-xs text-muted-foreground">
+            {paths.length} changed files · All changes in these files ·{' '}
+            {contextSteps.length} existing code locations
+          </p>
+          <details className="mb-3 max-w-3xl">
             <summary className="cursor-pointer text-muted-foreground">
               Architectural intent
             </summary>
@@ -171,8 +240,8 @@ export function PublishedLayer({
             />
           </details>
           {(proof.checks.length > 0 || proof.assets.length > 0) && (
-            <details className="mb-4 max-w-3xl">
-              <summary className="cursor-pointer text-sm text-muted-foreground">
+            <details className="mb-3 max-w-3xl">
+              <summary className="cursor-pointer text-muted-foreground">
                 Verification evidence
               </summary>
               <ProofList
@@ -184,56 +253,34 @@ export function PublishedLayer({
               />
             </details>
           )}
-          <div className="flex min-w-0 flex-col gap-4 lg:flex-row">
-            <nav
-              aria-label="Walkthrough locations"
-              className="shrink-0 lg:w-56"
-            >
-              <p className="mb-2 text-xs text-muted-foreground">
-                {layer.steps.length} code locations · changed and existing
-                context
-              </p>
-              <ol className="space-y-1">
-                {layer.steps.map((step, index) => (
-                  <li key={step.id}>
-                    <button
-                      type="button"
-                      aria-pressed={step.id === codeStep?.id}
-                      className="flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent aria-pressed:bg-accent"
-                      onClick={() => setFocus(step.id)}
-                    >
-                      <span className="text-xs text-muted-foreground">
-                        {index + 1}.
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block">{step.title}</span>
-                        <span className="block text-xs text-muted-foreground">
-                          {step.location.state === 'changed'
-                            ? 'Code changed'
-                            : step.kind === 'context'
-                              ? 'Existing context'
-                              : layer.lanes[step.lane]}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ol>
-            </nav>
-            <div className="min-w-0 flex-1">
-              {codeStep && (
-                <LayerSteps
-                  {...props}
-                  layer={layer}
-                  steps={[codeStep]}
-                  focus={undefined}
-                />
-              )}
-            </div>
-          </div>
+          {steps.some((step) => step.location.state === 'changed') && (
+            <p role="status" className="mb-3 text-xs text-graph-4">
+              Code changed since the review was written. Full current file
+              changes are shown; the affected agent notes need updating.
+            </p>
+          )}
         </div>
       )}
-    </section>
+      footer={() =>
+        contextSteps.length > 0 && (
+          <details className="m-4" open>
+            <summary className="cursor-pointer text-sm font-medium">
+              Existing context · {contextSteps.length} locations
+            </summary>
+            <p className="my-2 text-xs text-muted-foreground">
+              Source excerpts outside the current changed-file set.
+            </p>
+            <LayerSteps
+              {...props}
+              interaction={{ ...props.interaction, active: false }}
+              layer={layer}
+              steps={contextSteps}
+              focus={undefined}
+            />
+          </details>
+        )
+      }
+    />
   );
 }
 
@@ -467,13 +514,7 @@ function Step({
               : 'No textual code at this location. Open the file to inspect it.'}
         </p>
       )}
-      <details className="mt-3 border-l-2 border-muted-foreground/30 pl-3 text-sm">
-        <summary className="cursor-pointer text-muted-foreground">
-          <span className="font-medium">Agent note</span> ·{' '}
-          {step.text.length > 150 ? `${step.text.slice(0, 150)}…` : step.text}
-        </summary>
-        <MarkdownView text={step.text} className="mt-2 text-sm" />
-      </details>
+      <AgentNote text={step.text} />
     </article>
   );
 }

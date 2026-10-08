@@ -48,12 +48,23 @@ export function PublishedOverview({
   const [focused, setFocused] = useState(false);
   const diagram =
     version === 'before' ? review.diagram?.before : review.diagram?.after;
+  const selectComponent = (id: string | undefined) => {
+    setSelected(id);
+    setFocused(id !== undefined);
+  };
   const visible =
     diagram && focused && selected
       ? componentNeighborhood(diagram, selected)
       : diagram;
   const graph: Graph | undefined = visible && {
     ...visible,
+    arrows:
+      focused && selected
+        ? visible.arrows
+            .filter((arrow) => arrow.from === selected || arrow.to === selected)
+            .map((arrow) => ({ ...arrow, label: undefined }))
+        : [],
+    ...(focused && selected ? { trace: selected } : {}),
     boxes: visible.boxes.map((box) => ({
       ...box,
       detail: undefined,
@@ -108,7 +119,7 @@ export function PublishedOverview({
           >
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3.5 py-2">
               <p className="text-xs text-muted-foreground">
-                Agent-described components and relationships
+                Select a component to trace its relationships
               </p>
               {review.diagram?.before && (
                 <Tabs
@@ -135,7 +146,7 @@ export function PublishedOverview({
                       : ''
                   }
                   onChange={(event) =>
-                    setSelected(event.target.value || undefined)
+                    selectComponent(event.target.value || undefined)
                   }
                   className="max-w-full"
                 >
@@ -169,7 +180,7 @@ export function PublishedOverview({
             {graph ? (
               <ReviewDiagram
                 graph={graph}
-                onBoxClick={(box) => setSelected(box.id)}
+                onBoxClick={(box) => selectComponent(box.id)}
               />
             ) : (
               <p className="p-4 text-sm text-muted-foreground">
@@ -185,7 +196,7 @@ export function PublishedOverview({
             scope={scope}
             context={context}
             onOpen={onOpen}
-            onSelect={setSelected}
+            onSelect={selectComponent}
           />
         </div>
       ) : review.summary === previousSummary ? (
@@ -224,7 +235,7 @@ function ArchitectureInspector({
   return (
     <aside
       aria-label="Architecture details"
-      className="max-h-[50vh] shrink-0 overflow-auto border-t p-4 lg:max-h-none lg:w-80 lg:border-t-0 lg:border-l xl:w-96"
+      className="max-h-[35vh] shrink-0 overflow-auto border-t p-4 lg:max-h-none lg:w-80 lg:border-t-0 lg:border-l xl:w-96"
     >
       {box && (
         <>

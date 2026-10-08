@@ -41,7 +41,7 @@ A layer of the agent's published review can be marked reviewed as a whole. The m
 3. Click button named `Mark layer reviewed`
    Look for: button "Reviewed" [pressed]. `$C server reviewed-layers` lists one mark with `"stale": false`.
 4. On disk: `printf '# Sample repository\n\nA revised change to review.\n' > "$REPO/README.md"`, then wait for button named `Mark changed layer reviewed` to be visible and inspect the accessibility tree
-   Look for: status "Code changed since the review was written." in article "Step New line"; the toolbar button is now "Mark changed layer reviewed", enabled and not pressed. `$C server reviewed-layers` shows the mark `"stale": true`.
+   Look for: the layer header explains that full current changes are shown and agent notes need updating; the toolbar button is now "Mark changed layer reviewed", enabled and not pressed. `$C server reviewed-layers` shows the mark `"stale": true`.
 5. Click button named `Mark changed layer reviewed`
    Look for: button "Reviewed" [pressed] again; `$C server reviewed-layers` shows `"stale": false`.
 6. Click button named `Reviewed`

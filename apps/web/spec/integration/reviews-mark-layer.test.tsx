@@ -36,11 +36,7 @@ test('marking a published layer reviewed keeps the mark, a change to its code as
     `${repo.readme.committed}\nA revised change to review.\n`,
   );
   await expect
-    .element(
-      layer.getByText('Code changed since the review was written.', {
-        exact: true,
-      }),
-    )
+    .element(layer.getByText(/Full current file changes are shown/))
     .toBeVisible();
   const markChanged = layer.getByRole('button', {
     name: 'Mark changed layer reviewed',

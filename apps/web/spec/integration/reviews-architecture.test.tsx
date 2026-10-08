@@ -49,12 +49,15 @@ test('a substantial review reveals shared owners, before and after, stale code a
     .element(overview.getByText('1 code location changed', { exact: true }))
     .toBeVisible();
 
+  await expect
+    .element(overview.getByText('uses', { exact: true }))
+    .not.toBeInTheDocument();
   await overview
-    .getByRole('button', { name: 'Delivery outbox', exact: true })
-    .click();
-  await overview
-    .getByRole('button', { name: 'Focus on selection', exact: true })
-    .click();
+    .getByRole('combobox', {
+      name: 'Select architecture component',
+      exact: true,
+    })
+    .selectOptions('Delivery outbox');
   await expect
     .element(overview.getByText('Showing 3 of 13 components', { exact: true }))
     .toBeVisible();
@@ -117,9 +120,10 @@ test('a substantial review reveals shared owners, before and after, stale code a
     name: 'Review layer Revoke access across devices',
     exact: true,
   });
+  await layer.getByRole('tab', { name: 'Graph', exact: true }).click();
   await layer
-    .getByRole('button', { name: /Keep the domain decision in its owner/ })
-    .click();
+    .getByRole('combobox', { name: 'Select code location', exact: true })
+    .selectOptions('Keep the domain decision in its owner');
   await expect
     .element(
       layer.getByText('Code changed since the review was written.', {

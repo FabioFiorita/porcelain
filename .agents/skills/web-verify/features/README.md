@@ -99,8 +99,9 @@ These instructions are source-reviewed guidance. Report exactly which maps and b
 | [reviews.delete-resolved](reviews.delete-resolved.md) | /$projectId/$worktreeId | After confirming, the reviewer deletes every resolved thread they started, for them and for the agent, while a resolved thread the agent started stays and the confirmation says so. |
 | [reviews.edit-comment](reviews.edit-comment.md) | /$projectId/$worktreeId | The reviewer rewrites their own comment, which shows as edited and is saved with the new text, then deletes it, which removes the thread, while the agent's comment offers neither. |
 | [reviews.empty-document](reviews.empty-document.md) | / | With every tab closed, the empty pane offers Open all changes, which opens the worktree's changes; once the agent has published a review it offers Open summary instead, which opens the published review. |
+| [reviews.all-changes](reviews.all-changes.md) | / | Every current changed file in a continuous review document, including specs and unexplained files. |
 | [reviews.architecture](reviews.architecture.md) | / | Architecture changes, shared owners and code walkthroughs with independent progress and coverage. |
-| [reviews.layer-file-mark](reviews.layer-file-mark.md) | / | A walkthrough excerpt opens complete file changes before allowing a whole-file review mark. |
+| [reviews.layer-file-mark](reviews.layer-file-mark.md) | / | Walkthrough Code shows full changes with independent file marks; Graph excerpts have no whole-file mark. |
 | [reviews.layer-graph](reviews.layer-graph.md) | / | The Graph tab of a layer of the agent's published review loads the diagram and draws the layer's lane and step, and choosing the step shows its code beside the diagram. |
 | [reviews.mark-all](reviews.mark-all.md) | / | Marking all changed files reviewed marks every one in one step, a file that changes on disk afterwards is offered for review again, and unmarking all clears every mark. |
 | [reviews.mark-file](reviews.mark-file.md) | / | Marking and unmarking a changed file as reviewed updates its control and the server keeps each change. |
@@ -112,5 +113,5 @@ These instructions are source-reviewed guidance. Report exactly which maps and b
 | [reviews.reload-layout](reviews.reload-layout.md) | / | Open tabs, a pinned tab and a collapsed diff are restored after the page reloads. |
 | [reviews.reply](reviews.reply.md) | /$projectId/$worktreeId | A blank reply cannot be posted, and a written reply to the agent's comment joins its thread and waits for the agent. |
 | [reviews.resolve](reviews.resolve.md) | /$projectId/$worktreeId | Resolving a comment thread moves it from the open comments to the resolved ones and the server keeps it resolved, and reopening it moves it back. |
-| [reviews.spec-files](reviews.spec-files.md) | / | Turning on Spec files in Settings lists changed spec files after the other changed files. |
+| [reviews.spec-files](reviews.spec-files.md) | / | The Spec files setting enables a separate Specs section and document. |
 | [reviews.split-shortcuts](reviews.split-shortcuts.md) | / | In a split view the tab shortcuts act on the focused pane alone, and opening the split registers them once. |

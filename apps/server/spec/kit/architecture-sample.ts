@@ -297,7 +297,18 @@ export async function seedArchitectureSample(session: Session) {
       id: randomUUID(),
       lane: item.lane,
       title: item.title,
-      text: scenario.decision,
+      text:
+        item.lane === 0
+          ? 'The interface submits a bounded request and displays the server-confirmed version.'
+          : item.lane === 1
+            ? 'The client bounds request size and carries the expected version; authorization stays on the server.'
+            : item.lane === 2
+              ? 'Authorization precedes the domain decision and journal append. Side-effect ownership must agree with the persistence boundary.'
+              : item.path.startsWith('tests/')
+                ? 'These examples check the persisted outcome and viewer refusal. The sample has not executed them.'
+                : item.path.startsWith('docs/')
+                  ? 'The decision records the owner future operations should reuse.'
+                  : scenario.decision,
       kind: 'changed' as const,
       pointer: {
         path: item.path,
@@ -408,7 +419,16 @@ export async function seedArchitectureSample(session: Session) {
         id: randomUUID(),
         lane: 0,
         title: `Own ${name}`,
-        text: 'This shared owner is reused across the affected behaviors. Review its boundary before accepting a second implementation.',
+        text: {
+          policy:
+            'Workspace policy owns authorization for every mutation; clients cannot bypass it.',
+          journal:
+            'The revision journal owns ordered versions and pinned export snapshots.',
+          outbox:
+            'The delivery outbox owns retry identity; its transaction with the journal remains unresolved.',
+          sessions:
+            'The session owner rechecks access when a device reconnects or membership changes.',
+        }[name]!,
         kind: 'changed' as const,
         pointer: {
           path,

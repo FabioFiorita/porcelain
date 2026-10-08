@@ -1,9 +1,10 @@
 import { expect, test } from './fixtures.ts';
 
-test('turning on Spec files in Settings lists changed spec files after the other changed files', async ({
+test('Spec files creates a separate collapsed section only while the setting is on', async ({
   page,
   pairedPage,
   repo,
+  server,
 }) => {
   await repo.write('search.spec.ts', 'export const spec = true;\n');
   await repo.write('search.ts', 'export const search = true;\n');
@@ -19,6 +20,9 @@ test('turning on Spec files in Settings lists changed spec files after the other
   ].entries())
     await expect(rows.nth(index)).toHaveAccessibleName(name);
 
+  await expect(
+    pairedPage.getByText('Specs · 1 files', { exact: true }),
+  ).not.toBeVisible();
   await page.keyboard.press('Escape');
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
@@ -36,10 +40,26 @@ test('turning on Spec files in Settings lists changed spec files after the other
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  for (const [index, name] of [
-    /^README\.md/,
-    /^search\.ts/,
-    /^search\.spec\.ts/,
-  ].entries())
-    await expect(rows.nth(index)).toHaveAccessibleName(name);
+  await expect(
+    pairedPage.getByRole('button', { name: /^search\.spec\.ts/ }),
+  ).not.toBeVisible();
+  await pairedPage.getByText('Specs · 1 files', { exact: true }).click();
+  await expect(
+    pairedPage.getByRole('button', { name: 'Open all specs', exact: true }),
+  ).toBeVisible();
+  await expect(rows.nth(2)).toHaveAccessibleName(/^search\.spec\.ts/);
+  await pairedPage
+    .getByRole('button', { name: 'Open all specs', exact: true })
+    .click();
+  await expect(
+    pairedPage.getByRole('heading', { name: 'Specs', exact: true }),
+  ).toBeVisible();
+  await pairedPage
+    .getByRole('button', { name: 'Mark all 1 files reviewed', exact: true })
+    .click();
+  await expect
+    .poll(async () =>
+      (await server.reviewedFiles()).marks.map((mark) => mark.path),
+    )
+    .toEqual(['search.spec.ts']);
 });
