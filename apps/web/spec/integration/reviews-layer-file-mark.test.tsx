@@ -1,6 +1,7 @@
+import { userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
-test('walkthrough files can be reviewed individually without marking the layer; graph excerpts cannot mark whole files', async ({
+test('walkthrough files can be reviewed individually without marking the layer; graph dialogs review complete files without leaving the graph', async ({
   workspace,
   repo,
   server,
@@ -41,10 +42,7 @@ test('walkthrough files can be reviewed individually without marking the layer; 
   await expect.poll(marked).not.toContain(readme);
   await layer.getByRole('tab', { name: 'Graph', exact: true }).click();
   await layer.getByRole('button', { name: 'New line', exact: true }).click();
-  const code = layer.getByRole('region', {
-    name: 'Selected step code',
-    exact: true,
-  });
+  const code = workspace.getByRole('dialog', { name: 'New line', exact: true });
   await expect
     .element(
       code.getByRole('button', {
@@ -52,13 +50,23 @@ test('walkthrough files can be reviewed individually without marking the layer; 
         exact: true,
       }),
     )
-    .not.toBeInTheDocument();
-  await code.getByText('Agent note', { exact: true }).click();
+    .toBeEnabled();
+  await expect.poll(marked).not.toContain(readme);
+  await code.getByText('Agent note · New line', { exact: true }).click();
   await expect
     .element(code.getByText('A line is added', { exact: true }))
     .toBeVisible();
   await code
-    .getByRole('button', { name: 'Show all changes in this file', exact: true })
+    .getByRole('button', { name: `Mark ${readme} as reviewed`, exact: true })
     .click();
-  await expect.element(mark).toBeEnabled();
+  await expect.poll(marked).toEqual([readme]);
+  await expect
+    .poll(async () => (await server.reviewedLayers()).marks)
+    .toEqual([]);
+  await code.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect
+    .element(layer.getByRole('tab', { name: 'Graph', exact: true }))
+    .toHaveAttribute('aria-selected', 'true');
+  await userEvent.keyboard('r');
+  await expect.poll(marked).toEqual([readme]);
 });

@@ -6,8 +6,8 @@ selectors:
   - "Layer presentation"
   - "Graph"
   - "Loading diagram…"
-  - "Selected step code"
-  - "Close code"
+  - "Explore the layer"
+  - "Close"
 tests:
   - apps/web/spec/integration/reviews-layer-graph.test.tsx
 api:
@@ -18,12 +18,12 @@ api:
 
 ## What it is
 
-The Graph tab of a published layer loads the diagram lazily and draws the layer's lanes and steps; Only explicitly published arrows describe relationships; reading order does not create arrows. The "Explore the layer" panel stays beside (below, at phone width) the diagram. Its code-location links and graph nodes open one explicit excerpt at a time in "Selected step code". "Read full file diff" switches to a complete single-file diff; "Full layer diff" restores the continuous document.
+The Graph tab of a published layer loads the diagram lazily and draws the layer's lanes and steps; Only explicitly published arrows describe relationships; reading order does not create arrows. The "Explore the layer" panel stays beside (below, at phone width) the diagram. Its numbered code-location links and graph nodes open a complete single-file diff in a dialog, keeping Graph selected. The explorer contains navigation rather than a code preview; "Full layer diff" restores the continuous document.
 
 ## How a user reaches it
 
 - Review (sheet at phone width) → "1. Readme layer" → the layer toolbar's tabs "Layer presentation" → "Graph".
-- In the graph, click a step box (a button named by the step title) to show its code; "Close code" hides it.
+- In the graph, click a step box (a button named by the step title) to open its complete file in a dialog. Close it or press Escape to return to the same graph and selection.
 
 ## Driving it
 
@@ -42,18 +42,18 @@ The Graph tab of a published layer loads the diagram lazily and draws the layer'
 4. Click tab named `Graph`, then wait for button named `New line` to be visible
    Look for: tab "Graph" [selected]; an application holding text "Docs" (the lane) and button "New line" with "New line Changed" without the explanatory paragraph "A line is added"; buttons "Zoom In", "Zoom Out", "Fit View"; no "Loading diagram…" left.
 5. Click button named `New line`
-   Look for: region "Selected step code" with button "Close code" and article "Step New line" holding heading "New line", the README.md excerpt and a short "Agent note" after the code. No whole-file mark is available.
-6. Click button named `Close code`
-   Look for: region "Selected step code" gone; the diagram and "Explore the layer" navigation stay.
+   Look for: dialog "New line" holding the complete README.md diff and "Mark README.md as reviewed". The graph remains behind it; Explore the layer contains no code preview.
+6. Press Escape or click `Close` in the dialog
+   Look for: Graph remains selected, the "New line" node stays highlighted, and keyboard focus returns to the node. "Explore the layer" navigation stays.
 
 ## What proves it works
 
-- Step 4 shows the step box and the lane with no loading text left; step 5 shows the "Selected step code" region.
-- `apps/web/spec/integration/reviews-layer-graph.test.tsx`: in region "Review layer Readme layer", the Graph tab is selected, the "New line" button excludes "A line is added", "Docs" is visible, "Loading diagram…" is gone, and clicking the step shows region "Selected step code".
+- Step 4 shows the step box and the lane with no loading text left; step 5 opens the complete file diff in a dialog.
+- `apps/web/spec/integration/reviews-layer-graph.test.tsx`: in region "Review layer Readme layer", the Graph tab is selected, the "New line" button excludes "A line is added", "Docs" is visible, "Loading diagram…" is gone, and clicking the step opens its complete file in a dialog, and Escape returns to the highlighted node without changing Graph.
 
 ## Gotchas
 
 - The diagram module loads on first use; "Loading diagram…" shows for a moment after the tab click, which the visible-state wait in step 4 covers.
-- At phone width the code panel stacks under the diagram (`md:` breakpoint); scroll or screenshot to see it.
+- At phone width the explorer stacks below the main pane; its numbered links scroll independently.
 - The step box button is named by the step title only; Code shows all file changes; agent-note titles are disclosure labels.
 - Address the sidebar's layer button by `/Readme layer/` only while no layer tab is open (its "Close 1. Readme layer" button matches too); afterwards use Click tab named `/Readme layer/`.

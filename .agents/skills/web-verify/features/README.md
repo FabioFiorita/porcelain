@@ -103,7 +103,7 @@ These instructions are source-reviewed guidance. Report exactly which maps and b
 | [reviews.architecture](reviews.architecture.md) | / | Architecture changes, shared owners and code walkthroughs with independent progress and coverage. |
 | [reviews.layer-file-mark](reviews.layer-file-mark.md) | / | Walkthrough Code shows full changes with independent file marks; Graph excerpts have no whole-file mark. |
 | [reviews.layer-explore](reviews.layer-explore.md) | / | A layer keeps its graph and code-location navigation together, with a full-layer diff and complete one-file diffs. |
-| [reviews.layer-graph](reviews.layer-graph.md) | / | The Graph tab of a layer of the agent's published review loads the diagram and draws the layer's lane and step, and choosing the step shows its code beside the diagram. |
+| [reviews.layer-graph](reviews.layer-graph.md) | / | The Graph tab of a layer of the agent's published review loads the diagram and draws the layer's lane and step, and choosing the step opens its complete file in a dialog. |
 | [reviews.mark-all](reviews.mark-all.md) | / | Marking all changed files reviewed marks every one in one step, a file that changes on disk afterwards is offered for review again, and unmarking all clears every mark. |
 | [reviews.mark-file](reviews.mark-file.md) | / | Marking and unmarking a changed file as reviewed updates its control and the server keeps each change. |
 | [reviews.mark-layer-refresh](reviews.mark-layer-refresh.md) | / | While the published layer is read again after its code changed, its mark button waits for the new layer, so the mark is sent with the fingerprint of the layer on screen and is accepted. |

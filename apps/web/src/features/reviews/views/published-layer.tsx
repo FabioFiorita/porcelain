@@ -1,9 +1,16 @@
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { parsePatchFiles } from '@pierre/diffs';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { selectionKey } from '@porcelain/client/changes/rules';
 import {
   useChangeDiffs,
@@ -62,8 +69,22 @@ export function PublishedLayer({
   const { reviewed, label } = mark;
   const [view, setView] = useState('code');
   const [singleFile, setSingleFile] = useState(false);
+  const [codeOpen, setCodeOpen] = useState(false);
+  const mainPane = useRef<HTMLDivElement>(null);
+  const codeReturnFocus = useRef<HTMLElement | null>(null);
   const [focus, setFocus] = useState<string>();
   const selectedStep = layer.steps.find((step) => step.id === focus);
+  const selectedSteps = selectedStep
+    ? layer.steps.filter(
+        (step) => step.pointer.path === selectedStep.pointer.path,
+      )
+    : layer.steps;
+  const selectLocation = (id: string, target?: HTMLElement) => {
+    codeReturnFocus.current = target ?? null;
+    setFocus(id);
+    setSingleFile(true);
+    if (view === 'graph') setCodeOpen(true);
+  };
   const diagram = layerDiagram(layer);
   const graph: Graph = {
     ...diagram,
@@ -124,7 +145,7 @@ export function PublishedLayer({
         </p>
       )}
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div className="flex min-h-64 min-w-0 flex-1 flex-col">
+        <div ref={mainPane} className="flex min-h-64 min-w-0 flex-1 flex-col">
           {view === 'graph' ? (
             <>
               <p className="shrink-0 border-b px-4 py-2 text-xs text-muted-foreground">
@@ -134,7 +155,7 @@ export function PublishedLayer({
               <ReviewDiagram
                 graph={graph}
                 className="min-w-0"
-                onBoxClick={(box) => setFocus(box.id)}
+                onBoxClick={(box) => selectLocation(box.id)}
               />
             </>
           ) : (
@@ -159,14 +180,7 @@ export function PublishedLayer({
                 key={singleFile ? selectedStep?.pointer.path : 'all'}
                 {...props}
                 layer={layer}
-                steps={
-                  singleFile && selectedStep
-                    ? layer.steps.filter(
-                        (step) =>
-                          step.pointer.path === selectedStep.pointer.path,
-                      )
-                    : layer.steps
-                }
+                steps={singleFile ? selectedSteps : layer.steps}
               />
             </>
           )}
@@ -176,51 +190,48 @@ export function PublishedLayer({
           layer={layer}
           proof={proof}
           selected={focus}
-          onSelect={(id) => {
-            setFocus(id);
-            if (view === 'code') setSingleFile(true);
-          }}
+          onSelect={selectLocation}
           onFullDiff={() => {
             setView('code');
             setSingleFile(false);
           }}
-          selectedCode={
-            view === 'graph' &&
-            selectedStep && (
-              <section
-                aria-label="Selected step code"
-                className="mt-4 border-t pt-3"
-              >
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setView('code');
-                      setSingleFile(true);
-                    }}
-                  >
-                    Read full file diff
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setFocus(undefined)}
-                  >
-                    Close code
-                  </Button>
-                </div>
-                <LayerSteps
-                  {...props}
-                  layer={layer}
-                  steps={[selectedStep]}
-                  focus={undefined}
-                />
-              </section>
-            )
-          }
         />
       </div>
+      <Dialog open={view === 'graph' && codeOpen} onOpenChange={setCodeOpen}>
+        {selectedStep && (
+          <DialogContent
+            className="flex h-[85svh] min-h-64 flex-col overflow-hidden sm:max-w-5xl"
+            finalFocus={() =>
+              codeReturnFocus.current ??
+              mainPane.current?.querySelector<HTMLButtonElement>(
+                'button[aria-pressed="true"]',
+              ) ??
+              null
+            }
+          >
+            <div className="shrink-0 pr-10">
+              <DialogHeader>
+                <DialogTitle>{selectedStep.title}</DialogTitle>
+                <DialogDescription className="break-all">
+                  {selectedStep.pointer.path}
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col">
+              <LayerFiles
+                key={selectedStep.pointer.path}
+                {...props}
+                interaction={{
+                  ...props.interaction,
+                  active: props.interaction.active && codeOpen,
+                }}
+                layer={layer}
+                steps={selectedSteps}
+              />
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
     </section>
   );
 }
@@ -231,16 +242,14 @@ function LayerExplorer({
   selected,
   onSelect,
   onFullDiff,
-  selectedCode,
   scope,
   context,
 }: {
   layer: ReviewLayer;
   proof: ReviewProof;
   selected: string | undefined;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, target: HTMLElement) => void;
   onFullDiff: () => void;
-  selectedCode: ReactNode;
   scope: ReviewScope;
   context: ConnectionContext;
 }) {
@@ -265,7 +274,6 @@ function LayerExplorer({
       <Button variant="outline" size="sm" className="mt-3" onClick={onFullDiff}>
         Full layer diff
       </Button>
-      {selectedCode}
       <ol className="mt-3 space-y-1">
         {layer.steps.map((step, index) => (
           <li key={step.id}>
@@ -275,7 +283,7 @@ function LayerExplorer({
               aria-label={`Explore ${step.title}`}
               aria-pressed={selected === step.id}
               className="h-auto w-full justify-start text-left"
-              onClick={() => onSelect(step.id)}
+              onClick={(event) => onSelect(step.id, event.currentTarget)}
             >
               <span className="self-start text-xs text-muted-foreground">
                 {index + 1}.
@@ -383,7 +391,6 @@ function LayerFiles({
               interaction={{ ...props.interaction, active: false }}
               layer={layer}
               steps={contextSteps}
-              focus={undefined}
             />
           </details>
         )
@@ -395,12 +402,10 @@ function LayerFiles({
 function LayerSteps({
   layer,
   steps,
-  focus,
   ...props
 }: LayerProps & {
   layer: ReviewLayer;
   steps: readonly ReviewStep[];
-  focus: string | undefined;
 }) {
   const { scope, context } = props;
   const { connection } = context;
@@ -446,7 +451,6 @@ function LayerSteps({
           lane={layer.lanes[step.lane] ?? ''}
           item={items.find((item) => item.path === step.pointer.path)}
           diffs={diffs}
-          focus={focus === step.id}
         />
       ))}
     </div>
@@ -461,20 +465,14 @@ function Step({
   interaction,
   item,
   diffs,
-  focus,
   onOpen,
 }: LayerProps & {
   step: ReviewStep;
   lane: string;
   item: ReviewChangeItem | undefined;
   diffs: ReturnType<typeof useChangeDiffs>;
-  focus: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const element = useRef<HTMLElement>(null);
-  useEffect(() => {
-    if (focus) element.current?.scrollIntoView({ block: 'nearest' });
-  }, [focus]);
   const committed = step.location.state === 'committed';
   const changed = step.location.state === 'changed';
   const location =
@@ -556,7 +554,6 @@ function Step({
   }
   return (
     <article
-      ref={element}
       className="rounded-xl bg-muted/20 p-3"
       aria-label={`Step ${step.title}`}
     >

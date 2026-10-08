@@ -29,15 +29,15 @@ The review opens an architecture map with before and after views, short componen
 2. Open combobox "Select architecture component", then click option "Delivery outbox". Its ownership trace contains only the owner and its two callers, with connection lines in a clear gutter. Labels and the unresolved transaction ownership decision appear in the inspector. The complete map draws no crossing connection web.
 3. Selection focuses automatically. Expect "Showing 3 of 13 components". Show entire map restores all thirteen without crossing connections; Focus on selection returns to the trace. Every component remains available through the selector.
 4. Select Before and Page-owned writes. Its detail explains independent page writes. Select After: the removed legacy component explains the shared-owner replacement.
-5. Follow Revoke access across devices. Code opens all current changes across its files. Select Graph → Domain. Expect "Code changed since the review was written." and an explicit excerpt range, with no whole-file review mark.
-6. In Graph choose another code location from "Explore the layer": only its snippet opens. Code returns to the continuous file document, with individual reviewed controls and existing context at the bottom. Expand Architectural intent and Verification evidence when needed. The sample claims no passing application checks.
+5. Follow Revoke access across devices. Code opens all current changes across its files. Select Graph → Keep the domain decision in its owner. A dialog opens that complete file, with a current-file mark and a notice that the affected explanation needs updating. Closing it keeps Graph selected.
+6. In Graph choose another numbered code location from "Explore the layer": its complete file opens in a dialog. Close it; Full layer diff restores the continuous file document, with individual reviewed controls and existing context at the bottom. Expand Architectural intent and Verification evidence when needed. The sample claims no passing application checks.
 7. Show all changes in this file opens the complete diff; Open file opens its source. Return through the walkthrough and overview tabs. The unexplained-files action exposes the new migration script and the uncovered policy change.
 8. Repeat selection, focus/reset, walkthrough navigation and full-file actions at 414 × 896. Controls remain reachable without a clipped desktop-width pane. Check light and dark themes and reload the architecture overview.
 9. Read `$C server published-review` and compare the nine walkthroughs, thirteen after components and incomplete coverage to the displayed progress. Inspect review HTTP 200 responses and console diagnostics with the browser driver. Close the browser session and stop the owned instance unless it is intentionally left as a requested playground.
 
 ## What proves it works
 
-The integration spec exercises shared-owner relationships, focus counts, before/after details, partial coverage and stale excerpts. Shared rule tests ensure reading order never fabricates arrows and stale code cannot count toward completed understanding. Live driving checks scale, navigation and viewport layout.
+The integration spec exercises shared-owner relationships, focus counts, before/after details, partial coverage and stale file explanations. Shared rule tests ensure reading order never fabricates arrows and stale code cannot count toward completed understanding. Live driving checks scale, navigation and viewport layout.
 
 ## Gotchas
 

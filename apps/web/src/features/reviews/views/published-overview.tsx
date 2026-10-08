@@ -159,10 +159,14 @@ export function PublishedOverview({
                   >
                     <SelectValue placeholder="Select a component" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="w-max! max-w-(--available-width)">
                     <SelectItem value={null}>Select a component</SelectItem>
                     {diagram.boxes.map((box) => (
-                      <SelectItem key={box.id} value={box.id}>
+                      <SelectItem
+                        key={box.id}
+                        value={box.id}
+                        className="[&>span:first-child]:min-w-0 [&>span:first-child]:shrink [&>span:first-child]:whitespace-normal"
+                      >
                         {box.label}
                       </SelectItem>
                     ))}

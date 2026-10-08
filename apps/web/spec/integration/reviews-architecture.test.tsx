@@ -157,19 +157,28 @@ test('a substantial review reveals shared owners, before and after, stale code a
       exact: true,
     })
     .click();
+  const code = workspace.getByRole('dialog', {
+    name: 'Keep the domain decision in its owner',
+    exact: true,
+  });
   await expect
     .element(
-      layer.getByText('Code changed since the review was written.', {
+      code.getByText(
+        'Code changed since the review was written. Full current file changes are shown; the affected agent notes need updating.',
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      code.getByRole('button', {
+        name: 'Mark packages/workspace/src/revoke-access.ts as reviewed',
         exact: true,
       }),
     )
-    .toBeVisible();
+    .toBeEnabled();
+  await code.getByRole('button', { name: 'Close', exact: true }).click();
   await expect
-    .element(
-      layer.getByText('Changed code · Excerpt · Lines 1–7', { exact: true }),
-    )
-    .toBeVisible();
-  await expect
-    .element(layer.getByRole('button', { name: /Mark .* as reviewed/ }))
-    .not.toBeInTheDocument();
+    .element(layer.getByRole('tab', { name: 'Graph', exact: true }))
+    .toHaveAttribute('aria-selected', 'true');
 });

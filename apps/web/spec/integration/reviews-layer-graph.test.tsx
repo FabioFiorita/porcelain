@@ -1,6 +1,7 @@
+import { userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
-test('opening the graph of a published layer draws its lane and step, and choosing the step shows its code beside the graph', async ({
+test('opening the graph of a published layer draws its lane and step, and choosing a step opens its diff in a dialog without leaving the graph', async ({
   workspace,
   agent,
 }) => {
@@ -29,12 +30,27 @@ test('opening the graph of a published layer draws its lane and step, and choosi
     .not.toBeInTheDocument();
 
   await step.click();
-  await expect
-    .element(layer.getByText('Agent note', { exact: true }))
-    .toBeVisible();
+  const code = workspace.getByRole('dialog', { name: 'New line', exact: true });
+  await expect.element(code).toBeVisible();
   await expect
     .element(
-      layer.getByRole('region', { name: 'Selected step code', exact: true }),
+      code.getByRole('button', {
+        name: 'Mark README.md as reviewed',
+        exact: true,
+      }),
+    )
+    .toBeEnabled();
+  await expect
+    .element(
+      code.getByText(
+        '1 changed files · All changes in these files · 0 existing code locations',
+        { exact: true },
+      ),
     )
     .toBeVisible();
+  await userEvent.keyboard('{Escape}');
+  await expect.element(code).not.toBeInTheDocument();
+  await expect.element(graphTab).toHaveAttribute('aria-selected', 'true');
+  await expect.element(step).toHaveAttribute('aria-pressed', 'true');
+  await expect.element(step).toHaveFocus();
 });
