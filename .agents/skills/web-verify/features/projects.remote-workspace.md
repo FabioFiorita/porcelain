@@ -17,6 +17,8 @@ selectors:
   - "Files"
   - "Open file"
   - "Source"
+  - "Architecture overview"
+  - "Agent summary"
   - "Review summary"
   - "Review layer "
 tests:

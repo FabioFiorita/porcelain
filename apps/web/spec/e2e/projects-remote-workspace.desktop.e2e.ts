@@ -122,7 +122,10 @@ test('the desktop app opens another computer’s worktree and HTML review, marks
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
   await pairedPage.getByRole('tab', { name: 'Review', exact: true }).click();
   await pairedPage
-    .getByRole('button', { name: 'Review summary', exact: true })
+    .getByRole('button', { name: 'Architecture overview', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('tab', { name: 'Agent summary', exact: true })
     .click();
   await app
     .summary()
