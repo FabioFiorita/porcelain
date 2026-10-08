@@ -9,7 +9,7 @@ import {
   type RuntimeConnection,
   type Transport,
 } from '@porcelain/client/transport';
-import { readInventory } from './inventory.ts';
+import { readInventory, readInventories } from './inventory.ts';
 
 const environmentId = '87deba35-c65b-4fb6-9dfd-52bfbe76f64c';
 const owned = new Set<{
@@ -33,10 +33,14 @@ function inventory(
     projects: [],
   };
 }
-function fixture(transport: Transport, cacheIdentity?: readonly string[]) {
+function fixture(
+  transport: Transport,
+  cacheIdentity?: readonly string[],
+  identity = environmentId,
+) {
   const lifetime = createWorktreeConnection(
     {
-      environmentId,
+      environmentId: identity,
       transport,
       timeoutMs: 10_000,
       ...(cacheIdentity ? { cacheIdentity } : {}),
@@ -58,6 +62,91 @@ function read(subject: ReturnType<typeof fixture>) {
   );
 }
 describe('reading a connected project inventory', () => {
+  it('keeps projects from healthy environments visible while another fails and refreshes both inventories', async () => {
+    const secondId = '7978b5bd-7a5e-49c2-b624-068b2a257fc2';
+    const project = {
+      id: '00000000-0000-4000-8000-000000000001',
+      name: 'Shared project',
+      available: true,
+      worktrees: [],
+    };
+    const firstAnswer = { ...inventory('First'), projects: [project] };
+    const secondAnswer = {
+      ...inventory('Second', secondId),
+      projects: [project],
+    };
+    let firstReads = 0;
+    let secondReads = 0;
+    let secondAvailable = false;
+    const first = fixture(() => {
+      firstReads += 1;
+      return Promise.resolve(Response.json(firstAnswer));
+    });
+    const second = fixture(
+      () => {
+        secondReads += 1;
+        return Promise.resolve(
+          secondAvailable
+            ? Response.json(secondAnswer)
+            : Response.json({ message: 'Offline' }, { status: 503 }),
+        );
+      },
+      undefined,
+      secondId,
+    );
+    const combined = readInventories([first.connection, second.connection]);
+    const stop = first.registry.mount(combined);
+    try {
+      await Effect.runPromise(
+        AtomRegistry.getResult(
+          first.registry,
+          readInventory(first.connection),
+          { suspendOnWaiting: true },
+        ),
+      );
+      const unavailable = await Effect.runPromiseExit(
+        AtomRegistry.getResult(
+          first.registry,
+          readInventory(second.connection),
+          { suspendOnWaiting: true },
+        ),
+      );
+      expect(Exit.isFailure(unavailable)).toBe(true);
+      const answers = first.registry.get(combined);
+      expect(answers.map(({ connection }) => connection.environmentId)).toEqual(
+        [environmentId, secondId],
+      );
+      expect(Option.getOrThrow(AsyncResult.value(answers[0]!.result))).toEqual(
+        firstAnswer,
+      );
+      expect(AsyncResult.isFailure(answers[1]!.result)).toBe(true);
+      secondAvailable = true;
+      first.registry.refresh(combined);
+      const refreshed = Option.getOrThrow(
+        await Effect.runPromise(
+          AtomRegistry.toStream(first.registry, combined).pipe(
+            Stream.filter((entries) =>
+              entries.every(
+                ({ result }) =>
+                  AsyncResult.isSuccess(result) && !result.waiting,
+              ),
+            ),
+            Stream.take(1),
+            Stream.runHead,
+          ),
+        ),
+      );
+      expect(
+        refreshed.map(({ result }) =>
+          Option.getOrThrow(AsyncResult.value(result)),
+        ),
+      ).toEqual([firstAnswer, secondAnswer]);
+      expect(firstReads).toBe(2);
+      expect(secondReads).toBe(2);
+    } finally {
+      stop();
+    }
+  });
   it('reads the canonical HTTP endpoint through its connection', async () => {
     const requests: string[] = [];
     const subject = fixture((path) => {

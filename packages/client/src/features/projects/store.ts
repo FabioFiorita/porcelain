@@ -30,6 +30,11 @@ export class ProjectSelectionStore extends Context.Service<
       projectId: string,
       worktreeId: string,
     ) => Effect.Effect<void, WriteFailure>;
+    readonly selectWorkspace: (
+      environmentId: string,
+      projectId: string,
+      worktreeId: string,
+    ) => Effect.Effect<void, WriteFailure>;
     readonly forgetEnvironment: (
       environmentId: string,
     ) => Effect.Effect<void, WriteFailure>;
@@ -148,6 +153,18 @@ export class ProjectSelectionStore extends Context.Service<
                 },
               });
             }),
+        ),
+        selectWorkspace: Effect.fn('ProjectSelectionStore.selectWorkspace')(
+          (environmentId: string, projectId: string, worktreeId: string) =>
+            write(({ selections }) =>
+              Effect.succeed({
+                currentEnvironmentId: environmentId,
+                selections: {
+                  ...selections,
+                  [environmentId]: { projectId, worktreeId },
+                },
+              }),
+            ),
         ),
         forgetEnvironment: Effect.fn('ProjectSelectionStore.forgetEnvironment')(
           (environmentId: string) =>

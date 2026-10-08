@@ -8,7 +8,7 @@ type SelectionCommand =
   | { readonly kind: 'read' }
   | { readonly kind: 'environment'; readonly environmentId: string }
   | {
-      readonly kind: 'worktree';
+      readonly kind: 'worktree' | 'workspace';
       readonly environmentId: string;
       readonly projectId: string;
       readonly worktreeId: string;
@@ -56,11 +56,17 @@ const makeSelectionCommands = Effect.gen(function* () {
               return yield* Effect.fail(
                 new ConnectionError({
                   message:
-                    'That environment is no longer paired. Open the environment picker again.',
+                    'That environment is no longer paired. Open the workspace picker again.',
                 }),
               );
             if (command.kind === 'environment')
               return yield* selection.selectEnvironment(command.environmentId);
+            if (command.kind === 'workspace')
+              return yield* selection.selectWorkspace(
+                command.environmentId,
+                command.projectId,
+                command.worktreeId,
+              );
             yield* selection.selectWorktree(
               command.environmentId,
               command.projectId,
