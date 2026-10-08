@@ -2,7 +2,7 @@ import { type SFSymbolIcon } from 'expo-router/native-tabs';
 import { type IconName } from './icon';
 
 const symbols = {
-  review: 'point.topleft.down.curvedto.point.bottomright.up',
+  review: 'arrow.triangle.branch',
   files: 'folder',
   history: 'clock.arrow.circlepath',
   settings: 'gearshape',
