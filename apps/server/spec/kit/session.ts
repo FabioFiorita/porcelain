@@ -132,6 +132,7 @@ export type ProofCheckStep = {
 };
 
 export type AgentAction =
+  | { kind: 'publish-architecture' }
   | {
       kind: 'publish-review';
       title: string;

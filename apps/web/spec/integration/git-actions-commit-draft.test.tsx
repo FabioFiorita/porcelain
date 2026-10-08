@@ -16,7 +16,9 @@ test('without a coding CLI the commit dialog says drafting is unavailable, and a
     exact: true,
   });
   await expect.element(models).toBeDisabled();
-  await expect.element(models).toHaveDisplayValue('No coding CLI available');
+  await expect
+    .element(models.getByText('No coding CLI available', { exact: true }))
+    .toBeVisible();
   await expect
     .element(
       dialog.getByRole('button', { name: 'Generate with AI', exact: true }),

@@ -45,9 +45,10 @@ test('while a published layer is read again after its code changed, its mark wai
   held.release();
   await expect
     .element(
-      layer.getByText('Code changed since the review was written.', {
-        exact: true,
-      }),
+      layer.getByText(
+        'Code changed since the review was written. Full current file changes are shown; the affected agent notes need updating.',
+        { exact: true },
+      ),
     )
     .toBeVisible();
   await expect.element(markChanged).toBeEnabled();

@@ -11,7 +11,14 @@ type CodeReview = {
   fingerprint?: string | null;
 };
 
-export type CodeEntry =
+export type AgentCodeNote = {
+  title: string;
+  text: string;
+  line: number;
+  stale: boolean;
+};
+
+export type CodeEntry = { agentNotes?: readonly AgentCodeNote[] } & (
   | {
       id: string;
       kind: 'diff';
@@ -31,7 +38,8 @@ export type CodeEntry =
       note?: string;
       comment?: CommentTarget;
       review?: CodeReview;
-    };
+    }
+);
 
 export function fileEntry(
   id: string,

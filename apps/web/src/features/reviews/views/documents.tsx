@@ -13,7 +13,7 @@ import {
   entryKey,
   type OpenDocument,
 } from '../rules/documents';
-import { proofOnLayer } from '@porcelain/client/reviews/rules';
+import { isSpecPath, proofOnLayer } from '@porcelain/client/reviews/rules';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { BranchDocument, BranchFileDocument } from './branch-document';
 import { CommitDocument } from './commit-document';
@@ -66,6 +66,10 @@ export function DocumentView({
   switch (document.kind) {
     case 'handoff':
       return <HandoffDocument {...props} />;
+    case 'all-changes':
+      return <PlainChangesDocument {...props} />;
+    case 'specs':
+      return <PlainChangesDocument {...props} specsOnly />;
     case 'layer':
       return <LayerDocument {...props} layerId={document.layerId} />;
     case 'unexplained':
@@ -154,6 +158,7 @@ function TimelineDocument({
 
 function HandoffDocument(props: DocumentProps) {
   const published = usePublishedReview(props.scope, props.context);
+  const review = published.review;
   if (AsyncResult.isInitial(published.result))
     return (
       <p role="status" className="p-4 text-sm">
@@ -162,10 +167,13 @@ function HandoffDocument(props: DocumentProps) {
     );
   if (AsyncResult.isFailure(published.result))
     return <PublicationFailure retry={published.refresh} />;
-  if (published.review?.active)
+  if (review?.active)
     return (
       <PublishedOverview
-        review={published.review}
+        scope={props.scope}
+        context={props.context}
+        review={review}
+        onRefresh={published.refresh}
         address={props.context.connection.address}
         onOpen={props.onOpen}
       />
@@ -173,19 +181,37 @@ function HandoffDocument(props: DocumentProps) {
   return <PlainChangesDocument {...props} />;
 }
 
-function PlainChangesDocument({ scope, context, interaction }: DocumentProps) {
+function PlainChangesDocument({
+  scope,
+  context,
+  interaction,
+  specsOnly = false,
+}: DocumentProps & { specsOnly?: boolean }) {
   const { connection } = context;
   usePrefetchReviewed(scope, context);
   const list = useChanges(scope, connection);
-  const changes = useReviewChangeItems(scope, context, list);
+  const allChanges = useReviewChangeItems(scope, context, list);
+  const changes = specsOnly
+    ? allChanges.filter((item) => isSpecPath(item.path))
+    : allChanges;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ReviewCodeDocument
         scope={scope}
         context={context}
         interaction={interaction}
+        {...(specsOnly ? { paths: changes.map((item) => item.path) } : {})}
         toolbar={(collapseControl) => (
-          <DocumentToolbar title="Changes" subtitle={`${changes.length} files`}>
+          <DocumentToolbar
+            title={
+              specsOnly
+                ? 'Specs'
+                : interaction.entry === 'all-changes'
+                  ? 'All changes'
+                  : 'Changes'
+            }
+            subtitle={`${changes.length} files`}
+          >
             {collapseControl}
             <MarkAllReviewed
               scope={scope}
@@ -204,9 +230,8 @@ function LayerDocument({
   ...props
 }: DocumentProps & { layerId: string }) {
   const published = usePublishedReview(props.scope, props.context);
-  const layer = published.review?.layers.find(
-    (candidate) => candidate.id === layerId,
-  );
+  const review = published.review;
+  const layer = review?.layers.find((candidate) => candidate.id === layerId);
   if (AsyncResult.isInitial(published.result))
     return (
       <p role="status" className="p-4 text-sm">
@@ -215,7 +240,7 @@ function LayerDocument({
     );
   if (AsyncResult.isFailure(published.result))
     return <PublicationFailure retry={published.refresh} />;
-  if (!layer)
+  if (!layer || !review)
     return (
       <ReviewEmpty
         title="Layer no longer present"
@@ -228,6 +253,7 @@ function LayerDocument({
       {...props}
       layer={layer}
       proof={proofOnLayer(published.review?.proof, layerId)}
+      review={review}
     />
   );
 }

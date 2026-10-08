@@ -5,7 +5,7 @@ selectors:
   - "Review layer "
   - "Mark layer reviewed"
   - "Reviewed"
-  - "Code changed since the review was written."
+  - "changes are shown; the affected agent notes need updating."
   - "Mark changed layer reviewed"
 tests:
   - apps/web/spec/integration/reviews-mark-layer.test.tsx
@@ -41,7 +41,7 @@ A layer of the agent's published review can be marked reviewed as a whole. The m
 3. Click button named `Mark layer reviewed`
    Look for: button "Reviewed" [pressed]. `$C server reviewed-layers` lists one mark with `"stale": false`.
 4. On disk: `printf '# Sample repository\n\nA revised change to review.\n' > "$REPO/README.md"`, then wait for button named `Mark changed layer reviewed` to be visible and inspect the accessibility tree
-   Look for: status "Code changed since the review was written." in article "Step New line"; the toolbar button is now "Mark changed layer reviewed", enabled and not pressed. `$C server reviewed-layers` shows the mark `"stale": true`.
+   Look for: the layer header explains that full current changes are shown and agent notes need updating; the toolbar button is now "Mark changed layer reviewed", enabled and not pressed. `$C server reviewed-layers` shows the mark `"stale": true`.
 5. Click button named `Mark changed layer reviewed`
    Look for: button "Reviewed" [pressed] again; `$C server reviewed-layers` shows `"stale": false`.
 6. Click button named `Reviewed`
@@ -51,7 +51,7 @@ A layer of the agent's published review can be marked reviewed as a whole. The m
 
 - The button label sequence Mark layer reviewed → Reviewed → Mark changed layer reviewed → Reviewed → Mark layer reviewed, with Inspect HTTP requests and responses showing `PUT /api/worktrees/<id>/reviewed-layers` 200 (steps 3, 5) and `DELETE /api/worktrees/<id>/reviewed-layers?layerId=...` 200 (step 6).
 - Persistence: `$C server reviewed-layers` reads the mark and its stale flag after each step; after step 3, Navigate to `/` on the card’s web URL (full page load) also reloads onto the layer tab and still shows "Reviewed".
-- `apps/web/spec/integration/reviews-mark-layer.test.tsx`: marking yields "Reviewed" pressed and `server.reviewedLayers()` holds one fresh mark; rewriting README.md shows "Code changed since the review was written.", an enabled "Mark changed layer reviewed" and a stale mark; marking again makes it fresh; unmarking leaves none.
+- `apps/web/spec/integration/reviews-mark-layer.test.tsx`: marking yields "Reviewed" pressed and `server.reviewedLayers()` holds one fresh mark; rewriting README.md shows "Code changed since the review was written. Full current file changes are shown; the affected agent notes need updating.", an enabled "Mark changed layer reviewed" and a stale mark; marking again makes it fresh; unmarking leaves none.
 
 ## Gotchas
 

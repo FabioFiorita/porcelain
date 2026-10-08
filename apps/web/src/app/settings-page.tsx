@@ -123,7 +123,7 @@ function SpecFilesSetting() {
       <ItemContent>
         <ItemTitle>Spec files</ItemTitle>
         <ItemDescription>
-          Group them after the other files and start them collapsed.
+          Group specs separately and start them collapsed.
         </ItemDescription>
       </ItemContent>
       <ItemActions>

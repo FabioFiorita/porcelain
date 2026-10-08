@@ -9,10 +9,14 @@ import {
 } from '@/components/ui/dialog';
 import { Field, FieldLabel } from '@/components/ui/field';
 import {
-  NativeSelect,
-  NativeSelectOptGroup,
-  NativeSelectOption,
-} from '@/components/ui/native-select';
+  Select,
+  SelectContent,
+  SelectTrigger,
+  SelectValue,
+  SelectGroup,
+  SelectLabel,
+  SelectItem,
+} from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { FileTypeIcon } from '@/features/files/index';
@@ -72,6 +76,13 @@ export function CommitForm(
     amendModeBlocker,
   } = form;
   const choices = Option.getOrUndefined(AsyncResult.value(models));
+  const assignments = [
+    { value: 'uncommitted', label: 'Leave uncommitted' },
+    ...(groups?.map((entry, position) => ({
+      value: entry.id,
+      label: `Commit ${position + 1}`,
+    })) ?? []),
+  ];
   return (
     <form
       className="flex min-w-0 flex-col gap-4"
@@ -244,35 +255,49 @@ export function CommitForm(
                   <SparklesIcon />
                   Generate with AI
                 </Button>
-                <NativeSelect
-                  aria-label="Commit model"
-                  className="w-auto max-w-48"
-                  size="sm"
-                  value={model ?? ''}
+                <Select
+                  items={
+                    choices?.map((entry) => ({
+                      value: entry.id,
+                      label: entry.label,
+                    })) ?? []
+                  }
+                  value={model ?? null}
                   disabled={!choices?.length}
-                  onChange={(event) => form.setModel(event.target.value)}
+                  onValueChange={(value) => {
+                    if (value) form.setModel(value);
+                  }}
                 >
-                  {!model && (
-                    <NativeSelectOption value="" disabled>
-                      {choices?.length
-                        ? 'Choose a model'
-                        : 'No coding CLI available'}
-                    </NativeSelectOption>
-                  )}
-                  {groupedCommitModels(
-                    choices?.filter(
-                      (entry) => !entry.id.endsWith(':default'),
-                    ) ?? [],
-                  ).map(([provider, entries]) => (
-                    <NativeSelectOptGroup key={provider} label={provider}>
-                      {entries.map((entry) => (
-                        <NativeSelectOption key={entry.id} value={entry.id}>
-                          {entry.label}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelectOptGroup>
-                  ))}
-                </NativeSelect>
+                  <SelectTrigger
+                    aria-label="Commit model"
+                    className="w-auto max-w-48"
+                    size="sm"
+                  >
+                    <SelectValue
+                      placeholder={
+                        choices?.length
+                          ? 'Choose a model'
+                          : 'No coding CLI available'
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {groupedCommitModels(
+                      choices?.filter(
+                        (entry) => !entry.id.endsWith(':default'),
+                      ) ?? [],
+                    ).map(([provider, entries]) => (
+                      <SelectGroup key={provider}>
+                        <SelectLabel>{provider}</SelectLabel>
+                        {entries.map((entry) => (
+                          <SelectItem key={entry.id} value={entry.id}>
+                            {entry.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </>
@@ -326,24 +351,31 @@ export function CommitForm(
                       <span className="min-w-0 flex-1 truncate">
                         {file.path}
                       </span>
-                      <NativeSelect
-                        aria-label={`Commit for ${file.path}`}
+                      <Select
+                        items={assignments}
                         value={group.id}
                         disabled={done.size > 0}
-                        size="sm"
-                        onChange={(event) =>
-                          form.moveFile(file.paths, event.target.value)
-                        }
+                        onValueChange={(value) => {
+                          if (value) form.moveFile(file.paths, value);
+                        }}
                       >
-                        <NativeSelectOption value="uncommitted">
-                          Leave uncommitted
-                        </NativeSelectOption>
-                        {groups.map((entry, position) => (
-                          <NativeSelectOption key={entry.id} value={entry.id}>
-                            Commit {position + 1}
-                          </NativeSelectOption>
-                        ))}
-                      </NativeSelect>
+                        <SelectTrigger
+                          size="sm"
+                          aria-label={`Commit for ${file.path}`}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="uncommitted">
+                            Leave uncommitted
+                          </SelectItem>
+                          {groups.map((entry, position) => (
+                            <SelectItem key={entry.id} value={entry.id}>
+                              Commit {position + 1}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   ))}
               </section>
@@ -359,24 +391,31 @@ export function CommitForm(
                     className="flex min-w-0 items-center gap-2 text-xs"
                   >
                     <span className="min-w-0 flex-1 truncate">{file.path}</span>
-                    <NativeSelect
-                      aria-label={`Commit for ${file.path}`}
+                    <Select
+                      items={assignments}
                       value="uncommitted"
                       disabled={done.size > 0}
-                      size="sm"
-                      onChange={(event) =>
-                        form.moveFile(file.paths, event.target.value)
-                      }
+                      onValueChange={(value) => {
+                        if (value) form.moveFile(file.paths, value);
+                      }}
                     >
-                      <NativeSelectOption value="uncommitted">
-                        Leave uncommitted
-                      </NativeSelectOption>
-                      {groups.map((entry, position) => (
-                        <NativeSelectOption key={entry.id} value={entry.id}>
-                          Commit {position + 1}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
+                      <SelectTrigger
+                        size="sm"
+                        aria-label={`Commit for ${file.path}`}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="uncommitted">
+                          Leave uncommitted
+                        </SelectItem>
+                        {groups.map((entry, position) => (
+                          <SelectItem key={entry.id} value={entry.id}>
+                            Commit {position + 1}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 ))}
               </section>

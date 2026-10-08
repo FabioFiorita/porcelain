@@ -12,7 +12,11 @@ import {
   isImagePath,
   useTextContents,
 } from '@/features/files/index';
-import { type CodeEntry, fileEntry } from '../adapters/code-entries';
+import {
+  type AgentCodeNote,
+  type CodeEntry,
+  fileEntry,
+} from '../adapters/code-entries';
 import { useComments } from '../queries/comments';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import type { DocumentInteraction } from '../rules/documents';
@@ -42,7 +46,11 @@ export function ReviewCodeDocument({
   headerActions,
   commentRequest,
   toolbar,
+  agentNotes,
+  footer,
 }: {
+  agentNotes?: Readonly<Record<string, readonly AgentCodeNote[]>>;
+  footer?: () => ReactNode;
   scope: ReviewScope;
   context: ConnectionContext;
   interaction: DocumentInteraction;
@@ -153,6 +161,30 @@ export function ReviewCodeDocument({
         : [];
     }),
   );
+  for (const [path, notes] of Object.entries(agentNotes ?? {})) {
+    const candidates = entries.filter((entry) => entry.path === path);
+    const target =
+      candidates.find(
+        (entry) =>
+          entry.comment?.comparison?.kind === 'worktree' &&
+          entry.comment.comparison.scope === 'unstaged',
+      ) ?? candidates[0];
+    if (!target) continue;
+    for (const note of notes) {
+      const atLine =
+        target.kind === 'file'
+          ? note.line <= target.contents.split('\n').length
+          : target.fileDiff.hunks.some(
+              (hunk) =>
+                note.line >= hunk.additionStart &&
+                note.line < hunk.additionStart + hunk.additionCount,
+            );
+      target.agentNotes = [
+        ...(target.agentNotes ?? []),
+        { ...note, line: atLine ? note.line : 0 },
+      ];
+    }
+  }
   const renderedPaths = new Set(entries.map((entry) => entry.path));
   const documentHeader =
     header || loading || failed || unrenderable.length > 0
@@ -190,6 +222,7 @@ export function ReviewCodeDocument({
       interaction={interaction}
       {...(commentRequest !== undefined ? { commentRequest } : {})}
       entries={entries}
+      {...(footer ? { footer } : {})}
       {...(documentHeader ? { header: documentHeader } : {})}
       {...(headerActions ? { headerActions } : {})}
       {...(toolbar ? { toolbar } : {})}

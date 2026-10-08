@@ -5,9 +5,9 @@ selectors:
   - "Review layer "
   - "as reviewed"
   - "as unreviewed"
-  - "Collapse"
 tests:
   - apps/web/spec/integration/reviews-layer-file-mark.test.tsx
+  - apps/web/spec/integration/reviews-layer-shortcuts.test.tsx
 api:
   - DELETE /api/worktrees/:worktreeId/reviewed
   - DELETE /api/worktrees/:worktreeId/reviewed-bulk
@@ -20,40 +20,23 @@ api:
 
 ## What it is
 
-Inside a layer of the agent's published review, each step's code carries the same file mark as the Changes list: marking or unmarking README.md there marks the file itself, and the server keeps each change.
-
-## How a user reaches it
-
-- Review (sheet at phone width, sidebar at 1280px and wider) → Layers list → "1. Readme layer" → the step's code header → "Mark README.md as reviewed" / "Unmark README.md as unreviewed".
-- `R` toggles the mark of the focused code entry while the layer tab is active and focus is not in a text field.
+A walkthrough's Code view is a continuous document of the full current changes in its files. Each file has its own reviewed control. Layer understanding is marked independently. Selecting a graph node opens its complete file in a dialog, where its individual reviewed control is available. Existing-context excerpts have no whole-file marks.
 
 ## Driving it
 
-`$C start`; pair your browser using the card’s pairing-link command.
+`$C start`; pair a fresh browser using the card. `$C agent publish-review "Readme layer"`.
 
-### Setup
-
-- The agent publishes a review: `$C agent publish-review "Readme layer"` (one layer "Readme layer", one step "New line" pointing at README.md line 3).
-
-1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: the handoff tab "Review Close Review" and region "Published review".
-2. Click button named `Review`
-   Look for: a dialog (the review sheet) with the sidebar tab "Review" selected and buttons "Review summary" and one whose name contains "Readme layer".
-3. Click button named `/Readme layer/`
-   Look for: the sheet closes; tab "1. Readme layer Close 1. Readme layer" selected; region "Review layer Readme layer" with heading "Readme layer", article "Step New line", buttons "Collapse README.md" and "Mark README.md as reviewed".
-4. Click button named `Mark README.md as reviewed`
-   Look for: button "Unmark README.md as unreviewed" [pressed]. Then `$C server reviewed-files`: `marks` holds README.md with its fingerprint.
-5. Click button named `Unmark README.md as unreviewed`
-   Look for: button "Mark README.md as reviewed" again. Then `$C server reviewed-files`: `marks` is `[]`.
+1. Open Review → Review tab → Readme layer. In region "Review layer Readme layer", expect Code selected and the full README.md diff with "Mark README.md as reviewed".
+2. Mark the file. Expect "Unmark README.md as unreviewed" and `$C server reviewed-files` includes README.md. The layer remains unmarked in `$C server reviewed-layers`.
+3. Unmark the file. The server mark disappears.
+4. Select Graph → New line. The New line dialog shows the complete README.md diff and its file mark. Merely selecting the node does not mark the file reviewed. Expand Agent note · New line: "A line is added" appears once, in the body.
+5. Mark the selected file. The reviewed-files readback contains README.md and the layer remains unmarked. Close the dialog: Graph stays selected. Full layer diff restores every file in Code.
+6. With `$C start --review-sample`, open Invite a teammate. Scroll through all six changed files, including the Specs boundary when the setting is on, and the existing actor context at the bottom. Collapse individual files, use Collapse all and Expand all, mark one file and then the layer. Repeat at phone width. At phone width, select the walkthrough inside the Worktree review dialog. Press J then R and wait for the next changed file’s Unmark control to become enabled before checking saved state: only that file is marked; context snippets register no shortcuts.
 
 ## What proves it works
 
-- The control flips in steps 4 and 5, and inspect HTTP requests and responses shows `PUT /api/worktrees/<id>/reviewed` then `DELETE /api/worktrees/<id>/reviewed?...` each answered 200.
-- Persistence: `$C server reviewed-files` after steps 4 and 5 reads the mark, then none, from the server; after step 4, Navigate to `/` on the card’s web URL (full page load) also reloads onto the saved layer tab (the last tab opened) and still shows "Unmark README.md as unreviewed".
-- `apps/web/spec/integration/reviews-layer-file-mark.test.tsx`: in region "Review layer Readme layer", "Mark README.md as reviewed" turns into an enabled "Unmark README.md as unreviewed" and `server.reviewedFiles()` lists README.md; unmarking removes it.
+The integration spec checks persisted individual marks independently of layer marks, and graph-dialog navigation. Live driving checks the multi-file document, notes and context footer.
 
 ## Gotchas
 
-- Phone width: the review sidebar is a sheet behind the "Review" button; choosing the layer closes it.
-- The sidebar's layer button has a number prefix; address it by `/Readme layer/`. Once the layer tab is open its "Close 1. Readme layer" button also matches that pattern, so go back to the layer by clicking tab named `/Readme layer/` instead.
-- Marks persist on the server across steps; unmark before handing the instance to another feature.
+Layer progress measures walkthroughs understood independently of file marks and explanation coverage. Code shows every current change in a walkthrough's files; Graph shows authored code locations. Agent notes are collapsed and are explicitly stale if their source changed.

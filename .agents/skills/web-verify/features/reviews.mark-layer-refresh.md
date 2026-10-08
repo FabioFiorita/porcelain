@@ -6,7 +6,7 @@ selectors:
   - "Mark layer reviewed"
   - "Reviewed"
   - "Mark changed layer reviewed"
-  - "Code changed since the review was written."
+  - "changes are shown; the affected agent notes need updating."
   - "The layer mark could not be updated. Try again."
 tests:
   - apps/web/spec/integration/reviews-mark-layer-refresh.test.tsx
@@ -46,7 +46,7 @@ After a layer's code changes, the web re-reads the published review to get the l
 5. On disk: `printf '# Sample repository\n\nA revised change to review.\n' > "$REPO/README.md"`, then await the gate’s arrival promise and wait for button named `Mark changed layer reviewed` to be visible and inspect the accessibility tree
    Look for: button "Mark changed layer reviewed" [disabled] while the review read is held; `$C server reviewed-layers` already shows the mark `"stale": true`.
 6. Release the held HTTP requests
-   Look for: the held review GET answers 200. Inspect the accessibility tree: button "Mark changed layer reviewed" enabled and status "Code changed since the review was written." in article "Step New line".
+   Look for: the held review GET answers 200. Inspect the accessibility tree: button "Mark changed layer reviewed" enabled and status "Code changed since the review was written. Full current file changes are shown; the affected agent notes need updating." in the layer header.
 7. Click button named `Mark changed layer reviewed`
    Look for: button "Reviewed" [pressed]; no alert "The layer mark could not be updated. Try again."; `$C server reviewed-layers` shows `"stale": false`.
 8. Inspect HTTP requests and responses
@@ -55,7 +55,7 @@ After a layer's code changes, the web re-reads the published review to get the l
 ## What proves it works
 
 - Step 5 shows the button disabled while the read is held, step 7 ends pressed with no alert and a fresh mark on the server, and the network log orders the review re-read before the accepted PUT.
-- `apps/web/spec/integration/reviews-mark-layer-refresh.test.tsx`: holds the next review read, rewrites README.md, sees the server mark go stale while "Mark changed layer reviewed" stays disabled; after release, "Code changed since the review was written." shows, the button enables, marking makes `server.reviewedLayers()` fresh again and no failure alert appears.
+- `apps/web/spec/integration/reviews-mark-layer-refresh.test.tsx`: holds the next review read, rewrites README.md, sees the server mark go stale while "Mark changed layer reviewed" stays disabled; after release, "Code changed since the review was written. Full current file changes are shown; the affected agent notes need updating." shows, the button enables, marking makes `server.reviewedLayers()` fresh again and no failure alert appears.
 
 ## Gotchas
 

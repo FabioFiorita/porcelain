@@ -10,9 +10,12 @@ import { Item, ItemContent, ItemMedia, ItemTitle } from '@/components/ui/item';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
-  NativeSelect,
-  NativeSelectOption,
-} from '@/components/ui/native-select';
+  Select,
+  SelectContent,
+  SelectTrigger,
+  SelectValue,
+  SelectItem,
+} from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { PAIRING_LABEL_MAX_LENGTH } from '@/config/limits';
 import { copyText } from '@/shared/workspace/copy';
@@ -74,18 +77,27 @@ export function PairDevice({
         {addresses.length > 1 && (
           <Field className="min-w-0 sm:w-56">
             <Label htmlFor="pairing-address">Opens through</Label>
-            <NativeSelect
-              id="pairing-address"
-              className="w-full"
+            <Select
+              items={addresses.map(({ route, url }) => ({
+                value: url,
+                label: `${remoteRouteTitles[route]} · ${url}`,
+              }))}
               value={target.url}
-              onChange={(event) => setChosen(event.target.value)}
+              onValueChange={(value) => {
+                if (value) setChosen(value);
+              }}
             >
-              {addresses.map(({ route, url }) => (
-                <NativeSelectOption key={url} value={url}>
-                  {`${remoteRouteTitles[route]} · ${url}`}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+              <SelectTrigger id="pairing-address" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {addresses.map(({ route, url }) => (
+                  <SelectItem key={url} value={url}>
+                    {`${remoteRouteTitles[route]} · ${url}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
         )}
         <Button

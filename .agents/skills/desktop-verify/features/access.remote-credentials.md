@@ -8,6 +8,8 @@ selectors:
   - 'Pairing link'
   - 'Saved remote computers could not be read'
   - 'Read saved environments'
+  - 'Architecture overview'
+  - 'Agent summary'
 tests:
   - apps/desktop/spec/e2e/bridge.e2e.ts
   - apps/desktop/spec/e2e/review-summaries.e2e.ts
@@ -23,7 +25,7 @@ The Mac app keeps the remote computers the owner pairs, with their bearer creden
 ## How a user reaches it
 
 - Settings › Remote computers › paste a pairing link › Add
-- the sidebar group of a paired computer, then its worktree's Review summary
+- the sidebar group of a paired computer, then its worktree's Review → Agent summary
 
 ## Driving it
 
@@ -33,7 +35,7 @@ Observe the second environment in the list. Inspect the first card's `credential
 
 For direct bridge proof, import the shared lifecycle and use `electron.firstWindow()` with the app's public `porcelainDesktop.credentials` bridge. Verify write/read/clear against the disposable profile; never expose that bridge through a helper RPC. Keychain writes require a macOS logged-in session.
 
-Open a published review summary from the paired computer's sidebar. Inspect theme and layer navigation, and verify the summary cannot reach Node or the app bridge. The named e2e test supplies the remote review and checks network isolation.
+Open the paired computer's worktree, then select Agent summary in the published review. Architecture is the initial presentation. Inspect theme and layer navigation, and verify the summary cannot reach Node or the app bridge. Returning from a layer uses the document tab titled Architecture overview, then Agent summary again. The named e2e test supplies the remote review and checks network isolation.
 
 ## What proves it works
 
