@@ -29,7 +29,7 @@ export type Simulator = typeof simulatorSchema.Type;
 const poolDirectory = '/tmp/porcelain-simulator-pool';
 const poolNames: Record<DeviceKind, readonly string[]> = {
   iphone: ['iPhone 17', 'iPhone 18 Pro'],
-  ipad: ['iPad Air 11-inch (M4)'],
+  ipad: ['iPad Pro 13-inch (M5)'],
 };
 const execute = promisify(execFile);
 const language = 'en-US';
