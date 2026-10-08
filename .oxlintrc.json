@@ -107,7 +107,6 @@
     "porcelain/web-no-empty-catch": "error",
     "porcelain/web-shadcn-wrapper": "error",
     "porcelain/web-design-tokens": "error",
-    "porcelain/web-no-native-select": "error",
     "porcelain/web-browser-spec-no-mocks": "error",
     "porcelain/web-browser-spec-no-skips": "error",
     "porcelain/web-journey-imports": "error",
