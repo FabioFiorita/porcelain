@@ -438,28 +438,11 @@ export function probeLoose(left: string, right: string): boolean {
     errors: 1,
   },
   {
-    rule: 'mobile-native-source-owner',
-    validPath: 'apps/mobile/modules/porcelain-renderer/ios/CodeView.swift',
-    path: 'apps/mobile/src/features/files/CodeView.swift',
-    valid: 'export const source = 1;',
-    invalid: 'export const source = 1;',
-    errors: 1,
-  },
-  {
     rule: 'mobile-native-ui',
     validPath: 'apps/mobile/src/components/ui/code-view.ios.tsx',
     path: 'apps/mobile/src/features/files/views/files-screen.tsx',
     valid: "import * as Expo from 'expo';",
     invalid: "import * as Expo from 'expo';",
-    errors: 1,
-  },
-  {
-    rule: 'mobile-native-source-owner',
-    validPath:
-      'apps/mobile/modules/porcelain-renderer/android/src/main/java/expo/modules/porcelainrenderer/CodeView.kt',
-    path: 'apps/mobile/modules/other/android/CodeView.kt',
-    valid: 'export const source = 1;',
-    invalid: 'export const source = 1;',
     errors: 1,
   },
   {

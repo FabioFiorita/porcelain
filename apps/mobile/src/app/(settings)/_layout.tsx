@@ -1,9 +1,9 @@
 import { Stack } from 'expo-router';
+import { DestinationLayout } from '../../shell/destination-layout';
 
 function SettingsLayout() {
   return (
-    <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
-      <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+    <DestinationLayout name="settings" title="Settings">
       <Stack.Protected guard={__DEV__}>
         <Stack.Screen
           name="component-library"
@@ -16,7 +16,7 @@ function SettingsLayout() {
           options={{ title: 'Primitives' }}
         />
       </Stack.Protected>
-    </Stack>
+    </DestinationLayout>
   );
 }
 

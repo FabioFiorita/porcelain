@@ -2,41 +2,46 @@ import { View } from 'react-native';
 import { Text } from './text';
 import { Badge } from './badge';
 import { Button } from './button';
+import type { CreateCommentThreadResponse } from '@porcelain/contracts/reviews';
 
-export type ReviewRange = { side: 'old' | 'new'; start: number; end: number };
+type CodeRangeAnchor = Extract<
+  CreateCommentThreadResponse['anchor'],
+  { kind: 'codeRange' }
+>;
+export type ReviewRange = Pick<
+  CodeRangeAnchor,
+  'startLine' | 'endLine' | 'side'
+>;
 export function ReviewAnnotation({
   author,
   body,
-  range,
-  status = 'pending',
+  label,
+  resolved = false,
   onResolve,
 }: {
-  author: string;
+  author: CreateCommentThreadResponse['messages'][number]['author'];
   body: string;
-  range?: ReviewRange;
-  status?: 'pending' | 'resolved';
+  label?: string;
+  resolved?: boolean;
   onResolve?: () => void;
 }) {
   return (
     <View className="gap-3 rounded-2xl border border-border bg-card p-4">
       <View className="flex-row items-center justify-between gap-3">
         <Text variant="ui" weight="medium">
-          {author}
+          {author === 'agent' ? 'Agent' : 'You'}
         </Text>
-        <Badge
-          label={status === 'resolved' ? 'Resolved' : 'Pending'}
-          variant="secondary"
-        />
+        <Badge label={resolved ? 'Resolved' : 'Pending'} variant="secondary" />
       </View>
-      {range ? (
+      {label ? (
         <Text variant="caption" tone="muted">
-          {range.side} lines {range.start}–{range.end}
+          {label}
         </Text>
       ) : null}
       <Text variant="ui" selectable>
         {body}
       </Text>
-      {onResolve && status === 'pending' ? (
+      {onResolve && !resolved ? (
         <Button
           label="Resolve"
           size="sm"

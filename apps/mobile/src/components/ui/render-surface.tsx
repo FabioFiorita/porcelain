@@ -11,6 +11,7 @@ type SurfaceProps = {
   foreground: number;
   background: number;
   muted: number;
+  selection: string;
   onSelect?: ((event: NativeSyntheticEvent<ReviewRange>) => void) | undefined;
   onExpand?:
     | ((event: NativeSyntheticEvent<{ id: string }>) => void)
@@ -25,12 +26,14 @@ export function RenderSurface({
   lines,
   wrap = true,
   lineNumbers = true,
+  selection,
   onSelect,
   onExpand,
 }: {
   lines: readonly RenderLine[];
   wrap?: boolean;
   lineNumbers?: boolean;
+  selection?: ReviewRange | undefined;
   onSelect?: ((range: ReviewRange) => void) | undefined;
   onExpand?: ((id: string) => void) | undefined;
 }) {
@@ -49,6 +52,7 @@ export function RenderSurface({
       foreground={color(foreground.color)}
       background={color(background.backgroundColor)}
       muted={color(muted.color)}
+      selection={selection ? JSON.stringify(selection) : ''}
       onSelect={onSelect ? (event) => onSelect(event.nativeEvent) : undefined}
       onExpand={
         onExpand ? (event) => onExpand(event.nativeEvent.id) : undefined

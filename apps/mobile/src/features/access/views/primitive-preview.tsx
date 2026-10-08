@@ -228,16 +228,16 @@ export function PrimitivePreview({ name }: { name: string }) {
         {name === 'Review' ? (
           <>
             <ReviewAnnotation
-              author="Developer"
+              author="reviewer"
               body="This should use the shared input primitive."
-              range={{ side: 'new', start: 12, end: 14 }}
-              status={resolved ? 'resolved' : 'pending'}
+              label="+12 to +14"
+              resolved={resolved}
               onResolve={() => setResolved(true)}
             />
             <ReviewComposer
               value={value}
               onChangeText={setValue}
-              range={{ side: 'new', start: 12, end: 14 }}
+              label="+12 to +14"
               onSubmit={() => {
                 setActions(actions + 1);
                 setValue('');

@@ -41,7 +41,6 @@
     ],
     "shadcn/no-raw-colors": "error",
     "porcelain/mobile-native-ui": "error",
-    "porcelain/mobile-native-source-owner": "error",
     "porcelain/mobile-system-chrome": "error",
     "porcelain/client-platform-through-ports": "error",
     "porcelain/client-owns-shared-logic": "error",

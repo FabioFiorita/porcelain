@@ -3,14 +3,13 @@ import { Input } from './input';
 import { Field } from './field';
 import { Button } from './button';
 import { Text } from './text';
-import type { ReviewRange } from './review-annotation';
 
 export function ReviewComposer({
   value,
   onChangeText,
   onSubmit,
   onCancel,
-  range,
+  label,
   pending = false,
   error,
 }: {
@@ -18,15 +17,15 @@ export function ReviewComposer({
   onChangeText: (value: string) => void;
   onSubmit: () => void;
   onCancel: () => void;
-  range?: ReviewRange;
+  label?: string;
   pending?: boolean;
   error?: string;
 }) {
   return (
     <View className="gap-3 rounded-2xl border border-border bg-card p-4">
-      {range ? (
+      {label ? (
         <Text variant="caption" tone="muted">
-          Comment on {range.side} lines {range.start}–{range.end}
+          Comment on {label}
         </Text>
       ) : null}
       <Field label="Review comment" error={error}>

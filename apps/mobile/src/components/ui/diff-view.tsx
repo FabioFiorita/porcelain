@@ -8,12 +8,14 @@ export function DiffView({
   lines,
   language,
   wrap = true,
+  selection,
   onSelect,
   onExpand,
 }: {
   lines: readonly RenderLine[];
   language?: string;
   wrap?: boolean;
+  selection?: ReviewRange | undefined;
   onSelect?: ((range: ReviewRange) => void) | undefined;
   onExpand?: ((id: string) => void) | undefined;
 }) {
@@ -48,6 +50,7 @@ export function DiffView({
           : lines
       }
       wrap={wrap}
+      selection={selection}
       onSelect={onSelect}
       onExpand={onExpand}
     />

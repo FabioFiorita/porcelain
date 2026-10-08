@@ -12,6 +12,7 @@ public class PorcelainRendererModule: Module {
       Prop("foreground") { (view: CodeSurface, value: UInt32) in view.model.foreground = Color(argb: value) }
       Prop("background") { (view: CodeSurface, value: UInt32) in view.model.background = Color(argb: value) }
       Prop("muted") { (view: CodeSurface, value: UInt32) in view.model.muted = Color(argb: value) }
+      Prop("selection") { (view: CodeSurface, value: String) in view.model.select(value) }
     }
     View(HtmlSurface.self) {
       Events("onLink", "onError")

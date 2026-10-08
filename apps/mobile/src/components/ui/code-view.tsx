@@ -11,6 +11,7 @@ export function CodeView({
   tokens,
   wrap = true,
   lineNumbers = true,
+  selection,
   onSelect,
 }: {
   source: string;
@@ -18,6 +19,7 @@ export function CodeView({
   tokens?: readonly (readonly RenderToken[])[] | undefined;
   wrap?: boolean;
   lineNumbers?: boolean;
+  selection?: ReviewRange | undefined;
   onSelect?: ((range: ReviewRange) => void) | undefined;
 }) {
   const lines = source.replaceAll('\r\n', '\n').split('\n');
@@ -40,6 +42,7 @@ export function CodeView({
         }))}
         wrap={wrap}
         lineNumbers={lineNumbers}
+        selection={selection}
         onSelect={onSelect}
       />
     </View>

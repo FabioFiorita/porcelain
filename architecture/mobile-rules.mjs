@@ -1,5 +1,3 @@
-import { mobileNativeSourceProblem } from './policy.ts';
-
 const controls = new Set([
   'Button',
   'Pressable',
@@ -16,18 +14,6 @@ const controls = new Set([
 ]);
 
 export const mobileRules = {
-  'mobile-native-source-owner': {
-    create(context) {
-      const message = mobileNativeSourceProblem(context.filename);
-      return message
-        ? {
-            Program(node) {
-              context.report({ node, message });
-            },
-          }
-        : {};
-    },
-  },
   'mobile-system-chrome': {
     create(context) {
       const path = context.filename.replaceAll('\\', '/');

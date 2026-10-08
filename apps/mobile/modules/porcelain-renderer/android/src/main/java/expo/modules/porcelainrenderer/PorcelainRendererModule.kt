@@ -15,6 +15,7 @@ class PorcelainRendererModule : Module() {
       Prop("foreground") { view: CodeSurface, value: Long -> view.options = view.options.copy(foreground = Color(value.toInt())) }
       Prop("background") { view: CodeSurface, value: Long -> view.options = view.options.copy(background = Color(value.toInt())) }
       Prop("muted") { view: CodeSurface, value: Long -> view.options = view.options.copy(muted = Color(value.toInt())) }
+      Prop("selection") { view: CodeSurface, value: String -> view.updateSelection(value) }
     }
     View(HtmlSurface::class) {
       Events("onLink", "onError")

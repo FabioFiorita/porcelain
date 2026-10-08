@@ -2,7 +2,6 @@ export type RenderToken = {
   text: string;
   color?: number;
   fontStyle?: number;
-  tone?: 'plain' | 'keyword' | 'string' | 'comment' | 'number';
   changed?: boolean;
 };
 export type RenderLine = {

@@ -32,10 +32,18 @@ export default function NativePreview({ name }: { name: string }) {
             <Text variant="caption">
               Selected:{' '}
               {range
-                ? `${range.side} lines ${range.start}–${range.end}`
+                ? `${range.side ?? 'file'} lines ${range.startLine}–${range.endLine}`
                 : 'none'}
             </Text>
             <View className="flex-row gap-2">
+              {range ? (
+                <Button
+                  label="Clear selection"
+                  variant="outline"
+                  size="sm"
+                  onPress={() => setRange(undefined)}
+                />
+              ) : null}
               <Button
                 label={wrap ? 'Horizontal scroll' : 'Wrap lines'}
                 variant="outline"
@@ -96,6 +104,7 @@ export default function NativePreview({ name }: { name: string }) {
         <CodeView
           language={language}
           wrap={wrap}
+          selection={range}
           onSelect={setRange}
           source={
             large
@@ -112,6 +121,7 @@ export default function NativePreview({ name }: { name: string }) {
         <DiffView
           language="typescript"
           wrap={wrap}
+          selection={range}
           onSelect={setRange}
           onExpand={() => setExpanded(true)}
           lines={[
