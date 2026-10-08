@@ -10,9 +10,10 @@ name: Inspect primitives through the development catalog
 - tapOn: Default
 - assertVisible: 'Actions: 1'
 - tapOn: Back
-- scrollUntilVisible:
-    element: Explore FileTree
-    direction: DOWN
+- swipe:
+    start: 50%, 70%
+    end: 50%, 30%
+- assertVisible: Explore FileTree
 - tapOn: Explore FileTree
 - tapOn: Open button.tsx
 - assertVisible: 'Selected: button'
