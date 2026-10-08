@@ -18,7 +18,7 @@ api:
 
 ## What it is
 
-The Graph tab of a published layer loads the diagram lazily and draws the layer's lanes and steps; choosing a step opens its code in a "Selected step code" panel beside (below, at phone width) the diagram.
+The Graph tab of a published layer loads the diagram lazily and draws the layer's lanes and steps; Only explicitly published arrows describe relationships; reading order does not create arrows. Choosing a step opens its code in a "Selected step code" panel beside (below, at phone width) the diagram.
 
 ## How a user reaches it
 
@@ -40,16 +40,16 @@ The Graph tab of a published layer loads the diagram lazily and draws the layer'
 3. Click button named `/Readme layer/`
    Look for: region "Review layer Readme layer"; tab "Code" selected in the layer's tablist (its "Layer presentation" label does not show in the snapshot); article "Step New line".
 4. Click tab named `Graph`, then wait for button named `New line` to be visible
-   Look for: tab "Graph" [selected]; an application holding text "Docs" (the lane) and button "New line" with "New line Changed" and paragraph "A line is added"; buttons "Zoom In", "Zoom Out", "Fit View"; no "Loading diagram…" left.
+   Look for: tab "Graph" [selected]; an application holding text "Docs" (the lane) and button "New line" with "New line Changed" without the explanatory paragraph "A line is added"; buttons "Zoom In", "Zoom Out", "Fit View"; no "Loading diagram…" left.
 5. Click button named `New line`
-   Look for: region "Selected step code" with button "Close code" and article "Step New line" holding heading "New line" and the README.md diff (button "Mark README.md as reviewed").
+   Look for: region "Selected step code" with button "Close code" and article "Step New line" holding heading "New line", the README.md excerpt and a short "Agent note" after the code. No whole-file mark is available.
 6. Click button named `Close code`
    Look for: region "Selected step code" gone; the diagram stays.
 
 ## What proves it works
 
 - Step 4 shows the step box and the lane with no loading text left; step 5 shows the "Selected step code" region.
-- `apps/web/spec/integration/reviews-layer-graph.test.tsx`: in region "Review layer Readme layer", the Graph tab is selected, the "New line" button shows "A line is added", "Docs" is visible, "Loading diagram…" is gone, and clicking the step shows region "Selected step code".
+- `apps/web/spec/integration/reviews-layer-graph.test.tsx`: in region "Review layer Readme layer", the Graph tab is selected, the "New line" button excludes "A line is added", "Docs" is visible, "Loading diagram…" is gone, and clicking the step shows region "Selected step code".
 
 ## Gotchas
 

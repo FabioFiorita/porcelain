@@ -61,6 +61,7 @@ import { ThreadCard } from './thread-card';
 import { groupSpecPaths } from '@porcelain/client/reviews/rules';
 import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
+import { useReviewUnderstanding } from '../queries/understanding';
 
 type Props = {
   scope: ReviewScope;
@@ -167,7 +168,7 @@ export function ReviewIndex({
         >
           <TabsList className="h-8 w-full">
             <TabsTrigger value="layers" className="flex-1">
-              {review && !branch ? 'Layers' : 'Changed files'}
+              {review && !branch ? 'Explore' : 'Changed files'}
             </TabsTrigger>
             <TabsTrigger value="comments" className="flex-1">
               Comments
@@ -232,6 +233,11 @@ function LayersView({
   threads: readonly CommentThread[];
 }) {
   const { preferences } = usePreferences();
+  const understanding = useReviewUnderstanding(
+    scope,
+    context,
+    review?.layers ?? [],
+  );
   const paths = groupSpecPaths(list.changes, preferences.collapseSpecs).map(
     (entry) => entry.path,
   );
@@ -252,7 +258,7 @@ function LayersView({
           aria-pressed={activeEntry === 'handoff'}
           onClick={() => onOpen({ kind: 'handoff' })}
         >
-          {review ? 'Review summary' : 'All changes'}
+          {review ? 'Architecture overview' : 'All changes'}
         </button>
         {review?.layers.map((layer, index) => (
           <button
@@ -263,7 +269,11 @@ function LayersView({
             onClick={() => onOpen({ kind: 'layer', layerId: layer.id })}
           >
             <span className="text-muted-foreground">{index + 1}.</span>
-            {layer.title}
+            <span className="min-w-0 flex-1 whitespace-normal">
+              {layer.title}
+            </span>
+            {understanding.states.find((state) => state.layer.id === layer.id)
+              ?.reviewed && <span aria-label="Reviewed">✓</span>}
           </button>
         ))}
         {review && (

@@ -33,6 +33,7 @@ type GraphBox = DiagramBox & {
   dimmed?: boolean;
   warning?: string;
   clickable?: boolean;
+  selected?: boolean;
   icon?: LucideIcon;
 };
 
@@ -114,6 +115,7 @@ function Box({ data }: NodeProps<Node<BoxData>>) {
     <Surface
       type={data.clickable ? 'button' : undefined}
       aria-label={data.clickable ? data.label : undefined}
+      aria-pressed={data.clickable ? data.selected === true : undefined}
       style={{ width: data.width }}
       className={cn(
         'text-left rounded-xl border bg-card px-3 py-2 text-card-foreground shadow-xs transition-[box-shadow,border-color]',
@@ -122,6 +124,7 @@ function Box({ data }: NodeProps<Node<BoxData>>) {
           'border-destructive/45',
         data.change === 'removed' && 'opacity-60',
         data.dimmed && 'opacity-45',
+        data.selected && 'ring-2 ring-ring',
         data.clickable &&
           'cursor-pointer hover:border-foreground/30 hover:shadow-md',
       )}

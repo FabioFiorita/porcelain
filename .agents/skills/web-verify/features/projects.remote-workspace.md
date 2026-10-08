@@ -87,7 +87,7 @@ The desktop app lists a remote computer as its own group in the sidebar, by name
 8. `$C agent publish-review "Remote review layer" --remote --summary-html '<html><body><h1>Remote summary</h1><a href="#layer-1">Open remote layer</a></body></html>'`
    Look for: "the agent's publish-review reached the server".
 9. Click tab named `Review Close Review`, then navigate to `$REMOTE_PAGE` on the card’s web URL (full page load)
-   Look for: the handoff tab "Review" shows region "Published review" holding the summary frame; the heading "Remote summary" appears inside frame "Review summary", and a screenshot shows the heading and the link "Open remote layer". Inspect HTTP requests and responses lists `GET /api/worktrees/<remote worktreeId>/review` 200 from the remote address.
+   Look for: the handoff tab "Review" shows region "Published review" with Architecture selected. Click the "Agent summary" tab; the heading "Remote summary" appears inside frame "Review summary", and a screenshot shows the heading and the link "Open remote layer". Inspect HTTP requests and responses lists `GET /api/worktrees/<remote worktreeId>/review` 200 from the remote address.
 10. Click link named `Open remote layer` inside frame 'Review summary'
     Look for: Page URL `…?entry=layer%3A<layerId>`; Page Title "Review — remote-sample · Remote journey computer"; Region `Review layer Remote review layer` is visible.
 
@@ -103,7 +103,7 @@ The desktop app lists a remote computer as its own group in the sidebar, by name
 
 ## Gotchas
 
-- The disposable servers sign a summary link for 2 seconds (`summaryLinkLifetimeMs`), counted from the review read: a summary frame mounted later stays blank. Step 9 makes the summary tab the active one and reloads, so the frame loads with the review read; clicking through the sheet to "Review summary" takes longer than the link lives.
+- The disposable servers sign a summary link for 2 seconds (`summaryLinkLifetimeMs`), counted from the review read: a summary frame mounted later stays blank. Step 9 makes the summary tab the active one and reloads, so the frame loads with the review read; selecting "Agent summary" refreshes the signed link.
 - Desktop shell only: start with `start --desktop`; the app keeps remotes in browser `localStorage` (no Electron bridge).
 - The worktree row's accessible name concatenates branch label, path, project name, status and hidden "Main worktree"; both groups have a main worktree, so use the regex `/remote-sample.*Main worktree/`, which only the remote's row matches.
 - `agent publish-review` publishes once per worktree; a second publish on the same instance is refused ("The review changed; reload before retrying").

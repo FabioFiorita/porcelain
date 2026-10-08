@@ -5,7 +5,7 @@ selectors:
   - "Review layer "
   - "as reviewed"
   - "as unreviewed"
-  - "Collapse"
+  - "Show all changes in this file"
 tests:
   - apps/web/spec/integration/reviews-layer-file-mark.test.tsx
 api:
@@ -20,40 +20,27 @@ api:
 
 ## What it is
 
-Inside a layer of the agent's published review, each step's code carries the same file mark as the Changes list: marking or unmarking README.md there marks the file itself, and the server keeps each change.
+Walkthrough code is explicitly an excerpt. It cannot mark an entire file reviewed. Opening all changes in that file restores the ordinary file review control, persisted by the server.
 
 ## How a user reaches it
 
-- Review (sheet at phone width, sidebar at 1280px and wider) → Layers list → "1. Readme layer" → the step's code header → "Mark README.md as reviewed" / "Unmark README.md as unreviewed".
-- `R` toggles the mark of the focused code entry while the layer tab is active and focus is not in a text field.
+Review → Review tab → a walkthrough → Show all changes in this file.
 
 ## Driving it
 
-`$C start`; pair your browser using the card’s pairing-link command.
+`$C start`; pair a fresh browser using the card. `$C agent publish-review "Readme layer"`.
 
-### Setup
-
-- The agent publishes a review: `$C agent publish-review "Readme layer"` (one layer "Readme layer", one step "New line" pointing at README.md line 3).
-
-1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: the handoff tab "Review Close Review" and region "Published review".
-2. Click button named `Review`
-   Look for: a dialog (the review sheet) with the sidebar tab "Review" selected and buttons "Review summary" and one whose name contains "Readme layer".
-3. Click button named `/Readme layer/`
-   Look for: the sheet closes; tab "1. Readme layer Close 1. Readme layer" selected; region "Review layer Readme layer" with heading "Readme layer", article "Step New line", buttons "Collapse README.md" and "Mark README.md as reviewed".
-4. Click button named `Mark README.md as reviewed`
-   Look for: button "Unmark README.md as unreviewed" [pressed]. Then `$C server reviewed-files`: `marks` holds README.md with its fingerprint.
-5. Click button named `Unmark README.md as unreviewed`
-   Look for: button "Mark README.md as reviewed" again. Then `$C server reviewed-files`: `marks` is `[]`.
+1. Open Review and its Review tab, then choose the button containing "Readme layer".
+2. In region "Review layer Readme layer", inspect article "Step New line". The code says "Changed code · Excerpt · Line 3". There is no "Mark README.md as reviewed" button.
+3. Click "Show all changes in this file". The file's complete changes open as a separate document.
+4. Click "Mark README.md as reviewed". Expect "Unmark README.md as unreviewed" and `$C server reviewed-files` to include README.md. The PUT reviewed endpoint returns 200.
+5. Click "Unmark README.md as unreviewed". The mark control returns and the server mark disappears. The DELETE reviewed endpoint returns 200.
+6. Return to the walkthrough tab. The excerpt still has no whole-file mark control. At phone width, both the source scope and full-changes action remain reachable.
 
 ## What proves it works
 
-- The control flips in steps 4 and 5, and inspect HTTP requests and responses shows `PUT /api/worktrees/<id>/reviewed` then `DELETE /api/worktrees/<id>/reviewed?...` each answered 200.
-- Persistence: `$C server reviewed-files` after steps 4 and 5 reads the mark, then none, from the server; after step 4, Navigate to `/` on the card’s web URL (full page load) also reloads onto the saved layer tab (the last tab opened) and still shows "Unmark README.md as unreviewed".
-- `apps/web/spec/integration/reviews-layer-file-mark.test.tsx`: in region "Review layer Readme layer", "Mark README.md as reviewed" turns into an enabled "Unmark README.md as unreviewed" and `server.reviewedFiles()` lists README.md; unmarking removes it.
+The named integration spec checks that an excerpt has no file mark, then opens the complete changes and verifies both mark and unmark through server readbacks. Live driving additionally checks the phone layout and return path.
 
 ## Gotchas
 
-- Phone width: the review sidebar is a sheet behind the "Review" button; choosing the layer closes it.
-- The sidebar's layer button has a number prefix; address it by `/Readme layer/`. Once the layer tab is open its "Close 1. Readme layer" button also matches that pattern, so go back to the layer by clicking tab named `/Readme layer/` instead.
-- Marks persist on the server across steps; unmark before handing the instance to another feature.
+Layer progress measures walkthroughs understood, independently of file marks and explanation coverage. `R` only marks a file in its ordinary complete changes document; it cannot mark a file from an excerpt.

@@ -22,13 +22,16 @@ test('opening the graph of a published layer draws its lane and step, and choosi
   await expect.element(step).toBeVisible();
   await expect
     .element(step.getByText('A line is added', { exact: true }))
-    .toBeVisible();
+    .not.toBeInTheDocument();
   await expect.element(layer.getByText('Docs', { exact: true })).toBeVisible();
   await expect
     .element(layer.getByText('Loading diagram…', { exact: true }))
     .not.toBeInTheDocument();
 
   await step.click();
+  await expect
+    .element(layer.getByText('Agent note', { exact: true }))
+    .toBeVisible();
   await expect
     .element(
       layer.getByRole('region', { name: 'Selected step code', exact: true }),

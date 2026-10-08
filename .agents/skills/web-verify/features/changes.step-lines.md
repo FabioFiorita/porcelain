@@ -32,7 +32,7 @@ A step of an agent's published review that points at worktree lines (a context s
 1. Navigate to `/` on the card’s web URL (full page load)
    Look for: tab "Review Close Review" selected and region "Published review".
 2. Click button named `Review`
-   Look for: the sheet's tab "Review" selected; buttons "Review summary" and "1. Readme walkthrough".
+   Look for: the sheet's tab "Review" selected; buttons "Architecture overview" and "1. Readme walkthrough".
 3. Click button named `1. Readme walkthrough`
    Look for: the sheet closes; Page Title "Review — repository"; region "Review layer Readme walkthrough"; article "Step New line" whose code shows "3 A change to review.".
 4. On disk: `printf '# Sample repository\n\nRewritten.\n' > "$REPO/README.md"`

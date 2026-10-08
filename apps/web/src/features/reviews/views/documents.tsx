@@ -154,6 +154,7 @@ function TimelineDocument({
 
 function HandoffDocument(props: DocumentProps) {
   const published = usePublishedReview(props.scope, props.context);
+  const review = published.review;
   if (AsyncResult.isInitial(published.result))
     return (
       <p role="status" className="p-4 text-sm">
@@ -162,10 +163,13 @@ function HandoffDocument(props: DocumentProps) {
     );
   if (AsyncResult.isFailure(published.result))
     return <PublicationFailure retry={published.refresh} />;
-  if (published.review?.active)
+  if (review?.active)
     return (
       <PublishedOverview
-        review={published.review}
+        scope={props.scope}
+        context={props.context}
+        review={review}
+        onRefresh={published.refresh}
         address={props.context.connection.address}
         onOpen={props.onOpen}
       />
@@ -204,9 +208,8 @@ function LayerDocument({
   ...props
 }: DocumentProps & { layerId: string }) {
   const published = usePublishedReview(props.scope, props.context);
-  const layer = published.review?.layers.find(
-    (candidate) => candidate.id === layerId,
-  );
+  const review = published.review;
+  const layer = review?.layers.find((candidate) => candidate.id === layerId);
   if (AsyncResult.isInitial(published.result))
     return (
       <p role="status" className="p-4 text-sm">
@@ -215,7 +218,7 @@ function LayerDocument({
     );
   if (AsyncResult.isFailure(published.result))
     return <PublicationFailure retry={published.refresh} />;
-  if (!layer)
+  if (!layer || !review)
     return (
       <ReviewEmpty
         title="Layer no longer present"
@@ -228,6 +231,7 @@ function LayerDocument({
       {...props}
       layer={layer}
       proof={proofOnLayer(published.review?.proof, layerId)}
+      review={review}
     />
   );
 }

@@ -15,6 +15,7 @@
     "test:e2e": "turbo run test:e2e",
     "db:check": "pnpm --filter @porcelain/storage db:check",
     "dev": "node scripts/dev.ts",
+    "dev:review": "node .agents/skills/web-verify/scripts/cli.ts start --review-sample",
     "dev:server": "node apps/server/spec/kit/sandbox.ts",
     "dev:web": "pnpm --filter @porcelain/web dev",
     "serve": "node scripts/serve.ts",

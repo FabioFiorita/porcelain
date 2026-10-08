@@ -25,14 +25,17 @@ import type {
   ReviewLayer,
   ReviewScope,
   ReviewStep,
+  ReviewResponse,
 } from '@porcelain/client/reviews/rules';
+import { layerDiagram } from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
-import { fileReviewControl } from './reviewed-control';
 import { DocumentToolbar } from './document-toolbar';
 import { ProofList } from './proof-list';
 import type { Graph } from './review-diagram';
 import { ReviewDiagram } from './lazy-review-diagram';
 import { type ConnectionContext } from '@/shared/workspace/connection';
+import { spansLabel } from '../rules/patch-focus';
+import { ReviewProgress } from './review-progress';
 
 type LayerProps = {
   scope: ReviewScope;
@@ -44,39 +47,33 @@ type LayerProps = {
 export function PublishedLayer({
   layer,
   proof,
+  review,
   ...props
-}: LayerProps & { layer: ReviewLayer; proof: ReviewProof }) {
+}: LayerProps & {
+  layer: ReviewLayer;
+  proof: ReviewProof;
+  review: ReviewResponse;
+}) {
   const { scope, context } = props;
   const mark = useLayerMark(scope, context, layer);
   const toggle = useToggleLayerMark(scope, context);
   const { reviewed, label } = mark;
   const [view, setView] = useState('code');
-  const [shown, setShown] = useState(10);
   const [focus, setFocus] = useState<string>();
-  const steps = layer.steps.slice(0, shown);
   const selectedStep = layer.steps.find((step) => step.id === focus);
+  const codeStep = selectedStep ?? layer.steps[0];
+  const diagram = layerDiagram(layer);
   const graph: Graph = {
-    lanes: layer.lanes,
-    boxes: layer.steps.map((step) => ({
-      id: step.id,
-      lane: step.lane,
-      label: step.title,
-      detail: step.text,
-      kind: 'component',
+    ...diagram,
+    boxes: diagram.boxes.map((box, index) => ({
+      ...box,
       clickable: true,
-      dimmed: step.location.state === 'committed',
-      ...(step.kind === 'changed' ? { change: 'changed' as const } : {}),
-      ...(step.location.state === 'changed'
+      selected: box.id === focus,
+      dimmed: layer.steps[index]?.location.state === 'committed',
+      ...(layer.steps[index]?.location.state === 'changed'
         ? { warning: 'Code changed since the review was written' }
         : {}),
     })),
-    arrows: [
-      ...layer.steps.slice(1).flatMap((step, index) => {
-        const previous = layer.steps[index];
-        return previous ? [{ from: previous.id, to: step.id }] : [];
-      }),
-      ...(layer.arrows ?? []),
-    ],
   };
   return (
     <section
@@ -113,51 +110,71 @@ export function PublishedLayer({
           </TabsList>
         </Tabs>
       </DocumentToolbar>
+      <ReviewProgress
+        review={review}
+        scope={scope}
+        context={context}
+        onOpen={props.onOpen}
+      />
       {(AsyncResult.isFailure(toggle.result) || mark.failed) && (
         <p role="alert" className="px-4 text-sm text-destructive">
           The layer mark could not be updated. Try again.
         </p>
       )}
       {view === 'graph' ? (
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          <ReviewDiagram
-            graph={graph}
-            className="min-w-0"
-            onBoxClick={(box) => setFocus(box.id)}
-          />
-          {selectedStep && (
-            <section
-              aria-label="Selected step code"
-              className="flex min-h-0 min-w-0 flex-1 flex-col border-t md:border-t-0 md:border-l"
-            >
-              <div className="flex shrink-0 justify-end px-3 py-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setFocus(undefined)}
-                >
-                  Close code
-                </Button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-auto p-4">
-                <LayerSteps
-                  {...props}
-                  layer={layer}
-                  steps={[selectedStep]}
-                  focus={undefined}
-                />
-              </div>
-            </section>
-          )}
+        <div className="flex min-h-0 flex-1 flex-col">
+          <p className="shrink-0 border-b px-4 py-2 text-xs text-muted-foreground">
+            Agent-described relationships · select a component to inspect its
+            code
+          </p>
+          <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+            <ReviewDiagram
+              graph={graph}
+              className="min-w-0"
+              onBoxClick={(box) => setFocus(box.id)}
+            />
+            {selectedStep && (
+              <section
+                aria-label="Selected step code"
+                className="flex min-h-0 min-w-0 flex-1 flex-col border-t md:border-t-0 md:border-l"
+              >
+                <div className="flex shrink-0 justify-end px-3 py-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setFocus(undefined)}
+                  >
+                    Close code
+                  </Button>
+                </div>
+                <div className="min-h-0 flex-1 overflow-auto p-4">
+                  <LayerSteps
+                    {...props}
+                    layer={layer}
+                    steps={[selectedStep]}
+                    focus={undefined}
+                  />
+                </div>
+              </section>
+            )}
+          </div>
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-auto p-4">
-          <MarkdownView
-            text={layer.summary}
-            className="mb-5 max-w-3xl text-sm text-muted-foreground"
-          />
+          <details className="mb-4 max-w-3xl text-sm">
+            <summary className="cursor-pointer text-muted-foreground">
+              Architectural intent
+            </summary>
+            <MarkdownView
+              text={layer.summary}
+              className="mt-2 text-sm text-muted-foreground"
+            />
+          </details>
           {(proof.checks.length > 0 || proof.assets.length > 0) && (
-            <div className="mb-6 max-w-3xl">
+            <details className="mb-4 max-w-3xl">
+              <summary className="cursor-pointer text-sm text-muted-foreground">
+                Verification evidence
+              </summary>
               <ProofList
                 scope={props.scope}
                 context={props.context}
@@ -165,18 +182,55 @@ export function PublishedLayer({
                 layers={[layer]}
                 inLayer
               />
-            </div>
+            </details>
           )}
-          <LayerSteps {...props} layer={layer} steps={steps} focus={focus} />
-          {shown < layer.steps.length && (
-            <Button
-              variant="outline"
-              className="mt-4"
-              onClick={() => setShown(shown + 10)}
+          <div className="flex min-w-0 flex-col gap-4 lg:flex-row">
+            <nav
+              aria-label="Walkthrough locations"
+              className="shrink-0 lg:w-56"
             >
-              Show more steps
-            </Button>
-          )}
+              <p className="mb-2 text-xs text-muted-foreground">
+                {layer.steps.length} code locations · changed and existing
+                context
+              </p>
+              <ol className="space-y-1">
+                {layer.steps.map((step, index) => (
+                  <li key={step.id}>
+                    <button
+                      type="button"
+                      aria-pressed={step.id === codeStep?.id}
+                      className="flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent aria-pressed:bg-accent"
+                      onClick={() => setFocus(step.id)}
+                    >
+                      <span className="text-xs text-muted-foreground">
+                        {index + 1}.
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block">{step.title}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {step.location.state === 'changed'
+                            ? 'Code changed'
+                            : step.kind === 'context'
+                              ? 'Existing context'
+                              : layer.lanes[step.lane]}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+            <div className="min-w-0 flex-1">
+              {codeStep && (
+                <LayerSteps
+                  {...props}
+                  layer={layer}
+                  steps={[codeStep]}
+                  focus={undefined}
+                />
+              )}
+            </div>
+          </div>
         </div>
       )}
     </section>
@@ -324,7 +378,6 @@ function Step({
                 ]
               : [];
           });
-    const review = item ? fileReviewControl(scope, context, item) : undefined;
     patches.forEach(({ patch, comparison }, index) => {
       const fileDiff = parsePatchFiles(patch).flatMap(
         (group) => group.files,
@@ -336,7 +389,6 @@ function Step({
           path: step.pointer.path,
           fileDiff,
           version: contentVersion(patch),
-          ...(review ? { review } : {}),
           comment: {
             filePath: step.pointer.path,
             ...(comparison ? { comparison } : {}),
@@ -366,10 +418,27 @@ function Step({
           Open file
         </Button>
       </div>
-      <MarkdownView
-        text={step.text}
-        className="mb-3 text-sm text-muted-foreground"
-      />
+      <div className="my-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span>
+          {step.kind === 'context' ? 'Existing context' : 'Changed code'} ·
+          Excerpt ·{' '}
+          {spansLabel([
+            {
+              startLine: location.startLine ?? step.pointer.startLine,
+              endLine: location.endLine ?? step.pointer.endLine,
+            },
+          ])}
+        </span>
+        {item && (
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => onOpen({ kind: 'change', path: step.pointer.path })}
+          >
+            Show all changes in this file
+          </Button>
+        )}
+      </div>
       {changed ? (
         <p role="status" className="text-sm text-graph-4">
           Code changed since the review was written.
@@ -398,6 +467,13 @@ function Step({
               : 'No textual code at this location. Open the file to inspect it.'}
         </p>
       )}
+      <details className="mt-3 border-l-2 border-muted-foreground/30 pl-3 text-sm">
+        <summary className="cursor-pointer text-muted-foreground">
+          <span className="font-medium">Agent note</span> ·{' '}
+          {step.text.length > 150 ? `${step.text.slice(0, 150)}…` : step.text}
+        </summary>
+        <MarkdownView text={step.text} className="mt-2 text-sm" />
+      </details>
     </article>
   );
 }

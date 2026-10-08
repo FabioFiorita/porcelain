@@ -32,6 +32,7 @@ import {
   type Life,
 } from '../../verify-core/registry.ts';
 import { registry } from './instance.ts';
+import { agentActs } from '../../../../apps/server/spec/kit/agent.ts';
 
 export const vite = join(root, 'apps/web/node_modules/.bin/vite');
 const readyTimeoutMs = 60 * 1000;
@@ -41,6 +42,7 @@ export const remoteFailed = 'remote-failed';
 const startOptions = Schema.Struct({
   desktop: Schema.Boolean,
   codingTool: Schema.Boolean,
+  reviewSample: Schema.Boolean,
 });
 
 async function reachable(url: string, deadline: number): Promise<void> {
@@ -111,9 +113,9 @@ function serveRemote(
 }
 export function serve(folder: string): Promise<void> {
   return registry.serve(folder, async (life) => {
-    const { desktop, codingTool } = Schema.decodeUnknownSync(startOptions)(
-      life.options,
-    );
+    const { desktop, codingTool, reviewSample } = Schema.decodeUnknownSync(
+      startOptions,
+    )(life.options);
     const evidence = registry.evidenceFolder(life.id);
     const build = join(folder, 'build');
     await buildIsolatedServer(build);
@@ -132,6 +134,7 @@ export function serve(folder: string): Promise<void> {
     recorder.phase = 'follow-up';
     const owner = server.session(recorder, { projectId: '', worktreeId: '' });
     if (codingTool) await owner.installCodingTool();
+    if (reviewSample) await agentActs(owner, { kind: 'publish-architecture' });
     const port = await freePort();
     const origin = `http://127.0.0.1:${port}`;
     const log = openSync(join(evidence, 'vite.log'), 'a', 0o600);

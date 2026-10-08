@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures.tsx';
 
-test('a file inside a published layer is marked and unmarked reviewed on its own, like any changed file', async ({
+test('an excerpt cannot mark a whole file reviewed; opening its complete changes permits an explicit file mark', async ({
   workspace,
   repo,
   server,
@@ -18,11 +18,22 @@ test('a file inside a published layer is marked and unmarked reviewed on its own
     name: `Review layer ${title}`,
     exact: true,
   });
-  const mark = layer.getByRole('button', {
+  await expect
+    .element(
+      layer.getByRole('button', {
+        name: `Mark ${readme} as reviewed`,
+        exact: true,
+      }),
+    )
+    .not.toBeInTheDocument();
+  await layer
+    .getByRole('button', { name: 'Show all changes in this file', exact: true })
+    .click();
+  const mark = workspace.getByRole('button', {
     name: `Mark ${readme} as reviewed`,
     exact: true,
   });
-  const unmark = layer.getByRole('button', {
+  const unmark = workspace.getByRole('button', {
     name: `Unmark ${readme} as unreviewed`,
     exact: true,
   });
