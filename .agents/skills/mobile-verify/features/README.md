@@ -4,9 +4,10 @@ One file per screen and flow the mobile app offers, named `<domain>.<capability>
 
 | Feature                                                   | Screen             | What it does                                                                                                                                                     |
 | --------------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [access.component-library](access.component-library.md)   | /component-library | Temporary directory of implemented mobile primitives.                                                                                                            |
-| [access.component-text](access.component-text.md)         | /component-text    | Temporary type, tone, weight and selection samples.                                                                                                              |
-| [access.component-button](access.component-button.md)     | /component-button  | Temporary button variants, sizes and interaction states.                                                                                                         |
+| [access.component-library](access.component-library.md)   | /component-library | Development-only directory of implemented mobile primitives.                                                                                                     |
+| [access.component-text](access.component-text.md)         | /component-text    | Development-only type, tone, weight and selection samples.                                                                                                       |
+| [access.component-preview](access.component-preview.md)   | /component-preview | Development-only file, review, history and native rendering samples.                                                                                             |
+| [access.component-button](access.component-button.md)     | /component-button  | Development-only button variants, sizes and interaction states.                                                                                                  |
 | [access.environment-status](access.environment-status.md) | /settings          | Each environment row says Checking, Online, Offline, Needs pairing, Another server or Update needed from what its server answered.                               |
 | [access.forget-environment](access.forget-environment.md) | /settings          | Holding an environment row offers Forget environment, which removes it, its credential and its remembered workspace from this device, through a cold launch.     |
 | [access.lan-pairing](access.lan-pairing.md)               | /settings          | Pairing with a Porcelain on another computer over the local network and reconnecting after a cold launch; a checkpoint against a separate disposable LAN server. |
@@ -23,5 +24,3 @@ One file per screen and flow the mobile app offers, named `<domain>.<capability>
 ## Platform coverage
 
 Existing iPhone and iPad e2e coverage is referenced in each map; `pairing.e2e.ts` runs on both. Android has its own native views (`*.android.tsx`) and is not proven yet: it needs its own build and native proof. The iOS Local Network permission prompt needs a physical device.
-
-- [Temporary primitive samples](access.component-preview.md)

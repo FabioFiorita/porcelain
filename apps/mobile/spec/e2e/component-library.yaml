@@ -6,22 +6,22 @@ name: Inspect primitives through the development catalog
 - tapOn: Component library
 - assertVisible: Open a primitive to inspect its variants.
 - tapOn: Explore Button
-- assertVisible: "Actions: 0"
+- assertVisible: 'Actions: 0'
 - tapOn: Default
-- assertVisible: "Actions: 1"
+- assertVisible: 'Actions: 1'
 - tapOn: Back
 - scrollUntilVisible:
     element: Explore FileTree
     direction: DOWN
 - tapOn: Explore FileTree
 - tapOn: Open button.tsx
-- assertVisible: "Selected: button"
+- assertVisible: 'Selected: button'
 - longPressOn: Open input.tsx
 - tapOn: Show details
-- assertVisible: "Menu action: input.tsx · A"
-- assertVisible: "Selected: button"
+- assertVisible: 'Menu action: input.tsx · A'
+- assertVisible: 'Selected: button'
 - tapOn: Open README.md
-- assertVisible: "Selected: readme"
+- assertVisible: 'Selected: readme'
 - tapOn: Back
 - assertVisible: Open a primitive to inspect its variants.
 - tapOn: Back
