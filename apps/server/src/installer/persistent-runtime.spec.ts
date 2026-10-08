@@ -18,6 +18,7 @@ type Answer = { code: number; stdout: string; stderr: string };
 const serviceNode = '/opt/service/bin/node';
 const source = '/packages/porcelain-1.2.0.tgz';
 const workingWatcher = 'module.exports = { subscribe() {} };';
+const porcelainEffect = `${PACKAGE_NAME}/node_modules/effect`;
 
 let root: string;
 let destination: string;
@@ -30,6 +31,7 @@ let sqliteAvailable = true;
 function writeModule(prefix: string, name: string, body: string) {
   const folder = join(prefix, 'node_modules', name);
   mkdirSync(folder, { recursive: true });
+  writeFileSync(join(folder, 'package.json'), '{}');
   writeFileSync(join(folder, 'index.js'), body);
 }
 
@@ -85,6 +87,7 @@ beforeEach(() => {
   installedVersion = '1.2.0';
   modules = {
     '@parcel/watcher': workingWatcher,
+    [porcelainEffect]: '',
   };
   commands = [];
   sqliteAvailable = true;
@@ -111,7 +114,7 @@ describe('installing the persistent runtime', () => {
   });
 
   it('refuses a runtime missing its file watcher and names the reason', async () => {
-    modules = { '@parcel/watcher': undefined };
+    modules = { ...modules, '@parcel/watcher': undefined };
     await expect(install()).rejects.toThrow(
       /cannot load its native modules.*Cannot find module '@parcel\/watcher'/,
     );
@@ -129,6 +132,18 @@ describe('installing the persistent runtime', () => {
     installedVersion = '1.1.0';
     await expect(install()).rejects.toThrow(
       'Persistent runtime reported 1.1.0 instead of 1.2.0.',
+    );
+    expect(commands).toEqual(['npm']);
+  });
+
+  it('refuses a runtime holding two copies of effect, names both, and loads nothing from it', async () => {
+    modules = {
+      ...modules,
+      effect: '',
+      '@effect/platform-node': '',
+    };
+    await expect(install()).rejects.toThrow(
+      `The persistent runtime installed 2 copies of effect, which would split its module state: node_modules/${PACKAGE_NAME}/node_modules/effect, node_modules/effect`,
     );
     expect(commands).toEqual(['npm']);
   });
