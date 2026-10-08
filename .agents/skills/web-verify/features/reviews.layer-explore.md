@@ -22,7 +22,7 @@ Each layer has a persistent Explore the layer panel, with short code-location li
 
 ## Driving it
 
-Use `$C start --review-sample`. Pair the browser, open the Review sidebar, then Publish an immutable note.
+Use `$C start --review-sample`. Pair the browser, open the Review sidebar, then choose Review and Publish an immutable note inside the Worktree review dialog at phone width.
 
 1. In Code, expect All files selected, six changed files and one existing context location. Explore the layer lists all seven locations and their paths without requiring graph panning.
 2. Click Explore Prepare a bounded request. One file is selected; the client file's entire current diff is shown, while the web file is absent. Mark the client file reviewed and wait for its Unmark control to become enabled, confirming the write finished. The server's reviewed-files readback names only that path, and reviewed-layers keeps its existing marks unchanged.

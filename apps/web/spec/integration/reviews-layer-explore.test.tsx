@@ -7,8 +7,12 @@ test('a layer keeps its code locations reachable beside its graph and can read o
 }) => {
   await agent.publishArchitecture();
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Review', exact: true }).click();
-  await workspace
+  const drawer = workspace.getByRole('dialog', {
+    name: 'Worktree review',
+    exact: true,
+  });
+  await drawer.getByRole('tab', { name: 'Review', exact: true }).click();
+  await drawer
     .getByRole('button', { name: '3. Publish an immutable note', exact: true })
     .click();
   const layer = workspace.getByRole('region', {

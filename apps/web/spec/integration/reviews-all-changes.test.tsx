@@ -7,8 +7,12 @@ test('all changes includes every changed file, including unexplained, deleted an
 }) => {
   await agent.publishArchitecture();
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Review', exact: true }).click();
-  await workspace
+  const drawer = workspace.getByRole('dialog', {
+    name: 'Worktree review',
+    exact: true,
+  });
+  await drawer.getByRole('tab', { name: 'Review', exact: true }).click();
+  await drawer
     .getByRole('button', { name: 'All changes · 55 files', exact: true })
     .click();
   await expect
@@ -19,12 +23,26 @@ test('all changes includes every changed file, including unexplained, deleted an
     .click();
   const marks = async () =>
     (await server.reviewedFiles()).marks.map((mark) => mark.path).sort();
-  await expect.poll(marks).toHaveLength(55);
-  await expect.poll(marks).toContain('scripts/migrate-workspaces.ts');
-  await expect.poll(marks).toContain('packages/workspace/src/legacy-write.ts');
-  await expect.poll(marks).toContain('tests/invite-member.spec.ts');
-  await workspace
-    .getByRole('button', { name: 'Unmark all', exact: true })
-    .click();
-  await expect.poll(marks).toEqual([]);
+  const unmarkAll = workspace.getByRole('button', {
+    name: 'Unmark all',
+    exact: true,
+  });
+  await expect.element(unmarkAll).toBeEnabled();
+  const saved = marks();
+  await expect(saved).resolves.toHaveLength(55);
+  await expect(saved).resolves.toContain('scripts/migrate-workspaces.ts');
+  await expect(saved).resolves.toContain(
+    'packages/workspace/src/legacy-write.ts',
+  );
+  await expect(saved).resolves.toContain('tests/invite-member.spec.ts');
+  await unmarkAll.click();
+  await expect
+    .element(
+      workspace.getByRole('button', {
+        name: 'Mark all 55 files reviewed',
+        exact: true,
+      }),
+    )
+    .toBeEnabled();
+  await expect(marks()).resolves.toEqual([]);
 });

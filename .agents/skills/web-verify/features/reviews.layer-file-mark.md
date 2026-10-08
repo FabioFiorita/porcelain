@@ -31,7 +31,7 @@ A walkthrough's Code view is a continuous document of the full current changes i
 3. Unmark the file. The server mark disappears.
 4. Select Graph → New line. The New line dialog shows the complete README.md diff and its file mark. Merely selecting the node does not mark the file reviewed. Expand Agent note · New line: "A line is added" appears once, in the body.
 5. Mark the selected file. The reviewed-files readback contains README.md and the layer remains unmarked. Close the dialog: Graph stays selected. Full layer diff restores every file in Code.
-6. With `$C start --review-sample`, open Invite a teammate. Scroll through all six changed files, including the Specs boundary when the setting is on, and the existing actor context at the bottom. Collapse individual files, use Collapse all and Expand all, mark one file and then the layer. Repeat at phone width. Press J then R: only the next changed file is marked; context snippets register no shortcuts.
+6. With `$C start --review-sample`, open Invite a teammate. Scroll through all six changed files, including the Specs boundary when the setting is on, and the existing actor context at the bottom. Collapse individual files, use Collapse all and Expand all, mark one file and then the layer. Repeat at phone width. At phone width, select the walkthrough inside the Worktree review dialog. Press J then R and wait for the next changed file’s Unmark control to become enabled before checking saved state: only that file is marked; context snippets register no shortcuts.
 
 ## What proves it works
 

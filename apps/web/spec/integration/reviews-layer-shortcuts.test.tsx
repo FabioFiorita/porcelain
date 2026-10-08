@@ -17,8 +17,12 @@ test('walkthrough file shortcuts act once on the continuous document while exist
     await workspace
       .getByRole('button', { name: 'Review', exact: true })
       .click();
-    await workspace.getByRole('tab', { name: 'Review', exact: true }).click();
-    await workspace
+    const drawer = workspace.getByRole('dialog', {
+      name: 'Worktree review',
+      exact: true,
+    });
+    await drawer.getByRole('tab', { name: 'Review', exact: true }).click();
+    await drawer
       .getByRole('button', {
         name: '3. Publish an immutable note',
         exact: true,
@@ -38,10 +42,18 @@ test('walkthrough file shortcuts act once on the continuous document while exist
       .toBeEnabled();
     await userEvent.keyboard('jr');
     await expect
-      .poll(async () =>
-        (await server.reviewedFiles()).marks.map((mark) => mark.path),
+      .element(
+        layer.getByRole('button', {
+          name: 'Unmark packages/client/src/publish-note.ts as unreviewed',
+          exact: true,
+        }),
       )
-      .toEqual(['packages/client/src/publish-note.ts']);
+      .toBeEnabled();
+    await expect(
+      server
+        .reviewedFiles()
+        .then(({ marks }) => marks.map((mark) => mark.path)),
+    ).resolves.toEqual(['packages/client/src/publish-note.ts']);
     await expect
       .poll(() =>
         warnings.filter((line) => /'[JKCR]' is already registered/.test(line)),
