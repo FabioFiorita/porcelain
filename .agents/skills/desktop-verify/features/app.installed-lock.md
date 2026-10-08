@@ -11,7 +11,7 @@ api: []
 
 ## What it is
 
-The installed app, `/Applications/Porcelain.app`, is locked against debugging, because anyone running as the owner could otherwise start it under a debugger and read the credentials it keeps in the Keychain. The build flips its Electron fuses (no run as Node, no `NODE_OPTIONS`, no Node inspect arguments, embedded ASAR integrity validation, the app loaded only from its ASAR, encrypted cookies, no extra `file://` privileges), and the packaged host refuses to start, before it takes its single-instance lock or creates a profile, when launched with a debugging switch or with `ELECTRON_RUN_AS_NODE` or `NODE_OPTIONS` set. `NODE_OPTIONS` never reaches the app once its fuse is off, so that launch starts as usual.
+The packaged app refuses debugging switches and Node environment variables before taking its single-instance lock or creating a profile. The release build also locks Electron fuses. Disposable development verification proves the launch-refusal rule; assurance of the packaged fuses and signing belongs to release verification.
 
 ## How a user reaches it
 
@@ -19,26 +19,19 @@ The installed app, `/Applications/Porcelain.app`, is locked against debugging, b
 
 ## Driving it
 
-Never as a test of a change: only after the owner installs a build that changes the lock, and with the owner's go-ahead, since it launches the installed app. It needs no instance and runs over SSH.
+Run the named launch-refusal unit spec against the packaged/unpackaged input cases:
 
 ```sh
-.agents/skills/desktop-verify/scripts/cli installed-check
+pnpm exec vitest run --project @porcelain/desktop apps/desktop/src/rules/launch-refusal.spec.ts
 ```
 
-Look for, in the printed report and `installed-check.json` in its evidence folder:
-
-- every fuse's `state` equal to its `locked` value;
-- `inspect`, `remote-debugging-port` and `run-as-node` exit with a non-zero code and no signal, their output says “Porcelain refuses to start with …”, and `profileCreated` is false;
-- `node-options` has `serverStarted` true and exit code 0;
-- every launch has `debuggingEndpointOpened` and `nodeCodeRan` false;
-- `runningCopies.before` equals `runningCopies.after`, and `ownerProfileUnchanged` is true.
+Do not launch, build or inspect an installed app through this skill. The launcher stages only an unpackaged Porcelain Dev into instance-owned storage and verifies its identity. Packaged fuse and signing assurance belongs to release verification, outside this disposable workflow.
 
 ## What proves it works
 
-- `apps/desktop/src/rules/launch-refusal.spec.ts` (unit): the packaged host refuses each debugging switch and Node variable, and an unpackaged one starts.
-- `installed-check` above, on the installed build; the fuses are flipped by `pnpm desktop:build` and exist only in the packaged app, so no test of a change can reach them.
+- `apps/desktop/src/rules/launch-refusal.spec.ts`: packaged debugging switches and Node variables are refused, while unpackaged development launches are allowed.
+- Packaged fuse and signing checks are release verification, not a desktop launcher command.
 
 ## Gotchas
 
-- A freshly signed build asks for the Keychain before its first use in the logged-in session; the `node-options` launch starts the app, so run the check over SSH or answer that prompt.
-- Playwright cannot drive the installed app, by design of this lock.
+- The installed app is off-limits to this skill. Playwright's debugging connection is for the disposable unpackaged app only.

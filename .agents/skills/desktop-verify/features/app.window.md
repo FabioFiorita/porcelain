@@ -24,39 +24,13 @@ The Mac app's window and the private server behind it. The window has a hidden-i
 
 ## Driving it
 
-Start an instance first: `.agents/skills/desktop-verify/scripts/cli start`.
+Start a disposable instance, then read its card. `status --instance <id>` reports captured app identity, build staleness and passive renderer targets; it does not change a window.
 
-### The window, its inset and full screen
+1. With Computer Use, resize and enter full screen using the traffic lights or View › Toggle Full Screen. Inspect the sidebar clearance before and during full screen, then leave full screen.
+2. Close the window with ⌘W. Confirm the captured server PID remains alive and passive status has no page targets. Activate the same development app from the Dock and confirm the window returns.
+3. Quit Porcelain Dev with ⌘Q, or use the printed stop command. Confirm both captured app/server PIDs are gone and the owner socket is removed. Read the retained `server.log` and stop outcome through the evidence directory.
 
-```sh
-.agents/skills/desktop-verify/scripts/cli window
-.agents/skills/desktop-verify/scripts/cli window resize 980 680
-.agents/skills/desktop-verify/scripts/cli screenshot
-.agents/skills/desktop-verify/scripts/cli window fullscreen on
-.agents/skills/desktop-verify/scripts/cli screenshot
-.agents/skills/desktop-verify/scripts/cli window fullscreen off
-```
-
-After each `window`, look for: one window at `porcelain://app/`, its bounds, and `fullscreen` true only between the two full screen lines. The first screenshot shows the sidebar header clear of the traffic lights; the full screen one shows it without that inset.
-
-### Closing keeps the server, the Dock reopens
-
-```sh
-.agents/skills/desktop-verify/scripts/cli window close
-.agents/skills/desktop-verify/scripts/cli window activate
-.agents/skills/desktop-verify/scripts/cli snapshot
-```
-
-After `window close`, look for: no windows; after `window activate`, one window again, and the snapshot shows the app as it was.
-
-### Quit stops the server
-
-```sh
-.agents/skills/desktop-verify/scripts/cli menu "Porcelain/Quit Porcelain Dev"
-ls <evidence folder>
-```
-
-Look for: `app-exited.txt` and `server.log` in the evidence folder `start` printed; the instance stopped itself, and the server's log ends with its shutdown.
+For programmatic main-process journeys, import the shared lifecycle and use the raw ElectronApplication to inspect BrowserWindow, resize or emit activation. For transitions, wait for the corresponding native event. Capture the child process before closing: Playwright cannot return it after disposal. Restart persistence uses the regression test's reusable disposable profile; the launcher always creates a new profile.
 
 ## What proves it works
 
@@ -64,8 +38,8 @@ Look for: `app-exited.txt` and `server.log` in the evidence folder `start` print
 
 ## Gotchas
 
-- macOS finishes a full screen transition only on an awake, unlocked screen; `start` holds `caffeinate -d -u` for the instance's lifetime, but a locked session still leaves `window fullscreen` waiting.
-- Electron names the Quit item after the app, “Quit Porcelain Dev” here; `menu` alone prints the tree with the exact labels.
+- macOS finishes a full screen transition only on an awake, unlocked screen; `start` holds `caffeinate -d -u` on macOS for the instance's lifetime; a locked session still prevents the transition.
+- Electron names the development Quit item “Quit Porcelain Dev”. Inspect it with Computer Use or the raw Electron menu API.
 - Restoring bounds and appearance across a restart needs the same profile, which a new `start` never reuses; the e2e test proves it.
 - macOS can deliver visibility events after a window is destroyed. Electron 44's internal visibility listener still calls native window methods, so the app removes window listeners on `closed` and guards its bounds, load and show callbacks. The window regression restores a maximized window, destroys it, then delivers eleven window events (five visibility events, `unmaximize`, `move`, `resize`, two full screen events and `ready-to-show`) plus the web contents' `did-finish-load`, and requires Quit to stop the server, without retries. It also delivers appearance/actions-ready IPC and native theme updates during native closure, before the app clears its window reference; none may access the destroyed window or change appearance. The pending-save regression delivers the same messages while Quit is waiting and requires appearance to remain unchanged.
 - Electron 44's fetch installs an abort listener before initializing its native request; Quit during that setup can make the listener throw a ReferenceError and open an exception dialog. HTTP forwarding gives Electron an initially live cancellation signal and forwards any request or Quit cancellation after synchronous request construction returns. An already cancelled request is rejected before construction. The regression triggers Quit at the HTTP transport boundary before request construction completes and requires a normal app exit, server exit and socket removal. Cancelling a reopening window's initial load must also exit normally; startup failures during Quit must not open a dialog.

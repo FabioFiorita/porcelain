@@ -22,28 +22,13 @@ The Mac app opens a project through the native folder sheet instead of the web's
 
 ## Driving it
 
-Start an instance first: `.agents/skills/desktop-verify/scripts/cli start`. It prints the sample repository; the picker is held, so a sheet the app opens waits for `dialog` instead of showing.
+Start a disposable instance and read `connection.json`. The sample repository is `fixtures.repositoryPath`. The launcher leaves `dialog.showOpenDialog` intact, so the sheet is real.
 
-### The menu opens the sheet directly, and a cancel registers nothing
+1. With Computer Use, choose File › Open Project… (then repeat using ⌘O). Inspect the sheet attached to Porcelain Dev: title and button “Open project”, directory the sample repository. Cancel and confirm no project was registered.
+2. Click the sidebar's Open project button. Select the sample Git repository in the real sheet and confirm with Open project. Observe `desktop-smoke` in the sidebar; open it and inspect History.
+3. Use a renderer request observer or the browser network tools to confirm no request to `/api/projects/folders` occurred. Read `/api/inventory` through the app renderer to confirm the chosen repository was registered.
 
-```sh
-.agents/skills/desktop-verify/scripts/cli menu "File/Open Project…"
-.agents/skills/desktop-verify/scripts/cli dialog --cancel
-.agents/skills/desktop-verify/scripts/cli snapshot
-```
-
-After `dialog --cancel`, look for: one picker request with `ownerIsAppWindow: true`, title and button label “Open project”, `defaultPath` the sample repository and `properties: ["openDirectory"]`, answered with the cancel. The snapshot shows no dialog and the Open project button still there.
-
-### The button opens the chosen repository as a project
-
-```sh
-.agents/skills/desktop-verify/scripts/cli click --role button --name "Open project"
-.agents/skills/desktop-verify/scripts/cli dialog <repository>
-.agents/skills/desktop-verify/scripts/cli snapshot
-.agents/skills/desktop-verify/scripts/cli network
-```
-
-After the snapshot, look for: a `desktop-smoke` button in the sidebar. `network` lists no request to `/api/projects/folders`.
+Save screenshots of the real sheet and resulting sidebar in the card's evidence directory. The raw Playwright Electron handle can prove the bridge options in an in-process journey; only the existing regression tests substitute picker answers. If Computer Use is unavailable, report bridge proof separately and leave real-sheet assurance open.
 
 ## What proves it works
 
@@ -51,5 +36,5 @@ After the snapshot, look for: a `desktop-smoke` button in the sidebar. `network`
 
 ## Gotchas
 
-- `dialog <folder>` answers the sheet that is waiting, or the next one the app opens; `dialog` alone records every request so far.
-- A real sheet never shows during verification; driving the picker without `dialog` leaves the app waiting for an answer.
+- A real sheet blocks the picker promise until someone chooses a folder or cancels it. The launcher never intercepts it.
+- A CDP renderer connection cannot operate the native OS sheet. Use Computer Use; keep bridge-only evidence distinct when that tool is unavailable.
