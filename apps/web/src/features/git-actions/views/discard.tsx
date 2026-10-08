@@ -102,7 +102,7 @@ export function DiscardButton({
       >
         <Undo2Icon />
         {variant === 'quiet' ? (
-          <span className="max-[720px]:sr-only">Discard</span>
+          <span className="max-narrow:sr-only">Discard</span>
         ) : variant === 'compact' ? (
           'Discard selection'
         ) : (

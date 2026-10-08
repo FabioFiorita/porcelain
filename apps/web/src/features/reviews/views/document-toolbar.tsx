@@ -25,12 +25,12 @@ export function DocumentToolbar({
       <div className="flex min-w-0 flex-auto flex-col">
         <h1
           aria-label={titleLabel}
-          className="truncate text-[13px] leading-tight font-semibold"
+          className="truncate text-ui leading-tight font-semibold"
         >
           {title}
         </h1>
         {subtitle !== null && subtitle !== undefined && (
-          <p className="truncate text-[11px] leading-tight text-muted-foreground">
+          <p className="truncate text-2xs leading-tight text-muted-foreground">
             {subtitle}
           </p>
         )}

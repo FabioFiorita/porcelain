@@ -98,7 +98,7 @@ const components = {
   ),
   table: (props: ComponentProps<'table'>) => (
     <div className="my-3 overflow-x-auto rounded-lg border">
-      <table className="w-full text-left text-[12.5px]" {...props} />
+      <table className="w-full text-left text-caption" {...props} />
     </div>
   ),
   th: (props: ComponentProps<'th'>) => (
@@ -118,7 +118,7 @@ export function MarkdownView({
   className?: string;
 }) {
   return (
-    <div className={cn('text-[13px] text-foreground', className)}>
+    <div className={cn('text-ui text-foreground', className)}>
       <Markdown components={components}>{text}</Markdown>
     </div>
   );

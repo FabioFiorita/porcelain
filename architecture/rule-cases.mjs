@@ -499,6 +499,24 @@ export function probeLoose(left: string, right: string): boolean {
     errors: 1,
   },
   {
+    rule: 'mobile-system-chrome',
+    path: 'apps/mobile/src/features/projects/views/workspace-menu.ios.tsx',
+    valid:
+      "import { Host, Label } from '@expo/ui/swift-ui'; import { labelStyle } from '@expo/ui/swift-ui/modifiers'; export const menu = <Host matchContents><Label title='Workspace' modifiers={[labelStyle('iconOnly')]} /></Host>;",
+    invalid:
+      "import { Host, Label } from '@expo/ui/swift-ui'; import { font, frame } from '@expo/ui/swift-ui/modifiers'; import { Stack } from 'expo-router'; export const menu = <Stack.Toolbar.View hidesSharedBackground><Host style={{ width: 44, height: 44 }}><Label title='Workspace' modifiers={[font({ size: 20 }), frame({ width: 28, height: 28 })]} /></Host></Stack.Toolbar.View>;",
+    errors: 4,
+  },
+  {
+    rule: 'web-design-tokens',
+    path: 'apps/web/src/features/reviews/views/thread-card.tsx',
+    valid:
+      "export const card = <span className='text-2xs max-narrow:sr-only w-31 [&_code]:text-[0.9em]'>Reply</span>;",
+    invalid:
+      "export const card = <span className={`text-[11px] max-[720px]:sr-only ${'w-[124px]'}`}>Reply</span>;",
+    errors: 2,
+  },
+  {
     rule: 'web-views-no-await',
     path: 'apps/mobile/src/features/access/views/settings-screen.tsx',
     valid: 'export const pair = (command: () => void) => command();',

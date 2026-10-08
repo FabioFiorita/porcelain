@@ -179,7 +179,7 @@ function MessageEditor({
         }}
       />
       {AsyncResult.isFailure(edit.result) && (
-        <p role="alert" className="text-[11px] text-destructive">
+        <p role="alert" className="text-2xs text-destructive">
           {reviewErrorMessage(Cause.squash(edit.result.cause))}
         </p>
       )}
@@ -335,7 +335,7 @@ export function ThreadCard({
     <span className="inline-flex min-w-0 items-center gap-1">
       {resolveButton}
       {AsyncResult.isFailure(resolve.result) && (
-        <span role="alert" className="max-w-64 text-[11px] text-destructive">
+        <span role="alert" className="max-w-64 text-2xs text-destructive">
           {reviewErrorMessage(Cause.squash(resolve.result.cause))}
         </span>
       )}
@@ -380,7 +380,7 @@ export function ThreadCard({
           />
         </Field>
         {AsyncResult.isFailure(reply.result) && (
-          <p role="alert" className="text-[11px] text-destructive">
+          <p role="alert" className="text-2xs text-destructive">
             {reviewErrorMessage(Cause.squash(reply.result.cause))}
           </p>
         )}
@@ -412,7 +412,7 @@ export function ThreadCard({
         className="rounded-xl border bg-card p-3"
         aria-label="Comment thread"
       >
-        <div className="mb-3 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+        <div className="mb-3 flex min-w-0 items-center gap-1.5 text-2xs text-muted-foreground">
           <ThreadStarter thread={thread} />
           <span aria-hidden>·</span>
           {where}
@@ -421,7 +421,7 @@ export function ThreadCard({
           <button
             type="button"
             onClick={() => setExpanded(true)}
-            className="mb-2 text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+            className="mb-2 text-2xs text-muted-foreground hover:text-foreground hover:underline"
           >
             Show {thread.messages.length - 1} earlier
           </button>
@@ -466,7 +466,7 @@ export function ThreadCard({
   if (thread.resolved) {
     return (
       <article
-        className="flex min-w-0 items-center gap-2 rounded-lg border border-dashed px-2.5 py-1.5 text-[11.5px] text-muted-foreground"
+        className="flex min-w-0 items-center gap-2 rounded-lg border border-dashed px-2.5 py-1.5 text-2xs text-muted-foreground"
         aria-label="Resolved comment thread"
       >
         <CheckIcon className="size-3.5 shrink-0 text-graph-2" />
@@ -482,7 +482,7 @@ export function ThreadCard({
       className="rounded-xl border bg-card p-3 shadow-sm"
       aria-label="Comment thread"
     >
-      <div className="mb-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <div className="mb-2 flex items-center gap-1.5 text-2xs text-muted-foreground">
         <ThreadStarter thread={thread} />
         <span aria-hidden>·</span>
         <span>{where}</span>
@@ -514,7 +514,7 @@ export function ThreadCard({
       </MessageGroup>
       {replyForm}
       {state === 'awaiting-agent' && !replying && (
-        <p className="mt-2 text-right text-[10.5px] text-muted-foreground">
+        <p className="mt-2 text-right text-2xs text-muted-foreground">
           The agent reads this when you ask it to check its comments.
         </p>
       )}

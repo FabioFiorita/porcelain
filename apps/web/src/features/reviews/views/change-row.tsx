@@ -23,7 +23,7 @@ import type { DocumentRef, OpenDocument } from '../rules/documents';
 import { basename, type ReviewStatus } from '@porcelain/client/reviews/rules';
 
 export const ROW =
-  'flex w-full min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-[12.5px] transition-colors hover:bg-accent';
+  'flex w-full min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-caption transition-colors hover:bg-accent';
 
 export function ChangeRow({
   path,
@@ -86,7 +86,7 @@ export function ChangeRow({
           {basename(path)}
         </span>
         {commentCount > 0 && (
-          <span className="flex shrink-0 items-center gap-0.5 text-[10.5px]">
+          <span className="flex shrink-0 items-center gap-0.5 text-2xs">
             <MessageSquareIcon className="size-3" />
             {commentCount}
           </span>

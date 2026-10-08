@@ -545,7 +545,7 @@ function CommentsView({
             aria-pressed={filter === value}
             onClick={() => setFilter(value)}
             className={cn(
-              'rounded-md px-2 py-1 text-[11.5px] capitalize text-muted-foreground transition-colors hover:bg-accent',
+              'rounded-md px-2 py-1 text-2xs capitalize text-muted-foreground transition-colors hover:bg-accent',
               filter === value && 'bg-accent text-foreground',
             )}
           >
@@ -558,7 +558,7 @@ function CommentsView({
       </div>
 
       {visible.length === 0 ? (
-        <p className="px-4 py-6 text-center text-[12px] text-muted-foreground">
+        <p className="px-4 py-6 text-center text-caption text-muted-foreground">
           {empty}
         </p>
       ) : (

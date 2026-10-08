@@ -222,7 +222,7 @@ export function GitButton({
                 <PopoverTitle>
                   {running ? `${networkLabel(running.name)}…` : 'Git action…'}
                 </PopoverTitle>
-                <ol className="flex flex-col gap-0.5 font-mono text-[11px] leading-4">
+                <ol className="flex flex-col gap-0.5 font-mono text-2xs leading-4">
                   {running?.operation?.receipt?.progress.length ? (
                     running.operation.receipt.progress.slice(-4).map((line) => (
                       <li key={line} className="truncate" title={line}>

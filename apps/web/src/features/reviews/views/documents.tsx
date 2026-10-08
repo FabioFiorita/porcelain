@@ -274,7 +274,7 @@ function ChangeDocument({
                   onClick={() => onOpen({ kind: 'file', path })}
                 >
                   <FileIcon />
-                  <span className="max-[720px]:sr-only">Open file</span>
+                  <span className="max-narrow:sr-only">Open file</span>
                 </Button>
                 {trigger}
               </>

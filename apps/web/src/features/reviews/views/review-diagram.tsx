@@ -91,7 +91,7 @@ function Note({ tone, text }: { tone: 'danger' | 'warn'; text: string }) {
   return (
     <p
       className={cn(
-        'mt-1.5 flex gap-1 rounded-md px-1.5 py-1 text-[11px] leading-[15px]',
+        'mt-1.5 flex gap-1 rounded-md px-1.5 py-1 text-2xs leading-4',
         tone === 'danger'
           ? 'bg-destructive/10 text-destructive'
           : 'bg-graph-4/12 text-graph-4 ',
@@ -146,13 +146,13 @@ function Box({ data }: NodeProps<Node<BoxData>>) {
         <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
-            <span className="max-w-full min-w-0 text-[13px] leading-snug font-medium [overflow-wrap:anywhere]">
+            <span className="max-w-full min-w-0 text-ui leading-snug font-medium [overflow-wrap:anywhere]">
               {data.label}
             </span>
             {change !== null && change !== undefined && (
               <span
                 className={cn(
-                  'ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+                  'ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-2xs font-medium',
                   change.className,
                 )}
               >
@@ -161,7 +161,7 @@ function Box({ data }: NodeProps<Node<BoxData>>) {
             )}
           </div>
           {data.detail !== null && data.detail !== undefined && (
-            <p className="mt-0.5 text-[11px] leading-4 break-words text-muted-foreground">
+            <p className="mt-0.5 text-2xs leading-4 break-words text-muted-foreground">
               {data.detail}
             </p>
           )}
@@ -183,7 +183,7 @@ function Lane({ data }: NodeProps<Node<LaneData>>) {
       style={{ width: data.width, height: data.height }}
       className="flex rounded-2xl border border-dashed bg-muted/40"
     >
-      <div className="w-[124px] shrink-0 px-3 pt-3 text-[10.5px] font-medium tracking-wide break-words text-muted-foreground uppercase">
+      <div className="w-31 shrink-0 px-3 pt-3 text-2xs font-medium tracking-wide break-words text-muted-foreground uppercase">
         {data.label}
       </div>
     </div>

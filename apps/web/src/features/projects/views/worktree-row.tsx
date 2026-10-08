@@ -60,7 +60,7 @@ export function WorktreeRow({
             data-unavailable={!worktree.available || undefined}
             onClick={() => onSelect(worktree.id)}
             className={cn(
-              'flex w-full min-w-0 items-center gap-1.5 rounded-lg py-1.5 pr-2 pl-7 text-left text-[12.5px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+              'flex w-full min-w-0 items-center gap-1.5 rounded-lg py-1.5 pr-2 pl-7 text-left text-caption text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
               selected && 'bg-accent font-medium text-foreground',
               !worktree.available && 'opacity-60',
             )}
@@ -73,7 +73,7 @@ export function WorktreeRow({
           <span className="sr-only">{worktree.path}</span>
           <span className="sr-only">{projectName}</span>
           {!worktree.available && (
-            <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1 text-2xs text-muted-foreground">
               <CircleAlertIcon className="size-3" aria-hidden="true" />
               Unavailable
             </span>

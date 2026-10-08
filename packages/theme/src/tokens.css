@@ -1,4 +1,8 @@
 @theme inline {
+  --text-2xs: 0.6875rem;
+  --text-caption: 0.78125rem;
+  --text-ui: 0.8125rem;
+
   --color-graph-1: var(--graph-1);
   --color-graph-2: var(--graph-2);
   --color-graph-3: var(--graph-3);

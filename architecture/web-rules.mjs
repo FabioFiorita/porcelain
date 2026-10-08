@@ -1035,6 +1035,27 @@ export const webRules = {
       };
     },
   },
+  'web-design-tokens': {
+    create(context) {
+      const path = webPath(context);
+      if (!path.startsWith(webSource) || !inWeb(path)) return {};
+      const message =
+        'Use a design token (type scale, spacing, breakpoint or container size) instead of a hand-set px or rem length; shadcn primitives in components/ui keep their own, because one-off lengths drift from the design and from each other.';
+      const handSet = /-\[-?\d*\.?\d+(?:px|rem)\]/;
+      const check = (node, text) => {
+        if (typeof text === 'string' && handSet.test(text))
+          context.report({ node, message });
+      };
+      return {
+        Literal(node) {
+          check(node, node.value);
+        },
+        TemplateElement(node) {
+          check(node, node.value.raw);
+        },
+      };
+    },
+  },
   'web-shadcn-wrapper': {
     create(context) {
       if (!inWeb(webPath(context))) return {};
