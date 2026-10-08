@@ -1,0 +1,7 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": { "modules": ["PorcelainRendererModule"] },
+  "android": {
+    "modules": ["expo.modules.porcelainrenderer.PorcelainRendererModule"]
+  }
+}

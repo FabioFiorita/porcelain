@@ -1,12 +1,22 @@
-import { BottomSheet, Button, Host } from '@expo/ui';
+import { Text } from '../../../components/ui/text';
+import { Button } from '../../../components/ui/button';
+import { Loading } from '../../../components/ui/loading';
+import { ErrorState } from '../../../components/ui/error-state';
+import { Separator } from '../../../components/ui/separator';
+import { Fragment } from 'react';
+import { BottomSheet } from '@expo/ui';
 import { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useReadEnvironments } from '../commands/pairing';
 import { useEnvironments, useEnvironmentStorageStatus } from '../store';
 import { EnvironmentRow } from './environment-row';
 import { PairEnvironment } from './pair-environment';
 
-export function SettingsScreen() {
+export function SettingsScreen({
+  onOpenComponentLibrary,
+}: {
+  onOpenComponentLibrary?: () => void;
+}) {
   const [pairing, setPairing] = useState(false);
   const remotes = useEnvironments();
   const storage = useEnvironmentStorageStatus();
@@ -18,56 +28,60 @@ export function SettingsScreen() {
         contentInsetAdjustmentBehavior="automatic"
       >
         <View className="gap-6 px-6 py-8">
-          <Text
-            accessibilityRole="header"
-            className="text-xl font-semibold text-foreground"
-          >
-            Settings
-          </Text>
+          <Text variant="heading">Settings</Text>
           <View className="gap-3">
-            <Text
-              accessibilityRole="header"
-              className="text-sm font-medium text-muted-foreground"
-            >
+            <Text variant="subheading" tone="muted">
               Environments
             </Text>
             {storage.status === 'loading' ? (
-              <Text className="text-sm text-muted-foreground">
-                Reading saved environments…
-              </Text>
+              <Loading label="Reading saved environments…" />
             ) : null}
-            {storage.error ? (
-              <Text className="text-sm text-destructive">{storage.error}</Text>
-            ) : null}
+            {storage.error ? <ErrorState message={storage.error} /> : null}
             {storage.status === 'ready' && remotes.length === 0 ? (
-              <Text className="text-sm text-muted-foreground">
+              <Text variant="ui" tone="muted">
                 No environments paired.
               </Text>
             ) : null}
             {remotes.length > 0 ? (
               <View className="overflow-hidden rounded-lg border border-border bg-card">
-                {remotes.map((remote) => (
-                  <EnvironmentRow key={remote.environmentId} remote={remote} />
+                {remotes.map((remote, index) => (
+                  <Fragment key={remote.environmentId}>
+                    {index > 0 ? <Separator /> : null}
+                    <EnvironmentRow
+                      key={remote.environmentId}
+                      remote={remote}
+                    />
+                  </Fragment>
                 ))}
               </View>
             ) : null}
-            <Host matchContents={{ vertical: true }}>
-              {storage.status === 'unreadable' ? (
-                <Button
-                  variant="text"
-                  label="Read saved environments again"
-                  onPress={() => read(undefined)}
-                />
-              ) : storage.status === 'ready' ? (
-                <Button
-                  testID="add-environment"
-                  variant="text"
-                  label="Add environment"
-                  onPress={() => setPairing(true)}
-                />
-              ) : null}
-            </Host>
+            {storage.status === 'unreadable' ? (
+              <Button
+                variant="outline"
+                label="Read saved environments again"
+                onPress={() => read(undefined)}
+              />
+            ) : storage.status === 'ready' ? (
+              <Button
+                testID="add-environment"
+                variant="outline"
+                label="Add environment"
+                onPress={() => setPairing(true)}
+              />
+            ) : null}
           </View>
+          {__DEV__ && onOpenComponentLibrary ? (
+            <View className="gap-3">
+              <Text variant="subheading" tone="muted">
+                Development
+              </Text>
+              <Button
+                label="Component library"
+                variant="outline"
+                onPress={onOpenComponentLibrary}
+              />
+            </View>
+          ) : null}
         </View>
       </ScrollView>
       <BottomSheet

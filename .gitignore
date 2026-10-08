@@ -2,6 +2,7 @@ node_modules/
 apps/mobile/.expo/
 apps/mobile/ios/
 apps/mobile/android/
+apps/mobile/modules/porcelain-renderer/android/build/
 dist/
 .vite/
 *.tsbuildinfo

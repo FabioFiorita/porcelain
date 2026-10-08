@@ -1038,9 +1038,13 @@ export const webRules = {
   'web-design-tokens': {
     create(context) {
       const path = webPath(context);
-      if (!path.startsWith(webSource) || !inWeb(path)) return {};
+      if (
+        (!path.startsWith(webSource) && !path.startsWith('apps/mobile/src/')) ||
+        ['ui', 'mobile-ui'].includes(webPart(path))
+      )
+        return {};
       const message =
-        'Use a design token (type scale, spacing, breakpoint or container size) instead of a hand-set px or rem length; shadcn primitives in components/ui keep their own, because one-off lengths drift from the design and from each other.';
+        'Use a design token (type scale, spacing, breakpoint or container size) instead of a hand-set px or rem length; web and mobile primitives in components/ui own their drawing, because one-off lengths drift from the design and from each other.';
       const handSet = /-\[-?\d*\.?\d+(?:px|rem)\]/;
       const check = (node, text) => {
         if (typeof text === 'string' && handSet.test(text))

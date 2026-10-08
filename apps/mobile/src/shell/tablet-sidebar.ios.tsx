@@ -13,11 +13,14 @@ const destinations = [
 
 export function TabletSidebar({ onNavigate }: { onNavigate: () => void }) {
   const pathname = usePathname();
+  const selectedPath = pathname.startsWith('/component-')
+    ? '/settings'
+    : pathname;
   const router = useRouter();
 
   return (
     <List
-      selection={[pathname]}
+      selection={[selectedPath]}
       onSelectionChange={(selection) => {
         const path = selection.at(-1);
         if (typeof path === 'string') {

@@ -238,6 +238,9 @@ importers:
       '@expo/ui':
         specifier: 58.0.9
         version: 58.0.9(@babel/core@7.29.7(supports-color@7.2.0))(expo@58.0.0)(react-dom@19.2.8(react@19.3.0))(react-native-worklets@0.13.0(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(react-native@0.88.0-rc.3(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@types/react@19.2.18)(react@19.3.0)(supports-color@7.2.0))(react@19.3.0)(supports-color@7.2.0))(react-native@0.88.0-rc.3(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@types/react@19.2.18)(react@19.3.0)(supports-color@7.2.0))(react@19.3.0)
+      '@pierre/theme':
+        specifier: 2.0.0
+        version: 2.0.0
       '@porcelain/client':
         specifier: workspace:*
         version: link:../../packages/client
@@ -247,6 +250,9 @@ importers:
       '@porcelain/theme':
         specifier: workspace:*
         version: link:../../packages/theme
+      '@shikijs/langs':
+        specifier: 4.4.3
+        version: 4.4.3
       effect:
         specifier: 4.0.1
         version: 4.0.1
@@ -292,6 +298,12 @@ importers:
       react-native-screens:
         specifier: 4.28.0
         version: 4.28.0(react-native@0.88.0-rc.3(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@types/react@19.2.18)(react@19.3.0)(supports-color@7.2.0))(react@19.3.0)
+      react-native-shiki-engine:
+        specifier: 0.3.12
+        version: 0.3.12(react-native@0.88.0-rc.3(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@types/react@19.2.18)(react@19.3.0)(supports-color@7.2.0))(react@19.3.0)
+      shiki:
+        specifier: 4.4.3
+        version: 4.4.3
       tailwindcss:
         specifier: 4.3.3
         version: 4.3.3
@@ -6068,6 +6080,12 @@ packages:
 
   react-native-screens@4.28.0:
     resolution: {integrity: sha512-0/79Z8RCibuaAHti+DJ2Dq0m6UFWh4+p1bH58K3cjiQ7IDWs5kU9tCAj4lXcJMHHonbF2mIE2BeaPSEvOpIiFg==}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
+
+  react-native-shiki-engine@0.3.12:
+    resolution: {integrity: sha512-CE6CA3uHGZT5OmY909H+vTv5lrmILV7zuPOF2pXRYXWN2qYm5KG7XacEB/Pq1U2+8D0zJoeMveTny/FHEqnipg==}
     peerDependencies:
       react: '*'
       react-native: '*'
@@ -12473,6 +12491,13 @@ snapshots:
       react-freeze: 1.0.4(react@19.3.0)
       react-native: 0.88.0-rc.3(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@types/react@19.2.18)(react@19.3.0)(supports-color@7.2.0)
       warn-once: 0.1.1
+
+  react-native-shiki-engine@0.3.12(react-native@0.88.0-rc.3(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@types/react@19.2.18)(react@19.3.0)(supports-color@7.2.0))(react@19.3.0):
+    dependencies:
+      '@shikijs/types': 4.4.3
+      '@shikijs/vscode-textmate': 10.0.2
+      react: 19.3.0
+      react-native: 0.88.0-rc.3(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@types/react@19.2.18)(react@19.3.0)(supports-color@7.2.0)
 
   react-native-worklets@0.13.0(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(react-native@0.88.0-rc.3(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@types/react@19.2.18)(react@19.3.0)(supports-color@7.2.0))(react@19.3.0)(supports-color@7.2.0):
     dependencies:

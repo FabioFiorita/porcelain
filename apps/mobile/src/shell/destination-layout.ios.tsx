@@ -10,7 +10,7 @@ export function DestinationLayout({
 }) {
   if (deviceType === DeviceType.TABLET) return <Slot />;
   return (
-    <Stack>
+    <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
       <Stack.Screen name={name} options={{ title }} />
     </Stack>
   );

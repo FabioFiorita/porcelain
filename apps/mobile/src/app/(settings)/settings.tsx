@@ -1,5 +1,11 @@
 import { SettingsScreen } from '../../features/access';
+import { useRouter } from 'expo-router';
 
 export default function SettingsRoute() {
-  return <SettingsScreen />;
+  const router = useRouter();
+  return (
+    <SettingsScreen
+      onOpenComponentLibrary={() => router.push('/component-library')}
+    />
+  );
 }

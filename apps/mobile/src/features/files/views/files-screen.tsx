@@ -1,7 +1,13 @@
-import { WorktreeEmpty } from '../../../shared/worktree-empty';
+import { Empty } from '../../../components/ui/empty';
 import { useSelectedWorktree } from '../../projects';
 
 export function FilesScreen() {
   const selected = useSelectedWorktree();
-  return <WorktreeEmpty key={selected?.key} title="Files" />;
+  return (
+    <Empty
+      description="Select a worktree to continue."
+      key={selected?.key}
+      title="Files"
+    />
+  );
 }

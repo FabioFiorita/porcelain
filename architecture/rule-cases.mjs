@@ -429,6 +429,41 @@ export function probeLoose(left: string, right: string): boolean {
   },
   {
     rule: 'mobile-native-ui',
+    validPath: 'apps/mobile/src/components/ui/code-view.ios.tsx',
+    path: 'apps/mobile/src/features/files/views/files-screen.tsx',
+    valid:
+      "import { requireNativeView } from 'expo'; export const Renderer = requireNativeView('PorcelainRenderer');",
+    invalid:
+      "import { requireNativeView as bind } from 'expo'; export const Renderer = bind('PorcelainRenderer');",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-native-source-owner',
+    validPath: 'apps/mobile/modules/porcelain-renderer/ios/CodeView.swift',
+    path: 'apps/mobile/src/features/files/CodeView.swift',
+    valid: 'export const source = 1;',
+    invalid: 'export const source = 1;',
+    errors: 1,
+  },
+  {
+    rule: 'mobile-native-ui',
+    validPath: 'apps/mobile/src/components/ui/code-view.ios.tsx',
+    path: 'apps/mobile/src/features/files/views/files-screen.tsx',
+    valid: "import * as Expo from 'expo';",
+    invalid: "import * as Expo from 'expo';",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-native-source-owner',
+    validPath:
+      'apps/mobile/modules/porcelain-renderer/android/src/main/java/expo/modules/porcelainrenderer/CodeView.kt',
+    path: 'apps/mobile/modules/other/android/CodeView.kt',
+    valid: 'export const source = 1;',
+    invalid: 'export const source = 1;',
+    errors: 1,
+  },
+  {
+    rule: 'mobile-native-ui',
     path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
     valid: "import type { NativeTabsProps } from 'expo-router/native-tabs';",
     invalid:
@@ -479,7 +514,8 @@ export function probeLoose(left: string, right: string): boolean {
   {
     rule: 'mobile-native-ui',
     path: 'apps/mobile/src/features/files/views/files-screen.tsx',
-    valid: "import {Text} from 'react-native'; export const Label = Text;",
+    valid:
+      "import {Text} from '../../../components/ui/text'; export const Label = Text;",
     invalid: "export { TextInput as Field } from 'react-native';",
     errors: 1,
   },
@@ -515,6 +551,56 @@ export function probeLoose(left: string, right: string): boolean {
     invalid:
       "export const card = <span className={`text-[11px] max-[720px]:sr-only ${'w-[124px]'}`}>Reply</span>;",
     errors: 2,
+  },
+  {
+    rule: 'mobile-native-ui',
+    validPath: 'apps/mobile/src/components/ui/button.tsx',
+    path: 'apps/mobile/src/features/files/views/files-screen.tsx',
+    valid:
+      "import { Pressable as Control, Text, StyleSheet } from 'react-native'; export const Button = () => <Control><Text>Open</Text></Control>;",
+    invalid:
+      "import { Pressable as Control, Text, StyleSheet } from 'react-native'; export const Button = () => <Control><Text>Open</Text></Control>;",
+    errors: 3,
+  },
+  {
+    rule: 'mobile-native-ui',
+    path: 'apps/mobile/src/components/ui/input.tsx',
+    valid:
+      "import { TextInput } from 'react-native'; export const Input = TextInput;",
+    invalid: "import { Platform, Modal } from 'react-native';",
+    errors: 2,
+  },
+  {
+    rule: 'mobile-native-ui',
+    path: 'apps/mobile/src/components/ui/text.tsx',
+    valid: "import type { TextProps } from 'react-native';",
+    invalid:
+      "import * as Native from 'react-native'; export const Text = Native.Text;",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-native-ui',
+    validPath: 'apps/mobile/src/components/ui/text.tsx',
+    path: 'apps/mobile/src/components/ui-copy/text.tsx',
+    valid: "import { Text } from 'react-native'; export const Label = Text;",
+    invalid: "import { Text } from 'react-native'; export const Label = Text;",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-system-chrome',
+    path: 'apps/mobile/src/components/ui/button.ios.tsx',
+    valid: 'export const button = <View style={{ width: 44, height: 44 }} />;',
+    invalid:
+      'export const button = <Host style={{ width: 44, height: 44 }} hidesSharedBackground />;',
+    errors: 2,
+  },
+  {
+    rule: 'web-design-tokens',
+    validPath: 'apps/mobile/src/components/ui/text.tsx',
+    path: 'apps/mobile/src/features/files/views/files-screen.tsx',
+    valid: "export const text = <Text className='text-[11px]' />;",
+    invalid: "export const text = <Text className='text-[11px]' />;",
+    errors: 1,
   },
   {
     rule: 'web-views-no-await',

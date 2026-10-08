@@ -5,6 +5,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { basename, join, relative } from 'node:path';
 import {
   domainPackages,
+  mobileNativeSourceProblem,
   generatedRouteTree,
   type StyleRule,
 } from '../architecture/policy.ts';
@@ -141,6 +142,19 @@ function codeOutsideLintRoots(files: readonly string[]): Problem[] {
         `${path}: put code under a lint root (${allRoots.join(', ')}), because a file outside them escapes lint, disable-directive scanning and format checks.`,
       ),
     );
+}
+function mobileNativeSourceOwnership(files: readonly string[]): Problem[] {
+  return files.flatMap((path) => {
+    const message = mobileNativeSourceProblem(path);
+    return message
+      ? [
+          problem(
+            'mobile-native-source-owner',
+            `${path}: ${message} This owner is enforced because native implementations must have one rendering boundary.`,
+          ),
+        ]
+      : [];
+  });
 }
 const formatConfig = '.oxfmtrc.json';
 const strayFormatConfig =
@@ -538,6 +552,7 @@ if (mode === 'format') {
     ...strayLintConfigs(),
     ...strayFormatConfigs(),
     ...codeOutsideLintRoots(files),
+    ...mobileNativeSourceOwnership(files),
     ...(await configProblems().catch((error: unknown) => {
       if (error instanceof StyleProblem) return [error.problem];
       throw error;

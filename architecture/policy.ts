@@ -156,6 +156,7 @@ export function archRuleFamily(name: string): string | undefined {
       : undefined;
 }
 export const styleRules = [
+  'mobile-native-source-owner',
   'architecture-budget',
   'disable-directives',
   'one-lint-config',
@@ -224,6 +225,8 @@ function mobilePart(path: string): string | undefined {
   if (inside === 'app.css') return 'app-stylesheet';
   if (inside === 'config/uniwind-types.d.ts') return 'mobile-generated-types';
   if (inside === 'config/limits.ts') return 'web-limits';
+  if (/^components\/ui\/[a-z-]+(?:\.(?:ios|android))?\.tsx?$/.test(inside))
+    return 'mobile-ui';
   if (/^app\/(?:[^/]+\/)*[^/]+\.tsx$/.test(inside)) return 'route';
   if (/^shell\/[^/]+(?:\.(?:ios|android))?\.tsx?$/.test(inside)) return 'shell';
   if (
@@ -336,4 +339,19 @@ function clientPart(inside: string): string | undefined {
   return part === 'store.ts' || part.startsWith('store/')
     ? 'store'
     : webFolderParts[part.split('/')[0] ?? ''];
+}
+
+export function mobileNativeSourceProblem(
+  filename: string,
+): string | undefined {
+  const path = filename.replaceAll('\\', '/');
+  const start = path.indexOf('apps/mobile/');
+  if (start === -1 || !/\.(?:swift|kt)$/.test(path)) return;
+  if (
+    /^apps\/mobile\/modules\/porcelain-renderer\/(?:ios\/[A-Za-z]+\.swift|android\/src\/main\/java\/expo\/modules\/porcelainrenderer\/[A-Za-z]+\.kt)$/.test(
+      path.slice(start),
+    )
+  )
+    return;
+  return 'Keep native drawing source in modules/porcelain-renderer, because the primitive library owns rendering while features only compose its public components/ui API.';
 }
