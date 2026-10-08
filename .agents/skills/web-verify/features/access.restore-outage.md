@@ -29,7 +29,7 @@ When a reload's session restore fails for a reason other than "not paired" (inve
 
 1. Navigate to `/` on the card’s web URL (full page load), click button named `Review`, click tab named `Files`
    Look for: tab "Files" selected; Page URL `/<projectId>/<worktreeId>?…surface=files` (call its path and query `$WORKSPACE`).
-2. Answer matching `GET /api/inventory` requests with 503 in the browser (see [routing recipes](../SKILL.md#inject-browser-failures)), then navigate to `$WORKSPACE` on the card’s web URL (full page load) and wait for text 'Could not display the workspace.' to be visible
+2. Answer matching `GET /api/inventory` requests with 503 in the browser (see [routing recipes and per-map instructions](../references/failure-injection.md)), then navigate to `$WORKSPACE` on the card’s web URL (full page load) and wait for text 'Could not display the workspace.' to be visible
    Look for: alert with "Could not display the workspace." and "Porcelain will retry when the connection returns or this window becomes active again."; NO heading "This browser is not paired"; Page URL still `$WORKSPACE`. Inspect HTTP requests and responses lists `GET /api/inventory` answered 503 (not 401); Inspect browser console messages holds "ConnectionError: Could not reach Porcelain to restore this browser session.".
 3. Restore HTTP pass-through (dispatch `online` only for access.restore-outage), then wait for region named `Review content` to be visible
    Look for: HTTP pass-through is restored and the page receives the `online` event; without another full page load, region "Review content" appears; Page URL still `$WORKSPACE`.
@@ -38,7 +38,7 @@ When a reload's session restore fails for a reason other than "not paired" (inve
 
 ### The pairing page during the outage
 
-5. Answer matching `GET /api/inventory` requests with 503 in the browser (see [routing recipes](../SKILL.md#inject-browser-failures)), then navigate to `/pair` on the card’s web URL (full page load) and wait for text 'Could not display the workspace.' to be visible
+5. Answer matching `GET /api/inventory` requests with 503 in the browser (see [routing recipes and per-map instructions](../references/failure-injection.md)), then navigate to `/pair` on the card’s web URL (full page load) and wait for text 'Could not display the workspace.' to be visible
    Look for: the workspace error, not the heading "This browser is not paired".
 6. Restore HTTP pass-through (dispatch `online` only for access.restore-outage), then wait for region named `Review content` to be visible
    Look for: region "Review content": the paired browser left `/pair` for its workspace.

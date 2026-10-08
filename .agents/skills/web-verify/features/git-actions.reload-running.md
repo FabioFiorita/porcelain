@@ -42,13 +42,13 @@ mkfifo "$REPO/.git/logs/HEAD"
    Look for: dialog "Commit changes" with textbox "Message".
 2. Replace the contents of textbox named `Message` with 'Commit across a reload'
    Look for: button "Commit selected files" is enabled.
-3. Hold incoming live frames while forwarding the real connection (see [routing recipes](../SKILL.md#inject-browser-failures)), then click button named `Commit selected files`
+3. Hold incoming live frames while forwarding the real connection (see [routing recipes and per-map instructions](../references/failure-injection.md)), then click button named `Commit selected files`
    Look for: button "Committing…" [disabled] in the dialog.
 4. Navigate to `/` on the card’s web URL (full page load)
    Look for: the page reloads in the same browser context; keep incoming frames held so the UI has not yet confirmed the action outcome.
 5. Click button named `Commit`
    Look for: dialog "Commit changes" with status "Outcome not yet confirmed" and button "Commit selected files" [disabled]: the reloaded page still follows the commit.
-6. Keep frames held until `$C server receipt <requestId>` reports `"state": "interrupted"` (take the ID from the accepted action POST), then release held incoming frames (see [routing recipes](../SKILL.md#inject-browser-failures)), then wait for text 'interrupted' to be visible
+6. Keep frames held until `$C server receipt <requestId>` reports `"state": "interrupted"` (take the ID from the accepted action POST), then release held incoming frames (see [routing recipes and per-map instructions](../references/failure-injection.md)), then wait for text 'interrupted' to be visible
    Look for: the held live frames arrive; the dialog's status now reads "interrupted" and "Outcome not yet confirmed" is gone.
 
 ## What proves it works

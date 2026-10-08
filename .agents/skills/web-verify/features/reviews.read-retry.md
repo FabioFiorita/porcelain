@@ -24,7 +24,7 @@ An initial review read that fails without a confirmed reply shows its error and 
 
 `$C start`; pair your browser using the card’s pairing-link command to open the disposable workspace.
 
-1. Answer matching `GET /api/worktrees/:worktreeId/changes` requests with 503 in the browser (see [routing recipes](../SKILL.md#inject-browser-failures)), then navigate to `/` on the card’s web URL (full page load).
+1. Answer matching `GET /api/worktrees/:worktreeId/changes` requests with 503 in the browser (see [routing recipes and per-map instructions](../references/failure-injection.md)), then navigate to `/` on the card’s web URL (full page load).
    Look for: button Try again in the review surface.
 2. Restore HTTP pass-through (dispatch `online` only for access.restore-outage), then click button named `Try again`.
    Look for: heading Changes and the sample diff; Try again is gone, and the workspace address is unchanged.

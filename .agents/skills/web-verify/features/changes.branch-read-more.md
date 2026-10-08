@@ -49,7 +49,7 @@ git -C "$REPO" diff --name-only main feature | wc -l   # prints 27
    Look for: text "1 commit on feature since main"; a button whose name starts "All branch changes" and ends "27"; rows "README.md · modified", "notes-00.md · added" … "notes-25.md · added".
 4. Click button named `/^All branch changes/`
    Look for: the sheet closes; Page Title "Branch changes — repository"; toolbar "Branch" over "27 files changed"; heading "feature since main"; text "A change to review." (README.md's diff, the first file); button "Read 2 more of 2" at the bottom; no text "Some patches could not be read.".
-5. Arm the HTTP hold for `POST /api/worktrees/:worktreeId/branch-changes/diffs` (see [routing recipes](../SKILL.md#inject-browser-failures)), then click button named `Read 2 more of 2`. Await the held request.
+5. Arm the HTTP hold for `POST /api/worktrees/:worktreeId/branch-changes/diffs` (see [routing recipes and per-map instructions](../references/failure-injection.md)), then click button named `Read 2 more of 2`. Await the held request.
    Look for while held: text "A change to review." still visible. The read-more button disappears when this final window is selected; its absence alone does not prove the held request completed. Release within 15 seconds.
    Look for after release: button "Read 2 more of 2" is gone; text "A change to review." still shows; no text "Some patches could not be read.". Then inspect HTTP requests and responses: a second `POST /api/worktrees/<worktreeId>/branch-changes/diffs` with 200.
 

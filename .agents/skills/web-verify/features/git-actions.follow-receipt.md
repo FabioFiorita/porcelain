@@ -37,11 +37,11 @@ Start with `$C start`; pair your browser using the card’s pairing-link command
    Look for: dialog "Commit changes" with textbox "Message".
 2. Replace the contents of textbox named `Message` with 'Followed commit'
    Look for: button "Commit selected files" is enabled.
-3. Drop the live WebSocket and reject reconnects (see [routing recipes](../SKILL.md#inject-browser-failures))
+3. Drop the live WebSocket and reject reconnects (see [routing recipes and per-map instructions](../references/failure-injection.md))
    Look for: the active socket closes and new live connections are rejected.
 4. Click button named `Commit selected files`, then after a few seconds Inspect the accessibility tree
    Look for: button "Committing…" [disabled] and an empty status, though `git -C "$REPO" log -1 --format=%s` already prints `Followed commit`.
-5. Restore the live WebSocket and wait for the app to reconnect (see [routing recipes](../SKILL.md#inject-browser-failures)), then wait for text 'succeeded' to be visible
+5. Restore the live WebSocket and wait for the app to reconnect (see [routing recipes and per-map instructions](../references/failure-injection.md)), then wait for text 'succeeded' to be visible
    Look for: the live connection reconnects; the dialog's status reads "succeeded". Inspect HTTP requests and responses lists `GET /api/worktrees/<id>/git/receipts/<requestId>` 200 after the restore; `$C server receipt <requestId>` prints `"action": "commit"` and `"state": "succeeded"`.
 6. Press `Escape`
    Look for: the dialog is gone.
@@ -55,9 +55,9 @@ Setup, after section 1 (or after `git -C "$REPO" commit -am "Followed commit"` o
 2. On disk: `printf 'Changed while the stash was set aside\n' > "$REPO/README.md"`, then wait for button named `Mark README.md as reviewed` to be visible.
 3. Click button named `Git actions`, then click menuitem named `/^Pop stash/`
    Look for: dialog "Pop stash" with combobox "Stash" on option "On main: Porcelain review · <id>", checkbox "Restore staged changes" and button "Pop stash".
-4. Drop the live WebSocket and reject reconnects (see [routing recipes](../SKILL.md#inject-browser-failures)), click button named `Pop stash`, then after a few seconds Inspect the accessibility tree
+4. Drop the live WebSocket and reject reconnects (see [routing recipes and per-map instructions](../references/failure-injection.md)), click button named `Pop stash`, then after a few seconds Inspect the accessibility tree
    Look for: button "Working…" [disabled]; the outcome remains unconfirmed; `cat "$REPO/README.md"` still prints `Changed while the stash was set aside`.
-5. Restore the live WebSocket and wait for the app to reconnect (see [routing recipes](../SKILL.md#inject-browser-failures)), then wait for text '/would be overwritten/' to be visible
+5. Restore the live WebSocket and wait for the app to reconnect (see [routing recipes and per-map instructions](../references/failure-injection.md)), then wait for text '/would be overwritten/' to be visible
    Look for: alert "error: Your local changes to the following files would be overwritten by merge: README.md …"; button "Pop stash" back; README.md unchanged; a receipt `GET …/git/receipts/<requestId>` 200 in the browser network log.
 
 ## What proves it works

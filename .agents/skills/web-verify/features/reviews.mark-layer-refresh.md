@@ -41,7 +41,7 @@ After a layer's code changes, the web re-reads the published review to get the l
    Look for: region "Review layer Readme layer", button "Mark layer reviewed" enabled.
 3. Click button named `Mark layer reviewed`
    Look for: button "Reviewed" [pressed].
-4. Hold matching `GET /api/worktrees/:worktreeId/review` requests in the browser before they reach the server (see [routing recipes](../SKILL.md#inject-browser-failures))
+4. Hold matching `GET /api/worktrees/:worktreeId/review` requests in the browser before they reach the server (see [routing recipes and per-map instructions](../references/failure-injection.md))
    Look for: the browser gate records an arriving review GET only after the disk rewrite.
 5. On disk: `printf '# Sample repository\n\nA revised change to review.\n' > "$REPO/README.md"`, then await the gate’s arrival promise and wait for button named `Mark changed layer reviewed` to be visible and inspect the accessibility tree
    Look for: button "Mark changed layer reviewed" [disabled] while the review read is held; `$C server reviewed-layers` already shows the mark `"stale": true`.
