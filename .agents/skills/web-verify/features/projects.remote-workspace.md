@@ -50,50 +50,50 @@ The desktop app lists a remote computer as its own group in the sidebar, by name
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start --desktop`; `REPO` is the repository path it printed.
+`$C start --desktop`; pair your browser using the card’s pairing-link command; `REPO` is connection.json fixtures.repositoryPath.
 
 ### Setup: a second computer
 
 1. `$C remote start`
    Look for: "remote computer Remote journey computer, project remote-sample", its `remote address http://127.0.0.1:<port>` and `remote repository <path>` (call it `$REMOTE_REPO`). It is a second disposable server with the sample project, renamed so no name collides with this computer's.
-2. `LINK=$($C remote pairing-link | head -1)`, then `$C open /settings/remotes`, `$C fill --role textbox --name "Pairing link" "$LINK"` and `$C click --role button --name "Add"`
-   Look for: `$C wait --text "Online"` returns; list "Remote computers" with listitem "Remote journey computer" holding "http://127.0.0.1:<remote port> · Porcelain 1.0.0" and "Online".
+2. `LINK=$($C remote pairing-link | head -1)`, then navigate to `/settings/remotes` on the card’s web URL (full page load), replace the contents of textbox named `Pairing link` with the expanded value `$LINK` and click button named `Add`
+   Look for: Text 'Online' is visible; list "Remote computers" with listitem "Remote journey computer" holding "http://127.0.0.1:<remote port> · Porcelain 1.0.0" and "Online".
 
 ### Open the remote worktree
 
-1. `$C click --role button --name "Back"`, then `$C click --role button --name "Toggle Sidebar"`
+1. Click button named `Back`, then click button named `Toggle Sidebar`
    Look for: group "This computer" holding project "repository" only; group "Remote journey computer" with button "Remote journey computer Online" holding project "remote-sample" only (its worktree row's path is `$REMOTE_REPO`).
-2. `$C click --role button --name "/remote-sample.*Main worktree/"`
+2. Click button named `/remote-sample.*Main worktree/`
    Look for: the sheet closes; Page URL `/remotes/<remote environmentId>/<projectId>/<worktreeId>?entry=handoff` (call its path and query `$REMOTE_PAGE`); Page Title "Changes — remote-sample · Remote journey computer"; button "Mark README.md as reviewed".
 
 ### A reviewed mark lands on the remote only
 
-3. `$C click --role button --name "Mark README.md as reviewed"`
+3. Click button named `Mark README.md as reviewed`
    Look for: button "Unmark README.md as unreviewed" [pressed]; button "Unmark all".
 4. `$C server reviewed-files --remote` and `$C server reviewed-files`
-   Look for: the remote's `marks` holds README.md; this computer's `marks` is `[]`. `$C network` lists `PUT /api/worktrees/<remote worktreeId>/reviewed` and `POST /api/live/tickets` sent to the remote address with 200; no `PUT …/reviewed` to this computer's web address.
+   Look for: the remote's `marks` holds README.md; this computer's `marks` is `[]`. Inspect HTTP requests and responses lists `PUT /api/worktrees/<remote worktreeId>/reviewed` and `POST /api/live/tickets` sent to the remote address with 200; no `PUT …/reviewed` to this computer's web address.
 
 ### The remote's disk shows live
 
-5. `$C click --role button --name "Review"`, `$C click --role tab --name "Files"`, `$C click --role treeitem --name "README.md" --button right`, `$C click --role menuitem --name "Open file"`
+5. Click button named `Review`, click tab named `Files`, Right-click treeitem named `README.md`, click menuitem named `Open file`
    Look for: Page Title "README.md — remote-sample · Remote journey computer".
-6. `$C click --role tab --name "Source"`
+6. Click tab named `Source`
    Look for: the code shows "# Sample repository" and "A change to review.".
-7. Disk on the remote: `printf '# Sample repository\n\nRewritten on the other computer while it is open.\n' > "$REMOTE_REPO/README.md"`, then `$C wait --text "/Rewritten on the other computer/"`
+7. Disk on the remote: `printf '# Sample repository\n\nRewritten on the other computer while it is open.\n' > "$REMOTE_REPO/README.md"`, then wait for text '/Rewritten on the other computer/' to be visible
    Look for (no reload): the code shows "Rewritten on the other computer while it is open."; `tail -1 "$REPO/README.md"` still prints `A change to review.`.
 
 ### The remote's HTML review summary
 
 8. `$C agent publish-review "Remote review layer" --remote --summary-html '<html><body><h1>Remote summary</h1><a href="#layer-1">Open remote layer</a></body></html>'`
    Look for: "the agent's publish-review reached the server".
-9. `$C click --role tab --name "Review Close Review"`, then `$C open "$REMOTE_PAGE"`
-   Look for: the handoff tab "Review" shows region "Published review" holding the summary frame; `$C wait --frame "Review summary" --role heading --name "Remote summary"` returns, and a `screenshot` shows the heading and the link "Open remote layer". `$C network` lists `GET /api/worktrees/<remote worktreeId>/review` 200 from the remote address.
-10. `$C click --frame "Review summary" --role link --name "Open remote layer"`
-    Look for: Page URL `…?entry=layer%3A<layerId>`; Page Title "Review — remote-sample · Remote journey computer"; `$C wait --role region --name "Review layer Remote review layer"` returns.
+9. Click tab named `Review Close Review`, then navigate to `$REMOTE_PAGE` on the card’s web URL (full page load)
+   Look for: the handoff tab "Review" shows region "Published review" holding the summary frame; the heading "Remote summary" appears inside frame "Review summary", and a screenshot shows the heading and the link "Open remote layer". Inspect HTTP requests and responses lists `GET /api/worktrees/<remote worktreeId>/review` 200 from the remote address.
+10. Click link named `Open remote layer` inside frame 'Review summary'
+    Look for: Page URL `…?entry=layer%3A<layerId>`; Page Title "Review — remote-sample · Remote journey computer"; Region `Review layer Remote review layer` is visible.
 
 ### This computer is untouched
 
-11. `$C open /`
+11. Navigate to `/` on the card’s web URL (full page load)
     Look for: the local workspace with button "Mark README.md as reviewed" (this computer's README carries no mark).
 
 ## What proves it works

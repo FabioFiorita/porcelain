@@ -27,7 +27,7 @@ Open graph opens the commit graph of the checked-out branch as a document tab ("
 
 ## Driving it
 
-Start with `$C start`. `REPO` is the repository path `start` printed.
+Start with `$C start`; pair your browser using the card’s pairing-link command. `REPO` is `connection.json`’s `fixtures.repositoryPath`.
 
 ### Setup
 
@@ -48,24 +48,24 @@ git -C "$REPO" log -1 --format='%s %p'
 
 The last line prints `Merge branch 'topic'` and two parent ids. ("Add the topic notes" also carries the README change, which the switch took along.)
 
-1. `$C click --role button --name "Review"`
+1. Click button named `Review`
    Look for: dialog "Worktree review".
-2. `$C click --role tab --name "History"`
+2. Click tab named `History`
    Look for: four rows, the first starting "Merge commit Merge branch 'topic'", and button "Open graph".
-3. `$C click --role button --name "Open graph"`
-   Look for: the sheet closes; tab starting "Graph" selected in tablist "Open documents"; Page Title "Commit graph — repository"; Page URL has `entry=graph`; list "Commit graph" whose first button starts "Merge commit Merge branch 'topic'" and holds img "Merge commit"; the row starting "Add the topic notes" carries the chip "topic". The lanes are an `aria-hidden` SVG (test id `history-graph`): check them in a `screenshot`, two lanes joining at the merge dot.
-4. `$C open "<path and query of the Page URL from step 3>"`
+3. Click button named `Open graph`
+   Look for: the sheet closes; tab starting "Graph" selected in tablist "Open documents"; Page Title "Commit graph — repository"; Page URL has `entry=graph`; list "Commit graph" whose first button starts "Merge commit Merge branch 'topic'" and holds img "Merge commit"; the row starting "Add the topic notes" carries the chip "topic". The lanes are an `aria-hidden` SVG (test id `history-graph`): check them in a screenshot, two lanes joining at the merge dot.
+4. Navigate to `<path and query of the Page URL from step 3>` on the card’s web URL (full page load)
    Look for: after the reload, tab "Graph" is still selected and list "Commit graph" shows again.
-5. `$C click --role button --name "/^Merge commit ?Merge branch 'topic'/"`
+5. Click button named `/^Merge commit ?Merge branch 'topic'/`
    Look for: heading starting "Merge branch 'topic'"; tab "Graph" no longer selected (a commit tab named by the 7-character id is); Page Title "<7-character id> — repository"; the toolbar shows tabs "1st parent · <id>" and "2nd parent · <id>".
 
 ## What proves it works
 
-- The Graph tab surviving the reload in step 4, and the merge commit opening from it in step 5; `network` shows `GET /api/worktrees/<id>/commits/<oid>/files` answered 200 for the merge commit.
+- The Graph tab surviving the reload in step 4, and the merge commit opening from it in step 5; the browser network log shows `GET /api/worktrees/<id>/commits/<oid>/files` answered 200 for the merge commit.
 - `apps/web/spec/e2e/history-graph.e2e.ts`: Open graph selects the tab "Graph"; list "Commit graph" shows img "Merge commit" and the chip "topic"; after a reload the Graph tab is still selected; clicking the merge commit row in the graph shows heading "Merge branch 'topic'…" and deselects the Graph tab.
 
 ## Gotchas
 
-- Reload with the full Page URL, as the test's `page.reload()` does, not `open /`: the bare route carries no `entry`, so it is not the same reload and need not land on the Graph tab.
+- Reload with the full Page URL, as the test's `page.reload()` does, not a full reload of `/`: the bare route carries no `entry`, so it is not the same reload and need not land on the Graph tab.
 - Commit row names are the whole row text; address them with a regex anchored at the start. The merge row's name begins with the img label "Merge commit".
 - The setup leaves topic, the merge and two new files in the repository for the rest of the instance; start a fresh instance for features that expect the sample's single commit.

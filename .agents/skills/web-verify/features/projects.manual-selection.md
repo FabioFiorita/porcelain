@@ -26,7 +26,7 @@ A repository is registered only when the owner browses to it and opens it; openi
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start` (web mode), then `REPO=<the repository path start printed>`. The dialog starts in the project home `$REPO/..` (the server's `projectHome`).
+`$C start`; pair your browser using the card’s pairing-link command (web mode), then `REPO=<connection.json fixtures.repositoryPath>`. The dialog starts in the project home `$REPO/..` (the server's `projectHome`).
 
 ### Setup
 
@@ -43,22 +43,22 @@ done
 
 ### Nothing is registered by opening the app
 
-1. `$C open /`
+1. Navigate to `/` on the card’s web URL (full page load)
    Look for: Page Title "Changes — repository".
-2. `$C click --role button --name "Toggle Sidebar"`
+2. Click button named `Toggle Sidebar`
    Look for: dialog "Sidebar" holding navigation "Projects and worktrees" with exactly one project button, "repository"; no button "selected" or "unselected".
 
 ### Only the browsed repository is registered
 
-3. `$C click --role button --name "Open project"`
+3. Click button named `Open project`
    Look for: dialog "Open project" with text "Browse for a repository on the Porcelain server."; region "Browse for a folder" listing folder buttons including "selected", "unselected" and "repository"; no region "Found on this machine" anywhere in the dialog.
-4. `$C click --role button --name "selected"`
+4. Click button named `selected`
    Look for: text "Every worktree appears in the sidebar."; button "Open selected" enabled; the breadcrumb (navigation "Folder path") ends in "selected".
-5. `$C click --role button --name "Open selected"`
+5. Click button named `Open selected`
    Look for: dialog "Open project" is gone; Page URL `/<new projectId>/<worktreeId>`; Page Title "Changes — selected"; the sidebar sheet shows buttons "repository" and "selected" and still no "unselected".
-6. `$C network`
+6. Inspect HTTP requests and responses
    Look for: one `POST /api/projects` with status 200.
-7. `$C open /`, then `$C click --role button --name "Toggle Sidebar"`
+7. Navigate to `/` on the card’s web URL (full page load), then click button named `Toggle Sidebar`
    Look for: after the reload the navigator still lists exactly "repository" and "selected" (the server kept the one registration and added nothing on its own).
 
 ## What proves it works

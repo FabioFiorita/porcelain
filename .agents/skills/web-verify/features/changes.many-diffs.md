@@ -24,7 +24,7 @@ All changes shows the diffs of more tracked changes than one diff request may ca
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start`, then `REPO=<the repository path start printed>`.
+`$C start`; pair your browser using the card’s pairing-link command, then `REPO=<connection.json fixtures.repositoryPath>`.
 
 ### Setup
 
@@ -37,13 +37,13 @@ for i in $(seq -w 0 204); do printf 'note-%s.md changed\n' "$i" > "$REPO/note-$i
 git -C "$REPO" status --porcelain | wc -l   # prints 205
 ```
 
-1. `$C open /`
-   Look for: Page Title "Changes — repository"; text "205 files" (on an instance where an earlier feature left another tab selected, `open /` reopens that tab; click tab "Changes Close Changes" first).
-2. `$C click --role button --name "Review"`
+1. Navigate to `/` on the card’s web URL (full page load)
+   Look for: Page Title "Changes — repository"; text "205 files" (on an instance where an earlier feature left another tab selected, a full reload of `/` reopens that tab; click tab "Changes Close Changes" first).
+2. Click button named `Review`
    Look for: button "All changes"; rows from "note-000.md · unstaged" to "note-204.md · unstaged".
-3. `$C click --role button --name "All changes"`
+3. Click button named `All changes`
    Look for: the sheet closes; heading "Changes" (All changes is the document titled "Changes"); the Page URL contains `entry=handoff`; text "note-000.md changed" (the first file's new line); no text "The changes in this document could not be read."; "Loading changes…" gone once the reads finish.
-4. `$C network`
+4. Inspect HTTP requests and responses
    Look for: at least two `POST /api/worktrees/<worktreeId>/changes/diffs` with status 200 after the click and none with an error status (`[FAILED] net::ERR_ABORTED` lines are requests the page cancelled and sent again, not failures).
 
 ## What proves it works
@@ -56,5 +56,5 @@ git -C "$REPO" status --porcelain | wc -l   # prints 205
 - The workspace opens on this same document (tab "Changes Close Changes"), so step 1 may already show "note-000.md changed"; steps 2 and 3 are the explicit route and must end in the same state.
 - `git add --all` in the setup also commits README.md's start-state change, so README.md is not among the 205 changes.
 - The document is long; only the first files are on screen at 414 by 896, so check the first file's text and rely on the network log for the rest.
-- Writing 410 files makes the watcher report a large batch; if the Changes list or "205 files" is not there yet at step 1, run `$C snapshot` again after a second rather than reloading repeatedly.
-- The 205 notes stay in the repository; `$C stop` and `$C start` before driving another feature.
+- Writing 410 files makes the watcher report a large batch; if the Changes list or "205 files" is not there yet at step 1, inspect the accessibility tree again after a second rather than reloading repeatedly.
+- The 205 notes stay in the repository; `$C stop` and `$C start`; pair your browser using the card’s pairing-link command before driving another feature.

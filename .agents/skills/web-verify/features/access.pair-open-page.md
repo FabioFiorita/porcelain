@@ -24,7 +24,7 @@ A one-time link entered in a tab that already shows the not-paired page (`/pair`
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start --unpaired`: the tab starts on the not-paired page. `pair` issues a one-time link for "Verification browser" and opens it in this tab, as following the link `porcelain pair` prints does.
+`$C start`; open the web URL in a fresh unpaired browser context: the tab starts on the not-paired page. `$C pairing-link` mints a one-time link for "Verification browser" which you open in this tab, as following the link `porcelain pair` prints does.
 
 ### Setup
 
@@ -32,24 +32,24 @@ None.
 
 ### Steps
 
-1. `$C open /`
+1. Navigate to `/` on the card’s web URL (full page load)
    Look for: redirected to Page URL `/pair`; heading "This browser is not paired"; the command text `porcelain pair "This browser" --address http://127.0.0.1:<port>`.
-2. `$C pair` (the tab is already on `/pair`, so only the fragment changes), then `$C wait --role region --name "Review content"`
-   Look for: region "Review content" in the same tab within a few seconds (the CLI may still print Page URL `/pair` for `pair`).
-3. `$C click --role button --name "Review"`
+2. Run `$C pairing-link` and navigate this same tab to its fresh one-time link (the tab is already on `/pair`, so only the fragment changes), then wait for region named `Review content` to be visible
+   Look for: region "Review content" in the same tab within a few seconds.
+3. Click button named `Review`
    Look for: Page URL `/<projectId>/<worktreeId>?entry=handoff` with no `#` fragment; Page Title "Changes — repository".
-4. `$C network`
+4. Inspect HTTP requests and responses
    Look for: `GET /api/health` 200, `POST /api/pair` 200, `GET /api/inventory` 200. `$C server devices` lists "Verification browser".
 
 ## What proves it works
 
 - The workspace (region "Review content") appears in the same tab and the address keeps no fragment (step 3).
-- A reload keeps it: `$C open /` lands on the workspace, not `/pair`.
+- A reload keeps it: Navigate to `/` on the card’s web URL (full page load) lands on the workspace, not `/pair`.
 - Server side: `$C server devices` lists the link's label, "Verification browser".
 - `apps/web/spec/e2e/access-pair-open-page.e2e.ts`: an unpaired tab shows the not-paired heading at `/pair`; following the link in that tab shows "Review content", the fragment is empty, and `server.devices()` contains the link's label.
 
 ## Gotchas
 
-- In the desktop app the link also comes from Settings → Devices → "Create pairing link" (`access.share`); `pair` issues the same kind of one-time link through the owner socket in either mode.
+- In the desktop app the link also comes from Settings → Devices → "Create pairing link" (`access.share`); `pairing-link` issues the same kind of one-time link through the owner socket in either mode.
 - A paired browser that opens `/pair` is sent to its workspace (access.pairing), so the steps start unpaired to reach the not-paired page.
 - The same-tab path depends on the tab already being at `/pair`; opening the link from any other path is a full load, which is `access.pairing`.

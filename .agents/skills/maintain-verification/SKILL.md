@@ -1,6 +1,6 @@
 ---
 name: maintain-verification
-description: Check changed maps plus three random unchanged maps, drive them through the verification CLIs, and correct drift. Full passes require an explicit request.
+description: Check changed maps plus three random unchanged maps, drive them with each surface’s verification skill, and correct drift. Full passes require an explicit request.
 ---
 
 # Maintain verification
@@ -16,10 +16,10 @@ Run on request or an existing schedule; do not create a schedule. Follow AGENTS.
 
 ## Drive
 
-Read selected maps against source, then drive their steps through each surface's skill and compare the evidence. Share instances where setup permits; run `doctor` after failures and stop your instances. Correct map/CLI drift and drive it again.
+Read selected maps against source, then prepare disposable instances with each surface's skill and drive the steps with its documented tools. Web maps are tool-neutral: follow the web skill's browser ladder; its CLI owns server/Vite and fixtures, not the browser. Desktop uses its launcher and independent Electron/native tools. Compare browser/native observations with fixture readbacks and retain evidence. A source review or a passing automated spec is not a live map pass. Share instances where setup permits; run `doctor` after failures and stop your instances. Correct map/CLI drift and drive it again.
 
 ## Record
 
-After every selected map succeeds, update `last-pass.json`: checked source commit (before the checkpoint commit), UTC date, mode (`incremental` or `full`) and exact driven paths. Commit the checkpoint even for a clean pass.
+After every selected map has been driven successfully, update `last-pass.json`: checked source commit (before the checkpoint commit), UTC date, mode (`incremental` or `full`) and exact driven paths. Commit the checkpoint even for a clean pass.
 
-Report **clean**, **changed** or **blocked**, coverage per surface, the random sample, corrections/regressions and evidence folders. If any selected feature is unreachable, name the prerequisite and attempted step, and leave the checkpoint unchanged. Partial coverage never claims a full pass.
+Report **clean**, **changed** or **blocked**, live-driven paths and separately source-reviewed paths, coverage per surface, the random sample, corrections/regressions and evidence folders. If any selected feature is unreachable, name the prerequisite and attempted step, and leave the checkpoint unchanged. Partial coverage never claims a full pass.

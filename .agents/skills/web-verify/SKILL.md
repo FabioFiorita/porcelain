@@ -1,68 +1,64 @@
 ---
 name: web-verify
-description: Drive the real Porcelain web app against a disposable server through the web control CLI, following the Markdown feature map, and read the evidence it records. Use before calling a web change done, when checking how a feature behaves, when measuring web performance, or when adding or correcting a feature map entry.
+description: Prepare a disposable Porcelain server and Vite, drive the web app with an independent browser tool following tool-neutral feature maps, and retain evidence. Use before calling a web change done, when checking a feature or web performance, or when correcting a map.
 ---
 
 # Web verification
 
-`C=.agents/skills/web-verify/scripts/cli`, run from the repository root. Run `$C` alone for every command, address flag and option. The CLI drives a headless, phone-width browser and records; it never asserts and never runs tests.
+`C=.agents/skills/web-verify/scripts/cli`, from the repository root. The CLI owns disposable server/Vite processes and fixtures. It does not open, pair, inspect or control a browser, intercept requests, assert outcomes or run tests. Run `$C` for command help.
 
-## 1. Start
+## Prepare and connect
 
 ```sh
+$C doctor
 $C start
 ```
 
-It prints the instance id, the web URL, the evidence folder and the sample repository; the browser is already paired, on the sample project. A map whose frontmatter says `shell: desktop` needs `$C start --desktop`.
+Startup prints a short card: instance ID, server/web/WebSocket URLs, private `connection.json`, the exact pairing-link and MCP commands, evidence folder and stop command. Read `connection.json` for build identity, fixture IDs and paths, required origins, owner socket, credential-file paths, initial route, web mode, status/log commands and the remote-start command. Do not print credential files.
 
-## 2. Find the feature
+Open the card's web URL in your own fresh browser context. For a paired journey, run the exact pairing-link command and navigate to its fresh link there. Each link works once; the fragment is consumed and removed. For an unpaired journey, navigate to `/` without minting/redeeming a link. `start --desktop` exposes desktop-mode web views; it does not launch Electron or supply its native bridge. `start --coding-tool` installs the fixture's fake coding tool on the disposable server's PATH.
 
-Read `.agents/skills/web-verify/features/README.md`, which also lists what every map assumes about the CLI, then the feature's `<domain>.<capability>.md`.
+## Choose a driver
 
-## 3. Drive it
+1. Prefer the harness's built-in browser when it supports the journey, including its snapshots, interaction and evidence tools. In T3, check `preview_status`, then `preview_open` if needed.
+2. Otherwise use Playwright MCP from the project's `.mcp.json`, or the project's Playwright CLI. **Codex prefers the CLI** for this fallback. Use Playwright for request/WebSocket routing if the built-in browser cannot intercept them.
 
-Run each line of the map's **Driving it** as written and compare the page with the end state it names:
+Do not add a Porcelain browser wrapper. Give your browser session a unique name and close it yourself.
 
-```sh
-$C open /
-$C click --role button --name "Toggle Sidebar"
-$C click --role button --name "repository" --button right
-$C fill --role textbox --name "Name" "Renamed"
-$C agent publish-review "Sample review"
-$C snapshot
-```
+For the CLI fallback, read [Playwright CLI](references/playwright-cli.md).
 
-- When the page is not where the map says, `snapshot` first: it shows the roles and names to address.
-- Setup in words (write a file, commit, switch a branch) happens with plain shell and Git in the sample repository; the server picks it up through its watchers.
-- A request held by `network hold` fails on its own after the web's 15-second request timeout, so release it within that.
+Accessible names in maps are exact unless written as a regex (`/^All branch changes/` means a name pattern, not literal slashes). Scope repeated controls by the map's region, dialog or tablist; use the stated document-order match only where necessary. Replace a contenteditable editor with select-all plus `page.keyboard.insertText`, rather than assuming `fill` handles it. Follow the role/name steps with any chosen driver; inspect the current accessibility tree when a target differs.
 
-To measure an interaction, wrap it in `$C trace start` and `$C trace stop`; the trace lands in the evidence as `NNN-trace.json` for Chrome DevTools' Performance panel.
+## Drive and record
 
-## 4. Read the evidence
+Read [the index](features/README.md), then the selected map. Use a 414 × 896 viewport for its phone-width steps. Setup uses real shell/Git operations in `connection.json`'s `fixtures.repositoryPath`. Keep agent publications, typed readbacks and link minting in the fixture CLI:
 
 ```sh
-$C evidence
+$C agent publish-review 'Sample review' --instance <id>
+$C server project --instance <id>
+$C remote start --instance <id>
+$C remote pairing-link --instance <id>
 ```
 
-One numbered file per command (snapshots, screenshots, console, network), plus `browser/` and the logs. Text files and printed output are redacted, so a pairing link shows as `c=[redacted]`; screenshots are not, so keep them local. `pair` and `remote pairing-link` stand in for copying a link off the page. Report the folder and what it shows.
+Record URL/title, accessibility tree, screenshots, console, HTTP method/path/status and response content type with your driver. For performance use the driver's trace/CDP tools. Store useful artifacts in the card's evidence directory. The CLI redacts its own fixture evidence; independent browser artifacts are your responsibility. Pairing fragments and screenshots may contain secrets; keep raw artifacts local and report sanitized observations. Distinguish fixture setup, browser actions, server readbacks and their observable outcome.
 
-## 5. Run the test files the entry names, then stop
+## Inject browser failures
+
+Seven maps need browser-context routing. Read [failure-injection.md](references/failure-injection.md) for the recipes and per-map instructions.
+
+## Check and stop
+
+Run the test files the map names, sequentially when they start their own runner. CI owns full suites. After source changes, stop/start before driving again; stale instances refuse fixture operations. With multiple instances, every command needs `--instance <id>`.
 
 ```sh
 pnpm --filter @porcelain/web exec vitest run --config vitest.config.ts spec/integration/projects-rename.test.tsx
-pnpm --filter @porcelain/web exec playwright test spec/e2e/<file>.e2e.ts
-$C stop
+# Run the exact stop command printed on the card.
+$C stop --instance <id>
+$C evidence --instance <id>
 ```
 
-`stop` keeps the evidence folder.
+Evidence is retained; private connection/runtime files are removed after a confirmed stop. A failed stop exits nonzero and keeps its ownership state: inspect the report before retrying. Stop only the instances/session you started. Report live-driven maps separately from source-reviewed maps and automated specs.
 
-Sessions have no idle expiry. Stop your instance when finished. After stopping, `$C evidence --instance <id>` reads the retained evidence and `$C stop --instance <id>` repeats a confirmed stop without signaling processes. A failed stop exits nonzero and retains private runtime state; inspect its report before retrying.
+## Correct a map
 
-## Gotchas
-
-- After you edit web, server or CLI code, commands refuse until you `stop` and `start` again; a fresh instance takes seconds.
-- With two instances in the checkout, every command needs `--instance <id>`.
-
-## Add or correct a map entry
-
-A new route, screen or flow gets its map in the same change; a map that drifted is corrected when you meet it. Copy the nearest entry, link it from `features/README.md`, and run `pnpm features:check`, which enforces the frontmatter and sections and fails on a route, selector, test or API route that does not exist or a web call no map lists. Spell selectors as the app's source does and API routes as `METHOD /api/...` with the server's parameter names. Drive the new lines once on a fresh instance and keep the evidence folder for the report.
+Keep frontmatter and one file per feature, link it in the index, and run `pnpm features:check`. The checker validates routes, literal selectors, named tests, contract endpoint declarations and index links; it does not establish behavior, client call reachability or prose order. Read every edited step against its source and named tests, drive changed behavior on a fresh instance, and name any steps you could only review.

@@ -29,7 +29,7 @@ The Open project dialog browses the server's folders, starting in its project ho
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start` (web mode), then `REPO=<the repository path start printed>`. The dialog opens in the project home `$REPO/..`.
+`$C start`; pair your browser using the card’s pairing-link command (web mode), then `REPO=<connection.json fixtures.repositoryPath>`. The dialog opens in the project home `$REPO/..`.
 
 ### Setup
 
@@ -45,24 +45,24 @@ git -C "$REPO/../browsed" -c user.name=Verify -c user.email=verify@example.inval
 
 ### A plain folder cannot be opened
 
-1. `$C open /`, then `$C click --role button --name "Toggle Sidebar"`
+1. Navigate to `/` on the card’s web URL (full page load), then click button named `Toggle Sidebar`
    Look for: dialog "Sidebar" with button "Open project" and project button "repository".
-2. `$C click --role button --name "Open project"`
+2. Click button named `Open project`
    Look for: dialog "Open project", text "Browse for a repository on the Porcelain server."; folder buttons "plain", "browsed", "repository"; the project home is no repository, so text "Pick a folder that is a Git repository." and a disabled `Open porcelain-dev-…` button.
-3. `$C click --role button --name "plain"`
+3. Click button named `plain`
    Look for: text "No subfolders."; text "Pick a folder that is a Git repository."; button "Open plain" disabled; button "Up" present.
 
 ### A repository opens as a project
 
-4. `$C click --role button --name "Up"`
+4. Click button named `Up`
    Look for: back in the project home (folder buttons "plain", "browsed" again).
-5. `$C click --role button --name "browsed"`
+5. Click button named `browsed`
    Look for: text "Every worktree appears in the sidebar."; button "Open browsed" enabled.
-6. `$C click --role button --name "Open browsed"`
+6. Click button named `Open browsed`
    Look for: dialog "Open project" is gone; Page URL `/<new projectId>/<worktreeId>`; Page Title "Changes — browsed"; the still-open sidebar sheet shows project buttons "browsed" and "repository", with the "browsed" worktree row pressed.
-7. `$C network`
+7. Inspect HTTP requests and responses
    Look for: `GET /api/projects/folders` (no query), `GET /api/projects/folders?path=…plain`, and one `POST /api/projects` with status 200; no POST while "plain" was shown.
-8. `$C open /`, then `$C click --role button --name "Toggle Sidebar"`
+8. Navigate to `/` on the card’s web URL (full page load), then click button named `Toggle Sidebar`
    Look for: after the reload the navigator still lists "browsed" and "repository" and no "plain".
 
 ## What proves it works

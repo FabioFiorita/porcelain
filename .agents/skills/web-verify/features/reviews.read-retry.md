@@ -22,15 +22,15 @@ An initial review read that fails without a confirmed reply shows its error and 
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start` starts a disposable workspace.
+`$C start`; pair your browser using the card’s pairing-link command to open the disposable workspace.
 
-1. `$C network fail "GET /api/worktrees/:worktreeId/changes" --status 503`, then `$C open /`.
+1. Answer matching `GET /api/worktrees/:worktreeId/changes` requests with 503 in the browser (see [routing recipes and per-map instructions](../references/failure-injection.md)), then navigate to `/` on the card’s web URL (full page load).
    Look for: button Try again in the review surface.
-2. `$C network restore`, then `$C click --role button --name "Try again"`.
+2. Restore HTTP pass-through (dispatch `online` only for access.restore-outage), then click button named `Try again`.
    Look for: heading Changes and the sample diff; Try again is gone, and the workspace address is unchanged.
-3. `$C network`.
+3. Inspect HTTP requests and responses.
    Look for: the refused Changes read followed by a successful read after Try again.
-4. `$C console`, then `$C stop`.
+4. Inspect browser console messages, then `$C stop`.
    Look for: the expected refused-read diagnostics and no later JavaScript failure.
 
 ## What proves it works

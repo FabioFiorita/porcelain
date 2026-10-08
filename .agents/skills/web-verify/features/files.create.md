@@ -29,7 +29,7 @@ New file and New folder add a row to the file tree with an inline name field; En
 
 ## Driving it
 
-Start with `$C start`. Set `REPO` to the path it prints after `repository`.
+Start with `$C start`; pair your browser using the card’s pairing-link command. Set `REPO` to `fixtures.repositoryPath` in the card’s `connection.json`.
 
 ### Setup
 
@@ -37,35 +37,35 @@ None. Before you drive again on the same instance, remove what the last run made
 
 ### Steps
 
-1. `$C open /`
+1. Navigate to `/` on the card’s web URL (full page load)
    Look for: Page Title "Changes — repository" and button "Review".
-2. `$C click --role button --name "Review"`
+2. Click button named `Review`
    Look for: dialog "Worktree review" with tabs "Changes", "Files" and "History".
-3. `$C click --role tab --name "Files"`
+3. Click tab named `Files`
    Look for: tab "Files" [selected], textbox "Search files", buttons "New file" and "New folder", the tree in region "All files" with treeitem "README.md".
-4. `$C click --role button --name "New file"`
+4. Click button named `New file`
    Look for: a new tree row holding textbox "Rename untitled" (its value is `untitled`).
-5. `$C fill --role textbox --name "/^Rename /" "phone-created.md"`
+5. Replace the contents of textbox named `/^Rename /` with 'phone-created.md'
    Look for: the textbox now holds `phone-created.md`.
-6. `$C press Enter`
+6. Press `Enter`
    Look for: dialog "Worktree review" is gone; heading "phone-created.md" [level=1]; Page Title "phone-created.md — repository".
    Disk: `ls "$REPO"` lists `phone-created.md`, and `wc -c < "$REPO/phone-created.md"` prints `0`.
-7. `$C click --role button --name "Review"`
+7. Click button named `Review`
    Look for: dialog "Worktree review" opens with tab "Files" still selected and treeitem "phone-created.md" in the tree.
-8. `$C click --role button --name "New folder"`
+8. Click button named `New folder`
    Look for: textbox "Rename new-folder".
-9. `$C fill --role textbox --name "/^Rename /" "phone-folder"`
+9. Replace the contents of textbox named `/^Rename /` with 'phone-folder'
    Look for: the textbox holds `phone-folder`.
-10. `$C press Enter`
+10. Press `Enter`
     Look for: the dialog stays open (a folder does not open) and treeitem "phone-folder" shows in the tree of region "All files".
     Disk: `test -d "$REPO/phone-folder" && echo folder` prints `folder`.
-11. `$C network`
+11. Inspect HTTP requests and responses
     Look for: two `POST /api/worktrees/<worktreeId>/files` requests with a 2xx status.
 
 ## What proves it works
 
 - On disk: `$REPO/phone-created.md` exists and is empty, `$REPO/phone-folder` is a directory (steps 6 and 10).
-- `open /`, then Review → Files, still shows treeitems "phone-created.md" and "phone-folder", because the tree lists the directory from the server.
+- a full reload of `/`, then Review → Files, still shows treeitems "phone-created.md" and "phone-folder", because the tree lists the directory from the server.
 - `apps/web/spec/integration/files-create.test.tsx` runs the same steps at phone width. It asserts that the server's root directory lists `phone-created.md`, that the sheet "Worktree review" closes after the file is created, and that the root then lists `phone-folder`.
 
 ## Gotchas

@@ -22,15 +22,15 @@ Duplicating a file writes a copy beside it, named `<stem> copy<extension>` (then
 
 - Review (phone width) → tab Files → right-click a file row → menuitem "Duplicate".
 - Review → tab Files → right-click a row under "Pinned" → menuitem "Duplicate".
-- `Mod+D` (`ControlOrMeta+d` in the CLI) duplicates the file open as a file document while the Files tree is mounted.
+- `Mod+D` (`ControlOrMeta+d` with the browser driver) duplicates the file open as a file document while the Files tree is mounted.
 
 ## Driving it
 
-Start with `$C start`. Set `REPO` to the path it prints after `repository`.
+Start with `$C start`; pair your browser using the card’s pairing-link command. Set `REPO` to `fixtures.repositoryPath` in the card’s `connection.json`.
 
 ### Setup
 
-Before `open`:
+Before a full page load:
 
 ```sh
 printf 'Notes to copy\n' > "$REPO/notes.md"
@@ -38,23 +38,23 @@ printf 'Notes to copy\n' > "$REPO/notes.md"
 
 ### Steps
 
-1. `$C open /`
+1. Navigate to `/` on the card’s web URL (full page load)
    Look for: Page Title "Changes — repository".
-2. `$C click --role button --name "Review"`
+2. Click button named `Review`
    Look for: dialog "Worktree review".
-3. `$C click --role tab --name "Files"`
+3. Click tab named `Files`
    Look for: tab "Files" [selected], with treeitem "notes.md" and treeitem "README.md" in the tree of region "All files".
-4. `$C click --role treeitem --name "notes.md" --button right`
+4. Right-click treeitem named `notes.md`
    Look for: a menu with menuitems "Rename", "Duplicate", "Open diff", "Open file", "Show timeline", "Pin file", "Hide file", "Copy relative path", "Copy full path", "Move to trash".
-5. `$C click --role menuitem --name "Duplicate"`
+5. Click menuitem named `Duplicate`
    Look for: dialog "Worktree review" is gone; heading "notes copy.md" [level=1]; Page Title "notes copy.md — repository".
    Disk: `cat "$REPO/notes copy.md"` prints `Notes to copy`, and `cat "$REPO/notes.md"` still prints `Notes to copy`.
-6. `$C click --role button --name "Review"`
+6. Click button named `Review`
    Look for: dialog "Worktree review" with tab "Files" selected and treeitem "notes copy.md" (selected) in the tree.
-7. `$C press ControlOrMeta+d`
+7. Press `ControlOrMeta+d`
    Look for: the dialog is gone; Page Title "notes copy copy.md — repository"; heading "notes copy copy.md" [level=1].
    Disk: `ls "$REPO"` lists `notes copy copy.md`.
-8. `$C network`
+8. Inspect HTTP requests and responses
    Look for: two `POST /api/worktrees/<worktreeId>/files` requests with a 2xx status.
 
 ## What proves it works
