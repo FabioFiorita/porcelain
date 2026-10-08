@@ -65,11 +65,12 @@ export const runMcpBridge = Effect.fn('runMcpBridge')(function* (
           const protocolVersion = answer.headers.get('mcp-protocol-version');
           if (protocolVersion !== null)
             sessionHeaders['mcp-protocol-version'] = protocolVersion;
-          if (answer.body.trim().length === 0) return;
-          if (answer.status !== 200) {
-            if (id !== null) output(`${failure(id, answer.body)}\n`);
+          if (answer.status < 200 || answer.status >= 300) {
+            if (id !== null)
+              output(`${failure(id, answer.status, answer.body)}\n`);
             return;
           }
+          if (answer.body.trim().length === 0) return;
           output(`${answer.body.trim()}\n`);
         }),
         Effect.catch((error) =>
@@ -85,7 +86,7 @@ export const runMcpBridge = Effect.fn('runMcpBridge')(function* (
   );
 });
 
-function failure(id: string | number, body: string): string {
+function failure(id: string | number, status: number, body: string): string {
   try {
     const parsed: unknown = JSON.parse(body);
     if (parsed && typeof parsed === 'object' && 'jsonrpc' in parsed)
@@ -96,7 +97,7 @@ function failure(id: string | number, body: string): string {
     id,
     error: {
       code: -32000,
-      message: 'The Porcelain server refused the request.',
+      message: `The Porcelain server refused the request with HTTP ${status}.`,
     },
   });
 }
