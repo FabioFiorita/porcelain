@@ -10,6 +10,7 @@ import {
   readdir,
   rm,
   symlink,
+  stat,
   utimes,
   writeFile,
 } from 'node:fs/promises';
@@ -19,7 +20,7 @@ import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, type TestContext } from 'vitest';
 import { test } from '../kit/server-test.ts';
-import { isRecord, list, record, text } from '../kit/session.ts';
+import { list, record, text } from '../kit/session.ts';
 
 const repositoryRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -77,6 +78,7 @@ async function started(
   { root = repositoryRoot, path = SERVER_CLI } = {},
 ) {
   const run = await cli(root, path, 'start');
+  expect(run.code, run.stderr).toBe(0);
   const [, id = ''] = /^instance (\S+)\n/.exec(run.stdout) ?? [];
   const [, evidence = ''] = /\nevidence (\S+)\n/.exec(run.stdout) ?? [];
   const surface = path === WEB_CLI ? 'web' : 'server';
@@ -96,6 +98,8 @@ async function started(
     evidence,
     file,
     pid: Number(instance.pid),
+    startedAt: text(instance.startedAt),
+    fingerprint: text(instance.fingerprint),
     secrets: list(instance.secrets).map(text),
     detail: record(instance.detail),
   };
@@ -406,112 +410,205 @@ test('an inactive session survives the former idle poll and stops only when requ
   expect(existsSync(instance.folder)).toBe(false);
 }, 45_000);
 
-test('a CLI session records numbered, redacted evidence and never shows the instance credential', async ({
+test('server doctor diagnoses startup separately from optional drivers before start and retires generic commands', async ({
+  onTestFinished,
+}) => {
+  const copy = await checkoutCopy(onTestFinished);
+  const doctor = await cli(copy, SERVER_CLI, 'doctor');
+  expect(doctor.code).toBe(0);
+  expect(doctor.stdout).toContain('Startup dependencies:');
+  expect(doctor.stdout).toContain('ready: Node, Git, ps and server sandbox');
+  expect(doctor.stdout).toContain('Optional drivers:');
+  expect(doctor.stdout).toContain('live instances: none');
+  const bin = join(copy, 'doctor-path');
+  await mkdir(bin);
+  await symlink('/usr/bin/git', join(bin, 'git'));
+  await symlink('/bin/ps', join(bin, 'ps'));
+  if (process.platform === 'linux')
+    await symlink('/usr/bin/bwrap', join(bin, 'bwrap'));
+  const diagnose = () =>
+    new Promise<Run>((resolveRun) => {
+      execFile(
+        process.execPath,
+        [join(copy, '.agents/skills/server-verify/scripts/cli.ts'), 'doctor'],
+        {
+          cwd: copy,
+          env: { ...process.env, PATH: bin },
+        },
+        (error, stdout, stderr) =>
+          resolveRun({
+            code: error === null ? 0 : Number(error.code ?? 1),
+            stdout,
+            stderr,
+          }),
+      );
+    });
+  const optional = await diagnose();
+  expect(optional.code, optional.stderr).toBe(0);
+  expect(optional.stdout).toContain(
+    'curl: missing (optional; Node fetch can drive HTTP)',
+  );
+  await rm(join(bin, 'git'));
+  const missingGit = await diagnose();
+  expect(missingGit.code).toBe(1);
+  expect(missingGit.stdout).toContain('git is missing: install Git');
+  await rm(join(bin, 'ps'));
+  const missingPs = await diagnose();
+  expect(missingPs.code).toBe(1);
+  expect(missingPs.stdout).toContain('ps is missing: install procps');
+  expect(missingPs.stderr).toBe('');
+  for (const command of ['request', 'live', 'git', 'file']) {
+    const retired = await cli(copy, SERVER_CLI, command);
+    expect(retired.code).toBe(2);
+    expect(retired.stderr).toContain(
+      'Drive HTTP/WebSocket, Git and files directly',
+    );
+    expect(retired.stdout).toBe('');
+  }
+});
+
+test('a server card exposes private connections and deterministic operations retain redacted evidence', async ({
   onTestFinished,
 }) => {
   const instance = await started(onTestFinished);
-  const [credential = ''] = instance.secrets;
-  const issued = await cli(
-    repositoryRoot,
-    SERVER_CLI,
-    'request',
-    'POST',
-    '/pairings',
-    '--owner',
-    '--instance',
-    instance.id,
-    'labels:=["CLI device"]',
-    `addresses:=["${text(instance.detail.address)}"]`,
+  const [, connectionPath = ''] =
+    /\nconnection (.+)\n/.exec(instance.run.stdout) ?? [];
+  expect(connectionPath, 'start prints the private connection path').toBe(
+    join(dirname(instance.file), 'connection.json'),
   );
-  const code = text(
-    record(list(record(JSON.parse(issued.stdout.slice(9))).grants)[0]).code,
+  const connection = record(JSON.parse(await readFile(connectionPath, 'utf8')));
+  const fixtures = record(connection.fixtures);
+  const build = record(connection.build);
+  const origins = record(connection.requiredOrigin);
+  const files = record(connection.credentialFiles);
+  const manifest = record(
+    JSON.parse(await readFile(text(instance.detail.manifestPath), 'utf8')),
   );
-  const paired = await cli(
-    repositoryRoot,
-    SERVER_CLI,
-    'request',
-    'POST',
-    '/api/pair',
-    '--anonymous',
-    '--instance',
-    instance.id,
-    `code=${code}`,
-    'platform=CLI',
-  );
-  const pairedCredential = text(
-    record(JSON.parse(paired.stdout.slice(9))).credential,
-  );
-  const stopped = await cli(
-    repositoryRoot,
-    SERVER_CLI,
-    'stop',
-    '--instance',
-    instance.id,
-    credential,
-  );
-  const retained = await cli(
-    repositoryRoot,
-    SERVER_CLI,
-    'evidence',
-    '--instance',
-    instance.id,
-  );
-  const repeated = await cli(
-    repositoryRoot,
-    SERVER_CLI,
-    'stop',
-    '--instance',
-    instance.id,
-  );
+  const routes = record(connection.routes);
+  const protocol = record(record(connection.live).protocolExample);
+  const server = (...args: string[]) =>
+    cli(repositoryRoot, SERVER_CLI, ...args, '--instance', instance.id);
+  const ids = await server('ids');
+  const issued = await server('pairing-link');
+  const code = new URL(issued.stdout.trim()).hash.split('&')[0]?.slice(3) ?? '';
+  const published = await server('agent', 'publish-review', 'CLI review');
+  const layers = await server('server', 'published-review');
+  const status = await server('status');
+  const connectionMode = (await stat(connectionPath)).mode & 0o777;
+  const folderMode = (await stat(dirname(connectionPath))).mode & 0o777;
+  const stopped = await server('stop');
+  const retained = await server('evidence');
+  const repeated = await server('stop');
   const evidence = await evidenceOf(instance.evidence);
-  const outcome = record(
-    JSON.parse(
-      await readFile(join(instance.evidence, 'stop-result.json'), 'utf8'),
-    ),
-  );
-  const pairing = record(
-    JSON.parse(
-      await readFile(join(instance.evidence, '003-request.json'), 'utf8'),
-    ),
-  );
-  const steps: unknown[] = Array.isArray(pairing.steps) ? pairing.steps : [];
-  const exchange = isRecord(steps[0]) ? steps[0] : {};
 
   expect(instance.run.code).toBe(0);
+  expect(instance.run.stdout.trim().split('\n')).toHaveLength(9);
+  expect(Object.keys(connection).toSorted()).toStrictEqual(
+    [
+      'instanceId',
+      'surface',
+      'build',
+      'fixtures',
+      'serverUrl',
+      'webUrl',
+      'webSocketUrl',
+      'requiredOrigin',
+      'ownerSocketPath',
+      'serverDataDirectory',
+      'credentialFiles',
+      'pairing',
+      'mcp',
+      'evidenceDirectory',
+      'statusCommand',
+      'logsCommand',
+      'stopCommand',
+      'routes',
+      'live',
+    ].toSorted(),
+  );
+  expect(connection.instanceId).toBe(instance.id);
+  expect(connection.surface).toBe('server');
+  expect(build.commit).toMatch(/^[a-f0-9]{40}$/);
+  expect(typeof build.dirty).toBe('boolean');
+  expect(build.sourceFingerprint).toBe(instance.fingerprint);
+  expect(build.startedAt).toBe(instance.startedAt);
+  expect(fixtures.projectId).toBe(instance.detail.projectId);
+  expect(fixtures.worktreeId).toBe(instance.detail.worktreeId);
+  expect(fixtures.repositoryPath).toBe(instance.detail.repository);
+  expect(fixtures.projectHome).toBe(instance.detail.projectHome);
+  expect(fixtures.environmentId).toMatch(/^[a-f0-9-]{36}$/);
+  expect(connection.serverUrl).toBe(instance.detail.address);
+  expect(connection.webUrl).toBe(instance.detail.address);
+  expect(connection.webSocketUrl).toBe(
+    `${text(instance.detail.address).replace('http:', 'ws:')}/api/live`,
+  );
+  expect(origins).toStrictEqual({
+    http: instance.detail.address,
+    webSocket: instance.detail.address,
+  });
+  expect(existsSync(text(connection.ownerSocketPath))).toBe(false);
+  expect(text(connection.serverDataDirectory)).toContain('/state');
+  expect(files).toStrictEqual({ fixture: manifest.credentialFile });
+  expect(connectionMode).toBe(0o600);
+  expect(folderMode).toBe(0o700);
+  expect(list(routes.owner)).toContain('POST /pairings');
+  expect(list(routes.owner)).toContain('POST /mcp');
+  expect(Object.keys(routes).toSorted()).toStrictEqual(['network', 'owner']);
+  expect(list(routes.network)).toContain('GET /api/health');
+  expect(list(routes.network)).toContain('PATCH /api/projects/:projectId');
+  expect(
+    [
+      ...list(routes.owner).map((route) => `owner ${text(route)}`),
+      ...list(routes.network).map(text),
+    ].toSorted(),
+  ).toStrictEqual(list(manifest.routes).map(text).toSorted());
+  expect(record(protocol.notices)).toStrictEqual({
+    _tag: 'Request',
+    id: '1',
+    tag: 'notices',
+    payload: null,
+    headers: [],
+  });
+  expect(record(protocol.ack)).toStrictEqual({ _tag: 'Ack', requestId: '1' });
+  for (const name of ['statusCommand', 'logsCommand', 'stopCommand'])
+    expect(text(connection[name])).toContain(instance.id);
+  expect(text(record(connection.pairing).command)).toContain('pairing-link');
+  expect(text(record(connection.mcp).command)).toContain(
+    text(connection.serverDataDirectory),
+  );
+  expect(ids.code).toBe(0);
+  expect(JSON.parse(ids.stdout)).toStrictEqual(fixtures);
+  expect(issued.code).toBe(0);
+  expect(issued.stdout).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/pair#c=pcp_/);
+  expect(code).not.toBe('');
+  expect(published.code).toBe(0);
+  expect(published.stdout).toContain('reached the server');
+  expect(layers.code).toBe(0);
+  expect(layers.stdout).toContain('CLI review');
+  expect(status.code).toBe(0);
+  expect(record(JSON.parse(status.stdout)).stale).toBe(null);
   expect(stopped.code).toBe(0);
   expect(retained.code).toBe(0);
   expect(retained.stdout).toContain(instance.evidence);
   expect(repeated.code).toBe(0);
   expect(repeated.stdout).toContain('already stopped');
-  expect(outcome.complete).toBe(true);
   expect(alive(instance.pid)).toBe(false);
-  expect(credential).not.toBe('');
   expect(evidence.numbered).toStrictEqual([
     '001-start.json',
-    '002-request.json',
-    '003-request.json',
-    '004-server-stop.json',
-    '005-stop.json',
+    '002-ids.json',
+    '003-pairing-link.json',
+    '004-agent.json',
+    '005-server.json',
+    '006-server-stop.json',
+    '007-stop.json',
   ]);
-  expect(instance.run.stdout).not.toContain(credential);
-  expect(issued.stdout).not.toContain(credential);
-  expect(paired.stdout).not.toContain(credential);
-  expect(stopped.stdout).not.toContain(credential);
-  expect(evidence.text).not.toContain(credential);
+  expect(evidence.text).toContain('CLI review');
   expect(evidence.text).not.toContain(code);
-  expect(evidence.text).not.toContain(pairedCredential);
-  expect(
-    exchange.request,
-    'redacted evidence keeps the exchange',
-  ).toStrictEqual({
-    method: 'POST',
-    path: '/api/pair',
-    headers: { 'content-type': 'application/json' },
-    body: { code: '[redacted]', platform: 'CLI' },
-  });
-  expect(record(exchange.response).status).toBe(200);
-  expect(record(record(exchange.response).body).credential).toBe('[redacted]');
-  expect(existsSync(instance.file)).toBe(false);
+  for (const secret of instance.secrets) {
+    expect(instance.run.stdout).not.toContain(secret);
+    expect(JSON.stringify(connection)).not.toContain(secret);
+    expect(evidence.text).not.toContain(secret);
+  }
   expect(existsSync(dirname(instance.file))).toBe(false);
 });
 
@@ -520,20 +617,32 @@ test('a CLI command refuses to drive an instance once a server source file chang
 }) => {
   const copy = await checkoutCopy(onTestFinished);
   const instance = await started(onTestFinished, { root: copy });
-  const before = await cli(copy, SERVER_CLI, 'request', 'GET', '/api/health');
+  const before = await cli(copy, SERVER_CLI, 'server', 'project');
   await appendFile(join(copy, 'apps/server/src/config/limits.ts'), '\n');
 
-  const refused = await cli(copy, SERVER_CLI, 'request', 'GET', '/api/health');
+  const refused = await cli(copy, SERVER_CLI, 'server', 'project');
+  const status = await cli(
+    copy,
+    SERVER_CLI,
+    'status',
+    '--instance',
+    instance.id,
+  );
+  const logs = await cli(copy, SERVER_CLI, 'logs', '--instance', instance.id);
   await cli(copy, SERVER_CLI, 'stop', '--instance', instance.id);
   const evidence = await evidenceOf(instance.evidence);
 
-  expect(before.stdout).toMatch(/^HTTP 200\n/);
+  expect(before.code).toBe(0);
+  expect(record(JSON.parse(before.stdout)).id).toBe(instance.detail.projectId);
   expect(refused.stderr, 'a stale build is refused').toBe(STALE);
   expect(refused.code).toBe(1);
   expect(refused.stdout).toBe('');
+  expect(status.code).toBe(0);
+  expect(record(JSON.parse(status.stdout)).stale).toBe(STALE.trim());
+  expect(logs.code).toBe(0);
   expect(evidence.numbered).toStrictEqual([
     '001-start.json',
-    '002-request.json',
+    '002-server.json',
     '003-refused.json',
     '004-server-stop.json',
     '005-stop.json',
@@ -547,7 +656,7 @@ test('a CLI command refuses to drive an instance once the CLI code changed since
   await started(onTestFinished, { root: copy });
   await appendFile(join(copy, '.agents/skills/verify-core/registry.ts'), '\n');
 
-  const refused = await cli(copy, SERVER_CLI, 'request', 'GET', '/api/health');
+  const refused = await cli(copy, SERVER_CLI, 'server', 'project');
 
   expect(refused.stderr).toBe(STALE);
   expect(refused.stdout).toBe('');
@@ -562,9 +671,8 @@ test('each checkout sees only the instances it started', async ({
   const elsewhere = await cli(
     repositoryRoot,
     SERVER_CLI,
-    'request',
-    'GET',
-    '/api/health',
+    'server',
+    'project',
     '--instance',
     instance.id,
   );
@@ -582,7 +690,7 @@ test('each checkout sees only the instances it started', async ({
     '--instance',
     instance.id,
   );
-  const own = await cli(copy, SERVER_CLI, 'request', 'GET', '/api/health');
+  const own = await cli(copy, SERVER_CLI, 'server', 'project');
 
   expect(elsewhere.stderr).toMatch(
     new RegExp(`^no running instance ${instance.id} in this checkout`),
@@ -592,7 +700,7 @@ test('each checkout sees only the instances it started', async ({
   expect(evidenceElsewhere.code).toBe(1);
   expect(evidenceElsewhere.stdout).toBe('');
   expect(alive(instance.pid)).toBe(true);
-  expect(own.stdout).toMatch(/^HTTP 200\n/);
+  expect(record(JSON.parse(own.stdout)).id).toBe(instance.detail.projectId);
 });
 
 test('stop never signals a process whose command line is not the instance supervisor', async ({
@@ -615,9 +723,8 @@ test('stop never signals a process whose command line is not the instance superv
   const driven = await cli(
     repositoryRoot,
     SERVER_CLI,
-    'request',
-    'GET',
-    '/api/health',
+    'server',
+    'project',
     '--instance',
     instance.id,
   );
@@ -875,9 +982,8 @@ test('stopping one instance leaves another instance in the same checkout usable'
   const health = await cli(
     copy,
     SERVER_CLI,
-    'request',
-    'GET',
-    '/api/health',
+    'server',
+    'project',
     '--instance',
     second.id,
   );
@@ -890,7 +996,7 @@ test('stopping one instance leaves another instance in the same checkout usable'
   expect(alive(first.pid)).toBe(false);
   expect(alive(second.pid)).toBe(true);
   expect(health.code).toBe(0);
-  expect(health.stdout).toMatch(/^HTTP 200\n/);
+  expect(record(JSON.parse(health.stdout)).id).toBe(second.detail.projectId);
 });
 
 test('retained sessions require an explicit valid instance selector and never guess history', async ({
@@ -993,9 +1099,8 @@ test('concurrent commands each record their own numbered evidence file', async (
       cli(
         repositoryRoot,
         SERVER_CLI,
-        'request',
-        'GET',
-        '/api/health',
+        'server',
+        'project',
         '--instance',
         instance.id,
       ),
@@ -1007,12 +1112,12 @@ test('concurrent commands each record their own numbered evidence file', async (
   expect(runs.map((run) => run.code)).toStrictEqual([0, 0, 0, 0, 0, 0]);
   expect(evidence.numbered).toStrictEqual([
     '001-start.json',
-    '002-request.json',
-    '003-request.json',
-    '004-request.json',
-    '005-request.json',
-    '006-request.json',
-    '007-request.json',
+    '002-server.json',
+    '003-server.json',
+    '004-server.json',
+    '005-server.json',
+    '006-server.json',
+    '007-server.json',
     '008-server-stop.json',
     '009-stop.json',
   ]);

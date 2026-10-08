@@ -1,62 +1,83 @@
 ---
 name: server-verify
-description: Start a disposable, sandboxed Porcelain server built from the checkout, drive its HTTP routes with the control CLI, read the redacted evidence it records, and stop it. Use before calling a server change done, or to see what a route answers today.
+description: Prepare a disposable, sandboxed Porcelain server, publish its connections and fixtures, drive HTTP/WebSocket with your own tools, retain evidence and stop owned processes. Use before calling a server change done, or to see what a route answers today.
 ---
 
 # Server verification
 
-`C=.agents/skills/server-verify/scripts/cli`, run from the repository root. Run `$C` alone for every command and flag. The CLI drives and records; it never asserts.
+Run `.agents/skills/server-verify/scripts/cli` from the checkout root. The CLI prepares and records deterministic fixtures; the agent drives the server. Run it alone for command help.
 
-## 1. Start
+## Prepare
 
 ```sh
+C=.agents/skills/server-verify/scripts/cli
+$C doctor
 $C start
 ```
 
-It prints the instance id, the URL and the evidence folder. `$C doctor` checks a running instance when something looks off.
+`doctor` separates startup dependencies (Node, Git, ps, the OS sandbox and installed checkout dependencies) from optional drivers. It works before an instance exists. `doctor --instance <id>` also checks ownership, build freshness, and a JSON health response.
 
-## 2. Find the route's contract
+`start` prints a short connection card: instance id, server/web/WebSocket URLs, private `connection.json` path, exact pairing-link and MCP commands, evidence folder and stop command. The server's web URL serves the kit's minimal SPA shell, not the built web client; use web-verify for UI behavior.
 
-The server has no feature map: the contract is the map. Schemas live in `packages/contracts/src/<area>/`, named after the operation; for a rename, `renameProjectRequestSchema` in `packages/contracts/src/projects/inventory.ts`, served at `PATCH /api/projects/:projectId` by `apps/server/src/http/routes/projects/rename-project.ts`.
+Read `connection.json` for build commit/dirty state, the existing source fingerprint and start time; fixture environment/project/worktree IDs and repository/project-home paths; required Origins; owner socket and data directory; credential file paths; routes by owner/network scope; live RPC examples; status/log/stop commands. A checkout without Git metadata reports null commit and dirty state. The file is private (0600 inside a 0700 instance directory), contains credential paths rather than values, and is removed on successful stop. Keep secrets out of shared evidence.
 
-## 3. Drive it and read the state back
+## Find the contract
 
-```sh
-$C request PATCH '/api/projects/{project}' name='Renamed project'
-$C request POST '/api/worktrees/{worktree}/comments' 'anchor:={"kind":"file","filePath":"README.md"}' body=Hello
-$C request GET "/api/projects/folders?path={home}"
-$C request GET /api/inventory
-$C git log -1 --oneline
-$C live --for 10s
+Schemas and endpoints in `packages/contracts/src/<area>/` are the map. For example, `renameProjectRequestSchema` in `projects/inventory.ts` defines `PATCH /api/projects/:projectId`. Read the affected contract before constructing requests. Encode IDs in path segments and use `URLSearchParams` for query values.
+
+## Drive HTTP: Node, then curl
+
+Use Node fetch first. Replace the path below with the card's connection path; save this script outside the repository if needed.
+
+```js
+import { readFile } from 'node:fs/promises';
+const card = JSON.parse(await readFile('/path/from/card/connection.json', 'utf8'));
+const { credential } = JSON.parse(await readFile(card.credentialFiles.fixture, 'utf8'));
+const headers = { authorization: `Bearer ${credential}`, origin: card.requiredOrigin.http };
+const renamed = await fetch(`${card.serverUrl}/api/projects/${encodeURIComponent(card.fixtures.projectId)}`, {
+  method: 'PATCH',
+  headers: { ...headers, 'content-type': 'application/json' },
+  body: JSON.stringify({ name: 'Renamed project' }),
+});
+if (renamed.status !== 200 || !renamed.headers.get('content-type')?.includes('application/json'))
+  throw new Error(`Rename answered ${renamed.status} ${renamed.headers.get('content-type')}`);
+const response = await fetch(`${card.serverUrl}/api/inventory`, { headers });
+if (response.status !== 200 || !response.headers.get('content-type')?.includes('application/json'))
+  throw new Error(`Inventory answered ${response.status} ${response.headers.get('content-type')}`);
+const inventory = await response.json();
+if (inventory.projects.find((project) => project.id === card.fixtures.projectId)?.name !== 'Renamed project')
+  throw new Error('The renamed project did not persist');
 ```
 
-- Query parameters go in the quoted path; percent-encode values containing spaces, `&` or `#`. Body pairs do not set query parameters.
-- `field=value` sends a string, `field:=json` anything else. `{project}`, `{worktree}`, `{repository}` and `{home}` are filled in (`$C ids` prints them).
-- Owner routes (`POST /pairings`, `GET /access`, `/mcp`) answer only over the owner socket: add `--owner`.
-- `live --for` keeps printing while you drive from another shell.
+Fallback: curl with `--include`, the card's Origin and a bearer read privately from the credential file. Never print the bearer or save a verbose request trace containing it. Check status **and content type**: a 200 with HTML can be the SPA fallback rather than an API response. The contracts in `packages/contracts` say which network routes need a paired caller. Public routes need no bearer. Paired routes accept the fixture bearer; browser sessions use their paired cookie. Browser pairing uses the exact printed `pairing-link` command, which mints a fresh one-time link. Treat its code as a secret.
 
-## 4. Read the evidence
+Owner routes (`/pairings`, `/access`, `/mcp`) use `ownerSocketPath`, never the TCP server URL. Node's `http.request({ socketPath, path, method, headers })` or `curl --unix-socket "$OWNER_SOCKET" --include http://localhost/access` reaches them; they need no paired bearer. Do not assume a TCP 200 proves owner access.
 
-```sh
-$C evidence
-```
+## Drive live RPC
 
-One numbered file per command, redacted. A value the next step needs, such as the code `POST /pairings` issues, is in the command's printed output, never in the evidence. Report the folder and what it shows.
+Use Node's built-in WebSocket with the card's `webSocketUrl`, headers `authorization: Bearer <fixture credential>` and `origin: card.requiredOrigin.webSocket`. Browser WebSockets cannot set bearer headers: first `POST /api/live/tickets` using the paired cookie, then connect to `/api/live?ticket=<ticket>` with the same Origin. Tickets are one-time and short-lived; mint immediately before connecting.
 
-## 5. Run the affected test file, then stop
+After open, send the two objects in `live.protocolExample.notices` and `live.protocolExample.follow`. The protocol is Effect RPC JSON, not a bare subscription:
 
-```sh
-pnpm --filter @porcelain/server test:integration projects-rename
-$C stop
-```
+- Notices: `{ "_tag": "Request", "id": "1", "tag": "notices", "payload": null, "headers": [] }`. The null payload is required.
+- Follow: `{ "_tag": "Request", "id": "2", "tag": "follow", "payload": { "projects": ["<projectId>"], "worktrees": [{ "projectId": "<projectId>", "worktreeId": "<worktreeId>", "paths": ["README.md"] }] }, "headers": [] }`.
+- Notices arrive in `{ "_tag": "Chunk", "requestId": "1", "values": [...] }`. Read each value and send `{ "_tag": "Ack", "requestId": "1" }` after **every** chunk, including ready/subscribed/heartbeat, or the stream stalls.
+- Follow completes with `Exit`; check its success. Wait for `subscribed` before changing the fixture, then observe the relevant notice. Bound the wait and close the socket in `finally`.
 
-The argument filters by file name in `apps/server/spec/integration/`. `stop` keeps the evidence folder.
+Use Git and the filesystem directly in `fixtures.repositoryPath`. The retired `request`, `live`, `git` and `file` commands have no replacement wrapper.
 
-Sessions have no idle expiry. Stop your instance when finished. After stopping, `$C evidence --instance <id>` reads the retained evidence and `$C stop --instance <id>` repeats a confirmed stop without signaling processes. A failed stop exits nonzero and retains private runtime state; inspect its report before retrying.
+## Deterministic fixtures and MCP
 
-## Gotchas
+`ids` prints fixture IDs/paths. `agent publish-review`, `agent publish-proof`, `agent comment` and `agent reply` prepare repeatable changes through the disposable owner's MCP route. `server project`, `server published-review`, `server reviewed-layers`, `server reviewed-files`, `server comment-threads`, `server devices`, `server pending-links` and `server receipt <id>` read typed state back. All accept `--instance <id>`; run the CLI alone for arguments.
 
-- After you edit server or CLI code, every driving command refuses until you `stop` and `start` again.
-- With two instances in the checkout, every command needs `--instance <id>`.
-- CI's full integration run fails when a registered route is requested by no test, so a new route's test must request it.
-- When a change moves a route's cost or its Git work, run `pnpm --filter @porcelain/server test:perf` and set the route's entry in `ROUTE_BUDGETS` (`apps/server/src/config/limits.ts`) in the same commit: Git processes exactly as measured, wall time three times the worst p95 of a few runs, rounded up to 50 ms and at least 100 ms.
+The card's MCP command runs the checkout's stdio bridge against the disposable data directory, with its working directory set to the sample repository so MCP resolves that worktree. Use that command with your harness's MCP client for arbitrary agent operations. The deterministic `agent` commands are also suitable for fixture publication; their evidence includes the MCP exchange.
+
+## Evidence and cleanup
+
+The CLI records numbered, redacted fixture operations plus server and supervisor logs. Save your own sanitized HTTP status/content-type/body readbacks and WebSocket frames in `evidenceDirectory`. Direct driver calls do not automatically produce CLI records. Report the evidence path and observable result, not only a driver's success.
+
+`status` passively reports captured supervisor ownership, stale build metadata and connection path; it does not prove HTTP health. `logs` reads redacted server logs even after source edits. Fixture actions refuse a stale build; stop and start again after edits.
+
+Run the affected test files, then execute the exact stop command printed on the card. Confirm owned processes are gone and retained evidence is readable. Stop has no idle expiry and keeps evidence; a repeated `stop --instance <id>` confirms an already completed stop without signaling processes. Failed cleanup exits nonzero and retains private runtime metadata for recovery. Inspect its report before retrying. Never kill by pattern.
+
+With several instances, name one using `--instance <id>`. After stop, evidence also requires the explicit id. The skill's disposable loopback setup does not prove LAN or remote behavior; run those journeys when the changed feature needs them. CI owns whole suites and the registered-route coverage check.

@@ -1,387 +1,169 @@
+import { Schema } from 'effect';
+import { pairingLink } from '@porcelain/contracts/access';
 import { readFile } from 'node:fs/promises';
-import { connect } from 'node:net';
+import { parseArgs } from 'node:util';
+import { ServerHandle } from '../../../../apps/server/spec/kit/isolated-server.ts';
 import {
-  type Recorder,
-  ServerHandle,
-} from '../../../../apps/server/spec/kit/isolated-server.ts';
-import {
-  gitSubcommands,
-  type GitSubcommand,
-  type Session,
-} from '../../../../apps/server/spec/kit/session.ts';
-import {
+  optionalDrivers,
   runCli,
   sandboxProblems,
   stopOutput,
   Usage,
 } from '../../verify-core/cli.ts';
-import { registry, STALE_BUILD, type ServerInstance } from './instance.ts';
+import { connectionSchema } from '../../verify-core/connection.ts';
+import {
+  agentCommand,
+  issuedLink,
+  serverOptions,
+  serverRead,
+} from '../../verify-core/fixtures.ts';
+import { registry } from './instance.ts';
 import { serve, start } from './start.ts';
 
-const methods = [
-  'GET',
-  'HEAD',
-  'OPTIONS',
-  'POST',
-  'PUT',
-  'PATCH',
-  'DELETE',
-] as const;
 const usage = `Usage: .agents/skills/server-verify/scripts/cli <command> [--instance <id>]
-  start                                   build the checkout's server, start one sandboxed instance and pair with it
-  doctor                                  check the tools, that the instance is ours and answers, and that its build is current
-  stop                                    stop what start started, remove its data and credential, keep the evidence
-  evidence                                print the evidence folder
-  request <METHOD> <path> [field=value | field:=json ...] [--owner] [--anonymous]
-                                          send a request with the credential; {project} {worktree} {repository} {home} are filled
-                                          query parameters go in the quoted path: GET "/api/projects/folders?path={home}"
-                                          field=value pairs build the JSON body, not the query
-  live --for <duration> [--path <path> ...]
-                                          record the live notices for the sample project and worktree, such as --for 10s
-  git <subcommand> [args...]              run Git in the sample repository
-  file <path>                             read a file in the sample repository
-  ids                                     list the placeholder values
-  logs                                    print the server's output
+  start                   build a disposable server and print its connection card
+  doctor                  check startup dependencies and list optional drivers
+  status                  inspect captured ownership, build staleness and connection metadata
+  logs                    print redacted server output
+  stop                    stop owned processes, remove private runtime data, keep evidence
+  evidence                print the evidence folder (retained sessions require --instance)
+  ids                     print deterministic fixture IDs and paths
+  pairing-link            print a fresh one-time browser pairing link
+  agent publish-review "<title>" [--context] [--summary-html <html>]
+  agent publish-proof "<title>" --check "<name>=pass|fail|skipped" [--output "<name>=<text>"] --screenshot "<title>"
+  agent comment <path> "<body>" | reply <threadId|latest> "<body>"
+  server published-review | reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | pending-links | receipt <requestId>
+                          deterministic fixture actions and typed server readbacks
+Drive HTTP/WebSocket, Git and files directly using connection.json and your own tools.
 `;
 
-type Driving = {
-  instance: ServerInstance;
-  session: Session;
-  recorder: Recorder;
-  visible: (text: string) => string;
-};
-
-function option(args: string[], name: string): string | undefined {
-  const at = args.indexOf(name);
-  if (at === -1) return undefined;
-  const [, value] = args.splice(at, 2);
-  if (value === undefined) throw new Usage(`${name} takes a value`);
-  return value;
-}
-
-function options(args: string[], name: string): string[] {
-  const values: string[] = [];
-  let value = option(args, name);
-  while (value !== undefined) {
-    values.push(value);
-    value = option(args, name);
-  }
-  return values;
-}
-
-function flag(args: string[], name: string): boolean {
-  const at = args.indexOf(name);
-  if (at !== -1) args.splice(at, 1);
-  return at !== -1;
-}
-
-function placeholders(instance: ServerInstance): Record<string, string> {
-  return {
-    project: instance.detail.projectId,
-    worktree: instance.detail.worktreeId,
-    repository: instance.detail.repository,
-    home: instance.detail.projectHome,
-  };
-}
-
-function filled(text: string, instance: ServerInstance): string {
-  const values = placeholders(instance);
-  const result = text.replace(
-    /\{([a-z]+)\}/g,
-    (match, name: string) => values[name] ?? match,
-  );
-  const unknown = /\{([a-z]+)\}/.exec(result);
-  if (unknown)
-    throw new Usage(
-      `unknown placeholder ${unknown[0]}; ids lists ${Object.keys(values)
-        .map((name) => `{${name}}`)
-        .join(' ')}`,
-    );
-  return result;
-}
-
-function bodyOf(fields: readonly string[], instance: ServerInstance) {
-  const body: Record<string, unknown> = {};
-  for (const field of fields) {
-    const json = /^([^=:]+):=(.*)$/s.exec(field);
-    const text = /^([^=:]+)=(.*)$/s.exec(field);
-    if (json?.[1] !== undefined && json[2] !== undefined) {
-      const parsed: unknown = JSON.parse(filled(json[2], instance));
-      body[json[1]] = parsed;
-    } else if (text?.[1] !== undefined && text[2] !== undefined)
-      body[text[1]] = filled(text[2], instance);
-    else
-      throw new Usage(
-        `${field} is not field=value or field:=json; the pairs build a JSON body`,
-      );
-  }
-  return fields.length === 0 ? undefined : body;
-}
-
-function durationOf(value: string | undefined): number {
-  const match = /^(\d+)(ms|s|m)$/.exec(value ?? '');
-  if (!match?.[1] || !match[2])
-    throw new Usage('live takes --for <duration>, such as 500ms, 10s or 2m');
-  const unit = { ms: 1, s: 1000, m: 60_000 }[match[2]] ?? 1;
-  return Number(match[1]) * unit;
-}
-
-function shown(value: unknown): string {
-  if (value === undefined) return '';
-  return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
-}
-
-function isMethod(value: string): value is (typeof methods)[number] {
-  return methods.some((method) => method === value);
-}
-
-function isGitSubcommand(value: string): value is GitSubcommand {
-  return gitSubcommands.some((name) => name === value);
-}
-
-function answering(address: string): Promise<boolean> {
-  const { hostname, port } = new URL(address);
-  return new Promise((resolve) => {
-    const socket = connect({ host: hostname, port: Number(port) });
-    socket.once('connect', () => {
-      socket.destroy();
-      resolve(true);
-    });
-    socket.once('error', () => resolve(false));
-  });
-}
-
-async function finish(
-  instance: ServerInstance,
-  name: string,
-  recorder: Recorder,
-  record: Record<string, unknown>,
-) {
-  const file = await registry.evidence(instance).json(name, record, recorder);
-  process.stderr.write(`evidence: ${file}\n`);
-}
-
-function driven(
-  name: string,
-  requested: string | undefined,
-  argv: readonly string[],
-  work: (driving: Driving) => Promise<{ output: string; record: object }>,
-): Promise<string> {
-  const instance = registry.chosen(requested);
-  const started = performance.now();
-  return registry.drive(instance, argv, async () => {
+async function doctor(requested: string | undefined): Promise<string> {
+  const missing = sandboxProblems();
+  const lines = [
+    'Startup dependencies:',
+    ...(missing.length > 0
+      ? missing.map((problem) => `FAIL ${problem}`)
+      : ['ready: Node, Git, ps and server sandbox']),
+    'Optional drivers:',
+    'Node fetch and WebSocket: built in',
+    ...optionalDrivers(),
+  ];
+  if (missing.length > 0) process.exitCode = 1;
+  if (missing.length > 0) return `${lines.join('\n')}\n`;
+  if (requested !== undefined) {
+    const status = await registry.status(requested);
+    const instance = registry.chosen(requested, { includeStopped: true });
     const recorder = registry.redactor(instance).recorder();
     const handle = await ServerHandle.attach(instance.detail.manifestPath);
-    const session = handle.session(recorder, {
-      projectId: instance.detail.projectId,
-      worktreeId: instance.detail.worktreeId,
-    });
-    const visible = (text: string) => registry.redactor(instance).known(text);
-    const { output, record } = await work({
-      instance,
-      session,
-      recorder,
-      visible,
-    });
-    await finish(instance, name, recorder, {
-      command: argv,
-      durationMs: Math.round(performance.now() - started),
-      ...record,
-      steps: recorder.steps,
-    });
-    return output;
-  });
-}
-
-async function doctor(
-  requested: string | undefined,
-  argv: readonly string[],
-): Promise<string> {
-  const started = performance.now();
-  const missing = sandboxProblems();
-  const instance = registry.chosen(requested);
-  const recorder = registry.redactor(instance).recorder();
-  const handle = await ServerHandle.attach(instance.detail.manifestPath);
-  const health = await handle
-    .send(recorder, { method: 'GET', path: '/api/health', auth: 'none' })
-    .then((response) => response.status)
-    .catch(() => 0);
-  const checks = [
-    {
-      check: 'the instance process is the one start started',
-      ok: registry.alive(instance),
-    },
-    {
-      check: `the port answers at ${instance.detail.address}`,
-      ok: await answering(instance.detail.address),
-    },
-    { check: 'the health route answers 200', ok: health === 200 },
-    {
-      check: 'the build matches the checkout',
-      ok: registry.fingerprint() === instance.fingerprint,
-    },
-  ];
-  await finish(instance, 'doctor', recorder, {
-    command: argv,
-    durationMs: Math.round(performance.now() - started),
-    missing,
-    checks,
-    steps: recorder.steps,
-  });
-  if (missing.length > 0 || checks.some((entry) => !entry.ok))
-    process.exitCode = 1;
-  return [
-    ...missing.map((problem) => `FAIL ${problem}`),
-    ...checks.map(
-      ({ check, ok }) =>
-        `${ok ? 'ok  ' : 'FAIL'} ${check}${ok || !check.startsWith('the build') ? '' : `: ${STALE_BUILD}`}`,
-    ),
-    '',
-  ].join('\n');
+    const response = await handle
+      .send(recorder, { method: 'GET', path: '/api/health', auth: 'none' })
+      .catch(() => undefined);
+    const healthy =
+      response?.status === 200 &&
+      response.headers['content-type']?.includes('application/json') === true;
+    lines.push(
+      JSON.stringify(status),
+      `health JSON 200: ${healthy ? 'ready' : 'FAIL'}`,
+    );
+    if (!status.alive || status.stale !== null || !healthy)
+      process.exitCode = 1;
+    await registry
+      .evidence(instance)
+      .json('doctor', { status, healthy, missing }, recorder);
+  } else {
+    lines.push(
+      `live instances: ${
+        registry
+          .list()
+          .filter((entry) => entry.alive)
+          .map((entry) => entry.instance.id)
+          .join(', ') || 'none'
+      }`,
+    );
+  }
+  return `${lines.join('\n')}\n`;
 }
 
 async function stop(requested: string | undefined): Promise<string> {
-  const started = performance.now();
   const result = await registry.stopById(requested);
-  if (!result.alreadyStopped) {
-    const file = await registry
+  if (!result.alreadyStopped)
+    await registry
       .evidence({ evidence: result.evidence, secrets: [] })
       .json('stop', {
         command: ['stop', '--instance', result.id],
-        durationMs: Math.round(performance.now() - started),
         instance: result.id,
         complete: result.complete,
         report: result.report,
       });
-    process.stderr.write(`evidence: ${file}\n`);
-  }
   return stopOutput(result);
 }
 
-function live(
-  requested: string | undefined,
-  argv: readonly string[],
-  rest: string[],
-): Promise<string> {
-  const duration = durationOf(option(rest, '--for'));
-  const paths = options(rest, '--path');
-  return driven(
-    'live',
-    requested,
-    argv,
-    async ({ instance, session, visible }) => {
-      const connection = await session.live();
-      const until = performance.now() + duration;
-      await connection.follow({
-        projects: [instance.detail.projectId],
-        worktrees: [
-          {
-            projectId: instance.detail.projectId,
-            worktreeId: instance.detail.worktreeId,
-            paths,
-          },
-        ],
-      });
-      for (
-        let remaining = until - performance.now();
-        remaining > 0;
-        remaining = until - performance.now()
-      ) {
-        const notice = await connection
-          .next(() => true, Math.ceil(remaining))
-          .catch(() => undefined);
-        if (notice === undefined) break;
-        process.stdout.write(`${visible(JSON.stringify(notice))}\n`);
-      }
-      await connection.close();
-      return { output: '', record: {} };
-    },
-  );
-}
-
 async function main(argv: readonly string[]): Promise<string> {
-  const args = [...argv];
-  const requested = option(args, '--instance');
-  const [command, ...rest] = args;
+  const { values, positionals } = parseArgs({
+    args: [...argv],
+    options: { ...serverOptions, instance: { type: 'string' } },
+    allowPositionals: true,
+  });
+  const [command, ...rest] = positionals;
   if (command === 'start') return start();
   if (command === 'serve' && rest[0] !== undefined) {
     await serve(rest[0]);
     return '';
   }
-  if (command === 'evidence') return `${registry.evidencePath(requested)}\n`;
-  if (command === 'logs') {
-    const instance = registry.chosen(requested);
+  if (command === 'doctor') return doctor(values.instance);
+  if (command === 'stop') return stop(values.instance);
+  if (command === 'evidence')
+    return `${registry.evidencePath(values.instance)}\n`;
+  if (command === 'status')
+    return `${JSON.stringify(await registry.status(values.instance), null, 2)}\n`;
+  if (
+    !['logs', 'ids', 'agent', 'server', 'pairing-link'].includes(command ?? '')
+  )
+    throw new Usage(usage);
+  const instance = registry.chosen(values.instance);
+  if (command === 'logs')
     return registry
       .redactor(instance)
       .text(await readFile(instance.detail.logFile, 'utf8'));
-  }
-  if (command === 'doctor') return doctor(requested, argv);
-  if (command === 'stop') return stop(requested);
-  if (command === 'live') return live(requested, argv, rest);
-  if (command === 'ids')
-    return driven(command, requested, argv, async ({ instance }) => {
-      const values = placeholders(instance);
-      return {
-        output: Object.entries(values)
-          .map(([name, value]) => `{${name}} ${value}\n`)
-          .join(''),
-        record: { values },
-      };
-    });
-  if (command === 'request') {
-    const owner = flag(rest, '--owner');
-    const anonymous = flag(rest, '--anonymous');
-    const [method = '', path, ...fields] = rest;
-    const upper = method.toUpperCase();
-    if (!isMethod(upper) || path === undefined)
-      throw new Usage(
-        `request takes <METHOD> <path> [field=value ...]; METHOD is one of ${methods.join(', ')}`,
+  return registry.drive(instance, argv, async () => {
+    const recorder = registry.redactor(instance).recorder();
+    let output: string;
+    if (command === 'agent')
+      output = await agentCommand(
+        instance.detail.manifestPath,
+        rest,
+        values,
+        recorder,
       );
-    return driven(
-      command,
-      requested,
-      argv,
-      async ({ instance, session, visible }) => {
-        const body = bodyOf(fields, instance);
-        const response = await session.send({
-          method: upper,
-          path: filled(path, instance),
-          auth: anonymous ? 'none' : 'paired',
-          target: owner ? 'owner' : 'network',
-          ...(body === undefined ? {} : { body }),
-        });
-        return {
-          output: visible(`HTTP ${response.status}\n${shown(response.body)}\n`),
-          record: {},
-        };
-      },
-    );
-  }
-  if (command === 'git') {
-    const [subcommand = '', ...gitArgs] = rest;
-    if (!isGitSubcommand(subcommand))
-      throw new Usage(
-        `git runs one of ${gitSubcommands.join(', ')} in the sample repository`,
+    else if (command === 'server')
+      output = await serverRead(instance.detail.manifestPath, rest, recorder);
+    else if (command === 'pairing-link') {
+      const grant = await issuedLink(
+        instance.detail.manifestPath,
+        'Verification browser',
+        false,
+        recorder,
       );
-    return driven(command, requested, argv, async ({ session, visible }) => {
-      const output = await session
-        .git(subcommand, ...gitArgs)
-        .catch((error: unknown) => {
-          process.exitCode = 1;
-          return error instanceof Error ? error.message : String(error);
-        });
-      return { output: visible(output), record: {} };
-    });
-  }
-  if (command === 'file') {
-    const [path] = rest;
-    if (path === undefined) throw new Usage('file takes <path>');
-    return driven(command, requested, argv, async ({ session, visible }) => {
-      const content = await session.readFile(path);
-      return { output: visible(content), record: { path, content } };
-    });
-  }
-  throw new Usage(usage);
+      recorder.secret(grant.code);
+      const link = pairingLink({
+        addresses: [grant.address],
+        code: grant.code,
+        environmentId: grant.environmentId,
+      });
+      output = `${link}\n`;
+    } else {
+      if (instance.connectionPath === undefined)
+        throw new Error('The server published no connection metadata');
+      const connection = Schema.decodeUnknownSync(connectionSchema)(
+        JSON.parse(await readFile(instance.connectionPath, 'utf8')),
+      );
+      output = `${JSON.stringify(connection.fixtures, null, 2)}\n`;
+    }
+    await registry
+      .evidence(instance)
+      .json(command ?? 'ids', { command: argv, output }, recorder);
+    return registry.redactor(instance).known(output);
+  });
 }
 
 await runCli(main);

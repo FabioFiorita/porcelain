@@ -39,7 +39,18 @@ export function sandboxProblems(): string[] {
     problems.push(
       'git is missing: install Git (https://git-scm.com/downloads); the sample repository is a real Git repository',
     );
+  if (!onPath('ps'))
+    problems.push(
+      'ps is missing: install procps on Linux or restore the macOS system PATH; captured process ownership requires ps',
+    );
   return problems;
+}
+
+export function optionalDrivers(): string[] {
+  return ['curl'].map(
+    (name) =>
+      `${name}: ${onPath(name) ? 'available' : 'missing (optional; Node fetch can drive HTTP)'}`,
+  );
 }
 
 export function refuseMissing(problems: readonly (string | undefined)[]) {
