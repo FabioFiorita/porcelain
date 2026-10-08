@@ -36,6 +36,8 @@ import {
   type CommentThread,
 } from '@porcelain/client/reviews/rules';
 import {
+  ALL_CHANGES,
+  SPECS,
   BRANCH,
   type DocumentRef,
   entryKey,
@@ -58,9 +60,10 @@ import { DeleteResolved } from './delete-resolved';
 import { InlineComposer } from './inline-composer';
 import { BranchReadiness, ChangeReadiness } from './readiness-panel';
 import { ThreadCard } from './thread-card';
-import { groupSpecPaths } from '@porcelain/client/reviews/rules';
+import { isSpecPath } from '@porcelain/client/reviews/rules';
 import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
+import { useReviewUnderstanding } from '../queries/understanding';
 
 type Props = {
   scope: ReviewScope;
@@ -167,7 +170,7 @@ export function ReviewIndex({
         >
           <TabsList className="h-8 w-full">
             <TabsTrigger value="layers" className="flex-1">
-              {review && !branch ? 'Layers' : 'Changed files'}
+              {review && !branch ? 'Explore' : 'Changed files'}
             </TabsTrigger>
             <TabsTrigger value="comments" className="flex-1">
               Comments
@@ -232,9 +235,16 @@ function LayersView({
   threads: readonly CommentThread[];
 }) {
   const { preferences } = usePreferences();
-  const paths = groupSpecPaths(list.changes, preferences.collapseSpecs).map(
-    (entry) => entry.path,
+  const understanding = useReviewUnderstanding(
+    scope,
+    context,
+    review?.layers ?? [],
   );
+  const paths = list.changes.map((entry) => entry.path);
+  const mainPaths = preferences.collapseSpecs
+    ? paths.filter((path) => !isSpecPath(path))
+    : paths;
+  const specPaths = preferences.collapseSpecs ? paths.filter(isSpecPath) : [];
   const changeByPath = new Map(changes.map((item) => [item.path, item]));
   const reviewed = useToggleReviewed(scope, context, (notice) =>
     toast.add(notice),
@@ -243,6 +253,46 @@ function LayersView({
     path: string;
     nonce: number;
   } | null>(null);
+  const renderChange = (path: string) => (
+    <ChangeRow
+      key={path}
+      path={path}
+      document={{ kind: 'change', path }}
+      note={undefined}
+      scopes={[
+        ...new Set(
+          list.changes
+            .find((entry) => entry.path === path)
+            ?.comparisons.map((change) => change.scope),
+        ),
+      ]}
+      reviewStatus={changeByPath.get(path)?.reviewStatus}
+      commentCount={
+        threads.filter(
+          (thread) => anchorPath(thread.anchor) === path && !thread.resolved,
+        ).length
+      }
+      active={activeEntry === entryKey({ kind: 'change', path })}
+      onOpen={onOpen}
+      canReview={
+        changeByPath.get(path)?.fingerprint !== null &&
+        changeByPath.get(path)?.fingerprint !== undefined
+      }
+      onReview={() =>
+        reviewed.toggle({
+          path,
+          reviewed: changeByPath.get(path)?.reviewStatus === 'reviewed',
+          fingerprint: changeByPath.get(path)?.fingerprint,
+        })
+      }
+      onDiscard={() =>
+        setDiscard((current) => ({
+          path,
+          nonce: (current?.nonce ?? 0) + 1,
+        }))
+      }
+    />
+  );
   return (
     <ScrollArea className="h-0 min-h-0 flex-1">
       <div className="p-2">
@@ -252,8 +302,18 @@ function LayersView({
           aria-pressed={activeEntry === 'handoff'}
           onClick={() => onOpen({ kind: 'handoff' })}
         >
-          {review ? 'Review summary' : 'All changes'}
+          {review ? 'Architecture overview' : 'All changes'}
         </button>
+        {review && (
+          <button
+            type="button"
+            className={ROW}
+            aria-pressed={activeEntry === 'all-changes'}
+            onClick={() => onOpen(ALL_CHANGES)}
+          >
+            All changes · {paths.length} files
+          </button>
+        )}
         {review?.layers.map((layer, index) => (
           <button
             key={layer.id}
@@ -263,7 +323,11 @@ function LayersView({
             onClick={() => onOpen({ kind: 'layer', layerId: layer.id })}
           >
             <span className="text-muted-foreground">{index + 1}.</span>
-            {layer.title}
+            <span className="min-w-0 flex-1 whitespace-normal">
+              {layer.title}
+            </span>
+            {understanding.states.find((state) => state.layer.id === layer.id)
+              ?.reviewed && <span aria-label="Reviewed">✓</span>}
           </button>
         ))}
         {review && (
@@ -298,47 +362,27 @@ function LayersView({
         {paths.length === 0 && (
           <p className="p-3 text-sm text-muted-foreground">No changes</p>
         )}
-        {paths.map((path) => (
-          <ChangeRow
-            key={path}
-            path={path}
-            document={{ kind: 'change', path }}
-            note={undefined}
-            scopes={[
-              ...new Set(
-                list.changes
-                  .find((entry) => entry.path === path)
-                  ?.comparisons.map((change) => change.scope),
-              ),
-            ]}
-            reviewStatus={changeByPath.get(path)?.reviewStatus}
-            commentCount={
-              threads.filter(
-                (thread) =>
-                  anchorPath(thread.anchor) === path && !thread.resolved,
-              ).length
-            }
-            active={activeEntry === entryKey({ kind: 'change', path })}
-            onOpen={onOpen}
-            canReview={
-              changeByPath.get(path)?.fingerprint !== null &&
-              changeByPath.get(path)?.fingerprint !== undefined
-            }
-            onReview={() =>
-              reviewed.toggle({
-                path,
-                reviewed: changeByPath.get(path)?.reviewStatus === 'reviewed',
-                fingerprint: changeByPath.get(path)?.fingerprint,
-              })
-            }
-            onDiscard={() =>
-              setDiscard((current) => ({
-                path,
-                nonce: (current?.nonce ?? 0) + 1,
-              }))
-            }
-          />
-        ))}
+        {mainPaths.map(renderChange)}
+        {specPaths.length > 0 && (
+          <details
+            key={String(preferences.collapseSpecs)}
+            open={!preferences.collapseSpecs}
+            className="mt-3 border-t pt-2"
+          >
+            <summary className="cursor-pointer px-2 py-2 text-xs font-medium">
+              Specs · {specPaths.length} files
+            </summary>
+            <button
+              type="button"
+              className={ROW}
+              aria-pressed={activeEntry === 'specs'}
+              onClick={() => onOpen(SPECS)}
+            >
+              Open all specs
+            </button>
+            {specPaths.map(renderChange)}
+          </details>
+        )}
         {discard && (
           <DiscardButton
             scope={scope}

@@ -28,6 +28,8 @@ export const serverOptions = {
 
 export const serverUsage = `  agent publish-review "<title>" [--context] [--summary-html <html>]
                           the agent publishes the sample review: one layer, one step on README.md line 3
+  agent publish-architecture
+                          seed a large synthetic review with shared owners, before/after maps, stale code and coverage gaps
   agent publish-proof "<title>" --check "<name>=pass|fail|skipped" [--output "<name>=<text>"] --screenshot "<title>"
   agent comment <path> "<body>"
   agent reply <threadId|latest> "<body>"
@@ -126,6 +128,7 @@ async function actionOf(
   values: ServerValues,
 ): Promise<AgentAction | undefined> {
   const [kind, first, second] = rest;
+  if (kind === 'publish-architecture') return { kind };
   if (kind === 'publish-review')
     return {
       kind,
@@ -171,9 +174,13 @@ export async function agentCommand(
   const action = await actionOf(handle, session, rest, values);
   if (action === undefined)
     throw new Usage(
-      'Use agent publish-review, agent publish-proof, agent comment or agent reply.',
+      'Use agent publish-review, agent publish-architecture, agent publish-proof, agent comment or agent reply.',
     );
-  const answer = toolText(await agentActs(session, action));
+  const result = await agentActs(session, action);
+  const answer =
+    action.kind === 'publish-architecture'
+      ? JSON.stringify(result)
+      : toolText(result);
   return `the agent's ${action.kind} reached the server, which answered:\n${answer}\n`;
 }
 

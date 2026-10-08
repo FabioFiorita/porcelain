@@ -215,7 +215,10 @@ export function ReviewWorkspace({
 
   return (
     <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
-      <ResizablePanel id="review-document" minSize={480}>
+      <ResizablePanel
+        id="review-document"
+        minSize={navigatorIsMobile ? 0 : 480}
+      >
         <section
           aria-label="Review content"
           className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card"

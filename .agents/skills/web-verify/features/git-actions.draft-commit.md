@@ -47,9 +47,9 @@ With a coding CLI on the server, the Commit dialog drafts the message (Generate 
 ### Case 1: the chosen model drafts the message and the drafted commit becomes the newest
 
 1. Navigate to `/` on the card’s web URL (full page load), then click button named `Commit`
-   Look for: dialog "Commit changes" with tabs "Single commit" [selected], "Amend last", "Use groups"; "Files (1 of 1)" with README.md; button "Generate with AI" and combobox "Commit model" (a native select whose options, "Sonnet" and "Haiku" under "claude", the aria snapshot does not list).
-2. Select 'Haiku' in combobox named `Commit model`, then click button named `Generate with AI`
-   Look for: the select prints `selectOption('Haiku')`; textbox "Message" holds "Explain the change to review in the README" (the submit button reads "Generating…" meanwhile).
+   Look for: dialog "Commit changes" with tabs "Single commit" [selected], "Amend last", "Use groups"; "Files (1 of 1)" with README.md; button "Generate with AI" and combobox "Commit model" (a shadcn Select; opening it lists "Sonnet" and "Haiku" under "claude").
+2. Click combobox named `Commit model`, then option named `Haiku`, then click button named `Generate with AI`
+   Look for: the combobox displays "Haiku"; textbox "Message" holds "Explain the change to review in the README" (the submit button reads "Generating…" meanwhile).
 3. Click button named `Commit selected files`, then wait for text 'succeeded' to be visible
    Look for: a status reads "succeeded". Disk: `git -C "$REPO" log -1 --format=%s` prints `Explain the change to review in the README`.
 4. Press `Escape`
@@ -109,7 +109,7 @@ Then Wait for button named `Mark README.md as reviewed` to be visible.
 ## Gotchas
 
 - The fake coding CLI exists only with `start --coding-tool`; an instance started without it cannot draft.
-- "Commit model" is a native select: `select` picks an option by its label or value (`claude:haiku`), and the snapshot shows neither the options nor the choice. Both models draft the same text.
+- "Commit model" uses shadcn Select: click its combobox, then the option by its label. Provider labels organize the popup, and the trigger displays the chosen model. Both fixture models draft the same text.
 - Case 2 needs both README.md and NOTES.md changed: the fake always proposes a NOTES.md group, and the server refuses groups that name a file outside the selection.
 - Wait for the watcher (wait until the "Mark … as reviewed" buttons show) before opening the dialog: the dialog freezes the files it saw on opening.
 - While a draft runs, the submit button is named `Generating…`; wait for the Message value before clicking "Commit selected files".

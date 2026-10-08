@@ -7,7 +7,7 @@ import {
 
 export const REVIEW_GUIDE = `# Publishing a Porcelain review
 
-Tell the behavior from entry point to outcome. Keep layers short and ordered. Use lanes for the parts the change crosses, such as Web, Route, Use case, and Storage. A changed step points at code this change alters. A context step points at unchanged code the reader needs. Prefer one or two sentences per step.
+The review helps the developer understand how the architecture changes and which decisions future agents will copy. Tell each behavior from entry point to outcome, or explain one coherent ownership or architectural decision. Do not make Server, Client or Interface separate layers: those are lanes within a walkthrough. Keep layers short and ordered. A changed step points at code this change alters. A context step points at unchanged code the reader needs. Step text appears as an inline agent note: explain the decision and its consequence in one or two sentences, rather than narrating the code. Layer summaries and verification evidence are expandable.
 
 ## Summary
 
@@ -54,7 +54,7 @@ A compact page that matches a light application:
 
 ## Diagram
 
-When the change crosses more than one part of the system, add a summary diagram: lanes, boxes, and arrows. An After view marks boxes New, Changed, or Removed. A Before view is useful when it shows what was wrong. Name the layer behind each box. Add an extra arrow only for a branch or callback the step order does not already show.
+When the change crosses more than one part of the system, add a summary diagram: lanes, boxes, and explicit arrows. Show the existing components the new work extends and the shared owners between behaviors. An After view marks boxes New, Changed, or Removed. A Before view explains ownership or relationship changes. Keep node labels short; detail and problem text appears when the reader selects a component. Name the layer behind each box so the reader can follow its code. Label every arrow with its meaning, such as calls, reads, writes, publishes or depends on. Describe all actual relationships, including ordinary calls: step order never creates an arrow. These are your architectural claims, not automatically verified call traces. Support them with code pointers in the linked walkthrough. Leave uncertain relationships explicit in the component detail instead of drawing a confident connection.
 
 ## Proof
 

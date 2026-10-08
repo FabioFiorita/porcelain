@@ -178,6 +178,10 @@ test('a local signed summary renders through the app origin in its sandbox, keep
   await page.goto(
     `porcelain://app/${here.project.id}/${here.worktree.id}?entry=handoff`,
   );
+  await expect(
+    page.getByRole('tab', { name: 'Architecture', exact: true }),
+  ).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('tab', { name: 'Agent summary', exact: true }).click();
   const summary = page.frameLocator('iframe[title="Review summary"]');
   await expect(
     summary.getByRole('heading', { name: 'Local summary', exact: true }),
@@ -277,6 +281,10 @@ test('a remote computer summary renders through the app from that computer, cann
   await computer.getByRole('button', { name: /Main worktree/ }).click();
   const remoteWorktree = `/remotes/${remote.environmentId}/${there.project.id}/${there.worktree.id}`;
   await page.waitForURL((url) => url.pathname === remoteWorktree);
+  await expect(
+    page.getByRole('tab', { name: 'Architecture', exact: true }),
+  ).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('tab', { name: 'Agent summary', exact: true }).click();
   const summary = page.frameLocator('iframe[title="Review summary"]');
   await expect(
     summary.getByRole('heading', { name: 'Remote summary', exact: true }),
@@ -349,8 +357,9 @@ test('a remote computer summary renders through the app from that computer, cann
   });
   await page
     .getByRole('tablist', { name: 'Open documents', exact: true })
-    .getByTitle('Review summary', { exact: true })
+    .getByTitle('Architecture overview', { exact: true })
     .click();
+  await page.getByRole('tab', { name: 'Agent summary', exact: true }).click();
   const reopenedSummary = await summaryNavigation;
   await reopenedSummary.waitForLoadState('load');
   await watchSummaryActivations(page, reopenedSummary);

@@ -54,8 +54,20 @@ function describeTab(key: string, layers: readonly Layer[]) {
   switch (ref?.kind) {
     case 'handoff':
       return layers.length > 0
-        ? { Icon: LayersIcon, title: 'Review', hint: 'Review summary' }
+        ? { Icon: LayersIcon, title: 'Review', hint: 'Architecture overview' }
         : { Icon: FileDiffIcon, title: 'Changes', hint: 'All changes' };
+    case 'all-changes':
+      return {
+        Icon: FileDiffIcon,
+        title: 'All changes',
+        hint: 'Every changed file, including specs',
+      };
+    case 'specs':
+      return {
+        Icon: FlaskConicalIcon,
+        title: 'Specs',
+        hint: 'Changed spec and test files',
+      };
     case 'unexplained':
       return {
         Icon: FileQuestionIcon,

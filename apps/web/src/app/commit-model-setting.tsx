@@ -1,10 +1,14 @@
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import {
-  NativeSelect,
-  NativeSelectOptGroup,
-  NativeSelectOption,
-} from '@/components/ui/native-select';
+  Select,
+  SelectContent,
+  SelectTrigger,
+  SelectValue,
+  SelectGroup,
+  SelectLabel,
+  SelectItem,
+} from '@/components/ui/select';
 import {
   groupedCommitModels,
   resolveCommitModel,
@@ -29,34 +33,43 @@ export function CommitModelSetting() {
           Drafts messages and groups in the commit dialog.
         </p>
       </div>
-      <NativeSelect
-        id="commit-model"
-        className="w-full shrink-0 sm:w-56"
-        value={value}
+      <Select
+        items={
+          choices?.map((model) => ({ value: model.id, label: model.label })) ??
+          []
+        }
+        value={value || null}
         disabled={pending || !choices?.length}
-        onChange={(event) => setPreference('commitModel', event.target.value)}
+        onValueChange={(value) => {
+          if (value) setPreference('commitModel', value);
+        }}
       >
-        {!value && (
-          <NativeSelectOption value="" disabled>
-            {pending
-              ? 'Loading models…'
-              : choices?.length
-                ? 'Choose a model'
-                : 'No models available'}
-          </NativeSelectOption>
-        )}
-        {groupedCommitModels(
-          choices?.filter((model) => !model.id.endsWith(':default')) ?? [],
-        ).map(([provider, entries]) => (
-          <NativeSelectOptGroup key={provider} label={provider}>
-            {entries.map((model) => (
-              <NativeSelectOption key={model.id} value={model.id}>
-                {model.label}
-              </NativeSelectOption>
-            ))}
-          </NativeSelectOptGroup>
-        ))}
-      </NativeSelect>
+        <SelectTrigger id="commit-model" className="w-full shrink-0 sm:w-56">
+          <SelectValue
+            placeholder={
+              pending
+                ? 'Loading models…'
+                : choices?.length
+                  ? 'Choose a model'
+                  : 'No models available'
+            }
+          />
+        </SelectTrigger>
+        <SelectContent>
+          {groupedCommitModels(
+            choices?.filter((model) => !model.id.endsWith(':default')) ?? [],
+          ).map(([provider, entries]) => (
+            <SelectGroup key={provider}>
+              <SelectLabel>{provider}</SelectLabel>
+              {entries.map((model) => (
+                <SelectItem key={model.id} value={model.id}>
+                  {model.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          ))}
+        </SelectContent>
+      </Select>
       <p className="w-full text-xs text-muted-foreground">
         {AsyncResult.isFailure(models)
           ? 'Could not load installed coding CLIs.'

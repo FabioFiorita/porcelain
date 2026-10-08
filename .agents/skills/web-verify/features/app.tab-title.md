@@ -24,7 +24,7 @@ The browser tab (document title) names what is shown: the open document, or the 
 
 The exact strings (`apps/web/src/features/reviews/rules/documents.ts`, `apps/web/src/app/connected-workspace.tsx`, `apps/web/src/app/settings-page.tsx`), with `P` = project name ("repository" in the disposable instance):
 
-- Changes document (the "All changes"/"Review summary" handoff tab): `Changes — P`
+- Changes document (the "All changes"/"Architecture overview" handoff tab): `Changes — P`
 - a changed file or a file opened from Files: `<file name> — P` (the last path segment, e.g. `README.md — P`)
 - a commit: `<first 7 characters of the oid> — P`
 - branch changes: `Branch changes — P`; commit graph: `Commit graph — P`; file timeline: `Timeline of <file name> — P`

@@ -1,6 +1,7 @@
+import { userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
-test('a file inside a published layer is marked and unmarked reviewed on its own, like any changed file', async ({
+test('walkthrough files can be reviewed individually without marking the layer; graph dialogs review complete files without leaving the graph', async ({
   workspace,
   repo,
   server,
@@ -18,18 +19,54 @@ test('a file inside a published layer is marked and unmarked reviewed on its own
     name: `Review layer ${title}`,
     exact: true,
   });
-  const mark = layer.getByRole('button', {
+  const mark = workspace.getByRole('button', {
     name: `Mark ${readme} as reviewed`,
     exact: true,
   });
-  const unmark = layer.getByRole('button', {
+  const unmark = workspace.getByRole('button', {
     name: `Unmark ${readme} as unreviewed`,
     exact: true,
   });
+  await layer.getByText('Agent note · New line', { exact: true }).click();
+  await expect
+    .element(layer.getByText('A line is added', { exact: true }))
+    .toBeVisible();
   await mark.click();
   await expect.element(unmark).toBeEnabled();
   await expect.poll(marked).toContain(readme);
+  await expect
+    .poll(async () => (await server.reviewedLayers()).marks)
+    .toEqual([]);
   await unmark.click();
   await expect.element(mark).toBeEnabled();
   await expect.poll(marked).not.toContain(readme);
+  await layer.getByRole('tab', { name: 'Graph', exact: true }).click();
+  await layer.getByRole('button', { name: 'New line', exact: true }).click();
+  const code = workspace.getByRole('dialog', { name: 'New line', exact: true });
+  await expect
+    .element(
+      code.getByRole('button', {
+        name: `Mark ${readme} as reviewed`,
+        exact: true,
+      }),
+    )
+    .toBeEnabled();
+  await expect.poll(marked).not.toContain(readme);
+  await code.getByText('Agent note · New line', { exact: true }).click();
+  await expect
+    .element(code.getByText('A line is added', { exact: true }))
+    .toBeVisible();
+  await code
+    .getByRole('button', { name: `Mark ${readme} as reviewed`, exact: true })
+    .click();
+  await expect.poll(marked).toEqual([readme]);
+  await expect
+    .poll(async () => (await server.reviewedLayers()).marks)
+    .toEqual([]);
+  await code.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect
+    .element(layer.getByRole('tab', { name: 'Graph', exact: true }))
+    .toHaveAttribute('aria-selected', 'true');
+  await userEvent.keyboard('r');
+  await expect.poll(marked).toEqual([readme]);
 });

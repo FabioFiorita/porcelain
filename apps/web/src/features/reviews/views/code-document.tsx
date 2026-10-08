@@ -31,7 +31,11 @@ import {
 } from '@/shared/lib/pierre';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { usePreferences, useTheme } from '@/features/preferences/index';
-import { type CodeEntry, codeTarget } from '../adapters/code-entries';
+import {
+  type CodeEntry,
+  type AgentCodeNote,
+  codeTarget,
+} from '../adapters/code-entries';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useComments } from '../queries/comments';
 import { isFolded } from '../rules/code-folds';
@@ -49,10 +53,12 @@ import { basename, type ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ReviewRange } from '@porcelain/client/reviews/rules';
 import { useCodeFolds } from '../store';
 import { InlineComposer } from './inline-composer';
+import { AgentNote } from './agent-note';
 import { ThreadCard } from './thread-card';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Note =
+  | ({ kind: 'agent' } & AgentCodeNote)
   | { kind: 'thread'; thread: CommentThread; stale: boolean }
   | { kind: 'composer'; anchor: FileCommentAnchor };
 type Props = {
@@ -61,6 +67,7 @@ type Props = {
   context: ConnectionContext;
   interaction: DocumentInteraction;
   header?: () => ReactNode;
+  footer?: () => ReactNode;
   headerLeading?: ReactNode;
   headerActions?: ReactNode;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
@@ -100,6 +107,7 @@ function CodeSurface({
   context: gitContext,
   interaction,
   header,
+  footer,
   headerLeading,
   headerActions,
   toolbar,
@@ -222,30 +230,6 @@ function CodeSurface({
     setFocused(index);
     viewer.current?.scrollTo({ type: 'item', id: entry.id, align: 'start' });
   };
-  const hotkeys = { enabled: interaction.active, ignoreInputs: true };
-  useHotkey(
-    SHORTCUTS.nextFile,
-    () => focusEntry(Math.min(focused + 1, entries.length - 1)),
-    hotkeys,
-  );
-  useHotkey(
-    SHORTCUTS.previousFile,
-    () => focusEntry(Math.max(focused - 1, 0)),
-    hotkeys,
-  );
-  useHotkey(
-    SHORTCUTS.commentOnFile,
-    () => openFileComment(entries[focused]),
-    hotkeys,
-  );
-  useHotkey(
-    SHORTCUTS.toggleReviewed,
-    () => {
-      const entry = entries[focused];
-      if (entry) onToggleReviewed(entry);
-    },
-    hotkeys,
-  );
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
   const items: CodeViewItem<Note>[] = entries.map((entry) => {
     const target = entry.comment;
@@ -267,9 +251,17 @@ function CodeSurface({
             stale: commentIsStale(thread.anchor, target),
           }))
       : [];
+    for (const note of entry.agentNotes ?? [])
+      notes.push({ ...note, kind: 'agent' });
     if (composer?.id === entry.id)
       notes.push({ kind: 'composer', anchor: composer.anchor });
     const annotations = notes.map((note): DiffLineAnnotation<Note> => {
+      if (note.kind === 'agent')
+        return {
+          lineNumber: note.stale ? 0 : note.line,
+          side: 'additions',
+          metadata: note,
+        };
       const anchor = note.kind === 'thread' ? note.thread.anchor : note.anchor;
       const lineNumber =
         anchor.kind === 'codeRange' && !(note.kind === 'thread' && note.stale)
@@ -293,6 +285,9 @@ function CodeSurface({
     };
     return { ...shared, ...codeTarget(entry) };
   });
+  const specEntries = entries.filter((entry) => isSpecPath(entry.path));
+  const specCount = new Set(specEntries.map((entry) => entry.path)).size;
+  const firstSpecId = specEntries[0]?.id;
   const firstReviewEntryByPath = new Map<string, string>();
   for (const entry of entries) {
     if (entry.review && !firstReviewEntryByPath.has(entry.review.path))
@@ -377,6 +372,17 @@ function CodeSurface({
 
   return (
     <div className="@container/code relative flex min-h-0 flex-1 flex-col">
+      {interaction.active && (
+        <CodeShortcuts
+          next={() => focusEntry(Math.min(focused + 1, entries.length - 1))}
+          previous={() => focusEntry(Math.max(focused - 1, 0))}
+          comment={() => openFileComment(entries[focused])}
+          review={() => {
+            const entry = entries[focused];
+            if (entry) onToggleReviewed(entry);
+          }}
+        />
+      )}
       {rangeError ? (
         <p
           role="status"
@@ -426,12 +432,13 @@ function CodeSurface({
               {collapseControl}
             </div>
           )}
-      {entries.length === 0 && (header || headerActions) && (
+      {entries.length === 0 && (header || headerActions || footer) && (
         <div
           className="min-h-0 flex-1 overflow-auto"
           data-testid="empty-code-document"
         >
           {header?.()}
+          {footer?.()}
           {headerActions && (
             <div className="flex justify-end px-3.5 py-2">
               <ButtonGroup>{headerActions}</ButtonGroup>
@@ -453,6 +460,14 @@ function CodeSurface({
           }}
           renderAnnotation={(annotation) => {
             const note = annotation.metadata;
+            if (note.kind === 'agent')
+              return (
+                <AgentNote
+                  title={note.title}
+                  text={note.text}
+                  stale={note.stale}
+                />
+              );
             return note.kind === 'composer' ? (
               <InlineComposer
                 key={JSON.stringify(note.anchor)}
@@ -518,6 +533,7 @@ function CodeSurface({
               : 'min-h-0 flex-1 overflow-auto'
           }
           {...(header ? { renderCodeViewHeader: header } : {})}
+          {...(footer ? { renderCodeViewFooter: footer } : {})}
           renderHeaderPrefix={(item) => {
             const entry = byId.get(item.id);
             if (!entry) return null;
@@ -529,6 +545,13 @@ function CodeSurface({
                 : null;
             return (
               <span className="flex items-center gap-1">
+                {preferences.collapseSpecs &&
+                  item.id === firstSpecId &&
+                  entries.length > specEntries.length && (
+                    <span className="mr-2 border-r pr-2 font-sans text-xs font-medium">
+                      Specs · {specCount} files
+                    </span>
+                  )}
                 {(collapsible || entries.length > 1) && (
                   <button
                     type="button"
@@ -564,4 +587,23 @@ function CodeSurface({
       )}
     </div>
   );
+}
+
+function CodeShortcuts({
+  next,
+  previous,
+  comment,
+  review,
+}: {
+  next: () => void;
+  previous: () => void;
+  comment: () => void;
+  review: () => void;
+}) {
+  const options = { ignoreInputs: true };
+  useHotkey(SHORTCUTS.nextFile, next, options);
+  useHotkey(SHORTCUTS.previousFile, previous, options);
+  useHotkey(SHORTCUTS.commentOnFile, comment, options);
+  useHotkey(SHORTCUTS.toggleReviewed, review, options);
+  return null;
 }

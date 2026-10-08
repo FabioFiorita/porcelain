@@ -5,6 +5,8 @@ import type {
 } from '@porcelain/client/reviews/rules';
 export type DocumentRef =
   | { kind: 'handoff' }
+  | { kind: 'all-changes' }
+  | { kind: 'specs' }
   | { kind: 'layer'; layerId: string }
   | { kind: 'unexplained' }
   | { kind: 'proof' }
@@ -17,6 +19,8 @@ export type DocumentRef =
   | { kind: 'timeline'; path: string };
 
 const HANDOFF: DocumentRef = { kind: 'handoff' };
+export const ALL_CHANGES: DocumentRef = { kind: 'all-changes' };
+export const SPECS: DocumentRef = { kind: 'specs' };
 export const BRANCH: DocumentRef = { kind: 'branch' };
 export const UNEXPLAINED: DocumentRef = { kind: 'unexplained' };
 export const PROOF: DocumentRef = { kind: 'proof' };
@@ -26,6 +30,10 @@ export function entryKey(ref: DocumentRef): string {
   switch (ref.kind) {
     case 'handoff':
       return 'handoff';
+    case 'all-changes':
+      return 'all-changes';
+    case 'specs':
+      return 'specs';
     case 'unexplained':
       return 'unexplained';
     case 'proof':
@@ -52,6 +60,8 @@ export function entryKey(ref: DocumentRef): string {
 export function parseEntry(entry: string | undefined): DocumentRef | null {
   if (entry === null || entry === undefined || entry === '') return null;
   if (entry === 'handoff') return HANDOFF;
+  if (entry === 'all-changes') return ALL_CHANGES;
+  if (entry === 'specs') return SPECS;
   if (entry === 'unexplained') return UNEXPLAINED;
   if (entry === 'proof') return PROOF;
   if (entry === 'branch') return BRANCH;
@@ -117,6 +127,10 @@ function documentTitle(ref: DocumentRef): string {
   switch (ref.kind) {
     case 'handoff':
       return 'Changes';
+    case 'all-changes':
+      return 'All changes';
+    case 'specs':
+      return 'Specs';
     case 'unexplained':
       return 'Not explained';
     case 'proof':

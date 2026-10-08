@@ -81,3 +81,10 @@ export {
   type ReadinessTone,
 } from './readiness.ts';
 export { groupSpecPaths, isSpecPath } from './spec-paths.ts';
+export {
+  componentRelationships,
+  componentNeighborhood,
+  layerDiagram,
+  reviewCoverage,
+  reviewUnderstanding,
+} from './architecture.ts';

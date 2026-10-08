@@ -43,6 +43,8 @@ function writeRuntime(prefix: string, version: string) {
   );
   mkdirSync(join(folder, 'bin'));
   writeFileSync(join(folder, 'bin/porcelain.js'), '');
+  mkdirSync(join(folder, 'node_modules/effect'), { recursive: true });
+  writeFileSync(join(folder, 'node_modules/effect/package.json'), '{}');
   const watcher = join(prefix, 'node_modules/@parcel/watcher');
   mkdirSync(watcher, { recursive: true });
   writeFileSync(join(watcher, 'index.js'), 'module.exports = {};');

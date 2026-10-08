@@ -19,6 +19,7 @@ import { RestoredServiceUnhealthyError } from './restored-service-unhealthy-erro
 import { RootUserError } from './root-user-error.ts';
 import { RuntimeInstallError } from './runtime-install-error.ts';
 import { RuntimeNativeModulesError } from './runtime-native-modules-error.ts';
+import { RuntimeSplitEffectError } from './runtime-split-effect-error.ts';
 import { RuntimeVersionMismatchError } from './runtime-version-mismatch-error.ts';
 import { ServiceCommandFailedError } from './service-command-failed-error.ts';
 import { ServiceDowngradeError } from './service-downgrade-error.ts';
@@ -52,6 +53,7 @@ const installerErrorSchema = Schema.Union([
   RootUserError,
   RuntimeInstallError,
   RuntimeNativeModulesError,
+  RuntimeSplitEffectError,
   RuntimeVersionMismatchError,
   ServiceCommandFailedError,
   ServiceDowngradeError,
