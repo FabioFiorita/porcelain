@@ -80,7 +80,10 @@ export default defineConfig({
         test: {
           name: '@porcelain/mobile',
           root,
-          include: ['apps/mobile/src/**/*.spec.ts'],
+          include: [
+            'apps/mobile/src/**/*.spec.ts',
+            'apps/mobile/spec/**/*.spec.ts',
+          ],
           expect: { requireAssertions: true },
         },
       },

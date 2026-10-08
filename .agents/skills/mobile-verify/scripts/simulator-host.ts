@@ -5,6 +5,7 @@ import {
   bootSimulator,
   releaseSimulator,
   resetApp,
+  simulatorSchema,
 } from '../../../../apps/mobile/spec/kit/simulator.ts';
 import {
   developmentClient,
@@ -12,13 +13,6 @@ import {
   nativeFingerprint,
 } from '../../../../apps/mobile/spec/kit/development-client.ts';
 
-const simulatorSchema = Schema.Struct({
-  udid: Schema.String,
-  name: Schema.String,
-  kind: Schema.Literals(['iphone', 'ipad']),
-  owner: Schema.String,
-  borrowed: Schema.Boolean,
-});
 const requestSchema = Schema.Struct({
   action: Schema.Literals(['prepare', 'release']),
   kind: Schema.Literals(['iphone', 'ipad']),
@@ -72,5 +66,11 @@ if (process.argv[1] === import.meta.filename) {
   const request = Schema.decodeUnknownSync(requestSchema)(
     JSON.parse(process.argv[2] ?? '{}'),
   );
-  process.stdout.write(`${JSON.stringify(await simulatorHost(request))}\n`);
+  const simulator = await simulatorHost(request);
+  process.stdout.write(`${JSON.stringify(simulator)}\n`);
+  if (request.action === 'prepare') {
+    process.stdin.resume();
+    await new Promise<void>((done) => process.stdin.once('end', done));
+    await simulatorHost({ ...request, action: 'release' });
+  }
 }

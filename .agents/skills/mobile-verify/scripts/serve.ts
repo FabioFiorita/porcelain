@@ -47,9 +47,8 @@ export function serve(folder: string): Promise<void> {
       ...(options.udid === undefined ? {} : { udid: options.udid }),
     };
     const simulator = await prepareHost(host, request);
-    life.onStop(async () => {
-      await prepareHost(host, { ...request, action: 'release' });
-    });
+    if (simulator.pid !== undefined) life.own(simulator.pid);
+    life.onStop(simulator.release);
     const agent = driver(
       folder,
       host,

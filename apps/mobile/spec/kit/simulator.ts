@@ -1,27 +1,31 @@
 import { Schema } from 'effect';
 import { execFile } from 'node:child_process';
-import {
-  access,
-  mkdir,
-  open,
-  readFile,
-  readdir,
-  rm,
-  writeFile,
-} from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { nativeFingerprint } from './development-client.ts';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { promisify } from 'node:util';
 import { hostFileName } from './device-host.ts';
+import {
+  assertPoolOwner,
+  claimPoolFile,
+  poolClaimAlive,
+  poolProcessSchema,
+  readPoolClaim,
+  removeStalePoolClaim,
+  releasePoolFile,
+  type PoolClaim,
+} from './simulator-pool.ts';
 export type DeviceKind = 'iphone' | 'ipad';
-export type Simulator = {
-  udid: string;
-  name: string;
-  kind: DeviceKind;
-  owner: string;
-  borrowed: boolean;
-};
+export const simulatorSchema = Schema.Struct({
+  udid: Schema.String,
+  name: Schema.String,
+  kind: Schema.Literals(['iphone', 'ipad']),
+  owner: Schema.String,
+  ownerProcess: poolProcessSchema,
+  borrowed: Schema.Boolean,
+});
+export type Simulator = typeof simulatorSchema.Type;
 const poolDirectory = '/tmp/porcelain-simulator-pool';
 const poolNames: Record<DeviceKind, readonly string[]> = {
   iphone: ['Porcelain verify iPhone 1', 'Porcelain verify iPhone 2'],
@@ -151,12 +155,16 @@ export async function bootSimulator(
 ): Promise<Simulator> {
   await mkdir(poolDirectory, { recursive: true, mode: 0o700 });
   const lockPath = join(poolDirectory, 'pool.lock');
-  const lock = await open(lockPath, 'wx', 0o600).catch(() => {
+  let lock: PoolClaim;
+  try {
+    lock = claimPoolFile(lockPath, owner);
+  } catch (error) {
     throw new Error(
       'Another simulator allocation is in progress; retry after it finishes.',
+      { cause: error },
     );
-  });
-  let claimed: string | undefined;
+  }
+  let claimed: { path: string; claim: PoolClaim } | undefined;
   try {
     for (const family of ['iphone', 'ipad'] as const) {
       const { runtime, type } = await deviceFor(family);
@@ -172,13 +180,24 @@ export async function bootSimulator(
     const available = Object.values(await devices()).flat();
     const unclaimed = [];
     for (const candidate of available) {
-      const claimed = await access(
-        join(poolDirectory, `${candidate.udid}.claim`),
-      ).then(
-        () => true,
-        () => false,
-      );
-      if (!claimed) unclaimed.push(candidate);
+      const path = join(poolDirectory, `${candidate.udid}.claim`);
+      const claim = readPoolClaim(path);
+      let stopped = false;
+      if (
+        claim !== undefined &&
+        !poolClaimAlive(claim) &&
+        candidate.udid !== requested &&
+        Object.values(poolNames).flat().includes(candidate.name)
+      ) {
+        await shutdownSimulator(candidate.udid);
+        stopped = true;
+      }
+      removeStalePoolClaim(path);
+      if (readPoolClaim(path) === undefined) {
+        unclaimed.push(
+          stopped ? { ...candidate, state: 'Shutdown' } : candidate,
+        );
+      }
     }
     const device =
       requested === undefined
@@ -207,29 +226,29 @@ export async function bootSimulator(
       const crowded = await localBootProblem(Math.min(limit, 2));
       if (crowded !== undefined) throw new Error(crowded);
     }
-    claimed = join(poolDirectory, `${device.udid}.claim`);
-    const claim = await open(claimed, 'wx', 0o600).catch(() => {
-      claimed = undefined;
-      throw new Error(
-        `Simulator ${device.udid} is already claimed by another run.`,
-      );
-    });
-    await claim.writeFile(owner);
-    await claim.close();
+    const path = join(poolDirectory, `${device.udid}.claim`);
+    const claim = claimPoolFile(path, owner);
+    claimed = { path, claim };
     try {
       if (!borrowed) await simctl('boot', device.udid);
       await prepareLanguage(device.udid, borrowed);
-      return { udid: device.udid, name: device.name, kind, owner, borrowed };
+      return {
+        udid: device.udid,
+        name: device.name,
+        kind,
+        owner,
+        ownerProcess: claim.process,
+        borrowed,
+      };
     } catch (error) {
       if (!borrowed) await shutdownSimulator(device.udid);
       throw error;
     }
   } catch (error) {
-    if (claimed !== undefined) await rm(claimed, { force: true });
+    if (claimed !== undefined) releasePoolFile(claimed.path, claimed.claim);
     throw error;
   } finally {
-    await lock.close();
-    await rm(lockPath, { force: true });
+    releasePoolFile(lockPath, lock);
   }
 }
 async function prepareLanguage(udid: string, borrowed: boolean): Promise<void> {
@@ -269,12 +288,10 @@ async function prepareLanguage(udid: string, borrowed: boolean): Promise<void> {
 }
 export async function releaseSimulator(simulator: Simulator): Promise<void> {
   const claim = join(poolDirectory, `${simulator.udid}.claim`);
-  if ((await readFile(claim, 'utf8')) !== simulator.owner)
-    throw new Error(
-      `Refused to release simulator ${simulator.udid}: this run does not own its claim.`,
-    );
+  const expected = { owner: simulator.owner, process: simulator.ownerProcess };
+  assertPoolOwner(claim, expected);
   if (!simulator.borrowed) await shutdownSimulator(simulator.udid);
-  await rm(claim);
+  releasePoolFile(claim, expected);
 }
 async function stateOf(udid: string): Promise<string | undefined> {
   return Object.values(await devices())

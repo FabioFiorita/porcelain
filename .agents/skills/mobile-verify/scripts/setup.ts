@@ -1,5 +1,6 @@
 import { Schema } from 'effect';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { simulatorSchema } from '../../../../apps/mobile/spec/kit/simulator.ts';
 import { writeFileSync, readFileSync, accessSync, constants } from 'node:fs';
 import { join, delimiter } from 'node:path';
 import {
@@ -14,31 +15,98 @@ import { hubToken, hubUrl } from './host.ts';
 import { simulatorHost, type HostRequest } from './simulator-host.ts';
 
 const preparedSchema = Schema.Struct({
-  udid: Schema.String,
-  name: Schema.String,
-  kind: Schema.Literals(['iphone', 'ipad']),
-  owner: Schema.String,
-  borrowed: Schema.Boolean,
+  ...simulatorSchema.fields,
   installed: Schema.Boolean,
 });
-export function prepareHost(host: RemoteHost | null, request: HostRequest) {
-  if (host === null) return simulatorHost(request);
+export async function prepareHost(
+  host: RemoteHost | null,
+  request: HostRequest & { action: 'prepare' },
+) {
+  if (host === null) {
+    const simulator = await simulatorHost(request);
+    return {
+      ...simulator,
+      pid: undefined,
+      release: async () => {
+        await simulatorHost({ ...request, action: 'release' });
+      },
+    };
+  }
   if (host.ssh === undefined || host.checkout === undefined)
     throw new Refusal(
       'Remote start needs ssh and checkout in the private device-host config for simulator claims, app installation and cleanup. UI control uses the hub.',
     );
   const remote = `cd ${shellCommand([host.checkout])} && mise exec -- ${shellCommand(['node', '.agents/skills/mobile-verify/scripts/simulator-host.ts', JSON.stringify(request)])}`;
-  const result = spawnSync('ssh', ['-o', 'BatchMode=yes', host.ssh, remote], {
-    encoding: 'utf8',
-    timeout: 180_000,
+  const child = spawn('ssh', ['-o', 'BatchMode=yes', host.ssh, remote], {
+    stdio: ['pipe', 'pipe', 'pipe'],
   });
-  if (result.error) throw result.error;
-  if (result.status !== 0)
-    throw new Refusal(result.stderr.trim() || 'Device-host preparation failed');
-  return Promise.resolve(
-    Schema.decodeUnknownSync(preparedSchema)(JSON.parse(result.stdout)),
+  let stderr = '';
+  child.stderr.on('data', (data: Buffer) => {
+    stderr += data.toString();
+    process.stderr.write(data);
+  });
+  const exited = new Promise<void>((done, fail) => {
+    child.once('error', fail);
+    child.once('close', (code) => {
+      if (code === 0) done();
+      else
+        fail(
+          new Refusal(
+            stderr.trim() || 'Device-host preparation or cleanup failed',
+          ),
+        );
+    });
+  });
+  void exited.catch(() => undefined);
+  const simulator = await new Promise<typeof preparedSchema.Type>(
+    (done, fail) => {
+      let stdout = '';
+      const timer = setTimeout(() => {
+        child.stdin.end();
+        fail(new Refusal('Device-host preparation timed out.'));
+      }, 180_000);
+      const finish = () => clearTimeout(timer);
+      child.stdout.on('data', (data: Buffer) => {
+        stdout += data.toString();
+        const newline = stdout.indexOf('\n');
+        if (newline === -1) return;
+        finish();
+        try {
+          done(
+            Schema.decodeUnknownSync(preparedSchema)(
+              JSON.parse(stdout.slice(0, newline)),
+            ),
+          );
+        } catch (error) {
+          child.stdin.end();
+          fail(error);
+        }
+      });
+      child.once('error', (error) => {
+        finish();
+        fail(error);
+      });
+      child.once('close', () => {
+        finish();
+        fail(
+          new Refusal(
+            stderr.trim() ||
+              'Device-host preparation ended without a simulator.',
+          ),
+        );
+      });
+    },
   );
+  return {
+    ...simulator,
+    pid: child.pid,
+    release: async () => {
+      child.stdin.end();
+      await exited;
+    },
+  };
 }
+
 export function driver(
   folder: string,
   host: RemoteHost | null,

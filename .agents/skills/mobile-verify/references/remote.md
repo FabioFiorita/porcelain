@@ -1,6 +1,6 @@
 # Linux through the Mac hub
 
-Linux runs the disposable server and Metro. The Mac owns Xcode, the fixed simulator pool and a matching cached development-client build. UI control goes through the agent-device proxy; the lifecycle CLI uses bounded SSH calls solely for simulator preparation and release.
+Linux runs the disposable server and Metro. The Mac owns Xcode, the fixed simulator pool and a matching cached development-client build. UI control goes through the agent-device proxy; the lifecycle CLI uses an SSH connection held for the run’s lifetime solely for simulator preparation and release. The host helper owns the claim until that connection closes; a dead helper’s claim is reclaimed by the next allocation.
 
 Required: Node/pnpm from the repository toolchain on both machines, compatible agent-device client/proxy versions, authenticated SSH, full Xcode with an iOS 26+ runtime on the Mac, and the same native inputs in a Mac worktree. Install/build there, then keep the checkout for cleanup. Never point at the installed app or its data.
 
