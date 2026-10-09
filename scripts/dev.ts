@@ -1,5 +1,6 @@
 import { Schema, Result } from 'effect';
 import { spawn, type ChildProcess } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { resolve } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -17,7 +18,11 @@ const readySchema = Schema.Struct({
       Result.isSuccess(Schema.decodeUnknownResult(Schema.URLFromString)(value)),
     ),
   ),
+  manifest: Schema.String,
 });
+const manifestSchema = Schema.fromJsonString(
+  Schema.Struct({ socketPath: Schema.String }),
+);
 const { values } = parseArgs({
   options: { desktop: { type: 'boolean', default: false } },
 });
@@ -137,7 +142,7 @@ async function browser(): Promise<void> {
   process.on('SIGINT', stop);
   process.on('SIGTERM', stop);
   try {
-    const ready = new Promise<string>((done) => {
+    const ready = new Promise<typeof readySchema.Type>((done) => {
       const lines = createInterface({ input: server.stdout });
       lines.on('line', (line) => {
         process.stdout.write(`${line}\n`);
@@ -145,13 +150,13 @@ async function browser(): Promise<void> {
           const ready = Schema.decodeUnknownResult(readySchema)(
             JSON.parse(line),
           );
-          if (Result.isSuccess(ready)) done(ready.success.address);
+          if (Result.isSuccess(ready)) done(ready.success);
         } catch {
           return;
         }
       });
     });
-    const address = await Promise.race([
+    const started = await Promise.race([
       ready,
       serverExit.then((code) => {
         throw new Error(`Development server exited before ready (${code}).`);
@@ -161,7 +166,13 @@ async function browser(): Promise<void> {
     web = spawn(vite, [], {
       cwd: webRoot,
       detached: true,
-      env: { ...process.env, PORCELAIN_API_TARGET: address },
+      env: {
+        ...process.env,
+        PORCELAIN_API_TARGET: started.address,
+        PORCELAIN_OWNER_SOCKET: Schema.decodeUnknownSync(manifestSchema)(
+          readFileSync(started.manifest, 'utf8'),
+        ).socketPath,
+      },
       stdio: 'inherit',
     });
     const webExit = exitOf(web);
