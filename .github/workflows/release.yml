@@ -2,10 +2,17 @@ name: Release
 
 # Releases the version in the root package.json from main: the notarized Mac app first,
 # then the npm package, then one GitHub release tagged v<version> with the disk image.
-# Start it with `gh workflow run release.yml`. Re-running a failed job is safe until npm publishes.
+# Start it with `gh workflow run release.yml` to rehearse: it builds, signs and notarizes the Mac app
+# and publishes nothing. `gh workflow run release.yml -f publish=true` publishes. Re-running a failed
+# job is safe until npm publishes.
 
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish to npm and create the GitHub release (otherwise rehearse the Mac build only)
+        type: boolean
+        default: false
 
 concurrency:
   group: porcelain-release
@@ -98,6 +105,7 @@ jobs:
 
   npm:
     needs: [version, mac]
+    if: ${{ inputs.publish }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
