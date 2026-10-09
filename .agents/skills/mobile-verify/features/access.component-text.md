@@ -5,7 +5,7 @@ selectors:
   - "Tones and weights"
   - "Wrapping and selection"
 tests:
-  - apps/mobile/spec/e2e/destinations.e2e.ts
+  - apps/mobile/spec/e2e/component-library.e2e.ts
 api: []
 ---
 
@@ -18,4 +18,4 @@ Development-only Text samples reached through Settings, Component library, Explo
 3. Scroll to Wrapping and selection. Long press the paragraph and confirm native selection actions appear.
 4. Return with the native back button to Component library and then Settings.
 
-The listed destination spec covers the parent Settings route. These development-only samples are verified manually on the live development simulator.
+The component-library spec opens Explore Text and checks its type scale and tones before returning to the catalog. Native selection and larger accessibility text are also driven on the live development simulator.

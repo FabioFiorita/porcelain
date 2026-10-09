@@ -14,8 +14,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.semantics.*
 import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.viewevent.EventDispatcher
@@ -25,10 +23,7 @@ class ImageSurface(context: Context, appContext: AppContext) : ExpoView(context,
   val onLoad by EventDispatcher()
   private var image by mutableStateOf<android.graphics.Bitmap?>(null)
   init {
-    addView(ComposeView(context).apply {
-      layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-      setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-      setContent {
+    mountContent {
         var scale by remember(image) { mutableFloatStateOf(1f) }
         var offset by remember(image) { mutableStateOf(Offset.Zero) }
         image?.let { bitmap ->
@@ -42,11 +37,19 @@ class ImageSurface(context: Context, appContext: AppContext) : ExpoView(context,
                 CustomAccessibilityAction("Reset zoom") { scale = 1f; offset = Offset.Zero; true }
               ) })
         }
-      }
-    })
+    }
   }
   fun decode(value: String) {
-    image = try { val bytes = Base64.decode(value, Base64.DEFAULT); BitmapFactory.decodeByteArray(bytes, 0, bytes.size) } catch (_: IllegalArgumentException) { null }
+    image = try {
+      val bytes = Base64.decode(value, Base64.DEFAULT)
+      val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+      BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+      // Bound decoded pixels to the device viewport, retaining a 2x zoom budget.
+      val target = maxOf(resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels) * 2
+      var sample = 1
+      while (maxOf(bounds.outWidth, bounds.outHeight) / sample > target) sample *= 2
+      BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
+    } catch (_: IllegalArgumentException) { null }
     onLoad(mapOf("success" to (image != null)))
   }
 }

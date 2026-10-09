@@ -23,7 +23,7 @@ class HtmlSurface(context: Context, appContext: AppContext) : ExpoView(context, 
     }
     webView.webViewClient = object : WebViewClient() {
       override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-        if (request.hasGesture()) onLink(mapOf("url" to request.url.toString()))
+        if (request.hasGesture() && request.isForMainFrame && isPreviewLink(request.url.toString())) onLink(mapOf("url" to request.url.toString()))
         return true
       }
       override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
@@ -40,5 +40,6 @@ class HtmlSurface(context: Context, appContext: AppContext) : ExpoView(context, 
     val policy = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'none'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
     webView.loadDataWithBaseURL("about:blank", "<meta http-equiv=\"Content-Security-Policy\" content=\"$policy\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">$value", "text/html", "UTF-8", null)
   }
+  fun destroy() { webView.stopLoading(); removeView(webView); webView.destroy() }
   override fun onDetachedFromWindow() { webView.stopLoading(); super.onDetachedFromWindow() }
 }

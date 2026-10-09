@@ -24,6 +24,9 @@ export function ItemMenu({ actions, ...item }: ItemMenuProps) {
               <Button
                 key={action.id}
                 label={action.label}
+                {...(action.destructive
+                  ? { role: 'destructive' as const }
+                  : {})}
                 modifiers={[disabled(action.disabled ?? false)]}
                 onPress={action.onPress}
               />

@@ -1,8 +1,8 @@
 import { RenderSurface } from './render-surface';
-import type { RenderLine } from './render-model';
+import type { RenderLine } from '../../shared/rules/render-model';
 import type { ReviewRange } from './review-annotation';
 import { useHighlightedCode } from './use-highlighted-code';
-import { mergeDiffTokens } from './highlight-code';
+import { mergeDiffTokens } from '../../shared/rules/merge-diff-tokens';
 
 export function DiffView({
   lines,
@@ -21,14 +21,14 @@ export function DiffView({
 }) {
   const oldLines = lines.filter((line) => line.kind !== 'added');
   const newLines = lines.filter((line) => line.kind !== 'removed');
-  const oldTokens = useHighlightedCode(
-    oldLines.map((line) => (line.kind === 'gap' ? '' : line.text)).join('\n'),
-    language,
-  );
-  const newTokens = useHighlightedCode(
-    newLines.map((line) => (line.kind === 'gap' ? '' : line.text)).join('\n'),
-    language,
-  );
+  const oldSource = oldLines
+    .map((line) => (line.kind === 'gap' ? '' : line.text))
+    .join('\n');
+  const newSource = newLines
+    .map((line) => (line.kind === 'gap' ? '' : line.text))
+    .join('\n');
+  const oldTokens = useHighlightedCode(oldSource, language);
+  const newTokens = useHighlightedCode(newSource, language);
   const highlighted = new Map([
     ...oldLines.map(
       (line, index) => [line.id, oldTokens?.tokens?.[index]] as const,
@@ -37,18 +37,17 @@ export function DiffView({
       (line, index) => [line.id, newTokens?.tokens?.[index]] as const,
     ),
   ]);
+  const rendered = language
+    ? lines.map((line) => {
+        const tokens = highlighted.get(line.id);
+        return tokens
+          ? { ...line, tokens: mergeDiffTokens(tokens, line.tokens) }
+          : line;
+      })
+    : lines;
   return (
     <RenderSurface
-      lines={
-        language
-          ? lines.map((line) => {
-              const tokens = highlighted.get(line.id);
-              return !tokens
-                ? line
-                : { ...line, tokens: mergeDiffTokens(tokens, line.tokens) };
-            })
-          : lines
-      }
+      lines={rendered}
       wrap={wrap}
       selection={selection}
       onSelect={onSelect}

@@ -1,3 +1,4 @@
+import { useResolveClassNames } from 'uniwind';
 import { FlatList, View } from 'react-native';
 import { Item, type ItemProps } from './item';
 import { ItemMenu } from './item-menu';
@@ -42,9 +43,11 @@ export function FileTree({
   onSelect: (id: string) => void;
   contextMenu?: (node: FileTreeNode) => ItemMenuProps['actions'];
 }) {
+  const padding = useResolveClassNames('px-2');
+  const indent = useResolveClassNames('pl-4');
   return (
     <FlatList
-      contentContainerStyle={{ paddingHorizontal: 8 }}
+      contentContainerStyle={padding}
       data={visibleRows(nodes, expanded)}
       keyExtractor={({ node }) => node.id}
       ItemSeparatorComponent={() => <View className="h-1" />}
@@ -64,7 +67,7 @@ export function FileTree({
           leading: (
             <View
               className="flex-row items-center gap-2"
-              style={{ paddingLeft: depth * 16 }}
+              style={{ paddingLeft: depth * Number(indent.paddingLeft) }}
             >
               {node.kind === 'folder' ? (
                 <Icon

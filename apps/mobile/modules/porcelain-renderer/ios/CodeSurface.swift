@@ -21,6 +21,8 @@ struct ReviewSelection: Decodable, Equatable {
   var endLine: Int
 }
 final class CodeModel: ObservableObject {
+  @Published var tokens = RenderTokens()
+  private(set) var gutterDigits = 1
   @Published var lines: [CodeLine] = []
   @Published var selection: ReviewSelection?
   var anchor: Int?
@@ -33,6 +35,7 @@ final class CodeModel: ObservableObject {
   var onExpand: ((String) -> Void)?
   func decode(_ value: String) {
     lines = (try? JSONDecoder().decode([CodeLine].self, from: Data(value.utf8))) ?? []
+    gutterDigits = String(lines.compactMap { max($0.oldLine ?? 0, $0.newLine ?? 0) }.max() ?? 1).count
     anchor = nil
   }
   // JavaScript owns the selection; clearing it also drops the anchor so the next tap cannot extend a finished range.
@@ -51,17 +54,7 @@ final class CodeSurface: ExpoView {
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
-    let controller = UIHostingController(rootView: CodeContent(model: model))
-    controller.view.backgroundColor = .clear
-    controller.view.translatesAutoresizingMaskIntoConstraints = false
-    addSubview(controller.view)
-    NSLayoutConstraint.activate([
-      controller.view.leadingAnchor.constraint(equalTo: leadingAnchor),
-      controller.view.trailingAnchor.constraint(equalTo: trailingAnchor),
-      controller.view.topAnchor.constraint(equalTo: topAnchor),
-      controller.view.bottomAnchor.constraint(equalTo: bottomAnchor)
-    ])
-    host = controller
+    host = mount(CodeContent(model: model))
     model.onSelect = { [weak self] side, start, end in
       var range: [String: Any] = ["startLine": start, "endLine": end]
       if let side { range["side"] = side }
@@ -73,34 +66,34 @@ final class CodeSurface: ExpoView {
 
 struct CodeContent: View {
   @ObservedObject var model: CodeModel
-  private var gutterWidth: CGFloat {
-    CGFloat(String(model.lines.compactMap { max($0.oldLine ?? 0, $0.newLine ?? 0) }.max() ?? 1).count) * 8 + 4
-  }
+  @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1
+  private var codeSize: CGFloat { model.tokens.codeSize * textScale }
   var body: some View {
+    let gutterWidth = CGFloat(model.gutterDigits) * ("0" as NSString).size(withAttributes: [.font: UIFont.monospacedSystemFont(ofSize: codeSize, weight: .regular)]).width + model.tokens.inset
     ScrollView(model.wrap ? [.vertical] : [.vertical, .horizontal]) {
       LazyVStack(alignment: .leading, spacing: 0) {
         ForEach(model.lines) { line in
           if line.kind == "gap" {
             Button(line.text) { model.onExpand?(line.id) }
-              .font(.system(size: 12.5)).foregroundStyle(model.muted).padding(12)
+              .font(.system(size: model.tokens.captionSize * textScale)).foregroundStyle(model.muted).padding(model.tokens.blockPadding)
           } else {
-            row(line)
+            row(line, gutterWidth: gutterWidth)
           }
         }
       }
       .frame(maxWidth: model.wrap ? .infinity : nil, alignment: .leading)
-      .padding(.vertical, 8)
+      .padding(.vertical, model.tokens.spacing)
     }
     .background(model.background)
   }
-  func row(_ line: CodeLine) -> some View {
+  func row(_ line: CodeLine, gutterWidth: CGFloat) -> some View {
     let side: String? = line.kind == "removed" ? "deletions" : line.oldLine != nil || line.kind == "added" ? "additions" : nil
     let number = side == "deletions" ? line.oldLine : line.newLine
     let selected: Bool = {
       guard let selection = model.selection, selection.side == side, let number else { return false }
       return (selection.startLine...selection.endLine).contains(number)
     }()
-    return HStack(alignment: .top, spacing: 8) {
+    return HStack(alignment: .top, spacing: model.tokens.spacing) {
       if model.lineNumbers {
         if line.oldLine != nil || line.kind == "added" || line.kind == "removed" {
           Text(line.oldLine.map(String.init) ?? " ").frame(width: gutterWidth, alignment: .leading)
@@ -108,16 +101,16 @@ struct CodeContent: View {
         Text(line.newLine.map(String.init) ?? " ").frame(width: gutterWidth, alignment: .leading)
       }
       if line.kind == "added" || line.kind == "removed" {
-        Text(line.kind == "added" ? "+" : "−").frame(width: 12)
+        Text(line.kind == "added" ? "+" : "−").frame(width: codeSize)
       }
       Text(highlight(line)).foregroundStyle(model.foreground)
         .textSelection(.enabled)
         .fixedSize(horizontal: !model.wrap, vertical: true)
         .frame(maxWidth: model.wrap ? .infinity : nil, alignment: .leading)
     }
-    .font(.system(size: 13, design: .monospaced))
+    .font(.system(size: codeSize, design: .monospaced))
     .foregroundStyle(model.muted)
-    .padding(.horizontal, 8).padding(.vertical, 4)
+    .padding(.horizontal, model.tokens.spacing).padding(.vertical, model.tokens.inset)
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(selected ? Color.accentColor.opacity(0.18) : line.kind == "added" ? Color.green.opacity(0.1) : line.kind == "removed" ? Color.red.opacity(0.1) : .clear)
     .contentShape(Rectangle())
@@ -148,7 +141,7 @@ struct CodeContent: View {
       part.foregroundColor = model.foreground
       if let color = token.color { part.foregroundColor = Color(red: Double((color >> 16) & 255) / 255, green: Double((color >> 8) & 255) / 255, blue: Double(color & 255) / 255) }
       if let style = token.fontStyle {
-        var font = Font.system(size: 13, design: .monospaced)
+        var font = Font.system(size: codeSize, design: .monospaced)
         if style & 1 != 0 { font = font.italic() }
         if style & 2 != 0 { font = font.bold() }
         part.font = font

@@ -1,16 +1,13 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript';
-import {
-  createCodeHighlighter,
-  mergeDiffTokens,
-} from '../../src/components/ui/highlight-code.js';
+import { createCodeHighlighter } from '../../src/components/ui/code-highlighter.js';
+import { mergeDiffTokens } from '../../src/shared/rules/merge-diff-tokens.js';
 
-let highlight: Awaited<ReturnType<typeof createCodeHighlighter>>;
-beforeAll(async () => {
-  highlight = await createCodeHighlighter(createJavaScriptRegexEngine());
-});
 describe('mobile source highlighting', () => {
   it('preserves literal source, blank lines and multiline comments across chunks', async () => {
+    const highlight = await createCodeHighlighter(
+      createJavaScriptRegexEngine(),
+    );
     const source =
       '/* first\n' +
       'comment\n'.repeat(100) +
@@ -26,6 +23,9 @@ describe('mobile source highlighting', () => {
     expect(lines[104]).toEqual([]);
   });
   it('uses the Pierre dark theme and native language grammars', async () => {
+    const highlight = await createCodeHighlighter(
+      createJavaScriptRegexEngine(),
+    );
     const dark = await highlight('const ready = true;', 'ts', 'dark');
     expect(dark[0]).toContainEqual({ text: 'const', color: 0xffd568ea });
     const swift = await highlight('let ready = true', 'swift', 'light');
@@ -34,6 +34,9 @@ describe('mobile source highlighting', () => {
     expect(kotlin[0]).toContainEqual({ text: 'val', color: 0xffd32a61 });
   });
   it('normalizes CRLF and keeps unknown languages readable', async () => {
+    const highlight = await createCodeHighlighter(
+      createJavaScriptRegexEngine(),
+    );
     expect(
       await highlight('one\r\n\r\nthree', 'unknown-language', 'light'),
     ).toEqual([[{ text: 'one' }], [], [{ text: 'three' }]]);

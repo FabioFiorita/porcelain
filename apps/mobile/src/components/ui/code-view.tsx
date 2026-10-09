@@ -1,5 +1,5 @@
 import { RenderSurface } from './render-surface';
-import type { RenderToken } from './render-model';
+import type { RenderToken } from '../../shared/rules/render-model';
 import type { ReviewRange } from './review-annotation';
 import { useHighlightedCode } from './use-highlighted-code';
 import { View } from 'react-native';
@@ -22,9 +22,17 @@ export function CodeView({
   selection?: ReviewRange | undefined;
   onSelect?: ((range: ReviewRange) => void) | undefined;
 }) {
-  const lines = source.replaceAll('\r\n', '\n').split('\n');
   const result = useHighlightedCode(source, tokens ? undefined : language);
   const highlighted = tokens ?? result?.tokens;
+  const lines = source
+    .replaceAll('\r\n', '\n')
+    .split('\n')
+    .map((text, index) => ({
+      id: String(index + 1),
+      text,
+      newLine: index + 1,
+      ...(highlighted?.[index] ? { tokens: highlighted[index] } : {}),
+    }));
   return (
     <View className="flex-1">
       {result?.error ? (
@@ -34,12 +42,7 @@ export function CodeView({
       ) : null}
       <RenderSurface
         key={source}
-        lines={lines.map((text, index) => ({
-          id: String(index + 1),
-          text,
-          newLine: index + 1,
-          ...(highlighted?.[index] ? { tokens: highlighted[index] } : {}),
-        }))}
+        lines={lines}
         wrap={wrap}
         lineNumbers={lineNumbers}
         selection={selection}

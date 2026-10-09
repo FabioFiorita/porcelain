@@ -1,3 +1,4 @@
+import { isPreviewLink } from '../../shared/rules/preview-link';
 import { useState } from 'react';
 import { requireNativeView } from 'expo';
 import { View, type NativeSyntheticEvent } from 'react-native';
@@ -46,7 +47,10 @@ function HtmlContent({
       ) : (
         <NativeHtml
           html={html}
-          onLink={(event) => onLink?.(event.nativeEvent.url)}
+          onLink={(event) => {
+            if (isPreviewLink(event.nativeEvent.url))
+              onLink?.(event.nativeEvent.url);
+          }}
           onError={(event) => setError(event.nativeEvent.message)}
           style={{ flex: 1 }}
         />
