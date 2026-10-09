@@ -1,4 +1,5 @@
 import type { StopResult } from './processes.ts';
+import { createHash } from 'node:crypto';
 import { accessSync, constants, existsSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { delimiter, join } from 'node:path';
@@ -58,11 +59,17 @@ export function refuseMissing(problems: readonly (string | undefined)[]) {
   if (found.length > 0) throw new Refusal(found.join('\n'));
 }
 
-export function freePort(): Promise<number> {
+export async function worktreePort(worktree: string): Promise<number> {
+  const hash = createHash('sha256').update(worktree).digest().readUInt16BE(0);
+  const preferred = 20_000 + (hash % 10_000);
+  return freePort(preferred).catch(() => freePort());
+}
+
+export function freePort(port = 0): Promise<number> {
   return new Promise((done, fail) => {
     const probe = createServer();
     probe.once('error', fail);
-    probe.listen(0, '127.0.0.1', () => {
+    probe.listen(port, '127.0.0.1', () => {
       const bound = probe.address();
       probe.close(() =>
         typeof bound === 'object' && bound !== null

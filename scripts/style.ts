@@ -60,6 +60,7 @@ const webRoots = [
   'apps/web/src',
   'apps/web/spec',
   'apps/web/vite.config.ts',
+  'apps/web/dev-pair.ts',
   'apps/web/vitest.config.ts',
   'apps/web/playwright.config.ts',
 ];
