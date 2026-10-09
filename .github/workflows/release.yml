@@ -1,18 +1,15 @@
 name: Release
 
-# Releases the version in the root package.json from main: the notarized Mac app first,
-# then the npm package, then one GitHub release tagged v<version> with the disk image.
-# Start it with `gh workflow run release.yml` to rehearse: it builds, signs and notarizes the Mac app
-# and publishes nothing. `gh workflow run release.yml -f publish=true` publishes. Re-running a failed
-# job is safe until npm publishes.
+# Pushing a tag v<version> releases that commit: the notarized Mac app first, then the npm
+# package, then the GitHub release for the tag with the disk image. The tag must match the
+# root package.json version and point at a commit on main.
+# Running it by hand (`gh workflow run release.yml`) rehearses the signed and notarized Mac
+# build from main and publishes nothing. Re-running a failed job is safe until npm publishes.
 
 on:
+  push:
+    tags: ['v*']
   workflow_dispatch:
-    inputs:
-      publish:
-        description: Publish to npm and create the GitHub release (otherwise rehearse the Mac build only)
-        type: boolean
-        default: false
 
 concurrency:
   group: porcelain-release
@@ -23,19 +20,36 @@ permissions:
 
 jobs:
   version:
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ github.ref_type == 'tag' || github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      publish: ${{ steps.version.outputs.publish }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Read the release version and refuse one already released
         id: version
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: |
           set -euo pipefail
           version=$(node -p "require('./package.json').version")
+          if [ -n "$TAG" ]; then
+            if [ "$TAG" != "v$version" ]; then
+              echo "Tag $TAG does not match the root package.json version $version." >&2
+              exit 1
+            fi
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "Tag $TAG points at a commit that is not on main." >&2
+              exit 1
+            fi
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
           if gh release view "v$version" > /dev/null 2>&1; then
             echo "Release v$version already exists; bump the root package.json version first." >&2
             exit 1
@@ -105,7 +119,7 @@ jobs:
 
   npm:
     needs: [version, mac]
-    if: ${{ inputs.publish }}
+    if: ${{ needs.version.outputs.publish == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -157,6 +171,6 @@ jobs:
           set -euo pipefail
           gh release create "v$VERSION" "Porcelain-$VERSION-arm64.dmg" \
             --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
+            --verify-tag \
             --title "Porcelain $VERSION" \
             --generate-notes
