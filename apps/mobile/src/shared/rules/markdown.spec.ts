@@ -51,6 +51,30 @@ describe('native Markdown render data', () => {
       },
     ]);
   });
+  it('keeps non-ASCII intraword underscores literal and standalone emphasis styled', () => {
+    expect(parseMarkdown('café_x_ _café_')).toEqual([
+      {
+        id: 0,
+        kind: 'paragraph',
+        level: 0,
+        runs: [{ text: 'café_x_ ' }, { text: 'café', italic: true }],
+      },
+    ]);
+  });
+  it('preserves strong emphasis nested inside italics', () => {
+    expect(parseMarkdown('*a **b** c*')).toEqual([
+      {
+        id: 0,
+        kind: 'paragraph',
+        level: 0,
+        runs: [
+          { text: 'a ', italic: true },
+          { text: 'b', bold: true, italic: true },
+          { text: ' c', italic: true },
+        ],
+      },
+    ]);
+  });
   it('shares blocks, whitespace and fence boundaries across platforms', () => {
     expect(
       parseMarkdown(
