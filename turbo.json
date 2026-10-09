@@ -9,7 +9,12 @@
   "globalEnv": ["CI"],
   "tasks": {
     "transit": {
-      "dependsOn": ["^transit"]
+      "dependsOn": ["^transit"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/*.{spec,test,e2e,integration,perf}.{ts,tsx}",
+        "!spec/{integration,e2e,perf}/**"
+      ]
     },
     "typecheck": {
       "dependsOn": ["transit"],

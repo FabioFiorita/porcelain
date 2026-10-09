@@ -39,7 +39,6 @@
     "@electron/fuses": "2.1.3",
     "@electron/packager": "20.3.0",
     "@porcelain/contracts": "workspace:*",
-    "@porcelain/desktop": "workspace:*",
     "@shadcn/lint": "0.2.0",
     "@tanstack/router-generator": "1.167.34",
     "@types/babel__core": "7.20.5",
