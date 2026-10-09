@@ -33,7 +33,8 @@ const application = Effect.gen(function* () {
         message: 'The desktop server requires private startup configuration',
       }),
     );
-  const { profile, projectHome, packageRoot, session, outputEnd } = startup;
+  const { profile, projectHome, packageRoot, version, session, outputEnd } =
+    startup;
   const stop = yield* Deferred.make<void>();
   const exit = yield* Deferred.make<void>();
   yield* Stream.fromQueue(messages).pipe(
@@ -76,7 +77,7 @@ const application = Effect.gen(function* () {
   yield* Effect.gen(function* () {
     const server = yield* startServer(settings, {
       desktopSession: session,
-      version: undefined,
+      version,
       serviceUpdateRunner: yield* openAppManagedUpdateRunner(),
     });
     yield* Effect.addFinalizer(() => server.close());

@@ -113,6 +113,9 @@ export async function stageDesktop(stage: {
   web: boolean;
 }): Promise<{ electronVersion: string }> {
   const desktop = await manifest(join(root, 'apps/desktop'));
+  const { version } = await manifest(root);
+  if (version === undefined)
+    throw new Error('Set the release version in the root package.json');
   const electronVersion = desktop.dependencies.electron;
   if (electronVersion === undefined)
     throw new Error('Pin Electron in apps/desktop/package.json');
@@ -180,7 +183,7 @@ export async function stageDesktop(stage: {
   }
   await writeFile(
     join(stage.directory, 'package.json'),
-    `${JSON.stringify({ name: desktop.name, productName: stage.productName, version: desktop.version, type: 'module', main: 'desktop/main.mjs', dependencies }, null, 2)}\n`,
+    `${JSON.stringify({ name: desktop.name, productName: stage.productName, version, type: 'module', main: 'desktop/main.mjs', dependencies }, null, 2)}\n`,
   );
   await stageNativeModules(stage.directory, electronVersion, dependencies);
   return { electronVersion };
