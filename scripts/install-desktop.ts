@@ -15,7 +15,7 @@ const backup = join(
 );
 
 try {
-  const built = await buildDesktop();
+  const { app: built } = await buildDesktop();
   await cp(built, staged, { recursive: true, verbatimSymlinks: true });
   await desktopCommand('/usr/bin/codesign', [
     '--verify',
