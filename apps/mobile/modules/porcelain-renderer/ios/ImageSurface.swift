@@ -42,6 +42,7 @@ struct ImageContent: View {
           .gesture(MagnifyGesture().updating($magnification) { value, state, _ in state = value.magnification }.onEnded { value in scale = min(8, max(1, scale * value.magnification)); offset = clamped(offset, to: limit) })
           .simultaneousGesture(DragGesture().updating($translation) { value, state, _ in if zoom > 1 { state = value.translation } }.onEnded { value in offset = clamped(CGSize(width: offset.width + value.translation.width, height: offset.height + value.translation.height), to: limit) })
           .onTapGesture(count: 2) { scale = scale == 1 ? 2 : 1; offset = .zero }
+          .onChange(of: scale) { offset = clamped(offset, to: limit) }
           .accessibilityLabel("Image preview")
           .accessibilityValue("Zoom \(Int(scale * 100)) percent")
           .accessibilityAction(named: "Zoom in") { scale = min(8, scale * 2) }

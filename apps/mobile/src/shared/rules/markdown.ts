@@ -1,4 +1,4 @@
-import { isPreviewLink } from './preview-link.js';
+import { isPreviewLink } from './preview-link.ts';
 
 type MarkdownRun = {
   text: string;

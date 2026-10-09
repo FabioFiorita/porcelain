@@ -21,7 +21,7 @@ import html from '@shikijs/langs/html';
 import css from '@shikijs/langs/css';
 import markdown from '@shikijs/langs/markdown';
 import type { RenderToken } from '../../shared/rules/render-model.js';
-import { highlightCode } from '../../shared/rules/highlight-code.js';
+import { highlightCode } from '../../shared/rules/highlight-code.ts';
 
 export async function createCodeHighlighter(engine: RegexEngine) {
   const highlighter = await createHighlighterCore({
