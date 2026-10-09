@@ -77,5 +77,5 @@ Work on your own branch from `main`, in your own worktree. Open a pull request i
 - `apps/desktop`: Electron around the web.
 - `apps/mobile`: Expo and Uniwind; controls are web-styled primitives in `src/components/ui`, and Expo UI keeps system chrome (menus, navigation, tabs, sheets).
 - `packages/contracts`, `packages/client` and the domain packages.
-- `.agents/skills`: the verification skills and their feature maps.
+- `.agents/skills`: the verification skills and their feature maps, and the release skill.
 - `repos/`: vendored reference source, read-only.
