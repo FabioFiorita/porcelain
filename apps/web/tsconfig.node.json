@@ -8,6 +8,7 @@
   },
   "include": [
     "vite.config.ts",
+    "dev-pair.ts",
     "vitest.config.ts",
     "playwright.config.ts",
     "spec/kit",

@@ -19,7 +19,7 @@ import {
 import { prepareRemote } from '../../../../apps/server/spec/kit/remote-computer.ts';
 import { buildIsolatedServer } from '../../../../apps/server/spec/kit/sandbox.ts';
 import {
-  freePort,
+  worktreePort,
   refuseMissing,
   sandboxProblems,
 } from '../../verify-core/cli.ts';
@@ -135,7 +135,7 @@ export function serve(folder: string): Promise<void> {
     const owner = server.session(recorder, { projectId: '', worktreeId: '' });
     if (codingTool) await owner.installCodingTool();
     if (reviewSample) await agentActs(owner, { kind: 'publish-architecture' });
-    const port = await freePort();
+    const port = await worktreePort(root);
     const origin = `http://127.0.0.1:${port}`;
     const log = openSync(join(evidence, 'vite.log'), 'a', 0o600);
     const web = spawn(
@@ -151,7 +151,11 @@ export function serve(folder: string): Promise<void> {
       ],
       {
         cwd: join(root, 'apps/web'),
-        env: { ...process.env, PORCELAIN_API_TARGET: server.address },
+        env: {
+          ...process.env,
+          PORCELAIN_API_TARGET: server.address,
+          PORCELAIN_OWNER_SOCKET: server.socketPath,
+        },
         stdio: ['ignore', log, log],
       },
     );

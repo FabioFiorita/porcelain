@@ -16,6 +16,8 @@ $C start
 
 Startup prints a short card: instance ID, server/web/WebSocket URLs, private `connection.json`, the exact pairing-link and MCP commands, evidence folder and stop command. Read `connection.json` for build identity, fixture IDs and paths, required origins, owner socket, credential-file paths, initial route, web mode, status/log commands and the remote-start command. Do not print credential files.
 
+The web port is derived from the worktree path, so a restarted instance answers at the same URL while that port is free; an open tab or SSH tunnel keeps working, though the new server needs a new pairing. On the not-paired page, Vite serves a development-only "Pair this browser" button that asks the instance's owner socket for a one-time link: give a developer's browser that instead of pasting links.
+
 Open the card's web URL in your own fresh browser context. For a paired journey, run the exact pairing-link command and navigate to its fresh link there. Each link works once; the fragment is consumed and removed. For an unpaired journey, navigate to `/` without minting/redeeming a link. `start --desktop` exposes desktop-mode web views; it does not launch Electron or supply its native bridge. `start --coding-tool` installs the fixture's fake coding tool on the disposable server's PATH.
 
 ## Choose a driver
