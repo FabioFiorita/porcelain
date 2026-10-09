@@ -27,7 +27,7 @@ export function DecisionExcerpts({
       aria-label="Existing code it relies on"
       className="mt-3 flex flex-col border-t"
     >
-      <div className="mx-auto w-full max-w-4xl px-5 pt-5 pb-2 font-sans">
+      <div className="px-4 pt-5 pb-2 font-sans">
         <h3 className="text-sm font-semibold">Existing code it relies on</h3>
         <p className="text-xs text-muted-foreground">
           The decision builds on this code without changing it.

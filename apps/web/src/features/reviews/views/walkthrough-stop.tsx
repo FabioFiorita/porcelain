@@ -263,7 +263,7 @@ export function WalkthroughStopView({
               />
             )}
             <div className="mt-3 border-t bg-muted/20">
-              <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-4 px-5 pt-5 pb-16 font-sans">
+              <div className="flex flex-wrap items-center justify-between gap-4 px-4 pt-5 pb-16 font-sans">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">
                     {finished
