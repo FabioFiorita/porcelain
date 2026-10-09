@@ -134,6 +134,14 @@ jobs:
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:package
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.20.0
+      - name: Use an npm that publishes through trusted publishing
+        run: |
+          set -euo pipefail
+          npm install --global npm@11.21.0
+          npm --version
       - name: Publish with npm trusted publishing
         working-directory: dist-porcelain
         run: npm publish --provenance --access public
