@@ -20,7 +20,7 @@ All changes shows the diffs of more tracked changes than one diff request may ca
 
 ## How a user reaches it
 
-- Workspace → button "Review" → button "All changes" (the first row of the Changes list; it reads "Architecture overview" once an agent has published a review), in a worktree with more than 200 tracked, modified files.
+- Workspace → button "Review" → button "All changes" (the first row of the Changes list; once an agent has published a review it moves under tab "Review" → nav "Walkthrough" as "All changes · N files"), in a worktree with more than 200 tracked, modified files.
 
 ## Driving it
 

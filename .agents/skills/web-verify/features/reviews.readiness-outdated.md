@@ -35,7 +35,7 @@ A comment the agent left for you and checks that ran before the latest code chan
 - The agent comments on README.md: `$C agent comment README.md "Should the note mention the new flag?"`.
 
 1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: tab "Review Close Review", region "Published review".
+   Look for: tab "Review Close Review", region "Review walkthrough".
 2. Click button named `Review`
    Look for: in the dialog, region "Readiness" with header button "Readiness 2 things to check" and buttons "0 of 1 file reviewed", "No marks went stale", "Every change explained", "1 comment waiting on you" and "2 checks passed".
 3. On disk: `printf '# Sample repository\n\nA change to review.\nAnother line.\n' > "$REPO/README.md"`, then wait for button named `Checks ran before the latest changes` to be visible and inspect the accessibility tree

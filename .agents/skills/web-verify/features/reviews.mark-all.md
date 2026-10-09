@@ -58,5 +58,5 @@ printf 'Notes to review\n' > "$REPO/NOTES.md"
 ## Gotchas
 
 - The page follows the disk write through the server's watcher and the live connection, which the visible-image wait in step 3 follows.
-- Only shown while no review is published: with a published review the handoff tab shows the review overview instead and this button is gone.
+- Only shown while no review is published: with a published review the handoff tab shows the walkthrough instead and this button moves to the All changes document.
 - Marks persist on the server and NOTES.md stays on disk; end with step 5 and `rm "$REPO/NOTES.md"` before another feature that counts files.

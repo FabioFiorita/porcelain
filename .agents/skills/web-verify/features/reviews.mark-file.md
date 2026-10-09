@@ -24,7 +24,7 @@ A changed file's reviewed control in its diff header marks it reviewed at its cu
 
 ## How a user reaches it
 
-- In any diff header (Changes document, a single change tab, a layer step): button "Mark README.md as reviewed" → "Unmark README.md as unreviewed"; a file changed since it was marked shows "Mark changed README.md as reviewed".
+- In any diff header (Changes document, a single change tab, a walkthrough stop): button "Mark README.md as reviewed" → "Unmark README.md as unreviewed"; a file changed since it was marked shows "Mark changed README.md as reviewed".
 - Shortcut `R` (listed as "Toggle reviewed" in the shortcuts dialog, `Mod+/`): toggles the focused entry of the active code document. It is ignored while focus is in a text field. `J` / `K` move the focused entry.
 - The review sidebar's changed-file row (button "README.md · unstaged") offers it on right-click: menuitem "Mark as reviewed" / "Unmark as reviewed" (see `reviews.changed-file-menu`).
 

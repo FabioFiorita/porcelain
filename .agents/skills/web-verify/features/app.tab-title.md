@@ -24,11 +24,11 @@ The browser tab (document title) names what is shown: the open document, or the 
 
 The exact strings (`apps/web/src/features/reviews/rules/documents.ts`, `apps/web/src/app/connected-workspace.tsx`, `apps/web/src/app/settings-page.tsx`), with `P` = project name ("repository" in the disposable instance):
 
-- Changes document (the "All changes"/"Architecture overview" handoff tab): `Changes — P`
+- the handoff tab (Changes, or the Review walkthrough once an agent has published a review, whichever stop it shows): `Changes — P`; All changes: `All changes — P`; Specs: `Specs — P`
 - a changed file or a file opened from Files: `<file name> — P` (the last path segment, e.g. `README.md — P`)
 - a commit: `<first 7 characters of the oid> — P`
 - branch changes: `Branch changes — P`; commit graph: `Commit graph — P`; file timeline: `Timeline of <file name> — P`
-- a published review layer: `Review — P`; Not explained: `Not explained — P`; proof: `Proof — P`
+- proof: `Proof — P`
 - no document open: the surface, `Changes — P`, `Files — P` or `History — P`
 - a worktree on a remote computer, or on this computer once it has a custom name: the above followed by ` · <computer name>`
 - Settings: `Settings` (or `Settings · <computer name>` when this computer has a custom name)

@@ -22,9 +22,10 @@ The checks and attachments the agent published with its review open as a Proof d
 
 ## How a user reaches it
 
-- Review (sheet at phone width) → the Layers list's proof row, named `Proof · <status>` (for example "Proof · 1 failing").
+- Review (sheet at phone width) → tab "Review" → nav "Walkthrough"'s proof row, named `Proof · <status>` (for example "Proof · 1 failing").
 - Review → Readiness → the checks line ("1 of 2 checks failing", "2 checks passed", "Checks ran before the latest changes"...) opens the same document.
-- Inside a layer, the checks attached to that layer show above its steps.
+- The walkthrough's briefing: section "Evidence" → button "Open proof".
+- Inside a decision stop, the checks attached to that decision show in list "Checks for this decision" below its steps.
 
 ## Driving it
 
@@ -35,9 +36,9 @@ The checks and attachments the agent published with its review open as a Proof d
 - The agent publishes a review with proof: `$C agent publish-proof "Readme layer" --check "Unit tests=pass" --check "Save journey=fail" --output "Save journey=Expected the Saved notice to be visible" --screenshot "Saved notice"` (the sample review plus a one-pixel PNG attachment titled "Saved notice", checks tied to the layer, as the tests' `agent.publishProof` sends it).
 
 1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: tab "Review Close Review", region "Published review".
-2. Click button named `Review`
-   Look for: the review sheet with button "Proof · 1 failing" (and, in Readiness, "1 of 2 checks failing").
+   Look for: tab "Review Close Review", region "Review walkthrough".
+2. Click button named `Review`, then click tab named `Review`
+   Look for: the review sheet with button "Proof · 1 failing" in nav "Walkthrough" (and, in Readiness, "1 of 2 checks failing").
 3. Click button named `Proof · 1 failing`, then wait for img named `Saved notice` to be visible
    Look for: the sheet closes; Page Title "Proof — repository"; region "Proof" with heading "Proof" and paragraph "Published <date, time> · checks 1 failing · 1 attachment"; alert "1 check failed The agent reported this work as not passing yet."; region "Checks" whose first listitem is "Save journey: Failed" holding "Readme layer" and "Expected the Saved notice to be visible", the second "Unit tests: Passed"; region "Attachments" with figure "Saved notice" holding img "Saved notice".
 
