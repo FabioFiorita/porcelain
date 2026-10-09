@@ -1,6 +1,13 @@
 {
   "name": "porcelain",
   "version": "0.65.0",
+  "description": "Review coding agents’ changes from a browser, Mac or phone",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FabioFiorita/porcelain.git"
+  },
+  "homepage": "https://github.com/FabioFiorita/porcelain",
   "private": true,
   "type": "module",
   "scripts": {
