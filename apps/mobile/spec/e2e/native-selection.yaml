@@ -31,4 +31,4 @@ name: Select native code and diff lines
 - tapOn: 'context additions line 4: }'
 - assertVisible: 'Selected: none'
 - tapOn: Show 1 unchanged line
-- assertVisible: '// Previously collapsed context'
+- assertVisible: 'code additions line 3:   // Previously collapsed context'
