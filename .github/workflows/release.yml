@@ -4,7 +4,8 @@ name: Release
 # package, then the GitHub release for the tag with the disk image. The tag must match the
 # root package.json version and point at a commit on main.
 # Running it by hand (`gh workflow run release.yml`) rehearses the signed and notarized Mac
-# build from main and publishes nothing. Re-running a failed job is safe until npm publishes.
+# build from main and publishes nothing. Re-running a failed release is safe: npm publish is
+# skipped when the version is already there, and the GitHub release is created last.
 
 on:
   push:
@@ -52,10 +53,6 @@ jobs:
           fi
           if gh release view "v$version" > /dev/null 2>&1; then
             echo "Release v$version already exists; bump the root package.json version first." >&2
-            exit 1
-          fi
-          if npm view "@fabiofiorita/porcelain@$version" version > /dev/null 2>&1; then
-            echo "@fabiofiorita/porcelain@$version is already on npm; bump the root package.json version first." >&2
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -144,22 +141,32 @@ jobs:
           npm --version
       - name: Publish with npm trusted publishing
         working-directory: dist-porcelain
-        run: npm publish --provenance --access public
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          if npm view --prefer-online "@fabiofiorita/porcelain@$VERSION" version > /dev/null 2>&1; then
+            echo "@fabiofiorita/porcelain@$VERSION is already published; a re-run continues from the check."
+          else
+            npm publish --provenance --access public
+          fi
       - name: Install the published package from a clean folder
         env:
           VERSION: ${{ needs.version.outputs.version }}
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP"
-          for attempt in 1 2 3 4 5 6; do
-            if output=$(npx --yes "@fabiofiorita/porcelain@$VERSION" --version 2>&1); then
+          # A new version can take several minutes to reach every npm mirror.
+          for attempt in $(seq 1 40); do
+            if output=$(npx --yes --prefer-online "@fabiofiorita/porcelain@$VERSION" --version 2>&1); then
               echo "$output"
               test "$output" = "porcelain v$VERSION"
               exit 0
             fi
-            echo "npm has not served $VERSION yet (attempt $attempt)"
-            sleep 20
+            echo "npm has not served $VERSION yet (attempt $attempt of 40)"
+            sleep 15
           done
+          echo "$output" >&2
           exit 1
 
   release:
