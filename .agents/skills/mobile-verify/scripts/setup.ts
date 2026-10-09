@@ -204,6 +204,8 @@ export function pairClient(
   const run = (args: string[], optional = false) =>
     setupCommand(driver, args, session, optional);
   try {
+    run(['prepare', 'ios-runner']);
+    run(['open', identity.bundleIdentifier, '--foreground']);
     run(['open', identity.bundleIdentifier, developmentLink(metro)]);
     run(['wait', 'text', 'Files', '60000']);
     run(['open', identity.bundleIdentifier, screenLink('/settings')]);
@@ -213,7 +215,14 @@ export function pairClient(
     run(['wait', '1500']);
     run(['press', 'id="pair-environment"', '--settle']);
     run(['wait', 'text', 'Online', '30000']);
-  } finally {
-    run(['close']);
+  } catch (error) {
+    try {
+      run(['close']);
+    } catch (cleanupError) {
+      if (error instanceof Error && cleanupError instanceof Error)
+        error.message += `\nSetup cleanup also failed: ${cleanupError.message}`;
+    }
+    throw error;
   }
+  run(['close']);
 }
