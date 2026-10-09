@@ -3,6 +3,7 @@ import { Schema } from 'effect';
 import { AlreadyInstalledError } from './already-installed-error.ts';
 import { AppManagedUpdateError } from './app-managed-update-error.ts';
 import { DataDirectoryBusyError } from './data-directory-busy-error.ts';
+import { HandedOffUpdateFailedError } from './handed-off-update-failed-error.ts';
 import { InstallCleanupError } from './install-cleanup-error.ts';
 import { InstalledServiceUnhealthyError } from './installed-service-unhealthy-error.ts';
 import { InterruptedUpdateUnrecoverableError } from './interrupted-update-unrecoverable-error.ts';
@@ -15,6 +16,7 @@ import { NoUserIdError } from './no-user-id-error.ts';
 import { NotInstalledError } from './not-installed-error.ts';
 import { NotPackagedCliError } from './not-packaged-cli-error.ts';
 import { PreviousServiceUnhealthyError } from './previous-service-unhealthy-error.ts';
+import { PublishedVersionUnknownError } from './published-version-unknown-error.ts';
 import { RestoredServiceUnhealthyError } from './restored-service-unhealthy-error.ts';
 import { RootUserError } from './root-user-error.ts';
 import { RuntimeInstallError } from './runtime-install-error.ts';
@@ -26,6 +28,7 @@ import { ServiceDowngradeError } from './service-downgrade-error.ts';
 import { ServiceStillActiveError } from './service-still-active-error.ts';
 import { UnitExistsError } from './unit-exists-error.ts';
 import { UnrecognizedUnitError } from './unrecognized-unit-error.ts';
+import { UpdateAlreadyRunningError } from './update-already-running-error.ts';
 import { UpdateFailedError } from './update-failed-error.ts';
 import { UpdateHandOffError } from './update-hand-off-error.ts';
 import { UpdateRecoveryError } from './update-recovery-error.ts';
@@ -37,6 +40,7 @@ const installerErrorSchema = Schema.Union([
   AlreadyInstalledError,
   AppManagedUpdateError,
   DataDirectoryBusyError,
+  HandedOffUpdateFailedError,
   InstallCleanupError,
   InstalledServiceUnhealthyError,
   InterruptedUpdateUnrecoverableError,
@@ -49,6 +53,7 @@ const installerErrorSchema = Schema.Union([
   NotInstalledError,
   NotPackagedCliError,
   PreviousServiceUnhealthyError,
+  PublishedVersionUnknownError,
   RestoredServiceUnhealthyError,
   RootUserError,
   RuntimeInstallError,
@@ -60,6 +65,7 @@ const installerErrorSchema = Schema.Union([
   ServiceStillActiveError,
   UnitExistsError,
   UnrecognizedUnitError,
+  UpdateAlreadyRunningError,
   UpdateFailedError,
   UpdateHandOffError,
   UpdateRecoveryError,
