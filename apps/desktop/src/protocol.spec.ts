@@ -8,6 +8,7 @@ const startup = {
   outputEnd: 'd9a12edf-c836-46a1-9fd6-552c6eae7352',
   projectHome: '/tmp/projects',
   packageRoot: '/tmp/package',
+  version: '0.65.0',
   session: { deviceId: 'device-1', secretHash: 'private-hash' },
 };
 

@@ -17,6 +17,7 @@ export const hostMessage = Schema.Union([
     outputEnd: Schema.String.check(Schema.isUUID()),
     projectHome: Schema.String,
     packageRoot: Schema.String,
+    version: Schema.String,
     session: Schema.Struct({
       deviceId: Schema.String,
       secretHash: Schema.String,

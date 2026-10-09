@@ -1,7 +1,7 @@
 import { DesktopError } from './errors/desktop-error.ts';
 import { Deferred, Effect, Result, Schema, Scope } from 'effect';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { utilityProcess } from 'electron';
+import { app, utilityProcess } from 'electron';
 import type { desktopSettings } from './settings.ts';
 import { serverMessage } from './protocol.ts';
 import { openServerLog } from './adapters/server-log.ts';
@@ -82,6 +82,7 @@ export const startLocalServer = Effect.fn('startLocalServer')(function* (
       profile: settings.profile,
       projectHome: settings.projectHome,
       packageRoot: settings.packageRoot,
+      version: app.getVersion(),
       session: {
         deviceId: randomUUID(),
         secretHash: createHash('sha256').update(credential).digest('hex'),
