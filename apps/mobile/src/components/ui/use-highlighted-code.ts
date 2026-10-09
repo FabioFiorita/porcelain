@@ -2,19 +2,17 @@ import { useEffect, useState } from 'react';
 import { useUniwind } from 'uniwind';
 import type { RenderToken } from '../../shared/rules/render-model';
 
-const highlighter = __DEV__
-  ? Promise.all([
-      import('./code-highlighter'),
-      import('react-native-shiki-engine'),
-    ])
-      .then(([{ createCodeHighlighter }, { createNativeEngine }]) =>
-        createCodeHighlighter(createNativeEngine()),
-      )
-      .then(
-        (value) => ({ value }),
-        () => ({ value: undefined }),
-      )
-  : undefined;
+const highlighter = Promise.all([
+  import('./code-highlighter'),
+  import('react-native-shiki-engine'),
+])
+  .then(([{ createCodeHighlighter }, { createNativeEngine }]) =>
+    createCodeHighlighter(createNativeEngine()),
+  )
+  .then(
+    (value) => ({ value }),
+    () => ({ value: undefined }),
+  );
 function nextFrame(signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
     const finish = () => {
@@ -40,7 +38,7 @@ export function useHighlightedCode(source: string, language?: string) {
     error?: string;
   }>();
   useEffect(() => {
-    if (!language || !highlighter) return;
+    if (!language) return;
     const controller = new AbortController();
     void highlighter
       .then(({ value }) => {

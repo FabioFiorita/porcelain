@@ -2,6 +2,55 @@ import { describe, expect, it } from 'vitest';
 import { parseMarkdown } from './markdown';
 
 describe('native Markdown render data', () => {
+  it('keeps intraword underscores, globs and spaced operators literal', () => {
+    expect(
+      parseMarkdown(
+        'snake_case_name read_review_now foo__bar__baz src/*.ts and *.tsx 2 * 3 * 4',
+      ),
+    ).toEqual([
+      {
+        id: 0,
+        kind: 'paragraph',
+        level: 0,
+        runs: [
+          {
+            text: 'snake_case_name read_review_now foo__bar__baz src/*.ts and *.tsx 2 * 3 * 4',
+          },
+        ],
+      },
+    ]);
+  });
+  it('preserves standalone emphasis followed by filename punctuation', () => {
+    expect(parseMarkdown('Edit __init__.py and **bold**.')).toEqual([
+      {
+        id: 0,
+        kind: 'paragraph',
+        level: 0,
+        runs: [
+          { text: 'Edit ' },
+          { text: 'init', bold: true },
+          { text: '.py and ' },
+          { text: 'bold', bold: true },
+          { text: '.' },
+        ],
+      },
+    ]);
+  });
+  it('finds valid emphasis after an unmatched intraword underscore', () => {
+    expect(parseMarkdown('snake_case and _italic_ **bold**')).toEqual([
+      {
+        id: 0,
+        kind: 'paragraph',
+        level: 0,
+        runs: [
+          { text: 'snake_case and ' },
+          { text: 'italic', italic: true },
+          { text: ' ' },
+          { text: 'bold', bold: true },
+        ],
+      },
+    ]);
+  });
   it('shares blocks, whitespace and fence boundaries across platforms', () => {
     expect(
       parseMarkdown(

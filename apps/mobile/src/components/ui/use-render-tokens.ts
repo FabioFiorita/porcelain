@@ -11,7 +11,7 @@ export function useRenderTokens() {
   const block = useResolveClassNames('p-3');
   const page = useResolveClassNames('p-4');
   const radius = useResolveClassNames('rounded-lg');
-  return JSON.stringify({
+  const tokens = {
     codeSize: code.fontSize,
     captionSize: caption.fontSize,
     bodySize: body.fontSize,
@@ -22,5 +22,13 @@ export function useRenderTokens() {
     blockPadding: block.padding,
     pagePadding: page.padding,
     radius: radius.borderRadius,
-  });
+  };
+  if (
+    Object.values(tokens).some(
+      (value) =>
+        typeof value !== 'number' || !Number.isFinite(value) || value <= 0,
+    )
+  )
+    throw new Error('Renderer design tokens must resolve to positive numbers.');
+  return JSON.stringify(tokens);
 }

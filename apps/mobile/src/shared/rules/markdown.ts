@@ -16,7 +16,7 @@ export type MarkdownBlock = {
 
 function inline(source: string): MarkdownRun[] {
   const pattern =
-    /\\([\\`*_[\]])|(`+)([\s\S]*?)\2(?!`)|\[([^\]]+)\]\(([^\s)]+)\)|(\*\*|__)([\s\S]+?)\6(?![*_])|(\*|_)([^\n]+?)\8/g;
+    /\\([\\`*_[\]])|(`+)([\s\S]*?)\2(?!`)|\[([^\]]+)\]\(([^\s)]+)\)|(\*\*)(?!\s)([\s\S]+?)(?<!\s)\6(?!\*)|(?<![A-Za-z0-9_])(__)(?!\s)([\s\S]+?)(?<!\s)\8(?![A-Za-z0-9_])|(?<!\*)(\*)(?![\s*])([^\n]+?)(?<!\s)\10(?!\*)|(?<![A-Za-z0-9_])(_)(?![\s_])([^\n]+?)(?<!\s)\12(?![A-Za-z0-9_])/g;
   const runs: MarkdownRun[] = [];
   let at = 0;
   for (const match of source.matchAll(pattern)) {
@@ -30,13 +30,19 @@ function inline(source: string): MarkdownRun[] {
           ...(isPreviewLink(match[5] ?? '') ? { url: match[5] } : {}),
         })),
       );
-    else if (match[6])
+    else if (match[6] || match[8])
       runs.push(
-        ...inline(match[7] ?? '').map((run) => ({ ...run, bold: true })),
+        ...inline(match[7] ?? match[9] ?? '').map((run) => ({
+          ...run,
+          bold: true,
+        })),
       );
     else
       runs.push(
-        ...inline(match[9] ?? '').map((run) => ({ ...run, italic: true })),
+        ...inline(match[11] ?? match[13] ?? '').map((run) => ({
+          ...run,
+          italic: true,
+        })),
       );
     at = match.index + match[0].length;
   }

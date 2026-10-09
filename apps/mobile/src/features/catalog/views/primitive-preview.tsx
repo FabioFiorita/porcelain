@@ -18,7 +18,9 @@ import { FileTree } from '../../../components/ui/file-tree';
 import { ReviewAnnotation } from '../../../components/ui/review-annotation';
 import { ReviewComposer } from '../../../components/ui/review-composer';
 import { HistoryList } from '../../../components/ui/history-list';
-const NativePreview = lazy(() => import('./native-preview'));
+const NativePreview = __DEV__
+  ? lazy(() => import('./native-preview'))
+  : () => null;
 
 export function PrimitivePreview({ name }: { name: string }) {
   const [actions, setActions] = useState(0);
