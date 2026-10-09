@@ -83,6 +83,7 @@ export default defineConfig({
           include: [
             'apps/mobile/src/**/*.spec.ts',
             'apps/mobile/spec/**/*.spec.ts',
+            '.agents/skills/mobile-verify/scripts/*.spec.ts',
           ],
           expect: { requireAssertions: true },
         },
