@@ -43,7 +43,10 @@ test('Spec files creates a separate collapsed section only while the setting is 
   await expect(
     pairedPage.getByRole('button', { name: /^search\.spec\.ts/ }),
   ).not.toBeVisible();
-  await pairedPage.getByText('Specs · 1 files', { exact: true }).click();
+  await pairedPage
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByText('Specs · 1 files', { exact: true })
+    .click();
   await expect(
     pairedPage.getByRole('button', { name: 'Open all specs', exact: true }),
   ).toBeVisible();
