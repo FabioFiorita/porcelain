@@ -12,11 +12,8 @@ import {
   isImagePath,
   useTextContents,
 } from '@/features/files/index';
-import {
-  type AgentCodeNote,
-  type CodeEntry,
-  fileEntry,
-} from '../adapters/code-entries';
+import { type CodeEntry, fileEntry } from '../adapters/code-entries';
+import type { AgentCodeNote } from '../rules/code-notes';
 import { useComments } from '../queries/comments';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import type { DocumentInteraction } from '../rules/documents';

@@ -49,8 +49,6 @@ export {
   type Change,
   type ChangeList,
   type ChangeSelection,
-  type Diagram,
-  type DiagramBox,
   type DiffContent,
   type ReviewChangeItem,
   type ReviewLayer,
@@ -63,7 +61,6 @@ export {
   WORKTREE_RANGE,
   branchReviewRange,
   bulkReportText,
-  layerReviewState,
   markAllPlan,
   reviewToggle,
   reviewedControlLabel,
@@ -82,9 +79,20 @@ export {
 } from './readiness.ts';
 export { groupSpecPaths, isSpecPath } from './spec-paths.ts';
 export {
-  componentRelationships,
-  componentNeighborhood,
-  layerDiagram,
-  reviewCoverage,
-  reviewUnderstanding,
-} from './architecture.ts';
+  currentStop,
+  decisionKey,
+  decisionLinks,
+  decisionRoute,
+  decisionStates,
+  filesReviewed,
+  neighbourStop,
+  stopDone,
+  stopName,
+  stopTitle,
+  systemChanges,
+  walkthroughStops,
+  type DecisionState,
+  type SystemPart,
+  type WalkthroughKey,
+  type WalkthroughStop,
+} from './walkthrough.ts';

@@ -4,7 +4,7 @@ import {
   bulkMarkReport,
   bulkReportText,
   inChunks,
-  layerReviewState,
+  layerReviewed,
   markAllPlan,
   reviewToggle,
   applyReviewedIntents,
@@ -118,14 +118,11 @@ describe('bulkReportText', () => {
 describe('markAllPlan', () => {
   it('offers to mark every unreviewed or changed file', () => {
     expect(
-      markAllPlan(
-        [
-          entry('a.ts', 'seen-a', 'unreviewed'),
-          entry('b.ts', 'seen-b', 'stale'),
-          entry('c.ts', 'seen-c', 'reviewed'),
-        ],
-        'all',
-      ),
+      markAllPlan([
+        entry('a.ts', 'seen-a', 'unreviewed'),
+        entry('b.ts', 'seen-b', 'stale'),
+        entry('c.ts', 'seen-c', 'reviewed'),
+      ]),
     ).toMatchObject({
       unmarking: false,
       blocked: false,
@@ -136,26 +133,21 @@ describe('markAllPlan', () => {
 
   it('offers to unmark exactly the reviewed files once nothing is left to mark', () => {
     expect(
-      markAllPlan(
-        [
-          entry('a.ts', 'seen-a', 'reviewed'),
-          entry('b.ts', undefined, 'unreviewed'),
-        ],
-        'layer',
-      ),
+      markAllPlan([
+        entry('a.ts', 'seen-a', 'reviewed'),
+        entry('b.ts', undefined, 'unreviewed'),
+      ]),
     ).toMatchObject({
       reviewedPaths: ['a.ts'],
       unmarking: true,
       blocked: false,
-      label: 'Unmark layer',
-      text: 'Unmark layer',
+      label: 'Unmark all',
+      text: 'Unmark all',
     });
   });
 
   it('refuses when no file can be marked', () => {
-    expect(
-      markAllPlan([entry('a.ts', undefined, 'unreviewed')], 'all'),
-    ).toEqual({
+    expect(markAllPlan([entry('a.ts', undefined, 'unreviewed')])).toEqual({
       entries: [entry('a.ts', undefined, 'unreviewed')],
       reviewedPaths: [],
       unmarking: false,
@@ -166,7 +158,7 @@ describe('markAllPlan', () => {
   });
 });
 
-describe('layerReviewState', () => {
+describe('layerReviewed', () => {
   const layer = {
     id: '11111111-1111-4111-8111-111111111111',
     fingerprint: 'layer-now',
@@ -184,31 +176,19 @@ describe('layerReviewState', () => {
   });
 
   it('shows a layer reviewed when its mark matches the layer shown', () => {
-    expect(layerReviewState(mark('layer-now', false), layer)).toEqual({
-      reviewed: true,
-      label: 'Reviewed',
-    });
+    expect(layerReviewed(mark('layer-now', false), layer)).toBe(true);
   });
 
-  it('asks to review a layer again when the server marked its mark stale', () => {
-    expect(layerReviewState(mark('layer-now', true), layer)).toEqual({
-      reviewed: false,
-      label: 'Mark changed layer reviewed',
-    });
+  it('stops counting a layer whose mark the server found stale', () => {
+    expect(layerReviewed(mark('layer-now', true), layer)).toBe(false);
   });
 
-  it('asks to review a layer again when its mark was made for other code', () => {
-    expect(layerReviewState(mark('layer-before', false), layer)).toEqual({
-      reviewed: false,
-      label: 'Mark changed layer reviewed',
-    });
+  it('stops counting a layer whose mark was made for other code', () => {
+    expect(layerReviewed(mark('layer-before', false), layer)).toBe(false);
   });
 
-  it('offers a first mark when the layer has none', () => {
-    expect(layerReviewState(undefined, layer)).toEqual({
-      reviewed: false,
-      label: 'Mark layer reviewed',
-    });
+  it('counts no layer reviewed before it has a mark', () => {
+    expect(layerReviewed(undefined, layer)).toBe(false);
   });
 });
 

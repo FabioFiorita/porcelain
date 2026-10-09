@@ -143,18 +143,16 @@ export function MarkAllReviewed({
   context,
   entries,
   compact = false,
-  kind = 'all',
   range = WORKTREE_RANGE,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   entries: readonly ReviewableItem[];
   compact?: boolean;
-  kind?: 'all' | 'layer';
   range?: ReviewRange;
 }) {
   const bulk = useMarkAllReviewed(scope, context, range);
-  const plan = markAllPlan(entries, kind);
+  const plan = markAllPlan(entries);
   const pending = bulk.result.waiting;
   const disabled = plan.blocked || pending;
   const submit = () => {

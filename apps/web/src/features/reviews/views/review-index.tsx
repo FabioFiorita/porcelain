@@ -1,6 +1,9 @@
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
+  CheckIcon,
+  CompassIcon,
+  FileDiffIcon,
   FileQuestionIcon,
   FlaskConicalIcon,
   MessageSquarePlusIcon,
@@ -42,18 +45,21 @@ import {
   type DocumentRef,
   entryKey,
   PROOF,
-  UNEXPLAINED,
   type OpenDocument,
 } from '../rules/documents';
 import { proofLabel, proofStatus } from '@porcelain/client/reviews/rules';
 import type { ReadinessKey } from '@porcelain/client/reviews/rules';
 import {
   type ChangeList,
+  filesReviewed,
+  stopName,
+  type WalkthroughKey,
   notExplainedLabel,
   type ReviewChangeItem,
   type ReviewResponse,
   type ReviewScope,
 } from '@porcelain/client/reviews/rules';
+import { useWalkthroughPlace } from '../store';
 import { BranchIndex } from './branch-index';
 import { ChangeRow, ROW } from './change-row';
 import { DeleteResolved } from './delete-resolved';
@@ -63,7 +69,7 @@ import { ThreadCard } from './thread-card';
 import { isSpecPath } from '@porcelain/client/reviews/rules';
 import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
-import { useReviewUnderstanding } from '../queries/understanding';
+import { useWalkthrough } from '../queries/walkthrough';
 
 type Props = {
   scope: ReviewScope;
@@ -90,6 +96,7 @@ export function ReviewIndex({
 }: Props & ScopeProps) {
   const { connection } = context;
   const [view, setView] = useState<'layers' | 'comments'>('layers');
+  const { setPlace } = useWalkthroughPlace(scope.worktreeId);
   usePrefetchReviewed(scope, context);
   usePrefetchComments(scope, context);
   const list = useChanges(scope, connection);
@@ -110,8 +117,10 @@ export function ReviewIndex({
     }
     setView('layers');
     if (key === 'checks') onOpen(PROOF);
-    if (key === 'unexplained')
-      onOpen(review ? UNEXPLAINED : { kind: 'handoff' });
+    if (key === 'unexplained') {
+      if (review) setPlace('unexplained');
+      onOpen({ kind: 'handoff' });
+    }
     if (key === 'files') onOpen(branch ? BRANCH : { kind: 'handoff' });
     if (key === 'stale' && firstStale !== undefined)
       onOpen(
@@ -235,11 +244,6 @@ function LayersView({
   threads: readonly CommentThread[];
 }) {
   const { preferences } = usePreferences();
-  const understanding = useReviewUnderstanding(
-    scope,
-    context,
-    review?.layers ?? [],
-  );
   const paths = list.changes.map((entry) => entry.path);
   const mainPaths = preferences.collapseSpecs
     ? paths.filter((path) => !isSpecPath(path))
@@ -296,63 +300,24 @@ function LayersView({
   return (
     <ScrollArea className="h-0 min-h-0 flex-1">
       <div className="p-2">
-        <button
-          type="button"
-          className={ROW}
-          aria-pressed={activeEntry === 'handoff'}
-          onClick={() => onOpen({ kind: 'handoff' })}
-        >
-          {review ? 'Architecture overview' : 'All changes'}
-        </button>
-        {review && (
-          <button
-            type="button"
-            className={ROW}
-            aria-pressed={activeEntry === 'all-changes'}
-            onClick={() => onOpen(ALL_CHANGES)}
-          >
-            All changes · {paths.length} files
-          </button>
-        )}
-        {review?.layers.map((layer, index) => (
-          <button
-            key={layer.id}
-            type="button"
-            className={ROW}
-            aria-pressed={activeEntry === `layer:${layer.id}`}
-            onClick={() => onOpen({ kind: 'layer', layerId: layer.id })}
-          >
-            <span className="text-muted-foreground">{index + 1}.</span>
-            <span className="min-w-0 flex-1 whitespace-normal">
-              {layer.title}
-            </span>
-            {understanding.states.find((state) => state.layer.id === layer.id)
-              ?.reviewed && <span aria-label="Reviewed">✓</span>}
-          </button>
-        ))}
-        {review && (
-          <button
-            type="button"
-            className={ROW}
-            aria-pressed={activeEntry === 'unexplained'}
-            onClick={() => onOpen(UNEXPLAINED)}
-          >
-            <FileQuestionIcon className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 truncate">
-              Not explained
-              <span className="text-muted-foreground">
-                {' · '}
-                {notExplainedLabel(review.notExplained) ?? 'nothing'}
-              </span>
-            </span>
-          </button>
-        )}
-        {review && (
-          <ProofRow
+        {review ? (
+          <WalkthroughRows
+            scope={scope}
+            context={context}
             review={review}
-            active={activeEntry === entryKey(PROOF)}
+            activeEntry={activeEntry}
             onOpen={onOpen}
+            files={paths.length}
           />
+        ) : (
+          <button
+            type="button"
+            className={ROW}
+            aria-pressed={activeEntry === 'handoff'}
+            onClick={() => onOpen({ kind: 'handoff' })}
+          >
+            All changes
+          </button>
         )}
         {review && (
           <p className="px-2 pt-4 pb-1 text-xs text-muted-foreground">
@@ -394,6 +359,104 @@ function LayersView({
         )}
       </div>
     </ScrollArea>
+  );
+}
+
+function WalkthroughRows({
+  scope,
+  context,
+  review,
+  activeEntry,
+  onOpen,
+  files,
+}: {
+  scope: ReviewScope;
+  context: ConnectionContext;
+  review: ReviewResponse;
+  activeEntry: string | undefined;
+  onOpen: OpenDocument;
+  files: number;
+}) {
+  const walk = useWalkthrough(scope, context, review);
+  const open = (key: WalkthroughKey) => {
+    walk.go(key);
+    onOpen({ kind: 'handoff' });
+  };
+  const here = (key: WalkthroughKey) =>
+    activeEntry === 'handoff' && walk.stop.key === key;
+  return (
+    <nav aria-label="Walkthrough" className="flex flex-col">
+      {walk.stops.map((stop) => {
+        const progress = filesReviewed(stop.paths, walk.items);
+        const done = walk.done(stop);
+        const state =
+          stop.kind === 'decision'
+            ? walk.decisions.states.get(stop.layer.id)
+            : undefined;
+        return (
+          <button
+            key={stop.key}
+            type="button"
+            className={ROW}
+            aria-pressed={here(stop.key)}
+            onClick={() => open(stop.key)}
+          >
+            {stop.kind === 'briefing' ? (
+              <CompassIcon className="size-3.5 shrink-0 text-muted-foreground" />
+            ) : stop.kind === 'decision' ? (
+              <span
+                className={cn(
+                  'grid size-4 shrink-0 place-items-center rounded-full text-2xs text-muted-foreground tabular-nums',
+                  done && 'bg-graph-2 text-background',
+                )}
+              >
+                {done ? (
+                  <CheckIcon className="size-3" aria-label="Reviewed" />
+                ) : (
+                  stop.number
+                )}
+              </span>
+            ) : stop.kind === 'unexplained' ? (
+              <FileQuestionIcon className="size-3.5 shrink-0 text-graph-4" />
+            ) : (
+              <FlaskConicalIcon className="size-3.5 shrink-0 text-muted-foreground" />
+            )}
+            <span className="min-w-0 flex-1 truncate">
+              {stopName(stop)}
+              {stop.kind === 'unexplained' &&
+                ` · ${notExplainedLabel(review.notExplained) ?? `${stop.paths.length} files`}`}
+            </span>
+            {state?.stale && (
+              <span
+                className="size-1.5 shrink-0 rounded-full bg-graph-4"
+                aria-label="Code moved"
+              />
+            )}
+            {stop.kind !== 'briefing' && progress.total > 0 && (
+              <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
+                {progress.reviewed}/{progress.total}
+              </span>
+            )}
+          </button>
+        );
+      })}
+      <ProofRow
+        review={review}
+        active={activeEntry === entryKey(PROOF)}
+        onOpen={onOpen}
+      />
+      <button
+        type="button"
+        className={ROW}
+        aria-pressed={activeEntry === 'all-changes'}
+        onClick={() => onOpen(ALL_CHANGES)}
+      >
+        <FileDiffIcon className="size-3.5 shrink-0 text-muted-foreground" />
+        <span className="min-w-0 flex-1 truncate">
+          All changes · {files} files
+        </span>
+      </button>
+    </nav>
   );
 }
 

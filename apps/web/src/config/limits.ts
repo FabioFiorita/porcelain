@@ -21,6 +21,8 @@ export const HISTORY_ORDINAL_DECADE = 10;
 export const FILE_PREVIEW_MAX_BYTES = 28 * 1024 * 1024;
 export const FILE_ICON_DEFAULT_SIZE = 16;
 export const REVIEW_PATCH_CONTEXT_LINES = 3;
+export const LONG_AGENT_NOTE = 360;
+export const LONG_DECISION_SUMMARY = 320;
 
 export const DISCARD_RESTORE_TOAST_MS = 10_000;
 export const PIERRE_WORKER_POOL_SIZE = 4;

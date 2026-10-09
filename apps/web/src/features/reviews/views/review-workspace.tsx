@@ -51,7 +51,6 @@ import {
   type RevealComment,
 } from '@porcelain/client/reviews/rules';
 import { entryKey, type OpenDocument, parseEntry } from '../rules/documents';
-import type { ReviewLayer } from '@porcelain/client/reviews/rules';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
 import { ReviewBoundary } from './review-boundary';
@@ -307,7 +306,6 @@ function DocumentArea({
     AsyncResult.value(useReviewOverview(scope, connection)),
   );
   const published = usePublishedReview(scope, context);
-  const layers = published.review?.active ? published.review.layers : [];
   const hasHandoff =
     Boolean(published.review?.active) ||
     (overview !== null &&
@@ -360,7 +358,7 @@ function DocumentArea({
     setFocused,
     scope,
     context,
-    layers,
+    reviewing: published.review?.active === true,
     handoff: published.review?.active
       ? ('review' as const)
       : hasHandoff
@@ -398,7 +396,7 @@ function PaneView({
   setFocused,
   scope,
   context,
-  layers,
+  reviewing,
   handoff,
   base,
   onOpen,
@@ -412,7 +410,7 @@ function PaneView({
   layout: ReturnType<typeof useTabLayout>;
   split: boolean;
   focused: boolean;
-  layers: readonly Pick<ReviewLayer, 'id' | 'title'>[];
+  reviewing: boolean;
   handoff: 'review' | 'changes' | null;
 }) {
   const pane = layout.panes[index] ?? { tabs: [], pinned: [], active: null };
@@ -455,7 +453,7 @@ function PaneView({
         tabs={pane.tabs}
         pinned={pane.pinned}
         active={pane.active}
-        layers={layers}
+        reviewing={reviewing}
         side={split ? (index === 0 ? 'left' : 'right') : null}
         focused={focused}
         onActivate={(key) => layout.activate(index, key)}
@@ -502,7 +500,7 @@ function EmptyDocument({
   handoff: 'review' | 'changes' | null;
   onOpen: OpenDocument;
 }) {
-  const opens = handoff === 'review' ? 'the summary' : 'all changes';
+  const opens = handoff === 'review' ? 'the review' : 'all changes';
   return (
     <div className="grid min-h-0 flex-1 place-items-center p-8">
       <Empty>
@@ -521,7 +519,7 @@ function EmptyDocument({
         </EmptyHeader>
         {handoff && (
           <Button onClick={() => onOpen({ kind: 'handoff' })}>
-            {handoff === 'review' ? 'Open summary' : 'Open all changes'}
+            {handoff === 'review' ? 'Open review' : 'Open all changes'}
           </Button>
         )}
       </Empty>

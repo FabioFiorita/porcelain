@@ -82,3 +82,32 @@ export function useCodeFolds(worktreeId: string, entry: string) {
       set((current) => withFolds(current, ids, collapsed)),
   };
 }
+
+const walkthroughPlace = Atom.family((worktreeId: string) =>
+  Atom.kvs({
+    runtime: storageRuntime,
+    key: `porcelain.walkthrough.${worktreeId}`,
+    schema: Schema.String,
+    defaultValue: () => 'briefing',
+  }),
+);
+
+const walkthroughView = Atom.family((_worktreeId: string) =>
+  Atom.make<'walkthrough' | 'summary'>('walkthrough').pipe(Atom.keepAlive),
+);
+
+export function useWalkthroughPlace(worktreeId: string) {
+  const place = walkthroughPlace(worktreeId);
+  const view = walkthroughView(worktreeId);
+  const setPlace = useAtomSet(place);
+  const setView = useAtomSet(view);
+  return {
+    place: useAtomValue(place),
+    view: useAtomValue(view),
+    setView,
+    setPlace: (key: string) => {
+      setPlace(key);
+      setView('walkthrough');
+    },
+  };
+}

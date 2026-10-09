@@ -117,10 +117,7 @@ export function bulkReportText(report: BulkReviewReport) {
     .join(' ');
 }
 
-export function markAllPlan(
-  entries: readonly ReviewableItem[],
-  kind: 'all' | 'layer',
-) {
+export function markAllPlan(entries: readonly ReviewableItem[]) {
   const unique = uniqueByPath(entries);
   const fingerprintable = unique.filter(isFingerprintable);
   const eligible = fingerprintable.filter(
@@ -138,12 +135,11 @@ export function markAllPlan(
     unavailable > 0
       ? `${fingerprintable.length} reviewed · ${unavailable} unavailable`
       : 'All reviewed';
-  const noun = kind === 'layer' ? 'layer' : 'all';
   const settled =
     fingerprintable.length === 0
       ? null
       : unmarking
-        ? `Unmark ${noun}`
+        ? 'Unmark all'
         : eligible.length === 0
           ? completeLabel
           : null;
@@ -157,15 +153,11 @@ export function markAllPlan(
     label:
       fingerprintable.length === 0
         ? 'No files can be marked reviewed'
-        : (settled ??
-          (kind === 'layer'
-            ? 'Mark layer reviewed'
-            : `Mark all ${eligible.length} files reviewed`)),
+        : (settled ?? `Mark all ${eligible.length} files reviewed`),
     text:
       fingerprintable.length === 0
         ? 'No reviewable files'
-        : (settled ??
-          (kind === 'layer' ? 'Mark layer reviewed' : 'Mark all reviewed')),
+        : (settled ?? 'Mark all reviewed'),
   };
 }
 
@@ -180,20 +172,12 @@ export function reviewedControlLabel(
       : `Mark ${path} as reviewed`;
 }
 
-export function layerReviewState(
+export function layerReviewed(
   marks: ListReviewedLayersResponse | undefined,
   layer: Pick<ReviewLayer, 'id' | 'fingerprint'>,
-) {
+): boolean {
   const mark = marks?.marks.find((candidate) => candidate.layerId === layer.id);
-  const reviewed = mark?.fingerprint === layer.fingerprint && !mark.stale;
-  return {
-    reviewed,
-    label: reviewed
-      ? 'Reviewed'
-      : mark
-        ? 'Mark changed layer reviewed'
-        : 'Mark layer reviewed',
-  };
+  return mark?.fingerprint === layer.fingerprint && !mark.stale;
 }
 
 export type ReviewNotice = {

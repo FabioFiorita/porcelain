@@ -2,6 +2,7 @@ import type { FileContents, FileDiffMetadata } from '@pierre/diffs';
 import type { ReactNode } from 'react';
 import { contentVersion } from '@/shared/lib/pierre';
 import type { CommentTarget } from '@porcelain/client/reviews/rules';
+import type { AgentCodeNote } from '../rules/code-notes';
 
 type CodeReview = {
   path: string;
@@ -9,13 +10,6 @@ type CodeReview = {
   reviewed?: boolean;
   stale?: boolean;
   fingerprint?: string | null;
-};
-
-export type AgentCodeNote = {
-  title: string;
-  text: string;
-  line: number;
-  stale: boolean;
 };
 
 export type CodeEntry = { agentNotes?: readonly AgentCodeNote[] } & (

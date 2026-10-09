@@ -13,19 +13,23 @@ import {
   entryKey,
   type OpenDocument,
 } from '../rules/documents';
-import { isSpecPath, proofOnLayer } from '@porcelain/client/reviews/rules';
+import { decisionNotes, gapNotes, mergeNotes } from '../rules/code-notes';
+import {
+  isSpecPath,
+  stopTitle,
+  walkthroughStops,
+} from '@porcelain/client/reviews/rules';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { BranchDocument, BranchFileDocument } from './branch-document';
 import { CommitDocument } from './commit-document';
 import { DocumentToolbar } from './document-toolbar';
 import { FileDocument } from './file-document';
-import { PublishedLayer } from './published-layer';
 import { ProofDocument } from './proof-document';
-import { PublishedOverview } from './published-overview';
 import { ReviewCodeDocument } from './review-code-document';
 import { MarkAllReviewed } from './reviewed-control';
 import { ReviewEmpty } from './review-empty';
-import { UnexplainedDocument } from './unexplained-document';
+import { ReviewWalkthrough } from './review-walkthrough';
+import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type DocumentProps = {
@@ -70,10 +74,6 @@ export function DocumentView({
       return <PlainChangesDocument {...props} />;
     case 'specs':
       return <PlainChangesDocument {...props} specsOnly />;
-    case 'layer':
-      return <LayerDocument {...props} layerId={document.layerId} />;
-    case 'unexplained':
-      return <UnexplainedDocument {...props} />;
     case 'proof':
       return <ProofDocument scope={scope} context={context} />;
     case 'change':
@@ -169,13 +169,11 @@ function HandoffDocument(props: DocumentProps) {
     return <PublicationFailure retry={published.refresh} />;
   if (review?.active)
     return (
-      <PublishedOverview
-        scope={props.scope}
-        context={props.context}
+      <ReviewWalkthrough
+        {...props}
         review={review}
         onRefresh={published.refresh}
         address={props.context.connection.address}
-        onOpen={props.onOpen}
       />
     );
   return <PlainChangesDocument {...props} />;
@@ -189,11 +187,27 @@ function PlainChangesDocument({
 }: DocumentProps & { specsOnly?: boolean }) {
   const { connection } = context;
   usePrefetchReviewed(scope, context);
+  const { preferences } = usePreferences();
   const list = useChanges(scope, connection);
   const allChanges = useReviewChangeItems(scope, context, list);
+  const published = usePublishedReview(scope, context);
+  const review =
+    !specsOnly && published.review?.active ? published.review : undefined;
   const changes = specsOnly
     ? allChanges.filter((item) => isSpecPath(item.path))
     : allChanges;
+  const story = review
+    ? walkthroughStops(
+        review,
+        list.changes.map((change) => change.path),
+        { specsApart: preferences.collapseSpecs },
+      ).flatMap((stop) =>
+        stop.paths.map((path) => ({
+          path,
+          note: stopTitle(stop),
+        })),
+      )
+    : [];
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ReviewCodeDocument
@@ -201,6 +215,17 @@ function PlainChangesDocument({
         context={context}
         interaction={interaction}
         {...(specsOnly ? { paths: changes.map((item) => item.path) } : {})}
+        {...(review
+          ? {
+              files: story,
+              agentNotes: mergeNotes(
+                ...review.layers.map((layer, index) =>
+                  decisionNotes(layer, index + 1),
+                ),
+                gapNotes(review.notExplained),
+              ),
+            }
+          : {})}
         toolbar={(collapseControl) => (
           <DocumentToolbar
             title={
@@ -222,39 +247,6 @@ function PlainChangesDocument({
         )}
       />
     </div>
-  );
-}
-
-function LayerDocument({
-  layerId,
-  ...props
-}: DocumentProps & { layerId: string }) {
-  const published = usePublishedReview(props.scope, props.context);
-  const review = published.review;
-  const layer = review?.layers.find((candidate) => candidate.id === layerId);
-  if (AsyncResult.isInitial(published.result))
-    return (
-      <p role="status" className="p-4 text-sm">
-        Loading layer…
-      </p>
-    );
-  if (AsyncResult.isFailure(published.result))
-    return <PublicationFailure retry={published.refresh} />;
-  if (!layer || !review)
-    return (
-      <ReviewEmpty
-        title="Layer no longer present"
-        description="Choose a layer in the current review."
-      />
-    );
-  return (
-    <PublishedLayer
-      key={`${layerId}:${published.review?.revision}`}
-      {...props}
-      layer={layer}
-      proof={proofOnLayer(published.review?.proof, layerId)}
-      review={review}
-    />
   );
 }
 
