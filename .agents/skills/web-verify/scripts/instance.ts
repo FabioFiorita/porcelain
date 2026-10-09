@@ -6,7 +6,6 @@ import {
   repositoryRoot as root,
   type Instance,
 } from '../../verify-core/registry.ts';
-import { webInputs } from './inputs.ts';
 
 const remoteSchema = Schema.Struct({
   manifest: Schema.String,
@@ -32,12 +31,12 @@ export const registry = new Registry({
   name: 'web',
   cli: new URL('./cli.ts', import.meta.url).href,
   detail: detailSchema,
-  inputs: webInputs,
+  inputs: { roots: [], apps: [] },
   format: 'json',
   connection: webConnection,
   stale: (instance, changed) =>
     changed
-      ? `The web, server or CLI code changed since instance ${instance.id} started; run start again so the evidence shows the code you changed.`
+      ? `The server or CLI code changed since instance ${instance.id} started; Vite reloads web and client code, but this change needs stop and start.`
       : undefined,
   stopWithinMs: 20_000,
 });

@@ -48,7 +48,7 @@ Seven maps need browser-context routing. Read [failure-injection.md](references/
 
 ## Check and stop
 
-Run the test files the map names, sequentially when they start their own runner. CI owns full suites. After source changes, stop/start before driving again; stale instances refuse fixture operations. With multiple instances, every command needs `--instance <id>`.
+Run the test files the map names, sequentially when they start their own runner. CI owns full suites. Keep the instance running while you iterate: Vite reloads web and shared-client edits, so the address and pairing stay. Server, contract or CLI edits make it refuse fixture operations; then stop and start. With multiple instances, every command needs `--instance <id>`.
 
 ```sh
 pnpm --filter @porcelain/web exec vitest run --config vitest.config.ts spec/integration/projects-rename.test.tsx
