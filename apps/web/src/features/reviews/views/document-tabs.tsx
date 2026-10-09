@@ -4,7 +4,6 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Columns2Icon,
   FileDiffIcon,
-  FileQuestionIcon,
   FileTextIcon,
   FlaskConicalIcon,
   GitBranchIcon,
@@ -15,7 +14,6 @@ import {
   ListXIcon,
   PinIcon,
   PinOffIcon,
-  SquareStackIcon,
   SquareXIcon,
   XIcon,
 } from 'lucide-react';
@@ -33,11 +31,10 @@ import { ScrollBar } from '@/components/ui/scroll-area';
 import { shortOid } from '@/features/history/index';
 import { cn } from '@/shared/lib/utils';
 import { parseEntry } from '../rules/documents';
-import { basename, type ReviewLayer } from '@porcelain/client/reviews/rules';
+import { basename } from '@porcelain/client/reviews/rules';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { FileTypeIcon } from '@/features/files/index';
 
-type Layer = Pick<ReviewLayer, 'id' | 'title'>;
 type TabIcon = LucideIcon | ComponentType<SVGProps<SVGSVGElement>>;
 
 const fileTypeIcon = (path: string): TabIcon =>
@@ -49,12 +46,16 @@ const fileTypeIcon = (path: string): TabIcon =>
     );
   };
 
-function describeTab(key: string, layers: readonly Layer[]) {
+function describeTab(key: string, reviewing: boolean) {
   const ref = parseEntry(key);
   switch (ref?.kind) {
     case 'handoff':
-      return layers.length > 0
-        ? { Icon: LayersIcon, title: 'Review', hint: 'Architecture overview' }
+      return reviewing
+        ? {
+            Icon: LayersIcon,
+            title: 'Review',
+            hint: 'Walkthrough of the decisions',
+          }
         : { Icon: FileDiffIcon, title: 'Changes', hint: 'All changes' };
     case 'all-changes':
       return {
@@ -68,27 +69,12 @@ function describeTab(key: string, layers: readonly Layer[]) {
         title: 'Specs',
         hint: 'Changed spec and test files',
       };
-    case 'unexplained':
-      return {
-        Icon: FileQuestionIcon,
-        title: 'Not explained',
-        hint: 'Changes outside the review',
-      };
     case 'proof':
       return {
         Icon: FlaskConicalIcon,
         title: 'Proof',
         hint: 'Checks and attachments the agent published',
       };
-    case 'layer': {
-      const index = layers.findIndex((layer) => layer.id === ref.layerId);
-      const title = layers[index]?.title ?? 'Layer';
-      return {
-        Icon: SquareStackIcon,
-        title: `${index >= 0 ? `${index + 1}. ` : ''}${title}`,
-        hint: title,
-      };
-    }
     case 'change':
       return {
         Icon: fileTypeIcon(ref.path),
@@ -149,7 +135,7 @@ export function DocumentTabs({
   tabs,
   pinned,
   active,
-  layers,
+  reviewing,
   side,
   focused,
   leading,
@@ -159,7 +145,7 @@ export function DocumentTabs({
   tabs: readonly string[];
   pinned: readonly string[];
   active: string | null;
-  layers: readonly Layer[];
+  reviewing: boolean;
   side: 'left' | 'right' | null;
   focused: boolean;
   leading?: ReactNode;
@@ -204,7 +190,7 @@ export function DocumentTabs({
                     active={key === active}
                     pinned={isPinned}
                     hasUnpinned={tabs.some((item) => !pinned.includes(item))}
-                    layers={layers}
+                    reviewing={reviewing}
                     side={side}
                     {...actions}
                   />
@@ -238,7 +224,7 @@ function DocumentTab({
   active,
   pinned,
   hasUnpinned,
-  layers,
+  reviewing,
   side,
   onActivate,
   onClose,
@@ -251,10 +237,10 @@ function DocumentTab({
   active: boolean;
   pinned: boolean;
   hasUnpinned: boolean;
-  layers: readonly Layer[];
+  reviewing: boolean;
   side: 'left' | 'right' | null;
 }) {
-  const { Icon, title, hint } = describeTab(tabKey, layers);
+  const { Icon, title, hint } = describeTab(tabKey, reviewing);
   const tabRef = useRef<HTMLDivElement>(null);
   const openToSideLabel =
     side === null || side === undefined

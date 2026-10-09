@@ -122,7 +122,7 @@ test('the desktop app opens another computer’s worktree and HTML review, marks
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
   await pairedPage.getByRole('tab', { name: 'Review', exact: true }).click();
   await pairedPage
-    .getByRole('button', { name: 'Architecture overview', exact: true })
+    .getByRole('button', { name: 'Briefing', exact: true })
     .click();
   await pairedPage
     .getByRole('tab', { name: 'Agent summary', exact: true })
@@ -133,7 +133,7 @@ test('the desktop app opens another computer’s worktree and HTML review, marks
     .click();
   await expect(
     pairedPage.getByRole('region', {
-      name: `Review layer ${layer}`,
+      name: `1. ${layer}`,
       exact: true,
     }),
   ).toBeVisible();

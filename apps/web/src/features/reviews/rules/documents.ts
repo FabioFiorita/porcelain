@@ -7,8 +7,6 @@ export type DocumentRef =
   | { kind: 'handoff' }
   | { kind: 'all-changes' }
   | { kind: 'specs' }
-  | { kind: 'layer'; layerId: string }
-  | { kind: 'unexplained' }
   | { kind: 'proof' }
   | { kind: 'change'; path: string }
   | { kind: 'file'; path: string }
@@ -22,7 +20,6 @@ const HANDOFF: DocumentRef = { kind: 'handoff' };
 export const ALL_CHANGES: DocumentRef = { kind: 'all-changes' };
 export const SPECS: DocumentRef = { kind: 'specs' };
 export const BRANCH: DocumentRef = { kind: 'branch' };
-export const UNEXPLAINED: DocumentRef = { kind: 'unexplained' };
 export const PROOF: DocumentRef = { kind: 'proof' };
 const GRAPH: DocumentRef = { kind: 'graph' };
 
@@ -34,12 +31,8 @@ export function entryKey(ref: DocumentRef): string {
       return 'all-changes';
     case 'specs':
       return 'specs';
-    case 'unexplained':
-      return 'unexplained';
     case 'proof':
       return 'proof';
-    case 'layer':
-      return `layer:${ref.layerId}`;
     case 'change':
       return `change:${ref.path}`;
     case 'file':
@@ -62,7 +55,6 @@ export function parseEntry(entry: string | undefined): DocumentRef | null {
   if (entry === 'handoff') return HANDOFF;
   if (entry === 'all-changes') return ALL_CHANGES;
   if (entry === 'specs') return SPECS;
-  if (entry === 'unexplained') return UNEXPLAINED;
   if (entry === 'proof') return PROOF;
   if (entry === 'branch') return BRANCH;
   if (entry === 'graph') return GRAPH;
@@ -74,8 +66,6 @@ export function parseEntry(entry: string | undefined): DocumentRef | null {
   if (value === '') return null;
 
   switch (kind) {
-    case 'layer':
-      return { kind, layerId: value };
     case 'change':
     case 'file':
     case 'timeline':
@@ -131,12 +121,8 @@ function documentTitle(ref: DocumentRef): string {
       return 'All changes';
     case 'specs':
       return 'Specs';
-    case 'unexplained':
-      return 'Not explained';
     case 'proof':
       return 'Proof';
-    case 'layer':
-      return 'Review';
     case 'branch':
       return 'Branch changes';
     case 'graph':

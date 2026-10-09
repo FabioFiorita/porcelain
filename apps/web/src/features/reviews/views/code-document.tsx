@@ -31,11 +31,8 @@ import {
 } from '@/shared/lib/pierre';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { usePreferences, useTheme } from '@/features/preferences/index';
-import {
-  type CodeEntry,
-  type AgentCodeNote,
-  codeTarget,
-} from '../adapters/code-entries';
+import { type CodeEntry, codeTarget } from '../adapters/code-entries';
+import type { AgentCodeNote } from '../rules/code-notes';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useComments } from '../queries/comments';
 import { isFolded } from '../rules/code-folds';
@@ -326,7 +323,7 @@ function CodeSurface({
     ...(disableFileHeader ? { itemMetrics: { paddingTop: 0 } } : {}),
     layout: {
       paddingTop: disableFileHeader ? 0 : 12,
-      paddingBottom: fullHeight ? 12 : 160,
+      paddingBottom: fullHeight || footer ? 12 : 160,
       gap: 12,
     },
   };
@@ -466,6 +463,8 @@ function CodeSurface({
                   title={note.title}
                   text={note.text}
                   stale={note.stale}
+                  {...(note.marker ? { marker: note.marker } : {})}
+                  {...(note.tone ? { tone: note.tone } : {})}
                 />
               );
             return note.kind === 'composer' ? (

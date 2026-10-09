@@ -128,7 +128,7 @@ export function basename(path: string) {
 }
 
 export type ReviewResponse = NonNullable<ReadPublishedReviewResponse['review']>;
-export type Diagram = NonNullable<ReviewResponse['diagram']>['after'];
+type Diagram = NonNullable<ReviewResponse['diagram']>['after'];
 export type DiagramBox = Diagram['boxes'][number];
 export type ReviewLayer = ReviewResponse['layers'][number];
 export type ReviewStep = ReviewLayer['steps'][number];

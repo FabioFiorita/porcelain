@@ -179,7 +179,7 @@ test('a local signed summary renders through the app origin in its sandbox, keep
     `porcelain://app/${here.project.id}/${here.worktree.id}?entry=handoff`,
   );
   await expect(
-    page.getByRole('tab', { name: 'Architecture', exact: true }),
+    page.getByRole('tab', { name: 'Walkthrough', exact: true }),
   ).toHaveAttribute('aria-selected', 'true');
   await page.getByRole('tab', { name: 'Agent summary', exact: true }).click();
   const summary = page.frameLocator('iframe[title="Review summary"]');
@@ -221,7 +221,7 @@ test('a local signed summary renders through the app origin in its sandbox, keep
     });
   await expect(
     page.getByRole('region', {
-      name: 'Review layer Local summary layer',
+      name: '1. Local summary layer',
       exact: true,
     }),
   ).toBeVisible();
@@ -306,7 +306,7 @@ test('a remote computer summary renders through the app from that computer, cann
   const remoteWorktree = `/remotes/${remote.environmentId}/${there.project.id}/${there.worktree.id}`;
   await page.waitForURL((url) => url.pathname === remoteWorktree);
   await expect(
-    page.getByRole('tab', { name: 'Architecture', exact: true }),
+    page.getByRole('tab', { name: 'Walkthrough', exact: true }),
   ).toHaveAttribute('aria-selected', 'true');
   await page.getByRole('tab', { name: 'Agent summary', exact: true }).click();
   const summary = page.frameLocator('iframe[title="Review summary"]');
@@ -359,13 +359,13 @@ test('a remote computer summary renders through the app from that computer, cann
     });
   await expect(
     page.getByRole('region', {
-      name: 'Review layer Remote summary layer',
+      name: '1. Remote summary layer',
       exact: true,
     }),
   ).toBeVisible();
   const layerTab = page
     .getByRole('tablist', { name: 'Open documents', exact: true })
-    .getByTitle('Remote summary layer', { exact: true });
+    .getByTitle('Walkthrough of the decisions', { exact: true });
   await layerTab.focus();
   await expect(layerTab).toBeFocused();
   await page.keyboard.up('Enter');
@@ -381,7 +381,7 @@ test('a remote computer summary renders through the app from that computer, cann
   });
   await page
     .getByRole('tablist', { name: 'Open documents', exact: true })
-    .getByTitle('Architecture overview', { exact: true })
+    .getByTitle('Walkthrough of the decisions', { exact: true })
     .click();
   await page.getByRole('tab', { name: 'Agent summary', exact: true }).click();
   const reopenedSummary = await summaryNavigation;

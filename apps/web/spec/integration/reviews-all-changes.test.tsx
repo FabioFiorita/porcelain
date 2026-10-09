@@ -19,7 +19,7 @@ test('all changes includes every changed file, including unexplained, deleted an
     .element(workspace.getByText('55 files', { exact: true }))
     .toBeVisible();
   await workspace
-    .getByRole('button', { name: 'Mark all 55 files reviewed', exact: true })
+    .getByRole('button', { name: 'Mark all 49 files reviewed', exact: true })
     .click();
   const marks = async () =>
     (await server.reviewedFiles()).marks.map((mark) => mark.path).sort();

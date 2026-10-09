@@ -201,7 +201,7 @@ async function appOf(page: Page, world: World, live: LiveFixture) {
     holdLive: () => live.hold(),
     summary: () =>
       page
-        .getByRole('region', { name: 'Published review', exact: true })
+        .getByRole('region', { name: 'Review walkthrough', exact: true })
         .getByTitle('Review summary', { exact: true })
         .contentFrame(),
   };

@@ -17,10 +17,10 @@ selectors:
   - "Files"
   - "Open file"
   - "Source"
-  - "Architecture overview"
+  - "Briefing"
   - "Agent summary"
   - "Review summary"
-  - "Review layer "
+  - "Review walkthrough"
 tests:
   - apps/web/spec/e2e/projects-remote-workspace.desktop.e2e.ts
 api:
@@ -42,7 +42,7 @@ api:
 
 ## What it is
 
-The desktop app lists a remote computer as its own group in the sidebar, by name and status, apart from This computer's projects, and opens its worktree in the full review workspace over that computer's own credential, with the computer's name in the tab title: a reviewed mark lands on that computer only, a change on its disk shows live (through a live ticket) without a reload, and its HTML review summary loads from it with working links to its review layers.
+The desktop app lists a remote computer as its own group in the sidebar, by name and status, apart from This computer's projects, and opens its worktree in the full review workspace over that computer's own credential, with the computer's name in the tab title: a reviewed mark lands on that computer only, a change on its disk shows live (through a live ticket) without a reload, and its HTML review summary loads from it with links that open its decisions in the walkthrough.
 
 ## How a user reaches it
 
@@ -89,9 +89,9 @@ The desktop app lists a remote computer as its own group in the sidebar, by name
 8. `$C agent publish-review "Remote review layer" --remote --summary-html '<html><body><h1>Remote summary</h1><a href="#layer-1">Open remote layer</a></body></html>'`
    Look for: "the agent's publish-review reached the server".
 9. Click tab named `Review Close Review`, then navigate to `$REMOTE_PAGE` on the card’s web URL (full page load)
-   Look for: the handoff tab "Review" shows region "Published review" with Architecture selected. Click the "Agent summary" tab; the heading "Remote summary" appears inside frame "Review summary", and a screenshot shows the heading and the link "Open remote layer". Inspect HTTP requests and responses lists `GET /api/worktrees/<remote worktreeId>/review` 200 from the remote address.
+   Look for: the handoff tab "Review" shows region "Review walkthrough" with tab "Walkthrough" selected. Click the "Agent summary" tab; the heading "Remote summary" appears inside frame "Review summary", and a screenshot shows the heading and the link "Open remote layer". Inspect HTTP requests and responses lists `GET /api/worktrees/<remote worktreeId>/review` 200 from the remote address.
 10. Click link named `Open remote layer` inside frame 'Review summary'
-    Look for: Page URL `…?entry=layer%3A<layerId>`; Page Title "Review — remote-sample · Remote journey computer"; Region `Review layer Remote review layer` is visible.
+    Look for: tab "Walkthrough" selected again and region "1. Remote review layer" visible; Page URL still `…?entry=handoff`; Page Title "Changes — remote-sample · Remote journey computer".
 
 ### This computer is untouched
 
@@ -100,8 +100,8 @@ The desktop app lists a remote computer as its own group in the sidebar, by name
 
 ## What proves it works
 
-- End state: the mark exists on the remote only (step 4 reads both servers; step 11 shows this computer unmarked); the remote's rewrite appears without a reload while this computer's README is unchanged; the summary loaded from the remote opens its review layer.
-- `apps/web/spec/e2e/projects-remote-workspace.desktop.e2e.ts`: the remote group lists only the remote project and This computer only the local one; its main worktree opens at `/remotes/<environmentId>/<projectId>/<worktreeId>` with the remote's name in the title; marking README.md reviewed records it on the remote server and leaves this server's marks empty; with the Source tab open the remote server records live ticket hits, a rewrite on the remote shows without reload and this server's text is unchanged; after the agent publishes "Remote review layer" on the remote, the summary's link opens region "Review layer Remote review layer" (read through `server.reviewedFiles()`, `server.liveTicketHits()`, `server.text()`, `server.inventory()` on both servers).
+- End state: the mark exists on the remote only (step 4 reads both servers; step 11 shows this computer unmarked); the remote's rewrite appears without a reload while this computer's README is unchanged; the summary loaded from the remote opens its decision in the walkthrough.
+- `apps/web/spec/e2e/projects-remote-workspace.desktop.e2e.ts`: the remote group lists only the remote project and This computer only the local one; its main worktree opens at `/remotes/<environmentId>/<projectId>/<worktreeId>` with the remote's name in the title; marking README.md reviewed records it on the remote server and leaves this server's marks empty; with the Source tab open the remote server records live ticket hits, a rewrite on the remote shows without reload and this server's text is unchanged; after the agent publishes "Remote review layer" on the remote, Review → tab "Review" → "Briefing" → "Agent summary", and the summary's link opens region "1. Remote review layer" (read through `server.reviewedFiles()`, `server.liveTicketHits()`, `server.text()`, `server.inventory()` on both servers).
 
 ## Gotchas
 

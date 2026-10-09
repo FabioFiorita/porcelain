@@ -23,7 +23,7 @@ import type { DocumentRef, OpenDocument } from '../rules/documents';
 import { basename, type ReviewStatus } from '@porcelain/client/reviews/rules';
 
 export const ROW =
-  'flex w-full min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-caption transition-colors hover:bg-accent';
+  'flex w-full min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-caption transition-colors hover:bg-accent aria-pressed:bg-accent aria-pressed:font-medium';
 
 export function ChangeRow({
   path,

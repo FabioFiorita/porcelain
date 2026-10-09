@@ -28,7 +28,7 @@ When the Spec files setting is on, specs and tests have a separate section in th
 3. Open Review and expand Specs · 1 files. Open all specs shows Specs with "1 files", its file diff and reviewed control. Mark it and verify `$C server reviewed-files` contains search.spec.ts only.
 4. Open Review again. Specs remains a visible counted section but its contents start collapsed. Expand its summary to see Open all specs and search.spec.ts. Expand the file in its document to read code.
 5. Reload: the collapse preference remains. Turn it off through Settings and remove the two setup files when finished.
-6. With the large architecture fixture, open All changes and verify its count remains 55, while Specs is eight files. Marks in Specs do not mark ordinary source files or architectural walkthroughs.
+6. With the review sample (`$C start --review-sample`), open All changes and verify its count remains 55, while Specs is eight files and the walkthrough ends with a "Specs" stop. Marks in Specs do not mark ordinary source files or record any decision.
 
 ## What proves it works
 
