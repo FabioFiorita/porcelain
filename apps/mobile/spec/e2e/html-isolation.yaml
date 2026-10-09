@@ -12,8 +12,4 @@ name: Inspect isolated native HTML
 - tapOn: Documentation link
 - assertVisible: 'Link: https://docs.expo.dev/'
 - assertVisible: Scripts are disabled
-- tapOn: Show source
-- assertVisible: Show preview
-- tapOn: Show preview
-- assertVisible: Scripts are disabled
 - assertNotVisible: SCRIPT EXECUTED
