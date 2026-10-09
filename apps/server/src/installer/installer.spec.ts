@@ -425,7 +425,7 @@ it('refuses recovery without either runtime and retains the journal and backup',
   expect(service).toBeUndefined();
 });
 
-it('puts a porcelain command in ~/.local/bin that runs the installed version, rewrites it on update and removes it on uninstall', async () => {
+it('puts a porcelain command in ~/.local/bin that runs the installed version, adds it on update to a service installed without one and removes it on uninstall', async () => {
   expect(await install()).toMatchObject({
     action: 'install',
     result: {
@@ -438,6 +438,7 @@ it('puts a porcelain command in ~/.local/bin that runs the installed version, re
   });
   expect(statSync(porcelainCommand()).mode & 0o100).toBe(0o100);
   expect(runPorcelain('--version')).toBe('1.0.0\n');
+  rmSync(porcelainCommand());
   candidate();
   searchPath = `/usr/bin:${dirname(porcelainCommand())}/`;
   const updated = await execute(
