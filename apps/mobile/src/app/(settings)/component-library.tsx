@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ComponentLibrary } from '../../features/access';
+import { ComponentLibrary } from '../../features/catalog';
 
 export default function ComponentLibraryRoute() {
   const router = useRouter();

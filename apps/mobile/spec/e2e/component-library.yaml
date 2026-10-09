@@ -5,6 +5,10 @@ name: Inspect primitives through the development catalog
 - runFlow: open-settings.yaml
 - tapOn: Component library
 - assertVisible: Open a primitive to inspect its variants.
+- tapOn: Explore Text
+- assertVisible: Type scale
+- assertVisible: Tones and weights
+- tapOn: Back
 - tapOn: Explore Button
 - assertVisible: 'Actions: 0'
 - tapOn: Default

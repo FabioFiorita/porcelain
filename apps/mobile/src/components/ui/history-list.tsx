@@ -1,3 +1,4 @@
+import { useResolveClassNames } from 'uniwind';
 import { FlatList, View } from 'react-native';
 import { CommitRow, type HistoryEntry } from './commit-row';
 import { Empty } from './empty';
@@ -20,9 +21,10 @@ export function HistoryList({
   onSelect: (id: string) => void;
   onLoadMore?: () => void;
 }) {
+  const padding = useResolveClassNames('px-2');
   return (
     <FlatList
-      contentContainerStyle={{ paddingHorizontal: 8 }}
+      contentContainerStyle={padding}
       data={entries}
       keyExtractor={(entry) => entry.id}
       renderItem={({ item }) => (

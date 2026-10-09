@@ -1,5 +1,5 @@
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
-import { withUniwind } from 'uniwind';
+import { withUniwind, useResolveClassNames } from 'uniwind';
 const StyledSymbol = withUniwind(SymbolView);
 const symbols = {
   add: { ios: 'plus', android: 'add' },
@@ -37,12 +37,15 @@ export function Icon({
   tone?: keyof typeof tones;
   size?: 'small' | 'default' | 'large';
 }) {
-  const dimension = size === 'small' ? 14 : size === 'large' ? 24 : 18;
+  const dimensions = useResolveClassNames(
+    size === 'small' ? 'size-3.5' : size === 'large' ? 'size-6' : 'size-4.5',
+  );
+  const dimension = Number(dimensions.width);
   return (
     <StyledSymbol
       name={symbols[name]}
       size={dimension}
-      style={{ width: dimension, height: dimension }}
+      style={dimensions}
       tintColorClassName={tones[tone]}
       accessible={false}
     />

@@ -9,6 +9,7 @@ class PorcelainRendererModule : Module() {
     Name("PorcelainRenderer")
     View(CodeSurface::class) {
       Events("onSelect", "onExpand")
+      Prop("tokens") { view: CodeSurface, value: String -> view.tokens = RenderTokens.decode(value) }
       Prop("data") { view: CodeSurface, value: String -> view.updateData(value) }
       Prop("wrap") { view: CodeSurface, value: Boolean -> view.options = view.options.copy(wrap = value) }
       Prop("lineNumbers") { view: CodeSurface, value: Boolean -> view.options = view.options.copy(lineNumbers = value) }
@@ -19,7 +20,9 @@ class PorcelainRendererModule : Module() {
     }
     View(HtmlSurface::class) {
       Events("onLink", "onError")
+      OnViewDestroys { view: HtmlSurface -> view.destroy() }
       Prop("html") { view: HtmlSurface, value: String -> view.setHTML(value) }
+      Prop("textScale") { view: HtmlSurface, value: Double -> view.setTextScale(value) }
     }
     View(ImageSurface::class) {
       Events("onLoad")
@@ -27,7 +30,8 @@ class PorcelainRendererModule : Module() {
     }
     View(MarkdownSurface::class) {
       Events("onLink")
-      Prop("source") { view: MarkdownSurface, value: String -> view.blocks = markdownBlocks(value) }
+      Prop("tokens") { view: MarkdownSurface, value: String -> view.tokens = RenderTokens.decode(value) }
+      Prop("data") { view: MarkdownSurface, value: String -> view.updateData(value) }
     }
   }
 }

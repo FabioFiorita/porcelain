@@ -1,0 +1,34 @@
+appId: com.fabiofiorita.porcelain.dev
+name: Select native code and diff lines
+---
+- runFlow: connect.yaml
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: ${CODE_URL}
+- assertVisible: 'Selected: none'
+- longPressOn: 'code file line 2: const ready = true;'
+- tapOn: Select for review
+- assertVisible: 'Selected: file lines 2–2'
+- tapOn: 'code file line 5: export function review\(\) \{'
+- assertVisible: 'Selected: file lines 2–5'
+- tapOn: Clear selection
+- tapOn: 'code file line 7: }'
+- assertVisible: 'Selected: none'
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: ${DIFF_URL}
+- longPressOn: 'removed deletions line 2:   return false;'
+- tapOn: Select for review
+- assertVisible: 'Selected: deletions lines 2–2'
+- tapOn: 'added additions line 2:   return true;'
+- assertVisible: 'Selected: additions lines 2–2'
+- longPressOn: 'context additions line 4: }'
+- tapOn: Extend review selection
+- assertVisible: 'Selected: additions lines 2–4'
+- tapOn: Clear selection
+- tapOn: 'context additions line 4: }'
+- assertVisible: 'Selected: none'
+- tapOn: Show 1 unchanged line
+- assertVisible: 'code additions line 3:   // Previously collapsed context'

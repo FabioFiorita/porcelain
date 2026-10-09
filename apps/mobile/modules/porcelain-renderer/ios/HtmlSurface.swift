@@ -34,6 +34,8 @@ final class HtmlSurface: ExpoView, WKNavigationDelegate {
       self.load()
     }
   }
+  deinit { webView.stopLoading(); webView.navigationDelegate = nil }
+  func setTextScale(_ value: CGFloat) { webView.pageZoom = value }
   func setHTML(_ value: String) { html = value; load() }
   private func load() {
     guard ready else { return }

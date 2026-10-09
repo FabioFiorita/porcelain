@@ -6,6 +6,7 @@ public class PorcelainRendererModule: Module {
     Name("PorcelainRenderer")
     View(CodeSurface.self) {
       Events("onSelect", "onExpand")
+      Prop("tokens") { (view: CodeSurface, value: String) in view.model.tokens = RenderTokens.decode(value) }
       Prop("data") { (view: CodeSurface, value: String) in view.model.decode(value) }
       Prop("wrap") { (view: CodeSurface, value: Bool) in view.model.wrap = value }
       Prop("lineNumbers") { (view: CodeSurface, value: Bool) in view.model.lineNumbers = value }
@@ -17,6 +18,7 @@ public class PorcelainRendererModule: Module {
     View(HtmlSurface.self) {
       Events("onLink", "onError")
       Prop("html") { (view: HtmlSurface, value: String) in view.setHTML(value) }
+      Prop("textScale") { (view: HtmlSurface, value: Double) in view.setTextScale(CGFloat(value)) }
     }
     View(ImageSurface.self) {
       Events("onLoad")
@@ -24,7 +26,8 @@ public class PorcelainRendererModule: Module {
     }
     View(MarkdownSurface.self) {
       Events("onLink")
-      Prop("source") { (view: MarkdownSurface, value: String) in view.model.blocks = markdownBlocks(value) }
+      Prop("tokens") { (view: MarkdownSurface, value: String) in view.model.tokens = RenderTokens.decode(value) }
+      Prop("data") { (view: MarkdownSurface, value: String) in view.model.blocks = (try? JSONDecoder().decode([MarkdownBlock].self, from: Data(value.utf8))) ?? [] }
     }
   }
 }

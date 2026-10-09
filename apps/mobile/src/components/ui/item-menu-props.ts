@@ -6,5 +6,6 @@ export type ItemMenuProps = ItemProps & {
     label: string;
     onPress: () => void;
     disabled?: boolean;
+    destructive?: boolean;
   }[];
 };

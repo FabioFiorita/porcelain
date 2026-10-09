@@ -1,4 +1,4 @@
-import { TextPreview } from '../../features/access';
+import { TextPreview } from '../../features/catalog';
 
 export default function ComponentTextRoute() {
   return <TextPreview />;

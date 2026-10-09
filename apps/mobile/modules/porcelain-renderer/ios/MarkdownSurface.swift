@@ -1,37 +1,21 @@
 import ExpoModulesCore
 import SwiftUI
 
-struct MarkdownBlock: Identifiable {
-  var id: Int
+struct MarkdownRun: Decodable {
   var text: String
-  var kind: String
-  var level: Int = 0
+  var bold: Bool?
+  var italic: Bool?
+  var code: Bool?
+  var url: String?
 }
-func markdownBlocks(_ source: String) -> [MarkdownBlock] {
-  var blocks: [MarkdownBlock] = []
-  var paragraph: [String] = []
-  var code: [String]? = nil
-  var fence = ""
-  func add(_ text: String, _ kind: String, _ level: Int = 0) { blocks.append(MarkdownBlock(id: blocks.count, text: text, kind: kind, level: level)) }
-  func flush() { if !paragraph.isEmpty { add(paragraph.joined(separator: "\n"), "paragraph"); paragraph = [] } }
-  for line in source.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n") {
-    if code != nil {
-      if line.hasPrefix(fence) { add(code!.joined(separator: "\n"), "code"); code = nil }
-      else { code!.append(line) }
-    } else if line.hasPrefix("```") || line.hasPrefix("~~~") {
-      flush(); fence = String(line.prefix(3)); code = []
-    } else if line.isEmpty { flush() }
-    else if let match = line.range(of: "^#{1,6} ", options: .regularExpression) {
-      flush(); add(String(line[match.upperBound...]), "heading", line[match].count - 1)
-    } else if line.hasPrefix("> ") { flush(); add(String(line.dropFirst(2)), "quote") }
-    else if line.hasPrefix("- ") || line.hasPrefix("* ") { flush(); add("• " + line.dropFirst(2), "list") }
-    else { paragraph.append(line) }
-  }
-  flush()
-  if let code { add(code.joined(separator: "\n"), "code") }
-  return blocks
+struct MarkdownBlock: Decodable, Identifiable {
+  var id: Int
+  var kind: String
+  var level: Int
+  var runs: [MarkdownRun]
 }
 final class MarkdownModel: ObservableObject {
+  @Published var tokens = RenderTokens()
   @Published var blocks: [MarkdownBlock] = []
   var onLink: ((String) -> Void)?
 }
@@ -41,36 +25,49 @@ final class MarkdownSurface: ExpoView {
   private var host: UIHostingController<MarkdownContent>?
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
-    let controller = UIHostingController(rootView: MarkdownContent(model: model))
-    controller.view.backgroundColor = .clear
-    controller.view.translatesAutoresizingMaskIntoConstraints = false
-    addSubview(controller.view)
-    NSLayoutConstraint.activate([
-      controller.view.leadingAnchor.constraint(equalTo: leadingAnchor), controller.view.trailingAnchor.constraint(equalTo: trailingAnchor),
-      controller.view.topAnchor.constraint(equalTo: topAnchor), controller.view.bottomAnchor.constraint(equalTo: bottomAnchor)
-    ])
-    host = controller
+    host = mount(MarkdownContent(model: model))
     model.onLink = { [weak self] url in self?.onLink(["url": url]) }
   }
 }
 struct MarkdownContent: View {
   @ObservedObject var model: MarkdownModel
+  @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1
+  func fontSize(_ block: MarkdownBlock) -> CGFloat {
+    let tokens = model.tokens
+    let size = block.kind == "code" ? tokens.codeSize : block.kind == "heading" ? (block.level == 1 ? tokens.headingSize : block.level == 2 ? tokens.subheadingSize : tokens.bodySize) : tokens.bodySize
+    return size * textScale
+  }
+  func text(_ block: MarkdownBlock) -> AttributedString {
+    var result = AttributedString()
+    for run in block.runs {
+      var part = AttributedString(run.text)
+      var font = Font.system(size: fontSize(block), design: run.code == true || block.kind == "code" ? .monospaced : .default)
+      if run.bold == true || block.kind == "heading" { font = font.bold() }
+      if run.italic == true { font = font.italic() }
+      part.font = font
+      if let value = run.url, let url = URL(string: value) { part.link = url }
+      result += part
+    }
+    return result
+  }
   var body: some View {
     ScrollView {
-      LazyVStack(alignment: .leading, spacing: 16) {
+      LazyVStack(alignment: .leading, spacing: model.tokens.pagePadding) {
         ForEach(model.blocks) { block in
           if block.kind == "code" {
-            ScrollView(.horizontal) { Text(block.text).font(.system(size: 13, design: .monospaced)).textSelection(.enabled).padding(12) }
-              .background(.secondary.opacity(0.08)).clipShape(RoundedRectangle(cornerRadius: 10))
+            ScrollView(.horizontal) { Text(text(block)).textSelection(.enabled).padding(model.tokens.blockPadding) }
+              .background(.secondary.opacity(0.08)).clipShape(RoundedRectangle(cornerRadius: model.tokens.radius))
           } else {
-            Text((try? AttributedString(markdown: block.text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(block.text))
-              .font(.system(size: block.kind == "heading" ? (block.level == 1 ? 24 : block.level == 2 ? 20 : 16) : 13, weight: block.kind == "heading" ? .semibold : .regular))
+            Text(text(block))
               .foregroundStyle(block.kind == "quote" ? .secondary : .primary)
               .textSelection(.enabled)
               .accessibilityAddTraits(block.kind == "heading" ? .isHeader : [])
           }
         }
-      }.frame(maxWidth: .infinity, alignment: .leading).padding(16)
-    }.environment(\.openURL, OpenURLAction { url in model.onLink?(url.absoluteString); return .handled })
+      }.frame(maxWidth: .infinity, alignment: .leading).padding(model.tokens.pagePadding)
+    }.environment(\.openURL, OpenURLAction { url in
+      model.onLink?(url.absoluteString)
+      return .handled
+    })
   }
 }

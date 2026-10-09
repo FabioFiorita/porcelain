@@ -1,7 +1,12 @@
 package expo.modules.porcelainrenderer
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import androidx.exifinterface.media.ExifInterface
+import java.io.ByteArrayInputStream
+import java.io.IOException
 import android.util.Base64
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -14,8 +19,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.semantics.*
 import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.viewevent.EventDispatcher
@@ -25,10 +28,7 @@ class ImageSurface(context: Context, appContext: AppContext) : ExpoView(context,
   val onLoad by EventDispatcher()
   private var image by mutableStateOf<android.graphics.Bitmap?>(null)
   init {
-    addView(ComposeView(context).apply {
-      layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-      setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-      setContent {
+    mountContent {
         var scale by remember(image) { mutableFloatStateOf(1f) }
         var offset by remember(image) { mutableStateOf(Offset.Zero) }
         image?.let { bitmap ->
@@ -42,11 +42,30 @@ class ImageSurface(context: Context, appContext: AppContext) : ExpoView(context,
                 CustomAccessibilityAction("Reset zoom") { scale = 1f; offset = Offset.Zero; true }
               ) })
         }
-      }
-    })
+    }
   }
   fun decode(value: String) {
-    image = try { val bytes = Base64.decode(value, Base64.DEFAULT); BitmapFactory.decodeByteArray(bytes, 0, bytes.size) } catch (_: IllegalArgumentException) { null }
+    image = try {
+      val bytes = Base64.decode(value, Base64.DEFAULT)
+      decodeImage(bytes, maxOf(resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels) * 2)
+    } catch (_: IllegalArgumentException) { null }
     onLoad(mapOf("success" to (image != null)))
   }
+}
+
+internal fun decodeImage(bytes: ByteArray, target: Int): Bitmap? {
+  val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+  BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+  var sample = 1
+  while (maxOf(bounds.outWidth, bounds.outHeight) / sample > target) sample *= 2
+  val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return null
+  val exif = try { ExifInterface(ByteArrayInputStream(bytes)) } catch (_: IOException) { null }
+  val transform = Matrix().apply {
+    if (exif?.isFlipped == true) postScale(-1f, 1f)
+    postRotate((exif?.rotationDegrees ?: 0).toFloat())
+  }
+  if (transform.isIdentity) return bitmap
+  val oriented = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, transform, true)
+  if (oriented !== bitmap) bitmap.recycle()
+  return oriented
 }

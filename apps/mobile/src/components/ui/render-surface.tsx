@@ -1,11 +1,13 @@
+import { useRenderTokens } from './use-render-tokens';
 import { requireNativeView } from 'expo';
 import { processColor, type NativeSyntheticEvent } from 'react-native';
 import { useResolveClassNames } from 'uniwind';
 import type { ReviewRange } from './review-annotation';
 
-import type { RenderLine } from './render-model';
+import type { RenderLine } from '../../shared/rules/render-model';
 type SurfaceProps = {
   data: string;
+  tokens: string;
   wrap: boolean;
   lineNumbers: boolean;
   foreground: number;
@@ -37,6 +39,8 @@ export function RenderSurface({
   onSelect?: ((range: ReviewRange) => void) | undefined;
   onExpand?: ((id: string) => void) | undefined;
 }) {
+  const data = JSON.stringify(lines);
+  const tokens = useRenderTokens();
   const foreground = useResolveClassNames('text-foreground');
   const background = useResolveClassNames('bg-background');
   const muted = useResolveClassNames('text-muted-foreground');
@@ -46,7 +50,8 @@ export function RenderSurface({
   };
   return (
     <NativeSurface
-      data={JSON.stringify(lines)}
+      data={data}
+      tokens={tokens}
       wrap={wrap}
       lineNumbers={lineNumbers}
       foreground={color(foreground.color)}

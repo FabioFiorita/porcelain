@@ -11,7 +11,7 @@ tests:
 api: []
 ---
 
-# access.component-button
+# app.catalog-button
 
 Development-only Button samples reached through Settings, Component library, Explore Button. All catalog routes are protected by `__DEV__` and unavailable in release builds.
 
