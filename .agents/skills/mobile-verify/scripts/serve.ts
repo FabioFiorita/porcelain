@@ -35,7 +35,8 @@ export function serve(folder: string): Promise<void> {
     const options = Schema.decodeUnknownSync(optionsSchema)(life.options);
     const { kind, host, simulatorLimit } = options;
     const evidence = registry.evidenceFolder(life.id);
-    if (host !== null) life.secret(hubToken(host));
+    const hub = options.agentCommand === undefined ? host : null;
+    if (hub !== null) life.secret(hubToken(hub));
     const session = `porcelain-mobile-${life.id}`;
     const native = await nativeFingerprint();
     const request = {
@@ -57,16 +58,16 @@ export function serve(folder: string): Promise<void> {
       options.agentConfig,
       options.agentCommand,
     );
-    if (host !== null)
+    if (hub !== null)
       setupCommand(agent, [
         'connect',
         'proxy',
         '--daemon-base-url',
-        hubUrl(host),
+        hubUrl(hub),
       ]);
     life.onStop(() => {
       setupCommand(agent, ['close'], undefined, true);
-      if (host !== null) setupCommand(agent, ['disconnect']);
+      if (hub !== null) setupCommand(agent, ['disconnect']);
     });
     const ports = host === null ? [] : await freeHostPorts(host, 2);
     const build = await mkdtemp(
