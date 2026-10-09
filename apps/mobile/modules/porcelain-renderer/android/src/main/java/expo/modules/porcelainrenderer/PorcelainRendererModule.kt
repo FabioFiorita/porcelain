@@ -22,6 +22,7 @@ class PorcelainRendererModule : Module() {
       Events("onLink", "onError")
       OnViewDestroys { view: HtmlSurface -> view.destroy() }
       Prop("html") { view: HtmlSurface, value: String -> view.setHTML(value) }
+      Prop("textScale") { view: HtmlSurface, value: Double -> view.setTextScale(value) }
     }
     View(ImageSurface::class) {
       Events("onLoad")

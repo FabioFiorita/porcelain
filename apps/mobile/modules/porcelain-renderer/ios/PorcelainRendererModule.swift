@@ -18,6 +18,7 @@ public class PorcelainRendererModule: Module {
     View(HtmlSurface.self) {
       Events("onLink", "onError")
       Prop("html") { (view: HtmlSurface, value: String) in view.setHTML(value) }
+      Prop("textScale") { (view: HtmlSurface, value: Double) in view.setTextScale(CGFloat(value)) }
     }
     View(ImageSurface.self) {
       Events("onLoad")

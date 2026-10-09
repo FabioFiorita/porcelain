@@ -1,13 +1,18 @@
 import { isPreviewLink } from '../../shared/rules/preview-link';
 import { useState } from 'react';
 import { requireNativeView } from 'expo';
-import { View, type NativeSyntheticEvent } from 'react-native';
+import {
+  View,
+  useWindowDimensions,
+  type NativeSyntheticEvent,
+} from 'react-native';
 import { Button } from './button';
 import { CodeView } from './code-view';
 import { ErrorState } from './error-state';
 
 const NativeHtml = requireNativeView<{
   html: string;
+  textScale: number;
   onLink: (event: NativeSyntheticEvent<{ url: string }>) => void;
   onError: (event: NativeSyntheticEvent<{ message: string }>) => void;
   style: { flex: number };
@@ -30,6 +35,7 @@ function HtmlContent({
 }) {
   const [source, setSource] = useState(false);
   const [error, setError] = useState('');
+  const { fontScale } = useWindowDimensions();
   return (
     <View className="flex-1 bg-background">
       <View className="flex-row justify-end border-b border-border p-2">
@@ -47,6 +53,7 @@ function HtmlContent({
       ) : (
         <NativeHtml
           html={html}
+          textScale={fontScale}
           onLink={(event) => {
             if (isPreviewLink(event.nativeEvent.url))
               onLink?.(event.nativeEvent.url);

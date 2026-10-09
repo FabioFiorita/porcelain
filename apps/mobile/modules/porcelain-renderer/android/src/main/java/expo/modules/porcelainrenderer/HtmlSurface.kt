@@ -41,4 +41,5 @@ class HtmlSurface(context: Context, appContext: AppContext) : ExpoView(context, 
     webView.loadDataWithBaseURL("about:blank", "<meta http-equiv=\"Content-Security-Policy\" content=\"$policy\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">$value", "text/html", "UTF-8", null)
   }
   fun destroy() { webView.stopLoading(); removeView(webView); webView.destroy() }
+  fun setTextScale(value: Double) { webView.settings.textZoom = (value * 100).toInt() }
 }
