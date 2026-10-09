@@ -8,6 +8,7 @@ import {
   Installer,
   InstallerOptions,
   readPackageIdentity,
+  type CommandOutcome,
   type ServiceStatus,
 } from '../installer/index.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
@@ -43,6 +44,15 @@ function formatStatus(status: ServiceStatus): string {
   ].join('\n');
 }
 
+function formatCommand(command: CommandOutcome): string {
+  if (command.kind === 'foreign')
+    return `Left ${command.path} unchanged because Porcelain did not write it, so the porcelain command was not added.\n`;
+  const directory = dirname(command.path);
+  return command.onSearchPath
+    ? `The porcelain command is at ${command.path}.\n`
+    : `The porcelain command is at ${command.path}; add ${directory} to PATH to use it: export PATH="${directory}:$PATH"\n`;
+}
+
 export const runServiceCommand = Effect.fn('runServiceCommand')(
   function* (
     settings: ServiceSettings,
@@ -75,8 +85,9 @@ export const runServiceCommand = Effect.fn('runServiceCommand')(
         if (outcome.action !== 'install') return;
         const result = outcome.result;
         dependencies.stdout(
-          `Installed Porcelain ${identity.packageVersion} as a user service. It listens on this computer only; share it with: porcelain share lan on\n`,
+          `Installed Porcelain ${identity.packageVersion} as a user service. To share it on the local network, run: porcelain share lan on\n`,
         );
+        dependencies.stdout(formatCommand(result.command));
         if (result.backup !== undefined)
           dependencies.stdout(`Database backup: ${result.backup}\n`);
         if (result.lingerCommand !== undefined)
@@ -95,8 +106,7 @@ export const runServiceCommand = Effect.fn('runServiceCommand')(
         dependencies.stdout(
           `Updated the Porcelain service to ${identity.packageVersion}.\nDatabase backup: ${result.backup}\n`,
         );
-        if (result.localNetworkHint !== undefined)
-          dependencies.stdout(`${result.localNetworkHint}\n`);
+        dependencies.stdout(formatCommand(result.command));
         return;
       }
       if (settings.action === 'recover') {
@@ -108,8 +118,6 @@ export const runServiceCommand = Effect.fn('runServiceCommand')(
             ? 'Recovered the Porcelain service.\n'
             : 'The Porcelain service needed no recovery.\n',
         );
-        if (recovery.localNetworkHint !== undefined)
-          dependencies.stdout(`${recovery.localNetworkHint}\n`);
         return;
       }
       const outcome = yield* installer.execute({ action: 'uninstall' });

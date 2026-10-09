@@ -1,6 +1,11 @@
 import { NodeServices } from '@effect/platform-node';
 import { Clock, Effect, Layer, Schema } from 'effect';
-import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
+import {
+  execFileSync,
+  spawn,
+  spawnSync,
+  type ChildProcess,
+} from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -12,7 +17,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { Installer, InstallerOptions } from './installer.ts';
 
@@ -26,6 +31,7 @@ let rejectDownload: boolean;
 let rejectCandidate: boolean;
 let mutateDatabase: boolean;
 let commands: string[];
+let searchPath: string;
 
 const runtime = () => join(root, 'runtime');
 const manifest = (prefix: string) =>
@@ -33,6 +39,9 @@ const manifest = (prefix: string) =>
 const record = (file: string): unknown =>
   JSON.parse(readFileSync(join(root, file), 'utf8'));
 const database = () => join(data, 'inventory.sqlite');
+const porcelainCommand = () => join(home, '.local/bin/porcelain');
+const runPorcelain = (...args: string[]) =>
+  execFileSync(porcelainCommand(), args, { encoding: 'utf8' });
 
 function writeRuntime(prefix: string, version: string) {
   const folder = join(prefix, 'node_modules', packageName);
@@ -42,7 +51,10 @@ function writeRuntime(prefix: string, version: string) {
     JSON.stringify({ name: packageName, version }),
   );
   mkdirSync(join(folder, 'bin'));
-  writeFileSync(join(folder, 'bin/porcelain.js'), '');
+  writeFileSync(
+    join(folder, 'bin/porcelain.js'),
+    "if (process.argv[2] === '--version') console.log(require('../package.json').version);\n",
+  );
   mkdirSync(join(folder, 'node_modules/effect'), { recursive: true });
   writeFileSync(join(folder, 'node_modules/effect/package.json'), '{}');
   const watcher = join(prefix, 'node_modules/@parcel/watcher');
@@ -141,7 +153,7 @@ const execute = (
                   homeDirectory: home,
                   packageRoot: source,
                   packageVersion: version,
-                  searchPath: '/usr/bin',
+                  searchPath,
                   nodeExecutable: process.execPath,
                   uid: 501,
                   runner: command,
@@ -214,7 +226,7 @@ function candidate() {
 }
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), 'porcelain-installer-'));
+  home = mkdtempSync(join(tmpdir(), "porcelain installer's "));
   root = join(home, '.local/share/porcelain/service');
   data = join(home, 'data');
   source = join(home, 'package');
@@ -231,6 +243,7 @@ beforeEach(() => {
   rejectCandidate = false;
   mutateDatabase = false;
   commands = [];
+  searchPath = '/usr/bin';
 });
 
 afterEach(async () => {
@@ -410,4 +423,50 @@ it('refuses recovery without either runtime and retains the journal and backup',
     'saved database',
   );
   expect(service).toBeUndefined();
+});
+
+it('puts a porcelain command in ~/.local/bin that runs the installed version, adds it on update to a service installed without one and removes it on uninstall', async () => {
+  expect(await install()).toMatchObject({
+    action: 'install',
+    result: {
+      command: {
+        kind: 'written',
+        path: porcelainCommand(),
+        onSearchPath: false,
+      },
+    },
+  });
+  expect(statSync(porcelainCommand()).mode & 0o100).toBe(0o100);
+  expect(runPorcelain('--version')).toBe('1.0.0\n');
+  rmSync(porcelainCommand());
+  candidate();
+  searchPath = `/usr/bin:${dirname(porcelainCommand())}/`;
+  const updated = await execute(
+    { action: 'update', allowDowngrade: false },
+    '2.0.0',
+  );
+  if (updated.action !== 'update') throw new Error('Expected update result');
+  expect(updated.result).toEqual({
+    backup: updated.result.backup,
+    command: { kind: 'written', path: porcelainCommand(), onSearchPath: true },
+  });
+  expect(runPorcelain('--version')).toBe('2.0.0\n');
+  await execute({ action: 'uninstall' });
+  expect(existsSync(porcelainCommand())).toBe(false);
+});
+
+it('leaves a porcelain command it did not write untouched through install, update and uninstall', async () => {
+  const foreign = '#!/bin/sh\necho another porcelain\n';
+  mkdirSync(dirname(porcelainCommand()), { recursive: true });
+  writeFileSync(porcelainCommand(), foreign, { mode: 0o755 });
+  const refused = { kind: 'foreign', path: porcelainCommand() };
+  expect(await install()).toMatchObject({
+    result: { command: refused },
+  });
+  candidate();
+  expect(
+    await execute({ action: 'update', allowDowngrade: false }, '2.0.0'),
+  ).toMatchObject({ result: { command: refused } });
+  await execute({ action: 'uninstall' });
+  expect(readFileSync(porcelainCommand(), 'utf8')).toBe(foreign);
 });

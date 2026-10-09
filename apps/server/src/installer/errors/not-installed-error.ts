@@ -5,6 +5,6 @@ export class NotInstalledError extends Schema.TaggedError<NotInstalledError>()(
   {},
 ) {
   override get message() {
-    return 'Porcelain service is not installed. Run `porcelain service install`.';
+    return 'Porcelain service is not installed. Run `npx @fabiofiorita/porcelain@latest service install`.';
   }
 }

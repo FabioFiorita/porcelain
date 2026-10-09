@@ -160,8 +160,11 @@ npx @fabiofiorita/porcelain@latest serve
 # Permit other devices on the local network to connect:
 npx @fabiofiorita/porcelain@latest serve --lan
 
-# Install this exact CLI version as a user service:
-npx @fabiofiorita/porcelain@latest service install --lan
+# Install this exact CLI version as a user service (Linux):
+npx @fabiofiorita/porcelain@latest service install
+
+# Update the service to the latest version:
+npx @fabiofiorita/porcelain@latest service update
 \`\`\`
 
 State lives in \`~/.porcelain/\`; pass \`--data-directory\` to keep it somewhere
@@ -178,14 +181,22 @@ process on this machine can open.
 
 ## Background service
 
-\`porcelain service install|status|update|uninstall\` manages a systemd user
-service on Linux. Install and update persist the
-invoked package version outside the npx cache. Updates stop the service and
-back up SQLite before the new runtime can migrate it. An older CLI refuses to
-replace a newer runtime unless \`service update --allow-downgrade\` is explicit.
-Uninstall removes the service and runtime while retaining data, configuration,
-logs and database backups. Run service commands as the regular user, never
-with sudo.
+\`porcelain service install|status|update|recover|uninstall\` manages a systemd
+user service on Linux. Install and update persist the invoked package version
+outside the npx cache and write a \`porcelain\` command to \`~/.local/bin\` that
+runs it; they print how to add that folder to \`PATH\` when it is missing, and
+leave alone a \`porcelain\` there that they did not write.
+
+\`porcelain share lan on\` shares the service on the local network and
+\`porcelain share\` shows how it is shared. Sharing is kept in the data
+directory, so it survives restarts and updates.
+
+Updates stop the service and back up SQLite before the new runtime can migrate
+it. An older CLI refuses to replace a newer runtime unless
+\`service update --allow-downgrade\` is explicit. Uninstall removes the
+service, the runtime and the \`porcelain\` command while retaining data,
+configuration, logs and database backups. Run service commands as the regular
+user, never with sudo.
 
 ## Repository development
 

@@ -13,6 +13,7 @@ export type ServicePaths = {
   backups: string;
   stdoutLog: string;
   stderrLog: string;
+  command: string;
 };
 
 export function servicePaths(
@@ -33,5 +34,6 @@ export function servicePaths(
     backups: pathApi.join(root, 'database-backups'),
     stdoutLog: pathApi.join(root, 'logs/stdout.log'),
     stderrLog: pathApi.join(root, 'logs/stderr.log'),
+    command: pathApi.join(homeDirectory, '.local/bin/porcelain'),
   };
 }

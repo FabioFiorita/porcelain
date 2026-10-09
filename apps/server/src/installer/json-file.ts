@@ -34,20 +34,30 @@ export const readJsonFile = Effect.fn('Installer.readJsonFile')(function* <T>(
     : { kind: 'invalid' };
 });
 
+export const writeFileAtomically = Effect.fn('Installer.writeFileAtomically')(
+  function* (path: string, text: string, mode: number) {
+    const fs = yield* FileSystem.FileSystem;
+    const pathApi = yield* Path.Path;
+    yield* fs.makeDirectory(pathApi.dirname(path), { recursive: true });
+    const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`;
+    yield* fs.writeFileString(temporary, text, { mode });
+    yield* fs
+      .rename(temporary, path)
+      .pipe(
+        Effect.ensuring(
+          fs.remove(temporary, { force: true }).pipe(Effect.orDie),
+        ),
+      );
+  },
+);
+
 export const writeJsonFile = Effect.fn('Installer.writeJsonFile')(function* (
   path: string,
   value: unknown,
 ) {
-  const fs = yield* FileSystem.FileSystem;
-  const pathApi = yield* Path.Path;
-  yield* fs.makeDirectory(pathApi.dirname(path), { recursive: true });
-  const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`;
-  yield* fs.writeFileString(temporary, `${JSON.stringify(value, null, 2)}\n`, {
-    mode: 0o600,
-  });
-  yield* fs
-    .rename(temporary, path)
-    .pipe(
-      Effect.ensuring(fs.remove(temporary, { force: true }).pipe(Effect.orDie)),
-    );
+  yield* writeFileAtomically(
+    path,
+    `${JSON.stringify(value, null, 2)}\n`,
+    0o600,
+  );
 });

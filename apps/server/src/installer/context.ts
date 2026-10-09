@@ -19,6 +19,7 @@ export type InstallerContext = {
   packageVersion: string;
   nodeExecutable: string;
   searchPath: string;
+  hostSearchPath: string;
   ownerProbe: OwnerProbe;
   clock: Clock.Clock;
   limits: Pick<Limits, 'installer' | 'locks' | 'owner'>;

@@ -97,6 +97,7 @@ export class Installer extends Context.Service<
           options.searchPath,
           pathApi,
         ),
+        hostSearchPath: options.searchPath,
         ownerProbe: options.ownerProbe,
         clock: options.clock,
         limits: options.limits,

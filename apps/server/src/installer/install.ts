@@ -20,6 +20,10 @@ import { UnitExistsError } from './errors/unit-exists-error.ts';
 import { failureDetail } from './failure-detail.ts';
 import { writeJsonFile } from './json-file.ts';
 import { installRuntime } from './persistent-runtime.ts';
+import {
+  writePorcelainCommand,
+  type CommandOutcome,
+} from './porcelain-command.ts';
 import { readInstalledRecord, type ServiceConfiguration } from './records.ts';
 import { recoverInterruptedUpdate } from './recover-interrupted-update.ts';
 
@@ -28,6 +32,7 @@ export type InstallSettings = ServiceConfiguration;
 export type InstallOutcome = {
   backup: string | undefined;
   lingerCommand: string | undefined;
+  command: CommandOutcome;
 };
 
 const LINGER_COMMAND = 'sudo loginctl enable-linger "$(id -un)"';
@@ -95,9 +100,11 @@ export const install = Effect.fn('Installer.install')(function* (
     yield* systemd.enableAndStart();
     if (!(yield* serviceIsHealthy(context, settings.dataDirectory)))
       return yield* Effect.fail(new InstalledServiceUnhealthyError());
+    const command = yield* writePorcelainCommand(context);
     return {
       backup,
       lingerCommand: lingerEnabled ? undefined : LINGER_COMMAND,
+      command,
     };
   }).pipe(
     Effect.catch(
