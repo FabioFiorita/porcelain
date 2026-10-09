@@ -1,4 +1,21 @@
+import { Schema } from 'effect';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { repositoryRoot } from './development-client.ts';
+
+export const agentDevice = join(
+  repositoryRoot,
+  'node_modules',
+  '.bin',
+  'agent-device',
+);
+export const agentDeviceVersion = Schema.decodeUnknownSync(
+  Schema.Struct({
+    devDependencies: Schema.Struct({ 'agent-device': Schema.String }),
+  }),
+)(JSON.parse(readFileSync(join(repositoryRoot, 'package.json'), 'utf8')))
+  .devDependencies['agent-device'];
 
 export type Tool = 'simulator' | 'maestro' | 'agent-device';
 
@@ -7,14 +24,13 @@ const installs: Record<Tool, string> = {
     'Xcode with an iOS 26 or newer simulator runtime is missing: install Xcode from the App Store, run xcode-select --switch /Applications/Xcode.app and add the runtime in Xcode > Settings > Components',
   maestro:
     'Maestro is missing: install it with brew tap mobile-dev-inc/tap && brew install mobile-dev-inc/tap/maestro',
-  'agent-device':
-    'agent-device is missing: install it with npm install --global agent-device',
+  'agent-device': `agent-device ${agentDeviceVersion} is missing from this checkout: run pnpm install, which installs the version the repository pins`,
 };
 
 const probes: Record<Tool, readonly [string, ...string[]]> = {
   simulator: ['xcrun', 'simctl', 'help'],
   maestro: ['maestro', '--version'],
-  'agent-device': ['agent-device', '--version'],
+  'agent-device': [agentDevice, '--version'],
 };
 
 function runs([command, ...args]: readonly [string, ...string[]]): boolean {

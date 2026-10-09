@@ -150,8 +150,9 @@ export function serve(folder: string): Promise<void> {
 }
 export async function startProblems(
   host: RemoteHost | undefined,
+  ownDriver = false,
 ): Promise<(string | undefined)[]> {
-  if (host !== undefined) return hostProblems(host);
+  if (host !== undefined) return hostProblems(host, ownDriver);
   const problems = [
     ...sandboxProblems(),
     ...missingTools(['simulator', 'agent-device']),
@@ -172,7 +173,7 @@ export async function start(
   agentCommand?: string,
 ): Promise<string> {
   const { remote, simulatorLimit } = deviceHost();
-  refuseMissing(await startProblems(remote));
+  refuseMissing(await startProblems(remote, agentCommand !== undefined));
   const instance = await registry.launch(
     {
       ...(agentConfig === undefined ? {} : { agentConfig }),

@@ -21,7 +21,7 @@ Fixture commands remain on the lifecycle CLI: `pairing-link`, `agent`, and `serv
 
 # T3-owned device
 
-Open the assigned simulator in T3's Device panel. Use its exact UDID, launcher and private host config:
+Open the assigned simulator in T3's Device panel; from Linux this is also the way to drive the Mac without the hub (see [remote](remote.md)). Use its exact UDID, launcher and private host config:
 
 ```sh
 .agents/skills/mobile-verify/scripts/cli start --udid OWNED_UDID --agent-device-command /t3/returned/launcher --agent-device-config /t3/returned/host.json

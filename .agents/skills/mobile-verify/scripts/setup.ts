@@ -1,14 +1,15 @@
 import { Schema } from 'effect';
 import { spawn, spawnSync } from 'node:child_process';
 import { simulatorSchema } from '../../../../apps/mobile/spec/kit/simulator.ts';
-import { writeFileSync, readFileSync, accessSync, constants } from 'node:fs';
-import { join, delimiter } from 'node:path';
+import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   identity,
   developmentLink,
   screenLink,
 } from '../../../../apps/mobile/spec/kit/development-client.ts';
 import type { RemoteHost } from '../../../../apps/mobile/spec/kit/device-host.ts';
+import { agentDevice } from '../../../../apps/mobile/spec/kit/tools.ts';
 import { Refusal } from '../../verify-core/cli.ts';
 import { shellCommand } from '../../verify-core/connection.ts';
 import { hubToken, hubUrl } from './host.ts';
@@ -132,19 +133,10 @@ export function driver(
       : readFileSync(suppliedConfig, 'utf8'),
     { mode: 0o600 },
   );
-  const executable = (process.env.PATH ?? '')
-    .split(delimiter)
-    .map((directory) => join(directory, 'agent-device'))
-    .find((path) => {
-      try {
-        accessSync(path, constants.X_OK);
-        return true;
-      } catch {
-        return false;
-      }
-    });
-  if (suppliedCommand === undefined && executable === undefined)
-    throw new Refusal('agent-device is missing from PATH.');
+  if (suppliedCommand === undefined && !existsSync(agentDevice))
+    throw new Refusal(
+      'agent-device is missing from this checkout: run pnpm install.',
+    );
   const launcher = suppliedCommand ?? join(folder, 'agent-device');
   if (suppliedCommand === undefined)
     writeFileSync(
@@ -159,7 +151,7 @@ if (!required.every(flag => args.includes(flag) && args[args.indexOf(flag) + 1])
 }
 const env = { ...process.env, AGENT_DEVICE_STATE_DIR: '/tmp/porcelain-agent-device' };
 for (const key of ['AGENT_DEVICE_DAEMON_BASE_URL', 'AGENT_DEVICE_DAEMON_AUTH_TOKEN', 'AGENT_DEVICE_CONFIG']) delete env[key];
-const result = spawnSync(${JSON.stringify(executable)}, args, { env, stdio: 'inherit' });
+const result = spawnSync(${JSON.stringify(agentDevice)}, args, { env, stdio: 'inherit' });
 if (result.error) throw result.error;
 process.exit(result.status ?? 1);
 `,
