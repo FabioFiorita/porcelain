@@ -2,17 +2,13 @@ import { useEffect, useState } from 'react';
 import { useUniwind } from 'uniwind';
 import type { RenderToken } from '../../shared/rules/render-model';
 
-const highlighter = Promise.all([
-  import('./code-highlighter'),
-  import('react-native-shiki-engine'),
-])
-  .then(([{ createCodeHighlighter }, { createNativeEngine }]) =>
-    createCodeHighlighter(createNativeEngine()),
-  )
-  .then(
-    (value) => ({ value }),
-    () => ({ value: undefined }),
-  );
+import { createCodeHighlighter } from './code-highlighter';
+import { createNativeEngine } from 'react-native-shiki-engine';
+
+const highlighter = createCodeHighlighter(createNativeEngine()).then(
+  (value) => ({ value }),
+  () => ({ value: undefined }),
+);
 function nextFrame(signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
     const finish = () => {

@@ -1,4 +1,4 @@
-import type { RenderToken } from './render-model.js';
+import type { RenderToken } from './render-model.ts';
 
 type SyntaxToken = { content: string; color?: string; fontStyle?: number };
 export async function highlightCode(

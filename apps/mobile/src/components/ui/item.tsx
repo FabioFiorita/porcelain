@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 import { Text } from './text';
+import { itemAccessibilityLabel } from '../../shared/rules/item-label.ts';
 const variants = {
   default: 'border-transparent',
   outline: 'border-border',
@@ -72,9 +73,12 @@ export function Item({
     <Pressable
       testID={testID}
       accessibilityRole="button"
-      accessibilityLabel={
-        accessibilityLabel ?? [title, description].filter(Boolean).join('. ')
-      }
+      accessibilityLabel={itemAccessibilityLabel({
+        title,
+        description,
+        accessibilityLabel,
+        hasAdditionalContent: Boolean(leading || trailing || children),
+      })}
       accessibilityState={{ selected, disabled }}
       disabled={disabled}
       onPress={onPress}

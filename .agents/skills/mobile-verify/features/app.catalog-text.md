@@ -9,7 +9,7 @@ tests:
 api: []
 ---
 
-# access.component-text
+# app.catalog-text
 
 Development-only Text samples reached through Settings, Component library, Explore Text. All catalog routes are protected by `__DEV__` and unavailable in release builds.
 

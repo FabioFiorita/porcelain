@@ -1,4 +1,4 @@
-import type { RenderToken } from './render-model.js';
+import type { RenderToken } from './render-model.ts';
 
 export function mergeDiffTokens(
   syntax: readonly RenderToken[],

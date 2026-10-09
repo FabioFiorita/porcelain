@@ -8,7 +8,7 @@ tests:
 api: []
 ---
 
-# access.component-library
+# app.catalog-library
 
 Development-only component catalog. Settings hides its entry point in release builds, and Expo Router protects all catalog routes with `__DEV__`.
 

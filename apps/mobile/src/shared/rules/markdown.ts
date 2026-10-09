@@ -14,39 +14,200 @@ export type MarkdownBlock = {
   runs: MarkdownRun[];
 };
 
+type InlineToken = MarkdownRun & {
+  marker?: '*' | '_';
+  remaining: number;
+  openBold: number;
+  closeBold: number;
+  openItalic: number;
+  closeItalic: number;
+  separate: boolean;
+};
+
 function inline(source: string): MarkdownRun[] {
-  const pattern =
-    /\\([\\`*_[\]])|(`+)([\s\S]*?)\2(?!`)|\[([^\]]+)\]\(([^\s)]+)\)|(\*\*)(?!\s)([\s\S]+?)(?<!\s)\6(?!\*)|(?<![^\s\x21-\x2f\x3a-\x40\x5b-\x5e\x60\x7b-\x7e])(__)(?!\s)([\s\S]+?)(?<!\s)\8(?![^\s\x21-\x2f\x3a-\x40\x5b-\x5e\x60\x7b-\x7e])|(?<!\*)(\*)(?![\s*])([^\n]+?)(?<![\s*])\10(?!\*)|(?<![^\s\x21-\x2f\x3a-\x40\x5b-\x5e\x60\x7b-\x7e])(_)(?![\s_])([^\n]+?)(?<!\s)\12(?![^\s\x21-\x2f\x3a-\x40\x5b-\x5e\x60\x7b-\x7e])/g;
-  const runs: MarkdownRun[] = [];
-  let at = 0;
-  for (const match of source.matchAll(pattern)) {
-    if (match.index > at) runs.push({ text: source.slice(at, match.index) });
-    if (match[1]) runs.push({ text: match[1] });
-    else if (match[2]) runs.push({ text: match[3] ?? '', code: true });
-    else if (match[4])
-      runs.push(
-        ...inline(match[4]).map((run) => ({
-          ...run,
-          ...(isPreviewLink(match[5] ?? '') ? { url: match[5] } : {}),
-        })),
-      );
-    else if (match[6] || match[8])
-      runs.push(
-        ...inline(match[7] ?? match[9] ?? '').map((run) => ({
-          ...run,
-          bold: true,
-        })),
-      );
-    else
-      runs.push(
-        ...inline(match[11] ?? match[13] ?? '').map((run) => ({
-          ...run,
-          italic: true,
-        })),
-      );
-    at = match.index + match[0].length;
+  const codeEnds = new Map<number, number>();
+  const nextCode = new Map<number, number>();
+  const codeWidths = new Map<number, number>();
+  const backticks = [...source.matchAll(/`+/g)];
+  for (let index = backticks.length - 1; index >= 0; index--) {
+    const match = backticks[index];
+    if (!match) continue;
+    codeWidths.set(match.index, match[0].length);
+    const next = nextCode.get(match[0].length);
+    if (next !== undefined) codeEnds.set(match.index, next);
+    nextCode.set(match[0].length, match.index);
   }
-  if (at < source.length) runs.push({ text: source.slice(at) });
+  const brackets: number[] = [];
+  const parentheses: number[] = [];
+  const ends = new Map<number, number>();
+  for (let index = 0; index < source.length; index++) {
+    const char = source[index];
+    if (char === '\\') index++;
+    else if (char === '`' && codeEnds.has(index)) {
+      const end = codeEnds.get(index) ?? index;
+      index = end + (codeWidths.get(index) ?? 1) - 1;
+    } else if (char === '[') brackets.push(index);
+    else if (char === '(') parentheses.push(index);
+    else if (char === ']' || char === ')') {
+      const start = (char === ']' ? brackets : parentheses).pop();
+      if (start !== undefined) ends.set(start, index);
+    }
+  }
+  const tokens: InlineToken[] = [];
+  const openers: Record<'*' | '_', InlineToken[]> = { '*': [], _: [] };
+  let linkEnd = -1;
+  let destinationEnd = -1;
+  let url: string | undefined;
+  const add = (text: string, code = false, separate = false) => {
+    tokens.push({
+      text,
+      ...(code ? { code: true } : {}),
+      ...(url ? { url } : {}),
+      remaining: 0,
+      openBold: 0,
+      closeBold: 0,
+      openItalic: 0,
+      closeItalic: 0,
+      separate,
+    });
+  };
+  for (let index = 0; index < source.length;) {
+    const char = source[index];
+    if (index === linkEnd) {
+      index = destinationEnd + 1;
+      url = undefined;
+      linkEnd = -1;
+    } else if (char === '\\' && /[\\`*_[\]()]/.test(source[index + 1] ?? '')) {
+      add(source[index + 1] ?? '', false, true);
+      index += 2;
+    } else if (char === '`') {
+      let length = 1;
+      while (source[index + length] === '`') length++;
+      const end = codeEnds.get(index);
+      if (end !== undefined) {
+        add(source.slice(index + length, end), true, true);
+        index = end + length;
+      } else {
+        add(source.slice(index, index + length));
+        index += length;
+      }
+    } else if (char === '[' && linkEnd < 0) {
+      const labelEnd = ends.get(index);
+      const end =
+        labelEnd !== undefined && source[labelEnd + 1] === '('
+          ? ends.get(labelEnd + 1)
+          : undefined;
+      const destination =
+        end !== undefined ? source.slice((labelEnd ?? 0) + 2, end) : '';
+      if (
+        labelEnd !== undefined &&
+        end !== undefined &&
+        destination &&
+        !/\s/.test(destination)
+      ) {
+        linkEnd = labelEnd;
+        destinationEnd = end;
+        url = isPreviewLink(destination) ? destination : undefined;
+        index++;
+      } else {
+        add(char);
+        index++;
+      }
+    } else if (char === '*' || char === '_') {
+      let length = 1;
+      while (source[index + length] === char) length++;
+      const before = source[index - 1] ?? ' ';
+      const after = source[index + length] ?? ' ';
+      const beforeSpace = /\s/.test(before);
+      const afterSpace = /\s/.test(after);
+      const beforePunctuation =
+        /[\x21-\x2f\x3a-\x40\x5b-\x5e\x60\x7b-\x7e]/.test(before);
+      const afterPunctuation =
+        /[\x21-\x2f\x3a-\x40\x5b-\x5e\x60\x7b-\x7e]/.test(after);
+      const left =
+        !afterSpace && (!afterPunctuation || beforeSpace || beforePunctuation);
+      const right =
+        !beforeSpace && (!beforePunctuation || afterSpace || afterPunctuation);
+      const canOpen = left && (char === '*' || !right || beforePunctuation);
+      const canClose = right && (char === '*' || !left || afterPunctuation);
+      const token: InlineToken = {
+        text: char.repeat(length),
+        marker: char,
+        remaining: length,
+        openBold: 0,
+        closeBold: 0,
+        openItalic: 0,
+        closeItalic: 0,
+        separate: false,
+        ...(url ? { url } : {}),
+      };
+      tokens.push(token);
+      const stack = openers[char];
+      if (canClose) {
+        while (token.remaining && stack.length) {
+          const opener = stack.at(-1);
+          if (!opener) break;
+          const width = token.remaining >= 2 && opener.remaining >= 2 ? 2 : 1;
+          opener.remaining -= width;
+          token.remaining -= width;
+          if (width === 2) {
+            opener.openBold++;
+            token.closeBold++;
+          } else {
+            opener.openItalic++;
+            token.closeItalic++;
+          }
+          if (!opener.remaining) stack.pop();
+        }
+      }
+      if (canOpen && token.remaining) stack.push(token);
+      index += length;
+    } else {
+      const start = index++;
+      while (
+        index < source.length &&
+        index !== linkEnd &&
+        !/[\\`*_[]/.test(source[index] ?? '')
+      )
+        index++;
+      add(source.slice(start, index));
+    }
+  }
+  const runs: MarkdownRun[] = [];
+  let bold = 0;
+  let italic = 0;
+  let separate = false;
+  for (const token of tokens) {
+    bold -= token.closeBold;
+    italic -= token.closeItalic;
+    const text = token.marker
+      ? token.marker.repeat(token.remaining)
+      : token.text;
+    if (text) {
+      const run = {
+        text,
+        ...(bold ? { bold: true } : {}),
+        ...(italic ? { italic: true } : {}),
+        ...(token.code ? { code: true } : {}),
+        ...(token.url ? { url: token.url } : {}),
+      };
+      const previous = runs.at(-1);
+      if (
+        !separate &&
+        !token.separate &&
+        previous &&
+        previous.bold === run.bold &&
+        previous.italic === run.italic &&
+        previous.code === run.code &&
+        previous.url === run.url
+      )
+        previous.text += text;
+      else runs.push(run);
+      separate = token.separate;
+    }
+    bold += token.openBold;
+    italic += token.openItalic;
+  }
   return runs;
 }
 

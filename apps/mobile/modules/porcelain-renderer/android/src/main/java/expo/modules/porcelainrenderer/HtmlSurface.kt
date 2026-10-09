@@ -23,7 +23,7 @@ class HtmlSurface(context: Context, appContext: AppContext) : ExpoView(context, 
     }
     webView.webViewClient = object : WebViewClient() {
       override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-        if (request.hasGesture() && request.isForMainFrame && isPreviewLink(request.url.toString())) onLink(mapOf("url" to request.url.toString()))
+        if (request.hasGesture() && request.isForMainFrame) onLink(mapOf("url" to request.url.toString()))
         return true
       }
       override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {

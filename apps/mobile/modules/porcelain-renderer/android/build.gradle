@@ -11,8 +11,10 @@ android {
   namespace 'expo.modules.porcelainrenderer'
   defaultConfig { versionCode 1; versionName '1.0.0' }
   buildFeatures { compose true }
+
 }
 dependencies {
+  implementation 'androidx.exifinterface:exifinterface:1.4.2'
   implementation 'androidx.compose.foundation:foundation-android:1.10.6'
   implementation 'androidx.compose.ui:ui-android:1.10.6'
   implementation 'androidx.compose.material3:material3:1.5.0-alpha17'

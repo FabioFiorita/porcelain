@@ -1,7 +1,12 @@
 package expo.modules.porcelainrenderer
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import androidx.exifinterface.media.ExifInterface
+import java.io.ByteArrayInputStream
+import java.io.IOException
 import android.util.Base64
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -42,14 +47,25 @@ class ImageSurface(context: Context, appContext: AppContext) : ExpoView(context,
   fun decode(value: String) {
     image = try {
       val bytes = Base64.decode(value, Base64.DEFAULT)
-      val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-      BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-      // Bound decoded pixels to the device viewport, retaining a 2x zoom budget.
-      val target = maxOf(resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels) * 2
-      var sample = 1
-      while (maxOf(bounds.outWidth, bounds.outHeight) / sample > target) sample *= 2
-      BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
+      decodeImage(bytes, maxOf(resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels) * 2)
     } catch (_: IllegalArgumentException) { null }
     onLoad(mapOf("success" to (image != null)))
   }
+}
+
+internal fun decodeImage(bytes: ByteArray, target: Int): Bitmap? {
+  val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+  BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+  var sample = 1
+  while (maxOf(bounds.outWidth, bounds.outHeight) / sample > target) sample *= 2
+  val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return null
+  val exif = try { ExifInterface(ByteArrayInputStream(bytes)) } catch (_: IOException) { null }
+  val transform = Matrix().apply {
+    if (exif?.isFlipped == true) postScale(-1f, 1f)
+    postRotate((exif?.rotationDegrees ?: 0).toFloat())
+  }
+  if (transform.isIdentity) return bitmap
+  val oriented = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, transform, true)
+  if (oriented !== bitmap) bitmap.recycle()
+  return oriented
 }

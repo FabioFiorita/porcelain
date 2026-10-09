@@ -45,7 +45,7 @@ struct MarkdownContent: View {
       if run.bold == true || block.kind == "heading" { font = font.bold() }
       if run.italic == true { font = font.italic() }
       part.font = font
-      if let value = run.url, let url = URL(string: value), isPreviewLink(url) { part.link = url }
+      if let value = run.url, let url = URL(string: value) { part.link = url }
       result += part
     }
     return result
@@ -66,7 +66,7 @@ struct MarkdownContent: View {
         }
       }.frame(maxWidth: .infinity, alignment: .leading).padding(model.tokens.pagePadding)
     }.environment(\.openURL, OpenURLAction { url in
-      if isPreviewLink(url) { model.onLink?(url.absoluteString) }
+      model.onLink?(url.absoluteString)
       return .handled
     })
   }

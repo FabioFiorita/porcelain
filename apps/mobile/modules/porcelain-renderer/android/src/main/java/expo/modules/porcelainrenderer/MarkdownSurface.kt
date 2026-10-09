@@ -30,7 +30,7 @@ data class MarkdownBlock(val id: Int, val kind: String, val level: Int, val runs
 private fun text(block: MarkdownBlock, onLink: (String) -> Unit): AnnotatedString = buildAnnotatedString {
   block.runs.forEach { run ->
     withStyle(SpanStyle(fontWeight = if (run.bold) FontWeight.Bold else null, fontStyle = if (run.italic) FontStyle.Italic else null, fontFamily = if (run.code) FontFamily.Monospace else null)) {
-      if (run.url != null && isPreviewLink(run.url)) withLink(LinkAnnotation.Url(run.url, linkInteractionListener = { onLink(run.url) })) { append(run.text) }
+      if (run.url != null) withLink(LinkAnnotation.Url(run.url, linkInteractionListener = { onLink(run.url) })) { append(run.text) }
       else append(run.text)
     }
   }

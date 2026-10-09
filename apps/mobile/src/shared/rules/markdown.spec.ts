@@ -1,7 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { parseMarkdown } from './markdown';
+import { parseMarkdown } from './markdown.ts';
 
 describe('native Markdown render data', () => {
+  it('keeps escaped delimiters inside emphasis', () => {
+    expect(parseMarkdown('*foo\\*bar*')[0]?.runs).toEqual([
+      { text: 'foo', italic: true },
+      { text: '*', italic: true },
+      { text: 'bar', italic: true },
+    ]);
+  });
+  it('preserves strong underscores nested inside italics', () => {
+    expect(parseMarkdown('_a __b__ c_')[0]?.runs).toEqual([
+      { text: 'a ', italic: true },
+      { text: 'b', bold: true, italic: true },
+      { text: ' c', italic: true },
+    ]);
+  });
+  it('balances parentheses in link destinations', () => {
+    expect(
+      parseMarkdown('[w](https://en.wikipedia.org/wiki/Foo_(bar))')[0]?.runs,
+    ).toEqual([{ text: 'w', url: 'https://en.wikipedia.org/wiki/Foo_(bar)' }]);
+  });
+  it.each(['**', '__'])(
+    'keeps large unclosed %s spans literal within a bounded parse time',
+    (marker) => {
+      const source = `${marker}word `.repeat(12_000);
+      const start = performance.now();
+      expect(parseMarkdown(source)[0]?.runs).toEqual([{ text: source }]);
+      expect(performance.now() - start).toBeLessThan(1_000);
+    },
+  );
   it('keeps intraword underscores, globs and spaced operators literal', () => {
     expect(
       parseMarkdown(
@@ -108,9 +136,7 @@ describe('native Markdown render data', () => {
           { text: '**literal**', code: true },
           { text: ' ' },
           { text: 'mail', url: 'mailto:dev@example.com' },
-          { text: ' ' },
-          { text: 'unsafe' },
-          { text: ' ' },
+          { text: ' unsafe ' },
           { text: '*' },
           { text: 'escaped' },
           { text: '*' },

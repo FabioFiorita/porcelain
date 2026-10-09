@@ -44,7 +44,7 @@ final class HtmlSurface: ExpoView, WKNavigationDelegate {
   }
   func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
     if action.navigationType == .other && action.request.url?.absoluteString == "about:blank" { decisionHandler(.allow); return }
-    if let url = action.request.url, action.navigationType == .linkActivated, isPreviewLink(url) { onLink(["url": url.absoluteString]) }
+    if let url = action.request.url, action.navigationType == .linkActivated { onLink(["url": url.absoluteString]) }
     decisionHandler(.cancel)
   }
   func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { onError(["message": "The preview could not be displayed."]) }
