@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures.tsx';
 
-test('with every tab closed, the empty pane opens all changes, and the summary once the agent has published a review', async ({
+test('with every tab closed, the empty pane opens all changes, and the review once the agent has published one', async ({
   workspace,
   agent,
 }) => {
@@ -14,7 +14,7 @@ test('with every tab closed, the empty pane opens all changes, and the summary o
     .toBeVisible();
   await expect
     .element(
-      workspace.getByRole('button', { name: 'Open summary', exact: true }),
+      workspace.getByRole('button', { name: 'Open review', exact: true }),
     )
     .not.toBeInTheDocument();
   await workspace
@@ -33,11 +33,14 @@ test('with every tab closed, the empty pane opens all changes, and the summary o
     )
     .not.toBeInTheDocument();
   await workspace
-    .getByRole('button', { name: 'Open summary', exact: true })
+    .getByRole('button', { name: 'Open review', exact: true })
     .click();
   await expect
     .element(
-      workspace.getByRole('region', { name: 'Published review', exact: true }),
+      workspace.getByRole('region', {
+        name: 'Review walkthrough',
+        exact: true,
+      }),
     )
     .toBeVisible();
 });
