@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, symlink } from 'node:fs/promises';
+import { mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -8,12 +8,14 @@ import {
   type FuseV1Config,
 } from '@electron/fuses';
 import { packager } from '@electron/packager';
-import { Schema } from 'effect';
+import { NodeFileSystem } from '@effect/platform-node';
+import { Effect, Schema } from 'effect';
 import {
   desktopCommand,
   root,
   stageDesktop,
 } from '../apps/desktop/spec/kit/stage.ts';
+import { writeUpdateManifest } from '../apps/desktop/src/adapters/update-manifest.ts';
 
 const output = join(root, 'dist/desktop');
 const stage = join(output, 'stage');
@@ -70,6 +72,37 @@ async function releaseVersion(): Promise<string> {
   ).version;
 }
 
+const updateFeed = [
+  'provider: github',
+  'owner: FabioFiorita',
+  'repo: porcelain',
+  'updaterCacheDirName: porcelain-updater',
+  '',
+].join('\n');
+
+async function updateArchive(app: string): Promise<{
+  zip: string;
+  manifest: string;
+}> {
+  const version = await releaseVersion();
+  const zip = join(output, `Porcelain-${version}-${process.arch}-mac.zip`);
+  await rm(zip, { force: true });
+  await desktopCommand('/usr/bin/ditto', [
+    '-c',
+    '-k',
+    '--sequesterRsrc',
+    '--keepParent',
+    app,
+    zip,
+  ]);
+  const manifest = await Effect.runPromise(
+    writeUpdateManifest(zip, version).pipe(
+      Effect.provide(NodeFileSystem.layer),
+    ),
+  );
+  return { zip, manifest };
+}
+
 async function notarize(path: string, release: Release) {
   await desktopCommand('/usr/bin/xcrun', [
     'notarytool',
@@ -119,15 +152,26 @@ async function diskImage(app: string, release: Release): Promise<string> {
   return image;
 }
 
+type Built = {
+  app: string;
+  release: { image: string; zip: string; manifest: string } | undefined;
+};
+
 export async function buildDesktop(
   options: { release?: boolean } = {},
-): Promise<{ app: string; image: string | undefined }> {
+): Promise<Built> {
   if (process.platform !== 'darwin')
     throw new Error('Build the local Mac app on macOS');
   if (process.arch !== 'arm64' && process.arch !== 'x64')
     throw new Error('The Mac app requires arm64 or x64');
   const release = options.release ? releaseCredentials() : undefined;
   await rm(stage, { recursive: true, force: true });
+  const feed = join(output, 'app-update.yml');
+  await rm(feed, { force: true });
+  if (release !== undefined) {
+    await mkdir(output, { recursive: true });
+    await writeFile(feed, updateFeed);
+  }
   const { electronVersion } = await stageDesktop({
     directory: stage,
     productName: 'Porcelain',
@@ -147,6 +191,7 @@ export async function buildDesktop(
     prune: false,
     out: output,
     overwrite: true,
+    ...(release === undefined ? {} : { extraResource: [feed] }),
     afterCopy: [
       async ({ buildPath }) => {
         await flipFuses(resolve(buildPath, '../../..'), lockedFuses);
@@ -197,9 +242,13 @@ export async function buildDesktop(
     '--strict',
     app,
   ]);
-  if (release === undefined) return { app, image: undefined };
+  if (release === undefined) return { app, release: undefined };
   await desktopCommand('/usr/bin/xcrun', ['stapler', 'staple', app]);
-  return { app, image: await diskImage(app, release) };
+  const update = await updateArchive(app);
+  return {
+    app,
+    release: { image: await diskImage(app, release), ...update },
+  };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -208,7 +257,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       release: process.argv.includes('--release'),
     });
     process.stdout.write(
-      `Built ${built.app}\n${built.image === undefined ? '' : `Disk image ${built.image}\n`}`,
+      `Built ${built.app}\n${built.release === undefined ? '' : `Disk image ${built.release.image}\nUpdate ${built.release.zip}\nUpdate manifest ${built.release.manifest}\n`}`,
     );
   } catch (error) {
     process.stderr.write(
