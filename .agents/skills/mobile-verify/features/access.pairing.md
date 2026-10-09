@@ -24,7 +24,7 @@ api:
 
 Add environment opens a native sheet, “Pair an environment”, where the link `porcelain pair` printed is pasted. Pair redeems it as this device, saves the credential in the Keychain and the environment in SQLite, closes the sheet and lists the environment as “Online”. An invalid link is refused in the sheet, Cancel closes it, several environments can be paired, and every paired environment is restored after a cold launch.
 
-The sheet opens at half height and can expand to full height. Its React Native content scrolls and uses the shared Uniwind theme; the field, buttons and sheet remain Expo UI controls.
+The sheet opens at half height and can expand to full height. Its React Native content scrolls and uses the shared Uniwind theme; the field and buttons are the shared `components/ui` primitives inside the Expo UI sheet.
 
 ## How a user reaches it
 

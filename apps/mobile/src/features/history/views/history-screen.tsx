@@ -1,5 +1,5 @@
-import { WorktreeEmpty } from '../../../shared/worktree-empty';
+import { Empty } from '../../../components/ui/empty';
 
 export function HistoryScreen() {
-  return <WorktreeEmpty title="History" />;
+  return <Empty description="Select a worktree to continue." title="History" />;
 }

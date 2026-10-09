@@ -2,20 +2,24 @@
 
 One file per screen and flow the mobile app offers, named `<domain>.<capability>.md`. Each says what it is, how a user reaches it, tool-neutral steps, stable roles, labels and test ids, and the expected end state, the e2e tests that guard it and its gotchas. Its frontmatter names the `screen` it lives on (as Expo Router names `apps/mobile/src/app`), the `selectors` its steps use (test ids and accessible names spelled as `apps/mobile/src` spells them), the `tests` and the `api` routes it calls. `pnpm check` runs `node scripts/feature-maps.ts`, which checks frontmatter and file names, that every screen has a map, that declared screens and tests exist, that selectors appear in app or shared client source, that API entries match endpoints declared in packages/contracts, and that this index links every map. It does not scan client call reachability or enforce prose or section order.
 
-| Feature | Screen | What it does |
-| --- | --- | --- |
-| [access.environment-status](access.environment-status.md) | /settings | Each environment row says Checking, Online, Offline, Needs pairing, Another server or Update needed from what its server answered. |
-| [access.forget-environment](access.forget-environment.md) | /settings | Holding an environment row offers Forget environment, which removes it, its credential and its remembered workspace from this device, through a cold launch. |
-| [access.lan-pairing](access.lan-pairing.md) | /settings | Pairing with a Porcelain on another computer over the local network and reconnecting after a cold launch; a checkpoint against a separate disposable LAN server. |
-| [access.pairing](access.pairing.md) | /settings | Add environment pairs through a pasted link, refuses an invalid one, pairs several and restores them after a cold launch. |
-| [access.settings](access.settings.md) | /settings | Settings lists the paired environments with their status and offers Add environment, or says none is paired. |
-| [app.deep-links](app.deep-links.md) | / | The app's scheme opens Review, Files, History and Settings directly, warm or after a cold launch. |
-| [app.phone-shell](app.phone-shell.md) | / | On a phone, four native tabs, ready on Files within 30 seconds of a cold launch. |
-| [app.tablet-shell](app.tablet-shell.md) | / | On iPad, a SwiftUI three-column split that keeps its master and detail through sidebar collapse and rotation. |
-| [files.files](files.files.md) | /files | Files shows its empty state; it reads no files yet. |
-| [history.history](history.history.md) | /history | History shows its empty state; it reads no commits yet. |
-| [projects.workspace-picker](projects.workspace-picker.md) | /files | The toolbar lists projects from every paired environment together; expanding a project shows its worktrees, and choosing one restores after a cold launch. |
-| [reviews.review](reviews.review.md) | /review | Review, the second destination after Files, shows its empty state; it reads no review yet. |
+| Feature                                                   | Screen             | What it does                                                                                                                                                     |
+| --------------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [access.component-library](access.component-library.md)   | /component-library | Development-only directory of implemented mobile primitives.                                                                                                     |
+| [access.component-text](access.component-text.md)         | /component-text    | Development-only type, tone, weight and selection samples.                                                                                                       |
+| [access.component-preview](access.component-preview.md)   | /component-preview | Development-only file, review, history and native rendering samples.                                                                                             |
+| [access.component-button](access.component-button.md)     | /component-button  | Development-only button variants, sizes and interaction states.                                                                                                  |
+| [access.environment-status](access.environment-status.md) | /settings          | Each environment row says Checking, Online, Offline, Needs pairing, Another server or Update needed from what its server answered.                               |
+| [access.forget-environment](access.forget-environment.md) | /settings          | Holding an environment row offers Forget environment, which removes it, its credential and its remembered workspace from this device, through a cold launch.     |
+| [access.lan-pairing](access.lan-pairing.md)               | /settings          | Pairing with a Porcelain on another computer over the local network and reconnecting after a cold launch; a checkpoint against a separate disposable LAN server. |
+| [access.pairing](access.pairing.md)                       | /settings          | Add environment pairs through a pasted link, refuses an invalid one, pairs several and restores them after a cold launch.                                        |
+| [access.settings](access.settings.md)                     | /settings          | Settings lists the paired environments with their status and offers Add environment, or says none is paired.                                                     |
+| [app.deep-links](app.deep-links.md)                       | /                  | The app's scheme opens Review, Files, History and Settings directly, warm or after a cold launch.                                                                |
+| [app.phone-shell](app.phone-shell.md)                     | /                  | On a phone, four native tabs, ready on Files within 30 seconds of a cold launch.                                                                                 |
+| [app.tablet-shell](app.tablet-shell.md)                   | /                  | On iPad, a SwiftUI three-column split that keeps its master and detail through sidebar collapse and rotation.                                                    |
+| [files.files](files.files.md)                             | /files             | Files shows its empty state; it reads no files yet.                                                                                                              |
+| [history.history](history.history.md)                     | /history           | History shows its empty state; it reads no commits yet.                                                                                                          |
+| [projects.workspace-picker](projects.workspace-picker.md) | /files             | The toolbar lists projects from every paired environment together; expanding a project shows its worktrees, and choosing one restores after a cold launch.       |
+| [reviews.review](reviews.review.md)                       | /review            | Review, the second destination after Files, shows its empty state; it reads no review yet.                                                                       |
 
 ## Platform coverage
 

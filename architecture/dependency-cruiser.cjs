@@ -8,7 +8,7 @@ const sourceFolders = [
   '^packages/client/src/(?:features/[^/]+/(?:[^/]+\\.ts|(?:rules|queries|commands|ports|store)/[^/]+\\.ts)|shared/api/[^/]+\\.ts|config/[^/]+\\.ts)$',
   '^packages/(?:git/src/(?:discovery|inspection|history|actions|shared)/|agents/src/[^/]+/|(?:process|storage|effects)/src/).+\\.ts$',
   '^apps/web/src/(?:features/[^/]+/(?:[^/]+\\.tsx?|(?:queries|commands|rules|adapters|views|api)/[^/]+\\.tsx?)|(?:routes|app|shared|components/ui|config)/.+\\.tsx?|(?:main|routeTree\\.gen)\\.tsx?)$',
-  '^apps/mobile/src/(?:app/.+\\.tsx|features/[^/]+/(?:[^/]+\\.tsx?|(?:queries|commands|rules|adapters|views)/[^/]+\\.tsx?)|(?:shell|shared|config)/.+\\.tsx?)$',
+  '^apps/mobile/src/(?:app/.+\\.tsx|components/ui/[a-z-]+(?:\\.(?:ios|android))?\\.tsx?|features/[^/]+/(?:[^/]+\\.tsx?|(?:queries|commands|rules|adapters|views)/[^/]+\\.tsx?)|(?:shell|shared|config)/.+\\.tsx?)$',
 ];
 
 module.exports = {
@@ -399,8 +399,18 @@ module.exports = {
       comment:
         'Shared native pieces serve all features so they cannot depend on a feature or shell owner.',
       severity: 'error',
-      from: { path: '^apps/mobile/src/shared/' },
+      from: { path: '^apps/mobile/src/(?:shared|components/ui)/' },
       to: { path: '^apps/mobile/src/(?:features|shell|app)/' },
+    },
+    {
+      name: 'mobile-ui-imports-no-state',
+      comment:
+        'Native primitives receive data and callbacks so shared application state and client operations stay with their feature owners.',
+      severity: 'error',
+      from: { path: '^apps/mobile/src/components/ui/' },
+      to: {
+        path: '^(?:apps/mobile/src/shared/(?:api|adapters|application)/|packages/client/src/)',
+      },
     },
     {
       name: 'mobile-nothing-imports-routes',

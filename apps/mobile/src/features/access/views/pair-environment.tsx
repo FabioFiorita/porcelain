@@ -1,12 +1,17 @@
+import { Text } from '../../../components/ui/text';
+import { Button } from '../../../components/ui/button';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
-import { Button, Host, RNHostView, TextInput, useNativeState } from '@expo/ui';
-import { ScrollView, Text, View } from 'react-native';
+import { RNHostView } from '@expo/ui';
+import { useState } from 'react';
+import { Input } from '../../../components/ui/input';
+import { Field } from '../../../components/ui/field';
+import { ScrollView, View } from 'react-native';
 import { usePairEnvironment } from '../commands/pairing';
 
 export function PairEnvironment({ onClose }: { onClose: () => void }) {
-  const value = useNativeState('');
+  const [value, setValue] = useState('');
   const pair = usePairEnvironment(onClose);
   return (
     <RNHostView>
@@ -16,46 +21,40 @@ export function PairEnvironment({ onClose }: { onClose: () => void }) {
         contentInsetAdjustmentBehavior="automatic"
       >
         <View className="gap-4 px-6 py-8">
-          <Text
-            accessibilityRole="header"
-            className="text-xl font-semibold text-foreground"
+          <Text variant="heading">Pair an environment</Text>
+          <Field
+            label="Pairing link"
+            description="Paste the link from the computer you want to connect."
           >
-            Pair an environment
-          </Text>
-          <Host matchContents={{ vertical: true }}>
-            <TextInput
+            <Input
               testID="pairing-link"
+              accessibilityLabel="Pairing link"
               value={value}
+              onChangeText={setValue}
+              disabled={pair.result.waiting}
               placeholder="Pairing link"
               keyboardType="url"
               autoCapitalize="none"
               autoCorrect={false}
             />
-          </Host>
+          </Field>
           {AsyncResult.isFailure(pair.result) ? (
-            <Text
-              accessibilityRole="alert"
-              className="text-sm text-destructive"
-            >
+            <Text accessibilityRole="alert" variant="ui" tone="destructive">
               {connectionErrorMessage(Cause.squash(pair.result.cause))}
             </Text>
           ) : null}
-          <Host matchContents={{ vertical: true }}>
-            <Button
-              testID="pair-environment"
-              label={pair.result.waiting ? 'Pairing…' : 'Pair'}
-              disabled={pair.result.waiting}
-              onPress={() => pair.submit(value.get())}
-            />
-          </Host>
-          <Host matchContents={{ vertical: true }}>
-            <Button
-              testID="cancel-pairing"
-              label="Cancel"
-              variant="text"
-              onPress={onClose}
-            />
-          </Host>
+          <Button
+            testID="pair-environment"
+            label={pair.result.waiting ? 'Pairing…' : 'Pair'}
+            pending={pair.result.waiting}
+            onPress={() => pair.submit(value)}
+          />
+          <Button
+            testID="cancel-pairing"
+            label="Cancel"
+            variant="ghost"
+            onPress={onClose}
+          />
         </View>
       </ScrollView>
     </RNHostView>

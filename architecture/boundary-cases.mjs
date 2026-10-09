@@ -22,6 +22,45 @@ const portable = (owner, module) => ({
 
 export default [
   pair(
+    'mobile-shared-imports-no-owner',
+    edge(
+      'apps/mobile/src/components/ui/item.tsx',
+      'apps/mobile/src/components/ui/text.tsx',
+      './text.tsx',
+    ),
+    edge(
+      'apps/mobile/src/components/ui/item.tsx',
+      'apps/mobile/src/features/files/index.ts',
+      '../../features/files/index.ts',
+    ),
+  ),
+  pair(
+    'mobile-ui-imports-no-state',
+    edge(
+      'apps/mobile/src/components/ui/item.tsx',
+      'apps/mobile/src/components/ui/text.tsx',
+      './text.tsx',
+    ),
+    edge(
+      'apps/mobile/src/components/ui/item.tsx',
+      'apps/mobile/src/shared/application/store.ts',
+      '../../shared/application/store.ts',
+    ),
+  ),
+  pair(
+    'mobile-ui-imports-no-state',
+    edge(
+      'apps/mobile/src/components/ui/item.tsx',
+      'apps/mobile/src/components/ui/text.tsx',
+      './text.tsx',
+    ),
+    edge(
+      'apps/mobile/src/components/ui/item.tsx',
+      'packages/client/src/features/files/store.ts',
+      '../../../../../packages/client/src/features/files/store.ts',
+    ),
+  ),
+  pair(
     'no-circular-source-imports',
     {
       'packages/effects/src/a.ts':

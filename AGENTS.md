@@ -46,11 +46,11 @@ Domain services and server use cases use named `Context.Service` capabilities wi
 
 ## Testing
 
-| Layer | Server | Web | Desktop | Mobile |
-|---|---|---|---|---|
-| Unit (Vitest) | services, rules, parsers | rules, stores | main-process modules | rules; `packages/client` |
-| Integration | the built server over HTTP, real database and Git | Browser Mode: one feature against a real server | the bridge on macOS | `packages/client` against a real server |
-| E2E | covered by integration | Playwright Test | Playwright Electron | Maestro |
+| Layer         | Server                                            | Web                                             | Desktop              | Mobile                                  |
+| ------------- | ------------------------------------------------- | ----------------------------------------------- | -------------------- | --------------------------------------- |
+| Unit (Vitest) | services, rules, parsers                          | rules, stores                                   | main-process modules | rules; `packages/client`                |
+| Integration   | the built server over HTTP, real database and Git | Browser Mode: one feature against a real server | the bridge on macOS  | `packages/client` against a real server |
+| E2E           | covered by integration                            | Playwright Test                                 | Playwright Electron  | Maestro                                 |
 
 A test states a promise. Derive its cases from what the unit is for (its contract, the feature, the request) before reading the code, so a wrong implementation fails it. A file that only forwards, wires or re-exports gets no test of its own, and coverage is never a reason. Assert literal values and observable effects; a test that would still pass if every import returned `undefined` is rewritten or deleted. Fakes stand in only at ports; Git, files and the database are real when the unit is about them.
 
@@ -75,7 +75,7 @@ Work on your own branch from `main`, in your own worktree. Open a pull request i
 - `apps/server`: the Effect HTTP server, its use cases, routes and installer.
 - `apps/web`: React and Vite; UI primitives come from the shadcn registry and stay as installed.
 - `apps/desktop`: Electron around the web.
-- `apps/mobile`: Expo, with Expo UI controls and Uniwind.
+- `apps/mobile`: Expo and Uniwind; controls are web-styled primitives in `src/components/ui`, and Expo UI keeps system chrome (menus, navigation, tabs, sheets).
 - `packages/contracts`, `packages/client` and the domain packages.
 - `.agents/skills`: the verification skills and their feature maps.
 - `repos/`: vendored reference source, read-only.

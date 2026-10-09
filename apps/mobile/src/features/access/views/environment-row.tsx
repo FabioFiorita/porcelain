@@ -1,7 +1,9 @@
+import { Text } from '../../../components/ui/text';
+import { Item } from '../../../components/ui/item';
+import { Badge } from '../../../components/ui/badge';
 import { AsyncResult } from 'effect/reactivity';
 import { Cause, Option } from 'effect';
 import { Host, RNHostView } from '@expo/ui';
-import { Text, View } from 'react-native';
 import {
   connectionErrorMessage,
   type Remote,
@@ -33,19 +35,16 @@ export function EnvironmentRow({ remote }: { remote: Remote }) {
         isPending={command.result.waiting}
       >
         <RNHostView matchContents>
-          <View className="w-full gap-1 px-4 py-3">
-            <View className="flex-row items-center justify-between gap-4">
-              <Text className="flex-1 text-base font-medium text-card-foreground">
-                {remote.name}
-              </Text>
-              <Text className="text-xs text-muted-foreground">{label}</Text>
-            </View>
+          <Item
+            title={remote.name}
+            trailing={<Badge label={label} variant="secondary" />}
+          >
             {AsyncResult.isFailure(command.result) ? (
-              <Text className="text-sm text-destructive">
+              <Text variant="ui" tone="destructive">
                 {connectionErrorMessage(Cause.squash(command.result.cause))}
               </Text>
             ) : null}
-          </View>
+          </Item>
         </RNHostView>
       </EnvironmentMenu>
     </Host>

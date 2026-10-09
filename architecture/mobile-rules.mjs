@@ -9,6 +9,8 @@ const controls = new Set([
   'Switch',
   'Modal',
   'Platform',
+  'Text',
+  'StyleSheet',
 ]);
 
 export const mobileRules = {
@@ -66,8 +68,12 @@ export const mobileRules = {
     create(context) {
       const path = context.filename.replaceAll('\\', '/');
       if (!path.includes('/apps/mobile/src/')) return {};
+      const primitive =
+        /\/apps\/mobile\/src\/components\/ui\/[a-z-]+(?:\.(?:ios|android))?\.tsx?$/.test(
+          path,
+        );
       const message =
-        'Use Expo UI for standard controls and .ios/.android capability modules for platform differences; custom touch controls and Platform branches duplicate native behavior, because duplicated custom controls miss native interaction behavior.';
+        'Draw custom content and controls only in components/ui; use Expo UI and expo-router for system chrome and .ios/.android modules for platform differences, because feature views compose primitives instead of duplicating them.';
       const check = (node) => {
         const source = node.source?.value;
         const runtime =
@@ -79,6 +85,22 @@ export const mobileRules = {
                 specifier.importKind !== 'type' &&
                 specifier.exportKind !== 'type',
             ));
+        if (
+          runtime &&
+          source === 'expo' &&
+          !primitive &&
+          node.specifiers?.some(
+            (specifier) =>
+              specifier.type === 'ImportNamespaceSpecifier' ||
+              (specifier.imported?.name ?? specifier.local?.name) ===
+                'requireNativeView',
+          )
+        )
+          context.report({
+            node,
+            message:
+              'Bind custom native renderers only inside components/ui, because features compose the public primitive instead of bypassing its rendering contract.',
+          });
         if (
           runtime &&
           ((source === 'expo-router/native-tabs' &&
@@ -93,8 +115,19 @@ export const mobileRules = {
           });
         if (source === 'react-native') {
           for (const specifier of node.specifiers ?? []) {
+            if (
+              node.importKind === 'type' ||
+              specifier.importKind === 'type' ||
+              node.exportKind === 'type' ||
+              specifier.exportKind === 'type'
+            )
+              continue;
             const name = specifier.imported?.name ?? specifier.local?.name;
-            if (specifier.type !== 'ImportSpecifier' || controls.has(name))
+            if (
+              specifier.type !== 'ImportSpecifier' ||
+              (controls.has(name) &&
+                (!primitive || name === 'Platform' || name === 'Modal'))
+            )
               context.report({ node: specifier, message });
           }
           if (node.type === 'ExportAllDeclaration')

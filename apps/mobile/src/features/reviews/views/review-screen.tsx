@@ -1,5 +1,5 @@
-import { WorktreeEmpty } from '../../../shared/worktree-empty';
+import { Empty } from '../../../components/ui/empty';
 
 export function ReviewScreen() {
-  return <WorktreeEmpty title="Review" />;
+  return <Empty description="Select a worktree to continue." title="Review" />;
 }
