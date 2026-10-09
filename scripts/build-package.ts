@@ -163,8 +163,8 @@ npx @fabiofiorita/porcelain@latest serve --lan
 # Install this exact CLI version as a user service (Linux):
 npx @fabiofiorita/porcelain@latest service install
 
-# Update the service to the latest version:
-npx @fabiofiorita/porcelain@latest service update
+# Update the installed service to the newest published version:
+porcelain service update
 \`\`\`
 
 State lives in \`~/.porcelain/\`; pass \`--data-directory\` to keep it somewhere
@@ -182,10 +182,15 @@ process on this machine can open.
 ## Background service
 
 \`porcelain service install|status|update|recover|uninstall\` manages a systemd
-user service on Linux. Install and update persist the invoked package version
-outside the npx cache and write a \`porcelain\` command to \`~/.local/bin\` that
-runs it; they print how to add that folder to \`PATH\` when it is missing, and
-leave alone a \`porcelain\` there that they did not write.
+user service on Linux. Install persists the invoked package version outside the
+npx cache and writes a \`porcelain\` command to \`~/.local/bin\` that runs it; it
+prints how to add that folder to \`PATH\` when it is missing, and leaves alone a
+\`porcelain\` there that it did not write.
+
+\`porcelain service update\` installs the newest published version through the
+same updater as Settings → Update, waits for it to finish and says whether it
+updated, was already current or failed. \`npx @fabiofiorita/porcelain@<version>
+service update\` installs that exact version instead.
 
 \`porcelain share lan on\` shares the service on the local network and
 \`porcelain share\` shows how it is shared. Sharing is kept in the data

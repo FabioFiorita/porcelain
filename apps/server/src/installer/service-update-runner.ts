@@ -109,7 +109,7 @@ export const openServiceUpdateRunner = Effect.fn('openServiceUpdateRunner')(
           );
       },
     );
-    return {
+    const updates = {
       read: Effect.fn('ServiceUpdate.read')(
         function* (input: ServiceUpdateCheck) {
           const version = yield* runningVersion();
@@ -186,5 +186,22 @@ export const openServiceUpdateRunner = Effect.fn('openServiceUpdateRunner')(
         }).pipe(Effect.andThen(Scope.close(scope, Exit.void))),
       ),
     } satisfies ServiceUpdateRunner;
+    const awaitUpdate = Effect.fn('ServiceUpdate.awaitUpdate')(
+      function* (pollMs: number) {
+        while (preparing || (yield* updaterActive()))
+          yield* Effect.sleep(pollMs);
+        return presentedUpdate(
+          yield* readUpdateRecord(paths.updateRecord),
+          false,
+        );
+      },
+      provideFiles,
+      Effect.orDie,
+    );
+    return { ...updates, awaitUpdate };
   },
 );
+
+export type ServiceUpdates = Effect.Success<
+  ReturnType<typeof openServiceUpdateRunner>
+>;

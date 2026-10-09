@@ -1,4 +1,4 @@
-import { Effect, Layer, type Clock } from 'effect';
+import { DateTime, Effect, Layer, type Clock } from 'effect';
 import { ServiceCommandError } from './errors/service-command-error.ts';
 import type { Limits } from '../config/limits.ts';
 import { dirname, resolve } from 'node:path';
@@ -7,7 +7,9 @@ import {
   isInstallerError,
   Installer,
   InstallerOptions,
+  openServiceUpdateRunner,
   readPackageIdentity,
+  updateToLatest,
   type CommandOutcome,
   type ServiceStatus,
 } from '../installer/index.ts';
@@ -97,6 +99,40 @@ export const runServiceCommand = Effect.fn('runServiceCommand')(
         return;
       }
       if (settings.action === 'update') {
+        const updates = yield* Effect.acquireRelease(
+          openServiceUpdateRunner({
+            homeDirectory: dependencies.homeDirectory,
+            packageRoot: identity.packageRoot,
+            searchPath: dependencies.searchPath,
+            command: dependencies.limits.installer.command,
+          }),
+          (runner) => runner.close(),
+        );
+        const observedAt = DateTime.formatIso(
+          DateTime.makeUnsafe(dependencies.clock.currentTimeMillisUnsafe()),
+        );
+        const latest = yield* updateToLatest(updates, {
+          check: { now: observedAt, staleBefore: observedAt },
+          pollMs: dependencies.limits.installer.health.intervalMs,
+          handingOff: (from, target) =>
+            dependencies.stdout(
+              `Updating the Porcelain service from ${from} to ${target}; waiting for the updater to finish.\n`,
+            ),
+        });
+        if (latest.kind === 'current') {
+          dependencies.stdout(
+            latest.version === latest.latest
+              ? `The Porcelain service is already ${latest.version}, the newest published version.\n`
+              : `The Porcelain service is already ${latest.version}, newer than the newest published ${latest.latest}.\n`,
+          );
+          return;
+        }
+        if (latest.kind === 'updated') {
+          dependencies.stdout(
+            `Updated the Porcelain service from ${latest.from} to ${latest.target}.\n`,
+          );
+          return;
+        }
         const outcome = yield* installer.execute({
           action: 'update',
           allowDowngrade: settings.allowDowngrade,
@@ -127,6 +163,7 @@ export const runServiceCommand = Effect.fn('runServiceCommand')(
           : 'Porcelain service is not installed. User data was retained.\n',
       );
     }).pipe(
+      Effect.scoped,
       Effect.provide(
         Installer.layer.pipe(
           Layer.provide(Layer.succeed(InstallerOptions, options)),
