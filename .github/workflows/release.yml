@@ -1,7 +1,8 @@
 name: Release
 
 # Pushing a tag v<version> releases that commit: the notarized Mac app first, then the npm
-# package, then the GitHub release for the tag with the disk image. The tag must match the
+# package, then the GitHub release for the tag with the disk image, and the zip and
+# latest-mac.yml that the Mac app updates itself from. The tag must match the
 # root package.json version and point at a commit on main.
 # Running it by hand (`gh workflow run release.yml`) rehearses the signed and notarized Mac
 # build from main and publishes nothing. Re-running a failed release is safe: npm publish is
@@ -86,7 +87,7 @@ jobs:
           security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
           rm "$RUNNER_TEMP/certificate.p12"
           echo "PORCELAIN_MAC_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
-      - name: Build, sign and notarize the Mac app and its disk image
+      - name: Build, sign and notarize the Mac app, its disk image and its update
         env:
           PORCELAIN_MAC_SIGNING_IDENTITY: 'Developer ID Application: Fabio Luiz Fiorita Pontes (9QH8M89WF9)'
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -104,10 +105,16 @@ jobs:
           xcrun stapler validate "$app"
           xcrun stapler validate "$image"
           spctl --assess --type open --context context:primary-signature --verbose "$image"
+          test -f "$app/Contents/Resources/app-update.yml"
+          grep -qx "version: \"$VERSION\"" dist/desktop/latest-mac.yml
+          test -f "dist/desktop/Porcelain-$VERSION-arm64-mac.zip"
       - uses: actions/upload-artifact@v7
         with:
           name: mac
-          path: dist/desktop/*.dmg
+          path: |
+            dist/desktop/*.dmg
+            dist/desktop/*-mac.zip
+            dist/desktop/latest-mac.yml
           if-no-files-found: error
           retention-days: 14
       - name: Remove the temporary keychain
@@ -185,6 +192,7 @@ jobs:
         run: |
           set -euo pipefail
           gh release create "v$VERSION" "Porcelain-$VERSION-arm64.dmg" \
+            "Porcelain-$VERSION-arm64-mac.zip" latest-mac.yml \
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --title "Porcelain $VERSION" \

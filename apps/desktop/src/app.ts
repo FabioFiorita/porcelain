@@ -35,7 +35,8 @@ import {
   CredentialStorageError,
   openEncryptedCredentials,
 } from './adapters/encrypted-credentials.ts';
-import { LocalAppUpdate } from './local-app-update.ts';
+import { openAppUpdate } from './adapters/app-update.ts';
+import electronUpdater from 'electron-updater';
 import { restoreWindowBounds } from './rules/window-bounds.ts';
 import { registerDesktopScheme, serveDesktop } from './app-protocol.ts';
 import fixPath from 'fix-path';
@@ -60,6 +61,7 @@ const settings = desktopSettings(
   app.getPath('userData'),
   app.getPath('logs'),
   app.getAppPath(),
+  process.resourcesPath,
   app.isPackaged,
 );
 app.setPath('userData', settings.profile);
@@ -74,8 +76,16 @@ const runtime = ManagedRuntime.make(NodeServices.layer);
 const quit = Deferred.makeUnsafe<void>();
 let savedWindow: Effect.Success<ReturnType<typeof openWindowState>>;
 let credentials: Effect.Success<ReturnType<typeof openEncryptedCredentials>>;
-const appUpdate = new LocalAppUpdate((state) =>
-  window?.webContents.send('porcelain:app-update-state', state),
+
+function releaseUpdater() {
+  const updater = electronUpdater.autoUpdater;
+  updater.autoDownload = false;
+  return updater;
+}
+
+const appUpdate = openAppUpdate(
+  settings.updateFeed ? releaseUpdater() : undefined,
+  (state) => window?.webContents.send('porcelain:app-update-state', state),
 );
 
 function trusted(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
@@ -344,11 +354,11 @@ const start = Effect.fn('start')(function* () {
   });
   ipcMain.handle('porcelain:app-update-check', (event) => {
     authorize(event);
-    return appUpdate.check();
+    return runtime.runPromise(appUpdate.check());
   });
   ipcMain.handle('porcelain:app-update-install', (event) => {
     authorize(event);
-    return appUpdate.install();
+    return runtime.runPromise(appUpdate.install());
   });
   ipcMain.on('porcelain:app-update-watch', (event) => {
     if (trusted(event))

@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -8,6 +9,7 @@ export function desktopSettings(
   userData: string,
   logs: string,
   packageRoot: string,
+  resources: string,
   packaged: boolean,
 ) {
   const { values } = parseArgs({
@@ -31,5 +33,6 @@ export function desktopSettings(
     development: developmentWeb(packaged, values['web-dev-server']),
     serverEntry: join(packageRoot, 'server/src/bootstrap/server.mjs'),
     limits: readDesktopLimits(),
+    updateFeed: packaged && existsSync(join(resources, 'app-update.yml')),
   };
 }
