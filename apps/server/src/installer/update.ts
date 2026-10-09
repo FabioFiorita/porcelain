@@ -19,18 +19,21 @@ import { failureDetail } from './failure-detail.ts';
 import { exists, writeJsonFile } from './json-file.ts';
 import { installRuntime } from './persistent-runtime.ts';
 import {
+  writePorcelainCommand,
+  type CommandOutcome,
+} from './porcelain-command.ts';
+import {
   readInstalledRecord,
   readServiceConfiguration,
   type InstalledRecord,
   type ServiceConfiguration,
 } from './records.ts';
 import { recoverInterruptedUpdate } from './recover-interrupted-update.ts';
-import { localNetworkHint } from './share-hint.ts';
 import { isDowngrade } from './version-policy.ts';
 
 export type UpdateOutcome = {
   backup: string;
-  localNetworkHint: string | undefined;
+  command: CommandOutcome;
 };
 
 const restartPrevious = Effect.fn('Installer.restartPrevious')(function* (
@@ -65,11 +68,12 @@ export const update = Effect.fn('Installer.update')(function* (
         }),
       );
     const configuration = yield* readServiceConfiguration(paths.configuration);
+    const command = yield* writePorcelainCommand(context);
     yield* writeJsonFile(paths.updateRecord, {
       ...progress,
       stage: 'installing',
     });
-    const outcome = yield* replaceRuntime(
+    const backup = yield* replaceRuntime(
       context,
       configuration,
       installed,
@@ -77,6 +81,7 @@ export const update = Effect.fn('Installer.update')(function* (
         writeJsonFile(paths.updateRecord, { ...progress, stage: 'restarting' }),
     );
     yield* writeJsonFile(paths.updateRecord, { ...progress, stage: 'updated' });
+    const outcome: UpdateOutcome = { backup, command };
     return outcome;
   }).pipe(
     Effect.catch(
@@ -154,9 +159,8 @@ const replaceRuntime = Effect.fn('Installer.replaceRuntime')(function* (
   }).pipe(
     Effect.catch(
       Effect.fn('Installer.rollbackUpdate')(function* (error) {
-        let hint: string | undefined;
         if (yield* exists(paths.updateJournal)) {
-          const recovered = yield* recoverInterruptedUpdate(context).pipe(
+          yield* recoverInterruptedUpdate(context).pipe(
             Effect.mapError(
               (recoveryError) =>
                 new UpdateRecoveryError({
@@ -164,7 +168,6 @@ const replaceRuntime = Effect.fn('Installer.replaceRuntime')(function* (
                 }),
             ),
           );
-          hint = recovered.localNetworkHint;
         } else if (stopped) {
           yield* restartPrevious(context, configuration.dataDirectory).pipe(
             Effect.mapError(
@@ -184,7 +187,6 @@ const replaceRuntime = Effect.fn('Installer.replaceRuntime')(function* (
           new UpdateFailedError({
             recovery: recovery,
             detail: failureDetail(error),
-            hint: hint,
           }),
         );
       }),
@@ -195,5 +197,5 @@ const replaceRuntime = Effect.fn('Installer.replaceRuntime')(function* (
   );
   yield* fs.remove(previous, { recursive: true, force: true });
   yield* fs.remove(paths.updateJournal, { force: true });
-  return { backup, localNetworkHint: localNetworkHint(configuration.host) };
+  return backup;
 });

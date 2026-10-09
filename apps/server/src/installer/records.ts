@@ -6,7 +6,6 @@ import { readJsonFile } from './json-file.ts';
 const serviceConfigurationSchema = Schema.Struct({
   dataDirectory: Schema.String,
   port: Schema.Finite.check(Schema.isInt()),
-  host: Schema.optional(Schema.String),
 });
 export type ServiceConfiguration = typeof serviceConfigurationSchema.Type;
 const installedRecordSchema = Schema.Struct({

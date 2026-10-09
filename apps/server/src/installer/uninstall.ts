@@ -1,6 +1,7 @@
 import { Effect, FileSystem } from 'effect';
 import type { InstallerContext } from './context.ts';
 import { UnrecognizedUnitError } from './errors/unrecognized-unit-error.ts';
+import { removePorcelainCommand } from './porcelain-command.ts';
 import { readInstalledRecord } from './records.ts';
 import { recoverInterruptedUpdate } from './recover-interrupted-update.ts';
 
@@ -21,5 +22,6 @@ export const uninstall = Effect.fn('Installer.uninstall')(function* (
   yield* systemd.uninstall();
   yield* fs.remove(paths.runtime, { recursive: true, force: true });
   yield* fs.remove(paths.installed, { force: true });
+  yield* removePorcelainCommand(context);
   return true;
 });

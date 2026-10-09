@@ -10,17 +10,13 @@ import { RestoredServiceUnhealthyError } from './errors/restored-service-unhealt
 import { exists, writeJsonFile } from './json-file.ts';
 import { readServiceConfiguration, readUpdateJournal } from './records.ts';
 import { recoveryPlan } from './recovery-plan.ts';
-import { localNetworkHint } from './share-hint.ts';
 
 export type RecoveryOutcome = {
   recovered: boolean;
-  localNetworkHint: string | undefined;
 };
 
-const NOTHING_RECOVERED: RecoveryOutcome = {
-  recovered: false,
-  localNetworkHint: undefined,
-};
+const NOTHING_RECOVERED: RecoveryOutcome = { recovered: false };
+const RECOVERED: RecoveryOutcome = { recovered: true };
 
 export const recoverInterruptedUpdate = Effect.fn(
   'Installer.recoverInterruptedUpdate',
@@ -41,10 +37,6 @@ export const recoverInterruptedUpdate = Effect.fn(
   if (plan === 'unrecoverable' || journal === undefined)
     return yield* Effect.fail(new InterruptedUpdateUnrecoverableError());
   const configuration = yield* readServiceConfiguration(paths.configuration);
-  const recovered = {
-    recovered: true,
-    localNetworkHint: localNetworkHint(configuration.host),
-  };
   const progress = {
     from: journal.installed.version,
     target: journal.target ?? '',
@@ -55,7 +47,7 @@ export const recoverInterruptedUpdate = Effect.fn(
     yield* fs.remove(paths.updateJournal, { force: true });
     yield* writeJsonFile(paths.updateRecord, { ...progress, stage: 'updated' });
     if (!(yield* systemd.probe()).running) yield* systemd.start();
-    return recovered;
+    return RECOVERED;
   }
   if ((yield* systemd.probe()).running) yield* systemd.stop();
   if (plan === 'restore-previous') {
@@ -75,7 +67,7 @@ export const recoverInterruptedUpdate = Effect.fn(
     stage: 'failed',
     reason: `The update was interrupted, so Porcelain went back to ${journal.installed.version} and the database it had before the update.`,
   });
-  return recovered;
+  return RECOVERED;
 });
 
 export const recoverService = Effect.fn('Installer.recoverService')(function* (
@@ -86,5 +78,5 @@ export const recoverService = Effect.fn('Installer.recoverService')(function* (
   if (!(yield* exists(context.paths.installed))) return NOTHING_RECOVERED;
   if ((yield* context.systemd.probe()).running) return NOTHING_RECOVERED;
   yield* context.systemd.start();
-  return { recovered: true, localNetworkHint: undefined };
+  return RECOVERED;
 });
