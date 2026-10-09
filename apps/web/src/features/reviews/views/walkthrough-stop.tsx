@@ -40,7 +40,7 @@ import { useCompleteDecision } from '../commands/decisions';
 import { decisionNotes, gapNotes, mergeNotes } from '../rules/code-notes';
 import { spansLabel } from '../rules/patch-focus';
 import { ReviewCodeDocument } from './review-code-document';
-import { DecisionExcerpts } from './walkthrough-excerpt';
+import { DecisionExcerpts, excerptId } from './walkthrough-excerpt';
 import { DecisionQuestion } from './walkthrough-question';
 import type { WalkthroughProps } from './walkthrough-props';
 
@@ -105,6 +105,15 @@ export function WalkthroughStopView({
       ? {}
       : gapNotes(review.notExplained.filter((gap) => shown.has(gap.path))),
   );
+  const excerpts =
+    stop.kind === 'decision'
+      ? stop.layer.steps.filter(
+          (step) =>
+            step.location.state === 'committed' ||
+            (!shown.has(step.pointer.path) &&
+              !stop.elsewhere.some((file) => file.path === step.pointer.path)),
+        )
+      : [];
   const revealStep = (step: ReviewStep) => {
     const item = items.find(
       (candidate) => candidate.path === step.pointer.path,
@@ -120,6 +129,12 @@ export function WalkthroughStopView({
         : undefined;
     if (owner) {
       onGo(owner.stop);
+      return;
+    }
+    if (excerpts.includes(step)) {
+      document
+        .getElementById(excerptId(step))
+        ?.scrollIntoView({ block: 'start' });
       return;
     }
     const location =
@@ -244,18 +259,11 @@ export function WalkthroughStopView({
                 interaction={interaction}
                 onOpen={props.onOpen}
                 layer={stop.layer}
-                steps={stop.layer.steps.filter(
-                  (step) =>
-                    step.location.state === 'committed' ||
-                    (!shown.has(step.pointer.path) &&
-                      !stop.elsewhere.some(
-                        (file) => file.path === step.pointer.path,
-                      )),
-                )}
+                steps={excerpts}
               />
             )}
-            <div className="mx-auto max-w-4xl px-5 pt-4 pb-24">
-              <div className="flex flex-wrap items-center gap-4 rounded-xl border bg-muted/30 p-4">
+            <div className="mt-3 border-t bg-muted/20">
+              <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-4 px-5 pt-5 pb-16 font-sans">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">
                     {finished

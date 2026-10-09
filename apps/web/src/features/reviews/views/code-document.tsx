@@ -323,7 +323,7 @@ function CodeSurface({
     ...(disableFileHeader ? { itemMetrics: { paddingTop: 0 } } : {}),
     layout: {
       paddingTop: disableFileHeader ? 0 : 12,
-      paddingBottom: fullHeight ? 12 : 160,
+      paddingBottom: fullHeight || footer ? 12 : 160,
       gap: 12,
     },
   };

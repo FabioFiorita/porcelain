@@ -79,7 +79,7 @@ Once the agent publishes a review, the handoff tab "Review" shows one document, 
 4. Click button named `Go to step 3: Revoke through the session owner`.
    Look for: the document scrolls to the server file's lines with complementary "Agent note · Revoke through the session owner" beside them.
 5. Scroll to the end of the stop.
-   Look for: section "Existing code it relies on" with article "Step Reuse the workspace actor" (existing code read from disk, button "Open file"); then a card "Done with this decision?" with button "Mark reviewed and continue". Do not press it here unless you want marks on the server.
+   Look for: section "Existing code it relies on" with article "Step Reuse the workspace actor" (existing code read from disk with its numbered note, button "Open file"); then the closing band "Done with this decision?" with button "Mark reviewed and continue". Do not press it here unless you want marks on the server.
 6. Press `N`, then `P`.
    Look for: region "3. Publish an immutable note", then region "2. Revoke access across devices" again. The progress segment of the current stop is marked `aria-current="step"`.
 7. Open Review → in nav "Walkthrough" click the button whose name starts with `Not explained · ` (in the sample "Not explained · 9 lines in 5 files 0/3").

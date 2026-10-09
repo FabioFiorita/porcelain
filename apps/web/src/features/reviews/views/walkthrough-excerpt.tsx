@@ -25,9 +25,14 @@ export function DecisionExcerpts({
   return (
     <section
       aria-label="Existing code it relies on"
-      className="mx-auto flex max-w-4xl flex-col gap-3 px-5 pt-6"
+      className="mt-3 flex flex-col border-t"
     >
-      <h3 className="text-sm font-semibold">Existing code it relies on</h3>
+      <div className="mx-auto w-full max-w-4xl px-5 pt-5 pb-2 font-sans">
+        <h3 className="text-sm font-semibold">Existing code it relies on</h3>
+        <p className="text-xs text-muted-foreground">
+          The decision builds on this code without changing it.
+        </p>
+      </div>
       {steps.map((step) => (
         <Excerpt
           key={step.id}
@@ -39,6 +44,10 @@ export function DecisionExcerpts({
       ))}
     </section>
   );
+}
+
+export function excerptId(step: ReviewStep) {
+  return `step-excerpt-${step.id}`;
 }
 
 function Excerpt({
@@ -67,6 +76,7 @@ function Excerpt({
     !moved && (!committed || expanded),
   );
   const loaded = Option.getOrUndefined(AsyncResult.value(lines));
+  const note = { title: step.title, text: step.text, marker: `${number}` };
   const entries: CodeEntry[] = [];
   if (loaded && !moved) {
     const patch = contextPatch(step.pointer.path, loaded.from, loaded.lines);
@@ -79,18 +89,25 @@ function Excerpt({
         fileDiff,
         version: contentVersion(patch),
         comment: { filePath: step.pointer.path },
+        agentNotes: [{ ...note, line: location.endLine, stale: false }],
       });
   }
   return (
     <article
+      id={excerptId(step)}
       aria-label={`Step ${step.title}`}
-      className="flex flex-col gap-2 rounded-xl border bg-background p-3"
+      className="flex scroll-mt-2 flex-col font-sans"
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="grid size-5 shrink-0 place-items-center rounded-full bg-muted text-2xs font-semibold text-muted-foreground tabular-nums">
-          {number}
-        </span>
-        <h4 className="min-w-0 flex-1 text-sm font-medium">{step.title}</h4>
+      <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+        <FileIcon className="size-3.5 shrink-0 text-muted-foreground" />
+        <p className="min-w-0 flex-1 truncate text-sm">
+          {step.pointer.path}
+          <span className="text-xs text-muted-foreground">
+            {' '}
+            · {lane} · {spansLabel([location])}
+            {committed ? ' · committed' : ''}
+          </span>
+        </p>
         <Button
           variant="ghost"
           size="xs"
@@ -100,42 +117,40 @@ function Excerpt({
           Open file
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">
-        {lane} · {step.kind === 'context' ? 'Existing code' : 'Committed code'}{' '}
-        · {step.pointer.path} · {spansLabel([location])}
-      </p>
-      {moved ? (
-        <p role="status" className="text-sm text-graph-4">
-          Code changed since the review was written.
-        </p>
-      ) : committed && !expanded ? (
-        <Button
-          variant="outline"
-          size="sm"
-          className="self-start"
-          onClick={() => setExpanded(true)}
-        >
-          Committed · Show code
-        </Button>
-      ) : entries.length > 0 ? (
-        <div className="flex min-w-0 flex-col">
-          <CodeDocument
-            scope={scope}
-            context={context}
-            interaction={{ ...interaction, active: false }}
-            entries={entries}
-            collapsible
-            fullHeight
-          />
-        </div>
+      {entries.length > 0 ? (
+        <CodeDocument
+          scope={scope}
+          context={context}
+          interaction={{ ...interaction, active: false }}
+          entries={entries}
+          disableFileHeader
+          fullHeight
+        />
       ) : (
-        <p role="status" className="text-sm text-muted-foreground">
-          {AsyncResult.isFailure(lines)
-            ? 'Code could not be loaded.'
-            : 'Loading code…'}
-        </p>
+        <div className="flex flex-col items-start gap-1 px-4 pt-1">
+          {moved ? (
+            <p role="status" className="pl-5.5 text-sm text-graph-4">
+              Code changed since the review was written.
+            </p>
+          ) : committed && !expanded ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-5.5"
+              onClick={() => setExpanded(true)}
+            >
+              Committed · Show code
+            </Button>
+          ) : (
+            <p role="status" className="pl-5.5 text-sm text-muted-foreground">
+              {AsyncResult.isFailure(lines)
+                ? 'Code could not be loaded.'
+                : 'Loading code…'}
+            </p>
+          )}
+          <AgentNote {...note} />
+        </div>
       )}
-      <AgentNote text={step.text} marker={`${number}`} />
     </article>
   );
 }
