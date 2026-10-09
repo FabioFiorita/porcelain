@@ -7,11 +7,13 @@ import {
 
 export const REVIEW_GUIDE = `# Publishing a Porcelain review
 
-The review helps the developer understand how the architecture changes and which decisions future agents will copy. Tell each behavior from entry point to outcome, or explain one coherent ownership or architectural decision. Do not make Server, Client or Interface separate layers: those are lanes within a walkthrough. Keep layers short and ordered. A changed step points at code this change alters. A context step points at unchanged code the reader needs. Step text appears as an inline agent note: explain the decision and its consequence in one or two sentences, rather than narrating the code. Layer summaries and verification evidence are expandable.
+The review helps the developer understand how the architecture changes and which decisions future agents will copy. Porcelain shows it as a walkthrough: a briefing of what the change adds to the system, then one stop per layer in the order you publish, then whatever no layer explains. Each layer is one decision: a behavior told from entry point to outcome, or one coherent ownership or architectural decision. Do not make Server, Client or Interface separate layers: those are lanes within a decision, and Porcelain shows the lanes a decision crosses as its route. Order layers so a reader meets an owner before the decisions that use it.
+
+The reader marks a decision reviewed, and that marks every file it shows. Each changed file appears in full, once, in the first layer whose changed step points at it, so point the layer that introduces a shared owner at that owner's file. A changed step points at code this change alters; its text appears as a numbered note under the last line it points at, so end the step where the explained block ends. A context step points at unchanged code the reader needs and appears as an excerpt after the decision's code. Write step text as one or two sentences on the decision and its consequence, not a narration of the code. Keep the layer summary to two or three sentences; longer text is folded. Changed lines no step covers are listed as Not explained, both as files of their own and as marked lines inside explained files.
 
 ## Summary
 
-The summary is one complete HTML document, at most 10 MiB. It runs in an opaque sandbox with scripts, forms, popups, and modals. Network resources such as CDN fonts and libraries are allowed. The page cannot reach Porcelain login state or APIs. Link to layers with \`#layer-N\`, where N is the 1-based published order. Porcelain handles that navigation. Do not embed credentials.
+The summary is the Agent summary tab beside the walkthrough. It is one complete HTML document, at most 10 MiB. It runs in an opaque sandbox with scripts, forms, popups, and modals. Network resources such as CDN fonts and libraries are allowed. The page cannot reach Porcelain login state or APIs. Link to layers with \`#layer-N\`, where N is the 1-based published order. Porcelain handles that navigation. Do not embed credentials.
 
 You own the design and must include CSS. Inspect the reviewed application's styles, theme tokens, and components first. Match its colors, background, typography, and visual language where it has them. If it has none, choose a coherent readable design. Style the layer navigation as well as the content: clear headings, spacing, and a content width that works in a narrow pane. Do not rely on browser-default links, and do not add an empty token rule only to silence the warning.
 
@@ -54,7 +56,15 @@ A compact page that matches a light application:
 
 ## Diagram
 
-When the change crosses more than one part of the system, add a summary diagram: lanes, boxes, and explicit arrows. Show the existing components the new work extends and the shared owners between behaviors. An After view marks boxes New, Changed, or Removed. A Before view explains ownership or relationship changes. Keep node labels short; detail and problem text appears when the reader selects a component. Name the layer behind each box so the reader can follow its code. Label every arrow with its meaning, such as calls, reads, writes, publishes or depends on. Describe all actual relationships, including ordinary calls: step order never creates an arrow. These are your architectural claims, not automatically verified call traces. Support them with code pointers in the linked walkthrough. Leave uncertain relationships explicit in the component detail instead of drawing a confident connection.
+When the change crosses more than one part of the system, add a diagram: lanes, boxes, and explicit arrows. Porcelain does not draw it as a graph. It reads it as the briefing "What this adds to the system" and as each decision's connections, so write it for those:
+
+- Mark each owner the work adds, alters or removes with New, Changed or Removed in the After view, with a one-line \`detail\`. A box whose label is a layer's title stands for that decision and is not listed as an owner.
+- Name the layer behind each box with \`layerId\` so the reader can jump from an owner to its code.
+- Use \`problem\` for a decision the developer must make: two writes without a shared transaction, a second copy of an owner that already exists, a pattern this change follows differently from the rest of the codebase. Each problem is shown as "Needs your decision" in the briefing and in every decision connected to that box.
+- Label every arrow with its meaning, such as calls, reads, writes, publishes or depends on. An arrow from a decision's box to an owner appears on that decision as "uses Delivery outbox". Describe all actual relationships, including ordinary calls; step order never creates an arrow.
+- A Before view is optional context for ownership that moved.
+
+These are your architectural claims, not automatically verified call traces. Support them with code pointers in the linked layer, and leave uncertain relationships in the detail instead of drawing a confident arrow.
 
 ## Proof
 

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { Schema } from 'effect';
+import { readChangesResponseSchema } from '@porcelain/contracts/changes';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import {
   readPublishedReviewResponseSchema,
@@ -91,6 +92,76 @@ const scenarios = [
     owner: 'Workspace policy',
   },
 ] as const;
+
+const stories: Record<
+  (typeof scenarios)[number]['key'],
+  { view: string; viewNote: string; server: string; serverNote: string }
+> = {
+  'invite-member': {
+    view: 'Send the invitation',
+    viewNote:
+      "The form sends only the invitee's role. The server decides whether this actor may invite anyone.",
+    server: 'Check the inviter before writing',
+    serverNote:
+      "Authorization runs before the invitation is written, so a viewer's request never reaches the journal.",
+  },
+  'revoke-access': {
+    view: 'Revoke from the device list',
+    viewNote:
+      'The screen asks the session owner to revoke. It never deletes a session record itself.',
+    server: 'Revoke through the session owner',
+    serverNote:
+      'Revocation is one event that every device observes, rather than a flag each client checks.',
+  },
+  'publish-note': {
+    view: 'Publish from the editor',
+    viewNote:
+      'Publishing creates a new revision. The editor never overwrites an older one.',
+    server: 'Append a revision',
+    serverNote:
+      'The handler appends with the expected version, so two publishers cannot both win.',
+  },
+  'export-history': {
+    view: 'Request an export at a revision',
+    viewNote:
+      'The export names the revision it reads. It does not read whatever happens to be current.',
+    server: 'Read a pinned snapshot',
+    serverNote:
+      'The export reads one revision through the journal. A concurrent publish lands in the next export.',
+  },
+  'schedule-reminder': {
+    view: 'Schedule from the calendar',
+    viewNote:
+      'Scheduling returns as soon as the reminder is durable, without waiting for delivery.',
+    server: 'Enqueue the reminder',
+    serverNote:
+      'The handler writes the outbox entry next to the journal append. They are separate writes today.',
+  },
+  'retry-delivery': {
+    view: 'Retry from the failure banner',
+    viewNote:
+      'Retry sends the original delivery identifier back, so the server can recognize a duplicate.',
+    server: 'Retry through the existing outbox',
+    serverNote:
+      'Retry reuses the outbox entry instead of opening a second queue, so a message cannot go out twice.',
+  },
+  'reconnect-device': {
+    view: 'Reconnect with the cached session',
+    viewNote:
+      'The device offers its cached access version. The server decides whether that version is still valid.',
+    server: 'Restore only current access',
+    serverNote:
+      'Reconnecting re-runs revocation and the version check. A cached identity is not proof of access.',
+  },
+  'transfer-workspace': {
+    view: 'Confirm the new owner',
+    viewNote:
+      'The confirmation is explicit input, not something the client infers from its own state.',
+    server: 'Transfer through workspace policy',
+    serverNote:
+      'Ownership transfer reuses workspace policy instead of adding a second permission model.',
+  },
+};
 
 async function accepted(
   session: Session,
@@ -262,20 +333,21 @@ export async function seedArchitectureSample(session: Session) {
   const owners = new Map<string, { id: string; layerId: string }>();
   for (const scenario of scenarios) {
     const id = randomUUID();
+    const story = stories[scenario.key];
     const steps: PublishReviewRequest['layers'][number]['steps'][number][] = [
       {
         path: `apps/web/src/${scenario.key}.ts`,
-        title: 'Submit the action',
+        title: story.view,
         lane: 0,
       },
       {
         path: `packages/client/src/${scenario.key}.ts`,
-        title: 'Prepare a bounded request',
+        title: 'Bound the request',
         lane: 1,
       },
       {
         path: `apps/server/src/${scenario.key}.ts`,
-        title: 'Authorize and persist the outcome',
+        title: story.server,
         lane: 2,
       },
       {
@@ -299,15 +371,15 @@ export async function seedArchitectureSample(session: Session) {
       title: item.title,
       text:
         item.lane === 0
-          ? 'The interface submits a bounded request and displays the server-confirmed version.'
+          ? story.viewNote
           : item.lane === 1
-            ? 'The client bounds request size and carries the expected version; authorization stays on the server.'
+            ? 'The shared client caps the payload and carries the expected version. It makes no permission decision.'
             : item.lane === 2
-              ? 'Authorization precedes the domain decision and journal append. Side-effect ownership must agree with the persistence boundary.'
+              ? story.serverNote
               : item.path.startsWith('tests/')
-                ? 'These examples check the persisted outcome and viewer refusal. The sample has not executed them.'
+                ? `Checks the persisted ${scenario.output} outcome and that a viewer is refused. The sample has not run it.`
                 : item.path.startsWith('docs/')
-                  ? 'The decision records the owner future operations should reuse.'
+                  ? `Names the ${scenario.owner.toLowerCase()} as the owner the next operation should reuse.`
                   : scenario.decision,
       kind: 'changed' as const,
       pointer: {
@@ -504,5 +576,27 @@ export async function seedArchitectureSample(session: Session) {
       body: 'Does delivery share the same journal transaction, or can scheduling succeed without a durable outbox entry?',
     },
   });
+  const reviewedPaths = new Set(
+    result.review?.layers[0]?.steps.flatMap((step) =>
+      step.kind === 'changed' ? [step.pointer.path] : [],
+    ),
+  );
+  const current = Schema.decodeUnknownSync(readChangesResponseSchema)(
+    await accepted(session, {
+      method: 'GET',
+      path: `/api/worktrees/${worktree.id}/changes`,
+    }),
+  );
+  const files = current.changes.flatMap((change) =>
+    reviewedPaths.has(change.path) && change.fingerprint
+      ? [{ path: change.path, fingerprint: change.fingerprint }]
+      : [],
+  );
+  if (files.length > 0)
+    await accepted(session, {
+      method: 'PUT',
+      path: `/api/worktrees/${worktree.id}/reviewed-bulk`,
+      body: { files },
+    });
   return result;
 }
