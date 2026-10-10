@@ -8,3 +8,5 @@ export { readCommentThreads } from './queries/comments.ts';
 export { commentCommands } from './commands/comments.ts';
 export { reviewedCommands } from './commands/reviewed.ts';
 export { toggleLayerMark } from './commands/layer-marks.ts';
+
+export { commentWriteBinding } from './commands/comment-write-binding.ts';

@@ -19,7 +19,10 @@
     "./changes/rules": "./src/features/changes/rules/index.ts",
     "./history/rules": "./src/features/history/rules/index.ts",
     "./files/rules": "./src/features/files/rules/index.ts",
-    "./live": "./src/features/live/index.ts"
+    "./live": "./src/features/live/index.ts",
+    "./preferences/rules": "./src/features/preferences/rules/index.ts",
+    "./links/rules": "./src/features/links/rules/index.ts",
+    "./preferences": "./src/features/preferences/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.spec.json",

@@ -1,3 +1,12 @@
+export { patchUnavailable, omissionReason } from './diff-presentation.ts';
+export { diffSelection } from './selection.ts';
+export { patchLines, type PatchLine } from './patch.ts';
+export {
+  focusPatch,
+  contextPatch,
+  spansLabel,
+  type LineSpan,
+} from './patch-focus.ts';
 export { changeId } from './change-id.ts';
 export {
   changePath,
@@ -11,7 +20,6 @@ export {
 } from './changes.ts';
 export {
   branchErrorMessage,
-  branchFilePaths,
   branchName,
   branchRange,
   type BranchFile,

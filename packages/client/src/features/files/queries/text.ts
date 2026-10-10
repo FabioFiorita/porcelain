@@ -1,10 +1,7 @@
-import { porcelainClient } from '../../../shared/api/client.ts';
+import { requestApi } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { Atom } from 'effect/reactivity';
-import type {
-  RuntimeConnection,
-  WorktreeScope,
-} from '../../../shared/api/connection.ts';
+import type { WorktreeSelection } from '../../../shared/api/connection.ts';
 import { worktreeRead } from '../../../shared/api/worktree-read.ts';
 import { Effect } from 'effect';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
@@ -22,42 +19,31 @@ function unreadableFileReason(error: unknown) {
 }
 
 export const readTextFile = Atom.family(
-  ({
-    connection,
-    scope,
-    path,
-  }: {
-    connection: RuntimeConnection;
-    scope: WorktreeScope;
-    path: string;
-  }) =>
+  ({ connection, scope, path }: WorktreeSelection & { path: string }) =>
     worktreeRead(
       connection,
       scope,
       ['text', path],
       Effect.gen(function* () {
-        const client = yield* porcelainClient(connection);
-        return yield* client
-          .request((api) =>
-            api.files.readTextFile({
-              params: { worktreeId: scope.worktreeId },
-              query: { path },
-            }),
-          )
-          .pipe(
-            Effect.tap((answer) =>
-              currentAnswerEffect(
-                connection,
-                answer.worktreeId === scope.worktreeId && answer.path === path,
-              ),
+        return yield* requestApi(connection, (api) =>
+          api.files.readTextFile({
+            params: { worktreeId: scope.worktreeId },
+            query: { path },
+          }),
+        ).pipe(
+          Effect.tap((answer) =>
+            currentAnswerEffect(
+              connection,
+              answer.worktreeId === scope.worktreeId && answer.path === path,
             ),
-            Effect.catch((error) => {
-              const reason = unreadableFileReason(error);
-              return reason
-                ? Effect.succeed({ kind: 'unreadable' as const, reason })
-                : Effect.fail(error);
-            }),
-          );
+          ),
+          Effect.catch((error) => {
+            const reason = unreadableFileReason(error);
+            return reason
+              ? Effect.succeed({ kind: 'unreadable' as const, reason })
+              : Effect.fail(error);
+          }),
+        );
       }),
       clientRuntime(connection),
       [path],

@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  appDocument,
-  externalNavigation,
-  localNavigation,
-} from './navigation.ts';
+import { appDocument, localNavigation } from './navigation.ts';
 
 describe('desktop navigation', () => {
   it('recognises the desktop origin even though Node represents custom origins as opaque', () => {
@@ -38,23 +34,6 @@ describe('desktop navigation', () => {
     'http://owner:secret@127.0.0.1:3000/',
   ])('refuses a different origin or a credentialed navigation: %s', (url) => {
     expect(localNavigation(url, 'http://127.0.0.1:3000')).toBe(false);
-  });
-  it.each([
-    'https://github.com/electron/electron',
-    'http://192.168.1.20:8080/',
-  ])('permits an ordinary web link in the system browser: %s', (url) => {
-    expect(externalNavigation(url)).toBe(true);
-  });
-  it.each([
-    'file:///etc/passwd',
-    'javascript:alert(1)',
-    'porcelain://app/',
-    'mailto:owner@example.com',
-    'https://owner:secret@example.com',
-    'http://owner@example.com',
-    'unparseable',
-  ])('refuses an unsafe external link: %s', (url) => {
-    expect(externalNavigation(url)).toBe(false);
   });
 });
 

@@ -8,7 +8,11 @@ import { Text } from '../../../components/ui/text';
 import { HistoryList } from '../../../components/ui/history-list';
 import { useSelectedWorktree } from '../../projects';
 import { useHistory, type HistorySelection } from '../queries/history';
-import { commitEntry, historyBoundary, historyHeading } from '../rules';
+import {
+  commitEntry,
+  historyBoundary,
+  historyHeading,
+} from '@porcelain/client/history/rules';
 
 export function HistoryScreen() {
   const current = useSelectedWorktree();

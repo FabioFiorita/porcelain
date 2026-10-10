@@ -44,7 +44,8 @@ import {
   useConnectedContext,
   WaysInSettings,
 } from '@/features/access/index';
-import { usePreferences, type Preferences } from '@/features/preferences/index';
+import { usePreferences } from '@/features/preferences/index';
+import type { Preferences } from '@porcelain/client/preferences';
 import { useInventory } from '@/features/projects/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
 import { desktopShell } from '@/shared/shell';

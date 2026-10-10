@@ -32,7 +32,7 @@ describe('diffBatches', () => {
     ];
     try {
       Reflect.deleteProperty(Array.prototype, 'toSorted');
-      expect([].toSorted).toBeUndefined();
+      expect(Reflect.get(Array.prototype, 'toSorted')).toBeUndefined();
       expect(() => diffBatches(expectedFiles, selections, limit)).not.toThrow();
       expect(diffBatches(expectedFiles, selections, limit)).toEqual([
         {
@@ -72,8 +72,8 @@ describe('diffBatches', () => {
   it('splits one past the limit into requests in path order, each with the files it selects', () => {
     const indexes = range(limit + 1);
     const batches = diffBatches(
-      indexes.map(file).toReversed(),
-      indexes.map(unstaged).toReversed(),
+      indexes.map(file).reverse(),
+      indexes.map(unstaged).reverse(),
       limit,
     );
     expect(

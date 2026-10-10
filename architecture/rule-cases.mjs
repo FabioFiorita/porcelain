@@ -113,6 +113,44 @@ const observedStoreState = `describe('MarkCommentsSeenService', () => {
 `;
 
 export default [
+  {
+    rule: 'mobile-ui-imports-no-state',
+    path: 'apps/mobile/src/components/ui/file-tree.tsx',
+    valid: "import { externalLink } from '@porcelain/client/links/rules';",
+    invalid: "import { readDirectory } from '@porcelain/client/files';",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-ui-imports-no-state',
+    path: 'apps/mobile/src/components/ui/file-tree.tsx',
+    valid:
+      "import type { RuntimeConnection } from '@porcelain/client/transport'; import type { ListDirectoryResponse } from '@porcelain/contracts/files';",
+    invalid: "import { AccessStore } from '@porcelain/client/access';",
+    errors: 1,
+  },
+
+  {
+    rule: 'mobile-ui-imports-no-state',
+    path: 'apps/mobile/src/components/ui/file-tree.tsx',
+    valid:
+      "import type { ListDirectoryResponse } from '@porcelain/contracts/files';",
+    invalid:
+      "import { listDirectoryResponseSchema } from '@porcelain/contracts/files';",
+    errors: 1,
+  },
+
+  ...[
+    'packages/client/src/features/reviews/rules/proof.ts',
+    'apps/mobile/src/shared/rules/order.ts',
+  ].flatMap((path) =>
+    ['toSorted', 'toReversed', 'toSpliced', 'with'].map((method) => ({
+      rule: 'hermes-array-methods',
+      path,
+      valid: 'const ordered = [...items].sort();',
+      invalid: `const ordered = items.${method}();`,
+      errors: 1,
+    })),
+  ),
   ...effectRuleCases,
 
   {
@@ -3311,7 +3349,7 @@ Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => unde
   {
     rule: 'duplicate-code',
     first: 'apps/web/src/copy.ts',
-    second: 'apps/web/src/copy-again.ts',
+    second: 'apps/mobile/src/copy-again.spec.ts',
     valid: 'export const label = "Unique";',
     invalid: duplicateFixtureSource,
   },

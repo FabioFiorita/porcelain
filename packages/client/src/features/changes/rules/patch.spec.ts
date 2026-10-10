@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { patchLines } from './patch-lines.ts';
+import { patchLines } from './patch.ts';
 
 it('keeps both line numbers across multiple hunks and does not confuse content with file headers', () => {
   expect(

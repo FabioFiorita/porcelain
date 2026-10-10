@@ -2,7 +2,7 @@ import type {
   ReviewLayer,
   ReviewResponse,
 } from '@porcelain/client/reviews/rules';
-import { spansLabel } from './patch-focus';
+import { spansLabel } from '@porcelain/client/changes/rules';
 
 export type AgentCodeNote = {
   title: string;

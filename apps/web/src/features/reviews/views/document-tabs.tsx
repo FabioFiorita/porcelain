@@ -28,7 +28,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { ScrollBar } from '@/components/ui/scroll-area';
-import { shortOid } from '@/features/history/index';
+import { shortOid } from '@porcelain/client/history/rules';
 import { cn } from '@/shared/lib/utils';
 import { parseEntry } from '../rules/documents';
 import { basename } from '@porcelain/client/reviews/rules';

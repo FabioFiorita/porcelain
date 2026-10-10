@@ -9,6 +9,8 @@ import { AsyncResult } from 'effect/reactivity';
 import {
   fileErrorMessage,
   quickOpenMatches,
+  mergeFileTreeEntries,
+  treeActions,
 } from '@porcelain/client/files/rules';
 import { FileTree } from '../../../components/ui/file-tree';
 import { Input } from '../../../components/ui/input';
@@ -16,10 +18,7 @@ import { Button } from '../../../components/ui/button';
 import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Text } from '../../../components/ui/text';
-import {
-  directoryRequests,
-  directoryTree,
-} from '../../../shared/rules/file-tree';
+import { directoryRequests } from '../../../shared/rules/file-tree';
 import { useDirectories } from '../queries/directory';
 import { useFilePaths } from '../queries/paths';
 import { FileActionSheet } from './file-action';
@@ -77,7 +76,7 @@ function WorktreeFiles({
   const pathData = Option.getOrUndefined(AsyncResult.value(paths.result));
   const searching = Boolean(query.trim());
   const open = (path: string) => onOpen(path, selected.key);
-  const nodes = directoryTree(data);
+  const nodes = mergeFileTreeEntries(data);
   const header = (
     <View className="gap-3 px-4 py-3">
       <Input
@@ -140,11 +139,11 @@ function WorktreeFiles({
       </Stack.Toolbar>
       <FileTree
         header={header}
+        flat={searching}
         nodes={
           searching
             ? quickOpenMatches(pathData?.paths ?? [], query).map((path) => ({
-                id: path,
-                name: path,
+                path,
                 kind: 'file' as const,
               }))
             : nodes
@@ -161,53 +160,62 @@ function WorktreeFiles({
             current.includes(id) ? current : [...current, id],
           );
         }}
-        onSelect={open}
+        onSelect={(path) => {
+          if (
+            searching ||
+            nodes.some((node) => node.path === path && node.kind === 'file')
+          )
+            open(path);
+        }}
         contextMenu={
           searching
             ? undefined
-            : (node) => [
-                ...(node.kind === 'folder'
-                  ? [
-                      {
-                        id: 'new-file',
-                        label: 'New file here',
-                        onPress: () =>
+            : (node) => {
+                const path = node.path.replace(/\/$/, '');
+                return treeActions({
+                  folder: node.kind === 'directory',
+                  link: node.kind === 'symlink',
+                  changed: false,
+                  openable: node.kind === 'file',
+                  hiddenEntry: null,
+                  ownHidden: false,
+                  hiddenName: '',
+                })
+                  .filter(
+                    ({ id }) =>
+                      id === 'new-file' ||
+                      id === 'new-folder' ||
+                      id === 'open' ||
+                      id === 'rename' ||
+                      id === 'trash',
+                  )
+                  .map(({ id, label }) => ({
+                    id,
+                    label,
+                    destructive: id === 'trash',
+                    onPress: () => {
+                      switch (id) {
+                        case 'new-file':
+                        case 'new-folder':
                           setAction({
                             kind: 'create',
-                            entryKind: 'file',
-                            folder: node.id,
-                          }),
-                      },
-                      {
-                        id: 'new-folder',
-                        label: 'New folder here',
-                        onPress: () =>
-                          setAction({
-                            kind: 'create',
-                            entryKind: 'directory',
-                            folder: node.id,
-                          }),
-                      },
-                    ]
-                  : [
-                      {
-                        id: 'open',
-                        label: 'Open',
-                        onPress: () => open(node.id),
-                      },
-                    ]),
-                {
-                  id: 'rename',
-                  label: 'Rename',
-                  onPress: () => setAction({ kind: 'move', path: node.id }),
-                },
-                {
-                  id: 'trash',
-                  label: 'Move to trash',
-                  destructive: true,
-                  onPress: () => setAction({ kind: 'trash', path: node.id }),
-                },
-              ]
+                            entryKind: id === 'new-file' ? 'file' : 'directory',
+                            folder: path,
+                          });
+                          break;
+                        case 'open':
+                          open(path);
+                          break;
+                        case 'rename':
+                          setAction({ kind: 'move', path });
+                          break;
+                        case 'trash':
+                          setAction({ kind: 'trash', path });
+                          break;
+                      }
+                    },
+                  }));
+              }
         }
       />
       <FileActionSheet

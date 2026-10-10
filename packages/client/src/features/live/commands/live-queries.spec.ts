@@ -1,9 +1,10 @@
-import { operationStoreLayer } from '@porcelain/client/git-actions';
+import { operationStoreFixture } from '../../../../spec/kit/operation-store.ts';
+
 import { AtomRegistry, Reactivity } from 'effect/reactivity';
 import { readFilePreferences } from '@porcelain/client/projects';
 import { readTextFile } from '@porcelain/client/files';
-import { Crypto, Equal, Layer, ManagedRuntime, type Context } from 'effect';
-import { afterEach } from 'vitest';
+import { Crypto, Equal, Layer } from 'effect';
+
 import { Effect } from 'effect';
 import { expect, it } from 'vitest';
 import {
@@ -11,11 +12,7 @@ import {
   queryKeys,
   type Transport,
 } from '@porcelain/client/transport';
-import {
-  OperationStore,
-  OperationStorage,
-  operationKey,
-} from '@porcelain/client/git-actions';
+import { OperationStore, operationKey } from '@porcelain/client/git-actions';
 import type { RunGitActionRequest } from '@porcelain/contracts/git-actions';
 import type { LiveSubscription, LiveUpdatePort } from '../ports/live-update.ts';
 import { liveQueries } from './live-queries.ts';
@@ -269,51 +266,6 @@ it('a file notice invalidates only the connected environment', async () => {
     await subject.cleanup();
   }
 });
-
-const owned = new Set<ManagedRuntime.ManagedRuntime<OperationStore, never>>();
-afterEach(async () => {
-  const runtimes = [...owned];
-  owned.clear();
-  await Promise.all(runtimes.map((runtime) => runtime.dispose()));
-});
-
-function operationStoreFixture(
-  persistence?: {
-    key: string;
-    storage: {
-      getItem: (key: string) => string | null;
-      setItem: (key: string, value: string) => void;
-      removeItem: (key: string) => void;
-    };
-  },
-  storage?: Context.Service.Shape<typeof OperationStorage>,
-) {
-  const runtime = ManagedRuntime.make(
-    operationStoreLayer.pipe(
-      Layer.provide(
-        Layer.succeed(
-          OperationStorage,
-          storage ?? {
-            read: () =>
-              Effect.try(
-                () => persistence?.storage.getItem(persistence.key) ?? null,
-              ),
-            write: (value) =>
-              Effect.try(() =>
-                persistence?.storage.setItem(persistence.key, value),
-              ),
-            clear: () =>
-              Effect.try(() =>
-                persistence?.storage.removeItem(persistence.key),
-              ),
-          },
-        ),
-      ),
-    ),
-  );
-  owned.add(runtime);
-  return { runtime, store: runtime.runSync(OperationStore) };
-}
 
 it('inventory updates change the live project subscription', async () => {
   const initial = Promise.withResolvers<void>();

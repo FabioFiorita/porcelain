@@ -1,3 +1,4 @@
+import { sharedMemoConnections } from '../../../spec/kit/client-fixture.ts';
 import { it } from '@effect/vitest';
 import { expect } from 'vitest';
 import {
@@ -11,30 +12,15 @@ import {
   Scope,
 } from 'effect';
 import { WriteQueue, WriteQueues } from './write-queue.ts';
-import {
-  ConnectionError,
-  createWorktreeConnection,
-} from '@porcelain/client/transport';
+import { ConnectionError } from '@porcelain/client/transport';
 
 it.effect(
   'starts the next write only after the preceding write completes',
   () =>
     Effect.gen(function* () {
-      const queue = yield* WriteQueue.make;
-      const gate = Deferred.makeUnsafe<void>();
-      const started = Deferred.makeUnsafe<void>();
-      const steps: string[] = [];
-      const first = yield* Effect.forkChild(
-        queue.enqueue(
-          Effect.gen(function* () {
-            steps.push('first started');
-            yield* Deferred.succeed(started, undefined);
-            yield* Deferred.await(gate);
-            steps.push('first completed');
-            return 'first';
-          }),
-        ),
-        { startImmediately: true },
+      const { queue, gate, started, steps, first } = yield* firstQueuedWrite(
+        'first completed',
+        'first',
       );
       const second = yield* Effect.forkChild(
         queue.enqueue(
@@ -205,21 +191,8 @@ it.effect(
   'keeps a cancelled waiter in order until its predecessor settles',
   () =>
     Effect.gen(function* () {
-      const queue = yield* WriteQueue.make;
-      const gate = Deferred.makeUnsafe<void>();
-      const started = Deferred.makeUnsafe<void>();
-      const steps: string[] = [];
-      const first = yield* Effect.forkChild(
-        queue.enqueue(
-          Effect.gen(function* () {
-            steps.push('first started');
-            yield* Deferred.succeed(started, undefined);
-            yield* Deferred.await(gate);
-            steps.push('first finished');
-          }),
-        ),
-        { startImmediately: true },
-      );
+      const { queue, gate, started, steps, first } =
+        yield* firstQueuedWrite('first finished');
       const cancelled = yield* Effect.forkChild(
         queue.enqueue(Effect.sync(() => steps.push('cancelled started'))),
         { startImmediately: true },
@@ -307,14 +280,7 @@ it.effect(
 );
 
 it('shares an application memo map without sharing connection write admission', async () => {
-  const memoMap = Layer.makeMemoMapUnsafe();
-  const input = {
-    environmentId: 'same-environment',
-    transport: () => Promise.resolve(Response.json({})),
-    timeoutMs: 1000,
-  };
-  const first = createWorktreeConnection(input, memoMap, Layer.empty);
-  const second = createWorktreeConnection(input, memoMap, Layer.empty);
+  const { first, second } = sharedMemoConnections();
   const entered = Deferred.makeUnsafe<void>();
   first.connection.runtime.runFork(
     WriteQueues.use((queues) =>
@@ -349,4 +315,27 @@ it('shares an application memo map without sharing connection write admission', 
     await first.close();
     await second.close();
   }
+});
+
+const firstQueuedWrite = Effect.fn(function* (
+  completion: string,
+  result?: string,
+) {
+  const queue = yield* WriteQueue.make;
+  const gate = Deferred.makeUnsafe<void>();
+  const started = Deferred.makeUnsafe<void>();
+  const steps: string[] = [];
+  const first = yield* Effect.forkChild(
+    queue.enqueue(
+      Effect.gen(function* () {
+        steps.push('first started');
+        yield* Deferred.succeed(started, undefined);
+        yield* Deferred.await(gate);
+        steps.push(completion);
+        return result;
+      }),
+    ),
+    { startImmediately: true },
+  );
+  return { queue, gate, started, steps, first };
 });

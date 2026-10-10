@@ -7,6 +7,7 @@ import type {
 } from '../../../shared/api/connection.ts';
 import { worktreeRead } from '../../../shared/api/worktree-read.ts';
 import { Effect } from 'effect';
+import type { FilesScope } from '../rules/scope.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 
 export const readDirectory = Atom.family(
@@ -44,4 +45,21 @@ export const readDirectory = Atom.family(
       clientRuntime(connection),
       [path],
     ),
+);
+
+export type DirectorySelection = {
+  connection: RuntimeConnection;
+  scope: FilesScope;
+  paths: readonly string[];
+};
+function directoryAtoms({ connection, scope, paths }: DirectorySelection) {
+  return paths.map((path) => readDirectory({ connection, scope, path }));
+}
+export const readDirectories = Atom.family((selection: DirectorySelection) =>
+  Atom.make((get) => directoryAtoms(selection).map((atom) => get(atom))),
+);
+export const refreshDirectories = Atom.family((selection: DirectorySelection) =>
+  Atom.fnSync((_: void, get) => {
+    for (const atom of directoryAtoms(selection)) get.refresh(atom);
+  }),
 );

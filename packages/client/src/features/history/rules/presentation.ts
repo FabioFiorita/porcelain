@@ -1,9 +1,5 @@
-import type {
-  CommitFile,
-  CommitSummary,
-} from '@porcelain/client/history/rules';
+import type { CommitFile, CommitSummary } from './commit.ts';
 import type { ListCommitsResponse } from '@porcelain/contracts/changes';
-import type { DiffContent } from '@porcelain/client/changes/rules';
 
 export function commitPaths(file: CommitFile): string[] {
   return [
@@ -18,7 +14,7 @@ export function commitPath(file: CommitFile) {
   return file.newPath ?? file.oldPath ?? 'Unknown path';
 }
 export function shortOid(oid: string) {
-  return oid.slice(0, 8);
+  return oid.slice(0, 7);
 }
 export function refLabel(ref: string) {
   return ref.replace(/^refs\/(?:heads|remotes|tags)\//u, '');
@@ -55,20 +51,4 @@ export function historyBoundary(
     : boundary === 'wide'
       ? 'Too many branches meet here to continue past this point.'
       : 'Start of history.';
-}
-export function patchUnavailable(content: DiffContent) {
-  switch (content.kind) {
-    case 'binary':
-      return 'Binary change';
-    case 'metadata-only':
-      return 'No code change';
-    case 'omitted':
-      return content.reason === 'size-limit'
-        ? 'Too large to show'
-        : content.reason === 'unsupported-submodule'
-          ? 'Submodule change'
-          : 'Cannot be shown';
-    case 'text':
-      return undefined;
-  }
 }

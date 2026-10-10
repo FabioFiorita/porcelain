@@ -31,3 +31,11 @@ export const porcelainClient = Atom.family((connection: RuntimeConnection) => {
   }
   return Client;
 });
+
+export const requestApi = Effect.fn('Client.requestApi')(function* <A, E, R>(
+  connection: RuntimeConnection,
+  request: (api: PorcelainApi) => Effect.Effect<A, E, R>,
+) {
+  const client = yield* porcelainClient(connection);
+  return yield* client.request(request);
+});

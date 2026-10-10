@@ -1,3 +1,6 @@
+import { commitPaths } from '@porcelain/client/history/rules';
+import { ordinal, useCommit } from '@/features/history/index';
+import { patchUnavailable } from '@porcelain/client/changes/rules';
 import { relativeTime } from '@/shared/lib/relative-time';
 import { CopyIcon } from 'lucide-react';
 import { useState, useTransition } from 'react';
@@ -12,12 +15,7 @@ import {
   type CommitFile,
   type CommitFiles,
 } from '@porcelain/client/history/rules';
-import {
-  historyRefLabel,
-  ordinal,
-  shortOid,
-  useCommit,
-} from '@/features/history/index';
+import { refLabel, shortOid } from '@porcelain/client/history/rules';
 import type { DocumentInteraction } from '../rules/documents';
 import type { DiffContent, ReviewScope } from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
@@ -25,14 +23,7 @@ import { DocumentToolbar } from './document-toolbar';
 import { ReadMoreFiles } from './read-more-files';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
-const pathList = (file: CommitFile) => [
-  ...new Set(
-    [file.oldPath, file.newPath].filter(
-      (path) => path !== null && path !== undefined,
-    ),
-  ),
-];
-const pathKey = (file: CommitFile) => pathList(file).join('\0');
+const pathKey = (file: CommitFile) => commitPaths(file).join('\0');
 
 export function CommitDocument({
   scope,
@@ -70,7 +61,7 @@ export function CommitDocument({
   const readMore = () =>
     setWindow({ of: `${oid}:${parent}`, shown: shown + DIFF_WINDOW_FILES });
   const reached = commit.files.slice(0, shown);
-  const wanted = reached.map((file) => pathList(file));
+  const wanted = reached.map((file) => commitPaths(file));
   const diffs = useCommitDiffs(connection, scope, oid, parent, wanted);
   const patchOf = (file: CommitFile) => diffs.patches.get(pathKey(file));
   const entries = reached.flatMap((file) => {
@@ -221,7 +212,7 @@ function CommitHeader({
         )}
         {commit.commit.refs.map((ref) => (
           <Badge key={ref} title={ref} variant="secondary" className="h-4">
-            {historyRefLabel(ref)}
+            {refLabel(ref)}
           </Badge>
         ))}
       </div>
@@ -273,13 +264,7 @@ function OmittedCommitChanges({
               ? failed
                 ? 'The patch could not be read'
                 : 'Reading the patch'
-              : content.kind === 'binary'
-                ? 'Binary change'
-                : content.kind === 'omitted'
-                  ? content.reason === 'size-limit'
-                    ? 'Too large to show'
-                    : 'Cannot be shown'
-                  : 'No code change';
+              : (patchUnavailable(content) ?? 'No code change');
           return (
             <li
               key={`${change.oldPath}->${change.newPath}:${change.status}`}

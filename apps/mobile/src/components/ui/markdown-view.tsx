@@ -1,5 +1,5 @@
 import { parseMarkdown } from '../../shared/rules/markdown';
-import { isPreviewLink } from '../../shared/rules/preview-link';
+import { externalLink } from '@porcelain/client/links/rules';
 import { useRenderTokens } from './use-render-tokens';
 import { useState } from 'react';
 import { requireNativeView } from 'expo';
@@ -44,7 +44,7 @@ export function MarkdownView({
           data={data}
           tokens={tokens}
           onLink={(event) => {
-            if (isPreviewLink(event.nativeEvent.url))
+            if (externalLink(event.nativeEvent.url))
               onLink?.(event.nativeEvent.url);
           }}
           style={{ flex: 1 }}

@@ -1,21 +1,13 @@
 import { COMMENT_BODY_LENGTH } from '@porcelain/contracts/shared';
 import { useAtom, useAtomSet } from '@effect/atom-react';
 import { Atom } from 'effect/reactivity';
-import { Exit } from 'effect';
+import { commentWriteBinding } from '@porcelain/client/reviews';
 import { commentCommands } from '@porcelain/client/reviews';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 
 function useCommentWrite<Input, A, E>(command: Atom.AtomResultFn<Input, A, E>) {
-  const [result, submit] = useAtom(command, { mode: 'promiseExit' });
-  return {
-    result,
-    send: (input: Input, onConfirmed?: () => void) => {
-      void submit(input).then((exit) => {
-        if (Exit.isSuccess(exit)) onConfirmed?.();
-      });
-    },
-  };
+  return commentWriteBinding(useAtom(command, { mode: 'promiseExit' }));
 }
 export function useMarkCommentsSeen(
   scope: ReviewScope,

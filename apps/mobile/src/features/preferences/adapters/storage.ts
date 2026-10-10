@@ -4,7 +4,7 @@ import {
   preferencesSchema,
   readPreferences,
   type Preferences,
-} from '../../../shared/rules/preferences';
+} from '@porcelain/client/preferences';
 
 const storage = new SQLiteStorage('porcelain-preferences.db');
 const key = 'preferences';

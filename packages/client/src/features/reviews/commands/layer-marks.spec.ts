@@ -1,11 +1,8 @@
+import { scopedClientFixture as fixture } from '../../../../spec/kit/client-fixture.ts';
 import { expect, it } from '@effect/vitest';
-import { Layer, Effect, Fiber, Option, Stream } from 'effect';
+import { Effect, Fiber, Option, Stream } from 'effect';
 import { AtomRegistry, AsyncResult, Reactivity } from 'effect/reactivity';
-import {
-  createWorktreeConnection,
-  queryKeys,
-  type Transport,
-} from '@porcelain/client/transport';
+import { queryKeys } from '@porcelain/client/transport';
 import { readLayerMarks, toggleLayerMark } from '@porcelain/client/reviews';
 
 const scope = { projectId: 'project', worktreeId: 'a'.repeat(32) };
@@ -22,27 +19,7 @@ const confirmed = {
     },
   ],
 };
-function fixture(transport: Transport) {
-  return Effect.acquireRelease(
-    Effect.sync(() => ({
-      ...createWorktreeConnection(
-        {
-          environmentId: 'environment',
-          timeoutMs: 10_000,
-          transport,
-        },
-        undefined,
-        Layer.empty,
-      ),
-      registry: AtomRegistry.make(),
-    })),
-    (subject) =>
-      Effect.promise(async () => {
-        subject.registry.dispose();
-        await subject.close();
-      }),
-  );
-}
+
 it.effect(
   'a confirmed layer mark survives an older unfinished read and a failed refresh',
   () =>
@@ -70,22 +47,9 @@ it.effect(
           Response.json({ message: 'Refresh unavailable' }, { status: 503 }),
         );
       });
-      const state = readLayerMarks({ connection: subject.connection, scope });
-      const stop = subject.registry.mount(state);
-      yield* Effect.addFinalizer(() => Effect.sync(stop));
+      const state = yield* mountedMarks(subject);
       yield* Effect.promise(() => started.promise);
-      const published = yield* Effect.forkChild(
-        AtomRegistry.toStream(subject.registry, state).pipe(
-          Stream.filter(
-            (result) =>
-              Option.getOrUndefined(AsyncResult.value(result))?.marks[0]
-                ?.layerId === layerId,
-          ),
-          Stream.take(1),
-          Stream.runHead,
-        ),
-        { startImmediately: true },
-      );
+      const published = yield* observedMark(subject, state);
       const command = toggleLayerMark({
         connection: subject.connection,
         scope,
@@ -145,9 +109,7 @@ it.effect(
           ),
         );
       });
-      const state = readLayerMarks({ connection: subject.connection, scope });
-      const stop = subject.registry.mount(state);
-      yield* Effect.addFinalizer(() => Effect.sync(stop));
+      const state = yield* mountedMarks(subject);
       expect(
         (yield* AtomRegistry.getResult(subject.registry, state)).marks[0]
           ?.layerId,
@@ -168,18 +130,7 @@ it.effect(
         })).marks,
       ).toEqual([]);
       marked = true;
-      const refreshed = yield* Effect.forkChild(
-        AtomRegistry.toStream(subject.registry, state).pipe(
-          Stream.filter(
-            (result) =>
-              Option.getOrUndefined(AsyncResult.value(result))?.marks[0]
-                ?.layerId === layerId,
-          ),
-          Stream.take(1),
-          Stream.runHead,
-        ),
-        { startImmediately: true },
-      );
+      const refreshed = yield* observedMark(subject, state);
       subject.connection.runtime.runSync(
         Reactivity.invalidate([queryKeys.environment('environment')]),
       );
@@ -193,3 +144,29 @@ it.effect(
       );
     }),
 );
+
+const mountedMarks = Effect.fn(function* (
+  subject: Effect.Success<ReturnType<typeof fixture>>,
+) {
+  const state = readLayerMarks({ connection: subject.connection, scope });
+  const stop = subject.registry.mount(state);
+  yield* Effect.addFinalizer(() => Effect.sync(stop));
+  return state;
+});
+function observedMark(
+  subject: Effect.Success<ReturnType<typeof fixture>>,
+  state: ReturnType<typeof readLayerMarks>,
+) {
+  return Effect.forkChild(
+    AtomRegistry.toStream(subject.registry, state).pipe(
+      Stream.filter(
+        (result) =>
+          Option.getOrUndefined(AsyncResult.value(result))?.marks[0]
+            ?.layerId === layerId,
+      ),
+      Stream.take(1),
+      Stream.runHead,
+    ),
+    { startImmediately: true },
+  );
+}

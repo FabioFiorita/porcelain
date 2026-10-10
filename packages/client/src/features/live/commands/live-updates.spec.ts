@@ -137,11 +137,7 @@ it.effect(
       const serverScope = yield* Scope.Scope;
       const port = createLiveUpdates(
         Effect.gen(function* () {
-          const opened = yield* socketPort.pipe(
-            Effect.provideService(Scope.Scope, serverScope),
-          );
-          yield* Queue.offer(openings, opened);
-          return opened.socket;
+          return yield* recordedSocket(serverScope, openings);
         }),
         yield* Effect.context(),
       );
@@ -196,21 +192,11 @@ it.effect(
       yield* createLiveUpdates(
         Effect.gen(function* () {
           attempts += 1;
-          const opened = yield* socketPort.pipe(
-            Effect.provideService(Scope.Scope, serverScope),
-          );
-          yield* Queue.offer(openings, opened);
-          return opened.socket;
+          return yield* recordedSocket(serverScope, openings);
         }),
         yield* Effect.context(),
       )
-        .connect({
-          onNotice: () => {},
-          onReconnect: () => {},
-          onUnauthorized: () => {
-            Queue.offerUnsafe(revoked, undefined);
-          },
-        })
+        .connect(revocationCallbacks(revoked))
         .pipe(Effect.provideService(Scope.Scope, scope));
       const opened = yield* Queue.take(openings);
       opened.disconnect(4001);
@@ -235,16 +221,30 @@ it.effect('a rejected live ticket stops before opening an RPC socket', () =>
       }),
       yield* Effect.context(),
     )
-      .connect({
-        onNotice: () => {},
-        onReconnect: () => {},
-        onUnauthorized: () => {
-          Queue.offerUnsafe(revoked, undefined);
-        },
-      })
+      .connect(revocationCallbacks(revoked))
       .pipe(Effect.provideService(Scope.Scope, scope));
     yield* Queue.take(revoked);
     yield* TestClock.adjust(20000);
     expect(attempts).toBe(1);
   }),
 );
+
+const recordedSocket = Effect.fn(function* (
+  serverScope: Scope.Scope,
+  openings: Queue.Queue<Effect.Success<typeof socketPort>>,
+) {
+  const opened = yield* socketPort.pipe(
+    Effect.provideService(Scope.Scope, serverScope),
+  );
+  yield* Queue.offer(openings, opened);
+  return opened.socket;
+});
+function revocationCallbacks(revoked: Queue.Queue<void>) {
+  return {
+    onNotice: () => {},
+    onReconnect: () => {},
+    onUnauthorized: () => {
+      Queue.offerUnsafe(revoked, undefined);
+    },
+  };
+}

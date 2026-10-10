@@ -1,3 +1,4 @@
+import type { RequestError } from './request-error.ts';
 import { Effect, Option, Stream, SubscriptionRef } from 'effect';
 import { AsyncResult, Reactivity } from 'effect/reactivity';
 import type { WorktreeConnection } from './connection.ts';
@@ -99,3 +100,5 @@ export function confirmedResource<A, E>(
     } satisfies ConfirmedResource<A, E>;
   });
 }
+
+export type ConfirmedRequest<A, E> = ConfirmedResource<A, E | RequestError>;

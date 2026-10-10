@@ -1,43 +1,12 @@
+import { resolvedTheme } from '@porcelain/client/preferences/rules';
 import { useAtomSet, useAtomValue } from '@effect/atom-react';
 import { Atom } from 'effect/reactivity';
-import { Effect, Option, Schema } from 'effect';
-import { COMMIT_MODEL_LENGTH } from '@porcelain/contracts/shared';
 import { storageRuntime } from '@/shared/adapters/storage';
 import {
+  preferencesSchema,
   defaultPreferences,
-  resolvedTheme,
   type Preferences,
-} from './rules/preferences';
-
-function savedField<S extends Schema.ConstraintCodec<unknown, unknown>>(
-  schema: S,
-  fallback: S['Type'],
-) {
-  const repaired = Schema.catchDecoding<S>(() =>
-    Effect.succeed(Option.some(fallback)),
-  )(schema);
-  return Schema.withDecodingDefaultTypeKey<typeof repaired>(
-    Effect.succeed(fallback),
-  )(repaired);
-}
-const preferencesSchema = Schema.Struct({
-  commitModel: savedField(
-    Schema.String.check(Schema.isMaxLength(COMMIT_MODEL_LENGTH)),
-    '',
-  ),
-  pullStrategy: savedField(Schema.Literals(['merge', 'rebase']), 'merge'),
-  appearance: savedField(
-    Schema.Literals(['system', 'light', 'dark']),
-    'system',
-  ),
-  diffStyle: savedField(Schema.Literals(['unified', 'split']), 'unified'),
-  lineOverflow: savedField(Schema.Literals(['scroll', 'wrap']), 'scroll'),
-  markdownDefault: savedField(Schema.Literals(['reader', 'source']), 'reader'),
-  htmlDefault: savedField(Schema.Literals(['preview', 'source']), 'preview'),
-  collapseSpecs: savedField(Schema.Boolean, false),
-}).pipe(
-  Schema.catchDecoding(() => Effect.succeed(Option.some(defaultPreferences))),
-) satisfies Schema.ConstraintCodec<Preferences, unknown, never, never>;
+} from '@porcelain/client/preferences';
 
 const preferences = Atom.kvs({
   runtime: storageRuntime,

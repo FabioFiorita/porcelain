@@ -890,6 +890,57 @@ function primitiveValue(node) {
 export default {
   meta: { name: 'porcelain' },
   rules: {
+    'mobile-ui-imports-no-state': {
+      create(context) {
+        if (
+          !/\/apps\/mobile\/src\/components\/ui\//.test(
+            normalizedFilename(context.filename),
+          )
+        )
+          return {};
+        return {
+          ImportDeclaration(node) {
+            const source = node.source.value;
+            if (
+              !/^@porcelain\/(?:client|contracts)(?:\/|$)/.test(source) ||
+              typeOnlyImport(node) ||
+              /^@porcelain\/client\/[^/]+\/rules$/.test(source)
+            )
+              return;
+            context.report({
+              node,
+              message:
+                'Import client and contract types or pure client rules only, because native primitives decide presentation while views own client effects, queries, commands, stores and atoms.',
+            });
+          },
+        };
+      },
+    },
+
+    'hermes-array-methods': {
+      create(context) {
+        if (
+          !/\/(?:packages\/client|apps\/mobile)\/src\//.test(
+            normalizedFilename(context.filename),
+          )
+        )
+          return {};
+        return {
+          MemberExpression(node) {
+            if (
+              ['toSorted', 'toReversed', 'toSpliced', 'with'].includes(
+                memberName(node),
+              )
+            )
+              context.report({
+                node,
+                message:
+                  'Use a copied array with sort, reverse, splice or indexed assignment, because Hermes does not support Array.prototype.toSorted, toReversed, toSpliced or with.',
+              });
+          },
+        };
+      },
+    },
     ...nativeHttpRules,
     ...webRules,
     ...mobileRules,

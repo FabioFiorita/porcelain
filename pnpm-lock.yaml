@@ -207,6 +207,9 @@ importers:
       '@effect/platform-node':
         specifier: 4.0.1
         version: 4.0.1(effect@4.0.1)(redis@6.3.0(@opentelemetry/api@1.9.1))
+      '@porcelain/client':
+        specifier: workspace:*
+        version: link:../../packages/client
       '@porcelain/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts

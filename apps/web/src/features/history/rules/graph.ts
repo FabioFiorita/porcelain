@@ -2,7 +2,6 @@ import type { ListCommitsResponse } from '@porcelain/contracts/changes';
 import {
   HISTORY_GRAPH_INSET,
   HISTORY_LANE_WIDTH,
-  HISTORY_OID_LENGTH,
   HISTORY_ORDINAL_CENTURY,
   HISTORY_ORDINAL_DECADE,
   HISTORY_ORDINAL_TEENS_END,
@@ -62,14 +61,6 @@ export function historyGraphWidth(rows: readonly GraphRow[]) {
   );
 }
 
-export function shortOid(oid: string) {
-  return oid.slice(0, HISTORY_OID_LENGTH);
-}
-
-export function historyRefLabel(ref: string) {
-  return ref.replace(/^refs\/(?:heads|remotes|tags)\//u, '');
-}
-
 export function ordinal(n: number) {
   const tens = n % HISTORY_ORDINAL_CENTURY;
   const suffix =
@@ -77,20 +68,4 @@ export function ordinal(n: number) {
       ? 'th'
       : (['th', 'st', 'nd', 'rd'][n % HISTORY_ORDINAL_DECADE] ?? 'th');
   return `${n}${suffix}`;
-}
-
-export function historyFollows(
-  snapshot: ListCommitsResponse['snapshot'],
-  branchLabel: (ref: string) => string,
-) {
-  if (!snapshot) return 'This branch';
-  const head = snapshot.head;
-  switch (head.kind) {
-    case 'attached':
-      return branchLabel(head.ref);
-    case 'detached':
-      return 'Detached HEAD';
-    case 'unborn':
-      return `No commits yet on ${branchLabel(head.ref)}`;
-  }
 }
