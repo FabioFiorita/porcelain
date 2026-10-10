@@ -138,11 +138,13 @@ function Comments({
           ) : (
             <Button
               label={
-                path
-                  ? 'Comment on file'
-                  : comparison.kind === 'branch'
-                    ? 'Comment on the whole branch'
-                    : 'Comment on the whole change'
+                anchor.kind === 'codeRange'
+                  ? 'Comment on selected lines'
+                  : path
+                    ? 'Comment on file'
+                    : comparison.kind === 'branch'
+                      ? 'Comment on the whole branch'
+                      : 'Comment on the whole change'
               }
               variant="outline"
               onPress={() => setComposing(true)}
