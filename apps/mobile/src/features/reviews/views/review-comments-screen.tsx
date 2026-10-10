@@ -104,7 +104,7 @@ function Comments({
     }
   }, [highest, seen]);
   return (
-    <View className="flex-1 bg-background">
+    <View className="flex-1 bg-background" collapsable={false}>
       <Stack.Screen options={{ title: path ? 'File comments' : 'Comments' }} />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button onPress={() => router.back()}>

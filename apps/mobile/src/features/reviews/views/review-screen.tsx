@@ -47,29 +47,35 @@ function ReviewIndex({ workspace }: { workspace: ReviewWorkspace }) {
     }),
   );
   return (
-    <View className="flex-1 bg-background">
-      <View className="flex-row items-center justify-between px-4 py-2">
-        <ComparisonMenu
-          comparison={comparison}
-          bases={AsyncResult.isSuccess(bases) ? bases.value.bases : []}
-          onComparison={setComparison}
-        />
-        <Button
-          label="Refresh"
-          variant="ghost"
-          pending={result.waiting}
-          onPress={refresh}
-        />
-      </View>
-      {AsyncResult.isSuccess(result) ? (
-        <ReviewList
-          workspace={workspace}
-          snapshot={result.value}
-          comparison={comparison}
-        />
-      ) : (
-        <ReviewReadState result={result} refresh={refresh} />
-      )}
+    <View className="flex-1 bg-background" collapsable={false}>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        className="flex-1"
+        contentContainerClassName="grow gap-3 p-4"
+      >
+        <View className="flex-row items-center justify-between">
+          <ComparisonMenu
+            comparison={comparison}
+            bases={AsyncResult.isSuccess(bases) ? bases.value.bases : []}
+            onComparison={setComparison}
+          />
+          <Button
+            label="Refresh"
+            variant="ghost"
+            pending={result.waiting}
+            onPress={refresh}
+          />
+        </View>
+        {AsyncResult.isSuccess(result) ? (
+          <ReviewList
+            workspace={workspace}
+            snapshot={result.value}
+            comparison={comparison}
+          />
+        ) : (
+          <ReviewReadState result={result} refresh={refresh} />
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -103,11 +109,7 @@ function ReviewList({
       ? changeAnchor(undefined)
       : undefined;
   return (
-    <ScrollView
-      contentInsetAdjustmentBehavior="automatic"
-      className="flex-1"
-      contentContainerClassName="gap-3 p-4"
-    >
+    <View className="gap-3">
       {snapshot.kind === 'worktree' ? (
         <PublishedReview workspace={workspace} onFile={openFile} />
       ) : (
@@ -177,6 +179,6 @@ function ReviewList({
       ) : (
         <ReviewReadState result={marks.result} refresh={marks.refresh} />
       )}
-    </ScrollView>
+    </View>
   );
 }
