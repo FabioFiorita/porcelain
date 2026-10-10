@@ -160,6 +160,23 @@ describe('walkthrough stops', () => {
     });
   });
 
+  it('does not send a spec outside the current change to a Specs stop', () => {
+    const review = {
+      layers: [
+        layer('invite', [step('web/invite.ts'), step('tests/old.spec.ts')]),
+      ],
+      notExplained: [gap('tests/old.spec.ts')],
+    };
+    const stops = walkthroughStops(review, ['web/invite.ts'], {
+      specsApart: true,
+    });
+    expect(stops.map((stop) => [stop.key, stop.paths])).toEqual([
+      ['briefing', []],
+      ['decision:invite', ['web/invite.ts']],
+    ]);
+    expect(stops[1]?.kind === 'decision' && stops[1].elsewhere).toEqual([]);
+  });
+
   it('lists unexplained lines inside an explained file under the decision that shows the file', () => {
     const stops = walkthroughStops(
       {
@@ -317,21 +334,21 @@ describe('system changes', () => {
     layers: [layer('invite', [step('a.ts')]), layer('owners', [step('b.ts')])],
     diagram: {
       after: {
-        lanes: ['Behaviors', 'Owners'],
         boxes: [
           {
             id: 'b1',
-            lane: 0,
+            decision: true,
+
             label: 'Decision invite',
-            kind: 'component',
+
             change: 'changed',
             layerId: 'invite',
           },
           {
             id: 'outbox',
-            lane: 1,
+
             label: 'Delivery outbox',
-            kind: 'component',
+
             change: 'new',
             detail: 'Owns retry identity',
             problem: 'Shares no transaction with the journal',
@@ -339,19 +356,19 @@ describe('system changes', () => {
           },
           {
             id: 'policy',
-            lane: 1,
+
             label: 'Workspace policy',
-            kind: 'component',
+
             change: 'changed',
           },
           {
             id: 'legacy',
-            lane: 1,
+
             label: 'Page-owned writes',
-            kind: 'storage',
+
             change: 'removed',
           },
-          { id: 'actor', lane: 1, label: 'Actor', kind: 'actor' },
+          { id: 'actor', label: 'Actor' },
         ],
         arrows: [
           { from: 'b1', to: 'outbox', label: 'enqueues through' },
@@ -401,6 +418,70 @@ describe('system changes', () => {
       ['relates to', true, 'Workspace policy', 'changed'],
       ['starts', false, 'Actor', undefined],
     ]);
+  });
+
+  it('follows the guide when a decision introduces its linked owner, regardless of either label', () => {
+    const guide = {
+      layers: [layer('delivery', [step('outbox.ts')])],
+      diagram: {
+        after: {
+          boxes: [
+            {
+              id: 'decision',
+              label: 'Introduce delivery',
+              decision: true as const,
+              layerId: 'delivery',
+              change: 'changed' as const,
+            },
+            {
+              id: 'outbox',
+              label: 'Delivery outbox',
+              change: 'new' as const,
+              detail: 'Owns retry identity',
+              layerId: 'delivery',
+            },
+            {
+              id: 'same-title',
+              label: 'Decision delivery',
+              change: 'changed' as const,
+            },
+          ],
+          arrows: [{ from: 'decision', to: 'outbox', label: 'uses' }],
+        },
+      },
+    };
+    expect(systemChanges(guide).changed.map((part) => part.id)).toEqual([
+      'same-title',
+    ]);
+    expect(decisionLinks(guide, 'delivery')).toEqual([
+      {
+        verb: 'uses',
+        outgoing: true,
+        change: 'new',
+        part: {
+          id: 'outbox',
+          label: 'Delivery outbox',
+          detail: 'Owns retry identity',
+          problem: undefined,
+          decision: 1,
+        },
+      },
+    ]);
+    expect(decisionLinks(guide, 'unknown')).toEqual([]);
+    expect(
+      decisionLinks(
+        {
+          ...guide,
+          diagram: {
+            after: {
+              ...guide.diagram.after,
+              boxes: guide.diagram.after.boxes.filter((box) => !box.decision),
+            },
+          },
+        },
+        'delivery',
+      ),
+    ).toEqual([]);
   });
 
   it('has nothing to say without a published diagram', () => {

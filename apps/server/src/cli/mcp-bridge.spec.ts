@@ -112,3 +112,68 @@ it('answers a request the owner refuses with an empty body, and leaves a refused
     },
   ]);
 });
+
+it.each([null, 23])(
+  'correlates an HTTP 400 JSON-RPC refusal with owner id %s to the request and preserves its error',
+  async (ownerId) => {
+    const output = await relayThroughOwner(
+      (_request, response) => {
+        response.writeHead(400, { 'content-type': 'application/json' });
+        response.end(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: ownerId,
+            error: {
+              code: -32600,
+              message: 'Invalid session',
+              data: { reason: 'expired' },
+            },
+          }),
+        );
+      },
+      [{ jsonrpc: '2.0', id: 23, method: 'tools/list' }],
+    );
+    expect(output).toEqual([
+      {
+        jsonrpc: '2.0',
+        id: 23,
+        error: {
+          code: -32600,
+          message: 'Invalid session',
+          data: { reason: 'expired' },
+        },
+      },
+    ]);
+  },
+);
+
+it('answers an unreachable owner for each request and keeps notifications silent', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'pc-mcp-absent-'));
+  const output: unknown[] = [];
+  try {
+    await Effect.runPromise(
+      runMcpBridge(
+        directory,
+        1000,
+        Readable.from(
+          [
+            { jsonrpc: '2.0', method: 'notifications/initialized' },
+            { jsonrpc: '2.0', id: 'request', method: 'tools/list' },
+          ].map((message) => `${JSON.stringify(message)}\n`),
+        ),
+        (line) => {
+          output.push(JSON.parse(line));
+        },
+      ),
+    );
+    expect(output).toEqual([
+      {
+        jsonrpc: '2.0',
+        id: 'request',
+        error: { code: -32000, message: 'Porcelain is not running.' },
+      },
+    ]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

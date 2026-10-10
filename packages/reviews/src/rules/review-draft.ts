@@ -17,19 +17,26 @@ function layerProblem(layer: LayerDraft): ReviewDraftProblem | undefined {
     return { kind: 'reversed-pointer' };
   if (layer.steps.some((step) => step.lane >= layer.lanes.length))
     return { kind: 'step-lane-out-of-range' };
-  const steps = new Set(layer.steps.map((step) => step.id));
-  if (
-    (layer.arrows ?? []).some(
-      (arrow) => !steps.has(arrow.from) || !steps.has(arrow.to),
-    )
-  )
-    return { kind: 'unknown-arrow-step' };
   return undefined;
 }
 
-function diagramProblem(diagram: Diagram): ReviewDraftProblem | undefined {
-  if (diagram.boxes.some((box) => box.lane >= diagram.lanes.length))
-    return { kind: 'box-lane-out-of-range' };
+function diagramProblem(
+  diagram: Diagram,
+  layers: readonly LayerDraft[],
+): ReviewDraftProblem | undefined {
+  const layerIds = new Set(layers.map((layer) => layer.id));
+  if (
+    diagram.boxes.some(
+      (box) => box.layerId !== undefined && !layerIds.has(box.layerId),
+    )
+  )
+    return { kind: 'unknown-box-layer' };
+  const decisions = diagram.boxes.filter((box) => box.decision);
+  if (
+    decisions.some((box) => box.layerId === undefined) ||
+    repeats(decisions.map((box) => box.layerId ?? ''))
+  )
+    return { kind: 'invalid-decision-box' };
   const boxes = new Set(diagram.boxes.map((box) => box.id));
   if (
     diagram.arrows.some(
@@ -45,15 +52,11 @@ export function reviewDraftProblem(
 ): ReviewDraftProblem | undefined {
   if (repeats(draft.layers.map((layer) => layer.id)))
     return { kind: 'duplicate-layer-id' };
-  const diagrams = draft.diagram
-    ? [
-        draft.diagram.after,
-        ...(draft.diagram.before ? [draft.diagram.before] : []),
-      ]
-    : [];
   return (
     draft.layers.map(layerProblem).find((problem) => problem !== undefined) ??
-    diagrams.map(diagramProblem).find((problem) => problem !== undefined) ??
+    (draft.diagram
+      ? diagramProblem(draft.diagram.after, draft.layers)
+      : undefined) ??
     (proofTargetsKnown(draft.proof, draft.layers)
       ? undefined
       : { kind: 'unknown-proof-target' })

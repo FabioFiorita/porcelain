@@ -90,7 +90,7 @@ it.effect(
         connection: subject.connection,
         scope,
       });
-      subject.registry.set(command, { layerId, fingerprint, reviewed: false });
+      subject.registry.set(command, { layerId, fingerprint, action: 'mark' });
       expect(
         yield* AtomRegistry.getResult(subject.registry, command, {
           suspendOnWaiting: true,
@@ -156,7 +156,7 @@ it.effect(
         connection: subject.connection,
         scope,
       });
-      subject.registry.set(command, { layerId, fingerprint, reviewed: true });
+      subject.registry.set(command, { layerId, fingerprint, action: 'unmark' });
       expect(
         (yield* AtomRegistry.getResult(subject.registry, command, {
           suspendOnWaiting: true,

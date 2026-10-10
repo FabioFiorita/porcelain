@@ -102,7 +102,7 @@ import {
   WorktreeUnavailableError,
 } from '@porcelain/projects/errors';
 import {
-  BoxLaneOutOfRangeError,
+  UnknownBoxLayerError,
   CommentAuthorMismatchError,
   CommentIdentityConflictError,
   CommentLimitExceededError,
@@ -119,7 +119,7 @@ import {
   ReviewSummaryNotFoundError,
   StepLaneOutOfRangeError,
   UnknownArrowBoxError,
-  UnknownArrowStepError,
+  InvalidDecisionBoxError,
   UnknownProofFileError,
   UnknownProofTargetError,
   UnsupportedCommentComparisonError,
@@ -180,8 +180,8 @@ const rules: readonly StatusRule[] = [
       MissingUpstreamExpectationError,
       DuplicateStepIdError,
       StepLaneOutOfRangeError,
-      UnknownArrowStepError,
-      BoxLaneOutOfRangeError,
+      InvalidDecisionBoxError,
+      UnknownBoxLayerError,
       UnknownArrowBoxError,
       DuplicateLayerIdError,
     ],

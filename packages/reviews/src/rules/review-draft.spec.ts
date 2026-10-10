@@ -25,17 +25,15 @@ function layer(id: string, overrides: Partial<LayerDraft> = {}): LayerDraft {
     summary: 'A layer',
     lanes: ['Docs', 'Code'],
     steps: [step('step-a'), step('step-b', 1)],
-    arrows: [{ from: 'step-a', to: 'step-b' }],
     ...overrides,
   };
 }
 
 function diagram(overrides: Partial<Diagram> = {}): Diagram {
   return {
-    lanes: ['Client', 'Server'],
     boxes: [
-      { id: 'box-a', lane: 0, label: 'Browser', kind: 'actor' },
-      { id: 'box-b', lane: 1, label: 'API', kind: 'component' },
+      { id: 'box-a', label: 'Browser' },
+      { id: 'box-b', label: 'API' },
     ],
     arrows: [{ from: 'box-a', to: 'box-b' }],
     ...overrides,
@@ -46,7 +44,7 @@ function draft(overrides: Partial<ReviewDraft> = {}): ReviewDraft {
   return {
     expectedRevision: 0,
     summaryHtml: '<p>Summary</p>',
-    diagram: { after: diagram(), before: diagram() },
+    diagram: { after: diagram() },
     layers: [layer('layer-a'), layer('layer-b')],
     ...overrides,
   };
@@ -69,10 +67,10 @@ describe('reviewDraftProblem', () => {
     });
   });
 
-  it('accepts a review without a diagram or layer arrows', () => {
+  it('accepts a review without a diagram', () => {
     const plain = draft({
       diagram: undefined,
-      layers: [layer('layer-a', { arrows: undefined })],
+      layers: [layer('layer-a')],
     });
     expect(reviewDraftProblem(plain)).toBeUndefined();
   });
@@ -80,7 +78,6 @@ describe('reviewDraftProblem', () => {
   it('refuses a step id used twice in one layer', () => {
     const repeated = layer('layer-a', {
       steps: [step('step-a'), step('step-a', 1)],
-      arrows: [],
     });
     expect(reviewDraftProblem(draft({ layers: [repeated] }))).toEqual({
       kind: 'duplicate-step-id',
@@ -96,51 +93,71 @@ describe('reviewDraftProblem', () => {
   });
 
   it('accepts a step on the last lane and refuses one past it', () => {
-    const last = layer('layer-a', { steps: [step('step-a', 1)], arrows: [] });
-    const past = layer('layer-a', { steps: [step('step-a', 2)], arrows: [] });
+    const last = layer('layer-a', { steps: [step('step-a', 1)] });
+    const past = layer('layer-a', { steps: [step('step-a', 2)] });
     expect(reviewDraftProblem(draft({ layers: [last] }))).toBeUndefined();
     expect(reviewDraftProblem(draft({ layers: [past] }))).toEqual({
       kind: 'step-lane-out-of-range',
     });
   });
 
-  it.each([
-    { name: 'to', arrow: { from: 'step-a', to: 'elsewhere' } },
-    { name: 'from', arrow: { from: 'elsewhere', to: 'step-b' } },
-  ])(
-    'refuses a layer arrow $name a step the layer does not have',
-    ({ arrow }) => {
-      expect(
-        reviewDraftProblem(
-          draft({ layers: [layer('layer-a', { arrows: [arrow] })] }),
-        ),
-      ).toEqual({ kind: 'unknown-arrow-step' });
-    },
-  );
-
-  it('refuses a layer arrow that names a step of another layer', () => {
-    const other = layer('layer-b', {
-      steps: [step('step-c')],
-      arrows: [{ from: 'step-c', to: 'step-a' }],
-    });
-    expect(
-      reviewDraftProblem(draft({ layers: [layer('layer-a'), other] })),
-    ).toEqual({ kind: 'unknown-arrow-step' });
-  });
-
-  it('refuses a diagram box past its lanes, in the after or the before diagram', () => {
-    const outside = diagram({
-      boxes: [{ id: 'box-a', lane: 2, label: 'Lost', kind: 'storage' }],
-      arrows: [],
-    });
-    expect(reviewDraftProblem(draft({ diagram: { after: outside } }))).toEqual({
-      kind: 'box-lane-out-of-range',
-    });
+  it('accepts an owner and its decision with the same published layer, but refuses an unknown box layer', () => {
+    const boxes = [
+      {
+        id: 'decision',
+        label: 'Introduce delivery',
+        layerId: 'layer-a',
+        decision: true as const,
+      },
+      { id: 'outbox', label: 'Delivery outbox', layerId: 'layer-a' },
+    ];
     expect(
       reviewDraftProblem(
-        draft({ diagram: { after: diagram(), before: outside } }),
+        draft({ diagram: { after: diagram({ boxes, arrows: [] }) } }),
       ),
-    ).toEqual({ kind: 'box-lane-out-of-range' });
+    ).toBeUndefined();
+    expect(
+      reviewDraftProblem(
+        draft({
+          diagram: {
+            after: diagram({
+              boxes: [{ ...boxes[1]!, layerId: 'unknown' }],
+              arrows: [],
+            }),
+          },
+        }),
+      ),
+    ).toEqual({ kind: 'unknown-box-layer' });
+  });
+
+  it('refuses a decision marker without its layer or a second decision box for the same layer', () => {
+    const decision = {
+      id: 'decision',
+      label: 'Introduce delivery',
+      decision: true as const,
+    };
+    expect(
+      reviewDraftProblem(
+        draft({
+          diagram: { after: diagram({ boxes: [decision], arrows: [] }) },
+        }),
+      ),
+    ).toEqual({ kind: 'invalid-decision-box' });
+    expect(
+      reviewDraftProblem(
+        draft({
+          diagram: {
+            after: diagram({
+              boxes: [
+                { ...decision, layerId: 'layer-a' },
+                { ...decision, id: 'other', layerId: 'layer-a' },
+              ],
+              arrows: [],
+            }),
+          },
+        }),
+      ),
+    ).toEqual({ kind: 'invalid-decision-box' });
   });
 
   it.each([

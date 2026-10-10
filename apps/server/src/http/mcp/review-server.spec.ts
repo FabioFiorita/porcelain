@@ -1,39 +1,42 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { Effect } from 'effect';
+import { Context, Effect, Layer } from 'effect';
+import { McpSchema, McpServer } from 'effect/ai';
+import { reviewMcpHandlers, type ReviewMcpUseCases } from './review-server.ts';
 import { expect, it } from 'vitest';
 import { openHttpApplication } from '@porcelain/server/kit/http';
 import { reviewMcp } from '../protocol/mcp.ts';
 import { LIMITS } from '../../config/limits.ts';
 
-it('serves native typed tools to MCP SDK clients with strict defaults and an independent cwd on every invocation', async () => {
-  const calls: unknown[] = [];
+function useCases(calls: unknown[]): ReviewMcpUseCases {
   const unused = {
     execute: () => Effect.die(new Error('Unexpected operation')),
   };
-  const http = await openHttpApplication(
-    reviewMcp({
-      limits: LIMITS.http,
-      useCases: {
-        reviewTools: {
-          atWorktreePath: {
-            execute: (input) => {
-              calls.push({ cwd: input.cwd, request: input.request });
-              return input.operation.execute({
-                ...input.request,
-                worktreeId: 'a0000000-0000-4000-8000-000000000001',
-              });
-            },
-          },
-          listCommentThreads: { execute: () => Effect.succeed([]) },
-          publishReview: unused,
-          readPublishedReview: unused,
-          createCommentThread: unused,
-          replyToComment: unused,
-          updateCommentThread: unused,
+  return {
+    reviewTools: {
+      atWorktreePath: {
+        execute: (input) => {
+          calls.push({ cwd: input.cwd, request: input.request });
+          return input.operation.execute({
+            ...input.request,
+            worktreeId: 'a0000000-0000-4000-8000-000000000001',
+          });
         },
       },
-    }),
+      listCommentThreads: { execute: () => Effect.succeed([]) },
+      publishReview: unused,
+      readPublishedReview: unused,
+      createCommentThread: unused,
+      replyToComment: unused,
+      updateCommentThread: unused,
+    },
+  };
+}
+
+it('serves native typed tools to MCP SDK clients with strict defaults and an independent cwd on every invocation', async () => {
+  const calls: unknown[] = [];
+  const http = await openHttpApplication(
+    reviewMcp({ limits: LIMITS.http, useCases: useCases(calls) }),
     { kind: 'owner' },
   );
   const first = new Client({ name: 'first-agent', version: '1' });
@@ -110,4 +113,83 @@ it('serves native typed tools to MCP SDK clients with strict defaults and an ind
     await second.close();
     await http.close();
   }
+});
+
+it.each([
+  { name: 'missing', headers: {} },
+  { name: 'empty', headers: { 'x-porcelain-cwd': '' } },
+])(
+  'refuses a $name cwd header as HTTP 400 before invoking any tool',
+  async ({ headers }) => {
+    const calls: unknown[] = [];
+    const http = await openHttpApplication(
+      reviewMcp({ limits: LIMITS.http, useCases: useCases(calls) }),
+      { kind: 'owner' },
+    );
+
+    try {
+      const response = await http.send({
+        method: 'POST',
+        path: '/mcp',
+        headers,
+        body: {
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/call',
+          params: { name: 'list_comments', arguments: {} },
+        },
+      });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'The x-porcelain-cwd header is required',
+      });
+      expect(calls).toEqual([]);
+    } finally {
+      await http.close();
+    }
+  },
+);
+
+it('returns a typed Bad Request from a tool invocation with no HTTP cwd context', async () => {
+  const calls: unknown[] = [];
+  const result = await Effect.runPromise(
+    Effect.scoped(
+      Effect.gen(function* () {
+        const context = yield* Layer.build(
+          reviewMcpHandlers(useCases(calls)).pipe(
+            Layer.provideMerge(McpServer.McpServer.layer),
+          ),
+        );
+        const server = Context.get(context, McpServer.McpServer);
+        return yield* server
+          .callTool({ name: 'list_comments', arguments: {} })
+          .pipe(
+            Effect.provideService(McpSchema.McpServerClient, {
+              clientId: 1,
+              protocolVersion: '2025-11-25',
+              clientCapabilities: {},
+              clientInfo: { name: 'test', version: '1' },
+              initializePayload: {
+                protocolVersion: '2025-11-25',
+                capabilities: {},
+                clientInfo: { name: 'test', version: '1' },
+              },
+              getClient: Effect.die(new Error('Unexpected client access')),
+            }),
+          );
+      }),
+    ),
+  );
+  expect(result).toMatchObject({
+    isError: true,
+    content: [
+      {
+        type: 'text',
+        text: '{"statusCode":400,"error":"Bad Request","message":"The x-porcelain-cwd header is required"}',
+      },
+    ],
+  });
+  expect(calls).toEqual([]);
 });

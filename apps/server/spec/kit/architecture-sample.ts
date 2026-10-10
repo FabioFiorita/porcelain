@@ -396,26 +396,19 @@ export async function seedArchitectureSample(session: Session) {
       kind: 'context',
       pointer: { path: contextPath, startLine: 1, endLine: 1 },
     });
-    const layerArrows = steps.slice(1, 4).map((step, index) => ({
-      from: steps[index]!.id,
-      to: step.id,
-      label: index === 0 ? 'prepares' : 'calls',
-    }));
     layers.push({
       id,
       title: scenario.title,
       summary: scenario.decision,
       lanes,
       steps,
-      arrows: layerArrows,
     });
     const node = randomUUID();
     boxes.push({
       id: node,
-      lane: 0,
+      decision: true,
       label: scenario.title,
       detail: scenario.decision,
-      kind: 'component',
       change: 'changed',
       layerId: id,
     });
@@ -425,10 +418,8 @@ export async function seedArchitectureSample(session: Session) {
       owners.set(scenario.owner, owner);
       boxes.push({
         id: owner.id,
-        lane: 1,
         label: scenario.owner,
         detail: `Shared by the related behaviors. ${scenario.decision}`,
-        kind: 'component',
         change: scenario.owner === 'Workspace policy' ? 'changed' : 'new',
         layerId: id,
         ...(scenario.owner === 'Delivery outbox'
@@ -443,7 +434,7 @@ export async function seedArchitectureSample(session: Session) {
   }
   const journal = owners.get('Revision journal');
   const policy = owners.get('Workspace policy');
-  for (const box of boxes.filter((item) => item.lane === 0)) {
+  for (const box of boxes.filter((item) => item.decision)) {
     if (
       journal &&
       !arrows.some((arrow) => arrow.from === box.id && arrow.to === journal.id)
@@ -456,31 +447,11 @@ export async function seedArchitectureSample(session: Session) {
       arrows.push({ from: box.id, to: policy.id, label: 'authorizes through' });
   }
   const legacy = randomUUID();
-  const before = {
-    lanes: ['Behaviors', 'Persistence'],
-    boxes: [
-      ...boxes
-        .filter((box) => box.lane === 0)
-        .map((box) => ({ ...box, change: undefined })),
-      {
-        id: legacy,
-        lane: 1,
-        label: 'Page-owned writes',
-        detail: 'Each page owns an independent write path.',
-        kind: 'storage' as const,
-      },
-    ],
-    arrows: boxes
-      .filter((box) => box.lane === 0)
-      .map((box) => ({ from: box.id, to: legacy, label: 'writes directly' })),
-  };
   boxes.push({
     id: legacy,
-    lane: 1,
     label: 'Page-owned writes',
     detail:
       'The old write path is removed. Shared owners now decide mutations.',
-    kind: 'storage',
     change: 'removed',
   });
   const sharedLayer = randomUUID();
@@ -519,7 +490,7 @@ export async function seedArchitectureSample(session: Session) {
     steps: sharedSteps,
   });
   const afterBoxes = boxes.map((box) =>
-    box.lane === 1 && box.change !== 'removed'
+    !box.decision && box.change !== 'removed'
       ? { ...box, layerId: sharedLayer }
       : box,
   );
@@ -528,9 +499,7 @@ export async function seedArchitectureSample(session: Session) {
     summaryHtml:
       '<!doctype html><style>body{font:16px/1.5 system-ui;padding:2rem;max-width:48rem;color:var(--porcelain-foreground);background:var(--porcelain-background)}a{color:inherit}</style><h1>A workspace grows shared owners</h1><p>This wholly synthetic sample contains eight behaviors and a shared ownership change. Explore the map and follow each decision into its code.</p><p>Some work is intentionally unexplained, and one location changes after publication.</p><a href="#layer-9">Shared mutation boundary</a>',
     diagram: {
-      before,
       after: {
-        lanes: ['Behaviors', 'Shared owners'],
         boxes: afterBoxes,
         arrows,
       },
