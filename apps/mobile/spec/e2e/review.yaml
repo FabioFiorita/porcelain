@@ -19,7 +19,8 @@ name: Review a file, mark it reviewed and post native feedback
 - assertVisible: Unmark README.md as unreviewed
 - tapOn: Comment on file
 - assertVisible: Review comment
-- tapOn: Review comment
+- tapOn:
+    id: review-comment-input
 - inputText: Please explain this change.
 - tapOn: Add comment
 - assertVisible: Please explain this change.

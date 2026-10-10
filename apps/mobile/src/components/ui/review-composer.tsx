@@ -30,6 +30,7 @@ export function ReviewComposer({
       ) : null}
       <Field label="Review comment" error={error}>
         <Input
+          testID="review-comment-input"
           accessibilityLabel="Review comment"
           placeholder="Share feedback…"
           multiline
