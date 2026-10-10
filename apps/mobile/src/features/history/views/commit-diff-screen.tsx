@@ -9,6 +9,7 @@ import { FileHeader } from '../../../components/ui/file-header';
 import { DiffView } from '../../../components/ui/diff-view';
 import { patchLines } from '../../../shared/rules/patch-lines';
 import { useSelectedWorktree } from '../../projects';
+import { usePreferences } from '../../preferences';
 import {
   useCommit,
   useCommitPatch,
@@ -103,6 +104,7 @@ function FilePatch({
   parent: number;
   file: CommitFile;
 }) {
+  const { preferences } = usePreferences();
   const patch = useCommitPatch(selection, oid, parent, commitPaths(file));
   const content = patch.value;
   const parsed =
@@ -141,7 +143,7 @@ function FilePatch({
           retry={{ label: 'Retry', onPress: patch.retry }}
         />
       ) : parsed?.kind === 'text' ? (
-        <DiffView lines={parsed.lines} />
+        <DiffView lines={parsed.lines} wrap={preferences.wrapLongLines} />
       ) : (
         <Empty
           title="No code change"
