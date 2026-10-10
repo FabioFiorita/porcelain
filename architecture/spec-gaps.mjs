@@ -18,9 +18,29 @@ function parse(path, source) {
 }
 
 export function unspecifiedExports(path, source, specSource) {
-  const exports = [];
-  for (const node of parse(path, source).body) {
-    if (node.type === 'ExportDefaultDeclaration') exports.push('default');
+  const exports = new Map();
+  const sourceNodes = parse(path, source).body;
+  const callable = (node) =>
+    [
+      'FunctionDeclaration',
+      'ClassDeclaration',
+      'ArrowFunctionExpression',
+      'FunctionExpression',
+      'ClassExpression',
+    ].includes(node?.type);
+  const locals = new Map();
+  for (const node of sourceNodes) {
+    const declaration = node.declaration ?? node;
+    if (declaration.id?.name)
+      locals.set(declaration.id.name, callable(declaration));
+    if (declaration.type === 'VariableDeclaration')
+      for (const entry of declaration.declarations)
+        if (entry.id.type === 'Identifier')
+          locals.set(entry.id.name, callable(entry.init));
+  }
+  for (const node of sourceNodes) {
+    if (node.type === 'ExportDefaultDeclaration')
+      exports.set('default', callable(node.declaration));
     if (node.type !== 'ExportNamedDeclaration' || node.exportKind === 'type')
       continue;
     if (node.source) continue;
@@ -29,15 +49,19 @@ export function unspecifiedExports(path, source, specSource) {
       declaration?.type === 'FunctionDeclaration' ||
       declaration?.type === 'ClassDeclaration'
     )
-      exports.push(declaration.id.name);
+      exports.set(declaration.id.name, true);
     if (declaration?.type === 'VariableDeclaration')
       for (const entry of declaration.declarations)
-        if (entry.id.type === 'Identifier') exports.push(entry.id.name);
+        if (entry.id.type === 'Identifier')
+          exports.set(entry.id.name, callable(entry.init));
     for (const entry of node.specifiers)
       if (entry.exportKind !== 'type')
-        exports.push(entry.exported.name ?? entry.exported.value);
+        exports.set(
+          entry.exported.name ?? entry.exported.value,
+          locals.get(entry.local.name) ?? false,
+        );
   }
-  if (specSource === undefined) return exports;
+  if (specSource === undefined) return [...exports.keys()];
   const spec = parse(path.replace(/\.ts$/, '.spec.ts'), specSource);
   const bindings = new Map();
   const namespaces = new Set();
@@ -63,6 +87,15 @@ export function unspecifiedExports(path, source, specSource) {
     }
   }
   const called = new Set();
+  const valueReference = (node) => {
+    if (node.type === 'Identifier') return bindings.get(node.name);
+    if (
+      node.type === 'MemberExpression' &&
+      node.object.type === 'Identifier' &&
+      namespaces.has(node.object.name)
+    )
+      return node.property.name ?? node.property.value;
+  };
   walk(spec, (node) => {
     if (node.type !== 'CallExpression' && node.type !== 'NewExpression') return;
     const callee = node.callee;
@@ -74,8 +107,18 @@ export function unspecifiedExports(path, source, specSource) {
       namespaces.has(callee.object.name)
     )
       called.add(callee.property.name ?? callee.property.value);
+    let owner = callee;
+    while (owner.type === 'MemberExpression' && !valueReference(owner))
+      owner = owner.object;
+    const name = valueReference(owner);
+    if (exports.get(name) === false) called.add(name);
+    for (const argument of node.arguments)
+      walk(argument, (reference) => {
+        const name = valueReference(reference);
+        if (exports.get(name) === false) called.add(name);
+      });
   });
-  return exports.filter((name) => !called.has(name));
+  return [...exports.keys()].filter((name) => !called.has(name));
 }
 
 export function specGapProblems(current, baseline, allowed) {
