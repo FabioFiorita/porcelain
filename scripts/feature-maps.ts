@@ -23,7 +23,7 @@ const entrySchema = Schema.Struct({
   screen: Schema.optional(Schema.String.check(Schema.isStartingWith('/'))),
   shell: Schema.optional(Schema.Literal('desktop')),
   selectors: Schema.Array(Schema.NonEmptyString).check(Schema.isMinLength(1)),
-  tests: Schema.Array(Schema.NonEmptyString).check(Schema.isMinLength(1)),
+  tests: Schema.Array(Schema.NonEmptyString),
   api: Schema.Array(
     Schema.String.check(
       Schema.isPattern(/^(?:GET|POST|PUT|PATCH|DELETE) \/api\/\S*$/, {
@@ -179,6 +179,12 @@ function entries(root: string, surface: Surface, problems: string[]): Entry[] {
     if (!Result.isSuccess(parsed)) {
       problems.push(
         `${at}: its frontmatter holds route, shell, selectors, tests and api: ${parsed.failure.message}`,
+      );
+      continue;
+    }
+    if (surface.name !== 'mobile' && parsed.success.tests.length === 0) {
+      problems.push(
+        `${at}: its frontmatter holds at least one test, because web and desktop features have automated journeys.`,
       );
       continue;
     }

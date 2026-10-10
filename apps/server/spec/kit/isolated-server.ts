@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   Context,
   Effect,
@@ -1132,7 +1133,7 @@ export class IsolatedServer extends ServerHandle {
       {
         cwd: repositoryRoot,
         env: sample ? { ...env, PORCELAIN_DEV_SAMPLE: sample } : env,
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: ['pipe', 'pipe', 'pipe'],
       },
     );
     const output = { stdout: '', stderr: '' };
@@ -1164,6 +1165,43 @@ export class IsolatedServer extends ServerHandle {
 
   logs() {
     return { ...this.output };
+  }
+
+  async advanceTime(milliseconds: number): Promise<void> {
+    const id = randomUUID();
+    const output = this.child.stdout;
+    if (!output || !this.child.stdin)
+      throw new Error('The isolated clock control is unavailable');
+    await new Promise<void>((resolveAdvance, rejectAdvance) => {
+      let pending = '';
+      const cleanup = () => {
+        output.off('data', read);
+        this.child.off('close', closed);
+      };
+      const closed = () => {
+        cleanup();
+        rejectAdvance(
+          new Error('The server exited before advancing its clock'),
+        );
+      };
+      const read = (chunk: Buffer) => {
+        pending += chunk.toString();
+        let end: number;
+        while ((end = pending.indexOf('\n')) !== -1) {
+          const line = pending.slice(0, end);
+          pending = pending.slice(end + 1);
+          if (line === JSON.stringify({ advancedTime: id })) {
+            cleanup();
+            resolveAdvance();
+          }
+        }
+      };
+      output.on('data', read);
+      this.child.once('close', closed);
+      this.child.stdin?.write(
+        `${JSON.stringify({ advanceTime: milliseconds, id })}\n`,
+      );
+    });
   }
 
   async stop(): Promise<string | undefined> {

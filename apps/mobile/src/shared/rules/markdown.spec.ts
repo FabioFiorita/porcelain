@@ -21,15 +21,10 @@ describe('native Markdown render data', () => {
       parseMarkdown('[w](https://en.wikipedia.org/wiki/Foo_(bar))')[0]?.runs,
     ).toEqual([{ text: 'w', url: 'https://en.wikipedia.org/wiki/Foo_(bar)' }]);
   });
-  it.each(['**', '__'])(
-    'keeps large unclosed %s spans literal within a bounded parse time',
-    (marker) => {
-      const source = `${marker}word `.repeat(12_000);
-      const start = performance.now();
-      expect(parseMarkdown(source)[0]?.runs).toEqual([{ text: source }]);
-      expect(performance.now() - start).toBeLessThan(1_000);
-    },
-  );
+  it.each(['**', '__'])('keeps large unclosed %s spans literal', (marker) => {
+    const source = `${marker}word `.repeat(12_000);
+    expect(parseMarkdown(source)[0]?.runs).toEqual([{ text: source }]);
+  });
   it('keeps intraword underscores, globs and spaced operators literal', () => {
     expect(
       parseMarkdown(

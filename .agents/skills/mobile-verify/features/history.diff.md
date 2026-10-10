@@ -8,8 +8,7 @@ selectors:
 api:
   - GET /api/worktrees/:worktreeId/commits/:oid/files
   - POST /api/worktrees/:worktreeId/commits/:oid/diffs
-tests:
-  - apps/mobile/spec/e2e/history.e2e.ts
+tests: []
 ---
 
 # history.diff

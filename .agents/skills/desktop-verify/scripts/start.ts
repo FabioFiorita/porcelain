@@ -1,14 +1,8 @@
 import { Schema } from 'effect';
 import { readHealthResponseSchema } from '@porcelain/contracts/access';
-import {
-  launchOptions,
-  sampleRepository,
-} from '../../../../apps/desktop/spec/kit/launch.ts';
-import {
-  electronExecutable,
-  stageDesktop,
-} from '../../../../apps/desktop/spec/kit/stage.ts';
-import { ownerStatus } from '../../../../apps/server/spec/kit/owner.ts';
+import { launchOptions, sampleRepository } from '@porcelain/desktop/kit/launch';
+import { electronExecutable, stageDesktop } from '@porcelain/desktop/kit/stage';
+import { ownerStatus } from '@porcelain/server/kit/owner';
 import { spawn } from 'node:child_process';
 import { appendFileSync, existsSync } from 'node:fs';
 import { cp, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';

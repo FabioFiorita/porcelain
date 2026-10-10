@@ -1,19 +1,16 @@
-import { agentActs } from '../../../apps/server/spec/kit/agent.ts';
+import { agentActs } from '@porcelain/server/kit/agent';
 import {
   kitHeaders,
   Recorder,
   ServerHandle,
-} from '../../../apps/server/spec/kit/isolated-server.ts';
-import {
-  pairingGrant,
-  toolText,
-} from '../../../apps/server/spec/kit/requests.ts';
+} from '@porcelain/server/kit/isolated-server';
+import { pairingGrant, toolText } from '@porcelain/server/kit/requests';
 import type {
   AgentAction,
   ProofCheckStep,
   Session,
-} from '../../../apps/server/spec/kit/session.ts';
-import { serverReaders } from '../../../apps/server/spec/kit/typed-readers.ts';
+} from '@porcelain/server/kit/session';
+import { serverReaders } from '@porcelain/server/kit/typed-readers';
 import { Usage } from './cli.ts';
 
 export const serverOptions = {
@@ -25,22 +22,6 @@ export const serverOptions = {
   remote: { type: 'boolean', default: false },
   trusted: { type: 'boolean', default: false },
 } as const;
-
-export const serverUsage = `  agent publish-review "<title>" [--context] [--summary-html <html>]
-                          the agent publishes the sample review: one layer, one step on README.md line 3
-  agent publish-architecture
-                          seed a large synthetic review with shared owners, before/after maps, stale code and coverage gaps
-  agent publish-proof "<title>" --check "<name>=pass|fail|skipped" [--output "<name>=<text>"] --screenshot "<title>"
-  agent comment <path> "<body>"
-  agent reply <threadId|latest> "<body>"
-  server published-review | reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | pending-links | receipt <requestId>
-                          print the server's state as JSON
-      agent and server take --remote to act on the second computer
-  pair                    pair the browser through a fresh one-time link
-  remote start            start a second disposable computer for the remote-computer features
-  remote pairing-link [--trusted]
-                          print a one-time link that adds the second computer
-`;
 
 type ServerValues = {
   context?: boolean | undefined;

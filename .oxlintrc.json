@@ -133,7 +133,9 @@
     "porcelain/naming": "error",
     "porcelain/interfaces-only-in-ports": "error",
     "porcelain/no-port-shaped-alias": "error",
-    "eqeqeq": "error"
+    "eqeqeq": "error",
+    "porcelain/spec-no-clock": "error",
+    "porcelain/server-spec-no-waits": "error"
   },
   "overrides": [
     {

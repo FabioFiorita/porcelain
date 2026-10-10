@@ -15,9 +15,9 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import {
   IsolatedServer,
   Recorder,
-} from '../../../../apps/server/spec/kit/isolated-server.ts';
-import { prepareRemote } from '../../../../apps/server/spec/kit/remote-computer.ts';
-import { buildIsolatedServer } from '../../../../apps/server/spec/kit/sandbox.ts';
+} from '@porcelain/server/kit/isolated-server';
+import { prepareRemote } from '@porcelain/server/kit/remote-computer';
+import { buildIsolatedServer } from '@porcelain/server/kit/sandbox';
 import {
   worktreePort,
   refuseMissing,
@@ -32,7 +32,7 @@ import {
   type Life,
 } from '../../verify-core/registry.ts';
 import { registry } from './instance.ts';
-import { agentActs } from '../../../../apps/server/spec/kit/agent.ts';
+import { agentActs } from '@porcelain/server/kit/agent';
 
 export const vite = join(root, 'apps/web/node_modules/.bin/vite');
 const readyTimeoutMs = 60 * 1000;

@@ -6,8 +6,7 @@ selectors:
   - "No worktree selected."
   - "Environments"
   - "Add environment"
-tests:
-  - apps/mobile/spec/e2e/tablet-shell.tablet.e2e.ts
+tests: []
 api: []
 ---
 
@@ -31,7 +30,7 @@ On iPad the app is Expo UI's SwiftUI three-column NavigationSplitView: the sideb
 
 ## What proves it works
 
-- `apps/mobile/spec/e2e/tablet-shell.tablet.e2e.ts` (iPad): in landscape it selects each sidebar destination, hides and shows the sidebar keeping the selection, the master and the detail, rotates to portrait and back keeping Settings, and returns to Review.
+Drive this feature with the mobile-verify skill on demand.
 
 ## Gotchas
 

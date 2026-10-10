@@ -8,8 +8,7 @@ selectors:
   - "Update needed"
   - "Checking"
   - "Check connection"
-tests:
-  - apps/mobile/spec/e2e/environment-states.e2e.ts
+tests: []
 api:
   - GET /api/environment
   - GET /api/session
@@ -39,7 +38,7 @@ Each environment row in Settings says what its server answered: “Checking” u
 
 ## What proves it works
 
-- `apps/mobile/spec/e2e/environment-states.e2e.ts`: two real environments pair online and each server holds one device labelled “Native mobile proof”; one server then stops, and a cold launch deep-linked straight into Settings shows the running one “Online” and the stopped one “Offline”.
+Drive this feature with the mobile-verify skill on demand.
 
 ## Gotchas
 

@@ -5,8 +5,7 @@ selectors:
   - 'No changed files'
   - 'Compare parent'
   - "Couldn't load commit"
-tests:
-  - apps/mobile/spec/e2e/history.e2e.ts
+tests: []
 api:
   - GET /api/worktrees/:worktreeId/commits/:oid/files
 ---

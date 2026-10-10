@@ -41,6 +41,8 @@
   },
   "include": [
     "vitest.config.ts",
+    "vitest.integration.config.ts",
+    ".agents/skills/spec/**/*.ts",
     "scripts/**/*.ts",
     ".agents/skills/server-verify/scripts/**/*.ts",
     ".agents/skills/verify-core/**/*.ts",

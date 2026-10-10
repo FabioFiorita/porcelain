@@ -202,6 +202,27 @@ importers:
         specifier: 2.9.0
         version: 2.9.0
 
+  .agents/skills:
+    dependencies:
+      '@porcelain/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@porcelain/desktop':
+        specifier: workspace:*
+        version: link:../../apps/desktop
+      '@porcelain/mobile':
+        specifier: workspace:*
+        version: link:../../apps/mobile
+      '@porcelain/server':
+        specifier: workspace:*
+        version: link:../../apps/server
+      effect:
+        specifier: 4.0.1
+        version: 4.0.1
+      playwright:
+        specifier: 1.63.0
+        version: 1.63.0
+
   apps/desktop:
     dependencies:
       '@effect/platform-node':

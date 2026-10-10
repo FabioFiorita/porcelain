@@ -7,8 +7,7 @@ selectors:
   - 'No projects registered'
   - 'Could not read projects'
   - 'Saved worktree is unavailable'
-tests:
-  - apps/mobile/spec/e2e/workspace.e2e.ts
+tests: []
 api:
   - GET /api/inventory
   - POST /api/live/tickets
@@ -38,7 +37,7 @@ The workspace picker in each destination's toolbar (the detail toolbar on iPad) 
 
 ## What proves it works
 
-- `apps/mobile/spec/e2e/workspace.e2e.ts`: both real environments' projects are visible before selecting either; project submenus select their worktrees directly while Files stays selected. A cold launch restores the last choice, and forgetting both environments clears the label. Each server holds one device labelled “Native mobile proof” and answered at least two inventory reads from the app.
+Drive this feature with the mobile-verify skill on demand.
 
 ## Gotchas
 

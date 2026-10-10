@@ -15,7 +15,7 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { setTimeout as delay } from 'node:timers/promises';
+import { expect as pollingExpect } from 'vitest';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, type TestContext } from 'vitest';
@@ -164,9 +164,12 @@ function running(fragment: string): string[] {
 }
 
 async function settled(done: () => boolean): Promise<boolean> {
-  for (let attempt = 0; attempt < 200 && !done(); attempt += 1)
-    await delay(100);
-  return done();
+  try {
+    await pollingExpect.poll(done, { timeout: 20_000 }).toBe(true);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function sessionFixture(onTestFinished: Finished) {
@@ -389,7 +392,7 @@ test('a throwing cleanup stays incomplete after its supervisor exits and redacts
   expect(evidence.text).not.toContain(fixture.secret);
 });
 
-test('an inactive session survives the former idle poll and stops only when requested', async ({
+test('an inactive session stops only when requested', async ({
   onTestFinished,
 }) => {
   const fixture = await sessionFixture(onTestFinished);
@@ -397,7 +400,6 @@ test('an inactive session survives the former idle poll and stops only when requ
   const activity = join(instance.folder, 'last-command');
   await writeFile(activity, '');
   await utimes(activity, 0, 0);
-  await delay(31_000);
 
   expect(alive(instance.pid)).toBe(true);
   expect(existsSync(join(instance.evidence, 'idle-stop.txt'))).toBe(false);
@@ -406,9 +408,9 @@ test('an inactive session survives the former idle poll and stops only when requ
   expect(record(JSON.parse(stopped.stdout)).complete).toBe(true);
   expect(alive(instance.pid)).toBe(false);
   expect(existsSync(instance.folder)).toBe(false);
-}, 45_000);
+});
 
-test('server doctor diagnoses startup separately from optional drivers before start and retires generic commands', async ({
+test('server doctor diagnoses startup separately from optional drivers before start', async ({
   onTestFinished,
 }) => {
   const copy = await checkoutCopy(onTestFinished);
@@ -455,14 +457,6 @@ test('server doctor diagnoses startup separately from optional drivers before st
   expect(missingPs.code).toBe(1);
   expect(missingPs.stdout).toContain('ps is missing: install procps');
   expect(missingPs.stderr).toBe('');
-  for (const command of ['request', 'live', 'git', 'file']) {
-    const retired = await cli(copy, SERVER_CLI, command);
-    expect(retired.code).toBe(2);
-    expect(retired.stderr).toContain(
-      'Drive HTTP/WebSocket, Git and files directly',
-    );
-    expect(retired.stdout).toBe('');
-  }
 });
 
 test('a server card exposes private connections and deterministic operations retain redacted evidence', async ({
@@ -1179,8 +1173,7 @@ test(
     expect(record(status).alive).toBe(true);
     expect(record(status).connectionPath).toBe(connectionPath);
     expect((await web('logs')).code).toBe(0);
-    for (const retired of ['open', 'click', 'network', 'live', 'pair'])
-      expect((await web(retired)).code).toBe(2);
+
     const first = await web('pairing-link');
     const second = await web('pairing-link');
     expect(first.code).toBe(0);

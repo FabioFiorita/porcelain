@@ -470,6 +470,7 @@ async function main() {
         },
       },
     );
+    process.stdin.pipe(child.stdin, { end: false });
     child.stdout.pipe(process.stdout);
     child.stderr.pipe(process.stderr);
     stopChild = () => {

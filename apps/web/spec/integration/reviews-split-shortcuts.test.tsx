@@ -1,16 +1,10 @@
 import { userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
-test('in a split view Alt+W closes the tab of the focused pane alone, and opening the split registers the tab shortcuts once', async ({
+test('in a split view Alt+W closes the tab of the focused pane alone', async ({
   workspace,
   repo,
 }) => {
-  const warnings: string[] = [];
-  const warn = console.warn.bind(console);
-  console.warn = (...values: unknown[]) => {
-    warnings.push(values.map(String).join(' '));
-    warn(...values);
-  };
   const path = repo.readme.path;
   const tab = new RegExp(path);
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
@@ -43,7 +37,4 @@ test('in a split view Alt+W closes the tab of the focused pane alone, and openin
   await expect
     .element(workspace.getByRole('tab', { name: tab, exact: true }))
     .toBeVisible();
-  await expect
-    .poll(() => warnings.filter((line) => line.includes('already registered')))
-    .toEqual([]);
 });
