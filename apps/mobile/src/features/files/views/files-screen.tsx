@@ -1,7 +1,7 @@
 import { Empty } from '../../../components/ui/empty';
 import { useSelectedWorktree } from '../../projects';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import { Cause, Option } from 'effect';
@@ -16,7 +16,10 @@ import { Button } from '../../../components/ui/button';
 import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Text } from '../../../components/ui/text';
-import { directoryTree } from '../../../shared/rules/file-tree';
+import {
+  directoryRequests,
+  directoryTree,
+} from '../../../shared/rules/file-tree';
 import { useDirectories } from '../queries/directory';
 import { useFilePaths } from '../queries/paths';
 import { FileActionSheet } from './file-action';
@@ -54,6 +57,18 @@ function WorktreeFiles({
   const data = directories.results.flatMap((result) =>
     Option.toArray(AsyncResult.value(result)),
   );
+  useEffect(() => {
+    const confirmed = directories.results.flatMap((result) =>
+      AsyncResult.isSuccess(result) && !result.waiting ? [result.value] : [],
+    );
+    const reachable = directoryRequests(requested, confirmed);
+    if (reachable.length === requested.length) return;
+    setRequested(reachable);
+    setExpanded(
+      (current) =>
+        new Set([...current].filter((path) => reachable.includes(path))),
+    );
+  }, [directories.results, requested]);
   const failure = directories.results.find(AsyncResult.isFailure);
   const pending = directories.results.some(
     (result) => AsyncResult.isInitial(result) || result.waiting,

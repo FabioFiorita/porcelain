@@ -52,6 +52,125 @@ function fixture(
 }
 
 describe('portable file draft', () => {
+  it('refreshes a clean retained draft from a newly read file before reopening', async () => {
+    const application = applicationRuntime();
+    const drafts = application.runSync(FileDrafts);
+    const writes: {
+      path: string;
+      text: string;
+      expectedFingerprint: string;
+    }[] = [];
+    const input = {
+      environmentId: 'reopen',
+      scope: { projectId: 'p', worktreeId: 'w' },
+      path: 'note.md',
+      writer: {
+        write: (value: {
+          path: string;
+          text: string;
+          expectedFingerprint: string;
+        }) => {
+          writes.push(value);
+          return Effect.succeed('v3');
+        },
+      },
+    };
+    const first = await application.runPromise(
+      drafts.retain({ ...input, text: 'old disk', fingerprint: 'v1' }),
+    );
+    first.claim('editor');
+    first.attachEditor('editor');
+    await application.runPromise(first.finishEditing('editor', () => {}));
+    const reopened = await application.runPromise(
+      drafts.retain({ ...input, text: 'new disk', fingerprint: 'v2' }),
+    );
+    expect(reopened).toBe(first);
+    expect(reopened.state.value).toMatchObject({
+      text: 'new disk',
+      savedText: 'new disk',
+      fingerprint: 'v2',
+      owner: null,
+    });
+    reopened.claim('second-editor');
+    await application.runPromise(reopened.change('edit of new disk'));
+    expect(await application.runPromise(reopened.save())).toBe(true);
+    expect(writes).toEqual([
+      { path: 'note.md', text: 'edit of new disk', expectedFingerprint: 'v2' },
+    ]);
+  });
+
+  it('preserves owned and unsaved retained drafts when a fresh file seed arrives', async () => {
+    const application = applicationRuntime();
+    const drafts = application.runSync(FileDrafts);
+    const input = {
+      environmentId: 'reopen',
+      scope: { projectId: 'p', worktreeId: 'w' },
+      path: 'note.md',
+      writer: {
+        write: () => Effect.fail(new ConnectionError({ message: 'Offline' })),
+      },
+    };
+    const draft = await application.runPromise(
+      drafts.retain({ ...input, text: 'old disk', fingerprint: 'v1' }),
+    );
+    draft.claim('editor');
+    await application.runPromise(
+      drafts.retain({ ...input, text: 'new disk', fingerprint: 'v2' }),
+    );
+    expect(draft.state.value).toMatchObject({
+      text: 'old disk',
+      savedText: 'old disk',
+      fingerprint: 'v1',
+      owner: 'editor',
+    });
+    await application.runPromise(draft.change('unsaved edit'));
+    draft.release('editor');
+    await application.runPromise(
+      drafts.retain({ ...input, text: 'new disk', fingerprint: 'v2' }),
+    );
+    expect(draft.state.value).toMatchObject({
+      text: 'unsaved edit',
+      savedText: 'old disk',
+      fingerprint: 'v1',
+      owner: null,
+    });
+  });
+
+  it('preserves a retained draft while its write is in flight', async () => {
+    const pending = Promise.withResolvers<string>();
+    const { application, draft } = fixture('old disk', 'v1', () =>
+      Effect.promise(() => pending.promise),
+    );
+    await application.runPromise(draft.change('saving edit'));
+    const saved = application.runPromise(draft.save());
+    await application.runPromise(Effect.yieldNow);
+    const drafts = application.runSync(FileDrafts);
+    await application.runPromise(
+      drafts.retain({
+        environmentId: 'portable-draft',
+        scope: { projectId: 'project', worktreeId: 'tree' },
+        path: 'file.txt',
+        text: 'new disk',
+        fingerprint: 'v2',
+        writer: { write: () => Effect.succeed('unused') },
+      }),
+    );
+    expect(draft.state.value).toMatchObject({
+      text: 'saving edit',
+      savedText: 'old disk',
+      fingerprint: 'v1',
+      saving: true,
+    });
+    pending.resolve('v3');
+    expect(await saved).toBe(true);
+    expect(draft.state.value).toMatchObject({
+      text: 'saving edit',
+      savedText: 'saving edit',
+      fingerprint: 'v3',
+      saving: false,
+    });
+  });
+
   it('saves changes made during a write against the newly confirmed fingerprint', async () => {
     const firstWrite = Promise.withResolvers<string>();
     const writes: { text: string; fingerprint: string }[] = [];

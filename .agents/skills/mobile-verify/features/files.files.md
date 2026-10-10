@@ -20,6 +20,8 @@ api:
 
 # files.files
 
+Expand a folder and its child, then rename or trash the ancestor. Its obsolete directory reads must be removed; the current tree and Refresh must recover without retrying the missing paths.
+
 Files browses the selected worktree through lazily loaded folders. Search matches worktree paths. Native tabs, toolbar workspace menu and stack navigation surround Porcelain file rows and controls. Without a selection it asks to select a worktree.
 
 Reach Files through its phone tab or porcelain.dev://files. Choose a worktree with projects.workspace-picker. Expand folders, open a file, return with native Back, and search a nested path. Refresh rereads loaded folders. Read errors offer retry; an empty directory says No files.

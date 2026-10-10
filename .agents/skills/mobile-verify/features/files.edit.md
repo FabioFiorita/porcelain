@@ -18,4 +18,6 @@ Edit opens a native full-height form sheet with Porcelain Input and buttons. The
 
 Edit a real file, save, return and independently read its literal disk contents. Change the file on the computer during editing and attempt a save: expect a conflict, retained draft and no overwrite. Discard to read the latest version. A missing fingerprint never exposes editing.
 
+Close a clean editor, change that file on the computer, then reopen Edit. It must display the newly read text and save against its new fingerprint. A retained unsaved or currently owned draft must keep its contents.
+
 The named phone flow asserts the saved bytes through the server fixture. Failed drafts are retained in the running app session; persistence through app termination is not promised by the shared service.

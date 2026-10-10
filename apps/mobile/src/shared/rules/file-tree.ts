@@ -2,6 +2,33 @@ import type { ListDirectoryResponse } from '@porcelain/contracts/files';
 import type { FileTreeNode } from './file-tree-model';
 import { isImagePath } from '@porcelain/client/files/rules';
 
+export const isNativeImagePath = (path: string) =>
+  isImagePath(path) && !/\.svg$/i.test(path);
+
+export function directoryRequests(
+  requested: readonly string[],
+  directories: readonly ListDirectoryResponse[],
+): string[] {
+  const byPath = new Map(
+    directories.map((directory) => [directory.path, directory]),
+  );
+  const reachable = (path: string): boolean => {
+    if (!path) return true;
+    const split = path.lastIndexOf('/');
+    const parent = split < 0 ? '' : path.slice(0, split);
+    if (!reachable(parent)) return false;
+    const directory = byPath.get(parent);
+    return (
+      !directory ||
+      directory.entries.some(
+        (entry) =>
+          entry.name === path.slice(split + 1) && entry.kind === 'directory',
+      )
+    );
+  };
+  return requested.filter(reachable);
+}
+
 export function directoryTree(
   directories: readonly ListDirectoryResponse[],
 ): FileTreeNode[] {
@@ -23,7 +50,7 @@ export function directoryTree(
           kind:
             entry.kind === 'directory'
               ? 'folder'
-              : isImagePath(path)
+              : isNativeImagePath(path)
                 ? 'image'
                 : 'file',
           ...(entry.kind === 'directory' ? { children: children(path) } : {}),
@@ -59,6 +86,7 @@ export function sourceLanguage(path: string): string | undefined {
     rs: 'rust',
     go: 'go',
     html: 'html',
+    svg: 'xml',
     htm: 'html',
     css: 'css',
     md: 'markdown',

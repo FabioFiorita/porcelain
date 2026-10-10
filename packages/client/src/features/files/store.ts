@@ -65,6 +65,10 @@ class FileDraft extends Context.Service<
     readonly forgetDiskChange: (viewer: string) => Effect.Effect<void>;
     readonly change: (text: string) => Effect.Effect<void>;
     readonly reset: (text: string, fingerprint: string) => Effect.Effect<void>;
+    readonly refresh: (
+      text: string,
+      fingerprint: string,
+    ) => Effect.Effect<void>;
     readonly save: () => Effect.Effect<boolean>;
     readonly dispose: () => Effect.Effect<void>;
   }
@@ -300,6 +304,25 @@ class FileDraft extends Context.Service<
               }),
             );
           }),
+          refresh: Effect.fn('FileDraft.refresh')(function* (
+            text: string,
+            fingerprint: string,
+          ) {
+            yield* autosaveGate.withPermit(
+              Effect.sync(() => {
+                const current = state.value;
+                if (
+                  disposed.value ||
+                  current.owner !== null ||
+                  current.saving ||
+                  current.text !== current.savedText ||
+                  current.fingerprint === fingerprint
+                )
+                  return;
+                update({ text, savedText: text, fingerprint, error: null });
+              }),
+            );
+          }),
           save,
           dispose: () =>
             Effect.suspend(() => {
@@ -391,7 +414,10 @@ export class FileDrafts extends Context.Service<
         retain: Effect.fn('FileDrafts.retain')(function* (input: DraftInput) {
           const key = draftKey(input.scope, input.path);
           const existing = entries(input.environmentId).get(key);
-          if (existing) return existing.draft;
+          if (existing) {
+            yield* existing.draft.refresh(input.text, input.fingerprint);
+            return existing.draft;
+          }
           const scope = yield* Scope.fork(lifetime);
           const path = AtomRef.make(input.path);
           const layer = FileDraft.layer(input, scope).pipe(

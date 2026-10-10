@@ -18,4 +18,6 @@ Open a file from Files or search. The native stack shows its filename, full path
 
 Drive a code file, Markdown reader/source, an image and HTML preview/source. Return with the native back button or swipe. Select another workspace while a file is open: the stale route must say Workspace changed and never display or edit the same path from another worktree.
 
+SVG uses the source viewer and remains editable; native bitmap previews are for decodable raster assets. Open a small SVG and confirm its literal source and Edit action.
+
 The named Files phone flow opens real source and reaches Edit. The iPad layout, Android and physical-device Local Network permission are unproved.

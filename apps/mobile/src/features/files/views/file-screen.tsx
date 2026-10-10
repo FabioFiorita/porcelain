@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import { Stack, usePreventRemove } from 'expo-router';
 import { useAtomValue } from '@effect/atom-react';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { retainFileDraft, type FileDraftHandle } from '@porcelain/client/files';
-import { fileErrorMessage, isImagePath } from '@porcelain/client/files/rules';
+import { fileErrorMessage } from '@porcelain/client/files/rules';
 import { useSelectedWorktree } from '../../projects';
 import { usePreferences } from '../../preferences';
 import { useDirectories } from '../queries/directory';
@@ -13,7 +13,10 @@ import { useTextFile, type FileContents } from '../queries/text';
 import { useDraftEditing } from '../commands/edit-draft';
 import { usePreviewLink } from '../commands/preview-link';
 import { useFileAsset } from '../queries/asset';
-import { sourceLanguage } from '../../../shared/rules/file-tree';
+import {
+  isNativeImagePath,
+  sourceLanguage,
+} from '../../../shared/rules/file-tree';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Loading } from '../../../components/ui/loading';
@@ -104,7 +107,7 @@ function ScopedFile(props: Props & { selected: Selected }) {
   return (
     <View className="flex-1 bg-background">
       <FileHeader path={path} />
-      {isImagePath(path) ? (
+      {isNativeImagePath(path) ? (
         <FileImage path={path} selected={selected} />
       ) : (
         <FileText {...props} />
@@ -152,13 +155,18 @@ function FileText(props: Props & { selected: Selected }) {
       selected={props.selected}
       path={props.path}
       file={data}
+      waiting={file.result.waiting}
       onDone={props.onDone}
     />
   ) : (
     <FilePreview
       path={props.path}
       text={data.text}
-      onEdit={data.contentFingerprint ? props.onEdit : undefined}
+      onEdit={
+        data.contentFingerprint && !file.result.waiting
+          ? props.onEdit
+          : undefined
+      }
     />
   );
 }
@@ -220,23 +228,54 @@ function FileEditor({
   selected,
   path,
   file,
+  waiting,
   onDone,
 }: {
   selected: Selected;
   path: string;
   file: FileContents;
+  waiting: boolean;
   onDone: () => void;
 }) {
-  const [seed] = useState(() => ({
-    text: file.text,
-    fingerprint: file.contentFingerprint ?? '',
-  }));
+  const [seed, setSeed] = useState<FileContents | undefined>(() =>
+    waiting ? undefined : file,
+  );
+  useEffect(() => {
+    if (!seed && !waiting) setSeed(file);
+  }, [seed, waiting, file]);
+  return seed ? (
+    <RetainedFileEditor
+      selected={selected}
+      path={path}
+      file={file}
+      seed={seed}
+      onDone={onDone}
+    />
+  ) : (
+    <Loading label="Confirming the file version…" />
+  );
+}
+
+function RetainedFileEditor({
+  selected,
+  path,
+  file,
+  seed,
+  onDone,
+}: {
+  selected: Selected;
+  path: string;
+  file: FileContents;
+  seed: FileContents;
+  onDone: () => void;
+}) {
   const result = useAtomValue(
     retainFileDraft({
       connection: selected.connection,
       scope: selected.scope,
       path,
-      ...seed,
+      text: seed.text,
+      fingerprint: seed.contentFingerprint ?? '',
     }),
   );
   const draft = Option.getOrUndefined(AsyncResult.value(result));
