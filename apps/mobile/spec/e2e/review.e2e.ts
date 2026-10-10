@@ -1,4 +1,5 @@
 import { Schema } from 'effect';
+import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { readChangesResponseSchema } from '@porcelain/contracts/changes';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import {
@@ -43,7 +44,7 @@ test('reviewing a changed file stores its fingerprint and posts feedback from th
       PAIRING_LINK: environment.link,
       ENVIRONMENT_NAME: environment.name,
       PROJECT_NAME: project.name,
-      WORKTREE_LABEL: worktree.branch ?? 'Detached HEAD',
+      WORKTREE_LABEL: worktreeLabel(worktree.branch),
     }),
   ).toEqual({
     name: 'Review a file, mark it reviewed and post native feedback',
