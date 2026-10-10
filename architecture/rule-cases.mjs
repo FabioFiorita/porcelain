@@ -3400,6 +3400,53 @@ export const workspaceBoundaryCases = [
 
 export const specGapCases = [
   {
+    source: 'export function decide() { return 5; }',
+    spec: "import { decide } from './sample.ts'; it('local loop', () => { for (const decide of [() => 42]) { expect(decide()).toBe(42); } });",
+    gaps: ['decide'],
+  },
+  {
+    source: 'export function decide() { return 5; }',
+    spec: "import { decide } from './sample.ts'; it('hoisted helper', () => { if (true) { var decide = () => 42; } expect(decide()).toBe(42); });",
+    gaps: ['decide'],
+  },
+  {
+    source: 'export function decide() { return 5; }',
+    spec: "import { decide } from './sample.ts'; it('real rule', () => { { const decide = () => 42; decide(); } expect(decide()).toBe(5); });",
+    gaps: [],
+  },
+
+  {
+    source: 'export function decide() { return 5; }',
+    spec: "import { decide } from './sample.ts'; it('local helper', () => { const decide = () => 42; expect(decide()).toBe(42); });",
+    gaps: ['decide'],
+  },
+  {
+    source: 'export function decide() { return 5; }',
+    spec: "import { decide } from './sample.ts'; function helper(decide) { decide(); }",
+    gaps: ['decide'],
+  },
+  {
+    source: 'export function decide() { return 5; }',
+    spec: "import * as rules from './sample.ts'; const decide = 'other'; rules[decide]();",
+    gaps: ['decide'],
+  },
+  {
+    source: 'export function decide() { return 5; }',
+    spec: "import * as rules from './sample.ts'; rules['decide']();",
+    gaps: [],
+  },
+  {
+    source: 'function decide() { return 5; } export default decide;',
+    spec: "import choice from './sample.ts'; expect(choice).toBeDefined();",
+    gaps: ['default'],
+  },
+  {
+    source: 'export const limit = 5;',
+    spec: "import type * as rules from './sample.ts'; const rules = { limit: 5 }; expect(rules.limit).toBe(5);",
+    gaps: ['limit'],
+  },
+
+  {
     source: 'export const limit = 5;',
     spec: "import { limit } from './sample.ts'; expect(limit).toBe(5);",
     gaps: [],
