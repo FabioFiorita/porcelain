@@ -19,10 +19,13 @@ One file per screen and flow the mobile app offers, named `<domain>.<capability>
 | [files.files](files.files.md)                             | /files             | Browse and search the selected worktree; create, rename and trash entries.                                                                                                              |
 | [files.preview](files.preview.md) | /file | Read source, Markdown, self-contained HTML and images; unsupported entries show notices. |
 | [files.edit](files.edit.md) | /file-edit | Edit with shared autosave and fingerprint conflict protection in a native sheet. |
-| [history.history](history.history.md)                     | /history           | History shows its empty state; it reads no commits yet.                                                                                                          |
+| [history.history](history.history.md)                     | /history           | History lists live commits for the selected worktree and loads older pages.                                                                                                          |
 | [projects.workspace-picker](projects.workspace-picker.md) | /files             | The toolbar lists projects from every paired environment together; expanding a project shows its worktrees, and choosing one restores after a cold launch.       |
 | [preferences.appearance](preferences.appearance.md) | /appearance | Appearance preserves Theme, Long lines and document defaults across cold launches and offers recovery when saved preferences cannot be read. |
 | [reviews.review](reviews.review.md)                       | /review            | Live changed files, reviewed markers, agent explanations and comments for the selected worktree.                                                                       |
+
+| [history.commit](history.commit.md) | /history/commit/[oid] | Commit message, comparison parents and changed files. |
+| [history.diff](history.diff.md) | /history/commit/[oid]/diff | Read-only commit file diff and explicit unavailable states. |
 
 ## Platform coverage
 

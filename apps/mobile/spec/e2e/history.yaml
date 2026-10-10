@@ -1,0 +1,24 @@
+appId: com.fabiofiorita.porcelain.dev
+name: Browse a commit and diff with native back navigation
+---
+- runFlow: connect.yaml
+- runFlow: open-settings.yaml
+- runFlow: add-environment.yaml
+- tapOn: History
+- tapOn: Workspace
+- tapOn: ${PROJECT_NAME}, ${ENVIRONMENT_NAME}
+- tapOn: ${WORKTREE_LABEL}
+- assertVisible: Add history native proof
+- tapOn: Add history native proof
+- assertVisible: Commit detail body proof
+- assertVisible: 1 file changed
+- tapOn: history-proof.txt.*
+- assertVisible: history-proof.txt
+- assertVisible: History native diff proof
+- tapOn: Back
+- assertVisible: Commit detail body proof
+- tapOn: Back
+- assertVisible: Add history native proof
+- tapOn: Files
+- tapOn: History
+- assertVisible: Add history native proof
