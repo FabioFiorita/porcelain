@@ -18,9 +18,7 @@ test('History opens a commit and file diff in the selected workspace and returns
   const project = inventory.projects.find(
     (candidate) => candidate.name === `${environment.name} project`,
   );
-  const worktree = project?.worktrees.find(
-    (candidate) => candidate.branch === 'refs/heads/mobile-history',
-  );
+  const worktree = project?.worktrees.find((candidate) => candidate.main);
   if (!project || !worktree)
     throw new Error('The fixture History worktree is missing.');
   const session = environment.server.session(environment.recorder, {
@@ -41,7 +39,7 @@ test('History opens a commit and file diff in the selected workspace and returns
       PAIRING_LINK: environment.link,
       ENVIRONMENT_NAME: environment.name,
       PROJECT_NAME: `${environment.name} project`,
-      WORKTREE_LABEL: 'mobile-history',
+      WORKTREE_LABEL: 'main',
     }),
   ).toEqual({
     name: 'Browse a commit and diff with native back navigation',
