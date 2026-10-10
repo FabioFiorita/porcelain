@@ -81,6 +81,22 @@
     "db:check": {
       "dependsOn": ["transit"],
       "cache": false
+    },
+    "//#build:package": {
+      "inputs": [
+        "apps/server/**",
+        "apps/web/**",
+        "packages/**",
+        "scripts/build-package.ts",
+        "scripts/server.ts",
+        "scripts/check-package.sh",
+        ".github/workflows/**",
+        "package.json",
+        "tsconfig.json",
+        "pnpm-workspace.yaml",
+        "pnpm-lock.yaml"
+      ],
+      "outputs": ["dist-porcelain/**"]
     }
   }
 }

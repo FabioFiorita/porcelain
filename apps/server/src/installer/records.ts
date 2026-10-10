@@ -34,7 +34,7 @@ const updateRecordSchema = Schema.Struct({
 export type UpdateRecord = typeof updateRecordSchema.Type;
 export const packageManifestSchema = Schema.Struct({
   name: Schema.optional(Schema.String),
-  version: Schema.optional(Schema.String),
+  version: Schema.NonEmptyString,
 });
 export const readInstalledRecord = Effect.fn('Installer.readInstalledRecord')(
   function* (path: string) {

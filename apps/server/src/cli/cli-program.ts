@@ -1,6 +1,6 @@
 import { Effect, Ref, Result } from 'effect';
 import { CliError, Command } from 'effect/cli';
-import { porcelainCommand, CliExit } from './command-tree.ts';
+import { porcelainCommand, CliExit, CliVersion } from './command-tree.ts';
 
 export const cliProgram = Effect.fn('Cli.run')(function* (
   args: readonly string[],
@@ -9,6 +9,7 @@ export const cliProgram = Effect.fn('Cli.run')(function* (
   const exitCode = yield* Ref.make(0);
   yield* Command.runWith(porcelainCommand, { version })(args).pipe(
     Effect.provideService(CliExit, exitCode),
+    Effect.provideService(CliVersion, version),
     Effect.catchFilter(
       (error) =>
         CliError.isCliError(error) ? Result.succeed(error) : Result.fail(error),

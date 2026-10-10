@@ -109,6 +109,7 @@ export class CliOperations extends Context.Service<
                 packageRoot,
                 searchPath,
                 command: limits.installer.command,
+                locks: limits.locks,
               }),
               (runner) => runner.close(),
             );

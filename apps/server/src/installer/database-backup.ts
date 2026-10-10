@@ -19,12 +19,20 @@ export const backupDatabase = Effect.fn('Installer.backupDatabase')(function* (
 ) {
   const fs = yield* FileSystem.FileSystem;
   const pathApi = yield* Path.Path;
-  yield* fs.makeDirectory(destination, { recursive: true, mode: 0o700 });
-  for (const file of databaseFiles) {
-    const source = pathApi.join(dataDirectory, file);
-    if (yield* exists(source))
-      yield* fs.copyFile(source, pathApi.join(destination, file));
-  }
+  const staging = `${destination}.${randomUUID()}.partial`;
+  yield* Effect.gen(function* () {
+    yield* fs.makeDirectory(staging, { recursive: true, mode: 0o700 });
+    for (const file of databaseFiles) {
+      const source = pathApi.join(dataDirectory, file);
+      if (yield* exists(source))
+        yield* fs.copyFile(source, pathApi.join(staging, file));
+    }
+    yield* fs.rename(staging, destination);
+  }).pipe(
+    Effect.ensuring(
+      fs.remove(staging, { recursive: true, force: true }).pipe(Effect.orDie),
+    ),
+  );
 });
 
 export const restoreDatabase = Effect.fn('Installer.restoreDatabase')(
@@ -38,5 +46,21 @@ export const restoreDatabase = Effect.fn('Installer.restoreDatabase')(
       if (yield* exists(source))
         yield* fs.copyFile(source, pathApi.join(dataDirectory, file));
     }
+  },
+);
+
+export const pruneDatabaseBackups = Effect.fn('Installer.pruneDatabaseBackups')(
+  function* (root: string) {
+    const fs = yield* FileSystem.FileSystem;
+    const pathApi = yield* Path.Path;
+    if (!(yield* exists(root))) return;
+    const directories: string[] = [];
+    for (const entry of yield* fs.readDirectory(root)) {
+      if (entry.endsWith('.partial')) continue;
+      if ((yield* fs.stat(pathApi.join(root, entry))).type === 'Directory')
+        directories.push(entry);
+    }
+    for (const entry of directories.sort().reverse().slice(3))
+      yield* fs.remove(pathApi.join(root, entry), { recursive: true });
   },
 );

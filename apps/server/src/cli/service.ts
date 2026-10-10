@@ -105,6 +105,7 @@ export const runServiceCommand = Effect.fn('runServiceCommand')(
             packageRoot: identity.packageRoot,
             searchPath: dependencies.searchPath,
             command: dependencies.limits.installer.command,
+            locks: dependencies.limits.locks,
           }),
           (runner) => runner.close(),
         );
@@ -114,6 +115,7 @@ export const runServiceCommand = Effect.fn('runServiceCommand')(
         const latest = yield* updateToLatest(updates, {
           check: { now: observedAt, staleBefore: observedAt },
           pollMs: dependencies.limits.installer.health.intervalMs,
+          allowDowngrade: settings.allowDowngrade,
           handingOff: (from, target) =>
             dependencies.stdout(
               `Updating the Porcelain service from ${from} to ${target}; waiting for the updater to finish.\n`,

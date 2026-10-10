@@ -21,6 +21,7 @@ jobs:
       web: ${{ steps.affected.outputs.web }}
       desktop: ${{ steps.affected.outputs.desktop }}
       storage: ${{ steps.affected.outputs.storage }}
+      package: ${{ steps.affected.outputs.package }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -34,13 +35,14 @@ jobs:
       - name: Find affected runtime checks
         id: affected
         run: |
-          pnpm exec turbo run test:integration test:e2e build db:check --affected --dry=json > "$RUNNER_TEMP/runtime.json"
+          pnpm exec turbo run test:integration test:e2e build build:package db:check --affected --dry=json > "$RUNNER_TEMP/runtime.json"
           jq -e '.tasks | type == "array"' "$RUNNER_TEMP/runtime.json" > /dev/null
           server=$(jq 'any(.tasks[]; .taskId == "@porcelain/server#test:integration" or .taskId == "@porcelain/client#test:integration")' "$RUNNER_TEMP/runtime.json")
           web=$(jq 'any(.tasks[]; .taskId == "@porcelain/web#test:integration" or .taskId == "@porcelain/web#test:e2e" or .taskId == "@porcelain/web#build")' "$RUNNER_TEMP/runtime.json")
           desktop=$(jq 'any(.tasks[]; .taskId == "@porcelain/desktop#test:e2e")' "$RUNNER_TEMP/runtime.json")
           storage=$(jq 'any(.tasks[]; .taskId == "@porcelain/storage#db:check")' "$RUNNER_TEMP/runtime.json")
-          for surface in server web desktop storage; do
+          package=$(jq 'any(.tasks[]; .taskId == "//#build:package")' "$RUNNER_TEMP/runtime.json")
+          for surface in server web desktop storage package; do
             case "${!surface}" in
               true|false) printf '%s=%s\n' "$surface" "${!surface}" >> "$GITHUB_OUTPUT" ;;
               *) exit 1 ;;
@@ -80,6 +82,24 @@ jobs:
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
+
+  package:
+    needs: affected
+    if: ${{ needs.affected.outputs.package == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@24.20.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:package
+      - name: Pack, install and run the release package
+        run: |
+          VERSION=$(node -p "require('./package.json').version") bash scripts/check-package.sh
 
   server-integration:
     needs: affected
@@ -182,6 +202,7 @@ jobs:
         affected,
         static,
         units,
+        package,
         server-integration,
         web,
         migrations,
