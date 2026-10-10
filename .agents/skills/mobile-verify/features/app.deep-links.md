@@ -7,9 +7,7 @@ selectors:
   - "Settings"
   - "Select a worktree to continue."
   - "No environments paired."
-tests:
-  - apps/mobile/spec/e2e/destinations.e2e.ts
-  - apps/mobile/spec/e2e/environment-states.e2e.ts
+tests: []
 api:
   - GET /api/environment
   - GET /api/session
@@ -35,8 +33,7 @@ Expo Router opens each screen from the app's scheme, `porcelain.dev://` for the 
 
 ## What proves it works
 
-- `apps/mobile/spec/e2e/destinations.e2e.ts`: on a fresh install the links open Files, History, Settings and Review with the tab selected and each one's empty state, and History again straight after a cold launch.
-- `apps/mobile/spec/e2e/environment-states.e2e.ts`: a cold launch followed by the Settings link shows one environment online and the one whose server stopped offline.
+Drive this feature with the mobile-verify skill on demand.
 
 ## Gotchas
 

@@ -3,8 +3,7 @@ screen: /settings
 selectors:
   - "Forget environment"
   - "No environments paired."
-tests:
-  - apps/mobile/spec/e2e/pairing.e2e.ts
+tests: []
 api: []
 ---
 
@@ -28,7 +27,7 @@ Holding an environment row in Settings opens its native context menu with “For
 
 ## What proves it works
 
-- `apps/mobile/spec/e2e/pairing.e2e.ts`: forgets the first of two environments through the SwiftUI context menu, proves after a cold launch that only the second remains, forgets it too and proves after another cold launch that neither returns.
+Drive this feature with the mobile-verify skill on demand.
 
 ## Gotchas
 

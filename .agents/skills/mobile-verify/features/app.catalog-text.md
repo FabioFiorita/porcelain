@@ -4,8 +4,7 @@ selectors:
   - "Type scale"
   - "Tones and weights"
   - "Wrapping and selection"
-tests:
-  - apps/mobile/spec/e2e/component-library.e2e.ts
+tests: []
 api: []
 ---
 

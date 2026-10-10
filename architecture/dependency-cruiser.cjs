@@ -14,6 +14,18 @@ const sourceFolders = [
 module.exports = {
   forbidden: [
     {
+      name: 'workspace-relative-imports-stay-owned',
+      comment:
+        'Import another workspace through its public package name, because relative escapes hide dependencies from CI selection.',
+      severity: 'error',
+      from: { path: '^((?:apps|packages)/[^/]+|\\.agents/skills)/' },
+      to: {
+        dependencyTypes: ['local'],
+        dependencyTypesNot: ['aliased'],
+        pathNot: '^$1/',
+      },
+    },
+    {
       name: 'source-folder-isolated',
       comment:
         'Keep code in folders that identify its runtime and responsibility, including modules without imports.',

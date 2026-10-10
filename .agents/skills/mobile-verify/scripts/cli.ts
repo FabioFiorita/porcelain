@@ -3,9 +3,9 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { buildDevelopmentClient } from '../../../../apps/mobile/spec/kit/development-client.ts';
-import { deviceHost } from '../../../../apps/mobile/spec/kit/device-host.ts';
-import { missingTools } from '../../../../apps/mobile/spec/kit/tools.ts';
+import { buildDevelopmentClient } from '@porcelain/mobile/kit/development-client';
+import { deviceHost } from '@porcelain/mobile/kit/device-host';
+import { missingTools } from '@porcelain/mobile/kit/tools';
 import {
   runCli,
   refuseMissing,
@@ -37,7 +37,6 @@ const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--inst
                            read back the disposable server's state
 Drive the app with the pinned agent-device invocation from the connection card.
 `;
-const retired = new Set(['open', 'tap', 'fill', 'snapshot', 'screenshot']);
 async function doctor(): Promise<string> {
   const problems = (await startProblems(deviceHost().remote)).filter(
     (problem) => problem !== undefined,
@@ -112,10 +111,6 @@ async function command(args: readonly string[]): Promise<string> {
   if (values.remote)
     throw new Usage(
       'Use a separate disposable server instance for a second environment; this mobile run owns one server.',
-    );
-  if (name !== undefined && retired.has(name))
-    throw new Usage(
-      'Drive the app with the pinned agent-device invocation from the connection card.',
     );
   if (name === 'serve' && rest[0] !== undefined) {
     await serve(rest[0]);

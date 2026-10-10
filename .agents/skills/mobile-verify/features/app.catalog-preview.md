@@ -3,9 +3,7 @@ screen: /component-preview
 selectors:
   - "Add example"
   - "Disabled field"
-tests:
-  - apps/mobile/spec/e2e/component-library.e2e.ts
-  - apps/mobile/spec/e2e/native-previews.e2e.ts
+tests: []
 api: []
 ---
 

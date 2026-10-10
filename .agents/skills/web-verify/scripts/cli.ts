@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { parseArgs } from 'node:util';
-import { REMOTE_COMPUTER_NAME } from '../../../../apps/server/spec/kit/remote-computer.ts';
+import { REMOTE_COMPUTER_NAME } from '@porcelain/server/kit/remote-computer';
 import {
   optionalDrivers,
   Refusal,

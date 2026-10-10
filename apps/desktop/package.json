@@ -2,6 +2,9 @@
   "name": "@porcelain/desktop",
   "private": true,
   "type": "module",
+  "exports": {
+    "./kit/*": "./spec/kit/*.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config ../../vitest.config.ts --project @porcelain/desktop",

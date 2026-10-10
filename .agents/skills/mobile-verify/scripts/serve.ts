@@ -4,27 +4,27 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readHealthResponseSchema } from '@porcelain/contracts/access';
-import { buildIsolatedServer } from '../../../../apps/server/spec/kit/sandbox.ts';
+import { buildIsolatedServer } from '@porcelain/server/kit/sandbox';
 import {
   buildProblem,
   nativeFingerprint,
-} from '../../../../apps/mobile/spec/kit/development-client.ts';
-import { Environment } from '../../../../apps/mobile/spec/kit/environment.ts';
-import { startMetro } from '../../../../apps/mobile/spec/kit/metro.ts';
+} from '@porcelain/mobile/kit/development-client';
+import { Environment } from '@porcelain/mobile/kit/environment';
+import { startMetro } from '@porcelain/mobile/kit/metro';
 import {
   deviceHost,
   mainCheckoutHostFile,
   type RemoteHost,
-} from '../../../../apps/mobile/spec/kit/device-host.ts';
-import type { DeviceKind } from '../../../../apps/mobile/spec/kit/simulator.ts';
-import { missingTools } from '../../../../apps/mobile/spec/kit/tools.ts';
+} from '@porcelain/mobile/kit/device-host';
+import type { DeviceKind } from '@porcelain/mobile/kit/simulator';
+import { missingTools } from '@porcelain/mobile/kit/tools';
 import { refuseMissing, sandboxProblems } from '../../verify-core/cli.ts';
 import { connectionCard } from '../../verify-core/connection.ts';
 import { freeHostPorts, hostProblems, hubUrl, hubToken } from './host.ts';
 import { registry, optionsSchema, mobileConnectionSchema } from './instance.ts';
 import { driver, pairClient, prepareHost, setupCommand } from './setup.ts';
 const startLimitMs = 25 * 60 * 1000;
-export const pairingLabel = 'Verification simulator';
+const pairingLabel = 'Verification simulator';
 const manifestSchema = Schema.Struct({
   credentialFile: Schema.String,
   dataDirectory: Schema.String,

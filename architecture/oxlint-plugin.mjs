@@ -2112,10 +2112,75 @@ export default {
         };
       },
     },
+    'spec-no-clock': {
+      create(context) {
+        if (!/\.spec\.ts$/.test(context.filename)) return {};
+        const message =
+          'Unit specs assert deterministic results; time bounds belong to the perf project, because wall clocks measure host contention as well as code.';
+        return {
+          MemberExpression(node) {
+            const path = memberPath(node)?.join('.');
+            if (
+              path === 'performance.now' ||
+              path === 'Date.now' ||
+              path === 'globalThis.performance.now' ||
+              path === 'globalThis.Date.now'
+            )
+              context.report({ node, message });
+          },
+        };
+      },
+    },
+    'server-spec-no-waits': {
+      create(context) {
+        if (
+          !/(?:^|\/)(?:apps\/server\/spec\/(?:integration|kit)\/|apps\/server\/.*\.spec\.ts$|\.agents\/skills\/spec\/)/.test(
+            context.filename,
+          )
+        )
+          return {};
+        const message =
+          'Server specs and kits wait for an observable event or state, because fixed sleeps race machines with different speeds.';
+        const delays = new Set(['delay', 'sleep', 'waitForTimeout']);
+        return {
+          ImportDeclaration(node) {
+            if (
+              ['node:timers/promises', 'timers/promises'].includes(
+                node.source.value,
+              )
+            )
+              for (const specifier of node.specifiers)
+                if (specifier.imported?.name === 'setTimeout')
+                  delays.add(specifier.local.name);
+          },
+          CallExpression(node) {
+            const name =
+              node.callee.type === 'Identifier'
+                ? node.callee.name
+                : node.callee.type === 'MemberExpression'
+                  ? memberName(node.callee)
+                  : undefined;
+            if (delays.has(name)) context.report({ node, message });
+          },
+        };
+      },
+    },
     'spec-no-mocking': {
       create(context) {
         if (!isSpec(context)) return {};
         return {
+          AssignmentExpression(node) {
+            const path = memberPath(node.left);
+            if (
+              path &&
+              ['console', 'window', 'globalThis', 'global'].includes(path[0])
+            )
+              context.report({
+                node,
+                message:
+                  'Specs observe globals without replacing them, because hand-written spies can pass without proving product behaviour.',
+              });
+          },
           ImportExpression(node) {
             if (moduleSource(node) === 'vitest')
               context.report({

@@ -6,8 +6,7 @@ import {
   repositoryRoot,
   type Instance,
 } from '../../verify-core/registry.ts';
-export const STALE_BUILD =
-  'server or CLI code changed since start, run start again';
+const STALE_BUILD = 'server or CLI code changed since start, run start again';
 const detailSchema = Schema.Struct({
   address: Schema.String,
   manifestPath: Schema.String,
@@ -22,7 +21,7 @@ const detailSchema = Schema.Struct({
   projectHome: Schema.String,
   logFile: Schema.String,
 });
-export type ServerInstance = Instance<typeof detailSchema.Type>;
+type ServerInstance = Instance<typeof detailSchema.Type>;
 export const registry = new Registry({
   name: 'server',
   cli: new URL('./cli.ts', import.meta.url).href,

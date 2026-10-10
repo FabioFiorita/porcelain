@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import {
   nativeFingerprint,
   identity,
-} from '../../../../apps/mobile/spec/kit/development-client.ts';
+} from '@porcelain/mobile/kit/development-client';
 import {
   buildIdentity,
   connectionSchema,

@@ -13,7 +13,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cruise } from 'dependency-cruiser';
 import extractDepcruiseOptions from 'dependency-cruiser/config-utl/extract-depcruise-options';
-import cases from './boundary-cases.mjs';
+import existingCases from './boundary-cases.mjs';
+import { workspaceBoundaryCases } from './rule-cases.mjs';
+const cases = [...existingCases, ...workspaceBoundaryCases];
 
 const repository = fileURLToPath(new URL('../', import.meta.url));
 const config = createRequire(import.meta.url)('./dependency-cruiser.cjs');
@@ -62,6 +64,28 @@ async function planted(files) {
     })) {
       mkdirSync(dirname(join(root, file)), { recursive: true });
       writeFileSync(join(root, file), source);
+    }
+    const owners = new Set(
+      Object.keys(files).flatMap(
+        (file) => /^((?:apps|packages)\/([^/]+))\//.exec(file)?.[1] ?? [],
+      ),
+    );
+    for (const owner of owners) {
+      const name = owner.split('/')[1];
+      if (owner === 'packages/process') continue;
+      mkdirSync(join(root, owner), { recursive: true });
+      writeFileSync(
+        join(root, owner, 'package.json'),
+        JSON.stringify({
+          name: `@porcelain/${name}`,
+          exports: { './*': './*' },
+        }),
+      );
+      symlinkSync(
+        join(root, owner),
+        join(root, 'node_modules/@porcelain', name),
+        'dir',
+      );
     }
     process.chdir(root);
     const result = await cruise(Object.keys(files), {

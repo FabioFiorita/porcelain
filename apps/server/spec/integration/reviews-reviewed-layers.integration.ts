@@ -1,6 +1,5 @@
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
-import { setTimeout as delay } from 'node:timers/promises';
 import { listReviewedLayersResponseSchema } from '@porcelain/contracts/reviews';
 import { expect } from 'vitest';
 import {
@@ -232,7 +231,6 @@ test('an edit through the API flags the layer mark stale as it answers and tells
   expect(
     marks(await read(session, { method: 'GET', path: layers(session) })),
   ).toMatchObject([{ layerId, stale: true }]);
-  await delay(600);
   await read(session, {
     method: 'DELETE',
     path: layers(session),

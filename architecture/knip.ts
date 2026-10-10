@@ -57,6 +57,15 @@ export default {
       project: ['scripts/**/*.ts', 'architecture/**/*.{ts,mjs}'],
       includeEntryExports: false,
     },
+    '.agents/skills': {
+      includeEntryExports: false,
+      entry: [
+        '*/scripts/cli.ts',
+        '*/scripts/*.spec.ts',
+        'spec/integration/*.integration.ts',
+      ],
+      project: ['**/*.ts'],
+    },
     'apps/desktop': {
       entry: [
         'src/{main,preload,server}.ts',
@@ -89,7 +98,7 @@ export default {
       entry: [
         'src/app/**/*.tsx',
         'src/**/*.spec.ts',
-        'spec/**/*.e2e.ts',
+        'spec/**/*.spec.ts',
         'metro.config.cjs',
         'babel.config.js',
       ],

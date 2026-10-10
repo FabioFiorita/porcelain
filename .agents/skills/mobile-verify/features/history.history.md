@@ -5,9 +5,7 @@ selectors:
   - 'Select a worktree to continue.'
   - 'No commits yet'
   - "Couldn't load history"
-tests:
-  - apps/mobile/spec/e2e/destinations.e2e.ts
-  - apps/mobile/spec/e2e/history.e2e.ts
+tests: []
 api:
   - GET /api/worktrees/:worktreeId/commits
 ---

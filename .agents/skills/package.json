@@ -1,0 +1,19 @@
+{
+  "name": "@porcelain/verification",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./processes": "./verify-core/processes.ts"
+  },
+  "scripts": {
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/verification"
+  },
+  "dependencies": {
+    "@porcelain/contracts": "workspace:*",
+    "@porcelain/desktop": "workspace:*",
+    "@porcelain/mobile": "workspace:*",
+    "@porcelain/server": "workspace:*",
+    "effect": "4.0.1",
+    "playwright": "1.63.0"
+  }
+}

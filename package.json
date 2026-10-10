@@ -1,14 +1,14 @@
 {
   "name": "porcelain",
   "version": "0.65.4",
+  "private": true,
   "description": "Review coding agents’ changes from a browser, Mac or phone",
+  "homepage": "https://github.com/FabioFiorita/porcelain",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/FabioFiorita/porcelain.git"
   },
-  "homepage": "https://github.com/FabioFiorita/porcelain",
-  "private": true,
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -18,7 +18,7 @@
     "format:server:check": "node scripts/style.ts format server",
     "format:web:check": "node scripts/style.ts format web",
     "arch:check": "node scripts/architecture.ts check",
-    "test": "vitest run --project !@porcelain/client-integration --project !@porcelain/server-integration --project !@porcelain/server-perf --project !@porcelain/mobile-e2e*",
+    "test": "vitest run",
     "test:integration": "turbo run test:integration --concurrency=1",
     "test:e2e": "turbo run test:e2e",
     "db:check": "pnpm --filter @porcelain/storage db:check",
@@ -29,15 +29,16 @@
     "serve": "node scripts/serve.ts",
     "build:package": "node scripts/build-package.ts",
     "prepare": "lefthook install --reset-hooks-path && effect-tsgo patch --typescript",
-    "check": "turbo run typecheck test lint:server lint:web format:server:check format:web:check arch:check test:rules knip features:check --output-logs=errors-only --continue --concurrency=100%",
+    "check": "turbo run typecheck test lint:server lint:web format:server:check format:web:check arch:check test:rules spec:gaps knip features:check --output-logs=errors-only --continue --concurrency=100%",
     "test:rules": "node architecture/rule-tests.mjs",
     "features:check": "node scripts/feature-maps.ts",
     "desktop:build": "node scripts/build-desktop.ts",
     "desktop:install": "node scripts/install-desktop.ts",
     "dev:mobile": "pnpm --filter @porcelain/mobile dev",
-    "check:static": "turbo run typecheck lint:server lint:web format:server:check format:web:check arch:check test:rules knip features:check --output-logs=errors-only --continue",
+    "check:static": "turbo run typecheck lint:server lint:web format:server:check format:web:check arch:check test:rules spec:gaps knip features:check --output-logs=errors-only --continue",
     "check:local": "pnpm check:static --concurrency=2",
-    "knip": "knip --config architecture/knip.ts --no-progress"
+    "knip": "knip --config architecture/knip.ts --no-progress",
+    "spec:gaps": "node scripts/spec-gaps.ts"
   },
   "devDependencies": {
     "@babel/core": "7.29.7",

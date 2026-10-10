@@ -1,5 +1,4 @@
 import * as Schema from 'effect/Schema';
-import { setTimeout as delay } from 'node:timers/promises';
 import {
   issueLiveTicketResponseSchema,
   liveNoticeSchema,
@@ -111,7 +110,7 @@ test('a ticket opens live updates from another origin that hear changes and clos
     projects: [session.projectId],
     worktrees: [],
   });
-  await delay(300);
+  await connection.next((notice) => notice.type === 'subscribed');
 
   const renamed = await session.send({
     method: 'PATCH',
@@ -171,9 +170,9 @@ test('a ticket works once', async ({ session }) => {
   expect(answer(withoutOrigin)).toStrictEqual(refused);
 });
 
-test('a ticket expires', async ({ session }) => {
+test('a ticket expires', async ({ session, server }) => {
   const { ticket } = await ticketFor(session);
-  await delay(session.fixture.liveTicketLifetimeMs + 100);
+  await server.advanceTime(session.fixture.liveTicketLifetimeMs + 100);
 
   const response = await session.send(upgradeWith(session, ticket));
 

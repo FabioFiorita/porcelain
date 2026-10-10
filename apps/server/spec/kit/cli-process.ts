@@ -1,4 +1,5 @@
-import { existsSync } from 'node:fs';
+import { existsSync, watch } from 'node:fs';
+import { once } from 'node:events';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -14,14 +15,15 @@ const repository = fileURLToPath(new URL('../../../../', import.meta.url));
 const PROGRAM = `
 import { Effect } from 'effect';
 import { writeFile } from 'node:fs/promises';
-import { setTimeout as delay } from 'node:timers/promises';
+import { once } from 'node:events';
 import { join } from 'node:path';
 import { runCli } from './apps/server/src/bootstrap/main.ts';
 import { runMain } from './apps/server/src/cli/runner.ts';
 const root = process.argv[1];
 runMain(runCli(['serve', '--port', '0', '--data-directory', join(root, 'data')], { PORCELAIN_PROJECT_HOME: root }, { homeDirectory: root }).pipe(
   Effect.ensuring(Effect.promise(async () => {
-    await delay(100);
+    await writeFile(join(root, 'draining'), 'draining');
+    await once(process.stdin, 'data');
     await writeFile(join(root, 'drained'), 'drained');
   })),
 ));
@@ -31,7 +33,7 @@ export function cliProcess(root: string) {
   const child = spawn(
     process.execPath,
     ['--input-type=module', '--eval', PROGRAM, root],
-    { cwd: repository, stdio: ['ignore', 'pipe', 'pipe'] },
+    { cwd: repository, stdio: ['pipe', 'pipe', 'pipe'] },
   );
   let output = '';
   let errors = '';
@@ -90,6 +92,14 @@ export async function stopCliProcess(signal: 'SIGINT' | 'SIGTERM') {
     const address = await child.ready;
     const health = (await fetch(`${address}/api/health`)).status;
     const signaled = child.process.kill(signal);
+    const draining = join(root, 'draining');
+    const watcher = watch(root);
+    try {
+      while (!existsSync(draining)) await once(watcher, 'change');
+      child.process.stdin?.write('release');
+    } finally {
+      watcher.close();
+    }
     const exit = await child.exited;
     const marker = await readFile(join(root, 'drained'), 'utf8');
     const stopped = await fetch(`${address}/api/health`).then(

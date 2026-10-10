@@ -49,6 +49,7 @@ const sourceRoots = [
     `packages/${name}/spec`,
   ]),
   '.agents/skills/server-verify/scripts',
+  '.agents/skills/spec',
   '.agents/skills/verify-core',
   '.agents/skills/desktop-verify/scripts',
   'apps/mobile/spec',

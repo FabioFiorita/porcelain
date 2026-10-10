@@ -5,11 +5,7 @@ selectors:
   - "Select a worktree to continue."
   - "No changes"
   - "Refresh"
-tests:
-  - apps/mobile/spec/e2e/phone-shell.e2e.ts
-  - apps/mobile/spec/e2e/destinations.e2e.ts
-  - apps/mobile/spec/e2e/tablet-shell.tablet.e2e.ts
-  - apps/mobile/spec/e2e/review.e2e.ts
+tests: []
 api:
   - GET /api/worktrees/:worktreeId/changes
   - GET /api/worktrees/:worktreeId/branch-changes
@@ -42,13 +38,9 @@ Review uses the selected worktree and shared live subscriptions to show uncommit
 
 ## What proves it works
 
-- `apps/mobile/spec/e2e/phone-shell.e2e.ts`: the phone tabs select Review and show its empty state; a cold launch starts on Files.
-- `apps/mobile/spec/e2e/destinations.e2e.ts`: the deep link opens Review directly with the tab selected.
-- `apps/mobile/spec/e2e/tablet-shell.tablet.e2e.ts`: the iPad split shows Review with “Changes” in the content column.
-- `apps/mobile/spec/e2e/review.e2e.ts`: the native changed-file flow persists the reviewed fingerprint and file feedback, with independent server readbacks.
+Drive this feature with the mobile-verify skill on demand.
 
 ## Gotchas
 
 - Agent explanations can refer to context or committed files outside the current comparison. The current changed-file destination explicitly reports No longer changed instead of fabricating a diff.
 - iPhone is the authorized native proof target. The existing iPad shell map is retained, but these Review changes do not claim iPad or Android proof.
-- agent-device's iOS accessibility backend can omit the selected trait of a native tab; read selection from the screenshot, and leave the selected-state assertion to the Maestro e2e test.

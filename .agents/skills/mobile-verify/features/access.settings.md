@@ -9,10 +9,7 @@ selectors:
   - "Add environment"
   - "Reading saved environments…"
   - "Read saved environments again"
-tests:
-  - apps/mobile/spec/e2e/destinations.e2e.ts
-  - apps/mobile/spec/e2e/phone-shell.e2e.ts
-  - apps/mobile/spec/e2e/tablet-shell.tablet.e2e.ts
+tests: []
 api:
   - GET /api/environment
   - GET /api/session
@@ -39,9 +36,7 @@ Settings lists the paired environments, each with its status, and offers Add env
 
 ## What proves it works
 
-- `apps/mobile/spec/e2e/destinations.e2e.ts`: the deep link opens Settings directly on a fresh install, showing “No environments paired.”.
-- `apps/mobile/spec/e2e/phone-shell.e2e.ts`: the Settings tab shows Environments and the empty state.
-- `apps/mobile/spec/e2e/tablet-shell.tablet.e2e.ts`: the iPad keeps Settings and its Environments section through sidebar collapse and rotation.
+Drive this feature with the mobile-verify skill on demand.
 
 ## Gotchas
 

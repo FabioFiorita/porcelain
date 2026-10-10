@@ -157,7 +157,9 @@ describe('gitWorktreeListingReaderLayer', () => {
     const exit = await Effect.runPromise(
       Effect.gen(function* () {
         const request = yield* Effect.forkChild(list);
-        yield* Effect.sleep(Duration.millis(300));
+        yield* Effect.promise(() =>
+          expect.poll(() => pipeHasReader(head)).toBe(true),
+        );
         yield* Fiber.interrupt(request);
         return yield* Fiber.await(request);
       }),
