@@ -15,6 +15,7 @@ export function HistoryList({
   onSelect,
   onLoadMore,
   footer,
+  header,
 }: {
   entries: readonly HistoryEntry[];
   selected?: string;
@@ -23,11 +24,14 @@ export function HistoryList({
   onSelect: (id: string) => void;
   onLoadMore?: () => void;
   footer?: ReactNode;
+  header?: ReactNode;
 }) {
   const padding = useResolveClassNames('px-2');
   return (
     <FlatList
+      contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={padding}
+      ListHeaderComponent={header === undefined ? undefined : <>{header}</>}
       data={entries}
       keyExtractor={(entry) => entry.id}
       renderItem={({ item }) => (

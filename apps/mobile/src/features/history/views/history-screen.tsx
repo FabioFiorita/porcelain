@@ -44,17 +44,7 @@ function WorktreeHistory({
     );
   const value = history.value;
   return (
-    <View className="flex-1 bg-background">
-      <View className="gap-2 border-b border-border px-4 py-2">
-        <Text variant="caption" tone="muted">
-          {historyHeading(value.snapshot)}
-        </Text>
-        {value.restarted ? (
-          <Text variant="caption" tone="muted">
-            History changed. Showing it from the top.
-          </Text>
-        ) : null}
-      </View>
+    <View collapsable={false} className="flex-1 bg-background">
       {value.commits.length === 0 && !failed ? (
         <Empty
           title="No commits yet"
@@ -62,6 +52,18 @@ function WorktreeHistory({
         />
       ) : (
         <HistoryList
+          header={
+            <View className="gap-2 border-b border-border px-4 py-2">
+              <Text variant="caption" tone="muted">
+                {historyHeading(value.snapshot)}
+              </Text>
+              {value.restarted ? (
+                <Text variant="caption" tone="muted">
+                  History changed. Showing it from the top.
+                </Text>
+              ) : null}
+            </View>
+          }
           entries={value.commits.map(commitEntry)}
           loading={history.result.waiting}
           hasMore={Boolean(value.nextAfter) && !failed}

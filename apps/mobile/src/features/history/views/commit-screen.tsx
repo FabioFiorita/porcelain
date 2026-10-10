@@ -55,7 +55,7 @@ function CommitDetail({
   if (!commit.value) return <Loading label="Loading commit…" />;
   const value = commit.value;
   return (
-    <View className="flex-1 bg-background">
+    <View collapsable={false} className="flex-1 bg-background">
       <Stack.Screen options={{ title: shortOid(oid) }} />
       {value.commit.parentOids.length > 1 ? (
         <Stack.Toolbar placement="right">
@@ -71,6 +71,7 @@ function CommitDetail({
         </Stack.Toolbar>
       ) : null}
       <FlatList
+        contentInsetAdjustmentBehavior="automatic"
         data={value.files}
         keyExtractor={(file) => `${file.oldPath ?? ''}\0${file.newPath ?? ''}`}
         ListHeaderComponent={
