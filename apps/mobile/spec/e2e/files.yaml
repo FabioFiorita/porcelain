@@ -1,0 +1,58 @@
+appId: com.fabiofiorita.porcelain.dev
+name: Browse and manage files on iPhone
+---
+- runFlow: connect.yaml
+- runFlow: open-settings.yaml
+- runFlow:
+    file: add-environment.yaml
+    env:
+      PAIRING_LINK: ${PAIRING_LINK}
+      ENVIRONMENT_NAME: ${ENVIRONMENT_NAME}
+- tapOn: Files
+- tapOn: Workspace
+- tapOn: ${PROJECT_NAME}, ${ENVIRONMENT_NAME}
+- tapOn: main
+- assertVisible: Open mobile-source.ts
+- tapOn: Open mobile-source.ts
+- assertVisible: Edit
+- tapOn: Edit
+- tapOn: File contents
+- eraseText
+- inputText: 'const message = "After native edit";'
+- inputText: "\n"
+- hideKeyboard
+- tapOn: Save and done
+- assertVisible: Edit
+- tapOn: Back
+- tapOn: New folder
+- tapOn: Name
+- inputText: mobile-folder
+- hideKeyboard
+- tapOn: Create
+- assertVisible: Expand mobile-folder
+- longPressOn: Expand mobile-folder
+- tapOn: New file here
+- tapOn: Name
+- inputText: draft.txt
+- hideKeyboard
+- tapOn: Create
+- assertVisible: Edit
+- tapOn: Back
+- tapOn: Expand mobile-folder
+- assertVisible: Open draft.txt
+- longPressOn: Open draft.txt
+- tapOn: Rename
+- tapOn: New path
+- eraseText
+- inputText: mobile-folder/renamed.txt
+- hideKeyboard
+- tapOn: Rename
+- assertVisible: Open renamed.txt
+- longPressOn: Open renamed.txt
+- tapOn: Move to trash
+- tapOn: Move to trash
+- assertNotVisible: Open renamed.txt
+- tapOn: Search files
+- inputText: mobile-source
+- assertVisible: Open mobile-source.ts
+- hideKeyboard

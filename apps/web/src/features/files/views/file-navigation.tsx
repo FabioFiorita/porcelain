@@ -48,7 +48,7 @@ import {
   fileTreeAncestors,
   mergeFileTreeEntries,
 } from '@porcelain/client/files/rules';
-import { isImagePath } from '../rules/html-assets';
+import { isImagePath } from '@porcelain/client/files/rules';
 import type { FilesScope } from '@porcelain/client/files/rules';
 import {
   duplicatePath,

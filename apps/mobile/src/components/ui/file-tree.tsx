@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useResolveClassNames } from 'uniwind';
 import { FlatList, View } from 'react-native';
 import { Item, type ItemProps } from './item';
@@ -8,13 +9,7 @@ import { Icon } from './icon';
 import { Badge } from './badge';
 import { Empty } from './empty';
 
-export type FileTreeNode = {
-  id: string;
-  name: string;
-  kind: 'file' | 'folder' | 'code' | 'image';
-  status?: string;
-  children?: readonly FileTreeNode[];
-};
+import type { FileTreeNode } from '../../shared/rules/file-tree-model';
 type Row = { node: FileTreeNode; depth: number };
 function visibleRows(
   nodes: readonly FileTreeNode[],
@@ -35,18 +30,23 @@ export function FileTree({
   onToggle,
   onSelect,
   contextMenu,
+  header,
 }: {
   nodes: readonly FileTreeNode[];
   expanded: ReadonlySet<string>;
   selected?: string;
   onToggle: (id: string) => void;
   onSelect: (id: string) => void;
-  contextMenu?: (node: FileTreeNode) => ItemMenuProps['actions'];
+  header?: ReactNode;
+  contextMenu?: ((node: FileTreeNode) => ItemMenuProps['actions']) | undefined;
 }) {
   const padding = useResolveClassNames('px-2');
   const indent = useResolveClassNames('pl-4');
   return (
     <FlatList
+      contentInsetAdjustmentBehavior="automatic"
+      ListHeaderComponent={<>{header}</>}
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={padding}
       data={visibleRows(nodes, expanded)}
       keyExtractor={({ node }) => node.id}

@@ -16,13 +16,17 @@ const NativeMarkdown = requireNativeView<{
 export function MarkdownView({
   source,
   onLink,
+  initialMode = 'reader',
+  wrap = true,
 }: {
   source: string;
   onLink?: (url: string) => void;
+  initialMode?: 'reader' | 'source';
+  wrap?: boolean;
 }) {
   const data = JSON.stringify(parseMarkdown(source));
   const tokens = useRenderTokens();
-  const [raw, setRaw] = useState(false);
+  const [raw, setRaw] = useState(initialMode === 'source');
   return (
     <View className="flex-1 bg-background">
       <View className="flex-row justify-end border-b border-border p-2">
@@ -34,7 +38,7 @@ export function MarkdownView({
         />
       </View>
       {raw ? (
-        <CodeView source={source} language="markdown" />
+        <CodeView source={source} language="markdown" wrap={wrap} />
       ) : (
         <NativeMarkdown
           data={data}

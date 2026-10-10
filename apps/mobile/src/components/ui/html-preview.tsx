@@ -20,20 +20,36 @@ const NativeHtml = requireNativeView<{
 export function HtmlPreview({
   html,
   onLink,
+  initialMode = 'preview',
+  wrap = true,
 }: {
   html: string;
   onLink?: (url: string) => void;
+  initialMode?: 'preview' | 'source';
+  wrap?: boolean;
 }) {
-  return <HtmlContent key={html} html={html} onLink={onLink} />;
+  return (
+    <HtmlContent
+      key={html}
+      html={html}
+      onLink={onLink}
+      initialMode={initialMode}
+      wrap={wrap}
+    />
+  );
 }
 function HtmlContent({
   html,
   onLink,
+  initialMode,
+  wrap,
 }: {
   html: string;
   onLink?: ((url: string) => void) | undefined;
+  initialMode: 'preview' | 'source';
+  wrap: boolean;
 }) {
-  const [source, setSource] = useState(false);
+  const [source, setSource] = useState(initialMode === 'source');
   const [error, setError] = useState('');
   const { fontScale } = useWindowDimensions();
   return (
@@ -47,7 +63,7 @@ function HtmlContent({
         />
       </View>
       {source ? (
-        <CodeView source={html} language="html" />
+        <CodeView source={html} language="html" wrap={wrap} />
       ) : error ? (
         <ErrorState message={error} />
       ) : (
