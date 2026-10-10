@@ -14,7 +14,6 @@ import {
   REVIEW_LAYERS,
   REVIEW_PROSE_LENGTH,
   REVIEW_STEPS,
-  REVIEW_STEP_ARROWS,
   REVIEW_STEP_TEXT_LENGTH,
   REVIEW_SUMMARY_BYTES,
   REVIEW_SUMMARY_MEBIBYTES,
@@ -86,16 +85,6 @@ const resolvedReviewStepSchema = Schema.Struct({
   },
 });
 
-const arrowSchema = Schema.Struct({
-  from: idSchema,
-  to: idSchema,
-  label: Schema.optional(
-    Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
-      .check(Schema.isMinLength(1))
-      .check(Schema.isMaxLength(REVIEW_LABEL_LENGTH)),
-  ),
-});
-
 const reviewLayerSchema = Schema.Struct({
   id: idSchema,
   title: Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
@@ -114,9 +103,6 @@ const reviewLayerSchema = Schema.Struct({
   steps: Schema.Array(reviewStepSchema)
     .check(Schema.isMinLength(1))
     .check(Schema.isMaxLength(REVIEW_STEPS)),
-  arrows: Schema.optional(
-    Schema.Array(arrowSchema).check(Schema.isMaxLength(REVIEW_STEP_ARROWS)),
-  ),
 });
 
 const resolvedReviewLayerSchema = Schema.Struct({
@@ -137,13 +123,9 @@ const diagramArrowSchema = Schema.Struct({
       .check(Schema.isMinLength(1))
       .check(Schema.isMaxLength(REVIEW_LABEL_LENGTH)),
   ),
-  dashed: Schema.optional(Schema.Boolean),
 });
 const diagramBoxSchema = Schema.Struct({
   id: idSchema,
-  lane: Schema.Number.check(Schema.isInt())
-    .check(Schema.isGreaterThanOrEqualTo(0))
-    .check(Schema.isLessThanOrEqualTo(REVIEW_LANES - 1)),
   label: Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
     .check(Schema.isMinLength(1))
     .check(Schema.isMaxLength(REVIEW_LABEL_LENGTH)),
@@ -152,13 +134,6 @@ const diagramBoxSchema = Schema.Struct({
       .check(Schema.isMinLength(1))
       .check(Schema.isMaxLength(REVIEW_PROSE_LENGTH)),
   ),
-  kind: Schema.Literals([
-    'actor',
-    'component',
-    'storage',
-    'transport',
-    'credential',
-  ]),
   change: Schema.optional(Schema.Literals(['new', 'changed', 'removed'])),
   problem: Schema.optional(
     Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
@@ -166,15 +141,9 @@ const diagramBoxSchema = Schema.Struct({
       .check(Schema.isMaxLength(REVIEW_PROSE_LENGTH)),
   ),
   layerId: Schema.optional(idSchema),
+  decision: Schema.optional(Schema.Literal(true)),
 });
 const diagramSchema = Schema.Struct({
-  lanes: Schema.Array(
-    Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
-      .check(Schema.isMinLength(1))
-      .check(Schema.isMaxLength(REVIEW_LANE_NAME_LENGTH)),
-  )
-    .check(Schema.isMinLength(1))
-    .check(Schema.isMaxLength(REVIEW_LANES)),
   boxes: Schema.Array(diagramBoxSchema).check(
     Schema.isMaxLength(DIAGRAM_BOXES),
   ),
@@ -184,7 +153,6 @@ const diagramSchema = Schema.Struct({
 });
 const reviewDiagramSchema = Schema.Struct({
   after: diagramSchema,
-  before: Schema.optional(diagramSchema),
 });
 
 const summaryHtmlSchema = Schema.String.check(Schema.isMinLength(1))

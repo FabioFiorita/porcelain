@@ -21,14 +21,14 @@ export const toggleLayerMark = Atom.family(
       Effect.fn('Reviews.toggleLayerMark')(function* (input: {
         layerId: string;
         fingerprint: string;
-        reviewed: boolean;
+        action: 'mark' | 'unmark';
       }) {
         const client = yield* porcelainClient(connection);
         const marks = yield* LayerMarksState;
         const answer = yield* marks.confirm(
           Effect.gen(function* () {
             const result = yield* client.request((api) =>
-              input.reviewed
+              input.action === 'unmark'
                 ? api.reviews.removeReviewedLayer({
                     params: { worktreeId: scope.worktreeId },
                     query: { layerId: input.layerId },

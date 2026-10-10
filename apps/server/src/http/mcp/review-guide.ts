@@ -56,15 +56,30 @@ A compact page that matches a light application:
 
 ## Diagram
 
-When the change crosses more than one part of the system, add a diagram: lanes, boxes, and explicit arrows. Porcelain does not draw it as a graph. It reads it as the briefing "What this adds to the system" and as each decision's connections, so write it for those:
+When the change crosses more than one part of the system, add a diagram with boxes and explicit arrows in \`diagram.after\`. Porcelain does not draw it as a graph. It reads it as the briefing "What this adds to the system" and as each decision's connections, so write it for those:
 
-- Mark each owner the work adds, alters or removes with New, Changed or Removed in the After view, with a one-line \`detail\`. A box whose label is a layer's title stands for that decision and is not listed as an owner.
+- Mark each owner the work adds, alters or removes with New, Changed or Removed with \`change: "new"\`, \`"changed"\` or \`"removed"\`, with a one-line \`detail\`. Set \`decision: true\` on the one box that stands for a decision, and name its layer with \`layerId\`. It is not listed as an owner; labels do not determine ownership.
 - Name the layer behind each box with \`layerId\` so the reader can jump from an owner to its code.
 - Use \`problem\` for a decision the developer must make: two writes without a shared transaction, a second copy of an owner that already exists, a pattern this change follows differently from the rest of the codebase. Each problem is shown as "Needs your decision" in the briefing and in every decision connected to that box.
-- Label every arrow with its meaning, such as calls, reads, writes, publishes or depends on. An arrow from a decision's box to an owner appears on that decision as "uses Delivery outbox". Describe all actual relationships, including ordinary calls; step order never creates an arrow.
-- A Before view is optional context for ownership that moved.
+- Label every arrow with its meaning, such as calls, reads, writes, publishes or depends on. An arrow labelled \`uses\` from a decision box to an owner labelled \`Delivery outbox\` appears as "uses Delivery outbox". Porcelain uses the label verbatim; an unlabelled arrow reads "relates to". Describe all actual relationships, including ordinary calls; step order never creates an arrow.
 
 These are your architectural claims, not automatically verified call traces. Support them with code pointers in the linked layer, and leave uncertain relationships in the detail instead of drawing a confident arrow.
+
+For example, a decision introducing an owner can link to that owner even though both boxes name the same layer:
+
+\`\`\`json
+{
+  "diagram": {
+    "after": {
+      "boxes": [
+        { "id": "10000000-0000-4000-8000-000000000001", "label": "Introduce delivery", "decision": true, "layerId": "20000000-0000-4000-8000-000000000001" },
+        { "id": "10000000-0000-4000-8000-000000000002", "label": "Delivery outbox", "change": "new", "detail": "Owns retry identity", "layerId": "20000000-0000-4000-8000-000000000001" }
+      ],
+      "arrows": [{ "from": "10000000-0000-4000-8000-000000000001", "to": "10000000-0000-4000-8000-000000000002", "label": "uses" }]
+    }
+  }
+}
+\`\`\`
 
 ## Proof
 

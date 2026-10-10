@@ -5,6 +5,7 @@ import { McpProtocol, McpServer } from 'effect/ai';
 import { Effect, Layer } from 'effect';
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http';
 import type { Limits } from '../../config/limits.ts';
+import { toStatusResponse } from '../status-policy.ts';
 import { RequestError } from '../../runtime/errors/request-error.ts';
 import {
   reviewMcpHandlers,
@@ -26,14 +27,23 @@ const invocationPolicy = HttpRouter.middleware((app) =>
       );
     const cwd = request.headers['x-porcelain-cwd'];
     if (cwd === undefined || cwd === '')
-      return yield* Effect.die(
+      return yield* Effect.fail(
         new RequestError({
           statusCode: 400,
           message: 'The x-porcelain-cwd header is required',
         }),
       );
     return yield* app;
-  }),
+  }).pipe(
+    Effect.catchTag('RequestError', (error) => {
+      const response = toStatusResponse(error);
+      return Effect.succeed(
+        HttpServerResponse.jsonUnsafe(response.body, {
+          status: response.statusCode,
+        }),
+      );
+    }),
+  ),
 );
 
 export function reviewMcp(options: {

@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures.tsx';
 
-test('a file can be reviewed alone; marking the decision reviews its files and records it, a change to its code reopens it, and unmarking keeps the files', async ({
+test('marking a decision whose files are already reviewed keeps their marks and records the decision, a change to its code reopens it, and unmarking keeps the files', async ({
   workspace,
   repo,
   server,
@@ -30,14 +30,6 @@ test('a file can be reviewed alone; marking the decision reviews its files and r
   await markFile.click();
   await expect.poll(files).toEqual([readme]);
   await expect.poll(decisions).toEqual([]);
-  await decision
-    .getByRole('button', {
-      name: `Unmark ${readme} as unreviewed`,
-      exact: true,
-    })
-    .click();
-  await expect.poll(files).toEqual([]);
-
   const mark = decision.getByRole('button', {
     name: 'Mark decision reviewed',
     exact: true,

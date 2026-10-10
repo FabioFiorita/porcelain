@@ -17,24 +17,12 @@ const stepDraftSchema = Schema.Struct({
   ),
   pointer: Schema.mutableKey(codePointerSchema),
 });
-const layerArrowSchema = Schema.Struct({
-  from: Schema.mutableKey(Schema.String),
-  to: Schema.mutableKey(Schema.String),
-  label: Schema.mutableKey(
-    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
-  ),
-});
 const layerDraftSchema = Schema.Struct({
   id: Schema.mutableKey(Schema.String),
   title: Schema.mutableKey(Schema.String),
   summary: Schema.mutableKey(Schema.String),
   lanes: Schema.mutableKey(Schema.Array(Schema.String)),
   steps: Schema.mutableKey(Schema.Array(stepDraftSchema)),
-  arrows: Schema.mutableKey(
-    Schema.optional(
-      Schema.Union([Schema.Array(layerArrowSchema), Schema.Undefined]),
-    ),
-  ),
 });
 const reviewStepSchema = Schema.Struct({
   ...stepDraftSchema.fields,
@@ -47,19 +35,9 @@ export const reviewLayerSchema = Schema.Struct({
 });
 const diagramBoxSchema = Schema.Struct({
   id: Schema.mutableKey(Schema.String),
-  lane: Schema.mutableKey(Schema.Number),
   label: Schema.mutableKey(Schema.String),
   detail: Schema.mutableKey(
     Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
-  ),
-  kind: Schema.mutableKey(
-    Schema.Union([
-      Schema.Literal('actor'),
-      Schema.Literal('component'),
-      Schema.Literal('storage'),
-      Schema.Literal('transport'),
-      Schema.Literal('credential'),
-    ]),
   ),
   change: Schema.mutableKey(
     Schema.optional(
@@ -77,6 +55,7 @@ const diagramBoxSchema = Schema.Struct({
   layerId: Schema.mutableKey(
     Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
   ),
+  decision: Schema.mutableKey(Schema.optional(Schema.Literal(true))),
 });
 const diagramArrowSchema = Schema.Struct({
   from: Schema.mutableKey(Schema.String),
@@ -84,20 +63,13 @@ const diagramArrowSchema = Schema.Struct({
   label: Schema.mutableKey(
     Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
   ),
-  dashed: Schema.mutableKey(
-    Schema.optional(Schema.Union([Schema.Boolean, Schema.Undefined])),
-  ),
 });
 const diagramSchema = Schema.Struct({
-  lanes: Schema.mutableKey(Schema.Array(Schema.String)),
   boxes: Schema.mutableKey(Schema.Array(diagramBoxSchema)),
   arrows: Schema.mutableKey(Schema.Array(diagramArrowSchema)),
 });
 export const reviewDiagramSchema = Schema.Struct({
   after: Schema.mutableKey(diagramSchema),
-  before: Schema.mutableKey(
-    Schema.optional(Schema.Union([diagramSchema, Schema.Undefined])),
-  ),
 });
 
 import type { Brand } from 'effect';
@@ -164,8 +136,8 @@ export type ReviewDraftProblem =
   | { kind: 'reversed-pointer' }
   | { kind: 'duplicate-step-id' }
   | { kind: 'step-lane-out-of-range' }
-  | { kind: 'unknown-arrow-step' }
-  | { kind: 'box-lane-out-of-range' }
+  | { kind: 'unknown-box-layer' }
+  | { kind: 'invalid-decision-box' }
   | { kind: 'unknown-arrow-box' }
   | { kind: 'unknown-proof-target' };
 

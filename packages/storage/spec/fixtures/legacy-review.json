@@ -1,0 +1,76 @@
+{
+  "worktreeId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "revision": 1,
+  "publishedAt": "2026-09-24T10:00:00.000Z",
+  "active": true,
+  "summaryHtml": "<p>Legacy review</p>",
+  "summaryToken": "legacy-token",
+  "summarySecret": "legacy-secret",
+  "layers": [
+    {
+      "id": "layer",
+      "title": "Introduce delivery",
+      "summary": "Own delivery",
+      "lanes": ["Server"],
+      "steps": [
+        {
+          "id": "step",
+          "lane": 0,
+          "title": "Deliver",
+          "text": "Own retries",
+          "kind": "changed",
+          "pointer": {
+            "path": "outbox.ts",
+            "startLine": 1,
+            "endLine": 1
+          },
+          "published": ["deliver()"]
+        }
+      ],
+      "arrows": [
+        {
+          "from": "step",
+          "to": "step",
+          "label": "calls"
+        }
+      ],
+      "fingerprint": "fingerprint"
+    }
+  ],
+  "diagram": {
+    "before": {
+      "lanes": ["Server"],
+      "boxes": [],
+      "arrows": []
+    },
+    "after": {
+      "lanes": ["Server"],
+      "boxes": [
+        {
+          "id": "decision",
+          "lane": 0,
+          "label": "Introduce delivery",
+          "kind": "component",
+          "layerId": "layer",
+          "change": "changed"
+        },
+        {
+          "id": "outbox",
+          "lane": 0,
+          "label": "Delivery outbox",
+          "kind": "storage",
+          "layerId": "layer",
+          "change": "new"
+        }
+      ],
+      "arrows": [
+        {
+          "from": "decision",
+          "to": "outbox",
+          "label": "uses",
+          "dashed": true
+        }
+      ]
+    }
+  }
+}

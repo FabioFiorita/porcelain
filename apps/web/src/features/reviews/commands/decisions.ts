@@ -52,8 +52,11 @@ export function useCompleteDecision(
         )
       : true;
   };
-  const recordDecision = async (decision: Decision, reviewed: boolean) => {
-    const exit = await setDecisionMark({ ...decision, reviewed });
+  const recordDecision = async (
+    decision: Decision,
+    action: 'mark' | 'unmark',
+  ) => {
+    const exit = await setDecisionMark({ ...decision, action });
     return Exit.isFailure(exit)
       ? fail(
           'Could not update the decision',
@@ -73,14 +76,14 @@ export function useCompleteDecision(
         if (
           input.decision &&
           !input.decision.reviewed &&
-          !(await recordDecision(input.decision, false))
+          !(await recordDecision(input.decision, 'mark'))
         )
           return;
         input.onDone?.();
       })();
     },
     reopen(decision: Decision) {
-      void recordDecision(decision, true);
+      void recordDecision(decision, 'unmark');
     },
   };
 }
