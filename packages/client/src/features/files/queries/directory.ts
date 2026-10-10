@@ -52,14 +52,14 @@ export type DirectorySelection = {
   scope: FilesScope;
   paths: readonly string[];
 };
+function directoryAtoms({ connection, scope, paths }: DirectorySelection) {
+  return paths.map((path) => readDirectory({ connection, scope, path }));
+}
 export const readDirectories = Atom.family((selection: DirectorySelection) =>
-  Atom.make((get) =>
-    selection.paths.map((path) => get(readDirectory({ ...selection, path }))),
-  ),
+  Atom.make((get) => directoryAtoms(selection).map((atom) => get(atom))),
 );
 export const refreshDirectories = Atom.family((selection: DirectorySelection) =>
   Atom.fnSync((_: void, get) => {
-    for (const path of selection.paths)
-      get.refresh(readDirectory({ ...selection, path }));
+    for (const atom of directoryAtoms(selection)) get.refresh(atom);
   }),
 );

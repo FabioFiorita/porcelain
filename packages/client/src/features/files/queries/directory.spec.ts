@@ -9,7 +9,7 @@ const scope = {
 };
 const fixture = clientFixtures('environment');
 
-import { readDirectory } from './directory.ts';
+import { readDirectory, readDirectories } from './directory.ts';
 const response = {
   worktreeId: scope.worktreeId,
   path: 'src',
@@ -43,4 +43,24 @@ it('rejects another worktree returned by the transport', async () => {
       ),
     ),
   ).rejects.toThrow('The connected context changed.');
+});
+
+it('reuses a confirmed folder when batching it with other folder paths', async () => {
+  const subject = fixture(() => Promise.resolve(Response.json(response)));
+  const selection = { connection: subject.connection, scope, path: 'src' };
+  const atom = readDirectory(selection);
+  const unmount = subject.registry.mount(atom);
+  try {
+    await Effect.runPromise(AtomRegistry.getResult(subject.registry, atom));
+    const results = subject.registry.get(
+      readDirectories({ ...selection, paths: ['src', 'nested'] }),
+    );
+    expect(results[0]).toMatchObject({
+      _tag: 'Success',
+      value: response,
+      waiting: false,
+    });
+  } finally {
+    unmount();
+  }
 });
