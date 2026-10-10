@@ -30,6 +30,7 @@ const required = [
   '@porcelain/mobile',
   '@porcelain/desktop',
   '@porcelain/server',
+  '@porcelain/verification',
   ...packages.filter(decides).map((name) => `@porcelain/${name}`),
 ];
 
@@ -75,8 +76,15 @@ export default defineConfig({
           include: [
             'apps/mobile/src/**/*.spec.ts',
             'apps/mobile/spec/**/*.spec.ts',
-            '.agents/skills/mobile-verify/scripts/*.spec.ts',
           ],
+          expect: { requireAssertions: true },
+        },
+      },
+      {
+        test: {
+          name: '@porcelain/verification',
+          root,
+          include: ['.agents/skills/*/scripts/*.spec.ts'],
           expect: { requireAssertions: true },
         },
       },

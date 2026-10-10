@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { TestProject } from 'vitest/node';
 import { temporaryServerBuild } from './sandbox.ts';
+import { routeCoverage } from './route-coverage.ts';
 const integrationFolder = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../integration',
@@ -18,19 +19,26 @@ async function unrequestedRoutes(folder: string, project: TestProject) {
   const tests = (await readdir(integrationFolder)).filter((name) =>
     name.endsWith('.integration.ts'),
   );
-  const ran = project.vitest.state
+  const modules = project.vitest.state
     .getTestModules()
-    .filter((module) => module.project.name === project.name).length;
-  if (ran < tests.length) {
+    .filter((module) => module.project.name === project.name)
+    .map((module) => ({
+      path: module.moduleId,
+      executed: [...module.children.allTests()].some((test) =>
+        ['passed', 'failed'].includes(test.result().state),
+      ),
+    }));
+  const coverage = routeCoverage(
+    tests.map((name) => join(integrationFolder, name)),
+    modules,
+    logs.length,
+  );
+  if (!coverage.complete) {
     process.stderr.write(
-      `Route coverage: not judged, this run selected ${ran} of ${tests.length} integration files; a run of every file judges it.\n`,
+      `Route coverage: not judged, this run selected ${coverage.selected} of ${tests.length} integration files; a run of every file judges it.\n`,
     );
     return [];
   }
-  if (logs.length !== ran)
-    throw new Error(
-      `Route coverage: ${ran} integration files ran but ${logs.length} wrote a route log; every file's server records the routes its tests reached.`,
-    );
   const registered = new Set<string>();
   const requested = new Set<string>();
   for (const name of logs) {

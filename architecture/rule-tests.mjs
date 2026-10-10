@@ -5,7 +5,11 @@ import { parseSync } from 'oxc-parser';
 import plugin from './oxlint-plugin.mjs';
 import { runGuardrailCases } from './guardrail-tests.mjs';
 
-import ruleCases, { specGapCases, specGapRatchetCases } from './rule-cases.mjs';
+import ruleCases, {
+  specGapCases,
+  specGapRatchetCases,
+  routeCoverageCases,
+} from './rule-cases.mjs';
 import { unspecifiedExports, specGapProblems } from './spec-gaps.mjs';
 for (const fixture of specGapCases)
   deepStrictEqual(
@@ -19,6 +23,14 @@ for (const fixture of specGapCases)
 process.stdout.write(
   'PASS spec-gap fixtures: called, uncalled, aliased, shadowed, namespace, missing, type and barrel exports\n',
 );
+import { routeCoverage } from '../apps/server/spec/kit/route-coverage.ts';
+for (const fixture of routeCoverageCases) {
+  const check = () =>
+    routeCoverage(fixture.expected, fixture.modules, fixture.logs);
+  if (fixture.error)
+    throws(check, (error) => error.message.startsWith(fixture.error));
+  else deepStrictEqual(check(), fixture.result);
+}
 import { runBoundaryCases } from './boundary-tests.mjs';
 for (const fixture of specGapRatchetCases)
   deepStrictEqual(

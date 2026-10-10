@@ -5,6 +5,9 @@
   "exports": {
     "./processes": "./verify-core/processes.ts"
   },
+  "scripts": {
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/verification"
+  },
   "dependencies": {
     "@porcelain/contracts": "workspace:*",
     "@porcelain/desktop": "workspace:*",

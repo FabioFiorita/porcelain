@@ -3400,6 +3400,42 @@ export const workspaceBoundaryCases = [
 
 export const specGapCases = [
   {
+    source: 'export const limit = 5;',
+    spec: "import { limit } from './sample.ts'; expect(limit).toBe(5);",
+    gaps: [],
+  },
+  {
+    source: 'export const limit = 5;',
+    spec: "import { limit } from './sample.ts'; expect(5).toBe(5);",
+    gaps: ['limit'],
+  },
+  {
+    source: 'export const rules = { decide: () => 5 };',
+    spec: "import { rules } from './sample.ts'; expect(rules.decide()).toBe(5);",
+    gaps: [],
+  },
+  {
+    source: 'export const schema = Schema.String;',
+    spec: "import { schema } from './sample.ts'; expect(Schema.decodeUnknownSync(schema)('ok')).toBe('ok');",
+    gaps: [],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import { decide } from './sample.ts'; expect(decide).toBeDefined();",
+    gaps: ['decide'],
+  },
+  {
+    source: 'export default function decide() {}',
+    spec: "import choice from './sample.ts'; expect(choice()).toEqual(5);",
+    gaps: [],
+  },
+  {
+    source: 'export const limit = 5;',
+    spec: "import * as rules from './sample.ts'; expect(rules.limit).toBe(5);",
+    gaps: [],
+  },
+
+  {
     source: 'export function decide() {}',
     spec: "import { decide as choice } from './sample.ts'; choice();",
     gaps: [],
@@ -3452,5 +3488,48 @@ export const specGapRatchetCases = [
     baseline: ['new'],
     allowed: ['old'],
     errors: ['The spec-gap baseline may only shrink: new'],
+  },
+];
+
+export const routeCoverageCases = [
+  {
+    expected: ['server/a', 'server/b'],
+    modules: [
+      { path: 'server/a', executed: true },
+      { path: 'server/b', executed: true },
+      { path: 'skills/native', executed: false },
+    ],
+    logs: 2,
+    result: { selected: 2, complete: true },
+  },
+  {
+    expected: ['server/a', 'server/b'],
+    modules: [
+      { path: 'server/a', executed: true },
+      { path: 'skills/native', executed: true },
+    ],
+    logs: 2,
+    result: { selected: 1, complete: false },
+  },
+  {
+    expected: ['server/a'],
+    modules: [
+      { path: 'server/a', executed: true },
+      { path: 'skills/native', executed: true },
+    ],
+    logs: 2,
+    result: { selected: 1, complete: true },
+  },
+  {
+    expected: ['server/a'],
+    modules: [{ path: 'server/a', executed: true }],
+    logs: 0,
+    error: 'Route coverage: 1 integration files ran but 0 wrote a route log',
+  },
+  {
+    expected: ['server/a'],
+    modules: [{ path: 'server/a', executed: true }],
+    logs: 2,
+    error: 'Route coverage: 1 integration files ran but 2 wrote a route log',
   },
 ];
