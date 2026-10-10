@@ -16,6 +16,7 @@ import {
 } from '@porcelain/client/changes/rules';
 import {
   rangeAnchor,
+  type CommentAnchor,
   type CommentTarget,
 } from '@porcelain/client/reviews/rules';
 import { Empty } from '../../../components/ui/empty';
@@ -338,7 +339,16 @@ function UntrackedFile({
   if (!AsyncResult.isSuccess(result))
     return <ReviewReadState result={result} refresh={refresh} />;
   if ('kind' in result.value)
-    return <Empty title="File unavailable" description={result.value.reason} />;
+    return (
+      <View className="flex-1">
+        <FileCommentAction
+          workspace={workspace}
+          comparison={comparison}
+          target={commentTarget(snapshot, file, 'untracked')}
+        />
+        <Empty title="File unavailable" description={result.value.reason} />
+      </View>
+    );
   return (
     <SelectableContent
       key={result.value.contentFingerprint}
@@ -363,14 +373,18 @@ function DiffContentView({
   const presentation = diffPresentation(content);
   if (presentation.kind === 'notice')
     return (
-      <Empty
-        title={presentation.title}
-        description={presentation.description}
-      />
+      <View className="flex-1">
+        <FileCommentAction {...props} />
+        <Empty
+          title={presentation.title}
+          description={presentation.description}
+        />
+      </View>
     );
   if (presentation.kind === 'metadata')
     return (
       <View className="flex-1">
+        <FileCommentAction {...props} />
         <Text variant="caption" tone="muted">
           Metadata only · no text lines changed
         </Text>
@@ -397,7 +411,6 @@ function SelectableContent({
   source?: string;
   lines?: Parameters<typeof DiffView>[0]['lines'];
 }) {
-  const router = useRouter();
   const { preferences } = usePreferences();
   const [selection, setSelection] = useState<ReviewRange>();
   const anchor = target
@@ -412,22 +425,11 @@ function SelectableContent({
   return (
     <View className="flex-1">
       <View className="flex-row items-center gap-2 px-4 py-2">
-        <Button
+        <CommentAction
+          workspace={workspace}
+          comparison={comparison}
+          anchor={anchor ?? undefined}
           label={selection ? 'Comment on selected lines' : 'Comment on file'}
-          variant="outline"
-          disabled={!anchor}
-          onPress={() => {
-            if (anchor)
-              router.push({
-                pathname: '/review-comments',
-                params: {
-                  ...reviewParams(workspace.key, comparison),
-                  path: target?.filePath,
-                  anchor: JSON.stringify(anchor),
-                  compose: 'true',
-                },
-              });
-          }}
         />
         {selection ? (
           <Button
@@ -453,5 +455,57 @@ function SelectableContent({
         />
       )}
     </View>
+  );
+}
+
+function FileCommentAction({
+  target,
+  ...props
+}: {
+  workspace: ReviewWorkspace;
+  comparison: ReviewComparison;
+  target?: CommentTarget | undefined;
+}) {
+  return (
+    <View className="px-4 py-2">
+      <CommentAction
+        {...props}
+        anchor={target ? { ...target, kind: 'file' } : undefined}
+        label="Comment on file"
+      />
+    </View>
+  );
+}
+
+function CommentAction({
+  workspace,
+  comparison,
+  anchor,
+  label,
+}: {
+  workspace: ReviewWorkspace;
+  comparison: ReviewComparison;
+  anchor?: CommentAnchor | undefined;
+  label: string;
+}) {
+  const router = useRouter();
+  return (
+    <Button
+      label={label}
+      variant="outline"
+      disabled={!anchor}
+      onPress={() => {
+        if (anchor)
+          router.push({
+            pathname: '/review-comments',
+            params: {
+              ...reviewParams(workspace.key, comparison),
+              ...(anchor.kind === 'change' ? {} : { path: anchor.filePath }),
+              anchor: JSON.stringify(anchor),
+              compose: 'true',
+            },
+          });
+      }}
+    />
   );
 }
