@@ -61,6 +61,7 @@ const bridge: DesktopBridge = {
   },
   appUpdate: {
     current: () => version,
+    enabled: () => process.argv.includes('--porcelain-update-feed'),
     check: async () => {
       const value: unknown = await ipcRenderer.invoke(
         'porcelain:app-update-check',

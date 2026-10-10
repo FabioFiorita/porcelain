@@ -24,10 +24,6 @@ export const desktopAppUpdateStateSchema = Schema.Union([
     status: Schema.Literal('downloading'),
     version: Schema.String,
   }),
-  Schema.Struct({
-    status: Schema.Literal('verifying'),
-    version: Schema.String,
-  }),
   Schema.Struct({ status: Schema.Literal('ready'), version: Schema.String }),
   Schema.Struct({
     status: Schema.Literal('installing'),
@@ -67,6 +63,7 @@ export type DesktopBridge = {
   };
   appUpdate: {
     current: () => string;
+    enabled: () => boolean;
     check: () => Promise<DesktopAppUpdateCheck>;
     install: () => Promise<void>;
     onState: (receive: (state: DesktopAppUpdateState) => void) => () => void;

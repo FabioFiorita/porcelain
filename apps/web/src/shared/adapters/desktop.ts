@@ -56,7 +56,12 @@ export class DesktopHost extends Context.Service<
       address: string,
     ) => Effect.Effect<string | null, ConnectionError>;
     readonly checkUpdate: Effect.Effect<
-      Option.Option<DesktopAppUpdateCheck & { readonly current: string }>,
+      Option.Option<
+        DesktopAppUpdateCheck & {
+          readonly current: string;
+          readonly enabled: boolean;
+        }
+      >,
       ConnectionError
     >;
     readonly installUpdate: Effect.Effect<void, ConnectionError>;
@@ -105,7 +110,11 @@ export class DesktopHost extends Context.Service<
               cause,
             }),
         });
-        return Option.some({ current: bridge.appUpdate.current(), ...update });
+        return Option.some({
+          current: bridge.appUpdate.current(),
+          enabled: bridge.appUpdate.enabled(),
+          ...update,
+        });
       }),
       installUpdate: Effect.suspend(() =>
         bridge

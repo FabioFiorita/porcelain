@@ -1,4 +1,4 @@
-import { useAtomValue } from '@effect/atom-react';
+import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { Effect, Option, Stream } from 'effect';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import { DesktopHost } from '@/shared/adapters/desktop';
@@ -30,7 +30,7 @@ const appUpdateState = runtime
   .pipe(Atom.setIdleTTL(0));
 
 export function useAppUpdate() {
-  return useAtomValue(appUpdate);
+  return { result: useAtomValue(appUpdate), check: useAtomRefresh(appUpdate) };
 }
 
 export function useAppUpdateState() {

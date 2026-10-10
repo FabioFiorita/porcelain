@@ -8,7 +8,6 @@ describe('appUpdateProgress', () => {
       { status: 'downloading' as const, version: '2.0.0' },
       'Downloading 2.0.0…',
     ],
-    [{ status: 'verifying' as const, version: '2.0.0' }, 'Verifying 2.0.0…'],
     [
       { status: 'ready' as const, version: '2.0.0' },
       '2.0.0 is ready; the app restarts to finish.',
