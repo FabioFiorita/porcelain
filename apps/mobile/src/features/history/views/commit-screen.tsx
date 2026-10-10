@@ -1,5 +1,6 @@
+import { Box } from '../../../components/ui/box';
 import { useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { AsyncResult } from 'effect/reactivity';
 import { Empty } from '../../../components/ui/empty';
@@ -55,7 +56,7 @@ function CommitDetail({
   if (!commit.value) return <Loading label="Loading commit…" />;
   const value = commit.value;
   return (
-    <View collapsable={false} className="flex-1 bg-background">
+    <Box collapsable={false} className="flex-1" surface="background">
       <Stack.Screen options={{ title: shortOid(oid) }} />
       {value.commit.parentOids.length > 1 ? (
         <Stack.Toolbar placement="right">
@@ -75,7 +76,7 @@ function CommitDetail({
         data={value.files}
         keyExtractor={(file) => `${file.oldPath ?? ''}\0${file.newPath ?? ''}`}
         ListHeaderComponent={
-          <View className="gap-3 border-b border-border p-4">
+          <Box gap={3} divider="bottom" padding={4}>
             <Text variant="heading" selectable>
               {value.commit.subject}
             </Text>
@@ -101,11 +102,11 @@ function CommitDetail({
                 ? `Against ${shortOid(value.comparison.baseOid)} · Parent ${value.comparison.parentNumber}`
                 : 'Root commit'}
             </Text>
-            <View className="flex-row flex-wrap gap-1">
+            <Box className="flex-row flex-wrap" gap={1}>
               {value.commit.refs.map((ref) => (
                 <Badge key={ref} label={refLabel(ref)} variant="secondary" />
               ))}
-            </View>
+            </Box>
             <Text
               variant="ui"
               weight="medium"
@@ -113,7 +114,7 @@ function CommitDetail({
             {commit.result.waiting ? (
               <Loading label="Loading comparison…" />
             ) : null}
-          </View>
+          </Box>
         }
         ListEmptyComponent={
           <Empty
@@ -140,6 +141,6 @@ function CommitDetail({
           />
         )}
       />
-    </View>
+    </Box>
   );
 }

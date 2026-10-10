@@ -151,6 +151,17 @@
       "rules": {
         "typescript/no-deprecated": "off"
       }
+    },
+    {
+      "files": [
+        "**/apps/web/src/**/views/**/*.tsx",
+        "**/apps/web/src/shell/**/*.tsx",
+        "**/apps/mobile/src/**/views/**/*.tsx",
+        "**/apps/mobile/src/shell/**/*.tsx"
+      ],
+      "rules": {
+        "no-nested-ternary": "error"
+      }
     }
   ]
 }

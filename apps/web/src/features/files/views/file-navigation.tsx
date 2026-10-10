@@ -145,12 +145,15 @@ function ScopedFileNavigation({
       .flatMap((entry) => entry.comparisons)
       .map((change): GitStatusEntry => ({
         path: changePath(change),
-        status:
-          change.scope === 'untracked'
-            ? 'untracked'
-            : change.scope === 'unmerged' || change.kind === 'type-changed'
-              ? 'modified'
-              : change.kind,
+        status: (() => {
+          if (change.scope === 'untracked') {
+            return 'untracked';
+          }
+          if (change.scope === 'unmerged' || change.kind === 'type-changed') {
+            return 'modified';
+          }
+          return change.kind;
+        })(),
       })),
   ];
   const changed = new Set<string>(

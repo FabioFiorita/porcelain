@@ -148,27 +148,38 @@ function UpdateContent({
       <p className="text-sm font-medium">
         Porcelain {state.version ?? 'development build'}
       </p>
-      {!state.managed ? (
-        <p className="text-xs text-muted-foreground">
-          This server runs outside the installed service. Update it with npm,
-          then run porcelain service update.
-        </p>
-      ) : progress ? (
-        <div aria-live="polite" className="flex items-center gap-2 text-sm">
-          <Spinner />
-          <p>{progress}</p>
-        </div>
-      ) : (
-        <>
-          <Outcome state={state} started={started && target.kind === 'local'} />
-          <Offer
-            connection={connection}
-            target={target}
-            state={state}
-            onStart={() => setStarted(true)}
-          />
-        </>
-      )}
+      {(() => {
+        if (!state.managed) {
+          return (
+            <p className="text-xs text-muted-foreground">
+              This server runs outside the installed service. Update it with
+              npm, then run porcelain service update.
+            </p>
+          );
+        }
+        if (progress) {
+          return (
+            <div aria-live="polite" className="flex items-center gap-2 text-sm">
+              <Spinner />
+              <p>{progress}</p>
+            </div>
+          );
+        }
+        return (
+          <>
+            <Outcome
+              state={state}
+              started={started && target.kind === 'local'}
+            />
+            <Offer
+              connection={connection}
+              target={target}
+              state={state}
+              onStart={() => setStarted(true)}
+            />
+          </>
+        );
+      })()}
     </div>
   );
 }

@@ -267,80 +267,88 @@ function ReadableFileDocument({
       />
     );
 
+  const previewToolbar = (
+    <FileToolbar path={path} copy={false}>
+      {leading}
+      <ButtonGroup className="max-w-full flex-wrap justify-end">
+        {commands}
+      </ButtonGroup>
+    </FileToolbar>
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-card">
-      {mode === 'rendered' && kind === 'markdown' ? (
-        <>
-          <FileToolbar path={path} copy={false}>
-            {leading}
-            <ButtonGroup className="max-w-full flex-wrap justify-end">
-              {commands}
-            </ButtonGroup>
-          </FileToolbar>
-          <div className="min-h-0 flex-1 overflow-auto">
-            <MarkdownView
-              text={text}
-              className="mx-auto max-w-[78ch] px-6 py-6"
-            />
-          </div>
-        </>
-      ) : mode === 'rendered' && kind === 'html' ? (
-        <>
-          <FileToolbar path={path} copy={false}>
-            {leading}
-            <ButtonGroup className="max-w-full flex-wrap justify-end">
-              {commands}
-            </ButtonGroup>
-          </FileToolbar>
-          <div className="flex min-h-0 flex-1 flex-col bg-background">
-            <p className="border-b bg-muted/40 px-3.5 py-1.5 text-2xs text-muted-foreground">
-              Sandboxed preview: scripts run, and cannot read Porcelain, your
-              cookies or the review API, load anything from the network, submit
-              a form, or move the page around them. A script can still send what
-              it sees out by sending this frame to another address.
-            </p>
-            <HtmlPreview
+      {(() => {
+        if (mode === 'rendered' && kind === 'markdown') {
+          return (
+            <>
+              {previewToolbar}
+              <div className="min-h-0 flex-1 overflow-auto">
+                <MarkdownView
+                  text={text}
+                  className="mx-auto max-w-[78ch] px-6 py-6"
+                />
+              </div>
+            </>
+          );
+        }
+        if (mode === 'rendered' && kind === 'html') {
+          return (
+            <>
+              {previewToolbar}
+              <div className="flex min-h-0 flex-1 flex-col bg-background">
+                <p className="border-b bg-muted/40 px-3.5 py-1.5 text-2xs text-muted-foreground">
+                  Sandboxed preview: scripts run, and cannot read Porcelain,
+                  your cookies or the review API, load anything from the
+                  network, submit a form, or move the page around them. A script
+                  can still send what it sees out by sending this frame to
+                  another address.
+                </p>
+                <HtmlPreview
+                  scope={scope}
+                  path={path}
+                  html={text}
+                  connection={connection}
+                />
+              </div>
+            </>
+          );
+        }
+        return (
+          <div className="flex min-h-0 flex-1 flex-col">
+            {finding !== undefined && (
+              <FindBar
+                text={text}
+                focusRequest={finding}
+                onReveal={(line) => setFoundLine({ line, nonce: Date.now() })}
+                onClose={() => setFinding(undefined)}
+              />
+            )}
+            <CodeDocument
               scope={scope}
-              path={path}
-              html={text}
-              connection={connection}
+              context={context}
+              interaction={interaction}
+              headerLeading={leading}
+              headerActions={commands}
+              {...(foundLine !== undefined ? { foundLine } : {})}
+              entries={[
+                {
+                  ...fileEntry(`file:${path}`, path, text),
+                  ...(contentFingerprint
+                    ? {
+                        comment: {
+                          filePath: path,
+                          comparison: { kind: 'file' },
+                          contentFingerprint,
+                        },
+                      }
+                    : {}),
+                },
+              ]}
             />
           </div>
-        </>
-      ) : (
-        <div className="flex min-h-0 flex-1 flex-col">
-          {finding !== undefined && (
-            <FindBar
-              text={text}
-              focusRequest={finding}
-              onReveal={(line) => setFoundLine({ line, nonce: Date.now() })}
-              onClose={() => setFinding(undefined)}
-            />
-          )}
-          <CodeDocument
-            scope={scope}
-            context={context}
-            interaction={interaction}
-            headerLeading={leading}
-            headerActions={commands}
-            {...(foundLine !== undefined ? { foundLine } : {})}
-            entries={[
-              {
-                ...fileEntry(`file:${path}`, path, text),
-                ...(contentFingerprint
-                  ? {
-                      comment: {
-                        filePath: path,
-                        comparison: { kind: 'file' },
-                        contentFingerprint,
-                      },
-                    }
-                  : {}),
-              },
-            ]}
-          />
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

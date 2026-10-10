@@ -1,5 +1,6 @@
+import { Box } from '../../../components/ui/box';
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView } from 'react-native';
 import { BottomSheet, RNHostView } from '@expo/ui';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -55,14 +56,18 @@ function ActionForm({
 }) {
   const [value, setValue] = useState(action.kind === 'move' ? action.path : '');
   const edit = useEditFile(selected.connection, selected.scope);
-  const title =
-    action.kind === 'trash'
-      ? 'Move to trash?'
-      : action.kind === 'move'
-        ? 'Rename'
-        : action.entryKind === 'file'
-          ? 'New file'
-          : 'New folder';
+  const title = (() => {
+    if (action.kind === 'trash') {
+      return 'Move to trash?';
+    }
+    if (action.kind === 'move') {
+      return 'Rename';
+    }
+    if (action.entryKind === 'file') {
+      return 'New file';
+    }
+    return 'New folder';
+  })();
   return (
     <RNHostView>
       <ScrollView
@@ -70,7 +75,7 @@ function ActionForm({
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
       >
-        <View className="gap-4 px-6 py-8">
+        <Box gap={4} paddingX={6} paddingY={8}>
           <Text variant="heading">{title}</Text>
           {action.kind === 'trash' ? (
             <Text>
@@ -106,13 +111,15 @@ function ActionForm({
           ) : null}
           <Button
             testID="file-action-submit"
-            label={
-              action.kind === 'trash'
-                ? 'Move to trash'
-                : action.kind === 'move'
-                  ? 'Rename'
-                  : 'Create'
-            }
+            label={(() => {
+              if (action.kind === 'trash') {
+                return 'Move to trash';
+              }
+              if (action.kind === 'move') {
+                return 'Rename';
+              }
+              return 'Create';
+            })()}
             variant={action.kind === 'trash' ? 'destructive' : 'default'}
             pending={edit.result.waiting}
             disabled={action.kind !== 'trash' && !value.trim()}
@@ -124,7 +131,7 @@ function ActionForm({
             disabled={edit.result.waiting}
             onPress={onClose}
           />
-        </View>
+        </Box>
       </ScrollView>
     </RNHostView>
   );

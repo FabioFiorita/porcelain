@@ -1,3 +1,4 @@
+import { Box } from '../../../components/ui/box';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ScrollView, View } from 'react-native';
@@ -47,7 +48,7 @@ function ReviewIndex({ workspace }: { workspace: ReviewWorkspace }) {
     }),
   );
   return (
-    <View className="flex-1 bg-background" collapsable={false}>
+    <Box className="flex-1" surface="background" collapsable={false}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         className="flex-1"
@@ -76,7 +77,7 @@ function ReviewIndex({ workspace }: { workspace: ReviewWorkspace }) {
           <ReviewReadState result={result} refresh={refresh} />
         )}
       </ScrollView>
-    </View>
+    </Box>
   );
 }
 
@@ -103,13 +104,17 @@ function ReviewList({
       params: { ...reviewParams(workspace.key, comparison), path },
     });
   const branch = snapshot.kind === 'branch' ? snapshot.answer : undefined;
-  const anchor = branch?.base
-    ? changeAnchor({ base: branch.base.ref, tip: branch.head.oid })
-    : comparison.kind === 'worktree'
-      ? changeAnchor(undefined)
-      : undefined;
+  const anchor = (() => {
+    if (branch?.base) {
+      return changeAnchor({ base: branch.base.ref, tip: branch.head.oid });
+    }
+    if (comparison.kind === 'worktree') {
+      return changeAnchor(undefined);
+    }
+    return undefined;
+  })();
   return (
-    <View className="gap-3">
+    <Box gap={3}>
       {snapshot.kind === 'worktree' ? (
         <PublishedReview workspace={workspace} onFile={openFile} />
       ) : (
@@ -152,13 +157,15 @@ function ReviewList({
               accessibilityLabel={`Review ${file.path}`}
               trailing={
                 <Badge
-                  label={
-                    file.reviewStatus === 'stale'
-                      ? 'Changed since review'
-                      : file.reviewStatus === 'reviewed'
-                        ? 'Reviewed'
-                        : 'Unreviewed'
-                  }
+                  label={(() => {
+                    if (file.reviewStatus === 'stale') {
+                      return 'Changed since review';
+                    }
+                    if (file.reviewStatus === 'reviewed') {
+                      return 'Reviewed';
+                    }
+                    return 'Unreviewed';
+                  })()}
                   variant="secondary"
                 />
               }
@@ -179,6 +186,6 @@ function ReviewList({
       ) : (
         <ReviewReadState result={marks.result} refresh={marks.refresh} />
       )}
-    </View>
+    </Box>
   );
 }

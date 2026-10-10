@@ -359,11 +359,15 @@ function DocumentArea({
     scope,
     context,
     reviewing: published.review?.active === true,
-    handoff: published.review?.active
-      ? ('review' as const)
-      : hasHandoff
-        ? ('changes' as const)
-        : null,
+    handoff: (() => {
+      if (published.review?.active) {
+        return 'review' as const;
+      }
+      if (hasHandoff) {
+        return 'changes' as const;
+      }
+      return null;
+    })(),
     base,
     onOpen,
     navigationTrigger,
@@ -454,7 +458,15 @@ function PaneView({
         pinned={pane.pinned}
         active={pane.active}
         reviewing={reviewing}
-        side={split ? (index === 0 ? 'left' : 'right') : null}
+        side={(() => {
+          if (split) {
+            if (index === 0) {
+              return 'left';
+            }
+            return 'right';
+          }
+          return null;
+        })()}
         focused={focused}
         onActivate={(key) => layout.activate(index, key)}
         onClose={(key) => layout.close(index, key)}

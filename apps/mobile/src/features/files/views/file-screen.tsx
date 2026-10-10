@@ -1,3 +1,4 @@
+import { Box } from '../../../components/ui/box';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import { Stack, usePreventRemove } from 'expo-router';
@@ -95,24 +96,26 @@ function ScopedFile(props: Props & { selected: Selected }) {
     return (
       <FileNotice
         kind="unsupported"
-        description={
-          entry.kind === 'symlink'
-            ? `Not followed: symlink to ${entry.target ?? 'an unknown target'}.`
-            : entry.kind === 'submodule'
-              ? 'Not followed: submodule.'
-              : 'This entry is not a regular file.'
-        }
+        description={(() => {
+          if (entry.kind === 'symlink') {
+            return `Not followed: symlink to ${entry.target ?? 'an unknown target'}.`;
+          }
+          if (entry.kind === 'submodule') {
+            return 'Not followed: submodule.';
+          }
+          return 'This entry is not a regular file.';
+        })()}
       />
     );
   return (
-    <View className="flex-1 bg-background">
+    <Box className="flex-1" surface="background">
       <FileHeader path={path} />
       {isNativeImagePath(path) ? (
         <FileImage path={path} selected={selected} />
       ) : (
         <FileText {...props} />
       )}
-    </View>
+    </Box>
   );
 }
 
@@ -186,40 +189,48 @@ function FilePreview({
   return (
     <View className="flex-1">
       {onEdit ? (
-        <View className="items-end border-b border-border px-4 py-2">
+        <Box className="items-end" divider="bottom" paddingX={4} paddingY={2}>
           <Button label="Edit" variant="outline" size="sm" onPress={onEdit} />
-        </View>
+        </Box>
       ) : null}
       {link.error ? <ErrorState message={link.error} /> : null}
-      {/\.mdx?$/i.test(path) ? (
-        <MarkdownView
-          key={path}
-          source={text}
-          onLink={link.open}
-          initialMode={preferences.markdownDefault}
-          wrap={preferences.wrapLongLines}
-        />
-      ) : /\.html?$/i.test(path) ? (
-        <View className="flex-1">
-          <View className="px-4 py-2">
-            <Text variant="caption" tone="muted">
-              Linked local assets are not included in this preview.
-            </Text>
-          </View>
-          <HtmlPreview
-            html={text}
-            onLink={link.open}
-            initialMode={preferences.htmlDefault}
+      {(() => {
+        if (/\.mdx?$/i.test(path)) {
+          return (
+            <MarkdownView
+              key={path}
+              source={text}
+              onLink={link.open}
+              initialMode={preferences.markdownDefault}
+              wrap={preferences.wrapLongLines}
+            />
+          );
+        }
+        if (/\.html?$/i.test(path)) {
+          return (
+            <View className="flex-1">
+              <Box paddingX={4} paddingY={2}>
+                <Text variant="caption" tone="muted">
+                  Linked local assets are not included in this preview.
+                </Text>
+              </Box>
+              <HtmlPreview
+                html={text}
+                onLink={link.open}
+                initialMode={preferences.htmlDefault}
+                wrap={preferences.wrapLongLines}
+              />
+            </View>
+          );
+        }
+        return (
+          <CodeView
+            source={text}
             wrap={preferences.wrapLongLines}
+            {...(language ? { language } : {})}
           />
-        </View>
-      ) : (
-        <CodeView
-          source={text}
-          wrap={preferences.wrapLongLines}
-          {...(language ? { language } : {})}
-        />
-      )}
+        );
+      })()}
     </View>
   );
 }
@@ -345,16 +356,20 @@ function DraftEditor({
       keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="automatic"
     >
-      <View className="gap-3 px-4 py-4">
+      <Box gap={3} paddingX={4} paddingY={4}>
         {!claimed ? (
           <ErrorState message="This file is being edited in another view." />
         ) : null}
         <Text variant="caption" tone="muted">
-          {state.saving
-            ? 'Saving…'
-            : state.text !== state.savedText
-              ? 'Unsaved changes'
-              : 'Saved'}{' '}
+          {(() => {
+            if (state.saving) {
+              return 'Saving…';
+            }
+            if (state.text !== state.savedText) {
+              return 'Unsaved changes';
+            }
+            return 'Saved';
+          })()}{' '}
           · Changes save automatically.
         </Text>
         {state.error ? (
@@ -401,7 +416,7 @@ function DraftEditor({
           disabled={state.saving}
           onPress={discard}
         />
-      </View>
+      </Box>
     </ScrollView>
   );
 }

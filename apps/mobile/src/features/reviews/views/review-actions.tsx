@@ -1,3 +1,4 @@
+import { Box } from '../../../components/ui/box';
 import { useAtom } from '@effect/atom-react';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -6,7 +7,6 @@ import {
   reviewedControlLabel,
   reviewErrorMessage,
 } from '@porcelain/client/reviews/rules';
-import { View } from 'react-native';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
 import type { ReviewWorkspace } from '../adapters/workspace';
@@ -33,22 +33,28 @@ export function ReviewedAction({
   const [mark, set] = useAtom(commands.set);
   const [unmark, remove] = useAtom(commands.remove);
   const pending = mark.waiting || unmark.waiting;
-  const error = AsyncResult.isFailure(mark)
-    ? Cause.squash(mark.cause)
-    : AsyncResult.isFailure(unmark)
-      ? Cause.squash(unmark.cause)
-      : undefined;
+  const error = (() => {
+    if (AsyncResult.isFailure(mark)) {
+      return Cause.squash(mark.cause);
+    }
+    if (AsyncResult.isFailure(unmark)) {
+      return Cause.squash(unmark.cause);
+    }
+    return undefined;
+  })();
   return (
-    <View className="gap-2">
+    <Box gap={2}>
       {file.fingerprint ? (
         <Button
-          label={
-            file.reviewStatus === 'reviewed'
-              ? 'Unmark reviewed'
-              : file.reviewStatus === 'stale'
-                ? 'Review again'
-                : 'Mark reviewed'
-          }
+          label={(() => {
+            if (file.reviewStatus === 'reviewed') {
+              return 'Unmark reviewed';
+            }
+            if (file.reviewStatus === 'stale') {
+              return 'Review again';
+            }
+            return 'Mark reviewed';
+          })()}
           accessibilityLabel={reviewedControlLabel(
             file.path,
             file.reviewStatus,
@@ -71,6 +77,6 @@ export function ReviewedAction({
           {reviewErrorMessage(error)}
         </Text>
       ) : null}
-    </View>
+    </Box>
   );
 }

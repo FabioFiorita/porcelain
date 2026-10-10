@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { Box } from '../../../components/ui/box';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { AsyncResult } from 'effect/reactivity';
 import type { CommitFile } from '@porcelain/client/history/rules';
@@ -74,7 +74,7 @@ function CommitFileDiff({
     (candidate) => commitPath(candidate) === path,
   );
   return (
-    <View className="flex-1 bg-background">
+    <Box className="flex-1" surface="background">
       <Stack.Screen options={{ title: path.split('/').at(-1) ?? 'Diff' }} />
       {file ? (
         <FilePatch
@@ -89,7 +89,7 @@ function CommitFileDiff({
           description="This file is not part of the commit comparison."
         />
       )}
-    </View>
+    </Box>
   );
 }
 
@@ -109,47 +109,65 @@ function FilePatch({
   const content = patch.value;
   const parsed =
     content?.kind === 'text' ? patchLines(content.patch) : undefined;
-  const unavailable =
-    file.oldMode === '160000' || file.newMode === '160000'
-      ? 'Submodule change'
-      : content
-        ? patchUnavailable(content)
-        : undefined;
+  const unavailable = (() => {
+    if (file.oldMode === '160000' || file.newMode === '160000') {
+      return 'Submodule change';
+    }
+    if (content) {
+      return patchUnavailable(content);
+    }
+    return undefined;
+  })();
   return (
     <>
       <FileHeader path={commitPath(file)} status={file.status} />
-      {AsyncResult.isFailure(patch.result) ? (
-        <ErrorState
-          message="Couldn't load diff"
-          retry={{ label: 'Retry', onPress: patch.retry }}
-        />
-      ) : !content ? (
-        patch.result.waiting || AsyncResult.isInitial(patch.result) ? (
-          <Loading label="Loading diff…" />
-        ) : (
+      {(() => {
+        if (AsyncResult.isFailure(patch.result)) {
+          return (
+            <ErrorState
+              message="Couldn't load diff"
+              retry={{ label: 'Retry', onPress: patch.retry }}
+            />
+          );
+        }
+        if (!content) {
+          return patch.result.waiting || AsyncResult.isInitial(patch.result) ? (
+            <Loading label="Loading diff…" />
+          ) : (
+            <Empty
+              title="Diff unavailable"
+              description="The server returned no patch for this file."
+            />
+          );
+        }
+        if (unavailable) {
+          return (
+            <Empty
+              title={unavailable}
+              description="This file change has no code preview."
+            />
+          );
+        }
+        if (parsed?.kind === 'invalid') {
+          return (
+            <ErrorState
+              message="The patch could not be parsed"
+              retry={{ label: 'Retry', onPress: patch.retry }}
+            />
+          );
+        }
+        if (parsed?.kind === 'text') {
+          return (
+            <DiffView lines={parsed.lines} wrap={preferences.wrapLongLines} />
+          );
+        }
+        return (
           <Empty
-            title="Diff unavailable"
-            description="The server returned no patch for this file."
+            title="No code change"
+            description="This comparison has no changed lines."
           />
-        )
-      ) : unavailable ? (
-        <Empty
-          title={unavailable}
-          description="This file change has no code preview."
-        />
-      ) : parsed?.kind === 'invalid' ? (
-        <ErrorState
-          message="The patch could not be parsed"
-          retry={{ label: 'Retry', onPress: patch.retry }}
-        />
-      ) : parsed?.kind === 'text' ? (
-        <DiffView lines={parsed.lines} wrap={preferences.wrapLongLines} />
-      ) : (
-        <Empty
-          title="No code change"
-          description="This comparison has no changed lines."
-        />
-      )}
+        );
+      })()}
     </>
   );
 }

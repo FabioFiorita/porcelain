@@ -1,3 +1,6 @@
+import { importedFrom, calledImport, styleObjects } from './web-rules.mjs';
+import shadcn from '@shadcn/lint';
+
 const controls = new Set([
   'Button',
   'Pressable',
@@ -11,6 +14,7 @@ const controls = new Set([
   'Platform',
   'Text',
   'StyleSheet',
+  'Animated',
 ]);
 
 export const mobileRules = {
@@ -20,16 +24,27 @@ export const mobileRules = {
       if (!path.includes('/apps/mobile/src/')) return {};
       const message =
         'Let the system size and draw native chrome: a fixed frame, font size or Host size, or a hidden shared background, copies the system look by hand, because a hand-made copy breaks on the next OS design.';
-      const numeric = (property) =>
-        property.type === 'Property' &&
-        property.value.type === 'Literal' &&
-        typeof property.value.value === 'number';
       const keyOf = (property) => property.key?.name ?? property.key?.value;
       const sized = (node, keys) =>
-        node?.type === 'ObjectExpression' &&
-        node.properties.some(
-          (property) => numeric(property) && keys.has(keyOf(property)),
+        styleObjects(context, node).some((object) =>
+          object.properties.some(
+            (property) =>
+              property.type === 'Property' &&
+              keys.has(keyOf(property)) &&
+              !(
+                property.value.type === 'Literal' &&
+                ['string', 'undefined'].includes(typeof property.value.value)
+              ),
+          ),
         );
+      const imports = importedFrom(
+        context.sourceCode.ast,
+        (source) => source === '@expo/ui/swift-ui/modifiers',
+      );
+      const native = importedFrom(
+        context.sourceCode.ast,
+        (source) => source === '@expo/ui/swift-ui',
+      );
       const lengths = new Set([
         'width',
         'height',
@@ -40,22 +55,34 @@ export const mobileRules = {
       ]);
       return {
         CallExpression(node) {
-          if (node.callee.type !== 'Identifier') return;
           const [argument] = node.arguments;
           if (
-            (node.callee.name === 'frame' && sized(argument, lengths)) ||
-            (node.callee.name === 'font' && sized(argument, new Set(['size'])))
+            (calledImport(node.callee, imports, context) === 'frame' &&
+              sized(argument, lengths)) ||
+            (calledImport(node.callee, imports, context) === 'font' &&
+              sized(argument, new Set(['size'])))
           )
             context.report({ node, message });
         },
         JSXAttribute(node) {
           const name = node.name.name;
           const element = node.parent;
-          if (name === 'hidesSharedBackground')
+          if (
+            name === 'hidesSharedBackground' &&
+            !(
+              node.value?.type === 'JSXExpressionContainer' &&
+              node.value.expression.type === 'Literal' &&
+              node.value.expression.value === false
+            )
+          )
             context.report({ node, message });
           if (
             name === 'style' &&
-            element?.name?.name === 'Host' &&
+            ((element?.name?.type === 'JSXIdentifier' &&
+              native.locals.get(element.name.name) === 'Host') ||
+              (element?.name?.type === 'JSXMemberExpression' &&
+                native.namespaces.has(element.name.object.name) &&
+                element.name.property.name === 'Host')) &&
             node.value?.type === 'JSXExpressionContainer' &&
             sized(node.value.expression, lengths)
           )
@@ -146,8 +173,43 @@ export const mobileRules = {
               'Import the universal Expo UI component first; a missing capability belongs in a .ios/.android module, so product views stay platform independent.',
           });
       };
+      const layoutOnly = /\/(?:features\/[^/]+\/views|shell)\//.test(path);
+      const styled = Object.create(context);
+      const nativeViews = importedFrom(
+        context.sourceCode.ast,
+        (source) => source === 'react-native',
+      );
+      Object.defineProperty(styled, 'report', {
+        value(report) {
+          const opening = context.sourceCode
+            .getAncestors(report.node)
+            .findLast((node) => node.type === 'JSXOpeningElement');
+          if (
+            opening?.name?.type === 'JSXIdentifier' &&
+            nativeViews.locals.get(opening.name.name) === 'View'
+          )
+            context.report(report);
+        },
+      });
+      Object.defineProperty(styled, 'options', {
+        value: [
+          {
+            componentImports: ['^react-native$'],
+            allow: ['layout'],
+            message:
+              'Use View only for layout; compose spacing, surfaces and controls from components/ui, because feature views must not redraw primitives.',
+          },
+        ],
+      });
+      const layout = layoutOnly
+        ? shadcn.rules['no-restyle'].create(styled)
+        : {};
       return {
-        ImportDeclaration: check,
+        ...layout,
+        ImportDeclaration(node) {
+          check(node);
+          layout.ImportDeclaration?.(node);
+        },
         ExportNamedDeclaration: check,
         ExportAllDeclaration: check,
       };

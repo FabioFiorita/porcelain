@@ -57,11 +57,15 @@ export function DiscardButton({
   const status = changes ? statusFromChanges(changes) : null;
   const file = changes?.changes.find((entry) => entry.path === path);
   const candidate = openedStatus ?? status;
-  const lines = hunk
-    ? hunk.startLine === hunk.endLine
-      ? `line ${hunk.startLine}`
-      : `lines ${hunk.startLine}–${hunk.endLine}`
-    : null;
+  const lines = (() => {
+    if (hunk) {
+      if (hunk.startLine === hunk.endLine) {
+        return `line ${hunk.startLine}`;
+      }
+      return `lines ${hunk.startLine}–${hunk.endLine}`;
+    }
+    return null;
+  })();
   const what = lines ? `${lines} of ${fileName(path)}` : fileName(path);
   const discard = useDiscard(scope, context, {
     path,
@@ -101,13 +105,15 @@ export function DiscardButton({
         }}
       >
         <Undo2Icon />
-        {variant === 'quiet' ? (
-          <span className="max-narrow:sr-only">Discard</span>
-        ) : variant === 'compact' ? (
-          'Discard selection'
-        ) : (
-          'Discard'
-        )}
+        {(() => {
+          if (variant === 'quiet') {
+            return <span className="max-narrow:sr-only">Discard</span>;
+          }
+          if (variant === 'compact') {
+            return 'Discard selection';
+          }
+          return 'Discard';
+        })()}
       </Button>
     ) : null;
   const dialog = shown ? (

@@ -83,36 +83,40 @@ export function ProjectNavigator({
 
       <ScrollArea className="h-0 min-h-0 flex-1">
         <div className={remotes ? 'py-2 pr-2' : 'p-2'}>
-          {remotes ? (
-            <>
-              <MachineSection name="This computer" icon={MonitorIcon}>
-                {projects.length === 0 ? (
-                  <SidebarMenuSubItem>{empty}</SidebarMenuSubItem>
-                ) : (
-                  projects.map((project) => (
-                    <SidebarMenuSubItem key={project.id}>
-                      {section(project)}
-                    </SidebarMenuSubItem>
-                  ))
-                )}
-              </MachineSection>
-              {remotes.map((entry) => (
-                <RemoteMachine
-                  key={entry.remote.environmentId}
-                  entry={entry}
-                  selected={selectedOn(entry.remote.environmentId)}
-                  onSelect={select}
-                  onOpenRemotes={openRemotes}
-                />
-              ))}
-            </>
-          ) : projects.length === 0 ? (
-            empty
-          ) : (
-            projects.map((project) => (
+          {(() => {
+            if (remotes) {
+              return (
+                <>
+                  <MachineSection name="This computer" icon={MonitorIcon}>
+                    {projects.length === 0 ? (
+                      <SidebarMenuSubItem>{empty}</SidebarMenuSubItem>
+                    ) : (
+                      projects.map((project) => (
+                        <SidebarMenuSubItem key={project.id}>
+                          {section(project)}
+                        </SidebarMenuSubItem>
+                      ))
+                    )}
+                  </MachineSection>
+                  {remotes.map((entry) => (
+                    <RemoteMachine
+                      key={entry.remote.environmentId}
+                      entry={entry}
+                      selected={selectedOn(entry.remote.environmentId)}
+                      onSelect={select}
+                      onOpenRemotes={openRemotes}
+                    />
+                  ))}
+                </>
+              );
+            }
+            if (projects.length === 0) {
+              return empty;
+            }
+            return projects.map((project) => (
               <Fragment key={project.id}>{section(project)}</Fragment>
-            ))
-          )}
+            ));
+          })()}
         </div>
       </ScrollArea>
 

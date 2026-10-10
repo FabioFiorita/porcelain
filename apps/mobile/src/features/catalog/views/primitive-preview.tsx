@@ -1,3 +1,4 @@
+import { Box } from '../../../components/ui/box';
 import { useState, lazy, Suspense } from 'react';
 import { ScrollView, View } from 'react-native';
 import { Text } from '../../../components/ui/text';
@@ -44,14 +45,14 @@ export function PrimitivePreview({ name }: { name: string }) {
     );
   if (name === 'FileTree')
     return (
-      <View className="flex-1 bg-background">
-        <View className="p-6">
+      <Box className="flex-1" surface="background">
+        <Box padding={6}>
           <Text variant="heading">FileTree</Text>
-        </View>
-        <View className="px-6">
+        </Box>
+        <Box paddingX={6}>
           <Text variant="ui">Selected: {selected || 'none'}</Text>
           <Text variant="caption">Menu action: {value || 'none'}</Text>
-        </View>
+        </Box>
         <FileTree
           nodes={[
             {
@@ -71,12 +72,15 @@ export function PrimitivePreview({ name }: { name: string }) {
           contextMenu={(node) => [
             {
               id: 'open',
-              label:
-                node.kind === 'folder'
-                  ? expanded.has(node.id)
-                    ? 'Collapse folder'
-                    : 'Expand folder'
-                  : 'Open file',
+              label: (() => {
+                if (node.kind === 'folder') {
+                  if (expanded.has(node.id)) {
+                    return 'Collapse folder';
+                  }
+                  return 'Expand folder';
+                }
+                return 'Open file';
+              })(),
               onPress: () => {
                 if (node.kind === 'folder') {
                   setExpanded((current) => {
@@ -105,14 +109,14 @@ export function PrimitivePreview({ name }: { name: string }) {
             })
           }
         />
-      </View>
+      </Box>
     );
   if (name === 'History')
     return (
-      <View className="flex-1 bg-background">
-        <View className="p-6">
+      <Box className="flex-1" surface="background">
+        <Box padding={6}>
           <Text variant="heading">History</Text>
-        </View>
+        </Box>
         <HistoryList
           entries={[
             {
@@ -134,7 +138,7 @@ export function PrimitivePreview({ name }: { name: string }) {
           selected={selected}
           onSelect={setSelected}
         />
-      </View>
+      </Box>
     );
   return (
     <ScrollView
@@ -144,16 +148,16 @@ export function PrimitivePreview({ name }: { name: string }) {
       keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="automatic"
     >
-      <View className="gap-6 px-6 py-8">
+      <Box gap={6} paddingX={6} paddingY={8}>
         <Text variant="heading">{name}</Text>
         {name === 'Badge' ? (
-          <View className="flex-row flex-wrap gap-3">
+          <Box className="flex-row flex-wrap" gap={3}>
             {(['default', 'secondary', 'outline', 'destructive'] as const).map(
               (variant) => (
                 <Badge key={variant} label={variant} variant={variant} />
               ),
             )}
-          </View>
+          </Box>
         ) : null}
         {name === 'Item' ? (
           <>
@@ -252,7 +256,7 @@ export function PrimitivePreview({ name }: { name: string }) {
         {name === 'IconButton' ? (
           <>
             <Text variant="ui">Actions: {actions}</Text>
-            <View className="flex-row gap-3">
+            <Box className="flex-row" gap={3}>
               <IconButton
                 icon="add"
                 accessibilityLabel="Add example"
@@ -277,7 +281,7 @@ export function PrimitivePreview({ name }: { name: string }) {
                 pending
                 onPress={() => setActions(actions + 1)}
               />
-            </View>
+            </Box>
           </>
         ) : null}
         {name === 'Input' ? (
@@ -310,7 +314,7 @@ export function PrimitivePreview({ name }: { name: string }) {
             </Field>
           </>
         ) : null}
-      </View>
+      </Box>
     </ScrollView>
   );
 }

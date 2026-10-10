@@ -325,20 +325,32 @@ function ActionForm({
             : 'Restore staged changes'}
         </label>
       </fieldset>
-      {outcome?.message &&
-      receiptFailed(outcome) &&
-      outcome.state !== 'conflicted' ? (
-        <GitActionError text={outcome.message} />
-      ) : outcome ? (
-        <p role="status" className="text-sm">
-          {outcome.state}
-          {outcome.message
-            ? ` · ${outcome.message}`
-            : outcome.reason
-              ? ` · ${outcome.reason.replaceAll('_', ' ').toLowerCase()}`
-              : ''}
-        </p>
-      ) : null}
+      {(() => {
+        if (
+          outcome?.message &&
+          receiptFailed(outcome) &&
+          outcome.state !== 'conflicted'
+        ) {
+          return <GitActionError text={outcome.message} />;
+        }
+        if (outcome) {
+          return (
+            <p role="status" className="text-sm">
+              {outcome.state}
+              {(() => {
+                if (outcome.message) {
+                  return ` · ${outcome.message}`;
+                }
+                if (outcome.reason) {
+                  return ` · ${outcome.reason.replaceAll('_', ' ').toLowerCase()}`;
+                }
+                return '';
+              })()}
+            </p>
+          );
+        }
+        return null;
+      })()}
       {uncertain && !outcome && <p role="status">Outcome not yet confirmed</p>}
       {error ? <GitActionError text={gitErrorMessage(error)} /> : null}
       {outcome && changedSinceLooked(outcome) && onLookAgain && (

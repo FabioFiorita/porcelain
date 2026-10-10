@@ -41,31 +41,43 @@ export function RemoteMachine({
         </Badge>
       }
     >
-      {status.kind !== 'online' ? (
-        <SidebarMenuSubItem>
-          <div className="flex flex-col items-start gap-1 px-2 pb-2 text-2xs text-muted-foreground">
-            {note && <p>{note}</p>}
-            {status.kind !== 'checking' && (
-              <Button variant="link" size="xs" onClick={onOpenRemotes}>
-                Open Remote computers
-              </Button>
-            )}
-          </div>
-        </SidebarMenuSubItem>
-      ) : inventory === undefined ? (
-        <SidebarMenuSubItem>
-          <p role="status" className="px-2 pb-2 text-2xs text-muted-foreground">
-            Loading projects…
-          </p>
-        </SidebarMenuSubItem>
-      ) : inventory.projects.length === 0 ? (
-        <SidebarMenuSubItem>
-          <p className="px-2 pb-2 text-2xs text-muted-foreground">
-            No projects registered.
-          </p>
-        </SidebarMenuSubItem>
-      ) : (
-        inventory.projects.map((project) => (
+      {(() => {
+        if (status.kind !== 'online') {
+          return (
+            <SidebarMenuSubItem>
+              <div className="flex flex-col items-start gap-1 px-2 pb-2 text-2xs text-muted-foreground">
+                {note && <p>{note}</p>}
+                {status.kind !== 'checking' && (
+                  <Button variant="link" size="xs" onClick={onOpenRemotes}>
+                    Open Remote computers
+                  </Button>
+                )}
+              </div>
+            </SidebarMenuSubItem>
+          );
+        }
+        if (inventory === undefined) {
+          return (
+            <SidebarMenuSubItem>
+              <p
+                role="status"
+                className="px-2 pb-2 text-2xs text-muted-foreground"
+              >
+                Loading projects…
+              </p>
+            </SidebarMenuSubItem>
+          );
+        }
+        if (inventory.projects.length === 0) {
+          return (
+            <SidebarMenuSubItem>
+              <p className="px-2 pb-2 text-2xs text-muted-foreground">
+                No projects registered.
+              </p>
+            </SidebarMenuSubItem>
+          );
+        }
+        return inventory.projects.map((project) => (
           <SidebarMenuSubItem key={project.id}>
             <ProjectSection
               project={project}
@@ -80,8 +92,8 @@ export function RemoteMachine({
               }
             />
           </SidebarMenuSubItem>
-        ))
-      )}
+        ));
+      })()}
     </MachineSection>
   );
 }

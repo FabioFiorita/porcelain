@@ -230,7 +230,8 @@ class FileDraft extends Context.Service<
             });
             onDetached();
             release(owner);
-            if (!state.value.error && !(yield* save())) onUnsaved();
+            if (state.value.saving || !state.value.error) yield* save();
+            if (state.value.text !== state.value.savedText) onUnsaved();
           }),
           noticeDiskChange: Effect.fn('FileDraft.noticeDiskChange')(function* (
             viewer: string,

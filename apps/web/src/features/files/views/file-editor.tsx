@@ -59,17 +59,24 @@ function FileEditor({
     notifyUnsaved,
   );
   const dirty = state.text !== state.savedText;
-  const label = changedOnDisk
-    ? 'Not saving: changed on disk'
-    : state.error
-      ? 'Not saved'
-      : state.saving
-        ? 'Saving…'
-        : dirty
-          ? 'Unsaved changes'
-          : state.text === initialText
-            ? 'Saves as you pause'
-            : 'Saved';
+  const label = (() => {
+    if (changedOnDisk) {
+      return 'Not saving: changed on disk';
+    }
+    if (state.error) {
+      return 'Not saved';
+    }
+    if (state.saving) {
+      return 'Saving…';
+    }
+    if (dirty) {
+      return 'Unsaved changes';
+    }
+    if (state.text === initialText) {
+      return 'Saves as you pause';
+    }
+    return 'Saved';
+  })();
   const controls = (
     <>
       <span role="status" className="text-xs text-muted-foreground">

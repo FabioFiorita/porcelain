@@ -75,11 +75,15 @@ export function ReviewedControl({
   const mark = useMarkReviewed(scope, context, range);
   const unmark = useUnmarkReviewed(scope, context, range);
   const pending = mark.result.waiting || unmark.result.waiting;
-  const error = AsyncResult.isFailure(mark.result)
-    ? Cause.squash(mark.result.cause)
-    : AsyncResult.isFailure(unmark.result)
-      ? Cause.squash(unmark.result.cause)
-      : undefined;
+  const error = (() => {
+    if (AsyncResult.isFailure(mark.result)) {
+      return Cause.squash(mark.result.cause);
+    }
+    if (AsyncResult.isFailure(unmark.result)) {
+      return Cause.squash(unmark.result.cause);
+    }
+    return undefined;
+  })();
 
   if (fingerprint === null || fingerprint === undefined)
     return (
@@ -110,21 +114,28 @@ export function ReviewedControl({
           else mark.start({ path, fingerprint });
         }}
       >
-        {pending ? (
-          <LoaderCircleIcon className="animate-spin" />
-        ) : reviewed ? (
-          <CheckIcon />
-        ) : status === 'stale' ? (
-          <RotateCcwIcon />
-        ) : (
-          <CheckIcon className={cn(compact && 'invisible')} />
-        )}
+        {(() => {
+          if (pending) {
+            return <LoaderCircleIcon className="animate-spin" />;
+          }
+          if (reviewed) {
+            return <CheckIcon />;
+          }
+          if (status === 'stale') {
+            return <RotateCcwIcon />;
+          }
+          return <CheckIcon className={cn(compact && 'invisible')} />;
+        })()}
         {!compact &&
-          (reviewed
-            ? 'Reviewed'
-            : status === 'stale'
-              ? 'Review again'
-              : 'Mark reviewed')}
+          (() => {
+            if (reviewed) {
+              return 'Reviewed';
+            }
+            if (status === 'stale') {
+              return 'Review again';
+            }
+            return 'Mark reviewed';
+          })()}
       </Button>
       {error !== undefined && (
         <span
@@ -173,15 +184,25 @@ export function MarkAllReviewed({
         title={plan.label}
         onClick={submit}
       >
-        {pending ? (
-          <LoaderCircleIcon className="animate-spin" />
-        ) : plan.unmarking ? (
-          <RotateCcwIcon />
-        ) : (
-          <CheckIcon />
-        )}
+        {(() => {
+          if (pending) {
+            return <LoaderCircleIcon className="animate-spin" />;
+          }
+          if (plan.unmarking) {
+            return <RotateCcwIcon />;
+          }
+          return <CheckIcon />;
+        })()}
         {!compact &&
-          (pending ? (plan.unmarking ? 'Unmarking…' : 'Marking…') : plan.text)}
+          (() => {
+            if (pending) {
+              if (plan.unmarking) {
+                return 'Unmarking…';
+              }
+              return 'Marking…';
+            }
+            return plan.text;
+          })()}
       </Button>
       {bulk.report && <BulkReport report={bulk.report} />}
       {AsyncResult.isFailure(bulk.result) && (

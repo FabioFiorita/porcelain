@@ -1,6 +1,6 @@
+import { Box } from '../components/ui/box';
 import { Slot } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
 import {
   Host,
   NavigationSplitView,
@@ -62,9 +62,9 @@ export function TabletSplit() {
         <NavigationSplitView.Detail>
           <Toolbar>
             <RNHostView>
-              <View className="flex-1 bg-background">
+              <Box className="flex-1" surface="background">
                 <Slot />
-              </View>
+              </Box>
             </RNHostView>
             <Toolbar.Content>
               <ToolbarItem placement="topBarTrailing">

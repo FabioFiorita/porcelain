@@ -94,12 +94,15 @@ function CheckRow({
   target: string | undefined;
 }) {
   const failed = check.result === 'fail';
-  const Icon =
-    check.result === 'pass'
-      ? CircleCheckIcon
-      : failed
-        ? CircleXIcon
-        : CircleMinusIcon;
+  const Icon = (() => {
+    if (check.result === 'pass') {
+      return CircleCheckIcon;
+    }
+    if (failed) {
+      return CircleXIcon;
+    }
+    return CircleMinusIcon;
+  })();
   return (
     <li
       aria-label={`${check.name}: ${checkResultLabel(check.result)}`}

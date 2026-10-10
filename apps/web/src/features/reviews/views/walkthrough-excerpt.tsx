@@ -128,26 +128,34 @@ function Excerpt({
         />
       ) : (
         <div className="flex flex-col items-start gap-1 px-4 pt-1">
-          {moved ? (
-            <p role="status" className="pl-5.5 text-sm text-graph-4">
-              Code changed since the review was written.
-            </p>
-          ) : committed && !expanded ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="ml-5.5"
-              onClick={() => setExpanded(true)}
-            >
-              Committed · Show code
-            </Button>
-          ) : (
-            <p role="status" className="pl-5.5 text-sm text-muted-foreground">
-              {AsyncResult.isFailure(lines)
-                ? 'Code could not be loaded.'
-                : 'Loading code…'}
-            </p>
-          )}
+          {(() => {
+            if (moved) {
+              return (
+                <p role="status" className="pl-5.5 text-sm text-graph-4">
+                  Code changed since the review was written.
+                </p>
+              );
+            }
+            if (committed && !expanded) {
+              return (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="ml-5.5"
+                  onClick={() => setExpanded(true)}
+                >
+                  Committed · Show code
+                </Button>
+              );
+            }
+            return (
+              <p role="status" className="pl-5.5 text-sm text-muted-foreground">
+                {AsyncResult.isFailure(lines)
+                  ? 'Code could not be loaded.'
+                  : 'Loading code…'}
+              </p>
+            );
+          })()}
           <AgentNote {...note} />
         </div>
       )}

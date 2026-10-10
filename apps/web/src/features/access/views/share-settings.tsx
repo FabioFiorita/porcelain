@@ -88,13 +88,15 @@ export function ComputerSettings({
           <ItemGroup>
             <Item variant="outline">
               <ItemContent>
-                {desktop === true ? (
-                  <AppUpdateSettings />
-                ) : desktop === false ? (
-                  <ServiceUpdateSettings />
-                ) : (
-                  <Spinner />
-                )}
+                {(() => {
+                  if (desktop === true) {
+                    return <AppUpdateSettings />;
+                  }
+                  if (desktop === false) {
+                    return <ServiceUpdateSettings />;
+                  }
+                  return <Spinner />;
+                })()}
               </ItemContent>
             </Item>
           </ItemGroup>

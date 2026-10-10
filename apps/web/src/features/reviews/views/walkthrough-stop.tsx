@@ -227,28 +227,36 @@ export function WalkthroughStopView({
           </nav>
         )}
         header={() =>
-          stop.kind === 'decision' ? (
-            <DecisionBrief
-              stop={stop}
-              total={stops.filter((item) => item.kind === 'decision').length}
-              review={review}
-              decision={decision}
-              onStep={revealStep}
-              onGo={onGo}
-            />
-          ) : stop.kind === 'unexplained' ? (
-            <UnexplainedBrief stop={stop} stops={stops} onGo={onGo} />
-          ) : (
-            <Brief
-              eyebrow={
-                <span className="tracking-wide uppercase">
-                  Set apart by your settings
-                </span>
-              }
-              title="Specs"
-              lead="Specs are folded because agents follow the project's spec rules. Open the ones that matter to you; the countdown still includes them."
-            />
-          )
+          (() => {
+            if (stop.kind === 'decision') {
+              return (
+                <DecisionBrief
+                  stop={stop}
+                  total={
+                    stops.filter((item) => item.kind === 'decision').length
+                  }
+                  review={review}
+                  decision={decision}
+                  onStep={revealStep}
+                  onGo={onGo}
+                />
+              );
+            }
+            if (stop.kind === 'unexplained') {
+              return <UnexplainedBrief stop={stop} stops={stops} onGo={onGo} />;
+            }
+            return (
+              <Brief
+                eyebrow={
+                  <span className="tracking-wide uppercase">
+                    Set apart by your settings
+                  </span>
+                }
+                title="Specs"
+                lead="Specs are folded because agents follow the project's spec rules. Open the ones that matter to you; the countdown still includes them."
+              />
+            );
+          })()
         }
         footer={() => (
           <>
@@ -266,35 +274,50 @@ export function WalkthroughStopView({
               <div className="flex flex-wrap items-center justify-between gap-4 px-4 pt-5 pb-16 font-sans">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">
-                    {finished
-                      ? 'All reviewed here'
-                      : layer
-                        ? 'Done with this decision?'
-                        : 'Done here?'}
+                    {(() => {
+                      if (finished) {
+                        return 'All reviewed here';
+                      }
+                      if (layer) {
+                        return 'Done with this decision?';
+                      }
+                      return 'Done here?';
+                    })()}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {finished
-                      ? next
-                        ? `Next: ${stopTitle(next)}`
-                        : 'This was the last stop.'
-                      : remaining > 0
-                        ? `Marks the ${remaining} remaining ${remaining === 1 ? 'file' : 'files'} here reviewed${layer ? ' and records the decision' : ''}.`
-                        : progress.total === 0
-                          ? 'Records the decision. Its code is shown in other stops.'
-                          : 'Its files are reviewed; this records the decision.'}
+                    {(() => {
+                      if (finished) {
+                        if (next) {
+                          return `Next: ${stopTitle(next)}`;
+                        }
+                        return 'This was the last stop.';
+                      }
+                      if (remaining > 0) {
+                        return `Marks the ${remaining} remaining ${remaining === 1 ? 'file' : 'files'} here reviewed${layer ? ' and records the decision' : ''}.`;
+                      }
+                      if (progress.total === 0) {
+                        return 'Records the decision. Its code is shown in other stops.';
+                      }
+                      return 'Its files are reviewed; this records the decision.';
+                    })()}
                   </p>
                 </div>
                 <Button
                   disabled={completion.pending || (layer && !decisionsSettled)}
                   onClick={() => (finished ? advance() : markDecision(advance))}
                 >
-                  {finished
-                    ? next
-                      ? 'Continue'
-                      : 'Back to the briefing'
-                    : next
-                      ? 'Mark reviewed and continue'
-                      : 'Mark reviewed and finish'}
+                  {(() => {
+                    if (finished) {
+                      if (next) {
+                        return 'Continue';
+                      }
+                      return 'Back to the briefing';
+                    }
+                    if (next) {
+                      return 'Mark reviewed and continue';
+                    }
+                    return 'Mark reviewed and finish';
+                  })()}
                   <ArrowRightIcon data-icon="inline-end" />
                 </Button>
               </div>
@@ -452,11 +475,15 @@ function DecisionBrief({
                       'bg-destructive/10 text-destructive',
                   )}
                 >
-                  {link.change === 'new'
-                    ? 'New'
-                    : link.change === 'changed'
-                      ? 'Changed'
-                      : 'Removed'}
+                  {(() => {
+                    if (link.change === 'new') {
+                      return 'New';
+                    }
+                    if (link.change === 'changed') {
+                      return 'Changed';
+                    }
+                    return 'Removed';
+                  })()}
                 </span>
               )}
             </li>
