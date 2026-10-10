@@ -1,5 +1,4 @@
 import type { ListDirectoryResponse } from '@porcelain/contracts/files';
-import type { FileTreeNode } from './file-tree-model';
 import { isImagePath } from '@porcelain/client/files/rules';
 
 export const isNativeImagePath = (path: string) =>
@@ -27,45 +26,6 @@ export function directoryRequests(
     );
   };
   return requested.filter(reachable);
-}
-
-export function directoryTree(
-  directories: readonly ListDirectoryResponse[],
-): FileTreeNode[] {
-  const byPath = new Map(
-    directories.map((directory) => [directory.path, directory]),
-  );
-  const children = (parent: string): FileTreeNode[] =>
-    [...(byPath.get(parent)?.entries ?? [])]
-      .sort(
-        (a, b) =>
-          Number(b.kind === 'directory') - Number(a.kind === 'directory') ||
-          a.name.localeCompare(b.name),
-      )
-      .map((entry) => {
-        const path = parent ? `${parent}/${entry.name}` : entry.name;
-        return {
-          id: path,
-          name: entry.name,
-          kind:
-            entry.kind === 'directory'
-              ? 'folder'
-              : isNativeImagePath(path)
-                ? 'image'
-                : 'file',
-          ...(entry.kind === 'directory' ? { children: children(path) } : {}),
-          ...(entry.kind === 'symlink'
-            ? { status: 'Symlink' }
-            : entry.kind === 'submodule'
-              ? { status: 'Submodule' }
-              : entry.kind === 'other'
-                ? { status: 'Unsupported' }
-                : entry.ignored
-                  ? { status: 'Ignored' }
-                  : {}),
-        };
-      });
-  return children('');
 }
 
 export function sourceLanguage(path: string): string | undefined {

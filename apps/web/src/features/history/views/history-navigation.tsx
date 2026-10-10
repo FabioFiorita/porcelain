@@ -7,10 +7,9 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from '@/components/ui/empty';
-import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { useHistory } from '../queries/history';
 import type { HistoryScope } from '@porcelain/client/history/rules';
-import { historyFollows } from '../rules/graph';
+import { historyHeading } from '@porcelain/client/history/rules';
 import { HistoryRows } from './history-rows';
 import { type Connection } from '@/shared/workspace/connection';
 
@@ -70,7 +69,7 @@ export function HistoryHeading({
         <div className="flex shrink-0 items-center gap-1.5 border-b py-1.5 pr-1.5 pl-3.5 text-2xs text-muted-foreground">
           <GitBranchIcon className="size-3.5 shrink-0" />
           <span className="min-w-0 flex-1 truncate">
-            {historyFollows(history.snapshot ?? undefined, worktreeLabel)}
+            {historyHeading(history.snapshot)}
           </span>
           {action}
         </div>

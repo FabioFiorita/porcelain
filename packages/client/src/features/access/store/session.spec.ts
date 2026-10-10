@@ -276,7 +276,7 @@ it('releases every local and remote connection when the application scope closes
   if (!complete) throw new Error('Manual pairing must be admitted');
   await runtime.runPromise(complete(browser));
   await runtime.dispose();
-  expect(closed.toSorted()).toEqual(['environment:1', 'remote:0']);
+  expect([...closed].sort()).toEqual(['environment:1', 'remote:0']);
   expect(
     opened.map((connection) => connection.operations.state.value.closed),
   ).toEqual([true, true]);

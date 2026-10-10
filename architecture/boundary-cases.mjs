@@ -22,6 +22,34 @@ const portable = (owner, module) => ({
 
 export default [
   pair(
+    'mobile-ui-imports-no-state',
+    edge(
+      'apps/mobile/src/components/ui/link.tsx',
+      'packages/client/src/features/links/rules/index.ts',
+      '../../../../../packages/client/src/features/links/rules/index.ts',
+    ),
+    edge(
+      'apps/mobile/src/components/ui/link.tsx',
+      'packages/client/src/features/files/queries/directory.ts',
+      '../../../../../packages/client/src/features/files/queries/directory.ts',
+    ),
+  ),
+  pair(
+    'mobile-ui-imports-no-state',
+    {
+      'apps/mobile/src/components/ui/link.tsx':
+        "import type { Value } from '../../../../../packages/client/src/features/files/store.ts'; export type Result = Value;",
+      'packages/client/src/features/files/store.ts':
+        'export type Value = string;',
+    },
+    edge(
+      'apps/mobile/src/components/ui/link.tsx',
+      'packages/client/src/features/files/store.ts',
+      '../../../../../packages/client/src/features/files/store.ts',
+    ),
+  ),
+
+  pair(
     'mobile-shared-imports-no-owner',
     edge(
       'apps/mobile/src/components/ui/item.tsx',

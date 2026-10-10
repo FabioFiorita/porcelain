@@ -1,10 +1,8 @@
+import { persistedState } from '../persistence/store.ts';
 import { Context, Effect, Layer } from 'effect';
-import { AtomRef } from 'effect/reactivity';
-import {
-  WriteQueue,
-  type WriteNotSentError,
-} from '../../shared/api/write-queue.ts';
-import { ConnectionError } from '../../shared/api/connection-error.ts';
+import type { AtomRef } from 'effect/reactivity';
+import { type WriteNotSentError } from '../../shared/api/write-queue.ts';
+import type { ConnectionError } from '../../shared/api/connection-error.ts';
 import { EnvironmentStorage } from './ports/environment-storage.ts';
 import { withRemote, type Remote } from './rules/remotes.ts';
 
@@ -31,81 +29,25 @@ export class AccessStore extends Context.Service<
     AccessStore,
     Effect.gen(function* () {
       const storage = yield* EnvironmentStorage;
-      const state = AtomRef.make<AccessState>({
-        remotes: [],
-        status: 'loading',
-        error: undefined,
+      const owner = yield* persistedState({
+        initial: { remotes: [] as readonly Remote[] },
+        read: () => Effect.map(storage.read(), (remotes) => ({ remotes })),
+        write: ({ remotes }) => storage.write(remotes),
+        messages: {
+          beforeRead: 'Saved environments must be read before changing them.',
+          readFailed:
+            'Saved environments could not be read. Try reading them again.',
+          writeFailed:
+            'The saved environments could not be updated. Read them again before making changes.',
+        },
       });
-      const queue = yield* WriteQueue.make;
-      const write = Effect.fn('AccessStore.write')(function* (
-        update: (remotes: readonly Remote[]) => Remote[],
-      ) {
-        yield* queue.enqueue(
-          Effect.gen(function* () {
-            if (state.value.status !== 'ready')
-              return yield* Effect.fail(
-                new ConnectionError({
-                  message:
-                    'Saved environments must be read before changing them.',
-                }),
-              );
-            const remotes = update(state.value.remotes);
-            const message =
-              'The saved environments could not be updated. Read them again before making changes.';
-            yield* storage.write(remotes).pipe(
-              Effect.mapError(
-                ({ cause }) => new ConnectionError({ message, cause }),
-              ),
-              Effect.tapError(() =>
-                Effect.sync(() =>
-                  state.update((current) => ({
-                    ...current,
-                    status: 'unreadable',
-                    error: message,
-                  })),
-                ),
-              ),
-              Effect.tap(() =>
-                Effect.sync(() =>
-                  state.update((current) => ({ ...current, remotes })),
-                ),
-              ),
-              Effect.uninterruptible,
-            );
-          }),
+      const write = (update: (remotes: readonly Remote[]) => Remote[]) =>
+        owner.write(({ remotes }) =>
+          Effect.succeed({ remotes: update(remotes) }),
         );
-      });
       return {
-        state,
-        load: Effect.fn('AccessStore.load')(function* () {
-          yield* queue.enqueue(
-            Effect.gen(function* () {
-              state.update((current) => ({
-                ...current,
-                status: 'loading',
-                error: undefined,
-              }));
-              yield* storage.read().pipe(
-                Effect.matchEffect({
-                  onSuccess: (remotes) =>
-                    Effect.sync(() =>
-                      state.set({ remotes, status: 'ready', error: undefined }),
-                    ),
-                  onFailure: () =>
-                    Effect.sync(() =>
-                      state.update((current) => ({
-                        ...current,
-                        status: 'unreadable',
-                        error:
-                          'Saved environments could not be read. Try reading them again.',
-                      })),
-                    ),
-                }),
-                Effect.uninterruptible,
-              );
-            }),
-          );
-        }),
+        state: owner.state,
+        load: owner.load,
         save: Effect.fn('AccessStore.save')((remote: Remote) =>
           write((remotes) => withRemote(remotes, remote)),
         ),

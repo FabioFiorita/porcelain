@@ -197,7 +197,7 @@ function FilePreview({
           source={text}
           onLink={link.open}
           initialMode={preferences.markdownDefault}
-          wrap={preferences.wrapLongLines}
+          wrap={preferences.lineOverflow === 'wrap'}
         />
       ) : /\.html?$/i.test(path) ? (
         <View className="flex-1">
@@ -210,13 +210,13 @@ function FilePreview({
             html={text}
             onLink={link.open}
             initialMode={preferences.htmlDefault}
-            wrap={preferences.wrapLongLines}
+            wrap={preferences.lineOverflow === 'wrap'}
           />
         </View>
       ) : (
         <CodeView
           source={text}
-          wrap={preferences.wrapLongLines}
+          wrap={preferences.lineOverflow === 'wrap'}
           {...(language ? { language } : {})}
         />
       )}

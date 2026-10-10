@@ -1,4 +1,9 @@
-import { Redacted, Cause, Effect, Fiber } from 'effect';
+import {
+  unreadablePersistence,
+  promiseStorage,
+  blockedPersistence,
+} from '../../../spec/kit/promise-storage.ts';
+import { Redacted, Effect, Fiber } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { AccessStore } from './store.ts';
 import { EnvironmentStorage } from '@porcelain/client/access';
@@ -20,24 +25,19 @@ const second: Remote = {
 };
 
 function fixture(storage: {
-  read: () => Promise<Remote[]>;
+  read: () => Promise<readonly Remote[]>;
   write: (value: readonly Remote[]) => Promise<void>;
 }) {
   return Effect.runSync(
     AccessStore.pipe(
       Effect.provide(AccessStore.layer),
-      Effect.provideService(EnvironmentStorage, {
-        read: () =>
-          Effect.tryPromise({
-            try: () => storage.read(),
-            catch: (cause) => new Cause.UnknownError(cause),
-          }),
-        write: (value) =>
-          Effect.tryPromise({
-            try: () => storage.write(value),
-            catch: (cause) => new Cause.UnknownError(cause),
-          }),
-      }),
+      Effect.provideService(
+        EnvironmentStorage,
+        promiseStorage({
+          ...storage,
+          read: async () => [...(await storage.read())],
+        }),
+      ),
     ),
   );
 }
@@ -104,62 +104,24 @@ describe('saved environments', () => {
     expect(restored.state.value.remotes).toEqual([second, replacement]);
   });
 
-  it('keeps the last read state and blocks further writes after persistence fails', async () => {
-    let writes = 0;
-    const store = fixture({
-      read: () => Promise.resolve([first]),
-      write: () => {
-        writes += 1;
-        return Promise.reject(new Error('secure storage failed'));
-      },
-    });
-    await Effect.runPromise(store.load());
-    await expect(Effect.runPromise(store.save(second))).rejects.toThrow(
-      'updated',
-    );
-    expect(store.state.value.remotes).toEqual([first]);
-    expect(store.state.value.status).toBe('unreadable');
-    await expect(
-      Effect.runPromise(store.forget(first.environmentId)),
-    ).rejects.toThrow('read');
-    expect(writes).toBe(1);
-    await Effect.runPromise(store.load());
-    expect(store.state.value.status).toBe('ready');
-  });
-
   it('does not overwrite unreadable saved state or expose storage internals', async () => {
-    let writes = 0;
-    const store = fixture({
-      read: () => Promise.reject(new Error('private storage detail')),
-      write: () => {
-        writes += 1;
-        return Promise.resolve();
-      },
-    });
+    const { storage, writeCount } = unreadablePersistence<readonly Remote[]>();
+    const store = fixture(storage);
     await Effect.runPromise(store.load());
     expect(store.state.value.status).toBe('unreadable');
     expect(store.state.value.error).toBe(
       'Saved environments could not be read. Try reading them again.',
     );
     await expect(Effect.runPromise(store.save(second))).rejects.toThrow('read');
-    expect(writes).toBe(0);
+    expect(writeCount()).toBe(0);
   });
 });
 
 it('serializes concurrent saved environments against the last persisted state', async () => {
-  const started = Promise.withResolvers<void>();
-  const finish = Promise.withResolvers<void>();
-  const writes: Remote[][] = [];
-  const store = fixture({
-    read: () => Promise.resolve([]),
-    write: async (remotes) => {
-      writes.push([...remotes]);
-      if (writes.length === 1) {
-        started.resolve();
-        await finish.promise;
-      }
-    },
-  });
+  const { started, finish, writes, storage } = blockedPersistence<
+    readonly Remote[]
+  >([]);
+  const store = fixture(storage);
   await Effect.runPromise(store.load());
   const savingFirst = Effect.runPromise(store.save(first));
   const savingSecond = Effect.runPromise(store.save(second));
@@ -207,20 +169,11 @@ it('stops dependent persistence after a failed save and retains its cause', asyn
 });
 
 it('publishes an admitted save before cancellation finishes, so a later save includes it', async () => {
-  const started = Promise.withResolvers<void>();
-  const finish = Promise.withResolvers<void>();
   const snapshots: (readonly Remote[])[] = [];
-  const writes: Remote[][] = [];
-  const store = fixture({
-    read: () => Promise.resolve([]),
-    write: async (remotes) => {
-      writes.push([...remotes]);
-      if (writes.length === 1) {
-        started.resolve();
-        await finish.promise;
-      }
-    },
-  });
+  const { started, finish, writes, storage } = blockedPersistence<
+    readonly Remote[]
+  >([]);
+  const store = fixture(storage);
   const unsubscribe = store.state.subscribe((state) =>
     snapshots.push(state.remotes),
   );

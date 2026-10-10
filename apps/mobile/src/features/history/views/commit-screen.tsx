@@ -1,16 +1,21 @@
+import { CommitState } from './commit-state';
 import { useState } from 'react';
 import { FlatList, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { AsyncResult } from 'effect/reactivity';
 import { Empty } from '../../../components/ui/empty';
-import { ErrorState } from '../../../components/ui/error-state';
+
 import { Loading } from '../../../components/ui/loading';
 import { Text } from '../../../components/ui/text';
 import { Badge } from '../../../components/ui/badge';
 import { Item } from '../../../components/ui/item';
 import { useSelectedWorktree } from '../../projects';
 import { useCommit, type HistorySelection } from '../queries/history';
-import { commitPath, refLabel, shortOid } from '../rules';
+import {
+  commitPath,
+  refLabel,
+  shortOid,
+} from '@porcelain/client/history/rules';
 
 export function CommitScreen() {
   const { oid, workspace } = useLocalSearchParams<{
@@ -45,14 +50,14 @@ function CommitDetail({
   const [parent, setParent] = useState(1);
   const commit = useCommit(selection, oid, parent);
   const router = useRouter();
-  if (AsyncResult.isFailure(commit.result))
+  if (AsyncResult.isFailure(commit.result) || !commit.value)
     return (
-      <ErrorState
-        message="Couldn't load commit"
-        retry={{ label: 'Retry', onPress: commit.retry }}
+      <CommitState
+        failed={AsyncResult.isFailure(commit.result)}
+        retry={commit.retry}
       />
     );
-  if (!commit.value) return <Loading label="Loading commit…" />;
+
   const value = commit.value;
   return (
     <View collapsable={false} className="flex-1 bg-background">

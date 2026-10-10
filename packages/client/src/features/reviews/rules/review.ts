@@ -15,7 +15,6 @@ type FileChange = ChangeList['changes'][number];
 export type Change = FileChange['comparisons'][number];
 type ChangeDiffs = ReadChangeDiffsResponse;
 export type DiffContent = ChangeDiffs['diffs'][number]['content'];
-export type ChangeSelection = ChangeDiffs['diffs'][number]['selection'];
 type ReviewedMark = ListReviewedFilesResponse['marks'][number];
 type ReviewedMarksResponse = ListReviewedFilesResponse;
 export type SetReviewedRequest = SetReviewedFileRequest;

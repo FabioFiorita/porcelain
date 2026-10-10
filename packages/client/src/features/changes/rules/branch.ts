@@ -4,16 +4,6 @@ type BranchChanges = ReadBranchChangesResponse;
 export type BranchFile = BranchChanges['files'][number];
 export type BranchRange = { baseOid: string; headOid: string };
 
-export function branchFilePaths(file: BranchFile): string[] {
-  return [
-    ...new Set(
-      [file.oldPath, file.newPath].filter(
-        (path) => path !== null && path !== undefined,
-      ),
-    ),
-  ];
-}
-
 export function branchName(ref: string): string {
   if (ref.startsWith('refs/heads/')) return ref.slice('refs/heads/'.length);
   if (ref.startsWith('refs/remotes/')) return ref.slice('refs/remotes/'.length);

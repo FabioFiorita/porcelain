@@ -18,7 +18,7 @@ selectors:
   - "Reading saved preferences…"
   - "Read saved preferences again"
 tests:
-  - apps/mobile/src/shared/rules/preferences.spec.ts
+  - packages/client/src/features/preferences/store.spec.ts
 api: []
 ---
 

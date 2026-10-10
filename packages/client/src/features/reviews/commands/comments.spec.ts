@@ -1,3 +1,4 @@
+import { holdFirstRead } from '../../../../spec/kit/held-transport.ts';
 import { afterEach, expect, it } from 'vitest';
 import { Layer, Effect, Option, Stream } from 'effect';
 import { AtomRegistry, AsyncResult } from 'effect/reactivity';
@@ -133,23 +134,16 @@ it('a refused create rejects its queued reply without sending it or changing the
   }
 });
 it('a confirmed edit survives an unfinished older read and a failed refresh', async () => {
-  const held = Promise.withResolvers<Response>();
-  const started = Promise.withResolvers<void>();
+  const pendingRead = holdFirstRead();
+  const { held, started } = pendingRead;
   const edited = {
     ...thread,
     revision: 2,
     messages: [{ ...thread.messages[0], body: 'Include the regression test.' }],
   };
-  let reads = 0;
   const subject = fixture((_, init) => {
     if (init?.method === 'PATCH') return Promise.resolve(Response.json(edited));
-    if (++reads === 1) {
-      started.resolve();
-      return held.promise;
-    }
-    return Promise.resolve(
-      Response.json({ message: 'Refresh unavailable' }, { status: 503 }),
-    );
+    return pendingRead.read();
   });
   const stop = subject.registry.mount(subject.state);
   try {

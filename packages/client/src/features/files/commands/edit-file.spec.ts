@@ -131,23 +131,6 @@ describe('shared file edit coordination', () => {
       await second.close();
     }
   });
-  it('keeps draft locations after a rejected move and releases its ownership', async () => {
-    const subject = setup('rejected-move', () =>
-      Promise.resolve(new Response('unavailable', { status: 503 })),
-    );
-    const draft = await subject.draft(
-      () => Effect.succeed('written'),
-      () => false,
-    );
-    try {
-      await expect(subject.move()).rejects.toMatchObject({ status: 503 });
-      expect(subject.entries().get(key('source/file.txt'))).toBe(draft);
-      expect(subject.entries().has(key('destination/file.txt'))).toBe(false);
-      expect(draft.state.value.owner).toBeNull();
-    } finally {
-      await subject.close();
-    }
-  });
 
   it('refuses to send a move when a child draft could not be saved', async () => {
     let sent = 0;
@@ -213,26 +196,6 @@ describe('shared file edit coordination', () => {
   });
 });
 
-it('does not relocate drafts when the server confirms a different destination', async () => {
-  const subject = setup('wrong-destination', () =>
-    Promise.resolve(Response.json({ path: 'another-folder' })),
-  );
-  const draft = await subject.draft(
-    () => Effect.succeed('written'),
-    () => false,
-  );
-  try {
-    await expect(subject.move()).rejects.toThrow(
-      'The connected context changed.',
-    );
-    expect(subject.entries().get(key('source/file.txt'))).toBe(draft);
-    expect(subject.entries().has(key('destination/file.txt'))).toBe(false);
-    expect(draft.state.value.owner).toBeNull();
-  } finally {
-    await subject.close();
-  }
-});
-
 it('cancels a disconnected move, releases its draft claims, and rejects a late confirmation', async () => {
   const started = Promise.withResolvers<void>();
   const held = Promise.withResolvers<Response>();
@@ -252,9 +215,11 @@ it('cancels a disconnected move, releases its draft claims, and rejects a late c
     void subject.connection.close();
     held.resolve(Response.json({ path: 'destination' }));
     await rejected;
-    expect(subject.entries().get(key('source/file.txt'))).toBe(draft);
-    expect(subject.entries().has(key('destination/file.txt'))).toBe(false);
-    expect(draft.state.value.owner).toBeNull();
+    expect(draftLocations(subject, draft)).toEqual({
+      source: draft,
+      destination: undefined,
+      owner: null,
+    });
   } finally {
     held.resolve(Response.json({ path: 'destination' }));
     await subject.close();
@@ -515,3 +480,47 @@ it.effect('completes an editor only after its real draft confirms a save', () =>
     expect(draft.state.value.fingerprint).toBe('confirmed');
   }),
 );
+
+it.each([
+  {
+    reason: 'rejected move',
+    response: () => new Response('unavailable', { status: 503 }),
+    error: { status: 503 },
+  },
+  {
+    reason: 'wrong destination',
+    response: () => Response.json({ path: 'another-folder' }),
+    error: {
+      message:
+        'The connected context changed. Reopen Porcelain to continue safely.',
+    },
+  },
+])(
+  'keeps original draft locations and releases ownership after $reason',
+  async ({ reason, response, error }) => {
+    const subject = setup(reason, () => Promise.resolve(response()));
+    const draft = await subject.draft(
+      () => Effect.succeed('written'),
+      () => false,
+    );
+    try {
+      await expect(subject.move()).rejects.toMatchObject(error);
+      expect(subject.entries().get(key('source/file.txt'))).toBe(draft);
+      expect(subject.entries().has(key('destination/file.txt'))).toBe(false);
+      expect(draft.state.value.owner).toBeNull();
+    } finally {
+      await subject.close();
+    }
+  },
+);
+
+function draftLocations(
+  subject: ReturnType<typeof setup>,
+  draft: Awaited<ReturnType<ReturnType<typeof setup>['draft']>>,
+) {
+  return {
+    source: subject.entries().get(key('source/file.txt')),
+    destination: subject.entries().get(key('destination/file.txt')),
+    owner: draft.state.value.owner,
+  };
+}

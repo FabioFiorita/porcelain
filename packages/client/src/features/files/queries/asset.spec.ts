@@ -1,38 +1,15 @@
-import { afterEach, expect, it } from 'vitest';
-import { Layer, Effect } from 'effect';
+import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
+import { expect, it } from 'vitest';
+import { Effect } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
-import {
-  createWorktreeConnection,
-  type Transport,
-} from '@porcelain/client/transport';
+import { type Transport } from '@porcelain/client/transport';
 
 const scope = {
   projectId: 'project',
   worktreeId: '00000000000000000000000000000000',
 };
-const owned: (() => Promise<void>)[] = [];
-afterEach(async () => {
-  for (const close of owned) await close();
-  owned.length = 0;
-});
-function fixture(transport: Transport, cacheIdentity?: readonly string[]) {
-  const lifetime = createWorktreeConnection(
-    {
-      environmentId: 'environment',
-      transport,
-      timeoutMs: 10_000,
-      ...(cacheIdentity ? { cacheIdentity } : {}),
-    },
-    undefined,
-    Layer.empty,
-  );
-  const registry = AtomRegistry.make();
-  owned.push(async () => {
-    registry.dispose();
-    await lifetime.close();
-  });
-  return { ...lifetime, registry };
-}
+const fixture = clientFixtures('environment');
+
 import { readAsset } from './asset.ts';
 const image = {
   path: 'image #1.png',

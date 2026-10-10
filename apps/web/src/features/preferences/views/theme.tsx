@@ -6,11 +6,11 @@ import {
 } from '@/shared/adapters/desktop';
 import { cn } from '@/shared/lib/utils';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
-import { nextAppearance } from '../rules/preferences';
+import { nextAppearance } from '@porcelain/client/preferences/rules';
 import { usePreferences } from '../store';
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const { preferences, resolvedTheme, setPreference } = usePreferences();
+  const { preferences, setPreference, resolvedTheme } = usePreferences();
   useEffect(connectDesktopChrome, []);
   useEffect(
     () => setDesktopAppearance(preferences.appearance),

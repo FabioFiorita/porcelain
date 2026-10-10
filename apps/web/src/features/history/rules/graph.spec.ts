@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  historyFollows,
-  historyGraphWidth,
-  historyRefLabel,
-  layoutGraph,
-  ordinal,
-  shortOid,
-} from './graph.ts';
+import { historyGraphWidth, layoutGraph, ordinal } from './graph.ts';
 
 type Commit = Parameters<typeof layoutGraph>[0][number];
 
@@ -58,41 +51,14 @@ describe('history graph layout', () => {
   });
 });
 
-describe('history labels', () => {
-  it('names the current branch, detached head, and unborn branch', () => {
-    const label = (ref: string) => ref.replace('refs/heads/', '');
-    expect(historyFollows(undefined, label)).toBe('This branch');
-    expect(
-      historyFollows(
-        {
-          tipOid: undefined,
-          head: { kind: 'attached', ref: 'refs/heads/topic' },
-        },
-        label,
-      ),
-    ).toBe('topic');
-    expect(
-      historyFollows({ tipOid: undefined, head: { kind: 'detached' } }, label),
-    ).toBe('Detached HEAD');
-    expect(
-      historyFollows(
-        { tipOid: undefined, head: { kind: 'unborn', ref: 'refs/heads/new' } },
-        label,
-      ),
-    ).toBe('No commits yet on new');
-  });
-
-  it('shortens refs and object IDs and uses the right ordinal suffix', () => {
-    expect(historyRefLabel('refs/remotes/origin/topic')).toBe('origin/topic');
-    expect(shortOid('0123456789')).toBe('0123456');
-    expect([1, 2, 3, 11, 21, 22, 23].map(ordinal)).toEqual([
-      '1st',
-      '2nd',
-      '3rd',
-      '11th',
-      '21st',
-      '22nd',
-      '23rd',
-    ]);
-  });
+it('uses the right ordinal suffix', () => {
+  expect([1, 2, 3, 11, 21, 22, 23].map(ordinal)).toEqual([
+    '1st',
+    '2nd',
+    '3rd',
+    '11th',
+    '21st',
+    '22nd',
+    '23rd',
+  ]);
 });

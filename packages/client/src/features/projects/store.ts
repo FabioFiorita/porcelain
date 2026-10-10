@@ -1,10 +1,8 @@
+import { persistedState } from '../persistence/store.ts';
 import { Context, Effect, Layer } from 'effect';
-import { AtomRef } from 'effect/reactivity';
-import {
-  WriteQueue,
-  type WriteNotSentError,
-} from '../../shared/api/write-queue.ts';
-import { ConnectionError } from '../../shared/api/connection-error.ts';
+import type { AtomRef } from 'effect/reactivity';
+import { type WriteNotSentError } from '../../shared/api/write-queue.ts';
+import type { ConnectionError } from '../../shared/api/connection-error.ts';
 import {
   ProjectSelectionStorage,
   type ProjectSelectionSnapshot,
@@ -36,88 +34,23 @@ export class ProjectSelectionStore extends Context.Service<
     ProjectSelectionStore,
     Effect.gen(function* () {
       const storage = yield* ProjectSelectionStorage;
-      const state = AtomRef.make<ProjectSelectionState>({
-        currentEnvironmentId: undefined,
-        selections: {},
-        status: 'loading',
-        error: undefined,
+      const owner = yield* persistedState<ProjectSelectionSnapshot>({
+        initial: { currentEnvironmentId: undefined, selections: {} },
+        read: storage.read,
+        write: storage.write,
+        messages: {
+          beforeRead:
+            'Saved workspace selections must be read before changing them.',
+          readFailed:
+            'Saved workspace selections could not be read. Try reading them again.',
+          writeFailed:
+            'Saved workspace selections could not be updated. Read them again before making changes.',
+        },
       });
-      const queue = yield* WriteQueue.make;
-      const write = Effect.fn('ProjectSelectionStore.write')(function* (
-        update: (
-          snapshot: ProjectSelectionSnapshot,
-        ) => Effect.Effect<ProjectSelectionSnapshot, ConnectionError>,
-      ) {
-        yield* queue.enqueue(
-          Effect.gen(function* () {
-            if (state.value.status !== 'ready')
-              return yield* Effect.fail(
-                new ConnectionError({
-                  message:
-                    'Saved workspace selections must be read before changing them.',
-                }),
-              );
-            const snapshot = yield* update(state.value);
-            const message =
-              'Saved workspace selections could not be updated. Read them again before making changes.';
-            yield* storage.write(snapshot).pipe(
-              Effect.mapError(
-                ({ cause }) => new ConnectionError({ message, cause }),
-              ),
-              Effect.tapError(() =>
-                Effect.sync(() =>
-                  state.update((current) => ({
-                    ...current,
-                    status: 'unreadable',
-                    error: message,
-                  })),
-                ),
-              ),
-              Effect.tap(() =>
-                Effect.sync(() =>
-                  state.update((current) => ({ ...current, ...snapshot })),
-                ),
-              ),
-              Effect.uninterruptible,
-            );
-          }),
-        );
-      });
+      const write = owner.write;
       return {
-        state,
-        load: Effect.fn('ProjectSelectionStore.load')(function* () {
-          yield* queue.enqueue(
-            Effect.gen(function* () {
-              state.update((current) => ({
-                ...current,
-                status: 'loading',
-                error: undefined,
-              }));
-              yield* storage.read().pipe(
-                Effect.matchEffect({
-                  onSuccess: (snapshot) =>
-                    Effect.sync(() =>
-                      state.set({
-                        ...snapshot,
-                        status: 'ready',
-                        error: undefined,
-                      }),
-                    ),
-                  onFailure: () =>
-                    Effect.sync(() =>
-                      state.update((current) => ({
-                        ...current,
-                        status: 'unreadable',
-                        error:
-                          'Saved workspace selections could not be read. Try reading them again.',
-                      })),
-                    ),
-                }),
-                Effect.uninterruptible,
-              );
-            }),
-          );
-        }),
+        state: owner.state,
+        load: owner.load,
         selectWorkspace: Effect.fn('ProjectSelectionStore.selectWorkspace')(
           (environmentId: string, projectId: string, worktreeId: string) =>
             write(({ selections }) =>

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   commentTarget,
-  diffSelection,
   reviewFiles,
   reviewRange,
   type ReviewSnapshot,
@@ -63,18 +62,6 @@ const file = {
 };
 
 describe('mobile review comparisons', () => {
-  it('keeps both rename paths in a staged diff selection', () => {
-    expect(diffSelection(staged)).toEqual({
-      scope: 'staged',
-      oldPath: 'old.ts',
-      newPath: 'new.ts',
-    });
-  });
-  it('never submits an untracked path as a staged or unstaged diff request', () => {
-    expect(
-      diffSelection({ scope: 'untracked', path: 'new.ts' }),
-    ).toBeUndefined();
-  });
   it('uses branch reviewed marks independently from worktree marks', () => {
     expect(reviewRange(branch)).toEqual({
       kind: 'branch',
@@ -125,4 +112,42 @@ describe('mobile review comparisons', () => {
       commentTarget(worktree, { ...file, fingerprint: undefined }, 'unstaged'),
     ).toBeUndefined();
   });
+});
+
+it('does not submit branch feedback without a base', () => {
+  expect(
+    commentTarget(
+      { ...branch, answer: { ...branch.answer, base: undefined } },
+      file,
+    ),
+  ).toBeUndefined();
+});
+it('names the conflict type in the review file note', () => {
+  expect(
+    reviewFiles(
+      {
+        ...worktree,
+        answer: {
+          ...worktree.answer,
+          changes: [
+            {
+              path: 'conflict.ts',
+              fingerprint: 'conflicted',
+              comparisons: [
+                {
+                  scope: 'unmerged',
+                  path: 'conflict.ts',
+                  conflict: 'both-modified',
+                },
+              ],
+            },
+          ],
+        },
+      },
+      { worktreeId: 'tree', marks: [] },
+    )[0]?.note,
+  ).toBe('Conflict: both-modified');
+});
+it('does not submit worktree feedback without a comparison scope', () => {
+  expect(commentTarget(worktree, file)).toBeUndefined();
 });

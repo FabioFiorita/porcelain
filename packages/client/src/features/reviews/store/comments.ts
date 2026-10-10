@@ -7,24 +7,23 @@ import {
 } from '../../../shared/api/client.ts';
 import {
   confirmedResource,
-  type ConfirmedResource,
+  type ConfirmedRequest,
 } from '../../../shared/api/confirmed-resource.ts';
 import type {
   RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import type { RequestError } from '../../../shared/api/request-error.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 
-type CommentsFailure =
-  | Effect.Error<ReturnType<PorcelainApi['reviews']['listCommentThreads']>>
-  | RequestError;
+type CommentsFailure = Effect.Error<
+  ReturnType<PorcelainApi['reviews']['listCommentThreads']>
+>;
 
 export class CommentThreadsState extends Context.Service<
   CommentThreadsState,
-  ConfirmedResource<ListCommentThreadsResponse, CommentsFailure>
+  ConfirmedRequest<ListCommentThreadsResponse, CommentsFailure>
 >()('@porcelain/client/CommentThreadsState') {
   static layer(connection: RuntimeConnection, scope: WorktreeScope) {
     return Layer.effect(

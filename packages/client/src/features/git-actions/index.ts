@@ -1,5 +1,4 @@
 export { OperationStore } from './ports/operation-store.ts';
-export { operationStoreLayer } from './store/operations.ts';
 export { readCommitModels } from './queries/git-actions.ts';
 export {
   generateCommitDraft,

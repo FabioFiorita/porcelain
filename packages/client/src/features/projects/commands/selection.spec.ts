@@ -23,7 +23,7 @@ import { ProjectSelectionCommands } from './selection.ts';
 import {
   ProjectSelectionStorage,
   ProjectSelectionStore,
-  WorkspaceSelectionCleanup,
+  workspaceSelectionCleanupLayer,
   type ProjectSelectionSnapshot,
 } from '@porcelain/client/projects';
 
@@ -102,13 +102,7 @@ function fixture(
     EnvironmentMutations.layer,
     FileDrafts.layer,
   ).pipe(Layer.provide(ports));
-  const cleanup = Layer.effect(
-    WorkspaceSelectionCleanup,
-    Effect.gen(function* () {
-      const selection = yield* ProjectSelectionStore;
-      return { forgetEnvironment: selection.forgetEnvironment };
-    }),
-  ).pipe(Layer.provide(stores));
+  const cleanup = workspaceSelectionCleanupLayer.pipe(Layer.provide(stores));
   const platform = Layer.succeed(AccessPlatform, {
     name: () => 'Test device',
     send: () => Promise.reject(new Error('Selection must not use HTTP.')),
@@ -186,17 +180,7 @@ it('keeps remembered workspaces when saved environments are unreadable', async (
 });
 
 it('shares the application queue with native atoms and refuses a selection queued behind forgetting', async () => {
-  const writing = Promise.withResolvers<void>();
-  const finish = Promise.withResolvers<void>();
-  const f = fixture({
-    writeEnvironments: async () => {
-      writing.resolve();
-      await finish.promise;
-    },
-  });
-  await f.runtime.runPromise(f.environments.read());
-  await f.runtime.runPromise(f.commands.execute({ kind: 'read' }));
-  f.writes.length = 0;
+  const { f, writing, finish } = await blockedEnvironmentWrite();
   const registry = AtomRegistry.make();
   const atomRuntime = Atom.context({ memoMap: f.runtime.memoMap })(
     f.application,
@@ -243,17 +227,7 @@ it('shares the application queue with native atoms and refuses a selection queue
 });
 
 it('releases a cancelled queued choice without saving it or hiding the active selection', async () => {
-  const writing = Promise.withResolvers<void>();
-  const finish = Promise.withResolvers<void>();
-  const f = fixture({
-    writeSelection: async () => {
-      writing.resolve();
-      await finish.promise;
-    },
-  });
-  await f.runtime.runPromise(f.environments.read());
-  await f.runtime.runPromise(f.commands.execute({ kind: 'read' }));
-  f.writes.length = 0;
+  const { f, writing, finish } = await blockedEnvironmentWrite('selection');
   const first = f.runtime.runPromise(
     f.commands.execute({
       kind: 'workspace',
@@ -289,17 +263,7 @@ it('releases a cancelled queued choice without saving it or hiding the active se
 });
 
 it('finishes both persistence steps after an admitted forget is cancelled', async () => {
-  const writing = Promise.withResolvers<void>();
-  const finish = Promise.withResolvers<void>();
-  const f = fixture({
-    writeEnvironments: async () => {
-      writing.resolve();
-      await finish.promise;
-    },
-  });
-  await f.runtime.runPromise(f.environments.read());
-  await f.runtime.runPromise(f.commands.execute({ kind: 'read' }));
-  f.writes.length = 0;
+  const { f, writing, finish } = await blockedEnvironmentWrite();
   const forgetting = f.runtime.runFork(f.environments.forget('first'));
   await writing.promise;
   const cancelled = Effect.runPromise(Fiber.interrupt(forgetting));
@@ -430,3 +394,23 @@ it('keeps failed workspace cleanup visible and repairs it by rereading before an
   });
   expect(f.commands.pending.value).toBe(0);
 });
+
+async function blockedEnvironmentWrite(
+  owner: 'environment' | 'selection' = 'environment',
+) {
+  const writing = Promise.withResolvers<void>();
+  const finish = Promise.withResolvers<void>();
+  const write = async () => {
+    writing.resolve();
+    await finish.promise;
+  };
+  const f = fixture(
+    owner === 'environment'
+      ? { writeEnvironments: write }
+      : { writeSelection: write },
+  );
+  await f.runtime.runPromise(f.environments.read());
+  await f.runtime.runPromise(f.commands.execute({ kind: 'read' }));
+  f.writes.length = 0;
+  return { f, writing, finish };
+}

@@ -32,7 +32,7 @@ export function proofStatus(proof: ReviewProof | undefined): ProofStatus {
 }
 
 export function orderedChecks(checks: readonly ProofCheck[]): ProofCheck[] {
-  return checks.toSorted(
+  return [...checks].sort(
     (left, right) =>
       RESULT_ORDER.indexOf(left.result) - RESULT_ORDER.indexOf(right.result),
   );

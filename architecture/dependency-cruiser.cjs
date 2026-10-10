@@ -405,11 +405,13 @@ module.exports = {
     {
       name: 'mobile-ui-imports-no-state',
       comment:
-        'Native primitives receive data and callbacks so shared application state and client operations stay with their feature owners.',
+        'Native primitives may import client and contract types and pure client rules, because views supply shaped data while effects, atoms and state stay with feature owners.',
       severity: 'error',
       from: { path: '^apps/mobile/src/components/ui/' },
       to: {
         path: '^(?:apps/mobile/src/shared/(?:api|adapters|application)/|packages/client/src/)',
+        pathNot: '^packages/client/src/features/[^/]+/rules/',
+        dependencyTypesNot: ['type-only'],
       },
     },
     {
