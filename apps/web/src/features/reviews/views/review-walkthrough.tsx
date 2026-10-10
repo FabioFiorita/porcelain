@@ -99,44 +99,50 @@ export function ReviewWalkthrough({
           and coverage could not be checked.
         </p>
       )}
-      {view === 'summary' ? (
-        review.summary === previousSummary ? (
-          <p role="status" className="p-4 text-sm text-muted-foreground">
-            Refreshing summary…
-          </p>
-        ) : (
-          <SummaryFrame
-            review={review}
-            address={address}
-            onLayer={(layerId) => go(decisionKey(layerId))}
+      {(() => {
+        if (view === 'summary') {
+          return review.summary === previousSummary ? (
+            <p role="status" className="p-4 text-sm text-muted-foreground">
+              Refreshing summary…
+            </p>
+          ) : (
+            <SummaryFrame
+              review={review}
+              address={address}
+              onLayer={(layerId) => go(decisionKey(layerId))}
+            />
+          );
+        }
+        if (walk.stop.kind === 'briefing') {
+          return (
+            <WalkthroughBriefing
+              {...props}
+              stops={walk.stops}
+              items={walk.items}
+              decisions={walk.decisions.states}
+              done={walk.done}
+              onGo={go}
+            />
+          );
+        }
+        return (
+          <WalkthroughStopView
+            key={walk.stop.key}
+            {...props}
+            stop={walk.stop}
+            stops={walk.stops}
+            items={walk.items}
+            decision={
+              walk.stop.kind === 'decision'
+                ? walk.decisions.states.get(walk.stop.layer.id)
+                : undefined
+            }
+            decisionsSettled={walk.decisions.settled}
+            finished={walk.done(walk.stop)}
+            onGo={go}
           />
-        )
-      ) : walk.stop.kind === 'briefing' ? (
-        <WalkthroughBriefing
-          {...props}
-          stops={walk.stops}
-          items={walk.items}
-          decisions={walk.decisions.states}
-          done={walk.done}
-          onGo={go}
-        />
-      ) : (
-        <WalkthroughStopView
-          key={walk.stop.key}
-          {...props}
-          stop={walk.stop}
-          stops={walk.stops}
-          items={walk.items}
-          decision={
-            walk.stop.kind === 'decision'
-              ? walk.decisions.states.get(walk.stop.layer.id)
-              : undefined
-          }
-          decisionsSettled={walk.decisions.settled}
-          finished={walk.done(walk.stop)}
-          onGo={go}
-        />
-      )}
+        );
+      })()}
     </section>
   );
 }
@@ -224,7 +230,15 @@ function WalkthroughBar({
                       reviewed && 'bg-graph-2',
                     )}
                     style={{
-                      width: `${progress.total === 0 ? (reviewed ? 100 : 0) : (progress.reviewed / progress.total) * 100}%`,
+                      width: `${(() => {
+                        if (progress.total === 0) {
+                          if (reviewed) {
+                            return 100;
+                          }
+                          return 0;
+                        }
+                        return (progress.reviewed / progress.total) * 100;
+                      })()}%`,
                     }}
                   />
                 </span>

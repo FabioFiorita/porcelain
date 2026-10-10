@@ -1,8 +1,8 @@
+import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
 import { useSelectedWorktree } from '../../projects';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -79,7 +79,7 @@ function WorktreeFiles({
   const open = (path: string) => onOpen(path, selected.key);
   const nodes = directoryTree(data);
   const header = (
-    <View className="gap-3 px-4 py-3">
+    <Box gap={3} paddingX={4} paddingY={3}>
       <Input
         accessibilityLabel="Search files"
         placeholder="Search files"
@@ -88,7 +88,7 @@ function WorktreeFiles({
         autoCapitalize="none"
         autoCorrect={false}
       />
-      <View className="flex-row gap-2">
+      <Box className="flex-row" gap={2}>
         <Button
           label="New file"
           variant="outline"
@@ -105,7 +105,7 @@ function WorktreeFiles({
             setAction({ kind: 'create', entryKind: 'directory', folder: '' })
           }
         />
-      </View>
+      </Box>
       <Text variant="caption" tone="muted">
         {selected.project.name} · {worktreeLabel(selected.worktree.branch)}
       </Text>
@@ -126,10 +126,10 @@ function WorktreeFiles({
         />
       ) : null}
       {searching && !pathData ? <Loading label="Searching files…" /> : null}
-    </View>
+    </Box>
   );
   return (
-    <View className="flex-1 bg-background" collapsable={false}>
+    <Box className="flex-1" surface="background" collapsable={false}>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
           accessibilityLabel="Refresh files"
@@ -215,6 +215,6 @@ function WorktreeFiles({
         onClose={() => setAction(undefined)}
         onCreated={open}
       />
-    </View>
+    </Box>
   );
 }

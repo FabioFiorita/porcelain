@@ -18,37 +18,51 @@ export function AppUpdateSettings() {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm font-medium">Porcelain app {info.current}</p>
-      {progress ? (
-        <div aria-live="polite" className="flex items-center gap-2 text-sm">
-          <Spinner />
-          <p>{progress}</p>
-        </div>
-      ) : info.available ? (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm">
-            Porcelain app {info.available} is available.
+      {(() => {
+        if (progress) {
+          return (
+            <div aria-live="polite" className="flex items-center gap-2 text-sm">
+              <Spinner />
+              <p>{progress}</p>
+            </div>
+          );
+        }
+        if (info.available) {
+          return (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm">
+                Porcelain app {info.available} is available.
+              </p>
+              <Button
+                size="sm"
+                disabled={install.result.waiting}
+                onClick={() => install.install()}
+              >
+                Update to {info.available}
+              </Button>
+            </div>
+          );
+        }
+        return (
+          <p className="text-xs text-muted-foreground">
+            {noUpdateMessage(state)}
           </p>
-          <Button
-            size="sm"
-            disabled={install.result.waiting}
-            onClick={() => install.install()}
-          >
-            Update to {info.available}
-          </Button>
-        </div>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          {noUpdateMessage(state)}
-        </p>
-      )}
+        );
+      })()}
       {(state.status === 'error' || AsyncResult.isFailure(install.result)) && (
         <Alert variant="destructive">
           <AlertDescription>
-            {state.status === 'error'
-              ? state.message
-              : AsyncResult.isFailure(install.result)
-                ? connectionErrorMessage(Cause.squash(install.result.cause))
-                : undefined}
+            {(() => {
+              if (state.status === 'error') {
+                return state.message;
+              }
+              if (AsyncResult.isFailure(install.result)) {
+                return connectionErrorMessage(
+                  Cause.squash(install.result.cause),
+                );
+              }
+              return undefined;
+            })()}
           </AlertDescription>
         </Alert>
       )}

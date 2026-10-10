@@ -187,13 +187,15 @@ export function GitButton({
               <Spinner className="size-3.5" />
             ) : (
               <GitActionIcon
-                action={
-                  primary.kind === 'run'
-                    ? primary.action
-                    : primary.kind === 'stash'
-                      ? 'stash-apply'
-                      : 'commit'
-                }
+                action={(() => {
+                  if (primary.kind === 'run') {
+                    return primary.action;
+                  }
+                  if (primary.kind === 'stash') {
+                    return 'stash-apply';
+                  }
+                  return 'commit';
+                })()}
                 className="size-3.5"
               />
             )}
@@ -381,11 +383,15 @@ export function GitButton({
               <DialogHeader>
                 <DialogTitle>{selected?.label ?? 'Git action'}</DialogTitle>
                 <DialogDescription>
-                  {selected?.id === 'stash-pop'
-                    ? 'Its changes come back into the working tree and the stash is dropped.'
-                    : selected?.id === 'stash-apply'
-                      ? 'Its changes come back into the working tree and the stash is kept.'
-                      : 'Every change, new files included, is set aside until you pop the stash.'}
+                  {(() => {
+                    if (selected?.id === 'stash-pop') {
+                      return 'Its changes come back into the working tree and the stash is dropped.';
+                    }
+                    if (selected?.id === 'stash-apply') {
+                      return 'Its changes come back into the working tree and the stash is kept.';
+                    }
+                    return 'Every change, new files included, is set aside until you pop the stash.';
+                  })()}
                 </DialogDescription>
               </DialogHeader>
             )}

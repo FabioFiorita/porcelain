@@ -18,17 +18,23 @@ export function ImagePreview({
   const query = useAsset(connection, scope, path);
   return (
     <div className="flex w-full flex-col items-center gap-2 p-4">
-      {AsyncResult.isInitial(query) ? (
-        <p role="status">Loading image…</p>
-      ) : AsyncResult.isFailure(query) ? (
-        <p role="status">{fileErrorMessage(Cause.squash(query.cause))}</p>
-      ) : (
-        <img
-          src={assetUrl(Option.getOrThrow(AsyncResult.value(query)))}
-          alt={path}
-          className="max-h-[70vh] max-w-full object-contain"
-        />
-      )}
+      {(() => {
+        if (AsyncResult.isInitial(query)) {
+          return <p role="status">Loading image…</p>;
+        }
+        if (AsyncResult.isFailure(query)) {
+          return (
+            <p role="status">{fileErrorMessage(Cause.squash(query.cause))}</p>
+          );
+        }
+        return (
+          <img
+            src={assetUrl(Option.getOrThrow(AsyncResult.value(query)))}
+            alt={path}
+            className="max-h-[70vh] max-w-full object-contain"
+          />
+        );
+      })()}
     </div>
   );
 }

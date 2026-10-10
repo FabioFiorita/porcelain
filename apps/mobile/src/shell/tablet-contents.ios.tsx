@@ -1,22 +1,20 @@
+import { Box } from '../components/ui/box';
+import { destinationForPath } from './destinations';
+import { useSelectedWorktree } from '../features/projects';
 import { Text } from '../components/ui/text';
 import { Label, List, RNHostView, Section, VStack } from '@expo/ui/swift-ui';
 import { listStyle, navigationTitle, tag } from '@expo/ui/swift-ui/modifiers';
 import { usePathname, useRouter } from 'expo-router';
-import { View } from 'react-native';
 
 export function TabletContents() {
   const pathname = usePathname();
   const router = useRouter();
-  const title =
-    pathname === '/files'
-      ? 'Files'
-      : pathname === '/history'
-        ? 'History'
-        : 'Changes';
+  const destination = destinationForPath(pathname);
+  const selected = useSelectedWorktree();
 
   return (
     <>
-      {pathname === '/settings' || pathname.startsWith('/component-') ? (
+      {destination.path === '/settings' ? (
         <List
           selection={['environments']}
           onSelectionChange={() => router.replace('/settings')}
@@ -27,13 +25,20 @@ export function TabletContents() {
           </Section>
         </List>
       ) : (
-        <VStack modifiers={[navigationTitle(title)]}>
+        <VStack modifiers={[navigationTitle(destination.title)]}>
           <RNHostView>
-            <View className="flex-1 bg-background px-6 py-8">
+            <Box
+              className="flex-1"
+              surface="background"
+              paddingX={6}
+              paddingY={8}
+            >
               <Text variant="ui" tone="muted">
-                No worktree selected.
+                {selected
+                  ? (selected.worktree.branch ?? selected.worktree.path)
+                  : 'No worktree selected.'}
               </Text>
-            </View>
+            </Box>
           </RNHostView>
         </VStack>
       )}

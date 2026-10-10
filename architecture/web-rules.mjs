@@ -340,7 +340,7 @@ function localTarget(path, specifier) {
   );
 }
 
-function importedFrom(program, accept) {
+export function importedFrom(program, accept) {
   const locals = new Map();
   const namespaces = new Set();
   for (const statement of program.body) {
@@ -361,7 +361,26 @@ function importedFrom(program, accept) {
   return { locals, namespaces };
 }
 
-function calledImport(callee, imports) {
+export function calledImport(callee, imports, context) {
+  if (context) {
+    const identifier =
+      callee.type === 'MemberExpression' ? callee.object : callee;
+    if (identifier.type !== 'Identifier') return undefined;
+    let scope = context.sourceCode.getScope(callee);
+    while (scope) {
+      const binding = scope.set.get(identifier.name);
+      if (binding) {
+        if (
+          !binding.defs.some(
+            (definition) => definition.type === 'ImportBinding',
+          )
+        )
+          return undefined;
+        break;
+      }
+      scope = scope.upper;
+    }
+  }
   if (callee.type === 'Identifier') return imports.locals.get(callee.name);
   if (
     callee.type === 'MemberExpression' &&
@@ -372,6 +391,44 @@ function calledImport(callee, imports) {
   )
     return callee.property.name;
   return undefined;
+}
+
+export function styleObjects(context, node, visited = new Set()) {
+  if (!node || visited.has(node)) return [];
+  visited.add(node);
+  if (node.type === 'Identifier') {
+    let scope = context.sourceCode.getScope(node);
+    while (scope) {
+      const binding = scope.set.get(node.name);
+      if (binding)
+        return styleObjects(context, binding.defs[0]?.node?.init, visited);
+      scope = scope.upper;
+    }
+  }
+  if (node.type === 'ObjectExpression')
+    return [
+      node,
+      ...node.properties.flatMap((property) =>
+        property.type === 'Property'
+          ? styleObjects(context, property.value, visited)
+          : styleObjects(context, property.argument, visited),
+      ),
+    ];
+  if (node.type === 'ArrayExpression')
+    return node.elements.flatMap((element) =>
+      styleObjects(context, element, visited),
+    );
+  if (node.type === 'LogicalExpression')
+    return [
+      ...styleObjects(context, node.left, visited),
+      ...styleObjects(context, node.right, visited),
+    ];
+  if (node.type === 'ConditionalExpression')
+    return [
+      ...styleObjects(context, node.consequent, visited),
+      ...styleObjects(context, node.alternate, visited),
+    ];
+  return styleObjects(context, node.expression ?? node.argument, visited);
 }
 
 function methodName(callee) {
@@ -867,17 +924,23 @@ export const webRules = {
         });
     },
   })),
-  'web-views-no-promise-chains': viewRule((context) => ({
-    CallExpression(node) {
-      if (!promiseContinuations.has(promiseContinuationName(node.callee)))
-        return;
-      context.report({
-        node,
-        message:
-          'A view does not sequence promise completion: put success and error work in a command hook and let the view forward the event, because commands must own completion state across view unmounts.',
-      });
+  'web-views-no-promise-chains': {
+    create(context) {
+      const path = webPath(context);
+      if (!viewLike(path) && webPart(path) !== 'mobile-ui') return {};
+      return {
+        CallExpression(node) {
+          if (!promiseContinuations.has(promiseContinuationName(node.callee)))
+            return;
+          context.report({
+            node,
+            message:
+              'Views and mobile primitives do not sequence promise completion: use async work owned by a command or renderer, because that owner must handle failure and cancellation across unmounts.',
+          });
+        },
+      };
     },
-  })),
+  },
   'web-views-no-try': viewRule((context) => ({
     TryStatement(node) {
       context.report({
@@ -1050,7 +1113,33 @@ export const webRules = {
         if (typeof text === 'string' && handSet.test(text))
           context.report({ node, message });
       };
+      const length =
+        /^(?:(?:min|max)?(?:Width|Height)|width|height|(?:margin|padding)(?:Top|Right|Bottom|Left|Start|End|Horizontal|Vertical)?|border.*(?:Width|Radius)|(?:row|column)?[Gg]ap|top|right|bottom|left|start|end|inset.*|flexBasis|fontSize|lineHeight|letterSpacing|textIndent|translate[XY]|perspective|shadowRadius)$/;
+      const numeric = (node) =>
+        (node?.type === 'Literal' && typeof node.value === 'number') ||
+        (node?.type === 'UnaryExpression' &&
+          ['-', '+'].includes(node.operator) &&
+          numeric(node.argument));
+      const style = (node) => {
+        for (const object of styleObjects(context, node))
+          for (const property of object.properties) {
+            if (
+              property.type === 'Property' &&
+              length.test(property.key.name ?? property.key.value ?? '') &&
+              numeric(property.value)
+            )
+              context.report({ node: property, message });
+          }
+      };
       return {
+        JSXAttribute(node) {
+          if (
+            path.startsWith('apps/mobile/src/') &&
+            node.name.name === 'style' &&
+            node.value?.type === 'JSXExpressionContainer'
+          )
+            style(node.value.expression);
+        },
         Literal(node) {
           check(node, node.value);
         },

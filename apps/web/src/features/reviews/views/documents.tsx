@@ -228,13 +228,15 @@ function PlainChangesDocument({
           : {})}
         toolbar={(collapseControl) => (
           <DocumentToolbar
-            title={
-              specsOnly
-                ? 'Specs'
-                : interaction.entry === 'all-changes'
-                  ? 'All changes'
-                  : 'Changes'
-            }
+            title={(() => {
+              if (specsOnly) {
+                return 'Specs';
+              }
+              if (interaction.entry === 'all-changes') {
+                return 'All changes';
+              }
+              return 'Changes';
+            })()}
             subtitle={`${changes.length} files`}
           >
             {collapseControl}

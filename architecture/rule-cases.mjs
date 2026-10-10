@@ -113,6 +113,219 @@ const observedStoreState = `describe('MarkCommentsSeenService', () => {
 `;
 
 export default [
+  {
+    rule: 'mobile-system-chrome',
+    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
+    valid:
+      "import { frame } from '@expo/ui/swift-ui/modifiers'; export function local(frame) { return frame({ width: 44 }); }",
+    invalid:
+      "import { frame } from '@expo/ui/swift-ui/modifiers'; export function local() { return frame({ width: 44 }); }",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-system-chrome',
+    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
+    valid:
+      "import * as M from '@expo/ui/swift-ui/modifiers'; export function local(M) { return M.frame({ width: 44 }); }",
+    invalid:
+      "import * as M from '@expo/ui/swift-ui/modifiers'; export function local() { return M.frame({ width: 44 }); }",
+    errors: 1,
+  },
+  {
+    rule: 'web-design-tokens',
+    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
+    valid:
+      'const style = [{ flex: 1 }]; export const view = <View style={style} />;',
+    invalid:
+      'const style = [{ width: 44 }]; export const view = <View style={style} />;',
+    errors: 1,
+  },
+  {
+    rule: 'web-design-tokens',
+    path: 'apps/mobile/src/features/files/views/file-screen.tsx',
+    valid: 'export const view = <View style={[active && { opacity: 0.5 }]} />;',
+    invalid:
+      'export const view = <View style={[active && { padding: 13 }]} />;',
+    errors: 1,
+  },
+  {
+    rule: 'web-design-tokens',
+    path: 'apps/mobile/src/features/files/views/file-screen.tsx',
+    valid:
+      'export const view = <View style={{ transform: [{ scale: 2 }], aspectRatio: 1, flexGrow: 1 }} />;',
+    invalid:
+      'export const view = <View style={{ transform: [{ translateY: 13 }], shadowOffset: { width: 2 } }} />;',
+    errors: 2,
+  },
+  {
+    rule: 'mobile-system-chrome',
+    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
+    valid:
+      "import { Host } from '@expo/ui/swift-ui'; const style = [{ flex: 1 }]; export const chrome = <Host style={style} />;",
+    invalid:
+      "import { Host } from '@expo/ui/swift-ui'; const style = [{ width: SIZE }]; export const chrome = <Host style={style} />;",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-system-chrome',
+    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
+    valid:
+      "import { Host } from '@expo/ui/swift-ui'; export const chrome = <Host style={[active && { flex: 1 }]} />;",
+    invalid:
+      "import { Host } from '@expo/ui/swift-ui'; export const chrome = <Host style={[active && { width: 44 }]} />;",
+    errors: 1,
+  },
+  {
+    rule: 'web-design-tokens',
+    path: 'apps/mobile/src/features/files/views/file-screen.tsx',
+    valid:
+      "export const view = <View style={{ flex: 1, opacity: 0.5, zIndex: 2, width: '100%' }} />;",
+    invalid: 'export const view = <View style={{ width: 44, padding: 13 }} />;',
+    errors: 2,
+  },
+  {
+    rule: 'web-design-tokens',
+    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
+    valid:
+      "export const view = <View style={{ flex: 1, opacity: 0.5, zIndex: 2, width: '100%' }} />;",
+    invalid: 'export const view = <View style={{ width: 44, padding: 13 }} />;',
+    errors: 2,
+  },
+  {
+    rule: 'web-design-tokens',
+    path: 'apps/mobile/src/features/files/views/file-screen.tsx',
+    valid:
+      'export const view = <View style={[{ flex: 1 }, { opacity: 0.5 }]} />;',
+    invalid:
+      'export const view = <View style={[{ marginTop: -4 }, { borderRadius: 13 }, { gap: 5 }]} />;',
+    errors: 3,
+  },
+  {
+    rule: 'web-design-tokens',
+    path: 'apps/mobile/src/features/files/views/file-screen.tsx',
+    valid: 'export const view = <View style={{ height: 44, padding: 13 }} />;',
+    invalid:
+      'export const view = <View style={{ height: 44, padding: 13 }} />;',
+    errors: 2,
+    validPath: 'apps/mobile/src/components/ui/button.tsx',
+  },
+  {
+    rule: 'mobile-system-chrome',
+    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
+    valid:
+      'function frame(options) { return options; } export const size = frame({ width: 44 });',
+    invalid:
+      "import { frame as box } from '@expo/ui/swift-ui/modifiers'; export const size = box({ width: 44 });",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-system-chrome',
+    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
+    valid:
+      "import * as M from '@expo/ui/swift-ui/modifiers'; export const size = M.frame({ alignment: 'center' });",
+    invalid:
+      "import * as M from '@expo/ui/swift-ui/modifiers'; export const size = M.frame({ width: SIZE });",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-system-chrome',
+    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
+    valid:
+      "import { font as text } from '@expo/ui/swift-ui/modifiers'; export const size = text({ weight: 'bold' });",
+    invalid:
+      "import { font as text } from '@expo/ui/swift-ui/modifiers'; export const size = text({ size: SIZE });",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-system-chrome',
+    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
+    valid:
+      "import { Host as NativeHost } from '@expo/ui/swift-ui'; export const chrome = <NativeHost style={[{ flex: 1 }, { width: '100%' }]} />;",
+    invalid:
+      "import { Host as NativeHost } from '@expo/ui/swift-ui'; export const chrome = <NativeHost style={[{ width: 44 }]} />;",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-system-chrome',
+    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
+    valid:
+      "import * as UI from '@expo/ui/swift-ui'; export const chrome = <UI.Host style={{ flex: 1 }} />;",
+    invalid:
+      "import * as UI from '@expo/ui/swift-ui'; export const chrome = <UI.Host style={[{ height: SIZE }]} />;",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-system-chrome',
+    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
+    valid:
+      'export const chrome = <Stack.Toolbar.View hidesSharedBackground={false} />;',
+    invalid:
+      'export const chrome = <Stack.Toolbar.View hidesSharedBackground={true} />;',
+    errors: 1,
+  },
+  {
+    rule: 'mobile-system-chrome',
+    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
+    valid:
+      'export const chrome = <Stack.Toolbar.View hidesSharedBackground={false} />;',
+    invalid:
+      'export const chrome = <Stack.Toolbar.View hidesSharedBackground={hidden} />;',
+    errors: 1,
+  },
+  {
+    rule: 'mobile-native-ui',
+    path: 'apps/mobile/src/features/files/views/file-screen.tsx',
+    valid:
+      "import { Animated } from 'react-native'; export const view = <Animated.Text />;",
+    invalid:
+      "import { Animated as Motion } from 'react-native'; export const view = <Motion.Text />;",
+    errors: 1,
+    validPath: 'apps/mobile/src/components/ui/text.tsx',
+  },
+  {
+    rule: 'mobile-native-ui',
+    path: 'apps/mobile/src/features/files/views/file-screen.tsx',
+    valid:
+      "import { View as Row } from 'react-native'; export const view = <Row className='flex-1 flex-row items-center w-full mt-4' />;",
+    invalid:
+      "import { View as Row } from 'react-native'; export const view = <Row className='rounded-lg border border-border bg-card' />;",
+    errors: 4,
+  },
+  {
+    rule: 'mobile-native-ui',
+    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
+    valid:
+      "import { View } from 'react-native'; export const view = <View className='flex-1' />;",
+    invalid:
+      "import { View } from 'react-native'; export const view = <View className='p-4 gap-2' />;",
+    errors: 2,
+  },
+  {
+    rule: 'web-views-no-promise-chains',
+    path: 'apps/mobile/src/components/ui/use-highlighted-code.ts',
+    valid:
+      'export async function highlight(work) { try { return await work(); } catch { return undefined; } }',
+    invalid: 'export const highlight = (work) => work().then(() => undefined);',
+    errors: 1,
+  },
+  {
+    rule: 'web-views-no-promise-chains',
+    path: 'apps/mobile/src/components/ui/use-highlighted-code.ts',
+    valid:
+      'export async function highlight(work) { try { return await work(); } catch { return undefined; } }',
+    invalid:
+      'export const highlight = (work) => work().catch(() => undefined);',
+    errors: 1,
+  },
+  {
+    rule: 'web-views-no-promise-chains',
+    path: 'apps/mobile/src/components/ui/use-highlighted-code.ts',
+    valid:
+      'export async function highlight(work) { try { return await work(); } catch { return undefined; } }',
+    invalid:
+      'export const highlight = (work) => work().finally(() => undefined);',
+    errors: 1,
+  },
   ...effectRuleCases,
 
   {
@@ -574,7 +787,7 @@ export function probeLoose(left: string, right: string): boolean {
     path: 'apps/mobile/src/components/ui/button.ios.tsx',
     valid: 'export const button = <View style={{ width: 44, height: 44 }} />;',
     invalid:
-      'export const button = <Host style={{ width: 44, height: 44 }} hidesSharedBackground />;',
+      "import { Host } from '@expo/ui/swift-ui'; export const button = <Host style={{ width: 44, height: 44 }} hidesSharedBackground />;",
     errors: 2,
   },
   {
@@ -3078,6 +3291,82 @@ const featureMapCases = [
 ];
 
 export const guardrailCases = [
+  {
+    rule: 'knip-expo-destination-anchor',
+    path: '/fixture/apps/mobile/src/app/(files)/_layout.tsx',
+    valid:
+      "export const unstable_settings = { anchor: 'files' }; import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='files' title='Title'><Screen name='child' /></DestinationLayout>; }",
+    invalid:
+      "import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='files' title='Title'><Screen name='child' /></DestinationLayout>; }",
+  },
+  {
+    rule: 'knip-expo-destination-anchor',
+    path: '/fixture/apps/mobile/src/app/(review)/_layout.tsx',
+    valid:
+      "export const unstable_settings = { anchor: 'review' }; import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='review' title='Title'><Screen name='child' /></DestinationLayout>; }",
+    invalid:
+      "import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='review' title='Title'><Screen name='child' /></DestinationLayout>; }",
+  },
+  {
+    rule: 'knip-expo-destination-anchor',
+    path: '/fixture/apps/mobile/src/app/(history)/_layout.tsx',
+    valid:
+      "export const unstable_settings = { anchor: 'history' }; import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='history' title='Title'><Screen name='child' /></DestinationLayout>; }",
+    invalid:
+      "import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='history' title='Title'><Screen name='child' /></DestinationLayout>; }",
+  },
+  {
+    rule: 'knip-expo-destination-anchor',
+    path: '/fixture/apps/mobile/src/app/(settings)/_layout.tsx',
+    valid:
+      "export const unstable_settings = { anchor: 'settings' }; import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='settings' title='Title'><Screen name='child' /></DestinationLayout>; }",
+    invalid:
+      "import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='settings' title='Title'><Screen name='child' /></DestinationLayout>; }",
+  },
+  {
+    rule: 'knip-expo-destination-anchor',
+    path: '/fixture/apps/mobile/src/app/(files)/_layout.tsx',
+    valid:
+      "export const unstable_settings = { anchor: 'files' }; import { DestinationLayout as Destination } from '../../shell/destination-layout'; export default function Layout() { return <Destination name='files' title='Files'><Screen name='child' /></Destination>; }",
+    invalid:
+      "export const unstable_settings = { anchor: 'review' }; import { DestinationLayout as Destination } from '../../shell/destination-layout'; export default function Layout() { return <Destination name='files' title='Files'><Screen name='child' /></Destination>; }",
+  },
+  {
+    rule: 'no-nested-ternary',
+    path: 'apps/web/src/features/files/views/probe-view.tsx',
+    valid:
+      "export function title(a: boolean, b: boolean) { if (a) return 'A'; return b ? 'B' : 'C'; }",
+    invalid:
+      "export const title = (a: boolean, b: boolean) => a ? 'A' : b ? 'B' : 'C';",
+    errors: ['eslint(no-nested-ternary)'],
+  },
+  {
+    rule: 'no-nested-ternary',
+    path: 'apps/mobile/src/features/files/views/probe-view.tsx',
+    valid:
+      "export function title(a: boolean, b: boolean) { if (a) return 'A'; return b ? 'B' : 'C'; }",
+    invalid:
+      "export const title = (a: boolean, b: boolean) => a ? 'A' : b ? 'B' : 'C';",
+    errors: ['eslint(no-nested-ternary)'],
+  },
+  {
+    rule: 'no-nested-ternary',
+    path: 'apps/web/src/shell/probe-shell.tsx',
+    valid:
+      "export function title(a: boolean, b: boolean) { if (a) return 'A'; return b ? 'B' : 'C'; }",
+    invalid:
+      "export const title = (a: boolean, b: boolean) => a ? 'A' : b ? 'B' : 'C';",
+    errors: ['eslint(no-nested-ternary)'],
+  },
+  {
+    rule: 'no-nested-ternary',
+    path: 'apps/mobile/src/shell/probe-shell.tsx',
+    valid:
+      "export function title(a: boolean, b: boolean) { if (a) return 'A'; return b ? 'B' : 'C'; }",
+    invalid:
+      "export const title = (a: boolean, b: boolean) => a ? 'A' : b ? 'B' : 'C';",
+    errors: ['eslint(no-nested-ternary)'],
+  },
   {
     rule: 'knip-expo-framework-exports',
     path: '/fixture/apps/mobile/src/app/(settings)/_layout.tsx',

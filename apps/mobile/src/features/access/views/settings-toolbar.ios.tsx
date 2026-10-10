@@ -1,5 +1,4 @@
 import { Stack } from 'expo-router';
-import { DeviceType, deviceType } from 'expo-device';
 import { Button, Host } from '@expo/ui/swift-ui';
 import {
   accessibilityIdentifier,
@@ -9,10 +8,9 @@ import {
 } from '@expo/ui/swift-ui/modifiers';
 import type { SettingsToolbarProps } from './settings-toolbar-props';
 
-export const settingsHeaderVisible = deviceType !== DeviceType.TABLET;
+export const settingsHeaderVisible = true;
 
 export function SettingsToolbar(props: SettingsToolbarProps) {
-  if (!settingsHeaderVisible) return null;
   return (
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.View>

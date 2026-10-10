@@ -267,19 +267,27 @@ function OmittedCommitChanges({
           const content = patchOf(change);
           const submodule =
             change.oldMode === '160000' || change.newMode === '160000';
-          const reason = submodule
-            ? 'Submodule change'
-            : content === undefined
-              ? failed
-                ? 'The patch could not be read'
-                : 'Reading the patch'
-              : content.kind === 'binary'
-                ? 'Binary change'
-                : content.kind === 'omitted'
-                  ? content.reason === 'size-limit'
-                    ? 'Too large to show'
-                    : 'Cannot be shown'
-                  : 'No code change';
+          const reason = (() => {
+            if (submodule) {
+              return 'Submodule change';
+            }
+            if (content === undefined) {
+              if (failed) {
+                return 'The patch could not be read';
+              }
+              return 'Reading the patch';
+            }
+            if (content.kind === 'binary') {
+              return 'Binary change';
+            }
+            if (content.kind === 'omitted') {
+              if (content.reason === 'size-limit') {
+                return 'Too large to show';
+              }
+              return 'Cannot be shown';
+            }
+            return 'No code change';
+          })();
           return (
             <li
               key={`${change.oldPath}->${change.newPath}:${change.status}`}

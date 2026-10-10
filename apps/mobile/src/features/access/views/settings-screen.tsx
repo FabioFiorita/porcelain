@@ -1,3 +1,5 @@
+import { Card } from '../../../components/ui/card';
+import { Box } from '../../../components/ui/box';
 import { Text } from '../../../components/ui/text';
 import { Button } from '../../../components/ui/button';
 import { Loading } from '../../../components/ui/loading';
@@ -6,7 +8,7 @@ import { Separator } from '../../../components/ui/separator';
 import { Item } from '../../../components/ui/item';
 import { Fragment, useState } from 'react';
 import { BottomSheet } from '@expo/ui';
-import { ScrollView, View } from 'react-native';
+import { ScrollView } from 'react-native';
 import { useReadEnvironments } from '../commands/pairing';
 import { useEnvironments, useEnvironmentStorageStatus } from '../store';
 import { EnvironmentRow } from './environment-row';
@@ -34,7 +36,7 @@ export function SettingsScreen({
         className="flex-1 bg-background"
         contentInsetAdjustmentBehavior="automatic"
       >
-        <View className="gap-6 px-6 py-8">
+        <Box gap={6} paddingX={6} paddingY={8}>
           {settingsHeaderVisible ? null : (
             <Text variant="heading">Settings</Text>
           )}
@@ -46,7 +48,7 @@ export function SettingsScreen({
               onPress={onOpenAppearance}
             />
           ) : null}
-          <View className="gap-3">
+          <Box gap={3}>
             <Text variant="subheading" tone="muted">
               Environments
             </Text>
@@ -60,7 +62,7 @@ export function SettingsScreen({
               </Text>
             ) : null}
             {remotes.length > 0 ? (
-              <View className="overflow-hidden rounded-lg border border-border bg-card">
+              <Card className="overflow-hidden">
                 {remotes.map((remote, index) => (
                   <Fragment key={remote.environmentId}>
                     {index > 0 ? <Separator /> : null}
@@ -71,25 +73,33 @@ export function SettingsScreen({
                     />
                   </Fragment>
                 ))}
-              </View>
+              </Card>
             ) : null}
-            {storage.status === 'unreadable' ? (
-              <Button
-                variant="outline"
-                label="Read saved environments again"
-                onPress={() => read(undefined)}
-              />
-            ) : storage.status === 'ready' && !settingsHeaderVisible ? (
-              <Button
-                testID="add-environment"
-                variant="outline"
-                label="Add environment"
-                onPress={() => setPairing(true)}
-              />
-            ) : null}
-          </View>
+            {(() => {
+              if (storage.status === 'unreadable') {
+                return (
+                  <Button
+                    variant="outline"
+                    label="Read saved environments again"
+                    onPress={() => read(undefined)}
+                  />
+                );
+              }
+              if (storage.status === 'ready' && !settingsHeaderVisible) {
+                return (
+                  <Button
+                    testID="add-environment"
+                    variant="outline"
+                    label="Add environment"
+                    onPress={() => setPairing(true)}
+                  />
+                );
+              }
+              return null;
+            })()}
+          </Box>
           {__DEV__ && onOpenComponentLibrary ? (
-            <View className="gap-3">
+            <Box gap={3}>
               <Text variant="subheading" tone="muted">
                 Development
               </Text>
@@ -98,9 +108,9 @@ export function SettingsScreen({
                 variant="outline"
                 onPress={onOpenComponentLibrary}
               />
-            </View>
+            </Box>
           ) : null}
-        </View>
+        </Box>
       </ScrollView>
       <BottomSheet
         isPresented={pairing}

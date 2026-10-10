@@ -1,3 +1,4 @@
+import { Box } from '../../../components/ui/box';
 import { useState } from 'react';
 import { usePreferences } from '../../preferences';
 import { Stack, useRouter } from 'expo-router';
@@ -82,7 +83,7 @@ function SelectedFile({
 }) {
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
   return (
-    <View className="flex-1 bg-background">
+    <Box className="flex-1" surface="background">
       <Stack.Screen options={{ title: path.split('/').at(-1) ?? path }} />
       {AsyncResult.isSuccess(result) ? (
         <ReviewedFile
@@ -94,7 +95,7 @@ function SelectedFile({
       ) : (
         <ReviewReadState result={result} refresh={refresh} />
       )}
-    </View>
+    </Box>
   );
 }
 
@@ -413,18 +414,22 @@ function SelectableContent({
 }) {
   const { preferences } = usePreferences();
   const [selection, setSelection] = useState<ReviewRange>();
-  const anchor = target
-    ? selection
-      ? rangeAnchor(target, {
+  const anchor = (() => {
+    if (target) {
+      if (selection) {
+        return rangeAnchor(target, {
           start: selection.startLine,
           end: selection.endLine,
           ...(selection.side ? { side: selection.side } : {}),
-        })
-      : { ...target, kind: 'file' as const }
-    : undefined;
+        });
+      }
+      return { ...target, kind: 'file' as const };
+    }
+    return undefined;
+  })();
   return (
     <View className="flex-1">
-      <View className="flex-row items-center gap-2 px-4 py-2">
+      <Box className="flex-row items-center" gap={2} paddingX={4} paddingY={2}>
         <CommentAction
           workspace={workspace}
           comparison={comparison}
@@ -438,7 +443,7 @@ function SelectableContent({
             onPress={() => setSelection(undefined)}
           />
         ) : null}
-      </View>
+      </Box>
       {lines ? (
         <DiffView
           lines={lines}
@@ -467,13 +472,13 @@ function FileCommentAction({
   target?: CommentTarget | undefined;
 }) {
   return (
-    <View className="px-4 py-2">
+    <Box paddingX={4} paddingY={2}>
       <CommentAction
         {...props}
         anchor={target ? { ...target, kind: 'file' } : undefined}
         label="Comment on file"
       />
-    </View>
+    </Box>
   );
 }
 

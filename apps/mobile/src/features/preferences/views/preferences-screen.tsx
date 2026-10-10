@@ -1,4 +1,5 @@
-import { ScrollView, View } from 'react-native';
+import { Box } from '../../../components/ui/box';
+import { ScrollView } from 'react-native';
 import { Button } from '../../../components/ui/button';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Item } from '../../../components/ui/item';
@@ -24,7 +25,7 @@ function Choice<T extends string | boolean>({
 }) {
   return (
     <Item title={label} description={description} variant="outline">
-      <View className="flex-row flex-wrap gap-2 pt-2">
+      <Box className="flex-row flex-wrap" gap={2} paddingTop={2}>
         {options.map((option) => (
           <Button
             key={option.id}
@@ -36,7 +37,7 @@ function Choice<T extends string | boolean>({
             onPress={() => onChange(option.value)}
           />
         ))}
-      </View>
+      </Box>
     </Item>
   );
 }
@@ -49,7 +50,7 @@ export function PreferencesScreen() {
       className="flex-1 bg-background"
       contentInsetAdjustmentBehavior="automatic"
     >
-      <View className="gap-6 px-6 py-8">
+      <Box gap={6} paddingX={6} paddingY={8}>
         {status === 'loading' ? (
           <Loading label="Reading saved preferences…" />
         ) : null}
@@ -74,7 +75,7 @@ export function PreferencesScreen() {
           disabled={disabled}
           onChange={(theme) => setPreferences({ theme })}
         />
-        <View className="gap-3">
+        <Box gap={3}>
           <Text variant="subheading" tone="muted">
             Code
           </Text>
@@ -89,8 +90,8 @@ export function PreferencesScreen() {
             disabled={disabled}
             onChange={(wrapLongLines) => setPreferences({ wrapLongLines })}
           />
-        </View>
-        <View className="gap-3">
+        </Box>
+        <Box gap={3}>
           <Text variant="subheading" tone="muted">
             Documents
           </Text>
@@ -116,8 +117,8 @@ export function PreferencesScreen() {
             disabled={disabled}
             onChange={(htmlDefault) => setPreferences({ htmlDefault })}
           />
-        </View>
-      </View>
+        </Box>
+      </Box>
     </ScrollView>
   );
 }

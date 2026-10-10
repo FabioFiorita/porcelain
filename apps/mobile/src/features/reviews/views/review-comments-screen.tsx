@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { Stack, useRouter } from 'expo-router';
+import { Box } from '../../../components/ui/box';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
+import { Stack, useRouter, usePreventRemove } from 'expo-router';
 import { randomUUID } from 'expo-crypto';
-import { ScrollView, View } from 'react-native';
+import { Alert, ScrollView } from 'react-native';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
@@ -93,7 +94,13 @@ function Comments({
   });
   const result = useAtomValue(query);
   const refresh = useAtomRefresh(query);
-  const [composing, setComposing] = useState(compose && !!anchor);
+  const [composer, setComposer] = useState<
+    { anchor: CommentAnchor; threadId?: string } | undefined
+  >(() => (compose && anchor ? { anchor } : undefined));
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  useEffect(() => {
+    if (composer) scroll.current?.scrollTo({ y: 0, animated: true });
+  }, [composer]);
   const commands = commentCommands({
     connection: workspace.connection,
     scope: workspace.scope,
@@ -114,8 +121,9 @@ function Comments({
     }
   }, [highest, seen]);
   return (
-    <View className="flex-1 bg-background" collapsable={false}>
+    <Box className="flex-1" surface="background" collapsable={false}>
       <ScrollView
+        ref={scroll}
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
         contentContainerClassName="gap-4 p-4"
@@ -125,35 +133,45 @@ function Comments({
             {path}
           </Text>
         ) : null}
-        {anchor ? (
-          composing ? (
-            <>
-              <AnchorFreshness
-                workspace={workspace}
-                anchor={anchor}
-                comparison={comparison}
-              />
-              <CommentComposer
-                workspace={workspace}
-                anchor={anchor}
-                onClose={() => setComposing(false)}
-              />
-            </>
-          ) : (
-            <Button
-              label={
-                anchor.kind === 'codeRange'
-                  ? 'Comment on selected lines'
-                  : path
-                    ? 'Comment on file'
-                    : comparison.kind === 'branch'
-                      ? 'Comment on the whole branch'
-                      : 'Comment on the whole change'
-              }
-              variant="outline"
-              onPress={() => setComposing(true)}
+        {composer ? (
+          <>
+            <AnchorFreshness
+              workspace={workspace}
+              anchor={composer.anchor}
+              comparison={comparison}
             />
-          )
+            {composer.threadId &&
+            AsyncResult.isSuccess(result) &&
+            !result.value.some((thread) => thread.id === composer.threadId) ? (
+              <ErrorState message="This thread is no longer available. Your reply is kept; cancel it to start another comment." />
+            ) : null}
+            <CommentComposer
+              key={composer.threadId ?? 'new'}
+              workspace={workspace}
+              anchor={composer.anchor}
+              threadId={composer.threadId}
+              onClose={() => setComposer(undefined)}
+            />
+          </>
+        ) : null}
+        {anchor ? (
+          <Button
+            label={(() => {
+              if (anchor.kind === 'codeRange') {
+                return 'Comment on selected lines';
+              }
+              if (path) {
+                return 'Comment on file';
+              }
+              if (comparison.kind === 'branch') {
+                return 'Comment on the whole branch';
+              }
+              return 'Comment on the whole change';
+            })()}
+            variant="outline"
+            disabled={!!composer}
+            onPress={() => setComposer({ anchor })}
+          />
         ) : null}
         {AsyncResult.isSuccess(result) ? (
           <>
@@ -164,6 +182,10 @@ function Comments({
                   key={thread.id}
                   workspace={workspace}
                   thread={thread}
+                  canReply={!composer}
+                  onReply={() =>
+                    setComposer({ threadId: thread.id, anchor: thread.anchor })
+                  }
                 />
               ))}
             {result.value.filter(
@@ -179,7 +201,7 @@ function Comments({
           <ReviewReadState result={result} refresh={refresh} />
         )}
       </ScrollView>
-    </View>
+    </Box>
   );
 }
 
@@ -227,7 +249,7 @@ function CommentComposer({
 }: {
   workspace: ReviewWorkspace;
   anchor: CommentAnchor;
-  threadId?: string;
+  threadId?: string | undefined;
   onClose: () => void;
 }) {
   const commands = commentCommands({
@@ -237,19 +259,52 @@ function CommentComposer({
   const create = useCommentWrite(commands.create);
   const reply = useCommentWrite(commands.reply);
   const pending = threadId ? reply.result.waiting : create.result.waiting;
-  const mutationError = threadId
-    ? AsyncResult.isFailure(reply.result)
-      ? reviewErrorMessage(Cause.squash(reply.result.cause))
-      : undefined
-    : AsyncResult.isFailure(create.result)
-      ? reviewErrorMessage(Cause.squash(create.result.cause))
-      : undefined;
+  const mutationError = (() => {
+    if (threadId) {
+      if (AsyncResult.isFailure(reply.result)) {
+        return reviewErrorMessage(Cause.squash(reply.result.cause));
+      }
+      return undefined;
+    }
+    if (AsyncResult.isFailure(create.result)) {
+      return reviewErrorMessage(Cause.squash(create.result.cause));
+    }
+    return undefined;
+  })();
   const [body, setBody] = useState('');
   const [invalid, setInvalid] = useState<string>();
   const intent = useRef<
     { body: string; threadId: string; messageId: string } | undefined
   >(undefined);
   const error = invalid ?? mutationError;
+  const confirmDiscard = (complete: () => void) => {
+    if (pending) {
+      Alert.alert(
+        'Sending comment',
+        'Wait for the comment to finish sending before closing.',
+      );
+      return;
+    }
+    if (body.length === 0) {
+      complete();
+      return;
+    }
+    Alert.alert('Discard comment?', 'Your unsent comment will be lost.', [
+      { text: 'Keep writing', style: 'cancel' },
+      {
+        text: 'Discard',
+        style: 'destructive',
+        onPress: () => {
+          setBody('');
+          complete();
+        },
+      },
+    ]);
+  };
+  usePreventRemove(body.length > 0 || pending, ({ repeat }) =>
+    confirmDiscard(repeat),
+  );
+
   return (
     <ReviewComposer
       value={body}
@@ -260,7 +315,7 @@ function CommentComposer({
       label={`${anchorPath(anchor) ?? ''} ${anchorLabel(anchor)}${threadId ? ' · Reply' : ''}`}
       pending={pending}
       {...(error ? { error } : {})}
-      onCancel={onClose}
+      onCancel={() => confirmDiscard(onClose)}
       onSubmit={() => {
         if (pending) return;
         if (!commentBodyValid(body)) {
@@ -295,18 +350,21 @@ function CommentComposer({
 function CommentThreadView({
   workspace,
   thread,
+  canReply,
+  onReply,
 }: {
   workspace: ReviewWorkspace;
   thread: CommentThread;
+  canReply: boolean;
+  onReply: () => void;
 }) {
   const commands = commentCommands({
     connection: workspace.connection,
     scope: workspace.scope,
   });
   const resolve = useCommentWrite(commands.resolve);
-  const [replying, setReplying] = useState(false);
   return (
-    <View className="gap-2">
+    <Box gap={2}>
       <Text variant="caption" tone="muted">
         {[
           anchorPath(thread.anchor),
@@ -324,7 +382,7 @@ function CommentThreadView({
           resolved={thread.resolved}
         />
       ))}
-      <View className="flex-row gap-2">
+      <Box className="flex-row" gap={2}>
         <Button
           label={thread.resolved ? 'Reopen' : 'Resolve'}
           size="sm"
@@ -340,24 +398,16 @@ function CommentThreadView({
             label="Reply"
             size="sm"
             variant="ghost"
-            disabled={replying}
-            onPress={() => setReplying(true)}
+            disabled={!canReply}
+            onPress={onReply}
           />
         ) : null}
-      </View>
+      </Box>
       {AsyncResult.isFailure(resolve.result) ? (
         <ErrorState
           message={reviewErrorMessage(Cause.squash(resolve.result.cause))}
         />
       ) : null}
-      {replying ? (
-        <CommentComposer
-          workspace={workspace}
-          anchor={thread.anchor}
-          threadId={thread.id}
-          onClose={() => setReplying(false)}
-        />
-      ) : null}
-    </View>
+    </Box>
   );
 }

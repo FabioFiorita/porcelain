@@ -192,38 +192,46 @@ export function ReviewIndex({
           </TabsList>
         </Tabs>
       </div>
-      {view === 'layers' && branch ? (
-        <BranchIndex
-          scope={scope}
-          context={context}
-          base={base}
-          activeEntry={activeEntry}
-          threads={threads}
-          onOpen={onOpen}
-          onBase={onBase}
-        />
-      ) : view === 'layers' ? (
-        <LayersView
-          scope={scope}
-          context={context}
-          activeEntry={activeEntry}
-          onOpen={onOpen}
-          list={list}
-          review={review}
-          changes={changes}
-          threads={threads}
-        />
-      ) : (
-        <CommentsView
-          list={list}
-          threads={threads}
-          branch={branch}
-          base={base}
-          scope={scope}
-          context={context}
-          onOpen={onOpen}
-        />
-      )}
+      {(() => {
+        if (view === 'layers' && branch) {
+          return (
+            <BranchIndex
+              scope={scope}
+              context={context}
+              base={base}
+              activeEntry={activeEntry}
+              threads={threads}
+              onOpen={onOpen}
+              onBase={onBase}
+            />
+          );
+        }
+        if (view === 'layers') {
+          return (
+            <LayersView
+              scope={scope}
+              context={context}
+              activeEntry={activeEntry}
+              onOpen={onOpen}
+              list={list}
+              review={review}
+              changes={changes}
+              threads={threads}
+            />
+          );
+        }
+        return (
+          <CommentsView
+            list={list}
+            threads={threads}
+            branch={branch}
+            base={base}
+            scope={scope}
+            context={context}
+            onOpen={onOpen}
+          />
+        );
+      })()}
     </div>
   );
 }
@@ -401,26 +409,37 @@ function WalkthroughRows({
             aria-pressed={here(stop.key)}
             onClick={() => open(stop.key)}
           >
-            {stop.kind === 'briefing' ? (
-              <CompassIcon className="size-3.5 shrink-0 text-muted-foreground" />
-            ) : stop.kind === 'decision' ? (
-              <span
-                className={cn(
-                  'grid size-4 shrink-0 place-items-center rounded-full text-2xs text-muted-foreground tabular-nums',
-                  done && 'bg-graph-2 text-background',
-                )}
-              >
-                {done ? (
-                  <CheckIcon className="size-3" aria-label="Reviewed" />
-                ) : (
-                  stop.number
-                )}
-              </span>
-            ) : stop.kind === 'unexplained' ? (
-              <FileQuestionIcon className="size-3.5 shrink-0 text-graph-4" />
-            ) : (
-              <FlaskConicalIcon className="size-3.5 shrink-0 text-muted-foreground" />
-            )}
+            {(() => {
+              if (stop.kind === 'briefing') {
+                return (
+                  <CompassIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                );
+              }
+              if (stop.kind === 'decision') {
+                return (
+                  <span
+                    className={cn(
+                      'grid size-4 shrink-0 place-items-center rounded-full text-2xs text-muted-foreground tabular-nums',
+                      done && 'bg-graph-2 text-background',
+                    )}
+                  >
+                    {done ? (
+                      <CheckIcon className="size-3" aria-label="Reviewed" />
+                    ) : (
+                      stop.number
+                    )}
+                  </span>
+                );
+              }
+              if (stop.kind === 'unexplained') {
+                return (
+                  <FileQuestionIcon className="size-3.5 shrink-0 text-graph-4" />
+                );
+              }
+              return (
+                <FlaskConicalIcon className="size-3.5 shrink-0 text-muted-foreground" />
+              );
+            })()}
             <span className="min-w-0 flex-1 truncate">
               {stopName(stop)}
               {stop.kind === 'unexplained' &&
@@ -622,14 +641,18 @@ function CommentsView({
       );
       return;
     }
-    const ref: DocumentRef =
-      anchor.comparison?.kind === 'branch'
-        ? { kind: 'branch-file', path: anchor.filePath }
-        : anchor.revision !== null && anchor.revision !== undefined
-          ? { kind: 'commit', oid: anchor.revision }
-          : anchor.comparison?.kind !== 'file' && changed.has(anchor.filePath)
-            ? { kind: 'change', path: anchor.filePath }
-            : { kind: 'file', path: anchor.filePath };
+    const ref: DocumentRef = (() => {
+      if (anchor.comparison?.kind === 'branch') {
+        return { kind: 'branch-file', path: anchor.filePath };
+      }
+      if (anchor.revision !== null && anchor.revision !== undefined) {
+        return { kind: 'commit', oid: anchor.revision };
+      }
+      if (anchor.comparison?.kind !== 'file' && changed.has(anchor.filePath)) {
+        return { kind: 'change', path: anchor.filePath };
+      }
+      return { kind: 'file', path: anchor.filePath };
+    })();
     onOpen(ref, anchor);
   };
 

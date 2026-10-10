@@ -1,4 +1,5 @@
 import { useEffect, useId } from 'react';
+import { Alert } from 'react-native';
 import { useAtomRef } from '@effect/atom-react';
 import { Effect } from 'effect';
 import type { FileDraftHandle } from '@porcelain/client/files';
@@ -11,7 +12,14 @@ export function useDraftEditing(draft: FileDraftHandle, file: FileContents) {
     if (!draft.claim(owner)) return;
     draft.attachEditor(owner);
     return () => {
-      Effect.runFork(draft.finishEditing(owner, () => {}));
+      Effect.runFork(
+        draft.finishEditing(owner, () => {
+          Alert.alert(
+            'File changes not saved',
+            'Your draft is kept for this session. Return to this worktree and reopen the file to save it or discard it.',
+          );
+        }),
+      );
     };
   }, [draft, owner]);
   return {
