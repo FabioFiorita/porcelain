@@ -44,17 +44,19 @@ it('reports empty content and context-only patches without a blank diff', () => 
   expect(patchLines('@@ -1 +1 @@\n unchanged\n')).toEqual({ kind: 'empty' });
 });
 
-it('rejects missing, incomplete, malformed and overfull hunks instead of displaying a partial diff', () => {
-  for (const patch of [
-    'not a patch',
+it.each([
+  ['missing patch', 'not a patch'],
+  [
+    'metadata without a hunk',
     'diff --git a/a b/a\nold mode 100644\nnew mode 100755',
-    '@@@ -1 +1 @@@\n-a\n+b',
-    '@@ -1,2 +1 @@\n-a\n+b',
-    '@@ -1 +1 @@\n-a\n+b\n+c',
-    '@@ -1 +1 @@\n-a\n@@ -3 +3 @@\n-c\n+d',
-    '@@ -0,0 +1 @@\n context',
-  ])
-    expect(patchLines(patch)).toEqual({ kind: 'invalid' });
+  ],
+  ['combined hunk', '@@@ -1 +1 @@@\n-a\n+b'],
+  ['incomplete hunk', '@@ -1,2 +1 @@\n-a\n+b'],
+  ['overfull hunk', '@@ -1 +1 @@\n-a\n+b\n+c'],
+  ['interrupted hunk', '@@ -1 +1 @@\n-a\n@@ -3 +3 @@\n-c\n+d'],
+  ['negative remaining count', '@@ -0,0 +1 @@\n context'],
+])('rejects %s instead of displaying a partial diff', (_name, patch) => {
+  expect(patchLines(patch)).toEqual({ kind: 'invalid' });
 });
 
 it('preserves carriage returns in CRLF file content and markers on either side', () => {
