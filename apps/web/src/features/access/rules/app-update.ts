@@ -8,8 +8,6 @@ export function appUpdateProgress(state: AppUpdateState): string | undefined {
       return 'Checking for a new version…';
     case 'downloading':
       return `Downloading ${state.version}…`;
-    case 'verifying':
-      return `Verifying ${state.version}…`;
     case 'ready':
       return `${state.version} is ready; the app restarts to finish.`;
     case 'installing':
