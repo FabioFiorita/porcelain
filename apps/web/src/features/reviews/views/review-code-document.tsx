@@ -1,3 +1,4 @@
+import { diffSelection, omissionReason } from '@porcelain/client/changes/rules';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { isImagePath } from '@porcelain/client/files/rules';
@@ -14,10 +15,9 @@ import type { AgentCodeNote } from '../rules/code-notes';
 import { useComments } from '../queries/comments';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import type { DocumentInteraction } from '../rules/documents';
-import { focusPatch, type LineSpan } from '../rules/patch-focus';
+import { focusPatch, type LineSpan } from '@porcelain/client/changes/rules';
 import {
   type Change,
-  type ChangeSelection,
   type DiffContent,
   orderReviewChanges,
   type ReviewChangeItem,
@@ -75,7 +75,12 @@ export function ReviewCodeDocument({
         ? [{ path: item.path, fingerprint: item.fingerprint }]
         : [],
     ),
-    items.flatMap((item) => item.comparisons.flatMap(selectionOf)),
+    items.flatMap((item) =>
+      item.comparisons.flatMap((change) => {
+        const selection = diffSelection(change);
+        return selection ? [selection] : [];
+      }),
+    ),
   );
   const untracked = useTextContents(
     connection,
@@ -87,7 +92,7 @@ export function ReviewCodeDocument({
     ),
   );
   const patchOf = (change: Change): DiffContent | undefined => {
-    const [selection] = selectionOf(change);
+    const selection = diffSelection(change);
     return selection ? diffs.diffs.get(selectionKey(selection)) : undefined;
   };
   const loading = diffs.pending || untracked.pending;
@@ -103,7 +108,7 @@ export function ReviewCodeDocument({
       if (!content) return [];
       if (content.kind === 'binary') return ['Binary change'];
       if (content.kind === 'omitted')
-        return [`Content omitted: ${formatOmission(content.reason)}`];
+        return [`Content omitted: ${omissionReason(content.reason)}`];
       return diffEntry(change, content) ? [] : ['No single-file textual patch'];
     });
     return reasons.length > 0 ? [{ item, reasons }] : [];
@@ -245,18 +250,6 @@ function focusedDiff(
   return next;
 }
 
-function selectionOf(change: Change): ChangeSelection[] {
-  return change.scope === 'staged' || change.scope === 'unstaged'
-    ? [
-        {
-          scope: change.scope,
-          oldPath: change.oldPath,
-          newPath: change.newPath,
-        },
-      ]
-    : [];
-}
-
 function ContentState({
   failed,
   retry,
@@ -281,10 +274,6 @@ function ContentState({
       )}
     </section>
   );
-}
-
-function formatOmission(reason: string) {
-  return reason.replaceAll('-', ' ');
 }
 
 function OmittedChanges({

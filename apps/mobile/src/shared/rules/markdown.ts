@@ -1,4 +1,4 @@
-import { isPreviewLink } from './preview-link.ts';
+import { externalLink } from '@porcelain/client/links/rules';
 
 type MarkdownRun = {
   text: string;
@@ -107,7 +107,7 @@ function inline(source: string): MarkdownRun[] {
       ) {
         linkEnd = labelEnd;
         destinationEnd = end;
-        url = isPreviewLink(destination) ? destination : undefined;
+        url = externalLink(destination) ? destination : undefined;
         index++;
       } else {
         add(char);

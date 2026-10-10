@@ -1,5 +1,9 @@
 import { expect, it } from 'vitest';
-import { decodeCommentAnchor, reviewParams } from './navigation';
+import {
+  decodeCommentAnchor,
+  reviewParams,
+  reviewComparison,
+} from './navigation';
 
 it('preserves a valid deleted-line anchor when opening the native sheet', () => {
   expect(
@@ -38,3 +42,17 @@ it('binds a branch file route to its workspace and selected base', () => {
     base: 'refs/heads/main',
   });
 });
+
+it('preserves a branch base and accepts a branch without a chosen base', () => {
+  expect(reviewComparison('branch', 'refs/heads/main')).toEqual({
+    kind: 'branch',
+    base: 'refs/heads/main',
+  });
+  expect(reviewComparison('branch')).toEqual({ kind: 'branch' });
+});
+it.each([undefined, 'worktree', 'unknown'])(
+  'defaults %s to a worktree comparison',
+  (kind) => {
+    expect(reviewComparison(kind, 'ignored')).toEqual({ kind: 'worktree' });
+  },
+);

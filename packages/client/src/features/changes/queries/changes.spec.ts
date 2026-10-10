@@ -1,6 +1,7 @@
+import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
 import { editFile } from '@porcelain/client/files';
-import { afterEach, expect, it } from 'vitest';
-import { Layer, Effect, Option, Schema, Stream } from 'effect';
+import { expect, it } from 'vitest';
+import { Effect, Option, Schema, Stream } from 'effect';
 import { DIFFS_PER_REQUEST } from '@porcelain/contracts/shared';
 import {
   readChangeDiffs,
@@ -8,10 +9,7 @@ import {
   readChangeDiffWindow,
 } from '@porcelain/client/changes';
 import { AtomRegistry, AsyncResult, type Atom } from 'effect/reactivity';
-import {
-  createWorktreeConnection,
-  type Transport,
-} from '@porcelain/client/transport';
+
 import { readChanges, readGitStatus } from './changes.ts';
 import { readCurrentChanges, refreshGitLook } from '@porcelain/client/changes';
 
@@ -30,28 +28,7 @@ const snapshot = {
   branch: null,
   changes: [],
 };
-const owned: (() => Promise<void>)[] = [];
-afterEach(async () => {
-  for (const close of owned) await close();
-  owned.length = 0;
-});
-function fixture(transport: Transport) {
-  const lifetime = createWorktreeConnection(
-    {
-      environmentId,
-      transport,
-      timeoutMs: 10_000,
-    },
-    undefined,
-    Layer.empty,
-  );
-  const registry = AtomRegistry.make();
-  owned.push(async () => {
-    registry.dispose();
-    await lifetime.close();
-  });
-  return { ...lifetime, registry };
-}
+const fixture = clientFixtures(environmentId);
 
 it.each([
   { environmentId: '5c9f2dc8-a554-45f1-aeab-0b22431137b4' },
@@ -83,12 +60,7 @@ it('a fresh inspection waits for a new snapshot instead of returning the mounted
     started.resolve();
     return held.promise;
   });
-  const selection = { connection: subject.connection, scope };
-  const state = readChanges(selection);
-  const stop = subject.registry.mount(state);
-  await Effect.runPromise(AtomRegistry.getResult(subject.registry, state));
-  const command = readCurrentChanges(selection);
-  subject.registry.set(command, undefined);
+  const { state, stop, command } = await inspectAgain(subject);
   const answer = Effect.runPromise(
     AtomRegistry.getResult(subject.registry, command, {
       suspendOnWaiting: true,
@@ -114,12 +86,7 @@ it('a failed fresh inspection rejects even when an older snapshot remains visibl
         : Response.json({ message: 'Could not inspect Git' }, { status: 500 }),
     ),
   );
-  const selection = { connection: subject.connection, scope };
-  const state = readChanges(selection);
-  const stop = subject.registry.mount(state);
-  await Effect.runPromise(AtomRegistry.getResult(subject.registry, state));
-  const command = readCurrentChanges(selection);
-  subject.registry.set(command, undefined);
+  const { state, stop, command } = await inspectAgain(subject);
   await expect(
     Effect.runPromise(
       AtomRegistry.getResult(subject.registry, command, {
@@ -603,3 +570,13 @@ it('a file edit refreshes the current Changes snapshot without rereading a diff 
   stopChanges();
   stopDiff();
 });
+
+async function inspectAgain(subject: ReturnType<typeof fixture>) {
+  const selection = { connection: subject.connection, scope };
+  const state = readChanges(selection);
+  const stop = subject.registry.mount(state);
+  await Effect.runPromise(AtomRegistry.getResult(subject.registry, state));
+  const command = readCurrentChanges(selection);
+  subject.registry.set(command, undefined);
+  return { state, stop, command };
+}

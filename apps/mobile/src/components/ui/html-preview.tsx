@@ -1,4 +1,4 @@
-import { isPreviewLink } from '../../shared/rules/preview-link';
+import { externalLink } from '@porcelain/client/links/rules';
 import { useState } from 'react';
 import { requireNativeView } from 'expo';
 import {
@@ -71,7 +71,7 @@ function HtmlContent({
           html={html}
           textScale={fontScale}
           onLink={(event) => {
-            if (isPreviewLink(event.nativeEvent.url))
+            if (externalLink(event.nativeEvent.url))
               onLink?.(event.nativeEvent.url);
           }}
           onError={(event) => setError(event.nativeEvent.message)}

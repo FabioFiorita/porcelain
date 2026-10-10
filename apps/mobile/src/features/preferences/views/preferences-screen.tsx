@@ -4,7 +4,7 @@ import { ErrorState } from '../../../components/ui/error-state';
 import { Item } from '../../../components/ui/item';
 import { Loading } from '../../../components/ui/loading';
 import { Text } from '../../../components/ui/text';
-import type { Preferences } from '../../../shared/rules/preferences';
+import type { Preferences } from '@porcelain/client/preferences';
 import { usePreferences } from '../store';
 
 function Choice<T extends string | boolean>({
@@ -62,17 +62,17 @@ export function PreferencesScreen() {
             }}
           />
         ) : null}
-        <Choice<Preferences['theme']>
+        <Choice<Preferences['appearance']>
           label="Theme"
           description="System follows your device’s appearance."
-          value={preferences.theme}
+          value={preferences.appearance}
           options={[
             { value: 'system', label: 'System', id: 'theme-system' },
             { value: 'light', label: 'Light', id: 'theme-light' },
             { value: 'dark', label: 'Dark', id: 'theme-dark' },
           ]}
           disabled={disabled}
-          onChange={(theme) => setPreferences({ theme })}
+          onChange={(theme) => setPreferences({ appearance: theme })}
         />
         <View className="gap-3">
           <Text variant="subheading" tone="muted">
@@ -81,13 +81,17 @@ export function PreferencesScreen() {
           <Choice<boolean>
             label="Long lines"
             description="Wrap keeps every line visible without scrolling."
-            value={preferences.wrapLongLines}
+            value={preferences.lineOverflow === 'wrap'}
             options={[
               { value: true, label: 'Wrap', id: 'lines-wrap' },
               { value: false, label: 'Scroll', id: 'lines-scroll' },
             ]}
             disabled={disabled}
-            onChange={(wrapLongLines) => setPreferences({ wrapLongLines })}
+            onChange={(wrapLongLines) =>
+              setPreferences({
+                lineOverflow: wrapLongLines ? 'wrap' : 'scroll',
+              })
+            }
           />
         </View>
         <View className="gap-3">

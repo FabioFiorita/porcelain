@@ -1,20 +1,14 @@
 import { Effect } from 'effect';
 import { Atom } from 'effect/reactivity';
-import type {
-  RuntimeConnection,
-  WorktreeScope,
-} from '../../../shared/api/connection.ts';
-import { porcelainClient } from '../../../shared/api/client.ts';
+import type { WorktreeSelection } from '../../../shared/api/connection.ts';
+import { requestApi } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { worktreeRead } from '../../../shared/api/worktree-read.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 
-type Selection = { connection: RuntimeConnection; scope: WorktreeScope };
-
 export const readChangesSnapshot = Effect.fn('Changes.readSnapshot')(
-  function* ({ connection, scope }: Selection) {
-    const client = yield* porcelainClient(connection);
-    const answer = yield* client.request((api) =>
+  function* ({ connection, scope }: WorktreeSelection) {
+    const answer = yield* requestApi(connection, (api) =>
       api.changes.readChanges({ params: { worktreeId: scope.worktreeId } }),
     );
     yield* currentAnswerEffect(
@@ -26,7 +20,7 @@ export const readChangesSnapshot = Effect.fn('Changes.readSnapshot')(
   },
 );
 
-export const readChanges = Atom.family((selection: Selection) =>
+export const readChanges = Atom.family((selection: WorktreeSelection) =>
   worktreeRead(
     selection.connection,
     selection.scope,
@@ -37,9 +31,8 @@ export const readChanges = Atom.family((selection: Selection) =>
 );
 
 export const readGitStatusSnapshot = Effect.fn('Changes.readGitStatusSnapshot')(
-  function* ({ connection, scope }: Selection) {
-    const client = yield* porcelainClient(connection);
-    const answer = yield* client.request((api) =>
+  function* ({ connection, scope }: WorktreeSelection) {
+    const answer = yield* requestApi(connection, (api) =>
       api.changes.readGitStatus({ params: { worktreeId: scope.worktreeId } }),
     );
     yield* currentAnswerEffect(
@@ -51,7 +44,7 @@ export const readGitStatusSnapshot = Effect.fn('Changes.readGitStatusSnapshot')(
   },
 );
 
-export const readGitStatus = Atom.family((selection: Selection) =>
+export const readGitStatus = Atom.family((selection: WorktreeSelection) =>
   worktreeRead(
     selection.connection,
     selection.scope,

@@ -1,4 +1,4 @@
-import { Effect, Layer, ManagedRuntime } from 'effect';
+import { Layer, ManagedRuntime } from 'effect';
 import { Atom } from 'effect/reactivity';
 import {
   AccessPlatform,
@@ -14,7 +14,7 @@ import {
   ProjectSelectionCommands,
   ProjectSelectionStorage,
   ProjectSelectionStore,
-  WorkspaceSelectionCleanup,
+  workspaceSelectionCleanupLayer,
 } from '@porcelain/client/projects';
 import { remoteConnectionFactoryLayer } from '../adapters/connection-factory';
 import { accessPlatform } from '../adapters/access-platform';
@@ -36,13 +36,7 @@ const stores = Layer.mergeAll(
     ),
   ),
 );
-const cleanup = Layer.effect(
-  WorkspaceSelectionCleanup,
-  Effect.gen(function* () {
-    const selection = yield* ProjectSelectionStore;
-    return { forgetEnvironment: selection.forgetEnvironment };
-  }),
-).pipe(Layer.provide(stores));
+const cleanup = workspaceSelectionCleanupLayer.pipe(Layer.provide(stores));
 const services = Layer.mergeAll(
   stores,
   cleanup,

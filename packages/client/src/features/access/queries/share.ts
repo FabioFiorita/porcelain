@@ -1,10 +1,19 @@
-import { Cause, Effect, Exit, Option, Ref, Schedule, Stream } from 'effect';
+import {
+  type Context,
+  Cause,
+  Effect,
+  Exit,
+  Option,
+  Ref,
+  Schedule,
+  Stream,
+} from 'effect';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import {
   REMOTE_ACCESS_SETTLING_POLL_MS,
   SERVICE_UPDATE_POLL_MS,
 } from '../../../config/limits.ts';
-import { porcelainClient } from '../../../shared/api/client.ts';
+import { requestApi } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
@@ -53,36 +62,39 @@ function pollWhile<A, E, R>(
       ),
   ).pipe(Atom.setIdleTTL(0));
 }
+
+function accessObservation<A, E, R>(
+  connection: RuntimeConnection,
+  select: (
+    snapshots: Context.Service.Shape<typeof AccessSnapshots>,
+  ) => Ref.Ref<Option.Option<A>>,
+  request: Effect.Effect<A, E, R>,
+) {
+  return Effect.flatMap(AccessSnapshots, (snapshots) =>
+    observe(connection, select(snapshots), request),
+  );
+}
 export const readPairedAccess = Atom.family((connection: RuntimeConnection) =>
   clientRuntime(connection)
-    .atom(
-      Effect.gen(function* () {
-        const client = yield* porcelainClient(connection);
-        return yield* client.request((api) => api.administration.listAccess());
-      }),
-    )
+    .atom(requestApi(connection, (api) => api.administration.listAccess()))
     .pipe(Atom.setIdleTTL(0)),
 );
 export const readRemoteAccess = Atom.family((connection: RuntimeConnection) =>
   pollWhile(
     accessRuntime(connection),
-    Effect.gen(function* () {
-      const client = yield* porcelainClient(connection);
-      const snapshots = yield* AccessSnapshots;
-      return yield* observe(
-        connection,
-        snapshots.remote,
-        client
-          .request((api) => api.administration.readRemoteAccess())
-          .pipe(
-            Effect.catch((error) =>
-              error instanceof RequestError && error.status === 403
-                ? Effect.succeed(null)
-                : Effect.fail(error),
-            ),
-          ),
-      );
-    }),
+    accessObservation(
+      connection,
+      (snapshots) => snapshots.remote,
+      requestApi(connection, (api) =>
+        api.administration.readRemoteAccess(),
+      ).pipe(
+        Effect.catch((error) =>
+          error instanceof RequestError && error.status === 403
+            ? Effect.succeed(null)
+            : Effect.fail(error),
+        ),
+      ),
+    ),
     REMOTE_ACCESS_SETTLING_POLL_MS,
     routesSettling,
   ),
@@ -90,15 +102,11 @@ export const readRemoteAccess = Atom.family((connection: RuntimeConnection) =>
 export const readServiceUpdate = Atom.family((connection: RuntimeConnection) =>
   pollWhile(
     accessRuntime(connection),
-    Effect.gen(function* () {
-      const client = yield* porcelainClient(connection);
-      const snapshots = yield* AccessSnapshots;
-      return yield* observe(
-        connection,
-        snapshots.update,
-        client.request((api) => api.serviceUpdates.readServiceUpdate()),
-      );
-    }),
+    accessObservation(
+      connection,
+      (snapshots) => snapshots.update,
+      requestApi(connection, (api) => api.serviceUpdates.readServiceUpdate()),
+    ),
     SERVICE_UPDATE_POLL_MS,
     (answer) => answer?.running === true,
   ),

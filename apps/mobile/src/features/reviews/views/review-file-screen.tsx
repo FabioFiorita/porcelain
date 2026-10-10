@@ -1,3 +1,5 @@
+import { diffSelection } from '@porcelain/client/changes/rules';
+import { commitPaths } from '@porcelain/client/history/rules';
 import { useState } from 'react';
 import { usePreferences } from '../../preferences';
 import { Stack, useRouter } from 'expo-router';
@@ -9,11 +11,7 @@ import {
   readBranchDiffs,
 } from '@porcelain/client/changes';
 import { readTextFile } from '@porcelain/client/files';
-import {
-  branchFilePaths,
-  selectionKey,
-  type Change,
-} from '@porcelain/client/changes/rules';
+import { selectionKey, type Change } from '@porcelain/client/changes/rules';
 import {
   rangeAnchor,
   type CommentAnchor,
@@ -34,7 +32,6 @@ import {
 import { useReviewSnapshot, useReviewMarks } from '../queries/review';
 import {
   reviewFiles,
-  diffSelection,
   commentTarget,
   type ReviewComparison,
   type ReviewFile,
@@ -280,7 +277,7 @@ function BranchFile({
       snapshot={snapshot}
       file={file}
       comparison={comparison}
-      paths={branchFilePaths(entry)}
+      paths={commitPaths(entry)}
       baseOid={snapshot.answer.mergeBaseOid}
     />
   );
@@ -391,7 +388,7 @@ function DiffContentView({
         <CodeView
           source={presentation.source}
           lineNumbers={false}
-          wrap={preferences.wrapLongLines}
+          wrap={preferences.lineOverflow === 'wrap'}
         />
       </View>
     );
@@ -442,14 +439,14 @@ function SelectableContent({
       {lines ? (
         <DiffView
           lines={lines}
-          wrap={preferences.wrapLongLines}
+          wrap={preferences.lineOverflow === 'wrap'}
           selection={selection}
           onSelect={target ? setSelection : undefined}
         />
       ) : (
         <CodeView
           source={source ?? ''}
-          wrap={preferences.wrapLongLines}
+          wrap={preferences.lineOverflow === 'wrap'}
           selection={selection}
           onSelect={target ? setSelection : undefined}
         />

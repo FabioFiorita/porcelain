@@ -4,7 +4,7 @@ import { useAtomRef, useAtomSet } from '@effect/atom-react';
 import {
   defaultPreferences,
   type Preferences,
-} from '../../shared/rules/preferences';
+} from '@porcelain/client/preferences';
 import { preferenceStorage } from './adapters/storage';
 
 type PreferenceState = {
@@ -59,6 +59,10 @@ export function usePreferences() {
   const save = useAtomSet(write);
   return {
     ...snapshot,
+    preferences: {
+      ...snapshot.preferences,
+      theme: snapshot.preferences.appearance,
+    },
     read: load,
     setPreferences: save,
   };

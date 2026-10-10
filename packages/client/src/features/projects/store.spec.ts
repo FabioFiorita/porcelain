@@ -1,4 +1,8 @@
-import { Cause, Effect, Fiber } from 'effect';
+import {
+  promiseStorage,
+  unreadablePersistence,
+} from '../../../spec/kit/promise-storage.ts';
+import { Effect, Fiber } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { ProjectSelectionStore } from './store.ts';
 import { ProjectSelectionStorage } from '@porcelain/client/projects';
@@ -11,18 +15,7 @@ function fixture(storage: {
   return Effect.runSync(
     ProjectSelectionStore.pipe(
       Effect.provide(ProjectSelectionStore.layer),
-      Effect.provideService(ProjectSelectionStorage, {
-        read: () =>
-          Effect.tryPromise({
-            try: () => storage.read(),
-            catch: (cause) => new Cause.UnknownError(cause),
-          }),
-        write: (value) =>
-          Effect.tryPromise({
-            try: () => storage.write(value),
-            catch: (cause) => new Cause.UnknownError(cause),
-          }),
-      }),
+      Effect.provideService(ProjectSelectionStorage, promiseStorage(storage)),
     ),
   );
 }
@@ -118,39 +111,10 @@ describe('remembered workspaces', () => {
     });
   });
 
-  it('keeps the last saved selection and blocks changes until a failed write is reread', async () => {
-    let writes = 0;
-    const saved = { currentEnvironmentId: 'first', selections: {} };
-    const store = fixture({
-      read: () => Promise.resolve(saved),
-      write: () => {
-        writes += 1;
-        return Promise.reject(new Error('private storage failure'));
-      },
-    });
-    await Effect.runPromise(store.load());
-    await expect(
-      Effect.runPromise(store.selectWorkspace('second', 'project', 'tree')),
-    ).rejects.toThrow('updated');
-    expect(store.state.value.currentEnvironmentId).toBe('first');
-    expect(store.state.value.status).toBe('unreadable');
-    await expect(
-      Effect.runPromise(store.forgetEnvironment('first')),
-    ).rejects.toThrow('read');
-    expect(writes).toBe(1);
-    await Effect.runPromise(store.load());
-    expect(store.state.value.status).toBe('ready');
-  });
-
   it('refuses to overwrite unreadable selections or write before their first read', async () => {
-    let writes = 0;
-    const store = fixture({
-      read: () => Promise.reject(new Error('private storage detail')),
-      write: () => {
-        writes += 1;
-        return Promise.resolve();
-      },
-    });
+    const { storage, writeCount } =
+      unreadablePersistence<ProjectSelectionSnapshot>();
+    const store = fixture(storage);
     await expect(
       Effect.runPromise(store.selectWorkspace('first', 'project', 'tree')),
     ).rejects.toThrow('read');
@@ -161,7 +125,7 @@ describe('remembered workspaces', () => {
     await expect(
       Effect.runPromise(store.selectWorkspace('first', 'project', 'tree')),
     ).rejects.toThrow('read');
-    expect(writes).toBe(0);
+    expect(writeCount()).toBe(0);
   });
 });
 

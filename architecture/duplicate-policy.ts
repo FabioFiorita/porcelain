@@ -27,11 +27,11 @@ const reportSchema = Schema.Struct({
 });
 export function duplicateScope() {
   return {
-    name: 'web',
-    sources: ['apps/web/src'],
+    name: 'client',
+    sources: ['apps/web/src', 'apps/mobile/src', 'packages/client/src'],
     metric: 'clones' as const,
     ceiling: 0,
-    why: 'Keep web logic in one owner so fixes cannot drift between copies.',
+    why: 'Keep shared client logic and specs in one owner so fixes cannot drift between apps.',
   };
 }
 export function scanDuplicates(
@@ -56,7 +56,7 @@ export function scanDuplicates(
         '--mode',
         'mild',
         '--ignore',
-        '**/components/ui/**,**/routeTree.gen.ts,**/*.spec.ts',
+        '**/components/ui/**,**/routeTree.gen.ts',
         '--absolute',
         '--no-colors',
         '--reporters',

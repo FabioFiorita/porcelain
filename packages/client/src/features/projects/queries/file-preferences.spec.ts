@@ -1,45 +1,25 @@
-import { afterEach, expect, it } from 'vitest';
-import { Layer, Effect, Option, Stream } from 'effect';
+import { holdFirstRead } from '../../../../spec/kit/held-transport.ts';
+import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
+import { expect, it } from 'vitest';
+import { Effect, Option, Stream } from 'effect';
 import { AsyncResult, AtomRegistry, Reactivity } from 'effect/reactivity';
 import {
   readFilePreferences,
   setFilePreference,
 } from '@porcelain/client/projects';
-import {
-  createWorktreeConnection,
-  queryKeys,
-  type RuntimeConnection,
-  type Transport,
-} from '@porcelain/client/transport';
+import { queryKeys, type Transport } from '@porcelain/client/transport';
 
 const environmentId = '44444444-4444-4444-8444-444444444444';
 const projectId = '55555555-5555-4555-8555-555555555555';
-const owned = new Set<{
-  connection: RuntimeConnection;
-  registry: AtomRegistry.AtomRegistry;
-}>();
-afterEach(async () => {
-  for (const { connection, registry } of owned) {
-    registry.dispose();
-    await connection.close();
-  }
-  owned.clear();
-});
+const create = clientFixtures(environmentId);
 function fixture(transport: Transport) {
-  const { connection } = createWorktreeConnection(
-    {
-      environmentId,
-      transport,
-      timeoutMs: 10_000,
-    },
-    undefined,
-    Layer.empty,
-  );
-  const registry = AtomRegistry.make();
-  const subject = { connection, registry };
-  owned.add(subject);
-  return { ...subject, state: readFilePreferences({ connection, projectId }) };
+  const subject = create(transport);
+  return {
+    ...subject,
+    state: readFilePreferences({ connection: subject.connection, projectId }),
+  };
 }
+
 function read(subject: ReturnType<typeof fixture>) {
   return Effect.runPromise(
     AtomRegistry.getResult(subject.registry, subject.state, {
@@ -65,22 +45,14 @@ it('reads canonical file preferences through the project endpoint', async () => 
 });
 
 it('a complete write response replaces an unfinished older read and survives a failed refresh', async () => {
-  const held = Promise.withResolvers<Response>();
-  const started = Promise.withResolvers<void>();
+  const pendingRead = holdFirstRead();
+  const { held, started } = pendingRead;
   const saved = {
     preferences: [{ path: 'README.md', hidden: true, pinned: true }],
   };
-  let reads = 0;
   const subject = fixture((_, init) => {
     if (init?.method === 'PUT') return Promise.resolve(Response.json(saved));
-    reads += 1;
-    if (reads === 1) {
-      started.resolve();
-      return held.promise;
-    }
-    return Promise.resolve(
-      Response.json({ message: 'Refresh unavailable' }, { status: 503 }),
-    );
+    return pendingRead.read();
   });
   const stop = subject.registry.mount(subject.state);
   try {
@@ -124,7 +96,7 @@ it('a complete write response replaces an unfinished older read and survives a f
     expect(
       Option.getOrThrow(AsyncResult.value(Option.getOrThrow(await failed))),
     ).toEqual(saved);
-    expect(reads).toBe(2);
+    expect(pendingRead.readCount()).toBe(2);
   } finally {
     held.resolve(Response.json({ preferences: [] }));
     stop();

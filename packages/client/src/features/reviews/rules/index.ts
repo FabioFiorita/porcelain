@@ -48,7 +48,6 @@ export {
   type BranchChangeItem,
   type Change,
   type ChangeList,
-  type ChangeSelection,
   type DiffContent,
   type ReviewChangeItem,
   type ReviewLayer,

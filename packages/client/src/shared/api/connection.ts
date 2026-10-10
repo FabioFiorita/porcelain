@@ -26,3 +26,8 @@ export type RuntimeConnection<R = never> = WorktreeConnection & {
   >;
   readonly close: () => Promise<void>;
 };
+
+export type WorktreeSelection = {
+  connection: RuntimeConnection;
+  scope: WorktreeScope;
+};

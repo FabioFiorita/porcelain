@@ -1,30 +1,6 @@
-import { REVIEW_PATCH_CONTEXT_LINES } from '@/config/limits';
+import { parsePatch } from './patch.ts';
 
 export type LineSpan = { startLine: number; endLine: number };
-
-type PatchHunk = { oldStart: number; newStart: number; lines: string[] };
-
-const HUNK_HEADER = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
-
-function splitPatch(patch: string): { header: string[]; hunks: PatchHunk[] } {
-  const header: string[] = [];
-  const hunks: PatchHunk[] = [];
-  for (const line of patch.split('\n')) {
-    const match = HUNK_HEADER.exec(line);
-    if (match !== null && match !== undefined) {
-      hunks.push({
-        oldStart: Number(match[1]),
-        newStart: Number(match[2]),
-        lines: [],
-      });
-    } else if (hunks.length === 0) {
-      header.push(line);
-    } else if (line !== '') {
-      hunks.at(-1)?.lines.push(line);
-    }
-  }
-  return { header, hunks };
-}
 
 const hunkHeader = (
   oldStart: number,
@@ -40,21 +16,6 @@ type Walked = {
   newLine: number;
   position: number;
 };
-
-function walk(hunk: PatchHunk): Walked[] {
-  let oldLine = hunk.oldStart === 0 ? 1 : hunk.oldStart;
-  let newLine = hunk.newStart === 0 ? 1 : hunk.newStart;
-  return hunk.lines.map((text) => {
-    const entry = { text, oldLine, newLine, position: newLine };
-    if (text.startsWith('+')) newLine += 1;
-    else if (text.startsWith('-')) oldLine += 1;
-    else if (!text.startsWith('\\')) {
-      oldLine += 1;
-      newLine += 1;
-    }
-    return entry;
-  });
-}
 
 function joinRun(run: Walked[]): string[] {
   const first = run[0];
@@ -83,10 +44,11 @@ export function spansLabel(spans: readonly LineSpan[]): string {
 export function focusPatch(
   patch: string,
   spans: readonly LineSpan[],
-  context = REVIEW_PATCH_CONTEXT_LINES,
+  context = 3,
 ): string | null {
-  const { header, hunks } = splitPatch(patch);
-  if (hunks.length === 0) return patch;
+  const parsed = parsePatch(patch);
+  if (parsed.kind !== 'valid') return parsed.kind === 'empty' ? patch : null;
+  const { header, hunks } = parsed;
   const near = (position: number) =>
     spans.some(
       (span) =>
@@ -96,7 +58,8 @@ export function focusPatch(
   const out: string[] = [...header];
   for (const hunk of hunks) {
     let run: Walked[] = [];
-    for (const line of walk(hunk)) {
+    for (const entry of hunk.lines) {
+      const line = { ...entry, text: entry.source };
       const keep = line.text.startsWith('\\')
         ? run.length > 0
         : near(line.position);

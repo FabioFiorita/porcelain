@@ -20,23 +20,6 @@ describe('review diff presentation', () => {
       source: 'old mode 100644\nnew mode 100755\n',
     });
   });
-  it.each([
-    ['size-limit', 'This comparison exceeds the text size limit.'],
-    [
-      'unsupported-encoding',
-      'This comparison uses an unsupported text encoding.',
-    ],
-    [
-      'unsupported-submodule',
-      'Submodule contents cannot be displayed as a text diff.',
-    ],
-  ] as const)('explains omitted content: %s', (reason, description) => {
-    expect(diffPresentation({ kind: 'omitted', reason })).toEqual({
-      kind: 'notice',
-      title: 'Diff unavailable',
-      description,
-    });
-  });
   it('reports malformed content rather than presenting a clean or empty comparison', () => {
     expect(
       diffPresentation({

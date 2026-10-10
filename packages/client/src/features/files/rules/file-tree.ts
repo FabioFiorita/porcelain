@@ -1,6 +1,6 @@
 import type { ListDirectoryResponse as Directory } from '@porcelain/contracts/files';
 
-type FileTreeEntry = {
+export type FileTreeEntry = {
   path: string;
   kind: Directory['entries'][number]['kind'];
   ignored?: boolean;

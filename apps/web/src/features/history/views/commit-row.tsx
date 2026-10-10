@@ -14,7 +14,10 @@ import {
   commitMessage,
   type CommitSummary,
 } from '@porcelain/client/history/rules';
-import { historyRefLabel, shortOid } from '../rules/graph';
+import {
+  refLabel as historyRefLabel,
+  shortOid,
+} from '@porcelain/client/history/rules';
 
 export function CommitRow({
   commit,

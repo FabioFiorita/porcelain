@@ -68,14 +68,7 @@ async function setup(transport: Transport) {
 }
 
 it('coalesces a live receipt with its command, keeps refreshing when one waiter closes, and permits a later fresh read', async () => {
-  const started = Promise.withResolvers<void>();
-  const answer = Promise.withResolvers<Response>();
-  let reads = 0;
-  const subject = await setup(() => {
-    if (++reads === 1) return Promise.resolve(Response.json(before));
-    started.resolve();
-    return answer.promise;
-  });
+  const { subject, started, answer, readCount } = await heldRefresh();
   let inventoryRefreshes = 0;
   const unregister = subject.reactivity.registerUnsafe(
     [queryKeys.inventory('44444444-4444-4444-8444-444444444444')],
@@ -88,7 +81,7 @@ it('coalesces a live receipt with its command, keeps refreshing when one waiter 
     await started.promise;
     const notice = Effect.runFork(subject.refresh({ ...receipt }));
     await Effect.runPromise(Fiber.interrupt(command));
-    expect(reads).toBe(2);
+    expect(readCount()).toBe(2);
     expect(inventoryRefreshes).toBe(1);
     expect(
       Option.getOrThrow(AsyncResult.value(subject.registry.get(subject.query)))
@@ -101,7 +94,7 @@ it('coalesces a live receipt with its command, keeps refreshing when one waiter 
         .statusToken,
     ).toBe('b'.repeat(64));
     await Effect.runPromise(subject.refresh(receipt));
-    expect(reads).toBe(3);
+    expect(readCount()).toBe(3);
     expect(inventoryRefreshes).toBe(2);
   } finally {
     answer.resolve(Response.json(after));
@@ -111,14 +104,7 @@ it('coalesces a live receipt with its command, keeps refreshing when one waiter 
 });
 
 it('finishes an admitted refresh after its last waiter cancels without starting another refresh for the live receipt', async () => {
-  const started = Promise.withResolvers<void>();
-  const answer = Promise.withResolvers<Response>();
-  let reads = 0;
-  const subject = await setup(() => {
-    if (++reads === 1) return Promise.resolve(Response.json(before));
-    started.resolve();
-    return answer.promise;
-  });
+  const { subject, started, answer, readCount } = await heldRefresh();
   try {
     const command = Effect.runFork(subject.refresh(receipt));
     await started.promise;
@@ -126,7 +112,7 @@ it('finishes an admitted refresh after its last waiter cancels without starting 
     const notice = Effect.runFork(subject.refresh({ ...receipt }));
     answer.resolve(Response.json(after));
     await Effect.runPromise(Fiber.join(notice));
-    expect(reads).toBe(2);
+    expect(readCount()).toBe(2);
     expect(
       Option.getOrThrow(AsyncResult.value(subject.registry.get(subject.query)))
         .statusToken,
@@ -167,3 +153,15 @@ it.each(['running', 'rejected', 'no-change'] as const)(
     }
   },
 );
+
+async function heldRefresh() {
+  const started = Promise.withResolvers<void>();
+  const answer = Promise.withResolvers<Response>();
+  let reads = 0;
+  const subject = await setup(() => {
+    if (++reads === 1) return Promise.resolve(Response.json(before));
+    started.resolve();
+    return answer.promise;
+  });
+  return { subject, started, answer, readCount: () => reads };
+}

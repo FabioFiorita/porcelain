@@ -1,3 +1,5 @@
+import { patchUnavailable } from '@porcelain/client/changes/rules';
+import { commitPaths } from '@porcelain/client/history/rules';
 import { AsyncResult } from 'effect/reactivity';
 import { Cause, Option } from 'effect';
 import { type ReactNode, Suspense, useState } from 'react';
@@ -7,7 +9,6 @@ import { DIFF_WINDOW_FILES } from '@/config/limits';
 import {
   type BranchFile,
   branchErrorMessage,
-  branchFilePaths,
   branchName,
   branchRange,
 } from '@porcelain/client/changes/rules';
@@ -17,7 +18,7 @@ import {
   useBranchDiffs,
   useReviewOverview,
 } from '@/features/changes/index';
-import { shortOid } from '@/features/history/index';
+import { shortOid } from '@porcelain/client/history/rules';
 import type { CodeEntry } from '../adapters/code-entries';
 import { useReviewedMarks } from '../queries/reviewed';
 import type { DocumentInteraction } from '../rules/documents';
@@ -198,10 +199,10 @@ function BranchDiffs({
     scope,
     connection,
     branch.diffRange,
-    reached.map(branchFilePaths),
+    reached.map(commitPaths),
   );
   const patchOf = (file: BranchFile) =>
-    diffs.patches.get(branchFilePaths(file).join('\0'));
+    diffs.patches.get(commitPaths(file).join('\0'));
   const control = (item: BranchChangeItem, compact: boolean) => (
     <ReviewedControl
       key={`review:${item.path}`}
@@ -402,10 +403,5 @@ function omissionReason(
     return 'Submodule change';
   if (content === undefined)
     return failed ? 'The patch could not be read' : 'Reading the patch';
-  if (content.kind === 'binary') return 'Binary change';
-  if (content.kind === 'omitted')
-    return content.reason === 'size-limit'
-      ? 'Too large to show'
-      : 'Cannot be shown';
-  return 'No code change';
+  return patchUnavailable(content) ?? 'No code change';
 }

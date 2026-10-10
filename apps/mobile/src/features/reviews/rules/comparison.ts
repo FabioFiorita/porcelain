@@ -12,7 +12,6 @@ import {
   type ReviewStatus,
 } from '@porcelain/client/reviews/rules';
 import type { ListReviewedFilesResponse } from '@porcelain/contracts/reviews';
-import type { Change, ChangeSelection } from '@porcelain/client/changes/rules';
 
 export type ReviewComparison =
   | { kind: 'worktree' }
@@ -52,12 +51,6 @@ export function reviewFiles(
         ...file,
         note: file.status,
       }));
-}
-
-export function diffSelection(change: Change): ChangeSelection | undefined {
-  return change.scope === 'staged' || change.scope === 'unstaged'
-    ? { scope: change.scope, oldPath: change.oldPath, newPath: change.newPath }
-    : undefined;
 }
 
 export function commentTarget(

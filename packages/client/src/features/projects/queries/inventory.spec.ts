@@ -1,28 +1,14 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { holdFirstRead } from '../../../../spec/kit/held-transport.ts';
+import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
+import { describe, expect, it } from 'vitest';
 import { Cause, Effect, Exit, Layer, Option, Stream } from 'effect';
 import { InventorySeed, registerProject } from '@porcelain/client/projects';
 import { AsyncResult, AtomRegistry, Reactivity } from 'effect/reactivity';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
-import {
-  createWorktreeConnection,
-  queryKeys,
-  type RuntimeConnection,
-  type Transport,
-} from '@porcelain/client/transport';
+import { queryKeys, type Transport } from '@porcelain/client/transport';
 import { readInventory, readInventories } from './inventory.ts';
 
 const environmentId = '87deba35-c65b-4fb6-9dfd-52bfbe76f64c';
-const owned = new Set<{
-  connection: RuntimeConnection;
-  registry: AtomRegistry.AtomRegistry;
-}>();
-afterEach(async () => {
-  for (const { connection, registry } of owned) {
-    registry.dispose();
-    await connection.close();
-  }
-  owned.clear();
-});
 function inventory(
   name = 'Computer',
   identity = environmentId,
@@ -33,25 +19,13 @@ function inventory(
     projects: [],
   };
 }
-function fixture(
+const create = clientFixtures(environmentId);
+const fixture = (
   transport: Transport,
   cacheIdentity?: readonly string[],
   identity = environmentId,
-) {
-  const lifetime = createWorktreeConnection(
-    {
-      environmentId: identity,
-      transport,
-      timeoutMs: 10_000,
-      ...(cacheIdentity ? { cacheIdentity } : {}),
-    },
-    undefined,
-    Layer.empty,
-  );
-  const registry = AtomRegistry.make();
-  owned.add({ connection: lifetime.connection, registry });
-  return { ...lifetime, registry };
-}
+) => create(transport, cacheIdentity, 10_000, identity);
+
 function read(subject: ReturnType<typeof fixture>) {
   return Effect.runPromise(
     AtomRegistry.getResult(
@@ -280,9 +254,8 @@ describe('reading a connected project inventory', () => {
 });
 
 it('a read started before a confirmed write cannot restore its old inventory, even when the following refresh fails', async () => {
-  const held = Promise.withResolvers<Response>();
-  const started = Promise.withResolvers<void>();
-  let reads = 0;
+  const pendingRead = holdFirstRead();
+  const { held, started } = pendingRead;
   const added = {
     id: '00000000-0000-4000-8000-000000000001',
     name: 'Added project',
@@ -291,14 +264,7 @@ it('a read started before a confirmed write cannot restore its old inventory, ev
   };
   const subject = fixture((path) => {
     if (path === '/api/projects') return Promise.resolve(Response.json(added));
-    reads += 1;
-    if (reads === 1) {
-      started.resolve();
-      return held.promise;
-    }
-    return Promise.resolve(
-      Response.json({ message: 'Refresh unavailable' }, { status: 503 }),
-    );
+    return pendingRead.read();
   });
   subject.connection.atoms.addGlobalLayer(
     Layer.succeed(InventorySeed, Option.some(inventory())),
@@ -340,7 +306,7 @@ it('a read started before a confirmed write cannot restore its old inventory, ev
     expect(Option.getOrThrow(AsyncResult.value(result)).projects).toEqual([
       added,
     ]);
-    expect(reads).toBe(2);
+    expect(pendingRead.readCount()).toBe(2);
   } finally {
     held.resolve(Response.json(inventory()));
     stop();

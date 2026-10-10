@@ -18,3 +18,5 @@ export { projectSelectionSnapshotSchema } from './store/selection-snapshot.ts';
 export { ProjectSelectionCommands } from './commands/selection.ts';
 export { WorkspaceSelectionCleanup } from './ports/workspace-selection-cleanup.ts';
 export { openProject } from './commands/open-project.ts';
+
+export { workspaceSelectionCleanupLayer } from './store/workspace-cleanup.ts';

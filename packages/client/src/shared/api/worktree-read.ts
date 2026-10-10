@@ -1,3 +1,6 @@
+import { clientRuntime } from './runtime.ts';
+import { requestApi, type PorcelainApi } from './client.ts';
+import type { WorktreeSelection } from './connection.ts';
 import { type Cause, Effect, Stream } from 'effect';
 import { Atom, AtomRegistry, AsyncResult } from 'effect/reactivity';
 import type { ConfirmedResource } from './confirmed-resource.ts';
@@ -118,4 +121,25 @@ export function worktreeResource<A, E, R>(
       Atom.setIdleTTL(0),
     );
   return atom;
+}
+
+export function clientWorktreeRead<A, E>(
+  selection: WorktreeSelection,
+  surface: readonly unknown[],
+  request: (api: PorcelainApi) => Effect.Effect<A, E>,
+  accepts: (answer: A) => boolean = () => true,
+  paths: readonly string[] = [],
+) {
+  return worktreeRead(
+    selection.connection,
+    selection.scope,
+    surface,
+    requestApi(selection.connection, request).pipe(
+      Effect.tap((answer) =>
+        currentAnswerEffect(selection.connection, accepts(answer)),
+      ),
+    ),
+    clientRuntime(selection.connection),
+    paths,
+  );
 }

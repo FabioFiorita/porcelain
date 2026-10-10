@@ -11,3 +11,5 @@ export {
   setLayerMark,
   type SetLayerMarkInput,
 } from './commands/layer-marks.ts';
+
+export { commentWriteBinding } from './commands/comment-write-binding.ts';

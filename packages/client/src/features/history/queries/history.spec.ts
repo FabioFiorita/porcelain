@@ -1,10 +1,8 @@
+import { scopedClientFixture as fixture } from '../../../../spec/kit/client-fixture.ts';
 import { expect, it } from '@effect/vitest';
-import { Layer, Effect, Option } from 'effect';
+import { Effect, Option } from 'effect';
 import { AtomRegistry, AsyncResult } from 'effect/reactivity';
-import {
-  createWorktreeConnection,
-  type Transport,
-} from '@porcelain/client/transport';
+
 import { readHistory, readHistoryWindow } from './history.ts';
 
 const scope = {
@@ -34,27 +32,6 @@ const firstPage = {
   boundary: null,
   restarted: false,
 };
-function fixture(transport: Transport) {
-  return Effect.acquireRelease(
-    Effect.sync(() => ({
-      ...createWorktreeConnection(
-        {
-          environmentId: 'environment',
-          transport,
-          timeoutMs: 10_000,
-        },
-        undefined,
-        Layer.empty,
-      ),
-      registry: AtomRegistry.make(),
-    })),
-    (subject) =>
-      Effect.promise(async () => {
-        subject.registry.dispose();
-        await subject.close();
-      }),
-  );
-}
 
 it.effect(
   'a failed later page retains confirmed commits and an explicit retry uses the same tip and frontier',
@@ -80,10 +57,7 @@ it.effect(
               ),
         );
       });
-      const history = readHistory({ connection: subject.connection, scope });
-      const stop = subject.registry.mount(history);
-      yield* Effect.addFinalizer(() => Effect.sync(stop));
-      yield* AtomRegistry.getResult(subject.registry, history);
+      const history = yield* mountedHistory(subject);
       subject.registry.set(history, undefined);
       const failure = yield* Effect.exit(
         AtomRegistry.getResult(subject.registry, history, {
@@ -105,12 +79,7 @@ it.effect(
       yield* AtomRegistry.getResult(subject.registry, history, {
         suspendOnWaiting: true,
       });
-      expect(
-        (yield* AtomRegistry.getResult(
-          subject.registry,
-          readHistoryWindow({ connection: subject.connection, scope }),
-        )).commits.map((entry) => entry.subject),
-      ).toEqual(['Newest', 'Older']);
+      expect(yield* historySubjects(subject)).toEqual(['Newest', 'Older']);
       expect(paths).toEqual([
         `/api/worktrees/${scope.worktreeId}/commits`,
         `/api/worktrees/${scope.worktreeId}/commits?after=${frontier}%2C${root}&tip=${tip}`,
@@ -143,10 +112,7 @@ it.effect(
           ),
         ),
       );
-      const history = readHistory({ connection: subject.connection, scope });
-      const stop = subject.registry.mount(history);
-      yield* Effect.addFinalizer(() => Effect.sync(stop));
-      yield* AtomRegistry.getResult(subject.registry, history);
+      const history = yield* mountedHistory(subject);
       subject.registry.set(history, undefined);
       yield* AtomRegistry.getResult(subject.registry, history, {
         suspendOnWaiting: true,
@@ -161,23 +127,13 @@ it.effect(
         restarted: true,
         nextAfter: null,
       });
-      expect(
-        (yield* AtomRegistry.getResult(
-          subject.registry,
-          readHistoryWindow({ connection: subject.connection, scope }),
-        )).commits.map((entry) => entry.subject),
-      ).toEqual(['Replacement history']);
+      expect(yield* historySubjects(subject)).toEqual(['Replacement history']);
       subject.registry.set(history, undefined);
       const ended = yield* AtomRegistry.getResult(subject.registry, history, {
         suspendOnWaiting: true,
       });
       expect(ended.done).toBe(true);
-      expect(
-        (yield* AtomRegistry.getResult(
-          subject.registry,
-          readHistoryWindow({ connection: subject.connection, scope }),
-        )).commits.map((entry) => entry.subject),
-      ).toEqual(['Replacement history']);
+      expect(yield* historySubjects(subject)).toEqual(['Replacement history']);
       expect(requests).toBe(2);
     }),
 );
@@ -196,10 +152,7 @@ it.effect(
         started.resolve();
         return held.promise;
       });
-      const history = readHistory({ connection: subject.connection, scope });
-      const stop = subject.registry.mount(history);
-      yield* Effect.addFinalizer(() => Effect.sync(stop));
-      yield* AtomRegistry.getResult(subject.registry, history);
+      const history = yield* mountedHistory(subject);
       subject.registry.refresh(history);
       yield* Effect.promise(() => started.promise);
       held.resolve(
@@ -213,12 +166,7 @@ it.effect(
       yield* AtomRegistry.getResult(subject.registry, history, {
         suspendOnWaiting: true,
       });
-      expect(
-        (yield* AtomRegistry.getResult(
-          subject.registry,
-          readHistoryWindow({ connection: subject.connection, scope }),
-        )).commits.map((entry) => entry.subject),
-      ).toEqual(['New tip']);
+      expect(yield* historySubjects(subject)).toEqual(['New tip']);
       expect(paths).toEqual([
         `/api/worktrees/${scope.worktreeId}/commits`,
         `/api/worktrees/${scope.worktreeId}/commits`,
@@ -245,10 +193,7 @@ it.effect(
           }),
         ),
       );
-      const history = readHistory({ connection: subject.connection, scope });
-      const stop = subject.registry.mount(history);
-      yield* Effect.addFinalizer(() => Effect.sync(stop));
-      yield* AtomRegistry.getResult(subject.registry, history);
+      const history = yield* mountedHistory(subject);
       expect(
         yield* AtomRegistry.getResult(
           subject.registry,
@@ -272,3 +217,22 @@ it.effect(
       ).toEqual([]);
     }),
 );
+
+const mountedHistory = Effect.fn(function* (
+  subject: Effect.Success<ReturnType<typeof fixture>>,
+) {
+  const history = readHistory({ connection: subject.connection, scope });
+  const stop = subject.registry.mount(history);
+  yield* Effect.addFinalizer(() => Effect.sync(stop));
+  yield* AtomRegistry.getResult(subject.registry, history);
+  return history;
+});
+function historySubjects(subject: Effect.Success<ReturnType<typeof fixture>>) {
+  return Effect.map(
+    AtomRegistry.getResult(
+      subject.registry,
+      readHistoryWindow({ connection: subject.connection, scope }),
+    ),
+    (answer) => answer.commits.map((entry) => entry.subject),
+  );
+}
