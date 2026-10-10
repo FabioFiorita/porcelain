@@ -9,7 +9,7 @@ import { appUpdateProgress, noUpdateMessage } from '../rules/app-update';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 
 export function AppUpdateSettings() {
-  const update = useAppUpdate();
+  const { result: update, check } = useAppUpdate();
   const install = useInstallAppUpdate();
   const state = useAppUpdateState();
   const info = Option.getOrUndefined(Option.flatten(AsyncResult.value(update)));
@@ -23,32 +23,45 @@ export function AppUpdateSettings() {
           <Spinner />
           <p>{progress}</p>
         </div>
-      ) : info.available ? (
+      ) : state.status === 'available' ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm">
-            Porcelain app {info.available} is available.
-          </p>
+          <p className="text-sm">Porcelain app {state.version} is available.</p>
           <Button
             size="sm"
             disabled={install.result.waiting}
             onClick={() => install.install()}
           >
-            Update to {info.available}
+            Update to {state.version}
           </Button>
         </div>
-      ) : (
+      ) : state.status !== 'error' ? (
         <p className="text-xs text-muted-foreground">
           {noUpdateMessage(state)}
         </p>
+      ) : null}
+      {info.enabled && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="self-start"
+          disabled={update.waiting || progress !== undefined}
+          onClick={check}
+        >
+          Check for updates
+        </Button>
       )}
-      {(state.status === 'error' || AsyncResult.isFailure(install.result)) && (
+      {(state.status === 'error' ||
+        AsyncResult.isFailure(update) ||
+        AsyncResult.isFailure(install.result)) && (
         <Alert variant="destructive">
           <AlertDescription>
             {state.status === 'error'
               ? state.message
-              : AsyncResult.isFailure(install.result)
-                ? connectionErrorMessage(Cause.squash(install.result.cause))
-                : undefined}
+              : AsyncResult.isFailure(update)
+                ? connectionErrorMessage(Cause.squash(update.cause))
+                : AsyncResult.isFailure(install.result)
+                  ? connectionErrorMessage(Cause.squash(install.result.cause))
+                  : undefined}
           </AlertDescription>
         </Alert>
       )}

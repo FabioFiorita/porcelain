@@ -25,6 +25,9 @@ test('the Settings menu opens Settings, which shows the app version and that the
       { exact: true },
     ),
   ).toBeVisible();
+  await expect(
+    settings.getByRole('button', { name: 'Check for updates', exact: true }),
+  ).not.toBeAttached();
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(settings).toBeHidden();
   expect(app.errors).toEqual([]);

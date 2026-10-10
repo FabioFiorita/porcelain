@@ -192,6 +192,7 @@ const openWindow = Effect.fn('openWindow')(function* () {
       preload: join(settings.packageRoot, 'desktop/preload.cjs'),
       additionalArguments: [
         `--porcelain-version=${app.getVersion()}`,
+        ...(settings.updateFeed ? ['--porcelain-update-feed'] : []),
         `--porcelain-live=${liveAddress(local.address, HttpApiClient.urlBuilder(LiveUpdatesApi).live.liveUpdates({ query: {} }))}`,
       ],
       sandbox: true,
