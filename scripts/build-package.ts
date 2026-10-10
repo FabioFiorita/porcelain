@@ -12,6 +12,7 @@ import {
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
+import { parseAllDocuments } from 'yaml';
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const packageOutput = join(repositoryRoot, 'dist-porcelain');
 const license = `MIT License
@@ -62,7 +63,77 @@ const packageJsonSchema = Schema.Struct({
   ),
   dependencies: Schema.optional(Schema.Record(Schema.String, Schema.String)),
 });
+const releasePackageSchema = Schema.Struct({
+  ...packageJsonSchema.fields,
+  version: Schema.NonEmptyString,
+  description: Schema.NonEmptyString,
+  engines: Schema.Struct({ node: Schema.NonEmptyString }),
+});
 type PackageJson = typeof packageJsonSchema.Type;
+const lockfileSchema = Schema.Struct({
+  importers: Schema.Record(
+    Schema.String,
+    Schema.Struct({
+      dependencies: Schema.optional(
+        Schema.Record(Schema.String, Schema.Struct({ version: Schema.String })),
+      ),
+    }),
+  ),
+  snapshots: Schema.Record(
+    Schema.String,
+    Schema.Struct({
+      dependencies: Schema.optional(
+        Schema.Record(Schema.String, Schema.String),
+      ),
+    }),
+  ),
+});
+const isEffectPackage = (name: string) =>
+  name === 'effect' || name.startsWith('@effect/');
+
+export function pinEffectRuntimeDependencies(
+  source: string,
+  dependencies: Record<string, string>,
+): Record<string, string> {
+  const document = parseAllDocuments(source).at(-1);
+  if (document === undefined)
+    throw new Error('The package requires pnpm-lock.yaml');
+  const parseError = document.errors[0];
+  if (parseError !== undefined) throw parseError;
+  const lockfile = Schema.decodeUnknownSync(lockfileSchema)(document.toJS());
+  const pins: Record<string, string> = {};
+  const visited = new Set<string>();
+  const visit = (name: string, reference: string | undefined): void => {
+    const version = reference?.split('(')[0];
+    if (
+      version === undefined ||
+      !/^\d+\.\d+\.\d+(?:-[\da-zA-Z.-]+)?$/.test(version)
+    )
+      throw new Error(
+        `Missing exact runtime version for ${name} in pnpm-lock.yaml`,
+      );
+    if (pins[name] !== undefined && pins[name] !== version)
+      throw new Error(
+        `Conflicting runtime versions for ${name} in pnpm-lock.yaml`,
+      );
+    pins[name] = version;
+    const key = `${name}@${reference}`;
+    if (visited.has(key)) return;
+    visited.add(key);
+    const snapshot = lockfile.snapshots[key];
+    if (snapshot === undefined)
+      throw new Error(`Missing runtime snapshot ${key} in pnpm-lock.yaml`);
+    for (const [child, locked] of Object.entries(snapshot.dependencies ?? {}))
+      if (isEffectPackage(child)) visit(child, locked);
+  };
+  for (const name of Object.keys(dependencies))
+    if (isEffectPackage(name))
+      visit(
+        name,
+        lockfile.importers['apps/server']?.dependencies?.[name]?.version,
+      );
+  return { ...dependencies, ...pins };
+}
 function pnpmCommand(): string {
   return process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 }
@@ -217,7 +288,9 @@ edit it by hand.
 `;
 }
 export async function buildPackage(): Promise<string> {
-  const rootPackage = await readJson(join(repositoryRoot, 'package.json'));
+  const rootPackage = Schema.decodeUnknownSync(releasePackageSchema)(
+    await readJson(join(repositoryRoot, 'package.json')),
+  );
   const serverPackage = await readJson(
     join(repositoryRoot, 'apps/server/package.json'),
   );
@@ -229,9 +302,12 @@ export async function buildPackage(): Promise<string> {
     await requiredFile(input);
   await requiredDirectory(join(migrations, 'meta'));
 
-  const dependencies = Object.fromEntries(
-    Object.entries(serverPackage.dependencies ?? {}).filter(
-      ([, version]) => !version.startsWith('workspace:'),
+  const dependencies = pinEffectRuntimeDependencies(
+    await readFile(join(repositoryRoot, 'pnpm-lock.yaml'), 'utf8'),
+    Object.fromEntries(
+      Object.entries(serverPackage.dependencies ?? {}).filter(
+        ([, version]) => !version.startsWith('workspace:'),
+      ),
     ),
   );
 
@@ -249,10 +325,8 @@ export async function buildPackage(): Promise<string> {
 
   const packageJson = {
     name: '@fabiofiorita/porcelain',
-    version: rootPackage.version ?? '0.0.0',
-    description:
-      rootPackage.description ??
-      'Porcelain review server and bundled web application',
+    version: rootPackage.version,
+    description: rootPackage.description,
     license: rootPackage.license ?? 'MIT',
     ...(rootPackage.author === undefined ? {} : { author: rootPackage.author }),
     ...(rootPackage.repository === undefined
@@ -263,7 +337,7 @@ export async function buildPackage(): Promise<string> {
       ? {}
       : { homepage: rootPackage.homepage }),
     type: 'module',
-    engines: rootPackage.engines ?? { node: '>=24.20.0 <25 || >=26.8.1 <27' },
+    engines: rootPackage.engines,
     bin: { porcelain: 'bin/porcelain.js' },
     files: ['bin', 'server', 'web', 'README.md', 'LICENSE'],
     dependencies,

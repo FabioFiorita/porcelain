@@ -11,6 +11,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   renameSync,
   rmSync,
   statSync,
@@ -340,6 +341,7 @@ it.each(['restore-previous', 'restart-current', 'finish-update'] as const)(
   'recovers the persisted %s plan after interruption',
   async (plan) => {
     await install();
+    const saved = oldBackups();
     await stopService();
     const backup = join(root, 'saved-database');
     mkdirSync(backup);
@@ -378,8 +380,37 @@ it.each(['restore-previous', 'restart-current', 'finish-update'] as const)(
     expect(service?.pid).toBeGreaterThan(0);
     expect(existsSync(join(root, 'update.json'))).toBe(false);
     expect(existsSync(join(root, 'runtime.previous'))).toBe(false);
+    expect(readdirSync(join(root, 'database-backups')).sort()).toEqual(
+      plan === 'finish-update' ? saved.slice(1) : saved,
+    );
   },
 );
+
+it('restarts an interrupted healthy service even when backup retention fails', async () => {
+  await install();
+  await stopService();
+  renameSync(runtime(), join(root, 'runtime.previous'));
+  writeRuntime(runtime(), '2.0.0');
+  writeFileSync(join(root, 'installed.json'), '{"version":"2.0.0"}');
+  writeFileSync(
+    join(root, 'update.json'),
+    JSON.stringify({
+      installed: { version: '1.0.0' },
+      target: '2.0.0',
+      backup: join(root, 'saved-database'),
+      healthy: true,
+    }),
+  );
+  rmSync(join(root, 'database-backups'), { recursive: true });
+  writeFileSync(join(root, 'database-backups'), 'not a directory');
+  await expect(execute({ action: 'recover' })).rejects.toThrow();
+  expect(service?.pid ?? 0).toBeGreaterThan(0);
+  expect(record('installed.json')).toEqual({ version: '2.0.0' });
+  expect(existsSync(join(root, 'update.json'))).toBe(false);
+  expect(readFileSync(join(root, 'database-backups'), 'utf8')).toBe(
+    'not a directory',
+  );
+});
 
 it('discards an obsolete previous runtime and uninstalls while retaining user data', async () => {
   await install();
@@ -469,4 +500,70 @@ it('leaves a porcelain command it did not write untouched through install, updat
   ).toMatchObject({ result: { command: refused } });
   await execute({ action: 'uninstall' });
   expect(readFileSync(porcelainCommand(), 'utf8')).toBe(foreign);
+});
+
+function oldBackups() {
+  rmSync(join(root, 'database-backups'), { recursive: true, force: true });
+  const directories = [1, 2, 3, 4].map(
+    (day) => `2020-01-0${day}T00-00-00.000Z-1.0.0-id`,
+  );
+  for (const directory of directories) {
+    const path = join(root, 'database-backups', directory);
+    mkdirSync(path, { recursive: true });
+    writeFileSync(join(path, 'inventory.sqlite'), directory);
+  }
+  return directories;
+}
+
+it('prunes older database backups only after the updated service is healthy', async () => {
+  await install();
+  const saved = oldBackups();
+  candidate();
+  const outcome = await execute(
+    { action: 'update', allowDowngrade: false },
+    '2.0.0',
+  );
+  if (outcome.action !== 'update') throw new Error('Expected update');
+  expect(readdirSync(join(root, 'database-backups')).sort()).toEqual([
+    ...saved.slice(2),
+    outcome.result.backup.split('/').at(-1),
+  ]);
+  expect(
+    readFileSync(join(outcome.result.backup, 'inventory.sqlite'), 'utf8'),
+  ).toBe('database before update');
+});
+
+it('retains every backup when an update must roll back', async () => {
+  await install();
+  const saved = oldBackups();
+  candidate();
+  rejectCandidate = true;
+  await expect(
+    execute({ action: 'update', allowDowngrade: false }, '2.0.0'),
+  ).rejects.toThrow('did not become healthy');
+  expect(
+    saved.map((directory) =>
+      readFileSync(
+        join(root, 'database-backups', directory, 'inventory.sqlite'),
+        'utf8',
+      ),
+    ),
+  ).toEqual(saved);
+  expect(readdirSync(join(root, 'database-backups'))).toHaveLength(5);
+});
+
+it('refuses an exact-version downgrade unless explicitly allowed', async () => {
+  await install();
+  writeFileSync(
+    join(source, 'package.json'),
+    JSON.stringify({ name: packageName, version: '0.9.0' }),
+  );
+  await expect(
+    execute({ action: 'update', allowDowngrade: false }, '0.9.0'),
+  ).rejects.toThrow('downgrade');
+  expect(record('installed.json')).toEqual({ version: '1.0.0' });
+  expect(
+    await execute({ action: 'update', allowDowngrade: true }, '0.9.0'),
+  ).toMatchObject({ action: 'update' });
+  expect(record('installed.json')).toEqual({ version: '0.9.0' });
 });

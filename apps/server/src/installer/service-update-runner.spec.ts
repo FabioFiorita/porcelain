@@ -1,11 +1,19 @@
 import { TestClock } from 'effect/testing';
 import { Deferred, Effect, Exit, Fiber } from 'effect';
 import { NodeServices } from '@effect/platform-node';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from '@effect/vitest';
 import { openServiceUpdateRunner } from './service-update-runner.ts';
+import { updateToLatest } from './update-to-latest.ts';
 import type { CommandRunner } from './command-runner.ts';
 
 type Answer = { code: number; stdout: string; stderr: string };
@@ -88,6 +96,7 @@ const runner = Effect.fn('Test.openUpdateRunner')(function* (
       maxBytes: 1024,
       processGroup: { lingerMs: 10, cleanupMs: 10, pollMs: 1 },
     },
+    locks: { startupWaitMs: 0, pollMs: 1, staleTakeovers: 1 },
     runner: command,
     nodeExecutable: serviceNode,
   }).pipe(Effect.provide(NodeServices.layer));
@@ -111,6 +120,206 @@ afterEach(() => {
 });
 
 describe('the installed service update runner', () => {
+  it.effect(
+    'keeps overlapping status reads available without inventing an update',
+    () =>
+      Effect.gen(function* () {
+        const readers = [
+          yield* runner(),
+          yield* runner(),
+          yield* runner(),
+          yield* runner(),
+        ];
+        const states = yield* Effect.all(
+          readers.map((updates) =>
+            updates.read(
+              check('2026-10-10T12:00:00.000Z', '2026-10-10T12:00:00.000Z'),
+            ),
+          ),
+          { concurrency: 'unbounded' },
+        );
+        expect(
+          states.map((state) => ({
+            running: state.running,
+            available: state.available,
+          })),
+        ).toEqual([
+          { running: false, available: true },
+          { running: false, available: true },
+          { running: false, available: true },
+          { running: false, available: true },
+        ]);
+        expect(
+          existsSync(join(home, '.local/share/porcelain/service/updater.lock')),
+        ).toBe(false);
+      }),
+  );
+
+  it.effect(
+    'refuses both a CLI and another server start while a separate runner prepares, preserves its files, and releases ownership after failure',
+    () =>
+      Effect.gen(function* () {
+        const started = yield* Deferred.make<void>();
+        const release = yield* Deferred.make<Answer>();
+        const server = yield* runner(runtimePackage(), (command, args) => {
+          if (command !== 'npm' || args[0] !== 'install')
+            return answer(command, args);
+          return Deferred.succeed(started, undefined).pipe(
+            Effect.andThen(Deferred.await(release)),
+          );
+        });
+        const cli = yield* runner();
+        yield* server.start({ version: '1.1.0' });
+        yield* Deferred.await(started);
+        const root = join(home, '.local/share/porcelain/service');
+        writeFileSync(join(root, 'updater/half-installed'), 'owned by server');
+        const recordBefore = readFileSync(
+          join(root, 'update-record.json'),
+          'utf8',
+        );
+        const refused = yield* Effect.flip(
+          updateToLatest(cli, {
+            check: check(
+              '2026-10-10T12:00:00.000Z',
+              '2026-10-10T12:00:00.000Z',
+            ),
+            pollMs: 1,
+            allowDowngrade: false,
+            handingOff: () => {
+              throw new Error('A refused update cannot announce hand-off');
+            },
+          }),
+        );
+        expect(refused.message).toBe('An update is already running');
+        expect(
+          (yield* Effect.flip(cli.start({ version: '1.1.0' }))).message,
+        ).toBe('An update is already running');
+        expect(
+          (yield* Effect.flip(server.start({ version: '1.1.0' }))).message,
+        ).toBe('An update is already running');
+        expect(readFileSync(join(root, 'updater/half-installed'), 'utf8')).toBe(
+          'owned by server',
+        );
+        expect(readFileSync(join(root, 'update-record.json'), 'utf8')).toBe(
+          recordBefore,
+        );
+        expect(commands).not.toContain('systemd-run');
+        yield* Deferred.succeed(release, {
+          code: 1,
+          stdout: '',
+          stderr: 'offline',
+        });
+        expect(yield* server.awaitUpdate(1)).toMatchObject({
+          stage: 'failed',
+          reason: 'Could not install the persistent runtime: offline',
+        });
+        expect(existsSync(join(root, 'updater.lock'))).toBe(false);
+        yield* cli.start({ version: '1.1.0' });
+        expect(yield* cli.awaitUpdate(1)).toMatchObject({
+          stage: 'failed',
+          reason:
+            'Could not start the updater beside the running service: unexpected systemd-run',
+        });
+      }).pipe(TestClock.withLive),
+  );
+
+  it.effect(
+    'hands a verified runtime off once and releases the preparation lock after success',
+    () =>
+      Effect.gen(function* () {
+        let handOffs = 0;
+        let lockedAtHandOff = false;
+        const updates = yield* runner(runtimePackage(), (command, args) => {
+          if (command !== 'systemd-run') return answer(command, args);
+          return Effect.sync(() => {
+            handOffs += 1;
+            lockedAtHandOff = existsSync(
+              join(home, '.local/share/porcelain/service/updater.lock'),
+            );
+            writeFileSync(
+              join(home, '.local/share/porcelain/service/update-record.json'),
+              JSON.stringify({
+                from: '1.0.0',
+                target: '1.1.0',
+                stage: 'updated',
+              }),
+            );
+            return { code: 0, stdout: '', stderr: '' };
+          });
+        });
+        yield* updates.start({ version: '1.1.0' });
+        expect(yield* updates.awaitUpdate(1)).toEqual({
+          from: '1.0.0',
+          target: '1.1.0',
+          stage: 'updated',
+          reason: undefined,
+        });
+        expect(handOffs).toBe(1);
+        expect(lockedAtHandOff).toBe(true);
+        expect(
+          existsSync(join(home, '.local/share/porcelain/service/updater.lock')),
+        ).toBe(false);
+      }).pipe(TestClock.withLive),
+  );
+
+  it.effect(
+    'refuses an active updater under the lock without rewriting its progress record',
+    () =>
+      Effect.gen(function* () {
+        const updates = yield* runner();
+        updaterActive = true;
+        const recordPath = join(
+          home,
+          '.local/share/porcelain/service/update-record.json',
+        );
+        writeFileSync(
+          recordPath,
+          JSON.stringify({
+            from: '1.0.0',
+            target: '1.1.0',
+            stage: 'installing',
+          }),
+        );
+        const before = readFileSync(recordPath, 'utf8');
+        expect(
+          (yield* Effect.flip(updates.start({ version: '1.1.0' }))).message,
+        ).toBe('An update is already running');
+        expect(readFileSync(recordPath, 'utf8')).toBe(before);
+        expect(commands).toEqual(['systemctl']);
+        expect(
+          existsSync(join(home, '.local/share/porcelain/service/updater.lock')),
+        ).toBe(false);
+      }).pipe(TestClock.withLive),
+  );
+
+  it.effect(
+    'releases a claimed preparation when the runner closes before hand-off can start',
+    () =>
+      Effect.gen(function* () {
+        const checking = yield* Deferred.make<void>();
+        const resume = yield* Deferred.make<void>();
+        const updates = yield* runner(runtimePackage(), (command, args) =>
+          command === 'systemctl'
+            ? Deferred.succeed(checking, undefined).pipe(
+                Effect.andThen(Deferred.await(resume)),
+                Effect.andThen(answer(command, args)),
+              )
+            : answer(command, args),
+        );
+        const starting = yield* Effect.forkChild(
+          updates.start({ version: '1.1.0' }),
+        );
+        yield* Deferred.await(checking);
+        yield* updates.close();
+        yield* Deferred.succeed(resume, undefined);
+        expect(Exit.hasInterrupts(yield* Fiber.await(starting))).toBe(true);
+        expect(commands).not.toContain('npm');
+        const root = join(home, '.local/share/porcelain/service');
+        expect(existsSync(join(root, 'updater.lock'))).toBe(false);
+        expect(existsSync(join(root, 'update-record.json'))).toBe(false);
+      }).pipe(TestClock.withLive),
+  );
+
   it.effect(
     'owns accepted preparation after caller disconnect and waits for native cleanup before recording shutdown',
     () =>
@@ -281,15 +490,8 @@ describe('the installed service update runner', () => {
         };
         const updates = yield* runner();
         yield* updates.start({ version: '1.1.0' });
-        const state = yield* updates
-          .read(check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'))
-          .pipe(
-            Effect.repeat({
-              until: (state) => !state.running && state.last !== undefined,
-            }),
-            Effect.timeout(1000),
-          );
-        expect(state.last).toEqual({
+        const last = yield* updates.awaitUpdate(1);
+        expect(last).toEqual({
           from: '1.0.0',
           target: '1.1.0',
           stage: 'failed',

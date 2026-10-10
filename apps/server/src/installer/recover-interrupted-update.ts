@@ -4,7 +4,7 @@ import {
   servicePlan,
   type InstallerContext,
 } from './context.ts';
-import { restoreDatabase } from './database-backup.ts';
+import { restoreDatabase, pruneDatabaseBackups } from './database-backup.ts';
 import { InterruptedUpdateUnrecoverableError } from './errors/interrupted-update-unrecoverable-error.ts';
 import { RestoredServiceUnhealthyError } from './errors/restored-service-unhealthy-error.ts';
 import { exists, writeJsonFile } from './json-file.ts';
@@ -44,9 +44,10 @@ export const recoverInterruptedUpdate = Effect.fn(
   if (plan === 'finish-update') {
     yield* fs.remove(paths.previousRuntime, { recursive: true, force: true });
     yield* fs.remove(paths.nextRuntime, { recursive: true, force: true });
-    yield* fs.remove(paths.updateJournal, { force: true });
-    yield* writeJsonFile(paths.updateRecord, { ...progress, stage: 'updated' });
     if (!(yield* systemd.probe()).running) yield* systemd.start();
+    yield* fs.remove(paths.updateJournal, { force: true });
+    yield* pruneDatabaseBackups(paths.backups);
+    yield* writeJsonFile(paths.updateRecord, { ...progress, stage: 'updated' });
     return RECOVERED;
   }
   if ((yield* systemd.probe()).running) yield* systemd.stop();

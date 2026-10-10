@@ -18,7 +18,8 @@ import {
 } from '../config/environment-settings.ts';
 import type { Limits } from '../config/limits.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
-import { readPackageVersion } from '../installer/index.ts';
+import { readCliVersion } from './package-version.ts';
+import { CliPackageVersionError } from './errors/cli-package-version-error.ts';
 import { cliProgram } from './cli-program.ts';
 import { CliHost, CliOperations } from './operations.ts';
 import { CliInvocation, defaultWebRoot } from './settings.ts';
@@ -59,6 +60,7 @@ function startupFailureMessage(
 ): string {
   const actionable =
     isServiceFailure(error) ||
+    error instanceof CliPackageVersionError ||
     error instanceof OwnerRequestError ||
     actionableErrors.some((known) => error instanceof known);
   return actionable && error instanceof Error
@@ -121,10 +123,10 @@ export function createCliRunner(
     const program = Effect.gen(function* () {
       const configured = yield* CliRuntime;
       return yield* Effect.gen(function* () {
-        const version = yield* readPackageVersion(cliPackageRoot()).pipe(
+        const version = yield* readCliVersion(cliPackageRoot()).pipe(
           Effect.orDie,
         );
-        return yield* cliProgram(args, version ?? '0.0.0');
+        return yield* cliProgram(args, version);
       }).pipe(
         Effect.provideService(Console.Console, output),
         Effect.provide(services),

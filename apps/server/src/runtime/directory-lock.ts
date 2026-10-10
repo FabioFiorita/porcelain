@@ -21,31 +21,42 @@ function processIsAlive(pid: number): boolean {
   }
 }
 
+const ownerOf = Effect.fn('DirectoryLock.ownerOf')(
+  (fs: FileSystem.FileSystem, pathApi: Path.Path, lock: string) =>
+    fs.readFileString(pathApi.join(lock, OWNER_FILE)).pipe(
+      Effect.map((text): LockOwner | undefined => {
+        let owner: unknown;
+        try {
+          owner = JSON.parse(text);
+        } catch {
+          return undefined;
+        }
+        return typeof owner === 'object' &&
+          owner !== null &&
+          'pid' in owner &&
+          typeof owner.pid === 'number' &&
+          'token' in owner &&
+          typeof owner.token === 'string'
+          ? { pid: owner.pid, token: owner.token }
+          : undefined;
+      }),
+      Effect.catch(() => Effect.succeed(undefined)),
+    ),
+);
+
+export const directoryLockIsHeld = Effect.fn('directoryLockIsHeld')(function* (
+  path: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const pathApi = yield* Path.Path;
+  const owner = yield* ownerOf(fs, pathApi, path);
+  return owner !== undefined && processIsAlive(owner.pid);
+});
+
 export const acquireDirectoryLock = Effect.fn('acquireDirectoryLock')(
   function* (options: DirectoryLockOptions) {
     const fs = yield* FileSystem.FileSystem;
     const pathApi = yield* Path.Path;
-    const ownerOf = Effect.fn('DirectoryLock.ownerOf')((lock: string) =>
-      fs.readFileString(pathApi.join(lock, OWNER_FILE)).pipe(
-        Effect.map((text): LockOwner | undefined => {
-          let owner: unknown;
-          try {
-            owner = JSON.parse(text);
-          } catch {
-            return undefined;
-          }
-          return typeof owner === 'object' &&
-            owner !== null &&
-            'pid' in owner &&
-            typeof owner.pid === 'number' &&
-            'token' in owner &&
-            typeof owner.token === 'string'
-            ? { pid: owner.pid, token: owner.token }
-            : undefined;
-        }),
-        Effect.catch(() => Effect.succeed(undefined)),
-      ),
-    );
     yield* fs.makeDirectory(pathApi.dirname(options.path), {
       recursive: true,
       mode: 0o700,
@@ -53,7 +64,7 @@ export const acquireDirectoryLock = Effect.fn('acquireDirectoryLock')(
     const token = randomUUID();
     const candidate = `${options.path}.candidate-${token}`;
     const release = Effect.gen(function* () {
-      const owner = yield* ownerOf(options.path);
+      const owner = yield* ownerOf(fs, pathApi, options.path);
       if (owner?.token === token)
         yield* fs.remove(options.path, { recursive: true, force: true });
     }).pipe(Effect.orDie);
@@ -86,7 +97,7 @@ export const acquireDirectoryLock = Effect.fn('acquireDirectoryLock')(
           ),
         );
         if (renamed) return { release } satisfies DirectoryLock;
-        const owner = yield* ownerOf(options.path);
+        const owner = yield* ownerOf(fs, pathApi, options.path);
         if (
           takeovers < options.staleTakeovers &&
           (owner === undefined || !processIsAlive(owner.pid))

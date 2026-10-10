@@ -22,7 +22,6 @@ permissions:
 
 jobs:
   version:
-    if: ${{ github.ref_type == 'tag' || github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -31,13 +30,17 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Read the release version and refuse one already released
+      - name: Validate the release or rehearsal
         id: version
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          TAG: ${{ github.event_name == 'push' && github.ref_type == 'tag' && github.ref_name || '' }}
         run: |
           set -euo pipefail
+          if [ -z "$TAG" ] && [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "Rehearsals must run from main; select main as the workflow ref." >&2
+            exit 1
+          fi
           version=$(node -p "require('./package.json').version")
           if [ -n "$TAG" ]; then
             if [ "$TAG" != "v$version" ]; then
@@ -52,7 +55,7 @@ jobs:
           else
             echo "publish=false" >> "$GITHUB_OUTPUT"
           fi
-          if gh release view "v$version" > /dev/null 2>&1; then
+          if [ -n "$TAG" ] && gh release view "v$version" > /dev/null 2>&1; then
             echo "Release v$version already exists; bump the root package.json version first." >&2
             exit 1
           fi
@@ -146,6 +149,10 @@ jobs:
           set -euo pipefail
           npm install --global npm@11.21.0
           npm --version
+      - name: Run the packed package before publishing
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: bash scripts/check-package.sh
       - name: Publish with npm trusted publishing
         working-directory: dist-porcelain
         env:
@@ -165,7 +172,7 @@ jobs:
           cd "$RUNNER_TEMP"
           # A new version can take several minutes to reach every npm mirror.
           for attempt in $(seq 1 40); do
-            if output=$(npx --yes --prefer-online "@fabiofiorita/porcelain@$VERSION" --version 2>&1); then
+            if output=$(npx --yes --prefer-online "@fabiofiorita/porcelain@$VERSION" --version); then
               echo "$output"
               test "$output" = "porcelain v$VERSION"
               exit 0

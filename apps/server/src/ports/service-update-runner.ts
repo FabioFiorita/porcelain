@@ -1,3 +1,4 @@
+import type { ServiceUpdateRunningError } from '@porcelain/access/errors';
 import { type Effect, Context } from 'effect';
 import {
   type ServiceUpdateCheck,
@@ -7,7 +8,9 @@ import {
 
 export interface ServiceUpdateRunner {
   read(input: ServiceUpdateCheck): Effect.Effect<ServiceUpdateState>;
-  start(input: ServiceUpdateTarget): Effect.Effect<void>;
+  start(
+    input: ServiceUpdateTarget,
+  ): Effect.Effect<void, ServiceUpdateRunningError>;
   close(): Effect.Effect<void>;
 }
 

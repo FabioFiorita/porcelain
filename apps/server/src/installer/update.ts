@@ -6,7 +6,11 @@ import {
   servicePlan,
   type InstallerContext,
 } from './context.ts';
-import { backupDatabase, backupLocation } from './database-backup.ts';
+import {
+  backupDatabase,
+  backupLocation,
+  pruneDatabaseBackups,
+} from './database-backup.ts';
 import { DataDirectoryBusyError } from './errors/data-directory-busy-error.ts';
 import { NotInstalledError } from './errors/not-installed-error.ts';
 import { PreviousServiceUnhealthyError } from './errors/previous-service-unhealthy-error.ts';
@@ -80,6 +84,7 @@ export const update = Effect.fn('Installer.update')(function* (
       () =>
         writeJsonFile(paths.updateRecord, { ...progress, stage: 'restarting' }),
     );
+    yield* pruneDatabaseBackups(paths.backups);
     yield* writeJsonFile(paths.updateRecord, { ...progress, stage: 'updated' });
     const outcome: UpdateOutcome = { backup, command };
     return outcome;

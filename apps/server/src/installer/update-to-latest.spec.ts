@@ -17,7 +17,12 @@ import { openServiceUpdateRunner } from './service-update-runner.ts';
 import { updateToLatest } from './update-to-latest.ts';
 
 type Answer = { code: number; stdout: string; stderr: string };
-type UpdaterResult = { stage: 'updated' } | { stage: 'failed'; reason: string };
+type UpdaterResult =
+  | { stage: 'updated'; from?: string; target?: string }
+  | { stage: 'failed'; reason?: string }
+  | { stage: 'installing' }
+  | { stage: 'missing' }
+  | { stage: 'invalid' };
 
 const packageName = '@fabiofiorita/porcelain';
 const serviceNode = '/opt/service/bin/node';
@@ -70,6 +75,14 @@ function install(version: string) {
 
 function finishUpdater() {
   const record = updateRecord();
+  if (updaterResult.stage === 'missing') {
+    rmSync(updateRecordPath());
+    return;
+  }
+  if (updaterResult.stage === 'invalid') {
+    writeFileSync(updateRecordPath(), '{broken');
+    return;
+  }
   writeFileSync(
     updateRecordPath(),
     JSON.stringify({
@@ -105,7 +118,7 @@ const fakeCommand: CommandRunner = (command, args) =>
         updateRecordPath(),
         JSON.stringify({ ...updateRecord(), stage: 'installing' }),
       );
-      activePolls = 2;
+      finishUpdater();
       return ok();
     }
     if (command === 'systemctl') {
@@ -120,6 +133,7 @@ const fakeCommand: CommandRunner = (command, args) =>
 
 const update = Effect.fn('Test.updateToLatest')(function* (
   packageRoot: string = runtimePackage(),
+  allowDowngrade: boolean = false,
 ) {
   const updates = yield* openServiceUpdateRunner({
     homeDirectory: home,
@@ -130,6 +144,7 @@ const update = Effect.fn('Test.updateToLatest')(function* (
       maxBytes: 1024,
       processGroup: { lingerMs: 10, cleanupMs: 10, pollMs: 1 },
     },
+    locks: { startupWaitMs: 0, pollMs: 1, staleTakeovers: 1 },
     runner: fakeCommand,
     nodeExecutable: serviceNode,
   }).pipe(Effect.provide(NodeServices.layer));
@@ -140,6 +155,7 @@ const update = Effect.fn('Test.updateToLatest')(function* (
       staleBefore: '2026-10-09T12:00:00.000Z',
     },
     pollMs: 1,
+    allowDowngrade,
     handingOff: (from, target) => handOffs.push(['announced', from, target]),
   });
 });
@@ -161,6 +177,65 @@ afterEach(() => {
 });
 
 describe('updating the installed service to the newest published version', () => {
+  it.effect(
+    'rejects --allow-downgrade on the installed command before changing anything',
+    () =>
+      Effect.gen(function* () {
+        const error = yield* Effect.flip(update(runtimePackage(), true));
+        expect(error.message).toBe(
+          '--allow-downgrade requires an exact version: run `npx @fabiofiorita/porcelain@<version> service update --allow-downgrade`.',
+        );
+        expect(installs).toEqual([]);
+        expect(existsSync(updateRecordPath())).toBe(false);
+      }),
+  );
+
+  it.effect(
+    'leaves --allow-downgrade on a pinned CLI to the exact-version installer',
+    () =>
+      Effect.gen(function* () {
+        const pinned = join(home, 'pinned');
+        writePackage(pinned, '0.9.0');
+        expect(yield* update(pinned, true)).toEqual({ kind: 'unmanaged' });
+        expect(commands).toEqual([]);
+      }),
+  );
+
+  it.each([
+    { stage: 'missing' },
+    { stage: 'invalid' },
+    { stage: 'updated', target: '1.2.0' },
+    { stage: 'updated', from: '0.8.0' },
+  ] as const)('fails instead of reporting updated for %j', async (result) => {
+    updaterResult = result;
+    const error = await Effect.runPromise(
+      Effect.scoped(update()).pipe(Effect.flip),
+    );
+    expect(error.message).toBe(
+      'The update to Porcelain 1.1.0 failed: the updater left no record of this update.',
+    );
+  });
+
+  it.effect('fails when an inactive updater leaves unfinished progress', () =>
+    Effect.gen(function* () {
+      updaterResult = { stage: 'installing' };
+      const error = yield* Effect.flip(update());
+      expect(error.message).toBe(
+        'The update to Porcelain 1.1.0 failed: The update stopped before it finished',
+      );
+    }),
+  );
+
+  it.effect('reports failure even when the updater leaves no reason', () =>
+    Effect.gen(function* () {
+      updaterResult = { stage: 'failed' };
+      const error = yield* Effect.flip(update());
+      expect(error.message).toBe(
+        'The update to Porcelain 1.1.0 failed: the updater gave no reason.',
+      );
+    }),
+  );
+
   it.effect(
     'hands the update to the newer published version and waits until its updater finishes',
     () =>
@@ -266,7 +341,7 @@ describe('updating the installed service to the newest published version', () =>
     Effect.gen(function* () {
       activePolls = 1_000;
       const error = yield* Effect.flip(update());
-      expect(error._tag).toBe('UpdateAlreadyRunningError');
+      expect(error._tag).toBe('ServiceUpdateRunningError');
       expect(installs).toEqual([]);
       expect(commands).not.toContain('systemd-run');
     }).pipe(TestClock.withLive),

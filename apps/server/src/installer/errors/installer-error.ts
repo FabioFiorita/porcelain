@@ -28,7 +28,7 @@ import { ServiceDowngradeError } from './service-downgrade-error.ts';
 import { ServiceStillActiveError } from './service-still-active-error.ts';
 import { UnitExistsError } from './unit-exists-error.ts';
 import { UnrecognizedUnitError } from './unrecognized-unit-error.ts';
-import { UpdateAlreadyRunningError } from './update-already-running-error.ts';
+import { LatestUpdateDowngradeError } from './latest-update-downgrade-error.ts';
 import { UpdateFailedError } from './update-failed-error.ts';
 import { UpdateHandOffError } from './update-hand-off-error.ts';
 import { UpdateRecoveryError } from './update-recovery-error.ts';
@@ -65,7 +65,7 @@ const installerErrorSchema = Schema.Union([
   ServiceStillActiveError,
   UnitExistsError,
   UnrecognizedUnitError,
-  UpdateAlreadyRunningError,
+  LatestUpdateDowngradeError,
   UpdateFailedError,
   UpdateHandOffError,
   UpdateRecoveryError,
