@@ -17,6 +17,7 @@ import { duplicateScope, scanDuplicates } from './duplicate-policy.ts';
 import { selectorAppears } from './feature-selectors.ts';
 import { guardrailCases } from './rule-cases.mjs';
 import { featureMapProblems } from '../scripts/feature-maps.ts';
+import knip from './knip.ts';
 
 function fixtureRoot(prefix) {
   return realpathSync(mkdtempSync(join(tmpdir(), prefix)));
@@ -176,7 +177,9 @@ export function runGuardrailCases(named = []) {
     'Name an existing guardrail fixture rule.',
   );
   for (const entry of cases) {
-    if (entry.rule === 'eqeqeq') {
+    if (entry.rule === 'knip-expo-framework-exports') {
+      strictEqual(knip.compilers.tsx(entry.source, entry.path), entry.expected);
+    } else if (entry.rule === 'eqeqeq') {
       const root = fixtureRoot('porcelain-equality-');
       try {
         const repository = fileURLToPath(new URL('../', import.meta.url));

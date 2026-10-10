@@ -1,6 +1,8 @@
 import { Stack } from 'expo-router';
 import { DestinationLayout } from '../../shell/destination-layout';
 
+export const unstable_settings = { anchor: 'settings' };
+
 function SettingsLayout() {
   return (
     <DestinationLayout name="settings" title="Settings">

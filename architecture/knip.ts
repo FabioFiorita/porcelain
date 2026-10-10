@@ -10,7 +10,14 @@ function expoEntries(source: string, path: string): string {
       (node.type === 'ExportNamedDeclaration' &&
         node.specifiers.length === 1 &&
         node.specifiers[0]?.exported.type === 'Identifier' &&
-        node.specifiers[0].exported.name === 'default'),
+        ['default', 'unstable_settings'].includes(
+          node.specifiers[0].exported.name,
+        )) ||
+      (node.type === 'ExportNamedDeclaration' &&
+        node.declaration?.type === 'VariableDeclaration' &&
+        node.declaration.declarations.length === 1 &&
+        node.declaration.declarations[0]?.id.type === 'Identifier' &&
+        node.declaration.declarations[0].id.name === 'unstable_settings'),
   );
   for (const node of entries.toReversed())
     source =
