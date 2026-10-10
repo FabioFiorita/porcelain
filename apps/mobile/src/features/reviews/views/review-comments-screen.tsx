@@ -45,21 +45,32 @@ export function ReviewCommentsScreen({
   compose: boolean;
   comparison: ReviewComparison;
 }) {
+  const router = useRouter();
   const workspace = useReviewWorkspace(workspaceKey ?? '');
-  return workspace ? (
-    <Comments
-      key={`${workspace.key}:${path}:${JSON.stringify(anchor)}`}
-      workspace={workspace}
-      path={path}
-      anchor={anchor}
-      compose={compose}
-      comparison={comparison}
-    />
-  ) : (
-    <Empty
-      title="Review unavailable"
-      description="Return to Review and select a worktree."
-    />
+  return (
+    <>
+      <Stack.Screen options={{ title: path ? 'File comments' : 'Comments' }} />
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button onPress={() => router.back()}>
+          Done
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
+      {workspace ? (
+        <Comments
+          key={`${workspace.key}:${path}:${JSON.stringify(anchor)}`}
+          workspace={workspace}
+          path={path}
+          anchor={anchor}
+          compose={compose}
+          comparison={comparison}
+        />
+      ) : (
+        <Empty
+          title="Review unavailable"
+          description="Return to Review and select a worktree."
+        />
+      )}
+    </>
   );
 }
 
@@ -76,7 +87,6 @@ function Comments({
   compose: boolean;
   comparison: ReviewComparison;
 }) {
-  const router = useRouter();
   const query = readCommentThreads({
     connection: workspace.connection,
     scope: workspace.scope,
@@ -105,12 +115,6 @@ function Comments({
   }, [highest, seen]);
   return (
     <View className="flex-1 bg-background" collapsable={false}>
-      <Stack.Screen options={{ title: path ? 'File comments' : 'Comments' }} />
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button onPress={() => router.back()}>
-          Done
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
