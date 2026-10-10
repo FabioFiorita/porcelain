@@ -87,6 +87,7 @@ function ActionForm({
               }
             >
               <Input
+                testID="file-action-path"
                 accessibilityLabel={
                   action.kind === 'move' ? 'New path' : 'Name'
                 }
@@ -104,6 +105,7 @@ function ActionForm({
             />
           ) : null}
           <Button
+            testID="file-action-submit"
             label={
               action.kind === 'trash'
                 ? 'Move to trash'

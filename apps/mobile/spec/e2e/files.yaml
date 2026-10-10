@@ -25,32 +25,39 @@ name: Browse and manage files on iPhone
 - assertVisible: Edit
 - tapOn: Back
 - tapOn: New folder
-- tapOn: Name
+- tapOn:
+    id: file-action-path
 - inputText: mobile-folder
 - hideKeyboard
-- tapOn: Create
+- tapOn:
+    id: file-action-submit
 - assertVisible: Expand mobile-folder
 - longPressOn: Expand mobile-folder
 - tapOn: New file here
-- tapOn: Name
+- tapOn:
+    id: file-action-path
 - inputText: draft.txt
 - hideKeyboard
-- tapOn: Create
+- tapOn:
+    id: file-action-submit
 - assertVisible: Edit
 - tapOn: Back
 - tapOn: Expand mobile-folder
 - assertVisible: Open draft.txt
 - longPressOn: Open draft.txt
 - tapOn: Rename
-- tapOn: New path
+- tapOn:
+    id: file-action-path
 - eraseText
 - inputText: mobile-folder/renamed.txt
 - hideKeyboard
-- tapOn: Rename
+- tapOn:
+    id: file-action-submit
 - assertVisible: Open renamed.txt
 - longPressOn: Open renamed.txt
 - tapOn: Move to trash
-- tapOn: Move to trash
+- tapOn:
+    id: file-action-submit
 - assertNotVisible: Open renamed.txt
 - tapOn: Search files
 - inputText: mobile-source
