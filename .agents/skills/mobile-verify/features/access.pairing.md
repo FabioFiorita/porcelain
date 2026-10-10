@@ -22,7 +22,7 @@ api:
 
 ## What it is
 
-Add environment opens a native sheet, “Pair an environment”, where the link `porcelain pair` printed is pasted. Pair redeems it as this device, saves the credential in the Keychain and the environment in SQLite, closes the sheet and lists the environment as “Online”. An invalid link is refused in the sheet, Cancel closes it, several environments can be paired, and every paired environment is restored after a cold launch.
+Add environment opens a native sheet, “Pair an environment”, where the link `porcelain pair` printed is pasted. Pair redeems it as this device, saves the credential in the Keychain and the environment in SQLite, closes the sheet and lists the environment as “Online”. An invalid link is refused in the sheet; editing the link clears that error. Pair is disabled for a blank link or unreadable saved environments, and the request uses the existing 15-second mobile deadline. A save error offers Read saved environments again in the sheet. Cancel closes it, several environments can be paired, and every paired environment is restored after a cold launch.
 
 The sheet opens at half height and can expand to full height. Its React Native content scrolls and uses the shared Uniwind theme; the field and buttons are the shared `components/ui` primitives inside the Expo UI sheet.
 

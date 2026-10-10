@@ -4,6 +4,7 @@ import { DestinationLayout } from '../../shell/destination-layout';
 function SettingsLayout() {
   return (
     <DestinationLayout name="settings" title="Settings">
+      <Stack.Screen name="appearance" options={{ title: 'Appearance' }} />
       <Stack.Protected guard={__DEV__}>
         <Stack.Screen
           name="component-library"

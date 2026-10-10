@@ -21,6 +21,7 @@ One file per screen and flow the mobile app offers, named `<domain>.<capability>
 | [files.edit](files.edit.md) | /file-edit | Edit with shared autosave and fingerprint conflict protection in a native sheet. |
 | [history.history](history.history.md)                     | /history           | History shows its empty state; it reads no commits yet.                                                                                                          |
 | [projects.workspace-picker](projects.workspace-picker.md) | /files             | The toolbar lists projects from every paired environment together; expanding a project shows its worktrees, and choosing one restores after a cold launch.       |
+| [preferences.appearance](preferences.appearance.md) | /appearance | Appearance preserves Theme, Long lines and document defaults across cold launches and offers recovery when saved preferences cannot be read. |
 | [reviews.review](reviews.review.md)                       | /review            | Review, the second destination after Files, shows its empty state; it reads no review yet.                                                                       |
 
 ## Platform coverage

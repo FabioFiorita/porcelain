@@ -2,44 +2,61 @@ import { Text } from '../../../components/ui/text';
 import { ItemMenu } from '../../../components/ui/item-menu';
 import { Badge } from '../../../components/ui/badge';
 import { AsyncResult } from 'effect/reactivity';
-import { Cause, Option } from 'effect';
+import { Cause } from 'effect';
 import {
   connectionErrorMessage,
+  remoteStatusNote,
+  remoteStatusText,
   type Remote,
 } from '@porcelain/client/access/rules';
 import { useEnvironmentStatus } from '../queries/environments';
 import { useForgetEnvironment } from '../commands/forget-environment';
 
-export function EnvironmentRow({ remote }: { remote: Remote }) {
-  const status = useEnvironmentStatus(remote);
-  const description = Option.getOrUndefined(AsyncResult.value(status));
+export function EnvironmentRow({
+  remote,
+  disabled,
+}: {
+  remote: Remote;
+  disabled: boolean;
+}) {
+  const { status, read } = useEnvironmentStatus(remote);
   const command = useForgetEnvironment(remote);
-  const label =
-    description?.kind === 'online'
-      ? 'Online'
-      : description?.kind === 'needs-pairing'
-        ? 'Needs pairing'
-        : description?.kind === 'other-server'
-          ? 'Another server'
-          : description?.kind === 'incompatible'
-            ? 'Update needed'
-            : description?.kind === 'offline' || AsyncResult.isFailure(status)
-              ? 'Offline'
-              : 'Checking';
+  const note = remoteStatusNote(status);
   return (
     <ItemMenu
-      title={remote.name}
-      trailing={<Badge label={label} variant="secondary" />}
+      title={status.kind === 'online' ? status.name : remote.name}
+      description={
+        status.kind === 'online' && status.version
+          ? `${remote.address} · Porcelain ${status.version}`
+          : remote.address
+      }
+      trailing={
+        <Badge
+          label={remoteStatusText(status)}
+          variant={status.kind === 'online' ? 'secondary' : 'outline'}
+        />
+      }
       actions={[
+        {
+          id: 'check',
+          label: 'Check connection',
+          disabled: status.kind === 'checking',
+          onPress: read,
+        },
         {
           id: 'forget',
           label: 'Forget environment',
           destructive: true,
-          disabled: command.result.waiting,
+          disabled: disabled || command.result.waiting,
           onPress: () => command.forget(),
         },
       ]}
     >
+      {note ? (
+        <Text variant="caption" tone="muted">
+          {note}
+        </Text>
+      ) : null}
       {AsyncResult.isFailure(command.result) ? (
         <Text variant="ui" tone="destructive">
           {connectionErrorMessage(Cause.squash(command.result.cause))}

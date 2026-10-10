@@ -3,18 +3,21 @@ import { Button } from '../../../components/ui/button';
 import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Separator } from '../../../components/ui/separator';
-import { Fragment } from 'react';
+import { Item } from '../../../components/ui/item';
+import { Fragment, useState } from 'react';
 import { BottomSheet } from '@expo/ui';
-import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useReadEnvironments } from '../commands/pairing';
 import { useEnvironments, useEnvironmentStorageStatus } from '../store';
 import { EnvironmentRow } from './environment-row';
 import { PairEnvironment } from './pair-environment';
+import { SettingsToolbar, settingsHeaderVisible } from './settings-toolbar';
 
 export function SettingsScreen({
+  onOpenAppearance,
   onOpenComponentLibrary,
 }: {
+  onOpenAppearance?: () => void;
   onOpenComponentLibrary?: () => void;
 }) {
   const [pairing, setPairing] = useState(false);
@@ -23,12 +26,26 @@ export function SettingsScreen({
   const read = useReadEnvironments();
   return (
     <>
+      <SettingsToolbar
+        disabled={storage.status !== 'ready'}
+        onAdd={() => setPairing(true)}
+      />
       <ScrollView
         className="flex-1 bg-background"
         contentInsetAdjustmentBehavior="automatic"
       >
         <View className="gap-6 px-6 py-8">
-          <Text variant="heading">Settings</Text>
+          {settingsHeaderVisible ? null : (
+            <Text variant="heading">Settings</Text>
+          )}
+          {onOpenAppearance ? (
+            <Item
+              title="Appearance"
+              description="Theme, code and documents"
+              variant="outline"
+              onPress={onOpenAppearance}
+            />
+          ) : null}
           <View className="gap-3">
             <Text variant="subheading" tone="muted">
               Environments
@@ -50,6 +67,7 @@ export function SettingsScreen({
                     <EnvironmentRow
                       key={remote.environmentId}
                       remote={remote}
+                      disabled={storage.status !== 'ready'}
                     />
                   </Fragment>
                 ))}
@@ -61,7 +79,7 @@ export function SettingsScreen({
                 label="Read saved environments again"
                 onPress={() => read(undefined)}
               />
-            ) : storage.status === 'ready' ? (
+            ) : storage.status === 'ready' && !settingsHeaderVisible ? (
               <Button
                 testID="add-environment"
                 variant="outline"

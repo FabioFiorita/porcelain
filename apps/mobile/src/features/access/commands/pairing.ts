@@ -2,15 +2,23 @@ import { Effect } from 'effect';
 import { Atom } from 'effect/reactivity';
 import { useAtom, useAtomSet } from '@effect/atom-react';
 import { useEffect, useState } from 'react';
-import { EnvironmentCommands } from '@porcelain/client/access';
+import {
+  EnvironmentCommands,
+  readRemoteStatus,
+} from '@porcelain/client/access';
 import { clientRuntime } from '../../../shared/application/store';
+import { accessPlatform } from '../../../shared/adapters/access-platform';
+import { REQUEST_TIMEOUT_MS } from '../../../config/limits';
 
 const pairEnvironment = Atom.family((_identity: symbol) =>
   clientRuntime.fn(
-    ({ value, onPaired }: { value: string; onPaired: () => void }) =>
+    ({ value, onPaired }: { value: string; onPaired: () => void }, get) =>
       Effect.gen(function* () {
         const commands = yield* EnvironmentCommands;
-        yield* commands.pair({ value });
+        const remote = yield* commands
+          .pair({ value })
+          .pipe(Effect.timeout(REQUEST_TIMEOUT_MS));
+        get.registry.refresh(readRemoteStatus(accessPlatform, remote));
         onPaired();
       }),
   ),
@@ -34,6 +42,7 @@ export function usePairEnvironment(onPaired: () => void) {
   return {
     result,
     submit: (value: string) => run({ value, onPaired }),
+    reset: () => run(Atom.Reset),
   };
 }
 

@@ -7,12 +7,17 @@ import { RNHostView } from '@expo/ui';
 import { useState } from 'react';
 import { Input } from '../../../components/ui/input';
 import { Field } from '../../../components/ui/field';
+import { ErrorState } from '../../../components/ui/error-state';
 import { ScrollView, View } from 'react-native';
-import { usePairEnvironment } from '../commands/pairing';
+import { usePairEnvironment, useReadEnvironments } from '../commands/pairing';
+import { useEnvironmentStorageStatus } from '../store';
 
 export function PairEnvironment({ onClose }: { onClose: () => void }) {
   const [value, setValue] = useState('');
   const pair = usePairEnvironment(onClose);
+  const storage = useEnvironmentStorageStatus();
+  const read = useReadEnvironments();
+  const unavailable = pair.result.waiting || storage.status !== 'ready';
   return (
     <RNHostView>
       <ScrollView
@@ -24,20 +29,36 @@ export function PairEnvironment({ onClose }: { onClose: () => void }) {
           <Text variant="heading">Pair an environment</Text>
           <Field
             label="Pairing link"
-            description="Paste the link from the computer you want to connect."
+            description="Run porcelain pair on the computer you want to connect, then paste the whole link it prints."
           >
             <Input
               testID="pairing-link"
               accessibilityLabel="Pairing link"
               value={value}
-              onChangeText={setValue}
-              disabled={pair.result.waiting}
+              onChangeText={(next) => {
+                pair.reset();
+                setValue(next);
+              }}
+              disabled={unavailable}
               placeholder="Pairing link"
               keyboardType="url"
               autoCapitalize="none"
               autoCorrect={false}
             />
           </Field>
+          {storage.error ? (
+            <ErrorState
+              message={storage.error}
+              {...(storage.status === 'unreadable'
+                ? {
+                    retry: {
+                      label: 'Read saved environments again',
+                      onPress: () => read(undefined),
+                    },
+                  }
+                : {})}
+            />
+          ) : null}
           {AsyncResult.isFailure(pair.result) ? (
             <Text accessibilityRole="alert" variant="ui" tone="destructive">
               {connectionErrorMessage(Cause.squash(pair.result.cause))}
@@ -47,6 +68,7 @@ export function PairEnvironment({ onClose }: { onClose: () => void }) {
             testID="pair-environment"
             label={pair.result.waiting ? 'Pairing…' : 'Pair'}
             pending={pair.result.waiting}
+            disabled={unavailable || value.trim() === ''}
             onPress={() => pair.submit(value)}
           />
           <Button

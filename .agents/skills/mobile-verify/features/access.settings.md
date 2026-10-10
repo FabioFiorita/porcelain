@@ -3,6 +3,8 @@ screen: /settings
 selectors:
   - "Settings"
   - "Environments"
+  - "Appearance"
+  - "add-environment"
   - "No environments paired."
   - "Add environment"
   - "Reading saved environments…"
@@ -20,7 +22,7 @@ api:
 
 ## What it is
 
-Settings lists the paired environments, each with its status, and offers Add environment. With none paired it says “No environments paired.”; while it reads the saved environments it says “Reading saved environments…”, and when they cannot be read it offers “Read saved environments again”. On iPad the content column holds one section, Environments.
+Settings lists the paired environments, each with its status, and offers Add environment. With none paired it says “No environments paired.”; while it reads the saved environments it says “Reading saved environments…”, and when they cannot be read it offers “Read saved environments again”. Appearance opens a native stack destination for this app's theme, code and document defaults. On iPhone, Add environment is a native navigation-toolbar action; other layouts retain the content action.
 
 ## How a user reaches it
 
@@ -30,9 +32,10 @@ Settings lists the paired environments, each with its status, and offers Add env
 ## Driving it
 
 1. Select the Settings tab or sidebar row, or open porcelain.dev://settings. Expect Settings, Environments, the card's paired environment marked Online and Add environment.
-2. Follow access.forget-environment for the only paired fixture. Expect No environments paired.
-3. Return through Review, Files and History and reopen Settings. Expect the same environment state.
-4. Reading saved environments… is transient. Read saved environments again requires a storage-error fixture; do not claim it from normal startup.
+2. Open Appearance, follow preferences.appearance, and return through native Back. Expect the same environments and Add environment.
+3. Follow access.forget-environment for the only paired fixture. Expect No environments paired.
+4. Return through Review, Files and History and reopen Settings. Expect the same environment state.
+5. Reading saved environments… is transient. Read saved environments again requires a storage-error fixture; do not claim it from normal startup.
 
 ## What proves it works
 
