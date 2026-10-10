@@ -409,7 +409,7 @@ module.exports = {
       severity: 'error',
       from: { path: '^apps/mobile/src/components/ui/' },
       to: {
-        path: '^(?:apps/mobile/src/shared/(?:api|adapters|application)/|packages/client/src/)',
+        path: '^(?:apps/mobile/src/shared/(?:api|adapters|application)/|packages/(?:client|contracts)/src/)',
         pathNot: '^packages/client/src/features/[^/]+/rules/',
         dependencyTypesNot: ['type-only'],
       },

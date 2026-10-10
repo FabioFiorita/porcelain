@@ -129,6 +129,16 @@ export default [
     errors: 1,
   },
 
+  {
+    rule: 'mobile-ui-imports-no-state',
+    path: 'apps/mobile/src/components/ui/file-tree.tsx',
+    valid:
+      "import type { ListDirectoryResponse } from '@porcelain/contracts/files';",
+    invalid:
+      "import { listDirectoryResponseSchema } from '@porcelain/contracts/files';",
+    errors: 1,
+  },
+
   ...[
     'packages/client/src/features/reviews/rules/proof.ts',
     'apps/mobile/src/shared/rules/order.ts',

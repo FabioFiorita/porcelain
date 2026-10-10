@@ -50,6 +50,19 @@ export default [
   ),
 
   pair(
+    'mobile-ui-imports-no-state',
+    {
+      'apps/mobile/src/components/ui/link.tsx':
+        "import type { Value } from '../../../../../packages/contracts/src/files/files.ts'; export type Result = Value;",
+      'packages/contracts/src/files/files.ts': 'export type Value = string;',
+    },
+    edge(
+      'apps/mobile/src/components/ui/link.tsx',
+      'packages/contracts/src/files/files.ts',
+      '../../../../../packages/contracts/src/files/files.ts',
+    ),
+  ),
+  pair(
     'mobile-shared-imports-no-owner',
     edge(
       'apps/mobile/src/components/ui/item.tsx',

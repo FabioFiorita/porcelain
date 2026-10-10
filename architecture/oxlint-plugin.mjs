@@ -902,7 +902,7 @@ export default {
           ImportDeclaration(node) {
             const source = node.source.value;
             if (
-              !/^@porcelain\/client(?:\/|$)/.test(source) ||
+              !/^@porcelain\/(?:client|contracts)(?:\/|$)/.test(source) ||
               typeOnlyImport(node) ||
               /^@porcelain\/client\/[^/]+\/rules$/.test(source)
             )
