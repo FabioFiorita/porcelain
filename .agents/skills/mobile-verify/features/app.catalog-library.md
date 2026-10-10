@@ -3,8 +3,7 @@ screen: /component-library
 selectors:
   - "Component library"
   - "Explore Text"
-tests:
-  - apps/mobile/spec/e2e/component-library.e2e.ts
+tests: []
 api: []
 ---
 

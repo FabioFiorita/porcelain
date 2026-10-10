@@ -1,6 +1,12 @@
 const unit = 'export const value = 1;';
+const publicImport = (from, to, specifier) => {
+  const owner = /^((?:apps|packages)\/([^/]+))\//.exec(to);
+  return owner && !from.startsWith(`${owner[1]}/`) && specifier.startsWith('.')
+    ? `@porcelain/${owner[2]}/${to.slice(owner[1].length + 1)}`
+    : specifier;
+};
 const edge = (from, to, specifier) => ({
-  [from]: `import { value } from '${specifier}'; export const result = value;`,
+  [from]: `import { value } from '${publicImport(from, to, specifier)}'; export const result = value;`,
   [to]: unit,
 });
 const pair = (rule, valid, invalid) => ({ rule, valid, invalid });

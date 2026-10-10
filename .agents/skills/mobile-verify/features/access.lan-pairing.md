@@ -5,8 +5,7 @@ selectors:
   - "pairing-link"
   - "pair-environment"
   - "Online"
-tests:
-  - apps/mobile/spec/e2e/pairing.e2e.ts
+tests: []
 api:
   - POST /api/pair
   - GET /api/environment
@@ -33,7 +32,7 @@ Pairing with a Porcelain that runs on another computer on the local network, thr
 
 ## What proves it works
 
-- `apps/mobile/spec/e2e/pairing.e2e.ts`: the pairing and cold-launch reconnection over a disposable loopback server. The disposable server's sandbox listens on loopback only, so the LAN transport itself stays this manual checkpoint.
+Drive this feature with the mobile-verify skill on demand.
 
 ## Gotchas
 

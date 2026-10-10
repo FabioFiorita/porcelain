@@ -1,3 +1,4 @@
+import { fileWatchPaths } from './file-watch-paths.ts';
 import { watch as watchDirectory } from 'node:fs';
 import * as parcelWatcher from '@parcel/watcher';
 import {
@@ -103,19 +104,12 @@ export const parcelWorktreeWatcherLayer = (options: {
           (error, events) => {
             if (state.closed) return;
             if (error) return state.changed([]);
-            state.changed(
-              events.flatMap((event) => {
-                const path = pathCapability.relative(state.root, event.path);
-                if (
-                  path === '' ||
-                  path.startsWith(`..${pathCapability.sep}`) ||
-                  path === '..'
-                )
-                  return [];
-                const reported = path.split(pathCapability.sep).join('/');
-                return options.isTemporaryWrite(reported) ? [] : [reported];
-              }),
+            const paths = fileWatchPaths(
+              state.root,
+              events,
+              options.isTemporaryWrite,
             );
+            if (paths) state.changed(paths);
           },
           {
             ...backend(),

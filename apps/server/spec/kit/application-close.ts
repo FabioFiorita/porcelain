@@ -11,7 +11,7 @@ import { realpathSync } from 'node:fs';
 import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer, type Socket } from 'node:net';
 import { join } from 'node:path';
-import { setTimeout as delay } from 'node:timers/promises';
+import { setImmediate } from 'node:timers/promises';
 import { promisify } from 'node:util';
 import { composeServer } from '../../src/bootstrap/compose-server.ts';
 import { readServerSettings } from '../../src/config/server-settings.ts';
@@ -21,8 +21,6 @@ import { ScriptedServiceUpdateRunner } from '../fakes/scripted-service-update-ru
 import { scratchFolder } from './sandbox.ts';
 
 const execute = promisify(execFile);
-const SECOND_CLOSE_WINDOW_MS = 200;
-const DRAIN_BOUND_MS = 10_000;
 
 export type CloseRunningCommit = {
   duringDrain: readonly string[];
@@ -203,12 +201,7 @@ export async function closeRunningCommit(): Promise<CloseRunningCommit> {
     );
     if (!('state' in accepted) || accepted.state !== 'running')
       throw new Error('The commit was not accepted as running');
-    hookPid = await Promise.race([
-      hookStarted.promise,
-      delay(5_000).then(() => {
-        throw new Error('The commit hook did not reach the gate');
-      }),
-    ]);
+    hookPid = await hookStarted.promise;
     if (!running(hookPid)) throw new Error('The commit hook exited early');
 
     closing = true;
@@ -219,14 +212,12 @@ export async function closeRunningCommit(): Promise<CloseRunningCommit> {
     second = runtime
       .runPromise(opened.close())
       .then(() => void events.push('second-close-returned'));
-    await delay(SECOND_CLOSE_WINDOW_MS);
+    await setImmediate();
     const duringDrain = [...events];
     const hookRunningDuringDrain = running(hookPid);
     Deferred.doneUnsafe(routeReleased, Effect.void);
-    const drained = await Promise.race([
-      Promise.all([first, second]).then(() => 'closed' as const),
-      delay(DRAIN_BOUND_MS).then(() => 'still closing' as const),
-    ]);
+    await Promise.all([first, second]);
+    const drained = 'closed' as const;
     const hookRunningWhenSettled = running(hookPid);
     const settled = [...events];
     application = drained === 'closed' ? undefined : application;

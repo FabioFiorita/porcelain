@@ -8,10 +8,7 @@ selectors:
   - "New folder"
   - "Rename"
   - "Move to trash"
-tests:
-  - apps/mobile/spec/e2e/files.e2e.ts
-  - apps/mobile/spec/e2e/phone-shell.e2e.ts
-  - apps/mobile/spec/e2e/destinations.e2e.ts
+tests: []
 api:
   - GET /api/worktrees/:worktreeId/directory
   - GET /api/worktrees/:worktreeId/paths

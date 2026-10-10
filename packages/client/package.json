@@ -24,7 +24,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.spec.json",
     "test": "vitest run --config ../../vitest.config.ts --project @porcelain/client",
-    "test:integration": "vitest run --config ../../vitest.config.ts --project @porcelain/client-integration"
+    "test:integration": "vitest run --config ../../vitest.integration.config.ts --project @porcelain/client-integration"
   },
   "dependencies": {
     "@porcelain/access": "workspace:*",

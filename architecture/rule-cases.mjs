@@ -114,7 +114,50 @@ const observedStoreState = `describe('MarkCommentsSeenService', () => {
 
 export default [
   ...effectRuleCases,
-
+  {
+    rule: 'spec-no-clock',
+    path: 'packages/client/src/features/files/rules/sample.spec.ts',
+    valid: 'expect(parse(input)).toEqual([]);',
+    invalid:
+      'const start = performance.now(); expect(Date.now()).toBeLessThan(1000);',
+    errors: 2,
+  },
+  {
+    rule: 'server-spec-no-waits',
+    path: 'apps/server/spec/integration/sample.integration.ts',
+    valid: 'await connection.next(notice => notice.type === "subscribed");',
+    invalid: 'await delay(600);',
+    errors: 1,
+  },
+  {
+    rule: 'server-spec-no-waits',
+    path: 'apps/server/src/adapters/sample.spec.ts',
+    valid: 'await expect.poll(() => pipeHasReader(head)).toBe(true);',
+    invalid: 'await Effect.sleep(300);',
+    errors: 1,
+  },
+  {
+    rule: 'server-spec-no-waits',
+    path: 'apps/server/spec/kit/sample.ts',
+    valid: 'await once(child, "exit");',
+    invalid:
+      'import { setTimeout as pause } from "node:timers/promises"; await pause(100);',
+    errors: 1,
+  },
+  {
+    rule: 'spec-no-mocking',
+    path: 'packages/client/src/features/files/rules/sample.spec.ts',
+    valid: 'console.warn("observed");',
+    invalid: 'console.warn = () => {}; window.fetch = () => {};',
+    errors: 2,
+  },
+  {
+    rule: 'web-browser-spec-no-mocks',
+    path: 'apps/web/spec/integration/sample.test.tsx',
+    valid: 'console.warn("observed");',
+    invalid: 'console.warn = () => {}; window.fetch = () => {};',
+    errors: 2,
+  },
   {
     rule: 'web-api-owns-request',
     path: 'apps/web/src/features/reviews/live.ts',
@@ -2830,6 +2873,28 @@ function featureMapCase(rule, invalid, errors, options = {}) {
   };
 }
 const featureMapCases = [
+  featureMapCase(
+    'mobile-on-demand',
+    {
+      [`${featureFolders.web}/app.fixture.md`]: featureMap('route: /').replace(
+        'tests: [spec/feature.test.ts]',
+        'tests: []',
+      ),
+    },
+    [
+      'its frontmatter holds',
+      'the web feature map is empty',
+      'which no web map file names',
+    ],
+    {
+      valid: {
+        [`${featureFolders.mobile}/app.fixture.md`]: featureMap(
+          'screen: /',
+        ).replace('tests: [spec/feature.test.ts]', 'tests: []'),
+      },
+    },
+  ),
+
   ...[
     ['missing', 'Instructions without frontmatter.'],
     ['yaml', '---\nroute: [\n---\nInstructions.'],
@@ -3314,5 +3379,78 @@ Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => unde
     second: 'apps/web/src/copy-again.ts',
     valid: 'export const label = "Unique";',
     invalid: duplicateFixtureSource,
+  },
+];
+
+export const workspaceBoundaryCases = [
+  {
+    rule: 'workspace-relative-imports-stay-owned',
+    valid: {
+      'apps/server/spec/kit/read.ts':
+        "import { value } from './value.ts'; export const result = value;",
+      'apps/server/spec/kit/value.ts': 'export const value = 1;',
+    },
+    invalid: {
+      'apps/server/spec/kit/read.ts':
+        "import { value } from '../../../mobile/spec/kit/value.ts'; export const result = value;",
+      'apps/mobile/spec/kit/value.ts': 'export const value = 1;',
+    },
+  },
+];
+
+export const specGapCases = [
+  {
+    source: 'export function decide() {}',
+    spec: "import { decide as choice } from './sample.ts'; choice();",
+    gaps: [],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import { decide } from './sample.ts';",
+    gaps: ['decide'],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: 'function decide() {} decide();',
+    gaps: ['decide'],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import * as rules from './sample.ts'; rules.decide();",
+    gaps: [],
+  },
+  {
+    source: 'export const decide = () => 1;',
+    spec: undefined,
+    gaps: ['decide'],
+  },
+  { source: 'export type Decision = string;', spec: undefined, gaps: [] },
+  {
+    source: "export { decide } from './decision.ts';",
+    spec: undefined,
+    gaps: [],
+  },
+];
+
+export const specGapRatchetCases = [
+  { current: [], baseline: [], allowed: ['old'], errors: [] },
+  { current: ['old'], baseline: ['old'], allowed: ['old'], errors: [] },
+  {
+    current: ['new'],
+    baseline: [],
+    allowed: [],
+    errors: ['Unspecified rule export: new'],
+  },
+  {
+    current: [],
+    baseline: ['old'],
+    allowed: ['old'],
+    errors: ['Remove resolved baseline entry: old'],
+  },
+  {
+    current: ['new'],
+    baseline: ['new'],
+    allowed: ['old'],
+    errors: ['The spec-gap baseline may only shrink: new'],
   },
 ];

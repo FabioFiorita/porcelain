@@ -1,9 +1,0 @@
-appId: com.fabiofiorita.porcelain.dev
-name: Open adaptive native Settings
----
-- runFlow:
-    when:
-      visible: (Show Sidebar|Toggle sidebar)
-    commands:
-      - tapOn: (Show Sidebar|Toggle sidebar)
-- tapOn: Settings

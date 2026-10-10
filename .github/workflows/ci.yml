@@ -18,7 +18,8 @@ jobs:
     timeout-minutes: 30
     outputs:
       server: ${{ steps.affected.outputs.server }}
-      web: ${{ steps.affected.outputs.web }}
+      web-integration: ${{ steps.affected.outputs.web-integration }}
+      web-e2e: ${{ steps.affected.outputs.web-e2e }}
       desktop: ${{ steps.affected.outputs.desktop }}
       storage: ${{ steps.affected.outputs.storage }}
     steps:
@@ -37,12 +38,13 @@ jobs:
           pnpm exec turbo run test:integration test:e2e build db:check --affected --dry=json > "$RUNNER_TEMP/runtime.json"
           jq -e '.tasks | type == "array"' "$RUNNER_TEMP/runtime.json" > /dev/null
           server=$(jq 'any(.tasks[]; .taskId == "@porcelain/server#test:integration" or .taskId == "@porcelain/client#test:integration")' "$RUNNER_TEMP/runtime.json")
-          web=$(jq 'any(.tasks[]; .taskId == "@porcelain/web#test:integration" or .taskId == "@porcelain/web#test:e2e" or .taskId == "@porcelain/web#build")' "$RUNNER_TEMP/runtime.json")
+          web_integration=$(jq 'any(.tasks[]; .taskId == "@porcelain/web#test:integration")' "$RUNNER_TEMP/runtime.json")
+          web_e2e=$(jq 'any(.tasks[]; .taskId == "@porcelain/web#test:e2e")' "$RUNNER_TEMP/runtime.json")
           desktop=$(jq 'any(.tasks[]; .taskId == "@porcelain/desktop#test:e2e")' "$RUNNER_TEMP/runtime.json")
           storage=$(jq 'any(.tasks[]; .taskId == "@porcelain/storage#db:check")' "$RUNNER_TEMP/runtime.json")
-          for surface in server web desktop storage; do
+          for surface in server web_integration web_e2e desktop storage; do
             case "${!surface}" in
-              true|false) printf '%s=%s\n' "$surface" "${!surface}" >> "$GITHUB_OUTPUT" ;;
+              true|false) printf '%s=%s\n' "${surface//_/-}" "${!surface}" >> "$GITHUB_OUTPUT" ;;
               *) exit 1 ;;
             esac
           done
@@ -103,9 +105,9 @@ jobs:
       - run: pnpm exec playwright install --with-deps --only-shell chromium
       - run: pnpm exec turbo run test:integration --affected --filter=@porcelain/server --filter=@porcelain/client --concurrency=1 --continue
 
-  web:
+  web-integration:
     needs: affected
-    if: ${{ needs.affected.outputs.web == 'true' }}
+    if: ${{ needs.affected.outputs.web-integration == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -125,11 +127,38 @@ jobs:
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: pnpm exec playwright install --with-deps --only-shell chromium
       - run: pnpm --filter @porcelain/web test:integration
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: web-integration
+          path: apps/web/test-results/
+
+  web-e2e:
+    needs: affected
+    if: ${{ needs.affected.outputs.web-e2e == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@24.20.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @porcelain/web build
+      - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
+      - name: Allow the disposable server's user namespace
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
+      - run: pnpm exec playwright install --with-deps --only-shell chromium
       - run: pnpm --filter @porcelain/web test:e2e
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: web-tests
+          name: web-e2e
           path: apps/web/test-results/
 
   migrations:
@@ -183,7 +212,8 @@ jobs:
         static,
         units,
         server-integration,
-        web,
+        web-integration,
+        web-e2e,
         migrations,
         desktop-e2e,
       ]

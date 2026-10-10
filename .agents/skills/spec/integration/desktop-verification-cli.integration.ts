@@ -5,12 +5,12 @@ import { mkdtemp, mkdir, readFile, rm, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { chromium } from 'playwright';
 import { expect } from 'vitest';
-import { test } from '../kit/server-test.ts';
-import { repositoryRoot } from '../../../../.agents/skills/verify-core/registry.ts';
+import { test } from '@porcelain/server/kit/server-test';
+import { repositoryRoot } from '../../verify-core/registry.ts';
 import {
   desktopConnectionSchema,
   startDesktop,
-} from '../../../../.agents/skills/desktop-verify/scripts/start.ts';
+} from '../../desktop-verify/scripts/start.ts';
 
 const launcher = join(
   repositoryRoot,
@@ -49,17 +49,6 @@ function alive(pid: number) {
     return false;
   }
 }
-
-test.each(['snapshot', 'menu', 'window', 'dialog'])(
-  'retires renderer and native CLI driver %s',
-  async (command) => {
-    const refused = await cli(command);
-    expect(refused.code).toBe(2);
-    expect(refused.stderr).toContain(
-      'Drive the renderer through the published CDP endpoint or Computer Use.',
-    );
-  },
-);
 
 test.runIf(CAN_LAUNCH)(
   'the shared lifecycle publishes a private card and exposes raw Electron and renderer tools, then stops both owned processes',

@@ -1,5 +1,4 @@
 import * as Schema from 'effect/Schema';
-import { setTimeout as delay } from 'node:timers/promises';
 import { readChangesResponseSchema } from '@porcelain/contracts/changes';
 import { expect } from 'vitest';
 import {
@@ -107,9 +106,10 @@ test('reading the changes of the sample unstaged change returns its entry, the h
 
 test('reads that find the catalog entry stale refresh it and still answer the worktree as it was', async ({
   session,
+  server,
 }) => {
   const before = await read(session, changesRead(session));
-  await delay(session.fixture.inventoryStaleAfterMs);
+  await server.advanceTime(session.fixture.inventoryStaleAfterMs);
 
   const responses = [];
   for (let index = 0; index < 8; index += 1)

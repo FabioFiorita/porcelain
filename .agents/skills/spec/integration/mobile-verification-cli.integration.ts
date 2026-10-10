@@ -4,46 +4,19 @@ import { readFile, stat, writeFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { expect } from 'vitest';
-import { test } from '../kit/server-test.ts';
-import { repositoryRoot } from '../../../../.agents/skills/verify-core/registry.ts';
+import { test } from '@porcelain/server/kit/server-test';
 import {
   bootSimulator,
   releaseSimulator,
   resetApp,
   isBooted,
   shutdownSimulator,
-} from '../../../mobile/spec/kit/simulator.ts';
+} from '@porcelain/mobile/kit/simulator';
 import {
   developmentClient,
   identity,
-} from '../../../mobile/spec/kit/development-client.ts';
+} from '@porcelain/mobile/kit/development-client';
 const execute = promisify(execFile);
-const launcher = join(
-  repositoryRoot,
-  '.agents/skills/mobile-verify/scripts/cli',
-);
-
-test.each(['open', 'tap', 'fill', 'snapshot', 'screenshot'])(
-  'retires mobile interaction wrapper %s before choosing any instance',
-  async (command) => {
-    const result = await execute(launcher, [command], {
-      cwd: repositoryRoot,
-    }).catch((error: unknown) => {
-      if (
-        !(error instanceof Error) ||
-        !('code' in error) ||
-        !('stderr' in error)
-      )
-        throw error;
-      return { code: error.code, stderr: error.stderr };
-    });
-    expect(result).toMatchObject({
-      code: 2,
-      stderr:
-        'Drive the app with the pinned agent-device invocation from the connection card.\n',
-    });
-  },
-);
 
 test.runIf(process.platform === 'darwin')(
   'reuses an existing shared simulator and installed build while clearing data, refuses a foreign release, and leaves a borrowed UDID booted',

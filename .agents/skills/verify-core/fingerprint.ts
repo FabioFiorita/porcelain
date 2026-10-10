@@ -33,7 +33,7 @@ function filesOf(root: string, path: string): string[] {
       : filesOf(root, join(path, entry.name)),
   );
 }
-export function hashOf(root: string, paths: readonly string[]): string {
+function hashOf(root: string, paths: readonly string[]): string {
   const hash = createHash('sha256');
   for (const file of [
     ...new Set(paths.flatMap((path) => filesOf(root, path))),

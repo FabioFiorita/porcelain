@@ -5,8 +5,26 @@ import { parseSync } from 'oxc-parser';
 import plugin from './oxlint-plugin.mjs';
 import { runGuardrailCases } from './guardrail-tests.mjs';
 
-import ruleCases from './rule-cases.mjs';
+import ruleCases, { specGapCases, specGapRatchetCases } from './rule-cases.mjs';
+import { unspecifiedExports, specGapProblems } from './spec-gaps.mjs';
+for (const fixture of specGapCases)
+  deepStrictEqual(
+    unspecifiedExports(
+      'packages/client/src/features/files/rules/sample.ts',
+      fixture.source,
+      fixture.spec,
+    ),
+    fixture.gaps,
+  );
+process.stdout.write(
+  'PASS spec-gap fixtures: called, uncalled, aliased, shadowed, namespace, missing, type and barrel exports\n',
+);
 import { runBoundaryCases } from './boundary-tests.mjs';
+for (const fixture of specGapRatchetCases)
+  deepStrictEqual(
+    specGapProblems(fixture.current, fixture.baseline, fixture.allowed),
+    fixture.errors,
+  );
 await runBoundaryCases();
 if (process.argv.includes('--boundaries')) process.exit(0);
 import { readFileSync } from 'node:fs';

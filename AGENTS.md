@@ -50,7 +50,9 @@ Domain services and server use cases use named `Context.Service` capabilities wi
 | ------------- | ------------------------------------------------- | ----------------------------------------------- | -------------------- | --------------------------------------- |
 | Unit (Vitest) | services, rules, parsers                          | rules, stores                                   | main-process modules | rules; `packages/client`                |
 | Integration   | the built server over HTTP, real database and Git | Browser Mode: one feature against a real server | the bridge on macOS  | `packages/client` against a real server |
-| E2E           | covered by integration                            | Playwright Test                                 | Playwright Electron  | Maestro                                 |
+| E2E           | covered by integration                            | Playwright Test                                 | Playwright Electron  | none                                    |
+
+The mobile-verify skill drives mobile features on demand.
 
 A test states a promise. Derive its cases from what the unit is for (its contract, the feature, the request) before reading the code, so a wrong implementation fails it. A file that only forwards, wires or re-exports gets no test of its own, and coverage is never a reason. Assert literal values and observable effects; a test that would still pass if every import returned `undefined` is rewritten or deleted. Fakes stand in only at ports; Git, files and the database are real when the unit is about them.
 

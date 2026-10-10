@@ -1,15 +1,15 @@
 import { Schema } from 'effect';
 import { spawn, spawnSync } from 'node:child_process';
-import { simulatorSchema } from '../../../../apps/mobile/spec/kit/simulator.ts';
+import { simulatorSchema } from '@porcelain/mobile/kit/simulator';
 import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   identity,
   developmentLink,
   screenLink,
-} from '../../../../apps/mobile/spec/kit/development-client.ts';
-import type { RemoteHost } from '../../../../apps/mobile/spec/kit/device-host.ts';
-import { agentDevice } from '../../../../apps/mobile/spec/kit/tools.ts';
+} from '@porcelain/mobile/kit/development-client';
+import type { RemoteHost } from '@porcelain/mobile/kit/device-host';
+import { agentDevice } from '@porcelain/mobile/kit/tools';
 import { Refusal } from '../../verify-core/cli.ts';
 import { shellCommand } from '../../verify-core/connection.ts';
 import { hubToken, hubUrl } from './host.ts';

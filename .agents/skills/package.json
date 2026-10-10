@@ -1,0 +1,16 @@
+{
+  "name": "@porcelain/verification",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./processes": "./verify-core/processes.ts"
+  },
+  "dependencies": {
+    "@porcelain/contracts": "workspace:*",
+    "@porcelain/desktop": "workspace:*",
+    "@porcelain/mobile": "workspace:*",
+    "@porcelain/server": "workspace:*",
+    "effect": "4.0.1",
+    "playwright": "1.63.0"
+  }
+}

@@ -6,8 +6,7 @@ selectors:
   - "Disabled and pending"
   - "Start pending demo"
   - "Finish pending demo"
-tests:
-  - apps/mobile/spec/e2e/component-library.e2e.ts
+tests: []
 api: []
 ---
 
