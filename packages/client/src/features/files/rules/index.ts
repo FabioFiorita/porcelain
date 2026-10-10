@@ -12,3 +12,4 @@ export { type FilesScope } from './scope.ts';
 export { fileErrorMessage, surfaceErrorMessage } from './error-message.ts';
 export { fileTreeAncestors, mergeFileTreeEntries } from './file-tree.ts';
 export { quickOpenMatches } from './quick-open.ts';
+export { isImagePath } from './image-path.ts';

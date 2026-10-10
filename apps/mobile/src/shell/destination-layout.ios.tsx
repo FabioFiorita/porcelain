@@ -12,14 +12,11 @@ export function DestinationLayout({
   children?: ReactNode;
 }) {
   return (
-    <Stack
-      screenOptions={
-        deviceType === DeviceType.TABLET
-          ? { headerShown: false }
-          : { headerBackButtonDisplayMode: 'minimal' }
-      }
-    >
-      <Stack.Screen name={name} options={{ title }} />
+    <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
+      <Stack.Screen
+        name={name}
+        options={{ title, headerShown: deviceType !== DeviceType.TABLET }}
+      />
       {children}
     </Stack>
   );

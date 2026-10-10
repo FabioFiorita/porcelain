@@ -12,7 +12,7 @@ api: []
 
 ## What it is
 
-Holding an environment row in Settings opens its native context menu with “Forget environment”, which removes the environment, its Keychain credential and its remembered workspace from this device. The server keeps the device; forgetting is local. The removal survives a cold launch, and forgetting one environment keeps the others.
+Holding an environment row in Settings opens its native context menu with “Forget environment”, which removes the environment, its Keychain credential and its remembered workspace from this device. Forget is disabled while saved environments cannot be read or the removal is pending. A removal error appears in the row. The server keeps the device; forgetting is local. The removal survives a cold launch, and forgetting one environment keeps the others.
 
 ## How a user reaches it
 

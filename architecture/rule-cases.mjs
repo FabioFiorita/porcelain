@@ -3078,6 +3078,36 @@ const featureMapCases = [
 ];
 
 export const guardrailCases = [
+  {
+    rule: 'knip-expo-framework-exports',
+    path: '/fixture/apps/mobile/src/app/(settings)/_layout.tsx',
+    source:
+      "export const unstable_settings = { anchor: 'settings' };\nexport const unrelated = true;\nexport default function Layout() { return null; }",
+    expected:
+      "/** @public */\nexport const unstable_settings = { anchor: 'settings' };\nexport const unrelated = true;\n/** @public */\nexport default function Layout() { return null; }",
+  },
+  {
+    rule: 'knip-expo-framework-exports',
+    path: '/fixture/apps/mobile/src/app/(settings)/_layout.tsx',
+    source:
+      "const settings = { anchor: 'settings' };\nexport { settings as unstable_settings };",
+    expected:
+      "const settings = { anchor: 'settings' };\n/** @public */\nexport { settings as unstable_settings };",
+  },
+  {
+    rule: 'knip-expo-framework-exports',
+    path: '/fixture/apps/mobile/src/app/(settings)/_layout.tsx',
+    source:
+      "export const unstable_settings = { anchor: 'settings' }, unrelated = true;",
+    expected:
+      "export const unstable_settings = { anchor: 'settings' }, unrelated = true;",
+  },
+  {
+    rule: 'knip-expo-framework-exports',
+    path: '/fixture/apps/mobile/src/features/access/views/settings-screen.tsx',
+    source: "export const unstable_settings = { anchor: 'settings' };",
+    expected: "export const unstable_settings = { anchor: 'settings' };",
+  },
   ...featureMapCases,
   {
     rule: 'worktree-use-case-checks',

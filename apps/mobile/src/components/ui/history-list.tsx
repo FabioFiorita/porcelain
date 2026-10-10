@@ -1,4 +1,5 @@
 import { useResolveClassNames } from 'uniwind';
+import type { ReactNode } from 'react';
 import { FlatList, View } from 'react-native';
 import { CommitRow, type HistoryEntry } from './commit-row';
 import { Empty } from './empty';
@@ -13,6 +14,8 @@ export function HistoryList({
   hasMore = false,
   onSelect,
   onLoadMore,
+  footer,
+  header,
 }: {
   entries: readonly HistoryEntry[];
   selected?: string;
@@ -20,11 +23,15 @@ export function HistoryList({
   hasMore?: boolean;
   onSelect: (id: string) => void;
   onLoadMore?: () => void;
+  footer?: ReactNode;
+  header?: ReactNode;
 }) {
   const padding = useResolveClassNames('px-2');
   return (
     <FlatList
+      contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={padding}
+      ListHeaderComponent={header === undefined ? undefined : <>{header}</>}
       data={entries}
       keyExtractor={(entry) => entry.id}
       renderItem={({ item }) => (
@@ -51,7 +58,9 @@ export function HistoryList({
         )
       }
       ListFooterComponent={
-        loading ? (
+        footer !== undefined ? (
+          <>{footer}</>
+        ) : loading ? (
           <Loading label="Loading commits…" />
         ) : entries.length && !hasMore ? (
           <View className="py-4">

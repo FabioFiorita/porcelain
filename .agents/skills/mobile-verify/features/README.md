@@ -16,11 +16,20 @@ One file per screen and flow the mobile app offers, named `<domain>.<capability>
 | [app.deep-links](app.deep-links.md)                       | /                  | The app's scheme opens Review, Files, History and Settings directly, warm or after a cold launch.                                                                |
 | [app.phone-shell](app.phone-shell.md)                     | /                  | On a phone, four native tabs, ready on Files within 30 seconds of a cold launch.                                                                                 |
 | [app.tablet-shell](app.tablet-shell.md)                   | /                  | On iPad, a SwiftUI three-column split that keeps its master and detail through sidebar collapse and rotation.                                                    |
-| [files.files](files.files.md)                             | /files             | Files shows its empty state; it reads no files yet.                                                                                                              |
-| [history.history](history.history.md)                     | /history           | History shows its empty state; it reads no commits yet.                                                                                                          |
+| [files.files](files.files.md)                             | /files             | Browse and search the selected worktree; create, rename and trash entries.                                                                                                              |
+| [files.preview](files.preview.md) | /file | Read source, Markdown, self-contained HTML and images; unsupported entries show notices. |
+| [files.edit](files.edit.md) | /file-edit | Edit with shared autosave and fingerprint conflict protection in a native sheet. |
+| [history.history](history.history.md)                     | /history           | History lists live commits for the selected worktree and loads older pages.                                                                                                          |
 | [projects.workspace-picker](projects.workspace-picker.md) | /files             | The toolbar lists projects from every paired environment together; expanding a project shows its worktrees, and choosing one restores after a cold launch.       |
-| [reviews.review](reviews.review.md)                       | /review            | Review, the second destination after Files, shows its empty state; it reads no review yet.                                                                       |
+| [preferences.appearance](preferences.appearance.md) | /appearance | Appearance preserves Theme, Long lines and document defaults across cold launches and offers recovery when saved preferences cannot be read. |
+| [reviews.review](reviews.review.md)                       | /review            | Live changed files, reviewed markers, agent explanations and comments for the selected worktree.                                                                       |
+
+| [history.commit](history.commit.md) | /history/commit/[oid] | Commit message, comparison parents and changed files. |
+| [history.diff](history.diff.md) | /history/commit/[oid]/diff | Read-only commit file diff and explicit unavailable states. |
 
 ## Platform coverage
 
 Existing iPhone and iPad e2e coverage is referenced in each map; `pairing.e2e.ts` runs on both. Android has its own native views (`*.android.tsx`) and is not proven yet: it needs its own build and native proof. The iOS Local Network permission prompt needs a physical device.
+
+- [reviews.file](reviews.file.md): Open a current comparison, mark it reviewed and select lines for feedback.
+- [reviews.comments](reviews.comments.md): Post, reply, resolve and reopen feedback in the native sheet.

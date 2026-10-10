@@ -1,38 +1,21 @@
 ---
 screen: /history
 selectors:
-  - "History"
-  - "Select a worktree to continue."
+  - 'History'
+  - 'Select a worktree to continue.'
+  - 'No commits yet'
+  - "Couldn't load history"
 tests:
-  - apps/mobile/spec/e2e/phone-shell.e2e.ts
   - apps/mobile/spec/e2e/destinations.e2e.ts
-  - apps/mobile/spec/e2e/tablet-shell.tablet.e2e.ts
-api: []
+  - apps/mobile/spec/e2e/history.e2e.ts
+api:
+  - GET /api/worktrees/:worktreeId/commits
 ---
 
 # history.history
 
-## What it is
+History uses the selected environment, project and worktree and the shared live history reader. It follows the branch or detached HEAD, loads older commits as the list reaches its end, and shows restart, shallow-clone and wide-frontier boundaries. No selection shows Select a worktree to continue.; an unborn branch shows No commits yet. Read failures offer Retry.
 
-History is the third destination. It does not read commits from the server yet: it shows its empty state, the heading “History” over “Select a worktree to continue.”, whatever is paired or selected.
+Open the native History tab or porcelain.dev://history. Select a worktree through its native toolbar menu. Open a commit row; return with the native back button or swipe. Switch worktrees through the toolbar and confirm history belongs to the new selection. Add a commit through the disposable fixture and confirm the live reader updates. Scroll a repository with more than one page until older commits and the boundary appear. Disconnect the disposable server and confirm an error and working retry after recovery.
 
-## How a user reaches it
-
-- phone: the History tab; iPad: History in the sidebar
-- the deep link `porcelain.dev://history`, warm or straight after a cold launch
-
-## Driving it
-
-1. Select the History tab or sidebar row, then reach it through porcelain.dev://history. Expect History and Select a worktree to continue.
-2. Inspect a screenshot for the matching native selection.
-3. Cold-launch with the History link. Expect History directly.
-4. Return through Files and reopen History. Expect the same placeholder; commit reading is not implemented by this screen.
-
-## What proves it works
-
-- `apps/mobile/spec/e2e/destinations.e2e.ts`: the deep link opens History directly, warm and after a cold launch, with the tab selected and its empty state.
-- `apps/mobile/spec/e2e/phone-shell.e2e.ts` and `apps/mobile/spec/e2e/tablet-shell.tablet.e2e.ts`: History is selectable on phone and iPad.
-
-## Gotchas
-
-- The empty state is the only state; a server whose project has no commits shows the same screen.
+The destinations spec protects the unpaired deep link. The named History spec protects paired browsing and native back navigation. Pagination, live update and error recovery need native verification against the disposable server. iPad and Android are not proved by an iPhone run.

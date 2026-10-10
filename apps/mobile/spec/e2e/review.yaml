@@ -1,0 +1,30 @@
+appId: com.fabiofiorita.porcelain.dev
+name: Review a file, mark it reviewed and post native feedback
+---
+- runFlow: connect.yaml
+- runFlow: open-settings.yaml
+- runFlow:
+    file: add-environment.yaml
+    env:
+      PAIRING_LINK: ${PAIRING_LINK}
+      ENVIRONMENT_NAME: ${ENVIRONMENT_NAME}
+- tapOn: Review
+- tapOn: Workspace
+- tapOn: ${PROJECT_NAME}, ${ENVIRONMENT_NAME}
+- tapOn: ${WORKTREE_LABEL}
+- assertVisible: Review README.md
+- tapOn: Review README.md
+- assertVisible: Comment on file
+- tapOn: Mark README.md as reviewed
+- assertVisible: Unmark README.md as unreviewed
+- tapOn: Comment on file
+- assertVisible: Review comment
+- tapOn:
+    id: review-comment-input
+- inputText: Please explain this change.
+- tapOn: Add comment
+- assertVisible: Please explain this change.
+- tapOn: Done
+- assertVisible: Comment on file
+- tapOn: Back
+- assertVisible: Review README.md

@@ -3,38 +3,29 @@ screen: /files
 selectors:
   - "Files"
   - "Select a worktree to continue."
+  - "Search files"
+  - "New file"
+  - "New folder"
+  - "Rename"
+  - "Move to trash"
 tests:
+  - apps/mobile/spec/e2e/files.e2e.ts
   - apps/mobile/spec/e2e/phone-shell.e2e.ts
   - apps/mobile/spec/e2e/destinations.e2e.ts
-  - apps/mobile/spec/e2e/tablet-shell.tablet.e2e.ts
-api: []
+api:
+  - GET /api/worktrees/:worktreeId/directory
+  - GET /api/worktrees/:worktreeId/paths
+  - POST /api/worktrees/:worktreeId/files
 ---
 
 # files.files
 
-## What it is
+Expand a folder and its child, then rename or trash the ancestor. Its obsolete directory reads must be removed; the current tree and Refresh must recover without retrying the missing paths.
 
-Files is the second destination. It does not read files from the server yet: it shows its empty state, the heading “Files” over “Select a worktree to continue.”, whatever is paired or selected. The workspace picker in its toolbar is its own flow, `projects.workspace-picker`.
+Files browses the selected worktree through lazily loaded folders. Search matches worktree paths. Native tabs, toolbar workspace menu and stack navigation surround Porcelain file rows and controls. Without a selection it asks to select a worktree.
 
-## How a user reaches it
+Reach Files through its phone tab or porcelain.dev://files. Choose a worktree with projects.workspace-picker. Expand folders, open a file, return with native Back, and search a nested path. Refresh rereads loaded folders. Read errors offer retry; an empty directory says No files.
 
-- phone: the Files tab; iPad: Files in the sidebar
-- the deep link `porcelain.dev://files` (the root link opens Files too)
+New file and New folder open a native sheet. Holding a row offers Rename and Move to trash; folder menus also create inside that folder. Create a folder and file, rename the file with its full relative path, and confirm trash. Independently inspect the fixture directory after each operation. Errors keep the sheet open for retry. Trash uses the server's recoverable trash operation.
 
-## Driving it
-
-1. Select the Files tab or sidebar row, then also reach it through porcelain.dev://files. Expect Files and Select a worktree to continue.
-2. Inspect a screenshot for the matching native selection.
-3. Select a workspace through projects.workspace-picker. Expect the toolbar label to update; the current Files placeholder still shows its empty state.
-4. Return through Review and reopen Files. Expect the same heading and workspace label. File browsing and editing are not implemented by this screen.
-
-## What proves it works
-
-- `apps/mobile/spec/e2e/destinations.e2e.ts`: the deep link opens Files directly with the tab selected and its empty state.
-- `apps/mobile/spec/e2e/phone-shell.e2e.ts`: the Files tab is selected and shows its empty state.
-- `apps/mobile/spec/e2e/tablet-shell.tablet.e2e.ts`: the iPad split keeps Files through a sidebar collapse.
-
-## Gotchas
-
-- The empty state is the only state; a server whose project has no files shows the same screen.
-- On iPad in portrait the sidebar is hidden; the Files deep link reaches the screen without it.
+The named Files phone flow proves browsing, editing and directory operations against a real server. iPad and Android are unproved in this change.

@@ -16,6 +16,46 @@ const limit = 4;
 const range = (count: number) => Array.from({ length: count }, (_, at) => at);
 
 describe('diffBatches', () => {
+  it('orders grouped selections without requiring native copy-on-sort arrays', () => {
+    const descriptor = Object.getOwnPropertyDescriptor(
+      Array.prototype,
+      'toSorted',
+    );
+    const expectedFiles = [{ path: 'sample.ts', fingerprint: 'current' }];
+    const selections = [
+      {
+        scope: 'unstaged' as const,
+        oldPath: 'sample.ts',
+        newPath: 'sample.ts',
+      },
+      { scope: 'staged' as const, oldPath: 'sample.ts', newPath: 'sample.ts' },
+    ];
+    try {
+      Reflect.deleteProperty(Array.prototype, 'toSorted');
+      expect([].toSorted).toBeUndefined();
+      expect(() => diffBatches(expectedFiles, selections, limit)).not.toThrow();
+      expect(diffBatches(expectedFiles, selections, limit)).toEqual([
+        {
+          expectedFiles: [{ path: 'sample.ts', fingerprint: 'current' }],
+          selections: [
+            { scope: 'staged', oldPath: 'sample.ts', newPath: 'sample.ts' },
+            { scope: 'unstaged', oldPath: 'sample.ts', newPath: 'sample.ts' },
+          ],
+        },
+      ]);
+      expect(selections).toEqual([
+        { scope: 'unstaged', oldPath: 'sample.ts', newPath: 'sample.ts' },
+        { scope: 'staged', oldPath: 'sample.ts', newPath: 'sample.ts' },
+      ]);
+      expect(expectedFiles).toEqual([
+        { path: 'sample.ts', fingerprint: 'current' },
+      ]);
+    } finally {
+      if (descriptor)
+        Object.defineProperty(Array.prototype, 'toSorted', descriptor);
+    }
+  });
+
   it('asks for nothing when no diff is wanted', () => {
     expect(diffBatches([file(0)], [], limit)).toEqual([]);
   });

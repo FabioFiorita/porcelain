@@ -14,13 +14,13 @@ import {
   FileTypeIcon,
   HtmlPreview,
   ImagePreview,
-  isImagePath,
   MarkdownView,
   useDirectory,
   useDiskChangeNotice,
   useFileDraft,
   useTextFile,
 } from '@/features/files/index';
+import { isImagePath } from '@porcelain/client/files/rules';
 import type { FileDraftState } from '@porcelain/client/files';
 import { fileEntry } from '../adapters/code-entries';
 import type { DocumentInteraction, OpenDocument } from '../rules/documents';

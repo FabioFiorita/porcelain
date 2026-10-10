@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { isImagePath } from '@porcelain/client/files/rules';
 import { Button } from '@/components/ui/button';
 import { changeId, selectionKey } from '@porcelain/client/changes/rules';
 import {
@@ -7,11 +8,7 @@ import {
   useChangeDiffs,
   useChanges,
 } from '@/features/changes/index';
-import {
-  ImagePreview,
-  isImagePath,
-  useTextContents,
-} from '@/features/files/index';
+import { ImagePreview, useTextContents } from '@/features/files/index';
 import { type CodeEntry, fileEntry } from '../adapters/code-entries';
 import type { AgentCodeNote } from '../rules/code-notes';
 import { useComments } from '../queries/comments';
