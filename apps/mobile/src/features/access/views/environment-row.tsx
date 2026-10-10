@@ -21,7 +21,10 @@ export function EnvironmentRow({
 }) {
   const { status, read } = useEnvironmentStatus(remote);
   const command = useForgetEnvironment(remote);
-  const note = remoteStatusNote(status);
+  const note =
+    status.kind === 'offline'
+      ? 'It did not answer. Check that it is running and that your device can reach its address.'
+      : remoteStatusNote(status);
   return (
     <ItemMenu
       title={status.kind === 'online' ? status.name : remote.name}
