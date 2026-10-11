@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { appUpdateProgress, noUpdateMessage } from './app-update.ts';
+import {
+  appUpdateCheckVisible,
+  appUpdateProgress,
+  noUpdateMessage,
+} from './app-update.ts';
 
 describe('appUpdateProgress', () => {
   it.each([
@@ -8,7 +12,6 @@ describe('appUpdateProgress', () => {
       { status: 'downloading' as const, version: '2.0.0' },
       'Downloading 2.0.0…',
     ],
-    [{ status: 'verifying' as const, version: '2.0.0' }, 'Verifying 2.0.0…'],
     [
       { status: 'ready' as const, version: '2.0.0' },
       '2.0.0 is ready; the app restarts to finish.',
@@ -42,5 +45,23 @@ describe('noUpdateMessage', () => {
     expect(noUpdateMessage({ status: 'idle' })).toBe(
       'This is the newest version of the app.',
     );
+  });
+});
+
+describe('appUpdateCheckVisible', () => {
+  it('shows the check button in a desktop release with an update feed', () => {
+    expect(
+      appUpdateCheckVisible({ isDesktopShell: true, hasAppUpdateFeed: true }),
+    ).toBe(true);
+  });
+  it('hides the check button in a desktop development build without an update feed', () => {
+    expect(
+      appUpdateCheckVisible({ isDesktopShell: true, hasAppUpdateFeed: false }),
+    ).toBe(false);
+  });
+  it('hides the check button outside the desktop shell', () => {
+    expect(
+      appUpdateCheckVisible({ isDesktopShell: false, hasAppUpdateFeed: true }),
+    ).toBe(false);
   });
 });

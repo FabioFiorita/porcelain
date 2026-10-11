@@ -4,7 +4,6 @@ import type {
   DesktopAction,
   DesktopAppearance,
   DesktopBridge,
-  DesktopAppUpdateCheck,
   DesktopAppUpdateState,
 } from '@porcelain/contracts/desktop';
 import { desktopShell } from '@/shared/shell';
@@ -50,13 +49,14 @@ export function connectDesktopChrome(): () => void {
 export class DesktopHost extends Context.Service<
   DesktopHost,
   {
-    readonly hasAppUpdater: boolean;
+    readonly isDesktopShell: boolean;
+    readonly hasAppUpdateFeed: boolean;
     readonly canPickProject: (address: string | undefined) => boolean;
     readonly pickProject: (
       address: string,
     ) => Effect.Effect<string | null, ConnectionError>;
     readonly checkUpdate: Effect.Effect<
-      Option.Option<DesktopAppUpdateCheck & { readonly current: string }>,
+      Option.Option<{ readonly current: string }>,
       ConnectionError
     >;
     readonly installUpdate: Effect.Effect<void, ConnectionError>;
@@ -74,7 +74,8 @@ export class DesktopHost extends Context.Service<
       );
     };
     return {
-      hasAppUpdater: bridge !== undefined,
+      isDesktopShell: bridge !== undefined,
+      hasAppUpdateFeed: bridge?.appUpdate.enabled() ?? false,
       canPickProject,
       pickProject: Effect.fn('Desktop.pickProject')(function* (
         address: string,
@@ -97,7 +98,7 @@ export class DesktopHost extends Context.Service<
       }),
       checkUpdate: Effect.gen(function* () {
         if (!bridge) return Option.none();
-        const update = yield* Effect.tryPromise({
+        yield* Effect.tryPromise({
           try: () => bridge.appUpdate.check(),
           catch: (cause) =>
             new ConnectionError({
@@ -105,7 +106,9 @@ export class DesktopHost extends Context.Service<
               cause,
             }),
         });
-        return Option.some({ current: bridge.appUpdate.current(), ...update });
+        return Option.some({
+          current: bridge.appUpdate.current(),
+        });
       }),
       installUpdate: Effect.suspend(() =>
         bridge

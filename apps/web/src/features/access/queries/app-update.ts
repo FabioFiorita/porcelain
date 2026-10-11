@@ -1,13 +1,16 @@
-import { useAtomValue } from '@effect/atom-react';
+import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { Effect, Option, Stream } from 'effect';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import { DesktopHost } from '@/shared/adapters/desktop';
 
 const runtime = Atom.runtime(DesktopHost.layer);
-const appUpdateCapability = runtime.atom(
+const desktopCapabilities = runtime.atom(
   Effect.gen(function* () {
     const desktop = yield* DesktopHost;
-    return desktop.hasAppUpdater;
+    return {
+      isDesktopShell: desktop.isDesktopShell,
+      hasAppUpdateFeed: desktop.hasAppUpdateFeed,
+    };
   }),
 );
 const appUpdate = runtime
@@ -30,7 +33,7 @@ const appUpdateState = runtime
   .pipe(Atom.setIdleTTL(0));
 
 export function useAppUpdate() {
-  return useAtomValue(appUpdate);
+  return { result: useAtomValue(appUpdate), check: useAtomRefresh(appUpdate) };
 }
 
 export function useAppUpdateState() {
@@ -40,6 +43,6 @@ export function useAppUpdateState() {
   }));
 }
 
-export function useAppUpdateCapability() {
-  return useAtomValue(appUpdateCapability);
+export function useDesktopCapabilities() {
+  return useAtomValue(desktopCapabilities);
 }

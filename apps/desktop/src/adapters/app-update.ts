@@ -1,8 +1,5 @@
 import { Data, Deferred, Effect } from 'effect';
-import type {
-  DesktopAppUpdateCheck,
-  DesktopAppUpdateState,
-} from '@porcelain/contracts/desktop';
+import type { DesktopAppUpdateState } from '@porcelain/contracts/desktop';
 
 export class AppUpdateError extends Data.TaggedError('AppUpdateError')<{
   readonly message: string;
@@ -39,7 +36,6 @@ export function openAppUpdate(
   receive: (state: DesktopAppUpdateState) => void,
 ) {
   let state: DesktopAppUpdateState = { status: 'unavailable' };
-  let available: string | undefined;
   let downloading: Deferred.Deferred<void, AppUpdateError> | undefined;
   const publish = (next: DesktopAppUpdateState) => {
     state = next;
@@ -61,12 +57,17 @@ export function openAppUpdate(
     });
   }
   const read = () => state;
+  const installationActive = () =>
+    state.status === 'downloading' ||
+    state.status === 'ready' ||
+    state.status === 'installing';
   const check = Effect.fn('AppUpdate.check')(
-    function* (): Effect.fn.Return<DesktopAppUpdateCheck, AppUpdateError> {
+    function* (): Effect.fn.Return<void, AppUpdateError> {
+      if (installationActive()) return;
       publish({ status: 'checking' });
       if (updater === undefined) {
         publish({ status: 'unavailable' });
-        return { available: null };
+        return;
       }
       const result = yield* Effect.tryPromise({
         try: () => updater.checkForUpdates(),
@@ -74,47 +75,29 @@ export function openAppUpdate(
       });
       if (result === null) {
         publish({ status: 'unavailable' });
-        return { available: null };
+        return;
       }
-      available = result.isUpdateAvailable
-        ? result.updateInfo.version
-        : undefined;
       publish(
-        available === undefined
-          ? { status: 'idle' }
-          : { status: 'available', version: available },
+        result.isUpdateAvailable
+          ? { status: 'available', version: result.updateInfo.version }
+          : { status: 'idle' },
       );
-      return { available: available ?? null };
     },
     Effect.catch((error) =>
-      Effect.sync((): DesktopAppUpdateCheck => {
+      Effect.sync(() => {
         publish({ status: 'error', message: error.message });
-        return { available: null };
       }),
     ),
   );
-  const install = Effect.fn('AppUpdate.install')(
-    function* () {
-      if (updater === undefined)
-        return yield* new AppUpdateError({ message: localBuild });
-      const version = available;
-      if (version === undefined)
-        return yield* new AppUpdateError({
-          message: 'Check for an app update before installing it',
-        });
-      if (
-        state.status === 'downloading' ||
-        state.status === 'ready' ||
-        state.status === 'installing'
-      )
-        return;
+  const download = Effect.fn('AppUpdate.download')(
+    function* (feed: Updater, version: string) {
       publish({ status: 'downloading', version });
       const downloaded = yield* Deferred.make<void, AppUpdateError>();
       downloading = downloaded;
       yield* Deferred.await(downloaded).pipe(
         Effect.raceFirst(
           Effect.tryPromise({
-            try: () => updater.downloadUpdate(),
+            try: () => feed.downloadUpdate(),
             catch: (error) => failure(error, 'The app update did not download'),
           }).pipe(Effect.andThen(Effect.never)),
         ),
@@ -126,11 +109,23 @@ export function openAppUpdate(
       );
       publish({ status: 'ready', version });
       publish({ status: 'installing', version });
-      updater.quitAndInstall();
+      feed.quitAndInstall();
     },
     Effect.tapError((error) =>
       Effect.sync(() => publish({ status: 'error', message: error.message })),
     ),
   );
+  const install = Effect.fn('AppUpdate.install')(function* () {
+    if (updater === undefined) {
+      publish({ status: 'error', message: localBuild });
+      return yield* new AppUpdateError({ message: localBuild });
+    }
+    if (installationActive()) return;
+    if (state.status !== 'available')
+      return yield* new AppUpdateError({
+        message: 'Check for an app update before installing it',
+      });
+    yield* download(updater, state.version);
+  });
   return { read, check, install };
 }

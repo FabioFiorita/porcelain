@@ -2,7 +2,6 @@ import { Schema, Result } from 'effect';
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import {
   desktopActionSchema,
-  desktopAppUpdateCheckSchema,
   desktopAppUpdateStateSchema,
   desktopCredentialsSchema,
   type DesktopAppUpdateState,
@@ -24,6 +23,7 @@ const version =
   process.argv
     .find((argument) => argument.startsWith('--porcelain-version='))
     ?.slice('--porcelain-version='.length) ?? '';
+const updateFeed = process.argv.includes('--porcelain-update-feed');
 let updateState: DesktopAppUpdateState = { status: 'idle' };
 ipcRenderer.on(
   'porcelain:app-update-state',
@@ -61,11 +61,9 @@ const bridge: DesktopBridge = {
   },
   appUpdate: {
     current: () => version,
+    enabled: () => updateFeed,
     check: async () => {
-      const value: unknown = await ipcRenderer.invoke(
-        'porcelain:app-update-check',
-      );
-      return Schema.decodeUnknownSync(desktopAppUpdateCheckSchema)(value);
+      await ipcRenderer.invoke('porcelain:app-update-check');
     },
     install: async () => {
       await ipcRenderer.invoke('porcelain:app-update-install');

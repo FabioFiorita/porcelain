@@ -20,7 +20,7 @@ import type { Environment, RemoteAccess } from '@porcelain/client/access/rules';
 import { useLocalConnection, useRemoteConnections } from '../store';
 import { useRemoteStatus } from '../queries/remotes';
 
-import { useAppUpdateCapability } from '../queries/app-update';
+import { useDesktopCapabilities } from '../queries/app-update';
 import { EnvironmentName } from './environment-name';
 import { RemoteServiceUpdate, ServiceUpdateSettings } from './service-update';
 import { AppUpdateSettings } from './app-update';
@@ -68,7 +68,7 @@ export function ComputerSettings({
 }) {
   const connection = useDesktopConnection();
   const desktop = Option.getOrUndefined(
-    AsyncResult.value(useAppUpdateCapability()),
+    AsyncResult.value(useDesktopCapabilities()),
   );
   return (
     connection && (
@@ -88,9 +88,9 @@ export function ComputerSettings({
           <ItemGroup>
             <Item variant="outline">
               <ItemContent>
-                {desktop === true ? (
+                {desktop?.isDesktopShell === true ? (
                   <AppUpdateSettings />
-                ) : desktop === false ? (
+                ) : desktop?.isDesktopShell === false ? (
                   <ServiceUpdateSettings />
                 ) : (
                   <Spinner />

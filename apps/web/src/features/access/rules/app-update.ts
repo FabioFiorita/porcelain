@@ -8,8 +8,6 @@ export function appUpdateProgress(state: AppUpdateState): string | undefined {
       return 'Checking for a new version…';
     case 'downloading':
       return `Downloading ${state.version}…`;
-    case 'verifying':
-      return `Verifying ${state.version}…`;
     case 'ready':
       return `${state.version} is ready; the app restarts to finish.`;
     case 'installing':
@@ -23,4 +21,11 @@ export function noUpdateMessage(state: AppUpdateState): string {
   return state.status === 'unavailable'
     ? 'This build updates by reinstalling; there is no update feed yet.'
     : 'This is the newest version of the app.';
+}
+
+export function appUpdateCheckVisible(capabilities: {
+  readonly isDesktopShell: boolean;
+  readonly hasAppUpdateFeed: boolean;
+}): boolean {
+  return capabilities.isDesktopShell && capabilities.hasAppUpdateFeed;
 }
