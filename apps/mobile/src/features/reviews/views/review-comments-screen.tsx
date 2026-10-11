@@ -21,6 +21,7 @@ import { reviewErrorMessage } from '@porcelain/client/reviews/rules';
 import { ReviewAnnotation } from '../../../components/ui/review-annotation';
 import { ReviewComposer } from '../../../components/ui/review-composer';
 import { Text } from '../../../components/ui/text';
+import { headerIcon } from '../../../shared/icons/header-icon';
 import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
@@ -52,9 +53,11 @@ export function ReviewCommentsScreen({
     <>
       <Stack.Screen options={{ title: path ? 'File comments' : 'Comments' }} />
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button onPress={() => router.back()}>
-          Done
-        </Stack.Toolbar.Button>
+        <Stack.Toolbar.Button
+          icon={headerIcon('done')}
+          accessibilityLabel="Done"
+          onPress={() => router.back()}
+        />
       </Stack.Toolbar>
       {workspace ? (
         <Comments

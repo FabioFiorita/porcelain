@@ -7,7 +7,7 @@ import {
   labelStyle,
 } from '@expo/ui/swift-ui/modifiers';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
-import { workspaceIcon } from '../../../shared/icons/workspace-icon';
+import { headerIcon } from '../../../shared/icons/header-icon';
 import type { WorkspaceMenuProps } from './workspace-menu-props';
 
 export function WorkspaceMenu(props: WorkspaceMenuProps) {
@@ -29,14 +29,14 @@ function ProjectMenu(props: WorkspaceMenuProps) {
         props.presentation === 'phone' ? (
           <Label
             title={props.label}
-            systemImage={workspaceIcon}
+            systemImage={headerIcon('workspace')}
             modifiers={[labelStyle('iconOnly')]}
           />
         ) : (
           props.label
         )
       }
-      systemImage={workspaceIcon}
+      systemImage={headerIcon('workspace')}
       modifiers={[
         accessibilityLabel(props.label),
         foregroundStyle({ type: 'hierarchical', style: 'primary' }),

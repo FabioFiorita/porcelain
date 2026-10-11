@@ -210,7 +210,7 @@ export function pairClient(
     run(['wait', 'text', 'Files', '60000']);
     run(['open', identity.bundleIdentifier, screenLink('/settings')]);
     run(['alert', 'accept', '5000'], true);
-    run(['press', 'id="add-environment"', '--settle']);
+    run(['press', 'label="Add environment"', '--settle']);
     run(['fill', 'id="pairing-link"', link, '--settle']);
     run(['wait', '1500']);
     run(['press', 'id="pair-environment"', '--settle']);
