@@ -70,7 +70,7 @@ The root integration command runs suite tasks sequentially, because each Vitest 
 
 ## Pull requests
 
-Work on your own branch from `main`, in your own worktree. Open a pull request into `main` from the template once the work is done; while the developer is still iterating with you, keep commits local and push nothing, not even a draft. One concern per pull request. The developer reviews and merges, so make the body easy to read: what and why in a few sentences, how it was verified, screenshots attached with `gh pr create --attach` inside a collapsed section, and the risks. Commit only the paths you changed, each commit one short imperative sentence. Plans and scratch notes stay out of the repository.
+Work on your own branch from `main`, in your own worktree. Open a pull request into `main` from the template once the work is done. One concern per pull request. The developer reviews and merges, so make the body easy to read: what and why in a few sentences, how it was verified, screenshots attached with `gh pr create --attach` inside a collapsed section, and the risks. Commit only the paths you changed, each commit one short imperative sentence. Plans and scratch notes stay out of the repository.
 
 ## Where code lives
 
