@@ -25,7 +25,7 @@ Pairing with a Porcelain that runs on another computer on the local network, thr
 ## Driving it
 
 1. Prepare a separate disposable server reachable through its LAN address. Issue a pairing link for that address; never use the installed service or its data.
-2. In Settings select Add environment (test id add-environment), paste the link into pairing-link and select Pair (test id pair-environment).
+2. In Settings select Add environment (the + toolbar icon on iOS; test id add-environment where it is a content button), paste the link into pairing-link and select Pair (test id pair-environment).
 3. Expect the LAN environment to show Online. Independently read its native device registration and successful app requests from that disposable server.
 4. Cold-launch and expect the same environment to reconnect over the LAN address.
 5. On a physical iOS device, separately check Local Network permission, denial and retry. A simulator does not prove those permission paths.
