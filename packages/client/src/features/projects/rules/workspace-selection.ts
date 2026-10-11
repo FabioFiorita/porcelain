@@ -1,9 +1,5 @@
+import type { PersistedReadState } from '../../persistence/rules/read-state.ts';
 import type { Inventory, Project } from './inventory.ts';
-
-export type WorkspaceReadState = {
-  readonly status: 'loading' | 'ready' | 'unreadable';
-  readonly error: string | undefined;
-};
 
 export type WorkspaceInventory =
   | { readonly status: 'reading' }
@@ -12,7 +8,11 @@ export type WorkspaceInventory =
 
 export type WorkspaceSelection =
   | { readonly kind: 'loading' }
-  | { readonly kind: 'failed'; readonly message: string }
+  | {
+      readonly kind: 'failed';
+      readonly source: 'storage' | 'selection' | 'inventory';
+      readonly message: string;
+    }
   | { readonly kind: 'unavailable'; readonly reason: string }
   | { readonly kind: 'none' }
   | {
@@ -25,38 +25,40 @@ export function workspaceSelection({
   storage,
   selection,
   remembered,
-  environment,
+  paired,
   inventory,
 }: {
-  storage: WorkspaceReadState;
-  selection: WorkspaceReadState;
+  storage: PersistedReadState;
+  selection: PersistedReadState;
   remembered:
     | { readonly projectId: string; readonly worktreeId: string }
     | undefined;
-  environment: { readonly name: string } | undefined;
+  paired: boolean;
   inventory: WorkspaceInventory;
 }): WorkspaceSelection {
   if (storage.status === 'unreadable')
     return {
       kind: 'failed',
+      source: 'storage',
       message: storage.error ?? 'Saved environments could not be read.',
     };
   if (selection.status === 'unreadable')
     return {
       kind: 'failed',
+      source: 'selection',
       message:
         selection.error ?? 'Saved workspace selections could not be read.',
     };
   if (storage.status !== 'ready' || selection.status !== 'ready')
     return { kind: 'loading' };
   if (!remembered) return { kind: 'none' };
-  if (!environment)
+  if (!paired)
     return {
       kind: 'unavailable',
       reason: 'This environment is no longer paired.',
     };
   if (inventory.status === 'failed')
-    return { kind: 'failed', message: inventory.message };
+    return { kind: 'failed', source: 'inventory', message: inventory.message };
   if (inventory.status === 'reading') return { kind: 'loading' };
   const project = inventory.inventory.projects.find(
     (entry) => entry.id === remembered.projectId,
@@ -78,7 +80,7 @@ export function workspaceSelection({
   if (!worktree)
     return {
       kind: 'unavailable',
-      reason: 'This worktree is no longer in the project.',
+      reason: `This worktree is no longer in the project on ${name}.`,
     };
   if (!worktree.available)
     return {

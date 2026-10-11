@@ -1,3 +1,4 @@
+import type { PersistedReadState } from './rules/read-state.ts';
 import { Effect } from 'effect';
 import { AtomRef } from 'effect/reactivity';
 import { WriteQueue } from '../../shared/api/write-queue.ts';
@@ -12,12 +13,11 @@ export const persistedState = Effect.fn('persistedState')(function* <
   ) => Effect.Effect<void, { readonly cause?: unknown }>;
   messages: { beforeRead: string; readFailed: string; writeFailed: string };
 }) {
-  const state = AtomRef.make<
-    Snapshot & {
-      status: 'loading' | 'ready' | 'unreadable';
-      error: string | undefined;
-    }
-  >({ ...input.initial, status: 'loading', error: undefined });
+  const state = AtomRef.make<Snapshot & PersistedReadState>({
+    ...input.initial,
+    status: 'loading',
+    error: undefined,
+  });
   const queue = yield* WriteQueue.make;
   return {
     state,

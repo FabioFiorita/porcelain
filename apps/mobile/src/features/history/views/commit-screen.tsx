@@ -10,7 +10,7 @@ import { Loading } from '../../../components/ui/loading';
 import { Text } from '../../../components/ui/text';
 import { Badge } from '../../../components/ui/badge';
 import { Item } from '../../../components/ui/item';
-import { useSelectedWorktree } from '../../projects';
+import { WorkspaceGate } from '../../projects';
 import { useCommit, type HistorySelection } from '../queries/history';
 import {
   commitPath,
@@ -23,19 +23,26 @@ export function CommitScreen() {
     oid: string;
     workspace?: string;
   }>();
-  const current = useSelectedWorktree();
-  return current && (!workspace || current.key === workspace) ? (
-    <CommitDetail
-      key={`${current.key}:${oid}`}
-      selection={current}
-      workspace={current.key}
-      oid={oid}
-    />
-  ) : (
-    <Empty
-      title="Workspace changed"
-      description="Return to History to open a commit in the selected worktree."
-    />
+  return (
+    <WorkspaceGate
+      title="History"
+      expectedWorkspace={workspace}
+      changed={
+        <Empty
+          title="Workspace changed"
+          description="Return to History to open a commit in the selected worktree."
+        />
+      }
+    >
+      {(current) => (
+        <CommitDetail
+          key={`${current.key}:${oid}`}
+          selection={current}
+          workspace={current.key}
+          oid={oid}
+        />
+      )}
+    </WorkspaceGate>
   );
 }
 

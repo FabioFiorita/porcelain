@@ -13,7 +13,7 @@ import { Item } from '../../../components/ui/item';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
 import { Badge } from '../../../components/ui/badge';
-import { type ReviewWorkspace } from '../adapters/workspace';
+import type { Workspace } from '../../projects';
 import { useReviewSnapshot, useReviewMarks } from '../queries/review';
 import {
   reviewFiles,
@@ -34,7 +34,7 @@ export function ReviewScreen() {
   );
 }
 
-function ReviewIndex({ workspace }: { workspace: ReviewWorkspace }) {
+function ReviewIndex({ workspace }: { workspace: Workspace }) {
   const [comparison, setComparison] = useState<ReviewComparison>({
     kind: 'worktree',
   });
@@ -84,7 +84,7 @@ function ReviewList({
   snapshot,
   comparison,
 }: {
-  workspace: ReviewWorkspace;
+  workspace: Workspace;
   snapshot: ReviewSnapshot;
   comparison: ReviewComparison;
 }) {

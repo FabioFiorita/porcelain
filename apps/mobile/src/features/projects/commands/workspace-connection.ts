@@ -7,30 +7,25 @@ import type { Remote } from '@porcelain/client/access/rules';
 import {
   workspaceSelection,
   type WorkspaceSelection,
-  type WorkspaceReadState,
+  type Project,
+  type PersistedReadState,
 } from '@porcelain/client/projects/rules';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { useInventory } from '../queries/inventory';
 
-export type SelectedWorktree = {
+export type Workspace = {
   readonly key: string;
   readonly connection: RuntimeConnection;
   readonly scope: { readonly projectId: string; readonly worktreeId: string };
-  readonly project: Extract<
-    WorkspaceSelection,
-    { kind: 'selected' }
-  >['project'];
-  readonly worktree: Extract<
-    WorkspaceSelection,
-    { kind: 'selected' }
-  >['worktree'];
+  readonly project: Project;
+  readonly worktree: Project['worktrees'][number];
 };
 
 type WorkspaceState =
   | Exclude<WorkspaceSelection, { kind: 'selected' }>
   | {
       readonly kind: 'selected';
-      readonly workspace: SelectedWorktree;
+      readonly workspace: Workspace;
     };
 
 export function useWorkspaceConnection(
@@ -38,8 +33,8 @@ export function useWorkspaceConnection(
   remembered:
     | { readonly projectId: string; readonly worktreeId: string }
     | undefined,
-  storage: WorkspaceReadState,
-  selection: WorkspaceReadState,
+  storage: PersistedReadState,
+  selection: PersistedReadState,
 ) {
   const connection = useProjectConnection(remote);
   const inventory = useInventory(connection);
@@ -54,7 +49,7 @@ export function useWorkspaceConnection(
     storage,
     selection,
     remembered,
-    environment: remote,
+    paired: remote !== undefined,
     inventory: inventory.state,
   });
   useAtomValue(
@@ -76,18 +71,19 @@ function connectedWorkspace(
   connection: RuntimeConnection | undefined,
 ): WorkspaceState {
   if (decision.kind !== 'selected') return decision;
-  if (!remote || !connection) return { kind: 'loading' };
+  const paired = Option.getOrThrow(Option.fromUndefinedOr(remote));
+  const transport = Option.getOrThrow(Option.fromUndefinedOr(connection));
   return {
     kind: 'selected',
     workspace: {
       key: JSON.stringify([
-        remote.environmentId,
-        remote.address,
-        remote.deviceId ?? '',
+        paired.environmentId,
+        paired.address,
+        paired.deviceId ?? '',
         decision.project.id,
         decision.worktree.id,
       ]),
-      connection,
+      connection: transport,
       scope: {
         projectId: decision.project.id,
         worktreeId: decision.worktree.id,

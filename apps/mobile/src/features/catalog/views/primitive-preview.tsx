@@ -55,7 +55,7 @@ export function PrimitivePreview({ name }: { name: string }) {
           <Text variant="caption">Menu action: {value || 'none'}</Text>
         </Box>
         <FileTree
-          empty
+          loaded
           nodes={[
             { path: 'src/', kind: 'directory' },
             { path: 'src/button.tsx', kind: 'file' },

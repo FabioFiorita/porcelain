@@ -1,4 +1,3 @@
-import { Option } from 'effect';
 import {
   useAtomRef,
   useAtomRefresh,
@@ -55,19 +54,12 @@ export function useInventories(
         const result = results.find(
           (entry) => entry.connection.environmentId === environmentId,
         )?.result;
+        const state = workspaceInventory(result ?? AsyncResult.initial());
         return {
           environmentId,
           name,
-          status:
-            result === undefined || AsyncResult.isInitial(result)
-              ? 'reading'
-              : AsyncResult.isFailure(result)
-                ? 'failed'
-                : 'ready',
-          inventory:
-            result === undefined
-              ? undefined
-              : Option.getOrUndefined(AsyncResult.value(result)),
+          status: state.status,
+          inventory: state.status === 'ready' ? state.inventory : undefined,
         };
       },
     ),

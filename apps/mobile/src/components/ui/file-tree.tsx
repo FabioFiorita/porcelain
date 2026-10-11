@@ -25,7 +25,7 @@ export function FileTree({
   onSelect,
   contextMenu,
   header,
-  empty,
+  loaded,
   flat = false,
 }: {
   nodes: readonly FileTreeEntry[];
@@ -35,7 +35,7 @@ export function FileTree({
   onToggle: (id: string) => void;
   onSelect: (id: string) => void;
   header?: ReactNode;
-  empty: boolean;
+  loaded: boolean;
   flat?: boolean;
   contextMenu?: ((node: FileTreeEntry) => ItemMenuProps['actions']) | undefined;
 }) {
@@ -55,7 +55,7 @@ export function FileTree({
       keyExtractor={({ entry }) => entry.path}
       ItemSeparatorComponent={() => <View className="h-1" />}
       ListEmptyComponent={
-        empty ? (
+        loaded ? (
           <Empty
             title="No files"
             description={

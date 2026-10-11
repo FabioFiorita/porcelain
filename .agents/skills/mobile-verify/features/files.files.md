@@ -36,4 +36,4 @@ New file and New folder open a native sheet. Holding a row offers Rename and Mov
 
 The named Files phone flow proves browsing, editing and directory operations against a real server. iPad and Android are unproved in this change.
 
-Files, Review and History share the workspace gate: saved storage and the first inventory show Reading workspace…; inventory failures show their message and Read again, which refreshes the inventory; unavailable or missing saved projects/worktrees show Workspace unavailable and the most specific reason supported by the inventory. Only loaded saved state with no choice says Select a worktree to continue. The native workspace toolbar remains reachable in each state. See projects.workspace-picker for driving these states.
+See [selected workspace states](projects.workspace-picker.md#selected-workspace-states) for shared loading, failure, availability and recovery behavior.

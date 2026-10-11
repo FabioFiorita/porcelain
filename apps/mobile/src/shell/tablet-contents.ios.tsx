@@ -1,12 +1,13 @@
 import { Box } from '../components/ui/box';
 import { destinationForPath } from './destinations';
-import { WorkspaceGate } from '../features/projects';
+import { useWorkspace } from '../features/projects';
 import { Text } from '../components/ui/text';
 import { Label, List, RNHostView, Section, VStack } from '@expo/ui/swift-ui';
 import { listStyle, navigationTitle, tag } from '@expo/ui/swift-ui/modifiers';
 import { usePathname, useRouter } from 'expo-router';
 
 export function TabletContents() {
+  const { state } = useWorkspace();
   const pathname = usePathname();
   const router = useRouter();
   const destination = destinationForPath(pathname);
@@ -32,13 +33,12 @@ export function TabletContents() {
               paddingX={6}
               paddingY={8}
             >
-              <WorkspaceGate title={destination.title}>
-                {(selected) => (
-                  <Text variant="ui" tone="muted">
-                    {selected.worktree.branch ?? selected.worktree.path}
-                  </Text>
-                )}
-              </WorkspaceGate>
+              {state.kind === 'selected' ? (
+                <Text variant="ui" tone="muted">
+                  {state.workspace.worktree.branch ??
+                    state.workspace.worktree.path}
+                </Text>
+              ) : null}
             </Box>
           </RNHostView>
         </VStack>

@@ -1,5 +1,5 @@
 import { Box } from '../../../components/ui/box';
-import { WorkspaceGate, type SelectedWorktree } from '../../projects';
+import { WorkspaceGate, type Workspace } from '../../projects';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
@@ -42,7 +42,7 @@ function WorktreeFiles({
   selected,
   onOpen,
 }: {
-  selected: SelectedWorktree;
+  selected: Workspace;
   onOpen: (path: string, workspace: string) => void;
 }) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
@@ -158,10 +158,8 @@ function WorktreeFiles({
       <FileTree
         header={header}
         flat={searching}
-        empty={
-          searching
-            ? AsyncResult.isSuccess(paths.result)
-            : data.some((directory) => directory.path === '')
+        loaded={
+          searching ? AsyncResult.isSuccess(paths.result) : loading.rootLoaded
         }
         nodes={
           searching
@@ -240,6 +238,7 @@ function WorktreeFiles({
         }
       />
       <FileActionSheet
+        selected={selected}
         action={action}
         onClose={() => setAction(undefined)}
         onCreated={open}

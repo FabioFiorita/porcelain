@@ -21,8 +21,3 @@ export function useWorkspace() {
   );
   return { environments, access, selection, remote, remembered, ...connected };
 }
-
-export function useSelectedWorktree() {
-  const { state } = useWorkspace();
-  return state.kind === 'selected' ? state.workspace : undefined;
-}

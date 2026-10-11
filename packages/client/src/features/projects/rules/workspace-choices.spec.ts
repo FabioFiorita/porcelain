@@ -142,39 +142,52 @@ describe('choosing a workspace across paired environments', () => {
         [laptop('ready', inventory('Laptop', [project('one', false)]))],
         saved,
       ).messages,
-    ).toEqual([
-      "Laptop · Porcelain: Porcelain can't reach this repository right now.",
-      'Saved worktree is unavailable',
-    ]);
+    ).toEqual(['This project is unavailable on Laptop.']);
     expect(workspaceChoices([laptop('reading')], saved).messages).toEqual([
       'Laptop · Reading projects…',
     ]);
     expect(
       workspaceChoices([], { ...saved, environmentId: 'forgotten' }).messages,
-    ).toEqual(['No environments paired', 'Saved worktree is unavailable']);
+    ).toEqual([
+      'No environments paired',
+      'This environment is no longer paired.',
+    ]);
   });
 });
 
-it('shows the unavailable project reason outside its disabled menu and offers another read', () => {
+it('uses the selection rule reason in the picker, including unpaired and pending environments', () => {
+  const saved = {
+    environmentId: 'laptop',
+    projectId: 'one',
+    worktreeId: 'one-main',
+  };
   const result = workspaceChoices(
     [
       {
         environmentId: 'laptop',
-        name: 'Laptop',
+        name: 'Saved laptop name',
         status: 'ready',
-        inventory: inventory('Laptop', [
-          {
-            ...project('one', false),
-            available: false,
-            unavailableReason: 'permission',
-          },
-        ]),
+        inventory: inventory('Laptop', [project('one', false)]),
       },
     ],
-    undefined,
+    saved,
   );
-  expect(result.messages).toEqual([
-    'Laptop · Porcelain: Porcelain cannot read this repository because access is denied.',
+  expect(result.messages).toEqual(['This project is unavailable on Laptop.']);
+  expect(workspaceChoices([], saved).messages).toEqual([
+    'No environments paired',
+    'This environment is no longer paired.',
   ]);
-  expect(result.canReadAgain).toBe(true);
+  expect(
+    workspaceChoices(
+      [
+        {
+          environmentId: 'laptop',
+          name: 'Laptop',
+          status: 'reading',
+          inventory: undefined,
+        },
+      ],
+      saved,
+    ).messages,
+  ).toEqual(['Laptop · Reading projects…']);
 });

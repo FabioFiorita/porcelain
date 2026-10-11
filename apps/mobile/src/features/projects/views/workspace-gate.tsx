@@ -5,25 +5,23 @@ import { ErrorState } from '../../../components/ui/error-state';
 import { Loading } from '../../../components/ui/loading';
 import { useReadEnvironments } from '../../access';
 import { useProjectSelectionCommands } from '../commands/selection';
-import type { SelectedWorktree } from '../commands/workspace-connection';
-import { useWorkspace } from './selected-worktree';
+import type { Workspace } from '../commands/workspace-connection';
+import { useWorkspace } from './workspace';
 
 export function WorkspaceGate({
   title,
+  expectedWorkspace,
+  changed,
   children,
 }: {
   title: string;
-  children: (workspace: SelectedWorktree) => ReactNode;
+  expectedWorkspace?: string | undefined;
+  changed?: ReactNode;
+  children: (workspace: Workspace) => ReactNode;
 }) {
-  const { state, inventory, access, selection } = useWorkspace();
+  const { state, inventory } = useWorkspace();
   const readEnvironments = useReadEnvironments();
   const commands = useProjectSelectionCommands();
-  const retry = () => {
-    if (access.status === 'unreadable') readEnvironments();
-    else if (selection.status === 'unreadable')
-      commands.submit({ kind: 'read' });
-    else inventory.read();
-  };
   switch (state.kind) {
     case 'loading':
       return <Loading label="Reading workspace…" />;
@@ -34,20 +32,45 @@ export function WorkspaceGate({
             message={state.message}
             retry={{
               label: 'Read again',
-              onPress: retry,
+              onPress: () => {
+                switch (state.source) {
+                  case 'storage':
+                    readEnvironments();
+                    break;
+                  case 'selection':
+                    commands.submit({ kind: 'read' });
+                    break;
+                  case 'inventory':
+                    inventory.read();
+                    break;
+                  default:
+                    state.source satisfies never;
+                }
+              },
               pending: inventory.result.waiting || commands.pending > 0,
             }}
           />
         </Box>
       );
     case 'unavailable':
-      return <Empty title="Workspace unavailable" description={state.reason} />;
+      return (
+        <Empty
+          title="Workspace unavailable"
+          description={state.reason}
+          action={{ label: 'Read again', onPress: inventory.read }}
+        />
+      );
     case 'none':
       return (
-        <Empty title={title} description="Select a worktree to continue." />
+        changed ?? (
+          <Empty title={title} description="Select a worktree to continue." />
+        )
       );
     case 'selected':
-      return children(state.workspace);
+      return expectedWorkspace !== undefined &&
+        state.workspace.key !== expectedWorkspace
+        ? changed
+        : children(state.workspace);
     default:
       return state satisfies never;
   }

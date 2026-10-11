@@ -20,7 +20,7 @@ describe('inventory state for a workspace decision', () => {
       status: 'reading',
     });
   });
-  it('shows failure before retained data, including during retry', () => {
+  it('keeps the last inventory available after a refetch fails, including during retry', () => {
     const error = new ConnectionError({ message: 'The server is offline.' });
     expect(
       workspaceInventory(
@@ -29,7 +29,17 @@ describe('inventory state for a workspace decision', () => {
           waiting: true,
         }),
       ),
-    ).toEqual({ status: 'failed', message: 'The server is offline.' });
+    ).toEqual({ status: 'ready', inventory });
+    expect(
+      workspaceInventory(
+        AsyncResult.fail(error, {
+          previousSuccess: Option.some(AsyncResult.success(inventory)),
+        }),
+      ),
+    ).toEqual({ status: 'ready', inventory });
+  });
+  it('shows an inventory failure only when no inventory has been read', () => {
+    const error = new ConnectionError({ message: 'The server is offline.' });
     expect(workspaceInventory(AsyncResult.fail(error))).toEqual({
       status: 'failed',
       message: 'The server is offline.',

@@ -8,11 +8,10 @@ import {
   defaultPreferences,
   type Preferences,
 } from './store/saved-preferences.ts';
+import type { PersistedReadState } from '../persistence/rules/read-state.ts';
 
-type PreferencesState = {
+type PreferencesState = PersistedReadState & {
   readonly preferences: Preferences;
-  readonly status: 'loading' | 'ready' | 'unreadable';
-  readonly error: string | undefined;
 };
 
 type WriteFailure = ConnectionError | WriteNotSentError;

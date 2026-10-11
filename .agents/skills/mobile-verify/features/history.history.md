@@ -23,4 +23,4 @@ Open the native History tab or porcelain.dev://history. Select a worktree throug
 
 The destinations spec protects the unpaired deep link. The named History spec protects paired browsing and native back navigation. Pagination, live update and error recovery need native verification against the disposable server. iPad and Android are not proved by an iPhone run.
 
-Files, Review and History share the workspace gate: saved storage and the first inventory show Reading workspace…; inventory failures show their message and Read again, which refreshes the inventory; unavailable or missing saved projects/worktrees show Workspace unavailable and the most specific reason supported by the inventory. Only loaded saved state with no choice says Select a worktree to continue. The native workspace toolbar remains reachable in each state. See projects.workspace-picker for driving these states.
+See [selected workspace states](projects.workspace-picker.md#selected-workspace-states) for shared loading, failure, availability and recovery behavior.

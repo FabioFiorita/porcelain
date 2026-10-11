@@ -7,11 +7,9 @@ import {
   ProjectSelectionStorage,
   type ProjectSelectionSnapshot,
 } from './ports/project-selection-storage.ts';
+import type { PersistedReadState } from '../persistence/rules/read-state.ts';
 
-type ProjectSelectionState = ProjectSelectionSnapshot & {
-  readonly status: 'loading' | 'ready' | 'unreadable';
-  readonly error: string | undefined;
-};
+type ProjectSelectionState = ProjectSelectionSnapshot & PersistedReadState;
 
 type WriteFailure = ConnectionError | WriteNotSentError;
 

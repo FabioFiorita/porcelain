@@ -27,7 +27,7 @@ const input = {
   storage: { status: 'ready' as const, error: undefined },
   selection: { status: 'ready' as const, error: undefined },
   remembered: { projectId: 'project', worktreeId: 'main' },
-  environment: { name: 'Saved laptop name' },
+  paired: true,
   inventory: { status: 'ready' as const, inventory },
 };
 
@@ -63,7 +63,11 @@ describe('the selected workspace state', () => {
         ...input,
         inventory: { status: 'failed', message: 'The server is offline.' },
       }),
-    ).toEqual({ kind: 'failed', message: 'The server is offline.' });
+    ).toEqual({
+      kind: 'failed',
+      source: 'inventory',
+      message: 'The server is offline.',
+    });
   });
 
   it('reports unreadable saved state instead of waiting forever', () => {
@@ -77,6 +81,7 @@ describe('the selected workspace state', () => {
       }),
     ).toEqual({
       kind: 'failed',
+      source: 'storage',
       message: 'Could not read saved environments.',
     });
     expect(
@@ -87,7 +92,11 @@ describe('the selected workspace state', () => {
           error: 'Could not read saved workspaces.',
         },
       }),
-    ).toEqual({ kind: 'failed', message: 'Could not read saved workspaces.' });
+    ).toEqual({
+      kind: 'failed',
+      source: 'selection',
+      message: 'Could not read saved workspaces.',
+    });
   });
 
   it('names the environment when the project is unavailable', () => {
@@ -159,9 +168,22 @@ describe('the selected workspace state', () => {
       }),
     ).toEqual({
       kind: 'unavailable',
-      reason: 'This worktree is no longer in the project.',
+      reason: 'This worktree is no longer in the project on Laptop.',
     });
-    expect(workspaceSelection({ ...input, environment: undefined })).toEqual({
+    expect(workspaceSelection({ ...input, paired: false })).toEqual({
+      kind: 'unavailable',
+      reason: 'This environment is no longer paired.',
+    });
+  });
+
+  it('reports an unpaired saved environment even while its inventory is pending', () => {
+    expect(
+      workspaceSelection({
+        ...input,
+        paired: false,
+        inventory: { status: 'reading' },
+      }),
+    ).toEqual({
       kind: 'unavailable',
       reason: 'This environment is no longer paired.',
     });

@@ -1,8 +1,5 @@
-import {
-  projectUnavailableMessage,
-  type Inventory,
-  type Project,
-} from './inventory.ts';
+import { workspaceSelection } from './workspace-selection.ts';
+import type { Inventory, Project } from './inventory.ts';
 
 export type EnvironmentInventory = {
   readonly environmentId: string;
@@ -44,15 +41,17 @@ function savedUnavailable(
   const environment = environments.find(
     (entry) => entry.environmentId === saved.environmentId,
   );
-  if (environment === undefined) return true;
-  if (environment.status !== 'ready') return false;
-  const project = environment.inventory?.projects.find(
-    (entry) => entry.id === saved.projectId,
-  );
-  const worktree = project?.worktrees.find(
-    (entry) => entry.id === saved.worktreeId,
-  );
-  return !project?.available || !worktree?.available;
+  const decision = workspaceSelection({
+    storage: { status: 'ready', error: undefined },
+    selection: { status: 'ready', error: undefined },
+    remembered: saved,
+    paired: environment !== undefined,
+    inventory:
+      environment?.status === 'ready' && environment.inventory
+        ? { status: 'ready', inventory: environment.inventory }
+        : { status: 'reading' },
+  });
+  return decision.kind === 'unavailable' ? decision.reason : undefined;
 }
 
 export function workspaceChoices(
@@ -75,21 +74,13 @@ export function workspaceChoices(
           const status = statusOf(environment);
           return status ? [`${nameOf(environment)} · ${status}`] : [];
         });
-  messages.push(
-    ...choices
-      .filter(({ project }) => !project.available)
-      .map(
-        ({ project, environmentName }) =>
-          `${environmentName} · ${project.name}: ${projectUnavailableMessage(project)}`,
-      ),
-  );
-  if (saved !== undefined && savedUnavailable(environments, saved))
-    messages.push('Saved worktree is unavailable');
+  const unavailableReason = saved && savedUnavailable(environments, saved);
+  if (unavailableReason) messages.push(unavailableReason);
   return {
     choices,
     messages,
-    canReadAgain:
-      choices.some(({ project }) => !project.available) ||
-      environments.some((environment) => environment.status === 'failed'),
+    canReadAgain: environments.some(
+      (environment) => environment.status === 'failed',
+    ),
   };
 }
