@@ -1,7 +1,7 @@
-import { resolvedTheme } from '@porcelain/client/preferences/rules';
 import { useAtomSet, useAtomValue } from '@effect/atom-react';
 import { Atom } from 'effect/reactivity';
 import { storageRuntime } from '@/shared/adapters/storage';
+import { resolvedTheme } from '@porcelain/client/preferences/rules';
 import {
   preferencesSchema,
   defaultPreferences,

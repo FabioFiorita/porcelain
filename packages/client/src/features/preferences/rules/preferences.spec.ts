@@ -1,5 +1,10 @@
 import { expect, it } from 'vitest';
-import { resolvedTheme, nextAppearance } from './preferences.ts';
+import { Schema } from 'effect';
+import {
+  appearanceSchema,
+  resolvedTheme,
+  nextAppearance,
+} from './preferences.ts';
 it('resolves system appearance and cycles explicit appearance choices', () => {
   expect([
     resolvedTheme('system', true),
@@ -12,4 +17,11 @@ it('resolves system appearance and cycles explicit appearance choices', () => {
     nextAppearance('light'),
     nextAppearance('dark'),
   ]).toEqual(['light', 'dark', 'system']);
+});
+it('accepts only the three appearance choices', () => {
+  expect(
+    ['system', 'light', 'dark', 'automatic', 'Dark'].map(
+      Schema.is(appearanceSchema),
+    ),
+  ).toEqual([true, true, true, false, false]);
 });

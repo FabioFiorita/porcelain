@@ -1,129 +1,101 @@
+import {
+  blockedPersistence,
+  promiseStorage,
+  unreadablePersistence,
+} from '../../../spec/kit/promise-storage.ts';
+import { Effect } from 'effect';
 import { expect, it } from 'vitest';
-import { Schema } from 'effect';
-import { COMMIT_MODEL_LENGTH } from '@porcelain/contracts/shared';
+import { PreferencesStore } from './store.ts';
+import { PreferenceStorage } from './ports/preference-storage.ts';
 import {
   defaultPreferences,
-  readPreferences,
-  preferencesSchema,
-} from './store.ts';
+  type Preferences,
+} from './store/saved-preferences.ts';
 
-it.each([null, '{}', 'not-json', 'null', '[]', '42', '"text"'])(
-  'recovers unreadable or empty saved preferences: %s',
-  (saved) => {
-    expect(readPreferences(saved)).toEqual({
-      commitModel: '',
-      pullStrategy: 'merge',
-      appearance: 'system',
-      diffStyle: 'unified',
-      lineOverflow: 'scroll',
-      markdownDefault: 'reader',
-      htmlDefault: 'preview',
-      collapseSpecs: false,
-    });
-  },
-);
-it.each([true, false])(
-  'migrates an old mobile record with wrap=%s',
-  (wrapLongLines) => {
-    expect(
-      readPreferences(
-        JSON.stringify({
-          theme: 'dark',
-          wrapLongLines,
-          markdownDefault: 'source',
-          htmlDefault: 'source',
-        }),
-      ),
-    ).toEqual({
-      commitModel: '',
-      pullStrategy: 'merge',
-      appearance: 'dark',
-      diffStyle: 'unified',
-      lineOverflow: wrapLongLines ? 'wrap' : 'scroll',
-      markdownDefault: 'source',
-      htmlDefault: 'source',
-      collapseSpecs: false,
-    });
-  },
-);
-it('keeps an old web record and writes only the canonical shape', () => {
-  const saved = {
-    commitModel: 'model',
-    pullStrategy: 'rebase',
-    appearance: 'light',
-    diffStyle: 'split',
-    lineOverflow: 'wrap',
-    markdownDefault: 'source',
-    htmlDefault: 'source',
-    collapseSpecs: true,
-  } as const;
-  expect(readPreferences(JSON.stringify(saved))).toEqual(saved);
-  expect(Schema.encodeSync(preferencesSchema)(saved)).toEqual(saved);
-});
-it.each([
-  ['commitModel', 12],
-  ['commitModel', 'x'.repeat(COMMIT_MODEL_LENGTH + 1)],
-  ['pullStrategy', 'fast-forward'],
-  ['appearance', 'automatic'],
-  ['diffStyle', 'side-by-side'],
-  ['lineOverflow', true],
-  ['markdownDefault', 'preview'],
-  ['htmlDefault', 'reader'],
-  ['collapseSpecs', 'true'],
-] as const)(
-  'repairs invalid %s without losing another valid field',
-  (key, value) => {
-    expect(
-      readPreferences(
-        JSON.stringify({
-          ...defaultPreferences,
-          commitModel: 'keep me',
-          appearance: 'dark',
-          [key]: value,
-        }),
-      ),
-    ).toEqual({
-      ...defaultPreferences,
-      commitModel: 'keep me',
-      appearance: 'dark',
-      [key]: defaultPreferences[key],
-    });
-  },
-);
-it.each([
-  'commitModel',
-  'pullStrategy',
-  'appearance',
-  'diffStyle',
-  'lineOverflow',
-  'markdownDefault',
-  'htmlDefault',
-  'collapseSpecs',
-] as const)('repairs missing %s without losing another field', (key) => {
-  const saved: Record<string, unknown> = {
-    ...defaultPreferences,
-    commitModel: 'keep me',
-    appearance: 'dark',
+function fixture(storage: {
+  read: () => Promise<Preferences>;
+  write: (value: Preferences) => Promise<void>;
+}) {
+  return Effect.runSync(
+    PreferencesStore.pipe(
+      Effect.provide(PreferencesStore.layer),
+      Effect.provideService(PreferenceStorage, promiseStorage(storage)),
+    ),
+  );
+}
+
+it('keeps every other saved preference when one changes and restores it after a restart', async () => {
+  let saved: Preferences = { ...defaultPreferences, appearance: 'dark' };
+  const storage = {
+    read: () => Promise.resolve(saved),
+    write: (preferences: Preferences) => {
+      saved = preferences;
+      return Promise.resolve();
+    },
   };
-  delete saved[key];
-  expect(readPreferences(JSON.stringify(saved))).toEqual({
-    ...defaultPreferences,
-    commitModel: 'keep me',
-    appearance: 'dark',
-    [key]: defaultPreferences[key],
+  const store = fixture(storage);
+  await Effect.runPromise(store.load());
+  await Effect.runPromise(store.change({ lineOverflow: 'wrap' }));
+  const restarted = fixture(storage);
+  expect(restarted.state.value.status).toBe('loading');
+  await Effect.runPromise(restarted.load());
+  expect(restarted.state.value).toEqual({
+    preferences: {
+      ...defaultPreferences,
+      appearance: 'dark',
+      lineOverflow: 'wrap',
+    },
+    status: 'ready',
+    error: undefined,
   });
 });
-it('ignores future fields and gives canonical fields precedence over legacy aliases', () => {
-  expect(
-    readPreferences(
-      '{"appearance":"light","theme":"dark","lineOverflow":"scroll","wrapLongLines":true,"future":false}',
-    ),
-  ).toEqual({ ...defaultPreferences, appearance: 'light' });
+
+it('keeps the confirmed preferences in use when saving fails and asks for a fresh read', async () => {
+  const store = fixture({
+    read: () => Promise.resolve(defaultPreferences),
+    write: () => Promise.reject(new Error('disk full')),
+  });
+  await Effect.runPromise(store.load());
+  await expect(
+    Effect.runPromise(store.change({ appearance: 'light' })),
+  ).rejects.toThrow(
+    'Preferences could not be saved. Read them again before changing them.',
+  );
+  expect(store.state.value).toEqual({
+    preferences: defaultPreferences,
+    status: 'unreadable',
+    error:
+      'Preferences could not be saved. Read them again before changing them.',
+  });
 });
-it('repairs invalid legacy fields independently', () => {
-  expect(
-    readPreferences(
-      '{"theme":"automatic","wrapLongLines":"false","htmlDefault":"source"}',
-    ),
-  ).toEqual({ ...defaultPreferences, htmlDefault: 'source' });
+
+it('keeps both of two quick changes when the first is still being saved', async () => {
+  const persistence = blockedPersistence(defaultPreferences);
+  const store = fixture(persistence.storage);
+  await Effect.runPromise(store.load());
+  const first = Effect.runPromise(store.change({ appearance: 'dark' }));
+  await persistence.started.promise;
+  const second = Effect.runPromise(store.change({ lineOverflow: 'wrap' }));
+  persistence.finish.resolve();
+  await Promise.all([first, second]);
+  expect(persistence.writes.at(-1)).toEqual({
+    ...defaultPreferences,
+    appearance: 'dark',
+    lineOverflow: 'wrap',
+  });
+});
+
+it('reports unreadable saved preferences and refuses changes until they are read', async () => {
+  const persistence = unreadablePersistence<Preferences>();
+  const store = fixture(persistence.storage);
+  await Effect.runPromise(store.load());
+  expect(store.state.value).toEqual({
+    preferences: defaultPreferences,
+    status: 'unreadable',
+    error: 'Saved preferences could not be read. Try reading them again.',
+  });
+  await expect(
+    Effect.runPromise(store.change({ appearance: 'dark' })),
+  ).rejects.toThrow('Saved preferences must be read before changing them.');
+  expect(persistence.writeCount()).toBe(0);
 });

@@ -1,69 +1,25 @@
 import { Effect } from 'effect';
-import { Atom, AtomRef } from 'effect/reactivity';
 import { useAtomRef, useAtomSet } from '@effect/atom-react';
+import { PreferencesStore } from '@porcelain/client/preferences';
+import type { Preferences } from '@porcelain/client/preferences';
 import {
-  defaultPreferences,
-  type Preferences,
-} from '@porcelain/client/preferences';
-import { preferenceStorage } from './adapters/storage';
+  clientRuntime,
+  preferencesState,
+} from '../../shared/application/store';
 
-type PreferenceState = {
-  preferences: Preferences;
-  status: 'loading' | 'ready' | 'unreadable';
-  error: string | undefined;
-};
-
-const state = AtomRef.make<PreferenceState>({
-  preferences: defaultPreferences,
-  status: 'loading',
-  error: undefined,
-});
-
-const read = Atom.fn((_: void) =>
-  preferenceStorage.read().pipe(
-    Effect.match({
-      onSuccess: (preferences) =>
-        state.set({ preferences, status: 'ready', error: undefined }),
-      onFailure: () =>
-        state.update((current) => ({
-          ...current,
-          status: 'unreadable',
-          error: 'Saved preferences could not be read. Try reading them again.',
-        })),
-    }),
-  ),
+const read = clientRuntime.fn((_: void) =>
+  Effect.flatMap(PreferencesStore, (store) => store.load()),
 );
-
-const write = Atom.fn((change: Partial<Preferences>) =>
-  Effect.gen(function* () {
-    if (state.value.status !== 'ready') return;
-    const preferences = { ...state.value.preferences, ...change };
-    yield* preferenceStorage.write(preferences).pipe(
-      Effect.match({
-        onSuccess: () =>
-          state.set({ preferences, status: 'ready', error: undefined }),
-        onFailure: () =>
-          state.update((current) => ({
-            ...current,
-            error:
-              'Preferences could not be saved. Your previous settings are still in use.',
-          })),
-      }),
-    );
-  }),
+const change = clientRuntime.fn(
+  (preferences: Partial<Preferences>) =>
+    Effect.flatMap(PreferencesStore, (store) => store.change(preferences)),
+  { concurrent: true },
 );
 
 export function usePreferences() {
-  const snapshot = useAtomRef(state);
-  const load = useAtomSet(read);
-  const save = useAtomSet(write);
   return {
-    ...snapshot,
-    preferences: {
-      ...snapshot.preferences,
-      theme: snapshot.preferences.appearance,
-    },
-    read: load,
-    setPreferences: save,
+    ...useAtomRef(preferencesState),
+    read: useAtomSet(read),
+    setPreferences: useAtomSet(change),
   };
 }

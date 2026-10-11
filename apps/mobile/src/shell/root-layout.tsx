@@ -26,8 +26,8 @@ function ThemedShell() {
   const { preferences, read } = usePreferences();
   useEffect(() => read(undefined), [read]);
   useEffect(() => {
-    Uniwind.setTheme(preferences.theme);
-  }, [preferences.theme]);
+    Uniwind.setTheme(preferences.appearance);
+  }, [preferences.appearance]);
   const { theme } = useUniwind();
   const [background, foreground, border] = useCSSVariable([
     '--background',

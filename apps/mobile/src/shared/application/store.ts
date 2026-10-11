@@ -16,10 +16,15 @@ import {
   ProjectSelectionStore,
   workspaceSelectionCleanupLayer,
 } from '@porcelain/client/projects';
+import {
+  PreferenceStorage,
+  PreferencesStore,
+} from '@porcelain/client/preferences';
 import { remoteConnectionFactoryLayer } from '../adapters/connection-factory';
 import { accessPlatform } from '../adapters/access-platform';
 import { environmentStorage } from '../adapters/environment-storage';
 import { projectSelectionStorage } from '../adapters/selection-storage';
+import { preferenceStorage } from '../adapters/preference-storage';
 
 const memoMap = Layer.makeMemoMapUnsafe();
 const platform = Layer.succeed(AccessPlatform, accessPlatform);
@@ -27,12 +32,14 @@ const platform = Layer.succeed(AccessPlatform, accessPlatform);
 const stores = Layer.mergeAll(
   AccessStore.layer,
   ProjectSelectionStore.layer,
+  PreferencesStore.layer,
   EnvironmentMutations.layer,
 ).pipe(
   Layer.provide(
-    Layer.merge(
+    Layer.mergeAll(
       Layer.succeed(EnvironmentStorage, environmentStorage),
       Layer.succeed(ProjectSelectionStorage, projectSelectionStorage),
+      Layer.succeed(PreferenceStorage, preferenceStorage),
     ),
   ),
 );
@@ -63,6 +70,8 @@ export const accessState = applicationRuntime.runSync(AccessStore).state;
 export const selectionState = applicationRuntime.runSync(
   ProjectSelectionStore,
 ).state;
+export const preferencesState =
+  applicationRuntime.runSync(PreferencesStore).state;
 export const pendingSelections = applicationRuntime.runSync(
   ProjectSelectionCommands,
 ).pending;
