@@ -172,13 +172,16 @@ export const runServiceCommand = Effect.fn('runServiceCommand')(
       ),
     );
   },
-  Effect.mapError((error) =>
-    error instanceof ServiceUpdateRunningError
-      ? new ServiceCommandError(
-          'An update is already running. Run `porcelain service update` again once the other update finishes.',
-        )
-      : isInstallerError(error)
-        ? error
-        : new ServiceCommandError(error.message),
-  ),
+  (effect, settings) =>
+    effect.pipe(
+      Effect.mapError((error) =>
+        error instanceof ServiceUpdateRunningError
+          ? new ServiceCommandError(
+              `An update is already running. Run \`porcelain service ${settings.action}\` again once it finishes.`,
+            )
+          : isInstallerError(error)
+            ? error
+            : new ServiceCommandError(error.message),
+      ),
+    ),
 );

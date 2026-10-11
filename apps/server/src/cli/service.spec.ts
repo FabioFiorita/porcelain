@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { acquireDirectoryLock } from '../runtime/directory-lock.ts';
 import { LIMITS } from '../config/limits.ts';
+import type { ServiceSettings } from './settings.ts';
 import { runServiceCommand } from './service.ts';
 
 let home: string;
@@ -49,13 +50,17 @@ afterEach(() => {
   rmSync(home, { recursive: true, force: true });
 });
 
-const update = (allowDowngrade: boolean, output: string[]) =>
+const command = (
+  action: ServiceSettings['action'],
+  allowDowngrade: boolean,
+  output: string[],
+) =>
   Effect.runPromise(
     Effect.gen(function* () {
       const clock = yield* Clock.Clock;
       yield* runServiceCommand(
         {
-          action: 'update',
+          action,
           allowDowngrade,
           dataDirectory: join(home, 'data'),
           port: 3000,
@@ -75,7 +80,7 @@ const update = (allowDowngrade: boolean, output: string[]) =>
 
 it('reports an already current installed service through the CLI update operation', async () => {
   const output: string[] = [];
-  await update(false, output);
+  await command('update', false, output);
   expect(output).toEqual([
     'The Porcelain service is already 1.0.0, the newest published version.\n',
   ]);
@@ -83,32 +88,46 @@ it('reports an already current installed service through the CLI update operatio
 
 it('rejects --allow-downgrade on the installed command with exact-version instructions', async () => {
   const output: string[] = [];
-  await expect(update(true, output)).rejects.toThrow(
+  await expect(command('update', true, output)).rejects.toThrow(
     '--allow-downgrade requires an exact version: run `npx @fabiofiorita/porcelain@<version> service update --allow-downgrade`.',
   );
   expect(output).toEqual([]);
 });
 
-it('tells a CLI caller how to retry when another update is preparing', async () => {
-  const output: string[] = [];
-  await Effect.runPromise(
-    Effect.scoped(
-      Effect.gen(function* () {
-        yield* acquireDirectoryLock({
-          path: join(home, '.local/share/porcelain/service/updater.lock'),
-          waitMs: 0,
-          pollMs: 1,
-          staleTakeovers: 1,
-          clock: yield* Clock.Clock,
-          held: () => new ServiceUpdateRunningError(),
-        });
-        yield* Effect.promise(async () => {
-          await expect(update(false, output)).rejects.toThrow(
-            'An update is already running. Run `porcelain service update` again once the other update finishes.',
-          );
-          expect(output).toEqual([]);
-        });
-      }),
-    ).pipe(Effect.provide(NodeServices.layer)),
-  );
-});
+it.each([
+  {
+    action: 'update',
+    message:
+      'An update is already running. Run `porcelain service update` again once it finishes.',
+  },
+  {
+    action: 'uninstall',
+    message:
+      'An update is already running. Run `porcelain service uninstall` again once it finishes.',
+  },
+] as const)(
+  'tells a CLI caller how to retry $action when another update is preparing',
+  async ({ action, message }) => {
+    const output: string[] = [];
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          yield* acquireDirectoryLock({
+            path: join(home, '.local/share/porcelain/service/updater.lock'),
+            waitMs: 0,
+            pollMs: 1,
+            staleTakeovers: 1,
+            clock: yield* Clock.Clock,
+            held: () => new ServiceUpdateRunningError(),
+          });
+          yield* Effect.promise(async () => {
+            await expect(command(action, false, output)).rejects.toThrow(
+              message,
+            );
+            expect(output).toEqual([]);
+          });
+        }),
+      ).pipe(Effect.provide(NodeServices.layer)),
+    );
+  },
+);
