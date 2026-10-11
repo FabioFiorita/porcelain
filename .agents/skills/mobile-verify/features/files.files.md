@@ -23,6 +23,8 @@ Files browses the selected worktree through lazily loaded folders. Search matche
 
 Reach Files through its phone tab or porcelain.dev://files. Choose a worktree with projects.workspace-picker. Expand folders, open a file, return with native Back, and search a nested path. Refresh rereads loaded folders. Read errors offer retry; an empty directory says No files.
 
+During a folder read, its row replaces the chevron with a loading indicator and exposes loading in its accessibility label. The existing rows stay visible without moving until the children arrive. Reading files… appears in the header only for a root read without a value; refreshing loaded folders preserves their rows and the header height.
+
 New file and New folder open a native sheet. Holding a row offers Rename and Move to trash; folder menus also create inside that folder. Create a folder and file, rename the file with its full relative path, and confirm trash. Independently inspect the fixture directory after each operation. Errors keep the sheet open for retry. Trash uses the server's recoverable trash operation.
 
 The named Files phone flow proves browsing, editing and directory operations against a real server. iPad and Android are unproved in this change.

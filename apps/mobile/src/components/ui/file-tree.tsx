@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useResolveClassNames } from 'uniwind';
-import { FlatList, View } from 'react-native';
+import { ActivityIndicator, FlatList, View } from 'react-native';
 import { Item, type ItemProps } from './item';
 import { ItemMenu } from './item-menu';
 import type { ItemMenuProps } from './item-menu-props';
@@ -20,6 +20,7 @@ export function FileTree({
   nodes,
   expanded,
   selected,
+  loading,
   onToggle,
   onSelect,
   contextMenu,
@@ -29,6 +30,7 @@ export function FileTree({
   nodes: readonly FileTreeEntry[];
   expanded: ReadonlySet<string>;
   selected?: string;
+  loading?: ReadonlySet<string>;
   onToggle: (id: string) => void;
   onSelect: (id: string) => void;
   header?: ReactNode;
@@ -58,25 +60,20 @@ export function FileTree({
         />
       }
       renderItem={({ item: { entry: node, depth } }) => {
+        const path = node.path.replace(/\/$/, '');
+        const busy = node.kind === 'directory' && Boolean(loading?.has(path));
         const item: ItemProps = {
           title: flat ? node.path : entryName(node.path),
           size: 'sm',
           selected: node.path.replace(/\/$/, '') === selected,
-          accessibilityLabel: `${node.kind === 'directory' ? (expanded.has(node.path.replace(/\/$/, '')) ? 'Collapse' : 'Expand') : 'Open'} ${entryName(node.path)}`,
+          accessibilityLabel: `${node.kind === 'directory' ? (expanded.has(path) ? 'Collapse' : 'Expand') : 'Open'} ${entryName(node.path)}${busy ? ', loading' : ''}`,
           leading: (
             <View
               className="flex-row items-center gap-2"
               style={{ paddingLeft: depth * Number(indent.paddingLeft) }}
             >
               {node.kind === 'directory' ? (
-                <Icon
-                  name={
-                    expanded.has(node.path.replace(/\/$/, ''))
-                      ? 'down'
-                      : 'chevron'
-                  }
-                  size="small"
-                />
+                <FolderIndicator expanded={expanded.has(path)} loading={busy} />
               ) : null}
               <FileIcon
                 kind={
@@ -126,5 +123,26 @@ export function FileTree({
         );
       }}
     />
+  );
+}
+
+function FolderIndicator({
+  expanded,
+  loading,
+}: {
+  expanded: boolean;
+  loading: boolean;
+}) {
+  return (
+    <View className="size-3.5 items-center justify-center">
+      {loading ? (
+        <ActivityIndicator
+          size="small"
+          colorClassName="accent-muted-foreground"
+        />
+      ) : (
+        <Icon name={expanded ? 'down' : 'chevron'} size="small" />
+      )}
+    </View>
   );
 }

@@ -20,6 +20,7 @@ import { ErrorState } from '../../../components/ui/error-state';
 import { Text } from '../../../components/ui/text';
 import { directoryRequests } from '../../../shared/rules/file-tree';
 import { useDirectories } from '../queries/directory';
+import { directoryLoading } from '../rules/directory-loading';
 import { useFilePaths } from '../queries/paths';
 import { FileActionSheet } from './file-action';
 import type { FileAction } from '../commands/edit-file';
@@ -69,9 +70,7 @@ function WorktreeFiles({
     );
   }, [directories.results, requested]);
   const failure = directories.results.find(AsyncResult.isFailure);
-  const pending = directories.results.some(
-    (result) => AsyncResult.isInitial(result) || result.waiting,
-  );
+  const loading = directoryLoading(requested, directories.results);
   const paths = useFilePaths(selected.connection, selected.scope);
   const pathData = Option.getOrUndefined(AsyncResult.value(paths.result));
   const searching = Boolean(query.trim());
@@ -117,7 +116,7 @@ function WorktreeFiles({
           }}
         />
       ) : null}
-      {pending ? <Loading label="Reading files…" /> : null}
+      {loading.initialRoot ? <Loading label="Reading files…" /> : null}
       {searching && AsyncResult.isFailure(paths.result) ? (
         <ErrorState
           message={fileErrorMessage(Cause.squash(paths.result.cause))}
@@ -149,6 +148,7 @@ function WorktreeFiles({
             : nodes
         }
         expanded={expanded}
+        loading={loading.folders}
         onToggle={(id) => {
           setExpanded((current) => {
             const next = new Set(current);
