@@ -1,14 +1,10 @@
+import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
 import { Clock, Effect, Fiber, Layer, Option, Stream } from 'effect';
 import { TestClock } from 'effect/testing';
 import { it } from '@effect/vitest';
 import { AsyncResult, AtomRegistry } from 'effect/reactivity';
-import { afterEach, expect } from 'vitest';
-import {
-  ConnectionError,
-  createWorktreeConnection,
-  type RuntimeConnection,
-  type Transport,
-} from '@porcelain/client/transport';
+import { expect } from 'vitest';
+import { ConnectionError } from '@porcelain/client/transport';
 import {
   readPairedAccess,
   readRemoteAccess,
@@ -16,31 +12,8 @@ import {
 } from './share.ts';
 import { setRemoteAccess, startServiceUpdate } from '@porcelain/client/access';
 
-const scopes = new Set<{
-  connection: RuntimeConnection;
-  registry: AtomRegistry.AtomRegistry;
-}>();
-afterEach(async () => {
-  for (const { connection, registry } of scopes) {
-    registry.dispose();
-    await connection.close();
-  }
-  scopes.clear();
-});
-function fixture(transport: Transport) {
-  const { connection } = createWorktreeConnection(
-    {
-      environmentId: 'environment',
-      transport,
-      timeoutMs: 10_000,
-    },
-    undefined,
-    Layer.empty,
-  );
-  const registry = AtomRegistry.make();
-  scopes.add({ connection, registry });
-  return { connection, registry };
-}
+const fixture = clientFixtures('environment');
+
 const off = { enabled: false, status: { kind: 'off' as const } };
 const remote = {
   routes: { lan: off, tailnet: off, cloudflare: off },

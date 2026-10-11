@@ -4,6 +4,7 @@ import {
   directoryPaths,
   duplicatePath,
   entryName,
+  entryTreeActions,
   nextCreatePath,
   selectedDirectories,
   topLevelDraggedPaths,
@@ -108,6 +109,33 @@ describe('file tree actions', () => {
         (action) => action.id === 'pin',
       )?.label,
     ).toBe('Unpin file');
+  });
+
+  it('lets only a real folder take new entries and keeps symlinks and submodules from being renamed or opened', () => {
+    const state = {
+      changed: false,
+      hiddenEntry: null,
+      ownHidden: false,
+      hiddenName: '',
+    };
+    const ids = (entry: Parameters<typeof entryTreeActions>[0]) =>
+      entryTreeActions(entry, state).map((action) => action.id);
+    const always = ['hide', 'copy-relative', 'copy-full', 'trash'];
+    expect({
+      directory: ids({ kind: 'directory' }),
+      file: ids({ kind: 'file' }),
+      symlink: ids({ kind: 'symlink' }),
+      submodule: ids({ kind: 'submodule' }),
+      other: ids({ kind: 'other' }),
+      unread: ids(undefined),
+    }).toEqual({
+      directory: ['new-file', 'new-folder', 'rename', ...always],
+      file: ['rename', 'duplicate', 'open', 'timeline', ...always],
+      symlink: always,
+      submodule: always,
+      other: ['rename', ...always],
+      unread: ['rename', ...always],
+    });
   });
 
   it('names a duplicate after the file with copy before its extension, numbering further copies', () => {

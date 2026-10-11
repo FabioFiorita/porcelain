@@ -38,7 +38,7 @@ import {
 import { LONG_DECISION_SUMMARY } from '@/config/limits';
 import { useCompleteDecision } from '../commands/decisions';
 import { decisionNotes, gapNotes, mergeNotes } from '../rules/code-notes';
-import { spansLabel } from '../rules/patch-focus';
+import { spansLabel } from '@porcelain/client/changes/rules';
 import { ReviewCodeDocument } from './review-code-document';
 import { DecisionExcerpts, excerptId } from './walkthrough-excerpt';
 import { DecisionQuestion } from './walkthrough-question';

@@ -1,4 +1,4 @@
-export { historyRefLabel, ordinal, shortOid } from './rules/graph';
+export { ordinal } from './rules/graph';
 export { useCommit } from './queries/commit';
 
 export { CommitGraph } from './views/commit-graph';

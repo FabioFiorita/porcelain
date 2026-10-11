@@ -1,3 +1,4 @@
+import { CommitState } from './commit-state';
 import { View } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { AsyncResult } from 'effect/reactivity';
@@ -7,7 +8,7 @@ import { ErrorState } from '../../../components/ui/error-state';
 import { Loading } from '../../../components/ui/loading';
 import { FileHeader } from '../../../components/ui/file-header';
 import { DiffView } from '../../../components/ui/diff-view';
-import { patchLines } from '../../../shared/rules/patch-lines';
+import { patchLines } from '@porcelain/client/changes/rules';
 import { useSelectedWorktree } from '../../projects';
 import { usePreferences } from '../../preferences';
 import {
@@ -15,7 +16,11 @@ import {
   useCommitPatch,
   type HistorySelection,
 } from '../queries/history';
-import { commitPath, commitPaths, patchUnavailable } from '../rules';
+import {
+  diffUnavailableReason,
+  isSubmoduleChange,
+} from '@porcelain/client/changes/rules';
+import { commitPath, commitPaths } from '@porcelain/client/history/rules';
 
 export function CommitDiffScreen() {
   const {
@@ -62,14 +67,14 @@ function CommitFileDiff({
   path: string;
 }) {
   const commit = useCommit(selection, oid, parent);
-  if (AsyncResult.isFailure(commit.result))
+  if (AsyncResult.isFailure(commit.result) || !commit.value)
     return (
-      <ErrorState
-        message="Couldn't load commit"
-        retry={{ label: 'Retry', onPress: commit.retry }}
+      <CommitState
+        failed={AsyncResult.isFailure(commit.result)}
+        retry={commit.retry}
       />
     );
-  if (!commit.value) return <Loading label="Loading commit…" />;
+
   const file = commit.value.files.find(
     (candidate) => commitPath(candidate) === path,
   );
@@ -109,21 +114,18 @@ function FilePatch({
   const content = patch.value;
   const parsed =
     content?.kind === 'text' ? patchLines(content.patch) : undefined;
-  const unavailable =
-    file.oldMode === '160000' || file.newMode === '160000'
-      ? 'Submodule change'
-      : content
-        ? patchUnavailable(content)
-        : undefined;
+  const failed = AsyncResult.isFailure(patch.result);
+  const unavailable = diffUnavailableReason(file, content, failed);
+  const submodule = isSubmoduleChange(file);
   return (
     <>
       <FileHeader path={commitPath(file)} status={file.status} />
-      {AsyncResult.isFailure(patch.result) ? (
+      {failed && !submodule ? (
         <ErrorState
           message="Couldn't load diff"
           retry={{ label: 'Retry', onPress: patch.retry }}
         />
-      ) : !content ? (
+      ) : !content && !submodule ? (
         patch.result.waiting || AsyncResult.isInitial(patch.result) ? (
           <Loading label="Loading diff…" />
         ) : (
@@ -143,7 +145,10 @@ function FilePatch({
           retry={{ label: 'Retry', onPress: patch.retry }}
         />
       ) : parsed?.kind === 'text' ? (
-        <DiffView lines={parsed.lines} wrap={preferences.wrapLongLines} />
+        <DiffView
+          lines={parsed.lines}
+          wrap={preferences.lineOverflow === 'wrap'}
+        />
       ) : (
         <Empty
           title="No code change"

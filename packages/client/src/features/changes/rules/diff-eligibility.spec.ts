@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { commitDiffPath, showsWorktreeDiff } from './diff-eligibility.ts';
+import {
+  commitDiffPath,
+  isSubmoduleChange,
+  showsWorktreeDiff,
+} from './diff-eligibility.ts';
 
 const file: Parameters<typeof commitDiffPath>[0] = {
   oldPath: 'before.ts',
@@ -10,6 +14,14 @@ const file: Parameters<typeof commitDiffPath>[0] = {
 };
 
 describe('change diff eligibility', () => {
+  it('treats a gitlink on either side as a submodule change', () => {
+    expect([
+      isSubmoduleChange({ oldMode: '160000', newMode: '000000' }),
+      isSubmoduleChange({ oldMode: '000000', newMode: '160000' }),
+      isSubmoduleChange({ oldMode: '100644', newMode: '120000' }),
+    ]).toEqual([true, true, false]);
+  });
+
   it('shows text and metadata patches but leaves binary and omitted content out', () => {
     expect(showsWorktreeDiff({ kind: 'text', patch: 'patch' })).toBe(true);
     expect(showsWorktreeDiff({ kind: 'metadata-only', patch: 'patch' })).toBe(

@@ -1,3 +1,4 @@
+import { externalLink } from '@porcelain/client/links/rules';
 import { NodeServices } from '@effect/platform-node';
 import {
   Cause,
@@ -43,11 +44,7 @@ import fixPath from 'fix-path';
 import { desktopSettings } from './settings.ts';
 import { startLocalServer } from './server-host.ts';
 import { DesktopError } from './errors/desktop-error.ts';
-import {
-  appDocument,
-  desktopAddress,
-  externalNavigation,
-} from './rules/navigation.ts';
+import { appDocument, desktopAddress } from './rules/navigation.ts';
 import { liveAddress, liveSocketHeaders } from './rules/live-socket.ts';
 import { trustedSender } from './rules/trusted-sender.ts';
 
@@ -127,7 +124,7 @@ function windowState(view: BrowserWindow) {
 }
 
 function openExternal(url: string): void {
-  if (externalNavigation(url))
+  if (externalLink(url))
     runtime.runFork(
       Effect.tryPromise({
         try: () => shell.openExternal(url),

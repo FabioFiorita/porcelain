@@ -1,51 +1,23 @@
-import { Effect } from 'effect';
 import { Atom } from 'effect/reactivity';
-import type {
-  RuntimeConnection,
-  WorktreeScope,
-} from '../../../shared/api/connection.ts';
-import { porcelainClient } from '../../../shared/api/client.ts';
-import { clientRuntime } from '../../../shared/api/runtime.ts';
-import { worktreeRead } from '../../../shared/api/worktree-read.ts';
-import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
-
-type Selection = { connection: RuntimeConnection; scope: WorktreeScope };
+import type { WorktreeSelection } from '../../../shared/api/connection.ts';
+import { clientWorktreeRead } from '../../../shared/api/worktree-read.ts';
 export const readBranchChanges = Atom.family(
-  ({ connection, scope, base }: Selection & { base?: string }) =>
-    worktreeRead(
-      connection,
-      scope,
-      ['branch', base ?? null],
-      Effect.gen(function* () {
-        const client = yield* porcelainClient(connection);
-        const answer = yield* client.request((api) =>
-          api.changes.readBranchChanges({
-            params: { worktreeId: scope.worktreeId },
-            query: { base },
-          }),
-        );
-        yield* currentAnswerEffect(
-          connection,
-          answer.worktreeId === scope.worktreeId,
-        );
-        return answer;
-      }),
-      clientRuntime(connection),
+  (selection: WorktreeSelection & { base?: string }) =>
+    clientWorktreeRead(
+      selection,
+      ['branch', selection.base ?? null],
+      (api) =>
+        api.changes.readBranchChanges({
+          params: { worktreeId: selection.scope.worktreeId },
+          query: { base: selection.base },
+        }),
+      (answer) => answer.worktreeId === selection.scope.worktreeId,
     ),
 );
-export const readBranchBases = Atom.family(({ connection, scope }: Selection) =>
-  worktreeRead(
-    connection,
-    scope,
-    ['branch-bases'],
-    Effect.gen(function* () {
-      const client = yield* porcelainClient(connection);
-      return yield* client.request((api) =>
-        api.changes.listBranchBases({
-          params: { worktreeId: scope.worktreeId },
-        }),
-      );
+export const readBranchBases = Atom.family((selection: WorktreeSelection) =>
+  clientWorktreeRead(selection, ['branch-bases'], (api) =>
+    api.changes.listBranchBases({
+      params: { worktreeId: selection.scope.worktreeId },
     }),
-    clientRuntime(connection),
   ),
 );

@@ -9,20 +9,13 @@ import { Icon } from './icon';
 import { Badge } from './badge';
 import { Empty } from './empty';
 
-import type { FileTreeNode } from '../../shared/rules/file-tree-model';
-type Row = { node: FileTreeNode; depth: number };
-function visibleRows(
-  nodes: readonly FileTreeNode[],
-  expanded: ReadonlySet<string>,
-  depth = 0,
-): Row[] {
-  return nodes.flatMap((node) => [
-    { node, depth },
-    ...(node.kind === 'folder' && expanded.has(node.id)
-      ? visibleRows(node.children ?? [], expanded, depth + 1)
-      : []),
-  ]);
-}
+import {
+  entryName,
+  visibleFileTreeRows,
+  type FileTreeEntry,
+} from '@porcelain/client/files/rules';
+import { isNativeImagePath } from '../../shared/rules/file-tree';
+
 export function FileTree({
   nodes,
   expanded,
@@ -31,14 +24,16 @@ export function FileTree({
   onSelect,
   contextMenu,
   header,
+  flat = false,
 }: {
-  nodes: readonly FileTreeNode[];
+  nodes: readonly FileTreeEntry[];
   expanded: ReadonlySet<string>;
   selected?: string;
   onToggle: (id: string) => void;
   onSelect: (id: string) => void;
   header?: ReactNode;
-  contextMenu?: ((node: FileTreeNode) => ItemMenuProps['actions']) | undefined;
+  flat?: boolean;
+  contextMenu?: ((node: FileTreeEntry) => ItemMenuProps['actions']) | undefined;
 }) {
   const padding = useResolveClassNames('px-2');
   const indent = useResolveClassNames('pl-4');
@@ -48,8 +43,12 @@ export function FileTree({
       ListHeaderComponent={<>{header}</>}
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={padding}
-      data={visibleRows(nodes, expanded)}
-      keyExtractor={({ node }) => node.id}
+      data={
+        flat
+          ? nodes.map((entry) => ({ entry, depth: 0 }))
+          : visibleFileTreeRows(nodes, expanded)
+      }
+      keyExtractor={({ entry }) => entry.path}
       ItemSeparatorComponent={() => <View className="h-1" />}
       ListEmptyComponent={
         <Empty
@@ -58,37 +57,63 @@ export function FileTree({
           icon="folder"
         />
       }
-      renderItem={({ item: { node, depth } }) => {
+      renderItem={({ item: { entry: node, depth } }) => {
         const item: ItemProps = {
-          title: node.name,
+          title: flat ? node.path : entryName(node.path),
           size: 'sm',
-          selected: node.id === selected,
-          accessibilityLabel: `${node.kind === 'folder' ? (expanded.has(node.id) ? 'Collapse' : 'Expand') : 'Open'} ${node.name}`,
+          selected: node.path.replace(/\/$/, '') === selected,
+          accessibilityLabel: `${node.kind === 'directory' ? (expanded.has(node.path.replace(/\/$/, '')) ? 'Collapse' : 'Expand') : 'Open'} ${entryName(node.path)}`,
           leading: (
             <View
               className="flex-row items-center gap-2"
               style={{ paddingLeft: depth * Number(indent.paddingLeft) }}
             >
-              {node.kind === 'folder' ? (
+              {node.kind === 'directory' ? (
                 <Icon
-                  name={expanded.has(node.id) ? 'down' : 'chevron'}
+                  name={
+                    expanded.has(node.path.replace(/\/$/, ''))
+                      ? 'down'
+                      : 'chevron'
+                  }
                   size="small"
                 />
               ) : null}
               <FileIcon
                 kind={
-                  node.kind === 'folder' && expanded.has(node.id)
+                  node.kind === 'directory' &&
+                  expanded.has(node.path.replace(/\/$/, ''))
                     ? 'openFolder'
-                    : node.kind
+                    : node.kind === 'directory'
+                      ? 'folder'
+                      : isNativeImagePath(node.path)
+                        ? 'image'
+                        : 'file'
                 }
               />
             </View>
           ),
-          trailing: node.status ? (
-            <Badge label={node.status} variant="outline" />
-          ) : undefined,
+          trailing:
+            node.kind === 'symlink' ||
+            node.kind === 'submodule' ||
+            node.kind === 'other' ||
+            node.ignored ? (
+              <Badge
+                label={
+                  node.kind === 'symlink'
+                    ? 'Symlink'
+                    : node.kind === 'submodule'
+                      ? 'Submodule'
+                      : node.kind === 'other'
+                        ? 'Unsupported'
+                        : 'Ignored'
+                }
+                variant="outline"
+              />
+            ) : undefined,
           onPress: () =>
-            node.kind === 'folder' ? onToggle(node.id) : onSelect(node.id),
+            node.kind === 'directory'
+              ? onToggle(node.path.replace(/\/$/, ''))
+              : onSelect(node.path.replace(/\/$/, '')),
         };
         return (
           <>

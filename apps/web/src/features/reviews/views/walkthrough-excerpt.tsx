@@ -8,7 +8,7 @@ import { useChangeLines } from '@/features/changes/index';
 import { contentVersion } from '@/shared/lib/pierre';
 import type { ReviewLayer, ReviewStep } from '@porcelain/client/reviews/rules';
 import type { CodeEntry } from '../adapters/code-entries';
-import { contextPatch, spansLabel } from '../rules/patch-focus';
+import { contextPatch, spansLabel } from '@porcelain/client/changes/rules';
 import { AgentNote } from './agent-note';
 import { CodeDocument } from './code-document';
 import type { WalkthroughProps } from './walkthrough-props';

@@ -19,7 +19,7 @@ import {
   SelectItem,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { HISTORY_OID_LENGTH } from '@/config/limits';
+import { shortOid } from '@porcelain/client/history/rules';
 import { useActionForm } from '../commands/action-form';
 import {
   actionFormInput,
@@ -285,7 +285,7 @@ function ActionForm({
               <Select
                 items={branch.stashes.map((stash) => ({
                   value: stash.oid,
-                  label: `${stash.message} · ${stash.oid.slice(0, HISTORY_OID_LENGTH)}`,
+                  label: `${stash.message} · ${shortOid(stash.oid)}`,
                 }))}
                 value={stashOid}
                 onValueChange={(value) => {
@@ -298,7 +298,7 @@ function ActionForm({
                 <SelectContent>
                   {branch.stashes.map((stash) => (
                     <SelectItem key={stash.oid} value={stash.oid}>
-                      {stash.message} · {stash.oid.slice(0, HISTORY_OID_LENGTH)}
+                      {stash.message} · {shortOid(stash.oid)}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -1,35 +1,13 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
+import { describe, expect, it } from 'vitest';
 import { Cause, Effect, Exit, Layer } from 'effect';
 import { HtmlPreviewPlatform } from '@porcelain/client/files';
 import { AtomRegistry } from 'effect/reactivity';
-import {
-  createWorktreeConnection,
-  type Transport,
-} from '@porcelain/client/transport';
+
 import { readHtmlPreview } from './html-preview.ts';
 
-const owned: (() => Promise<void>)[] = [];
-afterEach(async () => {
-  for (const close of owned) await close();
-  owned.length = 0;
-});
-function fixture(transport: Transport) {
-  const lifetime = createWorktreeConnection(
-    {
-      environmentId: 'environment-1',
-      transport,
-      timeoutMs: 10_000,
-    },
-    undefined,
-    Layer.empty,
-  );
-  const registry = AtomRegistry.make();
-  owned.push(async () => {
-    registry.dispose();
-    await lifetime.close();
-  });
-  return { ...lifetime, registry };
-}
+const fixture = clientFixtures('environment-1');
+
 function preview(
   subject: ReturnType<typeof fixture>,
   document: string,

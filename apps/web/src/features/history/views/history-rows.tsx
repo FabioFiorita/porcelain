@@ -1,3 +1,4 @@
+import { historyBoundary } from '@porcelain/client/history/rules';
 import { AsyncResult } from 'effect/reactivity';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -50,11 +51,7 @@ export function HistoryEnd({ history }: { history: History }) {
         </div>
       ) : history.nextAfter === null || history.nextAfter === undefined ? (
         <p className="px-2 py-3 text-2xs text-muted-foreground">
-          {history.boundary === 'shallow'
-            ? 'Shallow clone: older history is not available.'
-            : history.boundary === 'wide'
-              ? 'Too many branches meet here to continue past this point.'
-              : 'Start of history.'}
+          {historyBoundary(history.boundary)}
         </p>
       ) : null}
       <HistorySentinel

@@ -28,6 +28,47 @@ const portable = (owner, module) => ({
 
 export default [
   pair(
+    'mobile-ui-imports-client-types-and-rules',
+    edge(
+      'apps/mobile/src/components/ui/link.tsx',
+      'packages/client/src/features/links/rules/index.ts',
+      '../../../../../packages/client/src/features/links/rules/index.ts',
+    ),
+    edge(
+      'apps/mobile/src/components/ui/link.tsx',
+      'packages/client/src/features/files/queries/directory.ts',
+      '../../../../../packages/client/src/features/files/queries/directory.ts',
+    ),
+  ),
+  pair(
+    'mobile-ui-imports-client-types-and-rules',
+    {
+      'apps/mobile/src/components/ui/link.tsx':
+        "import type { Value } from '@porcelain/client/src/features/files/store.ts'; export type Result = Value;",
+      'packages/client/src/features/files/store.ts':
+        'export type Value = string;',
+    },
+    edge(
+      'apps/mobile/src/components/ui/link.tsx',
+      'packages/client/src/features/files/store.ts',
+      '../../../../../packages/client/src/features/files/store.ts',
+    ),
+  ),
+
+  pair(
+    'mobile-ui-imports-client-types-and-rules',
+    {
+      'apps/mobile/src/components/ui/link.tsx':
+        "import type { Value } from '@porcelain/contracts/src/files/files.ts'; export type Result = Value;",
+      'packages/contracts/src/files/files.ts': 'export type Value = string;',
+    },
+    edge(
+      'apps/mobile/src/components/ui/link.tsx',
+      'packages/contracts/src/files/files.ts',
+      '../../../../../packages/contracts/src/files/files.ts',
+    ),
+  ),
+  pair(
     'mobile-shared-imports-no-owner',
     edge(
       'apps/mobile/src/components/ui/item.tsx',
@@ -55,6 +96,20 @@ export default [
   ),
   pair(
     'mobile-ui-imports-no-state',
+    {
+      'apps/mobile/src/components/ui/item.tsx':
+        "import type { Value } from '@porcelain/client/src/shared/api/connection.ts'; export type Result = Value;",
+      'packages/client/src/shared/api/connection.ts':
+        'export type Value = string;',
+    },
+    {
+      'apps/mobile/src/components/ui/item.tsx':
+        "import type { Value } from '../../shared/api/connection.ts'; export type Result = Value;",
+      'apps/mobile/src/shared/api/connection.ts': 'export type Value = string;',
+    },
+  ),
+  pair(
+    'mobile-ui-imports-client-types-and-rules',
     edge(
       'apps/mobile/src/components/ui/item.tsx',
       'apps/mobile/src/components/ui/text.tsx',

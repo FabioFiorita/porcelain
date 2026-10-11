@@ -278,11 +278,11 @@ export function runGuardrailCases(named = []) {
     }
   }
   deepStrictEqual(duplicateScope(), {
-    name: 'web',
-    sources: ['apps/web/src'],
+    name: 'client',
+    sources: ['apps/web/src', 'apps/mobile/src', 'packages/client/src'],
     metric: 'clones',
     ceiling: 0,
-    why: 'Keep web logic in one owner so fixes cannot drift between copies.',
+    why: 'Keep shared client logic and specs in one owner so fixes cannot drift between apps.',
   });
   process.stdout.write(`PASS ${cases.length} guardrail fixtures\n`);
 }

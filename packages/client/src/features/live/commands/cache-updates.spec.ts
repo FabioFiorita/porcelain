@@ -1,3 +1,12 @@
+const untouched = {
+  changes: false,
+  file: false,
+  branch: false,
+  history: false,
+  review: false,
+  comments: false,
+  foreign: false,
+};
 import { Effect } from 'effect';
 import { Reactivity } from 'effect/reactivity';
 import { expect, it } from 'vitest';
@@ -111,15 +120,7 @@ it('a preference notice leaves the remaining review caches untouched', async () 
       }),
     ),
   );
-  expect(subject.invalidated()).toEqual({
-    changes: false,
-    file: false,
-    branch: false,
-    history: false,
-    review: false,
-    comments: false,
-    foreign: false,
-  });
+  expect(subject.invalidated()).toEqual(untouched);
   subject.close();
 });
 
@@ -151,15 +152,7 @@ it.each(['running', 'rejected', 'no-change'] as const)(
         receiptReadKeys('environment', { ...receipt, state }),
       ),
     );
-    expect(subject.invalidated()).toEqual({
-      changes: false,
-      file: false,
-      branch: false,
-      history: false,
-      review: false,
-      comments: false,
-      foreign: false,
-    });
+    expect(subject.invalidated()).toEqual(untouched);
     subject.close();
   },
 );

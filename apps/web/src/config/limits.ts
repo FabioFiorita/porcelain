@@ -4,7 +4,6 @@ import {
 } from '@porcelain/contracts/shared';
 export const WEB_PLATFORM_NAME_MAX_LENGTH = 120;
 export const PAIRING_PENDING_MS = 0;
-export const HISTORY_OID_LENGTH = 7;
 export const HISTORY_ROW_HEIGHT = 58;
 export const HISTORY_LANE_WIDTH = 16;
 export const HISTORY_GRAPH_INSET = 13;
@@ -20,7 +19,6 @@ export const HISTORY_ORDINAL_TEENS_END = 13;
 export const HISTORY_ORDINAL_DECADE = 10;
 export const FILE_PREVIEW_MAX_BYTES = 28 * 1024 * 1024;
 export const FILE_ICON_DEFAULT_SIZE = 16;
-export const REVIEW_PATCH_CONTEXT_LINES = 3;
 export const LONG_AGENT_NOTE = 360;
 export const LONG_DECISION_SUMMARY = 320;
 

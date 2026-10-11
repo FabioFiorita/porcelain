@@ -1,4 +1,9 @@
 export { readTextFile } from './queries/text.ts';
+export {
+  readDirectories,
+  refreshDirectories,
+  type DirectorySelection,
+} from './queries/directory.ts';
 export { readDirectory } from './queries/directory.ts';
 export { readWorktreePaths } from './queries/paths.ts';
 export { readAsset } from './queries/asset.ts';

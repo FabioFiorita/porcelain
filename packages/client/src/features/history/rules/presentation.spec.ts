@@ -4,7 +4,9 @@ import {
   commitPath,
   historyBoundary,
   historyHeading,
-  patchUnavailable,
+  shortOid,
+  refLabel,
+  commitEntry,
 } from './presentation.ts';
 const file = {
   status: 'modified' as const,
@@ -55,16 +57,51 @@ it('shows the actual branch state and history boundary', () => {
   );
   expect(historyBoundary(undefined)).toBe('Start of history.');
 });
-it.each([
-  [{ kind: 'binary' }, 'Binary change'],
-  [
-    { kind: 'metadata-only', patch: 'old mode 100644\nnew mode 100755' },
-    'No code change',
-  ],
-  [{ kind: 'omitted', reason: 'size-limit' }, 'Too large to show'],
-  [{ kind: 'omitted', reason: 'unsupported-encoding' }, 'Cannot be shown'],
-  [{ kind: 'omitted', reason: 'unsupported-submodule' }, 'Submodule change'],
-  [{ kind: 'text', patch: '@@ -1 +1 @@\n-before\n+after' }, undefined],
-] as const)('labels %j without inventing a text preview', (content, label) => {
-  expect(patchUnavailable(content)).toBe(label);
+
+it('keeps short object IDs intact and limits full IDs to seven characters', () => {
+  expect([shortOid(''), shortOid('abc'), shortOid('0123456789')]).toEqual([
+    '',
+    'abc',
+    '0123456',
+  ]);
+});
+it('labels local, remote and tag refs without removing their identity', () => {
+  expect(
+    [
+      'refs/heads/main',
+      'refs/remotes/origin/topic',
+      'refs/tags/v1',
+      'HEAD',
+    ].map(refLabel),
+  ).toEqual(['main', 'origin/topic', 'v1', 'HEAD']);
+});
+it('labels a commit with its subject, author, hash, refs and local time', () => {
+  expect(
+    commitEntry({
+      oid: '0123456789',
+      subject: 'Fix the file',
+      subjectTruncated: false,
+      body: undefined,
+      bodyTruncated: false,
+      parentOids: [],
+      author: { name: 'Developer', timestamp: '2026-01-01T00:00:00Z' },
+      refs: ['refs/remotes/origin/topic', 'refs/tags/v1'],
+    }),
+  ).toEqual({
+    id: '0123456789',
+    subject: 'Fix the file',
+    author: 'Developer',
+    time: new Date('2026-01-01T00:00:00Z').toLocaleString(),
+    shortHash: '0123456',
+    refs: ['origin/topic', 'v1'],
+  });
+});
+it('keeps unknown paths and missing branch state visible', () => {
+  expect(commitPath({ ...file, oldPath: undefined, newPath: undefined })).toBe(
+    'Unknown path',
+  );
+  expect(
+    commitPaths({ ...file, oldPath: undefined, newPath: undefined }),
+  ).toEqual([]);
+  expect(historyHeading(undefined)).toBe('This branch');
 });

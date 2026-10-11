@@ -1,8 +1,5 @@
-import { operationStoreLayer } from './operations.ts';
-import type { Context } from 'effect';
-import { OperationStorage } from '../ports/operation-storage.ts';
-import { Layer, ManagedRuntime } from 'effect';
-import { afterEach } from 'vitest';
+import { operationStoreFixture } from '../../../../spec/kit/operation-store.ts';
+
 import { Cause, Deferred, Effect, Exit, Fiber, Schema } from 'effect';
 import { expect, it } from 'vitest';
 import type {
@@ -10,7 +7,6 @@ import type {
   RunGitActionResponse,
 } from '@porcelain/contracts/git-actions';
 import { operationKey } from './operations.ts';
-import { OperationStore } from '../ports/operation-store.ts';
 
 const scope = {
   projectId: '11111111-1111-4111-8111-111111111111',
@@ -54,19 +50,7 @@ const persistedIdentities = Schema.decodeUnknownSync(
 );
 
 it('restores the unanswered request with its original identity and removes persistence after confirmation', async () => {
-  const retained = new Map<string, string>();
-  const persistence = {
-    key: 'operations',
-    storage: {
-      getItem: (name: string) => retained.get(name) ?? null,
-      setItem: (name: string, value: string) => {
-        retained.set(name, value);
-      },
-      removeItem: (name: string) => {
-        retained.delete(name);
-      },
-    },
-  };
+  const { retained, persistence } = memoryPersistence();
   const { store } = operationStoreFixture(persistence);
   await Effect.runPromise(store.set(key, { ...scope, requestId, request }));
   await Effect.runPromise(store.accept(receipt));
@@ -103,9 +87,7 @@ it('refuses foreign and regressing receipts without changing a confirmed operati
 });
 
 it('rejects the old waiter when its retained request is replaced', async () => {
-  const { store } = operationStoreFixture();
-  await Effect.runPromise(store.set(key, { ...scope, requestId, request }));
-  const fiber = Effect.runFork(store.wait(key, requestId));
+  const { store, fiber } = await waitingOperation();
   await Effect.runPromise(
     store.set(key, {
       ...scope,
@@ -120,9 +102,7 @@ it('rejects the old waiter when its retained request is replaced', async () => {
 });
 
 it('interrupts waiting without deleting the durable operation', async () => {
-  const { store } = operationStoreFixture();
-  await Effect.runPromise(store.set(key, { ...scope, requestId, request }));
-  const fiber = Effect.runFork(store.wait(key, requestId));
+  const { store, fiber } = await waitingOperation();
   await Effect.runPromise(Fiber.interrupt(fiber));
   expect(store.state.value.operations.get(key)?.request).toEqual(request);
   expect(
@@ -189,19 +169,7 @@ it('keeps the running request recoverable when confirmation cannot remove its pe
 });
 
 it('keeps unanswered requests on disk when a connection closes and refuses a late mutation', async () => {
-  const retained = new Map<string, string>();
-  const persistence = {
-    key: 'operations',
-    storage: {
-      getItem: (name: string) => retained.get(name) ?? null,
-      setItem: (name: string, value: string) => {
-        retained.set(name, value);
-      },
-      removeItem: (name: string) => {
-        retained.delete(name);
-      },
-    },
-  };
+  const { persistence } = memoryPersistence();
   const { store, runtime } = operationStoreFixture(persistence);
   await Effect.runPromise(store.set(key, { ...scope, requestId, request }));
   const waiting = Effect.runFork(store.wait(key, requestId));
@@ -265,19 +233,7 @@ it('serializes storage admission so concurrent requests retain both identities',
 });
 
 it('drains an admitted storage write and publishes its recoverable identity before caller interruption returns', async () => {
-  const entered = Deferred.makeUnsafe<void>();
-  const release = Deferred.makeUnsafe<void>();
-  let retained: string | undefined;
-  const { store } = operationStoreFixture(undefined, {
-    read: () => Effect.succeed(null),
-    write: (text) =>
-      Effect.gen(function* () {
-        yield* Deferred.succeed(entered, undefined);
-        yield* Deferred.await(release);
-        retained = text;
-      }),
-    clear: () => Effect.void,
-  });
+  const { store, entered, release, retained } = blockedOperation();
   const controller = new AbortController();
   let settled = false;
   const writing = Effect.runPromiseExit(
@@ -293,26 +249,14 @@ it('drains an admitted storage write and publishes its recoverable identity befo
   expect(store.state.value.operations.size).toBe(0);
   await Effect.runPromise(Deferred.succeed(release, undefined));
   expect(Exit.hasInterrupts(await writing)).toBe(true);
-  expect(persistedIdentities(retained ?? '[]')).toMatchObject([
+  expect(persistedIdentities(retained() ?? '[]')).toMatchObject([
     { requestId, projectId: scope.projectId, worktreeId: scope.worktreeId },
   ]);
   expect(store.state.value.operations.get(key)?.requestId).toBe(requestId);
 });
 
 it('drains a pending storage write before disposing the connection and retains its recovery record', async () => {
-  const entered = Deferred.makeUnsafe<void>();
-  const release = Deferred.makeUnsafe<void>();
-  let retained: string | undefined;
-  const { store, runtime } = operationStoreFixture(undefined, {
-    read: () => Effect.succeed(null),
-    write: (text) =>
-      Effect.gen(function* () {
-        yield* Deferred.succeed(entered, undefined);
-        yield* Deferred.await(release);
-        retained = text;
-      }),
-    clear: () => Effect.void,
-  });
+  const { store, runtime, entered, release, retained } = blockedOperation();
   const writing = Effect.runPromise(
     store.set(key, { ...scope, requestId, request }),
   );
@@ -326,7 +270,7 @@ it('drains a pending storage write before disposing the connection and retains i
   await Effect.runPromise(Deferred.succeed(release, undefined));
   await writing;
   await closing;
-  expect(persistedIdentities(retained ?? '[]')).toEqual([
+  expect(persistedIdentities(retained() ?? '[]')).toEqual([
     { requestId, projectId: scope.projectId, worktreeId: scope.worktreeId },
   ]);
   expect(store.state.value).toMatchObject({
@@ -338,47 +282,42 @@ it('drains a pending storage write before disposing the connection and retains i
   ).toBe(true);
 });
 
-const owned = new Set<ManagedRuntime.ManagedRuntime<OperationStore, never>>();
-afterEach(async () => {
-  const runtimes = [...owned];
-  owned.clear();
-  await Promise.all(runtimes.map((runtime) => runtime.dispose()));
-});
-
-function operationStoreFixture(
-  persistence?: {
-    key: string;
-    storage: {
-      getItem: (key: string) => string | null;
-      setItem: (key: string, value: string) => void;
-      removeItem: (key: string) => void;
-    };
-  },
-  storage?: Context.Service.Shape<typeof OperationStorage>,
-) {
-  const runtime = ManagedRuntime.make(
-    operationStoreLayer.pipe(
-      Layer.provide(
-        Layer.succeed(
-          OperationStorage,
-          storage ?? {
-            read: () =>
-              Effect.try(
-                () => persistence?.storage.getItem(persistence.key) ?? null,
-              ),
-            write: (value) =>
-              Effect.try(() =>
-                persistence?.storage.setItem(persistence.key, value),
-              ),
-            clear: () =>
-              Effect.try(() =>
-                persistence?.storage.removeItem(persistence.key),
-              ),
-          },
-        ),
-      ),
-    ),
-  );
-  owned.add(runtime);
-  return { runtime, store: runtime.runSync(OperationStore) };
+function memoryPersistence() {
+  const retained = new Map<string, string>();
+  return {
+    retained,
+    persistence: {
+      key: 'operations',
+      storage: {
+        getItem: (name: string) => retained.get(name) ?? null,
+        setItem: (name: string, value: string) => {
+          retained.set(name, value);
+        },
+        removeItem: (name: string) => {
+          retained.delete(name);
+        },
+      },
+    },
+  };
+}
+async function waitingOperation() {
+  const { store } = operationStoreFixture();
+  await Effect.runPromise(store.set(key, { ...scope, requestId, request }));
+  return { store, fiber: Effect.runFork(store.wait(key, requestId)) };
+}
+function blockedOperation() {
+  const entered = Deferred.makeUnsafe<void>();
+  const release = Deferred.makeUnsafe<void>();
+  let retained: string | undefined;
+  const fixture = operationStoreFixture(undefined, {
+    read: () => Effect.succeed(null),
+    write: (text) =>
+      Effect.gen(function* () {
+        yield* Deferred.succeed(entered, undefined);
+        yield* Deferred.await(release);
+        retained = text;
+      }),
+    clear: () => Effect.void,
+  });
+  return { ...fixture, entered, release, retained: () => retained };
 }

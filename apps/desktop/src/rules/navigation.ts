@@ -23,16 +23,3 @@ export function appDocument(url: string): boolean {
     !summaryPath.test(new URL(url).pathname)
   );
 }
-
-export function externalNavigation(url: string): boolean {
-  try {
-    const target = new URL(url);
-    return (
-      (target.protocol === 'https:' || target.protocol === 'http:') &&
-      target.username === '' &&
-      target.password === ''
-    );
-  } catch {
-    return false;
-  }
-}

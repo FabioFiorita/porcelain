@@ -1,39 +1,12 @@
-import { Layer, Effect, Exit } from 'effect';
+import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
+import { Effect, Exit } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
-import { afterEach, expect, it } from 'vitest';
-import {
-  createWorktreeConnection,
-  type RuntimeConnection,
-  type Transport,
-} from '@porcelain/client/transport';
+import { expect, it } from 'vitest';
+
 import { revokeAccess, setDeviceTrust, setRemoteAccess } from './share.ts';
 import { readRemoteAccess } from '@porcelain/client/access';
 
-const scopes = new Set<{
-  connection: RuntimeConnection;
-  registry: AtomRegistry.AtomRegistry;
-}>();
-afterEach(async () => {
-  for (const { connection, registry } of scopes) {
-    registry.dispose();
-    await connection.close();
-  }
-  scopes.clear();
-});
-function fixture(transport: Transport) {
-  const { connection } = createWorktreeConnection(
-    {
-      environmentId: 'environment',
-      transport,
-      timeoutMs: 10_000,
-    },
-    undefined,
-    Layer.empty,
-  );
-  const registry = AtomRegistry.make();
-  scopes.add({ connection, registry });
-  return { connection, registry };
-}
+const fixture = clientFixtures('environment');
 
 it('a failed device write rejects its queued follower without sending it, then allows an explicit new action', async () => {
   const requests: string[] = [];

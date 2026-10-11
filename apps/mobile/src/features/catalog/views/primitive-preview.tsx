@@ -54,16 +54,10 @@ export function PrimitivePreview({ name }: { name: string }) {
         </View>
         <FileTree
           nodes={[
-            {
-              id: 'src',
-              name: 'src/components',
-              kind: 'folder',
-              children: [
-                { id: 'button', name: 'button.tsx', kind: 'code', status: 'M' },
-                { id: 'input', name: 'input.tsx', kind: 'code', status: 'A' },
-              ],
-            },
-            { id: 'readme', name: 'README.md', kind: 'file' },
+            { path: 'src/', kind: 'directory' },
+            { path: 'src/button.tsx', kind: 'file' },
+            { path: 'src/input.tsx', kind: 'file', ignored: true },
+            { path: 'README.md', kind: 'file' },
           ]}
           expanded={expanded}
           selected={selected}
@@ -72,28 +66,31 @@ export function PrimitivePreview({ name }: { name: string }) {
             {
               id: 'open',
               label:
-                node.kind === 'folder'
-                  ? expanded.has(node.id)
+                node.kind === 'directory'
+                  ? expanded.has(node.path.replace(/\/$/, ''))
                     ? 'Collapse folder'
                     : 'Expand folder'
                   : 'Open file',
               onPress: () => {
-                if (node.kind === 'folder') {
+                if (node.kind === 'directory') {
                   setExpanded((current) => {
                     const next = new Set(current);
-                    if (next.has(node.id)) next.delete(node.id);
-                    else next.add(node.id);
+                    if (next.has(node.path.replace(/\/$/, '')))
+                      next.delete(node.path.replace(/\/$/, ''));
+                    else next.add(node.path.replace(/\/$/, ''));
                     return next;
                   });
-                } else setSelected(node.id);
-                setValue(`Open ${node.name}`);
+                } else setSelected(node.path.replace(/\/$/, ''));
+                setValue(`Open ${node.path}`);
               },
             },
             {
               id: 'details',
               label: 'Show details',
               onPress: () =>
-                setValue(`${node.name} · ${node.status ?? 'Unchanged'}`),
+                setValue(
+                  `${node.path} · ${node.ignored ? 'Ignored' : 'Unchanged'}`,
+                ),
             },
           ]}
           onToggle={(id) =>

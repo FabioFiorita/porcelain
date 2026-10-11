@@ -1,6 +1,7 @@
-import { operationStoreLayer } from '@porcelain/client/git-actions';
-import { Crypto, Equal, Exit, Layer, ManagedRuntime } from 'effect';
-import { afterEach } from 'vitest';
+import { operationStoreFixture } from '../../../../spec/kit/operation-store.ts';
+
+import { Crypto, Equal, Exit, Layer } from 'effect';
+
 import type { Context } from 'effect';
 import { Atom, AtomRegistry } from 'effect/reactivity';
 import { readChanges } from '@porcelain/client/changes';
@@ -16,11 +17,7 @@ import {
   createWorktreeConnection,
   type Transport,
 } from '@porcelain/client/transport';
-import {
-  OperationStore,
-  OperationStorage,
-  operationKey,
-} from '@porcelain/client/git-actions';
+import { OperationStore, operationKey } from '@porcelain/client/git-actions';
 import {
   runGitAction,
   gitActionCommands,
@@ -129,16 +126,7 @@ it.effect(
     Effect.gen(function* () {
       const sent: string[] = [];
       const subject = yield* Effect.acquireRelease(
-        Effect.sync(() =>
-          setup((_path, init) => {
-            if (!(init?.body instanceof Uint8Array))
-              throw new Error('Expected encoded write');
-            sent.push(new TextDecoder().decode(init.body));
-            return sent.length === 1
-              ? Promise.reject(new Error('Disconnected after send'))
-              : Promise.resolve(Response.json(receipt));
-          }),
-        ),
+        Effect.sync(() => setup(disconnectFirstWrite(sent))),
         (subject) => Effect.promise(subject.close),
       );
       const failed = yield* Effect.exit(
@@ -162,14 +150,7 @@ it.effect(
 
 it('retains the original request after an unanswered write and resends that exact request on recovery', async () => {
   const sent: string[] = [];
-  const subject = setup((_path, init) => {
-    if (!(init?.body instanceof Uint8Array))
-      throw new Error('Expected encoded write');
-    sent.push(new TextDecoder().decode(init.body));
-    return sent.length === 1
-      ? Promise.reject(new Error('Disconnected after send'))
-      : Promise.resolve(Response.json(receipt));
-  });
+  const subject = setup(disconnectFirstWrite(sent));
   try {
     await expect(subject.run()).rejects.toThrow('Could not reach Porcelain');
     await expect(subject.run()).rejects.toThrow('Check the existing receipt');
@@ -357,47 +338,13 @@ it('does not send or publish a Git operation when its recovery identity cannot b
   }
 });
 
-const owned = new Set<ManagedRuntime.ManagedRuntime<OperationStore, never>>();
-afterEach(async () => {
-  const runtimes = [...owned];
-  owned.clear();
-  await Promise.all(runtimes.map((runtime) => runtime.dispose()));
-});
-
-function operationStoreFixture(
-  persistence?: {
-    key: string;
-    storage: {
-      getItem: (key: string) => string | null;
-      setItem: (key: string, value: string) => void;
-      removeItem: (key: string) => void;
-    };
-  },
-  storage?: Context.Service.Shape<typeof OperationStorage>,
-) {
-  const runtime = ManagedRuntime.make(
-    operationStoreLayer.pipe(
-      Layer.provide(
-        Layer.succeed(
-          OperationStorage,
-          storage ?? {
-            read: () =>
-              Effect.try(
-                () => persistence?.storage.getItem(persistence.key) ?? null,
-              ),
-            write: (value) =>
-              Effect.try(() =>
-                persistence?.storage.setItem(persistence.key, value),
-              ),
-            clear: () =>
-              Effect.try(() =>
-                persistence?.storage.removeItem(persistence.key),
-              ),
-          },
-        ),
-      ),
-    ),
-  );
-  owned.add(runtime);
-  return { runtime, store: runtime.runSync(OperationStore) };
+function disconnectFirstWrite(sent: string[]): Transport {
+  return (_path, init) => {
+    if (!(init?.body instanceof Uint8Array))
+      throw new Error('Expected encoded write');
+    sent.push(new TextDecoder().decode(init.body));
+    return sent.length === 1
+      ? Promise.reject(new Error('Disconnected after send'))
+      : Promise.resolve(Response.json(receipt));
+  };
 }

@@ -1,17 +1,11 @@
-import { Deferred, Effect, HashMap, Layer } from 'effect';
+import { sharedMemoConnections } from '../../../spec/kit/client-fixture.ts';
+import { Deferred, Effect, HashMap } from 'effect';
 import { expect, it } from 'vitest';
-import { createWorktreeConnection } from '@porcelain/client/transport';
+
 import { ReadSubscriptions } from './read-subscriptions.ts';
 
 it('keeps subscriptions scoped to their connection when applications share layer memoization and removes them on close', async () => {
-  const memoMap = Layer.makeMemoMapUnsafe();
-  const input = {
-    environmentId: 'same-environment',
-    transport: () => Promise.resolve(Response.json({})),
-    timeoutMs: 1000,
-  };
-  const first = createWorktreeConnection(input, memoMap, Layer.empty);
-  const second = createWorktreeConnection(input, memoMap, Layer.empty);
+  const { first, second } = sharedMemoConnections();
   const subscribed = Deferred.makeUnsafe<void>();
   const reads = first.connection.runtime.runSync(ReadSubscriptions);
   first.connection.runtime.runFork(

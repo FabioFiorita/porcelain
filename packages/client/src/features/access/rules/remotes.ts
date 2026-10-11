@@ -117,7 +117,7 @@ export function remoteStatusText(status: RemoteStatus): string {
 export function remoteStatusNote(status: RemoteStatus): string | undefined {
   switch (status.kind) {
     case 'offline':
-      return 'It did not answer. Check that it runs and that this computer reaches its address.';
+      return 'It did not answer. Check that it runs and that this device reaches its address.';
     case 'needs-pairing':
       return 'It no longer accepts this app. Run porcelain pair on it and add the new link.';
     case 'other-server':

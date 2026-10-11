@@ -1,13 +1,7 @@
-import { porcelainClient } from '../../../shared/api/client.ts';
-import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { Atom } from 'effect/reactivity';
-import type {
-  RuntimeConnection,
-  WorktreeScope,
-} from '../../../shared/api/connection.ts';
-import { worktreeRead } from '../../../shared/api/worktree-read.ts';
+import type { WorktreeSelection } from '../../../shared/api/connection.ts';
+import { clientWorktreeRead } from '../../../shared/api/worktree-read.ts';
 import { Effect } from 'effect';
-import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import {
   FileTooLargeError,
   UnsupportedTextError,
@@ -22,44 +16,27 @@ function unreadableFileReason(error: unknown) {
 }
 
 export const readTextFile = Atom.family(
-  ({
-    connection,
-    scope,
-    path,
-  }: {
-    connection: RuntimeConnection;
-    scope: WorktreeScope;
-    path: string;
-  }) =>
-    worktreeRead(
-      connection,
-      scope,
+  ({ connection, scope, path }: WorktreeSelection & { path: string }) =>
+    clientWorktreeRead(
+      { connection, scope },
       ['text', path],
-      Effect.gen(function* () {
-        const client = yield* porcelainClient(connection);
-        return yield* client
-          .request((api) =>
-            api.files.readTextFile({
-              params: { worktreeId: scope.worktreeId },
-              query: { path },
-            }),
-          )
+      (api) =>
+        api.files
+          .readTextFile({
+            params: { worktreeId: scope.worktreeId },
+            query: { path },
+          })
           .pipe(
-            Effect.tap((answer) =>
-              currentAnswerEffect(
-                connection,
-                answer.worktreeId === scope.worktreeId && answer.path === path,
-              ),
-            ),
             Effect.catch((error) => {
               const reason = unreadableFileReason(error);
               return reason
                 ? Effect.succeed({ kind: 'unreadable' as const, reason })
                 : Effect.fail(error);
             }),
-          );
-      }),
-      clientRuntime(connection),
+          ),
+      (answer) =>
+        'reason' in answer ||
+        (answer.worktreeId === scope.worktreeId && answer.path === path),
       [path],
     ),
 );

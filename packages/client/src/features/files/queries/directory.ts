@@ -1,13 +1,10 @@
-import { porcelainClient } from '../../../shared/api/client.ts';
-import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { Atom } from 'effect/reactivity';
 import type {
   RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { worktreeRead } from '../../../shared/api/worktree-read.ts';
-import { Effect } from 'effect';
-import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
+import { clientWorktreeRead } from '../../../shared/api/worktree-read.ts';
+import type { FilesScope } from '../rules/scope.ts';
 
 export const readDirectory = Atom.family(
   ({
@@ -19,29 +16,32 @@ export const readDirectory = Atom.family(
     scope: WorktreeScope;
     path: string;
   }) =>
-    worktreeRead(
-      connection,
-      scope,
+    clientWorktreeRead(
+      { connection, scope },
       ['directory', path],
-      Effect.gen(function* () {
-        const client = yield* porcelainClient(connection);
-        return yield* client
-          .request((api) =>
-            api.files.listDirectory({
-              params: { worktreeId: scope.worktreeId },
-              query: { path },
-            }),
-          )
-          .pipe(
-            Effect.tap((answer) =>
-              currentAnswerEffect(
-                connection,
-                answer.worktreeId === scope.worktreeId,
-              ),
-            ),
-          );
-      }),
-      clientRuntime(connection),
+      (api) =>
+        api.files.listDirectory({
+          params: { worktreeId: scope.worktreeId },
+          query: { path },
+        }),
+      (answer) => answer.worktreeId === scope.worktreeId,
       [path],
     ),
+);
+
+export type DirectorySelection = {
+  connection: RuntimeConnection;
+  scope: FilesScope;
+  paths: readonly string[];
+};
+function directoryAtoms({ connection, scope, paths }: DirectorySelection) {
+  return paths.map((path) => readDirectory({ connection, scope, path }));
+}
+export const readDirectories = Atom.family((selection: DirectorySelection) =>
+  Atom.make((get) => directoryAtoms(selection).map((atom) => get(atom))),
+);
+export const refreshDirectories = Atom.family((selection: DirectorySelection) =>
+  Atom.fnSync((_: void, get) => {
+    for (const atom of directoryAtoms(selection)) get.refresh(atom);
+  }),
 );

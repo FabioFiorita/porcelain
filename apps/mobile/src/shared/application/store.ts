@@ -1,4 +1,4 @@
-import { Effect, Layer, ManagedRuntime } from 'effect';
+import { Layer, ManagedRuntime } from 'effect';
 import { Atom } from 'effect/reactivity';
 import {
   AccessPlatform,
@@ -14,12 +14,17 @@ import {
   ProjectSelectionCommands,
   ProjectSelectionStorage,
   ProjectSelectionStore,
-  WorkspaceSelectionCleanup,
+  workspaceSelectionCleanupLayer,
 } from '@porcelain/client/projects';
+import {
+  PreferenceStorage,
+  PreferencesStore,
+} from '@porcelain/client/preferences';
 import { remoteConnectionFactoryLayer } from '../adapters/connection-factory';
 import { accessPlatform } from '../adapters/access-platform';
 import { environmentStorage } from '../adapters/environment-storage';
 import { projectSelectionStorage } from '../adapters/selection-storage';
+import { preferenceStorage } from '../adapters/preference-storage';
 
 const memoMap = Layer.makeMemoMapUnsafe();
 const platform = Layer.succeed(AccessPlatform, accessPlatform);
@@ -27,22 +32,18 @@ const platform = Layer.succeed(AccessPlatform, accessPlatform);
 const stores = Layer.mergeAll(
   AccessStore.layer,
   ProjectSelectionStore.layer,
+  PreferencesStore.layer,
   EnvironmentMutations.layer,
 ).pipe(
   Layer.provide(
-    Layer.merge(
+    Layer.mergeAll(
       Layer.succeed(EnvironmentStorage, environmentStorage),
       Layer.succeed(ProjectSelectionStorage, projectSelectionStorage),
+      Layer.succeed(PreferenceStorage, preferenceStorage),
     ),
   ),
 );
-const cleanup = Layer.effect(
-  WorkspaceSelectionCleanup,
-  Effect.gen(function* () {
-    const selection = yield* ProjectSelectionStore;
-    return { forgetEnvironment: selection.forgetEnvironment };
-  }),
-).pipe(Layer.provide(stores));
+const cleanup = workspaceSelectionCleanupLayer.pipe(Layer.provide(stores));
 const services = Layer.mergeAll(
   stores,
   cleanup,
@@ -69,6 +70,8 @@ export const accessState = applicationRuntime.runSync(AccessStore).state;
 export const selectionState = applicationRuntime.runSync(
   ProjectSelectionStore,
 ).state;
+export const preferencesState =
+  applicationRuntime.runSync(PreferencesStore).state;
 export const pendingSelections = applicationRuntime.runSync(
   ProjectSelectionCommands,
 ).pending;

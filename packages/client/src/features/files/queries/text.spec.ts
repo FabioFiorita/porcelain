@@ -1,9 +1,10 @@
+import { abortingTransport } from '../../../../spec/kit/held-transport.ts';
+import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
 import { Deferred } from 'effect';
-import { afterEach, expect, it } from 'vitest';
-import { Cause, Layer, Effect, Exit } from 'effect';
+import { expect, it } from 'vitest';
+import { Cause, Effect, Exit } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import {
-  createWorktreeConnection,
   retryWorktreeReads,
   type Transport,
 } from '@porcelain/client/transport';
@@ -12,34 +13,17 @@ const scope = {
   projectId: 'project',
   worktreeId: '00000000000000000000000000000000',
 };
-const owned: (() => Promise<void>)[] = [];
-afterEach(async () => {
-  for (const close of owned) await close();
-  owned.length = 0;
-});
-function fixture(
-  transport: Transport,
-  cacheIdentity?: readonly string[],
-  timeoutMs = 10_000,
-) {
-  const lifetime = createWorktreeConnection(
-    {
-      environmentId: 'environment',
-      transport,
-      timeoutMs,
-      ...(cacheIdentity ? { cacheIdentity } : {}),
-    },
-    undefined,
-    Layer.empty,
-  );
-  const registry = AtomRegistry.make();
-  owned.push(async () => {
-    registry.dispose();
-    await lifetime.close();
-  });
-  return { ...lifetime, registry };
-}
+const fixture = clientFixtures('environment');
+
 import { readTextFile } from './text.ts';
+function responseForPath(path: string) {
+  const url = new URL(path, 'http://test.invalid');
+  return {
+    ...response,
+    worktreeId: url.pathname.split('/')[3],
+    path: url.searchParams.get('path'),
+  };
+}
 const response = {
   worktreeId: scope.worktreeId,
   path: 'README.md',
@@ -63,14 +47,7 @@ it('isolates worktrees, paths and replacement credentials while sharing an activ
   const sent: string[] = [];
   const transport: Transport = (path) => {
     sent.push(path);
-    const url = new URL(path, 'http://test.invalid');
-    return Promise.resolve(
-      Response.json({
-        ...response,
-        worktreeId: url.pathname.split('/')[3],
-        path: url.searchParams.get('path'),
-      }),
-    );
+    return Promise.resolve(Response.json(responseForPath(path)));
   };
   const first = fixture(transport, ['first']);
   const replacement = fixture(transport, ['replacement']);
@@ -149,6 +126,25 @@ it('encodes reserved path characters once and preserves the transport policy', a
     cache: 'no-store',
   });
   expect(sent[0]?.init?.signal?.aborted).toBe(false);
+});
+it('answers a file over the read limit with a readable reason instead of failing the read', async () => {
+  const subject = fixture(() =>
+    Promise.resolve(
+      Response.json(
+        {
+          statusCode: 422,
+          error: 'Unprocessable Entity',
+          message: 'File exceeds the read limit',
+          code: 'file_too_large',
+        },
+        { status: 422 },
+      ),
+    ),
+  );
+  expect(await read(subject)).toEqual({
+    kind: 'unreadable',
+    reason: 'This file is too large to display as text.',
+  });
 });
 it('rejects malformed success data', async () => {
   const subject = fixture(() =>
@@ -323,16 +319,8 @@ it('retries only the selected worktree on the selected connection', async () => 
 });
 
 it('closing a connection aborts its pending generated text transport', async () => {
-  const started = Promise.withResolvers<AbortSignal>();
-  const subject = fixture((_path, init) => {
-    const signal = init!.signal!;
-    started.resolve(signal);
-    return new Promise<Response>((_resolve, reject) =>
-      signal.addEventListener('abort', () => reject(signal.reason), {
-        once: true,
-      }),
-    );
-  });
+  const { started, transport } = abortingTransport();
+  const subject = fixture(transport);
   subject.registry.mount(
     readTextFile({ connection: subject.connection, scope, path: 'README.md' }),
   );
