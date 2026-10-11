@@ -191,3 +191,59 @@ it('uses the selection rule reason in the picker, including unpaired and pending
     ).messages,
   ).toEqual(['Laptop · Reading projects…']);
 });
+
+it.each([
+  [
+    'moved',
+    "Porcelain doesn't recognise this repository as the one it registered. Remove the project and add it again.",
+  ],
+  ['missing', 'The repository folder is missing.'],
+  [
+    'permission',
+    'Porcelain cannot read this repository because access is denied.',
+  ],
+  ['git-failed', 'Git could not read this repository.'],
+] as const)(
+  'shows the selected project reason %s once and offers another read',
+  (unavailableReason, reason) => {
+    const result = workspaceChoices(
+      [
+        {
+          environmentId: 'laptop',
+          name: 'Laptop',
+          status: 'ready',
+          inventory: inventory('Laptop', [
+            { ...project('one', false), available: false, unavailableReason },
+          ]),
+        },
+      ],
+      { environmentId: 'laptop', projectId: 'one', worktreeId: 'one-main' },
+    );
+    expect(result.messages).toEqual([reason]);
+    expect(result.canReadAgain).toBe(true);
+  },
+);
+
+it('shows an unavailable project reason without a saved selection and offers another read', () => {
+  const result = workspaceChoices(
+    [
+      {
+        environmentId: 'laptop',
+        name: 'Laptop',
+        status: 'ready',
+        inventory: inventory('Laptop', [
+          {
+            ...project('one', false),
+            available: false,
+            unavailableReason: 'permission',
+          },
+        ]),
+      },
+    ],
+    undefined,
+  );
+  expect(result.messages).toEqual([
+    'Laptop · Porcelain: Porcelain cannot read this repository because access is denied.',
+  ]);
+  expect(result.canReadAgain).toBe(true);
+});

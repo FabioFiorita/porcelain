@@ -9,7 +9,6 @@ selectors:
   - 'Reading projects…'
   - 'No projects registered'
   - 'Could not read projects'
-  - 'Saved worktree is unavailable'
   - 'Read projects again'
 
 tests:
@@ -64,7 +63,7 @@ Drive this feature with the mobile-verify skill on demand.
 1. Start with loaded storage and no saved worktree. Open Files, Review and History; expect Select a worktree to continue. The Workspace menu remains reachable, and choosing a worktree keeps the current tab.
 2. Cold-launch with a remembered worktree while the first inventory is pending. Expect Reading workspace… on all three tabs, with no selection prompt. Open and dismiss the toolbar menu without losing the destination.
 3. Fail the first inventory read with no previous data. Expect its error message and Read again on all three tabs; restore the environment and retry. After an inventory has loaded, fail a background reread instead: the tab and any open child screen or sheet stay mounted, retaining search and expanded folders.
-4. Make the fixture project or worktree unavailable, then read its inventory again. Expect Workspace unavailable and an environment-specific message on all three tabs. If an entry is absent, expect the distinct no-longer-registered or no-longer-in-project message. Inventory carries availability booleans, without a reason field. The picker uses the same unavailable reason. Press Read again to refresh inventory, or open and dismiss the picker; restoring or selecting another available workspace recovers the current destination.
+4. Make the fixture project or worktree unavailable, then read its inventory again. Expect Workspace unavailable and an environment-specific message on all three tabs. If an entry is absent, expect the distinct no-longer-registered or no-longer-in-project message. An unavailable project uses the server reason when present; an older server without a reason uses the environment-specific fallback. The picker uses the same unavailable reason. Press Read again to refresh inventory, or open and dismiss the picker; restoring or selecting another available workspace recovers the current destination.
 5. In Files, hold the first root directory response. Expect Reading files… without No files. Release an empty root response and expect No files. Search a loaded inventory of paths with no matches and expect No files match this view.
 
 Child file, commit, commit diff and review screens use the same states; a workspace key mismatch retains their existing return-to-Files/History/Review message and native Back or Done control. The iPad detail pane owns the state and retry; its master shows the selected branch/path only, and stays empty otherwise. Its sidebar and detail toolbar remain the way out. An iPhone run does not prove the split view or Android.

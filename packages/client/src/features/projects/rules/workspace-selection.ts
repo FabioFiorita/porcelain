@@ -1,4 +1,8 @@
-import type { Inventory, Project } from './inventory.ts';
+import {
+  projectUnavailableMessage,
+  type Inventory,
+  type Project,
+} from './inventory.ts';
 
 export type SavedRead = {
   readonly status: 'loading' | 'ready' | 'unreadable';
@@ -76,7 +80,10 @@ export function workspaceSelection({
   if (!project.available)
     return {
       kind: 'unavailable',
-      reason: `This project is unavailable on ${name}.`,
+      reason:
+        project.unavailableReason === undefined
+          ? `This project is unavailable on ${name}.`
+          : projectUnavailableMessage(project),
     };
   const worktree = project.worktrees.find(
     (entry) => entry.id === remembered.worktreeId,

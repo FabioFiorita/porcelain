@@ -236,3 +236,38 @@ describe('the selected workspace state', () => {
     expect(workspaceSelection(input)).toEqual(expected);
   });
 });
+
+it.each([
+  [
+    'moved',
+    "Porcelain doesn't recognise this repository as the one it registered. Remove the project and add it again.",
+  ],
+  ['missing', 'The repository folder is missing.'],
+  [
+    'permission',
+    'Porcelain cannot read this repository because access is denied.',
+  ],
+  ['git-failed', 'Git could not read this repository.'],
+] as const)(
+  'shows the server reason %s for the selected unavailable project',
+  (unavailableReason, reason) => {
+    expect(
+      workspaceSelection({
+        ...input,
+        inventory: {
+          status: 'ready',
+          inventory: {
+            ...inventory,
+            projects: [
+              {
+                ...inventory.projects[0]!,
+                available: false,
+                unavailableReason,
+              },
+            ],
+          },
+        },
+      }),
+    ).toEqual({ kind: 'unavailable', reason });
+  },
+);

@@ -1,5 +1,9 @@
 import { workspaceSelection } from './workspace-selection.ts';
-import type { Inventory, Project } from './inventory.ts';
+import {
+  projectUnavailableMessage,
+  type Inventory,
+  type Project,
+} from './inventory.ts';
 
 export type EnvironmentInventory = {
   readonly environmentId: string;
@@ -75,12 +79,28 @@ export function workspaceChoices(
           return status ? [`${nameOf(environment)} · ${status}`] : [];
         });
   const unavailableReason = saved && savedUnavailable(environments, saved);
+  messages.push(
+    ...choices
+      .filter(
+        ({ project, environmentId }) =>
+          !project.available &&
+          !(
+            unavailableReason &&
+            saved?.environmentId === environmentId &&
+            saved.projectId === project.id
+          ),
+      )
+      .map(
+        ({ project, environmentName }) =>
+          `${environmentName} · ${project.name}: ${projectUnavailableMessage(project)}`,
+      ),
+  );
   if (unavailableReason) messages.push(unavailableReason);
   return {
     choices,
     messages,
-    canReadAgain: environments.some(
-      (environment) => environment.status === 'failed',
-    ),
+    canReadAgain:
+      choices.some(({ project }) => !project.available) ||
+      environments.some((environment) => environment.status === 'failed'),
   };
 }
