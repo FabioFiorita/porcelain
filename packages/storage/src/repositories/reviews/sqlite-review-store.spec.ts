@@ -4,7 +4,7 @@ import {
   InventoryStore,
   WorktreePresenceStore,
 } from '@porcelain/projects/ports';
-import { ReviewStore } from '@porcelain/reviews/ports';
+import { ReviewedLayerStore, ReviewStore } from '@porcelain/reviews/ports';
 import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -45,6 +45,7 @@ async function openStore(worktreeIds: readonly string[]) {
   return {
     dataDirectory,
     store: await session.runPromise(ReviewStore),
+    reviewedLayers: await session.runPromise(ReviewedLayerStore),
     close: async () => {
       await session.dispose();
       rmSync(dataDirectory, { recursive: true, force: true });

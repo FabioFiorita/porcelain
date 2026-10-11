@@ -8,18 +8,21 @@ import type {
   ReviewSummary,
   ReviewSummaryKey,
 } from '../../src/models/review.ts';
+import type { ReviewedLayerStore } from '../../src/ports/reviewed-layer-store.ts';
+import { InMemoryReviewedLayerStore } from './in-memory-reviewed-layer-store.ts';
 import type { ReviewStore } from '../../src/ports/review-store.ts';
-
-function activityKey(worktreeId: string, revision: number): string {
-  return `${worktreeId}\0${revision}`;
-}
 
 export class InMemoryReviewStore implements ReviewStore {
   private readonly rows: Map<string, Review>;
-  private readonly activity = new Map<string, boolean>();
+  private readonly activity = new Map<string, Map<number, boolean>>();
+  private readonly reviewedLayers: ReviewedLayerStore;
   private readonly proofFiles = new Map<string, readonly ProofFile[]>();
 
-  constructor(reviews: readonly Review[] = []) {
+  constructor(
+    reviews: readonly Review[] = [],
+    reviewedLayers: ReviewedLayerStore = new InMemoryReviewedLayerStore(),
+  ) {
+    this.reviewedLayers = reviewedLayers;
     this.rows = new Map(
       reviews.map((review) => [review.worktreeId, structuredClone(review)]),
     );
@@ -57,10 +60,22 @@ export class InMemoryReviewStore implements ReviewStore {
   }
 
   remove(input: WorktreeKey): Effect.Effect<boolean> {
-    return Effect.sync(() => {
-      this.proofFiles.delete(input.worktreeId);
-      return this.rows.delete(input.worktreeId);
-    });
+    return Effect.flatMap(
+      Effect.sync(() => {
+        this.proofFiles.delete(input.worktreeId);
+        this.activity.delete(input.worktreeId);
+        return this.rows.delete(input.worktreeId);
+      }),
+      (removed) =>
+        this.reviewedLayers.list(input).pipe(
+          Effect.flatMap((marks) =>
+            Effect.forEach(marks, (mark) =>
+              this.reviewedLayers.remove({ ...input, layerId: mark.layerId }),
+            ),
+          ),
+          Effect.as(removed),
+        ),
+    );
   }
 
   save(input: ReviewSave): Effect.Effect<void> {
@@ -68,7 +83,7 @@ export class InMemoryReviewStore implements ReviewStore {
       const { proofFiles, ...review } = input;
       this.rows.set(input.worktreeId, structuredClone(review));
       this.proofFiles.set(input.worktreeId, structuredClone(proofFiles ?? []));
-      this.activity.delete(activityKey(input.worktreeId, input.revision));
+      this.activity.get(input.worktreeId)?.delete(input.revision);
     });
   }
 
@@ -83,10 +98,9 @@ export class InMemoryReviewStore implements ReviewStore {
 
   setActive(input: ReviewActivity): Effect.Effect<void> {
     return Effect.sync(() => {
-      this.activity.set(
-        activityKey(input.worktreeId, input.revision),
-        input.active,
-      );
+      const revisions = new Map(this.activity.get(input.worktreeId));
+      revisions.set(input.revision, input.active);
+      this.activity.set(input.worktreeId, revisions);
     });
   }
 
@@ -94,7 +108,7 @@ export class InMemoryReviewStore implements ReviewStore {
     return {
       ...structuredClone(review),
       active:
-        this.activity.get(activityKey(review.worktreeId, review.revision)) ??
+        this.activity.get(review.worktreeId)?.get(review.revision) ??
         review.active,
     };
   }
