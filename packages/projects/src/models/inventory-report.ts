@@ -1,3 +1,4 @@
+import type { ProjectUnavailableReason } from './project-unavailable-reason.ts';
 import type { ReviewBadge } from '@porcelain/kernel/models';
 
 type WorktreeReport = {
@@ -13,6 +14,7 @@ export type ProjectReport = {
   id: string;
   name: string;
   available: boolean;
+  unavailableReason?: ProjectUnavailableReason;
   worktrees: WorktreeReport[];
 };
 

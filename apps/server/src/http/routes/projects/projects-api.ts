@@ -34,6 +34,9 @@ export function projectsRoutes(useCases: ProjectsUseCases) {
         useCases.listFilePreferences.execute(params),
       )
       .handle('readInventory', () => useCases.readInventory.execute())
+      .handle('retryInventory', () =>
+        useCases.readInventory.execute({ refresh: true }),
+      )
       .handle('registerProject', ({ payload }) =>
         useCases.registerProject.execute(payload),
       )

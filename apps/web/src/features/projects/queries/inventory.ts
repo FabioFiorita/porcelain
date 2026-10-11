@@ -1,9 +1,9 @@
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
-import { useAtomValue } from '@effect/atom-react';
+import { useAtomSet, useAtomValue } from '@effect/atom-react';
 import { useConfirmedRead } from '@/shared/query/confirmed-read';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import { Cause, Option } from 'effect';
-import { readInventory } from '@porcelain/client/projects';
+import { readInventory, retryInventory } from '@porcelain/client/projects';
 import { type Connection } from '@/shared/workspace/connection';
 
 const unavailable = Atom.make(AsyncResult.initial<ReadInventoryResponse>());
@@ -21,5 +21,12 @@ export function useRemoteInventory(connection: Connection, enabled: boolean) {
     error: AsyncResult.isFailure(result)
       ? Cause.squash(result.cause)
       : undefined,
+  };
+}
+
+export function useRetryInventory(connection: Connection, enabled = true) {
+  const retry = useAtomSet(retryInventory(connection));
+  return () => {
+    if (enabled) retry(undefined);
   };
 }

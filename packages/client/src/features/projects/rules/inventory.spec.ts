@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   firstWaitingWorktree,
   projectPath,
+  projectUnavailableMessage,
   selectedWorktreeInProject,
   worktreeLabel,
 } from './inventory.ts';
@@ -80,4 +81,25 @@ describe('worktree labels', () => {
     expect(worktreeLabel('refs/heads/topic')).toBe('topic');
     expect(worktreeLabel(null)).toBe('Detached HEAD');
   });
+});
+
+it.each([
+  [
+    'moved',
+    'This folder now holds a different repository; remove this project and add it again.',
+  ],
+  [
+    'missing',
+    'The repository folder is missing; restore it and retry, or remove this project.',
+  ],
+  [
+    'permission',
+    'Porcelain cannot read this repository; allow access to its folder and retry.',
+  ],
+  [
+    'git-failed',
+    'Git could not read this repository; check that Git works in its folder and retry.',
+  ],
+] as const)('explains %s with a way back', (unavailableReason, sentence) => {
+  expect(projectUnavailableMessage({ unavailableReason })).toBe(sentence);
 });

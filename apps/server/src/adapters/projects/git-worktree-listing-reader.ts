@@ -1,12 +1,13 @@
 import { type Duration, Effect, Layer, Semaphore } from 'effect';
 import { captureGitPlatform } from '@porcelain/git/discovery';
 import { listWorktrees } from '@porcelain/git/discovery';
-import { isRepositoryUnavailable } from '@porcelain/git/errors';
+import { repositoryUnavailableReason } from '@porcelain/git/errors';
 import type {
   ListableProject,
   ListedWorktree,
   WorktreeListing,
 } from '@porcelain/projects/models';
+import { repositoryMoved } from '@porcelain/projects/rules';
 import { WorktreeListingReader } from '@porcelain/projects/ports';
 import type { Limits } from '../../config/limits.ts';
 import { Logger } from '../../ports/logger.ts';
@@ -32,6 +33,7 @@ export const gitWorktreeListingReaderLayer = (
       const listNow = Effect.fn('GitWorktreeListingReader.listNow')(function* (
         project: ListableProject,
       ): Effect.fn.Return<WorktreeListing> {
+        let reason: 'missing' | 'permission' | 'git-failed' = 'git-failed';
         const repository = yield* listWorktrees(
           project.commonDirectory,
           options.git,
@@ -40,17 +42,26 @@ export const gitWorktreeListingReaderLayer = (
           Effect.timeout(options.timeout),
           Effect.catch((failure) =>
             Effect.sync(() => {
-              if (!isRepositoryUnavailable(failure))
-                logger.failure({
-                  kind: 'worktree-listing',
-                  projectId: project.id,
-                  error: failure,
-                });
+              reason = repositoryUnavailableReason(failure);
+              logger.failure({
+                kind: 'worktree-listing',
+                projectId: project.id,
+                reason,
+                error: failure,
+              });
               return undefined;
             }),
           ),
         );
-        if (!repository) return { kind: 'unavailable', projectId: project.id };
+        if (!repository)
+          return { kind: 'unavailable', projectId: project.id, reason };
+        if (repositoryMoved(project, repository))
+          logger.failure({
+            kind: 'worktree-listing',
+            projectId: project.id,
+            reason: 'moved',
+            error: 'Repository identity changed',
+          });
         const worktrees: ListedWorktree[] = [];
         let unidentified = 0;
         for (const worktree of repository.worktrees) {

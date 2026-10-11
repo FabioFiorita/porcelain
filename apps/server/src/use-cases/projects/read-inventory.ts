@@ -11,16 +11,16 @@ import {
 } from '@porcelain/projects/services';
 import { inventoryReport } from '@porcelain/projects/rules';
 import { ReadInventoryBadgesUseCasePort } from '../../ports/read-inventory-badges-use-case-port.ts';
+import { InventoryRefresh } from '../../ports/inventory-refresh.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
 import { Lanes } from '../../runtime/lanes.ts';
 
 export class ReadInventoryUseCase extends Context.Service<
   ReadInventoryUseCase,
   {
-    readonly execute: () => Effect.Effect<
-      ReadInventoryResponse,
-      MissingEnvironmentIdentityError
-    >;
+    readonly execute: (input?: {
+      refresh: boolean;
+    }) => Effect.Effect<ReadInventoryResponse, MissingEnvironmentIdentityError>;
   }
 >()('@porcelain/server/ReadInventoryUseCase') {
   static readonly layer = Layer.effect(
@@ -32,49 +32,54 @@ export class ReadInventoryUseCase extends Context.Service<
       const readBadgesCapability = yield* ReadInventoryBadgesUseCasePort;
       const readEnvironmentCapability = yield* ReadEnvironmentService;
       const readEnvironmentNameCapability = yield* ReadEnvironmentNameService;
+      const refreshInventoryCapability = yield* InventoryRefresh;
       const lanesCapability = yield* Lanes;
       const laneKeysCapability = yield* LaneKeys;
 
       return {
-        execute: Effect.fn('ReadInventoryUseCase.execute')(
-          function* (): Effect.fn.Return<
-            ReadInventoryResponse,
-            MissingEnvironmentIdentityError
-          > {
-            const { inventory, listings } = yield* lanesCapability.run(
-              laneKeysCapability.inventory(),
-              'read',
-              () =>
-                Effect.gen(function* () {
-                  const inventory =
-                    yield* listRegisteredProjectsCapability.execute();
-                  return {
+        execute: Effect.fn('ReadInventoryUseCase.execute')(function* (input?: {
+          refresh: boolean;
+        }): Effect.fn.Return<
+          ReadInventoryResponse,
+          MissingEnvironmentIdentityError
+        > {
+          if (input?.refresh)
+            yield* refreshInventoryCapability
+              .execute()
+              .pipe(Effect.catchTag('ProjectNotFoundError', () => Effect.void));
+          const { inventory, listings } = yield* lanesCapability.run(
+            laneKeysCapability.inventory(),
+            'read',
+            () =>
+              Effect.gen(function* () {
+                const inventory =
+                  yield* listRegisteredProjectsCapability.execute();
+                return {
+                  inventory,
+                  listings: (yield* listKnownWorktreesCapability.execute(
                     inventory,
-                    listings: (yield* listKnownWorktreesCapability.execute(
-                      inventory,
-                    )).listings,
-                  };
-                }),
-            );
-            const statuses = yield* readBadgesCapability.execute({ listings });
-            const { environmentId, environment } = yield* lanesCapability.run(
-              laneKeysCapability.access(),
-              'read',
-              () =>
-                Effect.gen(function* () {
-                  return {
-                    environmentId: (yield* readEnvironmentCapability.execute())
-                      .environmentId,
-                    environment: yield* readEnvironmentNameCapability.execute(),
-                  };
-                }),
-            );
-            return {
-              ...inventoryReport(environmentId, inventory, listings, statuses),
-              environment,
-            };
-          },
-        ),
+                  )).listings,
+                };
+              }),
+          );
+          const statuses = yield* readBadgesCapability.execute({ listings });
+          const { environmentId, environment } = yield* lanesCapability.run(
+            laneKeysCapability.access(),
+            'read',
+            () =>
+              Effect.gen(function* () {
+                return {
+                  environmentId: (yield* readEnvironmentCapability.execute())
+                    .environmentId,
+                  environment: yield* readEnvironmentNameCapability.execute(),
+                };
+              }),
+          );
+          return {
+            ...inventoryReport(environmentId, inventory, listings, statuses),
+            environment,
+          };
+        }),
       };
     }),
   );

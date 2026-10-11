@@ -142,7 +142,10 @@ describe('choosing a workspace across paired environments', () => {
         [laptop('ready', inventory('Laptop', [project('one', false)]))],
         saved,
       ).messages,
-    ).toEqual(['Saved worktree is unavailable']);
+    ).toEqual([
+      'Porcelain: Git could not read this repository; check that Git works in its folder and retry.',
+      'Saved worktree is unavailable',
+    ]);
     expect(workspaceChoices([laptop('reading')], saved).messages).toEqual([
       'Laptop · Reading projects…',
     ]);
@@ -150,4 +153,24 @@ describe('choosing a workspace across paired environments', () => {
       workspaceChoices([], { ...saved, environmentId: 'forgotten' }).messages,
     ).toEqual(['No environments paired', 'Saved worktree is unavailable']);
   });
+});
+
+it('shows the unavailable project reason outside its disabled menu and offers another read', () => {
+  const result = workspaceChoices(
+    [
+      {
+        environmentId: 'laptop',
+        name: 'Laptop',
+        status: 'ready',
+        inventory: inventory('Laptop', [
+          { ...project('one', false), unavailableReason: 'permission' },
+        ]),
+      },
+    ],
+    undefined,
+  );
+  expect(result.messages).toEqual([
+    'Porcelain: Porcelain cannot read this repository; allow access to its folder and retry.',
+  ]);
+  expect(result.canReadAgain).toBe(true);
 });

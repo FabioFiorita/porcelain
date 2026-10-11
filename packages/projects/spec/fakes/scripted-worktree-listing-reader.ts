@@ -15,6 +15,7 @@ export class ScriptedWorktreeListingReader implements WorktreeListingReader {
       return (
         this.listings.get(input.id) ?? {
           kind: 'unavailable',
+          reason: 'git-failed',
           projectId: input.id,
         }
       );

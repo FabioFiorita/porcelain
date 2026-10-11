@@ -1,3 +1,4 @@
+import { projectUnavailableReasonSchema } from '@porcelain/projects/models';
 import { environmentSchema } from '../shared/environment.ts';
 import { Schema, SchemaTransformation } from 'effect';
 import {
@@ -29,6 +30,7 @@ const worktreeSchema = Schema.Struct({
 const projectSchema = Schema.Struct({
   id: projectIdSchema,
   name: Schema.String,
+  unavailableReason: Schema.optionalKey(projectUnavailableReasonSchema),
   available: Schema.Boolean,
   worktrees: Schema.Array(worktreeSchema),
 });

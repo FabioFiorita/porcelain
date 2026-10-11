@@ -1,8 +1,17 @@
 import { Option } from 'effect';
-import { useAtomRef, useAtomRefresh, useAtomValue } from '@effect/atom-react';
+import {
+  useAtomRef,
+  useAtomRefresh,
+  useAtomSet,
+  useAtomValue,
+} from '@effect/atom-react';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
-import { readInventory, readInventories } from '@porcelain/client/projects';
+import {
+  readInventory,
+  readInventories,
+  retryInventories,
+} from '@porcelain/client/projects';
 import type { EnvironmentInventory } from '@porcelain/client/projects/rules';
 import { liveQueries } from '@porcelain/client/live';
 import type { RuntimeConnection } from '@porcelain/client/transport';
@@ -28,10 +37,16 @@ const allInventories = Atom.family((remotes: readonly RemoteConnection[]) => {
   );
 });
 
+const inventoryRetries = Atom.family((remotes: readonly RemoteConnection[]) =>
+  retryInventories(remotes.map((entry) => entry.connection)),
+);
+
 export function useInventories(
   environments: readonly { environmentId: string; name: string }[],
 ) {
-  const atom = allInventories(useAtomRef(remoteConnectionState));
+  const remotes = useAtomRef(remoteConnectionState);
+  const atom = allInventories(remotes);
+  const retry = useAtomSet(inventoryRetries(remotes));
   const results = useAtomValue(atom);
   return {
     environments: environments.map(
@@ -55,6 +70,6 @@ export function useInventories(
         };
       },
     ),
-    read: useAtomRefresh(atom),
+    read: () => retry(undefined),
   };
 }

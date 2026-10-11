@@ -3,6 +3,7 @@ export {
   selectedWorktreeInProject,
   firstWaitingWorktree,
   projectPath,
+  projectUnavailableMessage,
   type Inventory,
   type Project,
 } from './inventory.ts';

@@ -5,7 +5,7 @@ export function gitWorktree(root: string) {
   const path = join(root, 'main');
   const administrativeDirectory = join(path, '.git');
   const info = statSync(administrativeDirectory, { bigint: true });
-  const identity = `${info.dev}:${info.ino}:${info.birthtimeNs}`;
+  const identity = `${info.ino}:${info.birthtimeNs}`;
   return {
     id: 'worktree-1',
     projectId: 'project-1',

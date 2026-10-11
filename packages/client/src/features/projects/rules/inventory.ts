@@ -44,3 +44,18 @@ export function projectPath(project: Project) {
     ''
   );
 }
+
+export function projectUnavailableMessage(
+  project: Pick<Project, 'unavailableReason'>,
+): string {
+  switch (project.unavailableReason) {
+    case 'moved':
+      return 'This folder now holds a different repository; remove this project and add it again.';
+    case 'missing':
+      return 'The repository folder is missing; restore it and retry, or remove this project.';
+    case 'permission':
+      return 'Porcelain cannot read this repository; allow access to its folder and retry.';
+    default:
+      return 'Git could not read this repository; check that Git works in its folder and retry.';
+  }
+}

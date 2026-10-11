@@ -1,3 +1,4 @@
+import type { ProjectUnavailableReason } from './project-unavailable-reason.ts';
 import type { ListedWorktree } from './listed-worktree.ts';
 import type { ListProjectWorktreesResult } from './list-project-worktrees.ts';
 import type { ListableProject } from './project.ts';
@@ -5,6 +6,7 @@ import type { ListableProject } from './project.ts';
 export type CatalogObservation = ListableProject & {
   observedAt: string;
   listed: boolean;
+  unavailableReason?: ProjectUnavailableReason | undefined;
 };
 
 export type CatalogEntry = {

@@ -22,6 +22,7 @@ export function catalogSnapshot(
                 repositoryIdentity: project.repositoryIdentity,
                 observedAt,
                 listed: listing.available,
+                unavailableReason: listing.unavailableReason,
               },
               worktrees: listing.worktrees,
             },

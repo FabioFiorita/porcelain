@@ -4,6 +4,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { Effect, FileSystem, Schema } from 'effect';
 import { Migrator } from 'effect/sql';
 import { UnsupportedDatabaseVersionError } from '../errors/unsupported-database-version-error.ts';
+import { readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { worktreeIdV1 } from './worktree-id-v1.ts';
 
 const journalSchema = Schema.fromJsonString(
@@ -196,6 +198,68 @@ export const upgradeLegacyDatabase = Effect.fn('Storage.upgradeLegacyDatabase')(
                     options.worktreeIdLength,
                   )
                 : null,
+          );
+          database.function(
+            'porcelain_stable_worktree_ids',
+            (projectId, commonDirectory) => {
+              if (
+                typeof projectId !== 'string' ||
+                typeof commonDirectory !== 'string'
+              )
+                return '[]';
+              const directories = [commonDirectory];
+              try {
+                directories.push(
+                  ...readdirSync(join(commonDirectory, 'worktrees')).map(
+                    (name) => join(commonDirectory, 'worktrees', name),
+                  ),
+                );
+              } catch (error) {
+                if (
+                  !(
+                    error instanceof Error &&
+                    'code' in error &&
+                    ['ENOENT', 'ENOTDIR', 'EACCES', 'EPERM'].includes(
+                      String(error.code),
+                    )
+                  )
+                )
+                  throw error;
+              }
+              return JSON.stringify(
+                directories.flatMap((directory) => {
+                  try {
+                    const info = statSync(directory, { bigint: true });
+                    if (!info.isDirectory() || info.birthtimeNs === 0n)
+                      return [];
+                    return [
+                      {
+                        old_id: worktreeIdV1(
+                          projectId,
+                          `${info.dev}:${info.ino}:${info.birthtimeNs}`,
+                          options.worktreeIdLength,
+                        ),
+                        new_id: worktreeIdV1(
+                          projectId,
+                          `${info.ino}:${info.birthtimeNs}`,
+                          options.worktreeIdLength,
+                        ),
+                      },
+                    ];
+                  } catch (error) {
+                    if (
+                      error instanceof Error &&
+                      'code' in error &&
+                      ['ENOENT', 'ENOTDIR', 'EACCES', 'EPERM'].includes(
+                        String(error.code),
+                      )
+                    )
+                      return [];
+                    throw error;
+                  }
+                }),
+              );
+            },
           );
           database.exec('PRAGMA foreign_keys = OFF');
           database.exec('BEGIN IMMEDIATE');

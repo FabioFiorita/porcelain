@@ -122,7 +122,7 @@ describe('native worktree access', () => {
       main: false,
       branch: 'refs/heads/feature',
       administrativeDirectory,
-      metadataIdentity: `${info.dev}:${info.ino}:${info.birthtimeNs}`,
+      metadataIdentity: `${info.ino}:${info.birthtimeNs}`,
     };
     expect(await known(linked)).toEqual({ kind: 'found', worktree: linked });
     rmSync(linkedPath, { recursive: true });

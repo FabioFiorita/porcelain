@@ -17,5 +17,11 @@ export const identity = Effect.fn('Git.identity')(function* (path: string) {
   );
   if (info.birthtimeNs === 0n)
     return yield* new UnsupportedFilesystemIdentityError();
-  return `${info.dev}:${info.ino}:${info.birthtimeNs}`;
+  return formatIdentity(info);
 });
+
+export function formatIdentity(
+  info: Pick<BigIntStats, 'dev' | 'ino' | 'birthtimeNs'>,
+): string {
+  return `${info.ino}:${info.birthtimeNs}`;
+}

@@ -18,3 +18,5 @@ export type { GitFilesystemError } from './git-filesystem-error.ts';
 export type { UnsupportedFilesystemIdentityError } from './unsupported-filesystem-identity-error.ts';
 export type { UnsupportedRepositoryError } from './unsupported-repository-error.ts';
 export type { GitOutputLimitError } from './git-output-limit-error.ts';
+
+export { repositoryUnavailableReason } from './repository-unavailable-reason.ts';

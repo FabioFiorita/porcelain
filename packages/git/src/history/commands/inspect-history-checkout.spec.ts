@@ -24,7 +24,7 @@ beforeEach(() => {
   execFileSync('git', ['init', '-q', '-b', 'main', root]);
   const directory = join(root, '.git');
   const info = statSync(directory, { bigint: true });
-  const identity = `${info.dev}:${info.ino}:${info.birthtimeNs}`;
+  const identity = `${info.ino}:${info.birthtimeNs}`;
   checkout = {
     path: root,
     commonDirectory: directory,

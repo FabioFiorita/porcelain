@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SidebarMenuSubItem } from '@/components/ui/sidebar';
 import { remoteStatusVariant, useRemoteStatus } from '@/features/access/index';
-import { useRemoteInventory } from '../queries/inventory';
+import { useRemoteInventory, useRetryInventory } from '../queries/inventory';
 import type { WorktreeTarget } from '../rules/worktree-target';
 import { MachineSection } from './machine-section';
 import { ProjectSection } from './project-section';
@@ -25,6 +25,10 @@ export function RemoteMachine({
   onOpenRemotes: () => void;
 }) {
   const status = useRemoteStatus(remote);
+  const retryInventory = useRetryInventory(
+    connection,
+    status.kind === 'online',
+  );
   const { inventory } = useRemoteInventory(
     connection,
     status.kind === 'online',
@@ -55,6 +59,7 @@ export function RemoteMachine({
       ) : (
         <RemoteProjects
           inventory={inventory}
+          onRetry={retryInventory}
           environmentId={remote.environmentId}
           selected={selected}
           onSelect={onSelect}
@@ -66,10 +71,12 @@ export function RemoteMachine({
 
 function RemoteProjects({
   inventory,
+  onRetry,
   environmentId,
   selected,
   onSelect,
 }: {
+  onRetry: () => void;
   inventory: ReturnType<typeof useRemoteInventory>['inventory'];
   environmentId: RemoteConnection['remote']['environmentId'];
   selected: string | undefined;
@@ -95,6 +102,7 @@ function RemoteProjects({
     <SidebarMenuSubItem key={project.id}>
       <ProjectSection
         project={project}
+        onRetry={onRetry}
         selected={selected}
         manage={false}
         onSelect={(worktreeId) =>

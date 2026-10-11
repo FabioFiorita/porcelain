@@ -15,7 +15,11 @@ import {
   applicationRuntime,
 } from '@/features/access/index';
 import { ThemeProvider } from '@/features/preferences/index';
-import { ProjectNavigator, useInventory } from '@/features/projects/index';
+import {
+  ProjectNavigator,
+  useInventory,
+  useRetryInventory,
+} from '@/features/projects/index';
 import { ReviewWorkspace } from '@/features/reviews/index';
 import type { Connection } from '@/shared/workspace/connection';
 import type { WorkspaceSearch } from '@/shared/workspace/search';
@@ -143,9 +147,11 @@ function Workspace({ connection }: { connection: Connection }) {
 
 function Navigator({ connection }: { connection: Connection }) {
   const inventory = useInventory(connection);
+  const retry = useRetryInventory(connection);
   return (
     <ProjectNavigator
       inventory={inventory}
+      onRetry={retry}
       remotes={undefined}
       selected={undefined}
       onSelect={() => {}}

@@ -10,6 +10,8 @@ import {
   openSync,
   realpathSync,
   rmSync,
+  statSync,
+  chmodSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -36,7 +38,10 @@ function repository() {
   return {
     id: 'project-1',
     commonDirectory: join(checkout, '.git'),
-    repositoryIdentity: 'repository-1',
+    repositoryIdentity: (() => {
+      const info = statSync(join(checkout, '.git'), { bigint: true });
+      return `${info.ino}:${info.birthtimeNs}`;
+    })(),
   };
 }
 
@@ -112,7 +117,7 @@ describe('gitWorktreeListingReaderLayer', () => {
     expect(reports).toEqual([]);
   });
 
-  it('reports a repository that is gone as unavailable without logging it', async () => {
+  it('reports a repository that is gone as missing and logs why', async () => {
     const { list, reports } = listing({
       id: 'project-1',
       commonDirectory: join(root, 'gone', '.git'),
@@ -120,15 +125,19 @@ describe('gitWorktreeListingReaderLayer', () => {
     });
     expect(await Effect.runPromise(list)).toEqual({
       kind: 'unavailable',
+      reason: 'missing',
       projectId: 'project-1',
     });
-    expect(reports).toEqual([]);
+    expect(reports).toMatchObject([
+      { kind: 'worktree-listing', reason: 'missing' },
+    ]);
   });
 
   it('reports a listing that fails unexpectedly as unavailable and logs why', async () => {
     const { list, reports } = listing(repository(), { outputBytes: 4 });
     expect(await Effect.runPromise(list)).toEqual({
       kind: 'unavailable',
+      reason: 'git-failed',
       projectId: 'project-1',
     });
     expect(reports).toMatchObject([
@@ -147,6 +156,7 @@ describe('gitWorktreeListingReaderLayer', () => {
     });
     expect(await Effect.runPromise(list)).toEqual({
       kind: 'unavailable',
+      reason: 'git-failed',
       projectId: 'project-1',
     });
     expect(reports).toMatchObject([
@@ -174,4 +184,60 @@ describe('gitWorktreeListingReaderLayer', () => {
     expect(reports).toEqual([]);
     expect(pipeHasReader(head)).toBe(false);
   });
+});
+
+it('reports denied access as permission and logs the reason', async () => {
+  const project = repository();
+  chmodSync(project.commonDirectory, 0);
+  try {
+    const { list, reports } = listing(project);
+    expect(await Effect.runPromise(list)).toEqual({
+      kind: 'unavailable',
+      projectId: 'project-1',
+      reason: 'permission',
+    });
+    expect(reports).toMatchObject([
+      {
+        kind: 'worktree-listing',
+        projectId: 'project-1',
+        reason: 'permission',
+      },
+    ]);
+  } finally {
+    chmodSync(project.commonDirectory, 0o755);
+  }
+});
+
+it('logs a changed repository identity as moved', async () => {
+  const { list, reports } = listing({
+    ...repository(),
+    repositoryIdentity: 'another-repository',
+  });
+  expect((await Effect.runPromise(list)).kind).toBe('listed');
+  expect(reports).toMatchObject([
+    { kind: 'worktree-listing', projectId: 'project-1', reason: 'moved' },
+  ]);
+});
+
+it('reports an absent Git executable as git-failed rather than a missing repository', async () => {
+  const project = repository();
+  const previous = process.env.PATH;
+  process.env.PATH = root;
+  try {
+    const { list, reports } = listing(project);
+    expect(await Effect.runPromise(list)).toEqual({
+      kind: 'unavailable',
+      projectId: 'project-1',
+      reason: 'git-failed',
+    });
+    expect(reports).toMatchObject([
+      {
+        kind: 'worktree-listing',
+        reason: 'git-failed',
+        error: { _tag: 'GitCommandError' },
+      },
+    ]);
+  } finally {
+    process.env.PATH = previous;
+  }
 });

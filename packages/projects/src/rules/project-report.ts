@@ -15,6 +15,9 @@ function projectReport(
     id: project.id,
     name: project.name,
     available: worktrees.available,
+    ...(worktrees.unavailableReason
+      ? { unavailableReason: worktrees.unavailableReason }
+      : {}),
     worktrees: worktrees.worktrees.map((worktree) => ({
       id: worktree.id,
       path: worktree.path,

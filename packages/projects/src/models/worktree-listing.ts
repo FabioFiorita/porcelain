@@ -1,3 +1,4 @@
+import type { ProjectUnavailableReason } from './project-unavailable-reason.ts';
 import type { ListedWorktree } from './listed-worktree.ts';
 
 export type WorktreeListing =
@@ -9,6 +10,7 @@ export type WorktreeListing =
       unidentified: number;
     }
   | {
-      kind: 'unavailable' | 'timed-out';
+      kind: 'unavailable';
+      reason: Exclude<ProjectUnavailableReason, 'moved'>;
       projectId: string;
     };
