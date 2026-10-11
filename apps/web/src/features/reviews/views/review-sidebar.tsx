@@ -216,9 +216,9 @@ function SidebarSurface({
       )}
     </ReviewBoundary>
   );
-  return surface === 'files' ? (
-    <div className="h-full">{content}</div>
-  ) : (
+  return surface === 'changes' ? (
     <ScrollArea className="h-full">{content}</ScrollArea>
+  ) : (
+    <div className="flex h-full min-h-0 flex-col">{content}</div>
   );
 }
