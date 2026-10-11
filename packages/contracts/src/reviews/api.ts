@@ -2,7 +2,7 @@ import { environmentUnavailable } from '../shared/environment-failure.ts';
 import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';
 import { porcelainApi } from '../shared/http-api.ts';
 import { PairedRequest } from '../shared/http-caller.ts';
-import { httpFailure, httpFailureWithMessage } from '../shared/http-failure.ts';
+import { httpFailure } from '../shared/http-failure.ts';
 import { worktreeFailures } from '../shared/worktree-failures.ts';
 import { gitReadFailures } from '../shared/git-read-failures.ts';
 import { worktreeParamsSchema } from '../shared/worktree-params.ts';
@@ -231,7 +231,9 @@ export class ReviewsApi extends porcelainApi.add(
               message: 'Invalid request',
             }),
             httpFailure(UnknownProofTargetError, 'BadRequest'),
-            httpFailureWithMessage(InvalidReviewPointerError, 'BadRequest'),
+            httpFailure(InvalidReviewPointerError, 'BadRequest', {
+              message: { fromError: true },
+            }),
             httpFailure(ReviewConflictError, 'Conflict'),
             httpFailure(ProofTooLargeError, 'PayloadTooLarge'),
             httpFailure(UnknownProofFileError, 'BadRequest'),

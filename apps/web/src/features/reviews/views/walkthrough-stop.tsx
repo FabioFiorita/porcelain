@@ -31,6 +31,7 @@ import {
   type ReviewStep,
   type RevealComment,
   stopTitle,
+  reviewStepLines,
   systemChanges,
   type WalkthroughKey,
   type WalkthroughStop,
@@ -107,22 +108,42 @@ export function WalkthroughStopView({
   );
   const excerpts =
     stop.kind === 'decision'
-      ? stop.layer.steps.filter(
-          (step) =>
-            step.location.state === 'committed' ||
-            step.location.state === 'broken' ||
-            (!shown.has(step.pointer.path) &&
-              !stop.elsewhere.some((file) => file.path === step.pointer.path)),
-        )
+      ? stop.layer.steps.filter((step) => {
+          const location = step.location;
+          switch (location.state) {
+            case 'committed':
+            case 'broken':
+              return true;
+            case 'current':
+            case 'changed':
+              return (
+                !shown.has(step.pointer.path) &&
+                !stop.elsewhere.some((file) => file.path === step.pointer.path)
+              );
+            default:
+              return location satisfies never;
+          }
+        })
       : [];
   const revealStep = (step: ReviewStep) => {
+    const location = step.location;
+    switch (location.state) {
+      case 'broken':
+        document
+          .getElementById(excerptId(step))
+          ?.scrollIntoView({ block: 'start' });
+        return;
+      case 'current':
+      case 'committed':
+      case 'changed':
+        break;
+      default:
+        location satisfies never;
+    }
     const item = items.find(
       (candidate) => candidate.path === step.pointer.path,
     );
-    const anchor =
-      step.location.state !== 'broken' && item && shown.has(item.path)
-        ? stepAnchor(step, item)
-        : null;
+    const anchor = item && shown.has(item.path) ? stepAnchor(step, item) : null;
     if (anchor) {
       setReveal({ anchor, nonce: Date.now() });
       return;
@@ -131,7 +152,7 @@ export function WalkthroughStopView({
       stop.kind === 'decision'
         ? stop.elsewhere.find((file) => file.path === step.pointer.path)
         : undefined;
-    if (owner && step.location.state !== 'broken') {
+    if (owner) {
       onGo(owner.stop);
       return;
     }
@@ -141,15 +162,14 @@ export function WalkthroughStopView({
         ?.scrollIntoView({ block: 'start' });
       return;
     }
-    const location =
-      'startLine' in step.location ? step.location : step.pointer;
+    const lines = reviewStepLines(step);
     props.onOpen(
       { kind: 'file', path: step.pointer.path },
       {
         kind: 'codeRange',
         filePath: step.pointer.path,
-        startLine: location.startLine,
-        endLine: location.endLine,
+        startLine: lines.startLine,
+        endLine: lines.endLine,
         comparison: { kind: 'file' },
       },
     );

@@ -124,6 +124,41 @@ test('publishing a missing pointer fails with its layer, step, path and lines an
   expect(record(record(current.body).review).revision).toBe(1);
 });
 
+test('publishing unreadable text and out-of-range lines reports the actual pointer failure', async ({
+  session,
+}) => {
+  await session.writeFile('binary.md', '\0binary');
+  const draft = sampleReview(session, 1, layerId, stepId, {
+    path: 'binary.md',
+  });
+  const pointer = draft.layers[0]?.steps[0]?.pointer;
+  if (!pointer) throw new Error('Sample review has no pointer');
+  pointer.startLine = 1;
+  pointer.endLine = 1;
+  const binary = await session.send(publish(session, draft));
+  pointer.path = session.fixture.readme.path;
+  pointer.startLine = 100;
+  pointer.endLine = 100;
+  const range = await session.send(publish(session, draft));
+  expect(binary.status).toBe(400);
+  expect(binary.body).toStrictEqual(
+    apiError(
+      400,
+      'Bad Request',
+      `Step \`${stepId}\` in layer \`${layerId}\` points to \`binary.md:1-1\`, which is not a readable text file`,
+    ),
+  );
+  expect(range.status).toBe(400);
+  expect(range.body).toStrictEqual(
+    apiError(
+      400,
+      'Bad Request',
+      `Step \`${stepId}\` in layer \`${layerId}\` points to \`${session.fixture.readme.path}:100-100\`, but the file has ${session.fixture.readme.changed.trimEnd().split('\n').length} lines`,
+    ),
+  );
+  await session.remove('binary.md');
+});
+
 test('publishing without layers or without a summary is invalid and to an unknown worktree is not found', async ({
   session,
 }) => {

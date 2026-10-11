@@ -1,4 +1,3 @@
-import { reviewIsVisible } from '@porcelain/client/reviews/rules';
 import { readPublishedReview } from '@porcelain/client/reviews';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { Option } from 'effect';
@@ -31,5 +30,5 @@ export function useHasReviewLayers(
   scope: ReviewScope,
   context: ConnectionContext,
 ) {
-  return reviewIsVisible(usePublishedReview(scope, context).review);
+  return usePublishedReview(scope, context).review?.active ?? false;
 }

@@ -38,5 +38,6 @@ export type ReviewDiagnostics = {
 export type ReviewEvidence = {
   changes: readonly FileChange[];
   texts: ReviewTexts;
+  missing: ReadonlySet<string>;
   diffs: readonly ReviewDiff[];
 };

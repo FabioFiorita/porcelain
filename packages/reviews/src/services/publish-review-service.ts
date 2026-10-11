@@ -23,7 +23,7 @@ import { type Review, type ReviewLayer } from '../models/review.ts';
 import { ReviewStore } from '../ports/review-store.ts';
 import { publishedLayerFingerprint } from '../rules/resolve-review.ts';
 import { reviewActivity } from '../rules/review-activity.ts';
-import { publishedLines } from '../rules/review-evidence.ts';
+import { publishedLines, textLines } from '../rules/review-evidence.ts';
 import {
   changesDigest,
   proofFileKind,
@@ -198,6 +198,18 @@ export class PublishReviewService extends Context.Service<
                     layerId: layer.id,
                     stepId: step.id,
                     ...step.pointer,
+                    reason: input.evidence.missing.has(step.pointer.path)
+                      ? 'missing'
+                      : files.has(step.pointer.path)
+                        ? 'out-of-range'
+                        : 'unreadable',
+                    ...(files.has(step.pointer.path)
+                      ? {
+                          lineCount: textLines(
+                            files.get(step.pointer.path) ?? '',
+                          ).length,
+                        }
+                      : {}),
                   }),
                 );
               steps.push({ ...structuredClone(step), published });

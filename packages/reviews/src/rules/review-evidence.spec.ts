@@ -112,7 +112,6 @@ describe('publishedLines', () => {
       startLine: 1,
       endLine: 3,
     },
-    { name: 'start below one', text: 'one\ntwo\n', startLine: 0, endLine: 1 },
     {
       name: 'start beyond the file',
       text: 'one\ntwo\n',

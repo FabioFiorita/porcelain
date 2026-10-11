@@ -1,4 +1,3 @@
-import { reviewIsVisible } from '@porcelain/client/reviews/rules';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
@@ -104,7 +103,7 @@ export function ReviewIndex({
   usePrefetchComments(scope, context);
   const list = useChanges(scope, connection);
   const published = usePublishedReview(scope, context);
-  const review = reviewIsVisible(published.review) ? published.review : null;
+  const review = published.review?.active ? published.review : null;
   const { threads } = useComments(scope, context);
   const changes = useReviewChangeItems(scope, context, list);
   const openComments = threads.filter((thread) => !thread.resolved).length;

@@ -1,4 +1,3 @@
-import { reviewIsVisible } from '@porcelain/client/reviews/rules';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import {
@@ -308,7 +307,7 @@ function DocumentArea({
   );
   const published = usePublishedReview(scope, context);
   const hasHandoff =
-    reviewIsVisible(published.review) ||
+    Boolean(published.review?.active) ||
     (overview !== null &&
       overview !== undefined &&
       overview.changes.length > 0);
@@ -359,8 +358,8 @@ function DocumentArea({
     setFocused,
     scope,
     context,
-    reviewing: reviewIsVisible(published.review),
-    handoff: handoffKind(reviewIsVisible(published.review), hasHandoff),
+    reviewing: published.review?.active === true,
+    handoff: handoffKind(published.review?.active === true, hasHandoff),
     base,
     onOpen,
     navigationTrigger,

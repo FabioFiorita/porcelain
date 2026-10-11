@@ -3,7 +3,6 @@ import {
   mergeBranchChanges,
   mergeReviewChanges,
   reviewErrorMessage,
-  reviewIsVisible,
   reviewSummaryUrl,
   summaryLayerNumber,
 } from './review.ts';
@@ -208,40 +207,5 @@ describe('mergeBranchChanges', () => {
         ['fresh.ts'],
       ).map((item) => item.path),
     ).toEqual(['fresh.ts']);
-  });
-});
-
-describe('reviewIsVisible', () => {
-  it('keeps an inactive review readable when a pointer is broken while leaving completed reviews hidden', () => {
-    const layers = [
-      {
-        id: 'l1',
-        title: 'Layer',
-        summary: 'Explains code',
-        lanes: ['Code'],
-        fingerprint: 'fingerprint',
-        steps: [
-          {
-            id: 's1',
-            title: 'Step',
-            text: 'Explains code',
-            kind: 'changed' as const,
-            lane: 0,
-            pointer: {
-              path: 'missing.ts',
-              startLine: 1,
-              endLine: 1,
-              textFingerprint: 'source',
-            },
-            location: { state: 'broken' as const },
-          },
-        ],
-      },
-    ];
-    expect(reviewIsVisible({ active: false, layers })).toBe(true);
-    expect(reviewIsVisible({ active: true, layers: [] })).toBe(true);
-    expect(reviewIsVisible({ active: false, layers: [] })).toBe(false);
-    expect(reviewIsVisible(undefined)).toBe(false);
-    expect(reviewIsVisible(null)).toBe(false);
   });
 });

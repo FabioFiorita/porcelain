@@ -51,12 +51,19 @@ const modified: FileChange = {
 
 function evidence(
   texts: [string, string][] = [['README.md', readme]],
+  missing: string[] = [],
 ): ReviewEvidence {
-  return { changes: [], texts: new Map(texts), diffs: [] };
+  return {
+    changes: [],
+    missing: new Set(missing),
+    texts: new Map(texts),
+    diffs: [],
+  };
 }
 
 const stillChanged: ReviewEvidence = {
   changes: [modified],
+  missing: new Set<string>(),
   texts: new Map([['README.md', readme]]),
   diffs: [
     {
@@ -174,40 +181,62 @@ describe('PublishReviewService', () => {
   });
 
   it.each([
-    { name: 'a missing file', texts: [] as [string, string][] },
+    {
+      name: 'a missing file',
+      texts: [] as [string, string][],
+      missing: ['README.md'],
+      reason: 'missing',
+      message: 'which does not exist in this worktree',
+    },
+    {
+      name: 'an unreadable file',
+      texts: [] as [string, string][],
+      missing: [],
+      reason: 'unreadable',
+      message: 'which is not a readable text file',
+    },
     {
       name: 'a range past the end',
       texts: [['README.md', 'first\n']] as [string, string][],
+      missing: [],
+      reason: 'out-of-range',
+      message: 'but the file has 1 lines',
     },
-  ])('refuses $name before saving and names the pointer', async ({ texts }) => {
-    const { service, store } = await setup();
-    const result = Effect.runSync(
-      Effect.result(
-        service.execute({
-          worktreeId,
-          draft: draft(),
-          evidence: evidence(texts),
-        }),
-      ),
-    );
-    expect(result).toMatchObject({
-      _tag: 'Failure',
-      failure: {
-        layerId: 'layer-1',
-        stepId: 'step-1',
-        path: 'README.md',
-        startLine: 2,
-        endLine: 3,
-      },
-    });
-    if (result._tag === 'Failure') {
-      expect(result.failure).toBeInstanceOf(InvalidReviewPointerError);
-      expect(result.failure.message).toBe(
-        'Step `step-1` in layer `layer-1` points to `README.md:2-3`, which does not exist in this worktree',
+  ])(
+    'refuses $name before saving and names the pointer',
+    async ({ texts, missing, reason, message }) => {
+      const { service, store } = await setup();
+      const result = Effect.runSync(
+        Effect.result(
+          service.execute({
+            worktreeId,
+            draft: draft(),
+            evidence: evidence(texts, missing),
+          }),
+        ),
       );
-    }
-    expect(await Effect.runPromise(store.read({ worktreeId }))).toBeUndefined();
-  });
+      expect(result).toMatchObject({
+        _tag: 'Failure',
+        failure: {
+          reason,
+          layerId: 'layer-1',
+          stepId: 'step-1',
+          path: 'README.md',
+          startLine: 2,
+          endLine: 3,
+        },
+      });
+      if (result._tag === 'Failure') {
+        expect(result.failure).toBeInstanceOf(InvalidReviewPointerError);
+        expect(result.failure.message).toBe(
+          `Step \`step-1\` in layer \`layer-1\` points to \`README.md:2-3\`, ${message}`,
+        );
+      }
+      expect(
+        await Effect.runPromise(store.read({ worktreeId })),
+      ).toBeUndefined();
+    },
+  );
 
   it('replaces the review when the publisher states the current revision, with a fresh summary link', async () => {
     const { service } = await setup();

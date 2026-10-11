@@ -6,7 +6,11 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useChangeLines } from '@/features/changes/index';
 import { contentVersion } from '@/shared/lib/pierre';
-import type { ReviewLayer, ReviewStep } from '@porcelain/client/reviews/rules';
+import {
+  reviewStepLines,
+  type ReviewLayer,
+  type ReviewStep,
+} from '@porcelain/client/reviews/rules';
 import type { CodeEntry } from '../adapters/code-entries';
 import { contextPatch, spansLabel } from '@porcelain/client/changes/rules';
 import { AgentNote } from './agent-note';
@@ -67,7 +71,7 @@ function Excerpt({
   const committed = step.location.state === 'committed';
   const moved = step.location.state === 'changed';
   const broken = step.location.state === 'broken';
-  const location = 'startLine' in step.location ? step.location : step.pointer;
+  const location = reviewStepLines(step);
   const lines = useChangeLines(
     scope,
     context.connection,

@@ -52,7 +52,7 @@ export class ReadReviewEvidenceUseCase extends Context.Service<
             comparisons: status.changes,
             paths: undefined,
           });
-          const { texts } = yield* readTextFilesCapability.execute({
+          const { texts, missing } = yield* readTextFilesCapability.execute({
             worktreeId,
             paths: reviewPaths(input.layers, changes),
           });
@@ -60,7 +60,7 @@ export class ReadReviewEvidenceUseCase extends Context.Service<
             worktreeId,
             comparisons: trackedComparisons(changes),
           });
-          return { changes, texts, diffs };
+          return { changes, texts, missing, diffs };
         }),
       };
     }),

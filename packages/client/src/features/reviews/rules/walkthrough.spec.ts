@@ -5,6 +5,7 @@ import {
   decisionLinks,
   decisionRoute,
   decisionStates,
+  reviewStepLines,
   filesReviewed,
   neighbourStop,
   stopDone,
@@ -485,5 +486,29 @@ describe('system changes', () => {
       questions: [],
     });
     expect(decisionLinks(plain, 'invite')).toEqual([]);
+  });
+});
+
+describe('reviewStepLines', () => {
+  it('uses resolved coordinates for located steps and the published pointer for changed or broken steps', () => {
+    const base = step('code.ts');
+    expect(
+      reviewStepLines({
+        ...base,
+        location: { state: 'current', startLine: 7, endLine: 8 },
+      }),
+    ).toEqual({ state: 'current', startLine: 7, endLine: 8 });
+    expect(
+      reviewStepLines({
+        ...base,
+        location: { state: 'committed', startLine: 9, endLine: 10 },
+      }),
+    ).toEqual({ state: 'committed', startLine: 9, endLine: 10 });
+    expect(
+      reviewStepLines({ ...base, location: { state: 'changed' } }),
+    ).toEqual(base.pointer);
+    expect(reviewStepLines({ ...base, location: { state: 'broken' } })).toEqual(
+      base.pointer,
+    );
   });
 });

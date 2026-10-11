@@ -24,10 +24,20 @@ const layer: ReviewLayer = {
   steps: [step],
   fingerprint: 'published',
 };
-function resolve(steps: ReviewStep[], texts: [string, string][] = []) {
+function resolve(
+  steps: ReviewStep[],
+  texts: [string, string][] = [],
+  missing = ['src/x.ts'],
+) {
+  const present = new Set(texts.map(([path]) => path));
   return resolveReview(
     { layers: [{ ...layer, steps }] },
-    { texts: new Map(texts), changes: [], diffs: [] },
+    {
+      texts: new Map(texts),
+      missing: new Set(missing.filter((path) => !present.has(path))),
+      changes: [],
+      diffs: [],
+    },
   );
 }
 
@@ -60,6 +70,41 @@ describe('broken review pointers', () => {
         ).layers,
       ),
     ).toBe(false);
+  });
+
+  it('keeps an unreadable or transiently failed read changed and active', () => {
+    const resolved = resolve([step], [], []);
+    expect(resolved.layers[0]?.steps[0]?.location).toEqual({
+      state: 'changed',
+    });
+    expect(reviewIsActive(resolved.layers)).toBe(true);
+  });
+
+  it('keeps a review active when a broken step accompanies current uncommitted work', () => {
+    const kept = {
+      ...step,
+      id: 'current',
+      pointer: { path: 'kept.ts', startLine: 1, endLine: 1 },
+    };
+    const resolved = resolveReview(
+      { layers: [{ ...layer, steps: [step, kept] }] },
+      {
+        texts: new Map([['kept.ts', 'return 1;\n']]),
+        missing: new Set(['src/x.ts']),
+        changes: [
+          {
+            path: 'kept.ts',
+            fingerprint: 'new',
+            comparisons: [{ scope: 'untracked', path: 'kept.ts' }],
+          },
+        ],
+        diffs: [],
+      },
+    );
+    expect(
+      resolved.layers[0]?.steps.map((entry) => entry.location.state),
+    ).toEqual(['broken', 'current']);
+    expect(reviewIsActive(resolved.layers)).toBe(true);
   });
 
   it('resolves a legacy empty published block as broken even when the file exists', () => {
