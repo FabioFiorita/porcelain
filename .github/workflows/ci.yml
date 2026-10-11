@@ -202,7 +202,8 @@ jobs:
     needs: affected
     if: ${{ needs.affected.outputs.desktop == 'true' }}
     runs-on: macos-latest
-    timeout-minutes: 30
+    # TEMPORARY #232: remove before merge
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/setup@v3
@@ -216,9 +217,10 @@ jobs:
         with:
           path: ~/.electron-gyp
           key: electron-headers-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/desktop/package.json') }}
-      - run: pnpm --filter @porcelain/desktop test:e2e
+      # TEMPORARY #232: remove before merge
+      - run: pnpm --filter @porcelain/desktop exec playwright test spec/e2e/window.e2e.ts --repeat-each=60 --grep "maximized" --max-failures=0
       - uses: actions/upload-artifact@v7
-        if: failure()
+        if: always()
         with:
           name: desktop-e2e
           path: |
