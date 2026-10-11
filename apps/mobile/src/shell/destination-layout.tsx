@@ -1,5 +1,4 @@
 import { Stack } from 'expo-router';
-import { DeviceType, deviceType } from 'expo-device';
 import type { ReactNode } from 'react';
 
 export function DestinationLayout({
@@ -18,13 +17,7 @@ export function DestinationLayout({
         headerTintColor: theme.colors.text,
       })}
     >
-      <Stack.Screen
-        name={name}
-        options={{
-          title,
-          headerLargeTitleEnabled: deviceType !== DeviceType.TABLET,
-        }}
-      />
+      <Stack.Screen name={name} options={{ title }} />
       {children}
     </Stack>
   );
