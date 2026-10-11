@@ -11,40 +11,11 @@ import { Empty } from './empty';
 
 import {
   entryName,
-  fileTreeAncestors,
+  visibleFileTreeRows,
   type FileTreeEntry,
 } from '@porcelain/client/files/rules';
-type Row = { node: FileTreeEntry; depth: number };
-function visibleRows(
-  nodes: readonly FileTreeEntry[],
-  expanded: ReadonlySet<string>,
-): Row[] {
-  return nodes
-    .filter((node) =>
-      fileTreeAncestors(node.path).every((ancestor) => expanded.has(ancestor)),
-    )
-    .sort((left, right) => {
-      const leftParts = left.path.replace(/\/$/, '').split('/');
-      const rightParts = right.path.replace(/\/$/, '').split('/');
-      for (
-        let index = 0;
-        index < Math.min(leftParts.length, rightParts.length);
-        index += 1
-      ) {
-        if (leftParts[index] === rightParts[index]) continue;
-        const leftFolder =
-          index < leftParts.length - 1 || left.kind === 'directory';
-        const rightFolder =
-          index < rightParts.length - 1 || right.kind === 'directory';
-        return (
-          Number(rightFolder) - Number(leftFolder) ||
-          (leftParts[index] ?? '').localeCompare(rightParts[index] ?? '')
-        );
-      }
-      return leftParts.length - rightParts.length;
-    })
-    .map((node) => ({ node, depth: fileTreeAncestors(node.path).length }));
-}
+import { isNativeImagePath } from '../../shared/rules/file-tree';
+
 export function FileTree({
   nodes,
   expanded,
@@ -74,10 +45,10 @@ export function FileTree({
       contentContainerStyle={padding}
       data={
         flat
-          ? nodes.map((node) => ({ node, depth: 0 }))
-          : visibleRows(nodes, expanded)
+          ? nodes.map((entry) => ({ entry, depth: 0 }))
+          : visibleFileTreeRows(nodes, expanded)
       }
-      keyExtractor={({ node }) => node.path}
+      keyExtractor={({ entry }) => entry.path}
       ItemSeparatorComponent={() => <View className="h-1" />}
       ListEmptyComponent={
         <Empty
@@ -86,7 +57,7 @@ export function FileTree({
           icon="folder"
         />
       }
-      renderItem={({ item: { node, depth } }) => {
+      renderItem={({ item: { entry: node, depth } }) => {
         const item: ItemProps = {
           title: flat ? node.path : entryName(node.path),
           size: 'sm',
@@ -114,7 +85,9 @@ export function FileTree({
                     ? 'openFolder'
                     : node.kind === 'directory'
                       ? 'folder'
-                      : 'file'
+                      : isNativeImagePath(node.path)
+                        ? 'image'
+                        : 'file'
                 }
               />
             </View>

@@ -3475,6 +3475,13 @@ Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => unde
     valid: 'export const label = "Unique";',
     invalid: duplicateFixtureSource,
   },
+  {
+    rule: 'duplicate-code',
+    first: 'apps/mobile/src/components/ui/menu.ios.tsx',
+    second: 'apps/mobile/src/components/ui/menu.android.tsx',
+    valid: 'export const label = "Unique";',
+    invalid: duplicateFixtureSource,
+  },
 ];
 
 export const workspaceBoundaryCases = [

@@ -10,7 +10,7 @@ import {
   fileErrorMessage,
   quickOpenMatches,
   mergeFileTreeEntries,
-  treeActions,
+  entryTreeActions,
 } from '@porcelain/client/files/rules';
 import { FileTree } from '../../../components/ui/file-tree';
 import { Input } from '../../../components/ui/input';
@@ -172,11 +172,8 @@ function WorktreeFiles({
             ? undefined
             : (node) => {
                 const path = node.path.replace(/\/$/, '');
-                return treeActions({
-                  folder: node.kind === 'directory',
-                  link: node.kind === 'symlink',
+                return entryTreeActions(node, {
                   changed: false,
-                  openable: node.kind === 'file',
                   hiddenEntry: null,
                   ownHidden: false,
                   hiddenName: '',

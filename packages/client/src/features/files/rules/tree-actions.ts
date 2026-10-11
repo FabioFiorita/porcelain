@@ -1,4 +1,5 @@
 import { FILE_NAME_SUFFIX_START } from '../../../config/limits.ts';
+import type { FileTreeEntry } from './file-tree.ts';
 
 export function nextCreatePath(
   kind: 'file' | 'directory',
@@ -124,4 +125,19 @@ export function treeActions(input: {
   actions.push({ id: 'copy-full', label: 'Copy full path' });
   actions.push({ id: 'trash', label: 'Move to trash' });
   return actions;
+}
+
+export function entryTreeActions(
+  entry: Pick<FileTreeEntry, 'kind'> | undefined,
+  state: Omit<
+    Parameters<typeof treeActions>[0],
+    'folder' | 'link' | 'openable'
+  >,
+) {
+  return treeActions({
+    ...state,
+    folder: entry?.kind === 'directory',
+    link: entry?.kind === 'symlink' || entry?.kind === 'submodule',
+    openable: entry?.kind === 'file',
+  });
 }

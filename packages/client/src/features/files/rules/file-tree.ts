@@ -47,3 +47,34 @@ export function mergeFileTreeEntries(
     left.path.localeCompare(right.path),
   );
 }
+
+export function visibleFileTreeRows(
+  entries: readonly FileTreeEntry[],
+  expanded: ReadonlySet<string>,
+): { entry: FileTreeEntry; depth: number }[] {
+  return entries
+    .filter((entry) =>
+      fileTreeAncestors(entry.path).every((ancestor) => expanded.has(ancestor)),
+    )
+    .sort((left, right) => {
+      const leftParts = left.path.replace(/\/$/, '').split('/');
+      const rightParts = right.path.replace(/\/$/, '').split('/');
+      for (
+        let index = 0;
+        index < Math.min(leftParts.length, rightParts.length);
+        index += 1
+      ) {
+        if (leftParts[index] === rightParts[index]) continue;
+        const leftFolder =
+          index < leftParts.length - 1 || left.kind === 'directory';
+        const rightFolder =
+          index < rightParts.length - 1 || right.kind === 'directory';
+        return (
+          Number(rightFolder) - Number(leftFolder) ||
+          (leftParts[index] ?? '').localeCompare(rightParts[index] ?? '')
+        );
+      }
+      return leftParts.length - rightParts.length;
+    })
+    .map((entry) => ({ entry, depth: fileTreeAncestors(entry.path).length }));
+}

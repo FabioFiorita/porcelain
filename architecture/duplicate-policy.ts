@@ -56,7 +56,7 @@ export function scanDuplicates(
         '--mode',
         'mild',
         '--ignore',
-        '**/components/ui/**,**/routeTree.gen.ts',
+        '**/apps/web/src/components/ui/**,**/routeTree.gen.ts',
         '--absolute',
         '--no-colors',
         '--reporters',

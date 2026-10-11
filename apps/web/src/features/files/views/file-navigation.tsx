@@ -52,7 +52,7 @@ import { isImagePath } from '@porcelain/client/files/rules';
 import type { FilesScope } from '@porcelain/client/files/rules';
 import {
   duplicatePath,
-  treeActions,
+  entryTreeActions,
   type TreeAction,
 } from '@porcelain/client/files/rules';
 import { FileTreeMenu } from './file-tree-menu';
@@ -191,24 +191,20 @@ function ScopedFileNavigation({
   const bindRename = (rename: (path: string) => void) => {
     renameFile.current = rename;
   };
-  const menuFor = (path: string, folder: boolean) => {
+  const menuFor = (path: string) => {
     const hiddenEntry = hiddenPathFor(path, hidden);
     return {
       hidden: hiddenEntry !== null,
-      actions: treeActions({
-        folder,
-        link: entries.some(
-          (entry) =>
-            entry.path === path &&
-            (entry.kind === 'symlink' || entry.kind === 'submodule'),
-        ),
-        changed: changed.has(path),
-        openable: openable.has(path),
-        hiddenEntry,
-        ownHidden: hiddenEntry === canonicalPreferencePath(path),
-        hiddenName: hiddenEntry?.replace(/\/$/, '').split('/').at(-1) ?? '',
-        pinned: openable.has(path) ? pinned.includes(path) : undefined,
-      }),
+      actions: entryTreeActions(
+        entries.find((entry) => entry.path === path),
+        {
+          changed: changed.has(path),
+          hiddenEntry,
+          ownHidden: hiddenEntry === canonicalPreferencePath(path),
+          hiddenName: hiddenEntry?.replace(/\/$/, '').split('/').at(-1) ?? '',
+          pinned: openable.has(path) ? pinned.includes(path) : undefined,
+        },
+      ),
       run: (
         id: TreeAction,
         close: (restoreFocus: boolean) => void,
@@ -310,7 +306,7 @@ function ScopedFileNavigation({
           discardRejection(setPinned.submit({ path, pinned: false }))
         }
         menuFor={(path) => {
-          const menu = menuFor(path, false);
+          const menu = menuFor(path);
           return {
             actions: menu.actions,
             hidden: menu.hidden,
@@ -358,7 +354,7 @@ function ScopedFileNavigation({
             const folder = item.kind === 'directory';
             const path =
               folder && !item.path.endsWith('/') ? `${item.path}/` : item.path;
-            const menu = menuFor(path, folder);
+            const menu = menuFor(path);
             return (
               <FileTreeMenu
                 path={path}
