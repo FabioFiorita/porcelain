@@ -29,7 +29,16 @@ export function useHighlightedCode(source: string, language?: string) {
     async function highlight() {
       try {
         const value = await highlighter;
-        if (!value) throw new Error('Syntax highlighting could not load.');
+        if (!value) {
+          if (!controller.signal.aborted)
+            setResult({
+              source,
+              language,
+              scheme,
+              error: 'Syntax highlighting could not load.',
+            });
+          return;
+        }
         const tokens = await value(source, language, scheme, controller.signal);
         if (!controller.signal.aborted)
           setResult({ source, language, scheme, tokens });

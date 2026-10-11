@@ -18,6 +18,11 @@ import { selectorAppears } from './feature-selectors.ts';
 import { guardrailCases } from './rule-cases.mjs';
 import { featureMapProblems } from '../scripts/feature-maps.ts';
 import knip from './knip.ts';
+import babelConfig from '../apps/mobile/babel.config.js';
+import {
+  mobileCompilerOptions,
+  reactCompilerProblems,
+} from '../scripts/react-compiler.ts';
 
 function fixtureRoot(prefix) {
   return realpathSync(mkdtempSync(join(tmpdir(), prefix)));
@@ -177,7 +182,18 @@ export function runGuardrailCases(named = []) {
     'Name an existing guardrail fixture rule.',
   );
   for (const entry of cases) {
-    if (entry.rule === 'knip-expo-destination-anchor') {
+    if (entry.rule === 'mobile-react-compiler') {
+      deepStrictEqual(
+        mobileCompilerOptions,
+        babelConfig({ cache() {} }).presets[0][1]['react-compiler'],
+        'The mobile check must use the same compiler options as Metro.',
+      );
+      deepStrictEqual(reactCompilerProblems(entry.path, entry.valid), []);
+      const invalid = reactCompilerProblems(entry.path, entry.invalid);
+      strictEqual(invalid.length, 1);
+      for (const expected of entry.errors)
+        strictEqual(invalid[0].includes(expected), true, invalid[0]);
+    } else if (entry.rule === 'knip-expo-destination-anchor') {
       knip.compilers.tsx(entry.valid, entry.path);
       throws(
         () => knip.compilers.tsx(entry.invalid, entry.path),

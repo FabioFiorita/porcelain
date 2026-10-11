@@ -3550,6 +3550,37 @@ const featureMapCases = [
 
 export const guardrailCases = [
   {
+    rule: 'mobile-react-compiler',
+    path: 'apps/mobile/src/components/ui/use-compiler-fixture.ts',
+    valid: `import { useEffect, useState } from 'react';
+export function useCompilerFixture(value: (() => string) | undefined) {
+  const [result, setResult] = useState<string>();
+  useEffect(() => {
+    try {
+      if (!value) { setResult('Syntax highlighting could not load.'); return; }
+      setResult(value());
+    } catch { setResult('Syntax highlighting could not load.'); }
+  }, [value]);
+  return result;
+}`,
+    invalid: `import { useEffect, useState } from 'react';
+export function useCompilerFixture(value: (() => string) | undefined) {
+  const [result, setResult] = useState<string>();
+  useEffect(() => {
+    try {
+      if (!value) throw new Error('Syntax highlighting could not load.');
+      setResult(value());
+    } catch { setResult('Syntax highlighting could not load.'); }
+  }, [value]);
+  return result;
+}`,
+    errors: [
+      'apps/mobile/src/components/ui/use-compiler-fixture.ts:6:',
+      'because all_errors makes a compiler bailout fail the Metro bundle',
+      'Support ThrowStatement inside of try/catch',
+    ],
+  },
+  {
     rule: 'knip-expo-destination-anchor',
     path: '/fixture/apps/mobile/src/app/(files)/_layout.tsx',
     valid:
