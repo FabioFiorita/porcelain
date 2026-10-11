@@ -153,9 +153,6 @@ importers:
       agent-device:
         specifier: 0.21.23
         version: 0.21.23
-      babel-plugin-react-compiler:
-        specifier: 1.0.0
-        version: 1.0.0
       dependency-cruiser:
         specifier: 18.4.0
         version: 18.4.0

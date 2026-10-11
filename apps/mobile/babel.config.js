@@ -3,7 +3,7 @@ export default function babelConfig(api) {
   return {
     presets: [
       [
-        'babel-preset-expo',
+        'expo/internal/babel-preset',
         { 'react-compiler': { panicThreshold: 'all_errors' } },
       ],
     ],

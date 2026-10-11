@@ -3,20 +3,39 @@ import { globSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const mobileCompilerOptions = { panicThreshold: 'all_errors' } as const;
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const mobileRoot = join(root, 'apps/mobile');
+const platforms = ['ios', 'android'] as const;
 
-export function reactCompilerProblems(path: string, source: string): string[] {
+export function reactCompilerProblems(
+  path: string,
+  source: string,
+  platform: (typeof platforms)[number] = 'ios',
+): string[] {
+  const caller = {
+    name: 'metro',
+    bundler: 'metro',
+    platform,
+    isDev: true,
+    isServer: false,
+    isReactServer: false,
+    isNodeModule: false,
+    isHMREnabled: true,
+    supportsStaticESM: false,
+    supportsReactCompiler: true,
+    engine: 'hermes',
+    projectRoot: mobileRoot,
+    routerRoot: 'src/app',
+  };
   try {
     transformSync(source, {
-      filename: path,
-      configFile: false,
+      cwd: mobileRoot,
+      filename: resolve(root, path),
+      configFile: join(mobileRoot, 'babel.config.js'),
       babelrc: false,
       code: false,
       highlightCode: false,
-      parserOpts: {
-        plugins: path.endsWith('.tsx') ? ['typescript', 'jsx'] : ['typescript'],
-      },
-      plugins: [['babel-plugin-react-compiler', mobileCompilerOptions]],
+      caller,
     });
     return [];
   } catch (error) {
@@ -25,21 +44,31 @@ export function reactCompilerProblems(path: string, source: string): string[] {
       message.match(/^>\s*(\d+)\s*\|/m)?.[1] ??
       message.match(/\((\d+):\d+\)/)?.[1];
     return [
-      `${path}${line ? `:${line}` : ''}: Mobile source must compile with React Compiler, because all_errors makes a compiler bailout fail the Metro bundle.\n${message}`,
+      `${path}${line ? `:${line}` : ''}: Mobile source must compile with React Compiler for ${platform}, because all_errors makes a compiler bailout fail the Metro bundle.\n${message}`,
     ];
   }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const started = performance.now();
-  const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-  const files = globSync('apps/mobile/src/**/*.{ts,tsx}', { cwd: root }).sort();
-  const problems = files.flatMap((path) =>
-    reactCompilerProblems(path, readFileSync(join(root, path), 'utf8')),
-  );
+  const files = globSync('apps/mobile/src/**/*.{ts,tsx}', {
+    cwd: root,
+    exclude: ['**/*.spec.ts', '**/*.d.ts'],
+  }).sort();
+  const problems =
+    files.length === 0
+      ? [
+          'Mobile React Compiler: no source files found, because an empty check cannot protect Metro bundling.',
+        ]
+      : files.flatMap((path) => {
+          const source = readFileSync(join(root, path), 'utf8');
+          return platforms.flatMap((platform) =>
+            reactCompilerProblems(path, source, platform),
+          );
+        });
   for (const problem of problems) process.stderr.write(`${problem}\n`);
   process.stdout.write(
-    `React Compiler: ${problems.length} problems; ${files.length} mobile source files checked in ${Math.round(performance.now() - started)} ms.\n`,
+    `Mobile React Compiler: ${problems.length} problems; ${files.length} source files checked for ${platforms.join(' and ')} in ${Math.round(performance.now() - started)} ms.\n`,
   );
   process.exitCode = problems.length > 0 ? 1 : 0;
 }

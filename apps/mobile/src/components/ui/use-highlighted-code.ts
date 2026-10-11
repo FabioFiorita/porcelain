@@ -27,30 +27,25 @@ export function useHighlightedCode(source: string, language?: string) {
     if (!language) return;
     const controller = new AbortController();
     async function highlight() {
+      let tokens: RenderToken[][] | undefined;
       try {
         const value = await highlighter;
-        if (!value) {
-          if (!controller.signal.aborted)
-            setResult({
-              source,
-              language,
-              scheme,
-              error: 'Syntax highlighting could not load.',
-            });
-          return;
-        }
-        const tokens = await value(source, language, scheme, controller.signal);
-        if (!controller.signal.aborted)
-          setResult({ source, language, scheme, tokens });
+        if (value)
+          tokens = await value(source, language, scheme, controller.signal);
       } catch {
-        if (!controller.signal.aborted)
-          setResult({
-            source,
-            language,
-            scheme,
-            error: 'Syntax highlighting could not load.',
-          });
+        tokens = undefined;
       }
+      if (!controller.signal.aborted)
+        setResult(
+          tokens
+            ? { source, language, scheme, tokens }
+            : {
+                source,
+                language,
+                scheme,
+                error: 'Syntax highlighting could not load.',
+              },
+        );
     }
     void highlight();
     return () => controller.abort();
