@@ -22,7 +22,7 @@ function loadMobileOptions() {
         isReactServer: false,
         isNodeModule: false,
         isHMREnabled: true,
-        supportsStaticESM: false,
+        supportsStaticESM: true,
         supportsReactCompiler: true,
         engine: 'hermes',
         projectRoot: mobileRoot,
@@ -39,12 +39,13 @@ function loadMobileOptions() {
     );
   }
 }
-const mobileOptions = loadMobileOptions();
+let mobileOptions: ReturnType<typeof loadMobileOptions> | undefined;
 
 export function reactCompilerProblems(path: string, source: string): string[] {
+  const options = (mobileOptions ??= loadMobileOptions());
   try {
     transformSync(source, {
-      ...mobileOptions,
+      ...options,
       filename: resolve(root, path),
     });
     return [];
