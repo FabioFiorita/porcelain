@@ -1,4 +1,4 @@
-import { HISTORY_OID_LENGTH } from '@/config/limits';
+import { shortOid } from '@porcelain/client/history/rules';
 import type {
   CommentAnchor,
   RevealComment,
@@ -128,7 +128,7 @@ function documentTitle(ref: DocumentRef): string {
     case 'graph':
       return 'Commit graph';
     case 'commit':
-      return ref.oid.slice(0, HISTORY_OID_LENGTH);
+      return shortOid(ref.oid);
     case 'change':
     case 'file':
     case 'branch-file':

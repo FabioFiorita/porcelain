@@ -13,8 +13,9 @@ export function commitPaths(file: CommitFile): string[] {
 export function commitPath(file: CommitFile) {
   return file.newPath ?? file.oldPath ?? 'Unknown path';
 }
+const SHORT_OID_LENGTH = 7;
 export function shortOid(oid: string) {
-  return oid.slice(0, 7);
+  return oid.slice(0, SHORT_OID_LENGTH);
 }
 export function refLabel(ref: string) {
   return ref.replace(/^refs\/(?:heads|remotes|tags)\//u, '');

@@ -4,10 +4,8 @@ import { GitBranchIcon } from 'lucide-react';
 import { Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  branchErrorMessage,
-  branchName,
-} from '@porcelain/client/changes/rules';
+import { branchErrorMessage } from '@porcelain/client/changes/rules';
+import { refLabel } from '@porcelain/client/history/rules';
 import { useBranchChanges } from '@/features/changes/index';
 import { cn } from '@/shared/lib/utils';
 import { toast } from '@/components/ui/toast';
@@ -169,13 +167,13 @@ function BranchFileList({
   const head =
     branch.head.branch === null || branch.head.branch === undefined
       ? 'this commit'
-      : branchName(branch.head.branch);
+      : refLabel(branch.head.branch);
   const commits = `${branch.commits} ${branch.commits === 1 ? 'commit' : 'commits'}`;
   return (
     <ScrollArea className="h-0 min-h-0 flex-1">
       <div className="p-2">
         <p className="px-2 pb-1.5 text-2xs text-muted-foreground">
-          {commits} on {head} since {branchName(branch.base.ref)}
+          {commits} on {head} since {refLabel(branch.base.ref)}
         </p>
         <button
           type="button"
@@ -191,7 +189,7 @@ function BranchFileList({
         </button>
         {items.length === 0 && (
           <p className="p-3 text-sm text-muted-foreground">
-            No changes since {branchName(branch.base.ref)}
+            No changes since {refLabel(branch.base.ref)}
           </p>
         )}
         {groupSpecPaths(items, preferences.collapseSpecs).map((item) => (

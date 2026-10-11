@@ -1,4 +1,4 @@
-export { patchUnavailable, omissionReason } from './diff-presentation.ts';
+export { diffUnavailableReason, omissionReason } from './diff-presentation.ts';
 export { diffSelection } from './selection.ts';
 export { patchLines, type PatchLine } from './patch.ts';
 export {
@@ -20,11 +20,14 @@ export {
 } from './changes.ts';
 export {
   branchErrorMessage,
-  branchName,
   branchRange,
   type BranchFile,
   type BranchRange,
 } from './branch.ts';
 export { commitFiles } from './commit-files.ts';
-export { commitDiffPath, showsWorktreeDiff } from './diff-eligibility.ts';
+export {
+  commitDiffPath,
+  isSubmoduleChange,
+  showsWorktreeDiff,
+} from './diff-eligibility.ts';
 export { consecutiveBatches } from './diff-batches.ts';

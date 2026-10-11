@@ -52,6 +52,7 @@ import {
   reviewErrorMessage,
   type ReviewScope,
 } from '@porcelain/client/reviews/rules';
+import { shortOid } from '@porcelain/client/history/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 const relative = (iso?: string) =>
@@ -303,7 +304,7 @@ export function ThreadCard({
       {thread.anchor.revision !== null &&
         thread.anchor.revision !== undefined && (
           <span className="shrink-0 text-muted-foreground">
-            in {thread.anchor.revision.slice(0, 7)}
+            in {shortOid(thread.anchor.revision)}
           </span>
         )}
     </button>

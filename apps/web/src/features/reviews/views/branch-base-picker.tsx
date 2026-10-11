@@ -16,7 +16,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { branchName } from '@porcelain/client/changes/rules';
+import { refLabel } from '@porcelain/client/history/rules';
 import { useBranchBases } from '@/features/changes/index';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
@@ -36,9 +36,7 @@ export function BranchBasePicker({
   const bases = useBranchBases(scope, connection, open);
   const branches = Option.getOrUndefined(AsyncResult.value(bases.result));
   const label =
-    base === null || base === undefined
-      ? 'the default branch'
-      : branchName(base);
+    base === null || base === undefined ? 'the default branch' : refLabel(base);
   const defaultRef = branches?.defaultRef ?? null;
   const chosen = base ?? defaultRef;
   const groups = [

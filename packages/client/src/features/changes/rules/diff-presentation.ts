@@ -1,4 +1,5 @@
 import type { DiffContent } from './changes.ts';
+import { isSubmoduleChange } from './diff-eligibility.ts';
 
 export function omissionReason(
   reason: Extract<DiffContent, { kind: 'omitted' }>['reason'],
@@ -23,4 +24,14 @@ export function patchUnavailable(content: DiffContent) {
     case 'text':
       return undefined;
   }
+}
+export function diffUnavailableReason(
+  modes: { oldMode: string; newMode: string },
+  content: DiffContent | undefined,
+  failed: boolean,
+) {
+  if (isSubmoduleChange(modes)) return 'Submodule change';
+  if (content === undefined)
+    return failed ? 'The patch could not be read' : 'Reading the patch';
+  return patchUnavailable(content);
 }

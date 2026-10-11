@@ -12,11 +12,9 @@ import { cn } from '@/shared/lib/utils';
 import { copyText } from '@/shared/workspace/copy';
 import {
   commitMessage,
-  type CommitSummary,
-} from '@porcelain/client/history/rules';
-import {
-  refLabel as historyRefLabel,
+  refLabel,
   shortOid,
+  type CommitSummary,
 } from '@porcelain/client/history/rules';
 
 export function CommitRow({
@@ -79,7 +77,7 @@ export function CommitRow({
                 variant="secondary"
                 className="h-4 shrink-0"
               >
-                {historyRefLabel(ref)}
+                {refLabel(ref)}
               </Badge>
             ))}
           </span>

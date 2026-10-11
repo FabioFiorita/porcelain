@@ -63,7 +63,7 @@ function pairRemote(platform: AccessPlatformValue, value: string) {
             })
           : error instanceof ConnectionError
             ? new ConnectionError({
-                message: `Could not reach ${link.address}. Check that Porcelain runs there and that this computer reaches it.`,
+                message: `Could not reach ${link.address}. Check that Porcelain runs there and that this device reaches it.`,
                 cause: error.cause,
               })
             : error,

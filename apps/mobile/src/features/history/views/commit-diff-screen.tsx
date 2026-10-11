@@ -16,7 +16,10 @@ import {
   useCommitPatch,
   type HistorySelection,
 } from '../queries/history';
-import { patchUnavailable } from '@porcelain/client/changes/rules';
+import {
+  diffUnavailableReason,
+  isSubmoduleChange,
+} from '@porcelain/client/changes/rules';
 import { commitPath, commitPaths } from '@porcelain/client/history/rules';
 
 export function CommitDiffScreen() {
@@ -111,21 +114,18 @@ function FilePatch({
   const content = patch.value;
   const parsed =
     content?.kind === 'text' ? patchLines(content.patch) : undefined;
-  const unavailable =
-    file.oldMode === '160000' || file.newMode === '160000'
-      ? 'Submodule change'
-      : content
-        ? patchUnavailable(content)
-        : undefined;
+  const failed = AsyncResult.isFailure(patch.result);
+  const unavailable = diffUnavailableReason(file, content, failed);
+  const submodule = isSubmoduleChange(file);
   return (
     <>
       <FileHeader path={commitPath(file)} status={file.status} />
-      {AsyncResult.isFailure(patch.result) ? (
+      {failed && !submodule ? (
         <ErrorState
           message="Couldn't load diff"
           retry={{ label: 'Retry', onPress: patch.retry }}
         />
-      ) : !content ? (
+      ) : !content && !submodule ? (
         patch.result.waiting || AsyncResult.isInitial(patch.result) ? (
           <Loading label="Loading diff…" />
         ) : (

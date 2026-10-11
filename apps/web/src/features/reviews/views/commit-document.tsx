@@ -1,6 +1,9 @@
-import { commitPaths } from '@porcelain/client/history/rules';
+import { commitPath, commitPaths } from '@porcelain/client/history/rules';
 import { ordinal, useCommit } from '@/features/history/index';
-import { patchUnavailable } from '@porcelain/client/changes/rules';
+import {
+  diffUnavailableReason,
+  isSubmoduleChange,
+} from '@porcelain/client/changes/rules';
 import { relativeTime } from '@/shared/lib/relative-time';
 import { CopyIcon } from 'lucide-react';
 import { useState, useTransition } from 'react';
@@ -254,17 +257,11 @@ function OmittedCommitChanges({
         aria-label="Changes without code preview"
       >
         {changes.map((change) => {
-          const path = change.newPath ?? change.oldPath ?? 'Unknown path';
+          const path = commitPath(change);
           const content = patchOf(change);
-          const submodule =
-            change.oldMode === '160000' || change.newMode === '160000';
-          const reason = submodule
-            ? 'Submodule change'
-            : content === undefined
-              ? failed
-                ? 'The patch could not be read'
-                : 'Reading the patch'
-              : (patchUnavailable(content) ?? 'No code change');
+          const submodule = isSubmoduleChange(change);
+          const reason =
+            diffUnavailableReason(change, content, failed) ?? 'No code change';
           return (
             <li
               key={`${change.oldPath}->${change.newPath}:${change.status}`}

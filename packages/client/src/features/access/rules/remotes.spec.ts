@@ -1,6 +1,11 @@
 import { Redacted } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { remoteStatus, parseRemotes, withRemote } from './remotes.ts';
+import {
+  remoteStatus,
+  remoteStatusNote,
+  parseRemotes,
+  withRemote,
+} from './remotes.ts';
 const environmentId = '1bc3e6b1-f849-4176-93b2-850147d4ebb3';
 const remote = {
   environmentId,
@@ -40,6 +45,33 @@ describe('remoteStatus', () => {
     ],
   ])('turns the answer %j into %j', (answer, status) => {
     expect(remoteStatus(remote, answer)).toEqual(status);
+  });
+});
+
+describe('remoteStatusNote', () => {
+  it('explains each unusable remote without naming the kind of device reading it', () => {
+    expect(
+      (
+        [
+          { kind: 'offline' },
+          { kind: 'needs-pairing' },
+          { kind: 'other-server' },
+          { kind: 'incompatible' },
+        ] as const
+      ).map(remoteStatusNote),
+    ).toEqual([
+      'It did not answer. Check that it runs and that this device reaches its address.',
+      'It no longer accepts this app. Run porcelain pair on it and add the new link.',
+      'Another Porcelain answers at this address now, so this app stays away from it.',
+      'It runs a Porcelain this app cannot talk to. Update both to the same version.',
+    ]);
+  });
+
+  it('adds nothing while checking or once the remote answers', () => {
+    expect([
+      remoteStatusNote({ kind: 'checking' }),
+      remoteStatusNote({ kind: 'online', name: 'home-server' }),
+    ]).toEqual([undefined, undefined]);
   });
 });
 

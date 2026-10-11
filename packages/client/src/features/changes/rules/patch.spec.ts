@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { patchLines } from './patch.ts';
+import { parsePatch, patchLines } from './patch.ts';
 
 it('keeps both line numbers across multiple hunks and does not confuse content with file headers', () => {
   expect(
@@ -74,4 +74,30 @@ it('preserves carriage returns in CRLF file content and markers on either side',
       { id: 'patch:4', text: '\\ No newline at end of file' },
     ],
   });
+});
+
+it('counts changed lines per patch and rejects a hunk whose body disagrees with its header', () => {
+  const parsed = parsePatch(
+    '--- a/a\n+++ b/a\n@@ -1,2 +1,2 @@\n keep\n-before\n+after\n',
+  );
+  expect(
+    parsed.kind === 'valid'
+      ? {
+          header: parsed.header,
+          hunks: parsed.hunks.length,
+          changes: parsed.changes,
+        }
+      : parsed,
+  ).toEqual({ header: ['--- a/a', '+++ b/a'], hunks: 1, changes: 2 });
+  expect([
+    parsePatch('  \n'),
+    parsePatch('@@ -1,2 +1,2 @@\n-before\n+after\n'),
+    parsePatch('@@ -1 +1 @@\n-before\n+after\n+extra\n'),
+    parsePatch('--- a/a\n+++ b/a\n'),
+  ]).toEqual([
+    { kind: 'empty' },
+    { kind: 'invalid' },
+    { kind: 'invalid' },
+    { kind: 'invalid' },
+  ]);
 });

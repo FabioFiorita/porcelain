@@ -1,5 +1,5 @@
-import { patchUnavailable } from '@porcelain/client/changes/rules';
-import { commitPaths } from '@porcelain/client/history/rules';
+import { diffUnavailableReason } from '@porcelain/client/changes/rules';
+import { commitPaths, refLabel } from '@porcelain/client/history/rules';
 import { AsyncResult } from 'effect/reactivity';
 import { Cause, Option } from 'effect';
 import { type ReactNode, Suspense, useState } from 'react';
@@ -9,7 +9,6 @@ import { DIFF_WINDOW_FILES } from '@/config/limits';
 import {
   type BranchFile,
   branchErrorMessage,
-  branchName,
   branchRange,
 } from '@porcelain/client/changes/rules';
 import {
@@ -139,7 +138,7 @@ function BranchMarkedCode({
     return (
       <ReviewEmpty
         title="Not changed on this branch"
-        description={`${path} has no committed change since ${branchName(branch.base.ref)}.`}
+        description={`${path} has no committed change since ${refLabel(branch.base.ref)}.`}
       />
     );
   return (
@@ -332,13 +331,13 @@ function BranchHeader({
   const head =
     branch.head.branch === null || branch.head.branch === undefined
       ? 'This commit'
-      : branchName(branch.head.branch);
+      : refLabel(branch.head.branch);
   return (
     <section className="mx-4 mt-3 rounded-xl border px-4 py-3">
       {!single && (
         <>
           <h2 className="text-sm font-semibold">
-            {head} since {branchName(branch.base)}
+            {head} since {refLabel(branch.base)}
           </h2>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted-foreground">
             <span>
@@ -350,7 +349,7 @@ function BranchHeader({
               to <span className="font-mono">{shortOid(branch.head.oid)}</span>
             </span>
             <Badge variant="secondary" className="h-4">
-              {branchName(branch.base)}
+              {refLabel(branch.base)}
             </Badge>
           </div>
         </>
@@ -384,7 +383,9 @@ function BranchHeader({
                 {item.path}
               </span>
               <span className="shrink-0 text-muted-foreground">
-                {item.status} · {omissionReason(item, patchOf(item), failed)}
+                {item.status} ·{' '}
+                {diffUnavailableReason(item, patchOf(item), failed) ??
+                  'No code change'}
               </span>
             </li>
           ))}
@@ -392,16 +393,4 @@ function BranchHeader({
       )}
     </section>
   );
-}
-
-function omissionReason(
-  item: BranchChangeItem,
-  content: DiffContent | undefined,
-  failed: boolean,
-) {
-  if (item.oldMode === '160000' || item.newMode === '160000')
-    return 'Submodule change';
-  if (content === undefined)
-    return failed ? 'The patch could not be read' : 'Reading the patch';
-  return patchUnavailable(content) ?? 'No code change';
 }

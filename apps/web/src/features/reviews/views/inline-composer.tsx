@@ -2,7 +2,7 @@ import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { HISTORY_OID_LENGTH } from '@/config/limits';
+import { shortOid } from '@porcelain/client/history/rules';
 import { Textarea } from '@/components/ui/textarea';
 import { useCreateComment } from '../commands/comments';
 import {
@@ -74,7 +74,7 @@ export function InlineComposer({
           anchor.kind === 'change' &&
           anchor.revision !== null &&
           anchor.revision !== undefined
-            ? `at ${anchor.revision.slice(0, HISTORY_OID_LENGTH)}`
+            ? `at ${shortOid(anchor.revision)}`
             : undefined,
         ]
           .filter((part) => part !== null && part !== undefined)
