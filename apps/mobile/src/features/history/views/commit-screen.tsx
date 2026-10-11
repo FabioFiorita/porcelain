@@ -8,6 +8,7 @@ import { Empty } from '../../../components/ui/empty';
 
 import { Loading } from '../../../components/ui/loading';
 import { Text } from '../../../components/ui/text';
+import { headerIcon } from '../../../shared/icons/header-icon';
 import { Badge } from '../../../components/ui/badge';
 import { Item } from '../../../components/ui/item';
 import { useSelectedWorktree } from '../../projects';
@@ -65,7 +66,11 @@ function CommitDetail({
       <Stack.Screen options={{ title: shortOid(oid) }} />
       {value.commit.parentOids.length > 1 ? (
         <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu title="Compare parent">
+          <Stack.Toolbar.Menu
+            icon={headerIcon('compareParent')}
+            accessibilityLabel="Compare parent"
+            title="Compare parent"
+          >
             {value.commit.parentOids.map((parentOid, index) => (
               <Stack.Toolbar.MenuAction
                 key={parentOid}
