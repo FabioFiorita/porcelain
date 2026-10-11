@@ -245,46 +245,35 @@ it('cancels a pending status transport when its registry is disposed', async () 
   expect(signal?.aborted).toBe(true);
 });
 
-it('permits inventory retries only for an online remote status result', () => {
+it('classifies remote status results and prioritizes failure over retained success', () => {
   const online: RemoteAnswer = { kind: 'described', environment };
   const cases = [
-    [AsyncResult.initial<RemoteAnswer>(), 'checking'],
-    [AsyncResult.success<RemoteAnswer>(online), 'online'],
-    [AsyncResult.success<RemoteAnswer>({ kind: 'unreachable' }), 'offline'],
-    [
-      AsyncResult.success<RemoteAnswer>({ kind: 'unauthorized' }),
-      'needs-pairing',
-    ],
-    [
-      AsyncResult.success<RemoteAnswer>({
-        kind: 'described',
-        environment: { ...environment, protocol: ENVIRONMENT_PROTOCOL - 1 },
-      }),
-      'incompatible',
-    ],
-    [
-      AsyncResult.success<RemoteAnswer>({
-        kind: 'described',
-        environment: { ...environment, environmentId: 'another' },
-      }),
-      'other-server',
-    ],
-    [
-      AsyncResult.fromExitWithPrevious(
-        Exit.fail('offline'),
-        Option.some(AsyncResult.success(online)),
-      ),
-      'offline',
-    ],
-  ] as const;
+    AsyncResult.initial<RemoteAnswer>(),
+    AsyncResult.success<RemoteAnswer>(online),
+    AsyncResult.success<RemoteAnswer>({ kind: 'unreachable' }),
+    AsyncResult.success<RemoteAnswer>({ kind: 'unauthorized' }),
+    AsyncResult.success<RemoteAnswer>({
+      kind: 'described',
+      environment: { ...environment, protocol: ENVIRONMENT_PROTOCOL - 1 },
+    }),
+    AsyncResult.success<RemoteAnswer>({
+      kind: 'described',
+      environment: { ...environment, environmentId: 'another' },
+    }),
+    AsyncResult.fromExitWithPrevious(
+      Exit.fail('offline'),
+      Option.some(AsyncResult.success(online)),
+    ),
+  ];
   expect(
-    cases.map(([result]) => remoteStatusResult(remote, result).kind),
-  ).toEqual(cases.map(([, kind]) => kind));
-  expect(
-    cases
-      .filter(
-        ([result]) => remoteStatusResult(remote, result).kind === 'online',
-      )
-      .map(([, kind]) => kind),
-  ).toEqual(['online']);
+    cases.map((result) => remoteStatusResult(remote, result).kind),
+  ).toEqual([
+    'checking',
+    'online',
+    'offline',
+    'needs-pairing',
+    'incompatible',
+    'other-server',
+    'offline',
+  ]);
 });

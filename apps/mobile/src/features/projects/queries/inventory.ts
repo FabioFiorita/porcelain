@@ -14,10 +14,8 @@ import {
 } from '@porcelain/client/projects';
 import type { EnvironmentInventory } from '@porcelain/client/projects/rules';
 import { liveQueries } from '@porcelain/client/live';
-import { accessPlatform } from '../../../shared/adapters/access-platform';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { remoteConnectionState } from '../../../shared/application/store';
-import { readRemoteStatus, remoteStatusResult } from '@porcelain/client/access';
 import type { RemoteConnection } from '@porcelain/client/access';
 
 const unavailable = Atom.make(AsyncResult.initial<ReadInventoryResponse>());
@@ -30,40 +28,20 @@ export function useInventory(connection: RuntimeConnection | undefined) {
 const allInventories = Atom.family((remotes: readonly RemoteConnection[]) => {
   const connections = remotes.map((entry) => entry.connection);
   const inventories = readInventories(connections);
-  return Atom.readable(
-    (get) => {
-      for (const { remote, connection } of remotes) {
-        get(liveQueries({ connection }));
-        get(readRemoteStatus(accessPlatform, remote));
-      }
-      return get(inventories);
-    },
-    (refresh) => refresh(inventories),
-  );
+  return Atom.readable((get) => {
+    for (const { connection } of remotes) get(liveQueries({ connection }));
+    return get(inventories);
+  });
 });
-
-const inventoryRetries = Atom.family((remotes: readonly RemoteConnection[]) =>
-  Atom.writable(
-    () => undefined,
-    (context, _input: void) => {
-      const online = remotes.filter(({ remote }) => {
-        const health = context.get(readRemoteStatus(accessPlatform, remote));
-        return remoteStatusResult(remote, health).kind === 'online';
-      });
-      context.set(
-        refreshInventories(online.map((entry) => entry.connection)),
-        undefined,
-      );
-    },
-  ),
-);
 
 export function useInventories(
   environments: readonly { environmentId: string; name: string }[],
 ) {
   const remotes = useAtomRef(remoteConnectionState);
   const atom = allInventories(remotes);
-  const retry = useAtomSet(inventoryRetries(remotes));
+  const retry = useAtomSet(
+    refreshInventories(remotes.map((entry) => entry.connection)),
+  );
   const results = useAtomValue(atom);
   return {
     environments: environments.map(

@@ -2,7 +2,12 @@ import { holdFirstRead } from '../../../../spec/kit/held-transport.ts';
 import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
 import { describe, expect, it } from 'vitest';
 import { Cause, Effect, Exit, Layer, Option, Stream } from 'effect';
-import { InventorySeed, registerProject } from '@porcelain/client/projects';
+import {
+  InventorySeed,
+  refreshInventories,
+  refreshInventory,
+  registerProject,
+} from '@porcelain/client/projects';
 import { AsyncResult, AtomRegistry, Reactivity } from 'effect/reactivity';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { queryKeys, type Transport } from '@porcelain/client/transport';
@@ -36,7 +41,7 @@ function read(subject: ReturnType<typeof fixture>) {
   );
 }
 describe('reading a connected project inventory', () => {
-  it('keeps projects from healthy environments visible while another fails and refreshes both inventories', async () => {
+  it('keeps healthy projects visible while another environment fails and retries every connection', async () => {
     const secondId = '7978b5bd-7a5e-49c2-b624-068b2a257fc2';
     const project = {
       id: '00000000-0000-4000-8000-000000000001',
@@ -49,16 +54,16 @@ describe('reading a connected project inventory', () => {
       ...inventory('Second', secondId),
       projects: [project],
     };
-    let firstReads = 0;
-    let secondReads = 0;
+    const firstRequests: string[] = [];
+    const secondRequests: string[] = [];
     let secondAvailable = false;
-    const first = fixture(() => {
-      firstReads += 1;
+    const first = fixture((path, init) => {
+      firstRequests.push(`${init?.method ?? 'GET'} ${path}`);
       return Promise.resolve(Response.json(firstAnswer));
     });
     const second = fixture(
-      () => {
-        secondReads += 1;
+      (path, init) => {
+        secondRequests.push(`${init?.method ?? 'GET'} ${path}`);
         return Promise.resolve(
           secondAvailable
             ? Response.json(secondAnswer)
@@ -95,7 +100,25 @@ describe('reading a connected project inventory', () => {
       );
       expect(AsyncResult.isFailure(answers[1]!.result)).toBe(true);
       secondAvailable = true;
-      first.registry.refresh(combined);
+      first.registry.set(
+        refreshInventories([first.connection, second.connection]),
+        undefined,
+      );
+      await Effect.runPromise(
+        AtomRegistry.getResult(
+          first.registry,
+          refreshInventory(first.connection),
+          { suspendOnWaiting: true },
+        ),
+      );
+      expect(firstRequests).toEqual([
+        'GET /api/inventory',
+        'POST /api/inventory/refresh',
+      ]);
+      expect(secondRequests).toEqual([
+        'GET /api/inventory',
+        'POST /api/inventory/refresh',
+      ]);
       const refreshed = Option.getOrThrow(
         await Effect.runPromise(
           AtomRegistry.toStream(first.registry, combined).pipe(
@@ -115,8 +138,6 @@ describe('reading a connected project inventory', () => {
           Option.getOrThrow(AsyncResult.value(result)),
         ),
       ).toEqual([firstAnswer, secondAnswer]);
-      expect(firstReads).toBe(2);
-      expect(secondReads).toBe(2);
     } finally {
       stop();
     }

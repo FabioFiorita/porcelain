@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { Deferred, Effect, Layer, Option, Stream } from 'effect';
+import { Effect, Layer, Option } from 'effect';
 import { AtomRegistry, Reactivity } from 'effect/reactivity';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import type { Transport } from '@porcelain/client/transport';
@@ -28,6 +28,16 @@ async function seed(
       readInventory(fixture.connection),
       { suspendOnWaiting: true },
     ),
+  );
+}
+
+async function retry(fixture: ReturnType<typeof create>) {
+  const command = refreshInventory(fixture.connection);
+  fixture.registry.set(command, undefined);
+  await Effect.runPromise(
+    AtomRegistry.getResult(fixture.registry, command, {
+      suspendOnWaiting: true,
+    }),
   );
 }
 
@@ -252,33 +262,14 @@ it('keeps the refresh response when an overlapping live inventory read finishes 
       return new Promise<Response>((resolve) => pendingGet.push(resolve));
     return Promise.resolve(Response.json(stale));
   });
-  const initialReadCompleted = Deferred.makeUnsafe<void>();
-  const staleReadCompleted = Deferred.makeUnsafe<void>();
-  const reactivity = await fixture.connection.runtime.runPromise(
-    Reactivity.Reactivity,
-  );
-  const stream = reactivity.stream;
-  function observedStream<A, E, R>(
-    keys: Parameters<typeof stream>[0],
-    observe: Effect.Effect<A, E, R>,
-  ) {
-    return stream(keys, observe).pipe(
-      Stream.tap(() =>
-        delayGet
-          ? Deferred.succeed(staleReadCompleted, undefined)
-          : Deferred.succeed(initialReadCompleted, undefined),
-      ),
-    );
-  }
-  const observer: typeof reactivity = { ...reactivity, stream: observedStream };
-  Object.assign(reactivity, observer);
-  onTestFinished(() => {
-    Object.assign(reactivity, { stream });
-  });
-  await seed(fixture, stale);
-  await Effect.runPromise(Deferred.await(initialReadCompleted));
-  const stop = fixture.registry.mount(readInventory(fixture.connection));
+  const inventory = readInventory(fixture.connection);
+  const stop = fixture.registry.mount(inventory);
   onTestFinished(stop);
+  await Effect.runPromise(
+    AtomRegistry.getResult(fixture.registry, inventory, {
+      suspendOnWaiting: true,
+    }),
+  );
   fixture.registry.set(refreshInventory(fixture.connection), undefined);
   await expect.poll(() => pendingPost.length).toBe(1);
   delayGet = true;
@@ -296,15 +287,20 @@ it('keeps the refresh response when an overlapping live inventory read finishes 
       { suspendOnWaiting: true },
     ),
   );
+  await Effect.runPromise(
+    AtomRegistry.getResult(fixture.registry, inventory, {
+      suspendOnWaiting: true,
+    }),
+  );
+  await fixture.connection.runtime.runPromise(
+    Reactivity.invalidate([queryKeys.inventory(environmentId)]),
+  );
   pendingGet.shift()?.(Response.json(stale));
-  await Effect.runPromise(Deferred.await(staleReadCompleted));
+  await expect.poll(() => pendingGet.length).toBe(1);
+  await expect.poll(() => fixture.registry.get(inventory).waiting).toBe(true);
   expect(
     await Effect.runPromise(
-      AtomRegistry.getResult(
-        fixture.registry,
-        readInventory(fixture.connection),
-        { suspendOnWaiting: true },
-      ),
+      AtomRegistry.getResult(fixture.registry, inventory),
     ),
   ).toEqual(refreshed);
 });
@@ -337,14 +333,7 @@ it('falls back from an older server refresh 404 to GET and publishes its invento
   await seed(fixture, initial);
   requests.length = 0;
   current = refreshed;
-  fixture.registry.set(refreshInventory(fixture.connection), undefined);
-  await Effect.runPromise(
-    AtomRegistry.getResult(
-      fixture.registry,
-      refreshInventory(fixture.connection),
-      { suspendOnWaiting: true },
-    ),
-  );
+  await retry(fixture);
   expect(requests).toEqual([
     'POST /api/inventory/refresh',
     'GET /api/inventory',
@@ -358,4 +347,42 @@ it('falls back from an older server refresh 404 to GET and publishes its invento
       ),
     ),
   ).toEqual(refreshed);
+});
+
+it('does not fall back to GET when refresh fails with a non-404 request error', async ({
+  onTestFinished,
+}) => {
+  const initial: ReadInventoryResponse = {
+    environmentId,
+    environment: { name: 'Computer', custom: false },
+    projects: [],
+  };
+  const requests: string[] = [];
+  const fixture = create((path, init) => {
+    requests.push(`${init?.method ?? 'GET'} ${path}`);
+    return Promise.resolve(
+      path === '/api/inventory/refresh'
+        ? new Response(null, { status: 503 })
+        : Response.json(initial),
+    );
+  });
+  const inventory = readInventory(fixture.connection);
+  onTestFinished(fixture.registry.mount(inventory));
+  await Effect.runPromise(
+    AtomRegistry.getResult(fixture.registry, inventory, {
+      suspendOnWaiting: true,
+    }),
+  );
+  await retry(fixture);
+  expect(requests).toEqual([
+    'GET /api/inventory',
+    'POST /api/inventory/refresh',
+  ]);
+  await expect(
+    Effect.runPromise(
+      AtomRegistry.getResult(fixture.registry, inventory, {
+        suspendOnWaiting: true,
+      }),
+    ),
+  ).rejects.toMatchObject({ _tag: 'RequestError', status: 503 });
 });
