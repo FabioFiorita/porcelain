@@ -30,7 +30,7 @@ function service(current: ListedWorktree[]) {
           commonDirectory: '/srv/api/.git',
           repositoryIdentity: 'repository-1',
           observedAt: '2026-09-24T12:00:00.000Z',
-          listed: true,
+          available: true,
         },
         worktrees: current,
       },

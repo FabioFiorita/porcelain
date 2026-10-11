@@ -46,7 +46,9 @@ const worktree: ListedWorktree = {
 };
 
 function observed(
-  overrides: Partial<CatalogObservation> = {},
+  overrides: Partial<
+    Pick<CatalogObservation, 'observedAt' | 'repositoryIdentity'>
+  > & { available?: boolean } = {},
   worktrees: ListedWorktree[] = [worktree],
 ): CatalogProject {
   return {
@@ -55,8 +57,10 @@ function observed(
       commonDirectory: project.commonDirectory,
       repositoryIdentity: project.repositoryIdentity,
       observedAt: '2026-09-24T11:59:30.000Z',
-      listed: true,
       ...overrides,
+      ...(overrides.available === false
+        ? { available: false as const }
+        : { available: true as const }),
     },
     worktrees,
   };
@@ -176,7 +180,7 @@ describe('CheckWorktreeService', () => {
 
   it('refuses an unknown worktree as unavailable while a repository could not be listed', async () => {
     const checked = await service({
-      catalog: [observed({ listed: false }, [])],
+      catalog: [observed({ available: false }, [])],
     });
     expect(() =>
       Effect.runSync(
@@ -189,7 +193,9 @@ describe('CheckWorktreeService', () => {
   });
 
   it('refuses a known worktree whose repository could not be listed at the last refresh', async () => {
-    const checked = await service({ catalog: [observed({ listed: false })] });
+    const checked = await service({
+      catalog: [observed({ available: false })],
+    });
     expect(() =>
       Effect.runSync(
         checked.execute({

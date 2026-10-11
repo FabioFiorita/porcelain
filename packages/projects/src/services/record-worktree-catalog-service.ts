@@ -35,14 +35,14 @@ export class RecordWorktreeCatalogService extends Context.Service<
               (entry) => entry.id === observation.id,
             );
             if (
-              previous?.listed === observation.listed &&
+              previous?.available === observation.available &&
               previous?.unavailableReason === observation.unavailableReason
             )
               continue;
-            if (observation.listed && previous === undefined) continue;
+            if (observation.available && previous === undefined) continue;
             yield* Effect.logInfo('Repository availability changed', {
               projectId: observation.id,
-              available: observation.listed,
+              available: observation.available,
               reason: observation.unavailableReason,
             });
           }

@@ -1,7 +1,7 @@
 import { Context } from 'effect';
 import type { ProjectNotFoundError } from '@porcelain/projects/errors';
 import type { JobRunner } from './job-runner.ts';
-export const InventoryRefresh = Context.Service<
-  '@porcelain/server/InventoryRefresh',
+export const InventoryScan = Context.Service<
+  '@porcelain/server/InventoryScan',
   JobRunner<ProjectNotFoundError>
->('@porcelain/server/InventoryRefresh');
+>('@porcelain/server/InventoryScan');

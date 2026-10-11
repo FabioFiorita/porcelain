@@ -1,11 +1,16 @@
 import { afterEach, describe, expect } from 'vitest';
-import { AtomRegistry } from 'effect/reactivity';
+import { AsyncResult, AtomRegistry } from 'effect/reactivity';
 import type { AccessPlatformValue } from '../ports/access-platform.ts';
 import { it } from '@effect/vitest';
-import { Redacted, Deferred, Effect, Fiber } from 'effect';
+import { Redacted, Deferred, Effect, Exit, Fiber, Option } from 'effect';
 import { TestClock } from 'effect/testing';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
-import { readRemoteEnvironment, readRemoteStatus } from './environments.ts';
+import {
+  readRemoteEnvironment,
+  readRemoteStatus,
+  remoteStatusResult,
+} from './environments.ts';
+import type { RemoteAnswer } from '../rules/remotes.ts';
 import type { Transport } from '@porcelain/client/transport';
 const environment = {
   environmentId: 'saved-environment',
@@ -238,4 +243,48 @@ it('cancels a pending status transport when its registry is disposed', async () 
   registry.dispose();
   await Effect.runPromise(Deferred.await(canceled));
   expect(signal?.aborted).toBe(true);
+});
+
+it('permits inventory retries only for an online remote status result', () => {
+  const online: RemoteAnswer = { kind: 'described', environment };
+  const cases = [
+    [AsyncResult.initial<RemoteAnswer>(), 'checking'],
+    [AsyncResult.success<RemoteAnswer>(online), 'online'],
+    [AsyncResult.success<RemoteAnswer>({ kind: 'unreachable' }), 'offline'],
+    [
+      AsyncResult.success<RemoteAnswer>({ kind: 'unauthorized' }),
+      'needs-pairing',
+    ],
+    [
+      AsyncResult.success<RemoteAnswer>({
+        kind: 'described',
+        environment: { ...environment, protocol: ENVIRONMENT_PROTOCOL - 1 },
+      }),
+      'incompatible',
+    ],
+    [
+      AsyncResult.success<RemoteAnswer>({
+        kind: 'described',
+        environment: { ...environment, environmentId: 'another' },
+      }),
+      'other-server',
+    ],
+    [
+      AsyncResult.fromExitWithPrevious(
+        Exit.fail('offline'),
+        Option.some(AsyncResult.success(online)),
+      ),
+      'offline',
+    ],
+  ] as const;
+  expect(
+    cases.map(([result]) => remoteStatusResult(remote, result).kind),
+  ).toEqual(cases.map(([, kind]) => kind));
+  expect(
+    cases
+      .filter(
+        ([result]) => remoteStatusResult(remote, result).kind === 'online',
+      )
+      .map(([, kind]) => kind),
+  ).toEqual(['online']);
 });

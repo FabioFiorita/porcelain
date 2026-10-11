@@ -84,7 +84,7 @@ describe('RecordWorktreeCatalogService', () => {
         commonDirectory: '/srv/api/.git',
         repositoryIdentity: 'identity-api',
         observedAt: now,
-        listed: true,
+        available: true,
       },
     });
   });
@@ -98,7 +98,7 @@ describe('RecordWorktreeCatalogService', () => {
       [{ projectId: 'api', available: false, worktrees: [kept] }],
     );
     expect(catalog.listObservations()).toMatchObject([
-      { id: 'api', observedAt: now, listed: false },
+      { id: 'api', observedAt: now, available: false },
     ]);
     expect(catalog.lastSeen({ projectId: 'api' })).toEqual([kept]);
   });
@@ -145,12 +145,20 @@ it('logs each availability or reason change once, including recovery', async () 
   const projects = [project('api')];
   const observe = (
     available: boolean,
-    unavailableReason?: 'missing' | 'permission' | 'moved',
+    unavailableReason?: 'missing' | 'permission' | 'moved' | 'git-failed',
   ) =>
     record(
       catalog,
       projects,
-      [{ projectId: 'api', available, unavailableReason, worktrees: [] }],
+      [
+        {
+          projectId: 'api',
+          ...(available
+            ? { available: true as const }
+            : { available: false as const, unavailableReason }),
+          worktrees: [],
+        },
+      ],
       logs,
     );
   await observe(true);
@@ -160,6 +168,8 @@ it('logs each availability or reason change once, including recovery', async () 
   await observe(false, 'permission');
   await observe(false, 'moved');
   await observe(false, 'moved');
+  await observe(false, 'git-failed');
+  await observe(false, 'git-failed');
   await observe(true);
   await observe(true);
   expect(logs).toEqual([
@@ -174,6 +184,10 @@ it('logs each availability or reason change once, including recovery', async () 
     [
       'Repository availability changed',
       { projectId: 'api', available: false, reason: 'moved' },
+    ],
+    [
+      'Repository availability changed',
+      { projectId: 'api', available: false, reason: 'git-failed' },
     ],
     [
       'Repository availability changed',

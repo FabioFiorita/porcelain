@@ -15,7 +15,8 @@ export function repositoryUnavailableReason(
     error instanceof UnsupportedFilesystemIdentityError
   )
     return 'git-failed';
-  if (error instanceof GitCommandError) return 'git-failed';
+  if (error instanceof GitCommandError)
+    return error.exitCode !== undefined ? 'git-failed' : undefined;
   if (error instanceof GitFilesystemError)
     return repositoryUnavailableReason(error.cause);
   if (isMissing(error)) return 'missing';

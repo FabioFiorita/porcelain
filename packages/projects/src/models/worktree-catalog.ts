@@ -5,9 +5,13 @@ import type { ListableProject } from './project.ts';
 
 export type CatalogObservation = ListableProject & {
   observedAt: string;
-  listed: boolean;
-  unavailableReason?: ProjectUnavailableReason | undefined;
-};
+} & (
+    | { available: true; unavailableReason?: never }
+    | {
+        available: false;
+        unavailableReason?: ProjectUnavailableReason | undefined;
+      }
+  );
 
 export type CatalogEntry = {
   worktree: ListedWorktree;

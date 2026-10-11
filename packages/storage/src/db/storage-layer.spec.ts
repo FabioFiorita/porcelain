@@ -786,6 +786,12 @@ it('heals duplicate registrations into the latest project and keeps its conflict
   database
     .prepare('INSERT INTO project_file_preferences VALUES (?, ?, 1, 0)')
     .run('first', 'README.md');
+  database
+    .prepare('INSERT INTO project_file_preferences VALUES (?, ?, 0, 1)')
+    .run('first', 'conflict.md');
+  database
+    .prepare('INSERT INTO project_file_preferences VALUES (?, ?, 1, 0)')
+    .run('second', 'conflict.md');
   database.exec(`CREATE TABLE porcelain_git_action_execution_v1 (
     request_id TEXT PRIMARY KEY REFERENCES git_action_receipts(request_id) ON DELETE CASCADE,
     phase TEXT NOT NULL CHECK (phase IN ('queued', 'started'))
@@ -891,8 +897,13 @@ it('heals duplicate registrations into the latest project and keeps its conflict
         .get(worktreeIdV1('second', linkedStable, 32)),
     ).toEqual({ seen_through: 23 });
     expect(
-      reopened.prepare('SELECT * FROM project_file_preferences').all(),
-    ).toEqual([]);
+      reopened
+        .prepare('SELECT * FROM project_file_preferences ORDER BY path')
+        .all(),
+    ).toEqual([
+      { project_id: 'second', path: 'README.md', pinned: 1, hidden: 0 },
+      { project_id: 'second', path: 'conflict.md', pinned: 1, hidden: 0 },
+    ]);
     expect(
       reopened
         .prepare(

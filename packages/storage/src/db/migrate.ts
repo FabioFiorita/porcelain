@@ -266,21 +266,17 @@ export const upgradeLegacyDatabase = Effect.fn('Storage.upgradeLegacyDatabase')(
               appliedHashes(database).length,
             )) {
               for (const statement of migration.sql) database.exec(statement);
-              if (migration.tag === '0028_stable_repository_identity') {
-                if (
-                  database
-                    .prepare(
-                      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'porcelain_git_action_execution_v1'",
-                    )
-                    .get() !== undefined
-                )
-                  database.exec(`DELETE FROM porcelain_git_action_execution_v1
-                    WHERE request_id IN (SELECT request_id FROM stable_duplicate_receipts)
-                    AND request_id NOT IN (SELECT request_id FROM git_action_receipts)`);
-                database.exec('DROP TABLE stable_duplicate_receipts');
-              }
               record.run(migration.hash, migration.timestamp);
             }
+            if (
+              database
+                .prepare(
+                  "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'porcelain_git_action_execution_v1'",
+                )
+                .get() !== undefined
+            )
+              database.exec(`DELETE FROM porcelain_git_action_execution_v1
+                WHERE request_id NOT IN (SELECT request_id FROM git_action_receipts)`);
             if (database.prepare('PRAGMA foreign_key_check').all().length > 0)
               throw new UnsupportedDatabaseVersionError({
                 version: 'orphaned rows',

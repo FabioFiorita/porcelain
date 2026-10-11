@@ -11,13 +11,15 @@ export type WorktreeCatalogStoreSubject = {
   close: () => Promise<void> | void;
 };
 
-function observation(id: string, listed = true): CatalogObservation {
+function observation(id: string, available = true): CatalogObservation {
   return {
     id,
     commonDirectory: `/repositories/${id}/.git`,
     repositoryIdentity: `identity-${id}`,
     observedAt: '2026-09-24T12:00:00.000Z',
-    listed,
+    ...(available
+      ? { available: true as const }
+      : { available: false as const }),
   };
 }
 

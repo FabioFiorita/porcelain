@@ -51,7 +51,7 @@ async function service(
       commonDirectory: project.commonDirectory,
       repositoryIdentity: project.repositoryIdentity,
       observedAt,
-      listed: true,
+      available: true,
     },
     worktrees,
   };

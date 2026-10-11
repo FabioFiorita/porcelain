@@ -49,7 +49,7 @@ function catalog(seen: Record<string, ListedWorktree[]>) {
         commonDirectory: `/srv/${id}/.git`,
         repositoryIdentity: `identity-${id}`,
         observedAt: '2026-09-24T12:00:00.000Z',
-        listed: true,
+        available: true,
       },
       worktrees,
     })),

@@ -41,9 +41,9 @@ export const gitWorktreeListingReaderLayer = (
           Effect.map((repository) => ({ kind: 'listed' as const, repository })),
           Effect.catch((failure) =>
             Effect.sync(() => {
-              const reason =
-                repositoryUnavailableReason(failure) ?? 'git-failed';
-              if (reason === 'git-failed')
+              const unavailableReason = repositoryUnavailableReason(failure);
+              const reason = unavailableReason ?? 'git-failed';
+              if (unavailableReason === undefined)
                 logger.failure({
                   kind: 'worktree-listing',
                   projectId: project.id,

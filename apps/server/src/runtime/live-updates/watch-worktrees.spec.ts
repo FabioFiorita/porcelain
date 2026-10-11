@@ -3,9 +3,9 @@ import { Context, Deferred, Duration, Effect, Fiber, Layer } from 'effect';
 import { TestClock } from 'effect/testing';
 import { WorktreeWatcher } from '../../ports/worktree-watcher.ts';
 import { AnnounceWorktreeChangeUseCasePort } from '../../ports/announce-worktree-change-use-case-port.ts';
-import { InventoryRefresh } from '../../ports/inventory-refresh.ts';
+import { InventoryScan } from '../../ports/inventory-scan.ts';
 import { Logger } from '../../ports/logger.ts';
-import { RecordingInventoryRefresh } from '../../../spec/fakes/recording-inventory-refresh.ts';
+import { RecordingInventoryScan } from '../../../spec/fakes/recording-inventory-scan.ts';
 import { InMemoryWorktreeWatcher } from '../../../spec/fakes/in-memory-worktree-watcher.ts';
 import { RecordingWorktreeChanges } from '../../../spec/fakes/recording-worktree-changes.ts';
 import { WatchWorktrees } from './watch-worktrees.ts';
@@ -51,7 +51,7 @@ const subject = Effect.fn(function* (
     ],
   });
   const events = new RecordingWorktreeChanges();
-  const refresh = new RecordingInventoryRefresh();
+  const refresh = new RecordingInventoryScan();
   const context = yield* Layer.build(
     WatchWorktrees.layer({
       ...limits,
@@ -62,7 +62,7 @@ const subject = Effect.fn(function* (
       Layer.provide(
         Layer.mergeAll(
           Layer.succeed(AnnounceWorktreeChangeUseCasePort, events),
-          Layer.succeed(InventoryRefresh, refresh),
+          Layer.succeed(InventoryScan, refresh),
           Layer.succeed(WorktreeWatcher, watcher),
           Layer.succeed(Logger, { failure: () => undefined }),
         ),

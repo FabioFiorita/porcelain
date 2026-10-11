@@ -26,10 +26,6 @@ FROM inventory_projects
 JOIN stable_project_survivors ON project_id = inventory_projects.id,
      json_each(porcelain_stable_worktree_ids(project_id, survivor_id, common_directory, repository_identity)) AS mapping;
 --> statement-breakpoint
-CREATE TEMPORARY TABLE stable_duplicate_receipts AS
-SELECT request_id FROM git_action_receipts
-WHERE project_id IN (SELECT project_id FROM stable_project_survivors WHERE project_id <> survivor_id);
---> statement-breakpoint
 UPDATE reviews
 SET worktree_id = (SELECT stable_id FROM stable_worktree_ids WHERE old_id = reviews.worktree_id)
 WHERE worktree_id IN (SELECT old_id FROM stable_worktree_ids WHERE old_id <> stable_id);
@@ -144,6 +140,10 @@ WHERE worktree_id IN (SELECT worktree_id FROM worktree_presence
                      WHERE project_id IN (SELECT project_id FROM stable_project_survivors WHERE project_id <> survivor_id));
 --> statement-breakpoint
 DELETE FROM worktree_presence
+WHERE project_id IN (SELECT project_id FROM stable_project_survivors WHERE project_id <> survivor_id);
+--> statement-breakpoint
+UPDATE OR IGNORE project_file_preferences
+SET project_id = (SELECT survivor_id FROM stable_project_survivors WHERE project_id = project_file_preferences.project_id)
 WHERE project_id IN (SELECT project_id FROM stable_project_survivors WHERE project_id <> survivor_id);
 --> statement-breakpoint
 DELETE FROM project_file_preferences

@@ -3,7 +3,6 @@ export {
   sameRemoteConnection,
   remoteStatusText,
   remoteStatusNote,
-  remoteStatus,
   parseRemotes,
   serializeRemotes,
   type Remote,

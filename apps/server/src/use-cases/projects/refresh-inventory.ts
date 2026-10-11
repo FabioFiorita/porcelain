@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from 'effect';
 import type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
-import { InventoryRefresh } from '../../ports/inventory-refresh.ts';
+import { InventoryScan } from '../../ports/inventory-scan.ts';
 import { ReadInventoryUseCasePort } from '../../ports/read-inventory-use-case-port.ts';
 
 export class RefreshInventoryUseCase extends Context.Service<
@@ -16,11 +16,11 @@ export class RefreshInventoryUseCase extends Context.Service<
   static readonly layer = Layer.effect(
     RefreshInventoryUseCase,
     Effect.gen(function* () {
-      const refresh = yield* InventoryRefresh;
+      const scan = yield* InventoryScan;
       const read = yield* ReadInventoryUseCasePort;
       return {
         execute: Effect.fn('RefreshInventoryUseCase.execute')(function* () {
-          yield* refresh
+          yield* scan
             .execute()
             .pipe(Effect.catchTag('ProjectNotFoundError', () => Effect.void));
           return yield* read.execute();

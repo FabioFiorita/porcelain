@@ -51,19 +51,16 @@ export class InventoryState extends Context.Service<
       Effect.gen(function* () {
         const seed = yield* InventorySeed;
         const client = yield* porcelainClient(connection);
+        const checkEnvironment = (inventory: ReadInventoryResponse) =>
+          currentAnswerEffect(
+            connection,
+            inventory.environmentId === connection.environmentId,
+          );
+        const read = client.request((api) => api.projects.readInventory());
         const resource = yield* confirmedResource(
           connection,
           queryKeys.inventory(connection.environmentId),
-          client
-            .request((api) => api.projects.readInventory())
-            .pipe(
-              Effect.tap((inventory) =>
-                currentAnswerEffect(
-                  connection,
-                  inventory.environmentId === connection.environmentId,
-                ),
-              ),
-            ),
+          read.pipe(Effect.tap(checkEnvironment)),
           seed,
         );
         function confirm<A, E, R>(
@@ -85,12 +82,10 @@ export class InventoryState extends Context.Service<
               client
                 .request((api) => api.projects.refreshInventory())
                 .pipe(
-                  Effect.tap((inventory) =>
-                    currentAnswerEffect(
-                      connection,
-                      inventory.environmentId === connection.environmentId,
-                    ),
+                  Effect.catchTag('RequestError', (error) =>
+                    error.status === 404 ? read : Effect.fail(error),
                   ),
+                  Effect.tap(checkEnvironment),
                 ),
             ),
         };

@@ -1,5 +1,5 @@
 import { testClock } from '@porcelain/kernel/test-kit';
-import { InventoryRefresh } from '../../ports/inventory-refresh.ts';
+import { InventoryScan } from '../../ports/inventory-scan.ts';
 import {
   WorktreeCatalogStore,
   InventoryStore,
@@ -21,7 +21,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import { InMemoryInventoryStore } from '../../../spec/fakes/in-memory-inventory-store.ts';
 import { InMemoryWorktreeCatalogStore } from '../../../spec/fakes/in-memory-worktree-catalog-store.ts';
-import { ScriptedInventoryRefresh } from '../../../spec/fakes/scripted-inventory-refresh.ts';
+import { ScriptedInventoryScan } from '../../../spec/fakes/scripted-inventory-scan.ts';
 import { CheckWorktreeUseCase } from './check-worktree.ts';
 
 const now = '2026-09-24T12:00:00.000Z';
@@ -61,7 +61,7 @@ function observed(
       commonDirectory: project.commonDirectory,
       repositoryIdentity: project.repositoryIdentity,
       observedAt,
-      listed: true,
+      available: true,
     },
     worktrees,
   };
@@ -101,8 +101,8 @@ async function useCase(before: CatalogSnapshot, afterRefresh: CatalogSnapshot) {
         ),
       ),
       Effect.provideService(
-        InventoryRefresh,
-        new ScriptedInventoryRefresh(catalog, afterRefresh),
+        InventoryScan,
+        new ScriptedInventoryScan(catalog, afterRefresh),
       ),
     ),
   );

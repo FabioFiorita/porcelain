@@ -231,3 +231,20 @@ it('reports an absent Git executable as git-failed rather than a missing reposit
     process.env.PATH = previous;
   }
 });
+
+it('reports an exited Git command as git-failed without logging each scan', async () => {
+  const project = repository();
+  rmSync(join(project.commonDirectory, 'HEAD'));
+  const { list, reports } = listing(project);
+  const results = [
+    await Effect.runPromise(list),
+    await Effect.runPromise(list),
+  ];
+  const unavailable = {
+    kind: 'unavailable',
+    projectId: 'project-1',
+    reason: 'git-failed',
+  };
+  expect(results).toEqual([unavailable, unavailable]);
+  expect(reports).toEqual([]);
+});

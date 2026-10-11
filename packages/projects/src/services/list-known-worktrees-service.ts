@@ -36,9 +36,13 @@ export class ListKnownWorktreesService extends Context.Service<
                 });
                 return {
                   projectId: project.id,
-                  available: project.available,
-                  unavailableReason: observations.get(project.id)
-                    ?.unavailableReason,
+                  ...(project.available
+                    ? { available: true as const }
+                    : {
+                        available: false as const,
+                        unavailableReason: observations.get(project.id)
+                          ?.unavailableReason,
+                      }),
                   worktrees: project.available
                     ? worktrees
                     : unavailableWorktrees(worktrees),

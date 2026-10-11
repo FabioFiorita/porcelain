@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 import type { JobRunner } from '../../src/ports/job-runner.ts';
 
-export class RecordingInventoryRefresh implements JobRunner {
+export class RecordingInventoryScan implements JobRunner {
   private fresh = false;
 
   execute(): Effect.Effect<void> {

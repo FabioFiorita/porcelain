@@ -1,4 +1,4 @@
-import { InventoryRefresh } from '../../ports/inventory-refresh.ts';
+import { InventoryScan } from '../../ports/inventory-scan.ts';
 import { Effect, Context, Layer } from 'effect';
 import { type WorktreeNotFoundError } from '@porcelain/kernel/errors';
 import {
@@ -31,7 +31,7 @@ export class CheckWorktreeUseCase extends Context.Service<
       const checkWorktreeCapability = yield* CheckWorktreeService;
       const checkRefreshedWorktreeCapability =
         yield* CheckRefreshedWorktreeService;
-      const refreshInventoryCapability = yield* InventoryRefresh;
+      const scanInventoryCapability = yield* InventoryScan;
 
       return {
         execute: Effect.fn('CheckWorktreeUseCase.execute')(function* (
@@ -44,7 +44,7 @@ export class CheckWorktreeUseCase extends Context.Service<
         > {
           const checked = yield* checkWorktreeCapability.execute(input);
           if (checked.kind === 'found') return checked.worktree;
-          yield* refreshInventoryCapability.execute();
+          yield* scanInventoryCapability.execute();
           return yield* checkRefreshedWorktreeCapability.execute(input);
         }),
       };

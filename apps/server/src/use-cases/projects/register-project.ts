@@ -1,5 +1,5 @@
 import { type RepositoryUnavailableError } from '@porcelain/kernel/errors';
-import { InventoryRefresh } from '../../ports/inventory-refresh.ts';
+import { InventoryScan } from '../../ports/inventory-scan.ts';
 import { Effect, Context, Layer } from 'effect';
 import {
   type RegisterProjectRequest,
@@ -38,7 +38,7 @@ export class RegisterProjectUseCase extends Context.Service<
         yield* InspectProjectRepositoryService;
       const readRepositoryOriginCapability = yield* ReadRepositoryOriginService;
       const registerProjectCapability = yield* RegisterProjectService;
-      const refreshInventoryCapability = yield* InventoryRefresh;
+      const scanInventoryCapability = yield* InventoryScan;
       const listRegisteredProjectsCapability =
         yield* ListRegisteredProjectsService;
       const listKnownWorktreesCapability = yield* ListKnownWorktreesService;
@@ -69,7 +69,7 @@ export class RegisterProjectUseCase extends Context.Service<
                 });
               }),
           );
-          yield* refreshInventoryCapability.execute();
+          yield* scanInventoryCapability.execute();
           const { listings } = yield* lanesCapability.run(
             laneKeysCapability.inventory(),
             'read',

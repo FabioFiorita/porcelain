@@ -9,7 +9,7 @@ import {
   ListReviewedLayerPathsService,
   ReadReviewBadgesService,
 } from '@porcelain/reviews/services';
-import { InventoryRefresh } from '../ports/inventory-refresh.ts';
+import { InventoryScan } from '../ports/inventory-scan.ts';
 import { EventPublisher } from '../ports/event-publisher.ts';
 import { LaneKeys } from '../runtime/lane-keys.ts';
 import { Lanes } from '../runtime/lanes.ts';
@@ -83,12 +83,12 @@ type ProjectsDependencies = {
   projectFolderReader: ProjectFolderReader;
 };
 
-class InventoryCoordinator extends Context.Service<
-  InventoryCoordinator,
+class InventoryScanCoordinator extends Context.Service<
+  InventoryScanCoordinator,
   Effect.Success<ReturnType<typeof makeCoalescedWork<ProjectNotFoundError>>>
->()('@porcelain/server/InventoryCoordinator') {
+>()('@porcelain/server/InventoryScanCoordinator') {
   static readonly layer = Layer.effect(
-    InventoryCoordinator,
+    InventoryScanCoordinator,
     Effect.flatMap(ScanInventoryUseCase, makeCoalescedWork),
   );
 }
@@ -169,11 +169,11 @@ export function composeProjects(
     SetFilePreferenceUseCase.layer,
     CollectAbsentWorktreesUseCase.layer,
   ).pipe(Layer.provideMerge(services));
-  const admission = Layer.mergeAll(InventoryCoordinator.layer).pipe(
+  const admission = Layer.mergeAll(InventoryScanCoordinator.layer).pipe(
     Layer.provideMerge(operations),
   );
   const application = Layer.mergeAll(
-    Layer.effect(InventoryRefresh, InventoryCoordinator),
+    Layer.effect(InventoryScan, InventoryScanCoordinator),
   ).pipe(Layer.provideMerge(admission));
   const layer4 = Layer.mergeAll(
     CheckWorktreeUseCase.layer,
@@ -208,7 +208,7 @@ export function composeProjects(
       const useCases = {
         readInventory: yield* ReadInventoryUseCase,
         findWorktreeByPath: yield* FindWorktreeByPathUseCase,
-        refreshInventory: yield* InventoryCoordinator,
+        scanInventory: yield* InventoryScanCoordinator,
         checkWorktree: yield* CheckWorktreeUseCase,
         registerProject: yield* RegisterProjectUseCase,
         renameProject: yield* RenameProjectUseCase,

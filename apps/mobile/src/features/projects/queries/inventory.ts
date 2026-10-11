@@ -17,8 +17,7 @@ import { liveQueries } from '@porcelain/client/live';
 import { accessPlatform } from '../../../shared/adapters/access-platform';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { remoteConnectionState } from '../../../shared/application/store';
-import { readRemoteStatus } from '@porcelain/client/access';
-import { remoteStatus } from '@porcelain/client/access/rules';
+import { readRemoteStatus, remoteStatusResult } from '@porcelain/client/access';
 import type { RemoteConnection } from '@porcelain/client/access';
 
 const unavailable = Atom.make(AsyncResult.initial<ReadInventoryResponse>());
@@ -49,11 +48,7 @@ const inventoryRetries = Atom.family((remotes: readonly RemoteConnection[]) =>
     (context, _input: void) => {
       const online = remotes.filter(({ remote }) => {
         const health = context.get(readRemoteStatus(accessPlatform, remote));
-        return (
-          !AsyncResult.isFailure(health) &&
-          remoteStatus(remote, Option.getOrUndefined(AsyncResult.value(health)))
-            .kind === 'online'
-        );
+        return remoteStatusResult(remote, health).kind === 'online';
       });
       context.set(
         refreshInventories(online.map((entry) => entry.connection)),

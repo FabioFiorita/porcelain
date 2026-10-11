@@ -1,5 +1,5 @@
 import { Effect, Option, Schedule, Stream } from 'effect';
-import { Atom } from 'effect/reactivity';
+import { AsyncResult, Atom } from 'effect/reactivity';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import {
   REMOTE_STATUS_REFRESH_MS,
@@ -16,8 +16,18 @@ import {
   remoteStatus,
   type Remote,
   type RemoteAnswer,
+  type RemoteStatus,
 } from '../rules/remotes.ts';
 import { BootstrapClient } from '../../../shared/api/bootstrap-client.ts';
+
+export function remoteStatusResult<E>(
+  remote: Pick<Remote, 'environmentId'>,
+  result: AsyncResult.AsyncResult<RemoteAnswer, E>,
+): RemoteStatus {
+  return AsyncResult.isFailure(result)
+    ? { kind: 'offline' }
+    : remoteStatus(remote, Option.getOrUndefined(AsyncResult.value(result)));
+}
 
 export function readRemoteEnvironment(
   transport: Transport,
