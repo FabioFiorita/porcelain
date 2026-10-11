@@ -70,7 +70,7 @@ The root integration command runs suite tasks sequentially, because each Vitest 
 
 ## Pull requests
 
-Work on your own branch from `main`, in your own worktree. Open a pull request into `main` from the template once the work is done. When you judge it safe, turn on auto-merge with `gh pr merge --auto --squash`; it waits for the `checks` job. When it needs the developer, such as a product decision, a data migration or a rule change, leave auto-merge off and open the body with what needs deciding. One concern per pull request. The developer reads every body, so make it easy to read: what and why in a few sentences, how it was verified, screenshots attached with `gh pr create --attach` inside a collapsed section, and the risks. Commit only the paths you changed, each commit one short imperative sentence. Plans and scratch notes stay out of the repository.
+Work on your own branch from `main`, in your own worktree. Open a pull request into `main` from the template once the work is done. Name its door under Risks. A two-way door, easy to revert, gets auto-merge with `gh pr merge --auto --squash`, which waits for the `checks` job. A one-way door, such as data loss, a migration, a public contract, a rule change or a release, keeps auto-merge off and opens the body with what needs deciding. One concern per pull request. The developer reads every body, so make it easy to read: what and why in a few sentences, how it was verified, screenshots attached with `gh pr create --attach` inside a collapsed section, and the risks. Commit only the paths you changed, each commit one short imperative sentence. Plans and scratch notes stay out of the repository.
 
 ## Where code lives
 
