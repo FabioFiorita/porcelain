@@ -60,6 +60,16 @@
     "//#arch:check": {
       "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
     },
+    "//#mobile:react-compiler": {
+      "inputs": [
+        "apps/mobile/src/**",
+        "apps/mobile/babel.config.js",
+        "apps/mobile/package.json",
+        "scripts/react-compiler.ts",
+        "package.json",
+        "pnpm-lock.yaml"
+      ]
+    },
     "//#test:rules": {
       "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
     },

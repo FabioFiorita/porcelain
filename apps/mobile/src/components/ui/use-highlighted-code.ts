@@ -13,6 +13,19 @@ async function loadHighlighter() {
   }
 }
 const highlighter = loadHighlighter();
+async function highlightTokens(
+  source: string,
+  language: string | undefined,
+  scheme: 'light' | 'dark',
+  signal: AbortSignal,
+) {
+  try {
+    const value = await highlighter;
+    return await value?.(source, language, scheme, signal);
+  } catch {
+    return undefined;
+  }
+}
 export function useHighlightedCode(source: string, language?: string) {
   const { theme } = useUniwind();
   const scheme = theme === 'dark' ? 'dark' : 'light';
@@ -27,21 +40,23 @@ export function useHighlightedCode(source: string, language?: string) {
     if (!language) return;
     const controller = new AbortController();
     async function highlight() {
-      try {
-        const value = await highlighter;
-        if (!value) throw new Error('Syntax highlighting could not load.');
-        const tokens = await value(source, language, scheme, controller.signal);
-        if (!controller.signal.aborted)
-          setResult({ source, language, scheme, tokens });
-      } catch {
-        if (!controller.signal.aborted)
-          setResult({
-            source,
-            language,
-            scheme,
-            error: 'Syntax highlighting could not load.',
-          });
-      }
+      const tokens = await highlightTokens(
+        source,
+        language,
+        scheme,
+        controller.signal,
+      );
+      if (!controller.signal.aborted)
+        setResult(
+          tokens
+            ? { source, language, scheme, tokens }
+            : {
+                source,
+                language,
+                scheme,
+                error: 'Syntax highlighting could not load.',
+              },
+        );
     }
     void highlight();
     return () => controller.abort();
