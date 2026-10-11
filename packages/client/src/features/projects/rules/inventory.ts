@@ -50,7 +50,7 @@ export function projectUnavailableMessage(
 ): string {
   switch (project.unavailableReason) {
     case 'moved':
-      return 'This folder now holds a different repository.';
+      return "Porcelain doesn't recognise this repository as the one it registered. Remove the project and add it again.";
     case 'missing':
       return 'The repository folder is missing.';
     case 'permission':

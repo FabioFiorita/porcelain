@@ -4,8 +4,6 @@ import { DatabaseSync } from 'node:sqlite';
 import { Effect, FileSystem, Schema } from 'effect';
 import { Migrator } from 'effect/sql';
 import { UnsupportedDatabaseVersionError } from '../errors/unsupported-database-version-error.ts';
-import { readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
 import { worktreeIdV1 } from './worktree-id-v1.ts';
 
 const journalSchema = Schema.fromJsonString(
@@ -199,60 +197,6 @@ export const upgradeLegacyDatabase = Effect.fn('Storage.upgradeLegacyDatabase')(
                   )
                 : null,
           );
-          database.function(
-            'porcelain_stable_worktree_ids',
-            (projectId, survivorId, commonDirectory, storedIdentity) => {
-              if (
-                typeof projectId !== 'string' ||
-                typeof survivorId !== 'string' ||
-                typeof commonDirectory !== 'string' ||
-                typeof storedIdentity !== 'string'
-              )
-                return '[]';
-              const parts = storedIdentity.split(':');
-              const legacy = parts.length === 3;
-              const stableIdentity = legacy
-                ? parts.slice(1).join(':')
-                : storedIdentity;
-              const mapping = (identity: string) => ({
-                old_id: worktreeIdV1(
-                  projectId,
-                  legacy ? `${parts[0]}:${identity}` : identity,
-                  options.worktreeIdLength,
-                ),
-                stable_id: worktreeIdV1(
-                  projectId,
-                  identity,
-                  options.worktreeIdLength,
-                ),
-                new_id: worktreeIdV1(
-                  survivorId,
-                  identity,
-                  options.worktreeIdLength,
-                ),
-              });
-              const mappings = [mapping(stableIdentity)];
-              try {
-                for (const name of readdirSync(
-                  join(commonDirectory, 'worktrees'),
-                )) {
-                  try {
-                    const info = statSync(
-                      join(commonDirectory, 'worktrees', name),
-                      { bigint: true },
-                    );
-                    if (info.isDirectory() && info.birthtimeNs !== 0n)
-                      mappings.push(mapping(`${info.ino}:${info.birthtimeNs}`));
-                  } catch {
-                    continue;
-                  }
-                }
-              } catch {
-                return JSON.stringify(mappings);
-              }
-              return JSON.stringify(mappings);
-            },
-          );
           database.exec('PRAGMA foreign_keys = OFF');
           database.exec('BEGIN IMMEDIATE');
           try {
@@ -268,15 +212,6 @@ export const upgradeLegacyDatabase = Effect.fn('Storage.upgradeLegacyDatabase')(
               for (const statement of migration.sql) database.exec(statement);
               record.run(migration.hash, migration.timestamp);
             }
-            if (
-              database
-                .prepare(
-                  "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'porcelain_git_action_execution_v1'",
-                )
-                .get() !== undefined
-            )
-              database.exec(`DELETE FROM porcelain_git_action_execution_v1
-                WHERE request_id NOT IN (SELECT request_id FROM git_action_receipts)`);
             if (database.prepare('PRAGMA foreign_key_check').all().length > 0)
               throw new UnsupportedDatabaseVersionError({
                 version: 'orphaned rows',

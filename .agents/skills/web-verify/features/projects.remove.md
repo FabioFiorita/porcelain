@@ -62,7 +62,7 @@ None.
 ### Unavailable project popover
 
 1. Make the disposable repository missing, permission denied, replaced, or fail Git, then POST `/api/inventory/refresh` to observe that state.
-2. Click the project's unavailable alert. Expect respectively "The repository folder is missing.", "Porcelain cannot read this repository because access is denied.", "This folder now holds a different repository.", or "Git could not read this repository." An older server with no reason shows "Porcelain can't reach this repository right now."
+2. Click the project's unavailable alert. Expect respectively "The repository folder is missing.", "Porcelain cannot read this repository because access is denied.", "Porcelain doesn't recognise this repository as the one it registered. Remove the project and add it again.", or "Git could not read this repository." An older server with no reason shows "Porcelain can't reach this repository right now."
 3. Click `Retry` while blocked: expect POST `/api/inventory/refresh`, 200 JSON, and the same state. Restore the repository and click `Retry`: expect the original worktree and no alert.
 4. Reopen an unavailable project's popover, click `Remove from Porcelain`, and drive the same Cancel/confirm paths above. On remote projects with management disabled, expect Retry only; offline remote connections send no POST.
 

@@ -106,3 +106,45 @@ test('refreshing the inventory rechecks a missing repository and restores its or
     registered(session, true),
   ]);
 });
+
+test('removing an unavailable project lets the same folder be registered again', async ({
+  session,
+}) => {
+  const moved = `${session.repository}-removed`;
+  await session.rename(session.repository, moved);
+  const missing = await session.send({
+    method: 'POST',
+    path: '/api/inventory/refresh',
+  });
+  expect(missing.status).toBe(200);
+  expect(list(record(missing.body).projects)).toStrictEqual([
+    { ...registered(session, false), unavailableReason: 'missing' },
+  ]);
+
+  const removed = await session.send({
+    method: 'DELETE',
+    path: `/api/projects/${session.projectId}`,
+  });
+  expect(removed.status).toBe(200);
+  expect(removed.body).toStrictEqual({ deleted: true });
+  expect(
+    list(record((await session.read(inventory)).body).projects),
+  ).toStrictEqual([]);
+
+  await session.rename(moved, session.repository);
+  const readded = await session.send({
+    method: 'POST',
+    path: '/api/projects',
+    body: { path: session.repository },
+  });
+  expect(readded.status).toBe(200);
+  expect(record(readded.body).id).not.toBe(session.projectId);
+  expect(readded.body).toMatchObject({
+    name: session.fixture.folders.repository,
+    available: true,
+    worktrees: [{ path: session.repository, main: true, available: true }],
+  });
+  expect(
+    list(record((await session.read(inventory)).body).projects),
+  ).toStrictEqual([readded.body]);
+});

@@ -197,13 +197,6 @@
       "when": 1790808928164,
       "tag": "0027_trusted_devices",
       "breakpoints": true
-    },
-    {
-      "idx": 28,
-      "version": "6",
-      "when": 1791676800000,
-      "tag": "0028_stable_repository_identity",
-      "breakpoints": true
     }
   ]
 }

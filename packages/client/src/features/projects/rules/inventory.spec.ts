@@ -84,7 +84,10 @@ describe('worktree labels', () => {
 });
 
 it.each([
-  ['moved', 'This folder now holds a different repository.'],
+  [
+    'moved',
+    "Porcelain doesn't recognise this repository as the one it registered. Remove the project and add it again.",
+  ],
   ['missing', 'The repository folder is missing.'],
   [
     'permission',
