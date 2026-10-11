@@ -11,7 +11,12 @@ export function DestinationLayout({
   children?: ReactNode;
 }) {
   return (
-    <Stack>
+    <Stack
+      screenOptions={({ theme }) => ({
+        headerBackButtonDisplayMode: 'minimal',
+        headerTintColor: theme.colors.text,
+      })}
+    >
       <Stack.Screen name={name} options={{ title }} />
       {children}
     </Stack>
