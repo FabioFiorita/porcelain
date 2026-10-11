@@ -62,7 +62,6 @@ export function openAppUpdate(
   }
   const read = () => state;
   const installationActive = () =>
-    downloading !== undefined ||
     state.status === 'downloading' ||
     state.status === 'ready' ||
     state.status === 'installing';
@@ -78,7 +77,6 @@ export function openAppUpdate(
         try: () => updater.checkForUpdates(),
         catch: (error) => failure(error, 'Could not check for an app update'),
       });
-      if (installationActive()) return { available: available ?? null };
       if (result === null) {
         available = undefined;
         publish({ status: 'unavailable' });
@@ -96,7 +94,6 @@ export function openAppUpdate(
     },
     Effect.catch((error) =>
       Effect.sync((): DesktopAppUpdateCheck => {
-        if (installationActive()) return { available: available ?? null };
         available = undefined;
         publish({ status: 'error', message: error.message });
         return { available: null };
@@ -112,7 +109,7 @@ export function openAppUpdate(
         return yield* new AppUpdateError({
           message: 'Check for an app update before installing it',
         });
-      if (installationActive()) return;
+      if (state.status !== 'available') return;
       publish({ status: 'downloading', version });
       const downloaded = yield* Deferred.make<void, AppUpdateError>();
       downloading = downloaded;

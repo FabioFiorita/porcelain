@@ -50,7 +50,8 @@ export function connectDesktopChrome(): () => void {
 export class DesktopHost extends Context.Service<
   DesktopHost,
   {
-    readonly hasAppUpdater: boolean;
+    readonly isDesktopShell: boolean;
+    readonly hasAppUpdateFeed: boolean;
     readonly canPickProject: (address: string | undefined) => boolean;
     readonly pickProject: (
       address: string,
@@ -59,7 +60,6 @@ export class DesktopHost extends Context.Service<
       Option.Option<
         DesktopAppUpdateCheck & {
           readonly current: string;
-          readonly enabled: boolean;
         }
       >,
       ConnectionError
@@ -79,7 +79,8 @@ export class DesktopHost extends Context.Service<
       );
     };
     return {
-      hasAppUpdater: bridge !== undefined,
+      isDesktopShell: bridge !== undefined,
+      hasAppUpdateFeed: bridge?.appUpdate.enabled() ?? false,
       canPickProject,
       pickProject: Effect.fn('Desktop.pickProject')(function* (
         address: string,
@@ -112,7 +113,6 @@ export class DesktopHost extends Context.Service<
         });
         return Option.some({
           current: bridge.appUpdate.current(),
-          enabled: bridge.appUpdate.enabled(),
           ...update,
         });
       }),

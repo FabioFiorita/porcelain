@@ -9,7 +9,6 @@ declare const window: {
   updateFixture: {
     finish: (state: DesktopAppUpdateState) => void;
     checks: number;
-    installs: number;
   };
 };
 
@@ -26,7 +25,6 @@ async function updateFeed(page: Page, enabled: boolean) {
     let checked: ((value: { available: string | null }) => void) | undefined;
     window.updateFixture = {
       checks: 0,
-      installs: 0,
       finish: (next) => {
         publish(next);
         checked?.({
@@ -43,13 +41,12 @@ async function updateFeed(page: Page, enabled: boolean) {
           window.updateFixture.checks += 1;
           if (window.updateFixture.checks === 1)
             return Promise.resolve({ available: null });
-          publish({ status: 'checking' });
+          if (state.status !== 'available') publish({ status: 'checking' });
           return new Promise((resolve) => {
             checked = resolve;
           });
         },
         install: async () => {
-          window.updateFixture.installs += 1;
           publish({ status: 'downloading', version: '0.66.0' });
         },
         onState: (receive) => {
@@ -142,9 +139,18 @@ test('the release app checks on demand, shows each result and installs the offer
   await page.screenshot({
     path: testInfo.outputPath('app-update-available.png'),
   });
-  await settings
-    .getByRole('button', { name: 'Update to 0.66.0', exact: true })
-    .click();
+  const install = settings.getByRole('button', {
+    name: 'Update to 0.66.0',
+    exact: true,
+  });
+  await check.click();
+  await expect(install).toBeDisabled();
+  await expect(check).toBeDisabled();
+  await page.evaluate(() =>
+    window.updateFixture.finish({ status: 'available', version: '0.66.0' }),
+  );
+  await expect(install).toBeEnabled();
+  await install.click();
   await expect(
     settings.getByText('Downloading 0.66.0…', { exact: true }),
   ).toBeVisible();

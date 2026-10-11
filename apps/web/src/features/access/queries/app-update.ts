@@ -4,10 +4,13 @@ import { Atom, AsyncResult } from 'effect/reactivity';
 import { DesktopHost } from '@/shared/adapters/desktop';
 
 const runtime = Atom.runtime(DesktopHost.layer);
-const appUpdateCapability = runtime.atom(
+const desktopCapabilities = runtime.atom(
   Effect.gen(function* () {
     const desktop = yield* DesktopHost;
-    return desktop.hasAppUpdater;
+    return {
+      isDesktopShell: desktop.isDesktopShell,
+      hasAppUpdateFeed: desktop.hasAppUpdateFeed,
+    };
   }),
 );
 const appUpdate = runtime
@@ -40,6 +43,6 @@ export function useAppUpdateState() {
   }));
 }
 
-export function useAppUpdateCapability() {
-  return useAtomValue(appUpdateCapability);
+export function useDesktopCapabilities() {
+  return useAtomValue(desktopCapabilities);
 }

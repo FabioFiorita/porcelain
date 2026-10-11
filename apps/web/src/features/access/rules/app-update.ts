@@ -22,3 +22,10 @@ export function noUpdateMessage(state: AppUpdateState): string {
     ? 'This build updates by reinstalling; there is no update feed yet.'
     : 'This is the newest version of the app.';
 }
+
+export function appUpdateCheckVisible(capabilities: {
+  readonly isDesktopShell: boolean;
+  readonly hasAppUpdateFeed: boolean;
+}): boolean {
+  return capabilities.isDesktopShell && capabilities.hasAppUpdateFeed;
+}

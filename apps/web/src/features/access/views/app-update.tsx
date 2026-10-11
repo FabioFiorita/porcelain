@@ -4,14 +4,25 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useInstallAppUpdate } from '../commands/app-update';
-import { useAppUpdate, useAppUpdateState } from '../queries/app-update';
-import { appUpdateProgress, noUpdateMessage } from '../rules/app-update';
+import {
+  useAppUpdate,
+  useAppUpdateState,
+  useDesktopCapabilities,
+} from '../queries/app-update';
+import {
+  appUpdateCheckVisible,
+  appUpdateProgress,
+  noUpdateMessage,
+} from '../rules/app-update';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 
 export function AppUpdateSettings() {
   const { result: update, check } = useAppUpdate();
   const install = useInstallAppUpdate();
   const state = useAppUpdateState();
+  const capabilities = Option.getOrUndefined(
+    AsyncResult.value(useDesktopCapabilities()),
+  );
   const info = Option.getOrUndefined(Option.flatten(AsyncResult.value(update)));
   if (!info) return AsyncResult.isInitial(update) ? <Spinner /> : null;
   const progress = appUpdateProgress(state);
@@ -23,15 +34,17 @@ export function AppUpdateSettings() {
           <Spinner />
           <p>{progress}</p>
         </div>
-      ) : state.status === 'available' ? (
+      ) : state.status === 'available' && info.available !== null ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm">Porcelain app {state.version} is available.</p>
+          <p className="text-sm">
+            Porcelain app {info.available} is available.
+          </p>
           <Button
             size="sm"
-            disabled={install.result.waiting}
+            disabled={update.waiting || install.result.waiting}
             onClick={() => install.install()}
           >
-            Update to {state.version}
+            Update to {info.available}
           </Button>
         </div>
       ) : state.status !== 'error' ? (
@@ -39,7 +52,7 @@ export function AppUpdateSettings() {
           {noUpdateMessage(state)}
         </p>
       ) : null}
-      {info.enabled && (
+      {capabilities && appUpdateCheckVisible(capabilities) && (
         <Button
           size="sm"
           variant="outline"
@@ -50,18 +63,14 @@ export function AppUpdateSettings() {
           Check for updates
         </Button>
       )}
-      {(state.status === 'error' ||
-        AsyncResult.isFailure(update) ||
-        AsyncResult.isFailure(install.result)) && (
+      {(state.status === 'error' || AsyncResult.isFailure(install.result)) && (
         <Alert variant="destructive">
           <AlertDescription>
             {state.status === 'error'
               ? state.message
-              : AsyncResult.isFailure(update)
-                ? connectionErrorMessage(Cause.squash(update.cause))
-                : AsyncResult.isFailure(install.result)
-                  ? connectionErrorMessage(Cause.squash(install.result.cause))
-                  : undefined}
+              : AsyncResult.isFailure(install.result)
+                ? connectionErrorMessage(Cause.squash(install.result.cause))
+                : undefined}
           </AlertDescription>
         </Alert>
       )}

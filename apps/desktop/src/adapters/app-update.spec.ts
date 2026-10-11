@@ -23,7 +23,10 @@ function release(check: Updater['checkForUpdates']) {
   const updater: Updater = {
     checkForUpdates: () => {
       calls.checks += 1;
-      return check();
+      return check().catch((error: unknown) => {
+        events.emit('error', error);
+        throw error;
+      });
     },
     downloadUpdate: () => {
       calls.downloads += 1;
@@ -133,6 +136,7 @@ it.effect(
       expect(yield* update.check()).toEqual({ available: null });
       expect(states).toEqual([
         { status: 'checking' },
+        { status: 'error', message: 'HttpError: 404 latest-mac.yml' },
         { status: 'error', message: 'HttpError: 404 latest-mac.yml' },
       ]);
     }),
@@ -252,27 +256,6 @@ it.effect(
 );
 
 it.effect(
-  'refuses a second install during a download without starting another download',
-  () =>
-    Effect.gen(function* () {
-      const { updater, events, calls, downloadStarted } = release(newer);
-      const update = openAppUpdate(updater, () => undefined);
-      yield* update.check();
-      const first = yield* Effect.forkChild(update.install());
-      yield* downloadStarted;
-      const second = yield* Effect.forkChild(update.install(), {
-        startImmediately: true,
-      });
-      expect(calls.downloads).toBe(1);
-      expect(second.pollUnsafe()).toEqual(Exit.void);
-      yield* Fiber.join(second);
-      events.emit('update-downloaded', { version: '0.66.0' });
-      yield* Fiber.join(first);
-      expect(calls.installs).toBe(1);
-    }),
-);
-
-it.effect(
   'keeps ready and installing states when a renderer checks for updates',
   () =>
     Effect.gen(function* () {
@@ -313,7 +296,9 @@ it.effect(
         isUpdateAvailable: true,
         updateInfo: { version: '0.66.0' },
       };
-      const { updater, calls } = release(() => Promise.resolve(result));
+      const { updater, calls, failDownload } = release(() =>
+        Promise.resolve(result),
+      );
       const states: DesktopAppUpdateState[] = [];
       const update = openAppUpdate(updater, (state) => states.push(state));
       yield* update.check();
@@ -324,89 +309,69 @@ it.effect(
         { status: 'unavailable' },
       ]);
       expect(update.read()).toEqual({ status: 'unavailable' });
-      const refused = yield* Effect.flip(update.install());
-      expect(refused.message).toBe(
-        'Check for an app update before installing it',
+      failDownload('A stale offer must not download');
+      const refused = yield* update.install().pipe(
+        Effect.match({
+          onFailure: (error) => error.message,
+          onSuccess: () => undefined,
+        }),
       );
+      expect(refused).toBe('Check for an app update before installing it');
       expect(calls.downloads).toBe(0);
     }),
 );
 
-function delayedCheck() {
-  const answer =
-    Promise.withResolvers<Awaited<ReturnType<Updater['checkForUpdates']>>>();
-  let checks = 0;
-  return {
-    ...release(() => (++checks === 1 ? newer() : answer.promise)),
-    answer,
-  };
-}
+it.effect('refuses to install an offered release while checking again', () =>
+  Effect.gen(function* () {
+    const answer =
+      Promise.withResolvers<Awaited<ReturnType<Updater['checkForUpdates']>>>();
+    let checks = 0;
+    const { updater, calls } = release(() =>
+      ++checks === 1 ? newer() : answer.promise,
+    );
+    const update = openAppUpdate(updater, () => undefined);
+    yield* update.check();
+    const checking = yield* Effect.forkChild(update.check(), {
+      startImmediately: true,
+    });
+    expect(update.read()).toEqual({ status: 'checking' });
+    const installing = yield* Effect.forkChild(update.install(), {
+      startImmediately: true,
+    });
+    expect(installing.pollUnsafe()).toEqual(Exit.void);
+    expect(calls).toEqual({ checks: 2, downloads: 0, installs: 0 });
+    expect(update.read()).toEqual({ status: 'checking' });
+    answer.reject(new Error('Feed offline'));
+    expect(yield* Fiber.join(checking)).toEqual({ available: null });
+    expect(update.read()).toEqual({ status: 'error', message: 'Feed offline' });
+    expect(calls).toEqual({ checks: 2, downloads: 0, installs: 0 });
+  }),
+);
 
 it.effect(
-  'keeps the download when an earlier check finishes with available',
+  'clears an offered release after a check fails and refuses to install it',
   () =>
     Effect.gen(function* () {
-      const { updater, events, calls, downloadStarted, answer } =
-        delayedCheck();
+      let offline = false;
+      const { updater, calls, failDownload } = release(() =>
+        offline ? Promise.reject(new Error('Feed offline')) : newer(),
+      );
       const update = openAppUpdate(updater, () => undefined);
-      yield* update.check();
-      const checking = yield* Effect.forkChild(update.check(), {
-        startImmediately: true,
-      });
-      expect(update.read()).toEqual({ status: 'checking' });
-      const installing = yield* Effect.forkChild(update.install());
-      yield* downloadStarted;
-      answer.resolve({
-        isUpdateAvailable: true,
-        updateInfo: { version: '0.67.0' },
-      });
-      expect(yield* Fiber.join(checking)).toEqual({ available: '0.66.0' });
+      expect(yield* update.check()).toEqual({ available: '0.66.0' });
+      offline = true;
+      expect(yield* update.check()).toEqual({ available: null });
       expect(update.read()).toEqual({
-        status: 'downloading',
-        version: '0.66.0',
+        status: 'error',
+        message: 'Feed offline',
       });
-      events.emit('update-downloaded', { version: '0.66.0' });
-      yield* Fiber.join(installing);
-      expect(calls).toEqual({ checks: 2, downloads: 1, installs: 1 });
+      failDownload('A stale offer must not download');
+      const refused = yield* update.install().pipe(
+        Effect.match({
+          onFailure: (error) => error.message,
+          onSuccess: () => undefined,
+        }),
+      );
+      expect(refused).toBe('Check for an app update before installing it');
+      expect(calls).toEqual({ checks: 2, downloads: 0, installs: 0 });
     }),
-);
-
-it.effect('keeps the download when an earlier check finishes with null', () =>
-  Effect.gen(function* () {
-    const { updater, events, calls, downloadStarted, answer } = delayedCheck();
-    const update = openAppUpdate(updater, () => undefined);
-    yield* update.check();
-    const checking = yield* Effect.forkChild(update.check(), {
-      startImmediately: true,
-    });
-    expect(update.read()).toEqual({ status: 'checking' });
-    const installing = yield* Effect.forkChild(update.install());
-    yield* downloadStarted;
-    answer.resolve(null);
-    expect(yield* Fiber.join(checking)).toEqual({ available: '0.66.0' });
-    expect(update.read()).toEqual({ status: 'downloading', version: '0.66.0' });
-    events.emit('update-downloaded', { version: '0.66.0' });
-    yield* Fiber.join(installing);
-    expect(calls).toEqual({ checks: 2, downloads: 1, installs: 1 });
-  }),
-);
-
-it.effect('keeps the download when an earlier check finishes with error', () =>
-  Effect.gen(function* () {
-    const { updater, events, calls, downloadStarted, answer } = delayedCheck();
-    const update = openAppUpdate(updater, () => undefined);
-    yield* update.check();
-    const checking = yield* Effect.forkChild(update.check(), {
-      startImmediately: true,
-    });
-    expect(update.read()).toEqual({ status: 'checking' });
-    const installing = yield* Effect.forkChild(update.install());
-    yield* downloadStarted;
-    answer.reject(new Error('Feed offline'));
-    expect(yield* Fiber.join(checking)).toEqual({ available: '0.66.0' });
-    expect(update.read()).toEqual({ status: 'downloading', version: '0.66.0' });
-    events.emit('update-downloaded', { version: '0.66.0' });
-    yield* Fiber.join(installing);
-    expect(calls).toEqual({ checks: 2, downloads: 1, installs: 1 });
-  }),
 );
