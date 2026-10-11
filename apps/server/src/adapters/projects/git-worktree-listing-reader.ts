@@ -7,7 +7,6 @@ import type {
   ListedWorktree,
   WorktreeListing,
 } from '@porcelain/projects/models';
-import { repositoryMoved } from '@porcelain/projects/rules';
 import { WorktreeListingReader } from '@porcelain/projects/ports';
 import type { Limits } from '../../config/limits.ts';
 import { Logger } from '../../ports/logger.ts';
@@ -33,35 +32,34 @@ export const gitWorktreeListingReaderLayer = (
       const listNow = Effect.fn('GitWorktreeListingReader.listNow')(function* (
         project: ListableProject,
       ): Effect.fn.Return<WorktreeListing> {
-        let reason: 'missing' | 'permission' | 'git-failed' = 'git-failed';
-        const repository = yield* listWorktrees(
+        const result = yield* listWorktrees(
           project.commonDirectory,
           options.git,
         ).pipe(
           provideGit,
           Effect.timeout(options.timeout),
+          Effect.map((repository) => ({ kind: 'listed' as const, repository })),
           Effect.catch((failure) =>
             Effect.sync(() => {
-              reason = repositoryUnavailableReason(failure);
-              logger.failure({
-                kind: 'worktree-listing',
+              const reason =
+                repositoryUnavailableReason(failure) ?? 'git-failed';
+              if (reason === 'git-failed')
+                logger.failure({
+                  kind: 'worktree-listing',
+                  projectId: project.id,
+                  reason,
+                  error: failure,
+                });
+              return {
+                kind: 'unavailable' as const,
                 projectId: project.id,
                 reason,
-                error: failure,
-              });
-              return undefined;
+              };
             }),
           ),
         );
-        if (!repository)
-          return { kind: 'unavailable', projectId: project.id, reason };
-        if (repositoryMoved(project, repository))
-          logger.failure({
-            kind: 'worktree-listing',
-            projectId: project.id,
-            reason: 'moved',
-            error: 'Repository identity changed',
-          });
+        if (result.kind === 'unavailable') return result;
+        const { repository } = result;
         const worktrees: ListedWorktree[] = [];
         let unidentified = 0;
         for (const worktree of repository.worktrees) {

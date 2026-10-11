@@ -6,8 +6,8 @@ export {
   type ProjectSelectionSnapshot,
 } from './ports/project-selection-storage.ts';
 export {
-  retryInventory,
-  retryInventories,
+  refreshInventory,
+  refreshInventories,
   registerProject,
   renameProject,
   removeProject,

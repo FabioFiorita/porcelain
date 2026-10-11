@@ -143,7 +143,7 @@ describe('choosing a workspace across paired environments', () => {
         saved,
       ).messages,
     ).toEqual([
-      'Porcelain: Git could not read this repository; check that Git works in its folder and retry.',
+      "Laptop · Porcelain: Porcelain can't reach this repository right now.",
       'Saved worktree is unavailable',
     ]);
     expect(workspaceChoices([laptop('reading')], saved).messages).toEqual([
@@ -163,14 +163,18 @@ it('shows the unavailable project reason outside its disabled menu and offers an
         name: 'Laptop',
         status: 'ready',
         inventory: inventory('Laptop', [
-          { ...project('one', false), unavailableReason: 'permission' },
+          {
+            ...project('one', false),
+            available: false,
+            unavailableReason: 'permission',
+          },
         ]),
       },
     ],
     undefined,
   );
   expect(result.messages).toEqual([
-    'Porcelain: Porcelain cannot read this repository; allow access to its folder and retry.',
+    'Laptop · Porcelain: Porcelain cannot read this repository because access is denied.',
   ]);
   expect(result.canReadAgain).toBe(true);
 });

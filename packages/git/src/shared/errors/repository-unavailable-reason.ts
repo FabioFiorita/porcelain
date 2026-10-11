@@ -2,10 +2,19 @@ import { PlatformError } from 'effect';
 import { GitCommandError } from './git-command-error.ts';
 import { GitFilesystemError } from './git-filesystem-error.ts';
 import { isMissing } from './is-missing.ts';
+import { UnsupportedFilesystemIdentityError } from './unsupported-filesystem-identity-error.ts';
+import { RepositoryIdentityMismatchError } from './repository-identity-mismatch-error.ts';
+import { UnsupportedRepositoryError } from './unsupported-repository-error.ts';
 
 export function repositoryUnavailableReason(
   error: unknown,
-): 'missing' | 'permission' | 'git-failed' {
+): 'missing' | 'permission' | 'git-failed' | undefined {
+  if (
+    error instanceof UnsupportedRepositoryError ||
+    error instanceof RepositoryIdentityMismatchError ||
+    error instanceof UnsupportedFilesystemIdentityError
+  )
+    return 'git-failed';
   if (error instanceof GitCommandError) return 'git-failed';
   if (error instanceof GitFilesystemError)
     return repositoryUnavailableReason(error.cause);
@@ -20,5 +29,5 @@ export function repositoryUnavailableReason(
     (error.code === 'EACCES' || error.code === 'EPERM')
   )
     return 'permission';
-  return 'git-failed';
+  return undefined;
 }

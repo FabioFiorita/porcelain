@@ -117,7 +117,7 @@ describe('gitWorktreeListingReaderLayer', () => {
     expect(reports).toEqual([]);
   });
 
-  it('reports a repository that is gone as missing and logs why', async () => {
+  it('reports a repository that is gone as missing without logging each read', async () => {
     const { list, reports } = listing({
       id: 'project-1',
       commonDirectory: join(root, 'gone', '.git'),
@@ -128,9 +128,7 @@ describe('gitWorktreeListingReaderLayer', () => {
       reason: 'missing',
       projectId: 'project-1',
     });
-    expect(reports).toMatchObject([
-      { kind: 'worktree-listing', reason: 'missing' },
-    ]);
+    expect(reports).toEqual([]);
   });
 
   it('reports a listing that fails unexpectedly as unavailable and logs why', async () => {
@@ -186,7 +184,7 @@ describe('gitWorktreeListingReaderLayer', () => {
   });
 });
 
-it('reports denied access as permission and logs the reason', async () => {
+it('reports denied access as permission without logging each read', async () => {
   const project = repository();
   chmodSync(project.commonDirectory, 0);
   try {
@@ -196,27 +194,19 @@ it('reports denied access as permission and logs the reason', async () => {
       projectId: 'project-1',
       reason: 'permission',
     });
-    expect(reports).toMatchObject([
-      {
-        kind: 'worktree-listing',
-        projectId: 'project-1',
-        reason: 'permission',
-      },
-    ]);
+    expect(reports).toEqual([]);
   } finally {
     chmodSync(project.commonDirectory, 0o755);
   }
 });
 
-it('logs a changed repository identity as moved', async () => {
+it('leaves the moved decision to the projects domain', async () => {
   const { list, reports } = listing({
     ...repository(),
     repositoryIdentity: 'another-repository',
   });
   expect((await Effect.runPromise(list)).kind).toBe('listed');
-  expect(reports).toMatchObject([
-    { kind: 'worktree-listing', projectId: 'project-1', reason: 'moved' },
-  ]);
+  expect(reports).toEqual([]);
 });
 
 it('reports an absent Git executable as git-failed rather than a missing repository', async () => {

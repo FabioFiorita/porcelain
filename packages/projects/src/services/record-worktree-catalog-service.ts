@@ -24,11 +24,29 @@ export class RecordWorktreeCatalogService extends Context.Service<
           const observedAt = DateTime.formatIso(
             DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
           );
-          return yield* Effect.sync<void>(() => {
-            catalogCapability.save(
-              catalogSnapshot(input.projects, input.listings, observedAt),
+          const before = catalogCapability.listObservations();
+          const snapshot = catalogSnapshot(
+            input.projects,
+            input.listings,
+            observedAt,
+          );
+          for (const { observation } of snapshot.projects) {
+            const previous = before.find(
+              (entry) => entry.id === observation.id,
             );
-          });
+            if (
+              previous?.listed === observation.listed &&
+              previous?.unavailableReason === observation.unavailableReason
+            )
+              continue;
+            if (observation.listed && previous === undefined) continue;
+            yield* Effect.logInfo('Repository availability changed', {
+              projectId: observation.id,
+              available: observation.listed,
+              reason: observation.unavailableReason,
+            });
+          }
+          yield* Effect.sync(() => catalogCapability.save(snapshot));
         }),
       };
     }),

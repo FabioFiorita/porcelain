@@ -18,7 +18,7 @@ import { ThemeProvider } from '@/features/preferences/index';
 import {
   ProjectNavigator,
   useInventory,
-  useRetryInventory,
+  useRefreshInventory,
 } from '@/features/projects/index';
 import { ReviewWorkspace } from '@/features/reviews/index';
 import type { Connection } from '@/shared/workspace/connection';
@@ -147,7 +147,7 @@ function Workspace({ connection }: { connection: Connection }) {
 
 function Navigator({ connection }: { connection: Connection }) {
   const inventory = useInventory(connection);
-  const retry = useRetryInventory(connection);
+  const retry = useRefreshInventory(connection);
   return (
     <ProjectNavigator
       inventory={inventory}

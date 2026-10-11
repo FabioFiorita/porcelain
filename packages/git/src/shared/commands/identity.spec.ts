@@ -32,7 +32,6 @@ it('keeps the same identity when the mount device changes', () => {
     birthtimeNs: 1781272623876395589n,
   };
   expect(formatIdentity(original)).toBe('295184405:1781272623876395589');
-  expect(formatIdentity({ ...original, dev: 16777233n })).toBe(
-    '295184405:1781272623876395589',
-  );
+  const afterReboot = { ...original, dev: 16777233n };
+  expect(formatIdentity(afterReboot)).toBe('295184405:1781272623876395589');
 });

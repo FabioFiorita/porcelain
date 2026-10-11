@@ -13,10 +13,11 @@ type WorktreeReport = {
 export type ProjectReport = {
   id: string;
   name: string;
-  available: boolean;
-  unavailableReason?: ProjectUnavailableReason;
   worktrees: WorktreeReport[];
-};
+} & (
+  | { available: true; unavailableReason?: never }
+  | { available: false; unavailableReason?: ProjectUnavailableReason }
+);
 
 export type InventoryReport = {
   environmentId: string;

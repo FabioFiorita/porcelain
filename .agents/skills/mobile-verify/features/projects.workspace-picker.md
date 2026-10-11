@@ -7,8 +7,10 @@ selectors:
   - 'No projects registered'
   - 'Could not read projects'
   - 'Saved worktree is unavailable'
+  - 'Read projects again'
 tests: []
 api:
+  - POST /api/inventory/refresh
   - GET /api/inventory
   - POST /api/live/tickets
   - GET /api/live
@@ -24,6 +26,7 @@ The workspace picker in each destination's toolbar (the detail toolbar on iPad) 
 ## How a user reaches it
 
 - the Workspace button in the toolbar → a project with its environment subtitle → a worktree
+- An unavailable project shows a state sentence outside its disabled row, prefixed by its environment and project name. `Read projects again` refreshes online environments through `POST /api/inventory/refresh` and uses the returned inventory. Mobile has no Remove project action; the web sidebar's unavailable-project popover offers Retry and, where management is enabled, Remove.
 
 ## Driving it
 
@@ -34,6 +37,8 @@ The workspace picker in each destination's toolbar (the detail toolbar on iPad) 
 5. Cold-launch the development client against the same Metro URL. Expect the remembered workspace after returning to Files.
 6. Read the app's saved selection IDs from its SQLite store and compare them to fixtures.environmentId, projectId and worktreeId in connection.json; also retain the native inventory/live requests from the server log.
 7. Stop one disposable environment, then inspect the picker. Expect its inventory error to name that environment, while the other environment's projects remain available. Forgetting an environment removes its projects and saved choice.
+
+8. Make a registered repository missing, permission denied, replaced, or fail Git. Open the picker and expect its reason sentence with environment and project name. A reason absent on an older server shows "Porcelain can't reach this repository right now." Restore the folder and choose `Read projects again`; expect the original worktree to become available. Offline connections must receive no refresh POST.
 
 ## What proves it works
 

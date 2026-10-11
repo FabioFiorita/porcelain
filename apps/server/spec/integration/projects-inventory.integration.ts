@@ -81,7 +81,7 @@ test('a project whose folder has gone away stays registered as unavailable and i
   ).toStrictEqual([registered(session, true)]);
 });
 
-test('retrying the inventory rechecks a missing repository and restores its original worktree when the folder returns', async ({
+test('refreshing the inventory rechecks a missing repository and restores its original worktree when the folder returns', async ({
   session,
 }) => {
   const moved = `${session.repository}-retry`;
@@ -91,6 +91,7 @@ test('retrying the inventory rechecks a missing repository and restores its orig
     path: '/api/inventory/refresh',
   });
   expect(missing.status).toBe(200);
+  expect(missing.headers['content-type']).toContain('application/json');
   expect(list(record(missing.body).projects)).toStrictEqual([
     { ...registered(session, false), unavailableReason: 'missing' },
   ]);
@@ -100,6 +101,7 @@ test('retrying the inventory rechecks a missing repository and restores its orig
     path: '/api/inventory/refresh',
   });
   expect(recovered.status).toBe(200);
+  expect(recovered.headers['content-type']).toContain('application/json');
   expect(list(record(recovered.body).projects)).toStrictEqual([
     registered(session, true),
   ]);

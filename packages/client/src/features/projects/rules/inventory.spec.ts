@@ -84,22 +84,18 @@ describe('worktree labels', () => {
 });
 
 it.each([
-  [
-    'moved',
-    'This folder now holds a different repository; remove this project and add it again.',
-  ],
-  [
-    'missing',
-    'The repository folder is missing; restore it and retry, or remove this project.',
-  ],
+  ['moved', 'This folder now holds a different repository.'],
+  ['missing', 'The repository folder is missing.'],
   [
     'permission',
-    'Porcelain cannot read this repository; allow access to its folder and retry.',
+    'Porcelain cannot read this repository because access is denied.',
   ],
-  [
-    'git-failed',
-    'Git could not read this repository; check that Git works in its folder and retry.',
-  ],
-] as const)('explains %s with a way back', (unavailableReason, sentence) => {
-  expect(projectUnavailableMessage({ unavailableReason })).toBe(sentence);
+  ['git-failed', 'Git could not read this repository.'],
+  [undefined, "Porcelain can't reach this repository right now."],
+] as const)('explains %s', (unavailableReason, sentence) => {
+  expect(
+    projectUnavailableMessage(
+      unavailableReason === undefined ? {} : { unavailableReason },
+    ),
+  ).toBe(sentence);
 });

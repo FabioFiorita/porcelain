@@ -50,7 +50,7 @@ export class ProjectsApi extends porcelainApi.add(
         success: readInventoryResponseSchema,
         error: environmentUnavailable,
       }),
-      HttpApiEndpoint.post('retryInventory', '/api/inventory/refresh', {
+      HttpApiEndpoint.post('refreshInventory', '/api/inventory/refresh', {
         disableCodecs: true,
         success: readInventoryResponseSchema,
         error: environmentUnavailable,

@@ -14,10 +14,14 @@ function projectReport(
   return {
     id: project.id,
     name: project.name,
-    available: worktrees.available,
-    ...(worktrees.unavailableReason
-      ? { unavailableReason: worktrees.unavailableReason }
-      : {}),
+    ...(worktrees.available
+      ? { available: true as const }
+      : {
+          available: false as const,
+          ...(worktrees.unavailableReason
+            ? { unavailableReason: worktrees.unavailableReason }
+            : {}),
+        }),
     worktrees: worktrees.worktrees.map((worktree) => ({
       id: worktree.id,
       path: worktree.path,

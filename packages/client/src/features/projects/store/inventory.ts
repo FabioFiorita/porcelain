@@ -35,6 +35,7 @@ export class InventoryState extends Context.Service<
       ReadInventoryResponse,
       InventoryFailure
     >['stream'];
+    readonly refresh: () => Effect.Effect<void>;
     readonly confirm: <A, E, R>(
       operation: Effect.Effect<A, E, R>,
       change: (
@@ -76,7 +77,23 @@ export class InventoryState extends Context.Service<
             Option.map(previous, (inventory) => change(inventory, answer)),
           );
         }
-        return { stream: resource.stream, confirm };
+        return {
+          stream: resource.stream,
+          confirm,
+          refresh: () =>
+            resource.refresh(
+              client
+                .request((api) => api.projects.refreshInventory())
+                .pipe(
+                  Effect.tap((inventory) =>
+                    currentAnswerEffect(
+                      connection,
+                      inventory.environmentId === connection.environmentId,
+                    ),
+                  ),
+                ),
+            ),
+        };
       }),
     );
   }

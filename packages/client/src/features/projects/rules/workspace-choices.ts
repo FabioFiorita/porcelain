@@ -79,8 +79,8 @@ export function workspaceChoices(
     ...choices
       .filter(({ project }) => !project.available)
       .map(
-        ({ project }) =>
-          `${project.name}: ${projectUnavailableMessage(project)}`,
+        ({ project, environmentName }) =>
+          `${environmentName} · ${project.name}: ${projectUnavailableMessage(project)}`,
       ),
   );
   if (saved !== undefined && savedUnavailable(environments, saved))

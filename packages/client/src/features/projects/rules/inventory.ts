@@ -50,12 +50,14 @@ export function projectUnavailableMessage(
 ): string {
   switch (project.unavailableReason) {
     case 'moved':
-      return 'This folder now holds a different repository; remove this project and add it again.';
+      return 'This folder now holds a different repository.';
     case 'missing':
-      return 'The repository folder is missing; restore it and retry, or remove this project.';
+      return 'The repository folder is missing.';
     case 'permission':
-      return 'Porcelain cannot read this repository; allow access to its folder and retry.';
+      return 'Porcelain cannot read this repository because access is denied.';
+    case 'git-failed':
+      return 'Git could not read this repository.';
     default:
-      return 'Git could not read this repository; check that Git works in its folder and retry.';
+      return "Porcelain can't reach this repository right now.";
   }
 }

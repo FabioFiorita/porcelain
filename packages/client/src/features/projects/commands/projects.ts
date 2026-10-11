@@ -12,11 +12,6 @@ function makeProjectCommands(connection: RuntimeConnection) {
     const inventory = yield* InventoryState;
     const drafts = yield* FileDrafts;
     return {
-      retry: () =>
-        inventory.confirm(
-          client.request((api) => api.projects.retryInventory()),
-          (_inventory, refreshed) => refreshed,
-        ),
       register: (path: string) =>
         inventory.confirm(
           client.request((api) =>
@@ -110,20 +105,20 @@ export const removeProject = Atom.family((connection: RuntimeConnection) =>
   ),
 );
 
-export const retryInventory = Atom.family((connection: RuntimeConnection) =>
-  projectCommandRuntime(connection).fn(
-    (_input: void) => ProjectCommands.use((commands) => commands.retry()),
+export const refreshInventory = Atom.family((connection: RuntimeConnection) =>
+  inventoryRuntime(connection).fn(
+    (_input: void) => InventoryState.use((inventory) => inventory.refresh()),
     { concurrent: true },
   ),
 );
 
-export const retryInventories = Atom.family(
+export const refreshInventories = Atom.family(
   (connections: readonly RuntimeConnection[]) =>
     Atom.writable(
       () => undefined,
       (context, _input: void) => {
         for (const connection of connections)
-          context.set(retryInventory(connection), undefined);
+          context.set(refreshInventory(connection), undefined);
       },
     ),
 );

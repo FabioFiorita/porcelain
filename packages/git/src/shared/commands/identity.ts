@@ -21,7 +21,7 @@ export const identity = Effect.fn('Git.identity')(function* (path: string) {
 });
 
 export function formatIdentity(
-  info: Pick<BigIntStats, 'dev' | 'ino' | 'birthtimeNs'>,
+  info: Pick<BigIntStats, 'ino' | 'birthtimeNs'>,
 ): string {
   return `${info.ino}:${info.birthtimeNs}`;
 }
