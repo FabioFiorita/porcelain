@@ -9,7 +9,13 @@ import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { LayerMarksState, layerMarksRuntime } from '../store/layer-marks.ts';
 
-export const toggleLayerMark = Atom.family(
+export type SetLayerMarkInput = {
+  layerId: string;
+  fingerprint: string;
+  kind: 'mark' | 'unmark';
+};
+
+export const setLayerMark = Atom.family(
   ({
     connection,
     scope,
@@ -18,17 +24,13 @@ export const toggleLayerMark = Atom.family(
     scope: WorktreeScope;
   }) =>
     layerMarksRuntime({ connection, scope }).fn(
-      Effect.fn('Reviews.toggleLayerMark')(function* (input: {
-        layerId: string;
-        fingerprint: string;
-        reviewed: boolean;
-      }) {
+      Effect.fn('Reviews.setLayerMark')(function* (input: SetLayerMarkInput) {
         const client = yield* porcelainClient(connection);
         const marks = yield* LayerMarksState;
         const answer = yield* marks.confirm(
           Effect.gen(function* () {
             const result = yield* client.request((api) =>
-              input.reviewed
+              input.kind === 'unmark'
                 ? api.reviews.removeReviewedLayer({
                     params: { worktreeId: scope.worktreeId },
                     query: { layerId: input.layerId },

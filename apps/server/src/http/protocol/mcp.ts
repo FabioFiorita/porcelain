@@ -5,7 +5,6 @@ import { McpProtocol, McpServer } from 'effect/ai';
 import { Effect, Layer } from 'effect';
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http';
 import type { Limits } from '../../config/limits.ts';
-import { RequestError } from '../../runtime/errors/request-error.ts';
 import {
   reviewMcpHandlers,
   type ReviewMcpUseCases,
@@ -26,11 +25,13 @@ const invocationPolicy = HttpRouter.middleware((app) =>
       );
     const cwd = request.headers['x-porcelain-cwd'];
     if (cwd === undefined || cwd === '')
-      return yield* Effect.die(
-        new RequestError({
+      return HttpServerResponse.jsonUnsafe(
+        {
           statusCode: 400,
+          error: 'Bad Request',
           message: 'The x-porcelain-cwd header is required',
-        }),
+        },
+        { status: 400 },
       );
     return yield* app;
   }),

@@ -1,4 +1,4 @@
-export { BoxLaneOutOfRangeError } from './box-lane-out-of-range-error.ts';
+export { UnknownBoxLayerError } from './unknown-box-layer-error.ts';
 export { CommentAuthorMismatchError } from './comment-author-mismatch-error.ts';
 export { CommentIdentityConflictError } from './comment-identity-conflict-error.ts';
 export { CommentLimitExceededError } from './comment-limit-exceeded-error.ts';
@@ -13,7 +13,7 @@ export { ReviewedMarkConflictError } from './reviewed-mark-conflict-error.ts';
 export { StepLaneOutOfRangeError } from './step-lane-out-of-range-error.ts';
 export { UnsupportedCommentComparisonError } from './unsupported-comment-comparison-error.ts';
 export { UnknownArrowBoxError } from './unknown-arrow-box-error.ts';
-export { UnknownArrowStepError } from './unknown-arrow-step-error.ts';
+export { InvalidDecisionBoxError } from './invalid-decision-box-error.ts';
 export { ProofFileNotFoundError } from './proof-file-not-found-error.ts';
 export { ProofFileUnreadableError } from './proof-file-unreadable-error.ts';
 export { ProofTooLargeError } from './proof-too-large-error.ts';

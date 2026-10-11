@@ -83,18 +83,17 @@ export function reviewStoreContract(
       ).toEqual(review(first));
     });
 
-    it('reads a saved diagram back with its before and after', async () => {
+    it('reads a saved diagram back with its decision marker', async () => {
       const box: DiagramBox = {
         id: 'box',
-        lane: 0,
         label: 'Server',
-        kind: 'component',
+        decision: true,
+        layerId: 'layer',
       };
       const withDiagram = {
         ...review(first),
         diagram: {
-          after: { lanes: ['Server'], boxes: [box], arrows: [] },
-          before: { lanes: ['Server'], boxes: [], arrows: [] },
+          after: { boxes: [box], arrows: [] },
         },
       };
       await Effect.runPromise(store.save(withDiagram));

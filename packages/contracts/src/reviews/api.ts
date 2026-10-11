@@ -23,8 +23,8 @@ import {
   DuplicateLayerIdError,
   DuplicateStepIdError,
   StepLaneOutOfRangeError,
-  UnknownArrowStepError,
-  BoxLaneOutOfRangeError,
+  InvalidDecisionBoxError,
+  UnknownBoxLayerError,
   UnknownArrowBoxError,
   UnknownProofTargetError,
   ReviewConflictError,
@@ -220,10 +220,10 @@ export class ReviewsApi extends porcelainApi.add(
             httpFailure(StepLaneOutOfRangeError, 'BadRequest', {
               message: 'Invalid request',
             }),
-            httpFailure(UnknownArrowStepError, 'BadRequest', {
+            httpFailure(InvalidDecisionBoxError, 'BadRequest', {
               message: 'Invalid request',
             }),
-            httpFailure(BoxLaneOutOfRangeError, 'BadRequest', {
+            httpFailure(UnknownBoxLayerError, 'BadRequest', {
               message: 'Invalid request',
             }),
             httpFailure(UnknownArrowBoxError, 'BadRequest', {

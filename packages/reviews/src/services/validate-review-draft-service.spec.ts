@@ -2,12 +2,12 @@ import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { InvalidLineRangeError } from '@porcelain/kernel/errors';
 import {
-  BoxLaneOutOfRangeError,
+  UnknownBoxLayerError,
   DuplicateLayerIdError,
   DuplicateStepIdError,
   StepLaneOutOfRangeError,
   UnknownArrowBoxError,
-  UnknownArrowStepError,
+  InvalidDecisionBoxError,
   UnknownProofTargetError,
 } from '@porcelain/reviews/errors';
 import {
@@ -66,9 +66,7 @@ describe('review draft validation', () => {
   });
   const box: DiagramBox = {
     id: 'box-1',
-    lane: 0,
     label: 'API',
-    kind: 'component',
   };
   it.each<{ name: string; refused: ReviewDraft; error: new () => Error }>([
     {
@@ -109,20 +107,35 @@ describe('review draft validation', () => {
       error: StepLaneOutOfRangeError,
     },
     {
-      name: 'a layer arrow to an unknown step',
+      name: 'a decision box without its layer',
       refused: draft({
-        layers: [layer({ arrows: [{ from: 'step-1', to: 'step-9' }] })],
+        diagram: { after: { boxes: [{ ...box, decision: true }], arrows: [] } },
       }),
-      error: UnknownArrowStepError,
+      error: InvalidDecisionBoxError,
     },
     {
-      name: 'a box on a lane the diagram does not have',
+      name: 'two decision boxes for the same layer',
       refused: draft({
         diagram: {
-          after: { lanes: [], boxes: [box], arrows: [] },
+          after: {
+            boxes: [
+              { ...box, decision: true, layerId: 'layer-1' },
+              { ...box, id: 'box-2', decision: true, layerId: 'layer-1' },
+            ],
+            arrows: [],
+          },
         },
       }),
-      error: BoxLaneOutOfRangeError,
+      error: InvalidDecisionBoxError,
+    },
+    {
+      name: 'a box naming an unknown layer',
+      refused: draft({
+        diagram: {
+          after: { boxes: [{ ...box, layerId: 'unknown' }], arrows: [] },
+        },
+      }),
+      error: UnknownBoxLayerError,
     },
     {
       name: 'a check on a layer the review does not have',
@@ -162,7 +175,6 @@ describe('review draft validation', () => {
       refused: draft({
         diagram: {
           after: {
-            lanes: ['Server'],
             boxes: [box],
             arrows: [{ from: 'box-1', to: 'box-9' }],
           },

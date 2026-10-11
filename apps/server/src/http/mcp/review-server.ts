@@ -47,7 +47,7 @@ function invocation<A, E>(operation: (cwd: string) => Effect.Effect<A, E>) {
         ? request.value.headers['x-porcelain-cwd']
         : undefined;
     if (cwd === undefined || cwd === '')
-      return yield* Effect.die(
+      return yield* Effect.fail(
         new RequestError({
           statusCode: 400,
           message: 'The x-porcelain-cwd header is required',

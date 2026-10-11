@@ -90,7 +90,7 @@ function failure(id: string | number, status: number, body: string): string {
   try {
     const parsed: unknown = JSON.parse(body);
     if (parsed && typeof parsed === 'object' && 'jsonrpc' in parsed)
-      return JSON.stringify(parsed);
+      return JSON.stringify({ ...parsed, id });
   } catch {}
   return JSON.stringify({
     jsonrpc: '2.0',

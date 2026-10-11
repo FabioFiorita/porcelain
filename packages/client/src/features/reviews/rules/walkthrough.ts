@@ -221,8 +221,7 @@ export function systemChanges(
 ) {
   const part = partOf(review);
   const boxes = review.diagram?.after.boxes ?? [];
-  const titles = new Set(review.layers.map((layer) => layer.title));
-  const owners = boxes.filter((box) => !titles.has(box.label));
+  const owners = boxes.filter((box) => !box.decision);
   return {
     added: owners.filter((box) => box.change === 'new').map(part),
     changed: owners.filter((box) => box.change === 'changed').map(part),
@@ -247,7 +246,9 @@ export function decisionLinks(
   const part = partOf(review);
   const boxes = new Map(diagram.boxes.map((box) => [box.id, box]));
   const own = new Set(
-    diagram.boxes.filter((box) => box.layerId === layerId).map((box) => box.id),
+    diagram.boxes
+      .filter((box) => box.decision && box.layerId === layerId)
+      .map((box) => box.id),
   );
   const seen = new Set<string>();
   return diagram.arrows.flatMap((arrow) => {

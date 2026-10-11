@@ -1,43 +1,37 @@
-import { expect, test } from './fixtures.tsx';
+import { expect, test as base } from './fixtures.tsx';
 
-test('a file can be reviewed alone; marking the decision reviews its files and records it, a change to its code reopens it, and unmarking keeps the files', async ({
-  workspace,
+const test = base.extend(
+  'openDecision',
+  ({ workspace, repo, server, agent }) =>
+    async (title: string) => {
+      const readme = repo.readme.path;
+      const files = async () =>
+        (await server.reviewedFiles()).marks.map((mark) => mark.path);
+      await agent.publishReview(title);
+      await workspace
+        .getByRole('button', { name: 'Review', exact: true })
+        .click();
+      await workspace.getByRole('tab', { name: 'Review', exact: true }).click();
+      await workspace.getByRole('button', { name: new RegExp(title) }).click();
+      const decision = workspace.getByRole('region', {
+        name: `1. ${title}`,
+        exact: true,
+      });
+      return { decision, readme, files };
+    },
+);
+
+test('marking a decision reviews its unreviewed files and records the decision, a change to its code reopens it, and unmarking keeps the files', async ({
   repo,
   server,
-  agent,
+  openDecision,
 }) => {
-  const title = 'Readme layer';
-  const readme = repo.readme.path;
-  const files = async () =>
-    (await server.reviewedFiles()).marks.map((mark) => mark.path);
+  const { decision, readme, files } = await openDecision('Readme layer');
   const decisions = async () =>
     (await server.reviewedLayers()).marks.map((mark) =>
       mark.stale ? 'stale' : 'reviewed',
     );
-  await agent.publishReview(title);
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('button', { name: new RegExp(title) }).click();
-  const decision = workspace.getByRole('region', {
-    name: `1. ${title}`,
-    exact: true,
-  });
-
-  const markFile = decision.getByRole('button', {
-    name: `Mark ${readme} as reviewed`,
-    exact: true,
-  });
-  await markFile.click();
-  await expect.poll(files).toEqual([readme]);
-  await expect.poll(decisions).toEqual([]);
-  await decision
-    .getByRole('button', {
-      name: `Unmark ${readme} as unreviewed`,
-      exact: true,
-    })
-    .click();
   await expect.poll(files).toEqual([]);
-
   const mark = decision.getByRole('button', {
     name: 'Mark decision reviewed',
     exact: true,
@@ -68,4 +62,32 @@ test('a file can be reviewed alone; marking the decision reviews its files and r
   await expect.element(mark).toBeEnabled();
   await expect.poll(decisions).toEqual([]);
   await expect.poll(files).toEqual([readme]);
+});
+
+test('marking a decision whose files are already reviewed keeps their marks', async ({
+  server,
+  openDecision,
+}) => {
+  const { decision, readme, files } = await openDecision('Readme layer');
+  await decision
+    .getByRole('button', {
+      name: `Mark ${readme} as reviewed`,
+      exact: true,
+    })
+    .click();
+  await expect.poll(files).toEqual([readme]);
+  await decision
+    .getByRole('button', { name: 'Mark decision reviewed', exact: true })
+    .click();
+  await expect
+    .poll(async () =>
+      (await server.reviewedLayers()).marks.map((mark) => mark.stale),
+    )
+    .toEqual([false]);
+  await expect.poll(files).toEqual([readme]);
+  await expect
+    .element(
+      decision.getByRole('button', { name: 'Decision reviewed', exact: true }),
+    )
+    .toHaveAttribute('aria-pressed', 'true');
 });

@@ -1,11 +1,11 @@
 import { Brand, Effect, Context, Layer } from 'effect';
 import { InvalidLineRangeError } from '@porcelain/kernel/errors';
-import { BoxLaneOutOfRangeError } from '../errors/box-lane-out-of-range-error.ts';
+import { UnknownBoxLayerError } from '../errors/unknown-box-layer-error.ts';
 import { DuplicateLayerIdError } from '../errors/duplicate-layer-id-error.ts';
 import { DuplicateStepIdError } from '../errors/duplicate-step-id-error.ts';
 import { StepLaneOutOfRangeError } from '../errors/step-lane-out-of-range-error.ts';
 import { UnknownArrowBoxError } from '../errors/unknown-arrow-box-error.ts';
-import { UnknownArrowStepError } from '../errors/unknown-arrow-step-error.ts';
+import { InvalidDecisionBoxError } from '../errors/invalid-decision-box-error.ts';
 import { UnknownProofTargetError } from '../errors/unknown-proof-target-error.ts';
 import {
   type ReviewDraft,
@@ -21,8 +21,8 @@ export type ReviewDraftFailure =
   | DuplicateStepIdError
   | InvalidLineRangeError
   | StepLaneOutOfRangeError
-  | UnknownArrowStepError
-  | BoxLaneOutOfRangeError
+  | InvalidDecisionBoxError
+  | UnknownBoxLayerError
   | UnknownArrowBoxError
   | UnknownProofTargetError;
 
@@ -49,10 +49,10 @@ export class ValidateReviewDraftService extends Context.Service<
             return new InvalidLineRangeError();
           case 'step-lane-out-of-range':
             return new StepLaneOutOfRangeError();
-          case 'unknown-arrow-step':
-            return new UnknownArrowStepError();
-          case 'box-lane-out-of-range':
-            return new BoxLaneOutOfRangeError();
+          case 'invalid-decision-box':
+            return new InvalidDecisionBoxError();
+          case 'unknown-box-layer':
+            return new UnknownBoxLayerError();
           case 'unknown-arrow-box':
             return new UnknownArrowBoxError();
           case 'unknown-proof-target':
