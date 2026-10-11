@@ -56,6 +56,13 @@ export class InMemoryReviewStore implements ReviewStore {
     });
   }
 
+  remove(input: WorktreeKey): Effect.Effect<boolean> {
+    return Effect.sync(() => {
+      this.proofFiles.delete(input.worktreeId);
+      return this.rows.delete(input.worktreeId);
+    });
+  }
+
   save(input: ReviewSave): Effect.Effect<void> {
     return Effect.sync(() => {
       const { proofFiles, ...review } = input;

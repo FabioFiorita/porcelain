@@ -44,6 +44,7 @@ import {
   CheckReviewDraftService,
   CreateCommentThreadService,
   DeleteCommentMessageService,
+  DeleteReviewService,
   DeleteResolvedCommentsService,
   EditCommentMessageService,
   ResolvePublishedReviewService,
@@ -71,6 +72,7 @@ import { randomSecretSourceLayer } from '../adapters/runtime/random-secret-sourc
 import { AtWorktreePathUseCase } from '../use-cases/reviews/at-worktree-path.ts';
 import { CreateCommentThreadUseCase } from '../use-cases/reviews/create-comment-thread.ts';
 import { DeleteCommentMessageUseCase } from '../use-cases/reviews/delete-comment-message.ts';
+import { DeleteReviewUseCase } from '../use-cases/reviews/delete-review.ts';
 import { DeleteResolvedCommentsUseCase } from '../use-cases/reviews/delete-resolved-comments.ts';
 import { EditCommentMessageUseCase } from '../use-cases/reviews/edit-comment-message.ts';
 import { InvalidateReviewedMarksUseCase } from '../use-cases/reviews/invalidate-reviewed-marks.ts';
@@ -174,6 +176,7 @@ export function composeReviews(
     AtWorktreePathUseCase.layer,
     EditCommentMessageService.layer,
     DeleteCommentMessageService.layer,
+    DeleteReviewService.layer,
     DeleteResolvedCommentsService.layer,
     MarkCommentsSeenService.layer,
     ReadProofFileService.layer,
@@ -195,6 +198,7 @@ export function composeReviews(
     InvalidateReviewedMarksUseCase.layer,
     EditCommentMessageUseCase.layer,
     DeleteCommentMessageUseCase.layer,
+    DeleteReviewUseCase.layer,
     DeleteResolvedCommentsUseCase.layer,
     MarkCommentsSeenUseCase.layer,
     ReadProofFileUseCase.layer,
@@ -232,6 +236,7 @@ export function composeReviews(
         deleteCommentMessage: yield* DeleteCommentMessageUseCase,
         deleteResolvedComments: yield* DeleteResolvedCommentsUseCase,
         markCommentsSeen: yield* MarkCommentsSeenUseCase,
+        deleteReview: yield* DeleteReviewUseCase,
         publishReview: yield* PublishReviewUseCase,
         readPublishedReview: yield* ReadPublishedReviewUseCase,
         readProofFile: yield* ReadProofFileUseCase,
