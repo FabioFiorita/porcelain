@@ -59,7 +59,7 @@ None.
 ## What proves it works
 
 - End state: Case 1 leaves "repository" in the navigator with no DELETE request; Case 2 shows "Worktree no longer present" at the removed worktree's address and "No projects registered" both before and after a reload, the DELETE answered 200, and the repository still on disk.
-- `apps/web/spec/e2e/projects-remove.e2e.ts`: `Cancel` closes the alertdialog, keeps the project button and the server's inventory still contains the project id; confirming closes the alertdialog, shows "No projects registered" and the server's inventory no longer contains it (read through `server.inventory()`); with a second project registered, opening the removed project's worktree address shows "Worktree no longer present" at `/`, with no region "Review content".
+- `apps/web/spec/e2e/projects-remove.e2e.ts`: the alertdialog shows "Removes this project and its reviews and comments from Porcelain; files and Git history stay on disk." and the project path; `Cancel` closes it, keeps the project button and the server's inventory still contains the project id; confirming closes the alertdialog, shows "No projects registered" and the server's inventory no longer contains it (read through `server.inventory()`); with a second project registered, opening the removed project's worktree address shows "Worktree no longer present" at `/`, with no region "Review content".
 
 ## Gotchas
 
