@@ -1,74 +1,5 @@
 import { parseSync } from 'oxc-parser';
-
-const functions = [
-  'FunctionDeclaration',
-  'FunctionExpression',
-  'ArrowFunctionExpression',
-];
-
-function names(pattern) {
-  if (!pattern) return [];
-  if (pattern.type === 'Identifier') return [pattern.name];
-  if (pattern.type === 'RestElement') return names(pattern.argument);
-  if (pattern.type === 'AssignmentPattern') return names(pattern.left);
-  if (pattern.type === 'ObjectPattern')
-    return pattern.properties.flatMap((entry) =>
-      names(entry.value ?? entry.argument),
-    );
-  if (pattern.type === 'ArrayPattern') return pattern.elements.flatMap(names);
-  return [];
-}
-
-function hoisted(node) {
-  if (!node || typeof node !== 'object' || functions.includes(node.type))
-    return [];
-  if (node.type === 'VariableDeclaration' && node.kind === 'var')
-    return node.declarations.flatMap((entry) => names(entry.id));
-  return Object.entries(node).flatMap(([key, value]) =>
-    key === 'parent'
-      ? []
-      : Array.isArray(value)
-        ? value.flatMap(hoisted)
-        : hoisted(value),
-  );
-}
-
-function walk(node, visit, shadows = new Set(), parent, field) {
-  if (!node || typeof node !== 'object') return;
-  const scoped = new Set(shadows);
-  if (functions.includes(node.type)) {
-    for (const param of node.params)
-      for (const name of names(param)) scoped.add(name);
-    for (const name of names(node.id)) scoped.add(name);
-    for (const name of hoisted(node.body)) scoped.add(name);
-  }
-  if (
-    ['ForStatement', 'ForOfStatement', 'ForInStatement'].includes(node.type)
-  ) {
-    const declaration = node.init ?? node.left;
-    if (declaration?.type === 'VariableDeclaration')
-      for (const entry of declaration.declarations)
-        for (const name of names(entry.id)) scoped.add(name);
-  }
-  if (node.type === 'CatchClause')
-    for (const name of names(node.param)) scoped.add(name);
-  if (node.type === 'BlockStatement')
-    for (const statement of node.body) {
-      if (statement.type === 'VariableDeclaration')
-        for (const declaration of statement.declarations)
-          for (const name of names(declaration.id)) scoped.add(name);
-      if (['FunctionDeclaration', 'ClassDeclaration'].includes(statement.type))
-        for (const name of names(statement.id)) scoped.add(name);
-    }
-  if (typeof node.type === 'string') visit(node, scoped, parent, field);
-  for (const [key, value] of Object.entries(node)) {
-    if (key === 'parent') continue;
-    if (Array.isArray(value))
-      value.forEach((child) => walk(child, visit, scoped, node, key));
-    else if (value && typeof value === 'object')
-      walk(value, visit, scoped, node, key);
-  }
-}
+import { posix } from 'node:path';
 
 function parse(path, source) {
   const parsed = parseSync(path, source);
@@ -77,136 +8,124 @@ function parse(path, source) {
   return parsed.program;
 }
 
-export function unspecifiedExports(path, source, specSource) {
-  const exports = new Map();
-  const sourceNodes = parse(path, source).body;
-  const locals = new Map();
-  const callable = (node) =>
-    node?.type === 'Identifier'
-      ? (locals.get(node.name) ?? false)
-      : [
-          'FunctionDeclaration',
-          'ClassDeclaration',
-          'ArrowFunctionExpression',
-          'FunctionExpression',
-          'ClassExpression',
-        ].includes(node?.type);
-  for (const node of sourceNodes) {
-    const declaration = node.declaration ?? node;
-    if (declaration.id?.name)
-      locals.set(declaration.id.name, callable(declaration));
-    if (declaration.type === 'VariableDeclaration')
-      for (const entry of declaration.declarations)
-        if (entry.id.type === 'Identifier')
-          locals.set(entry.id.name, callable(entry.init));
+function walk(node, visit, parent, field) {
+  if (!node || typeof node !== 'object' || node.type === 'ImportDeclaration')
+    return;
+  if (node.type?.startsWith('TS')) {
+    if (node.expression) walk(node.expression, visit, node, 'expression');
+    return;
   }
-  for (const node of sourceNodes) {
-    if (node.type === 'ExportDefaultDeclaration')
-      exports.set('default', callable(node.declaration));
-    if (node.type !== 'ExportNamedDeclaration' || node.exportKind === 'type')
-      continue;
-    if (node.source) continue;
-    const declaration = node.declaration;
+  visit(node, parent, field);
+  for (const [key, value] of Object.entries(node)) {
+    if (key === 'parent') continue;
+    if (Array.isArray(value))
+      value.forEach((child) => walk(child, visit, node, key));
+    else if (value && typeof value === 'object') walk(value, visit, node, key);
+  }
+}
+
+export function unspecifiedExports(
+  path,
+  source,
+  specSource,
+  read = () => undefined,
+) {
+  const exports = new Set();
+  for (const node of parse(path, source).body) {
+    if (node.type === 'ExportDefaultDeclaration') exports.add('default');
     if (
-      declaration?.type === 'FunctionDeclaration' ||
-      declaration?.type === 'ClassDeclaration'
+      node.type !== 'ExportNamedDeclaration' ||
+      node.exportKind === 'type' ||
+      node.source
     )
-      exports.set(declaration.id.name, true);
+      continue;
+    const declaration = node.declaration;
+    if (['FunctionDeclaration', 'ClassDeclaration'].includes(declaration?.type))
+      exports.add(declaration.id.name);
     if (declaration?.type === 'VariableDeclaration')
       for (const entry of declaration.declarations)
-        if (entry.id.type === 'Identifier')
-          exports.set(entry.id.name, callable(entry.init));
+        if (entry.id.type === 'Identifier') exports.add(entry.id.name);
     for (const entry of node.specifiers)
       if (entry.exportKind !== 'type')
-        exports.set(
-          entry.exported.name ?? entry.exported.value,
-          locals.get(entry.local.name) ?? false,
-        );
+        exports.add(entry.exported.name ?? entry.exported.value);
   }
-  if (specSource === undefined) return [...exports.keys()];
+  if (specSource === undefined) return [...exports];
   const spec = parse(path.replace(/\.ts$/, '.spec.ts'), specSource);
   const bindings = new Map();
-  const namespaces = new Set();
-  const filename = path.slice(path.lastIndexOf('/') + 1);
+  const namespaces = new Map();
   for (const node of spec.body) {
-    if (
-      node.type !== 'ImportDeclaration' ||
-      node.importKind === 'type' ||
-      ![`./${filename}`, `./${filename.replace(/\.ts$/, '')}`].includes(
-        node.source.value,
-      )
-    )
+    if (node.type !== 'ImportDeclaration' || node.importKind === 'type')
       continue;
+    const imported = new Map();
+    const module = node.source.value;
+    const filename = posix.basename(path);
+    if (
+      [`./${filename}`, `./${filename.replace(/\.ts$/, '')}`].includes(module)
+    )
+      for (const name of exports) imported.set(name, name);
+    else if (/^@porcelain\/[^/]+\/rules$/.test(module)) {
+      const folder = `packages/${module.split('/')[1]}`;
+      const manifest = read(`${folder}/package.json`);
+      const entry = manifest && JSON.parse(manifest).exports?.['./rules'];
+      const barrelPath =
+        typeof entry === 'string' ? posix.join(folder, entry) : undefined;
+      const barrel = barrelPath && read(barrelPath);
+      if (barrel)
+        for (const reexport of parse(barrelPath, barrel).body) {
+          if (!reexport.source || reexport.exportKind === 'type') continue;
+          if (
+            posix.join(posix.dirname(barrelPath), reexport.source.value) !==
+            path
+          )
+            continue;
+          if (reexport.type === 'ExportAllDeclaration')
+            for (const name of exports) imported.set(name, name);
+          for (const entry of reexport.specifiers ?? [])
+            if (entry.exportKind !== 'type')
+              imported.set(
+                entry.exported.name ?? entry.exported.value,
+                entry.local.name ?? entry.local.value,
+              );
+        }
+    }
     for (const entry of node.specifiers) {
       if (entry.importKind === 'type') continue;
       if (entry.type === 'ImportNamespaceSpecifier')
-        namespaces.add(entry.local.name);
-      else if (entry.type === 'ImportDefaultSpecifier')
-        bindings.set(entry.local.name, 'default');
-      else if (entry.importKind !== 'type')
-        bindings.set(
-          entry.local.name,
-          entry.imported.name ?? entry.imported.value,
-        );
+        namespaces.set(entry.local.name, imported);
+      else {
+        const name =
+          entry.type === 'ImportDefaultSpecifier'
+            ? 'default'
+            : (entry.imported.name ?? entry.imported.value);
+        if (imported.has(name))
+          bindings.set(entry.local.name, imported.get(name));
+      }
     }
   }
-  const called = new Set();
-  const propertyName = (node) =>
-    node.computed
-      ? node.property.type === 'Literal' &&
-        typeof node.property.value === 'string'
-        ? node.property.value
-        : undefined
-      : node.property.name;
-  const valueReference = (node, shadows) => {
-    if (node.type === 'Identifier' && !shadows.has(node.name))
-      return bindings.get(node.name);
-    if (
-      node.type === 'MemberExpression' &&
-      node.object.type === 'Identifier' &&
-      namespaces.has(node.object.name) &&
-      !shadows.has(node.object.name)
-    )
-      return propertyName(node);
-  };
-  walk(spec, (node, shadows) => {
-    if (node.type !== 'CallExpression' && node.type !== 'NewExpression') return;
-    const callee = node.callee;
-    if (
-      callee.type === 'Identifier' &&
-      bindings.has(callee.name) &&
-      !shadows.has(callee.name)
-    )
-      called.add(bindings.get(callee.name));
-    if (
-      callee.type === 'MemberExpression' &&
-      callee.object.type === 'Identifier' &&
-      namespaces.has(callee.object.name) &&
-      !shadows.has(callee.object.name)
-    )
-      called.add(propertyName(callee));
-    let owner = callee;
-    while (owner.type === 'MemberExpression' && !valueReference(owner, shadows))
-      owner = owner.object;
-    const name = valueReference(owner, shadows);
-    if (exports.get(name) === false) called.add(name);
-    for (const argument of node.arguments)
-      walk(
-        argument,
-        (reference, scoped, parent, field) => {
-          if (
-            parent?.type === 'Property' &&
-            field === 'key' &&
-            !parent.computed
-          )
-            return;
-          const name = valueReference(reference, scoped);
-          if (exports.get(name) === false) called.add(name);
-        },
-        shadows,
-      );
+  const referenced = new Set();
+  walk(spec, (node, parent, field) => {
+    if (node.type === 'Identifier' && bindings.has(node.name)) {
+      if (
+        (parent?.type === 'MemberExpression' &&
+          field === 'property' &&
+          !parent.computed) ||
+        (parent?.type === 'Property' &&
+          field === 'key' &&
+          !parent.computed &&
+          !parent.shorthand) ||
+        field === 'id' ||
+        field === 'params'
+      )
+        return;
+      referenced.add(bindings.get(node.name));
+    }
+    if (node.type === 'MemberExpression' && node.object.type === 'Identifier') {
+      const name = node.computed ? node.property.value : node.property.name;
+      const exportName = namespaces.get(node.object.name)?.get(name);
+      if (exportName) referenced.add(exportName);
+    }
   });
-  return [...exports.keys()].filter((name) => !called.has(name));
+  return [...exports].filter((name) => !referenced.has(name));
 }
 
 export function specGapProblems(current, baseline, allowed) {

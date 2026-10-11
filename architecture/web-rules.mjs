@@ -1,3 +1,4 @@
+import { replacesGlobal } from './spec-globals.mjs';
 import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { classify, shadcnRegistry, webPart } from './policy.ts';
@@ -1096,16 +1097,10 @@ export const webRules = {
         'Browser behaviour runs against the real isolated server; vi mocks, spies, stubs and routed requests have no place in a browser case, and a race the test must reach goes through the kit fixtures that own it, because mocked transport cannot prove the real app and server agree.';
       return {
         AssignmentExpression(node) {
-          let root = node.left;
-          while (root.type === 'MemberExpression') root = root.object;
-          if (
-            node.left.type === 'MemberExpression' &&
-            root.type === 'Identifier' &&
-            ['console', 'window', 'globalThis', 'global'].includes(root.name)
-          )
-            context.report({ node, message });
+          if (replacesGlobal(node)) context.report({ node, message });
         },
         CallExpression(node) {
+          if (replacesGlobal(node)) context.report({ node, message });
           if (
             role === 'e2e-spec' &&
             node.callee.type === 'MemberExpression' &&

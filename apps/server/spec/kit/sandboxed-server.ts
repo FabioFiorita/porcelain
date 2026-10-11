@@ -1,4 +1,4 @@
-import { InMemoryClock } from '../fakes/in-memory-clock.ts';
+import { OffsetClock } from './offset-clock.ts';
 import { createInterface } from 'node:readline';
 import {
   Clock,
@@ -62,20 +62,23 @@ if (!installation) throw new Error('Missing development installation folder');
 const codingToolExecutable = process.env.PORCELAIN_DEV_CODING_TOOL;
 if (!codingToolExecutable)
   throw new Error('Missing development coding tool location');
-const clock = new InMemoryClock(Effect.runSync(Clock.Clock));
-const control = createInterface({ input: process.stdin });
-control.on('line', (line) => {
+const clock =
+  process.env.PORCELAIN_TEST_CLOCK === '1'
+    ? new OffsetClock(Effect.runSync(Clock.Clock))
+    : undefined;
+const control = clock ? createInterface({ input: process.stdin }) : undefined;
+control?.on('line', (line) => {
   const command = Schema.decodeUnknownSync(
     Schema.Struct({ advanceTime: Schema.Number, id: Schema.String }),
   )(JSON.parse(line));
-  clock.advance(command.advanceTime);
+  clock?.advance(command.advanceTime);
   process.stdout.write(`${JSON.stringify({ advancedTime: command.id })}\n`);
 });
 const runtime = ManagedRuntime.make(
   Layer.mergeAll(
     NodeServices.layer,
     Layer.effect(Scope.Scope, Effect.scope),
-    Layer.succeed(Clock.Clock, clock),
+    clock ? Layer.succeed(Clock.Clock, clock) : Layer.empty,
   ),
 );
 let server: Runtime | undefined;
@@ -610,7 +613,7 @@ try {
     try {
       await runtime.dispose();
     } finally {
-      control.close();
+      control?.close();
       process.stdin.destroy();
       process.off('SIGINT', stop);
       process.off('SIGTERM', stop);

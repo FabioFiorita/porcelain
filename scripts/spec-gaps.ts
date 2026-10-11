@@ -38,6 +38,7 @@ function gaps(
         path,
         read(path) ?? '',
         read(path.replace(/\.ts$/, '.spec.ts')),
+        read,
       ).map((name: string) => `${path}#${name}`),
     )
     .sort();
@@ -75,7 +76,7 @@ if (process.argv.includes('--list')) {
   const failures = specGapProblems(current, baseline, allowed);
   if (failures.length) {
     process.stderr.write(
-      `${failures.join('\n')}\nCall every rule export in its sibling spec, because an unspecified decision is either dead or unpromised.\n`,
+      `${failures.join('\n')}\nReference every rule export in its sibling spec, because an unspecified decision is either dead or unpromised.\n`,
     );
     process.exitCode = 1;
   } else

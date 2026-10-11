@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { Writable } from 'node:stream';
 import {
   Context,
   Effect,
@@ -1132,8 +1133,12 @@ export class IsolatedServer extends ServerHandle {
       ],
       {
         cwd: repositoryRoot,
-        env: sample ? { ...env, PORCELAIN_DEV_SAMPLE: sample } : env,
-        stdio: ['pipe', 'pipe', 'pipe'],
+        env: {
+          ...env,
+          PORCELAIN_TEST_CLOCK: '1',
+          ...(sample ? { PORCELAIN_DEV_SAMPLE: sample } : {}),
+        },
+        stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
       },
     );
     const output = { stdout: '', stderr: '' };
@@ -1170,7 +1175,8 @@ export class IsolatedServer extends ServerHandle {
   async advanceTime(milliseconds: number): Promise<void> {
     const id = randomUUID();
     const output = this.child.stdout;
-    if (!output || !this.child.stdin)
+    const control = this.child.stdio[3];
+    if (!output || !(control instanceof Writable))
       throw new Error('The isolated clock control is unavailable');
     await new Promise<void>((resolveAdvance, rejectAdvance) => {
       let pending = '';
@@ -1198,9 +1204,7 @@ export class IsolatedServer extends ServerHandle {
       };
       output.on('data', read);
       this.child.once('close', closed);
-      this.child.stdin?.write(
-        `${JSON.stringify({ advanceTime: milliseconds, id })}\n`,
-      );
+      control.write(`${JSON.stringify({ advanceTime: milliseconds, id })}\n`);
     });
   }
 

@@ -38,7 +38,7 @@ jobs:
         run: |
           pnpm exec turbo run test:integration test:e2e build build:package db:check --affected --dry=json > "$RUNNER_TEMP/runtime.json"
           jq -e '.tasks | type == "array"' "$RUNNER_TEMP/runtime.json" > /dev/null
-          server=$(jq 'any(.tasks[]; .taskId == "@porcelain/server#test:integration" or .taskId == "@porcelain/client#test:integration")' "$RUNNER_TEMP/runtime.json")
+          server=$(jq 'any(.tasks[]; .taskId == "@porcelain/server#test:integration" or .taskId == "@porcelain/client#test:integration" or .taskId == "@porcelain/verification#test:integration")' "$RUNNER_TEMP/runtime.json")
           web_integration=$(jq 'any(.tasks[]; .taskId == "@porcelain/web#test:integration")' "$RUNNER_TEMP/runtime.json")
           web_e2e=$(jq 'any(.tasks[]; .taskId == "@porcelain/web#test:e2e")' "$RUNNER_TEMP/runtime.json")
           desktop=$(jq 'any(.tasks[]; .taskId == "@porcelain/desktop#test:e2e")' "$RUNNER_TEMP/runtime.json")
@@ -123,7 +123,7 @@ jobs:
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: pnpm exec playwright install --with-deps --only-shell chromium
-      - run: pnpm exec turbo run test:integration --affected --filter=@porcelain/server --filter=@porcelain/client --concurrency=1 --continue
+      - run: pnpm exec turbo run test:integration --affected --filter=@porcelain/server --filter=@porcelain/client --filter=@porcelain/verification --concurrency=1 --continue
 
   web-integration:
     needs: affected

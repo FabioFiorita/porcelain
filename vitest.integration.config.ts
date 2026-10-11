@@ -11,10 +11,18 @@ export default defineConfig({
         test: {
           name: '@porcelain/server-integration',
           root: import.meta.dirname,
-          include: [
-            'apps/server/spec/integration/*.integration.ts',
-            '.agents/skills/spec/integration/*.integration.ts',
-          ],
+          include: ['apps/server/spec/integration/*.integration.ts'],
+          globalSetup: ['apps/server/spec/kit/global-setup.ts'],
+          expect: { requireAssertions: true },
+          testTimeout: 30_000,
+          hookTimeout: 60_000,
+        },
+      },
+      {
+        test: {
+          name: '@porcelain/verification-integration',
+          root: import.meta.dirname,
+          include: ['.agents/skills/spec/integration/*.integration.ts'],
           globalSetup: ['apps/server/spec/kit/global-setup.ts'],
           expect: { requireAssertions: true },
           testTimeout: 30_000,

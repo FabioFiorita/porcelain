@@ -1,10 +1,12 @@
 import { type Clock, Effect } from 'effect';
 
-export class InMemoryClock implements Clock.Clock {
+export class OffsetClock implements Clock.Clock {
   private offset = 0;
   private readonly clock: Clock.Clock;
+  readonly sleep: Clock.Clock['sleep'];
   constructor(clock: Clock.Clock) {
     this.clock = clock;
+    this.sleep = clock.sleep.bind(clock);
   }
   advance(milliseconds: number): void {
     this.offset = this.offset + milliseconds;
@@ -18,6 +20,4 @@ export class InMemoryClock implements Clock.Clock {
   readonly currentTimeMillis = Effect.sync(this.currentTimeMillisUnsafe);
   readonly currentTimeNanos = Effect.sync(this.currentTimeNanosUnsafe);
   readonly monotonicTimeNanos = Effect.sync(this.monotonicTimeNanosUnsafe);
-  readonly sleep: Clock.Clock['sleep'] = (duration) =>
-    this.clock.sleep(duration);
 }

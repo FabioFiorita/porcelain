@@ -17,7 +17,7 @@ api:
 
 ## What it is
 
-Expo Router opens each screen from the app's scheme, `porcelain.dev://` for the development identity: `porcelain.dev://` and `porcelain.dev://files` for Files, `porcelain.dev://review` for Review, `porcelain.dev://history` and `porcelain.dev://settings`, with the matching tab or sidebar row selected, whether the app is running or was cold-launched. The e2e tests reach view states this way instead of walking the app.
+Expo Router opens each screen from the app's scheme, `porcelain.dev://` for the development identity: `porcelain.dev://` and `porcelain.dev://files` for Files, `porcelain.dev://review` for Review, `porcelain.dev://history` and `porcelain.dev://settings`, with the matching tab or sidebar row selected, whether the app is running or was cold-launched. Use these links to reach view states during on-demand mobile verification.
 
 ## How a user reaches it
 

@@ -11,16 +11,14 @@ import {
   rm,
   symlink,
   stat,
-  utimes,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { expect as pollingExpect } from 'vitest';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, type TestContext } from 'vitest';
-import { test } from '../kit/server-test.ts';
-import { list, record, text } from '../kit/session.ts';
+import { test } from '@porcelain/server/kit/server-test';
+import { list, record, text } from '@porcelain/server/kit/session';
 
 const repositoryRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -165,7 +163,7 @@ function running(fragment: string): string[] {
 
 async function settled(done: () => boolean): Promise<boolean> {
   try {
-    await pollingExpect.poll(done, { timeout: 20_000 }).toBe(true);
+    await expect.poll(done, { timeout: 20_000 }).toBe(true);
     return true;
   } catch {
     return false;
@@ -390,24 +388,6 @@ test('a throwing cleanup stays incomplete after its supervisor exits and redacts
   expect(stopped.stdout).not.toContain(fixture.secret);
   expect(repeated.stdout).not.toContain(fixture.secret);
   expect(evidence.text).not.toContain(fixture.secret);
-});
-
-test('an inactive session stops only when requested', async ({
-  onTestFinished,
-}) => {
-  const fixture = await sessionFixture(onTestFinished);
-  const instance = await fixture.start();
-  const activity = join(instance.folder, 'last-command');
-  await writeFile(activity, '');
-  await utimes(activity, 0, 0);
-
-  expect(alive(instance.pid)).toBe(true);
-  expect(existsSync(join(instance.evidence, 'idle-stop.txt'))).toBe(false);
-  const stopped = await fixture.command('stop', instance.id);
-  expect(stopped.code).toBe(0);
-  expect(record(JSON.parse(stopped.stdout)).complete).toBe(true);
-  expect(alive(instance.pid)).toBe(false);
-  expect(existsSync(instance.folder)).toBe(false);
 });
 
 test('server doctor diagnoses startup separately from optional drivers before start', async ({

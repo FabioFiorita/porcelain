@@ -34,5 +34,5 @@ Drive this feature with the mobile-verify skill on demand.
 
 ## Gotchas
 
-- The simulator starts in portrait, where the sidebar is hidden behind Show Sidebar; the e2e flow rotates to landscape first, and a development deep link reaches a destination in either orientation.
+- The simulator starts in portrait, where the sidebar is hidden behind Show Sidebar; rotate to landscape to verify the expanded sidebar, and a development deep link reaches a destination in either orientation.
 - “Hide Sidebar” and “Show Sidebar” are SwiftUI's own labels, so the map cannot name them as selectors.

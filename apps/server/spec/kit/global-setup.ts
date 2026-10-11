@@ -60,7 +60,8 @@ export default async function setup(project: TestProject) {
   return async () => {
     let unrequested: string[] = [];
     try {
-      if (!perf) unrequested = await unrequestedRoutes(routes, project);
+      if (project.name === '@porcelain/server-integration')
+        unrequested = await unrequestedRoutes(routes, project);
     } finally {
       await build.remove();
       await rm(routes, { recursive: true, force: true });

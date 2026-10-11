@@ -116,6 +116,36 @@ export default [
   ...effectRuleCases,
   {
     rule: 'spec-no-clock',
+    path: 'apps/server/src/rules/sample.spec.ts',
+    valid: "expect(new Date('2026-01-01').getUTCFullYear()).toBe(2026);",
+    invalid: "new Date(); performance['now'](); globalThis.Date['now']();",
+    errors: 3,
+  },
+  {
+    rule: 'server-spec-no-waits',
+    path: 'apps/server/spec/kit/sample.ts',
+    valid:
+      'new Promise((resolve, reject) => setTimeout(() => reject(new Error("deadline")), 10));',
+    invalid: 'await new Promise((r) => setTimeout(r, 10));',
+    errors: 1,
+  },
+  {
+    rule: 'spec-no-mocking',
+    path: 'packages/client/src/rules/sample.spec.ts',
+    valid: 'Object.defineProperty(local, "value", { value: 1 });',
+    invalid:
+      'Object.defineProperty(console, "warn", { value: () => {} }); Object.defineProperty(globalThis, "fetch", { value: () => {} }); Object.defineProperty(window, "fetch", { value: () => {} });',
+    errors: 3,
+  },
+  {
+    rule: 'web-browser-spec-no-mocks',
+    path: 'apps/web/spec/integration/sample.test.tsx',
+    valid: 'Object.defineProperty(local, "value", { value: 1 });',
+    invalid: 'Object.defineProperty(window, "fetch", { value: () => {} });',
+    errors: 1,
+  },
+  {
+    rule: 'spec-no-clock',
     path: 'packages/client/src/features/files/rules/sample.spec.ts',
     valid: 'expect(parse(input)).toEqual([]);',
     invalid:
@@ -3400,91 +3430,28 @@ export const workspaceBoundaryCases = [
 
 export const specGapCases = [
   {
-    source: 'export function decide() { return 5; }',
-    spec: "import { decide } from './sample.ts'; it('local loop', () => { for (const decide of [() => 42]) { expect(decide()).toBe(42); } });",
-    gaps: ['decide'],
-  },
-  {
-    source: 'export function decide() { return 5; }',
-    spec: "import { decide } from './sample.ts'; it('hoisted helper', () => { if (true) { var decide = () => 42; } expect(decide()).toBe(42); });",
-    gaps: ['decide'],
-  },
-  {
-    source: 'export function decide() { return 5; }',
-    spec: "import { decide } from './sample.ts'; it('real rule', () => { { const decide = () => 42; decide(); } expect(decide()).toBe(5); });",
-    gaps: [],
-  },
-
-  {
-    source: 'export function decide() { return 5; }',
-    spec: "import { decide } from './sample.ts'; it('local helper', () => { const decide = () => 42; expect(decide()).toBe(42); });",
-    gaps: ['decide'],
-  },
-  {
-    source: 'export function decide() { return 5; }',
-    spec: "import { decide } from './sample.ts'; function helper(decide) { decide(); }",
-    gaps: ['decide'],
-  },
-  {
-    source: 'export function decide() { return 5; }',
-    spec: "import * as rules from './sample.ts'; const decide = 'other'; rules[decide]();",
-    gaps: ['decide'],
-  },
-  {
-    source: 'export function decide() { return 5; }',
-    spec: "import * as rules from './sample.ts'; rules['decide']();",
-    gaps: [],
-  },
-  {
-    source: 'function decide() { return 5; } export default decide;',
-    spec: "import choice from './sample.ts'; expect(choice).toBeDefined();",
-    gaps: ['default'],
-  },
-  {
-    source: 'export const limit = 5;',
-    spec: "import type * as rules from './sample.ts'; const rules = { limit: 5 }; expect(rules.limit).toBe(5);",
-    gaps: ['limit'],
-  },
-
-  {
-    source: 'export const limit = 5;',
-    spec: "import { limit } from './sample.ts'; expect(limit).toBe(5);",
-    gaps: [],
-  },
-  {
-    source: 'export const limit = 5;',
-    spec: "import { limit } from './sample.ts'; expect(5).toBe(5);",
-    gaps: ['limit'],
-  },
-  {
-    source: 'export const rules = { decide: () => 5 };',
-    spec: "import { rules } from './sample.ts'; expect(rules.decide()).toBe(5);",
-    gaps: [],
-  },
-  {
-    source: 'export const schema = Schema.String;',
-    spec: "import { schema } from './sample.ts'; expect(Schema.decodeUnknownSync(schema)('ok')).toBe('ok');",
+    source: 'export function decide() {}',
+    spec: "import { decide } from './sample.ts'; decide();",
     gaps: [],
   },
   {
     source: 'export function decide() {}',
-    spec: "import { decide } from './sample.ts'; expect(decide).toBeDefined();",
-    gaps: ['decide'],
-  },
-  {
-    source: 'export default function decide() {}',
-    spec: "import choice from './sample.ts'; expect(choice()).toEqual(5);",
+    spec: "import { decide } from './sample.ts'; [1].map(decide);",
     gaps: [],
   },
-  {
-    source: 'export const limit = 5;',
-    spec: "import * as rules from './sample.ts'; expect(rules.limit).toBe(5);",
-    gaps: [],
-  },
-
   {
     source: 'export function decide() {}',
-    spec: "import { decide as choice } from './sample.ts'; choice();",
+    spec: "import { decide as choice } from './sample.ts'; pipe(1, choice);",
+    gaps: [],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import * as rules from './sample.ts'; [1].map(rules.decide);",
+    gaps: [],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import * as rules from './sample.ts'; pipe(1, rules['decide']);",
     gaps: [],
   },
   {
@@ -3499,7 +3466,27 @@ export const specGapCases = [
   },
   {
     source: 'export function decide() {}',
-    spec: "import * as rules from './sample.ts'; rules.decide();",
+    spec: "import { decide } from './sample.ts'; type T = typeof decide;",
+    gaps: ['decide'],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import type { decide } from './sample.ts';",
+    gaps: ['decide'],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import { decide } from './sample.ts'; const other = { decide: 1 };",
+    gaps: ['decide'],
+  },
+  {
+    source: 'export default function decide() {}',
+    spec: "import choice from './sample.ts'; expect(choice).toBeDefined();",
+    gaps: [],
+  },
+  {
+    source: 'export const limit = 5;',
+    spec: "import { limit } from './sample.ts'; expect(limit).toBe(5);",
     gaps: [],
   },
   {
@@ -3512,6 +3499,39 @@ export const specGapCases = [
     source: "export { decide } from './decision.ts';",
     spec: undefined,
     gaps: [],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import { choose } from '@porcelain/client/rules'; [1].map(choose);",
+    files: {
+      'packages/client/package.json':
+        '{"exports":{"./rules":"./src/rules/index.ts"}}',
+      'packages/client/src/rules/index.ts':
+        "export { decide as choose } from '../features/files/rules/sample.ts';",
+    },
+    gaps: [],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import * as rules from '@porcelain/client/rules'; pipe(1, rules.decide);",
+    files: {
+      'packages/client/package.json':
+        '{"exports":{"./rules":"./src/rules/index.ts"}}',
+      'packages/client/src/rules/index.ts':
+        "export * from '../features/files/rules/sample.ts';",
+    },
+    gaps: [],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import { decide } from '@porcelain/client/rules'; decide();",
+    files: {
+      'packages/client/package.json':
+        '{"exports":{"./rules":"./src/rules/index.ts"}}',
+      'packages/client/src/rules/index.ts':
+        "export { decide } from './different.ts';",
+    },
+    gaps: ['decide'],
   },
 ];
 
@@ -3535,48 +3555,5 @@ export const specGapRatchetCases = [
     baseline: ['new'],
     allowed: ['old'],
     errors: ['The spec-gap baseline may only shrink: new'],
-  },
-];
-
-export const routeCoverageCases = [
-  {
-    expected: ['server/a', 'server/b'],
-    modules: [
-      { path: 'server/a', executed: true },
-      { path: 'server/b', executed: true },
-      { path: 'skills/native', executed: false },
-    ],
-    logs: 2,
-    result: { selected: 2, complete: true },
-  },
-  {
-    expected: ['server/a', 'server/b'],
-    modules: [
-      { path: 'server/a', executed: true },
-      { path: 'skills/native', executed: true },
-    ],
-    logs: 2,
-    result: { selected: 1, complete: false },
-  },
-  {
-    expected: ['server/a'],
-    modules: [
-      { path: 'server/a', executed: true },
-      { path: 'skills/native', executed: true },
-    ],
-    logs: 2,
-    result: { selected: 1, complete: true },
-  },
-  {
-    expected: ['server/a'],
-    modules: [{ path: 'server/a', executed: true }],
-    logs: 0,
-    error: 'Route coverage: 1 integration files ran but 0 wrote a route log',
-  },
-  {
-    expected: ['server/a'],
-    modules: [{ path: 'server/a', executed: true }],
-    logs: 2,
-    error: 'Route coverage: 1 integration files ran but 2 wrote a route log',
   },
 ];

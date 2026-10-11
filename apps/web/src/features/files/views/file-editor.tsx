@@ -1,3 +1,5 @@
+import { useHotkey } from '@tanstack/react-hotkeys';
+import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { EditProvider, File, Virtualizer } from '@pierre/diffs/react';
 import { CheckIcon } from 'lucide-react';
 import { type ReactNode } from 'react';
@@ -50,14 +52,7 @@ function FileEditor({
     file,
     initialText,
     options: editorOptions,
-  } = usePierreFileEditor(
-    owner,
-    path,
-    state.text,
-    draft,
-    active,
-    notifyUnsaved,
-  );
+  } = usePierreFileEditor(owner, path, state.text, draft, notifyUnsaved);
   const dirty = state.text !== state.savedText;
   const label = changedOnDisk
     ? 'Not saving: changed on disk'
@@ -87,6 +82,7 @@ function FileEditor({
   );
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {active && <SaveShortcut onSave={() => void save()} />}
       {renderToolbar?.(controls)}
       {changed && (
         <p className="border-b bg-graph-4/10 px-3.5 py-1.5 text-xs text-graph-4">
@@ -135,3 +131,8 @@ function FileEditor({
   );
 }
 export default FileEditor;
+
+function SaveShortcut({ onSave }: { onSave: () => void }) {
+  useHotkey(SHORTCUTS.saveFile, onSave, { ignoreInputs: false });
+  return null;
+}

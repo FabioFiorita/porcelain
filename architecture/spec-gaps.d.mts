@@ -2,6 +2,7 @@ export function unspecifiedExports(
   path: string,
   source: string,
   specSource: string | undefined,
+  read?: (path: string) => string | undefined,
 ): string[];
 
 export function specGapProblems(

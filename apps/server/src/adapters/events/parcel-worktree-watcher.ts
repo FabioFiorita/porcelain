@@ -164,12 +164,12 @@ export const parcelWorktreeWatcherLayer = (options: {
                 const absolute = filename
                   ? pathCapability.resolve(directory, filename.toString())
                   : directory;
-                state.changed([
-                  pathCapability
-                    .relative(state.root, absolute)
-                    .split(pathCapability.sep)
-                    .join('/'),
-                ]);
+                const paths = fileWatchPaths(
+                  state.root,
+                  [{ path: absolute }],
+                  options.isTemporaryWrite,
+                );
+                if (paths) state.changed(paths);
               });
               watcher.on('error', () => {
                 watcher.close();

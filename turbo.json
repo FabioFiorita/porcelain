@@ -30,12 +30,7 @@
     },
     "@porcelain/server#test:integration": {
       "dependsOn": ["transit"],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/vitest.integration.config.ts",
-        "$TURBO_ROOT$/.agents/skills/**",
-        "$TURBO_ROOT$/apps/*/spec/kit/**"
-      ]
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/vitest.integration.config.ts"]
     },
     "test:e2e": {
       "dependsOn": ["transit"],
@@ -105,6 +100,24 @@
     "//#spec:gaps": {
       "inputs": ["$TURBO_DEFAULT$", "!repos/**"],
       "cache": false
+    },
+    "@porcelain/verification#transit": {
+      "dependsOn": ["^transit"],
+      "inputs": [
+        "*/scripts/**",
+        "verify-core/**",
+        "package.json",
+        "!**/*.spec.ts"
+      ]
+    },
+    "@porcelain/verification#test:integration": {
+      "dependsOn": ["transit", "@porcelain/web#transit"],
+      "inputs": [
+        "*/scripts/**",
+        "verify-core/**",
+        "spec/integration/**",
+        "$TURBO_ROOT$/vitest.integration.config.ts"
+      ]
     }
   },
   "globalDependencies": [".github/workflows/ci.yml", "pnpm-workspace.yaml"]

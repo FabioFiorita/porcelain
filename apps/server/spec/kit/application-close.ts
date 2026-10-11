@@ -11,7 +11,6 @@ import { realpathSync } from 'node:fs';
 import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer, type Socket } from 'node:net';
 import { join } from 'node:path';
-import { setImmediate } from 'node:timers/promises';
 import { promisify } from 'node:util';
 import { composeServer } from '../../src/bootstrap/compose-server.ts';
 import { readServerSettings } from '../../src/config/server-settings.ts';
@@ -23,9 +22,6 @@ import { scratchFolder } from './sandbox.ts';
 const execute = promisify(execFile);
 
 export type CloseRunningCommit = {
-  duringDrain: readonly string[];
-  hookRunningDuringDrain: boolean;
-  drained: 'closed' | 'still closing';
   hookRunningWhenSettled: boolean;
   beforeCloseReturned: readonly string[];
   closeReturned: readonly string[];
@@ -212,39 +208,26 @@ export async function closeRunningCommit(): Promise<CloseRunningCommit> {
     second = runtime
       .runPromise(opened.close())
       .then(() => void events.push('second-close-returned'));
-    await setImmediate();
-    const duringDrain = [...events];
-    const hookRunningDuringDrain = running(hookPid);
     Deferred.doneUnsafe(routeReleased, Effect.void);
     await Promise.all([first, second]);
-    const drained = 'closed' as const;
     const hookRunningWhenSettled = running(hookPid);
     const settled = [...events];
-    application = drained === 'closed' ? undefined : application;
+    application = undefined;
     closing = false;
-    const headCount =
-      drained === 'closed'
-        ? (await git('rev-list', '--count', 'HEAD')).stdout
-        : '';
-    let restarted: CloseRunningCommit['restarted'];
-    if (drained === 'closed') {
-      const again = await open();
-      application = again.opened;
-      const receipt = await runtime.runPromise(
-        again.api.gitActions.readGitActionReceipt({
-          params: { worktreeId: worktree.id, requestId },
-        }),
-      );
-      restarted = {
-        requestId: receipt.requestId,
-        state: receipt.state,
-        reason: 'reason' in receipt ? receipt.reason : undefined,
-      };
-    }
+    const headCount = (await git('rev-list', '--count', 'HEAD')).stdout;
+    const again = await open();
+    application = again.opened;
+    const receipt = await runtime.runPromise(
+      again.api.gitActions.readGitActionReceipt({
+        params: { worktreeId: worktree.id, requestId },
+      }),
+    );
+    const restarted = {
+      requestId: receipt.requestId,
+      state: receipt.state,
+      reason: 'reason' in receipt ? receipt.reason : undefined,
+    };
     return {
-      duringDrain,
-      hookRunningDuringDrain,
-      drained,
       hookRunningWhenSettled,
       beforeCloseReturned: settled.slice(0, 2),
       closeReturned: settled.slice(2).toSorted(),

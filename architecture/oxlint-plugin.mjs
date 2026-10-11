@@ -1,3 +1,4 @@
+import { replacesGlobal } from './spec-globals.mjs';
 import { existsSync, readFileSync } from 'node:fs';
 import { builtinModules } from 'node:module';
 import { posix } from 'node:path';
@@ -2118,8 +2119,18 @@ export default {
         const message =
           'Unit specs assert deterministic results; time bounds belong to the perf project, because wall clocks measure host contention as well as code.';
         return {
+          NewExpression(node) {
+            if (
+              node.arguments.length === 0 &&
+              ['Date', 'globalThis.Date'].includes(
+                memberPath(node.callee)?.join('.'),
+              )
+            )
+              context.report({ node, message });
+          },
           MemberExpression(node) {
-            const path = memberPath(node)?.join('.');
+            const owner = memberPath(node.object)?.join('.');
+            const path = `${owner}.${memberName(node)}`;
             if (
               path === 'performance.now' ||
               path === 'Date.now' ||
@@ -2161,6 +2172,30 @@ export default {
                   ? memberName(node.callee)
                   : undefined;
             if (delays.has(name)) context.report({ node, message });
+            if (
+              name !== 'setTimeout' ||
+              node.arguments[0]?.type !== 'Identifier'
+            )
+              return;
+            let executor = node.parent;
+            while (
+              executor &&
+              ![
+                'ArrowFunctionExpression',
+                'FunctionExpression',
+                'FunctionDeclaration',
+              ].includes(executor.type)
+            )
+              executor = executor.parent;
+            const promise = executor?.parent;
+            if (
+              promise?.type === 'NewExpression' &&
+              promise.callee.type === 'Identifier' &&
+              promise.callee.name === 'Promise' &&
+              executor.params[0]?.type === 'Identifier' &&
+              executor.params[0].name === node.arguments[0].name
+            )
+              context.report({ node, message });
           },
         };
       },
@@ -2170,11 +2205,15 @@ export default {
         if (!isSpec(context)) return {};
         return {
           AssignmentExpression(node) {
-            const path = memberPath(node.left);
-            if (
-              path &&
-              ['console', 'window', 'globalThis', 'global'].includes(path[0])
-            )
+            if (replacesGlobal(node))
+              context.report({
+                node,
+                message:
+                  'Specs observe globals without replacing them, because hand-written spies can pass without proving product behaviour.',
+              });
+          },
+          CallExpression(node) {
+            if (replacesGlobal(node))
               context.report({
                 node,
                 message:

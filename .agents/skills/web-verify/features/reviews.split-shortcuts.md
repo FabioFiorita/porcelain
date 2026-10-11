@@ -21,7 +21,7 @@ api:
 
 ## What it is
 
-With the document area split into two panes, the tab shortcuts act on the focused pane only: `Alt+W` closes the focused pane's active tab, and closing the last tab of the right pane folds the split back into one pane. Opening the split registers the tab shortcuts once (no "already registered" warning).
+With the document area split into two panes, the tab shortcuts act on the focused pane only: `Alt+W` closes the focused pane's active tab, and closing the last tab of the right pane folds the split back into one pane. Opening the split registers the tab shortcuts once; the app rejects duplicate registrations with an error.
 
 ## How a user reaches it
 
@@ -44,12 +44,12 @@ With the document area split into two panes, the tab shortcuts act on the focuse
 5. Press `Alt+w`
    Look for: regions "Left pane" and "Right pane" gone; one tablist "Open documents" with tabs "Changes Close Changes" and "README.md Close README.md" (the left pane's README.md tab survived).
 6. Inspect browser console messages
-   Look for: no warning containing "already registered".
+   Look for: no hotkey conflict errors.
 
 ## What proves it works
 
-- Step 5 closes only the right pane's tab (the split folds, the left pane keeps README.md) and step 6 shows no duplicate-registration warning.
-- `apps/web/spec/integration/reviews-split-shortcuts.test.tsx`: opens README.md, opens it to the side, sees the tab in region "Left pane", clicks the tab in region "Right pane", presses `Alt+W`, and expects "Right pane" gone, the README.md tab still visible, and no console warning containing "already registered".
+- Step 5 closes only the right pane's tab (the split folds, the left pane keeps README.md) and step 6 shows no duplicate-registration errors.
+- `apps/web/spec/integration/reviews-split-shortcuts.test.tsx`: opens README.md, opens it to the side, sees the tab in region "Left pane", clicks the tab in region "Right pane", presses `Alt+W`, and expects "Right pane" gone, the README.md tab still visible, and no application errors. The app hotkey provider makes duplicate registrations throw, so the automatic failure fixture rejects a second registration.
 
 ## Gotchas
 

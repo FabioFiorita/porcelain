@@ -6,7 +6,8 @@
     "./processes": "./verify-core/processes.ts"
   },
   "scripts": {
-    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/verification"
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/verification",
+    "test:integration": "vitest run --config ../../vitest.integration.config.ts --project @porcelain/verification-integration"
   },
   "dependencies": {
     "@porcelain/contracts": "workspace:*",
