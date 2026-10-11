@@ -1,0 +1,133 @@
+import { ServiceUpdateRunningError } from '@porcelain/access/errors';
+import { NodeServices } from '@effect/platform-node';
+import { Clock, Effect } from 'effect';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { afterEach, beforeEach, expect, it } from 'vitest';
+import { acquireDirectoryLock } from '../runtime/directory-lock.ts';
+import { LIMITS } from '../config/limits.ts';
+import type { ServiceSettings } from './settings.ts';
+import { runServiceCommand } from './service.ts';
+
+let home: string;
+let packageRoot: string;
+const originalSearchPath = process.env.PATH;
+
+beforeEach(() => {
+  home = mkdtempSync(join(tmpdir(), 'porcelain-cli-update-'));
+  const service = join(home, '.local/share/porcelain/service');
+  packageRoot = join(service, 'runtime/node_modules/@fabiofiorita/porcelain');
+  mkdirSync(packageRoot, { recursive: true });
+  writeFileSync(
+    join(packageRoot, 'package.json'),
+    JSON.stringify({ name: '@fabiofiorita/porcelain', version: '1.0.0' }),
+  );
+  writeFileSync(join(service, 'installed.json'), '{"version":"1.0.0"}');
+  const bin = join(home, 'commands');
+  mkdirSync(bin);
+  writeFileSync(
+    join(bin, 'systemctl'),
+    `#!${process.execPath}
+    if (process.argv.includes('is-active')) { process.stdout.write('inactive\\n'); process.exit(3); }
+    process.exit(99);
+  `,
+    { mode: 0o755 },
+  );
+  writeFileSync(
+    join(bin, 'npm'),
+    `#!${process.execPath}
+    if (process.argv[2] === 'view') { process.stdout.write('"1.0.0"\\n'); process.exit(0); }
+    process.exit(99);
+  `,
+    { mode: 0o755 },
+  );
+  process.env.PATH = bin;
+});
+afterEach(() => {
+  process.env.PATH = originalSearchPath;
+  rmSync(home, { recursive: true, force: true });
+});
+
+const command = (
+  action: ServiceSettings['action'],
+  allowDowngrade: boolean,
+  output: string[],
+) =>
+  Effect.runPromise(
+    Effect.gen(function* () {
+      const clock = yield* Clock.Clock;
+      yield* runServiceCommand(
+        {
+          action,
+          allowDowngrade,
+          dataDirectory: join(home, 'data'),
+          port: 3000,
+        },
+        {
+          homeDirectory: home,
+          searchPath: process.env.PATH ?? '',
+          clock,
+          limits: LIMITS,
+          ownerProbe: { probe: () => Effect.succeed({ kind: 'absent' }) },
+          stdout: (text) => output.push(text),
+        },
+        pathToFileURL(join(packageRoot, 'server/src/cli/service.ts')).href,
+      );
+    }).pipe(Effect.provide(NodeServices.layer)),
+  );
+
+it('reports an already current installed service through the CLI update operation', async () => {
+  const output: string[] = [];
+  await command('update', false, output);
+  expect(output).toEqual([
+    'The Porcelain service is already 1.0.0, the newest published version.\n',
+  ]);
+});
+
+it('rejects --allow-downgrade on the installed command with exact-version instructions', async () => {
+  const output: string[] = [];
+  await expect(command('update', true, output)).rejects.toThrow(
+    '--allow-downgrade requires an exact version: run `npx @fabiofiorita/porcelain@<version> service update --allow-downgrade`.',
+  );
+  expect(output).toEqual([]);
+});
+
+it.each([
+  {
+    action: 'update',
+    message:
+      'An update is already running. Run `porcelain service update` again once it finishes.',
+  },
+  {
+    action: 'uninstall',
+    message:
+      'An update is already running. Run `porcelain service uninstall` again once it finishes.',
+  },
+] as const)(
+  'tells a CLI caller how to retry $action when another update is preparing',
+  async ({ action, message }) => {
+    const output: string[] = [];
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          yield* acquireDirectoryLock({
+            path: join(home, '.local/share/porcelain/service/updater.lock'),
+            waitMs: 0,
+            pollMs: 1,
+            staleTakeovers: 1,
+            clock: yield* Clock.Clock,
+            held: () => new ServiceUpdateRunningError(),
+          });
+          yield* Effect.promise(async () => {
+            await expect(command(action, false, output)).rejects.toThrow(
+              message,
+            );
+            expect(output).toEqual([]);
+          });
+        }),
+      ).pipe(Effect.provide(NodeServices.layer)),
+    );
+  },
+);

@@ -47,3 +47,5 @@ export type {
 export type { DesktopSession } from './desktop-session.ts';
 export type { LiveTickets } from './live-ticket.ts';
 export type { RedeemLiveTicketInput } from './redeem-live-ticket.ts';
+
+export type { ServiceUpdateAuthority } from './authorize-service-update.ts';

@@ -296,13 +296,23 @@ const service = Command.make('service').pipe(
   ]),
 );
 
-const help = Command.make('help', {}, (): Effect.Effect<void> =>
-  GlobalFlag.Help.run(true, {
-    command: porcelainCommand,
-    commandPath: ['porcelain'],
-    version: '0.0.0',
-    builtIns: GlobalFlag.BuiltIns,
-  }),
+export class CliVersion extends Context.Service<CliVersion, string>()(
+  '@porcelain/server/CliVersion',
+) {}
+
+const help = Command.make(
+  'help',
+  {},
+  (): Effect.Effect<void, never, CliVersion> =>
+    Effect.gen(function* () {
+      const version = yield* CliVersion;
+      yield* GlobalFlag.Help.run(true, {
+        command: porcelainCommand,
+        commandPath: ['porcelain'],
+        version,
+        builtIns: GlobalFlag.BuiltIns,
+      });
+    }),
 );
 
 export const porcelainCommand = rootConfiguration.pipe(

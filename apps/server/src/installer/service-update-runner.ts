@@ -1,4 +1,19 @@
-import { Cause, Effect, Exit, FileSystem, Path, Scope } from 'effect';
+import { ServiceUpdateRunningError } from '@porcelain/access/errors';
+import {
+  acquireDirectoryLock,
+  directoryLockIsHeld,
+} from '../runtime/directory-lock.ts';
+import type { Limits } from '../config/limits.ts';
+import {
+  Clock,
+  Cause,
+  Effect,
+  Exit,
+  FileSystem,
+  Path,
+  Scope,
+  Fiber,
+} from 'effect';
 import type { ServiceUpdateRunner } from '../ports/service-update-runner.ts';
 import { commandRunner, type CommandRunner } from './command-runner.ts';
 import { UpdateHandOffError } from './errors/update-hand-off-error.ts';
@@ -25,6 +40,7 @@ type ServiceUpdateRunnerOptions = {
   homeDirectory: string;
   packageRoot: string;
   searchPath: string;
+  locks: Limits['locks'];
   command: Parameters<typeof commandRunner>[0];
   nodeExecutable?: string | undefined;
   runner?: CommandRunner | undefined;
@@ -33,6 +49,7 @@ type ServiceUpdateRunnerOptions = {
 export const openServiceUpdateRunner = Effect.fn('openServiceUpdateRunner')(
   function* (options: ServiceUpdateRunnerOptions) {
     const fs = yield* FileSystem.FileSystem;
+    const clock = yield* Clock.Clock;
     const pathApi = yield* Path.Path;
     const paths = servicePaths(options.homeDirectory, pathApi);
     const runner = options.runner ?? (yield* commandRunner(options.command));
@@ -40,7 +57,12 @@ export const openServiceUpdateRunner = Effect.fn('openServiceUpdateRunner')(
     const scope = yield* Scope.make();
     let latest: { version: string | undefined; checkedAt: string } | undefined;
     let preparing = false;
+    let preparationFiber:
+      | Fiber.Fiber<void, Effect.Error<ReturnType<typeof prepareAndHandOff>>>
+      | undefined;
     let closing = false;
+    const stoppedBeforeHandOff =
+      'The server stopped before the update was handed off.';
     const provideFiles = <A, E>(
       effect: Effect.Effect<A, E, FileSystem.FileSystem | Path.Path>,
     ) =>
@@ -48,6 +70,15 @@ export const openServiceUpdateRunner = Effect.fn('openServiceUpdateRunner')(
         Effect.provideService(FileSystem.FileSystem, fs),
         Effect.provideService(Path.Path, pathApi),
       );
+    const claimPreparation = () =>
+      acquireDirectoryLock({
+        path: `${paths.updater}.lock`,
+        waitMs: 0,
+        pollMs: options.locks.pollMs,
+        staleTakeovers: options.locks.staleTakeovers,
+        clock,
+        held: () => new ServiceUpdateRunningError(),
+      });
     const runningVersion = () => readPackageVersion(options.packageRoot);
     const updaterActive = Effect.fn('ServiceUpdate.updaterActive')(
       function* () {
@@ -118,7 +149,11 @@ export const openServiceUpdateRunner = Effect.fn('openServiceUpdateRunner')(
             options.packageRoot ===
               pathApi.join(paths.runtime, 'node_modules', PACKAGE_NAME) &&
             (yield* exists(paths.installed));
-          const running = preparing || (managed && (yield* updaterActive()));
+          const running =
+            preparing ||
+            (managed &&
+              ((yield* directoryLockIsHeld(`${paths.updater}.lock`)) ||
+                (yield* updaterActive())));
           const published = managed
             ? yield* latestVersion(input, running)
             : undefined;
@@ -147,11 +182,37 @@ export const openServiceUpdateRunner = Effect.fn('openServiceUpdateRunner')(
               if (closing) return yield* Effect.interrupt;
               const from = yield* restore(runningVersion());
               if (closing) return yield* Effect.interrupt;
+              const preparationScope = yield* Scope.make();
+              yield* claimPreparation().pipe(
+                Effect.provideService(Scope.Scope, preparationScope),
+                Effect.onExit((exit) =>
+                  Exit.isFailure(exit)
+                    ? Scope.close(preparationScope, exit)
+                    : Effect.void,
+                ),
+              );
               const progress = { from: from ?? '', target: input.version };
-              yield* writeJsonFile(paths.updateRecord, {
-                ...progress,
-                stage: 'downloading',
-              });
+              yield* Effect.gen(function* () {
+                if (yield* updaterActive())
+                  return yield* Effect.fail(new ServiceUpdateRunningError());
+                if (closing) return yield* Effect.interrupt;
+                yield* writeJsonFile(paths.updateRecord, {
+                  ...progress,
+                  stage: 'downloading',
+                });
+                if (closing)
+                  return yield* writeJsonFile(paths.updateRecord, {
+                    ...progress,
+                    stage: 'failed',
+                    reason: stoppedBeforeHandOff,
+                  }).pipe(Effect.andThen(Effect.interrupt));
+              }).pipe(
+                Effect.onExit((exit) =>
+                  Exit.isFailure(exit)
+                    ? Scope.close(preparationScope, exit)
+                    : Effect.void,
+                ),
+              );
               preparing = true;
               const preparation = prepareAndHandOff(input.version).pipe(
                 Effect.onExit((exit) =>
@@ -161,7 +222,7 @@ export const openServiceUpdateRunner = Effect.fn('openServiceUpdateRunner')(
                         ...progress,
                         stage: 'failed',
                         reason: Cause.hasInterruptsOnly(exit.cause)
-                          ? 'The server stopped before the update was handed off.'
+                          ? stoppedBeforeHandOff
                           : failureDetail(Cause.squash(exit.cause)),
                       }).pipe(Effect.ignoreCause),
                 ),
@@ -170,15 +231,20 @@ export const openServiceUpdateRunner = Effect.fn('openServiceUpdateRunner')(
                     preparing = false;
                   }),
                 ),
+                Effect.ensuring(Scope.close(preparationScope, Exit.void)),
                 provideFiles,
               );
-              yield* Effect.forkIn(preparation, scope, {
+              preparationFiber = yield* Effect.forkIn(preparation, scope, {
                 startImmediately: true,
               });
             }),
           ),
         provideFiles,
-        Effect.orDie,
+        Effect.catch((error) =>
+          error instanceof ServiceUpdateRunningError
+            ? Effect.fail(error)
+            : Effect.die(error),
+        ),
       ),
       close: Effect.fn('ServiceUpdate.close')(() =>
         Effect.sync(() => {
@@ -188,8 +254,9 @@ export const openServiceUpdateRunner = Effect.fn('openServiceUpdateRunner')(
     } satisfies ServiceUpdateRunner;
     const awaitUpdate = Effect.fn('ServiceUpdate.awaitUpdate')(
       function* (pollMs: number) {
-        while (preparing || (yield* updaterActive()))
-          yield* Effect.sleep(pollMs);
+        if (preparationFiber !== undefined)
+          yield* Fiber.await(preparationFiber);
+        while (yield* updaterActive()) yield* Effect.sleep(pollMs);
         return presentedUpdate(
           yield* readUpdateRecord(paths.updateRecord),
           false,

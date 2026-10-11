@@ -15,7 +15,8 @@ import {
 } from './access-commands.ts';
 import { runLocalServer, type StartServer } from './launcher.ts';
 import { runMcpBridge } from './mcp-bridge.ts';
-import { cliPackageRoot, runServiceCommand } from './service.ts';
+import { runServiceCommand } from './service.ts';
+import { cliPackageRoot } from './package-version.ts';
 import { shareRemoteAccess } from './share-command.ts';
 import { reportStatus } from './status.ts';
 import type {
@@ -99,7 +100,7 @@ export class CliOperations extends Context.Service<
               host.prepareWebRoot === undefined
                 ? settings.webRoot
                 : yield* host.prepareWebRoot;
-            const packageRoot = cliPackageRoot();
+            const packageRoot = yield* cliPackageRoot().pipe(Effect.orDie);
             const version = yield* readPackageVersion(packageRoot).pipe(
               Effect.orDie,
             );
@@ -109,6 +110,7 @@ export class CliOperations extends Context.Service<
                 packageRoot,
                 searchPath,
                 command: limits.installer.command,
+                locks: limits.locks,
               }),
               (runner) => runner.close(),
             );

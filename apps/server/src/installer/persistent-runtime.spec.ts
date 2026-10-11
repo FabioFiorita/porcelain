@@ -136,6 +136,14 @@ describe('installing the persistent runtime', () => {
     expect(commands).toEqual(['npm']);
   });
 
+  it('refuses a runtime with no copy of effect and loads nothing from it', async () => {
+    modules = { '@parcel/watcher': workingWatcher };
+    await expect(install()).rejects.toThrow(
+      'The persistent runtime installed 0 copies of effect',
+    );
+    expect(commands).toEqual(['npm']);
+  });
+
   it('refuses a runtime holding two copies of effect, names both, and loads nothing from it', async () => {
     modules = {
       ...modules,

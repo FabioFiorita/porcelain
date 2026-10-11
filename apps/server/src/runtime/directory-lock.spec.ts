@@ -1,4 +1,4 @@
-import { Effect, Exit, Layer, Scope } from 'effect';
+import { Effect, Exit, Layer, Scope, Schema } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { testClock } from '@porcelain/kernel/test-kit';
 import { spawnSync } from 'node:child_process';
@@ -7,12 +7,14 @@ import {
   mkdirSync,
   mkdtempSync,
   rmSync,
+  readFileSync,
+  readdirSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { acquireDirectoryLock } from './directory-lock.ts';
+import { acquireDirectoryLock, directoryLockIsHeld } from './directory-lock.ts';
 
 class HeldError extends Error {}
 
@@ -106,4 +108,95 @@ describe('acquireDirectoryLock', () => {
     expect(existsSync(path)).toBe(true);
     await Effect.runPromise(second.release);
   });
+});
+
+const held = (path: string) =>
+  Effect.runPromise(
+    directoryLockIsHeld(path).pipe(Effect.provide(NodeServices.layer)),
+  );
+
+it('reads an absent lock without creating a directory or claiming ownership', async () => {
+  const path = lockPath();
+  expect(await held(path)).toBe(false);
+  expect(existsSync(path)).toBe(false);
+});
+
+it('reads live ownership concurrently without changing it and reports release', async () => {
+  const path = lockPath();
+  const lock = await takeLock(await options(path));
+  const before = readFileSync(join(path, 'owner.json'), 'utf8');
+  expect(await Promise.all([held(path), held(path), held(path)])).toEqual([
+    true,
+    true,
+    true,
+  ]);
+  expect(readFileSync(join(path, 'owner.json'), 'utf8')).toBe(before);
+  expect(readdirSync(path)).toEqual(['owner.json']);
+  await Effect.runPromise(lock.release);
+  expect(await held(path)).toBe(false);
+});
+
+it('reports an exited owner as inactive without deleting its stale lock', async () => {
+  const path = lockPath();
+  const exited = spawnSync(process.execPath, ['-e', '']).pid;
+  leaveLock(path, exited);
+  const before = readFileSync(join(path, 'owner.json'), 'utf8');
+  expect(await held(path)).toBe(false);
+  expect(readFileSync(join(path, 'owner.json'), 'utf8')).toBe(before);
+});
+
+it.each([
+  'missing',
+  '{broken',
+  '{}',
+  '{"pid":"wrong","token":"left"}',
+  '{"pid":1}',
+])(
+  'reports %s ownership as inactive without taking the lock',
+  async (record) => {
+    const path = lockPath();
+    mkdirSync(path);
+    if (record !== 'missing') writeFileSync(join(path, 'owner.json'), record);
+    expect(await held(path)).toBe(false);
+    expect(readdirSync(path)).toEqual(
+      record === 'missing' ? [] : ['owner.json'],
+    );
+    if (record !== 'missing')
+      expect(readFileSync(join(path, 'owner.json'), 'utf8')).toBe(record);
+  },
+);
+
+it.each(['bootId', 'startTime'] as const)(
+  'reclaims a lock when the live PID has a different %s',
+  async (field) => {
+    const path = lockPath();
+    await takeLock(await options(path));
+    const ownerPath = join(path, 'owner.json');
+    const owner = Schema.decodeUnknownSync(
+      Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)),
+    )(readFileSync(ownerPath, 'utf8'));
+    writeFileSync(
+      ownerPath,
+      JSON.stringify({ ...owner, [field]: 'a different process' }),
+    );
+    if (process.platform !== 'linux') {
+      expect(await held(path)).toBe(true);
+      await expect(takeLock(await options(path))).rejects.toThrow(HeldError);
+      return;
+    }
+    expect(await held(path)).toBe(false);
+    const replacement = await takeLock(await options(path));
+    expect(await held(path)).toBe(true);
+    await Effect.runPromise(replacement.release);
+    expect(existsSync(path)).toBe(false);
+  },
+);
+
+it('preserves a live lock written before process fingerprints were recorded', async () => {
+  const path = lockPath();
+  leaveLock(path, process.pid);
+  const before = readFileSync(join(path, 'owner.json'), 'utf8');
+  expect(await held(path)).toBe(true);
+  await expect(takeLock(await options(path))).rejects.toThrow(HeldError);
+  expect(readFileSync(join(path, 'owner.json'), 'utf8')).toBe(before);
 });

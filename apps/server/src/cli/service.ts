@@ -1,8 +1,9 @@
+import { ServiceUpdateRunningError } from '@porcelain/access/errors';
 import { DateTime, Effect, Layer, type Clock } from 'effect';
 import { ServiceCommandError } from './errors/service-command-error.ts';
 import type { Limits } from '../config/limits.ts';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
+import { cliPackageRoot } from './package-version.ts';
 import {
   isInstallerError,
   Installer,
@@ -24,10 +25,6 @@ type ServiceCommandDependencies = {
   limits: Limits;
   stdout: (message: string) => void;
 };
-
-export function cliPackageRoot(moduleUrl: string = import.meta.url): string {
-  return resolve(dirname(fileURLToPath(moduleUrl)), '../../..');
-}
 
 export function isServiceFailure(error: unknown): boolean {
   return isInstallerError(error) || error instanceof ServiceCommandError;
@@ -61,7 +58,8 @@ export const runServiceCommand = Effect.fn('runServiceCommand')(
     dependencies: ServiceCommandDependencies,
     moduleUrl: string = import.meta.url,
   ) {
-    const identity = yield* readPackageIdentity(cliPackageRoot(moduleUrl));
+    const packageRoot = yield* cliPackageRoot(moduleUrl);
+    const identity = yield* readPackageIdentity(packageRoot);
     const options = {
       homeDirectory: dependencies.homeDirectory,
       packageRoot: identity.packageRoot,
@@ -105,6 +103,7 @@ export const runServiceCommand = Effect.fn('runServiceCommand')(
             packageRoot: identity.packageRoot,
             searchPath: dependencies.searchPath,
             command: dependencies.limits.installer.command,
+            locks: dependencies.limits.locks,
           }),
           (runner) => runner.close(),
         );
@@ -113,7 +112,9 @@ export const runServiceCommand = Effect.fn('runServiceCommand')(
         );
         const latest = yield* updateToLatest(updates, {
           check: { now: observedAt, staleBefore: observedAt },
+          authority: { canUpdate: true },
           pollMs: dependencies.limits.installer.health.intervalMs,
+          allowDowngrade: settings.allowDowngrade,
           handingOff: (from, target) =>
             dependencies.stdout(
               `Updating the Porcelain service from ${from} to ${target}; waiting for the updater to finish.\n`,
@@ -171,7 +172,16 @@ export const runServiceCommand = Effect.fn('runServiceCommand')(
       ),
     );
   },
-  Effect.mapError((error) =>
-    isInstallerError(error) ? error : new ServiceCommandError(error.message),
-  ),
+  (effect, settings) =>
+    effect.pipe(
+      Effect.mapError((error) =>
+        error instanceof ServiceUpdateRunningError
+          ? new ServiceCommandError(
+              `An update is already running. Run \`porcelain service ${settings.action}\` again once it finishes.`,
+            )
+          : isInstallerError(error)
+            ? error
+            : new ServiceCommandError(error.message),
+      ),
+    ),
 );
