@@ -2,8 +2,8 @@ import { Schema } from 'effect';
 import { readHealthResponseSchema } from '@porcelain/contracts/access';
 import { appendFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { IsolatedServer } from '../../../../apps/server/spec/kit/isolated-server.ts';
-import { buildIsolatedServer } from '../../../../apps/server/spec/kit/sandbox.ts';
+import { IsolatedServer } from '@porcelain/server/kit/isolated-server';
+import { buildIsolatedServer } from '@porcelain/server/kit/sandbox';
 import { refuseMissing, sandboxProblems } from '../../verify-core/cli.ts';
 import { repositoryRoot } from '../../verify-core/registry.ts';
 import {

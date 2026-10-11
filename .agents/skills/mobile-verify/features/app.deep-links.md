@@ -7,9 +7,7 @@ selectors:
   - "Settings"
   - "Select a worktree to continue."
   - "No environments paired."
-tests:
-  - apps/mobile/spec/e2e/destinations.e2e.ts
-  - apps/mobile/spec/e2e/environment-states.e2e.ts
+tests: []
 api:
   - GET /api/environment
   - GET /api/session
@@ -19,7 +17,7 @@ api:
 
 ## What it is
 
-Expo Router opens each screen from the app's scheme, `porcelain.dev://` for the development identity: `porcelain.dev://` and `porcelain.dev://files` for Files, `porcelain.dev://review` for Review, `porcelain.dev://history` and `porcelain.dev://settings`, with the matching tab or sidebar row selected, whether the app is running or was cold-launched. The e2e tests reach view states this way instead of walking the app.
+Expo Router opens each screen from the app's scheme, `porcelain.dev://` for the development identity: `porcelain.dev://` and `porcelain.dev://files` for Files, `porcelain.dev://review` for Review, `porcelain.dev://history` and `porcelain.dev://settings`, with the matching tab or sidebar row selected, whether the app is running or was cold-launched. Use these links to reach view states during on-demand mobile verification.
 
 ## How a user reaches it
 
@@ -35,8 +33,7 @@ Expo Router opens each screen from the app's scheme, `porcelain.dev://` for the 
 
 ## What proves it works
 
-- `apps/mobile/spec/e2e/destinations.e2e.ts`: on a fresh install the links open Files, History, Settings and Review with the tab selected and each one's empty state, and History again straight after a cold launch.
-- `apps/mobile/spec/e2e/environment-states.e2e.ts`: a cold launch followed by the Settings link shows one environment online and the one whose server stopped offline.
+Drive this feature with the mobile-verify skill on demand.
 
 ## Gotchas
 

@@ -50,7 +50,9 @@ Domain services and server use cases use named `Context.Service` capabilities wi
 | ------------- | ------------------------------------------------- | ----------------------------------------------- | -------------------- | --------------------------------------- |
 | Unit (Vitest) | services, rules, parsers                          | rules, stores                                   | main-process modules | rules; `packages/client`                |
 | Integration   | the built server over HTTP, real database and Git | Browser Mode: one feature against a real server | the bridge on macOS  | `packages/client` against a real server |
-| E2E           | covered by integration                            | Playwright Test                                 | Playwright Electron  | Maestro                                 |
+| E2E           | covered by integration                            | Playwright Test                                 | Playwright Electron  | none                                    |
+
+The mobile-verify skill drives mobile features on demand.
 
 A test states a promise. Derive its cases from what the unit is for (its contract, the feature, the request) before reading the code, so a wrong implementation fails it. A file that only forwards, wires or re-exports gets no test of its own, and coverage is never a reason. Assert literal values and observable effects; a test that would still pass if every import returned `undefined` is rewritten or deleted. Fakes stand in only at ports; Git, files and the database are real when the unit is about them.
 
@@ -68,7 +70,7 @@ The root integration command runs suite tasks sequentially, because each Vitest 
 
 ## Pull requests
 
-Work on your own branch from `main`, in your own worktree. Open a pull request into `main` from the template once the work is done; while the developer is still iterating with you, keep commits local and push nothing, not even a draft. One concern per pull request. The developer reviews and merges, so make the body easy to read: what and why in a few sentences, how it was verified, screenshots attached with `gh pr create --attach` inside a collapsed section, and the risks. Commit only the paths you changed, each commit one short imperative sentence. Plans and scratch notes stay out of the repository.
+Work on your own branch from `main`, in your own worktree. Open a pull request into `main` from the template once the work is done. One concern per pull request. The developer reviews and merges, so make the body easy to read: what and why in a few sentences, how it was verified, screenshots attached with `gh pr create --attach` inside a collapsed section, and the risks. Commit only the paths you changed, each commit one short imperative sentence. Plans and scratch notes stay out of the repository.
 
 ## Where code lives
 

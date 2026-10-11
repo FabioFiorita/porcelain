@@ -2,7 +2,7 @@ import { Schema } from 'effect';
 import { pairingLink } from '@porcelain/contracts/access';
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
-import { ServerHandle } from '../../../../apps/server/spec/kit/isolated-server.ts';
+import { ServerHandle } from '@porcelain/server/kit/isolated-server';
 import {
   optionalDrivers,
   runCli,

@@ -1,6 +1,5 @@
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
-import { setTimeout as delay } from 'node:timers/promises';
 import { liveNoticeSchema } from '@porcelain/contracts/access';
 import { expect } from 'vitest';
 import { apiError, unauthenticated, upgradeHeaders } from '../kit/answers.ts';
@@ -307,7 +306,6 @@ test('watching never opens a reflog, so a commit whose reflog is a named pipe en
   const connection = await watching(session);
   await session.remove(HEAD_REFLOG);
   await session.fifo(HEAD_REFLOG);
-  await delay(300);
   const path = 'piped.md';
   await session.writeFile(path, 'Piped\n');
   const requestId = randomUUID();

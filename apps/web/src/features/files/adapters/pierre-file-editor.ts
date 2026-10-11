@@ -5,8 +5,6 @@ import {
   type EditorOptions,
 } from '@pierre/diffs/edit';
 import { useEffect, useLayoutEffect, useRef } from 'react';
-import { useHotkey } from '@tanstack/react-hotkeys';
-import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import type { FileDraftHandle } from '@porcelain/client/files';
 import { editorFile, clearEditorFile } from '../store';
 
@@ -21,7 +19,6 @@ export function usePierreFileEditor(
   path: string,
   initialText: string,
   draft: FileDraftHandle,
-  active: boolean,
   onUnsaved: (path: string) => void,
 ) {
   const session = editorFile(draft, owner, path, initialText);
@@ -38,10 +35,6 @@ export function usePierreFileEditor(
       if (!draft.state.value.error) void Effect.runPromise(draft.save());
     },
   };
-  useHotkey(SHORTCUTS.saveFile, () => void Effect.runPromise(draft.save()), {
-    enabled: active,
-    ignoreInputs: false,
-  });
   useEffect(() => {
     draft.attachEditor(owner);
     return () => {

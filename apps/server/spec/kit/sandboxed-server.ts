@@ -1,4 +1,14 @@
-import { Duration, Effect, Layer, ManagedRuntime, Schema, Scope } from 'effect';
+import { OffsetClock } from './offset-clock.ts';
+import { createInterface } from 'node:readline';
+import {
+  Clock,
+  Duration,
+  Effect,
+  Layer,
+  ManagedRuntime,
+  Schema,
+  Scope,
+} from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { ownerClient, ownerRequest } from '../../src/cli/owner-client.ts';
 import { execFile } from 'node:child_process';
@@ -52,8 +62,25 @@ if (!installation) throw new Error('Missing development installation folder');
 const codingToolExecutable = process.env.PORCELAIN_DEV_CODING_TOOL;
 if (!codingToolExecutable)
   throw new Error('Missing development coding tool location');
+const clock =
+  process.env.PORCELAIN_TEST_CLOCK === '1'
+    ? new OffsetClock(Effect.runSync(Clock.Clock))
+    : undefined;
+const control = clock ? createInterface({ input: process.stdin }) : undefined;
+if (clock && control)
+  control.on('line', (line) => {
+    const command = Schema.decodeUnknownSync(
+      Schema.Struct({ advanceTime: Schema.Number, id: Schema.String }),
+    )(JSON.parse(line));
+    clock.advance(command.advanceTime);
+    process.stdout.write(`${JSON.stringify({ advancedTime: command.id })}\n`);
+  });
 const runtime = ManagedRuntime.make(
-  Layer.merge(NodeServices.layer, Layer.effect(Scope.Scope, Effect.scope)),
+  Layer.mergeAll(
+    NodeServices.layer,
+    Layer.effect(Scope.Scope, Effect.scope),
+    clock ? Layer.succeed(Clock.Clock, clock) : Layer.empty,
+  ),
 );
 let server: Runtime | undefined;
 const listeningPort = () =>
@@ -587,6 +614,7 @@ try {
     try {
       await runtime.dispose();
     } finally {
+      control?.close();
       process.stdin.destroy();
       process.off('SIGINT', stop);
       process.off('SIGTERM', stop);

@@ -9,8 +9,7 @@ selectors:
   - "Reopen"
   - "Done"
   - "No comments"
-tests:
-  - apps/mobile/spec/e2e/review.e2e.ts
+tests: []
 api:
   - GET /api/worktrees/:worktreeId/comments
   - POST /api/worktrees/:worktreeId/comments

@@ -8,7 +8,7 @@ import {
 } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { Recorder } from '../../../apps/server/spec/kit/isolated-server.ts';
+import { Recorder } from '@porcelain/server/kit/isolated-server';
 
 const linkCode = /([#&?]c=)[^&\s"'`]+/g;
 const bearer = /(Bearer\s+)[^\s"'`]+/gi;

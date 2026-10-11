@@ -3,8 +3,8 @@ import { createServer } from 'node:net';
 import {
   hostFileName,
   type RemoteHost,
-} from '../../../../apps/mobile/spec/kit/device-host.ts';
-import { agentDeviceVersion } from '../../../../apps/mobile/spec/kit/tools.ts';
+} from '@porcelain/mobile/kit/device-host';
+import { agentDeviceVersion } from '@porcelain/mobile/kit/tools';
 import { sandboxProblems } from '../../verify-core/cli.ts';
 const hubLimitMs = 5000;
 const healthSchema = Schema.Struct({

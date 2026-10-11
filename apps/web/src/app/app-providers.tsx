@@ -1,3 +1,4 @@
+import { HotkeysProvider } from '@tanstack/react-hotkeys';
 import { RegistryContext } from '@effect/atom-react';
 import type { AtomRegistry } from 'effect/reactivity';
 import { StrictMode, type ReactNode } from 'react';
@@ -18,11 +19,19 @@ export function AppProviders({
   return (
     <StrictMode>
       <RegistryContext.Provider value={registry}>
-        <TooltipProvider>
-          <WorkspaceProvider>
-            <Toaster>{children}</Toaster>
-          </WorkspaceProvider>
-        </TooltipProvider>
+        <HotkeysProvider
+          defaultOptions={{
+            hotkey: {
+              conflictBehavior: import.meta.env.DEV ? 'error' : 'warn',
+            },
+          }}
+        >
+          <TooltipProvider>
+            <WorkspaceProvider>
+              <Toaster>{children}</Toaster>
+            </WorkspaceProvider>
+          </TooltipProvider>
+        </HotkeysProvider>
       </RegistryContext.Provider>
     </StrictMode>
   );

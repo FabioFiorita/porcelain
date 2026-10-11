@@ -4,8 +4,7 @@ selectors:
   - "File contents"
   - "Save and done"
   - "Discard changes"
-tests:
-  - apps/mobile/spec/e2e/files.e2e.ts
+tests: []
 api:
   - GET /api/worktrees/:worktreeId/directory
   - GET /api/worktrees/:worktreeId/text

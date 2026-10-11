@@ -19,12 +19,14 @@ import { gitWorktreeListingReaderLayer } from './git-worktree-listing-reader.ts'
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 
 let root: string;
+const writers: number[] = [];
 
 beforeEach(() => {
   root = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-listing-')));
 });
 
 afterEach(() => {
+  for (const writer of writers.splice(0)) closeSync(writer);
   rmSync(root, { recursive: true, force: true });
 });
 
@@ -46,9 +48,11 @@ function repositoryWhoseHeadPipeHoldsGit() {
   return { project, head };
 }
 
-function pipeHasReader(pipe: string): boolean {
+function pipeHasReader(pipe: string, hold = false): boolean {
   try {
-    closeSync(openSync(pipe, constants.O_WRONLY | constants.O_NONBLOCK));
+    const writer = openSync(pipe, constants.O_WRONLY | constants.O_NONBLOCK);
+    if (hold) writers.push(writer);
+    else closeSync(writer);
     return true;
   } catch {
     return false;
@@ -157,7 +161,9 @@ describe('gitWorktreeListingReaderLayer', () => {
     const exit = await Effect.runPromise(
       Effect.gen(function* () {
         const request = yield* Effect.forkChild(list);
-        yield* Effect.sleep(Duration.millis(300));
+        yield* Effect.promise(() =>
+          expect.poll(() => pipeHasReader(head, true)).toBe(true),
+        );
         yield* Fiber.interrupt(request);
         return yield* Fiber.await(request);
       }),

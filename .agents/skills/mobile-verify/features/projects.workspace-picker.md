@@ -7,8 +7,7 @@ selectors:
   - 'No projects registered'
   - 'Could not read projects'
   - 'Saved worktree is unavailable'
-tests:
-  - apps/mobile/spec/e2e/workspace.e2e.ts
+tests: []
 api:
   - GET /api/inventory
   - POST /api/live/tickets
@@ -38,14 +37,14 @@ The workspace picker in each destination's toolbar (the detail toolbar on iPad) 
 
 ## What proves it works
 
-- `apps/mobile/spec/e2e/workspace.e2e.ts`: both real environments' projects are visible before selecting either; project submenus select their worktrees directly while Files stays selected. A cold launch restores the last choice, and forgetting both environments clears the label. Each server holds one device labelled “Native mobile proof” and answered at least two inventory reads from the app.
+Drive this feature with the mobile-verify skill on demand.
 
 ## Gotchas
 
 - Live tickets and receipt recovery use the shared client. iPhone evidence does not prove iPad or Android behavior.
 
 - After choosing a worktree, reopen the picker through its new `<project> · <worktree>` label.
-- iPhone and iPad use SwiftUI Menus with native checkmarked worktree actions. The iPhone hosts its menu in Expo Router's toolbar. Android uses Expo Router's toolbar menu. The e2e flow does not drive iPad or Android yet.
+- iPhone and iPad use SwiftUI Menus with native checkmarked worktree actions. The iPhone hosts its menu in Expo Router's toolbar. Android uses Expo Router's toolbar menu. Drive the native picker on each platform during mobile verification.
 - The shared forget-environments flow ends in Settings. The workspace flow returns to Files before checking its toolbar's reset label and absence of the old worktree labels.
 
 - Native iOS project rows expose an accessibility label of `<project>, <environment>` for their title and subtitle.

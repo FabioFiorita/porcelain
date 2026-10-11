@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { Writable } from 'node:stream';
 import {
   Context,
   Effect,
@@ -1131,8 +1133,12 @@ export class IsolatedServer extends ServerHandle {
       ],
       {
         cwd: repositoryRoot,
-        env: sample ? { ...env, PORCELAIN_DEV_SAMPLE: sample } : env,
-        stdio: ['ignore', 'pipe', 'pipe'],
+        env: {
+          ...env,
+          PORCELAIN_TEST_CLOCK: '1',
+          ...(sample ? { PORCELAIN_DEV_SAMPLE: sample } : {}),
+        },
+        stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
       },
     );
     const output = { stdout: '', stderr: '' };
@@ -1166,19 +1172,59 @@ export class IsolatedServer extends ServerHandle {
     return { ...this.output };
   }
 
+  async advanceTime(milliseconds: number): Promise<void> {
+    const id = randomUUID();
+    const output = this.child.stdout;
+    const control = this.child.stdio[3];
+    if (!output || !(control instanceof Writable))
+      throw new Error('The isolated clock control is unavailable');
+    await new Promise<void>((resolveAdvance, rejectAdvance) => {
+      let pending = '';
+      const cleanup = () => {
+        output.off('data', read);
+        this.child.off('close', closed);
+      };
+      const closed = () => {
+        cleanup();
+        rejectAdvance(
+          new Error('The server exited before advancing its clock'),
+        );
+      };
+      const read = (chunk: Buffer) => {
+        pending += chunk.toString();
+        let end: number;
+        while ((end = pending.indexOf('\n')) !== -1) {
+          const line = pending.slice(0, end);
+          pending = pending.slice(end + 1);
+          if (line === JSON.stringify({ advancedTime: id })) {
+            cleanup();
+            resolveAdvance();
+          }
+        }
+      };
+      output.on('data', read);
+      this.child.once('close', closed);
+      control.write(`${JSON.stringify({ advanceTime: milliseconds, id })}\n`);
+    });
+  }
+
   async stop(): Promise<string | undefined> {
     this.child.kill('SIGTERM');
     let timer: NodeJS.Timeout | undefined;
+    const timeoutMessage = 'Isolated server did not stop within 10 seconds';
     const closed = await Promise.race([
       this.exited.then(() => true),
-      new Promise<false>((resolveTimeout) => {
-        timer = setTimeout(() => resolveTimeout(false), STOP_TIMEOUT_MS);
-      }),
+      new Promise<never>((_resolveTimeout, rejectTimeout) => {
+        timer = setTimeout(
+          () => rejectTimeout(new Error(timeoutMessage)),
+          STOP_TIMEOUT_MS,
+        );
+      }).catch(() => false),
     ]);
     if (timer) clearTimeout(timer);
     if (closed) return undefined;
     this.child.kill('SIGKILL');
     await this.exited;
-    return 'Isolated server did not stop within 10 seconds';
+    return timeoutMessage;
   }
 }

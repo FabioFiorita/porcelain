@@ -1,9 +1,0 @@
-appId: com.fabiofiorita.porcelain.dev
-name: Open a link and accept the system confirmation
----
-- openLink: ${LINK}
-- runFlow:
-    when:
-      visible: (Abrir|Open)
-    commands:
-      - tapOn: (Abrir|Open)

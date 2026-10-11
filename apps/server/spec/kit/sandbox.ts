@@ -10,7 +10,7 @@ import {
   statSync,
 } from 'node:fs';
 import { chmod, cp, mkdir, mkdtemp, rm, symlink } from 'node:fs/promises';
-import { connect, createServer, type Server } from 'node:net';
+import { connect, createServer, Socket, type Server } from 'node:net';
 import { tmpdir, userInfo } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -458,6 +458,9 @@ async function main() {
           HOME: root,
           TMPDIR: root,
           PORCELAIN_DEV_ROOT: root,
+          ...(process.env.PORCELAIN_TEST_CLOCK === '1'
+            ? { PORCELAIN_TEST_CLOCK: '1' }
+            : {}),
           PORCELAIN_DEV_BIN: bin,
           PORCELAIN_DEV_INSTALLATION: dirname(installation.serverAt),
           PORCELAIN_DEV_CODING_TOOL: codingToolExecutable,
@@ -470,6 +473,12 @@ async function main() {
         },
       },
     );
+    const clockControl =
+      process.env.PORCELAIN_TEST_CLOCK === '1'
+        ? new Socket({ fd: 3, readable: true, writable: false })
+        : undefined;
+    clockControl?.pipe(child.stdin, { end: false });
+    child.once('close', () => clockControl?.destroy());
     child.stdout.pipe(process.stdout);
     child.stderr.pipe(process.stderr);
     stopChild = () => {

@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { setTimeout as delay } from 'node:timers/promises';
 import { expect } from 'vitest';
 import { invalidRequest, literally } from '../kit/answers.ts';
 import {
@@ -83,6 +82,7 @@ test('a summary link with a wrong signature or a tampered expiry is not found wi
 
 test('a summary link served before it expired is not found with an empty body once it has expired', async ({
   session,
+  server,
 }) => {
   const url = await summaryUrl(session);
   const link = {
@@ -91,7 +91,7 @@ test('a summary link served before it expired is not found with an empty body on
     auth: 'none' as const,
   };
   await session.read(link);
-  await delay(session.fixture.summaryLinkLifetimeMs + 100);
+  await server.advanceTime(session.fixture.summaryLinkLifetimeMs + 100);
 
   const response = await session.send(link);
 

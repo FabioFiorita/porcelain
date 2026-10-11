@@ -1,3 +1,5 @@
+import { getHotkeyManager } from '@tanstack/react-hotkeys';
+import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { AtomRegistry } from 'effect/reactivity';
 import { Suspense, useRef, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -220,6 +222,38 @@ export const test = base
       return watched;
     },
   )
+  .extend('tabShortcuts', () => {
+    const manager = getHotkeyManager();
+    const keys = [
+      SHORTCUTS.nextTab,
+      SHORTCUTS.previousTab,
+      SHORTCUTS.closeTab,
+      SHORTCUTS.openToSide,
+    ];
+    return {
+      registered: (selected: readonly string[] = keys) =>
+        [...manager.registrations.state.values()]
+          .filter((entry) => selected.some((key) => key === entry.hotkey))
+          .map((entry) => [entry.hotkey, entry.options.conflictBehavior])
+          .toSorted((left, right) =>
+            String(left[0]) < String(right[0])
+              ? -1
+              : String(left[0]) > String(right[0])
+                ? 1
+                : 0,
+          ),
+      async registerDuplicate() {
+        const close = [...manager.registrations.state.values()].find(
+          (entry) => entry.hotkey === SHORTCUTS.closeTab,
+        );
+        if (!close)
+          throw new Error('The workspace did not register its close shortcut');
+        manager
+          .register(SHORTCUTS.closeTab, () => {}, close.options)
+          .unregister();
+      },
+    };
+  })
   .extend('server', ({ world: _world }) => readersOf('this'))
   .extend('repo', async ({ world: _world }) =>
     sampleRepository(

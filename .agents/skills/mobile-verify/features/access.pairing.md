@@ -10,8 +10,7 @@ selectors:
   - "Cancel"
   - "cancel-pairing"
   - "Online"
-tests:
-  - apps/mobile/spec/e2e/pairing.e2e.ts
+tests: []
 api:
   - POST /api/pair
   - GET /api/environment
@@ -41,11 +40,10 @@ The sheet opens at half height and can expand to full height. Its React Native c
 
 ## What proves it works
 
-- `apps/mobile/spec/e2e/pairing.e2e.ts` (iPhone and iPad): an invalid link is refused, two real environments pair through their links, both are restored after a cold launch, and each server then holds exactly one device labelled “Native mobile proof” whose platform is `iOS` on iPhone and `iPadOS` on iPad, one `POST /api/pair` and at least three authenticated `GET /api/environment` reads from the app.
+Drive this feature with the mobile-verify skill on demand.
 
 ## Gotchas
 
-- Wait for the sheet's keyboard animation to settle before tapping Pair; wait for it explicitly; the flows use `waitForAnimationToEnd`. Maestro's iOS `hideKeyboard` dismissed this sheet, so the flows never use it.
 - A link works once, for a few minutes; the card's pairing command issues a fresh one.
 - The invalid-link message comes from the shared client, so the map names the sheet title instead.
 - Use the button test ids when driving pairing: XCTest snapshots can also label a button's enclosing native host, making a label-only selector ambiguous.

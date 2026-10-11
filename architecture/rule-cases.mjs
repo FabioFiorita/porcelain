@@ -114,7 +114,107 @@ const observedStoreState = `describe('MarkCommentsSeenService', () => {
 
 export default [
   ...effectRuleCases,
-
+  {
+    rule: 'spec-no-clock',
+    path: 'apps/server/src/rules/sample.spec.ts',
+    valid: "expect(new Date('2026-01-01').getUTCFullYear()).toBe(2026);",
+    invalid: "new Date(); performance['now'](); globalThis.Date['now']();",
+    errors: 3,
+  },
+  {
+    rule: 'server-spec-no-waits',
+    path: 'apps/server/spec/kit/sample.ts',
+    valid:
+      'new Promise((resolve, reject) => setTimeout(() => reject(new Error("deadline")), 10));',
+    invalid: 'await new Promise((r) => setTimeout(r, 10));',
+    errors: 1,
+  },
+  {
+    rule: 'server-spec-no-waits',
+    path: 'apps/server/spec/kit/sample.ts',
+    valid:
+      'new Promise((resolve, reject) => setTimeout(() => reject(new Error("deadline")), 10)); new Promise(r => setTimeout(() => notify(), 10));',
+    invalid:
+      'new Promise((r) => setTimeout(() => r(undefined), 10)); new Promise((resolve) => setTimeout(() => { resolve(); }, 10)); new Promise((resolve) => setTimeout(function () { return resolve(); }, 10));',
+    errors: 3,
+  },
+  {
+    rule: 'spec-no-mocking',
+    path: 'packages/client/src/rules/sample.spec.ts',
+    valid:
+      'Reflect.defineProperty(local, "value", { value: 1 }); Object.assign(local, { value: 1 }); Object.assign({}, window);',
+    invalid:
+      'Reflect.defineProperty(console, "warn", { value: () => {} }); Reflect["defineProperty"](globalThis, "fetch", { value: () => {} }); Object.assign(window, { fetch: () => {} }); Object["assign"](console, { warn: () => {} });',
+    errors: 4,
+  },
+  {
+    rule: 'web-browser-spec-no-mocks',
+    path: 'apps/web/spec/integration/sample.test.tsx',
+    valid:
+      'Reflect.defineProperty(local, "value", { value: 1 }); Object.assign(local, { value: 1 }); Object.assign({}, window);',
+    invalid:
+      'Reflect.defineProperty(console, "warn", { value: () => {} }); Reflect["defineProperty"](globalThis, "fetch", { value: () => {} }); Object.assign(window, { fetch: () => {} }); Object["assign"](console, { warn: () => {} });',
+    errors: 4,
+  },
+  {
+    rule: 'spec-no-mocking',
+    path: 'packages/client/src/rules/sample.spec.ts',
+    valid: 'Object.defineProperty(local, "value", { value: 1 });',
+    invalid:
+      'Object.defineProperty(console, "warn", { value: () => {} }); Object.defineProperty(globalThis, "fetch", { value: () => {} }); Object.defineProperty(window, "fetch", { value: () => {} });',
+    errors: 3,
+  },
+  {
+    rule: 'web-browser-spec-no-mocks',
+    path: 'apps/web/spec/integration/sample.test.tsx',
+    valid: 'Object.defineProperty(local, "value", { value: 1 });',
+    invalid: 'Object.defineProperty(window, "fetch", { value: () => {} });',
+    errors: 1,
+  },
+  {
+    rule: 'spec-no-clock',
+    path: 'packages/client/src/features/files/rules/sample.spec.ts',
+    valid: 'expect(parse(input)).toEqual([]);',
+    invalid:
+      'const start = performance.now(); expect(Date.now()).toBeLessThan(1000);',
+    errors: 2,
+  },
+  {
+    rule: 'server-spec-no-waits',
+    path: 'apps/server/spec/integration/sample.integration.ts',
+    valid: 'await connection.next(notice => notice.type === "subscribed");',
+    invalid: 'await delay(600);',
+    errors: 1,
+  },
+  {
+    rule: 'server-spec-no-waits',
+    path: 'apps/server/src/adapters/sample.spec.ts',
+    valid: 'await expect.poll(() => pipeHasReader(head)).toBe(true);',
+    invalid: 'await Effect.sleep(300);',
+    errors: 1,
+  },
+  {
+    rule: 'server-spec-no-waits',
+    path: 'apps/server/spec/kit/sample.ts',
+    valid: 'await once(child, "exit");',
+    invalid:
+      'import { setTimeout as pause } from "node:timers/promises"; await pause(100);',
+    errors: 1,
+  },
+  {
+    rule: 'spec-no-mocking',
+    path: 'packages/client/src/features/files/rules/sample.spec.ts',
+    valid: 'console.warn("observed");',
+    invalid: 'console.warn = () => {}; window.fetch = () => {};',
+    errors: 2,
+  },
+  {
+    rule: 'web-browser-spec-no-mocks',
+    path: 'apps/web/spec/integration/sample.test.tsx',
+    valid: 'console.warn("observed");',
+    invalid: 'console.warn = () => {}; window.fetch = () => {};',
+    errors: 2,
+  },
   {
     rule: 'web-api-owns-request',
     path: 'apps/web/src/features/reviews/live.ts',
@@ -2830,6 +2930,28 @@ function featureMapCase(rule, invalid, errors, options = {}) {
   };
 }
 const featureMapCases = [
+  featureMapCase(
+    'mobile-on-demand',
+    {
+      [`${featureFolders.web}/app.fixture.md`]: featureMap('route: /').replace(
+        'tests: [spec/feature.test.ts]',
+        'tests: []',
+      ),
+    },
+    [
+      'its frontmatter holds',
+      'the web feature map is empty',
+      'which no web map file names',
+    ],
+    {
+      valid: {
+        [`${featureFolders.mobile}/app.fixture.md`]: featureMap(
+          'screen: /',
+        ).replace('tests: [spec/feature.test.ts]', 'tests: []'),
+      },
+    },
+  ),
+
   ...[
     ['missing', 'Instructions without frontmatter.'],
     ['yaml', '---\nroute: [\n---\nInstructions.'],
@@ -3314,5 +3436,151 @@ Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => unde
     second: 'apps/web/src/copy-again.ts',
     valid: 'export const label = "Unique";',
     invalid: duplicateFixtureSource,
+  },
+];
+
+export const workspaceBoundaryCases = [
+  {
+    rule: 'workspace-relative-imports-stay-owned',
+    valid: {
+      'apps/server/spec/kit/read.ts':
+        "import { value } from './value.ts'; export const result = value;",
+      'apps/server/spec/kit/value.ts': 'export const value = 1;',
+    },
+    invalid: {
+      'apps/server/spec/kit/read.ts':
+        "import { value } from '../../../mobile/spec/kit/value.ts'; export const result = value;",
+      'apps/mobile/spec/kit/value.ts': 'export const value = 1;',
+    },
+  },
+];
+
+export const specGapCases = [
+  {
+    source: 'export function decide() {}',
+    spec: "import { decide } from './sample.ts'; decide();",
+    gaps: [],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import { decide } from './sample.ts'; [1].map(decide);",
+    gaps: [],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import { decide as choice } from './sample.ts'; pipe(1, choice);",
+    gaps: [],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import * as rules from './sample.ts'; [1].map(rules.decide);",
+    gaps: [],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import * as rules from './sample.ts'; pipe(1, rules['decide']);",
+    gaps: [],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import { decide } from './sample.ts';",
+    gaps: ['decide'],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: 'function decide() {} decide();',
+    gaps: ['decide'],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import { decide } from './sample.ts'; type T = typeof decide;",
+    gaps: ['decide'],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import type { decide } from './sample.ts';",
+    gaps: ['decide'],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import { decide } from './sample.ts'; const other = { decide: 1 };",
+    gaps: ['decide'],
+  },
+  {
+    source: 'export default function decide() {}',
+    spec: "import choice from './sample.ts'; expect(choice).toBeDefined();",
+    gaps: [],
+  },
+  {
+    source: 'export const limit = 5;',
+    spec: "import { limit } from './sample.ts'; expect(limit).toBe(5);",
+    gaps: [],
+  },
+  {
+    source: 'export const decide = () => 1;',
+    spec: undefined,
+    gaps: ['decide'],
+  },
+  { source: 'export type Decision = string;', spec: undefined, gaps: [] },
+  {
+    source: "export { decide } from './decision.ts';",
+    spec: undefined,
+    gaps: [],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import { choose } from '@porcelain/client/rules'; [1].map(choose);",
+    files: {
+      'packages/client/package.json':
+        '{"exports":{"./rules":"./src/rules/index.ts"}}',
+      'packages/client/src/rules/index.ts':
+        "export { decide as choose } from '../features/files/rules/sample.ts';",
+    },
+    gaps: [],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import * as rules from '@porcelain/client/rules'; pipe(1, rules.decide);",
+    files: {
+      'packages/client/package.json':
+        '{"exports":{"./rules":"./src/rules/index.ts"}}',
+      'packages/client/src/rules/index.ts':
+        "export * from '../features/files/rules/sample.ts';",
+    },
+    gaps: [],
+  },
+  {
+    source: 'export function decide() {}',
+    spec: "import { decide } from '@porcelain/client/rules'; decide();",
+    files: {
+      'packages/client/package.json':
+        '{"exports":{"./rules":"./src/rules/index.ts"}}',
+      'packages/client/src/rules/index.ts':
+        "export { decide } from './different.ts';",
+    },
+    gaps: ['decide'],
+  },
+];
+
+export const specGapRatchetCases = [
+  { current: [], baseline: [], allowed: ['old'], errors: [] },
+  { current: ['old'], baseline: ['old'], allowed: ['old'], errors: [] },
+  {
+    current: ['new'],
+    baseline: [],
+    allowed: [],
+    errors: ['Unspecified rule export: new'],
+  },
+  {
+    current: [],
+    baseline: ['old'],
+    allowed: ['old'],
+    errors: ['Remove resolved baseline entry: old'],
+  },
+  {
+    current: ['new'],
+    baseline: ['new'],
+    allowed: ['old'],
+    errors: ['The spec-gap baseline may only shrink: new'],
   },
 ];

@@ -1,3 +1,4 @@
+import { replacesGlobal } from './spec-globals.mjs';
 import { existsSync, readFileSync } from 'node:fs';
 import { builtinModules } from 'node:module';
 import { posix } from 'node:path';
@@ -2112,10 +2113,135 @@ export default {
         };
       },
     },
+    'spec-no-clock': {
+      create(context) {
+        if (!/\.spec\.ts$/.test(context.filename)) return {};
+        const message =
+          'Unit specs assert deterministic results; time bounds belong to the perf project, because wall clocks measure host contention as well as code.';
+        return {
+          NewExpression(node) {
+            if (
+              node.arguments.length === 0 &&
+              ['Date', 'globalThis.Date'].includes(
+                memberPath(node.callee)?.join('.'),
+              )
+            )
+              context.report({ node, message });
+          },
+          MemberExpression(node) {
+            const owner = memberPath(node.object)?.join('.');
+            const path = `${owner}.${memberName(node)}`;
+            if (
+              path === 'performance.now' ||
+              path === 'Date.now' ||
+              path === 'globalThis.performance.now' ||
+              path === 'globalThis.Date.now'
+            )
+              context.report({ node, message });
+          },
+        };
+      },
+    },
+    'server-spec-no-waits': {
+      create(context) {
+        if (
+          !/(?:^|\/)(?:apps\/server\/spec\/(?:integration|kit)\/|apps\/server\/.*\.spec\.ts$|\.agents\/skills\/spec\/)/.test(
+            context.filename,
+          )
+        )
+          return {};
+        const message =
+          'Server specs and kits wait for an observable event or state, because fixed sleeps race machines with different speeds.';
+        const delays = new Set(['delay', 'sleep', 'waitForTimeout']);
+        function callsResolver(node, name) {
+          if (!node || typeof node !== 'object') return false;
+          if (
+            node.type === 'CallExpression' &&
+            node.callee.type === 'Identifier' &&
+            node.callee.name === name
+          )
+            return true;
+          return Object.entries(node).some(
+            ([field, value]) =>
+              field !== 'parent' &&
+              (Array.isArray(value)
+                ? value.some((child) => callsResolver(child, name))
+                : callsResolver(value, name)),
+          );
+        }
+        return {
+          ImportDeclaration(node) {
+            if (
+              ['node:timers/promises', 'timers/promises'].includes(
+                node.source.value,
+              )
+            )
+              for (const specifier of node.specifiers)
+                if (specifier.imported?.name === 'setTimeout')
+                  delays.add(specifier.local.name);
+          },
+          CallExpression(node) {
+            const name =
+              node.callee.type === 'Identifier'
+                ? node.callee.name
+                : node.callee.type === 'MemberExpression'
+                  ? memberName(node.callee)
+                  : undefined;
+            if (delays.has(name)) context.report({ node, message });
+            if (name !== 'setTimeout') return;
+            let executor = node.parent;
+            while (
+              executor &&
+              ![
+                'ArrowFunctionExpression',
+                'FunctionExpression',
+                'FunctionDeclaration',
+              ].includes(executor.type)
+            )
+              executor = executor.parent;
+            const promise = executor?.parent;
+            if (
+              promise?.type === 'NewExpression' &&
+              promise.callee.type === 'Identifier' &&
+              promise.callee.name === 'Promise' &&
+              executor.params[0]?.type === 'Identifier'
+            ) {
+              const resolver = executor.params[0].name;
+              const callback = node.arguments[0];
+              if (
+                (callback?.type === 'Identifier' &&
+                  callback.name === resolver) ||
+                (['ArrowFunctionExpression', 'FunctionExpression'].includes(
+                  callback?.type,
+                ) &&
+                  callsResolver(callback.body, resolver))
+              )
+                context.report({ node, message });
+            }
+          },
+        };
+      },
+    },
     'spec-no-mocking': {
       create(context) {
         if (!isSpec(context)) return {};
         return {
+          AssignmentExpression(node) {
+            if (replacesGlobal(node))
+              context.report({
+                node,
+                message:
+                  'Specs observe globals without replacing them, because hand-written spies can pass without proving product behaviour.',
+              });
+          },
+          CallExpression(node) {
+            if (replacesGlobal(node))
+              context.report({
+                node,
+                message:
+                  'Specs observe globals without replacing them, because hand-written spies can pass without proving product behaviour.',
+              });
+          },
           ImportExpression(node) {
             if (moduleSource(node) === 'vitest')
               context.report({

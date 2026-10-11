@@ -40,18 +40,15 @@ export function ReviewWalkthrough({
     const next = neighbourStop(walk.stops, walk.stop.key, direction);
     if (next) go(next.key);
   };
-  const shortcuts = {
-    ignoreInputs: true,
-    enabled: interaction.active && view === 'walkthrough',
-  };
-  useHotkey(SHORTCUTS.nextStop, () => step(1), shortcuts);
-  useHotkey(SHORTCUTS.previousStop, () => step(-1), shortcuts);
   const changedFiles = walk.stops.flatMap((stop) => stop.paths);
   return (
     <section
       className="flex min-h-0 flex-1 flex-col"
       aria-label="Review walkthrough"
     >
+      {interaction.active && view === 'walkthrough' && (
+        <WalkthroughShortcuts step={step} />
+      )}
       <DocumentToolbar
         title="Review"
         subtitle={`${review.layers.length} ${review.layers.length === 1 ? 'decision' : 'decisions'} · ${changedFiles.length} changed ${changedFiles.length === 1 ? 'file' : 'files'}`}
@@ -277,4 +274,11 @@ function SummaryFrame({
       style={{ colorScheme: dark ? 'dark' : 'light' }}
     />
   );
+}
+
+function WalkthroughShortcuts({ step }: { step: (direction: 1 | -1) => void }) {
+  const options = { ignoreInputs: true };
+  useHotkey(SHORTCUTS.nextStop, () => step(1), options);
+  useHotkey(SHORTCUTS.previousStop, () => step(-1), options);
+  return null;
 }

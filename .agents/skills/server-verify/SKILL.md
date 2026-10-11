@@ -64,7 +64,7 @@ After open, send the two objects in `live.protocolExample.notices` and `live.pro
 - Notices arrive in `{ "_tag": "Chunk", "requestId": "1", "values": [...] }`. Read each value and send `{ "_tag": "Ack", "requestId": "1" }` after **every** chunk, including ready/subscribed/heartbeat, or the stream stalls.
 - Follow completes with `Exit`; check its success. Wait for `subscribed` before changing the fixture, then observe the relevant notice. Bound the wait and close the socket in `finally`.
 
-Use Git and the filesystem directly in `fixtures.repositoryPath`. The retired `request`, `live`, `git` and `file` commands have no replacement wrapper.
+Use Git and the filesystem directly in `fixtures.repositoryPath`.
 
 ## Deterministic fixtures and MCP
 

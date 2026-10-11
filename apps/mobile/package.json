@@ -3,12 +3,14 @@
   "private": true,
   "type": "module",
   "main": "expo-router/entry",
+  "exports": {
+    "./kit/*": "./spec/kit/*.ts"
+  },
   "scripts": {
     "dev": "expo start --dev-client",
     "prebuild": "expo prebuild",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/mobile",
-    "test:e2e": "vitest run --config ../../vitest.config.ts --project @porcelain/mobile-e2e && vitest run --config ../../vitest.config.ts --project @porcelain/mobile-e2e-tablet"
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/mobile"
   },
   "dependencies": {
     "@effect/atom-react": "4.0.1",

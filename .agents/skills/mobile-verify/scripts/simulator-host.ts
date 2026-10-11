@@ -6,12 +6,12 @@ import {
   releaseSimulator,
   resetApp,
   simulatorSchema,
-} from '../../../../apps/mobile/spec/kit/simulator.ts';
+} from '@porcelain/mobile/kit/simulator';
 import {
   developmentClient,
   identity,
   nativeFingerprint,
-} from '../../../../apps/mobile/spec/kit/development-client.ts';
+} from '@porcelain/mobile/kit/development-client';
 
 const requestSchema = Schema.Struct({
   action: Schema.Literals(['prepare', 'release']),

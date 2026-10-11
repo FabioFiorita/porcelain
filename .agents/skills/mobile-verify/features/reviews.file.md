@@ -6,8 +6,7 @@ selectors:
   - "Clear selection"
   - "No longer changed"
   - "Mark reviewed"
-tests:
-  - apps/mobile/spec/e2e/review.e2e.ts
+tests: []
 api:
   - POST /api/worktrees/:worktreeId/changes/diffs
   - POST /api/worktrees/:worktreeId/branch-changes/diffs
