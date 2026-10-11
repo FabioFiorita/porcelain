@@ -1,3 +1,4 @@
+import { Box } from '../../../components/ui/box';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
 import { readPublishedReview } from '@porcelain/client/reviews';
@@ -6,7 +7,6 @@ import {
   proofLabel,
   proofStatus,
 } from '@porcelain/client/reviews/rules';
-import { View } from 'react-native';
 import { Text } from '../../../components/ui/text';
 import { Item } from '../../../components/ui/item';
 import { ReviewReadState } from './read-state';
@@ -30,7 +30,7 @@ export function PublishedReview({
   const review = result.value;
   if (!review) return null;
   return (
-    <View className="gap-3">
+    <Box gap={3}>
       <Text variant="heading">
         {review.active ? 'Agent review' : 'Saved review'}
       </Text>
@@ -40,7 +40,7 @@ export function PublishedReview({
         </Text>
       ) : null}
       {review.layers.map((layer) => (
-        <View key={layer.id} className="gap-2">
+        <Box key={layer.id} gap={2}>
           <Text variant="ui" weight="medium">
             {layer.title}
           </Text>
@@ -59,7 +59,7 @@ export function PublishedReview({
               </Text>
             </Item>
           ))}
-        </View>
+        </Box>
       ))}
       {notExplainedLabel(review.notExplained) ? (
         <Text variant="caption" tone="muted">
@@ -69,6 +69,6 @@ export function PublishedReview({
       <Text variant="caption" tone="muted">
         Proof · {proofLabel(proofStatus(review.proof))}
       </Text>
-    </View>
+    </Box>
   );
 }

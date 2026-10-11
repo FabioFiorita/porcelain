@@ -11,7 +11,6 @@ import { workspaceIcon } from '../../../shared/icons/workspace-icon';
 import type { WorkspaceMenuProps } from './workspace-menu-props';
 
 export function WorkspaceMenu(props: WorkspaceMenuProps) {
-  if (props.presentation === 'tablet') return <ProjectMenu {...props} />;
   return (
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.View>

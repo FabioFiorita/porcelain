@@ -355,17 +355,11 @@ function CodeSurface({
         {allCollapsed ? 'Expand all' : 'Collapse all'}
       </Button>
     ) : null;
-  const selectionAnchor =
-    selection !== null &&
-    selection !== undefined &&
-    (composer === null || composer === undefined)
-      ? (() => {
-          const entry = byId.get(selection.id);
-          return entry?.comment
-            ? rangeAnchor(entry.comment, selection.range)
-            : null;
-        })()
-      : null;
+  const selectionAnchor = selectedRangeAnchor(
+    selection,
+    composer !== null && composer !== undefined,
+    byId,
+  );
 
   return (
     <div className="@container/code relative flex min-h-0 flex-1 flex-col">
@@ -586,6 +580,16 @@ function CodeSurface({
       )}
     </div>
   );
+}
+
+function selectedRangeAnchor(
+  selection: CodeViewLineSelection | null,
+  composing: boolean,
+  byId: ReadonlyMap<string, CodeEntry>,
+) {
+  if (selection === null || selection === undefined || composing) return null;
+  const entry = byId.get(selection.id);
+  return entry?.comment ? rangeAnchor(entry.comment, selection.range) : null;
 }
 
 function CodeShortcuts({

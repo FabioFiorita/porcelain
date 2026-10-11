@@ -269,7 +269,7 @@ function ReadableFileDocument({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-card">
-      {mode === 'rendered' && kind === 'markdown' ? (
+      {mode === 'rendered' && kind !== 'code' ? (
         <>
           <FileToolbar path={path} copy={false}>
             {leading}
@@ -277,35 +277,13 @@ function ReadableFileDocument({
               {commands}
             </ButtonGroup>
           </FileToolbar>
-          <div className="min-h-0 flex-1 overflow-auto">
-            <MarkdownView
-              text={text}
-              className="mx-auto max-w-[78ch] px-6 py-6"
-            />
-          </div>
-        </>
-      ) : mode === 'rendered' && kind === 'html' ? (
-        <>
-          <FileToolbar path={path} copy={false}>
-            {leading}
-            <ButtonGroup className="max-w-full flex-wrap justify-end">
-              {commands}
-            </ButtonGroup>
-          </FileToolbar>
-          <div className="flex min-h-0 flex-1 flex-col bg-background">
-            <p className="border-b bg-muted/40 px-3.5 py-1.5 text-2xs text-muted-foreground">
-              Sandboxed preview: scripts run, and cannot read Porcelain, your
-              cookies or the review API, load anything from the network, submit
-              a form, or move the page around them. A script can still send what
-              it sees out by sending this frame to another address.
-            </p>
-            <HtmlPreview
-              scope={scope}
-              path={path}
-              html={text}
-              connection={connection}
-            />
-          </div>
+          <RenderedFile
+            scope={scope}
+            context={context}
+            path={path}
+            kind={kind}
+            text={text}
+          />
         </>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
@@ -341,6 +319,43 @@ function ReadableFileDocument({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+function RenderedFile({
+  scope,
+  context,
+  path,
+  kind,
+  text,
+}: {
+  scope: ReviewScope;
+  context: ConnectionContext;
+  path: string;
+  kind: Exclude<ReadableFileKind, 'code'>;
+  text: string;
+}) {
+  if (kind === 'markdown')
+    return (
+      <div className="min-h-0 flex-1 overflow-auto">
+        <MarkdownView text={text} className="mx-auto max-w-[78ch] px-6 py-6" />
+      </div>
+    );
+  return (
+    <div className="flex min-h-0 flex-1 flex-col bg-background">
+      <p className="border-b bg-muted/40 px-3.5 py-1.5 text-2xs text-muted-foreground">
+        Sandboxed preview: scripts run, and cannot read Porcelain, your cookies
+        or the review API, load anything from the network, submit a form, or
+        move the page around them. A script can still send what it sees out by
+        sending this frame to another address.
+      </p>
+      <HtmlPreview
+        scope={scope}
+        path={path}
+        html={text}
+        connection={context.connection}
+      />
     </div>
   );
 }

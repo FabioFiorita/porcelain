@@ -1,4 +1,4 @@
-import { deepStrictEqual, strictEqual } from 'node:assert/strict';
+import { deepStrictEqual, strictEqual, throws } from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
@@ -177,17 +177,28 @@ export function runGuardrailCases(named = []) {
     'Name an existing guardrail fixture rule.',
   );
   for (const entry of cases) {
-    if (entry.rule === 'knip-expo-framework-exports') {
+    if (entry.rule === 'knip-expo-destination-anchor') {
+      knip.compilers.tsx(entry.valid, entry.path);
+      throws(
+        () => knip.compilers.tsx(entry.invalid, entry.path),
+        /cold deep link needs a route to go back to/,
+      );
+    } else if (entry.rule === 'knip-expo-framework-exports') {
       strictEqual(knip.compilers.tsx(entry.source, entry.path), entry.expected);
-    } else if (entry.rule === 'eqeqeq') {
+    } else if (['eqeqeq', 'no-nested-ternary'].includes(entry.rule)) {
       const root = fixtureRoot('porcelain-equality-');
       try {
         const repository = fileURLToPath(new URL('../', import.meta.url));
+        symlinkSync(
+          join(repository, 'node_modules'),
+          join(root, 'node_modules'),
+          'dir',
+        );
         for (const [source, errors] of [
           [entry.valid, []],
           [entry.invalid, entry.errors],
         ]) {
-          writeFiles(root, { 'fixture.ts': source });
+          writeFiles(root, { [entry.path ?? 'fixture.ts']: source });
           const checked = spawnSync(
             join(repository, 'node_modules/.bin/oxlint'),
             [
@@ -195,9 +206,9 @@ export function runGuardrailCases(named = []) {
               join(repository, '.oxlintrc.json'),
               '--format',
               'json',
-              join(root, 'fixture.ts'),
+              join(root, entry.path ?? 'fixture.ts'),
             ],
-            { encoding: 'utf8' },
+            { encoding: 'utf8', cwd: root },
           );
           if (checked.error) throw checked.error;
           const diagnostics = JSON.parse(checked.stdout).diagnostics;

@@ -1,5 +1,4 @@
 import { Stack } from 'expo-router';
-import { DeviceType, deviceType } from 'expo-device';
 import type { ReactNode } from 'react';
 
 export function DestinationLayout({
@@ -13,10 +12,7 @@ export function DestinationLayout({
 }) {
   return (
     <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
-      <Stack.Screen
-        name={name}
-        options={{ title, headerShown: deviceType !== DeviceType.TABLET }}
-      />
+      <Stack.Screen name={name} options={{ title }} />
       {children}
     </Stack>
   );

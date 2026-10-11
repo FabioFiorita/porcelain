@@ -325,20 +325,7 @@ function ActionForm({
             : 'Restore staged changes'}
         </label>
       </fieldset>
-      {outcome?.message &&
-      receiptFailed(outcome) &&
-      outcome.state !== 'conflicted' ? (
-        <GitActionError text={outcome.message} />
-      ) : outcome ? (
-        <p role="status" className="text-sm">
-          {outcome.state}
-          {outcome.message
-            ? ` · ${outcome.message}`
-            : outcome.reason
-              ? ` · ${outcome.reason.replaceAll('_', ' ').toLowerCase()}`
-              : ''}
-        </p>
-      ) : null}
+      <ActionOutcome outcome={outcome} />
       {uncertain && !outcome && <p role="status">Outcome not yet confirmed</p>}
       {error ? <GitActionError text={gitErrorMessage(error)} /> : null}
       {outcome && changedSinceLooked(outcome) && onLookAgain && (
@@ -366,4 +353,29 @@ function ActionForm({
       </Button>
     </form>
   );
+}
+
+type FormOutcome = ReturnType<typeof useActionForm>['outcome'];
+
+function ActionOutcome({ outcome }: { outcome: FormOutcome }) {
+  if (!outcome) return null;
+  if (
+    outcome.message &&
+    receiptFailed(outcome) &&
+    outcome.state !== 'conflicted'
+  ) {
+    return <GitActionError text={outcome.message} />;
+  }
+  return (
+    <p role="status" className="text-sm">
+      {outcome.state}
+      {outcomeDetail(outcome)}
+    </p>
+  );
+}
+
+function outcomeDetail({ message, reason }: NonNullable<FormOutcome>) {
+  if (message) return ` · ${message}`;
+  if (reason) return ` · ${reason.replaceAll('_', ' ').toLowerCase()}`;
+  return '';
 }

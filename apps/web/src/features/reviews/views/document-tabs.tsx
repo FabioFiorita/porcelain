@@ -219,6 +219,12 @@ export function DocumentTabs({
   );
 }
 
+function openToSideText(side: 'left' | 'right' | null) {
+  if (side === null || side === undefined) return 'Open to the side';
+  if (side === 'left') return 'Open in the right pane';
+  return 'Open in the left pane';
+}
+
 function DocumentTab({
   tabKey,
   active,
@@ -242,12 +248,7 @@ function DocumentTab({
 }) {
   const { Icon, title, hint } = describeTab(tabKey, reviewing);
   const tabRef = useRef<HTMLDivElement>(null);
-  const openToSideLabel =
-    side === null || side === undefined
-      ? 'Open to the side'
-      : side === 'left'
-        ? 'Open in the right pane'
-        : 'Open in the left pane';
+  const openToSideLabel = openToSideText(side);
 
   useEffect(() => {
     if (active) {

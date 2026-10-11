@@ -23,6 +23,21 @@ import markdown from '@shikijs/langs/markdown';
 import type { RenderToken } from '../../shared/rules/render-model.js';
 import { highlightCode } from '../../shared/rules/highlight-code.ts';
 
+function nextFrame(signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const finish = () => {
+      signal.removeEventListener('abort', abort);
+      resolve();
+    };
+    const frame = requestAnimationFrame(finish);
+    const abort = () => {
+      cancelAnimationFrame(frame);
+      finish();
+    };
+    signal.addEventListener('abort', abort, { once: true });
+  });
+}
+
 export async function createCodeHighlighter(engine: RegexEngine) {
   const highlighter = await createHighlighterCore({
     engine,
@@ -54,8 +69,7 @@ export async function createCodeHighlighter(engine: RegexEngine) {
     source: string,
     language: string | undefined,
     scheme: 'light' | 'dark',
-    signal?: AbortSignal,
-    yieldToUI: () => Promise<void> = () => Promise.resolve(),
+    signal: AbortSignal,
   ): Promise<RenderToken[][]> => {
     let grammarState: GrammarState | undefined;
     const tokenize =
@@ -71,6 +85,6 @@ export async function createCodeHighlighter(engine: RegexEngine) {
             return tokens;
           }
         : undefined;
-    return highlightCode(source, tokenize, signal, yieldToUI);
+    return highlightCode(source, tokenize, signal, () => nextFrame(signal));
   };
 }

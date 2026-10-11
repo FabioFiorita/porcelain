@@ -1,9 +1,69 @@
 import type { KnipConfiguration } from 'knip';
-import { parseSync } from 'oxc-parser';
+import { parseSync, type Expression } from 'oxc-parser';
+
+function unwrapped(
+  node: Expression | null | undefined,
+): Expression | null | undefined {
+  return node?.type === 'TSAsExpression' ||
+    node?.type === 'TSSatisfiesExpression'
+    ? unwrapped(node.expression)
+    : node;
+}
+
 function expoEntries(source: string, path: string): string {
   if (!/\/apps\/mobile\/src\/app\/.+\.tsx$/.test(path)) return source;
   const parsed = parseSync(path, source, { lang: 'tsx' });
   if (parsed.errors.length) throw new Error(`Knip could not parse ${path}`);
+  const destination = parsed.program.body
+    .flatMap((node) =>
+      node.type === 'ImportDeclaration' ? node.specifiers : [],
+    )
+    .find(
+      (specifier) =>
+        specifier.type === 'ImportSpecifier' &&
+        specifier.imported.type === 'Identifier' &&
+        specifier.imported.name === 'DestinationLayout',
+    );
+  if (path.endsWith('/_layout.tsx') && destination) {
+    const name = new RegExp(
+      `<${destination.local.name}\\b[^>]*\\bname=["']([^"']+)["']`,
+    ).exec(source)?.[1];
+    const settings = parsed.program.body.find(
+      (node) =>
+        node.type === 'ExportNamedDeclaration' &&
+        node.declaration?.type === 'VariableDeclaration' &&
+        node.declaration.declarations.some(
+          (declaration) =>
+            declaration.id.type === 'Identifier' &&
+            declaration.id.name === 'unstable_settings',
+        ),
+    );
+    const declaration =
+      settings?.type === 'ExportNamedDeclaration' &&
+      settings.declaration?.type === 'VariableDeclaration'
+        ? settings.declaration.declarations.find(
+            (declaration) =>
+              declaration.id.type === 'Identifier' &&
+              declaration.id.name === 'unstable_settings',
+          )
+        : undefined;
+    const settingsValue = unwrapped(declaration?.init);
+    const anchor =
+      settingsValue?.type === 'ObjectExpression'
+        ? settingsValue.properties.find(
+            (property) =>
+              property.type === 'Property' &&
+              property.key.type === 'Identifier' &&
+              property.key.name === 'anchor',
+          )
+        : undefined;
+    const anchorValue =
+      anchor?.type === 'Property' ? unwrapped(anchor.value) : undefined;
+    if (!name || anchorValue?.type !== 'Literal' || anchorValue.value !== name)
+      throw new Error(
+        `${path} exports unstable_settings with anchor matching its destination, because a cold deep link needs a route to go back to.`,
+      );
+  }
   const entries = parsed.program.body.filter(
     (node) =>
       node.type === 'ExportDefaultDeclaration' ||

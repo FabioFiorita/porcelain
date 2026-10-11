@@ -1,4 +1,5 @@
 import { replacesGlobal } from './spec-globals.mjs';
+import { variableOf } from './scope.mjs';
 import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { classify, shadcnRegistry, webPart } from './policy.ts';
@@ -341,7 +342,7 @@ function localTarget(path, specifier) {
   );
 }
 
-function importedFrom(program, accept) {
+export function importedFrom(program, accept) {
   const locals = new Map();
   const namespaces = new Set();
   for (const statement of program.body) {
@@ -362,7 +363,18 @@ function importedFrom(program, accept) {
   return { locals, namespaces };
 }
 
-function calledImport(callee, imports) {
+export function calledImport(callee, imports, context) {
+  if (context) {
+    const identifier =
+      callee.type === 'MemberExpression' ? callee.object : callee;
+    if (identifier.type !== 'Identifier') return undefined;
+    const binding = variableOf(context, identifier);
+    if (
+      binding &&
+      !binding.defs.some((definition) => definition.type === 'ImportBinding')
+    )
+      return undefined;
+  }
   if (callee.type === 'Identifier') return imports.locals.get(callee.name);
   if (
     callee.type === 'MemberExpression' &&
@@ -373,6 +385,41 @@ function calledImport(callee, imports) {
   )
     return callee.property.name;
   return undefined;
+}
+
+export function styleObjects(context, node, visited = new Set()) {
+  if (!node || visited.has(node)) return [];
+  visited.add(node);
+  if (node.type === 'Identifier')
+    return styleObjects(
+      context,
+      variableOf(context, node)?.defs[0]?.node?.init,
+      visited,
+    );
+  if (node.type === 'ObjectExpression')
+    return [
+      node,
+      ...node.properties.flatMap((property) =>
+        property.type === 'Property'
+          ? styleObjects(context, property.value, visited)
+          : styleObjects(context, property.argument, visited),
+      ),
+    ];
+  if (node.type === 'ArrayExpression')
+    return node.elements.flatMap((element) =>
+      styleObjects(context, element, visited),
+    );
+  if (node.type === 'LogicalExpression')
+    return [
+      ...styleObjects(context, node.left, visited),
+      ...styleObjects(context, node.right, visited),
+    ];
+  if (node.type === 'ConditionalExpression')
+    return [
+      ...styleObjects(context, node.consequent, visited),
+      ...styleObjects(context, node.alternate, visited),
+    ];
+  return styleObjects(context, node.expression ?? node.argument, visited);
 }
 
 function methodName(callee) {
@@ -868,15 +915,34 @@ export const webRules = {
         });
     },
   })),
-  'web-views-no-promise-chains': viewRule((context) => ({
+  'web-views-no-promise-chains': {
+    create(context) {
+      const path = webPath(context);
+      if (!viewLike(path) && webPart(path) !== 'mobile-ui') return {};
+      return {
+        CallExpression(node) {
+          if (!promiseContinuations.has(promiseContinuationName(node.callee)))
+            return;
+          context.report({
+            node,
+            message:
+              'Views and mobile primitives do not sequence promise completion: use async work owned by a command or renderer, because that owner must handle failure and cancellation across unmounts.',
+          });
+        },
+      };
+    },
+  },
+  'web-views-no-iife': viewRule((context) => ({
     CallExpression(node) {
-      if (!promiseContinuations.has(promiseContinuationName(node.callee)))
-        return;
-      context.report({
-        node,
-        message:
-          'A view does not sequence promise completion: put success and error work in a command hook and let the view forward the event, because commands must own completion state across view unmounts.',
-      });
+      if (
+        node.callee.type === 'ArrowFunctionExpression' ||
+        node.callee.type === 'FunctionExpression'
+      )
+        context.report({
+          node,
+          message:
+            'A view does not invoke a function in place: render a large branch as a named component and compute a value with a named helper or a const above the return, because an anonymous inline decision cannot be named, reused or read at a glance.',
+        });
     },
   })),
   'web-views-no-try': viewRule((context) => ({
@@ -1051,7 +1117,51 @@ export const webRules = {
         if (typeof text === 'string' && handSet.test(text))
           context.report({ node, message });
       };
+      const length =
+        /^(?:(?:min|max)?(?:Width|Height)|width|height|(?:margin|padding)(?:Top|Right|Bottom|Left|Start|End|Horizontal|Vertical)?|border.*(?:Width|Radius)|(?:row|column)?[Gg]ap|top|right|bottom|left|start|end|inset.*|flexBasis|fontSize|lineHeight|letterSpacing|textIndent|translate[XY]|perspective|shadowRadius)$/;
+      const numeric = (node, seen = new Set()) => {
+        if (!node || seen.has(node)) return false;
+        seen.add(node);
+        if (node.type === 'Literal') return typeof node.value === 'number';
+        if (node.type === 'UnaryExpression')
+          return (
+            ['-', '+'].includes(node.operator) && numeric(node.argument, seen)
+          );
+        if (node.type === 'BinaryExpression')
+          return (
+            ['+', '-', '*', '/', '%', '**'].includes(node.operator) &&
+            numeric(node.left, seen) &&
+            numeric(node.right, seen)
+          );
+        if (node.type === 'Identifier')
+          return numeric(variableOf(context, node)?.defs[0]?.node?.init, seen);
+        return (
+          ['TSAsExpression', 'TSSatisfiesExpression'].includes(node.type) &&
+          numeric(node.expression, seen)
+        );
+      };
+      const style = (node) => {
+        for (const object of styleObjects(context, node))
+          for (const property of object.properties) {
+            if (
+              property.type === 'Property' &&
+              length.test(property.key.name ?? property.key.value ?? '') &&
+              numeric(property.value)
+            )
+              context.report({ node: property, message });
+          }
+      };
       return {
+        JSXAttribute(node) {
+          if (
+            path.startsWith('apps/mobile/src/') &&
+            /^(?:style|[a-zA-Z]+Style)$/.test(
+              node.name.type === 'JSXIdentifier' ? node.name.name : '',
+            ) &&
+            node.value?.type === 'JSXExpressionContainer'
+          )
+            style(node.value.expression);
+        },
         Literal(node) {
           check(node, node.value);
         },

@@ -155,15 +155,17 @@ function ReviewStatusIcon({ status }: { status: ReviewStatus | undefined }) {
       data-review-state={normalized}
       title={reviewStatusLabel(status)}
     >
-      {normalized === 'reviewed' ? (
-        <CheckIcon className="size-3.5 text-graph-2" />
-      ) : normalized === 'stale' ? (
-        <RotateCcwIcon className="size-3 text-graph-4" />
-      ) : (
-        <span className="size-1.5 rounded-full bg-muted-foreground/60" />
-      )}
+      <ReviewStatusMark status={normalized} />
     </span>
   );
+}
+
+function ReviewStatusMark({ status }: { status: ReviewStatus }) {
+  if (status === 'reviewed')
+    return <CheckIcon className="size-3.5 text-graph-2" />;
+  if (status === 'stale')
+    return <RotateCcwIcon className="size-3 text-graph-4" />;
+  return <span className="size-1.5 rounded-full bg-muted-foreground/60" />;
 }
 
 function reviewStatusLabel(status: ReviewStatus | undefined) {

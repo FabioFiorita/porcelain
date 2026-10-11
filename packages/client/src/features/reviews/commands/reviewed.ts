@@ -1,7 +1,7 @@
 import type { ListReviewedFilesResponse } from '@porcelain/contracts/reviews';
 import { REVIEWED_FILE_MARKS } from '@porcelain/contracts/shared';
-import { Effect } from 'effect';
-import { Atom } from 'effect/reactivity';
+import { Cause, Effect } from 'effect';
+import { AsyncResult, Atom } from 'effect/reactivity';
 import type {
   RuntimeConnection,
   WorktreeScope,
@@ -128,3 +128,12 @@ export const reviewedCommands = Atom.family(
     };
   },
 );
+
+export function reviewedCommandFailure(
+  mark: AsyncResult.AsyncResult<unknown, unknown>,
+  unmark: AsyncResult.AsyncResult<unknown, unknown>,
+) {
+  if (AsyncResult.isFailure(mark)) return Cause.squash(mark.cause);
+  if (AsyncResult.isFailure(unmark)) return Cause.squash(unmark.cause);
+  return undefined;
+}

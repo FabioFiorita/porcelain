@@ -299,6 +299,156 @@ describe('portable file draft', () => {
     }
   });
 
+  it('saves a detached editor before leaving without an unsaved warning', async () => {
+    const writes: string[] = [];
+    const { draft } = fixture(
+      'text',
+      'version',
+      (text) => {
+        writes.push(text);
+        return Effect.succeed('saved');
+      },
+      () => false,
+    );
+    let notifications = 0;
+    try {
+      draft.claim('editor');
+      draft.attachEditor('editor');
+      await Effect.runPromise(draft.change('new text'));
+      await Effect.runPromise(
+        draft.finishEditing('editor', () => {
+          notifications += 1;
+        }),
+      );
+      expect(writes).toEqual(['new text']);
+      expect(draft.state.value).toMatchObject({
+        owner: null,
+        text: 'new text',
+        savedText: 'new text',
+        error: null,
+      });
+      expect(notifications).toBe(0);
+    } finally {
+      await Effect.runPromise(draft.dispose());
+    }
+  });
+
+  it('warns on detachment after an earlier save failure and keeps the unsaved draft', async () => {
+    const failure = new ConnectionError({ message: 'Offline' });
+    let writes = 0;
+    const { draft } = fixture(
+      'text',
+      'version',
+      () => {
+        writes += 1;
+        return Effect.fail(failure);
+      },
+      () => false,
+    );
+    let notifications = 0;
+    try {
+      draft.claim('editor');
+      draft.attachEditor('editor');
+      await Effect.runPromise(draft.change('unsaved'));
+      expect(await Effect.runPromise(draft.save())).toBe(false);
+      await Effect.runPromise(
+        draft.finishEditing('editor', () => {
+          notifications += 1;
+        }),
+      );
+      expect(notifications).toBe(1);
+      expect(writes).toBe(1);
+      expect(draft.state.value).toMatchObject({
+        owner: null,
+        text: 'unsaved',
+        savedText: 'text',
+        error: failure,
+      });
+    } finally {
+      await Effect.runPromise(draft.dispose());
+    }
+  });
+
+  it('warns when restoring original text fails after detachment during an earlier write', async () => {
+    const entered = Deferred.makeUnsafe<void>();
+    const firstWrite = Deferred.makeUnsafe<string>();
+    const detached = Promise.withResolvers<void>();
+    const failure = new ConnectionError({ message: 'Offline' });
+    const writes: { text: string; fingerprint: string }[] = [];
+    let notifications = 0;
+    const { draft } = fixture('original', 'version-1', (text, fingerprint) => {
+      writes.push({ text, fingerprint });
+      if (writes.length > 1) return Effect.fail(failure);
+      return Effect.gen(function* () {
+        yield* Deferred.succeed(entered, undefined);
+        return yield* Deferred.await(firstWrite);
+      });
+    });
+    try {
+      draft.claim('editor');
+      draft.attachEditor('editor');
+      await Effect.runPromise(draft.change('earlier edit'));
+      const saving = Effect.runPromise(draft.save());
+      await Effect.runPromise(Deferred.await(entered));
+      await Effect.runPromise(draft.change('original'));
+      const finishing = Effect.runPromise(
+        draft.finishEditing(
+          'editor',
+          () => {
+            notifications += 1;
+          },
+          () => detached.resolve(),
+        ),
+      );
+      await detached.promise;
+      await Effect.runPromise(Deferred.succeed(firstWrite, 'version-2'));
+      expect(await saving).toBe(false);
+      await finishing;
+      expect(writes).toEqual([
+        { text: 'earlier edit', fingerprint: 'version-1' },
+        { text: 'original', fingerprint: 'version-2' },
+      ]);
+      expect(draft.state.value).toMatchObject({
+        owner: null,
+        text: 'original',
+        savedText: 'earlier edit',
+        error: failure,
+        saving: false,
+      });
+      expect(notifications).toBe(1);
+    } finally {
+      await Effect.runPromise(draft.dispose());
+    }
+  });
+
+  it('detaches a clean editor without writing or warning', async () => {
+    let writes = 0;
+    let notifications = 0;
+    const { draft } = fixture(
+      'text',
+      'version',
+      () => {
+        writes += 1;
+        return Effect.succeed('saved');
+      },
+      () => false,
+    );
+    try {
+      draft.claim('editor');
+      draft.attachEditor('editor');
+      await Effect.runPromise(
+        draft.finishEditing('editor', () => {
+          notifications += 1;
+        }),
+      );
+      expect(draft.state.value.owner).toBe(null);
+      expect(writes).toBe(0);
+      expect(notifications).toBe(0);
+    } finally {
+      await Effect.runPromise(draft.dispose());
+    }
+  });
+
   it('releases a detached editor and retains its draft when saving fails', async () => {
     const failure = new ConnectionError({ message: 'Offline' });
     const { draft } = fixture(

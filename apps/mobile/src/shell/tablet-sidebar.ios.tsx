@@ -2,20 +2,11 @@ import { Label, List, NavigationLink, Section } from '@expo/ui/swift-ui';
 import { listStyle, navigationTitle, tag } from '@expo/ui/swift-ui/modifiers';
 import { usePathname, useRouter } from 'expo-router';
 import { tabIcon } from '../shared/icons/tab-icon';
-import { type IconName } from '../shared/icons/icon';
-
-const destinations = [
-  { path: '/files', title: 'Files', icon: 'files' },
-  { path: '/review', title: 'Review', icon: 'review' },
-  { path: '/history', title: 'History', icon: 'history' },
-  { path: '/settings', title: 'Settings', icon: 'settings' },
-] satisfies { path: string; title: string; icon: IconName }[];
+import { destinations, destinationForPath } from './destinations';
 
 export function TabletSidebar({ onNavigate }: { onNavigate: () => void }) {
   const pathname = usePathname();
-  const selectedPath = pathname.startsWith('/component-')
-    ? '/settings'
-    : pathname;
+  const selectedPath = destinationForPath(pathname).path;
   const router = useRouter();
 
   return (

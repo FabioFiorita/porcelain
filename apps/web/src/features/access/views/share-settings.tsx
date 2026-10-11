@@ -61,6 +61,12 @@ function useDesktopConnection() {
   return desktopShell ? connection : null;
 }
 
+function UpdateSettings({ desktop }: { desktop: boolean | undefined }) {
+  if (desktop === true) return <AppUpdateSettings />;
+  if (desktop === false) return <ServiceUpdateSettings />;
+  return <Spinner />;
+}
+
 export function ComputerSettings({
   environment,
 }: {
@@ -88,13 +94,7 @@ export function ComputerSettings({
           <ItemGroup>
             <Item variant="outline">
               <ItemContent>
-                {desktop?.isDesktopShell === true ? (
-                  <AppUpdateSettings />
-                ) : desktop?.isDesktopShell === false ? (
-                  <ServiceUpdateSettings />
-                ) : (
-                  <Spinner />
-                )}
+                <UpdateSettings desktop={desktop?.isDesktopShell} />
               </ItemContent>
             </Item>
           </ItemGroup>

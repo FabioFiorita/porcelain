@@ -62,6 +62,12 @@ export function ProjectNavigator({
       }
     />
   );
+  const localProjects =
+    projects.length === 0
+      ? empty
+      : projects.map((project) => (
+          <Fragment key={project.id}>{section(project)}</Fragment>
+        ));
 
   return (
     <nav
@@ -106,12 +112,8 @@ export function ProjectNavigator({
                 />
               ))}
             </>
-          ) : projects.length === 0 ? (
-            empty
           ) : (
-            projects.map((project) => (
-              <Fragment key={project.id}>{section(project)}</Fragment>
-            ))
+            localProjects
           )}
         </div>
       </ScrollArea>

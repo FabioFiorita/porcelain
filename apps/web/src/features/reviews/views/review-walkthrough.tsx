@@ -97,45 +97,79 @@ export function ReviewWalkthrough({
         </p>
       )}
       {view === 'summary' ? (
-        review.summary === previousSummary ? (
-          <p role="status" className="p-4 text-sm text-muted-foreground">
-            Refreshing summary…
-          </p>
-        ) : (
-          <SummaryFrame
-            review={review}
-            address={address}
-            onLayer={(layerId) => go(decisionKey(layerId))}
-          />
-        )
-      ) : walk.stop.kind === 'briefing' ? (
-        <WalkthroughBriefing
-          {...props}
-          stops={walk.stops}
-          items={walk.items}
-          decisions={walk.decisions.states}
-          done={walk.done}
-          onGo={go}
+        <AgentSummary
+          review={review}
+          address={address}
+          refreshing={review.summary === previousSummary}
+          onLayer={(layerId) => go(decisionKey(layerId))}
         />
       ) : (
-        <WalkthroughStopView
-          key={walk.stop.key}
-          {...props}
-          stop={walk.stop}
-          stops={walk.stops}
-          items={walk.items}
-          decision={
-            walk.stop.kind === 'decision'
-              ? walk.decisions.states.get(walk.stop.layer.id)
-              : undefined
-          }
-          decisionsSettled={walk.decisions.settled}
-          finished={walk.done(walk.stop)}
-          onGo={go}
-        />
+        <WalkthroughPage {...props} walk={walk} />
       )}
     </section>
   );
+}
+
+function AgentSummary({
+  review,
+  address,
+  refreshing,
+  onLayer,
+}: {
+  review: ReviewResponse;
+  address: string;
+  refreshing: boolean;
+  onLayer: (layerId: string) => void;
+}) {
+  if (refreshing)
+    return (
+      <p role="status" className="p-4 text-sm text-muted-foreground">
+        Refreshing summary…
+      </p>
+    );
+  return <SummaryFrame review={review} address={address} onLayer={onLayer} />;
+}
+
+function WalkthroughPage({
+  walk,
+  ...props
+}: WalkthroughProps & { walk: ReturnType<typeof useWalkthrough> }) {
+  if (walk.stop.kind === 'briefing')
+    return (
+      <WalkthroughBriefing
+        {...props}
+        stops={walk.stops}
+        items={walk.items}
+        decisions={walk.decisions.states}
+        done={walk.done}
+        onGo={walk.go}
+      />
+    );
+  return (
+    <WalkthroughStopView
+      key={walk.stop.key}
+      {...props}
+      stop={walk.stop}
+      stops={walk.stops}
+      items={walk.items}
+      decision={
+        walk.stop.kind === 'decision'
+          ? walk.decisions.states.get(walk.stop.layer.id)
+          : undefined
+      }
+      decisionsSettled={walk.decisions.settled}
+      finished={walk.done(walk.stop)}
+      onGo={walk.go}
+    />
+  );
+}
+
+function reviewedPercent(
+  progress: { reviewed: number; total: number },
+  done: boolean,
+) {
+  if (progress.total === 0) return done ? 100 : 0;
+  return (progress.reviewed / progress.total) * 100;
 }
 
 function WalkthroughBar({
@@ -221,7 +255,7 @@ function WalkthroughBar({
                       reviewed && 'bg-graph-2',
                     )}
                     style={{
-                      width: `${progress.total === 0 ? (reviewed ? 100 : 0) : (progress.reviewed / progress.total) * 100}%`,
+                      width: `${reviewedPercent(progress, reviewed)}%`,
                     }}
                   />
                 </span>

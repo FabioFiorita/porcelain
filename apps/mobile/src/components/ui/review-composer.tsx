@@ -3,6 +3,7 @@ import { Input } from './input';
 import { Field } from './field';
 import { Button } from './button';
 import { Text } from './text';
+import { Card } from './card';
 
 export function ReviewComposer({
   value,
@@ -22,7 +23,7 @@ export function ReviewComposer({
   error?: string;
 }) {
   return (
-    <View className="gap-3 rounded-2xl border border-border bg-card p-4">
+    <Card gap={3} padding={4}>
       {label ? (
         <Text variant="caption" tone="muted">
           Comment on {label}
@@ -54,6 +55,6 @@ export function ReviewComposer({
           pending={pending}
         />
       </View>
-    </View>
+    </Card>
   );
 }

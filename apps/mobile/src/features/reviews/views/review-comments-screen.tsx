@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { Stack, useRouter } from 'expo-router';
+import { Box } from '../../../components/ui/box';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Stack, useRouter, usePreventRemove } from 'expo-router';
 import { randomUUID } from 'expo-crypto';
-import { ScrollView, View } from 'react-native';
+import { Alert, ScrollView } from 'react-native';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
@@ -74,6 +75,8 @@ export function ReviewCommentsScreen({
   );
 }
 
+type ComposerTarget = { anchor: CommentAnchor; threadId?: string | undefined };
+
 function Comments({
   workspace,
   path,
@@ -93,7 +96,12 @@ function Comments({
   });
   const result = useAtomValue(query);
   const refresh = useAtomRefresh(query);
-  const [composing, setComposing] = useState(compose && !!anchor);
+  const [target, setTarget] = useState<ComposerTarget | undefined>(() =>
+    compose && anchor ? { anchor } : undefined,
+  );
+  const draft = useCommentDraft(workspace, target, () => setTarget(undefined));
+  const open = (next: ComposerTarget) =>
+    draft.confirmDiscard(() => setTarget(next));
   const commands = commentCommands({
     connection: workspace.connection,
     scope: workspace.scope,
@@ -113,8 +121,20 @@ function Comments({
       seen.send(highest);
     }
   }, [highest, seen]);
+  const threads = AsyncResult.isSuccess(result)
+    ? result.value.filter(
+        (thread) => !path || anchorPath(thread.anchor) === path,
+      )
+    : [];
+  const replyTarget = target?.threadId;
+  const orphanedReply =
+    replyTarget !== undefined &&
+    !threads.some((thread) => thread.id === replyTarget);
+  const composer = target ? (
+    <CommentComposer draft={draft} target={target} />
+  ) : null;
   return (
-    <View className="flex-1 bg-background" collapsable={false}>
+    <Box className="flex-1" surface="background" collapsable={false}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
@@ -125,50 +145,47 @@ function Comments({
             {path}
           </Text>
         ) : null}
-        {anchor ? (
-          composing ? (
-            <>
-              <AnchorFreshness
-                workspace={workspace}
-                anchor={anchor}
-                comparison={comparison}
-              />
-              <CommentComposer
-                workspace={workspace}
-                anchor={anchor}
-                onClose={() => setComposing(false)}
-              />
-            </>
-          ) : (
-            <Button
-              label={
-                anchor.kind === 'codeRange'
-                  ? 'Comment on selected lines'
-                  : path
-                    ? 'Comment on file'
-                    : comparison.kind === 'branch'
-                      ? 'Comment on the whole branch'
-                      : 'Comment on the whole change'
-              }
-              variant="outline"
-              onPress={() => setComposing(true)}
+        {orphanedReply ? (
+          <>
+            {AsyncResult.isSuccess(result) ? (
+              <ErrorState message="This thread is no longer available. Your reply is kept; cancel it to start another comment." />
+            ) : null}
+            {composer}
+          </>
+        ) : null}
+        {anchor && target && replyTarget === undefined ? (
+          <>
+            <AnchorFreshness
+              workspace={workspace}
+              anchor={anchor}
+              comparison={comparison}
             />
-          )
+            {composer}
+          </>
+        ) : null}
+        {anchor && (!target || replyTarget !== undefined) ? (
+          <Button
+            label={newCommentLabel(anchor, path, comparison)}
+            variant="outline"
+            onPress={() => open({ anchor })}
+          />
         ) : null}
         {AsyncResult.isSuccess(result) ? (
           <>
-            {result.value
-              .filter((thread) => !path || anchorPath(thread.anchor) === path)
-              .map((thread) => (
-                <CommentThreadView
-                  key={thread.id}
-                  workspace={workspace}
-                  thread={thread}
-                />
-              ))}
-            {result.value.filter(
-              (thread) => !path || anchorPath(thread.anchor) === path,
-            ).length === 0 ? (
+            {threads.map((thread) => (
+              <CommentThreadView
+                key={thread.id}
+                workspace={workspace}
+                thread={thread}
+                replying={replyTarget === thread.id}
+                onReply={() =>
+                  open({ threadId: thread.id, anchor: thread.anchor })
+                }
+              >
+                {replyTarget === thread.id ? composer : null}
+              </CommentThreadView>
+            ))}
+            {threads.length === 0 ? (
               <Empty
                 title="No comments"
                 description="Feedback and agent replies will appear here."
@@ -179,8 +196,19 @@ function Comments({
           <ReviewReadState result={result} refresh={refresh} />
         )}
       </ScrollView>
-    </View>
+    </Box>
   );
+}
+
+function newCommentLabel(
+  anchor: CommentAnchor,
+  path: string | undefined,
+  comparison: ReviewComparison,
+) {
+  if (anchor.kind === 'codeRange') return 'Comment on selected lines';
+  if (path) return 'Comment on file';
+  if (comparison.kind === 'branch') return 'Comment on the whole branch';
+  return 'Comment on the whole change';
 }
 
 function AnchorFreshness({
@@ -219,75 +247,123 @@ function AnchorFreshness({
   ) : null;
 }
 
-function CommentComposer({
-  workspace,
-  anchor,
-  threadId,
-  onClose,
-}: {
-  workspace: ReviewWorkspace;
-  anchor: CommentAnchor;
-  threadId?: string;
-  onClose: () => void;
-}) {
+function useCommentDraft(
+  workspace: ReviewWorkspace,
+  target: ComposerTarget | undefined,
+  onClose: () => void,
+) {
   const commands = commentCommands({
     connection: workspace.connection,
     scope: workspace.scope,
   });
   const create = useCommentWrite(commands.create);
   const reply = useCommentWrite(commands.reply);
-  const pending = threadId ? reply.result.waiting : create.result.waiting;
-  const mutationError = threadId
-    ? AsyncResult.isFailure(reply.result)
-      ? reviewErrorMessage(Cause.squash(reply.result.cause))
-      : undefined
-    : AsyncResult.isFailure(create.result)
-      ? reviewErrorMessage(Cause.squash(create.result.cause))
-      : undefined;
+  const result = target?.threadId ? reply.result : create.result;
+  const pending = target !== undefined && result.waiting;
   const [body, setBody] = useState('');
   const [invalid, setInvalid] = useState<string>();
   const intent = useRef<
     { body: string; threadId: string; messageId: string } | undefined
   >(undefined);
-  const error = invalid ?? mutationError;
+  const failure = target ? writeFailure(result) : undefined;
+  const reset = (complete: () => void) => {
+    setBody('');
+    setInvalid(undefined);
+    intent.current = undefined;
+    create.reset();
+    reply.reset();
+    complete();
+  };
+  const confirmDiscard = (complete: () => void) => {
+    if (pending) {
+      Alert.alert(
+        'Sending comment',
+        'Wait for the comment to finish sending before closing.',
+      );
+      return;
+    }
+    if (body.length === 0) {
+      reset(complete);
+      return;
+    }
+    Alert.alert('Discard comment?', 'Your unsent comment will be lost.', [
+      { text: 'Keep writing', style: 'cancel' },
+      {
+        text: 'Discard',
+        style: 'destructive',
+        onPress: () => reset(complete),
+      },
+    ]);
+  };
+  usePreventRemove(body.length > 0 || pending, ({ repeat }) =>
+    confirmDiscard(repeat),
+  );
+  return {
+    body,
+    pending,
+    error: invalid ?? failure,
+    edit: (value: string) => {
+      setBody(value);
+      setInvalid(undefined);
+    },
+    cancel: () => confirmDiscard(onClose),
+    submit: () => {
+      if (!target || pending) return;
+      if (!commentBodyValid(body)) {
+        setInvalid(
+          `Enter a comment of at most ${commentBodyLimit} characters without a NUL character.`,
+        );
+        return;
+      }
+      intent.current = retainIntent(intent.current, body, () => ({
+        body,
+        threadId: target.threadId ?? randomUUID(),
+        messageId: randomUUID(),
+      }));
+      const input = intent.current;
+      const sent = () => reset(onClose);
+      if (target.threadId)
+        reply.send(
+          { threadId: target.threadId, messageId: input.messageId, body },
+          sent,
+        );
+      else
+        create.send(
+          {
+            threadId: input.threadId,
+            messageId: input.messageId,
+            body,
+            anchor: target.anchor,
+          },
+          sent,
+        );
+    },
+    confirmDiscard,
+  };
+}
+
+function writeFailure(result: AsyncResult.AsyncResult<unknown, unknown>) {
+  return AsyncResult.isFailure(result)
+    ? reviewErrorMessage(Cause.squash(result.cause))
+    : undefined;
+}
+
+function CommentComposer({
+  draft,
+  target,
+}: {
+  draft: ReturnType<typeof useCommentDraft>;
+  target: ComposerTarget;
+}) {
   return (
     <ReviewComposer
-      value={body}
-      onChangeText={(value) => {
-        setBody(value);
-        setInvalid(undefined);
-      }}
-      label={`${anchorPath(anchor) ?? ''} ${anchorLabel(anchor)}${threadId ? ' · Reply' : ''}`}
-      pending={pending}
-      {...(error ? { error } : {})}
-      onCancel={onClose}
-      onSubmit={() => {
-        if (pending) return;
-        if (!commentBodyValid(body)) {
-          setInvalid(
-            `Enter a comment of at most ${commentBodyLimit} characters without a NUL character.`,
-          );
-          return;
-        }
-        intent.current = retainIntent(intent.current, body, () => ({
-          body,
-          threadId: threadId ?? randomUUID(),
-          messageId: randomUUID(),
-        }));
-        const input = intent.current;
-        if (threadId)
-          reply.send({ threadId, messageId: input.messageId, body }, onClose);
-        else
-          create.send(
-            {
-              threadId: input.threadId,
-              messageId: input.messageId,
-              body,
-              anchor,
-            },
-            onClose,
-          );
-      }}
+      value={draft.body}
+      onChangeText={draft.edit}
+      label={`${anchorPath(target.anchor) ?? ''} ${anchorLabel(target.anchor)}${target.threadId ? ' · Reply' : ''}`}
+      pending={draft.pending}
+      {...(draft.error ? { error: draft.error } : {})}
+      onCancel={draft.cancel}
+      onSubmit={draft.submit}
     />
   );
 }
@@ -295,18 +371,23 @@ function CommentComposer({
 function CommentThreadView({
   workspace,
   thread,
+  replying,
+  onReply,
+  children,
 }: {
   workspace: ReviewWorkspace;
   thread: CommentThread;
+  replying: boolean;
+  onReply: () => void;
+  children: ReactNode;
 }) {
   const commands = commentCommands({
     connection: workspace.connection,
     scope: workspace.scope,
   });
   const resolve = useCommentWrite(commands.resolve);
-  const [replying, setReplying] = useState(false);
   return (
-    <View className="gap-2">
+    <Box gap={2}>
       <Text variant="caption" tone="muted">
         {[
           anchorPath(thread.anchor),
@@ -324,7 +405,7 @@ function CommentThreadView({
           resolved={thread.resolved}
         />
       ))}
-      <View className="flex-row gap-2">
+      <Box className="flex-row" gap={2}>
         <Button
           label={thread.resolved ? 'Reopen' : 'Resolve'}
           size="sm"
@@ -341,23 +422,16 @@ function CommentThreadView({
             size="sm"
             variant="ghost"
             disabled={replying}
-            onPress={() => setReplying(true)}
+            onPress={onReply}
           />
         ) : null}
-      </View>
+      </Box>
       {AsyncResult.isFailure(resolve.result) ? (
         <ErrorState
           message={reviewErrorMessage(Cause.squash(resolve.result.cause))}
         />
       ) : null}
-      {replying ? (
-        <CommentComposer
-          workspace={workspace}
-          anchor={thread.anchor}
-          threadId={thread.id}
-          onClose={() => setReplying(false)}
-        />
-      ) : null}
-    </View>
+      {children}
+    </Box>
   );
 }

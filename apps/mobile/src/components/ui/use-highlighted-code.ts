@@ -5,24 +5,14 @@ import type { RenderToken } from '../../shared/rules/render-model';
 import { createCodeHighlighter } from './code-highlighter';
 import { createNativeEngine } from 'react-native-shiki-engine';
 
-const highlighter = createCodeHighlighter(createNativeEngine()).then(
-  (value) => ({ value }),
-  () => ({ value: undefined }),
-);
-function nextFrame(signal: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    const finish = () => {
-      signal.removeEventListener('abort', abort);
-      resolve();
-    };
-    const frame = requestAnimationFrame(finish);
-    const abort = () => {
-      cancelAnimationFrame(frame);
-      finish();
-    };
-    signal.addEventListener('abort', abort, { once: true });
-  });
+async function loadHighlighter() {
+  try {
+    return await createCodeHighlighter(createNativeEngine());
+  } catch {
+    return undefined;
+  }
 }
+const highlighter = loadHighlighter();
 export function useHighlightedCode(source: string, language?: string) {
   const { theme } = useUniwind();
   const scheme = theme === 'dark' ? 'dark' : 'light';
@@ -36,18 +26,14 @@ export function useHighlightedCode(source: string, language?: string) {
   useEffect(() => {
     if (!language) return;
     const controller = new AbortController();
-    void highlighter
-      .then(({ value }) => {
+    async function highlight() {
+      try {
+        const value = await highlighter;
         if (!value) throw new Error('Syntax highlighting could not load.');
-        return value(source, language, scheme, controller.signal, () =>
-          nextFrame(controller.signal),
-        );
-      })
-      .then((tokens) => {
+        const tokens = await value(source, language, scheme, controller.signal);
         if (!controller.signal.aborted)
           setResult({ source, language, scheme, tokens });
-      })
-      .catch(() => {
+      } catch {
         if (!controller.signal.aborted)
           setResult({
             source,
@@ -55,7 +41,9 @@ export function useHighlightedCode(source: string, language?: string) {
             scheme,
             error: 'Syntax highlighting could not load.',
           });
-      });
+      }
+    }
+    void highlight();
     return () => controller.abort();
   }, [source, language, scheme]);
   return result?.source === source &&

@@ -37,6 +37,7 @@ import {
   changeAnchor,
   commentsSeenThrough,
   type CommentThread,
+  type FileCommentAnchor,
 } from '@porcelain/client/reviews/rules';
 import {
   ALL_CHANGES,
@@ -54,6 +55,7 @@ import {
   filesReviewed,
   stopName,
   type WalkthroughKey,
+  type WalkthroughStop,
   notExplainedLabel,
   type ReviewChangeItem,
   type ReviewResponse,
@@ -192,7 +194,7 @@ export function ReviewIndex({
           </TabsList>
         </Tabs>
       </div>
-      {view === 'layers' && branch ? (
+      {view === 'layers' && branch && (
         <BranchIndex
           scope={scope}
           context={context}
@@ -202,7 +204,8 @@ export function ReviewIndex({
           onOpen={onOpen}
           onBase={onBase}
         />
-      ) : view === 'layers' ? (
+      )}
+      {view === 'layers' && !branch && (
         <LayersView
           scope={scope}
           context={context}
@@ -213,7 +216,8 @@ export function ReviewIndex({
           changes={changes}
           threads={threads}
         />
-      ) : (
+      )}
+      {view === 'comments' && (
         <CommentsView
           list={list}
           threads={threads}
@@ -401,26 +405,7 @@ function WalkthroughRows({
             aria-pressed={here(stop.key)}
             onClick={() => open(stop.key)}
           >
-            {stop.kind === 'briefing' ? (
-              <CompassIcon className="size-3.5 shrink-0 text-muted-foreground" />
-            ) : stop.kind === 'decision' ? (
-              <span
-                className={cn(
-                  'grid size-4 shrink-0 place-items-center rounded-full text-2xs text-muted-foreground tabular-nums',
-                  done && 'bg-graph-2 text-background',
-                )}
-              >
-                {done ? (
-                  <CheckIcon className="size-3" aria-label="Reviewed" />
-                ) : (
-                  stop.number
-                )}
-              </span>
-            ) : stop.kind === 'unexplained' ? (
-              <FileQuestionIcon className="size-3.5 shrink-0 text-graph-4" />
-            ) : (
-              <FlaskConicalIcon className="size-3.5 shrink-0 text-muted-foreground" />
-            )}
+            <StopIcon stop={stop} done={done} />
             <span className="min-w-0 flex-1 truncate">
               {stopName(stop)}
               {stop.kind === 'unexplained' &&
@@ -457,6 +442,34 @@ function WalkthroughRows({
         </span>
       </button>
     </nav>
+  );
+}
+
+function StopIcon({ stop, done }: { stop: WalkthroughStop; done: boolean }) {
+  if (stop.kind === 'briefing') {
+    return <CompassIcon className="size-3.5 shrink-0 text-muted-foreground" />;
+  }
+  if (stop.kind === 'decision') {
+    return (
+      <span
+        className={cn(
+          'grid size-4 shrink-0 place-items-center rounded-full text-2xs text-muted-foreground tabular-nums',
+          done && 'bg-graph-2 text-background',
+        )}
+      >
+        {done ? (
+          <CheckIcon className="size-3" aria-label="Reviewed" />
+        ) : (
+          stop.number
+        )}
+      </span>
+    );
+  }
+  if (stop.kind === 'unexplained') {
+    return <FileQuestionIcon className="size-3.5 shrink-0 text-graph-4" />;
+  }
+  return (
+    <FlaskConicalIcon className="size-3.5 shrink-0 text-muted-foreground" />
   );
 }
 
@@ -563,6 +576,22 @@ function BranchChangeComment({
   );
 }
 
+function anchorDocument(
+  anchor: FileCommentAnchor,
+  changed: ReadonlySet<string>,
+): DocumentRef {
+  if (anchor.comparison?.kind === 'branch') {
+    return { kind: 'branch-file', path: anchor.filePath };
+  }
+  if (anchor.revision !== null && anchor.revision !== undefined) {
+    return { kind: 'commit', oid: anchor.revision };
+  }
+  if (anchor.comparison?.kind !== 'file' && changed.has(anchor.filePath)) {
+    return { kind: 'change', path: anchor.filePath };
+  }
+  return { kind: 'file', path: anchor.filePath };
+}
+
 function CommentsView({
   scope,
   context,
@@ -622,15 +651,7 @@ function CommentsView({
       );
       return;
     }
-    const ref: DocumentRef =
-      anchor.comparison?.kind === 'branch'
-        ? { kind: 'branch-file', path: anchor.filePath }
-        : anchor.revision !== null && anchor.revision !== undefined
-          ? { kind: 'commit', oid: anchor.revision }
-          : anchor.comparison?.kind !== 'file' && changed.has(anchor.filePath)
-            ? { kind: 'change', path: anchor.filePath }
-            : { kind: 'file', path: anchor.filePath };
-    onOpen(ref, anchor);
+    onOpen(anchorDocument(anchor, changed), anchor);
   };
 
   return (

@@ -359,11 +359,7 @@ function DocumentArea({
     scope,
     context,
     reviewing: published.review?.active === true,
-    handoff: published.review?.active
-      ? ('review' as const)
-      : hasHandoff
-        ? ('changes' as const)
-        : null,
+    handoff: handoffKind(published.review?.active === true, hasHandoff),
     base,
     onOpen,
     navigationTrigger,
@@ -385,6 +381,20 @@ function DocumentArea({
       </ResizablePanel>
     </ResizablePanelGroup>
   );
+}
+
+function handoffKind(
+  reviewing: boolean,
+  hasHandoff: boolean,
+): 'review' | 'changes' | null {
+  if (reviewing) return 'review';
+  if (hasHandoff) return 'changes';
+  return null;
+}
+
+function paneSide(split: boolean, index: PaneIndex): 'left' | 'right' | null {
+  if (!split) return null;
+  return index === 0 ? 'left' : 'right';
 }
 
 function PaneView({
@@ -454,7 +464,7 @@ function PaneView({
         pinned={pane.pinned}
         active={pane.active}
         reviewing={reviewing}
-        side={split ? (index === 0 ? 'left' : 'right') : null}
+        side={paneSide(split, index)}
         focused={focused}
         onActivate={(key) => layout.activate(index, key)}
         onClose={(key) => layout.close(index, key)}

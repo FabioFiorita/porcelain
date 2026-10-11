@@ -5,9 +5,9 @@ import { WorkspacePicker } from '../features/projects';
 export function DestinationScreen({ children }: { children: ReactNode }) {
   return (
     <>
-      {deviceType === DeviceType.TABLET ? null : (
-        <WorkspacePicker presentation="phone" />
-      )}
+      <WorkspacePicker
+        presentation={deviceType === DeviceType.TABLET ? 'tablet' : 'phone'}
+      />
       {children}
     </>
   );

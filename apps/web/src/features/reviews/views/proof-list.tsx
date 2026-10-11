@@ -86,6 +86,12 @@ export function ProofList({
   );
 }
 
+function checkIcon(result: ProofCheck['result']) {
+  if (result === 'pass') return CircleCheckIcon;
+  if (result === 'fail') return CircleXIcon;
+  return CircleMinusIcon;
+}
+
 function CheckRow({
   check,
   target,
@@ -94,12 +100,7 @@ function CheckRow({
   target: string | undefined;
 }) {
   const failed = check.result === 'fail';
-  const Icon =
-    check.result === 'pass'
-      ? CircleCheckIcon
-      : failed
-        ? CircleXIcon
-        : CircleMinusIcon;
+  const Icon = checkIcon(check.result);
   return (
     <li
       aria-label={`${check.name}: ${checkResultLabel(check.result)}`}

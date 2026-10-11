@@ -1,18 +1,15 @@
+import { Box } from '../components/ui/box';
 import { Slot } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
 import {
   Host,
   NavigationSplitView,
   RNHostView,
-  Toolbar,
-  ToolbarItem,
   type NavigationSplitViewColumn,
   type NavigationSplitViewVisibility,
 } from '@expo/ui/swift-ui';
 import { TabletSidebar } from './tablet-sidebar';
 import { TabletContents } from './tablet-contents';
-import { WorkspacePicker } from '../features/projects';
 
 export function TabletSplit() {
   const [layout, setLayout] = useState<{
@@ -60,18 +57,11 @@ export function TabletSplit() {
           <TabletContents />
         </NavigationSplitView.Content>
         <NavigationSplitView.Detail>
-          <Toolbar>
-            <RNHostView>
-              <View className="flex-1 bg-background">
-                <Slot />
-              </View>
-            </RNHostView>
-            <Toolbar.Content>
-              <ToolbarItem placement="topBarTrailing">
-                <WorkspacePicker presentation="tablet" />
-              </ToolbarItem>
-            </Toolbar.Content>
-          </Toolbar>
+          <RNHostView>
+            <Box className="flex-1" surface="background">
+              <Slot />
+            </Box>
+          </RNHostView>
         </NavigationSplitView.Detail>
       </NavigationSplitView>
     </Host>

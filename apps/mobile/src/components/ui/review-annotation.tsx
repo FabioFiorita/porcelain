@@ -1,5 +1,6 @@
 import { View } from 'react-native';
 import { Text } from './text';
+import { Card } from './card';
 import { Badge } from './badge';
 import { Button } from './button';
 import type { CreateCommentThreadResponse } from '@porcelain/contracts/reviews';
@@ -26,7 +27,7 @@ export function ReviewAnnotation({
   onResolve?: () => void;
 }) {
   return (
-    <View className="gap-3 rounded-2xl border border-border bg-card p-4">
+    <Card gap={3} padding={4}>
       <View className="flex-row items-center justify-between gap-3">
         <Text variant="ui" weight="medium">
           {author === 'agent' ? 'Agent' : 'You'}
@@ -49,6 +50,6 @@ export function ReviewAnnotation({
           onPress={onResolve}
         />
       ) : null}
-    </View>
+    </Card>
   );
 }

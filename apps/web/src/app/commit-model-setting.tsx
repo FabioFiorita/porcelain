@@ -17,6 +17,23 @@ import { useCommitModels } from '@/features/git-actions/index';
 import { useConnectedContext } from '@/features/access/index';
 import { usePreferences } from '@/features/preferences/index';
 
+function placeholder(pending: boolean, available: number | undefined) {
+  if (pending) return 'Loading models…';
+  if (available) return 'Choose a model';
+  return 'No models available';
+}
+
+function description(
+  failed: boolean,
+  pending: boolean,
+  available: number | undefined,
+) {
+  if (failed) return 'Could not load installed coding CLIs.';
+  if (!pending && !available)
+    return 'Install and sign in to Codex or Claude Code on the server to generate drafts.';
+  return 'Uses a signed-in coding CLI on the server. Codex models come from its local catalogue.';
+}
+
 export function CommitModelSetting() {
   const models = useCommitModels(useConnectedContext());
   const choices = Option.getOrUndefined(AsyncResult.value(models));
@@ -45,15 +62,7 @@ export function CommitModelSetting() {
         }}
       >
         <SelectTrigger id="commit-model" className="w-full shrink-0 sm:w-56">
-          <SelectValue
-            placeholder={
-              pending
-                ? 'Loading models…'
-                : choices?.length
-                  ? 'Choose a model'
-                  : 'No models available'
-            }
-          />
+          <SelectValue placeholder={placeholder(pending, choices?.length)} />
         </SelectTrigger>
         <SelectContent>
           {groupedCommitModels(
@@ -71,11 +80,7 @@ export function CommitModelSetting() {
         </SelectContent>
       </Select>
       <p className="w-full text-xs text-muted-foreground">
-        {AsyncResult.isFailure(models)
-          ? 'Could not load installed coding CLIs.'
-          : !pending && !choices?.length
-            ? 'Install and sign in to Codex or Claude Code on the server to generate drafts.'
-            : 'Uses a signed-in coding CLI on the server. Codex models come from its local catalogue.'}
+        {description(AsyncResult.isFailure(models), pending, choices?.length)}
       </p>
     </div>
   );
