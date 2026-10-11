@@ -180,6 +180,179 @@ describe('Native storage adoption', () => {
     }
   });
 
+  it('resets old-format projects and all their data while preserving stable registrations', async () => {
+    const seeded = applyLegacyMigrations(directory, 28);
+    try {
+      seeded.exec(`CREATE TABLE porcelain_git_action_execution_v1 (
+        request_id TEXT PRIMARY KEY REFERENCES git_action_receipts(request_id) ON DELETE CASCADE,
+        phase TEXT NOT NULL CHECK (phase IN ('queued', 'started'))
+      );`);
+      for (const [prefix, identity] of [
+        ['old', '16777230:123:456'],
+        ['new', '123:456'],
+      ]) {
+        seeded.exec(`
+          INSERT INTO inventory_projects VALUES ('${prefix}', '${prefix} project', 1, '/${prefix}/.git', '${identity}', 1, 4);
+          INSERT INTO worktree_presence VALUES ('${prefix}-worktree', '${prefix}', NULL);
+          INSERT INTO reviews VALUES ('${prefix}-worktree', 3, '${at}', 1, '<p>Keep review</p>', '${prefix}-token', 'secret', NULL, '[]', NULL);
+          INSERT INTO reviewed_files VALUES ('${prefix}-worktree', 'worktree', '', 'README.md', 'file-print', '${at}', 0);
+          INSERT INTO reviewed_layers VALUES ('${prefix}-worktree', 'layer', 'layer-print', '${at}');
+          INSERT INTO comment_threads (id, worktree_id, anchor, resolved, revision, last_agent_revision, size_bytes)
+            VALUES ('${prefix}-thread', '${prefix}-worktree', '{"kind":"file","filePath":"README.md"}', 0, 7, NULL, 12);
+          INSERT INTO comment_messages (id, thread_id, worktree_id, body, author, created_at, edited_at)
+            VALUES ('${prefix}-message', '${prefix}-thread', '${prefix}-worktree', 'Keep comment', 'reviewer', '${at}', NULL);
+          INSERT INTO comment_reads VALUES ('${prefix}-worktree', 7);
+          INSERT INTO project_file_preferences VALUES ('${prefix}', 'README.md', 1, 0);
+          INSERT INTO review_proof_files VALUES ('${prefix}-worktree', 'proof', 'image/png', X'010203');
+          INSERT INTO git_action_receipts VALUES ('${prefix}-receipt', '${prefix}', '${prefix}-worktree', 'commit', 'succeeded', NULL, 'Keep receipt', 0, '${at}', '${at}', NULL, '{"action":"commit"}', '{}', NULL, '[]');
+          INSERT INTO porcelain_git_action_execution_v1 VALUES ('${prefix}-receipt', 'started');
+        `);
+      }
+      expect(seeded.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+    } finally {
+      seeded.close();
+    }
+    const session = runtime(directory);
+    try {
+      await session.runPromise(InventoryStore);
+    } finally {
+      await session.dispose();
+    }
+    const database = new DatabaseSync(join(directory, 'inventory.sqlite'));
+    try {
+      expect(
+        database.prepare('SELECT * FROM inventory_projects').all(),
+      ).toEqual([
+        {
+          id: 'new',
+          name: 'new project',
+          named_by_owner: 1,
+          common_directory: '/new/.git',
+          repository_identity: '123:456',
+          available: 1,
+          position: 4,
+        },
+      ]);
+      expect(database.prepare('SELECT * FROM worktree_presence').all()).toEqual(
+        [
+          {
+            worktree_id: 'new-worktree',
+            project_id: 'new',
+            missing_since: null,
+          },
+        ],
+      );
+      expect(database.prepare('SELECT * FROM reviews').all()).toEqual([
+        {
+          worktree_id: 'new-worktree',
+          revision: 3,
+          published_at: '2026-01-01T00:00:00.000Z',
+          active: 1,
+          summary_html: '<p>Keep review</p>',
+          summary_token: 'new-token',
+          summary_secret: 'secret',
+          diagram: null,
+          layers: '[]',
+          proof: null,
+        },
+      ]);
+      expect(database.prepare('SELECT * FROM reviewed_files').all()).toEqual([
+        {
+          worktree_id: 'new-worktree',
+          scope: 'worktree',
+          branch: '',
+          path: 'README.md',
+          fingerprint: 'file-print',
+          reviewed_at: '2026-01-01T00:00:00.000Z',
+          stale: 0,
+        },
+      ]);
+      expect(database.prepare('SELECT * FROM reviewed_layers').all()).toEqual([
+        {
+          worktree_id: 'new-worktree',
+          layer_id: 'layer',
+          fingerprint: 'layer-print',
+          reviewed_at: '2026-01-01T00:00:00.000Z',
+        },
+      ]);
+      expect(database.prepare('SELECT * FROM comment_threads').all()).toEqual([
+        {
+          sequence: 2,
+          id: 'new-thread',
+          worktree_id: 'new-worktree',
+          anchor: '{"kind":"file","filePath":"README.md"}',
+          resolved: 0,
+          revision: 7,
+          last_agent_revision: null,
+          size_bytes: 12,
+        },
+      ]);
+      expect(database.prepare('SELECT * FROM comment_messages').all()).toEqual([
+        {
+          sequence: 2,
+          id: 'new-message',
+          thread_id: 'new-thread',
+          worktree_id: 'new-worktree',
+          body: 'Keep comment',
+          author: 'reviewer',
+          created_at: '2026-01-01T00:00:00.000Z',
+          edited_at: null,
+        },
+      ]);
+      expect(database.prepare('SELECT * FROM comment_reads').all()).toEqual([
+        { worktree_id: 'new-worktree', seen_through: 7 },
+      ]);
+      expect(
+        database.prepare('SELECT * FROM project_file_preferences').all(),
+      ).toEqual([
+        { project_id: 'new', path: 'README.md', pinned: 1, hidden: 0 },
+      ]);
+      expect(
+        database
+          .prepare(
+            'SELECT worktree_id, id, media_type, hex(bytes) AS bytes FROM review_proof_files',
+          )
+          .all(),
+      ).toEqual([
+        {
+          worktree_id: 'new-worktree',
+          id: 'proof',
+          media_type: 'image/png',
+          bytes: '010203',
+        },
+      ]);
+      expect(
+        database.prepare('SELECT * FROM git_action_receipts').all(),
+      ).toEqual([
+        {
+          request_id: 'new-receipt',
+          project_id: 'new',
+          worktree_id: 'new-worktree',
+          action: 'commit',
+          state: 'succeeded',
+          reason: null,
+          message: 'Keep receipt',
+          refresh_required: 0,
+          accepted_at: '2026-01-01T00:00:00.000Z',
+          finished_at: '2026-01-01T00:00:00.000Z',
+          dismissed_at: null,
+          intent: '{"action":"commit"}',
+          expected: '{}',
+          result: null,
+          progress: '[]',
+        },
+      ]);
+      expect(
+        database
+          .prepare('SELECT * FROM porcelain_git_action_execution_v1')
+          .all(),
+      ).toEqual([{ request_id: 'new-receipt', phase: 'started' }]);
+      expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+    } finally {
+      database.close();
+    }
+  });
+
   it('refuses a modified migration ledger without changing persisted rows', async () => {
     legacyDatabase(directory);
     const database = new DatabaseSync(join(directory, 'inventory.sqlite'));
@@ -385,7 +558,7 @@ describe('Native storage adoption', () => {
         database
           .prepare('SELECT count(*) AS count FROM __drizzle_migrations')
           .get(),
-      ).toEqual({ count: 28 });
+      ).toEqual({ count: 29 });
       expect(
         database.prepare('SELECT revision FROM comment_revision').get(),
       ).toEqual({ revision: 37 });
@@ -451,7 +624,7 @@ describe('Native storage adoption', () => {
           stored
             .prepare('SELECT count(*) AS count FROM __drizzle_migrations')
             .get(),
-        ).toEqual({ count: 28 });
+        ).toEqual({ count: 29 });
       } finally {
         stored.close();
       }

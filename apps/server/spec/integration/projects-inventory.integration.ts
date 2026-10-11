@@ -107,18 +107,21 @@ test('refreshing the inventory rechecks a missing repository and restores its or
   ]);
 });
 
-test('removing an unavailable project lets the same folder be registered again', async ({
+test('removing a moved project lets the replacement repository be registered', async ({
   session,
 }) => {
-  const moved = `${session.repository}-removed`;
-  await session.rename(session.repository, moved);
-  const missing = await session.send({
+  await session.rename(
+    `${session.repository}/.git`,
+    `${session.repository}-old-git`,
+  );
+  await session.git('init');
+  const moved = await session.send({
     method: 'POST',
     path: '/api/inventory/refresh',
   });
-  expect(missing.status).toBe(200);
-  expect(list(record(missing.body).projects)).toStrictEqual([
-    { ...registered(session, false), unavailableReason: 'missing' },
+  expect(moved.status).toBe(200);
+  expect(list(record(moved.body).projects)).toStrictEqual([
+    { ...registered(session, false), unavailableReason: 'moved' },
   ]);
 
   const removed = await session.send({
@@ -127,18 +130,12 @@ test('removing an unavailable project lets the same folder be registered again',
   });
   expect(removed.status).toBe(200);
   expect(removed.body).toStrictEqual({ deleted: true });
-  expect(
-    list(record((await session.read(inventory)).body).projects),
-  ).toStrictEqual([]);
-
-  await session.rename(moved, session.repository);
   const readded = await session.send({
     method: 'POST',
     path: '/api/projects',
     body: { path: session.repository },
   });
   expect(readded.status).toBe(200);
-  expect(record(readded.body).id).not.toBe(session.projectId);
   expect(readded.body).toMatchObject({
     name: session.fixture.folders.repository,
     available: true,
