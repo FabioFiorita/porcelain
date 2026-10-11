@@ -7,7 +7,7 @@ description: Release a new Porcelain version (the npm package and the notarized 
 
 The version in the root `package.json` is the one version for the npm package `@fabiofiorita/porcelain`, the Mac app and its server. Pushing a tag `v<version>` runs `.github/workflows/release.yml`: it builds the notarized Mac disk image and the update files, publishes the npm package, then creates the GitHub release with them and generated notes. The owner approves every release.
 
-1. **Bump.** Set `version` in the root `package.json` (minor for features, patch for fixes). Open a pull request `Release <version>` and merge it once CI is green.
+1. **Bump.** Set `version` in the root `package.json` (minor for features, patch for fixes). Open a pull request `Release <version>` with auto-merge off; the owner approves the release by merging it.
 2. **Rehearse (optional).** `gh workflow run release.yml` on `main` builds, signs and notarizes the Mac app and publishes nothing. Use it after changing the build or the workflow.
 3. **Tag.** On the merged commit: `git tag -a v<version> origin/main -m "Porcelain <version>"`, then `git push origin v<version>`. The workflow refuses a tag that does not match `package.json`, is not on `main`, or is already released.
 4. **Confirm.** Watch `gh run list --workflow release.yml`. The release is done when `npm view @fabiofiorita/porcelain dist-tags` shows the version as `latest` and the GitHub release carries `Porcelain-<version>-arm64.dmg`, `Porcelain-<version>-arm64-mac.zip` and `latest-mac.yml`.
