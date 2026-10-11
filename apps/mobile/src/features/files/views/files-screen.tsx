@@ -1,6 +1,5 @@
 import { Box } from '../../../components/ui/box';
-import { Empty } from '../../../components/ui/empty';
-import { useSelectedWorktree } from '../../projects';
+import { WorkspaceGate, type SelectedWorktree } from '../../projects';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
@@ -30,11 +29,12 @@ export function FilesScreen({
 }: {
   onOpen: (path: string, workspace: string) => void;
 }) {
-  const selected = useSelectedWorktree();
-  return selected ? (
-    <WorktreeFiles key={selected.key} selected={selected} onOpen={onOpen} />
-  ) : (
-    <Empty description="Select a worktree to continue." title="Files" />
+  return (
+    <WorkspaceGate title="Files">
+      {(selected) => (
+        <WorktreeFiles key={selected.key} selected={selected} onOpen={onOpen} />
+      )}
+    </WorkspaceGate>
   );
 }
 
@@ -42,7 +42,7 @@ function WorktreeFiles({
   selected,
   onOpen,
 }: {
-  selected: NonNullable<ReturnType<typeof useSelectedWorktree>>;
+  selected: SelectedWorktree;
   onOpen: (path: string, workspace: string) => void;
 }) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
@@ -158,6 +158,11 @@ function WorktreeFiles({
       <FileTree
         header={header}
         flat={searching}
+        empty={
+          searching
+            ? AsyncResult.isSuccess(paths.result)
+            : data.some((directory) => directory.path === '')
+        }
         nodes={
           searching
             ? quickOpenMatches(pathData?.paths ?? [], query).map((path) => ({

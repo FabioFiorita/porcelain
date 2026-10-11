@@ -8,14 +8,12 @@ import { readBranchBases } from '@porcelain/client/changes';
 import { readCommentThreads } from '@porcelain/client/reviews';
 import { changeAnchor } from '@porcelain/client/reviews/rules';
 import { Empty } from '../../../components/ui/empty';
+import { WorkspaceGate } from '../../projects';
 import { Item } from '../../../components/ui/item';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
 import { Badge } from '../../../components/ui/badge';
-import {
-  useReviewWorkspace,
-  type ReviewWorkspace,
-} from '../adapters/workspace';
+import { type ReviewWorkspace } from '../adapters/workspace';
 import { useReviewSnapshot, useReviewMarks } from '../queries/review';
 import {
   reviewFiles,
@@ -29,11 +27,10 @@ import { ComparisonMenu } from './comparison-menu';
 import { PublishedReview } from './published-review';
 
 export function ReviewScreen() {
-  const workspace = useReviewWorkspace();
-  return workspace ? (
-    <ReviewIndex key={workspace.key} workspace={workspace} />
-  ) : (
-    <Empty description="Select a worktree to continue." title="Review" />
+  return (
+    <WorkspaceGate title="Review">
+      {(workspace) => <ReviewIndex key={workspace.key} workspace={workspace} />}
+    </WorkspaceGate>
   );
 }
 

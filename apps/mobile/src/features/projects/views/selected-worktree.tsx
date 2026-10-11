@@ -15,13 +15,14 @@ export function useWorkspace() {
     : undefined;
   const connected = useWorkspaceConnection(
     remote,
-    remembered?.projectId,
-    remembered?.worktreeId,
-    access.status === 'ready' && selection.status === 'ready',
+    remembered,
+    access,
+    selection,
   );
   return { environments, access, selection, remote, remembered, ...connected };
 }
 
 export function useSelectedWorktree() {
-  return useWorkspace().current;
+  const { state } = useWorkspace();
+  return state.kind === 'selected' ? state.workspace : undefined;
 }

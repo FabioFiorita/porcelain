@@ -1,6 +1,6 @@
 import { Box } from '../components/ui/box';
 import { destinationForPath } from './destinations';
-import { useSelectedWorktree } from '../features/projects';
+import { WorkspaceGate } from '../features/projects';
 import { Text } from '../components/ui/text';
 import { Label, List, RNHostView, Section, VStack } from '@expo/ui/swift-ui';
 import { listStyle, navigationTitle, tag } from '@expo/ui/swift-ui/modifiers';
@@ -10,7 +10,6 @@ export function TabletContents() {
   const pathname = usePathname();
   const router = useRouter();
   const destination = destinationForPath(pathname);
-  const selected = useSelectedWorktree();
 
   return (
     <>
@@ -33,11 +32,13 @@ export function TabletContents() {
               paddingX={6}
               paddingY={8}
             >
-              <Text variant="ui" tone="muted">
-                {selected
-                  ? (selected.worktree.branch ?? selected.worktree.path)
-                  : 'No worktree selected.'}
-              </Text>
+              <WorkspaceGate title={destination.title}>
+                {(selected) => (
+                  <Text variant="ui" tone="muted">
+                    {selected.worktree.branch ?? selected.worktree.path}
+                  </Text>
+                )}
+              </WorkspaceGate>
             </Box>
           </RNHostView>
         </VStack>

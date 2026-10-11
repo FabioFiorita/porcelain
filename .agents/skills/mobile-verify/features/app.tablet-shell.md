@@ -1,12 +1,13 @@
 ---
 screen: /
 selectors:
-  - "Porcelain"
-  - "Changes"
-  - "No worktree selected."
-  - "Environments"
-  - "Add environment"
-tests: []
+  - 'Porcelain'
+  - 'Changes'
+  - 'Select a worktree to continue.'
+  - 'Environments'
+  - 'Add environment'
+tests:
+  - packages/client/src/features/projects/rules/workspace-selection.spec.ts
 api: []
 ---
 
@@ -14,7 +15,7 @@ api: []
 
 ## What it is
 
-On iPad the app is Expo UI's SwiftUI three-column NavigationSplitView: the sidebar “Porcelain” lists Files, Review, History and Settings; the content column holds the destination's master pane (“Files” by default or “Changes” on Review, with “No worktree selected.” in themed React Native content, or Settings' native Environments section); Expo Router renders the detail column, whose toolbar carries the workspace picker. Collapsing the sidebar keeps the master and detail; rotating keeps Settings. In portrait iPadOS shows two columns. The tablet never embeds the phone's tab navigator. The owner chose the SwiftUI split view over Router's, which cannot customize its header.
+On iPad the app is Expo UI's SwiftUI three-column NavigationSplitView: the sidebar “Porcelain” lists Files, Review, History and Settings; the content column holds the destination's master pane (“Files” by default or “Changes” on Review, with “Select a worktree to continue.” in themed React Native content, or Settings' native Environments section); Expo Router renders the detail column, whose toolbar carries the workspace picker. Collapsing the sidebar keeps the master and detail; rotating keeps Settings. In portrait iPadOS shows two columns. The tablet never embeds the phone's tab navigator. The owner chose the SwiftUI split view over Router's, which cannot customize its header.
 
 ## How a user reaches it
 
@@ -23,7 +24,7 @@ On iPad the app is Expo UI's SwiftUI three-column NavigationSplitView: the sideb
 ## Driving it
 
 1. Launch on the iPad, then show the sidebar if it is hidden; expect Files as the first and selected destination in the Porcelain sidebar.
-2. Select Files. Expect Files in the detail pane and Files / No worktree selected. in the content pane.
+2. Select Files. Expect Files in the detail pane and Files / Select a worktree to continue. in the content pane.
 3. Hide and show the sidebar. Expect the same selection, master and detail.
 4. Select Settings, rotate between landscape and portrait, then return. Expect Environments and Add environment throughout.
 5. Return to Review and confirm its heading.
@@ -36,3 +37,5 @@ Drive this feature with the mobile-verify skill on demand.
 
 - The simulator starts in portrait, where the sidebar is hidden behind Show Sidebar; rotate to landscape to verify the expanded sidebar, and a development deep link reaches a destination in either orientation.
 - “Hide Sidebar” and “Show Sidebar” are SwiftUI's own labels, so the map cannot name them as selectors.
+
+The master content pane and Files, Review and History detail panes share the workspace gate. Verify Reading workspace…, failed inventory with Read again, Workspace unavailable with its reason, and the loaded no-selection prompt in the split view; keep the sidebar and workspace toolbar reachable. This requires its own iPad run.

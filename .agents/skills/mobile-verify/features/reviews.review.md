@@ -1,12 +1,17 @@
 ---
 screen: /review
 selectors:
-  - "Review"
-  - "Select a worktree to continue."
-  - "No changes"
-  - "Refresh"
-tests: []
+  - 'Reading workspace…'
+  - 'Workspace unavailable'
+  - 'Read again'
+  - 'Review'
+  - 'Select a worktree to continue.'
+  - 'No changes'
+  - 'Refresh'
+tests:
+  - packages/client/src/features/projects/rules/workspace-selection.spec.ts
 api:
+  - GET /api/inventory
   - GET /api/worktrees/:worktreeId/changes
   - GET /api/worktrees/:worktreeId/branch-changes
   - GET /api/worktrees/:worktreeId/branch-bases
@@ -44,3 +49,5 @@ Drive this feature with the mobile-verify skill on demand.
 
 - Agent explanations can refer to context or committed files outside the current comparison. The current changed-file destination explicitly reports No longer changed instead of fabricating a diff.
 - iPhone is the authorized native proof target. The existing iPad shell map is retained, but these Review changes do not claim iPad or Android proof.
+
+Files, Review and History share the workspace gate: saved storage and the first inventory show Reading workspace…; inventory failures show their message and Read again, which refreshes the inventory; unavailable or missing saved projects/worktrees show Workspace unavailable and the most specific reason supported by the inventory. Only loaded saved state with no choice says Select a worktree to continue. The native workspace toolbar remains reachable in each state. See projects.workspace-picker for driving these states.

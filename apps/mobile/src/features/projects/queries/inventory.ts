@@ -11,6 +11,7 @@ import {
   readInventory,
   readInventories,
   refreshInventories,
+  workspaceInventory,
 } from '@porcelain/client/projects';
 import type { EnvironmentInventory } from '@porcelain/client/projects/rules';
 import { liveQueries } from '@porcelain/client/live';
@@ -22,7 +23,12 @@ const unavailable = Atom.make(AsyncResult.initial<ReadInventoryResponse>());
 
 export function useInventory(connection: RuntimeConnection | undefined) {
   const atom = connection ? readInventory(connection) : unavailable;
-  return { result: useAtomValue(atom), read: useAtomRefresh(atom) };
+  const result = useAtomValue(atom);
+  return {
+    result,
+    read: useAtomRefresh(atom),
+    state: workspaceInventory(result),
+  };
 }
 
 const allInventories = Atom.family((remotes: readonly RemoteConnection[]) => {

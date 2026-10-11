@@ -1,6 +1,9 @@
 ---
 screen: /files
 selectors:
+  - 'Reading workspace…'
+  - 'Workspace unavailable'
+  - 'Read again'
   - 'Workspace'
   - 'No environments paired'
   - 'Reading projects…'
@@ -8,7 +11,9 @@ selectors:
   - 'Could not read projects'
   - 'Saved worktree is unavailable'
   - 'Read projects again'
-tests: []
+tests:
+  - packages/client/src/features/projects/rules/workspace-selection.spec.ts
+  - packages/client/src/features/projects/queries/inventory-state.spec.ts
 api:
   - POST /api/inventory/refresh
   - GET /api/inventory
@@ -52,3 +57,13 @@ Drive this feature with the mobile-verify skill on demand.
 - The shared forget-environments flow ends in Settings. The workspace flow returns to Files before checking its toolbar's reset label and absence of the old worktree labels.
 
 - Native iOS project rows expose an accessibility label of `<project>, <environment>` for their title and subtitle.
+
+## Selected workspace states
+
+1. Start with loaded storage and no saved worktree. Open Files, Review and History; expect Select a worktree to continue. The Workspace menu remains reachable, and choosing a worktree keeps the current tab.
+2. Cold-launch with a remembered worktree while the first inventory is pending. Expect Reading workspace… on all three tabs, with no selection prompt. Open and dismiss the toolbar menu without losing the destination.
+3. Fail the selected environment's inventory. Expect its error message and Read again on all three tabs, including when the reader retains an older inventory. Restore the environment and press Read again; expect the selected workspace's content.
+4. Make the fixture project or worktree unavailable, then read its inventory again. Expect Workspace unavailable and an environment-specific message on all three tabs. If an entry is absent, expect the distinct no-longer-registered or no-longer-in-project message. Inventory carries availability booleans, without a reason field. Open and dismiss the picker; restoring or selecting another available workspace recovers the current destination.
+5. In Files, hold the first root directory response. Expect Reading files… without No files. Release an empty root response and expect No files. Search a loaded inventory of paths with no matches and expect No files match this view.
+
+The iPad content pane uses the same workspace gate as its detail destination. Its sidebar and detail toolbar remain the way out. An iPhone run does not prove the split view or Android.
