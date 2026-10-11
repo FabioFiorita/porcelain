@@ -1,8 +1,8 @@
 import { DateTime, Effect, Layer, type Clock } from 'effect';
 import { ServiceCommandError } from './errors/service-command-error.ts';
 import type { Limits } from '../config/limits.ts';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
+import { cliPackageRoot } from './package-version.ts';
 import {
   isInstallerError,
   Installer,
@@ -24,10 +24,6 @@ type ServiceCommandDependencies = {
   limits: Limits;
   stdout: (message: string) => void;
 };
-
-export function cliPackageRoot(moduleUrl: string = import.meta.url): string {
-  return resolve(dirname(fileURLToPath(moduleUrl)), '../../..');
-}
 
 export function isServiceFailure(error: unknown): boolean {
   return isInstallerError(error) || error instanceof ServiceCommandError;
@@ -61,7 +57,8 @@ export const runServiceCommand = Effect.fn('runServiceCommand')(
     dependencies: ServiceCommandDependencies,
     moduleUrl: string = import.meta.url,
   ) {
-    const identity = yield* readPackageIdentity(cliPackageRoot(moduleUrl));
+    const packageRoot = yield* cliPackageRoot(moduleUrl);
+    const identity = yield* readPackageIdentity(packageRoot);
     const options = {
       homeDirectory: dependencies.homeDirectory,
       packageRoot: identity.packageRoot,

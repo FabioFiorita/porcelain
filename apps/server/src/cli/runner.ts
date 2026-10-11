@@ -18,13 +18,13 @@ import {
 } from '../config/environment-settings.ts';
 import type { Limits } from '../config/limits.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
-import { readCliVersion } from './package-version.ts';
+import { cliPackageRoot, readCliVersion } from './package-version.ts';
 import { CliPackageVersionError } from './errors/cli-package-version-error.ts';
 import { cliProgram } from './cli-program.ts';
 import { CliHost, CliOperations } from './operations.ts';
 import { CliInvocation, defaultWebRoot } from './settings.ts';
 import { OwnerRequestError } from './errors/owner-request-error.ts';
-import { isServiceFailure, cliPackageRoot } from './service.ts';
+import { isServiceFailure } from './service.ts';
 import { writeStandardError, writeStandardOutput } from './standard-output.ts';
 import type { StartServer } from './launcher.ts';
 
@@ -123,9 +123,8 @@ export function createCliRunner(
     const program = Effect.gen(function* () {
       const configured = yield* CliRuntime;
       return yield* Effect.gen(function* () {
-        const version = yield* readCliVersion(cliPackageRoot()).pipe(
-          Effect.orDie,
-        );
+        const packageRoot = yield* cliPackageRoot();
+        const version = yield* readCliVersion(packageRoot).pipe(Effect.orDie);
         return yield* cliProgram(args, version);
       }).pipe(
         Effect.provideService(Console.Console, output),

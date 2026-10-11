@@ -3,13 +3,19 @@ import { NodeServices } from '@effect/platform-node';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, expect, it } from 'vitest';
-import { readCliVersion } from './package-version.ts';
+import { cliPackageRoot, readCliVersion } from './package-version.ts';
 
 let root: string;
-const read = (packageRoot = root) =>
+const read = (
+  serverRoot = join(root, 'server'),
+  moduleName = 'package-version.mjs',
+) =>
   Effect.runPromise(
-    readCliVersion(packageRoot).pipe(Effect.provide(NodeServices.layer)),
+    cliPackageRoot(
+      pathToFileURL(join(serverRoot, 'src/cli', moduleName)).href,
+    ).pipe(Effect.flatMap(readCliVersion), Effect.provide(NodeServices.layer)),
   );
 
 beforeEach(() => {
@@ -38,7 +44,7 @@ it('reads the real repository version for the unversioned development server', a
     join(root, 'package.json'),
     JSON.stringify({ name: 'porcelain', version: '2.3.4' }),
   );
-  expect(await read(server)).toBe('2.3.4');
+  expect(await read(server, 'package-version.ts')).toBe('2.3.4');
 });
 
 it.each(['missing', '{broken', '{}', '{"version":42}', '{"version":""}'])(
@@ -52,12 +58,16 @@ it.each(['missing', '{broken', '{}', '{"version":42}', '{"version":""}'])(
   },
 );
 
-it('fails clearly when the development repository has no version', async () => {
-  const server = join(root, 'apps/server');
-  mkdirSync(server, { recursive: true });
-  writeFileSync(join(server, 'package.json'), '{"name":"@porcelain/server"}');
-  writeFileSync(join(root, 'package.json'), '{}');
-  await expect(read(server)).rejects.toThrow(
-    'could not read a required package version',
-  );
-});
+it.each(['missing', '{broken', '{}', '{"version":42}', '{"version":""}'])(
+  'fails clearly when development repository metadata is %s',
+  async (metadata) => {
+    const server = join(root, 'apps/server');
+    mkdirSync(server, { recursive: true });
+    writeFileSync(join(server, 'package.json'), '{"name":"@porcelain/server"}');
+    if (metadata !== 'missing')
+      writeFileSync(join(root, 'package.json'), metadata);
+    await expect(read(server, 'package-version.ts')).rejects.toThrow(
+      `Porcelain could not read a required package version from ${join(root, 'package.json')}. Check the package build.`,
+    );
+  },
+);
