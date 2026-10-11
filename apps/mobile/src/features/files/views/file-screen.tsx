@@ -1,3 +1,4 @@
+import type { FileTreeEntry } from '@porcelain/client/files/rules';
 import { Box } from '../../../components/ui/box';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
@@ -112,8 +113,8 @@ function ScopedFile(props: Props & { selected: Selected }) {
 }
 
 function unsupportedEntryDescription(entry: {
-  readonly kind: string;
-  readonly target?: string | null | undefined;
+  readonly kind: FileTreeEntry['kind'];
+  readonly target?: string | undefined;
 }) {
   if (entry.kind === 'symlink')
     return `Not followed: symlink to ${entry.target ?? 'an unknown target'}.`;

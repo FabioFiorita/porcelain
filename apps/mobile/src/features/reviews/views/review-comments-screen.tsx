@@ -270,6 +270,8 @@ function useCommentDraft(
     setBody('');
     setInvalid(undefined);
     intent.current = undefined;
+    create.reset();
+    reply.reset();
     complete();
   };
   const confirmDiscard = (complete: () => void) => {
