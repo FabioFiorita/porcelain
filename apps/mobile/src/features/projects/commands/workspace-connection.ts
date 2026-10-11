@@ -8,7 +8,7 @@ import {
   workspaceSelection,
   type WorkspaceSelection,
   type Project,
-  type PersistedReadState,
+  type SavedRead,
 } from '@porcelain/client/projects/rules';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { useInventory } from '../queries/inventory';
@@ -33,8 +33,8 @@ export function useWorkspaceConnection(
   remembered:
     | { readonly projectId: string; readonly worktreeId: string }
     | undefined,
-  storage: PersistedReadState,
-  selection: PersistedReadState,
+  storage: SavedRead,
+  selection: SavedRead,
 ) {
   const connection = useProjectConnection(remote);
   const inventory = useInventory(connection);

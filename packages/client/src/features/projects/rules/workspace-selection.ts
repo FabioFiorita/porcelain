@@ -1,5 +1,9 @@
-import type { PersistedReadState } from '../../persistence/rules/read-state.ts';
 import type { Inventory, Project } from './inventory.ts';
+
+export type SavedRead = {
+  readonly status: 'loading' | 'ready' | 'unreadable';
+  readonly error: string | undefined;
+};
 
 export type WorkspaceInventory =
   | { readonly status: 'reading' }
@@ -28,8 +32,8 @@ export function workspaceSelection({
   paired,
   inventory,
 }: {
-  storage: PersistedReadState;
-  selection: PersistedReadState;
+  storage: SavedRead;
+  selection: SavedRead;
   remembered:
     | { readonly projectId: string; readonly worktreeId: string }
     | undefined;

@@ -22,5 +22,5 @@ export {
 export {
   workspaceSelection,
   type WorkspaceSelection,
+  type SavedRead,
 } from './workspace-selection.ts';
-export type { PersistedReadState } from '../../persistence/rules/read-state.ts';
