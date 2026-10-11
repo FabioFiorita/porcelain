@@ -35,13 +35,13 @@ function FolderEntries({
   const current = Option.getOrUndefined(AsyncResult.value(folder.value));
   if (AsyncResult.isInitial(folder.value))
     return (
-      <p role="status" className="p-2 text-xs text-muted-foreground">
+      <p role="status" className="px-2 py-1.5 text-xs text-muted-foreground">
         Loading folders…
       </p>
     );
   if (AsyncResult.isFailure(folder.value))
     return (
-      <div className="flex flex-col items-start gap-2 p-2">
+      <div className="flex flex-col items-start gap-2 px-2 py-1.5">
         <p role="alert" className="text-xs text-destructive">
           {connectionErrorMessage(Cause.squash(folder.value.cause))}
         </p>
@@ -71,6 +71,7 @@ function FolderEntries({
       {current.parent && (
         <Button
           variant="ghost"
+          size="sm"
           className="w-full justify-start"
           onClick={() => setPath(current.parent ?? undefined)}
           disabled={disabled}
@@ -83,6 +84,7 @@ function FolderEntries({
         <Button
           key={directory.path}
           variant="ghost"
+          size="sm"
           className="w-full justify-start"
           title={directory.path}
           onClick={() => setPath(directory.path)}
@@ -93,7 +95,9 @@ function FolderEntries({
         </Button>
       ))}
       {!current.directories.length && (
-        <p className="p-2 text-xs text-muted-foreground">No subfolders.</p>
+        <p className="px-2 py-1.5 text-xs text-muted-foreground">
+          No subfolders.
+        </p>
       )}
     </>
   );
