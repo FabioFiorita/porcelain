@@ -1,3 +1,4 @@
+import { ServiceUpdateRunningError } from '@porcelain/access/errors';
 import { InstallerOperationError } from './installer-operation-error.ts';
 import { Schema } from 'effect';
 import { AlreadyInstalledError } from './already-installed-error.ts';
@@ -37,6 +38,7 @@ import { UpdatedServiceUnhealthyError } from './updated-service-unhealthy-error.
 
 const installerErrorSchema = Schema.Union([
   InstallerOperationError,
+  ServiceUpdateRunningError,
   AlreadyInstalledError,
   AppManagedUpdateError,
   DataDirectoryBusyError,

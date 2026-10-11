@@ -83,6 +83,7 @@
       "cache": false
     },
     "//#build:package": {
+      "cache": false,
       "inputs": [
         "apps/server/**",
         "apps/web/**",

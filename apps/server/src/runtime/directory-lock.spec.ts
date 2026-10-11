@@ -1,4 +1,4 @@
-import { Effect, Exit, Layer, Scope } from 'effect';
+import { Effect, Exit, Layer, Scope, Schema } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { testClock } from '@porcelain/kernel/test-kit';
 import { spawnSync } from 'node:child_process';
@@ -165,3 +165,38 @@ it.each([
       expect(readFileSync(join(path, 'owner.json'), 'utf8')).toBe(record);
   },
 );
+
+it.each(['bootId', 'startTime'] as const)(
+  'reclaims a lock when the live PID has a different %s',
+  async (field) => {
+    const path = lockPath();
+    await takeLock(await options(path));
+    const ownerPath = join(path, 'owner.json');
+    const owner = Schema.decodeUnknownSync(
+      Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)),
+    )(readFileSync(ownerPath, 'utf8'));
+    writeFileSync(
+      ownerPath,
+      JSON.stringify({ ...owner, [field]: 'a different process' }),
+    );
+    if (process.platform !== 'linux') {
+      expect(await held(path)).toBe(true);
+      await expect(takeLock(await options(path))).rejects.toThrow(HeldError);
+      return;
+    }
+    expect(await held(path)).toBe(false);
+    const replacement = await takeLock(await options(path));
+    expect(await held(path)).toBe(true);
+    await Effect.runPromise(replacement.release);
+    expect(existsSync(path)).toBe(false);
+  },
+);
+
+it('preserves a live lock written before process fingerprints were recorded', async () => {
+  const path = lockPath();
+  leaveLock(path, process.pid);
+  const before = readFileSync(join(path, 'owner.json'), 'utf8');
+  expect(await held(path)).toBe(true);
+  await expect(takeLock(await options(path))).rejects.toThrow(HeldError);
+  expect(readFileSync(join(path, 'owner.json'), 'utf8')).toBe(before);
+});

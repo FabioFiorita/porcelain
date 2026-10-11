@@ -79,11 +79,7 @@ it('keeps the newest three completed backups when newer unfinished copies exist'
     mkdirSync(join(root, `${name(day)}.partial`));
   }
   await prune();
-  expect(
-    readdirSync(root)
-      .filter((entry) => !entry.endsWith('.partial'))
-      .sort(),
-  ).toEqual([name(3), name(4), name(5)]);
+  expect(readdirSync(root).sort()).toEqual([name(3), name(4), name(5)]);
   expect(
     [3, 4, 5].map((day) =>
       readFileSync(join(root, name(day), 'inventory.sqlite'), 'utf8'),

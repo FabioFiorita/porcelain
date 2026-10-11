@@ -150,11 +150,12 @@ jobs:
           npm install --global npm@11.21.0
           npm --version
       - name: Run the packed package before publishing
+        id: package
         env:
+          PACKAGE_TARBALL_DIRECTORY: ${{ runner.temp }}/checked-package
           VERSION: ${{ needs.version.outputs.version }}
         run: bash scripts/check-package.sh
       - name: Publish with npm trusted publishing
-        working-directory: dist-porcelain
         env:
           VERSION: ${{ needs.version.outputs.version }}
         run: |
@@ -162,7 +163,7 @@ jobs:
           if npm view --prefer-online "@fabiofiorita/porcelain@$VERSION" version > /dev/null 2>&1; then
             echo "@fabiofiorita/porcelain@$VERSION is already published; a re-run continues from the check."
           else
-            npm publish --provenance --access public
+            npm publish "${{ steps.package.outputs.tarball }}" --provenance --access public
           fi
       - name: Install the published package from a clean folder
         env:

@@ -1,3 +1,4 @@
+import { ServiceUpdateRunningError } from '@porcelain/access/errors';
 import { DateTime, Effect, Layer, type Clock } from 'effect';
 import { ServiceCommandError } from './errors/service-command-error.ts';
 import type { Limits } from '../config/limits.ts';
@@ -111,6 +112,7 @@ export const runServiceCommand = Effect.fn('runServiceCommand')(
         );
         const latest = yield* updateToLatest(updates, {
           check: { now: observedAt, staleBefore: observedAt },
+          authority: { canUpdate: true },
           pollMs: dependencies.limits.installer.health.intervalMs,
           allowDowngrade: settings.allowDowngrade,
           handingOff: (from, target) =>
@@ -171,6 +173,12 @@ export const runServiceCommand = Effect.fn('runServiceCommand')(
     );
   },
   Effect.mapError((error) =>
-    isInstallerError(error) ? error : new ServiceCommandError(error.message),
+    error instanceof ServiceUpdateRunningError
+      ? new ServiceCommandError(
+          'An update is already running. Run `porcelain service update` again once the other update finishes.',
+        )
+      : isInstallerError(error)
+        ? error
+        : new ServiceCommandError(error.message),
   ),
 );

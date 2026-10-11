@@ -7,13 +7,17 @@ import type {
 
 export function serviceUpdateRefusal(
   state: ServiceUpdateState,
-  target: ServiceUpdateTarget,
+  target: ServiceUpdateTarget | undefined,
   authority: ServiceUpdateAuthority,
 ): ServiceUpdateRefusal | undefined {
   if (!authority.canUpdate) return { kind: 'untrusted' };
   if (!state.managed) return { kind: 'unmanaged' };
   if (state.running) return { kind: 'running' };
-  if (!state.available || state.latest !== target.version)
+  if (
+    target === undefined ||
+    !state.available ||
+    state.latest !== target.version
+  )
     return { kind: 'not-offered' };
   return undefined;
 }

@@ -99,8 +99,19 @@ export function pinEffectRuntimeDependencies(
   if (document === undefined)
     throw new Error('The package requires pnpm-lock.yaml');
   const parseError = document.errors[0];
-  if (parseError !== undefined) throw parseError;
-  const lockfile = Schema.decodeUnknownSync(lockfileSchema)(document.toJS());
+  if (parseError !== undefined)
+    throw new Error(`Invalid pnpm-lock.yaml: ${parseError.message}`, {
+      cause: parseError,
+    });
+  let lockfile: typeof lockfileSchema.Type;
+  try {
+    lockfile = Schema.decodeUnknownSync(lockfileSchema)(document.toJS());
+  } catch (cause) {
+    throw new Error(
+      'Invalid pnpm-lock.yaml: expected runtime importers and snapshots',
+      { cause },
+    );
+  }
   const pins: Record<string, string> = {};
   const visited = new Set<string>();
   const visit = (name: string, reference: string | undefined): void => {

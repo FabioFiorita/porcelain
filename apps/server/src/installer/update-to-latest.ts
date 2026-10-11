@@ -2,11 +2,16 @@ import { Effect } from 'effect';
 import { HandedOffUpdateFailedError } from './errors/handed-off-update-failed-error.ts';
 import { PublishedVersionUnknownError } from './errors/published-version-unknown-error.ts';
 import { serviceUpdateRefusal } from '@porcelain/access/rules';
-import { ServiceUpdateRunningError } from '@porcelain/access/errors';
+import type { ServiceUpdateAuthority } from '@porcelain/access/models';
+import {
+  UntrustedDeviceError,
+  ServiceUpdateRunningError,
+} from '@porcelain/access/errors';
 import { LatestUpdateDowngradeError } from './errors/latest-update-downgrade-error.ts';
 import type { ServiceUpdates } from './service-update-runner.ts';
 
 type UpdateToLatestInput = {
+  authority: ServiceUpdateAuthority;
   check: Parameters<ServiceUpdates['read']>[0];
   pollMs: number;
   allowDowngrade: boolean;
@@ -26,9 +31,11 @@ export const updateToLatest = Effect.fn('Installer.updateToLatest')(function* (
   const from = state.version;
   const refusal = serviceUpdateRefusal(
     state,
-    { version: state.latest ?? '' },
-    { canUpdate: true },
+    state.latest === undefined ? undefined : { version: state.latest },
+    input.authority,
   );
+  if (refusal?.kind === 'untrusted')
+    return yield* Effect.fail(new UntrustedDeviceError());
   if (refusal?.kind === 'unmanaged' || from === undefined)
     return { kind: 'unmanaged' } satisfies LatestUpdateOutcome;
   if (refusal?.kind === 'running')

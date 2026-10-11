@@ -1,3 +1,4 @@
+import { ServiceUpdateRunningError } from '@porcelain/access/errors';
 import { Context, Effect, FileSystem, Layer, Path, type Clock } from 'effect';
 import { ChildProcessSpawner } from 'effect/process';
 import type { PlatformError } from 'effect/PlatformError';
@@ -20,6 +21,7 @@ import {
 import type { Limits } from '../config/limits.ts';
 import { acquireDirectoryLock } from '../runtime/directory-lock.ts';
 import { ManagementLockHeldError } from './errors/management-lock-held-error.ts';
+import { PACKAGE_NAME } from './persistent-runtime.ts';
 import { servicePaths } from './paths.ts';
 import { serviceSearchPath } from './search-path.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
@@ -111,6 +113,23 @@ export class Installer extends Context.Service<
             InstallerError | Error | PlatformError,
             FileSystem.FileSystem | Path.Path | Scope
           > {
+            const handedOff =
+              (request.action === 'update' || request.action === 'recover') &&
+              options.packageRoot ===
+                pathApi.join(
+                  context.paths.updater,
+                  'node_modules',
+                  PACKAGE_NAME,
+                );
+            if (request.action !== 'status')
+              yield* acquireDirectoryLock({
+                path: `${context.paths.updater}.lock`,
+                waitMs: handedOff ? context.limits.locks.startupWaitMs : 0,
+                pollMs: context.limits.locks.pollMs,
+                staleTakeovers: context.limits.locks.staleTakeovers,
+                clock: context.clock,
+                held: () => new ServiceUpdateRunningError(),
+              });
             yield* acquireDirectoryLock({
               path: pathApi.join(context.paths.root, 'management.lock'),
               waitMs: 0,

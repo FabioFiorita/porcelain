@@ -56,11 +56,30 @@ export const pruneDatabaseBackups = Effect.fn('Installer.pruneDatabaseBackups')(
     if (!(yield* exists(root))) return;
     const directories: string[] = [];
     for (const entry of yield* fs.readDirectory(root)) {
-      if (entry.endsWith('.partial')) continue;
+      if (entry.endsWith('.partial')) {
+        yield* fs.remove(pathApi.join(root, entry), {
+          recursive: true,
+          force: true,
+        });
+        continue;
+      }
       if ((yield* fs.stat(pathApi.join(root, entry))).type === 'Directory')
         directories.push(entry);
     }
     for (const entry of directories.sort().reverse().slice(3))
       yield* fs.remove(pathApi.join(root, entry), { recursive: true });
   },
+);
+
+export const pruneDatabaseBackupsAfterUpdate = Effect.fn(
+  'Installer.pruneDatabaseBackupsAfterUpdate',
+)((root: string) =>
+  pruneDatabaseBackups(root).pipe(
+    Effect.catch((error) =>
+      Effect.logWarning(
+        'The service update succeeded, but old database backups could not be removed',
+        error,
+      ),
+    ),
+  ),
 );

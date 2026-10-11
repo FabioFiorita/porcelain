@@ -1,5 +1,6 @@
+import { ServiceUpdateRunningError } from '@porcelain/access/errors';
 import { NodeServices } from '@effect/platform-node';
-import { Clock, Effect, Layer, Schema } from 'effect';
+import { Clock, Effect, FileSystem, Layer, Schema } from 'effect';
 import {
   execFileSync,
   spawn,
@@ -20,6 +21,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
+import { acquireDirectoryLock } from '../runtime/directory-lock.ts';
 import { Installer, InstallerOptions } from './installer.ts';
 
 const packageName = '@fabiofiorita/porcelain';
@@ -31,6 +33,7 @@ let service: ChildProcess | undefined;
 let rejectDownload: boolean;
 let rejectCandidate: boolean;
 let mutateDatabase: boolean;
+let rejectRetention: boolean;
 let commands: string[];
 let searchPath: string;
 
@@ -123,6 +126,13 @@ const command = Effect.fn('Test.installerCommand')(
           readFileSync(manifest(runtime()), 'utf8').includes('2.0.0')
         )
           writeFileSync(database(), 'candidate changed the database');
+        if (
+          rejectRetention &&
+          readFileSync(manifest(runtime()), 'utf8').includes('2.0.0')
+        ) {
+          rmSync(join(root, 'database-backups'), { recursive: true });
+          writeFileSync(join(root, 'database-backups'), 'not a directory');
+        }
         return ok();
       }
       if (args.includes('show')) return ok(`${service?.pid ?? 0}\n`);
@@ -138,6 +148,8 @@ const command = Effect.fn('Test.installerCommand')(
 const execute = (
   request: Parameters<Installer['Service']['execute']>[0],
   version = '1.0.0',
+  packageRoot = source,
+  fileSystem?: FileSystem.FileSystem,
 ) =>
   Effect.runPromise(
     Effect.gen(function* () {
@@ -152,7 +164,7 @@ const execute = (
               Effect.gen(function* () {
                 return {
                   homeDirectory: home,
-                  packageRoot: source,
+                  packageRoot,
                   packageVersion: version,
                   searchPath,
                   nodeExecutable: process.execPath,
@@ -172,7 +184,7 @@ const execute = (
                       },
                       health: { attempts: 1, intervalMs: 1 },
                     },
-                    locks: { startupWaitMs: 0, pollMs: 1, staleTakeovers: 1 },
+                    locks: { startupWaitMs: 25, pollMs: 1, staleTakeovers: 1 },
                     owner: {
                       requestTimeoutMs: 100,
                       probeTimeoutMs: 100,
@@ -210,6 +222,11 @@ const execute = (
               }),
             ),
           ),
+          Layer.provide(
+            fileSystem === undefined
+              ? Layer.empty
+              : Layer.succeed(FileSystem.FileSystem, fileSystem),
+          ),
         ),
       ),
       Effect.provide(NodeServices.layer),
@@ -243,6 +260,7 @@ beforeEach(() => {
   rejectDownload = false;
   rejectCandidate = false;
   mutateDatabase = false;
+  rejectRetention = false;
   commands = [];
   searchPath = '/usr/bin';
 });
@@ -403,7 +421,15 @@ it('restarts an interrupted healthy service even when backup retention fails', a
   );
   rmSync(join(root, 'database-backups'), { recursive: true });
   writeFileSync(join(root, 'database-backups'), 'not a directory');
-  await expect(execute({ action: 'recover' })).rejects.toThrow();
+  expect(await execute({ action: 'recover' })).toEqual({
+    action: 'recover',
+    result: { recovered: true },
+  });
+  expect(record('update-record.json')).toEqual({
+    from: '1.0.0',
+    target: '2.0.0',
+    stage: 'updated',
+  });
   expect(service?.pid ?? 0).toBeGreaterThan(0);
   expect(record('installed.json')).toEqual({ version: '2.0.0' });
   expect(existsSync(join(root, 'update.json'))).toBe(false);
@@ -566,4 +592,163 @@ it('refuses an exact-version downgrade unless explicitly allowed', async () => {
     await execute({ action: 'update', allowDowngrade: true }, '0.9.0'),
   ).toMatchObject({ action: 'update' });
   expect(record('installed.json')).toEqual({ version: '0.9.0' });
+});
+
+const withUpdaterLock = (
+  task: (
+    lock: Effect.Success<ReturnType<typeof acquireDirectoryLock>>,
+  ) => Promise<void>,
+) =>
+  Effect.runPromise(
+    Effect.scoped(
+      Effect.gen(function* () {
+        const lock = yield* acquireDirectoryLock({
+          path: join(root, 'updater.lock'),
+          waitMs: 0,
+          pollMs: 1,
+          staleTakeovers: 1,
+          clock: yield* Clock.Clock,
+          held: () => new ServiceUpdateRunningError(),
+        });
+        yield* Effect.promise(() => task(lock));
+      }),
+    ).pipe(Effect.provide(NodeServices.layer)),
+  );
+
+it.each(['install', 'update', 'uninstall', 'recover'] as const)(
+  'refuses %s while a live updater is preparing and leaves its record untouched',
+  async (action) => {
+    await install();
+    const progress = { from: '1.0.0', target: '2.0.0', stage: 'downloading' };
+    writeFileSync(join(root, 'update-record.json'), JSON.stringify(progress));
+    const before = commands.slice();
+    await withUpdaterLock(async () => {
+      const request =
+        action === 'install'
+          ? { action, settings: { dataDirectory: data, port: 4737 } }
+          : action === 'update'
+            ? { action, allowDowngrade: false }
+            : { action };
+      const error = await execute(request, '2.0.0').catch(
+        (error: unknown) => error,
+      );
+      expect(error).toMatchObject({
+        _tag: 'ServiceUpdateRunningError',
+        message: 'An update is already running',
+      });
+      expect(commands).toEqual(before);
+      expect(record('update-record.json')).toEqual(progress);
+      expect(record('installed.json')).toEqual({ version: '1.0.0' });
+      expect(existsSync(join(root, 'updater.lock'))).toBe(true);
+    });
+    expect(existsSync(join(root, 'updater.lock'))).toBe(false);
+  },
+);
+
+it('clears a stale updater lock during service recovery without replacing the installed service', async () => {
+  await install();
+  await withUpdaterLock(async () => {
+    const path = join(root, 'updater.lock/owner.json');
+    const owner = Schema.decodeUnknownSync(
+      Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)),
+    )(readFileSync(path, 'utf8'));
+    writeFileSync(path, JSON.stringify({ ...owner, startTime: 'reused PID' }));
+    if (process.platform !== 'linux') {
+      await expect(execute({ action: 'recover' })).rejects.toThrow(
+        'An update is already running',
+      );
+      expect(existsSync(join(root, 'updater.lock'))).toBe(true);
+      return;
+    }
+    expect(await execute({ action: 'recover' })).toEqual({
+      action: 'recover',
+      result: { recovered: false },
+    });
+    expect(existsSync(join(root, 'updater.lock'))).toBe(false);
+    expect(record('installed.json')).toEqual({ version: '1.0.0' });
+  });
+});
+
+it('reports a healthy update as updated even when backup retention fails', async () => {
+  await install();
+  candidate();
+  rejectRetention = true;
+  expect(
+    await execute({ action: 'update', allowDowngrade: false }, '2.0.0'),
+  ).toMatchObject({ action: 'update' });
+  expect(record('installed.json')).toEqual({ version: '2.0.0' });
+  expect(record('update-record.json')).toEqual({
+    from: '1.0.0',
+    target: '2.0.0',
+    stage: 'updated',
+  });
+  expect(service?.pid ?? 0).toBeGreaterThan(0);
+});
+
+it.each(['update', 'recover'] as const)(
+  'lets the designated updater %s wait for its parent to release preparation ownership',
+  async (action) => {
+    await install();
+    candidate();
+    let observedParent = false;
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem;
+          yield* Effect.promise(() =>
+            withUpdaterLock(async (lock) => {
+              const observedFiles: FileSystem.FileSystem = {
+                ...fs,
+                readFileString: (path, encoding) =>
+                  fs.readFileString(path, encoding).pipe(
+                    Effect.tap(() => {
+                      if (
+                        path !== join(root, 'updater.lock/owner.json') ||
+                        observedParent
+                      )
+                        return Effect.void;
+                      observedParent = true;
+                      return lock.release;
+                    }),
+                  ),
+              };
+              const request =
+                action === 'update'
+                  ? { action, allowDowngrade: false }
+                  : { action };
+              const outcome = await execute(
+                request,
+                '2.0.0',
+                join(root, 'updater/node_modules', packageName),
+                observedFiles,
+              );
+              expect(outcome.action).toBe(action);
+              expect(record('installed.json')).toEqual({
+                version: action === 'update' ? '2.0.0' : '1.0.0',
+              });
+            }),
+          );
+        }),
+      ).pipe(Effect.provide(NodeServices.layer)),
+    );
+    expect(observedParent).toBe(true);
+    expect(existsSync(join(root, 'updater.lock'))).toBe(false);
+  },
+);
+
+it('refuses a designated updater if its parent never releases preparation ownership', async () => {
+  await install();
+  const before = commands.slice();
+  await withUpdaterLock(async () => {
+    await expect(
+      execute(
+        { action: 'update', allowDowngrade: false },
+        '2.0.0',
+        join(root, 'updater/node_modules', packageName),
+      ),
+    ).rejects.toThrow('An update is already running');
+    expect(commands).toEqual(before);
+    expect(record('installed.json')).toEqual({ version: '1.0.0' });
+    expect(existsSync(join(root, 'updater.lock'))).toBe(true);
+  });
 });

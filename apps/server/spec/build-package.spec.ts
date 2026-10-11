@@ -208,11 +208,18 @@ it.each([
   );
 });
 
-it.each(['', 'snapshots: [', '{"importers":{},"snapshots":null}'])(
+it.each([
+  ['', 'The package requires pnpm-lock.yaml'],
+  ['snapshots: [', 'Invalid pnpm-lock.yaml:'],
+  [
+    '{"importers":{},"snapshots":null}',
+    'Invalid pnpm-lock.yaml: expected runtime importers and snapshots',
+  ],
+])(
   'refuses an absent or malformed project lockfile (%s)',
-  (source) => {
+  (source, message) => {
     expect(() =>
       pinEffectRuntimeDependencies(source, runtimeDependencies),
-    ).toThrow();
+    ).toThrow(message);
   },
 );

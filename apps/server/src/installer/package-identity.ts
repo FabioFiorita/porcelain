@@ -11,11 +11,7 @@ export const readPackageIdentity = Effect.fn('Installer.readPackageIdentity')(
       pathApi.join(packageRoot, 'package.json'),
       packageManifestSchema,
     );
-    if (
-      manifest.kind !== 'value' ||
-      manifest.value.name !== PACKAGE_NAME ||
-      manifest.value.version === undefined
-    )
+    if (manifest.kind !== 'value' || manifest.value.name !== PACKAGE_NAME)
       return yield* Effect.fail(new NotPackagedCliError());
     return { packageRoot, packageVersion: manifest.value.version };
   },

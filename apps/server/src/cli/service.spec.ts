@@ -1,3 +1,4 @@
+import { ServiceUpdateRunningError } from '@porcelain/access/errors';
 import { NodeServices } from '@effect/platform-node';
 import { Clock, Effect } from 'effect';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -5,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, expect, it } from 'vitest';
+import { acquireDirectoryLock } from '../runtime/directory-lock.ts';
 import { LIMITS } from '../config/limits.ts';
 import { runServiceCommand } from './service.ts';
 
@@ -85,4 +87,28 @@ it('rejects --allow-downgrade on the installed command with exact-version instru
     '--allow-downgrade requires an exact version: run `npx @fabiofiorita/porcelain@<version> service update --allow-downgrade`.',
   );
   expect(output).toEqual([]);
+});
+
+it('tells a CLI caller how to retry when another update is preparing', async () => {
+  const output: string[] = [];
+  await Effect.runPromise(
+    Effect.scoped(
+      Effect.gen(function* () {
+        yield* acquireDirectoryLock({
+          path: join(home, '.local/share/porcelain/service/updater.lock'),
+          waitMs: 0,
+          pollMs: 1,
+          staleTakeovers: 1,
+          clock: yield* Clock.Clock,
+          held: () => new ServiceUpdateRunningError(),
+        });
+        yield* Effect.promise(async () => {
+          await expect(update(false, output)).rejects.toThrow(
+            'An update is already running. Run `porcelain service update` again once the other update finishes.',
+          );
+          expect(output).toEqual([]);
+        });
+      }),
+    ).pipe(Effect.provide(NodeServices.layer)),
+  );
 });

@@ -67,3 +67,21 @@ describe('serviceUpdateRefusal', () => {
     });
   });
 });
+
+it.each([offered, { ...offered, latest: undefined, available: false }])(
+  'refuses an absent target for %j',
+  (state) => {
+    expect(serviceUpdateRefusal(state, undefined, allowed)).toEqual({
+      kind: 'not-offered',
+    });
+  },
+);
+it('still reports a running update when no published target is known', () => {
+  expect(
+    serviceUpdateRefusal(
+      { ...offered, latest: undefined, running: true },
+      undefined,
+      allowed,
+    ),
+  ).toEqual({ kind: 'running' });
+});

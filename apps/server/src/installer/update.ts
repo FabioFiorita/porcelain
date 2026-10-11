@@ -9,7 +9,7 @@ import {
 import {
   backupDatabase,
   backupLocation,
-  pruneDatabaseBackups,
+  pruneDatabaseBackupsAfterUpdate,
 } from './database-backup.ts';
 import { DataDirectoryBusyError } from './errors/data-directory-busy-error.ts';
 import { NotInstalledError } from './errors/not-installed-error.ts';
@@ -84,7 +84,7 @@ export const update = Effect.fn('Installer.update')(function* (
       () =>
         writeJsonFile(paths.updateRecord, { ...progress, stage: 'restarting' }),
     );
-    yield* pruneDatabaseBackups(paths.backups);
+    yield* pruneDatabaseBackupsAfterUpdate(paths.backups);
     yield* writeJsonFile(paths.updateRecord, { ...progress, stage: 'updated' });
     const outcome: UpdateOutcome = { backup, command };
     return outcome;

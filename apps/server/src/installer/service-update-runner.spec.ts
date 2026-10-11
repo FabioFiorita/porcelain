@@ -1,5 +1,6 @@
+import { ServiceUpdateRunningError } from '@porcelain/access/errors';
 import { TestClock } from 'effect/testing';
-import { Deferred, Effect, Exit, Fiber } from 'effect';
+import { Deferred, Effect, Exit, Fiber, Schema } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import {
   existsSync,
@@ -12,6 +13,8 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from '@effect/vitest';
+import { acquireDirectoryLock } from '../runtime/directory-lock.ts';
+import { Clock } from 'effect';
 import { openServiceUpdateRunner } from './service-update-runner.ts';
 import { updateToLatest } from './update-to-latest.ts';
 import type { CommandRunner } from './command-runner.ts';
@@ -179,6 +182,7 @@ describe('the installed service update runner', () => {
         );
         const refused = yield* Effect.flip(
           updateToLatest(cli, {
+            authority: { canUpdate: true },
             check: check(
               '2026-10-10T12:00:00.000Z',
               '2026-10-10T12:00:00.000Z',
@@ -502,3 +506,43 @@ describe('the installed service update runner', () => {
       }).pipe(TestClock.withLive),
   );
 });
+
+it.effect(
+  'does not show a running update when the lock PID belongs to a different process',
+  () =>
+    Effect.gen(function* () {
+      const updates = yield* runner();
+      const lockPath = join(
+        home,
+        '.local/share/porcelain/service/updater.lock',
+      );
+      yield* acquireDirectoryLock({
+        path: lockPath,
+        waitMs: 0,
+        pollMs: 1,
+        staleTakeovers: 1,
+        clock: yield* Clock.Clock,
+        held: () => new ServiceUpdateRunningError(),
+      }).pipe(Effect.provide(NodeServices.layer));
+      const ownerPath = join(lockPath, 'owner.json');
+      const owner = Schema.decodeUnknownSync(
+        Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)),
+      )(readFileSync(ownerPath, 'utf8'));
+      writeFileSync(
+        ownerPath,
+        JSON.stringify({ ...owner, startTime: 'previous process' }),
+      );
+      const state = yield* updates.read(
+        check('2026-10-10T12:00:00.000Z', '2026-10-10T11:00:00.000Z'),
+      );
+      if (process.platform === 'linux') {
+        expect(state.running).toBe(false);
+        expect(state.available).toBe(true);
+        expect(state.latest).toBe('1.1.0');
+      } else {
+        expect(state.running).toBe(true);
+        expect(state.available).toBe(false);
+        expect(state.latest).toBeUndefined();
+      }
+    }).pipe(TestClock.withLive),
+);

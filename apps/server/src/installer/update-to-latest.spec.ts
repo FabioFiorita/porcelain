@@ -134,6 +134,7 @@ const fakeCommand: CommandRunner = (command, args) =>
 const update = Effect.fn('Test.updateToLatest')(function* (
   packageRoot: string = runtimePackage(),
   allowDowngrade: boolean = false,
+  canUpdate: boolean = true,
 ) {
   const updates = yield* openServiceUpdateRunner({
     homeDirectory: home,
@@ -150,6 +151,7 @@ const update = Effect.fn('Test.updateToLatest')(function* (
   }).pipe(Effect.provide(NodeServices.layer));
   yield* Effect.addFinalizer(() => updates.close());
   return yield* updateToLatest(updates, {
+    authority: { canUpdate },
     check: {
       now: '2026-10-09T12:00:00.000Z',
       staleBefore: '2026-10-09T12:00:00.000Z',
@@ -347,3 +349,13 @@ describe('updating the installed service to the newest published version', () =>
     }).pipe(TestClock.withLive),
   );
 });
+
+it.effect('refuses an unauthorized caller using its supplied authority', () =>
+  Effect.gen(function* () {
+    const error = yield* Effect.flip(update(runtimePackage(), false, false));
+    expect(error._tag).toBe('UntrustedDeviceError');
+    expect(installs).toEqual([]);
+    expect(handOffs).toEqual([]);
+    expect(existsSync(updateRecordPath())).toBe(false);
+  }),
+);
