@@ -50,6 +50,7 @@ const resolvedCodePointerSchema = Schema.Struct({
 
 const stepLocationSchema = Schema.Union([
   Schema.Struct({ state: Schema.Literal('changed') }),
+  Schema.Struct({ state: Schema.Literal('broken') }),
   Schema.Struct({
     state: Schema.Literal('current'),
     startLine: lineSchema,

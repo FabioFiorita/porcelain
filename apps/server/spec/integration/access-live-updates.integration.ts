@@ -262,6 +262,10 @@ test("publishing a review tells a watching viewer the worktree's review changed"
 }) => {
   const connection = await watching(session);
 
+  await session.writeFile(
+    session.fixture.readme.path,
+    session.fixture.readme.changed,
+  );
   const response = await session.send({
     method: 'PUT',
     path: worktreePath(session, '/review'),

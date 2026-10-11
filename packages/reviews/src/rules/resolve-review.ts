@@ -42,18 +42,21 @@ function resolveStep(
   step: ReviewStep,
   files: ReviewTexts,
   changed: ReadonlyMap<string, ReadonlySet<number>> | undefined,
+  missing: ReadonlySet<string>,
 ): ResolvedStep {
   const { published, ...draft } = step;
   const text = files.get(step.pointer.path);
+  const pointer = {
+    ...step.pointer,
+    textFingerprint: sha256Hex(published.join('\n')),
+  };
+  if (missing.has(step.pointer.path) || published.length === 0)
+    return { ...draft, pointer, location: { state: 'broken' } };
   const start = findBlock(
     text === undefined ? [] : textLines(text),
     published,
     step.pointer.startLine,
   );
-  const pointer = {
-    ...step.pointer,
-    textFingerprint: sha256Hex(published.join('\n')),
-  };
   if (start === undefined)
     return { ...draft, pointer, location: { state: 'changed' } };
   const endLine = start + published.length - 1;
@@ -78,18 +81,24 @@ function resolveStep(
 }
 
 function resolvedFingerprint(
-  layer: ReviewLayer,
   steps: readonly ResolvedStep[],
   files: ReviewTexts,
 ): string {
-  const resolvedById = new Map(steps.map((step) => [step.id, step]));
   return sha256Hex(
-    layer.steps
+    steps
       .filter((step) => step.kind === 'changed')
       .map((step) => {
-        const location = resolvedById.get(step.id)?.location;
-        if (!location || location.state === 'changed')
-          return `${step.id}:changed`;
+        const location = step.location;
+        switch (location.state) {
+          case 'broken':
+          case 'changed':
+            return `${step.id}:changed`;
+          case 'current':
+          case 'committed':
+            break;
+          default:
+            location satisfies never;
+        }
         const lines = textLines(files.get(step.pointer.path) ?? '');
         return `${step.id}:${lines.slice(location.startLine - 1, location.endLine).join('\n')}`;
       })
@@ -101,13 +110,16 @@ function resolveLayer(
   layer: ReviewLayer,
   files: ReviewTexts,
   changed: ReadonlyMap<string, ReadonlySet<number>> | undefined,
+  missing: ReadonlySet<string>,
 ): ResolvedLayer {
-  const steps = layer.steps.map((step) => resolveStep(step, files, changed));
+  const steps = layer.steps.map((step) =>
+    resolveStep(step, files, changed, missing),
+  );
   const { steps: _published, ...rest } = layer;
   return {
     ...rest,
     steps,
-    fingerprint: resolvedFingerprint(layer, steps, files),
+    fingerprint: resolvedFingerprint(steps, files),
   };
 }
 
@@ -115,7 +127,7 @@ export function currentLayerFingerprint(
   layer: ReviewLayer,
   files: ReviewTexts,
 ): string {
-  return resolveLayer(layer, files, undefined).fingerprint;
+  return resolveLayer(layer, files, undefined, new Set()).fingerprint;
 }
 
 export function publishedLayerFingerprint(
@@ -143,7 +155,12 @@ export function resolveReview(
     changes,
     diagnostics,
     layers: review.layers.map((layer) =>
-      resolveLayer(layer, evidence.texts, diagnostics.changed),
+      resolveLayer(
+        layer,
+        evidence.texts,
+        diagnostics.changed,
+        evidence.missing,
+      ),
     ),
   };
 }
@@ -154,7 +171,19 @@ export function reviewIsActive(layers: readonly ResolvedLayer[]): boolean {
     .filter((step) => step.kind === 'changed');
   return (
     changedSteps.length === 0 ||
-    changedSteps.some((step) => step.location.state !== 'committed')
+    changedSteps.some((step) => {
+      const location = step.location;
+      switch (location.state) {
+        case 'current':
+        case 'changed':
+          return true;
+        case 'committed':
+        case 'broken':
+          return false;
+        default:
+          return location satisfies never;
+      }
+    })
   );
 }
 
@@ -184,13 +213,20 @@ function coveredLines(
 ): Map<string, Set<number>> {
   const covered = new Map<string, Set<number>>();
   for (const step of layers.flatMap((layer) => layer.steps)) {
-    if (step.kind !== 'changed' || step.location.state === 'changed') continue;
+    if (step.kind !== 'changed') continue;
+    const location = step.location;
+    switch (location.state) {
+      case 'broken':
+      case 'changed':
+        continue;
+      case 'current':
+      case 'committed':
+        break;
+      default:
+        location satisfies never;
+    }
     const lines = covered.get(step.pointer.path) ?? new Set<number>();
-    for (
-      let line = step.location.startLine;
-      line <= step.location.endLine;
-      line += 1
-    )
+    for (let line = location.startLine; line <= location.endLine; line += 1)
       lines.add(line);
     covered.set(step.pointer.path, lines);
   }

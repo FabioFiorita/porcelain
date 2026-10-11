@@ -16,33 +16,52 @@ const reasons = {
   UnprocessableEntity: 'Unprocessable Entity',
 } as const;
 
-type ErrorClass<E> = new () => E;
+class HttpFailureMessage extends Schema.TaggedError<HttpFailureMessage>()(
+  'HttpFailureMessage',
+  { name: Schema.String, message: Schema.String },
+) {}
 
 export function httpFailure<E extends Error>(
-  error: ErrorClass<E>,
+  error: new (...args: never[]) => E,
   status: keyof typeof reasons,
-  wire: { message?: string; code?: ApiErrorCode } = {},
+  wire: { message?: string | { fromError: true }; code?: ApiErrorCode } = {},
 ) {
+  const message =
+    typeof wire.message === 'object'
+      ? undefined
+      : (wire.message ?? new error().message);
   const body = {
     statusCode: HttpStatus.fromLiteral(status),
     error: reasons[status],
-    message: wire.message ?? new error().message,
     ...(wire.code === undefined ? {} : { code: wire.code }),
   };
   const wireBody = Schema.Struct({
     statusCode: Schema.Literal(body.statusCode),
     error: Schema.Literal(body.error),
-    message: Schema.Literal(body.message),
+    message: message === undefined ? Schema.String : Schema.Literal(message),
     code: Schema.optionalKey(
       wire.code === undefined ? Schema.Never : Schema.Literal(wire.code),
     ),
   });
   return wireBody.pipe(
     Schema.decodeTo(
-      Schema.declare((value: unknown): value is E => value instanceof error),
-      SchemaTransformation.transform<E, typeof wireBody.Type>({
-        decode: () => new error(),
-        encode: () => body,
+      Schema.declare(
+        (value: unknown): value is E | HttpFailureMessage =>
+          value instanceof error ||
+          (value instanceof HttpFailureMessage && value.name === error.name),
+      ),
+      SchemaTransformation.transform<
+        E | HttpFailureMessage,
+        typeof wireBody.Type
+      >({
+        decode: (value) =>
+          message === undefined
+            ? new HttpFailureMessage({
+                name: error.name,
+                message: value.message,
+              })
+            : new error(),
+        encode: (failure) => ({ ...body, message: message ?? failure.message }),
       }),
     ),
     HttpApiSchema.status(status),

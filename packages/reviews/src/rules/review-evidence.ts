@@ -16,12 +16,16 @@ export function textLines(text: string): string[] {
 export function publishedLines(
   text: string | undefined,
   pointer: CodePointer,
-): string[] {
-  if (text === undefined) return [];
-  const lines = textLines(text);
-  return pointer.endLine <= lines.length
-    ? lines.slice(pointer.startLine - 1, pointer.endLine)
-    : [];
+): string[] | undefined {
+  const lines = text === undefined ? [] : textLines(text);
+  if (
+    text === undefined ||
+    pointer.startLine < 1 ||
+    pointer.endLine < pointer.startLine ||
+    pointer.endLine > lines.length
+  )
+    return undefined;
+  return lines.slice(pointer.startLine - 1, pointer.endLine);
 }
 
 export function reviewPaths(

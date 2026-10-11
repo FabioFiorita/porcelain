@@ -17,6 +17,7 @@ const reader = new InMemoryFileReader({
     'big.log': { kind: 'too-large' },
     'secret.txt': { kind: 'failed', failure: 'unreadable' },
     'image.bin': { kind: 'failed', failure: 'unsupported-text' },
+    'racing.ts': { kind: 'failed', failure: 'changed' },
   },
 });
 const service = Effect.runSync(
@@ -37,6 +38,7 @@ describe('ReadTextFilesService', () => {
     );
     expect([...read.texts]).toEqual([['README.md', 'hello\n']]);
     expect(read.unreadable).toEqual([]);
+    expect(read.missing).toEqual(new Set());
   });
 
   it('reports each path it could not read as text instead of dropping it silently', async () => {
@@ -45,16 +47,25 @@ describe('ReadTextFilesService', () => {
         worktreeId,
         service.execute({
           worktreeId,
-          paths: ['README.md', 'gone.md', 'big.log', 'secret.txt', 'image.bin'],
+          paths: [
+            'README.md',
+            'gone.md',
+            'big.log',
+            'secret.txt',
+            'image.bin',
+            'racing.ts',
+          ],
         }),
       ),
     );
     expect([...read.texts.keys()]).toEqual(['README.md']);
+    expect(read.missing).toEqual(new Set(['gone.md']));
     expect(read.unreadable).toEqual([
       'gone.md',
       'big.log',
       'secret.txt',
       'image.bin',
+      'racing.ts',
     ]);
   });
 
@@ -66,6 +77,7 @@ describe('ReadTextFilesService', () => {
     ).toEqual({
       texts: new Map(),
       unreadable: [],
+      missing: new Set(),
     });
   });
 });

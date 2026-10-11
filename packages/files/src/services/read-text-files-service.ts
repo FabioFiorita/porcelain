@@ -46,6 +46,13 @@ export class ReadTextFilesService extends Context.Service<
                 read.kind === 'text' ? [[path, read.text] as const] : [],
               ),
             ),
+            missing: new Set(
+              reads.flatMap(({ path, read }) =>
+                read.kind === 'failed' && read.failure === 'missing'
+                  ? [path]
+                  : [],
+              ),
+            ),
             unreadable: reads.flatMap(({ path, read }) =>
               read.kind === 'text' ? [] : [path],
             ),

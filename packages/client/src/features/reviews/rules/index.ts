@@ -83,6 +83,7 @@ export {
   decisionLinks,
   decisionRoute,
   decisionStates,
+  reviewStepLines,
   filesReviewed,
   neighbourStop,
   stopDone,

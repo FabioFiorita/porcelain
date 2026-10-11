@@ -116,6 +116,7 @@ function generate(evidence: {
       review: review(evidence.steps),
       evidence: {
         changes: evidence.changes ?? [],
+        missing: new Set<string>(),
         texts: new Map(evidence.texts ?? []),
         diffs: evidence.diffs ?? [],
       },
@@ -259,6 +260,7 @@ describe('ResolvePublishedReviewService', () => {
           },
           evidence: {
             changes,
+            missing: new Set<string>(),
             texts: new Map([text('README.md', readme)]),
             diffs: [],
           },
@@ -310,6 +312,7 @@ describe('ResolvePublishedReviewService', () => {
           },
           evidence: {
             changes,
+            missing: new Set<string>(),
             texts: new Map([text('README.md', readme)]),
             diffs: [],
           },

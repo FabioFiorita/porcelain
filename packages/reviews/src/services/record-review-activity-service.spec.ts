@@ -61,11 +61,13 @@ const modified: FileChange = {
 };
 const committed: ReviewEvidence = {
   changes: [],
+  missing: new Set<string>(),
   texts: new Map([['README.md', readme]]),
   diffs: [],
 };
 const stillChanged: ReviewEvidence = {
   changes: [modified],
+  missing: new Set<string>(),
   texts: new Map([['README.md', readme]]),
   diffs: [
     {

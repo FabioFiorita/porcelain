@@ -99,7 +99,7 @@ test('publishing with a stale expected revision is a conflict and keeps the revi
   expect(current.revision).toBe(1);
 });
 
-test('a pointer to a file that does not exist is accepted, located as changed, and leaves the changed line unexplained', async ({
+test('publishing a missing pointer fails with its layer, step, path and lines and keeps the revision', async ({
   session,
 }) => {
   const response = await session.send(
@@ -108,32 +108,55 @@ test('a pointer to a file that does not exist is accepted, located as changed, a
       sampleReview(session, 1, layerId, stepId, { path: 'missing.md' }),
     ),
   );
-
-  expect(response.status).toBe(200);
-  expect(record(response.body).review).toMatchObject({
-    revision: 2,
-    layers: [
-      {
-        steps: [
-          {
-            pointer: { path: 'missing.md' },
-            location: { state: 'changed' },
-          },
-        ],
-      },
-    ],
-    notExplained: [
-      {
-        path: session.fixture.readme.path,
-        ranges: [
-          {
-            startLine: pointerOf(session)?.startLine,
-            endLine: pointerOf(session)?.endLine,
-          },
-        ],
-      },
-    ],
+  const pointer = pointerOf(session);
+  expect(response.status).toBe(400);
+  expect(response.body).toStrictEqual(
+    apiError(
+      400,
+      'Bad Request',
+      `Step \`${stepId}\` in layer \`${layerId}\` points to \`missing.md:${pointer?.startLine}-${pointer?.endLine}\`, which does not exist in this worktree`,
+    ),
+  );
+  const current = await session.read({
+    method: 'GET',
+    path: worktreePath(session, '/review'),
   });
+  expect(record(record(current.body).review).revision).toBe(1);
+});
+
+test('publishing unreadable text and out-of-range lines reports the actual pointer failure', async ({
+  session,
+}) => {
+  await session.writeFile('binary.md', '\0binary');
+  const draft = sampleReview(session, 1, layerId, stepId, {
+    path: 'binary.md',
+  });
+  const pointer = draft.layers[0]?.steps[0]?.pointer;
+  if (!pointer) throw new Error('Sample review has no pointer');
+  pointer.startLine = 1;
+  pointer.endLine = 1;
+  const binary = await session.send(publish(session, draft));
+  pointer.path = session.fixture.readme.path;
+  pointer.startLine = 100;
+  pointer.endLine = 100;
+  const range = await session.send(publish(session, draft));
+  expect(binary.status).toBe(400);
+  expect(binary.body).toStrictEqual(
+    apiError(
+      400,
+      'Bad Request',
+      `Step \`${stepId}\` in layer \`${layerId}\` points to \`binary.md:1-1\`, which is not a readable text file`,
+    ),
+  );
+  expect(range.status).toBe(400);
+  expect(range.body).toStrictEqual(
+    apiError(
+      400,
+      'Bad Request',
+      `Step \`${stepId}\` in layer \`${layerId}\` points to \`${session.fixture.readme.path}:100-100\`, but the file has ${session.fixture.readme.changed.trimEnd().split('\n').length} lines`,
+    ),
+  );
+  await session.remove('binary.md');
 });
 
 test('publishing without layers or without a summary is invalid and to an unknown worktree is not found', async ({
@@ -141,13 +164,13 @@ test('publishing without layers or without a summary is invalid and to an unknow
 }) => {
   const noLayers = await session.send(
     publish(session, {
-      ...sampleReview(session, 2, layerId, stepId),
+      ...sampleReview(session, 1, layerId, stepId),
       layers: [],
     }),
   );
   const noSummary = await session.send(
     publish(session, {
-      ...sampleReview(session, 2, layerId, stepId),
+      ...sampleReview(session, 1, layerId, stepId),
       summaryHtml: '',
     }),
   );
@@ -169,12 +192,12 @@ test('once every line the review explains is committed the inventory stops marki
   session,
 }) => {
   const response = await session.send(
-    publish(session, sampleReview(session, 2, layerId, stepId)),
+    publish(session, sampleReview(session, 1, layerId, stepId)),
   );
 
   expect(response.status).toBe(200);
   expect(record(response.body).review).toMatchObject({
-    revision: 3,
+    revision: 2,
     active: true,
   });
   expect(await worktreeStatus(session)).toBe('pending');

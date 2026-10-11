@@ -45,6 +45,31 @@ async function reviewerThread(session: Session) {
   return text(record(found).id);
 }
 
+test('publish_review rejects a missing pointer with a named tool error before saving', async ({
+  session,
+}) => {
+  const response = await session.send(
+    toolCall(
+      session,
+      11,
+      'publish_review',
+      sampleReview(session, 0, layerId, stepId, { path: 'missing.md' }),
+    ),
+  );
+  const pointer = sampleReview(session, 0, layerId, stepId).layers[0]?.steps[0]
+    ?.pointer;
+  expect(response.status).toBe(200);
+  expect(toolResult(response.body).isError).toBe(true);
+  expect(toolValue(response.body)).toStrictEqual(
+    apiError(
+      400,
+      'Bad Request',
+      `Step \`${stepId}\` in layer \`${layerId}\` points to \`missing.md:${pointer?.startLine}-${pointer?.endLine}\`, which does not exist in this worktree`,
+    ),
+  );
+  expect((await review(session)).review).toBeNull();
+});
+
 test('an agent publishes the review with publish_review and a reviewer reads it over HTTP', async ({
   session,
 }) => {

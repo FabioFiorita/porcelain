@@ -109,7 +109,7 @@ Proof describes the changes as they were when you published it. Once they change
 
 1. Call \`read_review\` and keep its revision.
 2. Publish with \`expectedRevision\` set to that revision. A mismatch means someone published since you read: read again, then publish.
-3. Fix every unresolved pointer the response returns as changed. Point the step at a line that exists.
+3. Every pointer must name existing lines in the selected worktree; publishing rejects missing files and out-of-range lines. Fix changed or broken pointers before republishing. Deleted files appear under Not explained with \`deleted: true\`; explain their removal in the summary rather than pointing at absent code.
 4. Fix lines Porcelain reports as Not explained: either cover them with a changed step or leave them out of the diff you are handing off.
 5. Publish the whole review again. Publishing replaces the latest summary, diagram, layers, and proof. Keep anything that should stay; keep published images and videos by their \`proofId\`.
 

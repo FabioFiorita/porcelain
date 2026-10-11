@@ -4,6 +4,7 @@ import type {
   ReviewLayer,
   ReviewResponse,
   ReviewStatus,
+  ReviewStep,
 } from './review.ts';
 import { layerReviewed } from './reviewed.ts';
 import { isSpecPath } from './spec-paths.ts';
@@ -177,9 +178,19 @@ export function decisionStates(
 ): Map<string, DecisionState> {
   return new Map(
     layers.map((layer) => {
-      const stale = layer.steps.some(
-        (step) => step.location.state === 'changed',
-      );
+      const stale = layer.steps.some((step) => {
+        const location = step.location;
+        switch (location.state) {
+          case 'changed':
+            return true;
+          case 'current':
+          case 'committed':
+          case 'broken':
+            return false;
+          default:
+            return location satisfies never;
+        }
+      });
       return [layer.id, { stale, reviewed: layerReviewed(marks, layer) }];
     }),
   );
@@ -266,4 +277,18 @@ export function decisionLinks(
       },
     ];
   });
+}
+
+export function reviewStepLines(step: ReviewStep) {
+  const location = step.location;
+  switch (location.state) {
+    case 'current':
+    case 'committed':
+      return location;
+    case 'changed':
+    case 'broken':
+      return step.pointer;
+    default:
+      return location satisfies never;
+  }
 }

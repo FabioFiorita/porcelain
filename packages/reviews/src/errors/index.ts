@@ -20,3 +20,4 @@ export { ProofTooLargeError } from './proof-too-large-error.ts';
 export { UnknownProofTargetError } from './unknown-proof-target-error.ts';
 export { UnsupportedProofFileError } from './unsupported-proof-file-error.ts';
 export { UnknownProofFileError } from './unknown-proof-file-error.ts';
+export { InvalidReviewPointerError } from './invalid-review-pointer-error.ts';

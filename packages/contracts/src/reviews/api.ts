@@ -26,6 +26,7 @@ import {
   InvalidDecisionBoxError,
   UnknownBoxLayerError,
   UnknownArrowBoxError,
+  InvalidReviewPointerError,
   UnknownProofTargetError,
   ReviewConflictError,
   ProofTooLargeError,
@@ -230,6 +231,9 @@ export class ReviewsApi extends porcelainApi.add(
               message: 'Invalid request',
             }),
             httpFailure(UnknownProofTargetError, 'BadRequest'),
+            httpFailure(InvalidReviewPointerError, 'BadRequest', {
+              message: { fromError: true },
+            }),
             httpFailure(ReviewConflictError, 'Conflict'),
             httpFailure(ProofTooLargeError, 'PayloadTooLarge'),
             httpFailure(UnknownProofFileError, 'BadRequest'),

@@ -31,6 +31,7 @@ import {
   type ReviewStep,
   type RevealComment,
   stopTitle,
+  reviewStepLines,
   systemChanges,
   type WalkthroughKey,
   type WalkthroughStop,
@@ -107,14 +108,38 @@ export function WalkthroughStopView({
   );
   const excerpts =
     stop.kind === 'decision'
-      ? stop.layer.steps.filter(
-          (step) =>
-            step.location.state === 'committed' ||
-            (!shown.has(step.pointer.path) &&
-              !stop.elsewhere.some((file) => file.path === step.pointer.path)),
-        )
+      ? stop.layer.steps.filter((step) => {
+          const location = step.location;
+          switch (location.state) {
+            case 'committed':
+            case 'broken':
+              return true;
+            case 'current':
+            case 'changed':
+              return (
+                !shown.has(step.pointer.path) &&
+                !stop.elsewhere.some((file) => file.path === step.pointer.path)
+              );
+            default:
+              return location satisfies never;
+          }
+        })
       : [];
   const revealStep = (step: ReviewStep) => {
+    const location = step.location;
+    switch (location.state) {
+      case 'broken':
+        document
+          .getElementById(excerptId(step))
+          ?.scrollIntoView({ block: 'start' });
+        return;
+      case 'current':
+      case 'committed':
+      case 'changed':
+        break;
+      default:
+        location satisfies never;
+    }
     const item = items.find(
       (candidate) => candidate.path === step.pointer.path,
     );
@@ -137,15 +162,14 @@ export function WalkthroughStopView({
         ?.scrollIntoView({ block: 'start' });
       return;
     }
-    const location =
-      step.location.state === 'changed' ? step.pointer : step.location;
+    const lines = reviewStepLines(step);
     props.onOpen(
       { kind: 'file', path: step.pointer.path },
       {
         kind: 'codeRange',
         filePath: step.pointer.path,
-        startLine: location.startLine,
-        endLine: location.endLine,
+        startLine: lines.startLine,
+        endLine: lines.endLine,
         comparison: { kind: 'file' },
       },
     );
@@ -629,6 +653,9 @@ function StepList({
                 {step.kind === 'context' && ' · existing code'}
                 {step.location.state === 'changed' && (
                   <span className="text-graph-4"> · code moved</span>
+                )}
+                {step.location.state === 'broken' && (
+                  <span className="text-graph-4"> · broken pointer</span>
                 )}
                 {step.location.state === 'committed' && ' · committed'}
               </span>

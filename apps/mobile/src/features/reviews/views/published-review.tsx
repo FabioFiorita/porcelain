@@ -52,7 +52,9 @@ export function PublishedReview({
               key={step.id}
               title={step.title}
               description={`${step.pointer.path} · ${step.location.state}`}
-              onPress={() => onFile(step.pointer.path)}
+              onPress={() => {
+                if (step.location.state !== 'broken') onFile(step.pointer.path);
+              }}
             >
               <Text variant="caption" tone="muted">
                 {step.text}
