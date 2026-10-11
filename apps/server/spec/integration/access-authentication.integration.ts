@@ -15,7 +15,7 @@ const unpairedRoutes = new Set([
   'POST /api/pair',
 ]);
 
-const PAIRED_ROUTES = 58;
+const PAIRED_ROUTES = 59;
 
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
