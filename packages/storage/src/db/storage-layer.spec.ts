@@ -1,10 +1,13 @@
 import { createHash } from 'node:crypto';
 import {
+  chmodSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
   statSync,
+  symlinkSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -17,7 +20,14 @@ import {
 } from '@porcelain/access/ports';
 import { InventoryStore } from '@porcelain/projects/ports';
 import { CommentStore } from '@porcelain/reviews/ports';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+} from 'vitest';
 import { upgradeLegacyDatabase } from './migrate.ts';
 import { worktreeIdV1 } from './worktree-id-v1.ts';
 import { storageLayer } from './storage-layer.ts';
@@ -562,7 +572,7 @@ it('heals repository identities and carries every worktree row from surviving ad
     statSync(path, { bigint: true }),
   );
   const oldIds = metadata.map((info) =>
-    worktreeIdV1('project', `${info.dev}:${info.ino}:${info.birthtimeNs}`, 32),
+    worktreeIdV1('project', `16777230:${info.ino}:${info.birthtimeNs}`, 32),
   );
   const newIds = metadata.map((info) =>
     worktreeIdV1('project', `${info.ino}:${info.birthtimeNs}`, 32),
@@ -732,7 +742,7 @@ it('heals repository identities and carries every worktree row from surviving ad
   expect(snapshot(directory)).toEqual(before);
 });
 
-it('heals duplicate registrations after a mount change without deleting either project or its data', async ({
+it('heals duplicate registrations into the latest project and keeps its conflicting rows', async ({
   onTestFinished,
 }) => {
   const directory = mkdtempSync(join(tmpdir(), 'porcelain-duplicate-storage-'));
@@ -750,16 +760,87 @@ it('heals duplicate registrations after a mount change without deleting either p
     .run('second', 'Re-added project', commonDirectory, `16777233:${stable}`);
   database
     .prepare('INSERT INTO worktree_presence VALUES (?, ?, NULL)')
-    .run(worktreeIdV1('first', `${info.dev}:${stable}`, 32), 'first');
+    .run(worktreeIdV1('first', `16777230:${stable}`, 32), 'first');
   database
     .prepare('INSERT INTO worktree_presence VALUES (?, ?, NULL)')
-    .run(worktreeIdV1('second', `${info.dev}:${stable}`, 32), 'second');
+    .run(worktreeIdV1('second', `16777233:${stable}`, 32), 'second');
   database
     .prepare('INSERT INTO comment_reads VALUES (?, 11)')
-    .run(worktreeIdV1('first', `${info.dev}:${stable}`, 32));
+    .run(worktreeIdV1('first', `16777230:${stable}`, 32));
   database
     .prepare('INSERT INTO comment_reads VALUES (?, 17)')
-    .run(worktreeIdV1('second', `${info.dev}:${stable}`, 32));
+    .run(worktreeIdV1('second', `16777233:${stable}`, 32));
+  const linked = join(commonDirectory, 'worktrees', 'feature');
+  mkdirSync(linked, { recursive: true });
+  const linkedInfo = statSync(linked, { bigint: true });
+  const linkedStable = `${linkedInfo.ino}:${linkedInfo.birthtimeNs}`;
+  const linkedOld = worktreeIdV1('first', `16777230:${linkedStable}`, 32);
+  database
+    .prepare('INSERT INTO worktree_presence VALUES (?, ?, NULL)')
+    .run(linkedOld, 'first');
+  database.prepare('INSERT INTO comment_reads VALUES (?, 23)').run(linkedOld);
+  database
+    .prepare('INSERT INTO worktree_presence VALUES (?, ?, NULL)')
+    .run('absent', 'first');
+  database.prepare('INSERT INTO comment_reads VALUES (?, 29)').run('absent');
+  database
+    .prepare('INSERT INTO project_file_preferences VALUES (?, ?, 1, 0)')
+    .run('first', 'README.md');
+  database.exec(`CREATE TABLE porcelain_git_action_execution_v1 (
+    request_id TEXT PRIMARY KEY REFERENCES git_action_receipts(request_id) ON DELETE CASCADE,
+    phase TEXT NOT NULL CHECK (phase IN ('queued', 'started'))
+  )`);
+  for (const [requestId, projectId, worktreeId, phase] of [
+    ['discarded', 'first', 'absent', 'started'],
+    ['carried', 'first', linkedOld, 'queued'],
+    [
+      'survivor',
+      'second',
+      worktreeIdV1('second', `16777233:${stable}`, 32),
+      'started',
+    ],
+  ]) {
+    database
+      .prepare(
+        'INSERT INTO git_action_receipts (request_id, project_id, worktree_id, action, state, refresh_required, accepted_at, intent, expected, progress) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)',
+      )
+      .run(
+        requestId!,
+        projectId!,
+        worktreeId!,
+        'commit',
+        'completed',
+        at,
+        '{}',
+        '{}',
+        '[]',
+      );
+    database
+      .prepare('INSERT INTO porcelain_git_action_execution_v1 VALUES (?, ?)')
+      .run(requestId!, phase!);
+  }
+  for (const [worktreeId, summary, proofId] of [
+    [
+      worktreeIdV1('first', `16777230:${stable}`, 32),
+      'Discarded review',
+      'discarded-proof',
+    ],
+    [
+      worktreeIdV1('second', `16777233:${stable}`, 32),
+      'Survivor review',
+      'survivor-proof',
+    ],
+    [linkedOld, 'Carried review', 'carried-proof'],
+  ] as const) {
+    database
+      .prepare(
+        'INSERT INTO reviews (worktree_id, revision, published_at, summary_html, summary_token, summary_secret, layers) VALUES (?, 3, ?, ?, ?, ?, ?)',
+      )
+      .run(worktreeId, at, summary, proofId, 'secret', '[]');
+    database
+      .prepare('INSERT INTO review_proof_files VALUES (?, ?, ?, ?)')
+      .run(worktreeId, proofId, 'image/png', new Uint8Array([1, 2, 3]));
+  }
   database.close();
   await expect(
     Effect.runPromise(
@@ -778,21 +859,160 @@ it('heals duplicate registrations after a mount change without deleting either p
         )
         .all(),
     ).toEqual([
-      { id: 'first', name: 'Original project', repository_identity: stable },
       { id: 'second', name: 'Re-added project', repository_identity: stable },
     ]);
     expect(
       reopened
         .prepare('SELECT seen_through FROM comment_reads WHERE worktree_id = ?')
         .get(worktreeIdV1('first', stable, 32)),
-    ).toEqual({ seen_through: 11 });
+    ).toBeUndefined();
     expect(
       reopened
         .prepare('SELECT seen_through FROM comment_reads WHERE worktree_id = ?')
         .get(worktreeIdV1('second', stable, 32)),
     ).toEqual({ seen_through: 17 });
+    expect(
+      reopened
+        .prepare(
+          'SELECT worktree_id, project_id FROM worktree_presence ORDER BY worktree_id',
+        )
+        .all(),
+    ).toEqual(
+      [stable, linkedStable]
+        .map((identity) => ({
+          worktree_id: worktreeIdV1('second', identity, 32),
+          project_id: 'second',
+        }))
+        .sort((a, b) => a.worktree_id.localeCompare(b.worktree_id)),
+    );
+    expect(
+      reopened
+        .prepare('SELECT seen_through FROM comment_reads WHERE worktree_id = ?')
+        .get(worktreeIdV1('second', linkedStable, 32)),
+    ).toEqual({ seen_through: 23 });
+    expect(
+      reopened.prepare('SELECT * FROM project_file_preferences').all(),
+    ).toEqual([]);
+    expect(
+      reopened
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'inventory_projects_repository_identity_unique'",
+        )
+        .get(),
+    ).toEqual({ name: 'inventory_projects_repository_identity_unique' });
+    expect(
+      reopened
+        .prepare(
+          'SELECT request_id, project_id, worktree_id FROM git_action_receipts ORDER BY request_id',
+        )
+        .all(),
+    ).toEqual([
+      {
+        request_id: 'carried',
+        project_id: 'second',
+        worktree_id: worktreeIdV1('second', linkedStable, 32),
+      },
+      {
+        request_id: 'survivor',
+        project_id: 'second',
+        worktree_id: worktreeIdV1('second', stable, 32),
+      },
+    ]);
+    expect(
+      reopened
+        .prepare(
+          'SELECT request_id, phase FROM porcelain_git_action_execution_v1 ORDER BY request_id',
+        )
+        .all(),
+    ).toEqual([
+      { request_id: 'carried', phase: 'queued' },
+      { request_id: 'survivor', phase: 'started' },
+    ]);
+    expect(
+      reopened
+        .prepare('SELECT summary_html FROM reviews ORDER BY summary_html')
+        .all(),
+    ).toEqual([
+      { summary_html: 'Carried review' },
+      { summary_html: 'Survivor review' },
+    ]);
+    expect(
+      reopened
+        .prepare('SELECT worktree_id, id FROM review_proof_files ORDER BY id')
+        .all(),
+    ).toEqual([
+      {
+        worktree_id: worktreeIdV1('second', linkedStable, 32),
+        id: 'carried-proof',
+      },
+      {
+        worktree_id: worktreeIdV1('second', stable, 32),
+        id: 'survivor-proof',
+      },
+    ]);
     expect(reopened.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
   } finally {
     reopened.close();
   }
 });
+
+it.each(['missing', 'not-directory', 'loop', 'permission', 'linked-loop'])(
+  'heals main rows when linked metadata is %s at upgrade time',
+  async (failure) => {
+    const directory = mkdtempSync(join(tmpdir(), 'porcelain-offline-storage-'));
+    onTestFinished(() => rmSync(directory, { recursive: true, force: true }));
+    const commonDirectory = join(directory, '.git');
+    if (failure === 'not-directory')
+      writeFileSync(commonDirectory, 'not a directory');
+    if (failure === 'loop') symlinkSync(commonDirectory, commonDirectory);
+    if (failure === 'permission') {
+      mkdirSync(commonDirectory);
+      chmodSync(commonDirectory, 0);
+      onTestFinished(() => chmodSync(commonDirectory, 0o755));
+    }
+    if (failure === 'linked-loop') {
+      const linkedDirectory = join(commonDirectory, 'worktrees', 'loop');
+      mkdirSync(join(commonDirectory, 'worktrees'), { recursive: true });
+      symlinkSync(linkedDirectory, linkedDirectory);
+    }
+
+    const database = applyLegacyMigrations(directory, 28);
+    database
+      .prepare('INSERT INTO inventory_projects VALUES (?, ?, 0, ?, ?, 0, 1)')
+      .run('project', 'Offline', commonDirectory, '16777230:123:456');
+    database
+      .prepare('INSERT INTO worktree_presence VALUES (?, ?, NULL)')
+      .run(worktreeIdV1('project', '16777230:123:456', 32), 'project');
+    database
+      .prepare('INSERT INTO comment_reads VALUES (?, 31)')
+      .run(worktreeIdV1('project', '16777230:123:456', 32));
+    database.close();
+    await Effect.runPromise(
+      upgradeLegacyDatabase(join(directory, 'inventory.sqlite'), {
+        worktreeIdLength: 32,
+        busyTimeoutMs: 5000,
+      }).pipe(Effect.provide(NodeServices.layer)),
+    );
+    const reopened = new DatabaseSync(join(directory, 'inventory.sqlite'));
+    try {
+      expect(
+        reopened
+          .prepare('SELECT worktree_id, seen_through FROM comment_reads')
+          .all(),
+      ).toEqual([
+        {
+          worktree_id: worktreeIdV1('project', '123:456', 32),
+          seen_through: 31,
+        },
+      ]);
+      expect(
+        reopened
+          .prepare('SELECT repository_identity FROM inventory_projects')
+          .get(),
+      ).toEqual({ repository_identity: '123:456' });
+      expect(reopened.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+    } finally {
+      reopened.close();
+    }
+  },
+);

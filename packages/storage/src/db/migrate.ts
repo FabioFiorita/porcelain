@@ -201,64 +201,56 @@ export const upgradeLegacyDatabase = Effect.fn('Storage.upgradeLegacyDatabase')(
           );
           database.function(
             'porcelain_stable_worktree_ids',
-            (projectId, commonDirectory) => {
+            (projectId, survivorId, commonDirectory, storedIdentity) => {
               if (
                 typeof projectId !== 'string' ||
-                typeof commonDirectory !== 'string'
+                typeof survivorId !== 'string' ||
+                typeof commonDirectory !== 'string' ||
+                typeof storedIdentity !== 'string'
               )
                 return '[]';
-              const directories = [commonDirectory];
+              const parts = storedIdentity.split(':');
+              const legacy = parts.length === 3;
+              const stableIdentity = legacy
+                ? parts.slice(1).join(':')
+                : storedIdentity;
+              const mapping = (identity: string) => ({
+                old_id: worktreeIdV1(
+                  projectId,
+                  legacy ? `${parts[0]}:${identity}` : identity,
+                  options.worktreeIdLength,
+                ),
+                stable_id: worktreeIdV1(
+                  projectId,
+                  identity,
+                  options.worktreeIdLength,
+                ),
+                new_id: worktreeIdV1(
+                  survivorId,
+                  identity,
+                  options.worktreeIdLength,
+                ),
+              });
+              const mappings = [mapping(stableIdentity)];
               try {
-                directories.push(
-                  ...readdirSync(join(commonDirectory, 'worktrees')).map(
-                    (name) => join(commonDirectory, 'worktrees', name),
-                  ),
-                );
-              } catch (error) {
-                if (
-                  !(
-                    error instanceof Error &&
-                    'code' in error &&
-                    ['ENOENT', 'ENOTDIR', 'EACCES', 'EPERM'].includes(
-                      String(error.code),
-                    )
-                  )
-                )
-                  throw error;
-              }
-              return JSON.stringify(
-                directories.flatMap((directory) => {
+                for (const name of readdirSync(
+                  join(commonDirectory, 'worktrees'),
+                )) {
                   try {
-                    const info = statSync(directory, { bigint: true });
-                    if (!info.isDirectory() || info.birthtimeNs === 0n)
-                      return [];
-                    return [
-                      {
-                        old_id: worktreeIdV1(
-                          projectId,
-                          `${info.dev}:${info.ino}:${info.birthtimeNs}`,
-                          options.worktreeIdLength,
-                        ),
-                        new_id: worktreeIdV1(
-                          projectId,
-                          `${info.ino}:${info.birthtimeNs}`,
-                          options.worktreeIdLength,
-                        ),
-                      },
-                    ];
-                  } catch (error) {
-                    if (
-                      error instanceof Error &&
-                      'code' in error &&
-                      ['ENOENT', 'ENOTDIR', 'EACCES', 'EPERM'].includes(
-                        String(error.code),
-                      )
-                    )
-                      return [];
-                    throw error;
+                    const info = statSync(
+                      join(commonDirectory, 'worktrees', name),
+                      { bigint: true },
+                    );
+                    if (info.isDirectory() && info.birthtimeNs !== 0n)
+                      mappings.push(mapping(`${info.ino}:${info.birthtimeNs}`));
+                  } catch {
+                    continue;
                   }
-                }),
-              );
+                }
+              } catch {
+                return JSON.stringify(mappings);
+              }
+              return JSON.stringify(mappings);
             },
           );
           database.exec('PRAGMA foreign_keys = OFF');
@@ -274,6 +266,19 @@ export const upgradeLegacyDatabase = Effect.fn('Storage.upgradeLegacyDatabase')(
               appliedHashes(database).length,
             )) {
               for (const statement of migration.sql) database.exec(statement);
+              if (migration.tag === '0028_stable_repository_identity') {
+                if (
+                  database
+                    .prepare(
+                      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'porcelain_git_action_execution_v1'",
+                    )
+                    .get() !== undefined
+                )
+                  database.exec(`DELETE FROM porcelain_git_action_execution_v1
+                    WHERE request_id IN (SELECT request_id FROM stable_duplicate_receipts)
+                    AND request_id NOT IN (SELECT request_id FROM git_action_receipts)`);
+                database.exec('DROP TABLE stable_duplicate_receipts');
+              }
               record.run(migration.hash, migration.timestamp);
             }
             if (database.prepare('PRAGMA foreign_key_check').all().length > 0)
