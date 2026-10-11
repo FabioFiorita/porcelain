@@ -1,5 +1,5 @@
+import { Box } from '../../../components/ui/box';
 import { useState } from 'react';
-import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-screens/experimental';
 import { Text } from '../../../components/ui/text';
 import { Button } from '../../../components/ui/button';
@@ -16,18 +16,13 @@ export default function NativePreview({ name }: { name: string }) {
   const [wrap, setWrap] = useState(true);
   const [large, setLarge] = useState(false);
   const [language, setLanguage] = useState('typescript');
-  const sample =
-    language === 'swift'
-      ? '// Read-only Swift preview\nlet ready = true\nlet message = "Porcelain"\n\nfunc review() -> String {\n  return message\n}'
-      : language === 'kotlin'
-        ? '// Read-only Kotlin preview\nval ready = true\nval message = "Porcelain"\n\nfun review(): String {\n  return message\n}'
-        : '// Read-only file preview\nconst ready = true;\nconst message = "Porcelain";\n\nexport function review() {\n  return message;\n}';
+  const sample = sampleSource(language);
   const [link, setLink] = useState('none');
   const [brokenImage, setBrokenImage] = useState(false);
   return (
     <SafeAreaView edges={{ bottom: true }} style={{ flex: 1 }}>
-      <View className="flex-1 bg-background">
-        <View className="gap-2 px-4 py-3">
+      <Box className="flex-1" surface="background">
+        <Box gap={2} paddingX={4} paddingY={3}>
           <Text variant="heading">{name}</Text>
           {name === 'CodeView' || name === 'DiffView' ? (
             <>
@@ -37,7 +32,7 @@ export default function NativePreview({ name }: { name: string }) {
                   ? `${range.side ?? 'file'} lines ${range.startLine}–${range.endLine}`
                   : 'none'}
               </Text>
-              <View className="flex-row flex-wrap gap-2">
+              <Box className="flex-row flex-wrap" gap={2}>
                 {range ? (
                   <Button
                     label="Clear selection"
@@ -55,25 +50,13 @@ export default function NativePreview({ name }: { name: string }) {
                 {name === 'CodeView' ? (
                   <>
                     <Button
-                      label={
-                        language === 'typescript'
-                          ? 'TypeScript'
-                          : language === 'swift'
-                            ? 'Swift'
-                            : 'Kotlin'
-                      }
+                      label={languageLabel(language)}
                       size="sm"
                       variant="outline"
                       onPress={() => {
                         setRange(undefined);
                         setLarge(false);
-                        setLanguage(
-                          language === 'typescript'
-                            ? 'swift'
-                            : language === 'swift'
-                              ? 'kotlin'
-                              : 'typescript',
-                        );
+                        setLanguage(nextLanguage(language));
                       }}
                     />
                     <Button
@@ -87,7 +70,7 @@ export default function NativePreview({ name }: { name: string }) {
                     />
                   </>
                 ) : null}
-              </View>
+              </Box>
             </>
           ) : null}
           {name === 'MarkdownView' || name === 'HtmlPreview' ? (
@@ -101,7 +84,7 @@ export default function NativePreview({ name }: { name: string }) {
               onPress={() => setBrokenImage(!brokenImage)}
             />
           ) : null}
-        </View>
+        </Box>
         {name === 'CodeView' ? (
           <CodeView
             language={language}
@@ -208,7 +191,27 @@ export default function NativePreview({ name }: { name: string }) {
             }
           />
         ) : null}
-      </View>
+      </Box>
     </SafeAreaView>
   );
+}
+
+function sampleSource(language: string) {
+  if (language === 'swift')
+    return '// Read-only Swift preview\nlet ready = true\nlet message = "Porcelain"\n\nfunc review() -> String {\n  return message\n}';
+  if (language === 'kotlin')
+    return '// Read-only Kotlin preview\nval ready = true\nval message = "Porcelain"\n\nfun review(): String {\n  return message\n}';
+  return '// Read-only file preview\nconst ready = true;\nconst message = "Porcelain";\n\nexport function review() {\n  return message;\n}';
+}
+
+function languageLabel(language: string) {
+  if (language === 'typescript') return 'TypeScript';
+  if (language === 'swift') return 'Swift';
+  return 'Kotlin';
+}
+
+function nextLanguage(language: string) {
+  if (language === 'typescript') return 'swift';
+  if (language === 'swift') return 'kotlin';
+  return 'typescript';
 }

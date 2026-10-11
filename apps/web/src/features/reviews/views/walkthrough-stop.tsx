@@ -226,30 +226,16 @@ export function WalkthroughStopView({
             )}
           </nav>
         )}
-        header={() =>
-          stop.kind === 'decision' ? (
-            <DecisionBrief
-              stop={stop}
-              total={stops.filter((item) => item.kind === 'decision').length}
-              review={review}
-              decision={decision}
-              onStep={revealStep}
-              onGo={onGo}
-            />
-          ) : stop.kind === 'unexplained' ? (
-            <UnexplainedBrief stop={stop} stops={stops} onGo={onGo} />
-          ) : (
-            <Brief
-              eyebrow={
-                <span className="tracking-wide uppercase">
-                  Set apart by your settings
-                </span>
-              }
-              title="Specs"
-              lead="Specs are folded because agents follow the project's spec rules. Open the ones that matter to you; the countdown still includes them."
-            />
-          )
-        }
+        header={() => (
+          <StopBrief
+            stop={stop}
+            stops={stops}
+            review={review}
+            decision={decision}
+            onStep={revealStep}
+            onGo={onGo}
+          />
+        )}
         footer={() => (
           <>
             {stop.kind === 'decision' && (
@@ -266,35 +252,23 @@ export function WalkthroughStopView({
               <div className="flex flex-wrap items-center justify-between gap-4 px-4 pt-5 pb-16 font-sans">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">
-                    {finished
-                      ? 'All reviewed here'
-                      : layer
-                        ? 'Done with this decision?'
-                        : 'Done here?'}
+                    {finishHeading(finished, layer !== undefined)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {finished
-                      ? next
-                        ? `Next: ${stopTitle(next)}`
-                        : 'This was the last stop.'
-                      : remaining > 0
-                        ? `Marks the ${remaining} remaining ${remaining === 1 ? 'file' : 'files'} here reviewed${layer ? ' and records the decision' : ''}.`
-                        : progress.total === 0
-                          ? 'Records the decision. Its code is shown in other stops.'
-                          : 'Its files are reviewed; this records the decision.'}
+                    {finishDetail({
+                      finished,
+                      next,
+                      remaining,
+                      total: progress.total,
+                      decides: layer !== undefined,
+                    })}
                   </p>
                 </div>
                 <Button
                   disabled={completion.pending || (layer && !decisionsSettled)}
                   onClick={() => (finished ? advance() : markDecision(advance))}
                 >
-                  {finished
-                    ? next
-                      ? 'Continue'
-                      : 'Back to the briefing'
-                    : next
-                      ? 'Mark reviewed and continue'
-                      : 'Mark reviewed and finish'}
+                  {finishAction(finished, next !== undefined)}
                   <ArrowRightIcon data-icon="inline-end" />
                 </Button>
               </div>
@@ -304,6 +278,91 @@ export function WalkthroughStopView({
       />
     </div>
   );
+}
+
+function StopBrief({
+  stop,
+  stops,
+  review,
+  decision,
+  onStep,
+  onGo,
+}: {
+  stop: CodeStop;
+  stops: readonly WalkthroughStop[];
+  review: WalkthroughProps['review'];
+  decision: DecisionState | undefined;
+  onStep: (step: ReviewStep) => void;
+  onGo: (key: WalkthroughKey) => void;
+}) {
+  if (stop.kind === 'decision') {
+    return (
+      <DecisionBrief
+        stop={stop}
+        total={stops.filter((item) => item.kind === 'decision').length}
+        review={review}
+        decision={decision}
+        onStep={onStep}
+        onGo={onGo}
+      />
+    );
+  }
+  if (stop.kind === 'unexplained') {
+    return <UnexplainedBrief stop={stop} stops={stops} onGo={onGo} />;
+  }
+  return (
+    <Brief
+      eyebrow={
+        <span className="tracking-wide uppercase">
+          Set apart by your settings
+        </span>
+      }
+      title="Specs"
+      lead="Specs are folded because agents follow the project's spec rules. Open the ones that matter to you; the countdown still includes them."
+    />
+  );
+}
+
+function finishHeading(finished: boolean, decides: boolean) {
+  if (finished) return 'All reviewed here';
+  if (decides) return 'Done with this decision?';
+  return 'Done here?';
+}
+
+function finishDetail({
+  finished,
+  next,
+  remaining,
+  total,
+  decides,
+}: {
+  finished: boolean;
+  next: WalkthroughStop | undefined;
+  remaining: number;
+  total: number;
+  decides: boolean;
+}) {
+  if (finished) {
+    return next ? `Next: ${stopTitle(next)}` : 'This was the last stop.';
+  }
+  if (remaining > 0) {
+    return `Marks the ${remaining} remaining ${remaining === 1 ? 'file' : 'files'} here reviewed${decides ? ' and records the decision' : ''}.`;
+  }
+  if (total === 0) {
+    return 'Records the decision. Its code is shown in other stops.';
+  }
+  return 'Its files are reviewed; this records the decision.';
+}
+
+function finishAction(finished: boolean, hasNext: boolean) {
+  if (finished) return hasNext ? 'Continue' : 'Back to the briefing';
+  return hasNext ? 'Mark reviewed and continue' : 'Mark reviewed and finish';
+}
+
+function changeLabel(change: 'new' | 'changed' | 'removed') {
+  if (change === 'new') return 'New';
+  if (change === 'changed') return 'Changed';
+  return 'Removed';
 }
 
 function stepAnchor(
@@ -452,11 +511,7 @@ function DecisionBrief({
                       'bg-destructive/10 text-destructive',
                   )}
                 >
-                  {link.change === 'new'
-                    ? 'New'
-                    : link.change === 'changed'
-                      ? 'Changed'
-                      : 'Removed'}
+                  {changeLabel(link.change)}
                 </span>
               )}
             </li>

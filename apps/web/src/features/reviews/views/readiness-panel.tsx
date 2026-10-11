@@ -118,6 +118,12 @@ function BranchReadinessMarks({
   );
 }
 
+function overallTone(items: readonly ReadinessItem[]): ReadinessTone {
+  if (items.some((item) => item.tone === 'failing')) return 'failing';
+  if (items.some((item) => item.tone === 'attention')) return 'attention';
+  return 'ok';
+}
+
 function ReadinessCard({
   items,
   onSelect,
@@ -125,11 +131,7 @@ function ReadinessCard({
   items: readonly ReadinessItem[];
   onSelect: (key: ReadinessKey) => void;
 }) {
-  const tone: ReadinessTone = items.some((item) => item.tone === 'failing')
-    ? 'failing'
-    : items.some((item) => item.tone === 'attention')
-      ? 'attention'
-      : 'ok';
+  const tone = overallTone(items);
   return (
     <section
       aria-label="Readiness"

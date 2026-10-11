@@ -8,6 +8,7 @@ import { webRules } from './web-rules.mjs';
 import { mobileRules } from './mobile-rules.mjs';
 import { nativeHttpRules } from './native-http-rules.mjs';
 import { hollowTests, testSource } from './hollow-tests.mjs';
+import { findVariable } from './scope.mjs';
 
 const domainPackage = '(?:projects|changes|reviews|files|git-actions|access)';
 const domainSource = new RegExp(
@@ -233,14 +234,6 @@ function repositoryPath(context) {
   return path.startsWith(repositoryRoot)
     ? path.slice(repositoryRoot.length)
     : path;
-}
-
-function findVariable(scope, name) {
-  for (let current = scope; current; current = current.upper) {
-    const variable = current.set.get(name);
-    if (variable) return variable;
-  }
-  return undefined;
 }
 
 function staticString(node, context, depth = 0) {

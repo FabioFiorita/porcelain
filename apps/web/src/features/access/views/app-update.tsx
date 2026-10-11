@@ -16,6 +16,10 @@ import {
 } from '../rules/app-update';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 
+type Check = ReturnType<typeof useAppUpdate>['result'];
+type Install = ReturnType<typeof useInstallAppUpdate>;
+type State = ReturnType<typeof useAppUpdateState>;
+
 export function AppUpdateSettings() {
   const { result: update, check } = useAppUpdate();
   const install = useInstallAppUpdate();
@@ -26,31 +30,16 @@ export function AppUpdateSettings() {
   const info = Option.getOrUndefined(Option.flatten(AsyncResult.value(update)));
   if (!info) return AsyncResult.isInitial(update) ? <Spinner /> : null;
   const progress = appUpdateProgress(state);
-  const checkFailed = AsyncResult.isFailure(update) && !update.waiting;
+  const failure = appUpdateFailure(state, update, install.result);
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm font-medium">Porcelain app {info.current}</p>
-      {progress ? (
-        <div aria-live="polite" className="flex items-center gap-2 text-sm">
-          <Spinner />
-          <p>{progress}</p>
-        </div>
-      ) : state.status === 'available' ? (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm">Porcelain app {state.version} is available.</p>
-          <Button
-            size="sm"
-            disabled={update.waiting || install.result.waiting}
-            onClick={() => install.install()}
-          >
-            Update to {state.version}
-          </Button>
-        </div>
-      ) : state.status !== 'error' && !AsyncResult.isFailure(update) ? (
-        <p className="text-xs text-muted-foreground">
-          {noUpdateMessage(state)}
-        </p>
-      ) : null}
+      <AppUpdateOffer
+        progress={progress}
+        state={state}
+        update={update}
+        install={install}
+      />
       {capabilities && appUpdateCheckVisible(capabilities) && (
         <Button
           size="sm"
@@ -62,21 +51,61 @@ export function AppUpdateSettings() {
           Check for updates
         </Button>
       )}
-      {(state.status === 'error' ||
-        checkFailed ||
-        AsyncResult.isFailure(install.result)) && (
+      {failure !== undefined && (
         <Alert variant="destructive">
-          <AlertDescription>
-            {state.status === 'error'
-              ? state.message
-              : checkFailed
-                ? connectionErrorMessage(Cause.squash(update.cause))
-                : AsyncResult.isFailure(install.result)
-                  ? connectionErrorMessage(Cause.squash(install.result.cause))
-                  : undefined}
-          </AlertDescription>
+          <AlertDescription>{failure}</AlertDescription>
         </Alert>
       )}
     </div>
   );
+}
+
+function AppUpdateOffer({
+  progress,
+  state,
+  update,
+  install,
+}: {
+  progress: string | undefined;
+  state: State;
+  update: Check;
+  install: Install;
+}) {
+  if (progress)
+    return (
+      <div aria-live="polite" className="flex items-center gap-2 text-sm">
+        <Spinner />
+        <p>{progress}</p>
+      </div>
+    );
+  if (state.status === 'available')
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm">Porcelain app {state.version} is available.</p>
+        <Button
+          size="sm"
+          disabled={update.waiting || install.result.waiting}
+          onClick={() => install.install()}
+        >
+          Update to {state.version}
+        </Button>
+      </div>
+    );
+  if (state.status === 'error' || AsyncResult.isFailure(update)) return null;
+  return (
+    <p className="text-xs text-muted-foreground">{noUpdateMessage(state)}</p>
+  );
+}
+
+function appUpdateFailure(
+  state: State,
+  update: Check,
+  install: Install['result'],
+) {
+  if (state.status === 'error') return state.message;
+  if (AsyncResult.isFailure(update) && !update.waiting)
+    return connectionErrorMessage(Cause.squash(update.cause));
+  if (AsyncResult.isFailure(install))
+    return connectionErrorMessage(Cause.squash(install.cause));
+  return undefined;
 }

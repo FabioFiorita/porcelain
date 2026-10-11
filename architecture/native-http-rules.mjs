@@ -1,3 +1,5 @@
+import { variableOf } from './scope.mjs';
+
 const routeSource = /\/apps\/server\/src\/http\/routes\/.+\.ts$/;
 const rawMethods = new Set([
   'get',
@@ -10,14 +12,6 @@ const rawMethods = new Set([
   'register',
   'addHook',
 ]);
-function variable(context, node) {
-  let scope = context.sourceCode.getScope(node);
-  while (scope) {
-    const found = scope.set.get(node.name);
-    if (found) return found;
-    scope = scope.upper;
-  }
-}
 
 function property(node) {
   return node.computed ? node.property?.value : node.property?.name;
@@ -38,7 +32,7 @@ function value(node, context, seen = new Set()) {
   if (!node || seen.has(node)) return undefined;
   seen.add(node);
   if (node.type === 'Identifier') {
-    const definition = variable(context, node)?.defs[0]?.node;
+    const definition = variableOf(context, node)?.defs[0]?.node;
     return value(
       definition?.type === 'VariableDeclarator' ? definition.init : definition,
       context,

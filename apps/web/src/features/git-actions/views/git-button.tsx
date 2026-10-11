@@ -187,13 +187,7 @@ export function GitButton({
               <Spinner className="size-3.5" />
             ) : (
               <GitActionIcon
-                action={
-                  primary.kind === 'run'
-                    ? primary.action
-                    : primary.kind === 'stash'
-                      ? 'stash-apply'
-                      : 'commit'
-                }
+                action={primaryIcon(primary)}
                 className="size-3.5"
               />
             )}
@@ -381,11 +375,7 @@ export function GitButton({
               <DialogHeader>
                 <DialogTitle>{selected?.label ?? 'Git action'}</DialogTitle>
                 <DialogDescription>
-                  {selected?.id === 'stash-pop'
-                    ? 'Its changes come back into the working tree and the stash is dropped.'
-                    : selected?.id === 'stash-apply'
-                      ? 'Its changes come back into the working tree and the stash is kept.'
-                      : 'Every change, new files included, is set aside until you pop the stash.'}
+                  {stashDescription(selected?.id)}
                 </DialogDescription>
               </DialogHeader>
             )}
@@ -402,4 +392,18 @@ export function GitButton({
       ) : null}
     </>
   );
+}
+
+function primaryIcon(primary: ReturnType<typeof primaryGitAction>): GitAction {
+  if (primary.kind === 'run') return primary.action;
+  if (primary.kind === 'stash') return 'stash-apply';
+  return 'commit';
+}
+
+function stashDescription(action: GitAction | undefined) {
+  if (action === 'stash-pop')
+    return 'Its changes come back into the working tree and the stash is dropped.';
+  if (action === 'stash-apply')
+    return 'Its changes come back into the working tree and the stash is kept.';
+  return 'Every change, new files included, is set aside until you pop the stash.';
 }

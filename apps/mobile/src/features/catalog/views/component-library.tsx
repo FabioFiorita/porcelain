@@ -1,5 +1,7 @@
+import { Card } from '../../../components/ui/card';
+import { Box } from '../../../components/ui/box';
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView } from 'react-native';
 import { Text } from '../../../components/ui/text';
 import { Button } from '../../../components/ui/button';
 
@@ -17,19 +19,19 @@ export function ComponentLibrary({
       className="flex-1 bg-background"
       contentInsetAdjustmentBehavior="automatic"
     >
-      <View className="gap-6 px-6 py-8">
+      <Box gap={6} paddingX={6} paddingY={8}>
         <Text variant="heading">Component library</Text>
         <Text variant="ui" tone="muted">
           Open a primitive to inspect its variants.
         </Text>
-        <View className="gap-2 rounded-lg border border-border bg-card p-4">
+        <Card gap={2} padding={4}>
           <Text variant="subheading">Text</Text>
           <Text variant="ui" tone="muted">
             Type scale, tones, weights and selection.
           </Text>
           <Button label="Explore Text" variant="outline" onPress={onOpenText} />
-        </View>
-        <View className="gap-2 rounded-lg border border-border bg-card p-4">
+        </Card>
+        <Card gap={2} padding={4}>
           <Text variant="subheading">Button</Text>
           <Text variant="ui" tone="muted">
             Variants, sizes, disabled and pending states.
@@ -39,7 +41,7 @@ export function ComponentLibrary({
             variant="outline"
             onPress={onOpenButton}
           />
-        </View>
+        </Card>
         {[
           'IconButton',
           'Input',
@@ -63,7 +65,7 @@ export function ComponentLibrary({
             onPress={() => onOpenPrimitive(name)}
           />
         ))}
-      </View>
+      </Box>
     </ScrollView>
   );
 }
@@ -73,16 +75,16 @@ export function ButtonPreview() {
   const [pending, setPending] = useState(false);
   const act = () => setActions((count) => count + 1);
   return (
-    <View className="flex-1 bg-background">
-      <View className="gap-2 px-6 py-4">
+    <Box className="flex-1" surface="background">
+      <Box gap={2} paddingX={6} paddingY={4}>
         <Text variant="heading">Button</Text>
         <Text variant="ui" accessibilityLiveRegion="polite">
           Actions: {actions}
         </Text>
-      </View>
+      </Box>
       <ScrollView className="flex-1" contentInsetAdjustmentBehavior="automatic">
-        <View className="gap-6 px-6 pb-8">
-          <View className="gap-3 rounded-lg border border-border bg-card p-4">
+        <Box gap={6} paddingX={6} paddingBottom={8}>
+          <Card gap={3} padding={4}>
             <Text variant="subheading" tone="muted">
               Variants
             </Text>
@@ -92,17 +94,17 @@ export function ButtonPreview() {
             <Button label="Ghost" variant="ghost" onPress={act} />
             <Button label="Destructive" variant="destructive" onPress={act} />
             <Button label="Link" variant="link" onPress={act} />
-          </View>
-          <View className="gap-3 rounded-lg border border-border bg-card p-4">
+          </Card>
+          <Card gap={3} padding={4}>
             <Text variant="subheading" tone="muted">
               Sizes
             </Text>
-            <View className="flex-row items-center gap-3">
+            <Box className="flex-row items-center" gap={3}>
               <Button label="Regular" onPress={act} />
               <Button label="Small" size="sm" variant="outline" onPress={act} />
-            </View>
-          </View>
-          <View className="gap-3 rounded-lg border border-border bg-card p-4">
+            </Box>
+          </Card>
+          <Card gap={3} padding={4}>
             <Text variant="subheading" tone="muted">
               Disabled and pending
             </Text>
@@ -126,10 +128,10 @@ export function ButtonPreview() {
               variant="ghost"
               onPress={() => setActions(0)}
             />
-          </View>
-        </View>
+          </Card>
+        </Box>
       </ScrollView>
-    </View>
+    </Box>
   );
 }
 
@@ -139,9 +141,9 @@ export function TextPreview() {
       className="flex-1 bg-background"
       contentInsetAdjustmentBehavior="automatic"
     >
-      <View className="gap-6 px-6 py-8">
+      <Box gap={6} paddingX={6} paddingY={8}>
         <Text variant="heading">Text</Text>
-        <View className="gap-3 rounded-lg border border-border bg-card p-4">
+        <Card gap={3} padding={4}>
           <Text variant="subheading" tone="muted">
             Type scale
           </Text>
@@ -152,8 +154,8 @@ export function TextPreview() {
           <Text variant="caption">Caption — Updated a minute ago</Text>
           <Text variant="small">Small — a050966 · main</Text>
           <Text variant="code">Code — const ready = true;</Text>
-        </View>
-        <View className="gap-3 rounded-lg border border-border bg-card p-4">
+        </Card>
+        <Card gap={3} padding={4}>
           <Text variant="subheading" tone="muted">
             Tones and weights
           </Text>
@@ -173,8 +175,8 @@ export function TextPreview() {
           <Text variant="ui" weight="semibold">
             Semibold weight
           </Text>
-        </View>
-        <View className="gap-3 rounded-lg border border-border bg-card p-4">
+        </Card>
+        <Card gap={3} padding={4}>
           <Text variant="subheading" tone="muted">
             Wrapping and selection
           </Text>
@@ -186,8 +188,8 @@ export function TextPreview() {
           <Text variant="caption" tone="muted">
             Selection is opt-in; device font scaling stays enabled.
           </Text>
-        </View>
-      </View>
+        </Card>
+      </Box>
     </ScrollView>
   );
 }

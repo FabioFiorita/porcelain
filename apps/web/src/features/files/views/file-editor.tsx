@@ -53,18 +53,7 @@ function FileEditor({
     initialText,
     options: editorOptions,
   } = usePierreFileEditor(owner, path, state.text, draft, notifyUnsaved);
-  const dirty = state.text !== state.savedText;
-  const label = changedOnDisk
-    ? 'Not saving: changed on disk'
-    : state.error
-      ? 'Not saved'
-      : state.saving
-        ? 'Saving…'
-        : dirty
-          ? 'Unsaved changes'
-          : state.text === initialText
-            ? 'Saves as you pause'
-            : 'Saved';
+  const label = saveLabel(state, changedOnDisk, initialText);
   const controls = (
     <>
       <span role="status" className="text-xs text-muted-foreground">
@@ -131,6 +120,19 @@ function FileEditor({
   );
 }
 export default FileEditor;
+
+function saveLabel(
+  state: FileDraftState,
+  changedOnDisk: boolean,
+  initialText: string,
+) {
+  if (changedOnDisk) return 'Not saving: changed on disk';
+  if (state.error) return 'Not saved';
+  if (state.saving) return 'Saving…';
+  if (state.text !== state.savedText) return 'Unsaved changes';
+  if (state.text === initialText) return 'Saves as you pause';
+  return 'Saved';
+}
 
 function SaveShortcut({ onSave }: { onSave: () => void }) {
   useHotkey(SHORTCUTS.saveFile, onSave, { ignoreInputs: false });

@@ -52,36 +52,59 @@ export function RemoteMachine({
             )}
           </div>
         </SidebarMenuSubItem>
-      ) : inventory === undefined ? (
-        <SidebarMenuSubItem>
-          <p role="status" className="px-2 pb-2 text-2xs text-muted-foreground">
-            Loading projects…
-          </p>
-        </SidebarMenuSubItem>
-      ) : inventory.projects.length === 0 ? (
-        <SidebarMenuSubItem>
-          <p className="px-2 pb-2 text-2xs text-muted-foreground">
-            No projects registered.
-          </p>
-        </SidebarMenuSubItem>
       ) : (
-        inventory.projects.map((project) => (
-          <SidebarMenuSubItem key={project.id}>
-            <ProjectSection
-              project={project}
-              selected={selected}
-              manage={false}
-              onSelect={(worktreeId) =>
-                onSelect({
-                  remote: remote.environmentId,
-                  projectId: project.id,
-                  worktreeId,
-                })
-              }
-            />
-          </SidebarMenuSubItem>
-        ))
+        <RemoteProjects
+          inventory={inventory}
+          environmentId={remote.environmentId}
+          selected={selected}
+          onSelect={onSelect}
+        />
       )}
     </MachineSection>
   );
+}
+
+function RemoteProjects({
+  inventory,
+  environmentId,
+  selected,
+  onSelect,
+}: {
+  inventory: ReturnType<typeof useRemoteInventory>['inventory'];
+  environmentId: RemoteConnection['remote']['environmentId'];
+  selected: string | undefined;
+  onSelect: (target: WorktreeTarget) => void;
+}) {
+  if (inventory === undefined)
+    return (
+      <SidebarMenuSubItem>
+        <p role="status" className="px-2 pb-2 text-2xs text-muted-foreground">
+          Loading projects…
+        </p>
+      </SidebarMenuSubItem>
+    );
+  if (inventory.projects.length === 0)
+    return (
+      <SidebarMenuSubItem>
+        <p className="px-2 pb-2 text-2xs text-muted-foreground">
+          No projects registered.
+        </p>
+      </SidebarMenuSubItem>
+    );
+  return inventory.projects.map((project) => (
+    <SidebarMenuSubItem key={project.id}>
+      <ProjectSection
+        project={project}
+        selected={selected}
+        manage={false}
+        onSelect={(worktreeId) =>
+          onSelect({
+            remote: environmentId,
+            projectId: project.id,
+            worktreeId,
+          })
+        }
+      />
+    </SidebarMenuSubItem>
+  ));
 }

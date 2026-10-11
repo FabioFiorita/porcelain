@@ -21,6 +21,12 @@ function worktreeDisplayLabel(worktree: Worktree) {
   return worktreeLabel(worktree.branch);
 }
 
+function worktreeIcon(worktree: Worktree) {
+  if (worktree.main) return HouseIcon;
+  if (worktree.branch === null) return GitCommitHorizontalIcon;
+  return GitBranchIcon;
+}
+
 const STATUS_LABEL: Record<NonNullable<Worktree['status']>, string> = {
   pending: 'Waiting for your review',
   reviewed: 'Reviewed, waiting for a commit',
@@ -44,11 +50,7 @@ export function WorktreeRow({
   selected: boolean;
   onSelect: (id: string) => void;
 }) {
-  const Icon = worktree.main
-    ? HouseIcon
-    : worktree.branch === null
-      ? GitCommitHorizontalIcon
-      : GitBranchIcon;
+  const Icon = worktreeIcon(worktree);
   return (
     <ContextMenu>
       <ContextMenuTrigger

@@ -1,3 +1,4 @@
+import { Box } from '../../../components/ui/box';
 import { Text } from '../../../components/ui/text';
 import { Button } from '../../../components/ui/button';
 import { Cause } from 'effect';
@@ -8,7 +9,7 @@ import { useState } from 'react';
 import { Input } from '../../../components/ui/input';
 import { Field } from '../../../components/ui/field';
 import { ErrorState } from '../../../components/ui/error-state';
-import { ScrollView, View } from 'react-native';
+import { ScrollView } from 'react-native';
 import { usePairEnvironment, useReadEnvironments } from '../commands/pairing';
 import { useEnvironmentStorageStatus } from '../store';
 
@@ -25,7 +26,7 @@ export function PairEnvironment({ onClose }: { onClose: () => void }) {
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
       >
-        <View className="gap-4 px-6 py-8">
+        <Box gap={4} paddingX={6} paddingY={8}>
           <Text variant="heading">Pair an environment</Text>
           <Field
             label="Pairing link"
@@ -77,7 +78,7 @@ export function PairEnvironment({ onClose }: { onClose: () => void }) {
             variant="ghost"
             onPress={onClose}
           />
-        </View>
+        </Box>
       </ScrollView>
     </RNHostView>
   );

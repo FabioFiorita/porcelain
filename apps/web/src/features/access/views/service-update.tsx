@@ -122,6 +122,48 @@ function Offer({
   );
 }
 
+function UpdateStatus({
+  connection,
+  target,
+  state,
+  progress,
+  started,
+  onStart,
+}: {
+  connection: Connection;
+  target: UpdateTarget;
+  state: ServiceUpdate;
+  progress: string | null;
+  started: boolean;
+  onStart: () => void;
+}) {
+  if (!state.managed)
+    return (
+      <p className="text-xs text-muted-foreground">
+        This server runs outside the installed service. Update it with npm, then
+        run porcelain service update.
+      </p>
+    );
+  if (progress)
+    return (
+      <div aria-live="polite" className="flex items-center gap-2 text-sm">
+        <Spinner />
+        <p>{progress}</p>
+      </div>
+    );
+  return (
+    <>
+      <Outcome state={state} started={started} />
+      <Offer
+        connection={connection}
+        target={target}
+        state={state}
+        onStart={onStart}
+      />
+    </>
+  );
+}
+
 function UpdateContent({
   connection,
   target,
@@ -148,27 +190,14 @@ function UpdateContent({
       <p className="text-sm font-medium">
         Porcelain {state.version ?? 'development build'}
       </p>
-      {!state.managed ? (
-        <p className="text-xs text-muted-foreground">
-          This server runs outside the installed service. Update it with npm,
-          then run porcelain service update.
-        </p>
-      ) : progress ? (
-        <div aria-live="polite" className="flex items-center gap-2 text-sm">
-          <Spinner />
-          <p>{progress}</p>
-        </div>
-      ) : (
-        <>
-          <Outcome state={state} started={started && target.kind === 'local'} />
-          <Offer
-            connection={connection}
-            target={target}
-            state={state}
-            onStart={() => setStarted(true)}
-          />
-        </>
-      )}
+      <UpdateStatus
+        connection={connection}
+        target={target}
+        state={state}
+        progress={progress}
+        started={started && target.kind === 'local'}
+        onStart={() => setStarted(true)}
+      />
     </div>
   );
 }

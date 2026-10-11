@@ -75,11 +75,7 @@ export function ReviewedControl({
   const mark = useMarkReviewed(scope, context, range);
   const unmark = useUnmarkReviewed(scope, context, range);
   const pending = mark.result.waiting || unmark.result.waiting;
-  const error = AsyncResult.isFailure(mark.result)
-    ? Cause.squash(mark.result.cause)
-    : AsyncResult.isFailure(unmark.result)
-      ? Cause.squash(unmark.result.cause)
-      : undefined;
+  const error = commandError(mark.result, unmark.result);
 
   if (fingerprint === null || fingerprint === undefined)
     return (
@@ -110,21 +106,8 @@ export function ReviewedControl({
           else mark.start({ path, fingerprint });
         }}
       >
-        {pending ? (
-          <LoaderCircleIcon className="animate-spin" />
-        ) : reviewed ? (
-          <CheckIcon />
-        ) : status === 'stale' ? (
-          <RotateCcwIcon />
-        ) : (
-          <CheckIcon className={cn(compact && 'invisible')} />
-        )}
-        {!compact &&
-          (reviewed
-            ? 'Reviewed'
-            : status === 'stale'
-              ? 'Review again'
-              : 'Mark reviewed')}
+        <ReviewedIcon pending={pending} status={status} compact={compact} />
+        {!compact && reviewedText(status)}
       </Button>
       {error !== undefined && (
         <span
@@ -173,15 +156,8 @@ export function MarkAllReviewed({
         title={plan.label}
         onClick={submit}
       >
-        {pending ? (
-          <LoaderCircleIcon className="animate-spin" />
-        ) : plan.unmarking ? (
-          <RotateCcwIcon />
-        ) : (
-          <CheckIcon />
-        )}
-        {!compact &&
-          (pending ? (plan.unmarking ? 'Unmarking…' : 'Marking…') : plan.text)}
+        <MarkAllIcon pending={pending} unmarking={plan.unmarking} />
+        {!compact && markAllText(pending, plan.unmarking, plan.text)}
       </Button>
       {bulk.report && <BulkReport report={bulk.report} />}
       {AsyncResult.isFailure(bulk.result) && (
@@ -194,6 +170,53 @@ export function MarkAllReviewed({
       )}
     </span>
   );
+}
+
+function commandError(
+  mark: AsyncResult.AsyncResult<unknown, unknown>,
+  unmark: AsyncResult.AsyncResult<unknown, unknown>,
+) {
+  if (AsyncResult.isFailure(mark)) return Cause.squash(mark.cause);
+  if (AsyncResult.isFailure(unmark)) return Cause.squash(unmark.cause);
+  return undefined;
+}
+
+function ReviewedIcon({
+  pending,
+  status,
+  compact,
+}: {
+  pending: boolean;
+  status: ReviewStatus;
+  compact: boolean;
+}) {
+  if (pending) return <LoaderCircleIcon className="animate-spin" />;
+  if (status === 'reviewed') return <CheckIcon />;
+  if (status === 'stale') return <RotateCcwIcon />;
+  return <CheckIcon className={cn(compact && 'invisible')} />;
+}
+
+function reviewedText(status: ReviewStatus) {
+  if (status === 'reviewed') return 'Reviewed';
+  if (status === 'stale') return 'Review again';
+  return 'Mark reviewed';
+}
+
+function MarkAllIcon({
+  pending,
+  unmarking,
+}: {
+  pending: boolean;
+  unmarking: boolean;
+}) {
+  if (pending) return <LoaderCircleIcon className="animate-spin" />;
+  if (unmarking) return <RotateCcwIcon />;
+  return <CheckIcon />;
+}
+
+function markAllText(pending: boolean, unmarking: boolean, text: string) {
+  if (!pending) return text;
+  return unmarking ? 'Unmarking…' : 'Marking…';
 }
 
 function BulkReport({ report }: { report: BulkReviewReport }) {

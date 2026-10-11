@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { Box } from '../../../components/ui/box';
 import { useRouter } from 'expo-router';
 import { AsyncResult } from 'effect/reactivity';
 import { Empty } from '../../../components/ui/empty';
@@ -48,7 +48,7 @@ function WorktreeHistory({
     );
   const value = history.value;
   return (
-    <View collapsable={false} className="flex-1 bg-background">
+    <Box collapsable={false} className="flex-1" surface="background">
       {value.commits.length === 0 && !failed ? (
         <Empty
           title="No commits yet"
@@ -57,7 +57,7 @@ function WorktreeHistory({
       ) : (
         <HistoryList
           header={
-            <View className="gap-2 border-b border-border px-4 py-2">
+            <Box gap={2} divider="bottom" paddingX={4} paddingY={2}>
               <Text variant="caption" tone="muted">
                 {historyHeading(value.snapshot)}
               </Text>
@@ -66,7 +66,7 @@ function WorktreeHistory({
                   History changed. Showing it from the top.
                 </Text>
               ) : null}
-            </View>
+            </Box>
           }
           entries={value.commits.map(commitEntry)}
           loading={history.result.waiting}
@@ -79,23 +79,47 @@ function WorktreeHistory({
             })
           }
           footer={
-            failed ? (
-              <ErrorState
-                message="Couldn't load older commits"
-                retry={{ label: 'Retry', onPress: history.readMore }}
-              />
-            ) : history.result.waiting ? (
-              <Loading label="Loading older commits…" />
-            ) : !value.nextAfter ? (
-              <View className="py-4">
-                <Text variant="caption" tone="muted" className="text-center">
-                  {historyBoundary(value.boundary)}
-                </Text>
-              </View>
-            ) : undefined
+            <OlderCommitsFooter
+              failed={failed}
+              waiting={history.result.waiting}
+              end={!value.nextAfter}
+              endLabel={historyBoundary(value.boundary)}
+              onRetry={history.readMore}
+            />
           }
         />
       )}
-    </View>
+    </Box>
+  );
+}
+
+function OlderCommitsFooter({
+  failed,
+  waiting,
+  end,
+  endLabel,
+  onRetry,
+}: {
+  failed: boolean;
+  waiting: boolean;
+  end: boolean;
+  endLabel: string;
+  onRetry: () => void;
+}) {
+  if (failed)
+    return (
+      <ErrorState
+        message="Couldn't load older commits"
+        retry={{ label: 'Retry', onPress: onRetry }}
+      />
+    );
+  if (waiting) return <Loading label="Loading older commits…" />;
+  if (!end) return null;
+  return (
+    <Box paddingY={4}>
+      <Text variant="caption" tone="muted" className="text-center">
+        {endLabel}
+      </Text>
+    </Box>
   );
 }

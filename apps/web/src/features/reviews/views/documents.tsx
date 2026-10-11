@@ -179,6 +179,12 @@ function HandoffDocument(props: DocumentProps) {
   return <PlainChangesDocument {...props} />;
 }
 
+function changesTitle(specsOnly: boolean, entry: string) {
+  if (specsOnly) return 'Specs';
+  if (entry === 'all-changes') return 'All changes';
+  return 'Changes';
+}
+
 function PlainChangesDocument({
   scope,
   context,
@@ -228,13 +234,7 @@ function PlainChangesDocument({
           : {})}
         toolbar={(collapseControl) => (
           <DocumentToolbar
-            title={
-              specsOnly
-                ? 'Specs'
-                : interaction.entry === 'all-changes'
-                  ? 'All changes'
-                  : 'Changes'
-            }
+            title={changesTitle(specsOnly, interaction.entry)}
             subtitle={`${changes.length} files`}
           >
             {collapseControl}

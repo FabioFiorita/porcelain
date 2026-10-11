@@ -98,6 +98,7 @@
     "porcelain/web-rules-are-pure": "error",
     "porcelain/web-views-no-await": "error",
     "porcelain/web-views-no-promise-chains": "error",
+    "porcelain/web-views-no-iife": "error",
     "porcelain/web-views-no-try": "error",
     "porcelain/web-views-no-command-loops": "error",
     "porcelain/web-views-no-direct-data": "error",
@@ -154,6 +155,17 @@
       "files": ["apps/web/src/shared/workspace/copy.ts"],
       "rules": {
         "typescript/no-deprecated": "off"
+      }
+    },
+    {
+      "files": [
+        "**/apps/web/src/**/views/**/*.tsx",
+        "**/apps/web/src/app/**/*.tsx",
+        "**/apps/mobile/src/**/views/**/*.tsx",
+        "**/apps/mobile/src/shell/**/*.tsx"
+      ],
+      "rules": {
+        "no-nested-ternary": "error"
       }
     }
   ]
