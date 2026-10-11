@@ -60,6 +60,7 @@ import {
   readProofFileResponseSchema,
 } from './review-proof.ts';
 import {
+  deleteReviewResponseSchema,
   publishReviewRequestSchema,
   publishReviewResponseSchema,
   readPublishedReviewResponseSchema,
@@ -194,6 +195,16 @@ export class ReviewsApi extends porcelainApi.add(
           params: worktreeParamsSchema,
           payload: markCommentsSeenRequestSchema,
           success: markCommentsSeenResponseSchema,
+          error: [...worktreeFailures],
+        },
+      ),
+      HttpApiEndpoint.delete(
+        'deleteReview',
+        '/api/worktrees/:worktreeId/review',
+        {
+          disableCodecs: true,
+          params: worktreeParamsSchema,
+          success: deleteReviewResponseSchema,
           error: [...worktreeFailures],
         },
       ),

@@ -27,6 +27,8 @@ export {
   type UpdateCommentThreadResponse,
 } from './comments.ts';
 export {
+  deleteReviewResponseSchema,
+  type DeleteReviewResponse,
   publishReviewResponseSchema,
   readPublishedReviewResponseSchema,
   type PublishReviewRequest,

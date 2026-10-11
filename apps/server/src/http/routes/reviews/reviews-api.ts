@@ -8,6 +8,7 @@ import { Effect, Layer } from 'effect';
 import { HttpApiBuilder } from 'effect/http-api';
 import { type CreateCommentThreadUseCase } from '../../../use-cases/reviews/create-comment-thread.ts';
 import { type DeleteCommentMessageUseCase } from '../../../use-cases/reviews/delete-comment-message.ts';
+import { type DeleteReviewUseCase } from '../../../use-cases/reviews/delete-review.ts';
 import { type DeleteResolvedCommentsUseCase } from '../../../use-cases/reviews/delete-resolved-comments.ts';
 import { type EditCommentMessageUseCase } from '../../../use-cases/reviews/edit-comment-message.ts';
 import { type ListCommentThreadsUseCase } from '../../../use-cases/reviews/list-comment-threads.ts';
@@ -25,6 +26,7 @@ import { type SetReviewedLayerUseCase } from '../../../use-cases/reviews/set-rev
 import { type UpdateCommentThreadUseCase } from '../../../use-cases/reviews/update-comment-thread.ts';
 
 type ReviewsUseCases = {
+  deleteReview: Context.Service.Shape<typeof DeleteReviewUseCase>;
   createCommentThread: Pick<
     Context.Service.Shape<typeof CreateCommentThreadUseCase>,
     'execute'
@@ -148,6 +150,9 @@ export function reviewsRoutes(
       )
       .handle('markCommentsSeen', ({ params, payload }) =>
         useCases.markCommentsSeen.execute({ ...params, ...payload }),
+      )
+      .handle('deleteReview', ({ params }) =>
+        useCases.deleteReview.execute(params),
       )
       .handle('publishReview', ({ params, payload }) =>
         useCases.publishReview

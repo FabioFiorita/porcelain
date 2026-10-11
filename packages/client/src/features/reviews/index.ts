@@ -1,3 +1,4 @@
+export { deleteReview } from './commands/publication.ts';
 export { readReviewedFiles } from './queries/reviewed.ts';
 export {
   readLayerMarks,

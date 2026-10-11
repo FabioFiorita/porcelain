@@ -82,6 +82,16 @@ export const sqliteReviewStoreLayer = Layer.effect(
           })),
         );
       }),
+      remove: Effect.fn('ReviewStore.remove')(function* (
+        input: Parameters<ReviewStore['remove']>[0],
+      ) {
+        return yield* Effect.gen(function* () {
+          const removed =
+            yield* sql`DELETE FROM reviews WHERE worktree_id = ${input.worktreeId} RETURNING worktree_id`;
+          yield* sql`DELETE FROM reviewed_layers WHERE worktree_id = ${input.worktreeId}`;
+          return removed.length > 0;
+        }).pipe(sql.withTransaction, Effect.orDie);
+      }),
       save: Effect.fn('ReviewStore.save')(function* (
         input: Parameters<ReviewStore['save']>[0],
       ) {
