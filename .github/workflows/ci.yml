@@ -202,12 +202,7 @@ jobs:
     needs: affected
     if: ${{ needs.affected.outputs.desktop == 'true' }}
     runs-on: macos-latest
-    # TEMPORARY #232: remove before merge
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/setup@v3
@@ -221,12 +216,11 @@ jobs:
         with:
           path: ~/.electron-gyp
           key: electron-headers-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/desktop/package.json') }}
-      # TEMPORARY #232: remove before merge
-      - run: pnpm --filter @porcelain/desktop exec playwright test spec/e2e/window.e2e.ts --repeat-each=150 --grep "delayed events after destroying a restored maximized window" --max-failures=0
+      - run: pnpm --filter @porcelain/desktop test:e2e
       - uses: actions/upload-artifact@v7
-        if: always()
+        if: failure()
         with:
-          name: desktop-e2e-${{ matrix.shard }}
+          name: desktop-e2e
           path: |
             apps/desktop/test-results/
             ~/Library/Logs/DiagnosticReports/
