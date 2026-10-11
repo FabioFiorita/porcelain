@@ -7,6 +7,7 @@ import { RequestError } from '../../runtime/errors/request-error.ts';
 import { type AtWorktreePathUseCase } from '../../use-cases/reviews/at-worktree-path.ts';
 import { type CreateCommentThreadUseCase } from '../../use-cases/reviews/create-comment-thread.ts';
 import { type ListCommentThreadsUseCase } from '../../use-cases/reviews/list-comment-threads.ts';
+import { type DeleteReviewUseCase } from '../../use-cases/reviews/delete-review.ts';
 import { type PublishReviewUseCase } from '../../use-cases/reviews/publish-review.ts';
 import { type ReadPublishedReviewUseCase } from '../../use-cases/reviews/read-published-review.ts';
 import { type ReplyToCommentUseCase } from '../../use-cases/reviews/reply-to-comment.ts';
@@ -19,6 +20,7 @@ export type ReviewMcpUseCases = {
       typeof CreateCommentThreadUseCase
     >;
     listCommentThreads: Context.Service.Shape<typeof ListCommentThreadsUseCase>;
+    deleteReview: Context.Service.Shape<typeof DeleteReviewUseCase>;
     publishReview: Context.Service.Shape<typeof PublishReviewUseCase>;
     readPublishedReview: Context.Service.Shape<
       typeof ReadPublishedReviewUseCase
@@ -86,6 +88,14 @@ export function reviewMcpHandlers(useCases: ReviewMcpUseCases) {
                     (warning) => summaryWarnings[warning] ?? warning,
                   ),
                 };
+              }),
+            ),
+          delete_review: ({ cwd }) =>
+            invocation((defaultCwd) =>
+              useCases.reviewTools.atWorktreePath.execute({
+                operation: useCases.reviewTools.deleteReview,
+                cwd: cwd ?? defaultCwd,
+                request: {},
               }),
             ),
           read_review: ({ cwd }) =>

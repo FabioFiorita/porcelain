@@ -24,6 +24,7 @@ function useCases(calls: unknown[]): ReviewMcpUseCases {
         },
       },
       listCommentThreads: { execute: () => Effect.succeed([]) },
+      deleteReview: unused,
       publishReview: unused,
       readPublishedReview: unused,
       createCommentThread: unused,

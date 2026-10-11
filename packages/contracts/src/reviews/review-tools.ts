@@ -29,6 +29,7 @@ export const publishReviewToolResponseSchema = Schema.Struct({
     warnings: Schema.Array(Schema.String),
   },
 });
+export const deleteReviewToolRequestSchema = reviewToolScopeSchema;
 export const readReviewToolRequestSchema = reviewToolScopeSchema;
 export const listCommentsToolRequestSchema = Schema.Struct({
   ...reviewToolScopeSchema.fields,
