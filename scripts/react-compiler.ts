@@ -1,11 +1,21 @@
-import { transformSync } from '@babel/core';
+import { createConfigItem, transformSync } from '@babel/core';
 import { globSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const mobileRoot = join(root, 'apps/mobile');
 const platforms = ['ios', 'android'] as const;
+const mobileRequire = createRequire(join(mobileRoot, 'package.json'));
+const expoRoot = dirname(mobileRequire.resolve('expo/package.json'));
+const mobileConfig = createConfigItem(join(mobileRoot, 'babel.config.js'), {
+  type: 'preset',
+});
+const mobilePreset = createConfigItem(mobileConfig.value, {
+  dirname: expoRoot,
+  type: 'preset',
+});
 
 export function reactCompilerProblems(
   path: string,
@@ -29,9 +39,10 @@ export function reactCompilerProblems(
   };
   try {
     transformSync(source, {
+      presets: [mobilePreset],
       cwd: mobileRoot,
       filename: resolve(root, path),
-      configFile: join(mobileRoot, 'babel.config.js'),
+      configFile: false,
       babelrc: false,
       code: false,
       highlightCode: false,
