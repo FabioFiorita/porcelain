@@ -65,7 +65,7 @@ export function FileTree({
         const item: ItemProps = {
           title: flat ? node.path : entryName(node.path),
           size: 'sm',
-          selected: node.path.replace(/\/$/, '') === selected,
+          selected: path === selected,
           accessibilityLabel: `${node.kind === 'directory' ? (expanded.has(path) ? 'Collapse' : 'Expand') : 'Open'} ${entryName(node.path)}${busy ? ', loading' : ''}`,
           leading: (
             <View
@@ -77,8 +77,7 @@ export function FileTree({
               ) : null}
               <FileIcon
                 kind={
-                  node.kind === 'directory' &&
-                  expanded.has(node.path.replace(/\/$/, ''))
+                  node.kind === 'directory' && expanded.has(path)
                     ? 'openFolder'
                     : node.kind === 'directory'
                       ? 'folder'
@@ -108,9 +107,7 @@ export function FileTree({
               />
             ) : undefined,
           onPress: () =>
-            node.kind === 'directory'
-              ? onToggle(node.path.replace(/\/$/, ''))
-              : onSelect(node.path.replace(/\/$/, '')),
+            node.kind === 'directory' ? onToggle(path) : onSelect(path),
         };
         return (
           <>
@@ -137,8 +134,10 @@ function FolderIndicator({
     <View className="size-3.5 items-center justify-center">
       {loading ? (
         <ActivityIndicator
+          accessible={false}
           size="small"
-          colorClassName="accent-muted-foreground"
+          style={{ transform: [{ scale: 0.7 }] }}
+          colorClassName="accent-foreground"
         />
       ) : (
         <Icon name={expanded ? 'down' : 'chevron'} size="small" />
