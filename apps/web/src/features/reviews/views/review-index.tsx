@@ -305,7 +305,7 @@ function LayersView({
   );
   return (
     <ScrollArea className="h-0 min-h-0 flex-1">
-      <div className="p-2">
+      <div className="p-2 pr-3">
         {review ? (
           <WalkthroughRows
             scope={scope}

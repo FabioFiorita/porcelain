@@ -20,7 +20,7 @@ export function HistoryRows({
   onSelect: (oid: string) => void;
 }) {
   return (
-    <div className="px-1.5 py-2">
+    <div className="py-2 pr-3 pl-1.5">
       {commits.map((commit) => (
         <CommitRow
           key={commit.oid}
