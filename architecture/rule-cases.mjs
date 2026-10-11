@@ -3576,6 +3576,7 @@ export function useCompilerFixture(value: (() => string) | undefined) {
 }`,
     errors: [
       'apps/mobile/src/components/ui/use-compiler-fixture.ts:6:',
+      'must compile with React Compiler for ios',
       'because all_errors makes a compiler bailout fail the Metro bundle',
       'Support ThrowStatement inside of try/catch',
     ],

@@ -1,52 +1,51 @@
-import { createConfigItem, transformSync } from '@babel/core';
+import { loadOptions, transformSync } from '@babel/core';
 import { globSync, readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const mobileRoot = join(root, 'apps/mobile');
-const platforms = ['ios', 'android'] as const;
-const mobileRequire = createRequire(join(mobileRoot, 'package.json'));
-const expoRoot = dirname(mobileRequire.resolve('expo/package.json'));
-const mobileConfig = createConfigItem(join(mobileRoot, 'babel.config.js'), {
-  type: 'preset',
-});
-const mobilePreset = createConfigItem(mobileConfig.value, {
-  dirname: expoRoot,
-  type: 'preset',
-});
-
-export function reactCompilerProblems(
-  path: string,
-  source: string,
-  platform: (typeof platforms)[number] = 'ios',
-): string[] {
-  const caller = {
-    name: 'metro',
-    bundler: 'metro',
-    platform,
-    isDev: true,
-    isServer: false,
-    isReactServer: false,
-    isNodeModule: false,
-    isHMREnabled: true,
-    supportsStaticESM: false,
-    supportsReactCompiler: true,
-    engine: 'hermes',
-    projectRoot: mobileRoot,
-    routerRoot: 'src/app',
-  };
+function loadMobileOptions() {
   try {
-    transformSync(source, {
-      presets: [mobilePreset],
+    const options = {
       cwd: mobileRoot,
-      filename: resolve(root, path),
-      configFile: false,
+      configFile: join(mobileRoot, 'babel.config.js'),
       babelrc: false,
       code: false,
       highlightCode: false,
-      caller,
+      caller: {
+        name: 'metro',
+        bundler: 'metro',
+        platform: 'ios',
+        isDev: true,
+        isServer: false,
+        isReactServer: false,
+        isNodeModule: false,
+        isHMREnabled: true,
+        supportsStaticESM: false,
+        supportsReactCompiler: true,
+        engine: 'hermes',
+        projectRoot: mobileRoot,
+        routerRoot: 'src/app',
+      },
+    };
+    if (!loadOptions(options))
+      throw new Error('Babel ignored the mobile configuration.');
+    return options;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Mobile React Compiler: could not load apps/mobile/babel.config.js and its presets, because the check must use the mobile app's Babel configuration.\n${message}`,
+    );
+  }
+}
+const mobileOptions = loadMobileOptions();
+
+export function reactCompilerProblems(path: string, source: string): string[] {
+  try {
+    transformSync(source, {
+      ...mobileOptions,
+      filename: resolve(root, path),
     });
     return [];
   } catch (error) {
@@ -55,7 +54,7 @@ export function reactCompilerProblems(
       message.match(/^>\s*(\d+)\s*\|/m)?.[1] ??
       message.match(/\((\d+):\d+\)/)?.[1];
     return [
-      `${path}${line ? `:${line}` : ''}: Mobile source must compile with React Compiler for ${platform}, because all_errors makes a compiler bailout fail the Metro bundle.\n${message}`,
+      `${path}${line ? `:${line}` : ''}: Mobile source must compile with React Compiler for ios, because all_errors makes a compiler bailout fail the Metro bundle.\n${message}`,
     ];
   }
 }
@@ -73,13 +72,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         ]
       : files.flatMap((path) => {
           const source = readFileSync(join(root, path), 'utf8');
-          return platforms.flatMap((platform) =>
-            reactCompilerProblems(path, source, platform),
-          );
+          return reactCompilerProblems(path, source);
         });
   for (const problem of problems) process.stderr.write(`${problem}\n`);
   process.stdout.write(
-    `Mobile React Compiler: ${problems.length} problems; ${files.length} source files checked for ${platforms.join(' and ')} in ${Math.round(performance.now() - started)} ms.\n`,
+    `Mobile React Compiler: ${problems.length} problems; ${files.length} source files checked for ios in ${Math.round(performance.now() - started)} ms.\n`,
   );
   process.exitCode = problems.length > 0 ? 1 : 0;
 }

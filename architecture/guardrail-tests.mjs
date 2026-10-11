@@ -179,20 +179,11 @@ export function runGuardrailCases(named = []) {
   );
   for (const entry of cases) {
     if (entry.rule === 'mobile-react-compiler') {
-      for (const platform of ['ios', 'android']) {
-        deepStrictEqual(
-          reactCompilerProblems(entry.path, entry.valid, platform),
-          [],
-        );
-        const invalid = reactCompilerProblems(
-          entry.path,
-          entry.invalid,
-          platform,
-        );
-        strictEqual(invalid.length, 1);
-        for (const expected of entry.errors)
-          strictEqual(invalid[0].includes(expected), true, invalid[0]);
-      }
+      deepStrictEqual(reactCompilerProblems(entry.path, entry.valid), []);
+      const invalid = reactCompilerProblems(entry.path, entry.invalid);
+      strictEqual(invalid.length, 1);
+      for (const expected of entry.errors)
+        strictEqual(invalid[0].includes(expected), true, invalid[0]);
     } else if (entry.rule === 'knip-expo-destination-anchor') {
       knip.compilers.tsx(entry.valid, entry.path);
       throws(

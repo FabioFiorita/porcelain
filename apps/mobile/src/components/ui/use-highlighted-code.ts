@@ -13,6 +13,19 @@ async function loadHighlighter() {
   }
 }
 const highlighter = loadHighlighter();
+async function highlightTokens(
+  source: string,
+  language: string | undefined,
+  scheme: 'light' | 'dark',
+  signal: AbortSignal,
+) {
+  try {
+    const value = await highlighter;
+    return await value?.(source, language, scheme, signal);
+  } catch {
+    return undefined;
+  }
+}
 export function useHighlightedCode(source: string, language?: string) {
   const { theme } = useUniwind();
   const scheme = theme === 'dark' ? 'dark' : 'light';
@@ -27,14 +40,12 @@ export function useHighlightedCode(source: string, language?: string) {
     if (!language) return;
     const controller = new AbortController();
     async function highlight() {
-      let tokens: RenderToken[][] | undefined;
-      try {
-        const value = await highlighter;
-        if (value)
-          tokens = await value(source, language, scheme, controller.signal);
-      } catch {
-        tokens = undefined;
-      }
+      const tokens = await highlightTokens(
+        source,
+        language,
+        scheme,
+        controller.signal,
+      );
       if (!controller.signal.aborted)
         setResult(
           tokens
