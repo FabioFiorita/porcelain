@@ -211,6 +211,7 @@ const openWindow = Effect.fn('openWindow')(function* () {
       runtime.runFork(savedWindow.schedule(windowState(view)));
   };
   view.on('close', () => {
+    if (quitting) process.stderr.write(`Porcelain: window ${view.id} close\n`);
     if (!quitting) {
       save();
       runtime.runFork(savedWindow.flush());
@@ -229,6 +230,7 @@ const openWindow = Effect.fn('openWindow')(function* () {
   view.webContents.on('did-finish-load', fullscreen);
   if (restored?.maximized) view.maximize();
   view.once('closed', () => {
+    if (quitting) process.stderr.write(`Porcelain: window ${view.id} closed\n`);
     view.removeAllListeners();
     window = undefined;
     actionsReady = false;
@@ -548,6 +550,7 @@ if (!app.requestSingleInstanceLock()) {
       yield* Effect.addFinalizer(() =>
         Effect.gen(function* () {
           yield* savedWindow.flush();
+          process.stderr.write('Porcelain: window state flushed\n');
           yield* Effect.all(
             BrowserWindow.getAllWindows().map((view) =>
               Effect.callback<void>((resume) => {
@@ -556,6 +559,9 @@ if (!app.requestSingleInstanceLock()) {
                   return;
                 }
                 view.once('closed', () => resume(Effect.void));
+                process.stderr.write(
+                  `Porcelain: closing window ${view.id} isVisible=${view.isVisible()} isMaximized=${view.isMaximized()} isClosable=${view.isClosable()} isLoading=${view.webContents.isLoading()}\n`,
+                );
                 view.close();
               }),
             ),

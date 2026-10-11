@@ -43,6 +43,7 @@ export const startLocalServer = Effect.fn('startLocalServer')(function* (
     (child) =>
       Effect.gen(function* () {
         if (!(yield* Deferred.isDone(exited))) {
+          process.stderr.write('Porcelain: sending stop to server\n');
           child.postMessage({ kind: 'stop' });
           yield* Deferred.await(exited).pipe(
             Effect.timeoutOption(settings.limits.desktop.shutdownMs),
