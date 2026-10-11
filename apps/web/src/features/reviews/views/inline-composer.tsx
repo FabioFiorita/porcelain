@@ -82,6 +82,7 @@ export function InlineComposer({
       </label>
       <Textarea
         id={id}
+        className="max-h-48 overflow-y-auto"
         autoFocus
         aria-label="Comment"
         placeholder="Share feedback…"
