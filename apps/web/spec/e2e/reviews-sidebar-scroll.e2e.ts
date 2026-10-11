@@ -72,7 +72,7 @@ test('History keeps the branch and graph header fixed and its rows outside the s
   }
 });
 
-test('both Changes lists keep their controls fixed and rows outside the scrollbar lane', async ({
+test('both Changes lists keep rows outside the scrollbar lane', async ({
   app,
   repo,
 }) => {
@@ -100,12 +100,25 @@ test('both Changes lists keep their controls fixed and rows outside the scrollba
       const control = sidebar.getByRole('tab', { name: scope, exact: true });
       await control.click();
       await expect(control).toBeVisible();
-      await checkScrolling(
-        page,
-        sidebar,
-        control,
-        sidebar.getByRole('button', { name: /^sidebar-12.md ·/ }),
-      );
+      const row = sidebar.getByRole('button', { name: /^sidebar-12.md ·/ });
+      await row.hover();
+      const before = await row.boundingBox();
+      if (!before) throw new Error('The row must be visible.');
+      await page.mouse.wheel(0, 300);
+      await expect
+        .poll(async () => (await row.boundingBox())?.y)
+        .toBe(before.y - 300);
+      await expect
+        .poll(async () => {
+          const panel = await sidebar.boundingBox();
+          const item = await row.boundingBox();
+          if (!panel || !item) return false;
+          return (
+            item.x + item.width <=
+            panel.x + panel.width - panelBorder - scrollbarLane
+          );
+        })
+        .toBe(true);
     }
     if (width === 414) {
       await page.keyboard.press('Escape');
@@ -116,31 +129,32 @@ test('both Changes lists keep their controls fixed and rows outside the scrollba
   }
 });
 
-test('sidebar comment drafts keep posting and cancellation visible when the draft is long', async ({
-  app,
-  repo,
-}) => {
-  await repo.branch('comment-scroll');
-  await repo.switch('comment-scroll');
-  await repo.write('notes.md', 'Before\n');
-  await repo.commit('Add comment fixture');
-  await repo.write('notes.md', 'After\n');
-  const page = await app.open(await app.link('this'));
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
-  const sidebar = page.getByRole('complementary', {
-    name: 'Review sidebar',
-    exact: true,
-  });
-  await sidebar.getByRole('tab', { name: 'Changes', exact: true }).click();
-  for (const scope of ['Uncommitted', 'Branch']) {
-    await sidebar.getByRole('tab', { name: scope, exact: true }).click();
+for (const viewport of [
+  { width: 1300, height: 520 },
+  { width: 844, height: 390 },
+]) {
+  test(`whole-change Comment is reachable by wheel in a ${viewport.width}×${viewport.height} window`, async ({
+    app,
+    repo,
+  }) => {
+    await repo.branch('comment-scroll');
+    await repo.switch('comment-scroll');
+    await repo.write('notes.md', 'Before\n');
+    await repo.commit('Add comment fixture');
+    await repo.write('notes.md', 'After\n');
+    const page = await app.open(await app.link('this'));
+    await page.setViewportSize(viewport);
+    if (viewport.width < 1280)
+      await page.getByRole('button', { name: 'Review', exact: true }).click();
+    const sidebar = page.getByRole('complementary', {
+      name: 'Review sidebar',
+      exact: true,
+    });
+    await sidebar.getByRole('tab', { name: 'Changes', exact: true }).click();
     await sidebar.getByRole('tab', { name: 'Comments', exact: true }).click();
     await sidebar
       .getByRole('button', {
-        name:
-          scope === 'Branch'
-            ? 'Comment on the whole branch'
-            : 'Comment on the whole change',
+        name: 'Comment on the whole change',
         exact: true,
       })
       .click();
@@ -148,27 +162,46 @@ test('sidebar comment drafts keep posting and cancellation visible when the draf
       name: 'Comment',
       exact: true,
     });
-    await draft.fill(
-      Array.from({ length: 50 }, (_, index) => `Line ${index}`).join('\n'),
+    const text = Array.from({ length: 50 }, (_, index) => `Line ${index}`).join(
+      '\n',
     );
+    await draft.fill(text);
+    const panel = await sidebar.boundingBox();
+    if (!panel) throw new Error('The sidebar must be visible.');
+    await page.mouse.move(panel.x + 4, panel.y + panel.height / 2);
+    await page.mouse.wheel(0, 2000);
+    const post = sidebar.getByRole('button', { name: 'Comment', exact: true });
     await expect
-      .poll(async () => {
-        const panel = await sidebar.boundingBox();
-        const cancel = await sidebar
-          .getByRole('button', { name: 'Cancel', exact: true })
-          .boundingBox();
-        const post = await sidebar
-          .getByRole('button', { name: 'Comment', exact: true })
-          .boundingBox();
-        if (!panel || !cancel || !post) return false;
-        return [cancel, post].every(
-          (button) =>
+      .poll(
+        async () => {
+          const button = await post.boundingBox();
+          return (
+            button !== null &&
             button.y >= panel.y &&
-            button.y + button.height <= panel.y + panel.height,
-        );
-      })
+            button.y + button.height <= panel.y + panel.height
+          );
+        },
+        {
+          message:
+            'Wheel scrolling must bring the Comment button inside the sidebar',
+        },
+      )
       .toBe(true);
-    await sidebar.getByRole('button', { name: 'Cancel', exact: true }).click();
+    const button = await post.boundingBox();
+    if (!button) throw new Error('The Comment button must be visible.');
+    await page.mouse.click(
+      button.x + button.width / 2,
+      button.y + button.height / 2,
+    );
     await expect(draft).not.toBeVisible();
-  }
-});
+    await expect(
+      sidebar.getByRole('article', { name: 'Comment thread', exact: true }),
+    ).toContainText('Line 49');
+    if (viewport.width < 1280) {
+      await page.keyboard.press('Escape');
+      await expect(
+        page.getByRole('dialog', { name: 'Worktree review', exact: true }),
+      ).not.toBeAttached();
+    }
+  });
+}

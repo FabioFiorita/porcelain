@@ -7,6 +7,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { FileNavigation } from '@/features/files/index';
 import { HistoryNavigation } from '@/features/history/index';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   useHasReviewLayers,
@@ -215,5 +216,9 @@ function SidebarSurface({
       )}
     </ReviewBoundary>
   );
-  return <div className="flex h-full min-h-0 flex-col">{content}</div>;
+  return surface === 'changes' ? (
+    <ScrollArea className="h-full">{content}</ScrollArea>
+  ) : (
+    <div className="flex h-full min-h-0 flex-col">{content}</div>
+  );
 }
