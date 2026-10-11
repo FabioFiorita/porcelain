@@ -97,7 +97,7 @@ function OpenProjectContent({
         </div>
       </DialogHeader>
       <ScrollArea className="min-h-0 [&>[data-slot=scroll-area-viewport]]:max-h-[calc(90svh-8rem)]">
-        <div className="flex flex-col gap-3 p-1">
+        <div className="flex flex-col gap-3">
           <ProjectFolderPicker
             disabled={opening.result.waiting}
             connection={connection}
