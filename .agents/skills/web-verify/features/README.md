@@ -63,6 +63,7 @@ These instructions are source-reviewed guidance. Report exactly which maps and b
 | [files.quick-open](files.quick-open.md) | / | Quick open finds a worktree file by name and opens it, and finds no file an ignore rule hides. |
 | [files.rename](files.rename.md) | / | Renaming a file in the tree moves it on disk and shows the new name without opening it, and renaming it onto an existing name is refused and keeps both files. |
 | [files.timeline](files.timeline.md) | / | The timeline of a file lists the commits that changed it, newest first, following it back across a rename and naming the path it had, and opening one shows that commit with the diff of the file. |
+| [files.tree-expansion](files.tree-expansion.md) | / | A single-child folder chain opens and closes with one click, keyboard expansion works, and a close during a lazy read stays closed. |
 | [files.trash](files.trash.md) | / | Moving a file to the trash from the tree removes it from disk and the tree, and moving one another writer already removed is refused and says so. |
 | [git-actions.commit-branch-moved](git-actions.commit-branch-moved.md) | / | A commit expects the branch the dialog looked at when it opened, so switching the worktree to another branch on the same commit afterwards makes the commit refused as changed since looked. |
 | [git-actions.commit-draft](git-actions.commit-draft.md) | / | Without a coding CLI on the server the commit dialog says no model is available and keeps drafting and groups disabled, and a message typed by hand still commits. |

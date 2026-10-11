@@ -1,13 +1,13 @@
 type FetchMatch = (path: string, init: RequestInit | undefined) => boolean;
 
-function requestPath(input: RequestInfo | URL): string {
+function requestUrl(input: RequestInfo | URL): URL {
   const address =
     typeof input === 'string'
       ? input
       : input instanceof URL
         ? input.href
         : input.url;
-  return new URL(address, location.href).pathname;
+  return new URL(address, location.href);
 }
 
 function holdLiveNotices(holding: () => boolean) {
@@ -56,7 +56,8 @@ export function createFetchGate(filePath: string) {
     let held = false;
     let open = false;
     window.fetch = async (input, init) => {
-      if (armed && !open && matches(requestPath(input), init)) {
+      const url = requestUrl(input);
+      if (armed && !open && matches(url.pathname, init)) {
         held = true;
         requested.resolve();
         await released.promise;
@@ -81,6 +82,23 @@ export function createFetchGate(filePath: string) {
     };
   }
   return {
+    recordDirectoryReads() {
+      const original = window.fetch;
+      const paths: string[] = [];
+      window.fetch = (input, init) => {
+        if (
+          requestUrl(input).pathname.endsWith('/directory') &&
+          (init?.method ?? 'GET') === 'GET'
+        ) {
+          paths.push(requestUrl(input).searchParams.get('path') ?? '');
+        }
+        return original(input, init);
+      };
+      restores.push(() => {
+        window.fetch = original;
+      });
+      return paths;
+    },
     holdNextChangeDiff() {
       const gate = holdNextFetch(
         (path, init) =>
@@ -100,6 +118,11 @@ export function createFetchGate(filePath: string) {
       holdNextFetch(
         (path, init) =>
           (init?.method ?? 'GET') === 'GET' && path.endsWith('/review'),
+      ),
+    holdNextDirectoryRead: () =>
+      holdNextFetch(
+        (path, init) =>
+          (init?.method ?? 'GET') === 'GET' && path.endsWith('/directory'),
       ),
     holdNextPost: (pathEnding: string) =>
       holdNextFetch(

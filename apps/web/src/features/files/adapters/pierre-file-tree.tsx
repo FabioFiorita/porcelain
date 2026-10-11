@@ -15,6 +15,7 @@ import {
   canDropPaths,
   directoryPaths,
   entryName,
+  fileTreeAncestors,
   nextCreatePath,
   selectedDirectories,
 } from '@porcelain/client/files/rules';
@@ -26,6 +27,16 @@ function focusFirstMenuItem(event: KeyboardEvent<HTMLDivElement>) {
   event.preventDefault();
   event.stopPropagation();
   first.focus();
+}
+
+function expandedDirectories(
+  model: ReturnType<typeof useFileTree>['model'],
+  paths: readonly string[],
+) {
+  return directoryPaths(paths).filter((path) => {
+    const item = model.getItem(path);
+    return item !== null && 'isExpanded' in item && item.isExpanded();
+  });
 }
 
 export function PierreFileTree({
@@ -208,16 +219,42 @@ export function PierreFileTree({
     });
   }, [creating, model]);
 
+  function reportExpanded() {
+    const expanded = expandedDirectories(model, latest.current.paths).map(
+      (path) => path.replace(/\/$/, ''),
+    );
+    if (expanded.length) latest.current.onExpand(expanded);
+  }
+
   const pathsKey = paths.join('\0');
   useEffect(() => {
     const shown = latest.current.paths;
     if (reveal.current.selected !== selected)
       reveal.current = { selected, complete: false };
-    const expanded = directoryPaths(shown).filter((path) => {
-      const item = model.getItem(path);
-      if (!item || !('isExpanded' in item)) return false;
-      return item.isExpanded();
-    });
+    const expanded = new Set(expandedDirectories(model, shown));
+    const childCounts = new Map<string, number>();
+    for (const path of shown) {
+      const parent = fileTreeAncestors(path).at(-1);
+      if (parent)
+        childCounts.set(`${parent}/`, (childCounts.get(`${parent}/`) ?? 0) + 1);
+    }
+    for (const path of [...expanded]) {
+      for (const ancestor of fileTreeAncestors(path).reverse()) {
+        const parent = `${ancestor}/`;
+        if (childCounts.get(parent) !== 1) break;
+        expanded.add(parent);
+      }
+    }
+    for (const path of directoryPaths(shown)) {
+      const parent = fileTreeAncestors(path).at(-1);
+      if (
+        model.getItem(path) === null &&
+        parent &&
+        expanded.has(`${parent}/`) &&
+        childCounts.get(`${parent}/`) === 1
+      )
+        expanded.add(path);
+    }
     syncing.current = true;
     {
       const revealPaths = reveal.current.complete
@@ -228,9 +265,9 @@ export function PierreFileTree({
         {
           initialExpandedPaths: [
             ...new Set([
-              ...expanded.filter((path) =>
-                selectedDirectories(path.replace(/\/$/, '')).every((parent) =>
-                  expanded.includes(parent),
+              ...[...expanded].filter((path) =>
+                fileTreeAncestors(path).every((parent) =>
+                  expanded.has(`${parent}/`),
                 ),
               ),
               ...revealPaths,
@@ -249,6 +286,7 @@ export function PierreFileTree({
       }
     }
     syncing.current = false;
+    reportExpanded();
   }, [model, pathsKey, selected]);
 
   useEffect(() => model.setGitStatus(gitStatus), [model, gitStatus]);
@@ -257,15 +295,7 @@ export function PierreFileTree({
   useEffect(
     () =>
       model.subscribe(() => {
-        if (syncing.current) return;
-        const expanded = directoryPaths(latest.current.paths)
-          .filter((path) => {
-            const item = model.getItem(path);
-            if (!item || !('isExpanded' in item)) return false;
-            return item.isExpanded();
-          })
-          .map((path) => path.replace(/\/$/, ''));
-        if (expanded.length) latest.current.onExpand(expanded);
+        if (!syncing.current) reportExpanded();
       }),
     [model],
   );
