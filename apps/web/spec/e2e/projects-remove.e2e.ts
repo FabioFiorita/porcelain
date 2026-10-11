@@ -5,6 +5,9 @@ test('cancelling the removal of a project keeps it in the navigator and on the s
   server,
 }) => {
   const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (worktree === undefined)
+    throw new Error('The project has no main worktree.');
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
@@ -22,6 +25,10 @@ test('cancelling the removal of a project keeps it in the navigator and on the s
     exact: true,
   });
   await expect(confirm).toBeVisible();
+  await expect(confirm).toContainText(
+    'Removes this project and its reviews and comments from Porcelain; files and Git history stay on disk.',
+  );
+  await expect(confirm).toContainText(worktree.path);
   await confirm.getByRole('button', { name: 'Cancel', exact: true }).click();
 
   await expect(confirm).not.toBeAttached();

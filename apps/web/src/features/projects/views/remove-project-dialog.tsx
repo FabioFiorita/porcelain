@@ -54,10 +54,8 @@ function RemoveProjectContent({
           Remove {project.name} from Porcelain?
         </AlertDialogTitle>
         <AlertDialogDescription>
-          This removes the project and all its worktrees from the sidebar, and
-          deletes their published reviews and proof, reviewed marks, comments,
-          file preferences and Git action history in Porcelain. Repository files
-          and Git history stay on disk.
+          Removes this project and its reviews and comments from Porcelain;
+          files and Git history stay on disk.
         </AlertDialogDescription>
       </AlertDialogHeader>
       <p className="break-all font-mono text-xs text-muted-foreground">
