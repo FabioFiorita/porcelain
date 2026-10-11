@@ -15,6 +15,8 @@ import {
   canDropPaths,
   directoryPaths,
   entryName,
+  fileTreeExpansion,
+  type FileTreeEntry,
   nextCreatePath,
   selectedDirectories,
 } from '@porcelain/client/files/rules';
@@ -28,8 +30,19 @@ function focusFirstMenuItem(event: KeyboardEvent<HTMLDivElement>) {
   first.focus();
 }
 
+function expandedDirectories(
+  model: ReturnType<typeof useFileTree>['model'],
+  paths: readonly string[],
+) {
+  return directoryPaths(paths).filter((path) => {
+    const item = model.getItem(path);
+    return item !== null && 'isExpanded' in item && item.isExpanded();
+  });
+}
+
 export function PierreFileTree({
   paths,
+  kinds,
   links,
   creating,
   onCreate,
@@ -45,6 +58,7 @@ export function PierreFileTree({
   onSelect,
 }: {
   paths: readonly string[];
+  kinds: ReadonlyMap<string, FileTreeEntry['kind']>;
   links: readonly { path: string; kind: string; target?: string | undefined }[];
   creating?:
     | { kind: 'file' | 'directory'; folder: string; nonce: number }
@@ -68,6 +82,7 @@ export function PierreFileTree({
 }) {
   const current = {
     paths,
+    kinds,
     links,
     onCreate,
     onMove,
@@ -208,16 +223,28 @@ export function PierreFileTree({
     });
   }, [creating, model]);
 
+  function reportExpanded() {
+    const expanded = expandedDirectories(model, latest.current.paths).map(
+      (path) => path.replace(/\/$/, ''),
+    );
+    if (expanded.length) latest.current.onExpand(expanded);
+  }
+
   const pathsKey = paths.join('\0');
   useEffect(() => {
     const shown = latest.current.paths;
     if (reveal.current.selected !== selected)
       reveal.current = { selected, complete: false };
-    const expanded = directoryPaths(shown).filter((path) => {
-      const item = model.getItem(path);
-      if (!item || !('isExpanded' in item)) return false;
-      return item.isExpanded();
-    });
+    const expanded = fileTreeExpansion(
+      shown.flatMap((path) => {
+        const kind = latest.current.kinds.get(path);
+        return kind === undefined ? [] : [{ path, kind }];
+      }),
+      new Set(expandedDirectories(model, shown)),
+      new Set(
+        directoryPaths(shown).filter((path) => model.getItem(path) !== null),
+      ),
+    ).map((path) => `${path}/`);
     syncing.current = true;
     {
       const revealPaths = reveal.current.complete
@@ -226,16 +253,7 @@ export function PierreFileTree({
       model.resetPaths(
         pendingCreate.current ? [...shown, pendingCreate.current.path] : shown,
         {
-          initialExpandedPaths: [
-            ...new Set([
-              ...expanded.filter((path) =>
-                selectedDirectories(path.replace(/\/$/, '')).every((parent) =>
-                  expanded.includes(parent),
-                ),
-              ),
-              ...revealPaths,
-            ]),
-          ],
+          initialExpandedPaths: [...new Set([...expanded, ...revealPaths])],
         },
       );
       const selectedItem = model.getItem(selected);
@@ -249,6 +267,7 @@ export function PierreFileTree({
       }
     }
     syncing.current = false;
+    reportExpanded();
   }, [model, pathsKey, selected]);
 
   useEffect(() => model.setGitStatus(gitStatus), [model, gitStatus]);
@@ -257,15 +276,7 @@ export function PierreFileTree({
   useEffect(
     () =>
       model.subscribe(() => {
-        if (syncing.current) return;
-        const expanded = directoryPaths(latest.current.paths)
-          .filter((path) => {
-            const item = model.getItem(path);
-            if (!item || !('isExpanded' in item)) return false;
-            return item.isExpanded();
-          })
-          .map((path) => path.replace(/\/$/, ''));
-        if (expanded.length) latest.current.onExpand(expanded);
+        if (!syncing.current) reportExpanded();
       }),
     [model],
   );

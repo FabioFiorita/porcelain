@@ -12,6 +12,7 @@ export { type FilesScope } from './scope.ts';
 export { fileErrorMessage, surfaceErrorMessage } from './error-message.ts';
 export {
   fileTreeAncestors,
+  fileTreeExpansion,
   mergeFileTreeEntries,
   visibleFileTreeRows,
   type FileTreeEntry,
