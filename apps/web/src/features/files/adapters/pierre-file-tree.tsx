@@ -16,6 +16,7 @@ import {
   directoryPaths,
   entryName,
   fileTreeExpansion,
+  type FileTreeEntry,
   nextCreatePath,
   selectedDirectories,
 } from '@porcelain/client/files/rules';
@@ -41,6 +42,7 @@ function expandedDirectories(
 
 export function PierreFileTree({
   paths,
+  kinds,
   links,
   creating,
   onCreate,
@@ -56,6 +58,7 @@ export function PierreFileTree({
   onSelect,
 }: {
   paths: readonly string[];
+  kinds: ReadonlyMap<string, FileTreeEntry['kind']>;
   links: readonly { path: string; kind: string; target?: string | undefined }[];
   creating?:
     | { kind: 'file' | 'directory'; folder: string; nonce: number }
@@ -79,6 +82,7 @@ export function PierreFileTree({
 }) {
   const current = {
     paths,
+    kinds,
     links,
     onCreate,
     onMove,
@@ -232,19 +236,13 @@ export function PierreFileTree({
     if (reveal.current.selected !== selected)
       reveal.current = { selected, complete: false };
     const expanded = fileTreeExpansion(
-      shown.map((path) => ({
-        path: path.replace(/\/$/, ''),
-        kind: path.endsWith('/') ? 'directory' : 'file',
-      })),
+      shown.flatMap((path) => {
+        const kind = latest.current.kinds.get(path);
+        return kind === undefined ? [] : [{ path, kind }];
+      }),
+      new Set(expandedDirectories(model, shown)),
       new Set(
-        expandedDirectories(model, shown).map((path) =>
-          path.replace(/\/$/, ''),
-        ),
-      ),
-      new Set(
-        directoryPaths(shown)
-          .filter((path) => model.getItem(path) !== null)
-          .map((path) => path.replace(/\/$/, '')),
+        directoryPaths(shown).filter((path) => model.getItem(path) !== null),
       ),
     ).map((path) => `${path}/`);
     syncing.current = true;

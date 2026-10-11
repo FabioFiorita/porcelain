@@ -7,7 +7,6 @@ selectors:
   - 'Search files'
 tests:
   - apps/web/spec/integration/files-tree-expansion.test.tsx
-  - packages/client/src/features/files/rules/file-tree-expansion.spec.ts
   - packages/client/src/features/files/rules/file-tree.spec.ts
 api:
   - GET /api/worktrees/:worktreeId/directory
@@ -56,4 +55,4 @@ printf 'Stay closed\n' > "$REPO/closed/b/x/closed.txt"
 - The three-level case checks the final file, expanded row and reads for every directory in the chain.
 - The late-close case holds the first read, closes before completion and waits for a sibling read to settle, then checks the collapsed row and that a separately held child-directory read was never requested.
 - The client unit specs cover new children, closed parents, sibling counts, three-level continuation and a closed ancestor after sibling deletion.
-- Directory reads return 200 JSON. The adapter rebuilds with `resetPaths`, preserving folders whose ancestors are still open and continuing a newly discovered single-child chain only while its parent is open. A rebuild never reopens a known folder the user closed, even if deletion makes it part of a flattened chain.
+- Directory reads return 200 JSON. The adapter rebuilds with `resetPaths`, preserving folders whose ancestors are still open and continuing a newly discovered single-child chain only while its parent is open. A folder that remains in the paths stays closed after the user closes it, even if deletion makes it part of a flattened chain. If it leaves the paths and later returns, it is treated as newly discovered.

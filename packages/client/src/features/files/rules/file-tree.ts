@@ -29,11 +29,16 @@ export function fileTreeExpansion(
   open: ReadonlySet<string>,
   known: ReadonlySet<string>,
 ): string[] {
+  const normalize = (path: string) => path.replace(/\/$/, '');
+  const normalizedOpen = new Set([...open].map(normalize));
+  const normalizedKnown = new Set([...known].map(normalize));
   const directories = entries
     .filter((entry) => entry.kind === 'directory')
-    .map((entry) => entry.path)
+    .map((entry) => normalize(entry.path))
     .sort((left, right) => left.localeCompare(right));
-  const expanded = new Set(directories.filter((path) => open.has(path)));
+  const expanded = new Set(
+    directories.filter((path) => normalizedOpen.has(path)),
+  );
   const childCounts = new Map<string, number>();
   for (const entry of entries) {
     const parent = fileTreeAncestors(entry.path).at(-1);
@@ -42,7 +47,7 @@ export function fileTreeExpansion(
   for (const path of directories) {
     const parent = fileTreeAncestors(path).at(-1);
     if (
-      !known.has(path) &&
+      !normalizedKnown.has(path) &&
       parent &&
       expanded.has(parent) &&
       childCounts.get(parent) === 1

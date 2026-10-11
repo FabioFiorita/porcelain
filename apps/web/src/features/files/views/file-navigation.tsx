@@ -325,6 +325,7 @@ function ScopedFileNavigation({
           filter={fileQuery}
           onFilterChange={setFileQuery}
           paths={visiblePaths}
+          kinds={kinds}
           links={entries.filter(
             (entry) => entry.kind === 'symlink' || entry.kind === 'submodule',
           )}

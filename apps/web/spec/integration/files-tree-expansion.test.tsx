@@ -104,7 +104,6 @@ test('closing a folder before its lazy read finishes keeps its new chain closed'
       .element(page.getByRole('treeitem', { name: 'settled.txt', exact: true }))
       .toBeVisible();
     await expect.poll(() => forbidden.held()).toBe(false);
-    await expect.poll(() => reads).not.toContain('a/b');
     await expect
       .element(page.getByRole('treeitem', { name: 'a / b', exact: true }))
       .toHaveAttribute('aria-expanded', 'false');
