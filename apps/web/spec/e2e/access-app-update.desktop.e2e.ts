@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures.ts';
-import { updateFeed, type UpdateFixture } from './desktop-updates.ts';
+import { updateFeed, type UpdateFixture } from '../kit/desktop-updates.ts';
 
 declare const window: { updateFixture: UpdateFixture };
 async function openUpdates(page: Page) {
