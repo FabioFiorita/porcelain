@@ -9,7 +9,7 @@ import {
 import { Logger } from '../ports/logger.ts';
 import { EventPublisher } from '../ports/event-publisher.ts';
 import { AnnounceWorktreeChangeUseCasePort } from '../ports/announce-worktree-change-use-case-port.ts';
-import { InventoryRefresh } from '../ports/inventory-refresh.ts';
+import { InventoryScan } from '../ports/inventory-scan.ts';
 import { InvalidateReviewedMarksUseCasePort } from '../ports/invalidate-reviewed-marks-use-case-port.ts';
 import { LaneOptions } from '../ports/lane-options.ts';
 import {
@@ -301,7 +301,7 @@ function serverResources(
             Layer.provide(
               Layer.mergeAll(
                 Layer.succeed(AnnounceWorktreeChangeUseCasePort, announcements),
-                Layer.succeed(InventoryRefresh, projects.refreshInventory),
+                Layer.succeed(InventoryScan, projects.scanInventory),
                 Layer.succeed(Logger, logger),
                 parcelWorktreeWatcherLayer({
                   worktrees: shared.worktreeAccess,
@@ -356,12 +356,12 @@ function serverResources(
             observability,
           ),
           yield* makeIntervalJob(
-            'refresh-inventory',
+            'scan-inventory',
             jobSequence([
-              projects.refreshInventory,
+              projects.scanInventory,
               reviews.refreshReviewActivity,
             ]),
-            { atStart: true, every: limits.jobs.refreshInventory },
+            { atStart: true, every: limits.jobs.scanInventory },
             logger,
             observability,
           ),

@@ -1,4 +1,4 @@
-import { InventoryRefresh } from '../../ports/inventory-refresh.ts';
+import { InventoryScan } from '../../ports/inventory-scan.ts';
 import { Effect, Context, Layer } from 'effect';
 import { type ProjectNotFoundError } from '@porcelain/projects/errors';
 import {
@@ -29,7 +29,7 @@ export class RemoveProjectUseCase extends Context.Service<
       const findProjectCapability = yield* FindProjectService;
       const forgetProjectRecordsCapability = yield* ForgetProjectRecordsService;
       const removeProjectCapability = yield* RemoveProjectService;
-      const refreshInventoryCapability = yield* InventoryRefresh;
+      const scanInventoryCapability = yield* InventoryScan;
       const lanesCapability = yield* Lanes;
       const laneKeysCapability = yield* LaneKeys;
       const eventsCapability = yield* EventPublisher;
@@ -53,7 +53,7 @@ export class RemoveProjectUseCase extends Context.Service<
             () => removeProjectCapability.execute(input),
           );
           if (result.deleted) {
-            yield* refreshInventoryCapability.execute();
+            yield* scanInventoryCapability.execute();
             yield* eventsCapability.inventoryChanged();
           }
           return result;

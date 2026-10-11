@@ -38,7 +38,7 @@ function known(worktree: ListedWorktree, requested = worktree.id) {
               commonDirectory: worktree.commonDirectory,
               repositoryIdentity: worktree.repositoryIdentity,
               observedAt: '2026-01-01T00:00:00Z',
-              listed: true,
+              available: true,
             },
           }
         : undefined,
@@ -122,7 +122,7 @@ describe('native worktree access', () => {
       main: false,
       branch: 'refs/heads/feature',
       administrativeDirectory,
-      metadataIdentity: `${info.dev}:${info.ino}:${info.birthtimeNs}`,
+      metadataIdentity: `${info.ino}:${info.birthtimeNs}`,
     };
     expect(await known(linked)).toEqual({ kind: 'found', worktree: linked });
     rmSync(linkedPath, { recursive: true });

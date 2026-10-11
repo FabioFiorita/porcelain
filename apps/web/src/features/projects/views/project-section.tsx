@@ -19,19 +19,30 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import { Button } from '@/components/ui/button';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { copyText } from '@/shared/workspace/copy';
 import { removeProjectDialog, renameProjectDialog } from '../overlays';
-import { projectPath } from '@porcelain/client/projects/rules';
+import {
+  projectPath,
+  projectUnavailableMessage,
+} from '@porcelain/client/projects/rules';
 import { type Project } from '@porcelain/client/projects/rules';
 import { WorktreeRow } from './worktree-row';
 
 export function ProjectSection({
   project,
+  onRetry,
   selected,
   onSelect,
   manage = true,
 }: {
   project: Project;
+  onRetry: () => void;
   selected: string | null | undefined;
   onSelect: (id: string) => void;
   manage?: boolean;
@@ -40,14 +51,16 @@ export function ProjectSection({
   return (
     <Collapsible defaultOpen className="group/project mb-2">
       <ContextMenu>
-        <ContextMenuTrigger render={<div className="rounded-md" />}>
+        <ContextMenuTrigger
+          render={<div className="flex items-center rounded-md" />}
+        >
           <CollapsibleTrigger
             render={
               <button
                 type="button"
                 title={project.name}
                 aria-label={project.name}
-                className="flex w-full min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:bg-accent"
+                className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:bg-accent"
               />
             }
           >
@@ -56,13 +69,38 @@ export function ProjectSection({
             <h3 className="min-w-0 flex-1 truncate text-left text-caption font-medium">
               {project.name}
             </h3>
-            {!project.available && (
-              <CircleAlertIcon
-                aria-label="Project unavailable"
-                className="size-3.5 shrink-0 text-muted-foreground"
-              />
-            )}
           </CollapsibleTrigger>
+          {!project.available && (
+            <Popover>
+              <PopoverTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`Project unavailable: ${project.name}`}
+                    title={projectUnavailableMessage(project)}
+                  />
+                }
+              >
+                <CircleAlertIcon className="size-3.5 text-muted-foreground" />
+              </PopoverTrigger>
+              <PopoverContent>
+                <p>{projectUnavailableMessage(project)}</p>
+                <Button variant="outline" size="sm" onClick={onRetry}>
+                  Retry
+                </Button>
+                {manage && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => removeProjectDialog.openWithPayload(project)}
+                  >
+                    Remove from Porcelain
+                  </Button>
+                )}
+              </PopoverContent>
+            </Popover>
+          )}
         </ContextMenuTrigger>
         <ContextMenuContent className="min-w-44">
           <ContextMenuGroup>

@@ -41,7 +41,7 @@ const commitAll = (message: string) => {
 
 const identityOf = (path: string) => {
   const info = statSync(path, { bigint: true });
-  return `${info.dev}:${info.ino}:${info.birthtimeNs}`;
+  return `${info.ino}:${info.birthtimeNs}`;
 };
 
 const historyCheckout = () => {

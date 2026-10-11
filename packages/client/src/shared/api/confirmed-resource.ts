@@ -11,6 +11,7 @@ export type ConfirmedResource<A, E> = {
   readonly stream: Stream.Stream<
     AsyncResult.AsyncResult<A, E | ConnectionError>
   >;
+  readonly refresh: (operation: Effect.Effect<A, E>) => Effect.Effect<void>;
   readonly confirm: <B, F, R>(
     operation: Effect.Effect<B, F, R>,
     change: (previous: Option.Option<A>, answer: B) => Option.Option<A>,
@@ -40,27 +41,32 @@ export function confirmedResource<A, E>(
         onSome: (value) => AsyncResult.success<A, E | ConnectionError>(value),
       }),
     });
-    const observe = Effect.gen(function* () {
-      const epoch = (yield* SubscriptionRef.get(state)).epoch;
-      yield* SubscriptionRef.update(state, (current) => ({
-        ...current,
-        result: AsyncResult.waiting(current.result),
-      }));
-      const answer = yield* Effect.exit(
-        read.pipe(Effect.tap(() => currentAnswerEffect(connection))),
-      );
-      yield* SubscriptionRef.update(state, (current) =>
-        current.epoch === epoch
-          ? {
-              ...current,
-              result: AsyncResult.fromExitWithPrevious(
-                answer,
-                Option.some(current.result),
-              ),
-            }
-          : current,
-      );
-    });
+    const observe = (
+      operation: Effect.Effect<A, E> = read,
+      advanceEpochOnPublish = false,
+    ) =>
+      Effect.gen(function* () {
+        const epoch = (yield* SubscriptionRef.get(state)).epoch;
+        yield* SubscriptionRef.update(state, (current) => ({
+          ...current,
+          result: AsyncResult.waiting(current.result),
+        }));
+        const answer = yield* Effect.exit(
+          operation.pipe(Effect.tap(() => currentAnswerEffect(connection))),
+        );
+        yield* SubscriptionRef.update(state, (current) =>
+          current.epoch === epoch
+            ? {
+                ...current,
+                epoch: current.epoch + (advanceEpochOnPublish ? 1 : 0),
+                result: AsyncResult.fromExitWithPrevious(
+                  answer,
+                  Option.some(current.result),
+                ),
+              }
+            : current,
+        );
+      });
     function confirm<B, F, R>(
       operation: Effect.Effect<B, F, R>,
       change: (previous: Option.Option<A>, answer: B) => Option.Option<A>,
@@ -91,11 +97,19 @@ export function confirmedResource<A, E>(
     }
     return {
       confirm,
+      refresh: (operation) =>
+        Effect.gen(function* () {
+          yield* SubscriptionRef.update(state, (current) => ({
+            ...current,
+            epoch: current.epoch + 1,
+          }));
+          yield* observe(operation, true);
+        }),
       stream: Stream.merge(
         SubscriptionRef.changes(state).pipe(
           Stream.map((current) => current.result),
         ),
-        reactivity.stream(readKeys, observe).pipe(Stream.drain),
+        reactivity.stream(readKeys, observe()).pipe(Stream.drain),
       ),
     } satisfies ConfirmedResource<A, E>;
   });

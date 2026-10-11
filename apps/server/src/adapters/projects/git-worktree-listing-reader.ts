@@ -1,7 +1,7 @@
 import { type Duration, Effect, Layer, Semaphore } from 'effect';
 import { captureGitPlatform } from '@porcelain/git/discovery';
 import { listWorktrees } from '@porcelain/git/discovery';
-import { isRepositoryUnavailable } from '@porcelain/git/errors';
+import { repositoryUnavailableReason } from '@porcelain/git/errors';
 import type {
   ListableProject,
   ListedWorktree,
@@ -32,25 +32,34 @@ export const gitWorktreeListingReaderLayer = (
       const listNow = Effect.fn('GitWorktreeListingReader.listNow')(function* (
         project: ListableProject,
       ): Effect.fn.Return<WorktreeListing> {
-        const repository = yield* listWorktrees(
+        const result = yield* listWorktrees(
           project.commonDirectory,
           options.git,
         ).pipe(
           provideGit,
           Effect.timeout(options.timeout),
+          Effect.map((repository) => ({ kind: 'listed' as const, repository })),
           Effect.catch((failure) =>
             Effect.sync(() => {
-              if (!isRepositoryUnavailable(failure))
+              const unavailableReason = repositoryUnavailableReason(failure);
+              const reason = unavailableReason ?? 'git-failed';
+              if (unavailableReason === undefined)
                 logger.failure({
                   kind: 'worktree-listing',
                   projectId: project.id,
+                  reason,
                   error: failure,
                 });
-              return undefined;
+              return {
+                kind: 'unavailable' as const,
+                projectId: project.id,
+                reason,
+              };
             }),
           ),
         );
-        if (!repository) return { kind: 'unavailable', projectId: project.id };
+        if (result.kind === 'unavailable') return result;
+        const { repository } = result;
         const worktrees: ListedWorktree[] = [];
         let unidentified = 0;
         for (const worktree of repository.worktrees) {

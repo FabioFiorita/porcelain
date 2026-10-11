@@ -14,7 +14,10 @@ export { AccessSession } from './store/session.ts';
 export { RemoteConnections } from './store/remote-connections.ts';
 export { remoteConnectionsLayer } from './commands/remote-connections.ts';
 export { pairBrowserSession } from './commands/pairing.ts';
-export { readRemoteStatus } from './queries/environments.ts';
+export {
+  readRemoteStatus,
+  remoteStatusResult,
+} from './queries/environments.ts';
 export {
   issuePairing,
   revokeAccess,

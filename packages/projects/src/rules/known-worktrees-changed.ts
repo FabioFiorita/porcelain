@@ -5,6 +5,7 @@ function shown(listings: readonly ProjectWorktrees[]): string {
     listings.map((listing) => ({
       projectId: listing.projectId,
       available: listing.available,
+      unavailableReason: listing.unavailableReason,
       worktrees: listing.worktrees.map((worktree) => ({
         id: worktree.id,
         path: worktree.path,

@@ -40,6 +40,8 @@ export class ListProjectWorktreesService extends Context.Service<
           return {
             projectId: listing.projectId,
             available: false,
+            unavailableReason:
+              listing.kind === 'listed' ? 'moved' : listing.reason,
             complete: false,
             worktrees: unavailableWorktrees(
               worktreeCatalogCapability.lastSeen({

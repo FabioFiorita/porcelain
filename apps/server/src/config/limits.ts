@@ -198,7 +198,7 @@ export type Limits = {
     messageBytes: number;
   };
   jobs: {
-    refreshInventory: Duration.Duration;
+    scanInventory: Duration.Duration;
     collectAbsentWorktrees: Duration.Duration;
     flushDeviceActivity: Duration.Duration;
     openRemoteRoutes: Duration.Duration;
@@ -434,7 +434,7 @@ export const LIMITS: Limits = {
     messageBytes: 64 * KIBIBYTE,
   },
   jobs: {
-    refreshInventory: Duration.seconds(30),
+    scanInventory: Duration.seconds(30),
     collectAbsentWorktrees: Duration.hours(1),
     flushDeviceActivity: Duration.minutes(1),
     openRemoteRoutes: Duration.seconds(5),

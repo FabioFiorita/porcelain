@@ -1,4 +1,8 @@
-import type { Inventory, Project } from './inventory.ts';
+import {
+  projectUnavailableMessage,
+  type Inventory,
+  type Project,
+} from './inventory.ts';
 
 export type EnvironmentInventory = {
   readonly environmentId: string;
@@ -71,13 +75,21 @@ export function workspaceChoices(
           const status = statusOf(environment);
           return status ? [`${nameOf(environment)} · ${status}`] : [];
         });
+  messages.push(
+    ...choices
+      .filter(({ project }) => !project.available)
+      .map(
+        ({ project, environmentName }) =>
+          `${environmentName} · ${project.name}: ${projectUnavailableMessage(project)}`,
+      ),
+  );
   if (saved !== undefined && savedUnavailable(environments, saved))
     messages.push('Saved worktree is unavailable');
   return {
     choices,
     messages,
-    canReadAgain: environments.some(
-      (environment) => environment.status === 'failed',
-    ),
+    canReadAgain:
+      choices.some(({ project }) => !project.available) ||
+      environments.some((environment) => environment.status === 'failed'),
   };
 }

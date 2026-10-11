@@ -9,7 +9,7 @@ import {
   ListReviewedLayerPathsService,
   ReadReviewBadgesService,
 } from '@porcelain/reviews/services';
-import { InventoryRefresh } from '../ports/inventory-refresh.ts';
+import { InventoryScan } from '../ports/inventory-scan.ts';
 import { EventPublisher } from '../ports/event-publisher.ts';
 import { LaneKeys } from '../runtime/lane-keys.ts';
 import { Lanes } from '../runtime/lanes.ts';
@@ -64,7 +64,9 @@ import { CheckWorktreeUseCase } from '../use-cases/projects/check-worktree.ts';
 import { CollectAbsentWorktreesUseCase } from '../use-cases/projects/collect-absent-worktrees.ts';
 import { FindWorktreeByPathUseCase } from '../use-cases/projects/find-worktree-by-path.ts';
 import { ListFilePreferencesUseCase } from '../use-cases/projects/list-file-preferences.ts';
+import { ReadInventoryUseCasePort } from '../ports/read-inventory-use-case-port.ts';
 import { ReadInventoryUseCase } from '../use-cases/projects/read-inventory.ts';
+import { ScanInventoryUseCase } from '../use-cases/projects/scan-inventory.ts';
 import { RefreshInventoryUseCase } from '../use-cases/projects/refresh-inventory.ts';
 import { RegisterProjectUseCase } from '../use-cases/projects/register-project.ts';
 import { RemoveProjectUseCase } from '../use-cases/projects/remove-project.ts';
@@ -81,13 +83,13 @@ type ProjectsDependencies = {
   projectFolderReader: ProjectFolderReader;
 };
 
-class InventoryCoordinator extends Context.Service<
-  InventoryCoordinator,
+class InventoryScanCoordinator extends Context.Service<
+  InventoryScanCoordinator,
   Effect.Success<ReturnType<typeof makeCoalescedWork<ProjectNotFoundError>>>
->()('@porcelain/server/InventoryCoordinator') {
+>()('@porcelain/server/InventoryScanCoordinator') {
   static readonly layer = Layer.effect(
-    InventoryCoordinator,
-    Effect.flatMap(RefreshInventoryUseCase, makeCoalescedWork),
+    InventoryScanCoordinator,
+    Effect.flatMap(ScanInventoryUseCase, makeCoalescedWork),
   );
 }
 
@@ -160,18 +162,18 @@ export function composeProjects(
     CollectAbsentWorktreesService.layer,
   ).pipe(Layer.provideMerge(ports));
   const operations = Layer.mergeAll(
-    RefreshInventoryUseCase.layer,
+    ScanInventoryUseCase.layer,
     RenameProjectUseCase.layer,
     BrowseProjectFoldersUseCase.layer,
     ListFilePreferencesUseCase.layer,
     SetFilePreferenceUseCase.layer,
     CollectAbsentWorktreesUseCase.layer,
   ).pipe(Layer.provideMerge(services));
-  const admission = Layer.mergeAll(InventoryCoordinator.layer).pipe(
+  const admission = Layer.mergeAll(InventoryScanCoordinator.layer).pipe(
     Layer.provideMerge(operations),
   );
   const application = Layer.mergeAll(
-    Layer.effect(InventoryRefresh, InventoryCoordinator),
+    Layer.effect(InventoryScan, InventoryScanCoordinator),
   ).pipe(Layer.provideMerge(admission));
   const layer4 = Layer.mergeAll(
     CheckWorktreeUseCase.layer,
@@ -195,12 +197,18 @@ export function composeProjects(
     RegisterProjectUseCase.layer,
   ).pipe(Layer.provideMerge(layer8));
   return Effect.gen(function* () {
-    const runtime = yield* Layer.build(layer9);
+    const reads = Layer.effect(
+      ReadInventoryUseCasePort,
+      ReadInventoryUseCase,
+    ).pipe(Layer.provideMerge(layer9));
+    const runtime = yield* Layer.build(
+      RefreshInventoryUseCase.layer.pipe(Layer.provideMerge(reads)),
+    );
     return yield* Effect.gen(function* () {
       const useCases = {
         readInventory: yield* ReadInventoryUseCase,
         findWorktreeByPath: yield* FindWorktreeByPathUseCase,
-        refreshInventory: yield* InventoryCoordinator,
+        scanInventory: yield* InventoryScanCoordinator,
         checkWorktree: yield* CheckWorktreeUseCase,
         registerProject: yield* RegisterProjectUseCase,
         renameProject: yield* RenameProjectUseCase,
@@ -210,7 +218,13 @@ export function composeProjects(
         setFilePreference: yield* SetFilePreferenceUseCase,
         collectAbsentWorktrees: yield* CollectAbsentWorktreesUseCase,
       };
-      return { ...useCases, routes: projectsRoutes(useCases) };
+      return {
+        ...useCases,
+        routes: projectsRoutes({
+          ...useCases,
+          refreshInventory: yield* RefreshInventoryUseCase,
+        }),
+      };
     }).pipe(Effect.provideContext(runtime));
   });
 }

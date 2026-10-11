@@ -1,10 +1,11 @@
 import { testClock } from '@porcelain/kernel/test-kit';
 import { WorktreeCatalogStore } from '@porcelain/projects/ports';
-import { Effect, Clock } from 'effect';
+import { Effect, Clock, Logger } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   type ListedWorktree,
   type RegisteredProject,
+  type ProjectWorktrees,
 } from '@porcelain/projects/models';
 import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { RecordWorktreeCatalogService } from './record-worktree-catalog-service.ts';
@@ -42,23 +43,23 @@ function worktree(id: string, projectId: string): ListedWorktree {
 async function record(
   catalog: InMemoryWorktreeCatalogStore,
   projects: RegisteredProject[],
-  listings: {
-    projectId: string;
-    available: boolean;
-    worktrees: ListedWorktree[];
-  }[],
+  listings: ProjectWorktrees[],
+  logs: unknown[] = [],
 ) {
   Effect.runSync(
-    Effect.runSync(
-      RecordWorktreeCatalogService.pipe(
-        Effect.provide(RecordWorktreeCatalogService.layer),
-        Effect.provideService(WorktreeCatalogStore, catalog),
-        Effect.provideService(Clock.Clock, await testClock(now)),
+    RecordWorktreeCatalogService.use((service) =>
+      service.execute({
+        projects,
+        listings: listings.map((listing) => ({ ...listing, complete: true })),
+      }),
+    ).pipe(
+      Effect.provide(RecordWorktreeCatalogService.layer),
+      Effect.provide(
+        Logger.layer([Logger.make(({ message }) => logs.push(message))]),
       ),
-    ).execute({
-      projects,
-      listings: listings.map((listing) => ({ ...listing, complete: true })),
-    }),
+      Effect.provideService(WorktreeCatalogStore, catalog),
+      Effect.provideService(Clock.Clock, await testClock(now)),
+    ),
   );
 }
 
@@ -83,7 +84,7 @@ describe('RecordWorktreeCatalogService', () => {
         commonDirectory: '/srv/api/.git',
         repositoryIdentity: 'identity-api',
         observedAt: now,
-        listed: true,
+        available: true,
       },
     });
   });
@@ -97,7 +98,7 @@ describe('RecordWorktreeCatalogService', () => {
       [{ projectId: 'api', available: false, worktrees: [kept] }],
     );
     expect(catalog.listObservations()).toMatchObject([
-      { id: 'api', observedAt: now, listed: false },
+      { id: 'api', observedAt: now, available: false },
     ]);
     expect(catalog.lastSeen({ projectId: 'api' })).toEqual([kept]);
   });
@@ -136,4 +137,61 @@ describe('RecordWorktreeCatalogService', () => {
       catalog.listObservations().map((observation) => observation.id),
     ).toEqual(['web']);
   });
+});
+
+it('logs each availability or reason change once, including recovery', async () => {
+  const catalog = new InMemoryWorktreeCatalogStore();
+  const logs: unknown[] = [];
+  const projects = [project('api')];
+  const observe = (
+    available: boolean,
+    unavailableReason?: 'missing' | 'permission' | 'moved' | 'git-failed',
+  ) =>
+    record(
+      catalog,
+      projects,
+      [
+        {
+          projectId: 'api',
+          ...(available
+            ? { available: true as const }
+            : { available: false as const, unavailableReason }),
+          worktrees: [],
+        },
+      ],
+      logs,
+    );
+  await observe(true);
+  await observe(false, 'missing');
+  await observe(false, 'missing');
+  await observe(false, 'permission');
+  await observe(false, 'permission');
+  await observe(false, 'moved');
+  await observe(false, 'moved');
+  await observe(false, 'git-failed');
+  await observe(false, 'git-failed');
+  await observe(true);
+  await observe(true);
+  expect(logs).toEqual([
+    [
+      'Repository availability changed',
+      { projectId: 'api', available: false, reason: 'missing' },
+    ],
+    [
+      'Repository availability changed',
+      { projectId: 'api', available: false, reason: 'permission' },
+    ],
+    [
+      'Repository availability changed',
+      { projectId: 'api', available: false, reason: 'moved' },
+    ],
+    [
+      'Repository availability changed',
+      { projectId: 'api', available: false, reason: 'git-failed' },
+    ],
+    [
+      'Repository availability changed',
+      { projectId: 'api', available: true, reason: undefined },
+    ],
+  ]);
 });

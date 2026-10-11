@@ -20,7 +20,7 @@ import type {
   FollowedTargets,
   WatchRequest,
 } from '../../ports/followed-targets.ts';
-import { InventoryRefresh } from '../../ports/inventory-refresh.ts';
+import { InventoryScan } from '../../ports/inventory-scan.ts';
 import { Logger } from '../../ports/logger.ts';
 import {
   WorktreeWatcher,
@@ -90,7 +90,7 @@ export class WatchWorktrees extends Context.Service<
       Effect.gen(function* () {
         const watcherCapability = yield* WorktreeWatcher;
         const announceCapability = yield* AnnounceWorktreeChangeUseCasePort;
-        const refreshCapability = yield* InventoryRefresh;
+        const scanCapability = yield* InventoryScan;
         const loggerCapability = yield* Logger;
         const workerScope = yield* Scope.make();
         const events = yield* Queue.bounded<WatchEvent>(options.eventBuffer);
@@ -297,7 +297,7 @@ export class WatchWorktrees extends Context.Service<
                       change: 'git',
                     });
                   yield* Effect.forkIn(
-                    guarded(refreshCapability.execute()),
+                    guarded(scanCapability.execute()),
                     workerScope,
                     { startImmediately: true },
                   );
@@ -324,7 +324,7 @@ export class WatchWorktrees extends Context.Service<
                 });
               }
               yield* Effect.forkIn(
-                guarded(refreshCapability.execute()),
+                guarded(scanCapability.execute()),
                 workerScope,
                 { startImmediately: true },
               );

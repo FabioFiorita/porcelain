@@ -52,7 +52,7 @@ function seen(worktrees: ListedWorktree[]) {
         observation: {
           ...project,
           observedAt: '2026-09-24T12:00:00.000Z',
-          listed: true,
+          available: true,
         },
         worktrees,
       },
@@ -97,17 +97,18 @@ describe('ListProjectWorktreesService', () => {
     expect(result.complete).toBe(false);
   });
 
-  it.each(['unavailable', 'timed-out'] as const)(
+  it.each(['missing', 'permission', 'git-failed'] as const)(
     'shows the last seen worktrees as unavailable when the listing is %s',
-    async (kind) => {
+    async (reason) => {
       const reader = new ScriptedWorktreeListingReader();
-      reader.answer({ kind, projectId: project.id });
+      reader.answer({ kind: 'unavailable', reason, projectId: project.id });
       const catalog = seen([worktree('main'), worktree('feature')]);
       expect(
         await Effect.runPromise(service(reader, catalog).execute({ project })),
       ).toEqual({
         projectId: project.id,
         available: false,
+        unavailableReason: reason,
         complete: false,
         worktrees: [worktree('main', false), worktree('feature', false)],
       });
@@ -129,6 +130,7 @@ describe('ListProjectWorktreesService', () => {
     ).toEqual({
       projectId: project.id,
       available: false,
+      unavailableReason: 'moved',
       complete: false,
       worktrees: [worktree('main', false)],
     });
@@ -136,7 +138,11 @@ describe('ListProjectWorktreesService', () => {
 
   it('reports an unlisted project with nothing seen before as empty', async () => {
     const reader = new ScriptedWorktreeListingReader();
-    reader.answer({ kind: 'unavailable', projectId: project.id });
+    reader.answer({
+      kind: 'unavailable',
+      reason: 'missing',
+      projectId: project.id,
+    });
     expect(
       (await Effect.runPromise(service(reader).execute({ project }))).worktrees,
     ).toEqual([]);

@@ -61,7 +61,7 @@ describe('listWorktrees', () => {
     const { main, feature } = repositoryWithFeature();
     const repository = await list(feature);
     expect(repository.commonDirectory).toBe(join(main, '.git'));
-    expect(repository.repositoryIdentity).toMatch(/^\d+:\d+:\d+$/);
+    expect(repository.repositoryIdentity).toMatch(/^\d+:\d+$/);
     expect(
       repository.worktrees.map(
         ({ path, administrativeDirectory, main, branch, available }) => ({
@@ -90,7 +90,7 @@ describe('listWorktrees', () => {
     ]);
     expect(
       repository.worktrees.every(({ metadataIdentity }) =>
-        /^\d+:\d+:\d+$/.test(metadataIdentity ?? ''),
+        /^\d+:\d+$/.test(metadataIdentity ?? ''),
       ),
     ).toBe(true);
   });
@@ -103,7 +103,7 @@ describe('listWorktrees', () => {
       path: feature,
       available: false,
     });
-    expect(repository.worktrees[1]?.metadataIdentity).toMatch(/^\d+:\d+:\d+$/);
+    expect(repository.worktrees[1]?.metadataIdentity).toMatch(/^\d+:\d+$/);
   });
 
   it('fails with the Git refusal for a folder that is not a repository', async () => {

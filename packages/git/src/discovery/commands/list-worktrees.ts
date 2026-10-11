@@ -16,12 +16,13 @@ export const listWorktrees = Effect.fn('Git.listWorktrees')(function* (
   checkout: string,
   limits: GitLimits,
 ) {
+  const fs = yield* FileSystem.FileSystem;
+  yield* fs.access(checkout, { readable: true });
   const location = yield* gitRead(
     checkout,
     ['rev-parse', '--path-format=absolute', '--git-common-dir'],
     limits,
   );
-  const fs = yield* FileSystem.FileSystem;
   const commonDirectory = yield* fs.realPath(
     location.toString('utf8').slice(0, -1),
   );

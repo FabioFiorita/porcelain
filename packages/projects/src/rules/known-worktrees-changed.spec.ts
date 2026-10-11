@@ -67,3 +67,26 @@ describe('knownWorktreesChanged', () => {
     ).toBe(false);
   });
 });
+
+it('publishes a new reason when an unavailable project changes from missing to permission denied', () => {
+  expect(
+    knownWorktreesChanged(
+      [
+        {
+          projectId: 'project',
+          available: false,
+          unavailableReason: 'missing',
+          worktrees: [],
+        },
+      ],
+      [
+        {
+          projectId: 'project',
+          available: false,
+          unavailableReason: 'permission',
+          worktrees: [],
+        },
+      ],
+    ),
+  ).toBe(true);
+});

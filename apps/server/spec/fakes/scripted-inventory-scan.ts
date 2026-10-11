@@ -3,7 +3,7 @@ import type { CatalogSnapshot } from '@porcelain/projects/models';
 import type { WorktreeCatalogStore } from '@porcelain/projects/ports';
 import type { JobRunner } from '../../src/ports/job-runner.ts';
 
-export class ScriptedInventoryRefresh implements JobRunner {
+export class ScriptedInventoryScan implements JobRunner {
   private readonly catalog: WorktreeCatalogStore;
   private readonly refreshed: CatalogSnapshot;
 

@@ -44,3 +44,20 @@ export function projectPath(project: Project) {
     ''
   );
 }
+
+export function projectUnavailableMessage(
+  project: Pick<Project, 'unavailableReason'>,
+): string {
+  switch (project.unavailableReason) {
+    case 'moved':
+      return "Porcelain doesn't recognise this repository as the one it registered. Remove the project and add it again.";
+    case 'missing':
+      return 'The repository folder is missing.';
+    case 'permission':
+      return 'Porcelain cannot read this repository because access is denied.';
+    case 'git-failed':
+      return 'Git could not read this repository.';
+    default:
+      return "Porcelain can't reach this repository right now.";
+  }
+}

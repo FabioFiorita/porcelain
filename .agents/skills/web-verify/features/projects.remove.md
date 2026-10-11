@@ -3,6 +3,7 @@ route: /
 selectors:
   - "Toggle Sidebar"
   - "repository"
+  - "Retry"
   - "Remove from Porcelain"
   - "Cancel"
   - "No projects registered"
@@ -11,6 +12,7 @@ selectors:
 tests:
   - apps/web/spec/e2e/projects-remove.e2e.ts
 api:
+  - POST /api/inventory/refresh
   - DELETE /api/projects/:projectId
 ---
 
@@ -23,7 +25,8 @@ Removing a project from the navigator's context menu, after confirming, takes it
 ## How a user reaches it
 
 - Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → right-click the project button (its name, e.g. "repository") → `Remove from Porcelain` → alertdialog "Remove <name> from Porcelain?" → `Remove from Porcelain` or `Cancel`.
-- Remote computers' projects in the desktop shell have no Rename/Remove items (only `Copy path`).
+- Unavailable project alert → popover showing the reason, `Retry`, and `Remove from Porcelain` → the same removal confirmation. `Retry` sends `POST /api/inventory/refresh` and publishes its returned inventory.
+- Remote computers' projects in the desktop shell have no Rename/Remove items (only `Copy path`). Their unavailable-project popover offers the reason and `Retry` only (`manage={false}`).
 
 ## Driving it
 
@@ -55,6 +58,13 @@ None.
 8. Navigate to `/` on the card’s web URL (full page load)
    Look for: after the reload Page URL stays `/` and the workspace shows "Select a worktree"; Click button named `Toggle Sidebar` shows "No projects registered" (the server forgot it).
 9. Disk: `git -C "$REPO" status --short` still prints ` M README.md`; the repository is untouched.
+
+### Unavailable project popover
+
+1. Make the disposable repository missing, permission denied, replaced, or fail Git, then POST `/api/inventory/refresh` to observe that state.
+2. Click the project's unavailable alert. Expect respectively "The repository folder is missing.", "Porcelain cannot read this repository because access is denied.", "Porcelain doesn't recognise this repository as the one it registered. Remove the project and add it again.", or "Git could not read this repository." An older server with no reason shows "Porcelain can't reach this repository right now."
+3. Click `Retry` while blocked: expect POST `/api/inventory/refresh`, 200 JSON, and the same state. Restore the repository and click `Retry`: expect the original worktree and no alert.
+4. Reopen an unavailable project's popover, click `Remove from Porcelain`, and drive the same Cancel/confirm paths above. On remote projects with management disabled, expect Retry only; offline remote connections send no POST.
 
 ## What proves it works
 

@@ -23,6 +23,7 @@ type Props = {
   inventory: Inventory;
   remotes: readonly RemoteConnection[] | undefined;
   selected: Pick<WorktreeTarget, 'remote' | 'worktreeId'> | undefined;
+  onRetry: () => void;
   onSelect: (target: WorktreeTarget) => void;
   onOpenProject: (remote: RemoteConnection | null) => void;
   onOpenSettings: () => void;
@@ -32,6 +33,7 @@ type Props = {
 
 export function ProjectNavigator({
   inventory,
+  onRetry,
   remotes,
   selected,
   onSelect: select,
@@ -56,6 +58,7 @@ export function ProjectNavigator({
   const section = (project: Inventory['projects'][number]) => (
     <ProjectSection
       project={project}
+      onRetry={onRetry}
       selected={selectedOn(null)}
       onSelect={(worktreeId) =>
         select({ remote: null, projectId: project.id, worktreeId })

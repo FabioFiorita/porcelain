@@ -73,10 +73,75 @@ test('a project whose folder has gone away stays registered as unavailable and i
     ),
   );
   expect(list(record(response.body).projects)).toStrictEqual([
-    registered(session, false),
+    { ...registered(session, false), unavailableReason: 'missing' },
   ]);
   await session.rename(moved, session.repository);
   expect(
     list((await eventually(session, inventory, everyProjectIs(true))).projects),
   ).toStrictEqual([registered(session, true)]);
+});
+
+test('refreshing the inventory rechecks a missing repository and restores its original worktree when the folder returns', async ({
+  session,
+}) => {
+  const moved = `${session.repository}-retry`;
+  await session.rename(session.repository, moved);
+  const missing = await session.send({
+    method: 'POST',
+    path: '/api/inventory/refresh',
+  });
+  expect(missing.status).toBe(200);
+  expect(missing.headers['content-type']).toContain('application/json');
+  expect(list(record(missing.body).projects)).toStrictEqual([
+    { ...registered(session, false), unavailableReason: 'missing' },
+  ]);
+  await session.rename(moved, session.repository);
+  const recovered = await session.send({
+    method: 'POST',
+    path: '/api/inventory/refresh',
+  });
+  expect(recovered.status).toBe(200);
+  expect(recovered.headers['content-type']).toContain('application/json');
+  expect(list(record(recovered.body).projects)).toStrictEqual([
+    registered(session, true),
+  ]);
+});
+
+test('removing a moved project lets the replacement repository be registered', async ({
+  session,
+}) => {
+  await session.rename(
+    `${session.repository}/.git`,
+    `${session.repository}-old-git`,
+  );
+  await session.git('init');
+  const moved = await session.send({
+    method: 'POST',
+    path: '/api/inventory/refresh',
+  });
+  expect(moved.status).toBe(200);
+  expect(list(record(moved.body).projects)).toStrictEqual([
+    { ...registered(session, false), unavailableReason: 'moved' },
+  ]);
+
+  const removed = await session.send({
+    method: 'DELETE',
+    path: `/api/projects/${session.projectId}`,
+  });
+  expect(removed.status).toBe(200);
+  expect(removed.body).toStrictEqual({ deleted: true });
+  const readded = await session.send({
+    method: 'POST',
+    path: '/api/projects',
+    body: { path: session.repository },
+  });
+  expect(readded.status).toBe(200);
+  expect(readded.body).toMatchObject({
+    name: session.fixture.folders.repository,
+    available: true,
+    worktrees: [{ path: session.repository, main: true, available: true }],
+  });
+  expect(
+    list(record((await session.read(inventory)).body).projects),
+  ).toStrictEqual([readded.body]);
 });

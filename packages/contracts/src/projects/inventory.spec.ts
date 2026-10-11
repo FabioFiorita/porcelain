@@ -128,3 +128,26 @@ describe('Projects wire contracts', () => {
     },
   );
 });
+
+it('accepts unavailable projects with a known or absent reason and rejects a reason on an available project', () => {
+  const project = inventory.projects[0]!;
+  const decode = Schema.decodeUnknownSync(readInventoryResponseSchema);
+  expect(
+    decode({ ...inventory, projects: [{ ...project, available: false }] })
+      .projects[0],
+  ).toMatchObject({ available: false });
+  expect(
+    decode({
+      ...inventory,
+      projects: [
+        { ...project, available: false, unavailableReason: 'missing' },
+      ],
+    }).projects[0],
+  ).toMatchObject({ available: false, unavailableReason: 'missing' });
+  expect(() =>
+    decode({
+      ...inventory,
+      projects: [{ ...project, unavailableReason: 'missing' }],
+    }),
+  ).toThrow();
+});

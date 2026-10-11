@@ -21,7 +21,12 @@ export function catalogSnapshot(
                 commonDirectory: project.commonDirectory,
                 repositoryIdentity: project.repositoryIdentity,
                 observedAt,
-                listed: listing.available,
+                ...(listing.available
+                  ? { available: true as const }
+                  : {
+                      available: false as const,
+                      unavailableReason: listing.unavailableReason,
+                    }),
               },
               worktrees: listing.worktrees,
             },

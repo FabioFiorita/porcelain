@@ -6,6 +6,7 @@ import { Layer } from 'effect';
 import { HttpApiBuilder } from 'effect/http-api';
 import { type BrowseProjectFoldersUseCase } from '../../../use-cases/projects/browse-project-folders.ts';
 import { type ListFilePreferencesUseCase } from '../../../use-cases/projects/list-file-preferences.ts';
+import { type RefreshInventoryUseCase } from '../../../use-cases/projects/refresh-inventory.ts';
 import { type ReadInventoryUseCase } from '../../../use-cases/projects/read-inventory.ts';
 import { type RegisterProjectUseCase } from '../../../use-cases/projects/register-project.ts';
 import { type RemoveProjectUseCase } from '../../../use-cases/projects/remove-project.ts';
@@ -18,6 +19,7 @@ type ProjectsUseCases = {
   >;
   listFilePreferences: Context.Service.Shape<typeof ListFilePreferencesUseCase>;
   readInventory: Context.Service.Shape<typeof ReadInventoryUseCase>;
+  refreshInventory: Context.Service.Shape<typeof RefreshInventoryUseCase>;
   registerProject: Context.Service.Shape<typeof RegisterProjectUseCase>;
   removeProject: Context.Service.Shape<typeof RemoveProjectUseCase>;
   renameProject: Context.Service.Shape<typeof RenameProjectUseCase>;
@@ -34,6 +36,7 @@ export function projectsRoutes(useCases: ProjectsUseCases) {
         useCases.listFilePreferences.execute(params),
       )
       .handle('readInventory', () => useCases.readInventory.execute())
+      .handle('refreshInventory', () => useCases.refreshInventory.execute())
       .handle('registerProject', ({ payload }) =>
         useCases.registerProject.execute(payload),
       )

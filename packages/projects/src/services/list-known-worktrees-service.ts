@@ -24,6 +24,11 @@ export class ListKnownWorktreesService extends Context.Service<
           input: ListKnownWorktreesInput,
         ): Effect.fn.Return<ListKnownWorktreesResult, never> {
           return yield* Effect.sync<ListKnownWorktreesResult>(() => {
+            const observations = new Map(
+              worktreeCatalogCapability
+                .listObservations()
+                .map((observation) => [observation.id, observation]),
+            );
             return {
               listings: input.projects.map((project) => {
                 const worktrees = worktreeCatalogCapability.lastSeen({
@@ -31,7 +36,13 @@ export class ListKnownWorktreesService extends Context.Service<
                 });
                 return {
                   projectId: project.id,
-                  available: project.available,
+                  ...(project.available
+                    ? { available: true as const }
+                    : {
+                        available: false as const,
+                        unavailableReason: observations.get(project.id)
+                          ?.unavailableReason,
+                      }),
                   worktrees: project.available
                     ? worktrees
                     : unavailableWorktrees(worktrees),

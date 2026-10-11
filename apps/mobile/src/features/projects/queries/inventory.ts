@@ -1,8 +1,17 @@
 import { Option } from 'effect';
-import { useAtomRef, useAtomRefresh, useAtomValue } from '@effect/atom-react';
+import {
+  useAtomRef,
+  useAtomRefresh,
+  useAtomSet,
+  useAtomValue,
+} from '@effect/atom-react';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
-import { readInventory, readInventories } from '@porcelain/client/projects';
+import {
+  readInventory,
+  readInventories,
+  refreshInventories,
+} from '@porcelain/client/projects';
 import type { EnvironmentInventory } from '@porcelain/client/projects/rules';
 import { liveQueries } from '@porcelain/client/live';
 import type { RuntimeConnection } from '@porcelain/client/transport';
@@ -19,19 +28,20 @@ export function useInventory(connection: RuntimeConnection | undefined) {
 const allInventories = Atom.family((remotes: readonly RemoteConnection[]) => {
   const connections = remotes.map((entry) => entry.connection);
   const inventories = readInventories(connections);
-  return Atom.readable(
-    (get) => {
-      for (const connection of connections) get(liveQueries({ connection }));
-      return get(inventories);
-    },
-    (refresh) => refresh(inventories),
-  );
+  return Atom.readable((get) => {
+    for (const { connection } of remotes) get(liveQueries({ connection }));
+    return get(inventories);
+  });
 });
 
 export function useInventories(
   environments: readonly { environmentId: string; name: string }[],
 ) {
-  const atom = allInventories(useAtomRef(remoteConnectionState));
+  const remotes = useAtomRef(remoteConnectionState);
+  const atom = allInventories(remotes);
+  const retry = useAtomSet(
+    refreshInventories(remotes.map((entry) => entry.connection)),
+  );
   const results = useAtomValue(atom);
   return {
     environments: environments.map(
@@ -55,6 +65,6 @@ export function useInventories(
         };
       },
     ),
-    read: useAtomRefresh(atom),
+    read: () => retry(undefined),
   };
 }

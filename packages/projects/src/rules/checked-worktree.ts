@@ -30,7 +30,7 @@ export function checkedWorktree(
   if (!entry) {
     if (observations.length === 0 || observations.some(stale))
       return { kind: 'stale' };
-    return observations.some((observation) => !observation.listed)
+    return observations.some((observation) => !observation.available)
       ? { kind: 'unavailable' }
       : { kind: 'missing' };
   }
@@ -40,7 +40,7 @@ export function checkedWorktree(
   )
     return { kind: 'missing' };
   if (stale(entry.observation)) return { kind: 'stale' };
-  if (!entry.observation.listed) return { kind: 'unavailable' };
+  if (!entry.observation.available) return { kind: 'unavailable' };
   if (
     input.requireAvailableProject &&
     !worktreeIsWritable(entry.worktree, project)

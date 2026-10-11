@@ -212,6 +212,16 @@ export const upgradeLegacyDatabase = Effect.fn('Storage.upgradeLegacyDatabase')(
               for (const statement of migration.sql) database.exec(statement);
               record.run(migration.hash, migration.timestamp);
             }
+            if (
+              database
+                .prepare(
+                  "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'porcelain_git_action_execution_v1'",
+                )
+                .get()
+            )
+              database.exec(
+                'DELETE FROM porcelain_git_action_execution_v1 WHERE request_id NOT IN (SELECT request_id FROM git_action_receipts)',
+              );
             if (database.prepare('PRAGMA foreign_key_check').all().length > 0)
               throw new UnsupportedDatabaseVersionError({
                 version: 'orphaned rows',

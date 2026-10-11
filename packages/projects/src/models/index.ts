@@ -29,3 +29,8 @@ export type {
 } from './worktree-catalog.ts';
 export type { WorktreeListing } from './worktree-listing.ts';
 export type { WorktreePresence } from './worktree-presence.ts';
+
+export {
+  projectUnavailableReasonSchema,
+  type ProjectUnavailableReason,
+} from './project-unavailable-reason.ts';

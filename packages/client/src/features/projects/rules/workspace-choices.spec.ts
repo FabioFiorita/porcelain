@@ -142,7 +142,10 @@ describe('choosing a workspace across paired environments', () => {
         [laptop('ready', inventory('Laptop', [project('one', false)]))],
         saved,
       ).messages,
-    ).toEqual(['Saved worktree is unavailable']);
+    ).toEqual([
+      "Laptop · Porcelain: Porcelain can't reach this repository right now.",
+      'Saved worktree is unavailable',
+    ]);
     expect(workspaceChoices([laptop('reading')], saved).messages).toEqual([
       'Laptop · Reading projects…',
     ]);
@@ -150,4 +153,28 @@ describe('choosing a workspace across paired environments', () => {
       workspaceChoices([], { ...saved, environmentId: 'forgotten' }).messages,
     ).toEqual(['No environments paired', 'Saved worktree is unavailable']);
   });
+});
+
+it('shows the unavailable project reason outside its disabled menu and offers another read', () => {
+  const result = workspaceChoices(
+    [
+      {
+        environmentId: 'laptop',
+        name: 'Laptop',
+        status: 'ready',
+        inventory: inventory('Laptop', [
+          {
+            ...project('one', false),
+            available: false,
+            unavailableReason: 'permission',
+          },
+        ]),
+      },
+    ],
+    undefined,
+  );
+  expect(result.messages).toEqual([
+    'Laptop · Porcelain: Porcelain cannot read this repository because access is denied.',
+  ]);
+  expect(result.canReadAgain).toBe(true);
 });

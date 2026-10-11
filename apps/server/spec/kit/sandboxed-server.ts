@@ -481,7 +481,7 @@ try {
           ...settings.limits,
           jobs: {
             ...settings.limits.jobs,
-            refreshInventory: Duration.millis(
+            scanInventory: Duration.millis(
               sample === 'perf' ? QUIET_INVENTORY_MS : 250,
             ),
           },

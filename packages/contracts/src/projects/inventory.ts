@@ -1,3 +1,4 @@
+import { projectUnavailableReasonSchema } from '@porcelain/projects/models';
 import { environmentSchema } from '../shared/environment.ts';
 import { Schema, SchemaTransformation } from 'effect';
 import {
@@ -26,12 +27,23 @@ const worktreeSchema = Schema.Struct({
     Schema.Literals(['pending', 'reviewed', 'replied']),
   ),
 });
-const projectSchema = Schema.Struct({
+const projectFields = {
   id: projectIdSchema,
   name: Schema.String,
-  available: Schema.Boolean,
   worktrees: Schema.Array(worktreeSchema),
-});
+};
+const projectSchema = Schema.Union([
+  Schema.Struct({
+    ...projectFields,
+    available: Schema.Literal(true),
+    unavailableReason: Schema.optionalKey(Schema.Never),
+  }),
+  Schema.Struct({
+    ...projectFields,
+    available: Schema.Literal(false),
+    unavailableReason: Schema.optionalKey(projectUnavailableReasonSchema),
+  }),
+]);
 
 export const renameProjectParamsSchema = Schema.Struct({
   projectId: projectIdSchema,

@@ -104,3 +104,21 @@ export const removeProject = Atom.family((connection: RuntimeConnection) =>
     { concurrent: true },
   ),
 );
+
+export const refreshInventory = Atom.family((connection: RuntimeConnection) =>
+  inventoryRuntime(connection).fn(
+    (_input: void) => InventoryState.use((inventory) => inventory.refresh()),
+    { concurrent: true },
+  ),
+);
+
+export const refreshInventories = Atom.family(
+  (connections: readonly RuntimeConnection[]) =>
+    Atom.writable(
+      () => undefined,
+      (context, _input: void) => {
+        for (const connection of connections)
+          context.set(refreshInventory(connection), undefined);
+      },
+    ),
+);

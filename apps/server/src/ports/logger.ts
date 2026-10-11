@@ -1,3 +1,4 @@
+import type { ProjectUnavailableReason } from '@porcelain/projects/models';
 import { Context } from 'effect';
 
 export type FailureReport =
@@ -9,7 +10,12 @@ export type FailureReport =
       error: unknown;
     }
   | { kind: 'job'; job: string; error: unknown }
-  | { kind: 'worktree-listing'; projectId: string; error: unknown }
+  | {
+      kind: 'worktree-listing';
+      projectId: string;
+      reason: ProjectUnavailableReason;
+      error: unknown;
+    }
   | { kind: 'git-action'; requestId: string; error: unknown }
   | { kind: 'review-refresh'; worktreeId: string; error: unknown }
   | { kind: 'reviewed-marks'; worktreeId: string; error: unknown }

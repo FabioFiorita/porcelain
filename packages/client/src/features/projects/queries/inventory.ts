@@ -18,15 +18,10 @@ import { Effect, Stream } from 'effect';
 
 export const readInventories = Atom.family(
   (connections: readonly RuntimeConnection[]) =>
-    Atom.readable(
-      (get) =>
-        connections.map((connection) => ({
-          connection,
-          result: get(readInventory(connection)),
-        })),
-      (refresh) => {
-        for (const connection of connections)
-          refresh(readInventory(connection));
-      },
+    Atom.readable((get) =>
+      connections.map((connection) => ({
+        connection,
+        result: get(readInventory(connection)),
+      })),
     ),
 );

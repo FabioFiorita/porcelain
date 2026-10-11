@@ -1,4 +1,4 @@
-import { InventoryRefresh } from '../../ports/inventory-refresh.ts';
+import { InventoryScan } from '../../ports/inventory-scan.ts';
 import { Effect, Context, Layer } from 'effect';
 import {
   type NoWorktreeAtPathError,
@@ -37,7 +37,7 @@ export class FindWorktreeByPathUseCase extends Context.Service<
         yield* ListRegisteredProjectsService;
       const listKnownWorktreesCapability = yield* ListKnownWorktreesService;
       const findWorktreeAtPathCapability = yield* FindWorktreeAtPathService;
-      const refreshInventoryCapability = yield* InventoryRefresh;
+      const scanInventoryCapability = yield* InventoryScan;
       const lanesCapability = yield* Lanes;
       const laneKeysCapability = yield* LaneKeys;
       const operationListings = Effect.fn('FindWorktreeByPathUseCase.listings')(
@@ -65,7 +65,7 @@ export class FindWorktreeByPathUseCase extends Context.Service<
           const known = yield* operationListings();
           const worktreeId = worktreeAtPath(input.path, known);
           if (worktreeId !== undefined) return { worktreeId };
-          yield* refreshInventoryCapability.execute();
+          yield* scanInventoryCapability.execute();
           return yield* findWorktreeAtPathCapability.execute({
             path: input.path,
             listings: yield* operationListings(),

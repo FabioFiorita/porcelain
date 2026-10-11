@@ -35,6 +35,7 @@ export class InventoryState extends Context.Service<
       ReadInventoryResponse,
       InventoryFailure
     >['stream'];
+    readonly refresh: () => Effect.Effect<void>;
     readonly confirm: <A, E, R>(
       operation: Effect.Effect<A, E, R>,
       change: (
@@ -50,19 +51,16 @@ export class InventoryState extends Context.Service<
       Effect.gen(function* () {
         const seed = yield* InventorySeed;
         const client = yield* porcelainClient(connection);
+        const checkEnvironment = (inventory: ReadInventoryResponse) =>
+          currentAnswerEffect(
+            connection,
+            inventory.environmentId === connection.environmentId,
+          );
+        const read = client.request((api) => api.projects.readInventory());
         const resource = yield* confirmedResource(
           connection,
           queryKeys.inventory(connection.environmentId),
-          client
-            .request((api) => api.projects.readInventory())
-            .pipe(
-              Effect.tap((inventory) =>
-                currentAnswerEffect(
-                  connection,
-                  inventory.environmentId === connection.environmentId,
-                ),
-              ),
-            ),
+          read.pipe(Effect.tap(checkEnvironment)),
           seed,
         );
         function confirm<A, E, R>(
@@ -76,7 +74,21 @@ export class InventoryState extends Context.Service<
             Option.map(previous, (inventory) => change(inventory, answer)),
           );
         }
-        return { stream: resource.stream, confirm };
+        return {
+          stream: resource.stream,
+          confirm,
+          refresh: () =>
+            resource.refresh(
+              client
+                .request((api) => api.projects.refreshInventory())
+                .pipe(
+                  Effect.catchTag('RequestError', (error) =>
+                    error.status === 404 ? read : Effect.fail(error),
+                  ),
+                  Effect.tap(checkEnvironment),
+                ),
+            ),
+        };
       }),
     );
   }
