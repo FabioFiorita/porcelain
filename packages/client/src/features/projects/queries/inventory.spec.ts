@@ -105,10 +105,14 @@ describe('reading a connected project inventory', () => {
         undefined,
       );
       await Effect.runPromise(
-        AtomRegistry.getResult(
-          first.registry,
-          refreshInventory(first.connection),
-          { suspendOnWaiting: true },
+        Effect.all(
+          [first.connection, second.connection].map((connection) =>
+            AtomRegistry.getResult(
+              first.registry,
+              refreshInventory(connection),
+              { suspendOnWaiting: true },
+            ),
+          ),
         ),
       );
       expect(firstRequests).toEqual([

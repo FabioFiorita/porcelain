@@ -25,10 +25,7 @@ export function RemoteMachine({
   onOpenRemotes: () => void;
 }) {
   const status = useRemoteStatus(remote);
-  const refreshInventory = useRefreshInventory(
-    connection,
-    status.kind === 'online',
-  );
+  const refreshInventory = useRefreshInventory(connection);
   const { inventory } = useRemoteInventory(
     connection,
     status.kind === 'online',

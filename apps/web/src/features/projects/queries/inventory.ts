@@ -24,9 +24,7 @@ export function useRemoteInventory(connection: Connection, enabled: boolean) {
   };
 }
 
-export function useRefreshInventory(connection: Connection, enabled = true) {
+export function useRefreshInventory(connection: Connection) {
   const retry = useAtomSet(refreshInventory(connection));
-  return () => {
-    if (enabled) retry(undefined);
-  };
+  return () => retry(undefined);
 }
