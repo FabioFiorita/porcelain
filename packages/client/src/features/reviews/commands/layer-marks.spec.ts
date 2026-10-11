@@ -6,7 +6,7 @@ import {
   queryKeys,
   type Transport,
 } from '@porcelain/client/transport';
-import { readLayerMarks, toggleLayerMark } from '@porcelain/client/reviews';
+import { readLayerMarks, setLayerMark } from '@porcelain/client/reviews';
 
 const scope = { projectId: 'project', worktreeId: 'a'.repeat(32) };
 const layerId = '11111111-1111-4111-8111-111111111111';
@@ -86,11 +86,11 @@ it.effect(
         ),
         { startImmediately: true },
       );
-      const command = toggleLayerMark({
+      const command = setLayerMark({
         connection: subject.connection,
         scope,
       });
-      subject.registry.set(command, { layerId, fingerprint, action: 'mark' });
+      subject.registry.set(command, { layerId, fingerprint, kind: 'mark' });
       expect(
         yield* AtomRegistry.getResult(subject.registry, command, {
           suspendOnWaiting: true,
@@ -152,11 +152,11 @@ it.effect(
         (yield* AtomRegistry.getResult(subject.registry, state)).marks[0]
           ?.layerId,
       ).toBe(layerId);
-      const command = toggleLayerMark({
+      const command = setLayerMark({
         connection: subject.connection,
         scope,
       });
-      subject.registry.set(command, { layerId, fingerprint, action: 'unmark' });
+      subject.registry.set(command, { layerId, fingerprint, kind: 'unmark' });
       expect(
         (yield* AtomRegistry.getResult(subject.registry, command, {
           suspendOnWaiting: true,

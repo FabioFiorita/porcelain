@@ -1,6 +1,10 @@
 import { useAtom } from '@effect/atom-react';
 import { Cause, Exit } from 'effect';
-import { reviewedCommands, toggleLayerMark } from '@porcelain/client/reviews';
+import {
+  reviewedCommands,
+  setLayerMark,
+  type SetLayerMarkInput,
+} from '@porcelain/client/reviews';
 import {
   bulkReportText,
   markAllPlan,
@@ -12,7 +16,7 @@ import {
 } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 
-type Decision = { layerId: string; fingerprint: string };
+type Decision = Omit<SetLayerMarkInput, 'kind'>;
 
 export function useCompleteDecision(
   scope: ReviewScope,
@@ -28,7 +32,7 @@ export function useCompleteDecision(
     { mode: 'promiseExit' },
   );
   const [decisionMark, setDecisionMark] = useAtom(
-    toggleLayerMark({ scope, connection: context.connection }),
+    setLayerMark({ scope, connection: context.connection }),
     { mode: 'promiseExit' },
   );
   const fail = (title: string, description: string) => {
@@ -52,11 +56,8 @@ export function useCompleteDecision(
         )
       : true;
   };
-  const recordDecision = async (
-    decision: Decision,
-    action: 'mark' | 'unmark',
-  ) => {
-    const exit = await setDecisionMark({ ...decision, action });
+  const recordDecision = async (input: SetLayerMarkInput) => {
+    const exit = await setDecisionMark(input);
     return Exit.isFailure(exit)
       ? fail(
           'Could not update the decision',
@@ -76,14 +77,14 @@ export function useCompleteDecision(
         if (
           input.decision &&
           !input.decision.reviewed &&
-          !(await recordDecision(input.decision, 'mark'))
+          !(await recordDecision({ ...input.decision, kind: 'mark' }))
         )
           return;
         input.onDone?.();
       })();
     },
     reopen(decision: Decision) {
-      void recordDecision(decision, 'unmark');
+      void recordDecision({ ...decision, kind: 'unmark' });
     },
   };
 }

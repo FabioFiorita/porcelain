@@ -58,10 +58,10 @@ A compact page that matches a light application:
 
 When the change crosses more than one part of the system, add a diagram with boxes and explicit arrows in \`diagram.after\`. Porcelain does not draw it as a graph. It reads it as the briefing "What this adds to the system" and as each decision's connections, so write it for those:
 
-- Mark each owner the work adds, alters or removes with New, Changed or Removed with \`change: "new"\`, \`"changed"\` or \`"removed"\`, with a one-line \`detail\`. Set \`decision: true\` on the one box that stands for a decision, and name its layer with \`layerId\`. It is not listed as an owner; labels do not determine ownership.
+- Mark each owner the work adds, alters or removes as New, Changed or Removed using \`change: "new"\`, \`"changed"\` or \`"removed"\`, and add a one-line \`detail\`. Set \`decision: true\` on the one box that stands for a decision, and name its layer with \`layerId\`. It is not listed as an owner; labels do not determine ownership.
 - Name the layer behind each box with \`layerId\` so the reader can jump from an owner to its code.
 - Use \`problem\` for a decision the developer must make: two writes without a shared transaction, a second copy of an owner that already exists, a pattern this change follows differently from the rest of the codebase. Each problem is shown as "Needs your decision" in the briefing and in every decision connected to that box.
-- Label every arrow with its meaning, such as calls, reads, writes, publishes or depends on. An arrow labelled \`uses\` from a decision box to an owner labelled \`Delivery outbox\` appears as "uses Delivery outbox". Porcelain uses the label verbatim; an unlabelled arrow reads "relates to". Describe all actual relationships, including ordinary calls; step order never creates an arrow.
+- Label every arrow with its meaning, such as calls, reads, writes, publishes or depends on. An arrow labelled \`uses\` from a decision box to an owner labelled \`Delivery outbox\` appears as "uses Delivery outbox". For an arrow arriving at a decision box, Porcelain shows "<owner label> <verb>". Porcelain uses the label verbatim; an unlabelled arrow reads "relates to". Describe all actual relationships, including ordinary calls; step order never creates an arrow.
 
 These are your architectural claims, not automatically verified call traces. Support them with code pointers in the linked layer, and leave uncertain relationships in the detail instead of drawing a confident arrow.
 

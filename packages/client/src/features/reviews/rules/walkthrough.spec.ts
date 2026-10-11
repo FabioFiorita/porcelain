@@ -338,17 +338,13 @@ describe('system changes', () => {
           {
             id: 'b1',
             decision: true,
-
             label: 'Decision invite',
-
             change: 'changed',
             layerId: 'invite',
           },
           {
             id: 'outbox',
-
             label: 'Delivery outbox',
-
             change: 'new',
             detail: 'Owns retry identity',
             problem: 'Shares no transaction with the journal',
@@ -356,16 +352,12 @@ describe('system changes', () => {
           },
           {
             id: 'policy',
-
             label: 'Workspace policy',
-
             change: 'changed',
           },
           {
             id: 'legacy',
-
             label: 'Page-owned writes',
-
             change: 'removed',
           },
           { id: 'actor', label: 'Actor' },
