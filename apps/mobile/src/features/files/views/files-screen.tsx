@@ -4,7 +4,7 @@ import { useSelectedWorktree } from '../../projects';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
-import { Cause, Option } from 'effect';
+import { Array, Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
   fileErrorMessage,
@@ -18,8 +18,9 @@ import { Button } from '../../../components/ui/button';
 import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Text } from '../../../components/ui/text';
-import { directoryRequests } from '../../../shared/rules/file-tree';
+import { directoryRequests } from '../rules/directory-requests';
 import { useDirectories } from '../queries/directory';
+import { directoryLoading } from '../rules/directory-loading';
 import { useFilePaths } from '../queries/paths';
 import { FileActionSheet } from './file-action';
 import type { FileAction } from '../commands/edit-file';
@@ -48,6 +49,7 @@ function WorktreeFiles({
   const [requested, setRequested] = useState<readonly string[]>(['']);
   const [query, setQuery] = useState('');
   const [action, setAction] = useState<FileAction>();
+  const [refreshRequested, setRefreshRequested] = useState(false);
   const directories = useDirectories({
     connection: selected.connection,
     scope: selected.scope,
@@ -69,9 +71,23 @@ function WorktreeFiles({
     );
   }, [directories.results, requested]);
   const failure = directories.results.find(AsyncResult.isFailure);
+  const loading = directoryLoading(
+    Array.zip(requested, directories.results).map(([path, result]) => ({
+      path,
+      result,
+    })),
+  );
   const pending = directories.results.some(
     (result) => AsyncResult.isInitial(result) || result.waiting,
   );
+  const refreshing = refreshRequested && pending;
+  useEffect(() => {
+    if (refreshRequested && !pending) setRefreshRequested(false);
+  }, [pending, refreshRequested]);
+  const refresh = () => {
+    setRefreshRequested(true);
+    directories.refresh();
+  };
   const paths = useFilePaths(selected.connection, selected.scope);
   const pathData = Option.getOrUndefined(AsyncResult.value(paths.result));
   const searching = Boolean(query.trim());
@@ -113,11 +129,12 @@ function WorktreeFiles({
           message={fileErrorMessage(Cause.squash(failure.cause))}
           retry={{
             label: 'Read folders again',
-            onPress: directories.refresh,
+            onPress: refresh,
+            pending: refreshing,
           }}
         />
       ) : null}
-      {pending ? <Loading label="Reading files…" /> : null}
+      {loading.initialRoot ? <Loading label="Reading files…" /> : null}
       {searching && AsyncResult.isFailure(paths.result) ? (
         <ErrorState
           message={fileErrorMessage(Cause.squash(paths.result.cause))}
@@ -131,10 +148,11 @@ function WorktreeFiles({
     <Box className="flex-1" surface="background" collapsable={false}>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
-          accessibilityLabel="Refresh files"
-          onPress={directories.refresh}
+          accessibilityLabel={refreshing ? 'Refreshing files' : 'Refresh files'}
+          disabled={refreshing}
+          onPress={refresh}
         >
-          Refresh
+          {refreshing ? 'Refreshing…' : 'Refresh'}
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <FileTree
@@ -149,6 +167,7 @@ function WorktreeFiles({
             : nodes
         }
         expanded={expanded}
+        loading={loading.folders}
         onToggle={(id) => {
           setExpanded((current) => {
             const next = new Set(current);

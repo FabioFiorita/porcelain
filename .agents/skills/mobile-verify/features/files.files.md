@@ -8,7 +8,9 @@ selectors:
   - "New folder"
   - "Rename"
   - "Move to trash"
-tests: []
+tests:
+  - apps/mobile/src/features/files/rules/directory-loading.spec.ts
+  - apps/mobile/src/features/files/rules/directory-requests.spec.ts
 api:
   - GET /api/worktrees/:worktreeId/directory
   - GET /api/worktrees/:worktreeId/paths
@@ -22,6 +24,8 @@ Expand a folder and its child, then rename or trash the ancestor. Its obsolete d
 Files browses the selected worktree through lazily loaded folders. Search matches worktree paths. Native tabs, toolbar workspace menu and stack navigation surround Porcelain file rows and controls. Without a selection it asks to select a worktree.
 
 Reach Files through its phone tab or porcelain.dev://files. Choose a worktree with projects.workspace-picker. Expand folders, open a file, return with native Back, and search a nested path. Refresh rereads loaded folders. Read errors offer retry; an empty directory says No files.
+
+During the first folder read (pending with no previous value), its row replaces the chevron with a loading indicator and exposes loading in its accessibility label. The existing rows stay visible without moving until the children arrive. Reading files… appears in the header only for a root read without a value; background rereads and refreshing loaded folders preserve their rows, chevrons and the header height without loading labels. User-initiated Refresh shows Refreshing… in the disabled native toolbar button until the reads settle. Read folders again shows a pending, disabled retry button while retrying, including failures that retain previous data.
 
 New file and New folder open a native sheet. Holding a row offers Rename and Move to trash; folder menus also create inside that folder. Create a folder and file, rename the file with its full relative path, and confirm trash. Independently inspect the fixture directory after each operation. Errors keep the sheet open for retry. Trash uses the server's recoverable trash operation.
 
