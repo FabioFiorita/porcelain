@@ -163,7 +163,7 @@ test('the bridge gives the app version at once, reports through removable subscr
       if (state.status === 'checking') checking = true;
       if (checking && state.status === 'unavailable') settled.resolve();
     });
-    const result = await bridge.check();
+    await bridge.check();
     await settled.promise;
     unsubscribe();
     const observed = [...states];
@@ -174,14 +174,12 @@ test('the bridge gives the app version at once, reports through removable subscr
     await bridge.check();
     return {
       current: bridge.current(),
-      available: result.available,
       observed,
       afterUnsubscribe: states.slice(observed.length),
       installError,
     };
   });
   expect(updates.current).toBe(version);
-  expect(updates.available).toBeNull();
   expect(updates.observed).toContain('checking');
   expect(updates.observed.at(-1)).toBe('unavailable');
   expect(updates.afterUnsubscribe).toEqual([]);

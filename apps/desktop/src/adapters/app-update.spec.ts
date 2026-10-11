@@ -62,7 +62,7 @@ it.effect(
       const states: DesktopAppUpdateState[] = [];
       const update = openAppUpdate(undefined, (state) => states.push(state));
       expect(update.read()).toEqual({ status: 'unavailable' });
-      expect(yield* update.check()).toEqual({ available: null });
+      yield* update.check();
       expect(states).toEqual([
         { status: 'checking' },
         { status: 'unavailable' },
@@ -87,7 +87,7 @@ it.effect(
           message: 'App updates are unavailable for this local build',
         },
       ]);
-      expect(yield* update.check()).toEqual({ available: null });
+      yield* update.check();
       expect(update.read()).toEqual({ status: 'unavailable' });
     }),
 );
@@ -98,7 +98,7 @@ it.effect('offers the newer release a check finds, with its version', () =>
     const { updater, calls } = release(newer);
     const update = openAppUpdate(updater, (state) => states.push(state));
     expect(update.read()).toEqual({ status: 'idle' });
-    expect(yield* update.check()).toEqual({ available: '0.66.0' });
+    yield* update.check();
     expect(states).toEqual([
       { status: 'checking' },
       { status: 'available', version: '0.66.0' },
@@ -119,7 +119,7 @@ it.effect(
         }),
       );
       const update = openAppUpdate(updater, (state) => states.push(state));
-      expect(yield* update.check()).toEqual({ available: null });
+      yield* update.check();
       expect(states).toEqual([{ status: 'checking' }, { status: 'idle' }]);
     }),
 );
@@ -133,7 +133,7 @@ it.effect(
         Promise.reject(new Error('HttpError: 404 latest-mac.yml')),
       );
       const update = openAppUpdate(updater, (state) => states.push(state));
-      expect(yield* update.check()).toEqual({ available: null });
+      yield* update.check();
       expect(states).toEqual([
         { status: 'checking' },
         { status: 'error', message: 'HttpError: 404 latest-mac.yml' },
@@ -227,7 +227,7 @@ it.effect(
       yield* update.check();
       const first = yield* Effect.forkChild(update.install());
       yield* downloadStarted;
-      expect(yield* update.check()).toEqual({ available: '0.66.0' });
+      yield* update.check();
       expect(update.read()).toEqual({
         status: 'downloading',
         version: '0.66.0',
@@ -266,9 +266,7 @@ it.effect(
         if (state.status === 'ready' || state.status === 'installing') {
           const checking = Effect.runFork(update.check());
           try {
-            expect(checking.pollUnsafe()).toEqual(
-              Exit.succeed({ available: '0.66.0' }),
-            );
+            expect(checking.pollUnsafe()).toEqual(Exit.void);
           } finally {
             checking.interruptUnsafe();
           }
@@ -302,8 +300,9 @@ it.effect(
       const states: DesktopAppUpdateState[] = [];
       const update = openAppUpdate(updater, (state) => states.push(state));
       yield* update.check();
+      expect(update.read()).toEqual({ status: 'available', version: '0.66.0' });
       result = null;
-      expect(yield* update.check()).toEqual({ available: null });
+      yield* update.check();
       expect(states.slice(2)).toEqual([
         { status: 'checking' },
         { status: 'unavailable' },
@@ -335,14 +334,14 @@ it.effect('refuses to install an offered release while checking again', () =>
       startImmediately: true,
     });
     expect(update.read()).toEqual({ status: 'checking' });
-    const installing = yield* Effect.forkChild(update.install(), {
-      startImmediately: true,
-    });
-    expect(installing.pollUnsafe()).toEqual(Exit.void);
+    const refused = yield* Effect.flip(update.install());
+    expect(refused.message).toBe(
+      'Check for an app update before installing it',
+    );
     expect(calls).toEqual({ checks: 2, downloads: 0, installs: 0 });
     expect(update.read()).toEqual({ status: 'checking' });
     answer.reject(new Error('Feed offline'));
-    expect(yield* Fiber.join(checking)).toEqual({ available: null });
+    yield* Fiber.join(checking);
     expect(update.read()).toEqual({ status: 'error', message: 'Feed offline' });
     expect(calls).toEqual({ checks: 2, downloads: 0, installs: 0 });
   }),
@@ -357,9 +356,10 @@ it.effect(
         offline ? Promise.reject(new Error('Feed offline')) : newer(),
       );
       const update = openAppUpdate(updater, () => undefined);
-      expect(yield* update.check()).toEqual({ available: '0.66.0' });
+      yield* update.check();
+      expect(update.read()).toEqual({ status: 'available', version: '0.66.0' });
       offline = true;
-      expect(yield* update.check()).toEqual({ available: null });
+      yield* update.check();
       expect(update.read()).toEqual({
         status: 'error',
         message: 'Feed offline',
@@ -373,5 +373,34 @@ it.effect(
       );
       expect(refused).toBe('Check for an app update before installing it');
       expect(calls).toEqual({ checks: 2, downloads: 0, installs: 0 });
+    }),
+);
+
+it.effect(
+  'refuses to install again after a failed download until a new check offers a release',
+  () =>
+    Effect.gen(function* () {
+      const { updater, calls, failDownload } = release(newer);
+      const update = openAppUpdate(updater, () => undefined);
+      yield* update.check();
+      failDownload('Download offline');
+      expect((yield* Effect.flip(update.install())).message).toBe(
+        'Download offline',
+      );
+      const refused = yield* Effect.flip(update.install());
+      expect(refused.message).toBe(
+        'Check for an app update before installing it',
+      );
+      expect(update.read()).toEqual({
+        status: 'error',
+        message: 'Download offline',
+      });
+      expect(calls).toEqual({ checks: 1, downloads: 1, installs: 0 });
+      yield* update.check();
+      expect(update.read()).toEqual({ status: 'available', version: '0.66.0' });
+      expect((yield* Effect.flip(update.install())).message).toBe(
+        'Download offline',
+      );
+      expect(calls).toEqual({ checks: 2, downloads: 2, installs: 0 });
     }),
 );

@@ -1,7 +1,6 @@
 export {
   desktopActionSchema,
   desktopAppearanceSchema,
-  desktopAppUpdateCheckSchema,
   desktopAppUpdateStateSchema,
   desktopCredentialsSchema,
   desktopWindowStateSchema,
@@ -9,7 +8,6 @@ export {
 export type {
   DesktopAction,
   DesktopAppearance,
-  DesktopAppUpdateCheck,
   DesktopAppUpdateState,
   DesktopCredentials,
   DesktopWindowState,

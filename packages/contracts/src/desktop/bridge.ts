@@ -9,9 +9,6 @@ export const desktopAppearanceSchema = Schema.Literals([
   'light',
   'dark',
 ]);
-export const desktopAppUpdateCheckSchema = Schema.Struct({
-  available: Schema.NullOr(Schema.String),
-});
 export const desktopAppUpdateStateSchema = Schema.Union([
   Schema.Struct({ status: Schema.Literal('idle') }),
   Schema.Struct({ status: Schema.Literal('checking') }),
@@ -52,7 +49,6 @@ export type DesktopAction = typeof desktopActionSchema.Type;
 export type DesktopAppearance = typeof desktopAppearanceSchema.Type;
 export type DesktopWindowState = typeof desktopWindowStateSchema.Type;
 export type DesktopCredentials = typeof desktopCredentialsSchema.Type;
-export type DesktopAppUpdateCheck = typeof desktopAppUpdateCheckSchema.Type;
 export type DesktopAppUpdateState = typeof desktopAppUpdateStateSchema.Type;
 export type DesktopBridge = {
   pickProjectFolder: () => Promise<string | null>;
@@ -64,7 +60,7 @@ export type DesktopBridge = {
   appUpdate: {
     current: () => string;
     enabled: () => boolean;
-    check: () => Promise<DesktopAppUpdateCheck>;
+    check: () => Promise<void>;
     install: () => Promise<void>;
     onState: (receive: (state: DesktopAppUpdateState) => void) => () => void;
   };

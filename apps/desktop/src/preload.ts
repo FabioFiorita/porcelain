@@ -2,7 +2,6 @@ import { Schema, Result } from 'effect';
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import {
   desktopActionSchema,
-  desktopAppUpdateCheckSchema,
   desktopAppUpdateStateSchema,
   desktopCredentialsSchema,
   type DesktopAppUpdateState,
@@ -64,10 +63,7 @@ const bridge: DesktopBridge = {
     current: () => version,
     enabled: () => updateFeed,
     check: async () => {
-      const value: unknown = await ipcRenderer.invoke(
-        'porcelain:app-update-check',
-      );
-      return Schema.decodeUnknownSync(desktopAppUpdateCheckSchema)(value);
+      await ipcRenderer.invoke('porcelain:app-update-check');
     },
     install: async () => {
       await ipcRenderer.invoke('porcelain:app-update-install');

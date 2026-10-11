@@ -4,6 +4,7 @@ selectors:
   - 'Checking for a new version…'
   - 'This is the newest version of the app.'
   - 'This build updates by reinstalling; there is no update feed yet.'
+  - 'Could not check for an app update.'
 tests:
   - apps/desktop/src/adapters/app-update.spec.ts
   - apps/web/src/features/access/rules/app-update.spec.ts
@@ -16,7 +17,7 @@ api: []
 
 ## What it is
 
-The release Mac app checks its own update feed from Settings and installs an offered release. Check for updates shows checking, the newest-version result, an available release with Update to its version, or the updater's error. Checking is disabled while checking, downloading, ready or installing. Installing is disabled until the check finishes, and the main process refuses installation unless a release is currently available. Reloading the renderer or asking to install twice preserves the original download and results in one restart.
+The release Mac app checks its own update feed from Settings and installs an offered release. Check for updates shows checking, the newest-version result, an available release with Update to its version, or the updater's error. A later check that the bridge rejects shows Could not check for an app update until the next check starts. Checking is disabled while checking, downloading, ready or installing. The offered release appears as soon as the main process publishes it; Install stays disabled until the check finishes, and the main process refuses installation unless a release is currently available, including after a failed download. Reloading the renderer or asking to install twice preserves the original download and results in one restart.
 
 ## How a user reaches it
 
@@ -28,13 +29,13 @@ The release Mac app checks its own update feed from Settings and installs an off
 
 Start a disposable Porcelain Dev instance with the desktop-verify skill. Open Settings with the native open-settings menu item, choose This computer and observe the app version and reinstall message. Check for updates must be absent: this unpackaged app has no release feed. Back returns to the app.
 
-For the enabled control, run the named web desktop-shell regression file. Its typed desktop bridge fixture is the updater port: hold a manual check, observe checking and the disabled button, then answer with idle, error or available. Observe the result, check again after an error, and install the offered release. During the download the Install control disappears and Check for updates is disabled. The desktop file also verifies disabled builds; the named rule spec proves release-feed and desktop-shell visibility decisions.
+For the enabled control, run the named web desktop-shell regression file. Its typed desktop bridge fixture is the updater port: hold a manual check, observe checking and the disabled button, then answer with idle, error or available, or reject the check. Observe the result, check again after an error, and install the offered release. During the download the Install control disappears and Check for updates is disabled. The desktop file also verifies disabled builds; the named rule spec proves release-feed and desktop-shell visibility decisions.
 
 ## What proves it works
 
-- `apps/desktop/src/adapters/app-update.spec.ts`: available and current-version checks, null as unavailable, failed checks clear the offered release, check/download errors, local-build refusal, installation refused during a check, checking during download/ready/installing and repeated installs preserve one download and one installation.
+- `apps/desktop/src/adapters/app-update.spec.ts`: available and current-version checks, null as unavailable, failed checks clear the offered release, check/download errors, local-build refusal, installation refused during a check and after a failed download, checking during download/ready/installing and repeated installs preserve one download and one installation.
 - `apps/web/src/features/access/rules/app-update.spec.ts`: progress and no-update wording for the supported states, and check-button visibility for release, development and web capabilities.
-- `apps/web/spec/e2e/access-app-update.desktop.e2e.ts`: manual check results and recovery, Install, busy controls, release capability gating and Back through the desktop-shell renderer with an updater-port fixture.
+- `apps/web/spec/e2e/access-app-update.desktop.e2e.ts`: manual check results, a rejected check and recovery, Install, busy controls, release capability gating and Back through the desktop-shell renderer with an updater-port fixture.
 - `apps/desktop/spec/e2e/menus.e2e.ts`: native Settings entry, app version, disabled update feed and no manual check in disposable Porcelain Dev.
 
 ## Gotchas
