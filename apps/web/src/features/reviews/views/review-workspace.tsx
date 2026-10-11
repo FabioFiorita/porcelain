@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/sheet';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/shared/lib/utils';
-import { useReviewOverview } from '@/features/changes/index';
+import { useChanges, useReviewOverview } from '@/features/changes/index';
 import type { Project } from '@porcelain/client/projects/rules';
 import {
   ConflictGuidance,
@@ -46,6 +46,7 @@ import type {
 import { useDesktopReview } from '../adapters/desktop-review';
 import { type PaneIndex, useTabLayout } from '../adapters/tab-layout';
 import { usePublishedReview } from '../queries/published-review';
+import { useTabLayoutStore } from '../store';
 import {
   anchorBase,
   type RevealComment,
@@ -277,7 +278,27 @@ type PaneContext = {
   tabControls: ReactNode;
 };
 
-function DocumentArea({
+type DocumentAreaProps = PaneContext & {
+  worktreeId: string;
+  entry: string | undefined;
+  side: string | undefined;
+  onSearch: SetWorkspaceSearch;
+  focused: PaneIndex;
+};
+
+function DocumentArea(props: DocumentAreaProps) {
+  const { saved } = useTabLayoutStore(props.worktreeId);
+  if (saved || parseEntry(props.entry) || parseEntry(props.side))
+    return <DocumentPanes {...props} />;
+  return <DefaultDocumentArea {...props} />;
+}
+
+function DefaultDocumentArea(props: DocumentAreaProps) {
+  useChanges(props.scope, props.context.connection);
+  return <DocumentPanes {...props} />;
+}
+
+function DocumentPanes({
   reveal,
   scope,
   context,
@@ -294,13 +315,7 @@ function DocumentArea({
   navigatorOpen,
   navigatorOpenMobile,
   tabControls,
-}: PaneContext & {
-  worktreeId: string;
-  entry: string | undefined;
-  side: string | undefined;
-  onSearch: SetWorkspaceSearch;
-  focused: PaneIndex;
-}) {
+}: DocumentAreaProps) {
   const { connection } = context;
   const overview = Option.getOrUndefined(
     AsyncResult.value(useReviewOverview(scope, connection)),

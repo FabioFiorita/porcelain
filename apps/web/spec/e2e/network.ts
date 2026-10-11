@@ -22,6 +22,7 @@ export async function liveRouter(context: BrowserContext) {
           (request.postData() ?? '').includes(filePath),
         () => network.live.hold(),
       ),
+    holdChangesRead: () => network.hold(isChangesRead),
     releaseHeld: network.live.release,
   };
 }
@@ -50,10 +51,12 @@ export function failInventory(context: BrowserContext) {
 }
 
 export function failChangesRead(context: BrowserContext) {
-  return browserNetwork(context).fail(
-    (request) =>
-      request.method() === 'GET' &&
-      /^\/api\/worktrees\/[^/]+\/changes$/.test(pathOf(request)),
-    503,
+  return browserNetwork(context).fail(isChangesRead, 503);
+}
+
+function isChangesRead(request: RoutedRequest) {
+  return (
+    request.method() === 'GET' &&
+    /^\/api\/worktrees\/[^/]+\/changes$/.test(pathOf(request))
   );
 }
