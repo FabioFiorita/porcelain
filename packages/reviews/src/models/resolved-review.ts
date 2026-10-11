@@ -8,7 +8,7 @@ import type {
 } from './review.ts';
 
 type StepLocation =
-  | { state: 'changed' }
+  | { state: 'changed' | 'broken' }
   | { state: 'current' | 'committed'; startLine: number; endLine: number };
 
 export type ResolvedStep = Omit<StepDraft, 'pointer'> & {

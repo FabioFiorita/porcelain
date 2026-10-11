@@ -54,6 +54,8 @@ function resolveStep(
     ...step.pointer,
     textFingerprint: sha256Hex(published.join('\n')),
   };
+  if (text === undefined || published.length === 0)
+    return { ...draft, pointer, location: { state: 'broken' } };
   if (start === undefined)
     return { ...draft, pointer, location: { state: 'changed' } };
   const endLine = start + published.length - 1;
@@ -88,8 +90,17 @@ function resolvedFingerprint(
       .filter((step) => step.kind === 'changed')
       .map((step) => {
         const location = resolvedById.get(step.id)?.location;
-        if (!location || location.state === 'changed')
-          return `${step.id}:changed`;
+        if (!location) return `${step.id}:changed`;
+        switch (location.state) {
+          case 'broken':
+          case 'changed':
+            return `${step.id}:${location.state}`;
+          case 'current':
+          case 'committed':
+            break;
+          default:
+            location satisfies never;
+        }
         const lines = textLines(files.get(step.pointer.path) ?? '');
         return `${step.id}:${lines.slice(location.startLine - 1, location.endLine).join('\n')}`;
       })
@@ -154,7 +165,10 @@ export function reviewIsActive(layers: readonly ResolvedLayer[]): boolean {
     .filter((step) => step.kind === 'changed');
   return (
     changedSteps.length === 0 ||
-    changedSteps.some((step) => step.location.state !== 'committed')
+    changedSteps.some(
+      (step) =>
+        step.location.state === 'current' || step.location.state === 'changed',
+    )
   );
 }
 
@@ -184,7 +198,7 @@ function coveredLines(
 ): Map<string, Set<number>> {
   const covered = new Map<string, Set<number>>();
   for (const step of layers.flatMap((layer) => layer.steps)) {
-    if (step.kind !== 'changed' || step.location.state === 'changed') continue;
+    if (step.kind !== 'changed' || !('startLine' in step.location)) continue;
     const lines = covered.get(step.pointer.path) ?? new Set<number>();
     for (
       let line = step.location.startLine;

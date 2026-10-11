@@ -202,3 +202,16 @@ export function summaryLayerNumber(message: unknown): number | null {
     ? message.openLayer
     : null;
 }
+
+export function reviewIsVisible<
+  T extends Pick<ReviewResponse, 'active' | 'layers'>,
+>(review: T | null | undefined): review is T {
+  return (
+    review !== undefined &&
+    review !== null &&
+    (review.active ||
+      review.layers.some((layer) =>
+        layer.steps.some((step) => step.location.state === 'broken'),
+      ))
+  );
+}

@@ -43,6 +43,7 @@ export {
   notExplainedLabel,
   orderReviewChanges,
   reviewErrorMessage,
+  reviewIsVisible,
   reviewSummaryUrl,
   summaryLayerNumber,
   type BranchChangeItem,

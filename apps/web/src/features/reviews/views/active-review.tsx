@@ -1,3 +1,4 @@
+import { reviewIsVisible } from '@porcelain/client/reviews/rules';
 import { AsyncResult } from 'effect/reactivity';
 import type { ReactNode } from 'react';
 import { usePublishedReview } from '../queries/published-review';
@@ -20,7 +21,7 @@ export function ActiveReview({
   children: (review: ReviewResponse) => ReactNode;
 }) {
   const published = usePublishedReview(scope, context);
-  const review = published.review?.active ? published.review : null;
+  const review = reviewIsVisible(published.review) ? published.review : null;
   if (AsyncResult.isInitial(published.result))
     return (
       <p role="status" className="p-4 text-sm">

@@ -1,3 +1,4 @@
+import { InvalidReviewPointerError } from '../errors/invalid-review-pointer-error.ts';
 import { ProofLimits } from '../ports/proof-limits.ts';
 import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { IdSource, SecretSource } from '@porcelain/kernel/ports';
@@ -38,6 +39,7 @@ export class PublishReviewService extends Context.Service<
       input: PublishReviewInput,
     ) => Effect.Effect<
       PublishReviewResult,
+      | InvalidReviewPointerError
       | ReviewConflictError
       | ProofTooLargeError
       | UnknownProofFileError
@@ -152,6 +154,7 @@ export class PublishReviewService extends Context.Service<
           input: PublishReviewInput,
         ): Effect.fn.Return<
           PublishReviewResult,
+          | InvalidReviewPointerError
           | ReviewConflictError
           | ProofTooLargeError
           | UnknownProofFileError
@@ -181,20 +184,30 @@ export class PublishReviewService extends Context.Service<
                   },
                 };
           const files = input.evidence.texts;
-          const layers = draft.layers.map((layer): ReviewLayer => {
-            const steps = layer.steps.map((step) => ({
-              ...structuredClone(step),
-              published: publishedLines(
+          const layers: ReviewLayer[] = [];
+          for (const layer of draft.layers) {
+            const steps = [];
+            for (const step of layer.steps) {
+              const published = publishedLines(
                 files.get(step.pointer.path),
                 step.pointer,
-              ),
-            }));
-            return {
+              );
+              if (published === undefined)
+                return yield* Effect.fail(
+                  new InvalidReviewPointerError({
+                    layerId: layer.id,
+                    stepId: step.id,
+                    ...step.pointer,
+                  }),
+                );
+              steps.push({ ...structuredClone(step), published });
+            }
+            layers.push({
               ...structuredClone(layer),
               steps,
               fingerprint: publishedLayerFingerprint(steps),
-            };
-          });
+            });
+          }
           const review: Review = {
             worktreeId: input.worktreeId,
             revision: draft.expectedRevision + 1,

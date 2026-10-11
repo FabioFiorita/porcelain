@@ -110,6 +110,7 @@ export function WalkthroughStopView({
       ? stop.layer.steps.filter(
           (step) =>
             step.location.state === 'committed' ||
+            step.location.state === 'broken' ||
             (!shown.has(step.pointer.path) &&
               !stop.elsewhere.some((file) => file.path === step.pointer.path)),
         )
@@ -118,7 +119,10 @@ export function WalkthroughStopView({
     const item = items.find(
       (candidate) => candidate.path === step.pointer.path,
     );
-    const anchor = item && shown.has(item.path) ? stepAnchor(step, item) : null;
+    const anchor =
+      step.location.state !== 'broken' && item && shown.has(item.path)
+        ? stepAnchor(step, item)
+        : null;
     if (anchor) {
       setReveal({ anchor, nonce: Date.now() });
       return;
@@ -127,7 +131,7 @@ export function WalkthroughStopView({
       stop.kind === 'decision'
         ? stop.elsewhere.find((file) => file.path === step.pointer.path)
         : undefined;
-    if (owner) {
+    if (owner && step.location.state !== 'broken') {
       onGo(owner.stop);
       return;
     }
@@ -138,7 +142,7 @@ export function WalkthroughStopView({
       return;
     }
     const location =
-      step.location.state === 'changed' ? step.pointer : step.location;
+      'startLine' in step.location ? step.location : step.pointer;
     props.onOpen(
       { kind: 'file', path: step.pointer.path },
       {
@@ -629,6 +633,9 @@ function StepList({
                 {step.kind === 'context' && ' · existing code'}
                 {step.location.state === 'changed' && (
                   <span className="text-graph-4"> · code moved</span>
+                )}
+                {step.location.state === 'broken' && (
+                  <span className="text-graph-4"> · broken pointer</span>
                 )}
                 {step.location.state === 'committed' && ' · committed'}
               </span>

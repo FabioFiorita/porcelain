@@ -12,6 +12,7 @@ import {
   ProofFileUnreadableError,
   ProofTooLargeError,
   ReviewConflictError,
+  InvalidReviewPointerError,
   UnknownProofFileError,
   UnsupportedProofFileError,
 } from '@porcelain/reviews/errors';
@@ -48,7 +49,9 @@ const modified: FileChange = {
   ],
 };
 
-function evidence(texts: [string, string][] = []): ReviewEvidence {
+function evidence(
+  texts: [string, string][] = [['README.md', readme]],
+): ReviewEvidence {
   return { changes: [], texts: new Map(texts), diffs: [] };
 }
 
@@ -170,41 +173,40 @@ describe('PublishReviewService', () => {
     );
   });
 
-  it('keeps no lines for a step whose file could not be read or whose range runs past the file', async () => {
-    const { service } = await setup();
-    const past = layer({
-      id: 'layer-2',
-      steps: [
-        {
-          id: 'step-2',
-          lane: 0,
-          title: 'Past the end',
-          text: 'Points too far',
-          kind: 'context',
-          pointer: { path: 'README.md', startLine: 3, endLine: 4 },
-        },
-      ],
-    });
-    const { review } = Effect.runSync(
-      service.execute({
-        worktreeId,
-        draft: draft({ layers: [layer(), past] }),
-        evidence: evidence(),
-      }),
-    );
-    expect(review.layers.map((entry) => entry.steps[0]?.published)).toEqual([
-      [],
-      [],
-    ]);
-    expect(
-      Effect.runSync(
-        (await setup()).service.execute({
+  it.each([
+    { name: 'a missing file', texts: [] as [string, string][] },
+    {
+      name: 'a range past the end',
+      texts: [['README.md', 'first\n']] as [string, string][],
+    },
+  ])('refuses $name before saving and names the pointer', async ({ texts }) => {
+    const { service, store } = await setup();
+    const result = Effect.runSync(
+      Effect.result(
+        service.execute({
           worktreeId,
-          draft: draft({ layers: [past] }),
-          evidence: evidence([['README.md', readme]]),
+          draft: draft(),
+          evidence: evidence(texts),
         }),
-      ).review.layers[0]?.steps[0]?.published,
-    ).toEqual([]);
+      ),
+    );
+    expect(result).toMatchObject({
+      _tag: 'Failure',
+      failure: {
+        layerId: 'layer-1',
+        stepId: 'step-1',
+        path: 'README.md',
+        startLine: 2,
+        endLine: 3,
+      },
+    });
+    if (result._tag === 'Failure') {
+      expect(result.failure).toBeInstanceOf(InvalidReviewPointerError);
+      expect(result.failure.message).toBe(
+        'Step `step-1` in layer `layer-1` points to `README.md:2-3`, which does not exist in this worktree',
+      );
+    }
+    expect(await Effect.runPromise(store.read({ worktreeId }))).toBeUndefined();
   });
 
   it('replaces the review when the publisher states the current revision, with a fresh summary link', async () => {

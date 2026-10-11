@@ -1,4 +1,4 @@
-import { Schema, SchemaTransformation } from 'effect';
+import { Schema, SchemaGetter, SchemaTransformation } from 'effect';
 import { HttpStatus } from 'effect/http';
 import { HttpApiSchema } from 'effect/http-api';
 import type { ApiErrorCode } from './api-error.ts';
@@ -44,6 +44,37 @@ export function httpFailure<E extends Error>(
         decode: () => new error(),
         encode: () => body,
       }),
+    ),
+    HttpApiSchema.status(status),
+  );
+}
+
+export function httpFailureWithMessage<E extends Error>(
+  error: abstract new (...args: never[]) => E,
+  status: keyof typeof reasons,
+) {
+  const body = {
+    statusCode: HttpStatus.fromLiteral(status),
+    error: reasons[status],
+  };
+  const wireBody = Schema.Struct({
+    statusCode: Schema.Literal(body.statusCode),
+    error: Schema.Literal(body.error),
+    message: Schema.String,
+  });
+  return wireBody.pipe(
+    Schema.decodeTo(
+      Schema.declare((value: unknown): value is E => value instanceof error),
+      new SchemaTransformation.Transformation(
+        SchemaGetter.forbidden<E, typeof wireBody.Type>(
+          () =>
+            'Domain error details cannot be reconstructed from an HTTP message',
+        ),
+        SchemaGetter.transform((failure: E) => ({
+          ...body,
+          message: failure.message,
+        })),
+      ),
     ),
     HttpApiSchema.status(status),
   );

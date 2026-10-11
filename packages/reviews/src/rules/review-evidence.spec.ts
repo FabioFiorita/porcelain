@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { FileChange, TrackedComparison } from '@porcelain/kernel/models';
 import type { LayerDraft } from '@porcelain/reviews/models';
-import { reviewPaths, trackedComparisons } from './review-evidence.ts';
+import {
+  publishedLines,
+  reviewPaths,
+  trackedComparisons,
+} from './review-evidence.ts';
 
 function tracked(
   scope: 'staged' | 'unstaged',
@@ -88,4 +92,40 @@ describe('trackedComparisons', () => {
   it('asks for nothing when nothing changed', () => {
     expect(trackedComparisons([])).toEqual([]);
   });
+});
+
+describe('publishedLines', () => {
+  it('publishes existing lines without treating the trailing newline as another line', () => {
+    expect(
+      publishedLines('one\ntwo\n', {
+        path: 'src/x.ts',
+        startLine: 1,
+        endLine: 2,
+      }),
+    ).toEqual(['one', 'two']);
+  });
+  it.each([
+    { name: 'missing file', text: undefined, startLine: 1, endLine: 2 },
+    {
+      name: 'end beyond the file',
+      text: 'one\ntwo\n',
+      startLine: 1,
+      endLine: 3,
+    },
+    { name: 'start below one', text: 'one\ntwo\n', startLine: 0, endLine: 1 },
+    {
+      name: 'start beyond the file',
+      text: 'one\ntwo\n',
+      startLine: 3,
+      endLine: 3,
+    },
+    { name: 'empty file', text: '', startLine: 1, endLine: 1 },
+  ])(
+    'rejects $name rather than publishing an empty block',
+    ({ text, startLine, endLine }) => {
+      expect(
+        publishedLines(text, { path: 'src/x.ts', startLine, endLine }),
+      ).toBeUndefined();
+    },
+  );
 });

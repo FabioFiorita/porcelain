@@ -66,19 +66,20 @@ function Excerpt({
   const [expanded, setExpanded] = useState(false);
   const committed = step.location.state === 'committed';
   const moved = step.location.state === 'changed';
-  const location = moved ? step.pointer : step.location;
+  const broken = step.location.state === 'broken';
+  const location = 'startLine' in step.location ? step.location : step.pointer;
   const lines = useChangeLines(
     scope,
     context.connection,
     step.pointer.path,
     location.startLine,
     location.endLine,
-    !moved && (!committed || expanded),
+    !moved && !broken && (!committed || expanded),
   );
   const loaded = Option.getOrUndefined(AsyncResult.value(lines));
   const note = { title: step.title, text: step.text, marker: `${number}` };
   const entries: CodeEntry[] = [];
-  if (loaded && !moved) {
+  if (loaded && !moved && !broken) {
     const patch = contextPatch(step.pointer.path, loaded.from, loaded.lines);
     const fileDiff = parsePatchFiles(patch).flatMap((group) => group.files)[0];
     if (fileDiff)
@@ -111,6 +112,7 @@ function Excerpt({
         <Button
           variant="ghost"
           size="xs"
+          disabled={broken}
           onClick={() => onOpen({ kind: 'file', path: step.pointer.path })}
         >
           <FileIcon data-icon="inline-start" />
@@ -129,6 +131,7 @@ function Excerpt({
       ) : (
         <div className="flex flex-col items-start gap-1 px-4 pt-1">
           <ExcerptStatus
+            broken={broken}
             moved={moved}
             folded={committed && !expanded}
             failed={AsyncResult.isFailure(lines)}
@@ -142,16 +145,24 @@ function Excerpt({
 }
 
 function ExcerptStatus({
+  broken,
   moved,
   folded,
   failed,
   onExpand,
 }: {
+  broken: boolean;
   moved: boolean;
   folded: boolean;
   failed: boolean;
   onExpand: () => void;
 }) {
+  if (broken)
+    return (
+      <p role="status" className="pl-5.5 text-sm text-graph-4">
+        Broken pointer · File no longer exists or the published range was empty.
+      </p>
+    );
   if (moved)
     return (
       <p role="status" className="pl-5.5 text-sm text-graph-4">

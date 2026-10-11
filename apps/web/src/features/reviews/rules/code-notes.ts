@@ -22,7 +22,8 @@ function add(notes: Notes, path: string, note: AgentCodeNote) {
 export function decisionNotes(layer: ReviewLayer, decision?: number): Notes {
   const notes: Notes = {};
   layer.steps.forEach((step, index) => {
-    if (step.location.state === 'committed') return;
+    if (step.location.state === 'committed' || step.location.state === 'broken')
+      return;
     const marker = `${index + 1}`;
     add(notes, step.pointer.path, {
       title:

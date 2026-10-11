@@ -9,6 +9,7 @@ import { type MissingEnvironmentIdentityError } from '@porcelain/access/errors';
 import { type GitIoFailure } from '@porcelain/git/errors';
 import { type IncompleteDiffReadError } from '@porcelain/changes/errors';
 import {
+  type InvalidReviewPointerError,
   type ReviewConflictError,
   type ProofTooLargeError,
   type UnknownProofFileError,
@@ -39,6 +40,7 @@ export class PublishReviewUseCase extends Context.Service<
       | MissingEnvironmentIdentityError
       | WorktreeAccessFailure
       | ReviewDraftFailure
+      | InvalidReviewPointerError
       | ReviewConflictError
       | ProofTooLargeError
       | UnknownProofFileError
@@ -71,6 +73,7 @@ export class PublishReviewUseCase extends Context.Service<
           | MissingEnvironmentIdentityError
           | WorktreeAccessFailure
           | ReviewDraftFailure
+          | InvalidReviewPointerError
           | ReviewConflictError
           | ProofTooLargeError
           | UnknownProofFileError

@@ -1,3 +1,4 @@
+import { reviewIsVisible } from '@porcelain/client/reviews/rules';
 import { AsyncResult } from 'effect/reactivity';
 import { FileIcon, GitGraphIcon, HistoryIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -167,7 +168,7 @@ function HandoffDocument(props: DocumentProps) {
     );
   if (AsyncResult.isFailure(published.result))
     return <PublicationFailure retry={published.refresh} />;
-  if (review?.active)
+  if (review && reviewIsVisible(review))
     return (
       <ReviewWalkthrough
         {...props}
@@ -198,7 +199,9 @@ function PlainChangesDocument({
   const allChanges = useReviewChangeItems(scope, context, list);
   const published = usePublishedReview(scope, context);
   const review =
-    !specsOnly && published.review?.active ? published.review : undefined;
+    !specsOnly && reviewIsVisible(published.review)
+      ? published.review
+      : undefined;
   const changes = specsOnly
     ? allChanges.filter((item) => isSpecPath(item.path))
     : allChanges;
