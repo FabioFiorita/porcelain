@@ -130,7 +130,7 @@ function WorktreeFiles({
           retry={{
             label: 'Read folders again',
             onPress: refresh,
-            pending,
+            pending: refreshing,
           }}
         />
       ) : null}
@@ -149,7 +149,7 @@ function WorktreeFiles({
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
           accessibilityLabel={refreshing ? 'Refreshing files' : 'Refresh files'}
-          disabled={pending}
+          disabled={refreshing}
           onPress={refresh}
         >
           {refreshing ? 'Refreshing…' : 'Refresh'}
