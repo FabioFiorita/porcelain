@@ -15,7 +15,7 @@ import {
   canDropPaths,
   directoryPaths,
   entryName,
-  fileTreeAncestors,
+  fileTreeExpansion,
   nextCreatePath,
   selectedDirectories,
 } from '@porcelain/client/files/rules';
@@ -231,30 +231,22 @@ export function PierreFileTree({
     const shown = latest.current.paths;
     if (reveal.current.selected !== selected)
       reveal.current = { selected, complete: false };
-    const expanded = new Set(expandedDirectories(model, shown));
-    const childCounts = new Map<string, number>();
-    for (const path of shown) {
-      const parent = fileTreeAncestors(path).at(-1);
-      if (parent)
-        childCounts.set(`${parent}/`, (childCounts.get(`${parent}/`) ?? 0) + 1);
-    }
-    for (const path of [...expanded]) {
-      for (const ancestor of fileTreeAncestors(path).reverse()) {
-        const parent = `${ancestor}/`;
-        if (childCounts.get(parent) !== 1) break;
-        expanded.add(parent);
-      }
-    }
-    for (const path of directoryPaths(shown)) {
-      const parent = fileTreeAncestors(path).at(-1);
-      if (
-        model.getItem(path) === null &&
-        parent &&
-        expanded.has(`${parent}/`) &&
-        childCounts.get(`${parent}/`) === 1
-      )
-        expanded.add(path);
-    }
+    const expanded = fileTreeExpansion(
+      shown.map((path) => ({
+        path: path.replace(/\/$/, ''),
+        kind: path.endsWith('/') ? 'directory' : 'file',
+      })),
+      new Set(
+        expandedDirectories(model, shown).map((path) =>
+          path.replace(/\/$/, ''),
+        ),
+      ),
+      new Set(
+        directoryPaths(shown)
+          .filter((path) => model.getItem(path) !== null)
+          .map((path) => path.replace(/\/$/, '')),
+      ),
+    ).map((path) => `${path}/`);
     syncing.current = true;
     {
       const revealPaths = reveal.current.complete
@@ -263,16 +255,7 @@ export function PierreFileTree({
       model.resetPaths(
         pendingCreate.current ? [...shown, pendingCreate.current.path] : shown,
         {
-          initialExpandedPaths: [
-            ...new Set([
-              ...[...expanded].filter((path) =>
-                fileTreeAncestors(path).every((parent) =>
-                  expanded.has(`${parent}/`),
-                ),
-              ),
-              ...revealPaths,
-            ]),
-          ],
+          initialExpandedPaths: [...new Set([...expanded, ...revealPaths])],
         },
       );
       const selectedItem = model.getItem(selected);

@@ -1,5 +1,9 @@
 import { expect, test } from 'vitest';
-import { mergeFileTreeEntries, visibleFileTreeRows } from './file-tree.ts';
+import {
+  fileTreeExpansion,
+  mergeFileTreeEntries,
+  visibleFileTreeRows,
+} from './file-tree.ts';
 test('folder reads attach only to currently reachable parents and preserve file identities', () => {
   const directories = [
     {
@@ -126,4 +130,17 @@ test('rows list folders before files at every level, nest under expanded ancesto
     '0 a-link',
     '0 README.md',
   ]);
+});
+
+test('a newly loaded single child of an open parent opens', () => {
+  expect(
+    fileTreeExpansion(
+      [
+        { path: 'a', kind: 'directory' },
+        { path: 'a/b', kind: 'directory' },
+      ],
+      new Set(['a']),
+      new Set(['a']),
+    ),
+  ).toEqual(['a', 'a/b']);
 });

@@ -74,12 +74,20 @@ test('closing a folder before its lazy read finishes keeps its new chain closed'
   await agent.editFile({ kind: 'create', path: 'a', entryKind: 'directory' });
   await agent.editFile({ kind: 'create', path: 'a/b', entryKind: 'directory' });
   await repo.write('a/b/unread.txt', 'Do not load yet\n');
+  await agent.editFile({
+    kind: 'create',
+    path: 'sibling',
+    entryKind: 'directory',
+  });
+  await repo.write('sibling/settled.txt', 'Sibling loaded\n');
   const reads = fetchGate.recordDirectoryReads();
-  const held = fetchGate.holdNextDirectoryRead();
+  const held = fetchGate.holdNextDirectoryRead('a');
+  const forbidden = fetchGate.holdNextDirectoryRead('a/b');
   const page = await render.workspace();
   await page.getByRole('button', { name: 'Review', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   held.arm();
+  forbidden.arm();
   try {
     const folder = page.getByRole('treeitem', { name: 'a', exact: true });
     await folder.click();
@@ -90,13 +98,22 @@ test('closing a folder before its lazy read finishes keeps its new chain closed'
     held.release();
     await expect
       .element(page.getByRole('treeitem', { name: 'a / b', exact: true }))
+      .toBeVisible();
+    await page.getByRole('treeitem', { name: 'sibling', exact: true }).click();
+    await expect
+      .element(page.getByRole('treeitem', { name: 'settled.txt', exact: true }))
+      .toBeVisible();
+    await expect.poll(() => forbidden.held()).toBe(false);
+    await expect.poll(() => reads).not.toContain('a/b');
+    await expect
+      .element(page.getByRole('treeitem', { name: 'a / b', exact: true }))
       .toHaveAttribute('aria-expanded', 'false');
     await expect
       .element(page.getByRole('treeitem', { name: 'unread.txt', exact: true }))
       .not.toBeInTheDocument();
     await expect.poll(() => reads).toContain('a');
-    await expect.poll(() => reads).not.toContain('a/b');
   } finally {
+    forbidden.release();
     held.release();
   }
 });

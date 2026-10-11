@@ -24,6 +24,36 @@ export function fileTreeAncestors(path: string): string[] {
     .map((_, index) => segments.slice(0, index + 1).join('/'));
 }
 
+export function fileTreeExpansion(
+  entries: readonly Pick<FileTreeEntry, 'path' | 'kind'>[],
+  open: ReadonlySet<string>,
+  known: ReadonlySet<string>,
+): string[] {
+  const directories = entries
+    .filter((entry) => entry.kind === 'directory')
+    .map((entry) => entry.path)
+    .sort((left, right) => left.localeCompare(right));
+  const expanded = new Set(directories.filter((path) => open.has(path)));
+  const childCounts = new Map<string, number>();
+  for (const entry of entries) {
+    const parent = fileTreeAncestors(entry.path).at(-1);
+    if (parent) childCounts.set(parent, (childCounts.get(parent) ?? 0) + 1);
+  }
+  for (const path of directories) {
+    const parent = fileTreeAncestors(path).at(-1);
+    if (
+      !known.has(path) &&
+      parent &&
+      expanded.has(parent) &&
+      childCounts.get(parent) === 1
+    )
+      expanded.add(path);
+  }
+  return [...expanded].filter((path) =>
+    fileTreeAncestors(path).every((parent) => expanded.has(parent)),
+  );
+}
+
 export function mergeFileTreeEntries(
   directories: readonly Directory[],
 ): FileTreeEntry[] {

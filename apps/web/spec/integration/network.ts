@@ -1,4 +1,4 @@
-type FetchMatch = (path: string, init: RequestInit | undefined) => boolean;
+type FetchMatch = (url: URL, init: RequestInit | undefined) => boolean;
 
 function requestUrl(input: RequestInfo | URL): URL {
   const address =
@@ -57,7 +57,7 @@ export function createFetchGate(filePath: string) {
     let open = false;
     window.fetch = async (input, init) => {
       const url = requestUrl(input);
-      if (armed && !open && matches(url.pathname, init)) {
+      if (armed && !open && matches(url, init)) {
         held = true;
         requested.resolve();
         await released.promise;
@@ -101,7 +101,7 @@ export function createFetchGate(filePath: string) {
     },
     holdNextChangeDiff() {
       const gate = holdNextFetch(
-        (path, init) =>
+        (url, init) =>
           init?.method === 'POST' &&
           (typeof init.body === 'string'
             ? init.body
@@ -109,24 +109,28 @@ export function createFetchGate(filePath: string) {
               ? new TextDecoder().decode(init.body)
               : ''
           ).includes(filePath) &&
-          path.endsWith('/changes/diffs'),
+          url.pathname.endsWith('/changes/diffs'),
       );
       restores.push(holdLiveNotices(gate.held));
       return gate;
     },
     holdNextReviewRead: () =>
       holdNextFetch(
-        (path, init) =>
-          (init?.method ?? 'GET') === 'GET' && path.endsWith('/review'),
+        (url, init) =>
+          (init?.method ?? 'GET') === 'GET' && url.pathname.endsWith('/review'),
       ),
-    holdNextDirectoryRead: () =>
+    holdNextDirectoryRead: (directory?: string) =>
       holdNextFetch(
-        (path, init) =>
-          (init?.method ?? 'GET') === 'GET' && path.endsWith('/directory'),
+        (url, init) =>
+          (init?.method ?? 'GET') === 'GET' &&
+          url.pathname.endsWith('/directory') &&
+          (directory === undefined ||
+            url.searchParams.get('path') === directory),
       ),
     holdNextPost: (pathEnding: string) =>
       holdNextFetch(
-        (path, init) => init?.method === 'POST' && path.endsWith(pathEnding),
+        (url, init) =>
+          init?.method === 'POST' && url.pathname.endsWith(pathEnding),
       ),
     restore() {
       for (const restore of restores.splice(0).reverse()) restore();
