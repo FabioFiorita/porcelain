@@ -127,6 +127,25 @@ it('encodes reserved path characters once and preserves the transport policy', a
   });
   expect(sent[0]?.init?.signal?.aborted).toBe(false);
 });
+it('answers a file over the read limit with a readable reason instead of failing the read', async () => {
+  const subject = fixture(() =>
+    Promise.resolve(
+      Response.json(
+        {
+          statusCode: 422,
+          error: 'Unprocessable Entity',
+          message: 'File exceeds the read limit',
+          code: 'file_too_large',
+        },
+        { status: 422 },
+      ),
+    ),
+  );
+  expect(await read(subject)).toEqual({
+    kind: 'unreadable',
+    reason: 'This file is too large to display as text.',
+  });
+});
 it('rejects malformed success data', async () => {
   const subject = fixture(() =>
     Promise.resolve(Response.json({ malformed: true })),
