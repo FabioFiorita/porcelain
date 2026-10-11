@@ -16,6 +16,7 @@ export interface ReviewStore {
   findSummary(
     input: ReviewSummaryKey,
   ): Effect.Effect<ReviewSummary | undefined>;
+  remove(input: WorktreeKey): Effect.Effect<boolean>;
   save(input: ReviewSave): Effect.Effect<void>;
   readProofFile(input: ProofFileKey): Effect.Effect<ProofFile | undefined>;
   setActive(input: ReviewActivity): Effect.Effect<void>;

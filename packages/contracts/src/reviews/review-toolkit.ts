@@ -11,9 +11,13 @@ import {
   updateCommentThreadResponseSchema,
 } from './comments.ts';
 
-import { readPublishedReviewResponseSchema } from './review.ts';
+import {
+  deleteReviewResponseSchema,
+  readPublishedReviewResponseSchema,
+} from './review.ts';
 
 import {
+  deleteReviewToolRequestSchema,
   createCommentToolRequestSchema,
   listCommentsToolRequestSchema,
   publishReviewToolRequestSchema,
@@ -34,6 +38,19 @@ const publish_review = Tool.make('publish_review', {
   .annotate(Tool.Strict, true)
   .annotate(Tool.OpenWorld, false)
   .annotate(Tool.Destructive, true);
+
+const delete_review = Tool.make('delete_review', {
+  parameters: deleteReviewToolRequestSchema,
+  success: deleteReviewResponseSchema,
+  failure: apiErrorSchema,
+  failureMode: 'return',
+  description:
+    'Permanently delete the published review, its proof files and reviewed layer decisions for this worktree. Comment threads and reviewed file marks stay. Returns deleted false if there was no review.',
+})
+  .annotate(Tool.Strict, true)
+  .annotate(Tool.OpenWorld, false)
+  .annotate(Tool.Destructive, true)
+  .annotate(Tool.Idempotent, true);
 
 const read_review = Tool.make('read_review', {
   parameters: readReviewToolRequestSchema,
@@ -99,6 +116,7 @@ const resolve_comment = Tool.make('resolve_comment', {
 
 export const ReviewToolkit = Toolkit.make(
   publish_review,
+  delete_review,
   read_review,
   list_comments,
   create_comment,

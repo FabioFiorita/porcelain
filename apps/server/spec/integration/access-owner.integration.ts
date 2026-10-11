@@ -284,6 +284,7 @@ test('the owner socket serves the review MCP endpoint with its review tools', as
       .sort(),
   ).toStrictEqual([
     'create_comment',
+    'delete_review',
     'list_comments',
     'publish_review',
     'read_review',
