@@ -2153,6 +2153,22 @@ export default {
         const message =
           'Server specs and kits wait for an observable event or state, because fixed sleeps race machines with different speeds.';
         const delays = new Set(['delay', 'sleep', 'waitForTimeout']);
+        function callsResolver(node, name) {
+          if (!node || typeof node !== 'object') return false;
+          if (
+            node.type === 'CallExpression' &&
+            node.callee.type === 'Identifier' &&
+            node.callee.name === name
+          )
+            return true;
+          return Object.entries(node).some(
+            ([field, value]) =>
+              field !== 'parent' &&
+              (Array.isArray(value)
+                ? value.some((child) => callsResolver(child, name))
+                : callsResolver(value, name)),
+          );
+        }
         return {
           ImportDeclaration(node) {
             if (
@@ -2172,11 +2188,7 @@ export default {
                   ? memberName(node.callee)
                   : undefined;
             if (delays.has(name)) context.report({ node, message });
-            if (
-              name !== 'setTimeout' ||
-              node.arguments[0]?.type !== 'Identifier'
-            )
-              return;
+            if (name !== 'setTimeout') return;
             let executor = node.parent;
             while (
               executor &&
@@ -2192,10 +2204,20 @@ export default {
               promise?.type === 'NewExpression' &&
               promise.callee.type === 'Identifier' &&
               promise.callee.name === 'Promise' &&
-              executor.params[0]?.type === 'Identifier' &&
-              executor.params[0].name === node.arguments[0].name
-            )
-              context.report({ node, message });
+              executor.params[0]?.type === 'Identifier'
+            ) {
+              const resolver = executor.params[0].name;
+              const callback = node.arguments[0];
+              if (
+                (callback?.type === 'Identifier' &&
+                  callback.name === resolver) ||
+                (['ArrowFunctionExpression', 'FunctionExpression'].includes(
+                  callback?.type,
+                ) &&
+                  callsResolver(callback.body, resolver))
+              )
+                context.report({ node, message });
+            }
           },
         };
       },

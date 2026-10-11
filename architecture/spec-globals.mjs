@@ -9,14 +9,19 @@ function globalRoot(node) {
 export function replacesGlobal(node) {
   if (node.type === 'AssignmentExpression')
     return node.left.type === 'MemberExpression' && globalRoot(node.left);
+  if (
+    node.type !== 'CallExpression' ||
+    node.callee.type !== 'MemberExpression' ||
+    node.callee.object.type !== 'Identifier'
+  )
+    return false;
+  const owner = node.callee.object.name;
+  const method = node.callee.computed
+    ? node.callee.property.value
+    : node.callee.property.name;
   return (
-    node.type === 'CallExpression' &&
-    node.callee.type === 'MemberExpression' &&
-    node.callee.object.type === 'Identifier' &&
-    node.callee.object.name === 'Object' &&
-    (node.callee.computed
-      ? node.callee.property.value
-      : node.callee.property.name) === 'defineProperty' &&
+    ((method === 'defineProperty' && ['Object', 'Reflect'].includes(owner)) ||
+      (method === 'assign' && owner === 'Object')) &&
     globalRoot(node.arguments[0])
   );
 }

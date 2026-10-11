@@ -20,7 +20,11 @@ export function AppProviders({
     <StrictMode>
       <RegistryContext.Provider value={registry}>
         <HotkeysProvider
-          defaultOptions={{ hotkey: { conflictBehavior: 'error' } }}
+          defaultOptions={{
+            hotkey: {
+              conflictBehavior: import.meta.env.DEV ? 'error' : 'warn',
+            },
+          }}
         >
           <TooltipProvider>
             <WorkspaceProvider>

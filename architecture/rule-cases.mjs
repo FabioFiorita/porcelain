@@ -130,6 +130,33 @@ export default [
     errors: 1,
   },
   {
+    rule: 'server-spec-no-waits',
+    path: 'apps/server/spec/kit/sample.ts',
+    valid:
+      'new Promise((resolve, reject) => setTimeout(() => reject(new Error("deadline")), 10)); new Promise(r => setTimeout(() => notify(), 10));',
+    invalid:
+      'new Promise((r) => setTimeout(() => r(undefined), 10)); new Promise((resolve) => setTimeout(() => { resolve(); }, 10)); new Promise((resolve) => setTimeout(function () { return resolve(); }, 10));',
+    errors: 3,
+  },
+  {
+    rule: 'spec-no-mocking',
+    path: 'packages/client/src/rules/sample.spec.ts',
+    valid:
+      'Reflect.defineProperty(local, "value", { value: 1 }); Object.assign(local, { value: 1 }); Object.assign({}, window);',
+    invalid:
+      'Reflect.defineProperty(console, "warn", { value: () => {} }); Reflect["defineProperty"](globalThis, "fetch", { value: () => {} }); Object.assign(window, { fetch: () => {} }); Object["assign"](console, { warn: () => {} });',
+    errors: 4,
+  },
+  {
+    rule: 'web-browser-spec-no-mocks',
+    path: 'apps/web/spec/integration/sample.test.tsx',
+    valid:
+      'Reflect.defineProperty(local, "value", { value: 1 }); Object.assign(local, { value: 1 }); Object.assign({}, window);',
+    invalid:
+      'Reflect.defineProperty(console, "warn", { value: () => {} }); Reflect["defineProperty"](globalThis, "fetch", { value: () => {} }); Object.assign(window, { fetch: () => {} }); Object["assign"](console, { warn: () => {} });',
+    errors: 4,
+  },
+  {
     rule: 'spec-no-mocking',
     path: 'packages/client/src/rules/sample.spec.ts',
     valid: 'Object.defineProperty(local, "value", { value: 1 });',

@@ -32,7 +32,11 @@ test('split tabs register their shortcuts once and Alt+W closes the focused pane
     .element(left.getByRole('tab', { name: tab, exact: true }))
     .toBeVisible();
   await right.getByRole('tab', { name: tab, exact: true }).click();
-  await expect(tabShortcuts.registerDuplicate()).rejects.toThrow();
+  await expect(tabShortcuts.registerDuplicate()).rejects.toThrow(
+    new Error(
+      "'Alt+W' is already registered. Use conflictBehavior: 'replace' to replace the existing handler, or conflictBehavior: 'allow' to allow multiple registrations.",
+    ),
+  );
   await expect
     .poll(() => tabShortcuts.registered())
     .toEqual([

@@ -1211,16 +1211,20 @@ export class IsolatedServer extends ServerHandle {
   async stop(): Promise<string | undefined> {
     this.child.kill('SIGTERM');
     let timer: NodeJS.Timeout | undefined;
+    const timeoutMessage = 'Isolated server did not stop within 10 seconds';
     const closed = await Promise.race([
       this.exited.then(() => true),
-      new Promise<false>((resolveTimeout) => {
-        timer = setTimeout(() => resolveTimeout(false), STOP_TIMEOUT_MS);
-      }),
+      new Promise<never>((_resolveTimeout, rejectTimeout) => {
+        timer = setTimeout(
+          () => rejectTimeout(new Error(timeoutMessage)),
+          STOP_TIMEOUT_MS,
+        );
+      }).catch(() => false),
     ]);
     if (timer) clearTimeout(timer);
     if (closed) return undefined;
     this.child.kill('SIGKILL');
     await this.exited;
-    return 'Isolated server did not stop within 10 seconds';
+    return timeoutMessage;
   }
 }

@@ -67,13 +67,14 @@ const clock =
     ? new OffsetClock(Effect.runSync(Clock.Clock))
     : undefined;
 const control = clock ? createInterface({ input: process.stdin }) : undefined;
-control?.on('line', (line) => {
-  const command = Schema.decodeUnknownSync(
-    Schema.Struct({ advanceTime: Schema.Number, id: Schema.String }),
-  )(JSON.parse(line));
-  clock?.advance(command.advanceTime);
-  process.stdout.write(`${JSON.stringify({ advancedTime: command.id })}\n`);
-});
+if (clock && control)
+  control.on('line', (line) => {
+    const command = Schema.decodeUnknownSync(
+      Schema.Struct({ advanceTime: Schema.Number, id: Schema.String }),
+    )(JSON.parse(line));
+    clock.advance(command.advanceTime);
+    process.stdout.write(`${JSON.stringify({ advancedTime: command.id })}\n`);
+  });
 const runtime = ManagedRuntime.make(
   Layer.mergeAll(
     NodeServices.layer,
