@@ -31,7 +31,7 @@ The sheet opens at half height and can expand to full height. Its React Native c
 
 ## Driving it
 
-1. Select Settings, then Add environment (test id add-environment). Expect Pair an environment.
+1. Select Settings, then Add environment (the + toolbar icon on iOS; test id add-environment where it is a content button). Expect Pair an environment.
 2. Enter invalid-link in the pairing-link field and select Pair (test id pair-environment). Expect the sheet to remain open with an invalid-link explanation; no native device is added on the server.
 3. Use the card's pairing command to mint a fresh link. Paste it in pairing-link, wait for the keyboard animation to settle, then select Pair.
 4. Expect the sheet to close and the environment to show Online. Read back the native device from the disposable server.

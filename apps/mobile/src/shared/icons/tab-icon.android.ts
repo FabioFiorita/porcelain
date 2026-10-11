@@ -6,7 +6,6 @@ const symbols = {
   files: 'folder',
   history: 'history',
   settings: 'settings',
-  workspace: 'filter_list',
 } satisfies Record<IconName, NonNullable<MaterialIcon['md']>>;
 
 export function tabIcon(name: IconName): MaterialIcon {
