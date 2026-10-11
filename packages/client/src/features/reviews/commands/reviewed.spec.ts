@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from 'vitest';
-import { Layer, Effect, Option, Stream, Schema } from 'effect';
+import { Cause, Layer, Effect, Option, Stream, Schema } from 'effect';
 import { AtomRegistry, AsyncResult, type Atom } from 'effect/reactivity';
 import {
   createWorktreeConnection,
@@ -7,7 +7,7 @@ import {
 } from '@porcelain/client/transport';
 import { readReviewedFiles } from '@porcelain/client/reviews';
 import type { ReviewRange } from '@porcelain/client/reviews/rules';
-import { reviewedCommands } from './reviewed.ts';
+import { reviewedCommandFailure, reviewedCommands } from './reviewed.ts';
 
 const scope = { projectId: 'project', worktreeId: '0'.repeat(32) };
 const fingerprint = 'a'.repeat(64);
@@ -398,4 +398,13 @@ it('uses the selected branch for reads and unmarks, its declared base for marks,
       },
     },
   ]);
+});
+
+it('reports the mark failure first, then the unmark failure, and nothing while both succeed', () => {
+  const ok = AsyncResult.success(undefined);
+  const markFailed = AsyncResult.failure(Cause.fail('mark refused'));
+  const unmarkFailed = AsyncResult.failure(Cause.fail('unmark refused'));
+  expect(reviewedCommandFailure(ok, ok)).toBeUndefined();
+  expect(reviewedCommandFailure(markFailed, unmarkFailed)).toBe('mark refused');
+  expect(reviewedCommandFailure(ok, unmarkFailed)).toBe('unmark refused');
 });

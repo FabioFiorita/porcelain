@@ -1,3 +1,4 @@
+import { reviewedCommandFailure } from '@porcelain/client/reviews';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
@@ -75,7 +76,7 @@ export function ReviewedControl({
   const mark = useMarkReviewed(scope, context, range);
   const unmark = useUnmarkReviewed(scope, context, range);
   const pending = mark.result.waiting || unmark.result.waiting;
-  const error = commandError(mark.result, unmark.result);
+  const error = reviewedCommandFailure(mark.result, unmark.result);
 
   if (fingerprint === null || fingerprint === undefined)
     return (
@@ -170,15 +171,6 @@ export function MarkAllReviewed({
       )}
     </span>
   );
-}
-
-function commandError(
-  mark: AsyncResult.AsyncResult<unknown, unknown>,
-  unmark: AsyncResult.AsyncResult<unknown, unknown>,
-) {
-  if (AsyncResult.isFailure(mark)) return Cause.squash(mark.cause);
-  if (AsyncResult.isFailure(unmark)) return Cause.squash(unmark.cause);
-  return undefined;
 }
 
 function ReviewedIcon({

@@ -1,8 +1,9 @@
 import { Box } from '../../../components/ui/box';
 import { useAtom } from '@effect/atom-react';
-import { Cause } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
-import { reviewedCommands } from '@porcelain/client/reviews';
+import {
+  reviewedCommandFailure,
+  reviewedCommands,
+} from '@porcelain/client/reviews';
 import {
   reviewedControlLabel,
   reviewErrorMessage,
@@ -33,7 +34,7 @@ export function ReviewedAction({
   const [mark, set] = useAtom(commands.set);
   const [unmark, remove] = useAtom(commands.remove);
   const pending = mark.waiting || unmark.waiting;
-  const error = reviewedError(mark, unmark);
+  const error = reviewedCommandFailure(mark, unmark);
   return (
     <Box gap={2}>
       {file.fingerprint ? (
@@ -63,15 +64,6 @@ export function ReviewedAction({
       ) : null}
     </Box>
   );
-}
-
-function reviewedError(
-  mark: AsyncResult.AsyncResult<unknown, unknown>,
-  unmark: AsyncResult.AsyncResult<unknown, unknown>,
-) {
-  if (AsyncResult.isFailure(mark)) return Cause.squash(mark.cause);
-  if (AsyncResult.isFailure(unmark)) return Cause.squash(unmark.cause);
-  return undefined;
 }
 
 function reviewedButtonLabel(status: ReviewFile['reviewStatus']) {
