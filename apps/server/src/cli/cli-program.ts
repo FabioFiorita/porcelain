@@ -1,13 +1,28 @@
-import { Effect, Ref, Result } from 'effect';
+import { Console, Effect, Ref, Result } from 'effect';
 import { CliError, Command } from 'effect/cli';
-import { porcelainCommand, CliExit, CliVersion } from './command-tree.ts';
+import {
+  porcelainCommand,
+  desktopMcpCommand,
+  CliExit,
+  CliVersion,
+} from './command-tree.ts';
 
 export const cliProgram = Effect.fn('Cli.run')(function* (
   args: readonly string[],
   version: string,
+  mode: 'server' | 'desktop-mcp' = 'server',
 ) {
   const exitCode = yield* Ref.make(0);
-  yield* Command.runWith(porcelainCommand, { version })(args).pipe(
+  const program =
+    mode === 'desktop-mcp'
+      ? Command.runWith(desktopMcpCommand, { version })(args)
+      : Command.runWith(porcelainCommand, { version })(args);
+  const console = yield* Console.Console;
+  yield* program.pipe(
+    Effect.provideService(
+      Console.Console,
+      mode === 'desktop-mcp' ? { ...console, log: console.error } : console,
+    ),
     Effect.provideService(CliExit, exitCode),
     Effect.provideService(CliVersion, version),
     Effect.catchFilter(

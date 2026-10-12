@@ -12,9 +12,12 @@ import { CliInvocation } from './settings.ts';
 function agentCli(
   args: readonly string[],
   environment: PorcelainEnvironment = {},
+  mode: 'server' | 'desktop-mcp' = 'server',
 ) {
   const calls: { operation: string; input: unknown }[] = [];
   const output: string[] = [];
+  const stdout: string[] = [];
+  const stderr: string[] = [];
   const record = (operation: string, input: unknown) =>
     Effect.sync(() => {
       calls.push({ operation, input });
@@ -32,10 +35,18 @@ function agentCli(
   });
   const console: Console.Console = {
     ...globalThis.console,
-    log: (...values: readonly unknown[]) => output.push(values.join(' ')),
-    error: (...values: readonly unknown[]) => output.push(values.join(' ')),
+    log: (...values: readonly unknown[]) => {
+      const message = values.join(' ');
+      stdout.push(message);
+      output.push(message);
+    },
+    error: (...values: readonly unknown[]) => {
+      const message = values.join(' ');
+      stderr.push(message);
+      output.push(message);
+    },
   };
-  return cliProgram(args, '1.2.3').pipe(
+  return cliProgram(args, '1.2.3', mode).pipe(
     Effect.provide(
       Layer.mergeAll(
         operations,
@@ -49,7 +60,7 @@ function agentCli(
       ),
     ),
     Effect.provideService(Console.Console, console),
-    Effect.map((code) => ({ code, calls, output })),
+    Effect.map((code) => ({ code, calls, output, stdout, stderr })),
   );
 }
 
@@ -400,4 +411,57 @@ it.effect(
         },
       ]);
     }),
+);
+
+it.effect(
+  'desktop MCP ignores environment defaults and targets its explicit server directory',
+  () =>
+    Effect.gen(function* () {
+      const result = yield* agentCli(
+        ['--data-directory', '/tmp/Porcelain Dev/server'],
+        { PORCELAIN_DATA_DIRECTORY: '/wrong-profile' },
+        'desktop-mcp',
+      );
+      expect(result.code).toBe(0);
+      expect(result.stdout).toEqual([]);
+      expect(result.stderr).toEqual([]);
+      expect(result.calls).toEqual([
+        { operation: 'mcp', input: { dataDirectory: '/tmp/Porcelain Dev/server' } },
+      ]);
+    }),
+);
+
+it.effect(
+  'desktop MCP keeps invalid argument presentation off protocol stdout',
+  () =>
+    Effect.gen(function* () {
+      for (const args of [
+        [],
+        ['--data-directory', 'relative/server'],
+        ['--data-directory', '/tmp/invalid\0/server'],
+        ['serve', '--data-directory', '/tmp/profile/server'],
+        ['--data-directory', '/tmp/profile/server', '--port', '0'],
+        ['--data-directory', '/tmp/profile/server', '--unknown'],
+      ]) {
+        const result = yield* agentCli(
+          args,
+          { PORCELAIN_DATA_DIRECTORY: '/wrong-profile' },
+          'desktop-mcp',
+        );
+        expect(result.code).toBe(1);
+        expect(result.calls).toEqual([]);
+        expect(result.stdout).toEqual([]);
+        expect(result.stderr.length).toBeGreaterThan(0);
+      }
+    }),
+);
+
+it.effect('desktop MCP prints requested help to stderr without starting a relay', () =>
+  Effect.gen(function* () {
+    const result = yield* agentCli(['--help'], {}, 'desktop-mcp');
+    expect(result.code).toBe(0);
+    expect(result.calls).toEqual([]);
+    expect(result.stdout).toEqual([]);
+    expect(result.stderr.join('\n')).toContain('--data-directory');
+  }),
 );
