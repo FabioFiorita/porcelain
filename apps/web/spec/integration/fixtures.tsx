@@ -36,10 +36,12 @@ import {
   sampleRepository,
   type SampleRepository,
 } from '../kit/shapes.ts';
+import { createPierreCodeView } from './pierre-code-view.ts';
 import { host } from './commands.ts';
-import { createExportHighlightGate, createFetchGate, live } from './network.ts';
+import { createFetchGate, live } from './network.ts';
 
 export { expect };
+export { expectInputFocus } from './focus.ts';
 export { replaceEditorContent } from './commands.ts';
 
 export type Repo = SampleRepository;
@@ -322,10 +324,10 @@ export const test = base
     return workspace;
   })
   .extend('navigator', ({ render }) => render.navigator())
-  .extend('exportHighlight', ({ world: _world }, { onCleanup }) => {
-    const gate = createExportHighlightGate();
-    onCleanup(() => gate.restore());
-    return gate;
+  .extend('pierreCodeView', ({ world: _world }, { onCleanup }) => {
+    const viewer = createPierreCodeView();
+    onCleanup(() => viewer.dispose());
+    return viewer;
   })
   .extend('fetchGate', ({ repo }, { onCleanup }) => {
     const gate = createFetchGate(repo.readme.path);

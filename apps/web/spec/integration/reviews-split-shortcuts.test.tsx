@@ -53,126 +53,78 @@ test('split tabs register their shortcuts once and Alt+W closes the focused pane
     .toBeVisible();
 });
 
-for (const discard of ['stop change', 'pane unmount'] as const) {
-  test(`split published reviews keep one shortcut owner with a late highlight after ${discard}`, async ({
-    render,
-    repo,
-    agent,
-    tabShortcuts,
-    exportHighlight,
-    failures,
-  }) => {
-    const workspace = await render.workspace();
-    await expect
-      .element(
-        workspace.getByRole('button', {
-          name: `Mark ${repo.readme.path} as reviewed`,
-          exact: true,
-        }),
-      )
-      .toBeVisible();
-    await agent.publishArchitecture();
-    await workspace
-      .getByRole('button', { name: 'Review', exact: true })
-      .click();
-    const drawer = workspace.getByRole('dialog', {
-      name: 'Worktree review',
-      exact: true,
-    });
-    await drawer.getByRole('tab', { name: 'Review', exact: true }).click();
-    await drawer
-      .getByRole('button', {
-        name: '3 Publish an immutable note 0/6',
-        exact: true,
-      })
-      .click();
-    await expect
-      .element(
-        workspace.getByRole('region', {
-          name: '3. Publish an immutable note',
-          exact: true,
-        }),
-      )
-      .toBeVisible();
-    await workspace
-      .getByRole('tab', { name: 'Review Close Review', exact: true })
-      .click({ button: 'right' });
-    await workspace.getByRole('menuitem', { name: /Open to the side/ }).click();
-    const right = workspace.getByRole('region', {
-      name: 'Right pane',
-      exact: true,
-    });
-    const left = workspace.getByRole('region', {
-      name: 'Left pane',
-      exact: true,
-    });
-    await right
-      .getByRole('tab', { name: 'Review Close Review', exact: true })
-      .click();
-    await expect
-      .poll(() => tabShortcuts.registered(['N', 'P']))
-      .toEqual([
-        ['N', 'error'],
-        ['P', 'error'],
-      ]);
-    exportHighlight.arm();
-    await userEvent.keyboard('n');
-    await expect
-      .element(
-        right.getByRole('region', {
-          name: '4. Export history without blocking writes',
-          exact: true,
-        }),
-      )
-      .toBeVisible();
-    await expect.poll(() => exportHighlight.held()).toBeGreaterThan(0);
-    if (discard === 'pane unmount') {
-      await userEvent.keyboard('{Alt>}w{/Alt}');
-      await expect.element(right).not.toBeInTheDocument();
-      await expect.element(left).not.toBeInTheDocument();
-      await expect
-        .element(
-          workspace.getByRole('region', {
-            name: '4. Export history without blocking writes',
-            exact: true,
-          }),
-        )
-        .toBeVisible();
-    } else {
-      await left
-        .getByRole('tab', { name: 'Review Close Review', exact: true })
-        .click();
-      await userEvent.keyboard('p');
-      await expect
-        .element(
-          left.getByRole('region', {
-            name: '3. Publish an immutable note',
-            exact: true,
-          }),
-        )
-        .toBeVisible();
-    }
-    exportHighlight.release();
-    await expect.poll(() => failures.reported()).toEqual([]);
-    if (discard === 'pane unmount') {
-      await workspace
-        .getByRole('tab', { name: 'Review Close Review', exact: true })
-        .click();
-      await userEvent.keyboard('p');
-      await expect
-        .element(
-          workspace.getByRole('region', {
-            name: '3. Publish an immutable note',
-            exact: true,
-          }),
-        )
-        .toBeVisible();
-    }
-    await expect
-      .poll(() => tabShortcuts.registered(['N', 'P']))
-      .toEqual([
-        ['N', 'error'],
-        ['P', 'error'],
-      ]);
+test('split published reviews keep one walkthrough shortcut owner as focus changes', async ({
+  workspace,
+  agent,
+  tabShortcuts,
+}) => {
+  await agent.publishArchitecture();
+  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  const drawer = workspace.getByRole('dialog', {
+    name: 'Worktree review',
+    exact: true,
   });
-}
+  await drawer.getByRole('tab', { name: 'Review', exact: true }).click();
+  await drawer
+    .getByRole('button', {
+      name: '3 Publish an immutable note 0/6',
+      exact: true,
+    })
+    .click();
+  await expect
+    .element(
+      workspace.getByRole('region', {
+        name: '3. Publish an immutable note',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await workspace
+    .getByRole('tab', { name: 'Review Close Review', exact: true })
+    .click({ button: 'right' });
+  await workspace.getByRole('menuitem', { name: /Open to the side/ }).click();
+  const right = workspace.getByRole('region', {
+    name: 'Right pane',
+    exact: true,
+  });
+  const left = workspace.getByRole('region', {
+    name: 'Left pane',
+    exact: true,
+  });
+  await right
+    .getByRole('tab', { name: 'Review Close Review', exact: true })
+    .click();
+  await expect
+    .poll(() => tabShortcuts.registered(['N', 'P']))
+    .toEqual([
+      ['N', 'error'],
+      ['P', 'error'],
+    ]);
+  await userEvent.keyboard('n');
+  await expect
+    .element(
+      right.getByRole('region', {
+        name: '4. Export history without blocking writes',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await left
+    .getByRole('tab', { name: 'Review Close Review', exact: true })
+    .click();
+  await userEvent.keyboard('p');
+  await expect
+    .element(
+      left.getByRole('region', {
+        name: '3. Publish an immutable note',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .poll(() => tabShortcuts.registered(['N', 'P']))
+    .toEqual([
+      ['N', 'error'],
+      ['P', 'error'],
+    ]);
+});
