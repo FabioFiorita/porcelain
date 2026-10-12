@@ -108,6 +108,9 @@ export const readServiceUpdate = Atom.family((connection: RuntimeConnection) =>
       requestApi(connection, (api) => api.serviceUpdates.readServiceUpdate()),
     ),
     SERVICE_UPDATE_POLL_MS,
-    (answer) => answer?.running === true,
+    (answer) =>
+      answer?.running === true ||
+      (answer?.last?.stage === 'updated' &&
+        answer.version !== answer.last.target),
   ),
 );

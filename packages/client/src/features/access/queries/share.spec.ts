@@ -108,7 +108,13 @@ it.effect(
         return Promise.resolve(
           reads === 2
             ? new Response(null, { status: 503 })
-            : Response.json(reads === 1 ? running : updated),
+            : Response.json(
+                reads === 1
+                  ? running
+                  : reads === 3
+                    ? { ...updated, version: '1.0.0' }
+                    : updated,
+              ),
         );
       });
       connection.atoms.addGlobalLayer(
@@ -128,12 +134,19 @@ it.effect(
       expect(
         Option.getOrUndefined(AsyncResult.value(registry.get(atom))),
       ).toMatchObject({
+        version: '1.0.0',
+        last: { stage: 'updated' },
+      });
+      yield* TestClock.adjust(1000);
+      expect(
+        Option.getOrUndefined(AsyncResult.value(registry.get(atom))),
+      ).toMatchObject({
         running: false,
         version: '1.1.0',
         last: { stage: 'updated' },
       });
       yield* TestClock.adjust(3000);
-      expect(reads).toBe(3);
+      expect(reads).toBe(4);
     }),
 );
 

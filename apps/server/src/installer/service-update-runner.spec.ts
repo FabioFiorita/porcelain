@@ -124,6 +124,74 @@ afterEach(() => {
 
 describe('the installed service update runner', () => {
   it.effect(
+    'rechecks updater ownership when a handoff occurs during an inactive reader registry request',
+    () =>
+      Effect.gen(function* () {
+        const viewing = yield* Deferred.make<void>();
+        const releaseView = yield* Deferred.make<Answer>();
+        const handedOff = yield* Deferred.make<void>();
+        const updater = yield* runner(runtimePackage(), (command, args) => {
+          if (command === 'systemd-run')
+            return Effect.sync(() => {
+              updaterActive = true;
+              return { code: 0, stdout: '', stderr: '' };
+            }).pipe(Effect.tap(() => Deferred.succeed(handedOff, undefined)));
+          return answer(command, args);
+        });
+        const reader = yield* runner(runtimePackage(), (command, args) => {
+          if (command === 'npm' && args[0] === 'view')
+            return Deferred.succeed(viewing, undefined).pipe(
+              Effect.andThen(Deferred.await(releaseView)),
+            );
+          return answer(command, args);
+        });
+        const reading = yield* Effect.forkChild(
+          reader.read(
+            check('2026-10-10T12:00:00.000Z', '2026-10-10T11:00:00.000Z'),
+          ),
+        );
+        yield* Deferred.await(viewing);
+        yield* updater.start({ version: '1.1.0' });
+        yield* Deferred.await(handedOff);
+        yield* updater.close();
+        const recordPath = join(
+          home,
+          '.local/share/porcelain/service/update-record.json',
+        );
+        writeFileSync(
+          recordPath,
+          JSON.stringify({
+            from: '1.0.0',
+            target: '1.1.0',
+            stage: 'restarting',
+          }),
+        );
+        yield* Deferred.succeed(releaseView, {
+          code: 0,
+          stdout: '"1.1.0"',
+          stderr: '',
+        });
+        expect(yield* Fiber.join(reading)).toMatchObject({
+          running: true,
+          last: { stage: 'restarting', reason: undefined },
+        });
+        updaterActive = false;
+        const deadReader = yield* runner();
+        expect(
+          yield* deadReader.read(
+            check('2026-10-10T12:01:00.000Z', '2026-10-10T11:00:00.000Z'),
+          ),
+        ).toMatchObject({
+          running: false,
+          last: {
+            stage: 'failed',
+            reason: 'The update stopped before it finished',
+          },
+        });
+      }).pipe(TestClock.withLive),
+  );
+
+  it.effect(
     'keeps overlapping status reads available without inventing an update',
     () =>
       Effect.gen(function* () {
