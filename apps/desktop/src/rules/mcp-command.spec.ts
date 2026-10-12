@@ -26,17 +26,8 @@ describe('desktopMcpCommand', () => {
       ['-c', `claude() { printf '%s\\n' "$@"; }; ${command}`],
       { encoding: 'utf8' },
     );
-    expect(output.split('\n')).toEqual([
-      'mcp',
-      'add',
-      'porcelain',
-      '--',
-      '/tmp/Electron Dev',
-      '/tmp/stage/desktop/main.mjs',
-      '--porcelain-mcp',
-      '--data-directory',
-      "/tmp/agent's $(printf injected); `printf injected`/server",
-      '',
-    ]);
+    expect(output).toBe(
+      "mcp\nadd\nporcelain\n--\n/tmp/Electron Dev\n/tmp/stage/desktop/main.mjs\n--porcelain-mcp\n--data-directory\n/tmp/agent's $(printf injected); `printf injected`/server\n",
+    );
   });
 });

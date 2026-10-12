@@ -142,6 +142,9 @@ function SpecFilesSetting() {
 function AgentsSetting() {
   const { configuration, failed, retry } = useMcpConfiguration();
   const command = desktopShell ? configuration?.command : mcpCommand;
+  const status = failed
+    ? ' MCP configuration is unavailable.'
+    : ' Loading MCP configuration…';
   return (
     <Item variant="outline">
       <ItemContent>
@@ -149,30 +152,31 @@ function AgentsSetting() {
         <ItemDescription>
           Agents read and add comments, read reviewed marks, and upload their
           handoff through it. It needs no credential.
-          {desktopShell ? (
-            <>
-              {' '}This command connects to this app's local server while the app
-              is running, including when you are viewing a remote computer.
-              {configuration && (
-                <>
-                  {' '}Local server data: <code>{configuration.dataDirectory}</code>.
-                </>
-              )}
-            </>
-          ) : (
-            ' Run this on the computer hosting your Porcelain server.'
-          )}
+        </ItemDescription>
+        <p className="text-sm text-muted-foreground">
+          {desktopShell
+            ? "This command connects to this app's local server while the app is running, including when you are viewing a remote computer."
+            : 'Run this on the computer hosting your Porcelain server.'}
+        </p>
+        {desktopShell && configuration && (
+          <p className="text-sm text-muted-foreground">
+            Local server data:{' '}
+            <code className="break-all font-mono">
+              {configuration.dataDirectory}
+            </code>
+            .
+          </p>
+        )}
+        <p className="text-sm">
           {command ? (
             <>
-              {' '}Add it to Claude Code with{' '}
-              <code className="font-mono">{command}</code>
+              Add it to Claude Code with{' '}
+              <code className="break-all font-mono">{command}</code>
             </>
-          ) : failed ? (
-            ' MCP configuration is unavailable.'
           ) : (
-            ' Loading MCP configuration…'
+            status
           )}
-        </ItemDescription>
+        </p>
       </ItemContent>
       <ItemActions>
         {desktopShell && failed && (

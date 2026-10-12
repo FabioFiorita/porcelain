@@ -37,7 +37,9 @@ ipcRenderer.on(
 );
 const bridge: DesktopBridge = {
   mcpConfiguration: async () => {
-    const value: unknown = await ipcRenderer.invoke('porcelain:mcp-configuration');
+    const value: unknown = await ipcRenderer.invoke(
+      'porcelain:mcp-configuration',
+    );
     return Schema.decodeUnknownSync(desktopMcpConfigurationSchema)(value);
   },
   pickProjectFolder: async () => {

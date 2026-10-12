@@ -426,42 +426,61 @@ it.effect(
       expect(result.stdout).toEqual([]);
       expect(result.stderr).toEqual([]);
       expect(result.calls).toEqual([
-        { operation: 'mcp', input: { dataDirectory: '/tmp/Porcelain Dev/server' } },
+        {
+          operation: 'mcp',
+          input: { dataDirectory: '/tmp/Porcelain Dev/server' },
+        },
       ]);
     }),
 );
 
-it.effect(
-  'desktop MCP keeps invalid argument presentation off protocol stdout',
-  () =>
-    Effect.gen(function* () {
-      for (const args of [
-        [],
-        ['--data-directory', 'relative/server'],
-        ['--data-directory', '/tmp/invalid\0/server'],
-        ['serve', '--data-directory', '/tmp/profile/server'],
-        ['--data-directory', '/tmp/profile/server', '--port', '0'],
-        ['--data-directory', '/tmp/profile/server', '--unknown'],
-      ]) {
-        const result = yield* agentCli(
-          args,
-          { PORCELAIN_DATA_DIRECTORY: '/wrong-profile' },
-          'desktop-mcp',
-        );
-        expect(result.code).toBe(1);
-        expect(result.calls).toEqual([]);
-        expect(result.stdout).toEqual([]);
-        expect(result.stderr.length).toBeGreaterThan(0);
-      }
-    }),
-);
-
-it.effect('desktop MCP prints requested help to stderr without starting a relay', () =>
-  Effect.gen(function* () {
-    const result = yield* agentCli(['--help'], {}, 'desktop-mcp');
-    expect(result.code).toBe(0);
+it.each([
+  { name: 'missing data directory', args: [] },
+  {
+    name: 'relative data directory',
+    args: ['--data-directory', 'relative/server'],
+  },
+  {
+    name: 'null byte in data directory',
+    args: ['--data-directory', '/tmp/invalid\0/server'],
+  },
+  {
+    name: 'server command',
+    args: ['serve', '--data-directory', '/tmp/profile/server'],
+  },
+  {
+    name: 'server flag',
+    args: ['--data-directory', '/tmp/profile/server', '--port', '0'],
+  },
+  {
+    name: 'unknown flag',
+    args: ['--data-directory', '/tmp/profile/server', '--unknown'],
+  },
+])(
+  'desktop MCP rejects $name without writing presentation to protocol stdout',
+  async ({ args }) => {
+    const result = await Effect.runPromise(
+      agentCli(
+        args,
+        { PORCELAIN_DATA_DIRECTORY: '/wrong-profile' },
+        'desktop-mcp',
+      ),
+    );
+    expect(result.code).toBe(1);
     expect(result.calls).toEqual([]);
     expect(result.stdout).toEqual([]);
-    expect(result.stderr.join('\n')).toContain('--data-directory');
-  }),
+    expect(result.stderr.length).toBeGreaterThan(0);
+  },
+);
+
+it.effect(
+  'desktop MCP prints requested help to stderr without starting a relay',
+  () =>
+    Effect.gen(function* () {
+      const result = yield* agentCli(['--help'], {}, 'desktop-mcp');
+      expect(result.code).toBe(0);
+      expect(result.calls).toEqual([]);
+      expect(result.stdout).toEqual([]);
+      expect(result.stderr.join('\n')).toContain('--data-directory');
+    }),
 );

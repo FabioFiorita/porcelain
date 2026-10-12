@@ -18,11 +18,16 @@ export const cliProgram = Effect.fn('Cli.run')(function* (
       ? Command.runWith(desktopMcpCommand, { version })(args)
       : Command.runWith(porcelainCommand, { version })(args);
   const console = yield* Console.Console;
+  const presentation = new Proxy(console, {
+    get(target, property, receiver) {
+      if (mode === 'desktop-mcp' && property === 'log')
+        return (...values: readonly unknown[]) => target.error(...values);
+      const value: unknown = Reflect.get(target, property, receiver);
+      return value;
+    },
+  });
   yield* program.pipe(
-    Effect.provideService(
-      Console.Console,
-      mode === 'desktop-mcp' ? { ...console, log: console.error } : console,
-    ),
+    Effect.provideService(Console.Console, presentation),
     Effect.provideService(CliExit, exitCode),
     Effect.provideService(CliVersion, version),
     Effect.catchFilter(

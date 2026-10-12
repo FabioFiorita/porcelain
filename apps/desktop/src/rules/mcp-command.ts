@@ -11,6 +11,10 @@ export function desktopMcpCommand(
 ): string {
   const arguments_ = [resolve(executable)];
   if (entry !== undefined) arguments_.push(resolve(entry));
-  arguments_.push('--porcelain-mcp', '--data-directory', resolve(dataDirectory));
+  arguments_.push(
+    '--porcelain-mcp',
+    '--data-directory',
+    resolve(dataDirectory),
+  );
   return `claude mcp add porcelain -- ${arguments_.map(shellQuote).join(' ')}`;
 }

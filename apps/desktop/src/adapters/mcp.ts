@@ -6,9 +6,7 @@ export async function runDesktopMcp(): Promise<void> {
   const args = process.argv
     .slice(app.isPackaged ? 1 : 2)
     .filter((argument) => argument !== '--porcelain-mcp');
-  const code = await Effect.runPromise(
-    relayDesktopMcp(args, app.getVersion()),
-  );
+  const code = await Effect.runPromise(relayDesktopMcp(args, app.getVersion()));
   await new Promise<void>((resolve) =>
     process.stdout.write('', () => resolve()),
   );
