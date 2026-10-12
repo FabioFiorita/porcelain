@@ -202,3 +202,149 @@ for (const first of ['changes', 'publication'] as const) {
     }
   });
 }
+
+async function expectClosedFile(page: Page, path: string) {
+  await expect(
+    page.getByRole('tablist', { name: 'Open documents', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Toggle Sidebar', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Review', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: `Close ${path}`, exact: true }),
+  ).not.toBeAttached();
+  await expect(
+    page.getByRole('status', { name: 'Loading review', exact: true }),
+  ).not.toBeAttached();
+  await expect(
+    page.getByRole('button', { name: 'Try again', exact: true }),
+  ).not.toBeAttached();
+  await expect(
+    page
+      .getByRole('tablist', { name: 'Open documents', exact: true })
+      .getByRole('tab'),
+  ).toHaveCount(0);
+}
+
+for (const target of ['entry', 'side']) {
+  for (const read of ['changes', 'publication']) {
+    test(`closing a cold explicit ${target} stays empty while ${read} is held and after release`, async ({
+      page,
+      live,
+      app,
+      repo,
+      agent,
+    }) => {
+      if (read === 'publication') {
+        await repo.commit('Commit the sample change');
+        await agent.publishReview('Published context', 'context');
+      }
+      const held = await (read === 'changes'
+        ? live.holdChangesRead()
+        : live.holdPublishedReviewRead());
+      held.arm();
+      try {
+        await app.open(await app.link('this'));
+        await held.requested;
+        const address = app.address().path;
+        const search = new URLSearchParams({
+          [target]: `file:${repo.readme.path}`,
+        });
+        await app.open(`${address}?${search}`);
+        await page
+          .getByRole('button', {
+            name: `Close ${repo.readme.path}`,
+            exact: true,
+          })
+          .click();
+        await expectClosedFile(page, repo.readme.path);
+        await expect.poll(() => app.address().query).toBe('');
+        held.release();
+        await expect(
+          page.getByRole('button', {
+            name: read === 'changes' ? 'Open all changes' : 'Open review',
+            exact: true,
+          }),
+        ).toBeVisible();
+        await expect(
+          page.getByText('Nothing open', { exact: true }),
+        ).toBeVisible();
+        await expectClosedFile(page, repo.readme.path);
+        await app.reload();
+        await expect(
+          page.getByText('Nothing open', { exact: true }),
+        ).toBeVisible();
+        await expectClosedFile(page, repo.readme.path);
+      } finally {
+        held.release();
+      }
+    });
+
+    test(`closing a cold explicit ${target} stays usable while ${read} fails and after recovery`, async ({
+      page,
+      live,
+      app,
+      repo,
+      agent,
+      failures,
+    }) => {
+      failures.console(/RequestError: Request failed \(503\)/);
+      if (read === 'publication') {
+        await repo.commit('Commit the sample change');
+        await agent.publishReview('Published context', 'context');
+      }
+      const restore = await (read === 'changes'
+        ? live.failChangesRead()
+        : live.failPublishedReviewRead());
+      const ending = read === 'changes' ? '/changes' : '/review';
+      try {
+        const refused = page.waitForResponse(
+          (response) =>
+            new URL(response.url()).pathname.endsWith(ending) &&
+            response.status() === 503,
+        );
+        await app.open(await app.link('this'));
+        await refused;
+        const address = app.address().path;
+        const search = new URLSearchParams({
+          [target]: `file:${repo.readme.path}`,
+        });
+        const explicitRefused = page.waitForResponse(
+          (response) =>
+            new URL(response.url()).pathname.endsWith(ending) &&
+            response.status() === 503,
+        );
+        await app.open(`${address}?${search}`);
+        await explicitRefused;
+        await page
+          .getByRole('button', {
+            name: `Close ${repo.readme.path}`,
+            exact: true,
+          })
+          .click();
+        await expectClosedFile(page, repo.readme.path);
+        await expect.poll(() => app.address().query).toBe('');
+        await app.reload();
+        await expectClosedFile(page, repo.readme.path);
+        await restore();
+        await app.reload();
+        await expect(
+          page.getByRole('button', {
+            name: read === 'changes' ? 'Open all changes' : 'Open review',
+            exact: true,
+          }),
+        ).toBeVisible();
+        await expect(
+          page.getByText('Nothing open', { exact: true }),
+        ).toBeVisible();
+        await expectClosedFile(page, repo.readme.path);
+        await expect.poll(() => app.address().path).toBe(address);
+      } finally {
+        await restore();
+      }
+    });
+  }
+}

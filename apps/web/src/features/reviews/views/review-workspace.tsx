@@ -288,7 +288,6 @@ type DocumentAreaProps = PaneContext & {
 
 function DocumentArea(props: DocumentAreaProps) {
   const { saved } = useTabLayoutStore(props.worktreeId);
-  const [hadSavedLayout] = useState(saved);
   const changes = useReviewOverview(props.scope, props.context.connection);
   const published = usePublishedReview(props.scope, props.context);
   const awaitingChanges = Option.isNone(AsyncResult.value(changes));
@@ -296,7 +295,7 @@ function DocumentArea(props: DocumentAreaProps) {
     AsyncResult.value(published.result),
   );
   const needsDefault =
-    !hadSavedLayout && !parseEntry(props.entry) && !parseEntry(props.side);
+    !saved && !parseEntry(props.entry) && !parseEntry(props.side);
   if (needsDefault && awaitingChanges && AsyncResult.isFailure(changes))
     throw Cause.squash(changes.cause);
   if (
