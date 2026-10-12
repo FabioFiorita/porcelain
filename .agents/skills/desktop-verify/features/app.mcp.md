@@ -59,3 +59,14 @@ an installed app or its data for the disposable instance.
 - No global CLI, executable shim, credential, Node mode or relaxed fuse is needed.
 - A bridge read failure disables copy until a configuration is available; Retry
   MCP configuration reads again through the same trusted bridge.
+
+## Signed packaged proof
+
+After candidate review, use the release skill's `--signed-verification` build mode
+in an isolated exact-head Mac checkout. It preserves production runtime security
+while requiring only the existing signing identity, not Apple notarization
+credentials. Launch the resulting non-installed bundle's absolute executable with
+an isolated profile, then drive Settings and its copied MCP command without
+debugger switches. Record the app signature, hardened runtime/entitlements, ASAR,
+locked fuses and the bounded MCP/coexistence/EOF journey above. This does not prove
+notarization or Gatekeeper distribution acceptance and needs no simulator.
