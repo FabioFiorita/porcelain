@@ -35,7 +35,6 @@ export function useTabLayout({
   setFocused: (pane: PaneIndex) => void;
 }) {
   const { panes: stored, saved, save } = useTabLayoutStore(worktreeId);
-  const [hadStoredLayout] = useState(saved);
   const [pending, setPending] = useState<[Target, Target]>([
     undefined,
     undefined,
@@ -154,7 +153,7 @@ export function useTabLayout({
       fallback === null ||
       fallback === undefined ||
       fallbackHandled.current ||
-      hadStoredLayout ||
+      saved ||
       (entry !== null && entry !== undefined) ||
       (side !== null && side !== undefined)
     )
@@ -163,7 +162,7 @@ export function useTabLayout({
     save([{ tabs: [fallback], pinned: [] }]);
     setPending((previous) => [fallback, previous[1]]);
     onSearch({ entry: fallback }, { replace: true });
-  }, [entry, fallback, hadStoredLayout, onSearch, side, save]);
+  }, [entry, fallback, saved, onSearch, side, save]);
 
   return {
     split,

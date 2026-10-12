@@ -1,5 +1,5 @@
 import { AsyncResult } from 'effect/reactivity';
-import { Option } from 'effect';
+import { Cause, Option } from 'effect';
 import {
   detectPlatform,
   formatForDisplay,
@@ -46,6 +46,7 @@ import type {
 import { useDesktopReview } from '../adapters/desktop-review';
 import { type PaneIndex, useTabLayout } from '../adapters/tab-layout';
 import { usePublishedReview } from '../queries/published-review';
+import { useTabLayoutStore } from '../store';
 import {
   anchorBase,
   type RevealComment,
@@ -277,7 +278,45 @@ type PaneContext = {
   tabControls: ReactNode;
 };
 
-function DocumentArea({
+type DocumentAreaProps = PaneContext & {
+  worktreeId: string;
+  entry: string | undefined;
+  side: string | undefined;
+  onSearch: SetWorkspaceSearch;
+  focused: PaneIndex;
+};
+
+function DocumentArea(props: DocumentAreaProps) {
+  const { saved } = useTabLayoutStore(props.worktreeId);
+  const changes = useReviewOverview(props.scope, props.context.connection);
+  const published = usePublishedReview(props.scope, props.context);
+  const awaitingChanges = Option.isNone(AsyncResult.value(changes));
+  const awaitingPublication = Option.isNone(
+    AsyncResult.value(published.result),
+  );
+  const needsDefault =
+    !saved && !parseEntry(props.entry) && !parseEntry(props.side);
+  if (needsDefault && awaitingChanges && AsyncResult.isFailure(changes))
+    throw Cause.squash(changes.cause);
+  if (
+    needsDefault &&
+    awaitingPublication &&
+    AsyncResult.isFailure(published.result)
+  )
+    throw Cause.squash(published.result.cause);
+  if (needsDefault && (awaitingChanges || awaitingPublication)) {
+    return (
+      <div role="status" aria-label="Loading review" className="p-4">
+        Loading review…
+      </div>
+    );
+  }
+  return <DocumentPanes {...props} overview={changes} published={published} />;
+}
+
+function DocumentPanes({
+  overview: overviewResult,
+  published,
   reveal,
   scope,
   context,
@@ -294,18 +333,11 @@ function DocumentArea({
   navigatorOpen,
   navigatorOpenMobile,
   tabControls,
-}: PaneContext & {
-  worktreeId: string;
-  entry: string | undefined;
-  side: string | undefined;
-  onSearch: SetWorkspaceSearch;
-  focused: PaneIndex;
+}: DocumentAreaProps & {
+  overview: ReturnType<typeof useReviewOverview>;
+  published: ReturnType<typeof usePublishedReview>;
 }) {
-  const { connection } = context;
-  const overview = Option.getOrUndefined(
-    AsyncResult.value(useReviewOverview(scope, connection)),
-  );
-  const published = usePublishedReview(scope, context);
+  const overview = Option.getOrUndefined(AsyncResult.value(overviewResult));
   const hasHandoff =
     Boolean(published.review?.active) ||
     (overview !== null &&
