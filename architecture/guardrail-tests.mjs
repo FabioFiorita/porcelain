@@ -16,6 +16,7 @@ import { typeRuleFindings } from './type-rules.ts';
 import { duplicateScope, scanDuplicates } from './duplicate-policy.ts';
 import { selectorAppears } from './feature-selectors.ts';
 import { guardrailCases } from './rule-cases.mjs';
+import { handlerCoverage } from '../apps/server/spec/kit/route-coverage.ts';
 import { featureMapProblems } from '../scripts/feature-maps.ts';
 import knip from './knip.ts';
 import { reactCompilerProblems } from '../scripts/react-compiler.ts';
@@ -178,7 +179,14 @@ export function runGuardrailCases(named = []) {
     'Name an existing guardrail fixture rule.',
   );
   for (const entry of cases) {
-    if (entry.rule === 'mobile-react-compiler') {
+    if (entry.rule === 'server-handler-coverage') {
+      strictEqual(handlerCoverage(entry.completeLogs), undefined);
+      throws(
+        () => handlerCoverage(entry.missingToolLogs),
+        (error) =>
+          error instanceof Error && error.message.startsWith(entry.error),
+      );
+    } else if (entry.rule === 'mobile-react-compiler') {
       deepStrictEqual(reactCompilerProblems(entry.path, entry.valid), []);
       const invalid = reactCompilerProblems(entry.path, entry.invalid);
       strictEqual(invalid.length, 1);

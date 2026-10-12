@@ -239,6 +239,7 @@ test('revoking an unknown id revokes nothing and an empty id is refused', async 
 
 test('the owner socket serves the review MCP endpoint with its review tools', async ({
   session,
+  server,
 }) => {
   const initialized = await session.send(
     owner({
@@ -291,6 +292,7 @@ test('the owner socket serves the review MCP endpoint with its review tools', as
     'reply_to_comment',
     'resolve_comment',
   ]);
+  expect(await server.invokedTools()).toStrictEqual([]);
 });
 
 test('the review MCP endpoint refuses every method but POST', async ({

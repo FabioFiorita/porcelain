@@ -12,6 +12,7 @@ import { type PublishReviewUseCase } from '../../use-cases/reviews/publish-revie
 import { type ReadPublishedReviewUseCase } from '../../use-cases/reviews/read-published-review.ts';
 import { type ReplyToCommentUseCase } from '../../use-cases/reviews/reply-to-comment.ts';
 import { type UpdateCommentThreadUseCase } from '../../use-cases/reviews/update-comment-thread.ts';
+import { httpEvent, toolAudit } from '../diagnostics.ts';
 import { REVIEW_GUIDE } from './review-guide.ts';
 export type ReviewMcpUseCases = {
   reviewTools: {
@@ -39,7 +40,10 @@ const summaryWarnings: Readonly<Record<string, string>> = {
     'No authored CSS was detected in the summary HTML. The review was published. Add CSS and republish, matching the reviewed application’s colors, background, typography and components where possible. Style the layer links and content hierarchy, then visually verify the result. If styles are generated at runtime, verify that they load correctly.',
 };
 
-function invocation<A, E>(operation: (cwd: string) => Effect.Effect<A, E>) {
+function invocation<A, E>(
+  tool: keyof typeof ReviewToolkit.tools,
+  operation: (cwd: string) => Effect.Effect<A, E>,
+) {
   return Effect.gen(function* () {
     const request = yield* Effect.serviceOption(
       HttpServerRequest.HttpServerRequest,
@@ -55,6 +59,7 @@ function invocation<A, E>(operation: (cwd: string) => Effect.Effect<A, E>) {
           message: 'The x-porcelain-cwd header is required',
         }),
       );
+    yield* toolAudit(tool);
     return yield* operation(cwd);
   }).pipe(
     Effect.mapError(
@@ -71,10 +76,16 @@ function invocation<A, E>(operation: (cwd: string) => Effect.Effect<A, E>) {
 export function reviewMcpHandlers(useCases: ReviewMcpUseCases) {
   return Layer.mergeAll(
     McpServer.toolkit(ReviewToolkit).pipe(
+      Layer.tap(() =>
+        Effect.sync(() => {
+          for (const tool of Object.keys(ReviewToolkit.tools))
+            httpEvent({ event: 'tool-registered', owner: true, tool });
+        }),
+      ),
       Layer.provide(
         ReviewToolkit.toLayer({
           publish_review: ({ cwd, ...review }) =>
-            invocation((defaultCwd) =>
+            invocation('publish_review', (defaultCwd) =>
               Effect.gen(function* () {
                 const published =
                   yield* useCases.reviewTools.atWorktreePath.execute({
@@ -91,7 +102,7 @@ export function reviewMcpHandlers(useCases: ReviewMcpUseCases) {
               }),
             ),
           delete_review: ({ cwd }) =>
-            invocation((defaultCwd) =>
+            invocation('delete_review', (defaultCwd) =>
               useCases.reviewTools.atWorktreePath.execute({
                 operation: useCases.reviewTools.deleteReview,
                 cwd: cwd ?? defaultCwd,
@@ -99,7 +110,7 @@ export function reviewMcpHandlers(useCases: ReviewMcpUseCases) {
               }),
             ),
           read_review: ({ cwd }) =>
-            invocation((defaultCwd) =>
+            invocation('read_review', (defaultCwd) =>
               useCases.reviewTools.atWorktreePath.execute({
                 operation: useCases.reviewTools.readPublishedReview,
                 cwd: cwd ?? defaultCwd,
@@ -107,7 +118,7 @@ export function reviewMcpHandlers(useCases: ReviewMcpUseCases) {
               }),
             ),
           list_comments: ({ cwd, scope }) =>
-            invocation((defaultCwd) =>
+            invocation('list_comments', (defaultCwd) =>
               Effect.map(
                 useCases.reviewTools.atWorktreePath.execute({
                   operation: useCases.reviewTools.listCommentThreads,
@@ -118,7 +129,7 @@ export function reviewMcpHandlers(useCases: ReviewMcpUseCases) {
               ),
             ),
           create_comment: ({ cwd, ...input }) =>
-            invocation((defaultCwd) =>
+            invocation('create_comment', (defaultCwd) =>
               useCases.reviewTools.atWorktreePath.execute({
                 operation: useCases.reviewTools.createCommentThread,
                 cwd: cwd ?? defaultCwd,
@@ -126,7 +137,7 @@ export function reviewMcpHandlers(useCases: ReviewMcpUseCases) {
               }),
             ),
           reply_to_comment: ({ cwd, ...input }) =>
-            invocation((defaultCwd) =>
+            invocation('reply_to_comment', (defaultCwd) =>
               useCases.reviewTools.atWorktreePath.execute({
                 operation: useCases.reviewTools.replyToComment,
                 cwd: cwd ?? defaultCwd,
@@ -134,7 +145,7 @@ export function reviewMcpHandlers(useCases: ReviewMcpUseCases) {
               }),
             ),
           resolve_comment: ({ cwd, ...input }) =>
-            invocation((defaultCwd) =>
+            invocation('resolve_comment', (defaultCwd) =>
               useCases.reviewTools.atWorktreePath.execute({
                 operation: useCases.reviewTools.updateCommentThread,
                 cwd: cwd ?? defaultCwd,

@@ -3550,6 +3550,39 @@ const featureMapCases = [
 
 export const guardrailCases = [
   {
+    rule: 'server-handler-coverage',
+    completeLogs: [
+      {
+        registered: ['owner POST /mcp'],
+        requested: ['owner POST /mcp'],
+        registeredTools: ['read_review', 'delete_review'],
+        invokedTools: ['read_review'],
+      },
+      {
+        registered: ['owner POST /mcp'],
+        requested: ['owner POST /mcp'],
+        registeredTools: ['read_review', 'delete_review'],
+        invokedTools: ['delete_review'],
+      },
+    ],
+    missingToolLogs: [
+      {
+        registered: ['owner POST /mcp'],
+        requested: ['owner POST /mcp'],
+        registeredTools: ['read_review', 'delete_review'],
+        invokedTools: ['read_review'],
+      },
+      {
+        registered: ['owner POST /mcp'],
+        requested: ['owner POST /mcp'],
+        registeredTools: ['read_review', 'delete_review'],
+        invokedTools: [],
+      },
+    ],
+    error:
+      'Route coverage: no integration test reached MCP tool delete_review;',
+  },
+  {
     rule: 'mobile-react-compiler',
     path: 'apps/mobile/src/components/ui/use-compiler-fixture.ts',
     valid: `import { useEffect, useState } from 'react';
