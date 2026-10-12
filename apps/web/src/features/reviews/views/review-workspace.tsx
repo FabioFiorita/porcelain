@@ -52,6 +52,7 @@ import {
   type RevealComment,
 } from '@porcelain/client/reviews/rules';
 import { entryKey, type OpenDocument, parseEntry } from '../rules/documents';
+import { openToSideText } from '../rules/tab-strip';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
 import { ReviewBoundary } from './review-boundary';
@@ -89,6 +90,31 @@ export function ReviewWorkspace({
   } = useSidebar();
   const surface = search.surface ?? 'files';
   const scope = { projectId, worktreeId: worktree.id };
+  const { saved } = useTabLayoutStore(worktree.id);
+  const overview = useReviewOverview(scope, context.connection);
+  const published = usePublishedReview(scope, context);
+  const awaitingChanges = Option.isNone(AsyncResult.value(overview));
+  const awaitingPublication = Option.isNone(
+    AsyncResult.value(published.result),
+  );
+  const needsDefault =
+    !saved && !parseEntry(search.entry) && !parseEntry(search.side);
+  const ready = !needsDefault || (!awaitingChanges && !awaitingPublication);
+  const hasHandoff =
+    Boolean(published.review?.active) ||
+    (Option.getOrUndefined(AsyncResult.value(overview))?.changes.length ?? 0) >
+      0;
+  const layout = useTabLayout({
+    worktreeId: worktree.id,
+    entry: search.entry,
+    side: search.side,
+    onSearch,
+    fallback: hasHandoff ? entryKey({ kind: 'handoff' }) : null,
+    focused: focusedPane,
+    setFocused: setFocusedPane,
+    ready,
+  });
+  const sideLabel = openToSideText(paneSide(layout.split, focusedPane));
 
   const toggleSidebar = () => {
     if (sidebarOpen) desktopTrigger.current?.focus();
@@ -108,22 +134,29 @@ export function ReviewWorkspace({
   >();
   const open: OpenDocument = (ref, anchor, options) => {
     const key = entryKey(ref);
+    const otherPane: PaneIndex = focusedPane === 0 ? 1 : 0;
+    const pane = options?.toSide ? otherPane : focusedPane;
     setReveal(
       anchor
         ? {
             anchor,
             nonce: Date.now(),
-            pane: focusedPane,
+            pane,
             key,
             ...(options?.compose ? { compose: true } : {}),
           }
         : undefined,
     );
     const base = anchor ? anchorBase(anchor) : undefined;
-    onSearch({
-      ...(focusedPane === 1 ? { side: key } : { entry: key }),
-      ...(base === undefined ? {} : { base }),
-    });
+    if (options?.toSide) {
+      layout.openToSide(focusedPane, key);
+      if (base !== undefined) onSearch({ base });
+    } else {
+      onSearch({
+        ...(focusedPane === 1 ? { side: key } : { entry: key }),
+        ...(base === undefined ? {} : { base }),
+      });
+    }
     setMobileOpen(false);
   };
   const setSurface = (next: Surface) => {
@@ -148,6 +181,7 @@ export function ReviewWorkspace({
       available={worktree.available}
       onSurface={setSurface}
       onOpen={open}
+      sideLabel={sideLabel}
       changes={{
         scope: search.scope ?? 'uncommitted',
         base: search.base,
@@ -230,11 +264,12 @@ export function ReviewWorkspace({
               reveal={reveal}
               scope={scope}
               context={context}
-              worktreeId={worktree.id}
-              entry={search.entry}
-              side={search.side}
+              overview={overview}
+              published={published}
+              needsDefault={needsDefault}
+              hasHandoff={hasHandoff}
+              layout={layout}
               base={search.base}
-              onSearch={onSearch}
               focused={focusedPane}
               setFocused={setFocusedPane}
               onOpen={open}
@@ -279,52 +314,49 @@ type PaneContext = {
 };
 
 type DocumentAreaProps = PaneContext & {
-  worktreeId: string;
-  entry: string | undefined;
-  side: string | undefined;
-  onSearch: SetWorkspaceSearch;
   focused: PaneIndex;
+  layout: ReturnType<typeof useTabLayout>;
+  overview: ReturnType<typeof useReviewOverview>;
+  published: ReturnType<typeof usePublishedReview>;
+  needsDefault: boolean;
+  hasHandoff: boolean;
 };
 
 function DocumentArea(props: DocumentAreaProps) {
-  const { saved } = useTabLayoutStore(props.worktreeId);
-  const changes = useReviewOverview(props.scope, props.context.connection);
-  const published = usePublishedReview(props.scope, props.context);
-  const awaitingChanges = Option.isNone(AsyncResult.value(changes));
+  const awaitingChanges = Option.isNone(AsyncResult.value(props.overview));
   const awaitingPublication = Option.isNone(
-    AsyncResult.value(published.result),
+    AsyncResult.value(props.published.result),
   );
-  const needsDefault =
-    !saved && !parseEntry(props.entry) && !parseEntry(props.side);
-  if (needsDefault && awaitingChanges && AsyncResult.isFailure(changes))
-    throw Cause.squash(changes.cause);
   if (
-    needsDefault &&
-    awaitingPublication &&
-    AsyncResult.isFailure(published.result)
+    props.needsDefault &&
+    awaitingChanges &&
+    AsyncResult.isFailure(props.overview)
   )
-    throw Cause.squash(published.result.cause);
-  if (needsDefault && (awaitingChanges || awaitingPublication)) {
+    throw Cause.squash(props.overview.cause);
+  if (
+    props.needsDefault &&
+    awaitingPublication &&
+    AsyncResult.isFailure(props.published.result)
+  )
+    throw Cause.squash(props.published.result.cause);
+  if (props.needsDefault && (awaitingChanges || awaitingPublication)) {
     return (
       <div role="status" aria-label="Loading review" className="p-4">
         Loading review…
       </div>
     );
   }
-  return <DocumentPanes {...props} overview={changes} published={published} />;
+  return <DocumentPanes {...props} />;
 }
 
 function DocumentPanes({
-  overview: overviewResult,
   published,
+  hasHandoff,
+  layout,
   reveal,
   scope,
   context,
-  worktreeId,
-  entry,
-  side,
   base,
-  onSearch,
   focused,
   setFocused,
   onOpen,
@@ -333,26 +365,7 @@ function DocumentPanes({
   navigatorOpen,
   navigatorOpenMobile,
   tabControls,
-}: DocumentAreaProps & {
-  overview: ReturnType<typeof useReviewOverview>;
-  published: ReturnType<typeof usePublishedReview>;
-}) {
-  const overview = Option.getOrUndefined(AsyncResult.value(overviewResult));
-  const hasHandoff =
-    Boolean(published.review?.active) ||
-    (overview !== null &&
-      overview !== undefined &&
-      overview.changes.length > 0);
-  const layout = useTabLayout({
-    worktreeId,
-    entry,
-    side,
-    onSearch,
-    fallback: hasHandoff ? entryKey({ kind: 'handoff' }) : null,
-    focused,
-    setFocused,
-  });
-
+}: DocumentAreaProps) {
   const focusedPane = layout.panes[focused] ?? {
     tabs: [],
     pinned: [],
@@ -460,6 +473,7 @@ function PaneView({
 
   return (
     <section
+      ref={(element) => layout.bindPane(index, element)}
       aria-label={split ? `${index === 0 ? 'Left' : 'Right'} pane` : undefined}
       data-focused={focused}
       onPointerDownCapture={() => setFocused(index)}
@@ -519,6 +533,7 @@ function PaneView({
               scope={scope}
               context={context}
               document={document}
+              sideLabel={openToSideText(paneSide(split, index))}
               base={base}
               onOpen={onOpen}
               active={focused}

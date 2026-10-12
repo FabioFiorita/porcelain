@@ -25,12 +25,14 @@ export function useTabLayout({
   fallback,
   focused,
   setFocused,
+  ready,
 }: {
   worktreeId: string;
   entry: string | undefined;
   side: string | undefined;
   onSearch: SetWorkspaceSearch;
   fallback: string | null;
+  ready: boolean;
   focused: PaneIndex;
   setFocused: (pane: PaneIndex) => void;
 }) {
@@ -44,6 +46,13 @@ export function useTabLayout({
     null,
   ]);
   const fallbackHandled = useRef(false);
+  const paneElements = useRef<[HTMLElement | null, HTMLElement | null]>([
+    null,
+    null,
+  ]);
+  const destinationFocus = useRef<{ pane: PaneIndex; key: string } | null>(
+    null,
+  );
   const urlActive: [string | undefined, string | undefined] = [
     entry !== null &&
     entry !== undefined &&
@@ -56,6 +65,7 @@ export function useTabLayout({
   ];
 
   useEffect(() => {
+    if (!ready) return;
     if (
       entry !== null &&
       entry !== undefined &&
@@ -68,7 +78,7 @@ export function useTabLayout({
       (parseEntry(side) ?? null) === null
     )
       onSearch({ side: undefined }, { replace: true });
-  }, [entry, side, onSearch]);
+  }, [entry, side, onSearch, ready]);
 
   const current = (index: PaneIndex): string | undefined => {
     const target = pending[index];
@@ -102,6 +112,7 @@ export function useTabLayout({
   const split = panes.length > 1;
 
   useEffect(() => {
+    if (!ready) return;
     const settled = pending.map((target, index) =>
       target !== undefined && (urlActive[index] ?? null) === (target ?? null)
         ? undefined
@@ -150,6 +161,7 @@ export function useTabLayout({
 
   useEffect(() => {
     if (
+      !ready ||
       fallback === null ||
       fallback === undefined ||
       fallbackHandled.current ||
@@ -162,9 +174,29 @@ export function useTabLayout({
     save([{ tabs: [fallback], pinned: [] }]);
     setPending((previous) => [fallback, previous[1]]);
     onSearch({ entry: fallback }, { replace: true });
-  }, [entry, fallback, saved, onSearch, side, save]);
+  }, [entry, fallback, saved, onSearch, side, save, ready]);
+
+  useEffect(() => {
+    if (destinationFocus.current === null) return;
+    const frame = requestAnimationFrame(() => {
+      const target = destinationFocus.current;
+      if (target === null) return;
+      const tab = [
+        ...(paneElements.current[target.pane]?.querySelectorAll<HTMLElement>(
+          '[role="tab"]',
+        ) ?? []),
+      ].find((element) => element.dataset.entry === target.key);
+      if (tab === undefined) return;
+      destinationFocus.current = null;
+      tab.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  });
 
   return {
+    bindPane(index: PaneIndex, element: HTMLElement | null) {
+      paneElements.current[index] = element;
+    },
     split,
     panes: panes.map((pane, index) => ({
       tabs: orderedTabs(pane),
@@ -214,6 +246,7 @@ export function useTabLayout({
         actives[target],
       );
       save(next);
+      destinationFocus.current = { pane: target, key };
       setFocused(target);
       goPane(target, key);
     },

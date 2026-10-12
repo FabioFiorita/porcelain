@@ -13,11 +13,13 @@ export function HistoryRows({
   history,
   selected,
   onSelect,
+  sideLabel,
 }: {
   commits: History['commits'];
   history: History;
   selected: string;
-  onSelect: (oid: string) => void;
+  onSelect: (oid: string, toSide?: boolean) => void;
+  sideLabel: string;
 }) {
   return (
     <div className="py-2 pr-3 pl-1.5">
@@ -26,7 +28,11 @@ export function HistoryRows({
           key={commit.oid}
           commit={commit}
           selected={selected === commit.oid}
-          onSelect={() => onSelect(commit.oid)}
+          onSelect={(toSide) => onSelect(commit.oid, toSide)}
+          openToSide={{
+            label: sideLabel,
+            open: () => onSelect(commit.oid, true),
+          }}
         />
       ))}
       <HistoryEnd history={history} />

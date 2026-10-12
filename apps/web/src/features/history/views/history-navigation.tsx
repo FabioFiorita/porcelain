@@ -19,12 +19,14 @@ export function HistoryNavigation({
   connection,
   selected,
   onSelect,
+  sideLabel,
   onOpenGraph,
 }: {
   scope: HistoryScope;
   connection: Connection;
   selected: string;
-  onSelect: (oid: string) => void;
+  onSelect: (oid: string, toSide?: boolean) => void;
+  sideLabel: string;
   onOpenGraph: () => void;
 }) {
   const history = useHistory(connection, scope);
@@ -51,6 +53,7 @@ export function HistoryNavigation({
             history={history}
             selected={selected}
             onSelect={onSelect}
+            sideLabel={sideLabel}
           />
         )}
       </ScrollArea>

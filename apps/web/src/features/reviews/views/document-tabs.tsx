@@ -31,6 +31,7 @@ import { ScrollBar } from '@/components/ui/scroll-area';
 import { shortOid } from '@porcelain/client/history/rules';
 import { cn } from '@/shared/lib/utils';
 import { parseEntry } from '../rules/documents';
+import { openToSideText } from '../rules/tab-strip';
 import { basename } from '@porcelain/client/reviews/rules';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { FileTypeIcon } from '@/features/files/index';
@@ -219,12 +220,6 @@ export function DocumentTabs({
   );
 }
 
-function openToSideText(side: 'left' | 'right' | null) {
-  if (side === null || side === undefined) return 'Open to the side';
-  if (side === 'left') return 'Open in the right pane';
-  return 'Open in the left pane';
-}
-
 function DocumentTab({
   tabKey,
   active,
@@ -248,6 +243,7 @@ function DocumentTab({
 }) {
   const { Icon, title, hint } = describeTab(tabKey, reviewing);
   const tabRef = useRef<HTMLDivElement>(null);
+  const openingSide = useRef(false);
   const openToSideLabel = openToSideText(side);
 
   useEffect(() => {
@@ -260,7 +256,11 @@ function DocumentTab({
   }, [active]);
 
   return (
-    <ContextMenu>
+    <ContextMenu
+      onOpenChange={(open) => {
+        if (open) openingSide.current = false;
+      }}
+    >
       <ContextMenuTrigger
         render={
           <div
@@ -333,12 +333,20 @@ function DocumentTab({
           </button>
         )}
       </ContextMenuTrigger>
-      <ContextMenuContent className="min-w-52">
+      <ContextMenuContent
+        className="min-w-52"
+        finalFocus={() => (openingSide.current ? false : true)}
+      >
         <ContextMenuItem onClick={() => onTogglePin(tabKey)}>
           {pinned ? <PinOffIcon /> : <PinIcon />}
           {pinned ? 'Unpin' : 'Pin'}
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => onOpenToSide(tabKey)}>
+        <ContextMenuItem
+          onClick={() => {
+            openingSide.current = true;
+            onOpenToSide(tabKey);
+          }}
+        >
           <Columns2Icon />
           {openToSideLabel}
           <ContextMenuShortcut>

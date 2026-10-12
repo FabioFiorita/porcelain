@@ -41,6 +41,7 @@ export function ReviewSidebar({
   available,
   onSurface,
   onOpen,
+  sideLabel,
   changes,
 }: {
   scope: ReviewScope;
@@ -51,6 +52,7 @@ export function ReviewSidebar({
   available: boolean;
   onSurface: (surface: Surface) => void;
   onOpen: OpenDocument;
+  sideLabel: string;
   changes: ChangesScope;
 }) {
   return (
@@ -90,6 +92,7 @@ export function ReviewSidebar({
             activeEntry={activeEntry}
             available={available}
             onOpen={onOpen}
+            sideLabel={sideLabel}
             changes={changes}
           />
         </TabsContent>
@@ -102,6 +105,7 @@ export function ReviewSidebar({
             activeEntry={activeEntry}
             available={available}
             onOpen={onOpen}
+            sideLabel={sideLabel}
             changes={changes}
           />
         </TabsContent>
@@ -114,6 +118,7 @@ export function ReviewSidebar({
             activeEntry={activeEntry}
             available={available}
             onOpen={onOpen}
+            sideLabel={sideLabel}
             changes={changes}
           />
         </TabsContent>
@@ -147,6 +152,7 @@ function SidebarSurface({
   activeEntry,
   available,
   onOpen,
+  sideLabel,
   changes,
 }: {
   scope: ReviewScope;
@@ -156,6 +162,7 @@ function SidebarSurface({
   activeEntry: string | undefined;
   available: boolean;
   onOpen: OpenDocument;
+  sideLabel: string;
   changes: ChangesScope;
 }) {
   const published = usePublishedReview(scope, context);
@@ -186,6 +193,7 @@ function SidebarSurface({
           context={context}
           activeEntry={activeEntry}
           onOpen={onOpen}
+          sideLabel={sideLabel}
           changeScope={changes.scope}
           base={changes.base}
           onChangeScope={changes.onScope}
@@ -201,6 +209,7 @@ function SidebarSurface({
             activeEntry?.startsWith('file:') ? activeEntry.slice(5) : ''
           }
           onOpen={onOpen}
+          sideLabel={sideLabel}
         />
       )}
       {surface === 'history' && (
@@ -210,7 +219,12 @@ function SidebarSurface({
           selected={
             activeEntry?.startsWith('commit:') ? activeEntry.slice(7) : ''
           }
-          onSelect={(oid) => onOpen({ kind: 'commit', oid })}
+          onSelect={(oid, toSide) =>
+            onOpen({ kind: 'commit', oid }, undefined, {
+              toSide: toSide === true,
+            })
+          }
+          sideLabel={sideLabel}
           onOpenGraph={() => onOpen({ kind: 'graph' })}
         />
       )}
