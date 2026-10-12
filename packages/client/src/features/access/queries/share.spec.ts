@@ -259,7 +259,13 @@ it.effect(
         return Promise.resolve(
           reads === 2
             ? new Response(null, { status: 503 })
-            : Response.json(reads === 1 ? offered : updated),
+            : Response.json(
+                reads === 1
+                  ? offered
+                  : reads === 3
+                    ? { ...updated, version: '1.0.0' }
+                    : updated,
+              ),
         );
       });
       connection.atoms.addGlobalLayer(
@@ -292,9 +298,77 @@ it.effect(
       yield* TestClock.adjust(1000);
       expect(yield* AtomRegistry.getResult(registry, state)).toMatchObject({
         running: false,
-        version: '1.1.0',
+        version: '1.0.0',
         last: { stage: 'updated' },
       });
-      expect(reads).toBe(3);
+      yield* TestClock.adjust(1000);
+      const confirmed = yield* AtomRegistry.getResult(registry, state);
+      expect(confirmed.version).toBe('1.1.0');
+      expect(confirmed.last?.stage).toBe('updated');
+      expect(confirmed.running).toBe(false);
+      yield* TestClock.adjust(3000);
+      expect(reads).toBe(4);
     }),
+);
+
+it.each([
+  {
+    history: 'after reinstall at a newer version',
+    initial: { ...updated, version: '1.2.0' },
+    settled: { ...updated, version: '1.2.0' },
+    expectedReads: 1,
+  },
+  {
+    history: 'after reinstall at the old update source version',
+    initial: { ...updated, version: '1.0.0' },
+    settled: { ...updated, version: '1.0.0' },
+    expectedReads: 1,
+  },
+  {
+    history: 'on an unmanaged server',
+    initial: { ...updated, managed: false, version: '1.0.0' },
+    settled: { ...updated, managed: false, version: '1.0.0' },
+    expectedReads: 1,
+  },
+  {
+    history: 'when a running update becomes unmanaged',
+    initial: running,
+    settled: { ...updated, managed: false, version: '1.0.0' },
+    expectedReads: 2,
+  },
+])(
+  'stops polling completed history $history',
+  async ({ initial, settled, expectedReads }) => {
+    const proof = await Effect.runPromise(
+      Effect.gen(function* () {
+        let requests = 0;
+        const client = fixture(async () =>
+          Response.json(++requests === 1 ? initial : settled),
+        );
+        client.connection.atoms.addGlobalLayer(
+          Layer.succeed(Clock.Clock, yield* Clock.Clock),
+        );
+        const observation = readServiceUpdate(client.connection);
+        const dispose = client.registry.mount(observation);
+        const first = yield* AtomRegistry.getResult(
+          client.registry,
+          observation,
+        );
+        yield* TestClock.adjust(5000);
+        const final = Option.getOrUndefined(
+          AsyncResult.value(client.registry.get(observation)),
+        );
+        dispose();
+        return { first, final, requests };
+      }).pipe(Effect.provide(TestClock.layer())),
+    );
+    expect(proof.first.version).toBe(initial.version);
+    expect(proof.first.running).toBe(initial.running);
+    expect(proof.final).toMatchObject({
+      managed: settled.managed,
+      version: settled.version,
+      last: { stage: 'updated', target: '1.1.0' },
+    });
+    expect(proof.requests).toBe(expectedReads);
+  },
 );
