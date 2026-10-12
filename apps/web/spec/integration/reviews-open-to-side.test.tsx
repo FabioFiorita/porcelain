@@ -349,9 +349,11 @@ test('graph commit rows offer a side menu and Alt-click without replacing the gr
   await workspace
     .getByRole('button', { name: 'Open graph', exact: true })
     .click();
-  const row = workspace.getByRole('button', {
-    name: new RegExp(`^${repo.initialCommit}`),
-  });
+  const row = workspace
+    .getByRole('region', { name: 'Review content', exact: true })
+    .getByRole('button', {
+      name: new RegExp(`^${repo.initialCommit}`),
+    });
   await row.click({ button: 'right' });
   await workspace
     .getByRole('menuitem', { name: 'Open to the side', exact: true })
@@ -452,4 +454,174 @@ test('timeline commit side actions preserve the file comparison and leave the ti
     )
     .toBeVisible();
   await expect.element(destination).toHaveFocus();
+});
+
+test('closing the destination during sheet exit cancels its focus transfer and restores ordinary dismissal', async ({
+  workspace,
+  repo,
+}) => {
+  const trigger = workspace.getByRole('button', {
+    name: 'Review',
+    exact: true,
+  });
+  const sheet = workspace.getByRole('dialog', {
+    name: 'Worktree review',
+    exact: true,
+  });
+  await trigger.click();
+  await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
+  await workspace
+    .getByRole('treeitem', { name: repo.readme.path, exact: true })
+    .click({ button: 'right' });
+  await workspace
+    .getByRole('menuitem', { name: 'Open to the side', exact: true })
+    .click();
+  await expect.element(sheet).toHaveAttribute('data-ending-style', '');
+  await userEvent.keyboard('{Alt>}w{/Alt}');
+  await expect
+    .element(workspace.getByRole('region', { name: 'Right pane', exact: true }))
+    .not.toBeInTheDocument();
+  await expect.element(sheet).not.toBeInTheDocument();
+  await expect
+    .element(
+      workspace.getByRole('tab', {
+        name: 'Changes Close Changes',
+        exact: true,
+      }),
+    )
+    .toHaveAttribute('aria-selected', 'true');
+  await expect.element(trigger).toHaveFocus();
+  await trigger.click();
+  await expect.element(sheet).toBeVisible();
+  await userEvent.keyboard('{Escape}');
+  await expect.element(sheet).not.toBeInTheDocument();
+  await expect.element(trigger).toHaveFocus();
+});
+
+test('switching to another tab during sheet exit cancels the older destination focus', async ({
+  workspace,
+  repo,
+}) => {
+  await repo.write('guide.txt', 'Guide to the project\n');
+  const trigger = workspace.getByRole('button', {
+    name: 'Review',
+    exact: true,
+  });
+  const sheet = workspace.getByRole('dialog', {
+    name: 'Worktree review',
+    exact: true,
+  });
+  await trigger.click();
+  await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
+  await workspace
+    .getByRole('treeitem', { name: repo.readme.path, exact: true })
+    .click({ button: 'right' });
+  await workspace
+    .getByRole('menuitem', { name: 'Open to the side', exact: true })
+    .click();
+  const left = workspace.getByRole('region', {
+    name: 'Left pane',
+    exact: true,
+  });
+  const right = workspace.getByRole('region', {
+    name: 'Right pane',
+    exact: true,
+  });
+  const existing = right.getByRole('tab', {
+    name: `${repo.readme.path} Close ${repo.readme.path}`,
+    exact: true,
+  });
+  await expect.element(sheet).not.toBeInTheDocument();
+  await expect.element(existing).toHaveFocus();
+  await left
+    .getByRole('tab', { name: 'Changes Close Changes', exact: true })
+    .click();
+  await trigger.click();
+  await workspace
+    .getByRole('treeitem', { name: 'guide.txt', exact: true })
+    .click({ button: 'right' });
+  await workspace
+    .getByRole('menuitem', { name: 'Open in the right pane', exact: true })
+    .click();
+  await expect.element(sheet).toHaveAttribute('data-ending-style', '');
+  await userEvent.keyboard('{Alt>}{ArrowLeft}{/Alt}');
+  await expect.element(sheet).not.toBeInTheDocument();
+  await expect.element(existing).toHaveAttribute('aria-selected', 'true');
+  await expect
+    .element(
+      right.getByRole('tab', {
+        name: 'guide.txt Close guide.txt',
+        exact: true,
+      }),
+    )
+    .toHaveAttribute('aria-selected', 'false');
+  await expect.element(trigger).toHaveFocus();
+});
+
+test('newer find-input focus during sheet exit supersedes the side-open tab focus', async ({
+  repo,
+  render,
+}) => {
+  await repo.write('guide.txt', 'needle one\nneedle two\n');
+  await repo.commit('Add guide');
+  await repo.write(repo.readme.path, repo.readme.changed);
+  const workspace = await render.workspace();
+  const trigger = workspace.getByRole('button', {
+    name: 'Review',
+    exact: true,
+  });
+  const sheet = workspace.getByRole('dialog', {
+    name: 'Worktree review',
+    exact: true,
+  });
+  await trigger.click();
+  await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
+  await workspace
+    .getByRole('treeitem', { name: 'guide.txt', exact: true })
+    .click({ button: 'right' });
+  await workspace.getByRole('menuitem', { name: 'Open', exact: true }).click();
+  await expect
+    .element(workspace.getByText('needle one', { exact: true }))
+    .toBeVisible();
+  await expect.element(sheet).not.toBeInTheDocument();
+  await trigger.click();
+  await workspace
+    .getByRole('treeitem', { name: 'guide.txt', exact: true })
+    .click({ button: 'right' });
+  await workspace
+    .getByRole('menuitem', { name: 'Open to the side', exact: true })
+    .click();
+  await expect.element(sheet).toHaveAttribute('data-ending-style', '');
+  await userEvent.keyboard('{ControlOrMeta>}f{/ControlOrMeta}');
+  const right = workspace.getByRole('region', {
+    name: 'Right pane',
+    exact: true,
+  });
+  const find = right.getByRole('textbox', {
+    name: 'Find in file',
+    exact: true,
+  });
+  await expect.element(find).toHaveFocus();
+  await expect.element(sheet).not.toBeInTheDocument();
+  await expect.element(find).toHaveFocus();
+  await userEvent.keyboard('needle');
+  await expect.element(find).toHaveValue('needle');
+});
+
+test('ordinary sheet Escape dismissal restores the Review trigger without a destination intent', async ({
+  workspace,
+}) => {
+  const trigger = workspace.getByRole('button', {
+    name: 'Review',
+    exact: true,
+  });
+  const sheet = workspace.getByRole('dialog', {
+    name: 'Worktree review',
+    exact: true,
+  });
+  await trigger.click();
+  await expect.element(sheet).toBeVisible();
+  await userEvent.keyboard('{Escape}');
+  await expect.element(sheet).not.toBeInTheDocument();
+  await expect.element(trigger).toHaveFocus();
 });

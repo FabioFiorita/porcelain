@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import {
+  type RefObject,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { parseEntry } from '../rules/documents';
 import {
   closeInPane,
@@ -26,6 +32,7 @@ export function useTabLayout({
   focused,
   setFocused,
   ready,
+  focusBoundary,
 }: {
   worktreeId: string;
   entry: string | undefined;
@@ -35,6 +42,7 @@ export function useTabLayout({
   ready: boolean;
   focused: PaneIndex;
   setFocused: (pane: PaneIndex) => void;
+  focusBoundary: RefObject<HTMLElement | null>;
 }) {
   const { panes: stored, saved, save } = useTabLayoutStore(worktreeId);
   const [pending, setPending] = useState<[Target, Target]>([
@@ -53,6 +61,15 @@ export function useTabLayout({
   const destinationFocus = useRef<{ pane: PaneIndex; key: string } | null>(
     null,
   );
+  const focusFrame = useRef<number | null>(null);
+  const cancelFocusFrame = () => {
+    if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
+    focusFrame.current = null;
+  };
+  const cancelDestinationFocus = () => {
+    destinationFocus.current = null;
+    cancelFocusFrame();
+  };
   const urlActive: [string | undefined, string | undefined] = [
     entry !== null &&
     entry !== undefined &&
@@ -133,6 +150,7 @@ export function useTabLayout({
   });
 
   const go = (updates: { entry?: string | null; side?: string | null }) => {
+    cancelDestinationFocus();
     setPending((previous) => [
       'entry' in updates ? (updates.entry ?? null) : previous[0],
       'side' in updates ? (updates.side ?? null) : previous[1],
@@ -148,6 +166,7 @@ export function useTabLayout({
     panes.map((currentPane, i) => (i === index ? pane : currentPane));
 
   const settle = (index: PaneIndex, next: Pane, activeAfter: string | null) => {
+    cancelDestinationFocus();
     if (split && next.tabs.length === 0) {
       const other: PaneIndex = index === 0 ? 1 : 0;
       save([panes[other] ?? emptyPane()]);
@@ -176,26 +195,72 @@ export function useTabLayout({
     onSearch({ entry: fallback }, { replace: true });
   }, [entry, fallback, saved, onSearch, side, save, ready]);
 
-  useEffect(() => {
-    if (destinationFocus.current === null) return;
-    const frame = requestAnimationFrame(() => {
-      const target = destinationFocus.current;
-      if (target === null) return;
+  const currentDestinationFocus = () => {
+    const target = destinationFocus.current;
+    if (
+      target !== null &&
+      (focused !== target.pane ||
+        actives[target.pane] !== target.key ||
+        !panes[target.pane]?.tabs.includes(target.key))
+    ) {
+      cancelDestinationFocus();
+      return null;
+    }
+    return target;
+  };
+
+  const focusDestination = () => {
+    if (destinationFocus.current === null || focusFrame.current !== null)
+      return;
+    focusFrame.current = requestAnimationFrame(() => {
+      focusFrame.current = null;
+      const target = currentDestinationFocus();
+      if (target === null || focusBoundary.current?.isConnected) return;
       const tab = [
         ...(paneElements.current[target.pane]?.querySelectorAll<HTMLElement>(
           '[role="tab"]',
         ) ?? []),
       ].find((element) => element.dataset.entry === target.key);
-      if (tab === undefined) return;
-      destinationFocus.current = null;
+      if (tab === undefined || !tab.isConnected) return;
       tab.focus();
+      if (
+        tab.ownerDocument.activeElement === tab &&
+        destinationFocus.current === target
+      )
+        destinationFocus.current = null;
     });
-    return () => cancelAnimationFrame(frame);
+  };
+
+  useLayoutEffect(() => {
+    cancelFocusFrame();
+    currentDestinationFocus();
+    focusDestination();
+    return cancelFocusFrame;
   });
 
   return {
+    focusDestination,
+    hasDestinationFocus() {
+      return currentDestinationFocus() !== null;
+    },
+    selectPane(index: PaneIndex) {
+      cancelDestinationFocus();
+      setFocused(index);
+    },
+    focusPane(index: PaneIndex, element: Element) {
+      const target = destinationFocus.current;
+      if (
+        target !== null &&
+        (target.pane !== index ||
+          element.getAttribute('role') !== 'tab' ||
+          element.getAttribute('data-entry') !== target.key)
+      )
+        cancelDestinationFocus();
+      setFocused(index);
+    },
     bindPane(index: PaneIndex, element: HTMLElement | null) {
       paneElements.current[index] = element;
+      if (element !== null) focusDestination();
     },
     split,
     panes: panes.map((pane, index) => ({
@@ -246,11 +311,12 @@ export function useTabLayout({
         actives[target],
       );
       save(next);
+      goPane(target, key);
       destinationFocus.current = { pane: target, key };
       setFocused(target);
-      goPane(target, key);
     },
     step(index: PaneIndex, delta: number) {
+      cancelDestinationFocus();
       const order = orderedTabs(panes[index] ?? emptyPane());
       if (order.length === 0) return;
       const at =

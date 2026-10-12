@@ -6,7 +6,13 @@ import {
   useHotkey,
 } from '@tanstack/react-hotkeys';
 import { PanelRightIcon, LayersIcon as ReviewLayersIcon } from 'lucide-react';
-import { type ReactNode, type RefObject, useRef, useState } from 'react';
+import {
+  type ReactNode,
+  type RefObject,
+  type SyntheticEvent,
+  useRef,
+  useState,
+} from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -113,6 +119,7 @@ export function ReviewWorkspace({
     focused: focusedPane,
     setFocused: setFocusedPane,
     ready,
+    focusBoundary: mobileSheet,
   });
   const sideLabel = openToSideText(paneSide(layout.split, focusedPane));
 
@@ -152,10 +159,8 @@ export function ReviewWorkspace({
       layout.openToSide(focusedPane, key);
       if (base !== undefined) onSearch({ base });
     } else {
-      onSearch({
-        ...(focusedPane === 1 ? { side: key } : { entry: key }),
-        ...(base === undefined ? {} : { base }),
-      });
+      layout.activate(focusedPane, key);
+      if (base !== undefined) onSearch({ base });
     }
     setMobileOpen(false);
   };
@@ -193,7 +198,7 @@ export function ReviewWorkspace({
   );
 
   const tabControls = (
-    <>
+    <div data-review-controls="" className="contents">
       <GitButton scope={scope} context={context} />
       <Button
         ref={desktopTrigger}
@@ -208,94 +213,103 @@ export function ReviewWorkspace({
       >
         <PanelRightIcon />
       </Button>
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              ref={mobileTrigger}
-              className="xl:hidden"
-              aria-label="Review"
-              aria-keyshortcuts={SHORTCUTS.toggleSidebar}
-              title={`Toggle review sidebar (${formatForDisplay(SHORTCUTS.toggleSidebar)})`}
-            />
-          }
-        >
-          <PanelRightIcon />
-        </SheetTrigger>
-        <SheetContent
-          ref={mobileSheet}
-          finalFocus={() => {
-            const active = document.activeElement;
-            const stayed =
-              active === document.body || mobileSheet.current?.contains(active);
-            return stayed ? mobileTrigger.current : false;
-          }}
-          className="w-[min(90vw,22rem)]!"
-          showCloseButton={false}
-        >
-          <SheetHeader className="sr-only">
-            <SheetTitle>Worktree review</SheetTitle>
-            <SheetDescription>
-              Choose a review surface and open a document.
-            </SheetDescription>
-          </SheetHeader>
-          {sidebar}
-        </SheetContent>
-      </Sheet>
-    </>
+      <SheetTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            ref={mobileTrigger}
+            className="xl:hidden"
+            aria-label="Review"
+            aria-keyshortcuts={SHORTCUTS.toggleSidebar}
+            title={`Toggle review sidebar (${formatForDisplay(SHORTCUTS.toggleSidebar)})`}
+          />
+        }
+      >
+        <PanelRightIcon />
+      </SheetTrigger>
+    </div>
   );
 
   return (
-    <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
-      <ResizablePanel
-        id="review-document"
-        minSize={navigatorIsMobile ? 0 : 480}
-      >
-        <section
-          aria-label="Review content"
-          className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
+    <Sheet
+      open={mobileOpen}
+      onOpenChange={setMobileOpen}
+      onOpenChangeComplete={(open) => {
+        if (!open) layout.focusDestination();
+      }}
+    >
+      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
+        <ResizablePanel
+          id="review-document"
+          minSize={navigatorIsMobile ? 0 : 480}
         >
-          <ReviewBoundary connection={context.connection} scope={scope}>
-            <InterruptedActionNotice scope={scope} context={context} />
-            <ConflictGuidance scope={scope} context={context} onOpen={open} />
-            <DocumentArea
-              reveal={reveal}
-              scope={scope}
-              context={context}
-              overview={overview}
-              published={published}
-              needsDefault={needsDefault}
-              hasHandoff={hasHandoff}
-              layout={layout}
-              base={search.base}
-              focused={focusedPane}
-              setFocused={setFocusedPane}
-              onOpen={open}
-              navigationTrigger={navigationTrigger}
-              navigatorIsMobile={navigatorIsMobile}
-              navigatorOpen={navigatorOpen}
-              navigatorOpenMobile={navigatorOpenMobile}
-              tabControls={tabControls}
-            />
-          </ReviewBoundary>
-        </section>
-      </ResizablePanel>
-      {sidebarOpen && desktop && (
-        <>
-          <ResizableHandle className="w-2 bg-transparent after:w-2" />
-          <ResizablePanel
-            id="review-sidebar"
-            defaultSize={320}
-            minSize={260}
-            maxSize={520}
+          <section
+            aria-label="Review content"
+            className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
           >
-            {sidebar}
-          </ResizablePanel>
-        </>
-      )}
-    </ResizablePanelGroup>
+            <ReviewBoundary connection={context.connection} scope={scope}>
+              <InterruptedActionNotice scope={scope} context={context} />
+              <ConflictGuidance scope={scope} context={context} onOpen={open} />
+              <DocumentArea
+                reveal={reveal}
+                scope={scope}
+                context={context}
+                overview={overview}
+                published={published}
+                needsDefault={needsDefault}
+                hasHandoff={hasHandoff}
+                layout={layout}
+                base={search.base}
+                focused={focusedPane}
+                onOpen={open}
+                navigationTrigger={navigationTrigger}
+                navigatorIsMobile={navigatorIsMobile}
+                navigatorOpen={navigatorOpen}
+                navigatorOpenMobile={navigatorOpenMobile}
+                tabControls={tabControls}
+              />
+            </ReviewBoundary>
+          </section>
+        </ResizablePanel>
+        {sidebarOpen && desktop && (
+          <>
+            <ResizableHandle className="w-2 bg-transparent after:w-2" />
+            <ResizablePanel
+              id="review-sidebar"
+              defaultSize={320}
+              minSize={260}
+              maxSize={520}
+            >
+              {sidebar}
+            </ResizablePanel>
+          </>
+        )}
+      </ResizablePanelGroup>
+      <SheetContent
+        ref={(element) => {
+          mobileSheet.current = element;
+          if (element === null) layout.focusDestination();
+        }}
+        finalFocus={() => {
+          if (layout.hasDestinationFocus()) return false;
+          const active = document.activeElement;
+          const stayed =
+            active === document.body || mobileSheet.current?.contains(active);
+          return stayed ? mobileTrigger.current : false;
+        }}
+        className="w-[min(90vw,22rem)]!"
+        showCloseButton={false}
+      >
+        <SheetHeader className="sr-only">
+          <SheetTitle>Worktree review</SheetTitle>
+          <SheetDescription>
+            Choose a review surface and open a document.
+          </SheetDescription>
+        </SheetHeader>
+        {sidebar}
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -303,7 +317,6 @@ type PaneContext = {
   scope: { projectId: string; worktreeId: string };
   context: ConnectionContext;
   base: string | undefined;
-  setFocused: (pane: PaneIndex) => void;
   onOpen: OpenDocument;
   reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
   navigationTrigger: RefObject<HTMLButtonElement | null>;
@@ -358,7 +371,6 @@ function DocumentPanes({
   context,
   base,
   focused,
-  setFocused,
   onOpen,
   navigationTrigger,
   navigatorIsMobile,
@@ -400,7 +412,6 @@ function DocumentPanes({
     layout,
     split: layout.split,
     focused: focused === index,
-    setFocused,
     scope,
     context,
     reviewing: published.review?.active === true,
@@ -448,7 +459,6 @@ function PaneView({
   layout,
   split,
   focused,
-  setFocused,
   scope,
   context,
   reviewing,
@@ -470,14 +480,25 @@ function PaneView({
 }) {
   const pane = layout.panes[index] ?? { tabs: [], pinned: [], active: null };
   const document = parseEntry(pane.active ?? undefined);
+  const focusPane = (event: SyntheticEvent<HTMLElement>) => {
+    const target = event.target;
+    if (
+      !(target instanceof Element) ||
+      !event.currentTarget.contains(target) ||
+      target.closest('[data-review-controls]') !== null
+    )
+      return;
+    if (event.type === 'pointerdown') layout.selectPane(index);
+    else layout.focusPane(index, target);
+  };
 
   return (
     <section
       ref={(element) => layout.bindPane(index, element)}
       aria-label={split ? `${index === 0 ? 'Left' : 'Right'} pane` : undefined}
       data-focused={focused}
-      onPointerDownCapture={() => setFocused(index)}
-      onFocusCapture={() => setFocused(index)}
+      onPointerDownCapture={focusPane}
+      onFocusCapture={focusPane}
       className={cn(
         'flex h-full min-h-0 flex-col',
         split && index === 1 && 'border-l',
