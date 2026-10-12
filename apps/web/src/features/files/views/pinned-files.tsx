@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { useState } from 'react';
+import { flushSync } from 'react-dom';
 import { PinOffIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,7 +29,7 @@ export function PinnedFiles({
     onAction: (id: TreeAction) => void;
   };
 }) {
-  const openingSide = useRef(false);
+  const [openingSide, setOpeningSide] = useState(false);
   if (paths.length === 0) return null;
   return (
     <section aria-label="Pinned files" className="shrink-0 px-2 pt-1.5 pb-1">
@@ -43,7 +44,7 @@ export function PinnedFiles({
             <ContextMenu
               key={path}
               onOpenChange={(open) => {
-                if (open) openingSide.current = false;
+                if (open) setOpeningSide(false);
               }}
             >
               <ContextMenuTrigger
@@ -77,14 +78,13 @@ export function PinnedFiles({
                   <PinOffIcon />
                 </Button>
               </ContextMenuTrigger>
-              <ContextMenuContent
-                finalFocus={() => (openingSide.current ? false : true)}
-              >
+              <ContextMenuContent finalFocus={!openingSide}>
                 <FileTreeMenuList
                   actions={menu.actions}
                   hidden={menu.hidden}
                   onAction={(id) => {
-                    openingSide.current = id === 'open-to-side';
+                    if (id === 'open-to-side')
+                      flushSync(() => setOpeningSide(true));
                     menu.onAction(id);
                   }}
                 />

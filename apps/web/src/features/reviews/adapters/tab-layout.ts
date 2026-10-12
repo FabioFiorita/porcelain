@@ -33,6 +33,7 @@ export function useTabLayout({
   setFocused,
   ready,
   focusBoundary,
+  focusBoundaryOpen,
 }: {
   worktreeId: string;
   entry: string | undefined;
@@ -43,6 +44,7 @@ export function useTabLayout({
   focused: PaneIndex;
   setFocused: (pane: PaneIndex) => void;
   focusBoundary: RefObject<HTMLElement | null>;
+  focusBoundaryOpen: boolean;
 }) {
   const { panes: stored, saved, save } = useTabLayoutStore(worktreeId);
   const [pending, setPending] = useState<[Target, Target]>([
@@ -248,6 +250,7 @@ export function useTabLayout({
       setFocused(index);
     },
     focusPane(index: PaneIndex, element: Element) {
+      if (focusBoundaryOpen) return;
       const target = destinationFocus.current;
       if (
         target !== null &&

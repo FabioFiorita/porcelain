@@ -1,6 +1,7 @@
 import { relativeTime } from '@/shared/lib/relative-time';
 import { Columns2Icon, CopyIcon, GitMergeIcon } from 'lucide-react';
-import { useRef, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import { Badge } from '@/components/ui/badge';
 import {
   ContextMenu,
@@ -34,11 +35,11 @@ export function CommitRow({
   openToSide?: { label: string; open: () => void };
   children?: ReactNode;
 }) {
-  const openingSide = useRef(false);
+  const [openingSide, setOpeningSide] = useState(false);
   return (
     <ContextMenu
       onOpenChange={(open) => {
-        if (open) openingSide.current = false;
+        if (open) setOpeningSide(false);
       }}
     >
       <ContextMenuTrigger
@@ -92,13 +93,11 @@ export function CommitRow({
           </span>
         )}
       </ContextMenuTrigger>
-      <ContextMenuContent
-        finalFocus={() => (openingSide.current ? false : true)}
-      >
+      <ContextMenuContent finalFocus={!openingSide}>
         {openToSide && (
           <ContextMenuItem
             onClick={() => {
-              openingSide.current = true;
+              flushSync(() => setOpeningSide(true));
               openToSide.open();
             }}
           >

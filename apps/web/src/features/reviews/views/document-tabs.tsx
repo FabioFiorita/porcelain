@@ -18,7 +18,8 @@ import {
   XIcon,
 } from 'lucide-react';
 import type { ComponentType, ReactNode, SVGProps } from 'react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -243,7 +244,7 @@ function DocumentTab({
 }) {
   const { Icon, title, hint } = describeTab(tabKey, reviewing);
   const tabRef = useRef<HTMLDivElement>(null);
-  const openingSide = useRef(false);
+  const [openingSide, setOpeningSide] = useState(false);
   const openToSideLabel = openToSideText(side);
 
   useEffect(() => {
@@ -258,7 +259,7 @@ function DocumentTab({
   return (
     <ContextMenu
       onOpenChange={(open) => {
-        if (open) openingSide.current = false;
+        if (open) setOpeningSide(false);
       }}
     >
       <ContextMenuTrigger
@@ -333,17 +334,14 @@ function DocumentTab({
           </button>
         )}
       </ContextMenuTrigger>
-      <ContextMenuContent
-        className="min-w-52"
-        finalFocus={() => (openingSide.current ? false : true)}
-      >
+      <ContextMenuContent className="min-w-52" finalFocus={!openingSide}>
         <ContextMenuItem onClick={() => onTogglePin(tabKey)}>
           {pinned ? <PinOffIcon /> : <PinIcon />}
           {pinned ? 'Unpin' : 'Pin'}
         </ContextMenuItem>
         <ContextMenuItem
           onClick={() => {
-            openingSide.current = true;
+            flushSync(() => setOpeningSide(true));
             onOpenToSide(tabKey);
           }}
         >

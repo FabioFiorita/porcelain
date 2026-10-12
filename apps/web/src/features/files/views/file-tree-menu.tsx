@@ -13,7 +13,8 @@ import {
   PinIcon,
   Trash2Icon,
 } from 'lucide-react';
-import { useRef } from 'react';
+import { useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { ComponentProps, ComponentType, KeyboardEvent } from 'react';
 import {
   ContextMenuItem,
@@ -82,7 +83,7 @@ export function FileTreeMenu({
   onMenuKeyDown,
 }: Props) {
   const point = anchor.getBoundingClientRect();
-  const openingSide = useRef(false);
+  const [openingSide, setOpeningSide] = useState(false);
   return (
     <DropdownMenu defaultOpen>
       <DropdownMenuTrigger
@@ -93,13 +94,13 @@ export function FileTreeMenu({
       <DropdownMenuContent
         data-file-tree-context-menu-root="true"
         onKeyDownCapture={onMenuKeyDown}
-        finalFocus={() => (openingSide.current ? false : true)}
+        finalFocus={!openingSide}
       >
         <FileTreeMenuList
           actions={actions}
           hidden={hidden}
           onAction={(id) => {
-            openingSide.current = id === 'open-to-side';
+            if (id === 'open-to-side') flushSync(() => setOpeningSide(true));
             onAction(id);
           }}
           parts={dropdownParts}

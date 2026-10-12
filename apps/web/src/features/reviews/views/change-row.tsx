@@ -17,7 +17,8 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { useRef } from 'react';
+import { useState } from 'react';
+import { flushSync } from 'react-dom';
 import { cn } from '@/shared/lib/utils';
 import { copyText } from '@/shared/workspace/copy';
 import { FileTypeIcon } from '@/features/files/index';
@@ -56,12 +57,12 @@ export function ChangeRow({
   onDiscard?: () => void;
   indented?: boolean;
 }) {
-  const openingSide = useRef(false);
+  const [openingSide, setOpeningSide] = useState(false);
   const label = `${basename(path)}${scopes.length > 0 ? ` · ${scopes.join(' + ')}` : ''}`;
   return (
     <ContextMenu
       onOpenChange={(open) => {
-        if (open) openingSide.current = false;
+        if (open) setOpeningSide(false);
       }}
     >
       <ContextMenuTrigger
@@ -103,10 +104,7 @@ export function ChangeRow({
           </span>
         )}
       </ContextMenuTrigger>
-      <ContextMenuContent
-        className="min-w-52"
-        finalFocus={() => (openingSide.current ? false : true)}
-      >
+      <ContextMenuContent className="min-w-52" finalFocus={!openingSide}>
         <ContextMenuItem disabled={!canReview} onClick={onReview}>
           <CheckIcon />
           {reviewMenuLabel(reviewStatus)}
@@ -130,7 +128,7 @@ export function ChangeRow({
         </ContextMenuItem>
         <ContextMenuItem
           onClick={() => {
-            openingSide.current = true;
+            flushSync(() => setOpeningSide(true));
             onOpen(document, undefined, { toSide: true });
           }}
         >

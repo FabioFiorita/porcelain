@@ -1,6 +1,78 @@
 import { userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
+test('invoking the right Review control chooses the source pane before opening a file to the left', async ({
+  workspace,
+  repo,
+}) => {
+  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
+  await workspace
+    .getByRole('treeitem', { name: repo.readme.path, exact: true })
+    .click({ button: 'right' });
+  await workspace
+    .getByRole('menuitem', { name: 'Open file', exact: true })
+    .click();
+  await workspace
+    .getByRole('tab', {
+      name: `${repo.readme.path} Close ${repo.readme.path}`,
+      exact: true,
+    })
+    .click({ button: 'right' });
+  await workspace.getByRole('menuitem', { name: /Open to the side/ }).click();
+  const left = workspace.getByRole('region', {
+    name: 'Left pane',
+    exact: true,
+  });
+  const right = workspace.getByRole('region', {
+    name: 'Right pane',
+    exact: true,
+  });
+  await left.getByRole('button', { name: 'Edit', exact: true }).click();
+  await right.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
+  await workspace
+    .getByRole('treeitem', { name: repo.readme.path, exact: true })
+    .click({ button: 'right' });
+  await workspace
+    .getByRole('menuitem', { name: 'Open in the left pane', exact: true })
+    .click();
+  const destination = left.getByRole('tab', {
+    name: `${repo.readme.path} Close ${repo.readme.path}`,
+    exact: true,
+    selected: true,
+  });
+  await expect
+    .element(destination)
+    .toHaveAttribute('data-entry', `change:${repo.readme.path}`);
+  await expect.element(destination).toHaveAttribute('aria-selected', 'true');
+  await expect
+    .element(
+      right.getByRole('tab', {
+        name: `${repo.readme.path} Close ${repo.readme.path}`,
+        exact: true,
+      }),
+    )
+    .toHaveAttribute('data-entry', `file:${repo.readme.path}`);
+  await expect
+    .element(
+      right.getByRole('tab', {
+        name: `${repo.readme.path} Close ${repo.readme.path}`,
+        exact: true,
+      }),
+    )
+    .toHaveAttribute('aria-selected', 'true');
+  await expect
+    .element(
+      workspace.getByRole('dialog', {
+        name: 'Worktree review',
+        exact: true,
+      }),
+    )
+    .not.toBeInTheDocument();
+  await expect.element(destination).toHaveFocus();
+});
+
 test('tree side menu preserves the source document and focuses the destination after the sheet closes', async ({
   workspace,
   repo,
@@ -536,7 +608,7 @@ test('switching to another tab during sheet exit cancels the older destination f
   await left
     .getByRole('tab', { name: 'Changes Close Changes', exact: true })
     .click();
-  await trigger.click();
+  await userEvent.keyboard('{Alt>}{Shift>}r{/Shift}{/Alt}');
   await workspace
     .getByRole('treeitem', { name: 'guide.txt', exact: true })
     .click({ button: 'right' });

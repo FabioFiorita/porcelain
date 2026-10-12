@@ -67,21 +67,34 @@ import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Worktree = Project['worktrees'][number];
 
-export function ReviewWorkspace({
-  worktree,
-  projectId,
-  search,
-  onSearch,
-  context,
-  navigationTrigger,
-}: {
+type ReviewWorkspaceProps = {
   worktree: Worktree;
   projectId: string;
   context: ConnectionContext;
   search: WorkspaceSearch;
   onSearch: SetWorkspaceSearch;
   navigationTrigger: RefObject<HTMLButtonElement | null>;
-}) {
+};
+
+export function ReviewWorkspace(props: ReviewWorkspaceProps) {
+  return (
+    <ReviewBoundary
+      connection={props.context.connection}
+      scope={{ projectId: props.projectId, worktreeId: props.worktree.id }}
+    >
+      <ReviewWorkspaceContent {...props} />
+    </ReviewBoundary>
+  );
+}
+
+function ReviewWorkspaceContent({
+  worktree,
+  projectId,
+  search,
+  onSearch,
+  context,
+  navigationTrigger,
+}: ReviewWorkspaceProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const desktop = useDesktopReview();
@@ -120,6 +133,7 @@ export function ReviewWorkspace({
     setFocused: setFocusedPane,
     ready,
     focusBoundary: mobileSheet,
+    focusBoundaryOpen: mobileOpen,
   });
   const sideLabel = openToSideText(paneSide(layout.split, focusedPane));
 
@@ -197,7 +211,7 @@ export function ReviewWorkspace({
     />
   );
 
-  const tabControls = (
+  const tabControls = (pane: PaneIndex) => (
     <div data-review-controls="" className="contents">
       <GitButton scope={scope} context={context} />
       <Button
@@ -209,7 +223,10 @@ export function ReviewWorkspace({
         aria-expanded={sidebarOpen}
         aria-keyshortcuts={SHORTCUTS.toggleSidebar}
         title={`Toggle review sidebar (${formatForDisplay(SHORTCUTS.toggleSidebar)})`}
-        onClick={toggleSidebar}
+        onClick={() => {
+          layout.selectPane(pane);
+          toggleSidebar();
+        }}
       >
         <PanelRightIcon />
       </Button>
@@ -223,6 +240,7 @@ export function ReviewWorkspace({
             aria-label="Review"
             aria-keyshortcuts={SHORTCUTS.toggleSidebar}
             title={`Toggle review sidebar (${formatForDisplay(SHORTCUTS.toggleSidebar)})`}
+            onClick={() => layout.selectPane(pane)}
           />
         }
       >
@@ -248,28 +266,26 @@ export function ReviewWorkspace({
             aria-label="Review content"
             className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
           >
-            <ReviewBoundary connection={context.connection} scope={scope}>
-              <InterruptedActionNotice scope={scope} context={context} />
-              <ConflictGuidance scope={scope} context={context} onOpen={open} />
-              <DocumentArea
-                reveal={reveal}
-                scope={scope}
-                context={context}
-                overview={overview}
-                published={published}
-                needsDefault={needsDefault}
-                hasHandoff={hasHandoff}
-                layout={layout}
-                base={search.base}
-                focused={focusedPane}
-                onOpen={open}
-                navigationTrigger={navigationTrigger}
-                navigatorIsMobile={navigatorIsMobile}
-                navigatorOpen={navigatorOpen}
-                navigatorOpenMobile={navigatorOpenMobile}
-                tabControls={tabControls}
-              />
-            </ReviewBoundary>
+            <InterruptedActionNotice scope={scope} context={context} />
+            <ConflictGuidance scope={scope} context={context} onOpen={open} />
+            <DocumentArea
+              reveal={reveal}
+              scope={scope}
+              context={context}
+              overview={overview}
+              published={published}
+              needsDefault={needsDefault}
+              hasHandoff={hasHandoff}
+              layout={layout}
+              base={search.base}
+              focused={focusedPane}
+              onOpen={open}
+              navigationTrigger={navigationTrigger}
+              navigatorIsMobile={navigatorIsMobile}
+              navigatorOpen={navigatorOpen}
+              navigatorOpenMobile={navigatorOpenMobile}
+              tabControls={tabControls}
+            />
           </section>
         </ResizablePanel>
         {sidebarOpen && desktop && (
@@ -323,7 +339,7 @@ type PaneContext = {
   navigatorIsMobile: boolean;
   navigatorOpen: boolean;
   navigatorOpenMobile: boolean;
-  tabControls: ReactNode;
+  tabControls: (pane: PaneIndex) => ReactNode;
 };
 
 type DocumentAreaProps = PaneContext & {
@@ -539,7 +555,7 @@ function PaneView({
         onCloseUnpinned={() => layout.closeUnpinned(index)}
         onTogglePin={(key) => layout.togglePin(index, key)}
         onOpenToSide={(key) => layout.openToSide(index, key)}
-        trailing={!split || index === 1 ? tabControls : undefined}
+        trailing={!split || index === 1 ? tabControls(index) : undefined}
       />
       {document === null || document === undefined ? (
         <EmptyDocument handoff={handoff} onOpen={onOpen} />
