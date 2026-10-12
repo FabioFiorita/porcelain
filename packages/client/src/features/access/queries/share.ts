@@ -1,3 +1,4 @@
+import type { ReadServiceUpdateResponse } from '@porcelain/contracts/access';
 import {
   type Context,
   Cause,
@@ -44,16 +45,20 @@ function pollWhile<A, E, R>(
   runtime: Atom.AtomRuntime<R>,
   read: Effect.Effect<AsyncResult.AsyncResult<A, E>, never, R>,
   interval: number,
-  settling: (answer: A | undefined) => boolean,
+  settling: Effect.Effect<(answer: A | undefined) => boolean, never, R>,
 ) {
   return Atom.optimistic(
     runtime
       .atom(
-        Stream.fromEffect(read).pipe(
-          Stream.repeat(Schedule.spaced(interval)),
-          Stream.takeUntil(
-            (answer) =>
-              !settling(Option.getOrUndefined(AsyncResult.value(answer))),
+        Stream.unwrap(
+          Effect.map(settling, (inProgress) =>
+            Stream.fromEffect(read).pipe(
+              Stream.repeat(Schedule.spaced(interval)),
+              Stream.takeUntil(
+                (answer) =>
+                  !inProgress(Option.getOrUndefined(AsyncResult.value(answer))),
+              ),
+            ),
           ),
         ),
       )
@@ -96,7 +101,7 @@ export const readRemoteAccess = Atom.family((connection: RuntimeConnection) =>
       ),
     ),
     REMOTE_ACCESS_SETTLING_POLL_MS,
-    routesSettling,
+    Effect.succeed(routesSettling),
   ),
 );
 export const readServiceUpdate = Atom.family((connection: RuntimeConnection) =>
@@ -108,6 +113,24 @@ export const readServiceUpdate = Atom.family((connection: RuntimeConnection) =>
       requestApi(connection, (api) => api.serviceUpdates.readServiceUpdate()),
     ),
     SERVICE_UPDATE_POLL_MS,
-    (answer) => answer?.running === true,
+    Effect.gen(function* () {
+      const snapshots = yield* AccessSnapshots;
+      const previous = Option.getOrUndefined(yield* Ref.get(snapshots.update));
+      let target = previous?.running ? previous.last?.target : undefined;
+      return (answer: ReadServiceUpdateResponse | undefined) => {
+        if (answer?.managed !== true) return false;
+        if (answer.running) {
+          target = answer.last?.target;
+          return true;
+        }
+        return (
+          target !== undefined &&
+          answer.last?.stage === 'updated' &&
+          answer.last.target === target &&
+          answer.version === answer.last.from &&
+          answer.version !== target
+        );
+      };
+    }),
   ),
 );
