@@ -214,6 +214,11 @@ export const readPublishedReviewResponseSchema = Schema.Struct({
 });
 export const publishReviewResponseSchema = readPublishedReviewResponseSchema;
 
+export const deleteReviewResponseSchema = Schema.Struct({
+  deleted: Schema.Boolean,
+});
+export type DeleteReviewResponse = typeof deleteReviewResponseSchema.Type;
+
 export type PublishReviewRequest = typeof publishReviewRequestSchema.Type;
 export type ReadPublishedReviewResponse =
   typeof readPublishedReviewResponseSchema.Type;

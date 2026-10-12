@@ -1,10 +1,12 @@
 import { Effect } from 'effect';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { DiagramBox, Review } from '../../src/models/review.ts';
+import type { ReviewedLayerStore } from '../../src/ports/reviewed-layer-store.ts';
 import type { ReviewStore } from '../../src/ports/review-store.ts';
 
 export type ReviewStoreSubject = {
   store: ReviewStore;
+  reviewedLayers: ReviewedLayerStore;
   close: () => Promise<void> | void;
 };
 
@@ -185,6 +187,85 @@ export function reviewStoreContract(
           store.readProofFile({ worktreeId: first, proofId: 'new' }),
         ),
       ).toBeUndefined();
+    });
+
+    it('removes the review, summary, proof files and reviewed layers only for the selected worktree', async () => {
+      const bytes = new Uint8Array([1, 2, 3]);
+      const mark = {
+        layerId: 'layer',
+        fingerprint: 'fingerprint',
+        reviewedAt: '2026-09-24T10:00:00.000Z',
+      };
+      for (const worktreeId of [first, second]) {
+        await Effect.runPromise(
+          store.save({
+            ...review(worktreeId),
+            proofFiles: [{ id: 'shot', mediaType: 'image/png', bytes }],
+          }),
+        );
+        await Effect.runPromise(
+          opened.reviewedLayers.save({ worktreeId, marks: [mark] }),
+        );
+      }
+
+      expect(await Effect.runPromise(store.remove({ worktreeId: first }))).toBe(
+        true,
+      );
+      expect(
+        await Effect.runPromise(store.read({ worktreeId: first })),
+      ).toBeUndefined();
+      expect(
+        await Effect.runPromise(
+          store.byWorktrees({ worktreeIds: [first, second] }),
+        ),
+      ).toEqual([review(second)]);
+      expect(
+        await Effect.runPromise(
+          store.findSummary({ token: review(first).summaryToken }),
+        ),
+      ).toBeUndefined();
+      expect(
+        await Effect.runPromise(
+          store.readProofFile({ worktreeId: first, proofId: 'shot' }),
+        ),
+      ).toBeUndefined();
+      expect(
+        await Effect.runPromise(
+          opened.reviewedLayers.list({ worktreeId: first }),
+        ),
+      ).toEqual([]);
+      expect(
+        await Effect.runPromise(
+          store.findSummary({ token: review(second).summaryToken }),
+        ),
+      ).toEqual({
+        summaryHtml: review(second).summaryHtml,
+        summaryToken: review(second).summaryToken,
+        summarySecret: review(second).summarySecret,
+      });
+      expect(
+        await Effect.runPromise(
+          store.readProofFile({ worktreeId: second, proofId: 'shot' }),
+        ),
+      ).toEqual({ id: 'shot', mediaType: 'image/png', bytes });
+      expect(
+        await Effect.runPromise(
+          opened.reviewedLayers.list({ worktreeId: second }),
+        ),
+      ).toEqual([mark]);
+    });
+
+    it('returns false when removing a missing or already removed review', async () => {
+      expect(await Effect.runPromise(store.remove({ worktreeId: first }))).toBe(
+        false,
+      );
+      await Effect.runPromise(store.save(review(first)));
+      expect(await Effect.runPromise(store.remove({ worktreeId: first }))).toBe(
+        true,
+      );
+      expect(await Effect.runPromise(store.remove({ worktreeId: first }))).toBe(
+        false,
+      );
     });
 
     it('replaces the review of a worktree when a newer one is saved', async () => {

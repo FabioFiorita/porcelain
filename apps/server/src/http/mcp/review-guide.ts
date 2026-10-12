@@ -11,6 +11,8 @@ The review helps the developer understand how the architecture changes and which
 
 The reader marks a decision reviewed, and that marks every file it shows. Each changed file appears in full, once, in the first layer whose changed step points at it, so point the layer that introduces a shared owner at that owner's file. A changed step points at code this change alters; its text appears as a numbered note under the last line it points at, so end the step where the explained block ends. A context step points at unchanged code the reader needs and appears as an excerpt after the decision's code. Write step text as one or two sentences on the decision and its consequence, not a narration of the code. Keep the layer summary to two or three sentences; longer text is folded. Changed lines no step covers are listed as Not explained, both as files of their own and as marked lines inside explained files.
 
+Use \`delete_review\` only for a review published on the wrong worktree or one that should no longer be reviewed. Deletion is final; comments and reviewed file marks stay.
+
 ## Summary
 
 The summary is the Agent summary tab beside the walkthrough. It is one complete HTML document, at most 10 MiB. It runs in an opaque sandbox with scripts, forms, popups, and modals. Network resources such as CDN fonts and libraries are allowed. The page cannot reach Porcelain login state or APIs. Link to layers with \`#layer-N\`, where N is the 1-based published order. Porcelain handles that navigation. Do not embed credentials.

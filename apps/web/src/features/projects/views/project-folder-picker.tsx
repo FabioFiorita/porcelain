@@ -36,51 +36,58 @@ export function ProjectFolderPicker({
   return (
     <section
       aria-label="Browse for a folder"
-      className="flex flex-col gap-2 rounded-2xl border bg-muted/30 p-3"
+      className="flex flex-col gap-2 rounded-2xl border bg-muted/30 p-2"
     >
-      <h3 className="px-1 text-sm font-medium">Browse for a folder</h3>
-      {current && (
-        <Breadcrumb aria-label="Folder path">
-          <BreadcrumbList>
-            {crumbs.map((name, index) => {
-              const destination =
-                index === 0 ? '/' : `/${crumbs.slice(1, index + 1).join('/')}`;
-              return (
-                <Fragment key={destination}>
-                  {index > 0 && <BreadcrumbSeparator />}
-                  <BreadcrumbItem className="min-w-0">
-                    {index === crumbs.length - 1 ? (
-                      <BreadcrumbPage className="max-w-48" title={current.path}>
-                        {name}
-                      </BreadcrumbPage>
-                    ) : (
-                      <BreadcrumbLink
-                        render={
-                          <button
-                            type="button"
-                            disabled={disabled}
-                            onClick={() => setPath(destination)}
-                          />
-                        }
-                        title={destination}
-                      >
-                        {name}
-                      </BreadcrumbLink>
-                    )}
-                  </BreadcrumbItem>
-                </Fragment>
-              );
-            })}
-          </BreadcrumbList>
-        </Breadcrumb>
-      )}
+      <div className="flex flex-col gap-1 px-3 pt-1">
+        <h3 className="text-sm font-medium">Browse for a folder</h3>
+        {current && (
+          <Breadcrumb aria-label="Folder path">
+            <BreadcrumbList>
+              {crumbs.map((name, index) => {
+                const destination =
+                  index === 0
+                    ? '/'
+                    : `/${crumbs.slice(1, index + 1).join('/')}`;
+                return (
+                  <Fragment key={destination}>
+                    {index > 0 && <BreadcrumbSeparator />}
+                    <BreadcrumbItem className="min-w-0">
+                      {index === crumbs.length - 1 ? (
+                        <BreadcrumbPage
+                          className="max-w-48"
+                          title={current.path}
+                        >
+                          {name}
+                        </BreadcrumbPage>
+                      ) : (
+                        <BreadcrumbLink
+                          render={
+                            <button
+                              type="button"
+                              disabled={disabled}
+                              onClick={() => setPath(destination)}
+                            />
+                          }
+                          title={destination}
+                        >
+                          {name}
+                        </BreadcrumbLink>
+                      )}
+                    </BreadcrumbItem>
+                  </Fragment>
+                );
+              })}
+            </BreadcrumbList>
+          </Breadcrumb>
+        )}
+      </div>
       <ProjectFolderList folder={folder} disabled={disabled} />
       {current?.truncated && (
-        <p className="px-1 text-xs text-muted-foreground">
+        <p className="px-3 text-xs text-muted-foreground">
           This folder is large; some entries are not shown.
         </p>
       )}
-      <div className="flex items-center justify-between gap-2 px-1">
+      <div className="flex items-center justify-between gap-2 pr-1 pb-1 pl-3">
         <p className="text-xs text-muted-foreground">
           {current?.repository
             ? 'Every worktree appears in the sidebar.'

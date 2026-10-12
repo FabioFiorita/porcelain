@@ -17,6 +17,7 @@ import { Button } from '../../../components/ui/button';
 import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Text } from '../../../components/ui/text';
+import { headerIcon } from '../../../shared/icons/header-icon';
 import { directoryRequests } from '../rules/directory-requests';
 import { useDirectories } from '../queries/directory';
 import { directoryLoading } from '../rules/directory-loading';
@@ -148,12 +149,11 @@ function WorktreeFiles({
     <Box className="flex-1" surface="background" collapsable={false}>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
+          icon={headerIcon('refresh')}
           accessibilityLabel={refreshing ? 'Refreshing files' : 'Refresh files'}
           disabled={refreshing}
           onPress={refresh}
-        >
-          {refreshing ? 'Refreshing…' : 'Refresh'}
-        </Stack.Toolbar.Button>
+        />
       </Stack.Toolbar>
       <FileTree
         header={header}

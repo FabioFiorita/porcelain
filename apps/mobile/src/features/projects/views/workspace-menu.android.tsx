@@ -1,13 +1,13 @@
 import { Stack } from 'expo-router';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
-import { workspaceIcon } from '../../../shared/icons/workspace-icon';
+import { headerIcon } from '../../../shared/icons/header-icon';
 import type { WorkspaceMenuProps } from './workspace-menu-props';
 
 export function WorkspaceMenu(props: WorkspaceMenuProps) {
   return (
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.Menu
-        icon={workspaceIcon}
+        icon={headerIcon('workspace')}
         accessibilityLabel={props.label}
         title={props.label}
       >

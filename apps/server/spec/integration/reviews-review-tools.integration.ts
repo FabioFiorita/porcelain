@@ -231,6 +231,9 @@ test('a review tool called from a directory outside every registered worktree is
         cwd: session.projectHome,
       }),
     ),
+    await session.send(
+      toolCall(session, 11, 'delete_review', { cwd: session.projectHome }),
+    ),
   ];
 
   for (const response of responses) {

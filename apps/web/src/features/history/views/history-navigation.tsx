@@ -1,6 +1,7 @@
 import { GitBranchIcon, GitGraphIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Empty,
   EmptyDescription,
@@ -29,7 +30,7 @@ export function HistoryNavigation({
   const history = useHistory(connection, scope);
 
   return (
-    <div className="flex flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <HistoryHeading
         history={history}
         action={
@@ -41,16 +42,18 @@ export function HistoryNavigation({
           ) : undefined
         }
       />
-      {history.commits.length === 0 ? (
-        <NoCommits />
-      ) : (
-        <HistoryRows
-          commits={history.commits}
-          history={history}
-          selected={selected}
-          onSelect={onSelect}
-        />
-      )}
+      <ScrollArea className="h-0 min-h-0 flex-1">
+        {history.commits.length === 0 ? (
+          <NoCommits />
+        ) : (
+          <HistoryRows
+            commits={history.commits}
+            history={history}
+            selected={selected}
+            onSelect={onSelect}
+          />
+        )}
+      </ScrollArea>
     </div>
   );
 }

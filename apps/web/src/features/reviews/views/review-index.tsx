@@ -64,6 +64,7 @@ import {
 import { useWalkthroughPlace } from '../store';
 import { BranchIndex } from './branch-index';
 import { ChangeRow, ROW } from './change-row';
+import { DeleteReview } from './delete-review';
 import { DeleteResolved } from './delete-resolved';
 import { InlineComposer } from './inline-composer';
 import { BranchReadiness, ChangeReadiness } from './readiness-panel';
@@ -133,6 +134,7 @@ export function ReviewIndex({
   };
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {published.review && <DeleteReview scope={scope} context={context} />}
       <div className="shrink-0 px-2">
         <Tabs
           value={changeScope}
@@ -303,7 +305,7 @@ function LayersView({
   );
   return (
     <ScrollArea className="h-0 min-h-0 flex-1">
-      <div className="p-2">
+      <div className="p-2 pr-3">
         {review ? (
           <WalkthroughRows
             scope={scope}

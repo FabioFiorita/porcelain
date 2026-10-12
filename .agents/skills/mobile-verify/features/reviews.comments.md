@@ -24,4 +24,4 @@ Open Comments from Review for all worktree threads, or Comment on file/selected 
 
 Post literal feedback and verify the server thread anchor and message. An invalid or failed submission retains the draft; identical retries retain message/thread IDs. Cancel leaves no write. Add an agent reply through the fixture and expect it live, then Reply, Resolve and Reopen from the sheet. Global comments mark the displayed revision seen; a file-filtered sheet does not mark unseen comments elsewhere as read.
 
-Change the underlying file while composing. Expect the earlier-comparison notice; the draft keeps the fingerprint of the displayed code. Change the workspace and expect Review unavailable. Done or the native sheet gesture returns to the exact file/list underneath.
+Change the underlying file while composing. Expect the earlier-comparison notice; the draft keeps the fingerprint of the displayed code. Change the workspace and expect Review unavailable. Done (the checkmark icon) or the native sheet gesture returns to the exact file/list underneath.
