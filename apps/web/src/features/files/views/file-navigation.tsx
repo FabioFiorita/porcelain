@@ -7,6 +7,8 @@ import {
   EyeOffIcon,
   FilePlusIcon,
   FolderPlusIcon,
+  ListChevronsUpDownIcon,
+  PlusIcon,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -20,6 +22,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { toast } from '@/components/ui/toast';
 import { type Change, changePath } from '@porcelain/client/changes/rules';
 import { useReviewOverview } from '@/features/changes/index';
@@ -118,6 +126,8 @@ function ScopedFileNavigation({
   const setPinned = useSetPinned(connection, scope.projectId);
   const [showHidden, setShowHidden] = useState(false);
   const [fileQuery, setFileQuery] = useState('');
+  const collapseLabel =
+    fileQuery === '' ? 'Collapse all' : 'Clear search and collapse all';
   const [requested, setRequested] = useState<readonly string[]>(() =>
     fileTreeAncestors(selected),
   );
@@ -181,6 +191,10 @@ function ScopedFileNavigation({
     if (kind === 'symlink' || kind === 'submodule')
       onOpen({ kind: 'file', path });
     else if (kind === 'file') openFile(path);
+  };
+  const collapseAll = useRef<() => void>(() => undefined);
+  const bindCollapseAll = (collapse: () => void) => {
+    collapseAll.current = collapse;
   };
   const renameFile = useRef<(path: string) => void>(() => undefined);
   const bindRename = (rename: (path: string) => void) => {
@@ -270,27 +284,51 @@ function ScopedFileNavigation({
             )}
           </Button>
         )}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                aria-label="Create file or folder"
+                title="Create file or folder"
+                disabled={edit.result.waiting}
+              />
+            }
+          >
+            <PlusIcon className="text-muted-foreground" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={() =>
+                setCreating({ kind: 'file', folder: '', nonce: Date.now() })
+              }
+            >
+              <FilePlusIcon />
+              New file
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                setCreating({
+                  kind: 'directory',
+                  folder: '',
+                  nonce: Date.now(),
+                })
+              }
+            >
+              <FolderPlusIcon />
+              New folder
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button
           size="icon-sm"
           variant="ghost"
-          aria-label="New file"
-          disabled={edit.result.waiting}
-          onClick={() =>
-            setCreating({ kind: 'file', folder: '', nonce: Date.now() })
-          }
+          aria-label={collapseLabel}
+          title={collapseLabel}
+          onClick={() => collapseAll.current()}
         >
-          <FilePlusIcon className="text-muted-foreground" />
-        </Button>
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          aria-label="New folder"
-          disabled={edit.result.waiting}
-          onClick={() =>
-            setCreating({ kind: 'directory', folder: '', nonce: Date.now() })
-          }
-        >
-          <FolderPlusIcon className="text-muted-foreground" />
+          <ListChevronsUpDownIcon className="text-muted-foreground" />
         </Button>
       </div>
       <PinnedFiles
@@ -339,6 +377,7 @@ function ScopedFileNavigation({
           gitStatus={gitStatus}
           selected={selected}
           bindRename={bindRename}
+          bindCollapseAll={bindCollapseAll}
           onInvalidName={(error) =>
             toast.add({
               title: 'Invalid name',
