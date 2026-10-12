@@ -8,7 +8,7 @@ import {
   refreshInventory,
   registerProject,
 } from '@porcelain/client/projects';
-import { AsyncResult, AtomRegistry, Reactivity } from 'effect/reactivity';
+import { AsyncResult, Atom, AtomRegistry, Reactivity } from 'effect/reactivity';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { queryKeys, type Transport } from '@porcelain/client/transport';
 import { readInventory, readInventories } from './inventory.ts';
@@ -154,6 +154,49 @@ describe('reading a connected project inventory', () => {
     });
     expect(await read(subject)).toEqual(inventory());
     expect(requests).toEqual(['/api/inventory']);
+  });
+  it('switches to another environment without letting a late cancelled inventory replace it', async () => {
+    const pendingRead = holdFirstRead();
+    const secondId = '7978b5bd-7a5e-49c2-b624-068b2a257fc2';
+    const first = fixture(() => pendingRead.read());
+    const second = fixture(
+      () =>
+        Promise.resolve(Response.json(inventory('Selected second', secondId))),
+      undefined,
+      secondId,
+    );
+    const current = Atom.make(first.connection);
+    const selected = Atom.readable((get) => get(readInventory(get(current))));
+    const stop = first.registry.mount(selected);
+    try {
+      await pendingRead.started.promise;
+      const firstAnswer = Effect.runPromiseExit(
+        AtomRegistry.getResult(
+          first.registry,
+          readInventory(first.connection),
+          {
+            suspendOnWaiting: true,
+          },
+        ),
+      );
+      first.registry.set(current, second.connection);
+      expect(
+        await Effect.runPromise(
+          AtomRegistry.getResult(first.registry, selected, {
+            suspendOnWaiting: true,
+          }),
+        ),
+      ).toEqual(inventory('Selected second', secondId));
+      await first.close();
+      pendingRead.held.resolve(Response.json(inventory('Late first')));
+      expect(Exit.isFailure(await firstAnswer)).toBe(true);
+      expect(
+        Option.getOrThrow(AsyncResult.value(first.registry.get(selected))),
+      ).toEqual(inventory('Selected second', secondId));
+    } finally {
+      pendingRead.held.resolve(Response.json(inventory('Late first')));
+      stop();
+    }
   });
   it('rejects an inventory returned by another installation', async () => {
     const subject = fixture(() =>

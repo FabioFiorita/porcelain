@@ -46,8 +46,11 @@ function savedUnavailable(
     (entry) => entry.environmentId === saved.environmentId,
   );
   const decision = workspaceSelection({
-    storage: { status: 'ready', error: undefined },
-    selection: { status: 'ready', error: undefined },
+    readiness: {
+      environmentsReady: true,
+      selectionReady: true,
+      failure: undefined,
+    },
     remembered: saved,
     paired: environment !== undefined,
     inventory:

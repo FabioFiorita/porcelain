@@ -47,12 +47,14 @@ export function WorkspacePicker({
       messages={messages}
       canReadInventory={canReadAgain}
       error={
-        selection.error ??
+        (workspace.state.kind === 'failed'
+          ? workspace.state.message
+          : undefined) ??
         (AsyncResult.isFailure(commands.result)
           ? connectionErrorMessage(Cause.squash(commands.result.cause))
           : undefined)
       }
-      onRead={() => commands.submit({ kind: 'read' })}
+      onRead={workspace.read}
       onReadInventory={inventories.read}
       onWorktree={(environmentId, projectId, worktreeId) =>
         commands.submit({

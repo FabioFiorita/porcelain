@@ -22,5 +22,5 @@ export {
 export {
   workspaceSelection,
   type WorkspaceSelection,
-  type SavedRead,
+  type WorkspaceReadiness,
 } from './workspace-selection.ts';

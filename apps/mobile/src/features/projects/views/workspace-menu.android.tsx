@@ -59,7 +59,7 @@ export function WorkspaceMenu(props: WorkspaceMenuProps) {
         ) : null}
         {props.error ? (
           <Stack.Toolbar.MenuAction onPress={props.onRead}>
-            Read saved workspace again
+            Read again
           </Stack.Toolbar.MenuAction>
         ) : null}
       </Stack.Toolbar.Menu>

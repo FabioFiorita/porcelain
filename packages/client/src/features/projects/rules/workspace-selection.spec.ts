@@ -24,8 +24,11 @@ const inventory: Inventory = {
   ],
 };
 const input = {
-  storage: { status: 'ready' as const, error: undefined },
-  selection: { status: 'ready' as const, error: undefined },
+  readiness: {
+    environmentsReady: true,
+    selectionReady: true,
+    failure: undefined,
+  },
   remembered: { projectId: 'project', worktreeId: 'main' },
   paired: true,
   inventory: { status: 'ready' as const, inventory },
@@ -36,13 +39,13 @@ describe('the selected workspace state', () => {
     expect(
       workspaceSelection({
         ...input,
-        storage: { status: 'loading', error: undefined },
+        readiness: { ...input.readiness, environmentsReady: false },
       }),
     ).toEqual({ kind: 'loading' });
     expect(
       workspaceSelection({
         ...input,
-        selection: { status: 'loading', error: undefined },
+        readiness: { ...input.readiness, selectionReady: false },
       }),
     ).toEqual({ kind: 'loading' });
     expect(
@@ -51,7 +54,7 @@ describe('the selected workspace state', () => {
     expect(
       workspaceSelection({
         ...input,
-        storage: { status: 'loading', error: undefined },
+        readiness: { ...input.readiness, environmentsReady: false },
         remembered: undefined,
       }),
     ).toEqual({ kind: 'loading' });
@@ -74,9 +77,12 @@ describe('the selected workspace state', () => {
     expect(
       workspaceSelection({
         ...input,
-        storage: {
-          status: 'unreadable',
-          error: 'Could not read saved environments.',
+        readiness: {
+          ...input.readiness,
+          failure: {
+            source: 'storage',
+            message: 'Could not read saved environments.',
+          },
         },
       }),
     ).toEqual({
@@ -87,9 +93,12 @@ describe('the selected workspace state', () => {
     expect(
       workspaceSelection({
         ...input,
-        selection: {
-          status: 'unreadable',
-          error: 'Could not read saved workspaces.',
+        readiness: {
+          ...input.readiness,
+          failure: {
+            source: 'selection',
+            message: 'Could not read saved workspaces.',
+          },
         },
       }),
     ).toEqual({
@@ -99,7 +108,7 @@ describe('the selected workspace state', () => {
     });
   });
 
-  it('names the environment when the project is unavailable', () => {
+  it('uses the shared unavailable reason for a server without a reason code', () => {
     expect(
       workspaceSelection({
         ...input,
@@ -113,7 +122,7 @@ describe('the selected workspace state', () => {
       }),
     ).toEqual({
       kind: 'unavailable',
-      reason: 'This project is unavailable on Laptop.',
+      reason: "Porcelain can't reach this repository right now.",
     });
   });
 

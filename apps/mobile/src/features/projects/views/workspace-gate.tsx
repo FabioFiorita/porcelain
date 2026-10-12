@@ -1,10 +1,9 @@
 import type { ReactNode } from 'react';
+import { useRouter } from 'expo-router';
 import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Loading } from '../../../components/ui/loading';
-import { useReadEnvironments } from '../../access';
-import { useProjectSelectionCommands } from '../commands/selection';
 import type { Workspace } from '../commands/workspace-connection';
 import { useWorkspace } from './workspace';
 
@@ -19,9 +18,8 @@ export function WorkspaceGate({
   changed?: ReactNode;
   children: (workspace: Workspace) => ReactNode;
 }) {
-  const { state, inventory } = useWorkspace();
-  const readEnvironments = useReadEnvironments();
-  const commands = useProjectSelectionCommands();
+  const { state, read, reading, remote } = useWorkspace();
+  const router = useRouter();
   switch (state.kind) {
     case 'loading':
       return <Loading label="Reading workspace…" />;
@@ -32,22 +30,8 @@ export function WorkspaceGate({
             message={state.message}
             retry={{
               label: 'Read again',
-              onPress: () => {
-                switch (state.source) {
-                  case 'storage':
-                    readEnvironments();
-                    break;
-                  case 'selection':
-                    commands.submit({ kind: 'read' });
-                    break;
-                  case 'inventory':
-                    inventory.read();
-                    break;
-                  default:
-                    state.source satisfies never;
-                }
-              },
-              pending: inventory.result.waiting || commands.pending > 0,
+              onPress: read,
+              pending: reading,
             }}
           />
         </Box>
@@ -57,7 +41,14 @@ export function WorkspaceGate({
         <Empty
           title="Workspace unavailable"
           description={state.reason}
-          action={{ label: 'Read again', onPress: inventory.read }}
+          action={
+            remote
+              ? { label: 'Read again', onPress: read }
+              : {
+                  label: 'Open Settings',
+                  onPress: () => router.push('/settings'),
+                }
+          }
         />
       );
     case 'none':

@@ -142,7 +142,7 @@ describe('choosing a workspace across paired environments', () => {
         [laptop('ready', inventory('Laptop', [project('one', false)]))],
         saved,
       ).messages,
-    ).toEqual(['This project is unavailable on Laptop.']);
+    ).toEqual(["Porcelain can't reach this repository right now."]);
     expect(workspaceChoices([laptop('reading')], saved).messages).toEqual([
       'Laptop · Reading projects…',
     ]);
@@ -172,7 +172,9 @@ it('uses the selection rule reason in the picker, including unpaired and pending
     ],
     saved,
   );
-  expect(result.messages).toEqual(['This project is unavailable on Laptop.']);
+  expect(result.messages).toEqual([
+    "Porcelain can't reach this repository right now.",
+  ]);
   expect(workspaceChoices([], saved).messages).toEqual([
     'No environments paired',
     'This environment is no longer paired.',

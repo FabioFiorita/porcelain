@@ -4,9 +4,12 @@ import {
   type Project,
 } from './inventory.ts';
 
-export type SavedRead = {
-  readonly status: 'loading' | 'ready' | 'unreadable';
-  readonly error: string | undefined;
+export type WorkspaceReadiness = {
+  readonly environmentsReady: boolean;
+  readonly selectionReady: boolean;
+  readonly failure:
+    | { readonly source: 'storage' | 'selection'; readonly message: string }
+    | undefined;
 };
 
 export type WorkspaceInventory =
@@ -30,34 +33,20 @@ export type WorkspaceSelection =
     };
 
 export function workspaceSelection({
-  storage,
-  selection,
+  readiness,
   remembered,
   paired,
   inventory,
 }: {
-  storage: SavedRead;
-  selection: SavedRead;
+  readiness: WorkspaceReadiness;
   remembered:
     | { readonly projectId: string; readonly worktreeId: string }
     | undefined;
   paired: boolean;
   inventory: WorkspaceInventory;
 }): WorkspaceSelection {
-  if (storage.status === 'unreadable')
-    return {
-      kind: 'failed',
-      source: 'storage',
-      message: storage.error ?? 'Saved environments could not be read.',
-    };
-  if (selection.status === 'unreadable')
-    return {
-      kind: 'failed',
-      source: 'selection',
-      message:
-        selection.error ?? 'Saved workspace selections could not be read.',
-    };
-  if (storage.status !== 'ready' || selection.status !== 'ready')
+  if (readiness.failure) return { kind: 'failed', ...readiness.failure };
+  if (!readiness.environmentsReady || !readiness.selectionReady)
     return { kind: 'loading' };
   if (!remembered) return { kind: 'none' };
   if (!paired)
@@ -80,10 +69,7 @@ export function workspaceSelection({
   if (!project.available)
     return {
       kind: 'unavailable',
-      reason:
-        project.unavailableReason === undefined
-          ? `This project is unavailable on ${name}.`
-          : projectUnavailableMessage(project),
+      reason: projectUnavailableMessage(project),
     };
   const worktree = project.worktrees.find(
     (entry) => entry.id === remembered.worktreeId,

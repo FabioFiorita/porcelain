@@ -8,7 +8,7 @@ import {
   workspaceSelection,
   type WorkspaceSelection,
   type Project,
-  type SavedRead,
+  type WorkspaceReadiness,
 } from '@porcelain/client/projects/rules';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { useInventory } from '../queries/inventory';
@@ -33,8 +33,7 @@ export function useWorkspaceConnection(
   remembered:
     | { readonly projectId: string; readonly worktreeId: string }
     | undefined,
-  storage: SavedRead,
-  selection: SavedRead,
+  readiness: WorkspaceReadiness,
 ) {
   const connection = useProjectConnection(remote);
   const inventory = useInventory(connection);
@@ -46,8 +45,7 @@ export function useWorkspaceConnection(
     (candidate) => candidate.id === remembered?.worktreeId,
   );
   const decision = workspaceSelection({
-    storage,
-    selection,
+    readiness,
     remembered,
     paired: remote !== undefined,
     inventory: inventory.state,
