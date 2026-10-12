@@ -1,6 +1,5 @@
 import { userEvent } from 'vitest/browser';
-import { expect, test } from './fixtures.tsx';
-import { expectInputFocus } from '../kit/focus.ts';
+import { expect, expectInputFocus, test } from './fixtures.tsx';
 
 test('New file and New folder open inline names at phone width and create entries', async ({
   render,
