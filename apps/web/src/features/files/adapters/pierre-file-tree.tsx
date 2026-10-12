@@ -121,7 +121,7 @@ export function PierreFileTree({
     gitStatus,
     search: false,
     onSearchChange: (value) => {
-      if (!syncing.current && (value === null || value === undefined))
+      if (value === null || value === undefined)
         latest.current.onFilterChange('');
     },
     renaming: {
@@ -206,7 +206,6 @@ export function PierreFileTree({
       model.setSearch(null);
       model.resetPaths(latest.current.paths, { initialExpandedPaths: [] });
       syncing.current = false;
-      latest.current.onFilterChange('');
     });
     latest.current.bindRename((path) => {
       requestAnimationFrame(() => {
