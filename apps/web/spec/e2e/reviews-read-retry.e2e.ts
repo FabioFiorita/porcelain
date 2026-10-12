@@ -149,3 +149,56 @@ for (const target of ['entry', 'side']) {
     }
   });
 }
+
+for (const first of ['changes', 'publication'] as const) {
+  test(`a published review opens after empty changes and publication settle: ${first} first`, async ({
+    page,
+    live,
+    app,
+    repo,
+    agent,
+  }) => {
+    await repo.commit('Commit the sample change');
+    await agent.publishReview('Published context', 'context');
+    const held = await (first === 'changes'
+      ? live.holdPublishedReviewRead()
+      : live.holdChangesRead());
+    held.arm();
+    try {
+      const settled = page.waitForResponse((response) => {
+        const path = new URL(response.url()).pathname;
+        return (
+          response.request().method() === 'GET' &&
+          path.endsWith(first === 'changes' ? '/changes' : '/review') &&
+          response.status() === 200
+        );
+      });
+      await app.open(await app.link('this'));
+      await held.requested;
+      await settled;
+      const loading = page.getByRole('status', {
+        name: 'Loading review',
+        exact: true,
+      });
+      await expect(loading).toBeVisible();
+      await expectNoFalseEmpty(page);
+      await expect(
+        page.getByText('Nothing open', { exact: true }),
+      ).not.toBeAttached();
+      held.release();
+      await expect(
+        page.getByRole('region', { name: 'Review walkthrough', exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole('tab', { name: 'Walkthrough', exact: true }),
+      ).toBeVisible();
+      await expect(loading).not.toBeAttached();
+      await app.reload();
+      await expect(
+        page.getByRole('region', { name: 'Review walkthrough', exact: true }),
+      ).toBeVisible();
+    } finally {
+      held.release();
+    }
+  });
+}

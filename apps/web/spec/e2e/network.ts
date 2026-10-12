@@ -23,6 +23,11 @@ export async function liveRouter(context: BrowserContext) {
         () => network.live.hold(),
       ),
     holdChangesRead: () => network.hold(isChangesRead),
+    holdPublishedReviewRead: () =>
+      network.hold(
+        (request) =>
+          request.method() === 'GET' && pathOf(request).endsWith('/review'),
+      ),
     releaseHeld: network.live.release,
   };
 }

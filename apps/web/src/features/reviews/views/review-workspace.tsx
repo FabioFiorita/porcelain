@@ -1,5 +1,5 @@
 import { AsyncResult } from 'effect/reactivity';
-import { Option } from 'effect';
+import { Cause, Option } from 'effect';
 import {
   detectPlatform,
   formatForDisplay,
@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/sheet';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/shared/lib/utils';
-import { useChanges, useReviewOverview } from '@/features/changes/index';
+import { useReviewOverview } from '@/features/changes/index';
 import type { Project } from '@porcelain/client/projects/rules';
 import {
   ConflictGuidance,
@@ -288,17 +288,36 @@ type DocumentAreaProps = PaneContext & {
 
 function DocumentArea(props: DocumentAreaProps) {
   const { saved } = useTabLayoutStore(props.worktreeId);
-  if (saved || parseEntry(props.entry) || parseEntry(props.side))
-    return <DocumentPanes {...props} />;
-  return <DefaultDocumentArea {...props} />;
-}
-
-function DefaultDocumentArea(props: DocumentAreaProps) {
-  useChanges(props.scope, props.context.connection);
-  return <DocumentPanes {...props} />;
+  const [hadSavedLayout] = useState(saved);
+  const changes = useReviewOverview(props.scope, props.context.connection);
+  const published = usePublishedReview(props.scope, props.context);
+  const awaitingChanges = Option.isNone(AsyncResult.value(changes));
+  const awaitingPublication = Option.isNone(
+    AsyncResult.value(published.result),
+  );
+  const needsDefault =
+    !hadSavedLayout && !parseEntry(props.entry) && !parseEntry(props.side);
+  if (needsDefault && awaitingChanges && AsyncResult.isFailure(changes))
+    throw Cause.squash(changes.cause);
+  if (
+    needsDefault &&
+    awaitingPublication &&
+    AsyncResult.isFailure(published.result)
+  )
+    throw Cause.squash(published.result.cause);
+  if (needsDefault && (awaitingChanges || awaitingPublication)) {
+    return (
+      <div role="status" aria-label="Loading review" className="p-4">
+        Loading review…
+      </div>
+    );
+  }
+  return <DocumentPanes {...props} overview={changes} published={published} />;
 }
 
 function DocumentPanes({
+  overview: overviewResult,
+  published,
   reveal,
   scope,
   context,
@@ -315,12 +334,11 @@ function DocumentPanes({
   navigatorOpen,
   navigatorOpenMobile,
   tabControls,
-}: DocumentAreaProps) {
-  const { connection } = context;
-  const overview = Option.getOrUndefined(
-    AsyncResult.value(useReviewOverview(scope, connection)),
-  );
-  const published = usePublishedReview(scope, context);
+}: DocumentAreaProps & {
+  overview: ReturnType<typeof useReviewOverview>;
+  published: ReturnType<typeof usePublishedReview>;
+}) {
+  const overview = Option.getOrUndefined(AsyncResult.value(overviewResult));
   const hasHandoff =
     Boolean(published.review?.active) ||
     (overview !== null &&
