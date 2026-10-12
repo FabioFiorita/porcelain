@@ -1,4 +1,5 @@
 import {
+  Columns2Icon,
   CopyIcon,
   CopyPlusIcon,
   EyeIcon,
@@ -12,6 +13,8 @@ import {
   PinIcon,
   Trash2Icon,
 } from 'lucide-react';
+import { useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { ComponentProps, ComponentType, KeyboardEvent } from 'react';
 import {
   ContextMenuItem,
@@ -61,6 +64,7 @@ const icons = {
   duplicate: CopyPlusIcon,
   open: FileCodeIcon,
   'open-file': FileCodeIcon,
+  'open-to-side': Columns2Icon,
   'open-diff': FileDiffIcon,
   timeline: HistoryIcon,
   pin: PinIcon,
@@ -79,6 +83,7 @@ export function FileTreeMenu({
   onMenuKeyDown,
 }: Props) {
   const point = anchor.getBoundingClientRect();
+  const [openingSide, setOpeningSide] = useState(false);
   return (
     <DropdownMenu defaultOpen>
       <DropdownMenuTrigger
@@ -89,11 +94,15 @@ export function FileTreeMenu({
       <DropdownMenuContent
         data-file-tree-context-menu-root="true"
         onKeyDownCapture={onMenuKeyDown}
+        finalFocus={!openingSide}
       >
         <FileTreeMenuList
           actions={actions}
           hidden={hidden}
-          onAction={onAction}
+          onAction={(id) => {
+            if (id === 'open-to-side') flushSync(() => setOpeningSide(true));
+            onAction(id);
+          }}
           parts={dropdownParts}
         />
       </DropdownMenuContent>

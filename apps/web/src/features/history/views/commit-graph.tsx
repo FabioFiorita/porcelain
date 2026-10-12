@@ -12,10 +12,12 @@ export function CommitGraph({
   scope,
   connection,
   onSelect,
+  sideLabel,
 }: {
   scope: HistoryScope;
   connection: Connection;
-  onSelect: (oid: string) => void;
+  onSelect: (oid: string, toSide?: boolean) => void;
+  sideLabel: string;
 }) {
   const history = useHistory(connection, scope);
   const rows = layoutGraph(history.commits);
@@ -37,7 +39,11 @@ export function CommitGraph({
                   selected={false}
                   height={HISTORY_ROW_HEIGHT}
                   inset={width + HISTORY_GRAPH_ROW_GAP}
-                  onSelect={() => onSelect(commit.oid)}
+                  onSelect={(toSide) => onSelect(commit.oid, toSide)}
+                  openToSide={{
+                    label: sideLabel,
+                    open: () => onSelect(commit.oid, true),
+                  }}
                 />
               </li>
             ))}

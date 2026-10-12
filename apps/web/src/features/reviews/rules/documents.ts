@@ -95,7 +95,7 @@ export function withDocument(
 export type OpenDocument = (
   ref: DocumentRef,
   anchor?: CommentAnchor,
-  options?: { compose?: boolean },
+  options?: { compose?: boolean; toSide?: boolean },
 ) => void;
 
 export type DocumentInteraction = {

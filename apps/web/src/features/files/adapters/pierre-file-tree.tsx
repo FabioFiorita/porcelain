@@ -80,7 +80,7 @@ export function PierreFileTree({
     onMenuKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void,
   ) => ReactNode;
   onInvalidName: (error: string) => void;
-  onSelect: (path: string) => void;
+  onSelect: (path: string, toSide?: boolean) => void;
 }) {
   const current = {
     paths,
@@ -317,6 +317,27 @@ export function PierreFileTree({
       onKeyDownCapture={(event) => {
         if (event.key === 'Enter') acceptDefaultName(event.nativeEvent);
         if (event.key === 'Escape') pendingCreate.current = null;
+      }}
+      onClickCapture={(event) => {
+        if (!event.altKey || event.button !== 0) return;
+        const targets = event.nativeEvent.composedPath();
+        if (targets.some((target) => target instanceof HTMLInputElement))
+          return;
+        const row = targets.find(
+          (target): target is HTMLElement =>
+            target instanceof HTMLElement &&
+            target.hasAttribute('data-item-path'),
+        );
+        const path = row?.dataset.itemPath;
+        if (!path || latest.current.kinds.get(path) !== 'file') return;
+        const item = model.getItem(path);
+        if (item === null || pendingCreate.current?.path === path) return;
+        event.preventDefault();
+        event.stopPropagation();
+        syncing.current = true;
+        item.select();
+        syncing.current = false;
+        latest.current.onSelect(path, true);
       }}
       onBlurCapture={(event) => acceptDefaultName(event.nativeEvent)}
     >
