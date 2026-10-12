@@ -37,7 +37,7 @@ import {
   type SampleRepository,
 } from '../kit/shapes.ts';
 import { host } from './commands.ts';
-import { createFetchGate, live } from './network.ts';
+import { createExportHighlightGate, createFetchGate, live } from './network.ts';
 
 export { expect };
 export { replaceEditorContent } from './commands.ts';
@@ -322,6 +322,11 @@ export const test = base
     return workspace;
   })
   .extend('navigator', ({ render }) => render.navigator())
+  .extend('exportHighlight', ({ world: _world }, { onCleanup }) => {
+    const gate = createExportHighlightGate();
+    onCleanup(() => gate.restore());
+    return gate;
+  })
   .extend('fetchGate', ({ repo }, { onCleanup }) => {
     const gate = createFetchGate(repo.readme.path);
     onCleanup(() => gate.restore());
