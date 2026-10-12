@@ -130,6 +130,7 @@ type Manifest = {
   codingTool: string;
   fixture: Fixture;
   routes: string[];
+  tools: string[];
 };
 
 const execute = promisify(execFile);
@@ -417,6 +418,7 @@ function manifestOf(value: unknown): Manifest {
     codingTool: text(manifest.codingTool),
     fixture: fixtureOf(manifest.fixture),
     routes: list(manifest.routes).map(text),
+    tools: list(manifest.tools).map(text),
   };
 }
 
@@ -497,7 +499,7 @@ async function readManifest(manifestPath: string): Promise<{
   };
 }
 
-type LoggedHit = Hit & { owner: boolean; handled: boolean };
+type LoggedHit = Hit & { owner: boolean; handled: boolean; tools: string[] };
 
 function hitsOf(lines: string): LoggedHit[] {
   const requests = new Map<string, LoggedHit>();
@@ -513,8 +515,16 @@ function hitsOf(lines: string): LoggedHit[] {
         status: undefined,
         owner: entry.owner === true,
         handled: false,
+        tools: [],
       });
     const hit = requests.get(id);
+    if (
+      entry.event === 'tool-handled' &&
+      entry.owner === true &&
+      hit?.owner &&
+      typeof entry.tool === 'string'
+    )
+      hit.tools.push(entry.tool);
     if (entry.event === 'handled' && hit) hit.handled = true;
     if (entry.event === 'response' && hit && typeof entry.status === 'number')
       hit.status = entry.status;
@@ -532,6 +542,7 @@ export class ServerHandle {
   readonly desktopCredential: string;
   readonly fixture: Fixture;
   readonly routes: readonly string[];
+  readonly tools: readonly string[];
   readonly gitTrace: string | null;
   private readonly hitsFile: string;
   private readonly bin: string;
@@ -548,6 +559,7 @@ export class ServerHandle {
     this.socketPath = manifest.socketPath;
     this.fixture = manifest.fixture;
     this.routes = manifest.routes;
+    this.tools = manifest.tools;
     this.gitTrace = manifest.gitTrace;
     this.hitsFile = manifest.hitsFile;
     this.bin = manifest.bin;
@@ -602,6 +614,16 @@ export class ServerHandle {
           hit.route === undefined || hit.kit || !hit.handled
             ? []
             : [`${hit.owner ? 'owner ' : ''}${hit.method} ${hit.route}`],
+        ),
+      ),
+    ].sort();
+  }
+
+  async invokedTools(): Promise<string[]> {
+    return [
+      ...new Set(
+        (await this.allHits()).flatMap((hit) =>
+          hit.owner && hit.handled && !hit.kit ? hit.tools : [],
         ),
       ),
     ].sort();

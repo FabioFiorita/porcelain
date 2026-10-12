@@ -167,6 +167,7 @@ const relay = createServer((incoming) => {
 });
 const listedMethods = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
 const routes = new Set<string>();
+const tools = new Set<string>();
 const hitsFile = join(root, 'hits.jsonl');
 let fixtureReady = false;
 subscribe('porcelain.http', (message) => {
@@ -179,6 +180,13 @@ subscribe('porcelain.http', (message) => {
     return;
   const owner = message.owner === true;
   if (
+    message.event === 'tool-registered' &&
+    owner &&
+    'tool' in message &&
+    typeof message.tool === 'string'
+  ) {
+    tools.add(message.tool);
+  } else if (
     message.event === 'registered' &&
     'method' in message &&
     'route' in message &&
@@ -587,7 +595,7 @@ try {
   fixtureReady = true;
   await writeFile(
     manifest,
-    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, hitsFile, gitTrace, bin, installation, codingTool: codingToolExecutable, fixture: { ...fixture, perf: perf && { files: perfSample.files, commits: perfSample.commits, ...perf } }, routes: registeredRoutes() }, null, 2)}\n`,
+    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, hitsFile, gitTrace, bin, installation, codingTool: codingToolExecutable, fixture: { ...fixture, perf: perf && { files: perfSample.files, commits: perfSample.commits, ...perf } }, routes: registeredRoutes(), tools: [...tools].sort() }, null, 2)}\n`,
     { mode: 0o600 },
   );
   process.stdout.write(
