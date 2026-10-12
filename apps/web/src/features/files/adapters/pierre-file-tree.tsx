@@ -52,6 +52,7 @@ export function PierreFileTree({
   onExpand,
   renderMenu,
   bindRename,
+  bindCollapseAll,
   filter,
   onFilterChange,
   onInvalidName,
@@ -69,6 +70,7 @@ export function PierreFileTree({
   selected: string;
   onExpand: (paths: readonly string[]) => void;
   bindRename: (rename: (path: string) => void) => void;
+  bindCollapseAll: (collapse: () => void) => void;
   filter: string;
   onFilterChange: (value: string) => void;
   renderMenu: (
@@ -91,6 +93,7 @@ export function PierreFileTree({
     onExpand,
     renderMenu,
     bindRename,
+    bindCollapseAll,
     onFilterChange,
     onInvalidName,
     onSelect,
@@ -191,10 +194,19 @@ export function PierreFileTree({
   });
 
   useLayoutEffect(() => {
+    syncing.current = true;
     model.setSearch(filter === '' ? null : filter);
+    syncing.current = false;
   }, [filter, model]);
   useLayoutEffect(() => {
     modelRef.current = model;
+    latest.current.bindCollapseAll(() => {
+      syncing.current = true;
+      reveal.current = { selected: latest.current.selected, complete: true };
+      model.setSearch(null);
+      model.resetPaths(latest.current.paths, { initialExpandedPaths: [] });
+      syncing.current = false;
+    });
     latest.current.bindRename((path) => {
       requestAnimationFrame(() => {
         syncing.current = true;
