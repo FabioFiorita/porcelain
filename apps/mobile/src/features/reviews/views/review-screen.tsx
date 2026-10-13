@@ -8,14 +8,12 @@ import { readBranchBases } from '@porcelain/client/changes';
 import { readCommentThreads } from '@porcelain/client/reviews';
 import { changeAnchor } from '@porcelain/client/reviews/rules';
 import { Empty } from '../../../components/ui/empty';
+import { WorkspaceGate } from '../../projects';
 import { Item } from '../../../components/ui/item';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
 import { Badge } from '../../../components/ui/badge';
-import {
-  useReviewWorkspace,
-  type ReviewWorkspace,
-} from '../adapters/workspace';
+import type { Workspace } from '../../projects';
 import { useReviewSnapshot, useReviewMarks } from '../queries/review';
 import {
   reviewFiles,
@@ -29,15 +27,14 @@ import { ComparisonMenu } from './comparison-menu';
 import { PublishedReview } from './published-review';
 
 export function ReviewScreen() {
-  const workspace = useReviewWorkspace();
-  return workspace ? (
-    <ReviewIndex key={workspace.key} workspace={workspace} />
-  ) : (
-    <Empty description="Select a worktree to continue." title="Review" />
+  return (
+    <WorkspaceGate title="Review">
+      {(workspace) => <ReviewIndex key={workspace.key} workspace={workspace} />}
+    </WorkspaceGate>
   );
 }
 
-function ReviewIndex({ workspace }: { workspace: ReviewWorkspace }) {
+function ReviewIndex({ workspace }: { workspace: Workspace }) {
   const [comparison, setComparison] = useState<ReviewComparison>({
     kind: 'worktree',
   });
@@ -87,7 +84,7 @@ function ReviewList({
   snapshot,
   comparison,
 }: {
-  workspace: ReviewWorkspace;
+  workspace: Workspace;
   snapshot: ReviewSnapshot;
   comparison: ReviewComparison;
 }) {

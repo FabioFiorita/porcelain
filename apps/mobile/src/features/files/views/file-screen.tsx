@@ -8,7 +8,7 @@ import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { retainFileDraft, type FileDraftHandle } from '@porcelain/client/files';
 import { fileErrorMessage } from '@porcelain/client/files/rules';
-import { useSelectedWorktree } from '../../projects';
+import { WorkspaceGate, type Workspace } from '../../projects';
 import { usePreferences } from '../../preferences';
 import { useDirectories } from '../queries/directory';
 import { useTextFile, type FileContents } from '../queries/text';
@@ -32,7 +32,6 @@ import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
 
-type Selected = NonNullable<ReturnType<typeof useSelectedWorktree>>;
 type Props = {
   path: string;
   workspace: string;
@@ -41,29 +40,34 @@ type Props = {
 };
 
 export function FileScreen(props: Props) {
-  const selected = useSelectedWorktree();
   return (
     <>
       <Stack.Screen
         options={{ title: props.path.split('/').at(-1) ?? 'File' }}
       />
-      {selected && selected.key === props.workspace ? (
-        <ScopedFile
-          key={`${selected.key}:${props.path}`}
-          {...props}
-          selected={selected}
-        />
-      ) : (
-        <Empty
-          title="Workspace changed"
-          description="Return to Files and choose a file in the selected worktree."
-        />
-      )}
+      <WorkspaceGate
+        title="Files"
+        expectedWorkspace={props.workspace}
+        changed={
+          <Empty
+            title="Workspace changed"
+            description="Return to Files and choose a file in the selected worktree."
+          />
+        }
+      >
+        {(selected) => (
+          <ScopedFile
+            key={`${selected.key}:${props.path}`}
+            {...props}
+            selected={selected}
+          />
+        )}
+      </WorkspaceGate>
     </>
   );
 }
 
-function ScopedFile(props: Props & { selected: Selected }) {
+function ScopedFile(props: Props & { selected: Workspace }) {
   const { path, selected } = props;
   const parent = path.split('/').slice(0, -1).join('/');
   const directories = useDirectories({
@@ -122,7 +126,7 @@ function unsupportedEntryDescription(entry: {
   return 'This entry is not a regular file.';
 }
 
-function FileImage({ path, selected }: { path: string; selected: Selected }) {
+function FileImage({ path, selected }: { path: string; selected: Workspace }) {
   const asset = useFileAsset(selected.connection, selected.scope, path);
   const data = Option.getOrUndefined(AsyncResult.value(asset.result));
   if (AsyncResult.isFailure(asset.result))
@@ -139,7 +143,7 @@ function FileImage({ path, selected }: { path: string; selected: Selected }) {
   );
 }
 
-function FileText(props: Props & { selected: Selected }) {
+function FileText(props: Props & { selected: Workspace }) {
   const file = useTextFile(
     props.selected.connection,
     props.selected.scope,
@@ -253,7 +257,7 @@ function FileEditor({
   waiting,
   onDone,
 }: {
-  selected: Selected;
+  selected: Workspace;
   path: string;
   file: FileContents;
   waiting: boolean;
@@ -285,7 +289,7 @@ function RetainedFileEditor({
   seed,
   onDone,
 }: {
-  selected: Selected;
+  selected: Workspace;
   path: string;
   file: FileContents;
   seed: FileContents;

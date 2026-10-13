@@ -10,7 +10,7 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
-import type { ReviewWorkspace } from '../adapters/workspace';
+import type { Workspace } from '../../projects';
 import {
   reviewRange,
   type ReviewFile,
@@ -22,7 +22,7 @@ export function ReviewedAction({
   snapshot,
   file,
 }: {
-  workspace: ReviewWorkspace;
+  workspace: Workspace;
   snapshot: ReviewSnapshot;
   file: ReviewFile;
 }) {

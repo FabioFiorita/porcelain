@@ -2,7 +2,7 @@ import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import { readChanges, readBranchChanges } from '@porcelain/client/changes';
 import { readReviewedFiles } from '@porcelain/client/reviews';
-import type { ReviewWorkspace } from '../adapters/workspace';
+import type { Workspace } from '../../projects';
 import {
   reviewRange,
   type ReviewComparison,
@@ -14,7 +14,7 @@ const snapshots = Atom.family(
     workspace,
     comparison,
   }: {
-    workspace: ReviewWorkspace;
+    workspace: Workspace;
     comparison: ReviewComparison;
   }) => {
     const input = { connection: workspace.connection, scope: workspace.scope };
@@ -58,17 +58,14 @@ const snapshots = Atom.family(
 );
 
 export function useReviewSnapshot(
-  workspace: ReviewWorkspace,
+  workspace: Workspace,
   comparison: ReviewComparison,
 ) {
   const query = snapshots({ workspace, comparison });
   return { result: useAtomValue(query), refresh: useAtomRefresh(query) };
 }
 
-export function useReviewMarks(
-  workspace: ReviewWorkspace,
-  snapshot: ReviewSnapshot,
-) {
+export function useReviewMarks(workspace: Workspace, snapshot: ReviewSnapshot) {
   const query = readReviewedFiles({
     connection: workspace.connection,
     scope: workspace.scope,

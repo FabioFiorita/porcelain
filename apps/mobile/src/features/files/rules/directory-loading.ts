@@ -6,17 +6,17 @@ export function directoryLoading(
     path: string;
     result: AsyncResult.AsyncResult<unknown, unknown>;
   }[],
-): { initialRoot: boolean; folders: ReadonlySet<string> } {
+): { rootLoaded: boolean; initialRoot: boolean; folders: ReadonlySet<string> } {
+  let rootLoaded = false;
   let initialRoot = false;
   const folders = new Set<string>();
   for (const { path, result } of reads) {
-    if (
-      (!AsyncResult.isInitial(result) && !result.waiting) ||
-      Option.isSome(AsyncResult.value(result))
-    )
+    const hasValue = Option.isSome(AsyncResult.value(result));
+    if (!path && hasValue) rootLoaded = true;
+    if ((!AsyncResult.isInitial(result) && !result.waiting) || hasValue)
       continue;
     if (path) folders.add(path);
     else initialRoot = true;
   }
-  return { initialRoot, folders };
+  return { rootLoaded, initialRoot, folders };
 }

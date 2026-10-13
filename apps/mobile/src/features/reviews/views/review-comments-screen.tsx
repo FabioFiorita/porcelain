@@ -25,10 +25,7 @@ import { headerIcon } from '../../../shared/icons/header-icon';
 import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
-import {
-  useReviewWorkspace,
-  type ReviewWorkspace,
-} from '../adapters/workspace';
+import { WorkspaceGate, type Workspace } from '../../projects';
 import { commentBodyLimit, useCommentWrite } from '../commands/comments';
 import { ReviewReadState } from './read-state';
 import { useReviewSnapshot } from '../queries/review';
@@ -48,7 +45,6 @@ export function ReviewCommentsScreen({
   comparison: ReviewComparison;
 }) {
   const router = useRouter();
-  const workspace = useReviewWorkspace(workspaceKey ?? '');
   return (
     <>
       <Stack.Screen options={{ title: path ? 'File comments' : 'Comments' }} />
@@ -59,21 +55,27 @@ export function ReviewCommentsScreen({
           onPress={() => router.back()}
         />
       </Stack.Toolbar>
-      {workspace ? (
-        <Comments
-          key={`${workspace.key}:${path}:${JSON.stringify(anchor)}`}
-          workspace={workspace}
-          path={path}
-          anchor={anchor}
-          compose={compose}
-          comparison={comparison}
-        />
-      ) : (
-        <Empty
-          title="Review unavailable"
-          description="Return to Review and select a worktree."
-        />
-      )}
+      <WorkspaceGate
+        title="Review"
+        expectedWorkspace={workspaceKey ?? ''}
+        changed={
+          <Empty
+            title="Review unavailable"
+            description="Return to Review and select a worktree."
+          />
+        }
+      >
+        {(workspace) => (
+          <Comments
+            key={`${workspace.key}:${path}:${JSON.stringify(anchor)}`}
+            workspace={workspace}
+            path={path}
+            anchor={anchor}
+            compose={compose}
+            comparison={comparison}
+          />
+        )}
+      </WorkspaceGate>
     </>
   );
 }
@@ -87,7 +89,7 @@ function Comments({
   compose,
   comparison,
 }: {
-  workspace: ReviewWorkspace;
+  workspace: Workspace;
   path?: string | undefined;
   anchor?: CommentAnchor | undefined;
   compose: boolean;
@@ -219,7 +221,7 @@ function AnchorFreshness({
   anchor,
   comparison,
 }: {
-  workspace: ReviewWorkspace;
+  workspace: Workspace;
   anchor: CommentAnchor;
   comparison: ReviewComparison;
 }) {
@@ -251,7 +253,7 @@ function AnchorFreshness({
 }
 
 function useCommentDraft(
-  workspace: ReviewWorkspace,
+  workspace: Workspace,
   target: ComposerTarget | undefined,
   onClose: () => void,
 ) {
@@ -378,7 +380,7 @@ function CommentThreadView({
   onReply,
   children,
 }: {
-  workspace: ReviewWorkspace;
+  workspace: Workspace;
   thread: CommentThread;
   replying: boolean;
   onReply: () => void;

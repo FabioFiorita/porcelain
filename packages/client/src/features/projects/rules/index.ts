@@ -19,3 +19,8 @@ export {
   type EnvironmentInventory,
   type WorkspaceChoice,
 } from './workspace-choices.ts';
+export {
+  workspaceSelection,
+  type WorkspaceSelection,
+  type WorkspaceReadiness,
+} from './workspace-selection.ts';

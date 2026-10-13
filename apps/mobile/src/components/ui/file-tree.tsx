@@ -25,6 +25,7 @@ export function FileTree({
   onSelect,
   contextMenu,
   header,
+  loaded,
   flat = false,
 }: {
   nodes: readonly FileTreeEntry[];
@@ -34,6 +35,7 @@ export function FileTree({
   onToggle: (id: string) => void;
   onSelect: (id: string) => void;
   header?: ReactNode;
+  loaded: boolean;
   flat?: boolean;
   contextMenu?: ((node: FileTreeEntry) => ItemMenuProps['actions']) | undefined;
 }) {
@@ -53,11 +55,15 @@ export function FileTree({
       keyExtractor={({ entry }) => entry.path}
       ItemSeparatorComponent={() => <View className="h-1" />}
       ListEmptyComponent={
-        <Empty
-          title="No files"
-          description="No files match this view."
-          icon="folder"
-        />
+        loaded ? (
+          <Empty
+            title="No files"
+            description={
+              flat ? 'No files match this view.' : 'This directory is empty.'
+            }
+            icon="folder"
+          />
+        ) : undefined
       }
       renderItem={({ item: { entry: node, depth } }) => {
         const path = node.path.replace(/\/$/, '');

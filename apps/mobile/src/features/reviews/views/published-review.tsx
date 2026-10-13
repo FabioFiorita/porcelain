@@ -10,13 +10,13 @@ import {
 import { Text } from '../../../components/ui/text';
 import { Item } from '../../../components/ui/item';
 import { ReviewReadState } from './read-state';
-import type { ReviewWorkspace } from '../adapters/workspace';
+import type { Workspace } from '../../projects';
 
 export function PublishedReview({
   workspace,
   onFile,
 }: {
-  workspace: ReviewWorkspace;
+  workspace: Workspace;
   onFile: (path: string) => void;
 }) {
   const query = readPublishedReview({

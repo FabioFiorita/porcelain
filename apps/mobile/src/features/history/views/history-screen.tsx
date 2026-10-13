@@ -6,7 +6,7 @@ import { ErrorState } from '../../../components/ui/error-state';
 import { Loading } from '../../../components/ui/loading';
 import { Text } from '../../../components/ui/text';
 import { HistoryList } from '../../../components/ui/history-list';
-import { useSelectedWorktree } from '../../projects';
+import { WorkspaceGate } from '../../projects';
 import { useHistory, type HistorySelection } from '../queries/history';
 import {
   commitEntry,
@@ -15,15 +15,16 @@ import {
 } from '@porcelain/client/history/rules';
 
 export function HistoryScreen() {
-  const current = useSelectedWorktree();
-  return current ? (
-    <WorktreeHistory
-      key={current.key}
-      selection={current}
-      workspace={current.key}
-    />
-  ) : (
-    <Empty description="Select a worktree to continue." title="History" />
+  return (
+    <WorkspaceGate title="History">
+      {(current) => (
+        <WorktreeHistory
+          key={current.key}
+          selection={current}
+          workspace={current.key}
+        />
+      )}
+    </WorkspaceGate>
   );
 }
 

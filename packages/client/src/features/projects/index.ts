@@ -1,3 +1,7 @@
+export {
+  workspaceInventory,
+  workspaceReadiness,
+} from './queries/inventory-state.ts';
 export { readInventory, readInventories } from './queries/inventory.ts';
 export { InventorySeed } from './store/inventory.ts';
 export { ProjectSelectionStore } from './store.ts';

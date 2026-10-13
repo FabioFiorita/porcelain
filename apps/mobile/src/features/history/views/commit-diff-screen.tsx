@@ -9,7 +9,7 @@ import { Loading } from '../../../components/ui/loading';
 import { FileHeader } from '../../../components/ui/file-header';
 import { DiffView } from '../../../components/ui/diff-view';
 import { patchLines } from '@porcelain/client/changes/rules';
-import { useSelectedWorktree } from '../../projects';
+import { WorkspaceGate } from '../../projects';
 import { usePreferences } from '../../preferences';
 import {
   useCommit,
@@ -35,23 +35,32 @@ export function CommitDiffScreen() {
     parent?: string;
   }>();
   const parent = Number(requestedParent ?? 1);
-  const current = useSelectedWorktree();
-  return current &&
-    (!workspace || current.key === workspace) &&
-    Number.isInteger(parent) &&
-    parent > 0 ? (
-    <CommitFileDiff
-      key={`${current.key}:${oid}:${parent}:${path}`}
-      selection={current}
-      oid={oid}
-      parent={parent}
-      path={path}
-    />
-  ) : (
+  const changed = (
     <Empty
       title="Workspace changed"
       description="Return to History to open a commit in the selected worktree."
     />
+  );
+  return (
+    <WorkspaceGate
+      title="History"
+      expectedWorkspace={workspace}
+      changed={changed}
+    >
+      {(current) =>
+        Number.isInteger(parent) && parent > 0 ? (
+          <CommitFileDiff
+            key={`${current.key}:${oid}:${parent}:${path}`}
+            selection={current}
+            oid={oid}
+            parent={parent}
+            path={path}
+          />
+        ) : (
+          changed
+        )
+      }
+    </WorkspaceGate>
   );
 }
 

@@ -1,16 +1,12 @@
+import { useAtomRef, useAtomSet, useAtomValue } from '@effect/atom-react';
 import { Option } from 'effect';
-import {
-  useAtomRef,
-  useAtomRefresh,
-  useAtomSet,
-  useAtomValue,
-} from '@effect/atom-react';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import {
   readInventory,
   readInventories,
   refreshInventories,
+  workspaceInventory,
 } from '@porcelain/client/projects';
 import type { EnvironmentInventory } from '@porcelain/client/projects/rules';
 import { liveQueries } from '@porcelain/client/live';
@@ -22,7 +18,14 @@ const unavailable = Atom.make(AsyncResult.initial<ReadInventoryResponse>());
 
 export function useInventory(connection: RuntimeConnection | undefined) {
   const atom = connection ? readInventory(connection) : unavailable;
-  return { result: useAtomValue(atom), read: useAtomRefresh(atom) };
+  const result = useAtomValue(atom);
+  const refresh = refreshInventories(connection ? [connection] : []);
+  const retry = useAtomSet(refresh);
+  return {
+    result,
+    read: () => retry(undefined),
+    state: workspaceInventory(result),
+  };
 }
 
 const allInventories = Atom.family((remotes: readonly RemoteConnection[]) => {
