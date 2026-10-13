@@ -17,18 +17,6 @@
 
 @theme {
   --font-sans: 'Geist Variable', sans-serif;
-  /* tw-animate has enter and exit only. The marks need a loop. */
-  --animate-drift: drift 8s ease-in-out infinite;
-
-  @keyframes drift {
-    0%,
-    100% {
-      transform: translateY(0) rotate(var(--mark-rotate, 0deg));
-    }
-    50% {
-      transform: translateY(var(--mark-lift, -10px)) rotate(var(--mark-rotate, 0deg));
-    }
-  }
 }
 
 @source inline('animate-in animate-out fade-in fade-out slide-in-from-bottom-3 slide-in-from-bottom-6 slide-in-from-top-2 slide-in-from-right-2 zoom-in-95 duration-300 duration-500 duration-700 fill-mode-both delay-100 delay-150 delay-200 delay-300');
@@ -57,29 +45,9 @@
   animation-fill-mode: forwards;
 }
 
-/* The drift keyframes own transform while they run. This is the resting tilt. */
-.animate-drift {
-  transform: rotate(var(--mark-rotate, 0deg));
-}
-
-.agent-mark-dark {
-  display: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  .agent-mark-light {
-    display: none;
-  }
-
-  .agent-mark-dark {
-    display: block;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .animate-in,
-  .animate-out,
-  .animate-drift {
+  .animate-out {
     animation: none;
   }
 }

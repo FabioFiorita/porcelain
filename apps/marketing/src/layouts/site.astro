@@ -5,11 +5,19 @@ import icon from '../../../../apps/web/public/icon-512.png';
 interface Props {
   title?: string;
   description: string;
-  sections?: readonly (readonly [string, string])[];
 }
 
-const { title = 'Porcelain', description, sections = [] } = Astro.props;
+const { title = 'Porcelain', description } = Astro.props;
 const here = Astro.url.pathname.replace(/\/$/, '') || '/';
+const sections = [
+  ['walkthrough', 'Walkthrough'],
+  ['comments', 'Comments'],
+  ['proof', 'Proof'],
+  ['files', 'Files'],
+  ['history', 'History'],
+  ['remote', 'Remote'],
+] as const;
+const sectionHref = (id: string) => (here === '/' ? `#${id}` : `/#${id}`);
 const footer = [
   ['/install', 'Install'],
   ['/privacy', 'Privacy'],
@@ -35,17 +43,15 @@ const footer = [
           <img src={icon.src} width={icon.width} height={icon.height} alt="" class="size-7" />
           Porcelain
         </a>
-        {
-          sections.length > 0 && (
-            <nav class="hidden items-center gap-5 text-sm text-muted-foreground xl:flex" aria-label="On this page">
-              {sections.map(([id, label]) => (
-                <a class="no-underline hover:text-foreground" href={`#${id}`}>
-                  {label}
-                </a>
-              ))}
-            </nav>
-          )
-        }
+        <nav class="hidden items-center gap-5 text-sm text-muted-foreground xl:flex" aria-label="Sections">
+          {
+            sections.map(([id, label]) => (
+              <a class="no-underline hover:text-foreground" href={sectionHref(id)}>
+                {label}
+              </a>
+            ))
+          }
+        </nav>
         <div class="flex items-center gap-1 sm:gap-2">
           <a
             class="inline-flex h-9 items-center gap-2 rounded-full px-2.5 text-sm whitespace-nowrap text-muted-foreground no-underline hover:bg-accent hover:text-foreground sm:px-3"
@@ -68,20 +74,18 @@ const footer = [
           </a>
         </div>
       </div>
-      {
-        sections.length > 0 && (
-          <nav
-            class="mx-auto flex max-w-[1440px] gap-4 overflow-x-auto px-5 pb-3 text-sm text-muted-foreground xl:hidden"
-            aria-label="On this page"
-          >
-            {sections.map(([id, label]) => (
-              <a class="shrink-0 no-underline hover:text-foreground" href={`#${id}`}>
-                {label}
-              </a>
-            ))}
-          </nav>
-        )
-      }
+      <nav
+        class="mx-auto flex max-w-[1440px] gap-4 overflow-x-auto px-5 pb-3 text-sm text-muted-foreground xl:hidden"
+        aria-label="Sections"
+      >
+        {
+          sections.map(([id, label]) => (
+            <a class="shrink-0 no-underline hover:text-foreground" href={sectionHref(id)}>
+              {label}
+            </a>
+          ))
+        }
+      </nav>
     </header>
 
     <slot />

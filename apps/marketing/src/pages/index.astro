@@ -6,69 +6,24 @@ import proof from '../../../../docs/readme/proof.png';
 
 const description =
   'A companion for the coding agents you already run. They publish a walkthrough of what changed. You read it, comment, and decide what to keep.';
-
-const sections = [
-  ['walkthrough', 'Walkthrough'],
-  ['comments', 'Comments'],
-  ['proof', 'Proof'],
-  ['files', 'Files'],
-  ['history', 'History'],
-  ['remote', 'Remote'],
-];
 ---
 
-<Site description={description} sections={sections}>
+<Site description={description}>
     <main id="top" class="mx-auto w-full max-w-[1440px] px-5 pb-16 lg:px-10">
-      <section class="pt-8 lg:pt-12">
-        <ul class="relative h-24 sm:h-32" aria-label="Claude, Codex and Grok">
-          <li
-            class="animate-drift absolute top-1 left-0 motion-reduce:animate-none"
-            style="--mark-rotate: -8deg; --mark-lift: -8px; animation-duration: 9.5s; animation-delay: -1.2s"
-          >
-            <span
-              class="grid size-14 place-items-center rounded-2xl bg-card shadow-[0_16px_36px_-22px_rgba(0,0,0,0.55),inset_0_0_0_1px_var(--border)] sm:size-16"
-            >
-              <img class="size-7 sm:size-8" src="/agents/claude.svg" alt="" />
-            </span>
-          </li>
-          <li
-            class="animate-drift absolute top-7 left-[38%] motion-reduce:animate-none sm:top-10 sm:left-[42%]"
-            style="--mark-rotate: 6deg; --mark-lift: -12px; animation-duration: 11s; animation-delay: -4s"
-          >
-            <span
-              class="grid size-12 place-items-center rounded-2xl bg-card shadow-[0_16px_36px_-22px_rgba(0,0,0,0.55),inset_0_0_0_1px_var(--border)] sm:size-[4.5rem]"
-            >
-              <img class="agent-mark-light col-start-1 row-start-1 size-6 sm:size-7" src="/agents/codex-light.svg" alt="" />
-              <img class="agent-mark-dark col-start-1 row-start-1 size-6 sm:size-7" src="/agents/codex-dark.svg" alt="" />
-            </span>
-          </li>
-          <li
-            class="animate-drift absolute top-0 right-0 motion-reduce:animate-none"
-            style="--mark-rotate: -4deg; --mark-lift: -9px; animation-duration: 8.2s; animation-delay: -2.4s"
-          >
-            <span
-              class="grid size-14 place-items-center rounded-2xl bg-card shadow-[0_16px_36px_-22px_rgba(0,0,0,0.55),inset_0_0_0_1px_var(--border)] sm:size-16"
-            >
-              <img class="agent-mark-light size-7 sm:size-8" src="/agents/grok-light.svg" alt="" />
-              <img class="agent-mark-dark size-7 sm:size-8" src="/agents/grok-dark.svg" alt="" />
-            </span>
-          </li>
-        </ul>
-        <div class="grid items-end gap-8 pt-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)] lg:pt-8">
-          <h1
-            class="animate-in slide-in-from-bottom-6 fill-mode-both text-[clamp(2.85rem,4.35vw,4.35rem)] leading-[0.96] font-medium tracking-[-0.045em] duration-700"
-          >
-            Agents write the code.<br />This is where you read it.
-          </h1>
-          <div class="animate-in slide-in-from-bottom-6 fill-mode-both delay-150 max-w-md duration-700 lg:pb-2">
-            <p class="text-lg leading-snug text-muted-foreground">
-              Agents keep running in your preferred place. Porcelain is where they publish a walkthrough of the
-              change, and where you comment back before you keep it.
-            </p>
-            <p class="mt-4 text-sm leading-snug text-muted-foreground">
-              Browser and Mac, on Apple silicon. Mobile app coming soon.
-            </p>
-          </div>
+      <section class="grid items-end gap-8 pt-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)] lg:pt-20">
+        <h1
+          class="animate-in slide-in-from-bottom-6 fill-mode-both text-[clamp(2.85rem,4.35vw,4.35rem)] leading-[0.96] font-medium tracking-[-0.045em] duration-700"
+        >
+          Agents write the code.<br />This is where you read it.
+        </h1>
+        <div class="animate-in slide-in-from-bottom-6 fill-mode-both delay-150 max-w-md duration-700 lg:pb-2">
+          <p class="text-lg leading-snug text-muted-foreground">
+            Agents keep running in your preferred place. Porcelain is where they publish a walkthrough of the
+            change, and where you comment back before you keep it.
+          </p>
+          <p class="mt-4 text-sm leading-snug text-muted-foreground">
+            Browser and Mac, on Apple silicon. Mobile app coming soon.
+          </p>
         </div>
       </section>
 
