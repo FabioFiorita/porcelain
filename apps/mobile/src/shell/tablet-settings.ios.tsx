@@ -3,21 +3,15 @@ import { usePathname, useRouter } from 'expo-router';
 import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { withUniwind } from 'uniwind';
-import { Button, Host } from '@expo/ui/swift-ui';
-import {
-  buttonStyle,
-  labelStyle,
-  foregroundStyle,
-} from '@expo/ui/swift-ui/modifiers';
 import { Box } from '../components/ui/box';
 import { Item } from '../components/ui/item';
 import { Icon } from '../components/ui/icon';
-import { Text } from '../components/ui/text';
 import { Separator } from '../components/ui/separator';
 import { EnvironmentsSettings, useSettingsCategory } from '../features/access';
 import { PreferencesScreen, useAppSidebar } from '../features/preferences';
 import { ComponentExplorer } from '../features/catalog';
 import { DestinationLayout } from './destination-layout';
+import { PaneHeading } from './pane-heading';
 
 const StyledSafeAreaView = withUniwind(SafeAreaView);
 const categories = [
@@ -66,27 +60,7 @@ export function TabletSettingsLayout({ children }: { children: ReactNode }) {
         edges={['top', 'bottom']}
         className={wide ? 'w-56 shrink-0' : 'grow-0'}
       >
-        <Box
-          className="flex-row items-center justify-between"
-          paddingX={4}
-          paddingY={4}
-        >
-          <Text variant="heading">Settings</Text>
-          {sidebar ? (
-            <Host matchContents>
-              <Button
-                label={sidebar.visible ? 'Hide sidebar' : 'Show sidebar'}
-                systemImage="sidebar.left"
-                onPress={sidebar.toggle}
-                modifiers={[
-                  labelStyle('iconOnly'),
-                  buttonStyle('bordered'),
-                  foregroundStyle({ type: 'hierarchical', style: 'primary' }),
-                ]}
-              />
-            </Host>
-          ) : null}
-        </Box>
+        <PaneHeading title="Settings" sidebar={sidebar} />
         <ScrollView
           className={wide ? 'flex-1' : ''}
           horizontal={!wide}

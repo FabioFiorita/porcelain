@@ -6,10 +6,12 @@ export function DestinationLayout({
   name,
   title,
   children,
+  leadingSidebar = true,
 }: {
   name: string;
   title: string;
   children?: ReactNode;
+  leadingSidebar?: boolean;
 }) {
   return (
     <Stack
@@ -21,7 +23,9 @@ export function DestinationLayout({
       })}
       screenLayout={({ children, route }) => (
         <DestinationHeader
-          leading={route.name !== 'files' && name !== 'settings'}
+          leading={
+            leadingSidebar && route.name !== 'files' && name !== 'settings'
+          }
         >
           {children}
         </DestinationHeader>
