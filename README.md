@@ -2,7 +2,7 @@
 
 Porcelain is a place to review a coding agent's work. The agent publishes a walkthrough of its decisions; you follow the explanation alongside the diffs, leave comments, and read the agent's replies.
 
-It is for developers who run coding agents on their own machine and want to understand the result before deciding what to keep. A diff does not tell you what changed. Porcelain is where the agent walks you through the decisions, and where you ask about what it left unexplained.
+It is for developers who run coding agents on their own machine and want to understand the result before deciding what to keep. A diff does not tell you what changed. The agent that wrote it can. In Porcelain, it walks you through each decision, and you comment back before you keep the change.
 
 ![A decision in a published review, with its route through the code and a diff](docs/readme/walkthrough.png)
 
