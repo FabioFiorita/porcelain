@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import '@fontsource-variable/geist';
 @import '@porcelain/theme/tokens.css';
 
 @custom-variant light {
@@ -15,7 +16,7 @@
 }
 
 @theme {
-  --font-serif: Georgia, 'Iowan Old Style', Palatino, 'Palatino Linotype', serif;
+  --font-sans: 'Geist Variable', sans-serif;
 }
 
 @source inline('animate-in fade-in slide-in-from-bottom-3 duration-700 fill-mode-both');
