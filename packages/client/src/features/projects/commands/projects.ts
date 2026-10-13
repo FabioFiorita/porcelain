@@ -115,7 +115,8 @@ export const refreshInventory = Atom.family((connection: RuntimeConnection) =>
 export const refreshInventories = Atom.family(
   (connections: readonly RuntimeConnection[]) =>
     Atom.writable(
-      () => undefined,
+      (get) =>
+        connections.map((connection) => get(refreshInventory(connection))),
       (context, _input: void) => {
         for (const connection of connections)
           context.set(refreshInventory(connection), undefined);
