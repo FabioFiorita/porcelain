@@ -118,6 +118,32 @@ const footer = [
     </footer>
 
     <script>
+      import { animate, inView, stagger } from 'motion';
+
+      /* Headline words arrive one by one, and everything marked for reveal rises in as it scrolls into view. */
+      document.documentElement.toggleAttribute('data-animated', true);
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const ease = [0.22, 1, 0.36, 1] as const;
+        animate(
+          Array.from(document.querySelectorAll<HTMLElement>('[data-word]')),
+          { opacity: [0, 1], y: ['0.35em', 0], filter: ['blur(10px)', 'blur(0px)'] },
+          { duration: 0.8, delay: stagger(0.06, { startDelay: 0.1 }), ease },
+        );
+        for (const element of document.querySelectorAll<HTMLElement>('[data-reveal]')) {
+          inView(
+            element,
+            () => {
+              animate(
+                element,
+                { opacity: [0, 1], y: [28, 0], filter: ['blur(6px)', 'blur(0px)'] },
+                { duration: 0.9, ease, delay: 0.05 },
+              );
+            },
+            { amount: 0.25 },
+          );
+        }
+      }
+
       const header = document.querySelector('[data-header]');
       const mark = () => header?.toggleAttribute('data-scrolled', window.scrollY > 8);
       mark();

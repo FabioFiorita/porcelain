@@ -29,7 +29,7 @@ const callouts = [
 const shots = [
   { image: walkthrough, alt: 'A decision in a published review, with its route through the code and a diff' },
   { image: comments, alt: 'A reviewer asks about a file and the agent replies in the same thread' },
-  { image: proof, alt: 'Proof beside the readiness of the review' },
+  { image: proof, alt: 'Proof with passing checks, a web and an iPhone screenshot, beside the readiness of the review' },
 ] as const;
 
 /* Each stop of the tour frames one region of one picture: [left, top, right, bottom]. */
@@ -72,11 +72,29 @@ const stops = [
   {
     id: 'proof',
     shot: 2,
-    region: [0.2, 0.1, 0.745, 0.302],
-    title: 'Proof, and when it went stale',
-    body: 'The checks and images the agent attached live in the review. When the code changes after they ran, Porcelain tells you.',
+    region: [0.2, 0.52, 0.745, 0.92],
+    title: 'Proof you can look at',
+    body: 'The checks the agent ran and the screenshots it took, on the web and on a phone, live in the review next to the code.',
+  },
+  {
+    id: 'stale',
+    shot: 2,
+    region: [0.2, 0.1, 0.745, 0.52],
+    title: 'And when it went stale',
+    body: 'When the code changes after the checks ran, Porcelain says so, and asks the agent to run them again.',
   },
 ] as const;
+
+/* On a phone each stop shows only its region of the picture, cropped to the same frame the desktop camera finds. */
+const crop = (shot: number, [left, top, right, bottom]: readonly [number, number, number, number]) => {
+  const { width, height } = shots[shot]!.image;
+  const regionWidth = right - left;
+  const regionHeight = bottom - top;
+  return {
+    frame: `aspect-ratio: ${(regionWidth * width) / (regionHeight * height)}`,
+    image: `width: ${100 / regionWidth}%; left: ${(-left / regionWidth) * 100}%; top: ${(-top / regionHeight) * 100}%`,
+  };
+};
 
 const problems = [
   {
@@ -416,14 +434,20 @@ const treeRows = [
                     <p class="mt-3 leading-relaxed text-muted-foreground">{stop.body}</p>
                   </div>
                 </div>
-                <img
-                  class="block w-full rounded-xl shadow-[0_0_0_1px_var(--border)] lg:hidden"
-                  src={shots[stop.shot].image.src}
-                  width={shots[stop.shot].image.width}
-                  height={shots[stop.shot].image.height}
-                  alt={shots[stop.shot].alt}
-                  loading="lazy"
-                />
+                <div
+                  class="relative overflow-hidden rounded-xl bg-card shadow-[0_0_0_1px_var(--border)] lg:hidden"
+                  style={crop(stop.shot, stop.region).frame}
+                >
+                  <img
+                    class="absolute block max-w-none"
+                    style={crop(stop.shot, stop.region).image}
+                    src={shots[stop.shot].image.src}
+                    width={shots[stop.shot].image.width}
+                    height={shots[stop.shot].image.height}
+                    alt={shots[stop.shot].alt}
+                    loading="lazy"
+                  />
+                </div>
               </li>
             ))
           }
@@ -741,28 +765,8 @@ const treeRows = [
       );
     }
 
-    /* The headline arrives word by word, then everything marked for reveal follows it in. */
-    function introduce() {
-      animate(
-        all('[data-word]'),
-        { opacity: [0, 1], y: ['0.35em', 0], filter: ['blur(10px)', 'blur(0px)'] },
-        { duration: 0.8, delay: stagger(0.06, { startDelay: 0.1 }), ease: [0.22, 1, 0.36, 1] },
-      );
-
-      for (const element of all('[data-reveal]')) {
-        inView(
-          element,
-          () => {
-            animate(
-              element,
-              { opacity: [0, 1], y: [28, 0], filter: ['blur(6px)', 'blur(0px)'] },
-              { duration: 0.9, ease: [0.22, 1, 0.36, 1], delay: 0.05 },
-            );
-          },
-          { amount: 0.25 },
-        );
-      }
-
+    /* The glows drift behind the hero and the closing panel. */
+    function drift() {
       for (const [index, glow] of all('[data-glow]').entries()) {
         animate(
           glow,
@@ -1017,11 +1021,10 @@ const treeRows = [
       }
     }
 
-    document.documentElement.toggleAttribute('data-animated', true);
     if (reduced) {
       runTour();
     } else {
-      introduce();
+      drift();
       stageHero();
       drainAttention();
       sendPackets();

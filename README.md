@@ -24,7 +24,7 @@ The browser review flow includes:
 
 *A file comment and a reply sent through the sample MCP connection.*
 
-![Proof shows illustrative passing and failing checks, an image attachment and the readiness panel](docs/readme/proof.png)
+![Proof shows passing checks, a web and an iPhone screenshot the agent attached, and the readiness panel](docs/readme/proof.png)
 
 *Proof displays what the agent reported; these sample results are not checks run on Porcelain itself.*
 
