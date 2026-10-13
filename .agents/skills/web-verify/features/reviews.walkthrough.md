@@ -83,7 +83,7 @@ Once the agent publishes a review, the handoff tab "Review" shows one document, 
 6. Press `N`, then `P`.
    Look for: region "3. Publish an immutable note", then region "2. Revoke access across devices" again. The progress segment of the current stop is marked `aria-current="step"`.
 7. Open Review → in nav "Walkthrough" click the button whose name starts with `Not explained · ` (in the sample "Not explained · 9 lines in 5 files 0/3").
-   Look for: region "Not explained" with a lead sentence, list "Unexplained lines in explained files" with buttons like "Read in 9. Establish the shared mutation boundary", and the complete diffs of the files no decision points at, among them scripts/migrate-workspaces.ts.
+   Look for: region "Not explained" with a lead sentence, list "Unexplained lines in explained files" with buttons like "Read in 9. Establish the shared mutation boundary", and, scrolled below the brief, the complete diffs of the files no decision points at, among them scripts/migrate-workspaces.ts.
 8. Click button named `Read in 9. Establish the shared mutation boundary`.
    Look for: region "9. Establish the shared mutation boundary"; the unexplained lines of its files carry an amber complementary "Not explained · Not explained" note saying which lines changed without an explanation.
 9. Click tab named `Agent summary`.
@@ -96,7 +96,7 @@ Once the agent publishes a review, the handoff tab "Review" shows one document, 
 ## What proves it works
 
 - Steps 1 to 9 show the briefing counts, the stop order, the step reveal with its numbered note, the "Not explained" stop with its way back into a decision, and the summary link into a decision. Inspect HTTP requests: `GET /api/worktrees/<id>/review`, `…/changes`, `…/reviewed` and `…/reviewed-layers` answer 200; selecting "Agent summary" reads the review again.
-- `apps/web/spec/integration/reviews-walkthrough.test.tsx`: with the sample, the briefing shows "9 decisions shape this change", "6 of 55 files reviewed", "Needs your decision · Delivery outbox" and "Page-owned writes"; "Continue with 2. Revoke access across devices" opens that stop with "Code moved since it was explained"; "Go to step 3: Revoke through the session owner" shows its agent note; the "Not explained · 9 lines in 5 files 0/3" row shows scripts/migrate-workspaces.ts, "Read in 9. Establish the shared mutation boundary" opens decision 9; with "Agent summary" shown, the sidebar row "3 Publish an immutable note 0/6" opens that stop and selects "Walkthrough" again.
+- `apps/web/spec/integration/reviews-walkthrough.test.tsx`: with the sample, the briefing shows "9 decisions shape this change", "6 of 55 files reviewed", "Needs your decision · Delivery outbox" and "Page-owned writes"; "Continue with 2. Revoke access across devices" opens that stop with "Code moved since it was explained"; "Go to step 3: Revoke through the session owner" shows its agent note; the "Not explained · 9 lines in 5 files 0/3" row, scrolled past its brief, shows scripts/migrate-workspaces.ts, "Read in 9. Establish the shared mutation boundary" opens decision 9; with "Agent summary" shown, the sidebar row "3 Publish an immutable note 0/6" opens that stop and selects "Walkthrough" again.
 - `apps/web/spec/integration/reviews-walkthrough-shortcuts.test.tsx`: `N` and `P` move between stops 3 and 4; `J` then `R` marks only packages/client/src/publish-note.ts on the server; no shortcut is registered twice.
 
 ## Gotchas
