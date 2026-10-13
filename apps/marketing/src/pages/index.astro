@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import icon from '../../../../apps/web/public/icon-512.png';
 import walkthrough from '../../../../docs/readme/walkthrough.png';
 import comments from '../../../../docs/readme/comments.png';
 import proof from '../../../../docs/readme/proof.png';
@@ -14,6 +15,7 @@ const sections = [
   ['files', 'Files'],
   ['history', 'History'],
   ['remote', 'Remote'],
+  ['privacy', 'Privacy'],
 ];
 ---
 
@@ -32,7 +34,10 @@ const sections = [
   <body class="bg-background text-foreground font-sans text-base leading-normal tracking-[-0.011em] antialiased">
     <header class="sticky top-0 z-20 border-b border-border/70 bg-background/85 backdrop-blur-md">
       <div class="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-5 py-3 lg:px-10">
-        <a class="text-lg font-medium tracking-[-0.03em] text-foreground no-underline" href="#top">Porcelain</a>
+        <a class="inline-flex items-center gap-2 text-lg font-medium tracking-[-0.03em] text-foreground no-underline" href="#top">
+          <img src={icon.src} width={icon.width} height={icon.height} alt="" class="size-7" />
+          Porcelain
+        </a>
         <nav class="hidden items-center gap-5 text-sm text-muted-foreground xl:flex" aria-label="On this page">
           {
             sections.map(([id, label]) => (
@@ -93,8 +98,8 @@ const sections = [
         </h1>
         <div class="animate-in slide-in-from-bottom-6 fill-mode-both delay-150 max-w-md duration-700 lg:pb-2">
           <p class="text-lg leading-snug text-muted-foreground">
-            ChatGPT, Claude and Codex keep running. Porcelain is where they publish a walkthrough of the change, and
-            where you comment back before you keep it.
+            Claude, Codex, Grok and Muse keep running in your preferred place. Porcelain is where they publish a
+            walkthrough of the change, and where you comment back before you keep it.
           </p>
           <p class="mt-4 text-sm leading-snug text-muted-foreground">
             Browser and Mac, on Apple silicon. The iPhone and iPad app is still being built.
@@ -231,12 +236,18 @@ const sections = [
             the Mac app keeps its own credential for that computer. The files are not copied across.
           </p>
         </div>
-        <div id="source" class="grid scroll-mt-24 gap-4 py-10 lg:grid-cols-[18rem_minmax(0,40rem)] lg:gap-16 lg:py-14" data-reveal>
-          <h2 class="text-2xl leading-tight font-medium tracking-[-0.03em]">Nothing to sign up for.</h2>
-          <p class="text-lg leading-snug text-muted-foreground">
-            There is no account. The review stays on your machine. Porcelain is open source, under the MIT license, and
-            the source is the policy.
-          </p>
+        <div id="privacy" class="grid scroll-mt-24 gap-4 py-10 lg:grid-cols-[18rem_minmax(0,40rem)] lg:gap-16 lg:py-14" data-reveal>
+          <h2 class="text-2xl leading-tight font-medium tracking-[-0.03em]">Privacy</h2>
+          <div class="text-lg leading-snug text-muted-foreground">
+            <p>
+              Porcelain does not take an account. It does not collect your repository, your review, or your comments.
+              Those stay on the computer that holds the repository.
+            </p>
+            <p class="mt-4">
+              The Mac app can ask GitHub whether an update is published. That check does not include your code.
+              Porcelain is open source, under the MIT license, and the source is the policy.
+            </p>
+          </div>
         </div>
       </section>
 
@@ -249,10 +260,6 @@ const sections = [
         </p>
         <p class="mt-8 w-fit max-w-full overflow-x-auto rounded-lg bg-muted px-4 py-3 font-mono text-sm">
           <code>npx @fabiofiorita/porcelain@latest serve</code>
-        </p>
-        <p class="mt-8 max-w-md text-sm leading-snug text-muted-foreground">
-          The pictures above use a disposable sample repository. The features, comments, and checks in them are
-          illustrative.
         </p>
       </section>
     </main>
