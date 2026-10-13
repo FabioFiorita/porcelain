@@ -10,8 +10,11 @@ const description =
     <h1 class="max-w-[14ch] text-[clamp(2.6rem,4.6vw,4.4rem)] leading-[0.96] font-medium tracking-[-0.045em]">
       Start where the repository is.
     </h1>
-    <p class="mt-5 max-w-xl text-lg leading-snug text-muted-foreground">
-      Browser and Mac, on Apple silicon. Mobile app coming soon.
+    <p class="mt-5 flex max-w-xl flex-wrap items-center gap-x-3 gap-y-2 text-lg leading-snug text-muted-foreground">
+      <span>Browser and Mac, on Apple silicon.</span>
+      <span class="inline-flex items-center rounded-full bg-foreground px-2.5 py-1 text-xs font-medium tracking-[-0.01em] text-background">
+        Mobile app coming soon
+      </span>
     </p>
 
     <div class="mt-14 grid gap-px overflow-hidden rounded-xl border border-border bg-border lg:grid-cols-2 lg:grid-rows-[auto_1fr_auto]">
@@ -20,7 +23,7 @@ const description =
         <p class="mt-3 max-w-md text-muted-foreground">
           The server runs on the machine that holds your repositories. Open the address it prints.
         </p>
-        <p class="mt-8 inline-flex h-10 w-fit max-w-full items-center self-start overflow-x-auto rounded-lg bg-muted px-4 font-mono text-sm">
+        <p class="mt-8 inline-flex h-10 w-fit max-w-full items-center self-start overflow-x-auto rounded-lg bg-muted px-4 font-mono text-sm whitespace-nowrap">
           <code>npx @fabiofiorita/porcelain@latest serve</code>
         </p>
       </section>
