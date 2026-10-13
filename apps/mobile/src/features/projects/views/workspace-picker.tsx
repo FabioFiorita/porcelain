@@ -7,7 +7,7 @@ import {
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import { useProjectSelectionCommands } from '../commands/selection';
 import { WorkspaceMenu } from './workspace-menu';
-import { useWorkspace } from './selected-worktree';
+import { useWorkspace } from './workspace';
 import { useInventories } from '../queries/inventory';
 
 export function WorkspacePicker({
@@ -21,7 +21,7 @@ export function WorkspacePicker({
   const inventories = useInventories(environments);
   const project = workspace.project;
   const worktree = workspace.worktree;
-  const unavailable = worktree && (!project?.available || !worktree.available);
+  const unavailable = workspace.state.kind === 'unavailable';
   const label = worktree
     ? `${project?.name} · ${worktreeLabel(worktree.branch)}${unavailable ? ' (unavailable)' : ''}`
     : 'Workspace';
@@ -47,12 +47,18 @@ export function WorkspacePicker({
       messages={messages}
       canReadInventory={canReadAgain}
       error={
-        selection.error ??
+        (workspace.state.kind === 'failed'
+          ? workspace.state.message
+          : undefined) ??
         (AsyncResult.isFailure(commands.result)
           ? connectionErrorMessage(Cause.squash(commands.result.cause))
           : undefined)
       }
-      onRead={() => commands.submit({ kind: 'read' })}
+      onRead={
+        workspace.state.kind === 'failed'
+          ? workspace.read
+          : () => commands.submit({ kind: 'read' })
+      }
       onReadInventory={inventories.read}
       onWorktree={(environmentId, projectId, worktreeId) =>
         commands.submit({

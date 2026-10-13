@@ -4,46 +4,90 @@ import { Option } from 'effect';
 import { liveQueries, inactiveLiveQueries } from '@porcelain/client/live';
 import { useProjectConnection } from '../store';
 import type { Remote } from '@porcelain/client/access/rules';
+import {
+  workspaceSelection,
+  type WorkspaceSelection,
+  type Project,
+  type WorkspaceReadiness,
+} from '@porcelain/client/projects/rules';
+import type { RuntimeConnection } from '@porcelain/client/transport';
 import { useInventory } from '../queries/inventory';
+
+export type Workspace = {
+  readonly key: string;
+  readonly connection: RuntimeConnection;
+  readonly scope: { readonly projectId: string; readonly worktreeId: string };
+  readonly project: Project;
+  readonly worktree: Project['worktrees'][number];
+};
+
+type WorkspaceState =
+  | Exclude<WorkspaceSelection, { kind: 'selected' }>
+  | {
+      readonly kind: 'selected';
+      readonly workspace: Workspace;
+    };
 
 export function useWorkspaceConnection(
   remote: Remote | undefined,
-  projectId: string | undefined,
-  worktreeId: string | undefined,
-  ready: boolean,
+  remembered:
+    | { readonly projectId: string; readonly worktreeId: string }
+    | undefined,
+  readiness: WorkspaceReadiness,
 ) {
   const connection = useProjectConnection(remote);
   const inventory = useInventory(connection);
   const data = Option.getOrUndefined(AsyncResult.value(inventory.result));
   const project = data?.projects.find(
-    (candidate) => candidate.id === projectId,
+    (candidate) => candidate.id === remembered?.projectId,
   );
   const worktree = project?.worktrees.find(
-    (candidate) => candidate.id === worktreeId,
+    (candidate) => candidate.id === remembered?.worktreeId,
   );
-  const selected =
-    ready &&
-    !AsyncResult.isFailure(inventory.result) &&
-    project?.available &&
-    worktree?.available;
+  const decision = workspaceSelection({
+    readiness,
+    remembered,
+    paired: remote !== undefined,
+    inventory: inventory.state,
+  });
   useAtomValue(
-    selected && connection ? liveQueries({ connection }) : inactiveLiveQueries,
+    decision.kind === 'selected' && connection
+      ? liveQueries({ connection })
+      : inactiveLiveQueries,
   );
-  const current =
-    selected && remote && project && worktree && connection
-      ? {
-          key: JSON.stringify([
-            remote.environmentId,
-            remote.address,
-            remote.deviceId ?? '',
-            project.id,
-            worktree.id,
-          ]),
-          connection,
-          scope: { projectId: project.id, worktreeId: worktree.id },
-          project,
-          worktree,
-        }
-      : undefined;
-  return { inventory, project, worktree, current };
+  return {
+    inventory,
+    project,
+    worktree,
+    state: connectedWorkspace(decision, remote, connection),
+  };
+}
+
+function connectedWorkspace(
+  decision: WorkspaceSelection,
+  remote: Remote | undefined,
+  connection: RuntimeConnection | undefined,
+): WorkspaceState {
+  if (decision.kind !== 'selected') return decision;
+  const paired = Option.getOrThrow(Option.fromUndefinedOr(remote));
+  const transport = Option.getOrThrow(Option.fromUndefinedOr(connection));
+  return {
+    kind: 'selected',
+    workspace: {
+      key: JSON.stringify([
+        paired.environmentId,
+        paired.address,
+        paired.deviceId ?? '',
+        decision.project.id,
+        decision.worktree.id,
+      ]),
+      connection: transport,
+      scope: {
+        projectId: decision.project.id,
+        worktreeId: decision.worktree.id,
+      },
+      project: decision.project,
+      worktree: decision.worktree,
+    },
+  };
 }
