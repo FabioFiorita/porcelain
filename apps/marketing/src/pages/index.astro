@@ -5,27 +5,27 @@ import comments from '../../../../docs/readme/comments.png';
 import proof from '../../../../docs/readme/proof.png';
 
 const description =
-  'A diff lists the lines. It does not tell you what changed. Porcelain is where the agent walks you through the decisions, and where you comment back before you keep it.';
+  'A diff does not tell you what changed. Porcelain is where the agent walks you through the decisions, and where you comment back before you keep it.';
 ---
 
 <Site description={description}>
     <main id="top" class="mx-auto w-full max-w-[1440px] px-5 pb-16 lg:px-10">
-      <section class="grid items-end gap-8 pt-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)] lg:pt-20">
+      <section class="max-w-3xl pt-12 lg:pt-20">
         <h1
           class="animate-in slide-in-from-bottom-6 fill-mode-both text-[clamp(2.85rem,4.35vw,4.35rem)] leading-[0.96] font-medium tracking-[-0.045em] duration-700"
         >
           Agents write the code.<br />This is where you read it.
         </h1>
-        <div class="animate-in slide-in-from-bottom-6 fill-mode-both delay-150 max-w-md duration-700 lg:pb-2">
-          <p class="text-lg leading-snug text-muted-foreground">
-            A diff lists the lines. It does not tell you what changed. Agents keep running where you already run
-            them. Porcelain is where they walk you through the decisions, and where you comment back before you keep
-            it.
-          </p>
-          <p class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm leading-snug text-muted-foreground">
-            <span>Mac app on Apple silicon. Server on Linux or Mac.</span>
+        <p class="animate-in slide-in-from-bottom-6 fill-mode-both delay-150 mt-6 text-lg leading-snug text-muted-foreground duration-700">
+          A diff does not tell you what changed. Agents keep running where you already run them. Porcelain is where
+          they walk you through the decisions, and where you comment back before you keep it.
+        </p>
+        <div class="animate-in slide-in-from-bottom-6 fill-mode-both delay-200 mt-6 flex flex-col items-start gap-2 text-sm leading-snug text-muted-foreground duration-700">
+          <p>Mac app on Apple silicon. Server on Linux or Mac.</p>
+          <p class="flex items-center gap-2">
+            <span>Mobile app</span>
             <span class="inline-flex items-center rounded-full bg-foreground px-2.5 py-1 text-xs font-medium tracking-[-0.01em] text-background">
-              Mobile app coming soon
+              Coming soon
             </span>
           </p>
         </div>
@@ -75,12 +75,12 @@ const description =
         </div>
       </section>
 
-      <section id="comments" class="mt-28 scroll-mt-24 lg:mt-36">
-        <div class="grid items-end gap-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]" data-reveal>
-          <h2 class="max-w-[14ch] text-[clamp(2rem,3.2vw,3.25rem)] leading-[1.02] font-medium tracking-[-0.04em]">
+      <section id="comments" class="mt-20 scroll-mt-24 lg:mt-28">
+        <div data-reveal>
+          <h2 class="text-[clamp(2rem,3.2vw,3.25rem)] leading-[1.02] font-medium tracking-[-0.04em]">
             Comment back before you keep it.
           </h2>
-          <p class="max-w-xl text-lg leading-snug text-muted-foreground lg:pb-1">
+          <p class="mt-4 max-w-xl text-lg leading-snug text-muted-foreground">
             You write on the file. Any agent that speaks MCP replies in the same thread, on your machine. The
             conversation stays with this change.
           </p>
@@ -106,12 +106,12 @@ const description =
         </figure>
       </section>
 
-      <section id="proof" class="mt-28 scroll-mt-24 lg:mt-36">
-        <div class="grid items-end gap-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]" data-reveal>
-          <h2 class="max-w-[14ch] text-[clamp(2rem,3.2vw,3.25rem)] leading-[1.02] font-medium tracking-[-0.04em]">
+      <section id="proof" class="mt-20 scroll-mt-24 lg:mt-28">
+        <div data-reveal>
+          <h2 class="text-[clamp(2rem,3.2vw,3.25rem)] leading-[1.02] font-medium tracking-[-0.04em]">
             See what was checked.
           </h2>
-          <p class="max-w-xl text-lg leading-snug text-muted-foreground lg:pb-1">
+          <p class="mt-4 max-w-xl text-lg leading-snug text-muted-foreground">
             Readiness keeps the review in one place: files you have read, unexplained changes, comments, and checks.
             Proof opens the checks and the images the agent attached.
           </p>
@@ -121,14 +121,14 @@ const description =
             type="button"
             class="block w-full cursor-zoom-in overflow-hidden rounded-xl bg-card text-left shadow-[inset_0_0_0_1px_var(--border)]"
             data-shot={proof.src}
-            data-alt="Proof shows illustrative passing and failing checks, an image attachment and the readiness panel"
+            data-alt="Proof opens the sample check beside the readiness of the review"
           >
             <img
               class="block w-full"
               src={proof.src}
               width={proof.width}
               height={proof.height}
-              alt="Proof shows illustrative passing and failing checks, an image attachment and the readiness panel"
+              alt="Proof opens the sample check beside the readiness of the review"
             />
           </button>
           <figcaption class="mt-3 text-sm text-muted-foreground">
@@ -137,12 +137,12 @@ const description =
         </figure>
       </section>
 
-      <section class="mt-28 scroll-mt-24 border-t border-border pt-10 lg:mt-36" aria-label="How you run it">
-        <div class="grid items-end gap-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]" data-reveal>
-          <h2 class="max-w-[16ch] text-[clamp(2rem,3.2vw,3.25rem)] leading-[1.02] font-medium tracking-[-0.04em]">
+      <section class="mt-20 scroll-mt-24 border-t border-border pt-10 lg:mt-28" aria-label="How you run it">
+        <div data-reveal>
+          <h2 class="text-[clamp(2rem,3.2vw,3.25rem)] leading-[1.02] font-medium tracking-[-0.04em]">
             Run it where the repository is.
           </h2>
-          <p class="max-w-xl text-lg leading-snug text-muted-foreground lg:pb-1">
+          <p class="mt-4 max-w-xl text-lg leading-snug text-muted-foreground">
             One server holds the repository. The Mac app, a browser, and later the phone all read that same machine.
             The files are not copied across.
           </p>
@@ -166,7 +166,7 @@ const description =
             </p>
             <p class="mt-4">
               <span class="inline-flex items-center rounded-full bg-foreground px-2.5 py-1 text-xs font-medium tracking-[-0.01em] text-background">
-                Mobile app coming soon
+                Coming soon
               </span>
             </p>
           </div>
