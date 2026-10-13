@@ -3,6 +3,7 @@ import { Effect } from 'effect';
 import { runDesktopMcp as relayDesktopMcp } from '@porcelain/server/desktop-mcp';
 
 export async function runDesktopMcp(): Promise<void> {
+  app.dock?.hide();
   const args = process.argv
     .slice(app.isPackaged ? 1 : 2)
     .filter((argument) => argument !== '--porcelain-mcp');
