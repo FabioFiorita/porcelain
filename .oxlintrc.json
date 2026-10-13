@@ -45,6 +45,7 @@
     "porcelain/mobile-system-chrome": "error",
     "porcelain/client-platform-through-ports": "error",
     "porcelain/hermes-array-methods": "error",
+    "porcelain/writable-reads-what-it-sets": "error",
     "porcelain/client-owns-shared-logic": "error",
     "porcelain/worktree-admission-owner": "error",
     "porcelain/models-are-types": "error",
