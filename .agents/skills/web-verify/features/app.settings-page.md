@@ -35,11 +35,11 @@ Settings is its own page (`main` "Settings") that replaces the workspace and sho
 
 ## How a user reaches it
 
-- Sidebar footer button `Settings` (phone width: click `Toggle Sidebar` first; the sidebar is a sheet). It opens the first section: `/settings/computer` on desktop, `/settings/updates` on the web.
+- Sidebar footer button `Settings` (phone width: click `Toggle Sidebar` first; the sidebar is a sheet). It opens the first section: `/settings/computer` on desktop, `/settings/appearance` on the web.
 - Keyboard `Alt+Shift+S` anywhere on the workspace (ignored while focus is in a text field). No test covers the shortcut.
 - Route `/settings/$section`. Section slugs, in button order:
   - desktop mode (`start --desktop`): `computer` (This computer), `ways-in` (Ways in), `remotes` (Remote computers), `devices` (Devices), `git` (Git and agents), `appearance` (Appearance).
-  - web mode (`start`): `updates` (Updates), `git`, `appearance`, `connection` (Connection).
+  - web mode (`start`): `appearance`, `git`, `connection` (Connection), `updates` (Updates).
   - Any other slug redirects (replace) to the first section.
 - Desktop app menu "Settings" (the Electron bridge's `open-settings` action); requires the Electron bridge and desktop verification.
 - "Open Remote computers" buttons (desktop navigator, unreachable remote) open `/settings/remotes`.
@@ -107,6 +107,6 @@ None.
 - Escape is bound to the Settings `main` element (`apps/web/src/app/settings-page.tsx:332`), so it only works while focus is inside the page: click a section button first. Right after opening Settings from the sidebar, focus may be outside it and Escape does nothing.
 - Back goes back in browser history when there is history, otherwise to `/`. After Navigate to `/settings/<slug>` on the card’s web URL (full page load) (a fresh page load) Back lands on `/`, which redirects to the worktree.
 - Phone width: the project navigator lives in a sheet; click `Toggle Sidebar` before `Settings` or `repository`. On the Settings page itself the sections are a horizontal row at the top.
-- `This computer`, `Ways in`, `Devices` and `Remote computers` exist only in desktop mode; in web mode `/settings/computer` or `/settings/devices` redirects to `/settings/updates`.
+- `This computer`, `Ways in`, `Devices` and `Remote computers` exist only in desktop mode; in web mode `/settings/computer` or `/settings/devices` redirects to `/settings/appearance`.
 - Case 3 removes the instance's only project and leaks into every later feature: drive it last, or `$C stop` and `$C start --desktop`; pair your browser using the card’s pairing-link command afterwards.
 - "Remove from Porcelain" is both a menuitem and the dialog's button; address them by role as written. The dialog's button reads "Removing…" while the request runs.

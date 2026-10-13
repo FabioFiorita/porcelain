@@ -34,7 +34,7 @@ On Settings → Devices the owner lets a paired device update Porcelain and take
 
 - Workspace → `Toggle Sidebar` (phone width) → `Settings` (navigator footer) → `Devices` → the switch "<device> can update Porcelain" in the device's row.
 - Keyboard: `Alt+Shift+S` on the workspace (focus outside a text field) opens Settings, then `Devices`.
-- Route: `/settings/devices` (desktop shell only; the web shell redirects unknown sections to `/settings/updates`).
+- Route: `/settings/devices` (desktop shell only; the web shell redirects unknown sections to `/settings/appearance`).
 - For a new device: `Ways in` → turn on a way in → `Devices` → "Device name" → switch "The paired device can update Porcelain" → `Create pairing link`.
 
 ## Driving it

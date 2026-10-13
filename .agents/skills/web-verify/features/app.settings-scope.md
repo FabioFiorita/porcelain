@@ -32,7 +32,7 @@ In the desktop app, Settings opens on This computer and lists, in order, This co
 
 - Sidebar (phone width: `Toggle Sidebar` first) → `Settings` → the section buttons in navigation "Settings sections".
 - `Alt+Shift+S` opens Settings on This computer (ignored while focus is in a text field); then the section button.
-- Routes `/settings/computer`, `/settings/ways-in`, `/settings/remotes`, `/settings/devices` (desktop mode only; in web mode they redirect to `/settings/updates`).
+- Routes `/settings/computer`, `/settings/ways-in`, `/settings/remotes`, `/settings/devices` (desktop mode only; in web mode they redirect to `/settings/appearance`).
 - "Open Remote computers" (desktop navigator row of an unreachable remote computer) opens `/settings/remotes`.
 
 ## Driving it

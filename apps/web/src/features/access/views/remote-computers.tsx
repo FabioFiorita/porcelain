@@ -59,7 +59,12 @@ function RemoteRow({ remote }: { remote: Remote }) {
       </ItemMedia>
       <ItemContent>
         <ItemTitle>{name}</ItemTitle>
-        <ItemDescription>{remote.address}</ItemDescription>
+        <ItemDescription>
+          {remote.address}
+          {status.kind === 'online' && status.version
+            ? ` · Porcelain ${status.version}`
+            : ''}
+        </ItemDescription>
       </ItemContent>
       <ItemActions>
         <Badge variant={remoteStatusVariant(status)}>

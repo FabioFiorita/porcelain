@@ -88,7 +88,7 @@ None on disk. The default server has two paired devices, both bound to "This com
 
 ## Gotchas
 
-- Desktop shell only: without `--desktop`, Settings has no Devices section (the web shell redirects `/settings/devices` to `/settings/updates`). The desktop bridge is not needed.
+- Desktop shell only: without `--desktop`, Settings has no Devices section (the web shell redirects `/settings/devices` to `/settings/appearance`). The desktop bridge is not needed.
 - Revoking "Development setup" lasts for the life of the instance, and `access.device-trust` needs that device. Run that feature first or start a new instance. Never revoke this browser: its row has no Revoke button. Pairing it again needs a new instance.
 - Local network stays on after step 3. With more than one way in on (for example after `access.remote-access`), an "Opens through" select appears and the note names the chosen way in.
 - A link works once, for 15 minutes. Its expiry time shows as "Works once, until <time>".

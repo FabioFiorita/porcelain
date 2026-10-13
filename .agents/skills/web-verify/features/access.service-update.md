@@ -38,7 +38,7 @@ Settings → Updates shows the running Porcelain version and the newer one the s
 None.
 
 1. Navigate to `/` on the card’s web URL (full page load), click button named `Toggle Sidebar`, click button named `Settings`
-   Look for: main "Settings", Page URL `/settings/updates`.
+   Look for: main "Settings", Page URL `/settings/appearance`.
 2. Click button named `Updates`
    Look for: Page URL `/settings/updates`; text "Porcelain 1.0.0"; text "Porcelain 1.1.0 is available."; button "Update to 1.1.0".
 3. Click button named `Update to 1.1.0`

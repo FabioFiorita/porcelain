@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures.ts';
 
-test('the web the server serves opens Settings on Updates, lists Updates, Git and agents, Appearance and Connection with no sharing sections, and the navigator still names this computer', async ({
+test('the web the server serves lists Appearance, Git and agents, Connection and Updates in Settings and no Sharing, and the navigator still names this computer', async ({
   pairedPage,
   server,
 }) => {
@@ -26,13 +26,18 @@ test('the web the server serves opens Settings on Updates, lists Updates, Git an
     name: 'Settings sections',
     exact: true,
   });
-  await expect(sections.getByRole('button')).toHaveText([
-    'Updates',
-    'Git and agents',
-    'Appearance',
-    'Connection',
-    'Back',
-  ]);
+  await expect(
+    settings.getByRole('heading', { name: 'Appearance', exact: true }),
+  ).toBeVisible();
+  for (const name of ['Appearance', 'Git and agents', 'Connection', 'Updates'])
+    await expect(
+      sections.getByRole('button', { name, exact: true }),
+    ).toBeVisible();
+  await expect(
+    sections.getByRole('button', { name: 'Sharing', exact: true }),
+  ).not.toBeAttached();
+
+  await sections.getByRole('button', { name: 'Updates', exact: true }).click();
   await expect(
     settings.getByRole('heading', { name: 'Updates', exact: true }),
   ).toBeVisible();

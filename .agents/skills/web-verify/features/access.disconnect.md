@@ -60,7 +60,7 @@ None before step 1. Step 5 writes README.md on disk in the middle of the flow (a
 6. Replace the contents of textbox named `README.md` with 'A draft the browser cannot save', then wait for text 'Not saving: changed on disk' to be visible
    Look for (within about 3 s, the autosave wait): status text "Not saving: changed on disk" and an alert "The file changed on disk since you opened it. Reload it before saving. Your draft is kept here." with buttons "Copy draft" and "Reload".
 7. Click button named `Toggle Sidebar`, then click button named `Settings`
-   Look for: main "Settings", Page URL `/settings/updates`, Page Title "Settings".
+   Look for: main "Settings", Page URL `/settings/appearance`, Page Title "Settings".
 8. Click button named `Connection`
    Look for: Page URL `/settings/connection`; text "This browser"; button "Disconnect this browser".
 9. Click button named `Disconnect this browser`

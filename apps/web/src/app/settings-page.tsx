@@ -56,11 +56,6 @@ const mcpCommand = 'claude mcp add porcelain -- porcelain mcp';
 
 type SettingsSection = { id: string; label: string; icon: LucideIcon };
 
-const preferenceSections: readonly SettingsSection[] = [
-  { id: 'git', label: 'Git and agents', icon: GitBranchIcon },
-  { id: 'appearance', label: 'Appearance', icon: PaletteIcon },
-];
-
 export const settingsSections: readonly [
   SettingsSection,
   ...SettingsSection[],
@@ -70,12 +65,14 @@ export const settingsSections: readonly [
       { id: 'ways-in', label: 'Ways in', icon: RadioTowerIcon },
       { id: 'remotes', label: 'Remote computers', icon: ServerIcon },
       { id: 'devices', label: 'Devices', icon: SmartphoneIcon },
-      ...preferenceSections,
+      { id: 'git', label: 'Git and agents', icon: GitBranchIcon },
+      { id: 'appearance', label: 'Appearance', icon: PaletteIcon },
     ]
   : [
-      { id: 'updates', label: 'Updates', icon: RefreshCwIcon },
-      ...preferenceSections,
+      { id: 'appearance', label: 'Appearance', icon: PaletteIcon },
+      { id: 'git', label: 'Git and agents', icon: GitBranchIcon },
       { id: 'connection', label: 'Connection', icon: UnplugIcon },
+      { id: 'updates', label: 'Updates', icon: RefreshCwIcon },
     ];
 
 export const defaultSettingsSection = settingsSections[0].id;
