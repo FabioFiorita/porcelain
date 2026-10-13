@@ -13,6 +13,9 @@ function FilesRoute() {
         onOpen={(path, workspace) =>
           router.push({ pathname: '/file', params: { path, workspace } })
         }
+        onEdit={(path, workspace) =>
+          router.push({ pathname: '/file-edit', params: { path, workspace } })
+        }
       />
     </DestinationScreen>
   );

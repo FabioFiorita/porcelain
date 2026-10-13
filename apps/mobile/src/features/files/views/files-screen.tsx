@@ -16,23 +16,36 @@ import {
   entryTreeActions,
 } from '@porcelain/client/files/rules';
 import { FileTree } from '../../../components/ui/file-tree';
+import { DocumentTabs } from '../../../components/ui/document-tabs';
+import { WorkspacePanes } from '../../../components/ui/workspace-panes';
+import { Empty } from '../../../components/ui/empty';
 import { Input } from '../../../components/ui/input';
 import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Text } from '../../../components/ui/text';
 import { headerIcon } from '../../../shared/icons/header-icon';
+import { isTablet } from '../../../shared/navigation/is-tablet';
+import {
+  emptyDocuments,
+  openDocument,
+  activateDocument,
+  closeDocument,
+} from '../../../shared/rules/document-tabs';
 import { directoryRequests } from '../rules/directory-requests';
 import { useDirectories } from '../queries/directory';
 import { directoryLoading } from '../rules/directory-loading';
 import { useFilePaths } from '../queries/paths';
 import { FileActionSheet } from './file-action';
+import { FileContent } from './file-screen';
 import type { FileAction } from '../commands/edit-file';
 
 export function FilesScreen({
   onOpen,
+  onEdit,
   sidebar,
 }: {
   onOpen: (path: string, workspace: string) => void;
+  onEdit: (path: string, workspace: string) => void;
   sidebar: LeadingToolbarProps['sidebar'];
 }) {
   return (
@@ -40,15 +53,95 @@ export function FilesScreen({
       title="Files"
       fallbackToolbar={<LeadingToolbar sidebar={sidebar} />}
     >
-      {(selected) => (
+      {(selected) =>
+        isTablet ? (
+          <TabletFiles
+            key={selected.key}
+            selected={selected}
+            onEdit={onEdit}
+            sidebar={sidebar}
+          />
+        ) : (
+          <WorktreeFiles
+            key={selected.key}
+            selected={selected}
+            onOpen={onOpen}
+            sidebar={sidebar}
+          />
+        )
+      }
+    </WorkspaceGate>
+  );
+}
+
+function TabletFiles({
+  selected,
+  onEdit,
+  sidebar,
+}: {
+  selected: Workspace;
+  onEdit: (path: string, workspace: string) => void;
+  sidebar: LeadingToolbarProps['sidebar'];
+}) {
+  const [documents, setDocuments] = useState(() =>
+    emptyDocuments<{
+      key: string;
+      title: string;
+      label: string;
+      closable: boolean;
+    }>(),
+  );
+  const active = documents.tabs.find((tab) => tab.key === documents.active);
+  return (
+    <WorkspacePanes
+      navigationLabel="Files"
+      hasSelection={active !== undefined}
+      navigation={(showContent) => (
         <WorktreeFiles
-          key={selected.key}
           selected={selected}
-          onOpen={onOpen}
           sidebar={sidebar}
+          activePath={active?.key}
+          onOpen={(path) => {
+            setDocuments((current) =>
+              openDocument(current, {
+                key: path,
+                title: path.split('/').at(-1) ?? path,
+                label: path,
+                closable: true,
+              }),
+            );
+            showContent();
+          }}
         />
       )}
-    </WorkspaceGate>
+    >
+      <Box className="flex-1" surface="background">
+        <DocumentTabs
+          tabs={documents.tabs}
+          active={documents.active}
+          onSelect={(key) =>
+            setDocuments((current) => activateDocument(current, key))
+          }
+          onClose={(key) =>
+            setDocuments((current) => closeDocument(current, key))
+          }
+        />
+        {active ? (
+          <FileContent
+            key={active.key}
+            path={active.key}
+            selected={selected}
+            onEdit={() => onEdit(active.key, selected.key)}
+          />
+        ) : (
+          <Empty
+            title="Select a file"
+            description="Choose a file from the directory to open it here."
+            icon="file"
+          />
+        )}
+      </Box>
+    </WorkspacePanes>
   );
 }
 
@@ -56,10 +149,12 @@ function WorktreeFiles({
   selected,
   onOpen,
   sidebar,
+  activePath,
 }: {
   selected: Workspace;
   onOpen: (path: string, workspace: string) => void;
   sidebar: LeadingToolbarProps['sidebar'];
+  activePath?: string | undefined;
 }) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [requested, setRequested] = useState<readonly string[]>(['']);
@@ -187,6 +282,7 @@ function WorktreeFiles({
             : nodes
         }
         expanded={expanded}
+        {...(activePath ? { selected: activePath } : {})}
         loading={loading.folders}
         onToggle={(id) => {
           setExpanded((current) => {
