@@ -54,7 +54,11 @@ export function WorkspacePicker({
           ? connectionErrorMessage(Cause.squash(commands.result.cause))
           : undefined)
       }
-      onRead={workspace.read}
+      onRead={
+        workspace.state.kind === 'failed'
+          ? workspace.read
+          : () => commands.submit({ kind: 'read' })
+      }
       onReadInventory={inventories.read}
       onWorktree={(environmentId, projectId, worktreeId) =>
         commands.submit({

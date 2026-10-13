@@ -1,4 +1,5 @@
 import { useAtomRef, useAtomSet, useAtomValue } from '@effect/atom-react';
+import { Option } from 'effect';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import {
@@ -51,12 +52,19 @@ export function useInventories(
         const result = results.find(
           (entry) => entry.connection.environmentId === environmentId,
         )?.result;
-        const state = workspaceInventory(result ?? AsyncResult.initial());
         return {
           environmentId,
           name,
-          status: state.status,
-          inventory: state.status === 'ready' ? state.inventory : undefined,
+          status:
+            result === undefined || AsyncResult.isInitial(result)
+              ? 'reading'
+              : AsyncResult.isFailure(result)
+                ? 'failed'
+                : 'ready',
+          inventory:
+            result === undefined
+              ? undefined
+              : Option.getOrUndefined(AsyncResult.value(result)),
         };
       },
     ),
