@@ -22,6 +22,10 @@ export async function liveRouter(context: BrowserContext) {
           (request.postData() ?? '').includes(filePath),
         () => network.live.hold(),
       ),
+    holdChangesRead: () => network.hold(isChangesRead),
+    holdPublishedReviewRead: () => network.hold(isPublishedReviewRead),
+    failChangesRead: () => network.fail(isChangesRead, 503),
+    failPublishedReviewRead: () => network.fail(isPublishedReviewRead, 503),
     releaseHeld: network.live.release,
   };
 }
@@ -50,10 +54,19 @@ export function failInventory(context: BrowserContext) {
 }
 
 export function failChangesRead(context: BrowserContext) {
-  return browserNetwork(context).fail(
-    (request) =>
-      request.method() === 'GET' &&
-      /^\/api\/worktrees\/[^/]+\/changes$/.test(pathOf(request)),
-    503,
+  return browserNetwork(context).fail(isChangesRead, 503);
+}
+
+function isChangesRead(request: RoutedRequest) {
+  return (
+    request.method() === 'GET' &&
+    /^\/api\/worktrees\/[^/]+\/changes$/.test(pathOf(request))
+  );
+}
+
+function isPublishedReviewRead(request: RoutedRequest) {
+  return (
+    request.method() === 'GET' &&
+    /^\/api\/worktrees\/[^/]+\/review$/.test(pathOf(request))
   );
 }

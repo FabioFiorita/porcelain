@@ -79,6 +79,7 @@ type Props = {
   context: ConnectionContext;
   activeEntry: string | undefined;
   onOpen: OpenDocument;
+  sideLabel: string;
 };
 type ScopeProps = {
   changeScope: ChangeScope;
@@ -92,6 +93,7 @@ export function ReviewIndex({
   context,
   activeEntry,
   onOpen,
+  sideLabel,
   changeScope,
   base,
   onChangeScope,
@@ -204,6 +206,7 @@ export function ReviewIndex({
           activeEntry={activeEntry}
           threads={threads}
           onOpen={onOpen}
+          sideLabel={sideLabel}
           onBase={onBase}
         />
       )}
@@ -213,6 +216,7 @@ export function ReviewIndex({
           context={context}
           activeEntry={activeEntry}
           onOpen={onOpen}
+          sideLabel={sideLabel}
           list={list}
           review={review}
           changes={changes}
@@ -239,6 +243,7 @@ function LayersView({
   context,
   activeEntry,
   onOpen,
+  sideLabel,
   list,
   review,
   changes,
@@ -284,6 +289,7 @@ function LayersView({
       }
       active={activeEntry === entryKey({ kind: 'change', path })}
       onOpen={onOpen}
+      sideLabel={sideLabel}
       canReview={
         changeByPath.get(path)?.fingerprint !== null &&
         changeByPath.get(path)?.fingerprint !== undefined

@@ -34,6 +34,7 @@ export function RemoteMachine({
   const note = remoteStatusNote(status);
   return (
     <MachineSection
+      environmentId={remote.environmentId}
       name={name}
       icon={ServerIcon}
       status={
@@ -98,10 +99,10 @@ function RemoteProjects({
   return inventory.projects.map((project) => (
     <SidebarMenuSubItem key={project.id}>
       <ProjectSection
+        environmentId={environmentId}
         project={project}
         onRetry={onRetry}
         selected={selected}
-        manage={false}
         onSelect={(worktreeId) =>
           onSelect({
             remote: environmentId,

@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { flushSync } from 'react-dom';
 import { PinOffIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,7 +21,7 @@ export function PinnedFiles({
 }: {
   paths: readonly string[];
   selected: string;
-  onOpen: (path: string) => void;
+  onOpen: (path: string, toSide?: boolean) => void;
   onUnpin: (path: string) => void;
   menuFor: (path: string) => {
     actions: readonly { id: TreeAction; label: string }[];
@@ -27,6 +29,7 @@ export function PinnedFiles({
     onAction: (id: TreeAction) => void;
   };
 }) {
+  const [openingSide, setOpeningSide] = useState(false);
   if (paths.length === 0) return null;
   return (
     <section aria-label="Pinned files" className="shrink-0 px-2 pt-1.5 pb-1">
@@ -38,7 +41,12 @@ export function PinnedFiles({
           const separator = path.lastIndexOf('/') + 1;
           const menu = menuFor(path);
           return (
-            <ContextMenu key={path}>
+            <ContextMenu
+              key={path}
+              onOpenChange={(open) => {
+                if (open) setOpeningSide(false);
+              }}
+            >
               <ContextMenuTrigger
                 render={<li className="flex items-center gap-0.5" />}
               >
@@ -50,7 +58,7 @@ export function PinnedFiles({
                     'flex h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 text-left text-caption hover:bg-accent',
                     path === selected && 'bg-accent',
                   )}
-                  onClick={() => onOpen(path)}
+                  onClick={(event) => onOpen(path, event.altKey)}
                 >
                   <FileTypeIcon path={path} className="size-3.5 shrink-0" />
                   <span className="shrink-0">{path.slice(separator)}</span>
@@ -70,11 +78,15 @@ export function PinnedFiles({
                   <PinOffIcon />
                 </Button>
               </ContextMenuTrigger>
-              <ContextMenuContent>
+              <ContextMenuContent finalFocus={!openingSide}>
                 <FileTreeMenuList
                   actions={menu.actions}
                   hidden={menu.hidden}
-                  onAction={menu.onAction}
+                  onAction={(id) => {
+                    if (id === 'open-to-side')
+                      flushSync(() => setOpeningSide(true));
+                    menu.onAction(id);
+                  }}
                 />
               </ContextMenuContent>
             </ContextMenu>

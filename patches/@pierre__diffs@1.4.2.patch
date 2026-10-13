@@ -1,0 +1,55 @@
+diff --git a/dist/components/CodeView.js b/dist/components/CodeView.js
+index 2fd5213232a3c550d483dcdf61497ed40f070a9b..4fa7fbeaafce055283b43ca29082a4ed4e72c6f8 100644
+--- a/dist/components/CodeView.js
++++ b/dist/components/CodeView.js
+@@ -405,25 +405,30 @@ var CodeView = class CodeView {
+ 		this.clearReadySubscription();
+ 		this.restoreScrollInteractions();
+ 		this.cleanAllRenderedItems();
++		const { items: discardedItems } = this;
+ 		const teardownSessions = [...this.itemEditors.values()].map((record) => {
+ 			const item = this.idToItem.get(record.state.id);
+ 			if (item != null) record.state.removedItem = item.item;
+-			return {
+-				record,
+-				instance: item?.instance
+-			};
++			return record;
+ 		});
+ 		this.itemEditors.clear();
+ 		this.attachedEditors.clear();
+ 		this.selectedLines = null;
+-		this.items.length = 0;
++		this.items = [];
+ 		this.idToItem.clear();
+ 		this.instanceToItem.clear();
+ 		let failed = false;
+ 		let failure;
+-		for (const { record, instance } of teardownSessions) try {
++		for (const record of teardownSessions) try {
+ 			record.editor.cleanUp("discard");
+-			instance?.cleanUp();
++		} catch (error) {
++			if (!failed) {
++				failed = true;
++				failure = error;
++			}
++		}
++		for (const item of discardedItems) try {
++			item.instance.cleanUp();
+ 		} catch (error) {
+ 			if (!failed) {
+ 				failed = true;
+@@ -691,7 +696,11 @@ var CodeView = class CodeView {
+ 		let removedItemsById;
+ 		if (this.items.length === 0) this.appendItemsInternal(items);
+ 		else if (!this.tryAppendItems(items)) removedItemsById = this.reconcileItems(items);
+-		this.syncItemEditors(removedItemsById);
++		try {
++			this.syncItemEditors(removedItemsById);
++		} finally {
++			for (const removedItem of removedItemsById?.values() ?? []) removedItem.instance.cleanUp();
++		}
+ 		this.syncSelection();
+ 	}
+ 	/**

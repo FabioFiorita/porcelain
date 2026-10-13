@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { routeCoverage } from './route-coverage.ts';
+import { routeCoverage, handlerCoverage } from './route-coverage.ts';
 
 test('a complete selection counts only executed modules for route logs', () => {
   expect(
@@ -51,4 +51,37 @@ test('a complete selection rejects an extra route log', () => {
   expect(() =>
     routeCoverage(['server/a'], [{ path: 'server/a', executed: true }], 2),
   ).toThrow('Route coverage: 1 integration files ran but 2 wrote a route log');
+});
+
+const registeredHandlers = {
+  registered: ['owner POST /mcp'],
+  requested: ['owner POST /mcp'],
+  registeredTools: ['read_review', 'delete_review'],
+  invokedTools: ['read_review'],
+};
+
+test('reaching the MCP route leaves an uninvoked registered tool missing', () => {
+  expect(() => handlerCoverage([registeredHandlers])).toThrow(
+    'Route coverage: no integration test reached MCP tool delete_review;',
+  );
+});
+
+test('actual tool invocations across files cover the registered toolkit', () => {
+  expect(() =>
+    handlerCoverage([
+      registeredHandlers,
+      { ...registeredHandlers, invokedTools: ['delete_review'] },
+    ]),
+  ).not.toThrow();
+});
+
+test('missing HTTP routes and MCP tools are named together without duplicates', () => {
+  const missing = {
+    ...registeredHandlers,
+    requested: [],
+    invokedTools: [],
+  };
+  expect(() => handlerCoverage([missing, missing])).toThrow(
+    'Route coverage: no integration test reached MCP tool delete_review, MCP tool read_review, owner POST /mcp;',
+  );
 });

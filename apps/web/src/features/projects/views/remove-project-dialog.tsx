@@ -1,7 +1,4 @@
-import { Cause } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
 import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   AlertDialogAction,
   AlertDialogCancel,
@@ -12,28 +9,34 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Spinner } from '@/components/ui/spinner';
-import { connectionErrorMessage } from '@porcelain/client/access/rules';
-import { useRemoveProject } from '../commands/remove-project';
+import { useRemoveProject } from '../commands/manage-project';
 import { removeProjectDialog } from '../overlays';
 import { projectPath } from '@porcelain/client/projects/rules';
 import { type Project } from '@porcelain/client/projects/rules';
 import { type Connection } from '@/shared/workspace/connection';
+import { ProjectCommandProblem, ProjectOwner } from './project-owner';
 
 export function RemoveProjectDialog({
   connection,
 }: {
   connection: Connection;
 }) {
-  const remove = useRemoveProject(connection, () =>
-    removeProjectDialog.close(),
-  );
   return (
-    <AlertDialogPrimitive.Root
-      handle={removeProjectDialog}
-      onOpenChangeComplete={remove.onCloseChange}
-    >
+    <AlertDialogPrimitive.Root handle={removeProjectDialog}>
       {({ payload }) =>
-        payload && <RemoveProjectContent project={payload} remove={remove} />
+        payload && (
+          <ProjectOwner remote={payload.remote} connection={connection}>
+            {(owner) => (
+              <AlertDialogContent>
+                <RemoveProjectContent
+                  key={payload.project.id}
+                  project={payload.project}
+                  {...owner}
+                />
+              </AlertDialogContent>
+            )}
+          </ProjectOwner>
+        )
       }
     </AlertDialogPrimitive.Root>
   );
@@ -41,14 +44,19 @@ export function RemoveProjectDialog({
 
 function RemoveProjectContent({
   project,
-  remove,
+  connection,
+  unavailable,
 }: {
   project: Project;
-  remove: ReturnType<typeof useRemoveProject>;
+  connection: Connection;
+  unavailable: string | undefined;
 }) {
+  const remove = useRemoveProject(connection, () =>
+    removeProjectDialog.close(),
+  );
   const { result } = remove;
   return (
-    <AlertDialogContent>
+    <>
       <AlertDialogHeader>
         <AlertDialogTitle>
           Remove {project.name} from Porcelain?
@@ -61,24 +69,18 @@ function RemoveProjectContent({
       <p className="break-all font-mono text-xs text-muted-foreground">
         {projectPath(project)}
       </p>
-      {AsyncResult.isFailure(result) && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            {connectionErrorMessage(Cause.squash(result.cause))}
-          </AlertDescription>
-        </Alert>
-      )}
+      <ProjectCommandProblem unavailable={unavailable} result={result} />
       <AlertDialogFooter>
         <AlertDialogCancel disabled={result.waiting}>Cancel</AlertDialogCancel>
         <AlertDialogAction
           variant="destructive"
-          disabled={result.waiting}
-          onClick={() => remove.confirm(project.id)}
+          disabled={result.waiting || unavailable !== undefined}
+          onClick={() => void remove.submit(project.id)}
         >
           {result.waiting && <Spinner />}
           {result.waiting ? 'Removing…' : 'Remove from Porcelain'}
         </AlertDialogAction>
       </AlertDialogFooter>
-    </AlertDialogContent>
+    </>
   );
 }

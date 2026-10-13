@@ -91,6 +91,16 @@ export const openServiceUpdateRunner = Effect.fn('openServiceUpdateRunner')(
         return answer === 'active' || answer === 'activating';
       },
     );
+    const updateRunning = Effect.fn('ServiceUpdate.updateRunning')(function* (
+      managed: boolean,
+    ) {
+      return (
+        preparing ||
+        (managed &&
+          ((yield* directoryLockIsHeld(`${paths.updater}.lock`)) ||
+            (yield* updaterActive())))
+      );
+    });
     const latestVersion = Effect.fn('ServiceUpdate.latestVersion')(function* (
       input: ServiceUpdateCheck,
       running: boolean,
@@ -149,14 +159,14 @@ export const openServiceUpdateRunner = Effect.fn('openServiceUpdateRunner')(
             options.packageRoot ===
               pathApi.join(paths.runtime, 'node_modules', PACKAGE_NAME) &&
             (yield* exists(paths.installed));
-          const running =
-            preparing ||
-            (managed &&
-              ((yield* directoryLockIsHeld(`${paths.updater}.lock`)) ||
-                (yield* updaterActive())));
+          const initiallyRunning = yield* updateRunning(managed);
           const published = managed
-            ? yield* latestVersion(input, running)
+            ? yield* latestVersion(input, initiallyRunning)
             : undefined;
+          const record = yield* readUpdateRecord(paths.updateRecord);
+          const running =
+            initiallyRunning ||
+            (record !== undefined && (yield* updateRunning(managed)));
           return {
             managed,
             version,
@@ -166,10 +176,7 @@ export const openServiceUpdateRunner = Effect.fn('openServiceUpdateRunner')(
               version !== undefined &&
               (yield* compareVersions(published, version)) > 0,
             running,
-            last: presentedUpdate(
-              yield* readUpdateRecord(paths.updateRecord),
-              running,
-            ),
+            last: presentedUpdate(record, running),
           };
         },
         provideFiles,

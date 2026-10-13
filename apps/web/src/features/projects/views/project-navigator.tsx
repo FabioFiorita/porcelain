@@ -57,6 +57,7 @@ export function ProjectNavigator({
   );
   const section = (project: Inventory['projects'][number]) => (
     <ProjectSection
+      environmentId={null}
       project={project}
       onRetry={onRetry}
       selected={selectedOn(null)}
@@ -94,7 +95,11 @@ export function ProjectNavigator({
         <div className={remotes ? 'py-2 pr-2' : 'p-2'}>
           {remotes ? (
             <>
-              <MachineSection name="This computer" icon={MonitorIcon}>
+              <MachineSection
+                environmentId={null}
+                name="This computer"
+                icon={MonitorIcon}
+              >
                 {projects.length === 0 ? (
                   <SidebarMenuSubItem>{empty}</SidebarMenuSubItem>
                 ) : (

@@ -23,3 +23,23 @@ The version in the root `package.json` is the one version for the npm package `@
 - An npm trusted publisher on `@fabiofiorita/porcelain` for this repository and `release.yml`. npm needs no token.
 
 Installed services update through Settings → Update or `porcelain service update`. The Mac app updates itself from Settings → Update: it reads `latest-mac.yml` from the newest GitHub release, downloads the zip of the signed app it names, and restarts into it. Only release builds carry the update feed; a local build (`pnpm desktop:build`, `pnpm dev --desktop`) reports updates as unavailable. Apps from 0.65.1 and earlier have no updater: install the first self-updating version from its disk image once.
+
+## Signed local verification
+
+For packaged-app verification without Apple submission, run
+`pnpm desktop:build --signed-verification` from an isolated checkout at the exact
+candidate commit on macOS. It requires the existing
+`PORCELAIN_MAC_SIGNING_IDENTITY` and optionally uses `PORCELAIN_MAC_KEYCHAIN`.
+A missing, blank or ad-hoc (`-`) identity is refused before staging; the signer
+validates the configured identity normally. No Apple ID, app-specific password
+or team environment is required.
+
+This mode uses the same hardened runtime, project release entitlements, ASAR
+layout and locked Electron fuses as `--release`. It returns only the signed app
+under `dist/desktop`, with no notarization, stapling, update feed, disk image,
+update archive or publication. It proves signed packaged runtime behavior;
+notarization and Gatekeeper distribution acceptance remain separate release
+proofs. Do not install the candidate into Applications or use installed app data:
+launch its absolute executable with a disposable profile and fixture repository.
+The default development build and notarized `--release` path retain their
+existing behavior. `--signed-verification` and `--release` are mutually exclusive.

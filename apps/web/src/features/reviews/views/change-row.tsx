@@ -1,5 +1,6 @@
 import {
   CheckIcon,
+  Columns2Icon,
   CopyIcon,
   FileDiffIcon,
   FileIcon,
@@ -16,6 +17,8 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import { useState } from 'react';
+import { flushSync } from 'react-dom';
 import { cn } from '@/shared/lib/utils';
 import { copyText } from '@/shared/workspace/copy';
 import { FileTypeIcon } from '@/features/files/index';
@@ -34,6 +37,7 @@ export function ChangeRow({
   commentCount,
   active,
   onOpen,
+  sideLabel,
   onReview,
   canReview,
   onDiscard,
@@ -47,14 +51,20 @@ export function ChangeRow({
   commentCount: number;
   active: boolean;
   onOpen: OpenDocument;
+  sideLabel: string;
   onReview: () => void;
   canReview: boolean;
   onDiscard?: () => void;
   indented?: boolean;
 }) {
+  const [openingSide, setOpeningSide] = useState(false);
   const label = `${basename(path)}${scopes.length > 0 ? ` · ${scopes.join(' + ')}` : ''}`;
   return (
-    <ContextMenu>
+    <ContextMenu
+      onOpenChange={(open) => {
+        if (open) setOpeningSide(false);
+      }}
+    >
       <ContextMenuTrigger
         render={
           <button
@@ -70,7 +80,9 @@ export function ChangeRow({
               indented && 'pl-7',
               active && 'bg-accent font-medium text-foreground',
             )}
-            onClick={() => onOpen(document)}
+            onClick={(event) =>
+              onOpen(document, undefined, { toSide: event.altKey })
+            }
           />
         }
       >
@@ -92,7 +104,7 @@ export function ChangeRow({
           </span>
         )}
       </ContextMenuTrigger>
-      <ContextMenuContent className="min-w-52">
+      <ContextMenuContent className="min-w-52" finalFocus={!openingSide}>
         <ContextMenuItem disabled={!canReview} onClick={onReview}>
           <CheckIcon />
           {reviewMenuLabel(reviewStatus)}
@@ -113,6 +125,15 @@ export function ChangeRow({
         <ContextMenuItem onClick={() => onOpen(document)}>
           <FileDiffIcon />
           Open diff
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => {
+            flushSync(() => setOpeningSide(true));
+            onOpen(document, undefined, { toSide: true });
+          }}
+        >
+          <Columns2Icon />
+          {sideLabel}
         </ContextMenuItem>
         <ContextMenuItem onClick={() => onOpen({ kind: 'file', path })}>
           <FileIcon />

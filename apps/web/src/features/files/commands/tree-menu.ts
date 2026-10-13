@@ -11,6 +11,7 @@ export function runFileTreeAction(
     rename: () => void;
     onStartCreate: (kind: 'file' | 'directory', folder: string) => void;
     onOpenFile: (path: string) => void;
+    onOpenToSide: (path: string) => void;
     onOpenDiff: (path: string) => void;
     onOpenTimeline: (path: string) => void;
     onSetHidden: (path: string, hidden: boolean) => void;
@@ -19,7 +20,7 @@ export function runFileTreeAction(
     onDuplicate: (path: string) => void;
   },
 ) {
-  input.close(id !== 'rename');
+  input.close(id !== 'rename' && id !== 'open-to-side');
   if (id === 'rename') {
     queueMicrotask(input.rename);
     return;
@@ -27,6 +28,7 @@ export function runFileTreeAction(
   if (id === 'new-file') input.onStartCreate('file', input.path);
   else if (id === 'new-folder') input.onStartCreate('directory', input.path);
   else if (id === 'open' || id === 'open-file') input.onOpenFile(input.path);
+  else if (id === 'open-to-side') input.onOpenToSide(input.path);
   else if (id === 'open-diff') input.onOpenDiff(input.path);
   else if (id === 'timeline') input.onOpenTimeline(input.path);
   else if (id === 'duplicate') input.onDuplicate(input.path);

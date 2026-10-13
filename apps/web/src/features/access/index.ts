@@ -27,3 +27,4 @@ export {
 } from './views/share-settings';
 export { RemoteComputers } from './views/remote-computers';
 export { RemoteUnavailable } from './views/remote-unavailable';
+export { useMcpConfiguration } from './queries/mcp-configuration';

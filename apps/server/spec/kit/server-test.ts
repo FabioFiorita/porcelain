@@ -3,7 +3,11 @@ import { writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inject, test as base, type TestError } from 'vitest';
-import { IsolatedServer, Recorder } from './isolated-server.ts';
+import {
+  IsolatedServer,
+  Recorder,
+  type ServerHandle,
+} from './isolated-server.ts';
 import type { Session } from './session.ts';
 
 declare module 'vitest' {
@@ -14,7 +18,31 @@ declare module 'vitest' {
   }
 }
 
-export type RouteLog = { registered: Set<string>; requested: Set<string> };
+export type RouteLog = {
+  registered: Set<string>;
+  requested: Set<string>;
+  registeredTools: Set<string>;
+  invokedTools: Set<string>;
+};
+
+export async function recordHandlers(server: ServerHandle, log: RouteLog) {
+  for (const route of server.routes) log.registered.add(route);
+  for (const route of await server.requestedRoutes()) log.requested.add(route);
+  for (const tool of server.tools) log.registeredTools.add(tool);
+  for (const tool of await server.invokedTools()) log.invokedTools.add(tool);
+}
+
+export async function writeRouteLog(folder: string, log: RouteLog) {
+  await writeFile(
+    join(folder, `${randomUUID()}.json`),
+    JSON.stringify({
+      registered: [...log.registered],
+      requested: [...log.requested],
+      registeredTools: [...log.registeredTools],
+      invokedTools: [...log.invokedTools],
+    }),
+  );
+}
 
 const repositoryRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -33,16 +61,13 @@ export const test = base
     'routeLog',
     { scope: 'file', auto: true },
     async ({ routeFolder }, { onCleanup }): Promise<RouteLog> => {
-      const log: RouteLog = { registered: new Set(), requested: new Set() };
-      onCleanup(() =>
-        writeFile(
-          join(routeFolder, `${randomUUID()}.json`),
-          JSON.stringify({
-            registered: [...log.registered],
-            requested: [...log.requested],
-          }),
-        ),
-      );
+      const log: RouteLog = {
+        registered: new Set(),
+        requested: new Set(),
+        registeredTools: new Set(),
+        invokedTools: new Set(),
+      };
+      onCleanup(() => writeRouteLog(routeFolder, log));
       return log;
     },
   )
@@ -54,10 +79,12 @@ export const test = base
       sample === 'perf' ? sample : undefined,
     );
     onCleanup(async () => {
-      for (const route of server.routes) routeLog.registered.add(route);
-      for (const route of await server.requestedRoutes())
-        routeLog.requested.add(route);
-      const failure = await server.stop();
+      let failure: string | undefined;
+      try {
+        await recordHandlers(server, routeLog);
+      } finally {
+        failure = await server.stop();
+      }
       if (failure) throw new Error(failure);
     });
     return server;

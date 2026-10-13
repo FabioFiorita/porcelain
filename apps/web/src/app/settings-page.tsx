@@ -42,6 +42,7 @@ import {
   RemoteComputers,
   ServiceUpdateSettings,
   useConnectedContext,
+  useMcpConfiguration,
   WaysInSettings,
 } from '@/features/access/index';
 import { usePreferences } from '@/features/preferences/index';
@@ -139,23 +140,58 @@ function SpecFilesSetting() {
 }
 
 function AgentsSetting() {
+  const { configuration, failed, retry } = useMcpConfiguration();
+  const command = desktopShell ? configuration?.command : mcpCommand;
+  const status = failed
+    ? ' MCP configuration is unavailable.'
+    : ' Loading MCP configuration…';
   return (
     <Item variant="outline">
       <ItemContent>
         <ItemTitle>Porcelain MCP server</ItemTitle>
         <ItemDescription>
           Agents read and add comments, read reviewed marks, and upload their
-          handoff through it. It runs on this machine and needs no credential.
-          Add it to Codex or Claude Code with{' '}
-          <code className="font-mono">{mcpCommand}</code>
+          handoff through it. It needs no credential.
         </ItemDescription>
+        <p className="text-sm text-muted-foreground">
+          {desktopShell
+            ? "This command connects to this app's local server while the app is running, including when you are viewing a remote computer."
+            : 'Run this on the computer hosting your Porcelain server.'}
+        </p>
+        {desktopShell && configuration && (
+          <p className="text-sm text-muted-foreground">
+            Local server data:{' '}
+            <code className="break-all font-mono">
+              {configuration.dataDirectory}
+            </code>
+            .
+          </p>
+        )}
+        <p className="text-sm">
+          {command ? (
+            <>
+              Add it to Claude Code with{' '}
+              <code className="break-all font-mono">{command}</code>
+            </>
+          ) : (
+            status
+          )}
+        </p>
       </ItemContent>
       <ItemActions>
+        {desktopShell && failed && (
+          <Button size="sm" variant="outline" onClick={retry}>
+            Retry MCP configuration
+          </Button>
+        )}
         <Button
           size="icon-sm"
           variant="ghost"
           aria-label="Copy MCP configuration"
-          onClick={() => copyText(mcpCommand, 'MCP configuration')}
+          disabled={command === undefined}
+          onClick={() => {
+            if (command !== undefined) copyText(command, 'MCP configuration');
+          }}
         >
           <CopyIcon />
         </Button>

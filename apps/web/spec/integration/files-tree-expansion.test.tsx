@@ -116,3 +116,117 @@ test('closing a folder before its lazy read finishes keeps its new chain closed'
     held.release();
   }
 });
+
+test('Collapse all closes loaded folders and explicitly clears an active search', async ({
+  repo,
+  render,
+  agent,
+}) => {
+  await agent.editFile({ kind: 'create', path: 'a', entryKind: 'directory' });
+  await agent.editFile({
+    kind: 'create',
+    path: 'sibling',
+    entryKind: 'directory',
+  });
+  await repo.write('a/first.txt', 'First file\n');
+  await repo.write('sibling/settled.txt', 'Sibling loaded\n');
+  const page = await render.workspace();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  await page.getByRole('treeitem', { name: 'a', exact: true }).click();
+  await expect
+    .element(page.getByRole('treeitem', { name: 'first.txt', exact: true }))
+    .toBeVisible();
+  await page.getByRole('treeitem', { name: 'sibling', exact: true }).click();
+  await expect
+    .element(page.getByRole('treeitem', { name: 'settled.txt', exact: true }))
+    .toBeVisible();
+  await page.getByRole('button', { name: 'Collapse all', exact: true }).click();
+  await expect
+    .element(page.getByRole('treeitem', { name: 'first.txt', exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole('treeitem', { name: 'settled.txt', exact: true }))
+    .not.toBeInTheDocument();
+  await page.getByRole('treeitem', { name: 'a', exact: true }).click();
+  const search = page.getByRole('textbox', {
+    name: 'Search files',
+    exact: true,
+  });
+  await search.fill('first');
+  await expect
+    .element(page.getByRole('treeitem', { name: 'first.txt', exact: true }))
+    .toBeVisible();
+  await expect
+    .element(page.getByRole('button', { name: 'Collapse all', exact: true }))
+    .not.toBeInTheDocument();
+  await page
+    .getByRole('button', { name: 'Clear search and collapse all', exact: true })
+    .click();
+  await expect.element(search).toHaveValue('');
+  await expect
+    .element(page.getByRole('treeitem', { name: 'first.txt', exact: true }))
+    .not.toBeInTheDocument();
+  await search.fill('');
+  await expect
+    .element(page.getByRole('treeitem', { name: 'a', exact: true }))
+    .toHaveAttribute('aria-expanded', 'false');
+  await expect
+    .element(page.getByRole('treeitem', { name: 'sibling', exact: true }))
+    .toHaveAttribute('aria-expanded', 'false');
+  await expect
+    .element(page.getByRole('treeitem', { name: 'first.txt', exact: true }))
+    .not.toBeInTheDocument();
+});
+
+test('Collapse all during a lazy read keeps its chain closed and a sibling can settle', async ({
+  repo,
+  render,
+  agent,
+  fetchGate,
+}) => {
+  await agent.editFile({ kind: 'create', path: 'a', entryKind: 'directory' });
+  await agent.editFile({ kind: 'create', path: 'a/b', entryKind: 'directory' });
+  await repo.write('a/b/unread.txt', 'Do not load yet\n');
+  await agent.editFile({
+    kind: 'create',
+    path: 'sibling',
+    entryKind: 'directory',
+  });
+  await repo.write('sibling/settled.txt', 'Sibling loaded\n');
+  const held = fetchGate.holdNextDirectoryRead('a');
+  const forbidden = fetchGate.holdNextDirectoryRead('a/b');
+  const page = await render.workspace();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  held.arm();
+  forbidden.arm();
+  try {
+    await page.getByRole('treeitem', { name: 'a', exact: true }).click();
+    await held.requested;
+    await page
+      .getByRole('button', { name: 'Collapse all', exact: true })
+      .click();
+    await expect
+      .element(page.getByRole('treeitem', { name: 'a', exact: true }))
+      .toHaveAttribute('aria-expanded', 'false');
+    held.release();
+    await expect
+      .element(page.getByRole('treeitem', { name: 'a / b', exact: true }))
+      .toBeVisible();
+    await page.getByRole('treeitem', { name: 'sibling', exact: true }).click();
+    await expect
+      .element(page.getByRole('treeitem', { name: 'settled.txt', exact: true }))
+      .toBeVisible();
+    await expect
+      .element(page.getByRole('treeitem', { name: 'a / b', exact: true }))
+      .toHaveAttribute('aria-expanded', 'false');
+    await expect
+      .element(page.getByRole('treeitem', { name: 'unread.txt', exact: true }))
+      .not.toBeInTheDocument();
+    await expect.poll(() => forbidden.held()).toBe(false);
+  } finally {
+    forbidden.release();
+    held.release();
+  }
+});

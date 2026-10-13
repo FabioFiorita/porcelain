@@ -81,6 +81,32 @@ describe('file tree actions', () => {
     ]);
   });
 
+  it('offers the supplied pane destination only for an openable file', () => {
+    const state = {
+      changed: false,
+      hiddenEntry: null,
+      ownHidden: false,
+      hiddenName: '',
+      openToSideLabel: 'Open in the left pane',
+    };
+    expect(
+      entryTreeActions({ kind: 'file' }, state).find(
+        (action) => action.id === 'open-to-side',
+      ),
+    ).toEqual({ id: 'open-to-side', label: 'Open in the left pane' });
+    expect(
+      entryTreeActions({ kind: 'directory' }, state).map((action) => action.id),
+    ).toEqual([
+      'new-file',
+      'new-folder',
+      'rename',
+      'hide',
+      'copy-relative',
+      'copy-full',
+      'trash',
+    ]);
+  });
+
   it('offers to pin a file that is not pinned and to unpin one that is', () => {
     const file = {
       folder: false,

@@ -15,11 +15,13 @@ export function FileTimeline({
   connection,
   path,
   onSelect,
+  sideLabel,
 }: {
   scope: HistoryScope;
   connection: Connection;
   path: string;
-  onSelect: (commit: { oid: string; path: string }) => void;
+  onSelect: (commit: { oid: string; path: string }, toSide?: boolean) => void;
+  sideLabel: string;
 }) {
   const timeline = useFileTimeline(connection, scope, path);
   if (timeline.commits.length === 0)
@@ -40,9 +42,14 @@ export function FileTimeline({
           <CommitRow
             commit={entry.commit}
             selected={false}
-            onSelect={() =>
-              onSelect({ oid: entry.commit.oid, path: entry.path })
+            onSelect={(toSide) =>
+              onSelect({ oid: entry.commit.oid, path: entry.path }, toSide)
             }
+            openToSide={{
+              label: sideLabel,
+              open: () =>
+                onSelect({ oid: entry.commit.oid, path: entry.path }, true),
+            }}
           >
             <span className="truncate text-2xs text-muted-foreground">
               {timelineChange(entry, path)}

@@ -8,6 +8,20 @@ export function httpEvent(event: Record<string, unknown>) {
   events.publish(event);
 }
 
+export function toolAudit(tool: string) {
+  return Effect.flatMap(Effect.serviceOption(RequestContext), (context) =>
+    Effect.sync(() => {
+      if (context._tag === 'Some' && context.value.principal?.kind === 'owner')
+        httpEvent({
+          event: 'tool-handled',
+          owner: true,
+          id: context.value.requestId,
+          tool,
+        });
+    }),
+  );
+}
+
 export const handlerAudit = HttpRouter.middleware((app) =>
   Effect.flatMap(Effect.serviceOption(RequestContext), (context) => {
     if (context._tag === 'Some')

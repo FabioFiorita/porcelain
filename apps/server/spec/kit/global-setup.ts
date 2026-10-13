@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { TestProject } from 'vitest/node';
 import { temporaryServerBuild } from './sandbox.ts';
-import { routeCoverage } from './route-coverage.ts';
+import { routeCoverage, handlerCoverage } from './route-coverage.ts';
 const integrationFolder = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../integration',
@@ -13,8 +13,25 @@ const integrationFolder = resolve(
 const routeLogSchema = Schema.Struct({
   registered: Schema.Array(Schema.String),
   requested: Schema.Array(Schema.String),
+  registeredTools: Schema.Array(Schema.String),
+  invokedTools: Schema.Array(Schema.String),
 });
-async function unrequestedRoutes(folder: string, project: TestProject) {
+type CoverageProject = {
+  readonly name: TestProject['name'];
+  readonly vitest: {
+    readonly state: {
+      getTestModules(): readonly {
+        readonly project: Pick<TestProject, 'name'>;
+        readonly moduleId: string;
+        readonly children: {
+          allTests(): Iterable<{ result(): { state: string } }>;
+        };
+      }[];
+    };
+  };
+};
+
+async function judgeHandlers(folder: string, project: CoverageProject) {
   const logs = await readdir(folder);
   const tests = (await readdir(integrationFolder)).filter((name) =>
     name.endsWith('.integration.ts'),
@@ -37,18 +54,16 @@ async function unrequestedRoutes(folder: string, project: TestProject) {
     process.stderr.write(
       `Route coverage: not judged, this run selected ${coverage.selected} of ${tests.length} integration files; a run of every file judges it.\n`,
     );
-    return [];
+    return;
   }
-  const registered = new Set<string>();
-  const requested = new Set<string>();
-  for (const name of logs) {
-    const log = Schema.decodeUnknownSync(routeLogSchema)(
-      JSON.parse(await readFile(join(folder, name), 'utf8')),
+  const records = [];
+  for (const name of logs)
+    records.push(
+      Schema.decodeUnknownSync(routeLogSchema)(
+        JSON.parse(await readFile(join(folder, name), 'utf8')),
+      ),
     );
-    for (const route of log.registered) registered.add(route);
-    for (const route of log.requested) requested.add(route);
-  }
-  return [...registered].filter((route) => !requested.has(route)).sort();
+  handlerCoverage(records);
 }
 export default async function setup(project: TestProject) {
   const perf = project.name === '@porcelain/server-perf';
@@ -57,18 +72,19 @@ export default async function setup(project: TestProject) {
   project.provide('serverBuild', build.folder);
   project.provide('serverSample', perf ? 'perf' : 'none');
   project.provide('serverRoutes', routes);
-  return async () => {
-    let unrequested: string[] = [];
-    try {
-      if (project.name === '@porcelain/server-integration')
-        unrequested = await unrequestedRoutes(routes, project);
-    } finally {
-      await build.remove();
-      await rm(routes, { recursive: true, force: true });
-    }
-    if (unrequested.length > 0)
-      throw new Error(
-        `Route coverage: no integration test requested ${unrequested.join(', ')}; every registered route is reached, through its handler, by a request of at least one test in apps/server/spec/integration/.`,
-      );
-  };
+  return () => integrationTeardown(project, routes, build);
+}
+
+export async function integrationTeardown(
+  project: CoverageProject,
+  routes: string,
+  build: Pick<Awaited<ReturnType<typeof temporaryServerBuild>>, 'remove'>,
+) {
+  try {
+    if (project.name === '@porcelain/server-integration')
+      await judgeHandlers(routes, project);
+  } finally {
+    await build.remove();
+    await rm(routes, { recursive: true, force: true });
+  }
 }

@@ -21,6 +21,7 @@ import {
   useRefreshInventory,
 } from '@/features/projects/index';
 import { ReviewWorkspace } from '@/features/reviews/index';
+import type { RemoteConnection } from '@porcelain/client/access';
 import type { Connection } from '@/shared/workspace/connection';
 import type { WorkspaceSearch } from '@/shared/workspace/search';
 import {
@@ -36,17 +37,21 @@ import {
   sampleRepository,
   type SampleRepository,
 } from '../kit/shapes.ts';
+import { createPierreCodeView } from './pierre-code-view.ts';
 import { host } from './commands.ts';
 import { createFetchGate, live } from './network.ts';
 
 export { expect };
+export { expectInputFocus } from './focus.ts';
 export { replaceEditorContent } from './commands.ts';
 
 export type Repo = SampleRepository;
 export type { Agent } from '../kit/shapes.ts';
 export type Render = {
   workspace: () => Promise<typeof page>;
-  navigator: () => Promise<typeof page>;
+  navigator: (options?: {
+    remotes: readonly RemoteConnection[];
+  }) => Promise<typeof page>;
 };
 
 type WatchedFailures = Failures & { reported: () => Promise<string[]> };
@@ -145,14 +150,20 @@ function Workspace({ connection }: { connection: Connection }) {
   );
 }
 
-function Navigator({ connection }: { connection: Connection }) {
+function Navigator({
+  connection,
+  remotes,
+}: {
+  connection: Connection;
+  remotes: readonly RemoteConnection[] | undefined;
+}) {
   const inventory = useInventory(connection);
   const retry = useRefreshInventory(connection);
   return (
     <ProjectNavigator
       inventory={inventory}
       onRetry={retry}
-      remotes={undefined}
+      remotes={remotes}
       selected={undefined}
       onSelect={() => {}}
       onOpenProject={() => {}}
@@ -294,8 +305,10 @@ export const test = base
           .toBeVisible();
         return page;
       },
-      async navigator() {
-        await show((connection) => <Navigator connection={connection} />);
+      async navigator(options) {
+        await show((connection) => (
+          <Navigator connection={connection} remotes={options?.remotes} />
+        ));
         await expect
           .element(
             page.getByRole('navigation', {
@@ -322,6 +335,11 @@ export const test = base
     return workspace;
   })
   .extend('navigator', ({ render }) => render.navigator())
+  .extend('pierreCodeView', ({ world: _world }, { onCleanup }) => {
+    const viewer = createPierreCodeView();
+    onCleanup(() => viewer.dispose());
+    return viewer;
+  })
   .extend('fetchGate', ({ repo }, { onCleanup }) => {
     const gate = createFetchGate(repo.readme.path);
     onCleanup(() => gate.restore());

@@ -6,21 +6,28 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { SidebarGroupLabel, SidebarMenuSub } from '@/components/ui/sidebar';
+import { useGroupOpen } from '../store';
 
 export function MachineSection({
+  environmentId,
   name,
   icon: Icon,
   status,
   children,
 }: {
+  environmentId: string | null;
   name: string;
   icon: LucideIcon;
   status?: ReactNode;
   children: ReactNode;
 }) {
+  const { open, setOpen } = useGroupOpen(
+    `computer:${environmentId ?? 'local'}`,
+  );
   return (
     <Collapsible
-      defaultOpen
+      open={open}
+      onOpenChange={setOpen}
       role="group"
       aria-label={name}
       className="group/machine mb-2"

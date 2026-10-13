@@ -7,6 +7,8 @@ import {
   EyeOffIcon,
   FilePlusIcon,
   FolderPlusIcon,
+  ListChevronsUpDownIcon,
+  PlusIcon,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -20,6 +22,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { toast } from '@/components/ui/toast';
 import { type Change, changePath } from '@porcelain/client/changes/rules';
 import { useReviewOverview } from '@/features/changes/index';
@@ -65,10 +73,12 @@ type Props = {
   connection: Connection;
   worktreePath: string;
   selected: string;
-  onOpen: (document: {
-    kind: 'file' | 'change' | 'timeline';
-    path: string;
-  }) => void;
+  sideLabel: string;
+  onOpen: (
+    document: { kind: 'file' | 'change' | 'timeline'; path: string },
+    anchor?: undefined,
+    options?: { toSide?: boolean },
+  ) => void;
 };
 
 export function FileNavigation({
@@ -77,6 +87,7 @@ export function FileNavigation({
   worktreePath,
   selected,
   onOpen,
+  sideLabel,
 }: Props) {
   const scopeKey = `${scope.projectId}:${scope.worktreeId}`;
   return (
@@ -87,6 +98,7 @@ export function FileNavigation({
       worktreePath={worktreePath}
       selected={selected}
       onOpen={onOpen}
+      sideLabel={sideLabel}
     />
   );
 }
@@ -97,6 +109,7 @@ function ScopedFileNavigation({
   worktreePath,
   selected,
   onOpen,
+  sideLabel,
 }: Props) {
   const root = useDirectory(connection, scope, '');
   const edit = useEditFile(connection, scope);
@@ -118,6 +131,8 @@ function ScopedFileNavigation({
   const setPinned = useSetPinned(connection, scope.projectId);
   const [showHidden, setShowHidden] = useState(false);
   const [fileQuery, setFileQuery] = useState('');
+  const collapseLabel =
+    fileQuery === '' ? 'Collapse all' : 'Clear search and collapse all';
   const [requested, setRequested] = useState<readonly string[]>(() =>
     fileTreeAncestors(selected),
   );
@@ -155,14 +170,18 @@ function ScopedFileNavigation({
     entries.filter((entry) => entry.kind === 'file').map((entry) => entry.path),
   );
 
-  const openFile = (path: string) =>
-    onOpen({
-      kind:
-        changed.has(path) && !isImagePath(path) && !/\.html?$/i.test(path)
-          ? 'change'
-          : 'file',
-      path,
-    });
+  const openFile = (path: string, toSide = false) =>
+    onOpen(
+      {
+        kind:
+          changed.has(path) && !isImagePath(path) && !/\.html?$/i.test(path)
+            ? 'change'
+            : 'file',
+        path,
+      },
+      undefined,
+      { toSide },
+    );
   const duplicate = (path: string) =>
     edit.duplicate(
       path,
@@ -176,11 +195,15 @@ function ScopedFileNavigation({
     },
     { enabled: openable.has(selected), ignoreInputs: true },
   );
-  const onSelect = (path: string) => {
+  const onSelect = (path: string, toSide = false) => {
     const kind = kinds.get(path);
     if (kind === 'symlink' || kind === 'submodule')
-      onOpen({ kind: 'file', path });
-    else if (kind === 'file') openFile(path);
+      onOpen({ kind: 'file', path }, undefined, { toSide });
+    else if (kind === 'file') openFile(path, toSide);
+  };
+  const collapseAll = useRef<() => void>(() => undefined);
+  const bindCollapseAll = (collapse: () => void) => {
+    collapseAll.current = collapse;
   };
   const renameFile = useRef<(path: string) => void>(() => undefined);
   const bindRename = (rename: (path: string) => void) => {
@@ -188,18 +211,19 @@ function ScopedFileNavigation({
   };
   const menuFor = (path: string) => {
     const hiddenEntry = hiddenPathFor(path, hidden);
+    const entry =
+      entries.find((entry) => entry.path === path) ??
+      (pinned.includes(path) ? { kind: 'file' as const } : undefined);
     return {
       hidden: hiddenEntry !== null,
-      actions: entryTreeActions(
-        entries.find((entry) => entry.path === path),
-        {
-          changed: changed.has(path),
-          hiddenEntry,
-          ownHidden: hiddenEntry === canonicalPreferencePath(path),
-          hiddenName: hiddenEntry?.replace(/\/$/, '').split('/').at(-1) ?? '',
-          pinned: openable.has(path) ? pinned.includes(path) : undefined,
-        },
-      ),
+      actions: entryTreeActions(entry, {
+        changed: changed.has(path),
+        openToSideLabel: sideLabel,
+        hiddenEntry,
+        ownHidden: hiddenEntry === canonicalPreferencePath(path),
+        hiddenName: hiddenEntry?.replace(/\/$/, '').split('/').at(-1) ?? '',
+        pinned: entry?.kind === 'file' ? pinned.includes(path) : undefined,
+      }),
       run: (
         id: TreeAction,
         close: (restoreFocus: boolean) => void,
@@ -216,6 +240,7 @@ function ScopedFileNavigation({
               setCreating({ kind, folder: parent, nonce: Date.now() });
           },
           onOpenFile: (next) => onOpen({ kind: 'file', path: next }),
+          onOpenToSide: (next) => openFile(next, true),
           onOpenDiff: (next) => onOpen({ kind: 'change', path: next }),
           onOpenTimeline: (next) => onOpen({ kind: 'timeline', path: next }),
           onSetHidden: (next, value) =>
@@ -270,27 +295,51 @@ function ScopedFileNavigation({
             )}
           </Button>
         )}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                aria-label="Create file or folder"
+                title="Create file or folder"
+                disabled={edit.result.waiting}
+              />
+            }
+          >
+            <PlusIcon className="text-muted-foreground" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={() =>
+                setCreating({ kind: 'file', folder: '', nonce: Date.now() })
+              }
+            >
+              <FilePlusIcon />
+              New file
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                setCreating({
+                  kind: 'directory',
+                  folder: '',
+                  nonce: Date.now(),
+                })
+              }
+            >
+              <FolderPlusIcon />
+              New folder
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button
           size="icon-sm"
           variant="ghost"
-          aria-label="New file"
-          disabled={edit.result.waiting}
-          onClick={() =>
-            setCreating({ kind: 'file', folder: '', nonce: Date.now() })
-          }
+          aria-label={collapseLabel}
+          title={collapseLabel}
+          onClick={() => collapseAll.current()}
         >
-          <FilePlusIcon className="text-muted-foreground" />
-        </Button>
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          aria-label="New folder"
-          disabled={edit.result.waiting}
-          onClick={() =>
-            setCreating({ kind: 'directory', folder: '', nonce: Date.now() })
-          }
-        >
-          <FolderPlusIcon className="text-muted-foreground" />
+          <ListChevronsUpDownIcon className="text-muted-foreground" />
         </Button>
       </div>
       <PinnedFiles
@@ -339,6 +388,7 @@ function ScopedFileNavigation({
           gitStatus={gitStatus}
           selected={selected}
           bindRename={bindRename}
+          bindCollapseAll={bindCollapseAll}
           onInvalidName={(error) =>
             toast.add({
               title: 'Invalid name',

@@ -96,3 +96,9 @@ export function parseTabLayout(value: unknown): Pane[] | null {
     .filter((pane, index) => index === 0 || pane.tabs.length > 0);
   return panes.length > 0 ? panes : null;
 }
+
+export function openToSideText(side: 'left' | 'right' | null) {
+  if (side === null) return 'Open to the side';
+  if (side === 'left') return 'Open in the right pane';
+  return 'Open in the left pane';
+}

@@ -152,6 +152,52 @@ export default [
     })),
   ),
   {
+    rule: 'writable-reads-what-it-sets',
+    path: 'packages/client/src/features/projects/commands/projects.ts',
+    valid: `import { Atom } from 'effect/reactivity';
+export const refreshInventories = Atom.family((connections: readonly string[]) =>
+  Atom.writable(
+    (get) => connections.map((connection) => get(refreshInventory(connection))),
+    (context, _input: void) => {
+      for (const connection of connections)
+        context.set(refreshInventory(connection), undefined);
+    },
+  ),
+);`,
+    invalid: `import { Atom } from 'effect/reactivity';
+export const refreshInventories = Atom.family((connections: readonly string[]) =>
+  Atom.writable(
+    () => undefined,
+    (context, _input: void) => {
+      for (const connection of connections)
+        context.set(refreshInventory(connection), undefined);
+    },
+  ),
+);`,
+    errors: 1,
+  },
+  {
+    rule: 'writable-reads-what-it-sets',
+    path: 'packages/client/src/features/projects/commands/projects.ts',
+    valid: `import { Atom } from 'effect/reactivity';
+export const saveBoth = Atom.writable(
+  (get) => [get(save), get.mount(publish)],
+  (ctx, _input: void) => {
+    ctx.set(save, undefined);
+    ctx.set(publish, undefined);
+  },
+);`,
+    invalid: `import { Atom } from 'effect/reactivity';
+export const saveBoth = Atom.writable(
+  (get) => get(save),
+  (ctx, _input: void) => {
+    ctx.set(save, undefined);
+    ctx.set(publish, undefined);
+  },
+);`,
+    errors: 1,
+  },
+  {
     rule: 'mobile-system-chrome',
     path: 'apps/mobile/src/features/files/views/file-screen.tsx',
     valid:
@@ -3549,6 +3595,39 @@ const featureMapCases = [
 ];
 
 export const guardrailCases = [
+  {
+    rule: 'server-handler-coverage',
+    completeLogs: [
+      {
+        registered: ['owner POST /mcp'],
+        requested: ['owner POST /mcp'],
+        registeredTools: ['read_review', 'delete_review'],
+        invokedTools: ['read_review'],
+      },
+      {
+        registered: ['owner POST /mcp'],
+        requested: ['owner POST /mcp'],
+        registeredTools: ['read_review', 'delete_review'],
+        invokedTools: ['delete_review'],
+      },
+    ],
+    missingToolLogs: [
+      {
+        registered: ['owner POST /mcp'],
+        requested: ['owner POST /mcp'],
+        registeredTools: ['read_review', 'delete_review'],
+        invokedTools: ['read_review'],
+      },
+      {
+        registered: ['owner POST /mcp'],
+        requested: ['owner POST /mcp'],
+        registeredTools: ['read_review', 'delete_review'],
+        invokedTools: [],
+      },
+    ],
+    error:
+      'Route coverage: no integration test reached MCP tool delete_review;',
+  },
   {
     rule: 'mobile-react-compiler',
     path: 'apps/mobile/src/components/ui/use-compiler-fixture.ts',

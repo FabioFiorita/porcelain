@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseTabLayout } from './tab-strip.ts';
+import { openToSideText, parseTabLayout } from './tab-strip.ts';
 
 describe('parseTabLayout', () => {
   it('keeps the saved panes with their known tabs and pins', () => {
@@ -47,5 +47,13 @@ describe('parseTabLayout', () => {
       parseTabLayout({ panes: 'handoff' }),
       parseTabLayout({ panes: [] }),
     ]).toEqual([null, null, null, null]);
+  });
+});
+
+describe('side-opening label', () => {
+  it('names the destination opposite the source pane, or offers a split', () => {
+    expect(openToSideText(null)).toBe('Open to the side');
+    expect(openToSideText('left')).toBe('Open in the right pane');
+    expect(openToSideText('right')).toBe('Open in the left pane');
   });
 });

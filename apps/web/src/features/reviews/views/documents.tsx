@@ -37,6 +37,7 @@ type DocumentProps = {
   context: ConnectionContext;
   interaction: DocumentInteraction;
   onOpen: OpenDocument;
+  sideLabel: string;
 };
 
 export function DocumentView({
@@ -44,6 +45,7 @@ export function DocumentView({
   context,
   document,
   onOpen,
+  sideLabel,
   active = false,
   reveal,
   base,
@@ -52,6 +54,7 @@ export function DocumentView({
   context: ConnectionContext;
   document: DocumentRef;
   onOpen: OpenDocument;
+  sideLabel: string;
   active?: boolean;
   reveal?: RevealComment | undefined;
   base?: string | undefined;
@@ -60,6 +63,7 @@ export function DocumentView({
     scope,
     context,
     onOpen,
+    sideLabel,
     interaction: {
       active,
       worktreeId: scope.worktreeId,
@@ -93,7 +97,7 @@ export function DocumentView({
   }
 }
 
-function GraphDocument({ scope, context, onOpen }: DocumentProps) {
+function GraphDocument({ scope, context, onOpen, sideLabel }: DocumentProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <DocumentToolbar
@@ -109,7 +113,12 @@ function GraphDocument({ scope, context, onOpen }: DocumentProps) {
         <CommitGraph
           scope={scope}
           connection={context.connection}
-          onSelect={(oid) => onOpen({ kind: 'commit', oid })}
+          sideLabel={sideLabel}
+          onSelect={(oid, toSide) =>
+            onOpen({ kind: 'commit', oid }, undefined, {
+              toSide: toSide === true,
+            })
+          }
         />
       </div>
     </div>
@@ -121,6 +130,7 @@ function TimelineDocument({
   context,
   path,
   onOpen,
+  sideLabel,
 }: DocumentProps & { path: string }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -139,7 +149,8 @@ function TimelineDocument({
           scope={scope}
           connection={context.connection}
           path={path}
-          onSelect={(commit) =>
+          sideLabel={sideLabel}
+          onSelect={(commit, toSide) =>
             onOpen(
               { kind: 'commit', oid: commit.oid },
               {
@@ -148,6 +159,7 @@ function TimelineDocument({
                 revision: commit.oid,
                 comparison: { kind: 'commit', parent: 1 },
               },
+              { toSide: toSide === true },
             )
           }
         />
