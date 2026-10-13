@@ -5,6 +5,7 @@ selectors:
   - 'Workspace unavailable'
   - 'Read again'
   - 'History'
+  - 'Select a commit'
   - 'Select a worktree to continue.'
   - 'No commits yet'
   - "Couldn't load history"
@@ -24,3 +25,7 @@ Open the native History tab or porcelain.dev://history. Select a worktree throug
 The destinations spec protects the unpaired deep link. The named History spec protects paired browsing and native back navigation. Pagination, live update and error recovery need native verification against the disposable server. iPad and Android are not proved by an iPhone run.
 
 See [selected workspace states](projects.workspace-picker.md#selected-workspace-states) for shared loading, failure, availability and recovery behavior.
+
+On iPad with at least 700 points available after the app sidebar, History keeps its commit list beside the native detail stack. The History route initially asks Select a commit. Choosing a row highlights its route OID and opens commit detail; choosing another replaces that detail. Opening a file keeps the list beside the diff. Choosing a commit from the diff returns through its commit before replacing the detail, so Back returns to History without a chain of old selections.
+
+Resize with a commit and then a diff open, and toggle the app sidebar. Below the available-width threshold, the existing native list, commit and diff routes remain full width with Back and edge swipe. Return to History, switch worktrees, and confirm no row from the old workspace remains selected. Exercise list loading, empty, read failure, live restart and pagination in the wide pane as well as compact presentation. An iPhone run does not prove this iPad presentation.
