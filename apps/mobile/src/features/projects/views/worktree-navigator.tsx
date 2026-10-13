@@ -114,7 +114,7 @@ export function WorktreeNavigator({ onSelect }: { onSelect?: () => void }) {
             }}
           />
         ) : null}
-        {!initializing && groups.length > 0 ? (
+        {!initializing && picker.canReadInventory ? (
           <Button
             label="Read projects again"
             variant="outline"

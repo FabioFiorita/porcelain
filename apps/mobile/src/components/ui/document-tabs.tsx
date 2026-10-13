@@ -17,17 +17,19 @@ type DocumentTab = {
 export function DocumentTabs<T extends DocumentTab>({
   documents,
   onChange,
+  onSelect,
 }: {
   documents: DocumentTabsState<T>;
   onChange: (
     update: (state: DocumentTabsState<T>) => DocumentTabsState<T>,
   ) => void;
+  onSelect: () => void;
 }) {
   const { tabs, active } = documents;
   return (
     <ScrollView
       horizontal
-      className="max-h-14 grow-0 border-b border-border bg-muted/20"
+      className="min-w-0 max-h-14 flex-1"
       contentContainerClassName="min-h-12 items-center gap-1 px-2"
       showsHorizontalScrollIndicator={false}
       accessibilityRole="tablist"
@@ -52,9 +54,10 @@ export function DocumentTabs<T extends DocumentTab>({
             accessibilityLabel={tab.label ?? tab.title}
             accessibilityState={{ selected: tab.key === active }}
             className="min-h-11 max-w-64 justify-center px-3 active:opacity-80"
-            onPress={() =>
-              onChange((state) => activateDocument(state, tab.key))
-            }
+            onPress={() => {
+              onChange((state) => activateDocument(state, tab.key));
+              onSelect();
+            }}
           >
             <Text variant="ui" weight="medium" numberOfLines={1}>
               {tab.title}
