@@ -18,7 +18,8 @@ import {
   XIcon,
 } from 'lucide-react';
 import type { ComponentType, ReactNode, SVGProps } from 'react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -31,6 +32,7 @@ import { ScrollBar } from '@/components/ui/scroll-area';
 import { shortOid } from '@porcelain/client/history/rules';
 import { cn } from '@/shared/lib/utils';
 import { parseEntry } from '../rules/documents';
+import { openToSideText } from '../rules/tab-strip';
 import { basename } from '@porcelain/client/reviews/rules';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { FileTypeIcon } from '@/features/files/index';
@@ -219,12 +221,6 @@ export function DocumentTabs({
   );
 }
 
-function openToSideText(side: 'left' | 'right' | null) {
-  if (side === null || side === undefined) return 'Open to the side';
-  if (side === 'left') return 'Open in the right pane';
-  return 'Open in the left pane';
-}
-
 function DocumentTab({
   tabKey,
   active,
@@ -248,6 +244,7 @@ function DocumentTab({
 }) {
   const { Icon, title, hint } = describeTab(tabKey, reviewing);
   const tabRef = useRef<HTMLDivElement>(null);
+  const [openingSide, setOpeningSide] = useState(false);
   const openToSideLabel = openToSideText(side);
 
   useEffect(() => {
@@ -260,7 +257,11 @@ function DocumentTab({
   }, [active]);
 
   return (
-    <ContextMenu>
+    <ContextMenu
+      onOpenChange={(open) => {
+        if (open) setOpeningSide(false);
+      }}
+    >
       <ContextMenuTrigger
         render={
           <div
@@ -333,12 +334,17 @@ function DocumentTab({
           </button>
         )}
       </ContextMenuTrigger>
-      <ContextMenuContent className="min-w-52">
+      <ContextMenuContent className="min-w-52" finalFocus={!openingSide}>
         <ContextMenuItem onClick={() => onTogglePin(tabKey)}>
           {pinned ? <PinOffIcon /> : <PinIcon />}
           {pinned ? 'Unpin' : 'Pin'}
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => onOpenToSide(tabKey)}>
+        <ContextMenuItem
+          onClick={() => {
+            flushSync(() => setOpeningSide(true));
+            onOpenToSide(tabKey);
+          }}
+        >
           <Columns2Icon />
           {openToSideLabel}
           <ContextMenuShortcut>

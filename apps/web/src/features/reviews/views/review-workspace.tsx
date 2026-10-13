@@ -6,7 +6,13 @@ import {
   useHotkey,
 } from '@tanstack/react-hotkeys';
 import { PanelRightIcon, LayersIcon as ReviewLayersIcon } from 'lucide-react';
-import { type ReactNode, type RefObject, useRef, useState } from 'react';
+import {
+  type ReactNode,
+  type RefObject,
+  type SyntheticEvent,
+  useRef,
+  useState,
+} from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -52,6 +58,7 @@ import {
   type RevealComment,
 } from '@porcelain/client/reviews/rules';
 import { entryKey, type OpenDocument, parseEntry } from '../rules/documents';
+import { openToSideText } from '../rules/tab-strip';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
 import { ReviewBoundary } from './review-boundary';
@@ -60,21 +67,34 @@ import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Worktree = Project['worktrees'][number];
 
-export function ReviewWorkspace({
-  worktree,
-  projectId,
-  search,
-  onSearch,
-  context,
-  navigationTrigger,
-}: {
+type ReviewWorkspaceProps = {
   worktree: Worktree;
   projectId: string;
   context: ConnectionContext;
   search: WorkspaceSearch;
   onSearch: SetWorkspaceSearch;
   navigationTrigger: RefObject<HTMLButtonElement | null>;
-}) {
+};
+
+export function ReviewWorkspace(props: ReviewWorkspaceProps) {
+  return (
+    <ReviewBoundary
+      connection={props.context.connection}
+      scope={{ projectId: props.projectId, worktreeId: props.worktree.id }}
+    >
+      <ReviewWorkspaceContent {...props} />
+    </ReviewBoundary>
+  );
+}
+
+function ReviewWorkspaceContent({
+  worktree,
+  projectId,
+  search,
+  onSearch,
+  context,
+  navigationTrigger,
+}: ReviewWorkspaceProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const desktop = useDesktopReview();
@@ -89,6 +109,33 @@ export function ReviewWorkspace({
   } = useSidebar();
   const surface = search.surface ?? 'files';
   const scope = { projectId, worktreeId: worktree.id };
+  const { saved } = useTabLayoutStore(worktree.id);
+  const overview = useReviewOverview(scope, context.connection);
+  const published = usePublishedReview(scope, context);
+  const awaitingChanges = Option.isNone(AsyncResult.value(overview));
+  const awaitingPublication = Option.isNone(
+    AsyncResult.value(published.result),
+  );
+  const needsDefault =
+    !saved && !parseEntry(search.entry) && !parseEntry(search.side);
+  const ready = !needsDefault || (!awaitingChanges && !awaitingPublication);
+  const hasHandoff =
+    Boolean(published.review?.active) ||
+    (Option.getOrUndefined(AsyncResult.value(overview))?.changes.length ?? 0) >
+      0;
+  const layout = useTabLayout({
+    worktreeId: worktree.id,
+    entry: search.entry,
+    side: search.side,
+    onSearch,
+    fallback: hasHandoff ? entryKey({ kind: 'handoff' }) : null,
+    focused: focusedPane,
+    setFocused: setFocusedPane,
+    ready,
+    focusBoundary: mobileSheet,
+    focusBoundaryOpen: mobileOpen,
+  });
+  const sideLabel = openToSideText(paneSide(layout.split, focusedPane));
 
   const toggleSidebar = () => {
     if (sidebarOpen) desktopTrigger.current?.focus();
@@ -108,22 +155,27 @@ export function ReviewWorkspace({
   >();
   const open: OpenDocument = (ref, anchor, options) => {
     const key = entryKey(ref);
+    const otherPane: PaneIndex = focusedPane === 0 ? 1 : 0;
+    const pane = options?.toSide ? otherPane : focusedPane;
     setReveal(
       anchor
         ? {
             anchor,
             nonce: Date.now(),
-            pane: focusedPane,
+            pane,
             key,
             ...(options?.compose ? { compose: true } : {}),
           }
         : undefined,
     );
     const base = anchor ? anchorBase(anchor) : undefined;
-    onSearch({
-      ...(focusedPane === 1 ? { side: key } : { entry: key }),
-      ...(base === undefined ? {} : { base }),
-    });
+    if (options?.toSide) {
+      layout.openToSide(focusedPane, key);
+      if (base !== undefined) onSearch({ base });
+    } else {
+      layout.activate(focusedPane, key);
+      if (base !== undefined) onSearch({ base });
+    }
     setMobileOpen(false);
   };
   const setSurface = (next: Surface) => {
@@ -148,6 +200,7 @@ export function ReviewWorkspace({
       available={worktree.available}
       onSurface={setSurface}
       onOpen={open}
+      sideLabel={sideLabel}
       changes={{
         scope: search.scope ?? 'uncommitted',
         base: search.base,
@@ -158,8 +211,8 @@ export function ReviewWorkspace({
     />
   );
 
-  const tabControls = (
-    <>
+  const tabControls = (pane: PaneIndex) => (
+    <div data-review-controls="" className="contents">
       <GitButton scope={scope} context={context} />
       <Button
         ref={desktopTrigger}
@@ -170,73 +223,62 @@ export function ReviewWorkspace({
         aria-expanded={sidebarOpen}
         aria-keyshortcuts={SHORTCUTS.toggleSidebar}
         title={`Toggle review sidebar (${formatForDisplay(SHORTCUTS.toggleSidebar)})`}
-        onClick={toggleSidebar}
+        onClick={() => {
+          layout.selectPane(pane);
+          toggleSidebar();
+        }}
       >
         <PanelRightIcon />
       </Button>
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              ref={mobileTrigger}
-              className="xl:hidden"
-              aria-label="Review"
-              aria-keyshortcuts={SHORTCUTS.toggleSidebar}
-              title={`Toggle review sidebar (${formatForDisplay(SHORTCUTS.toggleSidebar)})`}
-            />
-          }
-        >
-          <PanelRightIcon />
-        </SheetTrigger>
-        <SheetContent
-          ref={mobileSheet}
-          finalFocus={() => {
-            const active = document.activeElement;
-            const stayed =
-              active === document.body || mobileSheet.current?.contains(active);
-            return stayed ? mobileTrigger.current : false;
-          }}
-          className="w-[min(90vw,22rem)]!"
-          showCloseButton={false}
-        >
-          <SheetHeader className="sr-only">
-            <SheetTitle>Worktree review</SheetTitle>
-            <SheetDescription>
-              Choose a review surface and open a document.
-            </SheetDescription>
-          </SheetHeader>
-          {sidebar}
-        </SheetContent>
-      </Sheet>
-    </>
+      <SheetTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            ref={mobileTrigger}
+            className="xl:hidden"
+            aria-label="Review"
+            aria-keyshortcuts={SHORTCUTS.toggleSidebar}
+            title={`Toggle review sidebar (${formatForDisplay(SHORTCUTS.toggleSidebar)})`}
+            onClick={() => layout.selectPane(pane)}
+          />
+        }
+      >
+        <PanelRightIcon />
+      </SheetTrigger>
+    </div>
   );
 
   return (
-    <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
-      <ResizablePanel
-        id="review-document"
-        minSize={navigatorIsMobile ? 0 : 480}
-      >
-        <section
-          aria-label="Review content"
-          className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
+    <Sheet
+      open={mobileOpen}
+      onOpenChange={setMobileOpen}
+      onOpenChangeComplete={(open) => {
+        if (!open) layout.focusDestination();
+      }}
+    >
+      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
+        <ResizablePanel
+          id="review-document"
+          minSize={navigatorIsMobile ? 0 : 480}
         >
-          <ReviewBoundary connection={context.connection} scope={scope}>
+          <section
+            aria-label="Review content"
+            className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
+          >
             <InterruptedActionNotice scope={scope} context={context} />
             <ConflictGuidance scope={scope} context={context} onOpen={open} />
             <DocumentArea
               reveal={reveal}
               scope={scope}
               context={context}
-              worktreeId={worktree.id}
-              entry={search.entry}
-              side={search.side}
+              overview={overview}
+              published={published}
+              needsDefault={needsDefault}
+              hasHandoff={hasHandoff}
+              layout={layout}
               base={search.base}
-              onSearch={onSearch}
               focused={focusedPane}
-              setFocused={setFocusedPane}
               onOpen={open}
               navigationTrigger={navigationTrigger}
               navigatorIsMobile={navigatorIsMobile}
@@ -244,23 +286,46 @@ export function ReviewWorkspace({
               navigatorOpenMobile={navigatorOpenMobile}
               tabControls={tabControls}
             />
-          </ReviewBoundary>
-        </section>
-      </ResizablePanel>
-      {sidebarOpen && desktop && (
-        <>
-          <ResizableHandle className="w-2 bg-transparent after:w-2" />
-          <ResizablePanel
-            id="review-sidebar"
-            defaultSize={320}
-            minSize={260}
-            maxSize={520}
-          >
-            {sidebar}
-          </ResizablePanel>
-        </>
-      )}
-    </ResizablePanelGroup>
+          </section>
+        </ResizablePanel>
+        {sidebarOpen && desktop && (
+          <>
+            <ResizableHandle className="w-2 bg-transparent after:w-2" />
+            <ResizablePanel
+              id="review-sidebar"
+              defaultSize={320}
+              minSize={260}
+              maxSize={520}
+            >
+              {sidebar}
+            </ResizablePanel>
+          </>
+        )}
+      </ResizablePanelGroup>
+      <SheetContent
+        ref={(element) => {
+          mobileSheet.current = element;
+          if (element === null) layout.focusDestination();
+        }}
+        finalFocus={() => {
+          if (layout.hasDestinationFocus()) return false;
+          const active = document.activeElement;
+          const stayed =
+            active === document.body || mobileSheet.current?.contains(active);
+          return stayed ? mobileTrigger.current : false;
+        }}
+        className="w-[min(90vw,22rem)]!"
+        showCloseButton={false}
+      >
+        <SheetHeader className="sr-only">
+          <SheetTitle>Worktree review</SheetTitle>
+          <SheetDescription>
+            Choose a review surface and open a document.
+          </SheetDescription>
+        </SheetHeader>
+        {sidebar}
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -268,91 +333,67 @@ type PaneContext = {
   scope: { projectId: string; worktreeId: string };
   context: ConnectionContext;
   base: string | undefined;
-  setFocused: (pane: PaneIndex) => void;
   onOpen: OpenDocument;
   reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
   navigationTrigger: RefObject<HTMLButtonElement | null>;
   navigatorIsMobile: boolean;
   navigatorOpen: boolean;
   navigatorOpenMobile: boolean;
-  tabControls: ReactNode;
+  tabControls: (pane: PaneIndex) => ReactNode;
 };
 
 type DocumentAreaProps = PaneContext & {
-  worktreeId: string;
-  entry: string | undefined;
-  side: string | undefined;
-  onSearch: SetWorkspaceSearch;
   focused: PaneIndex;
+  layout: ReturnType<typeof useTabLayout>;
+  overview: ReturnType<typeof useReviewOverview>;
+  published: ReturnType<typeof usePublishedReview>;
+  needsDefault: boolean;
+  hasHandoff: boolean;
 };
 
 function DocumentArea(props: DocumentAreaProps) {
-  const { saved } = useTabLayoutStore(props.worktreeId);
-  const changes = useReviewOverview(props.scope, props.context.connection);
-  const published = usePublishedReview(props.scope, props.context);
-  const awaitingChanges = Option.isNone(AsyncResult.value(changes));
+  const awaitingChanges = Option.isNone(AsyncResult.value(props.overview));
   const awaitingPublication = Option.isNone(
-    AsyncResult.value(published.result),
+    AsyncResult.value(props.published.result),
   );
-  const needsDefault =
-    !saved && !parseEntry(props.entry) && !parseEntry(props.side);
-  if (needsDefault && awaitingChanges && AsyncResult.isFailure(changes))
-    throw Cause.squash(changes.cause);
   if (
-    needsDefault &&
-    awaitingPublication &&
-    AsyncResult.isFailure(published.result)
+    props.needsDefault &&
+    awaitingChanges &&
+    AsyncResult.isFailure(props.overview)
   )
-    throw Cause.squash(published.result.cause);
-  if (needsDefault && (awaitingChanges || awaitingPublication)) {
+    throw Cause.squash(props.overview.cause);
+  if (
+    props.needsDefault &&
+    awaitingPublication &&
+    AsyncResult.isFailure(props.published.result)
+  )
+    throw Cause.squash(props.published.result.cause);
+  if (props.needsDefault && (awaitingChanges || awaitingPublication)) {
     return (
       <div role="status" aria-label="Loading review" className="p-4">
         Loading review…
       </div>
     );
   }
-  return <DocumentPanes {...props} overview={changes} published={published} />;
+  return <DocumentPanes {...props} />;
 }
 
 function DocumentPanes({
-  overview: overviewResult,
   published,
+  hasHandoff,
+  layout,
   reveal,
   scope,
   context,
-  worktreeId,
-  entry,
-  side,
   base,
-  onSearch,
   focused,
-  setFocused,
   onOpen,
   navigationTrigger,
   navigatorIsMobile,
   navigatorOpen,
   navigatorOpenMobile,
   tabControls,
-}: DocumentAreaProps & {
-  overview: ReturnType<typeof useReviewOverview>;
-  published: ReturnType<typeof usePublishedReview>;
-}) {
-  const overview = Option.getOrUndefined(AsyncResult.value(overviewResult));
-  const hasHandoff =
-    Boolean(published.review?.active) ||
-    (overview !== null &&
-      overview !== undefined &&
-      overview.changes.length > 0);
-  const layout = useTabLayout({
-    worktreeId,
-    entry,
-    side,
-    onSearch,
-    fallback: hasHandoff ? entryKey({ kind: 'handoff' }) : null,
-    focused,
-    setFocused,
-  });
-
+}: DocumentAreaProps) {
   const focusedPane = layout.panes[focused] ?? {
     tabs: [],
     pinned: [],
@@ -387,7 +428,6 @@ function DocumentPanes({
     layout,
     split: layout.split,
     focused: focused === index,
-    setFocused,
     scope,
     context,
     reviewing: published.review?.active === true,
@@ -435,7 +475,6 @@ function PaneView({
   layout,
   split,
   focused,
-  setFocused,
   scope,
   context,
   reviewing,
@@ -457,13 +496,25 @@ function PaneView({
 }) {
   const pane = layout.panes[index] ?? { tabs: [], pinned: [], active: null };
   const document = parseEntry(pane.active ?? undefined);
+  const focusPane = (event: SyntheticEvent<HTMLElement>) => {
+    const target = event.target;
+    if (
+      !(target instanceof Element) ||
+      !event.currentTarget.contains(target) ||
+      target.closest('[data-review-controls]') !== null
+    )
+      return;
+    if (event.type === 'pointerdown') layout.selectPane(index);
+    else layout.focusPane(index, target);
+  };
 
   return (
     <section
+      ref={(element) => layout.bindPane(index, element)}
       aria-label={split ? `${index === 0 ? 'Left' : 'Right'} pane` : undefined}
       data-focused={focused}
-      onPointerDownCapture={() => setFocused(index)}
-      onFocusCapture={() => setFocused(index)}
+      onPointerDownCapture={focusPane}
+      onFocusCapture={focusPane}
       className={cn(
         'flex h-full min-h-0 flex-col',
         split && index === 1 && 'border-l',
@@ -504,7 +555,7 @@ function PaneView({
         onCloseUnpinned={() => layout.closeUnpinned(index)}
         onTogglePin={(key) => layout.togglePin(index, key)}
         onOpenToSide={(key) => layout.openToSide(index, key)}
-        trailing={!split || index === 1 ? tabControls : undefined}
+        trailing={!split || index === 1 ? tabControls(index) : undefined}
       />
       {document === null || document === undefined ? (
         <EmptyDocument handoff={handoff} onOpen={onOpen} />
@@ -519,6 +570,7 @@ function PaneView({
               scope={scope}
               context={context}
               document={document}
+              sideLabel={openToSideText(paneSide(split, index))}
               base={base}
               onOpen={onOpen}
               active={focused}

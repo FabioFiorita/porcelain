@@ -66,6 +66,7 @@ export type TreeAction =
   | 'rename'
   | 'duplicate'
   | 'open'
+  | 'open-to-side'
   | 'open-file'
   | 'open-diff'
   | 'timeline'
@@ -84,6 +85,7 @@ export function treeActions(input: {
   ownHidden: boolean;
   hiddenName: string;
   pinned?: boolean | undefined;
+  openToSideLabel?: string | undefined;
 }) {
   const actions: { id: TreeAction; label: string }[] = [];
   if (input.folder && !input.link) {
@@ -99,6 +101,8 @@ export function treeActions(input: {
         ? { id: 'open-diff', label: 'Open diff' }
         : { id: 'open', label: 'Open' },
     );
+    if (input.openToSideLabel !== undefined)
+      actions.push({ id: 'open-to-side', label: input.openToSideLabel });
     if (input.changed) actions.push({ id: 'open-file', label: 'Open file' });
     if (!input.folder && !input.link)
       actions.push({ id: 'timeline', label: 'Show timeline' });

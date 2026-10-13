@@ -32,15 +32,18 @@ import {
   projectUnavailableMessage,
 } from '@porcelain/client/projects/rules';
 import { type Project } from '@porcelain/client/projects/rules';
+import { useGroupOpen } from '../store';
 import { WorktreeRow } from './worktree-row';
 
 export function ProjectSection({
+  environmentId,
   project,
   onRetry,
   selected,
   onSelect,
   manage = true,
 }: {
+  environmentId: string | null;
   project: Project;
   onRetry: () => void;
   selected: string | null | undefined;
@@ -48,8 +51,15 @@ export function ProjectSection({
   manage?: boolean;
 }) {
   const path = projectPath(project);
+  const { open, setOpen } = useGroupOpen(
+    `project:${environmentId ?? 'local'}:${project.id}`,
+  );
   return (
-    <Collapsible defaultOpen className="group/project mb-2">
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      className="group/project mb-2"
+    >
       <ContextMenu>
         <ContextMenuTrigger
           render={<div className="flex items-center rounded-md" />}

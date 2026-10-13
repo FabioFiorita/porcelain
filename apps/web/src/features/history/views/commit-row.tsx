@@ -1,6 +1,7 @@
 import { relativeTime } from '@/shared/lib/relative-time';
-import { CopyIcon, GitMergeIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Columns2Icon, CopyIcon, GitMergeIcon } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import { Badge } from '@/components/ui/badge';
 import {
   ContextMenu,
@@ -23,17 +24,24 @@ export function CommitRow({
   height,
   inset,
   onSelect,
+  openToSide,
   children,
 }: {
   commit: CommitSummary;
   selected: boolean;
   height?: number | undefined;
   inset?: number | undefined;
-  onSelect: () => void;
+  onSelect: (toSide?: boolean) => void;
+  openToSide?: { label: string; open: () => void };
   children?: ReactNode;
 }) {
+  const [openingSide, setOpeningSide] = useState(false);
   return (
-    <ContextMenu>
+    <ContextMenu
+      onOpenChange={(open) => {
+        if (open) setOpeningSide(false);
+      }}
+    >
       <ContextMenuTrigger
         render={
           <button
@@ -41,7 +49,9 @@ export function CommitRow({
             style={{ height, paddingLeft: inset }}
             aria-pressed={selected}
             title={commit.subject}
-            onClick={onSelect}
+            onClick={(event) =>
+              onSelect(openToSide !== undefined && event.altKey)
+            }
             className={cn(
               'flex w-full flex-col justify-center gap-0.5 rounded-lg px-2 text-left transition-colors hover:bg-accent',
               height === undefined && 'py-1.5',
@@ -83,7 +93,18 @@ export function CommitRow({
           </span>
         )}
       </ContextMenuTrigger>
-      <ContextMenuContent>
+      <ContextMenuContent finalFocus={!openingSide}>
+        {openToSide && (
+          <ContextMenuItem
+            onClick={() => {
+              flushSync(() => setOpeningSide(true));
+              openToSide.open();
+            }}
+          >
+            <Columns2Icon />
+            {openToSide.label}
+          </ContextMenuItem>
+        )}
         <ContextMenuItem onClick={() => copyText(commit.oid, 'commit id')}>
           <CopyIcon />
           Copy commit id

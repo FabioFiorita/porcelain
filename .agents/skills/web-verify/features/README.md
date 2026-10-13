@@ -108,6 +108,7 @@ These instructions are source-reviewed guidance. Report exactly which maps and b
 | [reviews.proof](reviews.proof.md) | / | The checks and screenshot the agent published with its review show under Proof, and a failing check stands out first with its output. |
 | [reviews.readiness-outdated](reviews.readiness-outdated.md) | / | A question the agent is waiting on you to answer and checks that ran before the latest changes keep the readiness panel from clearing, and the proof says when it was published and that its checks are out of date. |
 | [reviews.readiness](reviews.readiness.md) | / | The readiness panel counts reviewed files, marks that went stale, changes the review does not explain, comments waiting on the agent and failing checks, and opens the proof from its checks line. |
+| [reviews.open-to-side](reviews.open-to-side.md) | / | Tree, pinned files, changed files and history rows open into the other pane with Alt-click or their context menu. |
 | [reviews.reload-layout](reviews.reload-layout.md) | / | Open tabs, a pinned tab and a collapsed diff are restored after the page reloads. |
 | [reviews.reply](reviews.reply.md) | /$projectId/$worktreeId | A blank reply cannot be posted, and a written reply to the agent's comment joins its thread and waits for the agent. |
 | [reviews.resolve](reviews.resolve.md) | /$projectId/$worktreeId | Resolving a comment thread moves it from the open comments to the resolved ones and the server keeps it resolved, and reopening it moves it back. |

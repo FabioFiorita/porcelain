@@ -35,6 +35,7 @@ export function BranchIndex({
   activeEntry,
   threads,
   onOpen,
+  sideLabel,
   onBase,
 }: {
   scope: ReviewScope;
@@ -43,6 +44,7 @@ export function BranchIndex({
   activeEntry: string | undefined;
   threads: readonly CommentThread[];
   onOpen: OpenDocument;
+  sideLabel: string;
   onBase: (base: string | undefined) => void;
 }) {
   return (
@@ -62,6 +64,7 @@ export function BranchIndex({
         activeEntry={activeEntry}
         threads={threads}
         onOpen={onOpen}
+        sideLabel={sideLabel}
       />
     </div>
   );
@@ -74,6 +77,7 @@ function BranchFiles({
   activeEntry,
   threads,
   onOpen,
+  sideLabel,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
@@ -81,6 +85,7 @@ function BranchFiles({
   activeEntry: string | undefined;
   threads: readonly CommentThread[];
   onOpen: OpenDocument;
+  sideLabel: string;
 }) {
   const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
@@ -123,6 +128,7 @@ function BranchFiles({
         activeEntry={activeEntry}
         threads={threads}
         onOpen={onOpen}
+        sideLabel={sideLabel}
       />
     </Suspense>
   );
@@ -143,6 +149,7 @@ function BranchFileList({
   activeEntry,
   threads,
   onOpen,
+  sideLabel,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
@@ -152,6 +159,7 @@ function BranchFileList({
   activeEntry: string | undefined;
   threads: readonly CommentThread[];
   onOpen: OpenDocument;
+  sideLabel: string;
 }) {
   const { preferences } = usePreferences();
   const range = branchReviewRange(branch);
@@ -212,6 +220,7 @@ function BranchFileList({
               activeEntry === entryKey({ kind: 'branch-file', path: item.path })
             }
             onOpen={onOpen}
+            sideLabel={sideLabel}
             canReview={
               item.fingerprint !== null && item.fingerprint !== undefined
             }
