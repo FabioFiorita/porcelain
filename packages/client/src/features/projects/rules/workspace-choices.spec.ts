@@ -116,6 +116,38 @@ describe('choosing a workspace across paired environments', () => {
     ]);
   });
 
+  it('offers another read for an unavailable linked worktree while the selected worktree remains healthy', () => {
+    const healthy = project('one');
+    const result = workspaceChoices(
+      [
+        {
+          environmentId: 'laptop',
+          name: 'Laptop',
+          status: 'ready',
+          inventory: inventory('Laptop', [
+            {
+              ...healthy,
+              worktrees: [
+                ...healthy.worktrees,
+                {
+                  id: 'one-linked',
+                  path: '/repo/linked',
+                  main: false,
+                  branch: 'refs/heads/feature',
+                  available: false,
+                  status: undefined,
+                },
+              ],
+            },
+          ]),
+        },
+      ],
+      { environmentId: 'laptop', projectId: 'one', worktreeId: 'one-main' },
+    );
+    expect(result.messages).toEqual([]);
+    expect(result.canReadAgain).toBe(true);
+  });
+
   it('flags a saved worktree that its own environment no longer offers, once that environment answers', () => {
     const laptop = (
       status: 'reading' | 'ready',

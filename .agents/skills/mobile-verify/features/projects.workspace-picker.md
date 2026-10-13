@@ -16,6 +16,7 @@ selectors:
   - 'Projects and worktrees'
 
 tests:
+  - packages/client/src/features/projects/rules/workspace-choices.spec.ts
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
   - packages/client/src/features/projects/queries/inventory-state.spec.ts
 api:
@@ -30,7 +31,7 @@ api:
 
 ## What it is
 
-On iPad, the sidebar lists environments, their projects and directly selectable worktree rows. It highlights the current worktree, marks the main worktree and disables unavailable entries. Its worktree rows expose Select <branch> in <project> on <environment>. There are no Files, Review or History app links in this navigator; those views belong to the selected workspace. The healthy iPad navigator has no routine refresh button. Read projects again appears for unavailable projects or inventory errors and refreshes paired environments; initial storage or selection failures offer Read again.
+On iPad, the sidebar lists environments, their projects and directly selectable worktree rows. It highlights the current worktree, marks the main worktree and disables unavailable entries. Its worktree rows expose Select <branch> in <project> on <environment>. There are no Files, Review or History app links in this navigator; those views belong to the selected workspace. The healthy iPad navigator has no routine refresh button. Read projects again appears for unavailable projects, unavailable linked worktrees or inventory errors and refreshes paired environments; initial storage or selection failures offer Read again.
 
 The toolbar picker uses the same metadata, readiness and selection commands as the sidebar. Its filter control is icon-only, with an accessibility label of `<project> · <worktree>` when selected or Workspace otherwise. On iOS, a project row shows its name as the title and its environment as a gray subtitle; Android uses `<project> · <environment>`. Each menu project expands to its worktrees. Choosing one saves its environment and worktree in a single update, and the choice survives a cold launch. Forgetting an environment drops its projects and remembered worktree. Each environment reads inventory and subscribes to live updates independently; a failed inventory read leaves other environments' projects available. The shared client can recover retained Git receipts.
 
@@ -50,6 +51,7 @@ The toolbar picker uses the same metadata, readiness and selection commands as t
 6. Read the app's saved selection IDs from its SQLite store and compare them to fixtures.environmentId, projectId and worktreeId in connection.json; also retain the native inventory/live requests from the server log.
 7. Stop one disposable environment, then inspect the picker. Expect its inventory error to name that environment, while the other environment's projects remain available. Forgetting an environment removes its projects and saved choice.
 8. Make a registered repository missing, permission denied, replaced, or fail Git. Open the picker and expect its reason sentence with environment and project name. A reason absent on an older server shows "Porcelain can't reach this repository right now." Restore the folder and choose `Read projects again`; expect the original worktree to become available.
+9. Keep the main worktree selected and make another linked checkout unavailable while its project remains healthy. Expect the linked row to be disabled and Read projects again to remain reachable. Restore the checkout and use that action to recover the row.
 
 ## What proves it works
 

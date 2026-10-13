@@ -103,7 +103,10 @@ export function workspaceChoices(
     choices,
     messages,
     canReadAgain:
-      choices.some(({ project }) => !project.available) ||
-      environments.some((environment) => environment.status === 'failed'),
+      choices.some(
+        ({ project }) =>
+          !project.available ||
+          project.worktrees.some((worktree) => !worktree.available),
+      ) || environments.some((environment) => environment.status === 'failed'),
   };
 }
