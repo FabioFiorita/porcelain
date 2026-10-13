@@ -1,5 +1,7 @@
 import { Text } from '../../../components/ui/text';
-import { ItemMenu } from '../../../components/ui/item-menu';
+import { Box } from '../../../components/ui/box';
+import { IconButton } from '../../../components/ui/icon-button';
+import { Item } from '../../../components/ui/item';
 import { Badge } from '../../../components/ui/badge';
 import { AsyncResult } from 'effect/reactivity';
 import { Cause } from 'effect';
@@ -23,7 +25,7 @@ export function EnvironmentRow({
   const command = useForgetEnvironment(remote);
   const note = remoteStatusNote(status);
   return (
-    <ItemMenu
+    <Item
       title={status.kind === 'online' ? status.name : remote.name}
       description={
         status.kind === 'online' && status.version
@@ -31,27 +33,30 @@ export function EnvironmentRow({
           : remote.address
       }
       trailing={
+        <Box className="flex-row" gap={1}>
+          <IconButton
+            icon="refresh"
+            accessibilityLabel="Check connection"
+            pending={status.kind === 'checking'}
+            onPress={read}
+          />
+          <IconButton
+            icon="trash"
+            variant="destructive"
+            accessibilityLabel="Forget environment"
+            disabled={disabled}
+            pending={command.result.waiting}
+            onPress={() => command.forget()}
+          />
+        </Box>
+      }
+    >
+      <Box className="flex-row">
         <Badge
           label={remoteStatusText(status)}
           variant={status.kind === 'online' ? 'secondary' : 'outline'}
         />
-      }
-      actions={[
-        {
-          id: 'check',
-          label: 'Check connection',
-          disabled: status.kind === 'checking',
-          onPress: read,
-        },
-        {
-          id: 'forget',
-          label: 'Forget environment',
-          destructive: true,
-          disabled: disabled || command.result.waiting,
-          onPress: () => command.forget(),
-        },
-      ]}
-    >
+      </Box>
       {note ? (
         <Text variant="caption" tone="muted">
           {note}
@@ -62,6 +67,6 @@ export function EnvironmentRow({
           {connectionErrorMessage(Cause.squash(command.result.cause))}
         </Text>
       ) : null}
-    </ItemMenu>
+    </Item>
   );
 }

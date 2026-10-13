@@ -6,6 +6,7 @@ export const destinations = [
     path: '/files',
     title: 'Files',
     icon: 'files',
+    sidebarId: 'sidebar-files',
     routes: ['/files', '/file', '/file-edit'],
   },
   {
@@ -13,6 +14,7 @@ export const destinations = [
     path: '/review',
     title: 'Review',
     icon: 'review',
+    sidebarId: 'sidebar-review',
     routes: ['/review', '/review-file', '/review-comments'],
   },
   {
@@ -20,6 +22,7 @@ export const destinations = [
     path: '/history',
     title: 'History',
     icon: 'history',
+    sidebarId: 'sidebar-history',
     routes: ['/history'],
   },
   {
@@ -27,6 +30,7 @@ export const destinations = [
     path: '/settings',
     title: 'Settings',
     icon: 'settings',
+    sidebarId: 'sidebar-settings',
     routes: [
       '/settings',
       '/appearance',
@@ -41,6 +45,7 @@ export const destinations = [
   path: string;
   title: string;
   icon: IconName;
+  sidebarId: string;
   routes: readonly string[];
 }[];
 

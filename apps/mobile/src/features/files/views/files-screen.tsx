@@ -1,4 +1,8 @@
 import { Box } from '../../../components/ui/box';
+import {
+  LeadingToolbar,
+  type LeadingToolbarProps,
+} from '../../../components/ui/leading-toolbar';
 import { WorkspaceGate, type Workspace } from '../../projects';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { useEffect, useState } from 'react';
@@ -27,13 +31,23 @@ import type { FileAction } from '../commands/edit-file';
 
 export function FilesScreen({
   onOpen,
+  sidebar,
 }: {
   onOpen: (path: string, workspace: string) => void;
+  sidebar: LeadingToolbarProps['sidebar'];
 }) {
   return (
-    <WorkspaceGate title="Files">
+    <WorkspaceGate
+      title="Files"
+      fallbackToolbar={<LeadingToolbar sidebar={sidebar} />}
+    >
       {(selected) => (
-        <WorktreeFiles key={selected.key} selected={selected} onOpen={onOpen} />
+        <WorktreeFiles
+          key={selected.key}
+          selected={selected}
+          onOpen={onOpen}
+          sidebar={sidebar}
+        />
       )}
     </WorkspaceGate>
   );
@@ -42,9 +56,11 @@ export function FilesScreen({
 function WorktreeFiles({
   selected,
   onOpen,
+  sidebar,
 }: {
   selected: Workspace;
   onOpen: (path: string, workspace: string) => void;
+  sidebar: LeadingToolbarProps['sidebar'];
 }) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [requested, setRequested] = useState<readonly string[]>(['']);
@@ -147,14 +163,14 @@ function WorktreeFiles({
   );
   return (
     <Box className="flex-1" surface="background" collapsable={false}>
-      <Stack.Toolbar placement="left">
+      <LeadingToolbar sidebar={sidebar}>
         <Stack.Toolbar.Button
           icon={headerIcon('refresh')}
           accessibilityLabel={refreshing ? 'Refreshing files' : 'Refresh files'}
           disabled={refreshing}
           onPress={refresh}
         />
-      </Stack.Toolbar>
+      </LeadingToolbar>
       <FileTree
         header={header}
         flat={searching}

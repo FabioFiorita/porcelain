@@ -1,13 +1,13 @@
 ---
 screen: /settings
 selectors:
-  - "Online"
-  - "Offline"
-  - "Needs pairing"
-  - "Another server"
-  - "Update needed"
-  - "Checking"
-  - "Check connection"
+  - 'Online'
+  - 'Offline'
+  - 'Needs pairing'
+  - 'Another server'
+  - 'Update needed'
+  - 'Checking'
+  - 'Check connection'
 tests: []
 api:
   - GET /api/environment
@@ -18,7 +18,7 @@ api:
 
 ## What it is
 
-Each environment row shows its saved address, its current server name and version when online, and the shared status explanation when unavailable. Holding the row exposes Check connection for an immediate authenticated read. Status refreshes when Settings gains focus, when the app returns to the foreground, and through the shared polling read.
+Each environment row shows its saved address, its current server name and version when online, and the shared status explanation when unavailable. Its visible refresh button is labelled Check connection and triggers an immediate authenticated read. The button shows a spinner while checking. Status refreshes when Settings gains focus, when the app returns to the foreground, and through the shared polling read.
 
 Each environment row in Settings says what its server answered: “Checking” until it answers, “Online”, “Offline” when it cannot be reached, “Needs pairing” when the server no longer accepts this device, “Another server” when a different environment answers at that address, and “Update needed” when the server speaks another protocol.
 
@@ -32,7 +32,7 @@ Each environment row in Settings says what its server answered: “Checking” u
 2. Suspend only the captured HTTP listener PID of this disposable server; verify HTTP becomes unresponsive. Do not suspend only its launcher.
 3. Wait up to 45 seconds. Expect Offline without reloading the app.
 4. Resume that exact listener in a finally block. Verify JSON health 200 returns, then expect Online within 45 seconds without reloading.
-5. Hold the environment row and select Check connection. Expect a fresh server read without pairing or changing the saved credential.
+5. Select the environment's Check connection button. Expect a fresh server read without pairing or changing the saved credential.
 6. To verify Needs pairing, revoke only this fixture's native device through its owner socket, then re-enter Settings or check its connection. Expect Needs pairing and instructions to run porcelain pair.
 7. Another server and Update needed require dedicated identity/protocol fixtures; do not infer them from an outage.
 
