@@ -1,7 +1,7 @@
 import { Box } from '../../../components/ui/box';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { ScrollView, View } from 'react-native';
+import { ScrollView } from 'react-native';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
 import { readBranchBases } from '@porcelain/client/changes';
@@ -13,6 +13,9 @@ import { Item } from '../../../components/ui/item';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
 import { Badge } from '../../../components/ui/badge';
+import { Icon } from '../../../components/ui/icon';
+import { FileIcon } from '../../../components/ui/file-icon';
+import { Separator } from '../../../components/ui/separator';
 import type { Workspace } from '../../projects';
 import { useReviewSnapshot, useReviewMarks } from '../queries/review';
 import {
@@ -25,6 +28,8 @@ import { reviewParams } from '../rules/navigation';
 import { ReviewReadState } from './read-state';
 import { ComparisonMenu } from './comparison-menu';
 import { PublishedReview } from './published-review';
+import { ReviewFileContent } from './review-file-screen';
+import { reviewPanes } from '../adapters/review-panes';
 
 export function ReviewScreen() {
   return (
@@ -38,6 +43,8 @@ function ReviewIndex({ workspace }: { workspace: Workspace }) {
   const [comparison, setComparison] = useState<ReviewComparison>({
     kind: 'worktree',
   });
+  const [width, setWidth] = useState(0);
+  const wide = reviewPanes && width >= 700;
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
   const bases = useAtomValue(
     readBranchBases({
@@ -46,35 +53,41 @@ function ReviewIndex({ workspace }: { workspace: Workspace }) {
     }),
   );
   return (
-    <Box className="flex-1" surface="background" collapsable={false}>
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        className="flex-1"
-        contentContainerClassName="grow gap-3 p-4"
+    <Box
+      className="flex-1"
+      surface="background"
+      collapsable={false}
+      onLayout={({ nativeEvent: { layout } }) => setWidth(layout.width)}
+    >
+      <Box
+        className="flex-row items-center justify-between"
+        paddingX={4}
+        paddingY={2}
+        divider="bottom"
       >
-        <View className="flex-row items-center justify-between">
-          <ComparisonMenu
-            comparison={comparison}
-            bases={AsyncResult.isSuccess(bases) ? bases.value.bases : []}
-            onComparison={setComparison}
-          />
-          <Button
-            label="Refresh"
-            variant="ghost"
-            pending={result.waiting}
-            onPress={refresh}
-          />
-        </View>
-        {AsyncResult.isSuccess(result) ? (
-          <ReviewList
-            workspace={workspace}
-            snapshot={result.value}
-            comparison={comparison}
-          />
-        ) : (
-          <ReviewReadState result={result} refresh={refresh} />
-        )}
-      </ScrollView>
+        <ComparisonMenu
+          comparison={comparison}
+          bases={AsyncResult.isSuccess(bases) ? bases.value.bases : []}
+          onComparison={setComparison}
+        />
+        <Button
+          label="Refresh"
+          variant="ghost"
+          pending={result.waiting}
+          onPress={refresh}
+        />
+      </Box>
+      {AsyncResult.isSuccess(result) ? (
+        <ReviewList
+          key={JSON.stringify(comparison)}
+          workspace={workspace}
+          snapshot={result.value}
+          comparison={comparison}
+          wide={wide}
+        />
+      ) : (
+        <ReviewReadState result={result} refresh={refresh} />
+      )}
     </Box>
   );
 }
@@ -83,11 +96,14 @@ function ReviewList({
   workspace,
   snapshot,
   comparison,
+  wide,
 }: {
   workspace: Workspace;
   snapshot: ReviewSnapshot;
   comparison: ReviewComparison;
+  wide: boolean;
 }) {
+  const [selectedPath, selectPath] = useState<string>();
   const router = useRouter();
   const marks = useReviewMarks(workspace, snapshot);
   const commentsQuery = readCommentThreads({
@@ -96,23 +112,60 @@ function ReviewList({
   });
   const comments = useAtomValue(commentsQuery);
   const refreshComments = useAtomRefresh(commentsQuery);
-  const openFile = (path: string) =>
-    router.push({
-      pathname: '/review-file',
-      params: { ...reviewParams(workspace.key, comparison), path },
-    });
+  const openFile = (path: string) => {
+    if (wide) selectPath(path);
+    else
+      router.push({
+        pathname: '/review-file',
+        params: { ...reviewParams(workspace.key, comparison), path },
+      });
+  };
   const branch = snapshot.kind === 'branch' ? snapshot.answer : undefined;
   const anchor = commentsAnchor(branch, comparison);
-  return (
-    <Box gap={3}>
-      {snapshot.kind === 'worktree' ? (
-        <PublishedReview workspace={workspace} onFile={openFile} />
+  const files = AsyncResult.isSuccess(marks.result)
+    ? reviewFiles(snapshot, marks.result.value)
+    : [];
+  const overview =
+    snapshot.kind === 'worktree' ? (
+      <PublishedReview
+        workspace={workspace}
+        onFile={openFile}
+        empty={
+          wide ? (
+            <Empty
+              title="No agent review"
+              description="Choose a changed file to review its diff. Published agent explanations will appear here."
+            />
+          ) : undefined
+        }
+      />
+    ) : (
+      <Text variant="caption" tone="muted">
+        {branch?.base
+          ? `${branch.head.branch ?? 'Detached HEAD'} compared with ${branch.base.ref} · ${branch.commits} commits`
+          : 'No comparison base is available. Choose a base from the Branch menu.'}
+      </Text>
+    );
+  const navigation = (
+    <ScrollView
+      className="flex-1"
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerClassName="grow gap-3 p-4"
+    >
+      {wide ? (
+        <Item
+          title="Overview"
+          description={
+            snapshot.kind === 'worktree'
+              ? 'Agent explanation and proof'
+              : 'Branch comparison'
+          }
+          leading={<Icon name="review" />}
+          selected={selectedPath === undefined}
+          onPress={() => selectPath(undefined)}
+        />
       ) : (
-        <Text variant="caption" tone="muted">
-          {branch?.base
-            ? `${branch.head.branch ?? 'Detached HEAD'} compared with ${branch.base.ref} · ${branch.commits} commits`
-            : 'No comparison base is available. Choose a base from the Branch menu.'}
-        </Text>
+        overview
       )}
       <Button
         label={
@@ -137,24 +190,35 @@ function ReviewList({
       {AsyncResult.isSuccess(marks.result) ? (
         <>
           <Text variant="caption" tone="muted">
-            Changed files · {reviewFiles(snapshot, marks.result.value).length}
+            Changed files · {files.length}
           </Text>
-          {reviewFiles(snapshot, marks.result.value).map((file) => (
+          {files.map((file) => (
             <Item
               key={file.path}
-              title={file.path}
-              description={file.note}
+              title={
+                wide ? (file.path.split('/').at(-1) ?? file.path) : file.path
+              }
+              description={
+                wide
+                  ? `${file.path} · ${file.note} · ${reviewStatusLabel(file.reviewStatus)}`
+                  : file.note
+              }
+              leading={wide ? <FileIcon /> : undefined}
+              size={wide ? 'sm' : 'default'}
+              selected={wide && selectedPath === file.path}
               accessibilityLabel={`Review ${file.path}`}
               trailing={
-                <Badge
-                  label={reviewStatusLabel(file.reviewStatus)}
-                  variant="secondary"
-                />
+                wide ? undefined : (
+                  <Badge
+                    label={reviewStatusLabel(file.reviewStatus)}
+                    variant="secondary"
+                  />
+                )
               }
               onPress={() => openFile(file.path)}
             />
           ))}
-          {reviewFiles(snapshot, marks.result.value).length === 0 ? (
+          {files.length === 0 ? (
             <Empty
               title="No changes"
               description={
@@ -168,6 +232,34 @@ function ReviewList({
       ) : (
         <ReviewReadState result={marks.result} refresh={marks.refresh} />
       )}
+    </ScrollView>
+  );
+  return (
+    <Box className={wide ? 'flex-1 flex-row' : 'flex-1'}>
+      <Box className={wide ? 'w-64 shrink-0' : 'flex-1'}>{navigation}</Box>
+      {wide ? (
+        <>
+          <Separator orientation="vertical" />
+          <Box className="min-w-0 flex-1">
+            {selectedPath ? (
+              <ReviewFileContent
+                key={`${workspace.key}:${selectedPath}:${JSON.stringify(comparison)}`}
+                workspace={workspace}
+                path={selectedPath}
+                comparison={comparison}
+              />
+            ) : (
+              <ScrollView
+                className="flex-1"
+                contentInsetAdjustmentBehavior="automatic"
+                contentContainerClassName="grow gap-3 p-4"
+              >
+                {overview}
+              </ScrollView>
+            )}
+          </Box>
+        </>
+      ) : null}
     </Box>
   );
 }
