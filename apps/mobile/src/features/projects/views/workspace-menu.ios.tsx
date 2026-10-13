@@ -26,15 +26,11 @@ function ProjectMenu(props: WorkspaceMenuProps) {
   return (
     <Menu
       label={
-        props.presentation === 'phone' ? (
-          <Label
-            title={props.label}
-            systemImage={headerIcon('workspace')}
-            modifiers={[labelStyle('iconOnly')]}
-          />
-        ) : (
-          props.label
-        )
+        <Label
+          title={props.label}
+          systemImage={headerIcon('workspace')}
+          modifiers={[labelStyle('iconOnly')]}
+        />
       }
       systemImage={headerIcon('workspace')}
       modifiers={[

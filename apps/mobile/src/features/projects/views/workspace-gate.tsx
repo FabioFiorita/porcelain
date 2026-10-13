@@ -35,7 +35,7 @@ export function WorkspaceGate({
   fallbackToolbar?: ReactNode;
   children: (workspace: Workspace) => ReactNode;
 }) {
-  const { state, read, reading, remote } = useWorkspace();
+  const { state, read, reading, remote, environments } = useWorkspace();
   const router = useRouter();
   switch (state.kind) {
     case 'loading':
@@ -79,9 +79,22 @@ export function WorkspaceGate({
     case 'none':
       return (
         <WorkspaceFallback toolbar={fallbackToolbar}>
-          {changed ?? (
-            <Empty title={title} description="Select a worktree to continue." />
-          )}
+          {changed ??
+            (environments.length === 0 ? (
+              <Empty
+                title="Pair an environment"
+                description="Connect to a computer in Settings, then select a project and worktree."
+                action={{
+                  label: 'Open Settings',
+                  onPress: () => router.push('/settings'),
+                }}
+              />
+            ) : (
+              <Empty
+                title="Select a worktree"
+                description={`Choose a project and worktree with the workspace filter in the toolbar to continue to ${title}.`}
+              />
+            ))}
         </WorkspaceFallback>
       );
     case 'selected':
