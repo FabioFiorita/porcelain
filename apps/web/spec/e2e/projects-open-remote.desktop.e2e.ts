@@ -176,3 +176,149 @@ test('This computer in the Open project menu still opens a project on this compu
       .getByRole('button', { name: 'here', exact: true }),
   ).toBeVisible();
 });
+
+test('the desktop sidebar renames and removes a project on another computer, and that computer keeps the change while this computer’s project still renames here', async ({
+  pairedPage,
+  app,
+  server,
+  remote,
+}) => {
+  const local = await server.project();
+  const other = await remote.server.inventory();
+  const project = await remote.server.project();
+  await addRemoteComputer(
+    pairedPage,
+    await app.remoteLink(),
+    other.environment.name,
+  );
+  const there = pairedPage.getByRole('group', {
+    name: other.environment.name,
+    exact: true,
+  });
+  const here = pairedPage.getByRole('group', {
+    name: 'This computer',
+    exact: true,
+  });
+  const rename = pairedPage.getByRole('dialog', {
+    name: 'Rename project',
+    exact: true,
+  });
+  const renamed = 'Renamed on the other computer';
+
+  await there
+    .getByRole('button', { name: project.name, exact: true })
+    .click({ button: 'right' });
+  await pairedPage
+    .getByRole('menuitem', { name: 'Rename project', exact: true })
+    .click();
+  await rename
+    .getByRole('textbox', { name: 'Name', exact: true })
+    .fill(renamed);
+  await rename.getByRole('button', { name: 'Rename', exact: true }).click();
+  await expect(rename).not.toBeAttached();
+  await expect(
+    there.getByRole('button', { name: renamed, exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(async () => (await remote.server.project()).name)
+    .toBe(renamed);
+  await expect.poll(async () => (await server.project()).name).toBe(local.name);
+
+  const remove = pairedPage.getByRole('alertdialog', {
+    name: `Remove ${renamed} from Porcelain?`,
+    exact: true,
+  });
+  await there
+    .getByRole('button', { name: renamed, exact: true })
+    .click({ button: 'right' });
+  await pairedPage
+    .getByRole('menuitem', { name: 'Remove from Porcelain', exact: true })
+    .click();
+  await remove.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(remove).not.toBeAttached();
+  await expect(
+    there.getByRole('button', { name: renamed, exact: true }),
+  ).toBeVisible();
+
+  await there
+    .getByRole('button', { name: renamed, exact: true })
+    .click({ button: 'right' });
+  await pairedPage
+    .getByRole('menuitem', { name: 'Remove from Porcelain', exact: true })
+    .click();
+  await remove
+    .getByRole('button', { name: 'Remove from Porcelain', exact: true })
+    .click();
+  await expect(remove).not.toBeAttached();
+  await expect(
+    there.getByText('No projects registered.', { exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(async () =>
+      (await remote.server.inventory()).projects.map((entry) => entry.id),
+    )
+    .toEqual([]);
+  await expect
+    .poll(async () =>
+      (await server.inventory()).projects.map((entry) => entry.id),
+    )
+    .toEqual([local.id]);
+
+  const named = 'Renamed on this computer';
+  await here
+    .getByRole('button', { name: local.name, exact: true })
+    .click({ button: 'right' });
+  await pairedPage
+    .getByRole('menuitem', { name: 'Rename project', exact: true })
+    .click();
+  await rename.getByRole('textbox', { name: 'Name', exact: true }).fill(named);
+  await rename.getByRole('button', { name: 'Rename', exact: true }).click();
+  await expect(rename).not.toBeAttached();
+  await expect(
+    here.getByRole('button', { name: named, exact: true }),
+  ).toBeVisible();
+  await expect.poll(async () => (await server.project()).name).toBe(named);
+});
+
+test('a rename dialog for another computer’s project is disabled with the reason once that computer stops accepting this app', async ({
+  pairedPage,
+  app,
+  remote,
+}) => {
+  const other = await remote.server.inventory();
+  const project = await remote.server.project();
+  await addRemoteComputer(
+    pairedPage,
+    await app.remoteLink(),
+    other.environment.name,
+  );
+  await pairedPage
+    .getByRole('group', { name: other.environment.name, exact: true })
+    .getByRole('button', { name: project.name, exact: true })
+    .click({ button: 'right' });
+  await pairedPage
+    .getByRole('menuitem', { name: 'Rename project', exact: true })
+    .click();
+  const rename = pairedPage.getByRole('dialog', {
+    name: 'Rename project',
+    exact: true,
+  });
+  const submit = rename.getByRole('button', { name: 'Rename', exact: true });
+  await expect(submit).toBeEnabled();
+
+  const device = (await remote.server.devices()).find(
+    (entry) => entry.label === 'Remote computer',
+  );
+  if (device === undefined) throw new Error('The remote paired no device');
+  await app.revokeDevice(device.id);
+  await expect(rename.getByRole('alert')).toHaveText(
+    'Needs pairing. It no longer accepts this app. Run porcelain pair on it and add the new link.',
+    { timeout: 20_000 },
+  );
+  await expect(submit).toBeDisabled();
+  await rename.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(rename).not.toBeAttached();
+  await expect
+    .poll(async () => (await remote.server.project()).name)
+    .toBe(project.name);
+});

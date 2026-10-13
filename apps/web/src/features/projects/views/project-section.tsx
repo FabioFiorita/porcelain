@@ -41,16 +41,15 @@ export function ProjectSection({
   onRetry,
   selected,
   onSelect,
-  manage = true,
 }: {
   environmentId: string | null;
   project: Project;
   onRetry: () => void;
   selected: string | null | undefined;
   onSelect: (id: string) => void;
-  manage?: boolean;
 }) {
   const path = projectPath(project);
+  const target = { project, remote: environmentId };
   const { open, setOpen } = useGroupOpen(
     `project:${environmentId ?? 'local'}:${project.id}`,
   );
@@ -99,15 +98,13 @@ export function ProjectSection({
                 <Button variant="outline" size="sm" onClick={onRetry}>
                   Retry
                 </Button>
-                {manage && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => removeProjectDialog.openWithPayload(project)}
-                  >
-                    Remove from Porcelain
-                  </Button>
-                )}
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => removeProjectDialog.openWithPayload(target)}
+                >
+                  Remove from Porcelain
+                </Button>
               </PopoverContent>
             </Popover>
           )}
@@ -119,26 +116,22 @@ export function ProjectSection({
               Copy path
             </ContextMenuItem>
           </ContextMenuGroup>
-          {manage && (
-            <>
-              <ContextMenuSeparator />
-              <ContextMenuGroup>
-                <ContextMenuItem
-                  onClick={() => renameProjectDialog.openWithPayload(project)}
-                >
-                  <PencilIcon />
-                  Rename project
-                </ContextMenuItem>
-                <ContextMenuItem
-                  variant="destructive"
-                  onClick={() => removeProjectDialog.openWithPayload(project)}
-                >
-                  <FolderMinusIcon />
-                  Remove from Porcelain
-                </ContextMenuItem>
-              </ContextMenuGroup>
-            </>
-          )}
+          <ContextMenuSeparator />
+          <ContextMenuGroup>
+            <ContextMenuItem
+              onClick={() => renameProjectDialog.openWithPayload(target)}
+            >
+              <PencilIcon />
+              Rename project
+            </ContextMenuItem>
+            <ContextMenuItem
+              variant="destructive"
+              onClick={() => removeProjectDialog.openWithPayload(target)}
+            >
+              <FolderMinusIcon />
+              Remove from Porcelain
+            </ContextMenuItem>
+          </ContextMenuGroup>
         </ContextMenuContent>
       </ContextMenu>
 

@@ -7,6 +7,7 @@ selectors:
   - "Name"
   - "Rename"
 tests:
+  - apps/web/spec/e2e/projects-open-remote.desktop.e2e.ts
   - apps/web/spec/integration/projects-rename.test.tsx
 api:
   - PATCH /api/projects/:projectId
@@ -21,7 +22,7 @@ Renaming a project from the navigator's context menu changes only its label: the
 ## How a user reaches it
 
 - Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → right-click the project button (e.g. "repository") → `Rename project` → dialog "Rename project" → textbox `Name` → `Rename` (or `Enter`; `Cancel` closes).
-- Remote computers' projects in the desktop shell cannot be renamed here.
+- Desktop shell: a remote computer's project (in the sidebar group named for that computer) has the same `Rename project` item; the dialog sends the rename to that computer. If the computer stops answering or accepting this app while the dialog is open, the dialog shows its status and reason (e.g. "Needs pairing. It no longer accepts this app. …") and `Rename` is disabled; an offline computer lists no projects, so there is nothing to rename.
 
 ## Driving it
 
@@ -55,6 +56,7 @@ None.
 ## What proves it works
 
 - End state: the new name survives a full reload (step 9), so the server kept it; the PATCH answered 200; `ls "$REPO/.."` still shows the folder `repository` (only the label changed).
+- `apps/web/spec/e2e/projects-open-remote.desktop.e2e.ts`: in the desktop shell, renaming a remote computer's project changes only that computer's inventory, the same dialog still renames this computer's project here, and an open remote dialog disables `Rename` with "Needs pairing. …" after the device is revoked.
 - `apps/web/spec/integration/projects-rename.test.tsx`: a blank name disables `Rename` and shows an alert; renaming shows button "Browser renamed project" and the server's project name becomes it (read through `server.project()`).
 
 ## Gotchas
