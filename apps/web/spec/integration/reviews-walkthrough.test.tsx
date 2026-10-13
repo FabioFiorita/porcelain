@@ -82,9 +82,18 @@ test('a published review opens on a briefing of what the change adds, walks each
   });
   await expect
     .element(
-      unexplained.getByText('scripts/migrate-workspaces.ts', { exact: true }),
+      unexplained.getByRole('heading', { name: 'Not explained', exact: true }),
     )
     .toBeVisible();
+  await expect
+    .element(unexplained.getByText('Loading changes…', { exact: true }))
+    .not.toBeInTheDocument();
+  await unexplained.wheel({ delta: { y: 2000 } });
+  await expect
+    .element(
+      unexplained.getByText('scripts/migrate-workspaces.ts', { exact: true }),
+    )
+    .toBeInViewport();
   await unexplained
     .getByRole('button', {
       name: 'Read in 9. Establish the shared mutation boundary',
