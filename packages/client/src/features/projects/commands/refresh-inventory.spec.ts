@@ -386,3 +386,44 @@ it('does not fall back to GET when refresh fails with a non-404 request error', 
     ),
   ).rejects.toMatchObject({ _tag: 'RequestError', status: 503 });
 });
+
+it('publishes a retried inventory when only the refreshInventories setter is mounted', async ({
+  onTestFinished,
+}) => {
+  const recovered: ReadInventoryResponse = {
+    environmentId,
+    environment: { name: 'Computer', custom: false },
+    projects: [],
+  };
+  const pending: ((value: Response) => void)[] = [];
+  let reachable = false;
+  const fixture = create((path) => {
+    if (!reachable)
+      return Promise.reject(new TypeError('Network request failed'));
+    if (path === '/api/inventory/refresh')
+      return new Promise<Response>((resolve) => pending.push(resolve));
+    return Promise.resolve(Response.json(recovered));
+  });
+  const inventory = readInventory(fixture.connection);
+  onTestFinished(fixture.registry.mount(inventory));
+  await expect(
+    Effect.runPromise(
+      AtomRegistry.getResult(fixture.registry, inventory, {
+        suspendOnWaiting: true,
+      }),
+    ),
+  ).rejects.toMatchObject({ _tag: 'ConnectionError' });
+  reachable = true;
+  const retryAll = refreshInventories([fixture.connection]);
+  onTestFinished(fixture.registry.mount(retryAll));
+  fixture.registry.set(retryAll, undefined);
+  await expect.poll(() => pending.length).toBe(1);
+  await Effect.runPromise(Effect.sleep('50 millis'));
+  pending.shift()?.(Response.json(recovered));
+  await expect.poll(() => fixture.registry.get(inventory).waiting).toBe(false);
+  expect(
+    await Effect.runPromise(
+      AtomRegistry.getResult(fixture.registry, inventory),
+    ),
+  ).toEqual(recovered);
+});

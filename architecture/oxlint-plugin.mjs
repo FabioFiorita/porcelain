@@ -935,6 +935,70 @@ export default {
         };
       },
     },
+    'writable-reads-what-it-sets': {
+      create(context) {
+        const visitorKeys = context.sourceCode.visitorKeys;
+        const atomKey = (node) =>
+          context.sourceCode.getText(
+            node?.type === 'CallExpression' ? node.callee : node,
+          );
+        const mounting = new Set(['get', 'mount', 'result', 'subscribe']);
+        const callsOn = (body, name, accept) =>
+          nodesOf(
+            body,
+            visitorKeys,
+            (entry) =>
+              entry.type === 'CallExpression' &&
+              entry.arguments.length > 0 &&
+              accept(entry.callee, name),
+          );
+        return {
+          CallExpression(node) {
+            const [read, write] = node.arguments;
+            const getter = read?.params?.[0];
+            const setter = write?.params?.[0];
+            if (
+              node.callee.type !== 'MemberExpression' ||
+              node.callee.object.type !== 'Identifier' ||
+              node.callee.object.name !== 'Atom' ||
+              memberName(node.callee) !== 'writable' ||
+              !isFunction(read) ||
+              !isFunction(write) ||
+              setter?.type !== 'Identifier'
+            )
+              return;
+            const kept = new Set(
+              getter?.type === 'Identifier'
+                ? callsOn(
+                    read.body,
+                    getter.name,
+                    (callee, name) =>
+                      (callee.type === 'Identifier' && callee.name === name) ||
+                      (callee.type === 'MemberExpression' &&
+                        callee.object.type === 'Identifier' &&
+                        callee.object.name === name &&
+                        mounting.has(memberName(callee))),
+                  ).map((call) => atomKey(call.arguments[0]))
+                : [],
+            );
+            for (const call of callsOn(
+              write.body,
+              setter.name,
+              (callee, name) =>
+                callee.type === 'MemberExpression' &&
+                callee.object.type === 'Identifier' &&
+                callee.object.name === name &&
+                memberName(callee) === 'set',
+            ))
+              if (!kept.has(atomKey(call.arguments[0])))
+                context.report({
+                  node: call,
+                  message: `Read \`${atomKey(call.arguments[0])}\` with get in this writable's read function too, because the registry drops an atom nothing subscribes to on the next tick and interrupts the command this set started.`,
+                });
+          },
+        };
+      },
+    },
     ...nativeHttpRules,
     ...webRules,
     ...mobileRules,

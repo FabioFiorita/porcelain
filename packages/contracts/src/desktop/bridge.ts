@@ -45,12 +45,18 @@ export const desktopWindowStateSchema = Schema.Struct({
   }),
   maximized: Schema.Boolean,
 });
+export const desktopMcpConfigurationSchema = Schema.Struct({
+  command: Schema.String,
+  dataDirectory: Schema.String,
+});
+export type DesktopMcpConfiguration = typeof desktopMcpConfigurationSchema.Type;
 export type DesktopAction = typeof desktopActionSchema.Type;
 export type DesktopAppearance = typeof desktopAppearanceSchema.Type;
 export type DesktopWindowState = typeof desktopWindowStateSchema.Type;
 export type DesktopCredentials = typeof desktopCredentialsSchema.Type;
 export type DesktopAppUpdateState = typeof desktopAppUpdateStateSchema.Type;
 export type DesktopBridge = {
+  mcpConfiguration: () => Promise<DesktopMcpConfiguration>;
   pickProjectFolder: () => Promise<string | null>;
   credentials: {
     read: () => Promise<DesktopCredentials>;

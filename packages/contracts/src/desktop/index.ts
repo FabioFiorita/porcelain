@@ -1,4 +1,5 @@
 export {
+  desktopMcpConfigurationSchema,
   desktopActionSchema,
   desktopAppearanceSchema,
   desktopAppUpdateStateSchema,
@@ -6,6 +7,7 @@ export {
   desktopWindowStateSchema,
 } from './bridge.ts';
 export type {
+  DesktopMcpConfiguration,
   DesktopAction,
   DesktopAppearance,
   DesktopAppUpdateState,

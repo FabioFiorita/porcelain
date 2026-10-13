@@ -3,6 +3,7 @@ selectors:
   - 'Porcelain refuses to start with the debugging switch'
   - 'Porcelain refuses to start with'
 tests:
+  - scripts/desktop-build-settings.spec.ts
   - apps/desktop/src/rules/launch-refusal.spec.ts
 api: []
 ---
@@ -35,3 +36,8 @@ Do not launch, build or inspect an installed app through this skill. The launche
 ## Gotchas
 
 - The installed app is off-limits to this skill. Playwright's debugging connection is for the disposable unpackaged app only.
+
+The build-settings spec verifies that `--signed-verification` uses the same
+hardened runtime, release entitlement file, ASAR layout and locked fuses as the
+release path while omitting Apple submission. Missing or ad-hoc signing identity
+is refused. Actual packaged signature/fuse inspection remains a separate proof.

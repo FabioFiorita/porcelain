@@ -69,6 +69,7 @@ function startupFailureMessage(
 }
 
 type CliOptions = {
+  readonly desktopMcpVersion?: string;
   readonly homeDirectory?: string;
   readonly startServer?: StartServer;
   readonly stdout?: (message: string) => void;
@@ -123,6 +124,12 @@ export function createCliRunner(
     const program = Effect.gen(function* () {
       const configured = yield* CliRuntime;
       return yield* Effect.gen(function* () {
+        if (options.desktopMcpVersion !== undefined)
+          return yield* cliProgram(
+            args,
+            options.desktopMcpVersion,
+            'desktop-mcp',
+          );
         const packageRoot = yield* cliPackageRoot();
         const version = yield* readCliVersion(packageRoot).pipe(Effect.orDie);
         return yield* cliProgram(args, version);
