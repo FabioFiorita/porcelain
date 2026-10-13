@@ -28,6 +28,7 @@ export const optionsSchema = Schema.Struct({
   agentConfig: Schema.optional(Schema.String),
   agentCommand: Schema.optional(Schema.String),
   simulatorLimit: Schema.Finite,
+  manualPairing: Schema.Boolean,
   udid: Schema.optional(Schema.String),
 });
 const detailSchema = Schema.Struct({

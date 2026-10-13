@@ -24,8 +24,8 @@ import { serve, start, startProblems } from './serve.ts';
 const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--instance <id>]
   doctor                   check startup dependencies, matching native build and active instances
   build                    build the matching development client on the Mac
-  start [--device iphone|ipad] [--udid <already-owned-booted-udid>]
-                           prepare and pair a disposable server, Metro and development client
+  start [--device iphone|ipad] [--udid <already-owned-booted-udid>] [--manual-pairing]
+                           prepare a disposable server, Metro and development client; manual pairing leaves the app for the developer
   status                   report passive lifecycle status and connection metadata
   logs                     record app, Metro and server logs
   evidence                 list retained evidence
@@ -103,6 +103,7 @@ async function command(args: readonly string[]): Promise<string> {
       udid: { type: 'string' },
       'agent-device-config': { type: 'string' },
       'agent-device-command': { type: 'string' },
+      'manual-pairing': { type: 'boolean', default: false },
     },
     allowPositionals: true,
     strict: true,
@@ -124,6 +125,7 @@ async function command(args: readonly string[]): Promise<string> {
       values.udid,
       values['agent-device-config'],
       values['agent-device-command'],
+      values['manual-pairing'],
     );
   }
   if (name === 'doctor') return doctor();

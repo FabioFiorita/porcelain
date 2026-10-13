@@ -12,13 +12,19 @@ import { ErrorState } from '../../../components/ui/error-state';
 import { ScrollView } from 'react-native';
 import { usePairEnvironment, useReadEnvironments } from '../commands/pairing';
 import { useEnvironmentStorageStatus } from '../store';
+import { developmentPairingUrl } from '../api';
+import { useDevelopmentPairing } from '../commands/development-pairing';
 
 export function PairEnvironment({ onClose }: { onClose: () => void }) {
   const [value, setValue] = useState('');
   const pair = usePairEnvironment(onClose);
+  const development = useDevelopmentPairing();
   const storage = useEnvironmentStorageStatus();
   const read = useReadEnvironments();
-  const unavailable = pair.result.waiting || storage.status !== 'ready';
+  const unavailable =
+    pair.result.waiting ||
+    development.result.waiting ||
+    storage.status !== 'ready';
   return (
     <RNHostView>
       <ScrollView
@@ -38,6 +44,7 @@ export function PairEnvironment({ onClose }: { onClose: () => void }) {
               value={value}
               onChangeText={(next) => {
                 pair.reset();
+                development.reset();
                 setValue(next);
               }}
               disabled={unavailable}
@@ -47,6 +54,34 @@ export function PairEnvironment({ onClose }: { onClose: () => void }) {
               autoCorrect={false}
             />
           </Field>
+          {__DEV__ && developmentPairingUrl ? (
+            <Box gap={2}>
+              <Text variant="ui" tone="muted">
+                Create a pairing link for this development server, then select
+                Pair.
+              </Text>
+              <Button
+                testID="development-pairing-link"
+                label={
+                  development.result.waiting
+                    ? 'Creating pairing link…'
+                    : 'Use development server'
+                }
+                variant="outline"
+                pending={development.result.waiting}
+                disabled={unavailable}
+                onPress={() => {
+                  pair.reset();
+                  development.request(setValue);
+                }}
+              />
+              {AsyncResult.isFailure(development.result) ? (
+                <Text accessibilityRole="alert" variant="ui" tone="destructive">
+                  {String(Cause.squash(development.result.cause))}
+                </Text>
+              ) : null}
+            </Box>
+          ) : null}
           {storage.error ? (
             <ErrorState
               message={storage.error}

@@ -58,6 +58,7 @@ async function warmBundle(url: string, child: ChildProcess): Promise<void> {
 export async function startMetro(
   log: string,
   requestedPort?: number,
+  pairing?: { ownerSocket: string; serverAddress: string },
 ): Promise<Metro> {
   const port = requestedPort ?? (await freePort());
   const url = `http://localhost:${port}`;
@@ -76,7 +77,16 @@ export async function startMetro(
     {
       cwd: mobileRoot,
       detached: true,
-      env: { ...process.env, EXPO_NO_TELEMETRY: '1', BROWSER: 'none' },
+      env: {
+        ...process.env,
+        EXPO_NO_TELEMETRY: '1',
+        BROWSER: 'none',
+        PORCELAIN_OWNER_SOCKET: pairing?.ownerSocket ?? '',
+        PORCELAIN_API_TARGET: pairing?.serverAddress ?? '',
+        EXPO_PUBLIC_PORCELAIN_DEV_PAIR_URL: pairing
+          ? `${url}/__porcelain/dev/pair`
+          : '',
+      },
       stdio: ['ignore', output, output],
     },
   );
