@@ -1,12 +1,7 @@
 import { mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  flipFuses,
-  FuseV1Options,
-  FuseVersion,
-  type FuseV1Config,
-} from '@electron/fuses';
+import { flipFuses } from '@electron/fuses';
 import { packager } from '@electron/packager';
 import { NodeFileSystem } from '@effect/platform-node';
 import { Effect, Schema } from 'effect';
@@ -16,56 +11,15 @@ import {
   stageDesktop,
 } from '../apps/desktop/spec/kit/stage.ts';
 import { writeUpdateManifest } from '../apps/desktop/src/adapters/update-manifest.ts';
+import {
+  desktopBuildMode,
+  desktopBuildSettings,
+  type DesktopBuildMode,
+  type DesktopRelease,
+} from './desktop-build-settings.ts';
 
 const output = join(root, 'dist/desktop');
 const stage = join(output, 'stage');
-const lockedFuses = {
-  version: FuseVersion.V1,
-  strictlyRequireAllFuses: true,
-  [FuseV1Options.RunAsNode]: false,
-  [FuseV1Options.EnableCookieEncryption]: true,
-  [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
-  [FuseV1Options.EnableNodeCliInspectArguments]: false,
-  [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
-  [FuseV1Options.OnlyLoadAppFromAsar]: true,
-  [FuseV1Options.LoadBrowserProcessSpecificV8Snapshot]: false,
-  [FuseV1Options.GrantFileProtocolExtraPrivileges]: false,
-  [FuseV1Options.WasmTrapHandlers]: true,
-} satisfies FuseV1Config;
-
-const signingIdentity = process.env.PORCELAIN_MAC_SIGNING_IDENTITY?.trim();
-const releaseVariables = [
-  'PORCELAIN_MAC_SIGNING_IDENTITY',
-  'APPLE_ID',
-  'APPLE_APP_SPECIFIC_PASSWORD',
-  'APPLE_TEAM_ID',
-] as const;
-
-type Release = {
-  identity: string;
-  keychain: string | undefined;
-  appleId: string;
-  appleIdPassword: string;
-  teamId: string;
-};
-
-function releaseCredentials(): Release {
-  const missing = releaseVariables.filter((name) => !process.env[name]?.trim());
-  if (missing.length > 0)
-    throw new Error(
-      `A release build signs and notarizes the app; set ${missing.join(', ')}`,
-    );
-  const value = (name: (typeof releaseVariables)[number]) =>
-    process.env[name]?.trim() ?? '';
-  return {
-    identity: value('PORCELAIN_MAC_SIGNING_IDENTITY'),
-    keychain: process.env.PORCELAIN_MAC_KEYCHAIN?.trim() || undefined,
-    appleId: value('APPLE_ID'),
-    appleIdPassword: value('APPLE_APP_SPECIFIC_PASSWORD'),
-    teamId: value('APPLE_TEAM_ID'),
-  };
-}
-
 async function releaseVersion(): Promise<string> {
   return Schema.decodeUnknownSync(Schema.Struct({ version: Schema.String }))(
     JSON.parse(await readFile(join(root, 'package.json'), 'utf8')),
@@ -103,7 +57,7 @@ async function updateArchive(app: string): Promise<{
   return { zip, manifest };
 }
 
-async function notarize(path: string, release: Release) {
+async function notarize(path: string, release: DesktopRelease) {
   await desktopCommand('/usr/bin/xcrun', [
     'notarytool',
     'submit',
@@ -119,7 +73,10 @@ async function notarize(path: string, release: Release) {
   await desktopCommand('/usr/bin/xcrun', ['stapler', 'staple', path]);
 }
 
-async function diskImage(app: string, release: Release): Promise<string> {
+async function diskImage(
+  app: string,
+  release: DesktopRelease,
+): Promise<string> {
   const volume = join(output, 'volume');
   await rm(volume, { recursive: true, force: true });
   await mkdir(volume, { recursive: true });
@@ -158,13 +115,18 @@ type Built = {
 };
 
 export async function buildDesktop(
-  options: { release?: boolean } = {},
+  options: { mode?: DesktopBuildMode } = {},
 ): Promise<Built> {
   if (process.platform !== 'darwin')
     throw new Error('Build the local Mac app on macOS');
   if (process.arch !== 'arm64' && process.arch !== 'x64')
     throw new Error('The Mac app requires arm64 or x64');
-  const release = options.release ? releaseCredentials() : undefined;
+  const settings = desktopBuildSettings(
+    options.mode ?? 'development',
+    process.env,
+    join(root, 'scripts/assets/entitlements.mac.plist'),
+  );
+  const release = settings.release;
   await rm(stage, { recursive: true, force: true });
   const feed = join(output, 'app-update.yml');
   await rm(feed, { force: true });
@@ -187,46 +149,16 @@ export async function buildDesktop(
     electronVersion,
     appBundleId: 'com.fabiofiorita.porcelain',
     appCategoryType: 'public.app-category.developer-tools',
-    asar: { unpack: '**/{*.node,macos-trash}' },
+    ...settings.packaging,
     prune: false,
     out: output,
     overwrite: true,
     ...(release === undefined ? {} : { extraResource: [feed] }),
     afterCopy: [
       async ({ buildPath }) => {
-        await flipFuses(resolve(buildPath, '../../..'), lockedFuses);
+        await flipFuses(resolve(buildPath, '../../..'), settings.fuses);
       },
     ],
-    osxSign: release
-      ? {
-          identity: release.identity,
-          ...(release.keychain === undefined
-            ? {}
-            : { keychain: release.keychain }),
-          optionsForFile: () => ({
-            hardenedRuntime: true,
-            entitlements: join(root, 'scripts/assets/entitlements.mac.plist'),
-          }),
-        }
-      : signingIdentity
-        ? {
-            identity: signingIdentity,
-            optionsForFile: () => ({ hardenedRuntime: false }),
-          }
-        : {
-            identity: '-',
-            identityValidation: false,
-            optionsForFile: () => ({ hardenedRuntime: false }),
-          },
-    ...(release === undefined
-      ? {}
-      : {
-          osxNotarize: {
-            appleId: release.appleId,
-            appleIdPassword: release.appleIdPassword,
-            teamId: release.teamId,
-          },
-        }),
     extendInfo: {
       NSLocalNetworkUsageDescription:
         'Porcelain can share your projects with devices you pair on your local network.',
@@ -254,7 +186,7 @@ export async function buildDesktop(
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
     const built = await buildDesktop({
-      release: process.argv.includes('--release'),
+      mode: desktopBuildMode(process.argv.slice(2)),
     });
     process.stdout.write(
       `Built ${built.app}\n${built.release === undefined ? '' : `Disk image ${built.release.image}\nUpdate ${built.release.zip}\nUpdate manifest ${built.release.manifest}\n`}`,
