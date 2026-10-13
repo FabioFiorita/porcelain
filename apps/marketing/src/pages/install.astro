@@ -1,5 +1,7 @@
 ---
 import Site from '../layouts/site.astro';
+import Command from '../components/command.astro';
+import ComingSoon from '../components/coming-soon.astro';
 
 const description =
   'The Mac app, or a server on Linux or Mac, on the machine that holds your repositories.';
@@ -14,9 +16,7 @@ const description =
       <p>The Mac app, or a server on Linux or Mac.</p>
       <p class="flex items-center gap-2 text-base">
         <span>Mobile app</span>
-        <span class="inline-flex items-center rounded-full bg-foreground px-2.5 py-1 text-xs font-medium tracking-[-0.01em] text-background">
-          Coming soon
-        </span>
+        <ComingSoon />
       </p>
     </div>
 
@@ -27,13 +27,9 @@ const description =
           On the Linux or Mac machine that holds your repositories.
         </p>
         <div class="mt-8 flex w-full min-w-0 flex-col items-start gap-3 self-start">
-          <p class="inline-flex h-10 w-fit max-w-full items-center overflow-x-auto rounded-lg bg-muted px-4 font-mono text-sm whitespace-nowrap">
-            <code>npx @fabiofiorita/porcelain@latest serve</code>
-          </p>
+          <Command command="npx @fabiofiorita/porcelain@latest serve" />
           <p class="max-w-md text-sm text-muted-foreground">On Linux, install the user service.</p>
-          <p class="inline-flex h-10 w-fit max-w-full items-center overflow-x-auto rounded-lg bg-muted px-4 font-mono text-sm whitespace-nowrap">
-            <code>npx @fabiofiorita/porcelain@latest service install</code>
-          </p>
+          <Command command="npx @fabiofiorita/porcelain@latest service install" />
         </div>
       </section>
       <section class="grid min-w-0 grid-rows-[auto_1fr_auto] bg-background p-8 lg:row-span-3 lg:grid-rows-subgrid lg:p-10">
@@ -42,7 +38,7 @@ const description =
           The desktop app around that review. Apple silicon.
         </p>
         <a
-          class="mt-8 inline-flex h-10 w-fit items-center gap-2 self-start rounded-full bg-foreground px-4 text-sm text-background no-underline"
+          class="mt-8 inline-flex h-11 w-fit items-center gap-2 self-start rounded-full bg-foreground px-5 text-sm text-background no-underline"
           href="https://github.com/FabioFiorita/porcelain/releases"
         >
           <svg viewBox="0 0 814 1000" class="size-4" aria-hidden="true">

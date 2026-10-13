@@ -1,6 +1,6 @@
 @import 'tailwindcss';
-@import 'tw-animate-css';
 @import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
 @import '@porcelain/theme/tokens.css';
 
 @custom-variant light {
@@ -17,37 +17,28 @@
 
 @theme {
   --font-sans: 'Geist Variable', sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
 }
-
-@source inline('animate-in animate-out fade-in fade-out slide-in-from-bottom-3 slide-in-from-bottom-6 slide-in-from-top-2 slide-in-from-right-2 zoom-in-95 duration-300 duration-500 duration-700 fill-mode-both delay-100 delay-150 delay-200 delay-300');
 
 /*
-  tw-animate joins the duration to the easing in one shorthand, so the
-  longhands are what actually run. enter and exit are the package keyframes.
+  Motion owns every animation on these pages. The html element gets the motion
+  class before paint when the visitor allows motion, so elements that will
+  animate in start hidden instead of flashing.
 */
-.animate-in {
-  animation-name: enter;
-  animation-duration: var(--tw-animation-duration, var(--tw-duration, 0.5s));
-  animation-timing-function: var(--tw-ease, ease);
-  animation-delay: var(--tw-animation-delay, 0s);
-  animation-iteration-count: var(--tw-animation-iteration-count, 1);
-  animation-direction: var(--tw-animation-direction, normal);
-  animation-fill-mode: var(--tw-animation-fill-mode, both);
+.motion :is([data-reveal], [data-word], [data-hero-frame], [data-callout]) {
+  opacity: 0;
 }
 
-.animate-out {
-  animation-name: exit;
-  animation-duration: var(--tw-animation-duration, var(--tw-duration, 0.45s));
-  animation-timing-function: var(--tw-ease, ease);
-  animation-delay: var(--tw-animation-delay, 0s);
-  animation-iteration-count: 1;
-  animation-direction: normal;
-  animation-fill-mode: forwards;
+.motion [data-callout-line] {
+  transform: scaleX(0);
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-in,
-  .animate-out {
-    animation: none;
+  html {
+    scroll-behavior: auto;
   }
 }
