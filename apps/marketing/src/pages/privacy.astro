@@ -1,0 +1,55 @@
+---
+import Site from '../layouts/site.astro';
+
+const description =
+  'Porcelain does not take an account, and it does not collect your repository, your review, or your comments.';
+---
+
+<Site title="Privacy — Porcelain" description={description}>
+  <main class="mx-auto w-full max-w-[1440px] px-5 py-16 lg:px-10 lg:py-24">
+    <h1 class="max-w-[12ch] text-[clamp(2.6rem,4.6vw,4.4rem)] leading-[0.96] font-medium tracking-[-0.045em]">
+      Privacy
+    </h1>
+    <p class="mt-5 max-w-xl text-lg leading-snug text-muted-foreground">
+      Porcelain does not take an account. It does not collect your repository, your review, or your comments.
+    </p>
+
+    <div class="mt-16 border-t border-border">
+      <section class="grid gap-4 border-b border-border py-10 lg:grid-cols-[18rem_minmax(0,40rem)] lg:gap-16 lg:py-14">
+        <h2 class="text-2xl leading-tight font-medium tracking-[-0.03em]">On your machine</h2>
+        <p class="text-lg leading-snug text-muted-foreground">
+          The walkthrough, the comments, and the files stay on the computer that holds the repository. To reach it
+          from a browser or a Mac, run porcelain pair on that computer and paste the link it prints. The files are not
+          copied across. This app keeps its own credential for that computer.
+        </p>
+      </section>
+      <section class="grid gap-4 border-b border-border py-10 lg:grid-cols-[18rem_minmax(0,40rem)] lg:gap-16 lg:py-14">
+        <h2 class="text-2xl leading-tight font-medium tracking-[-0.03em]">The agents</h2>
+        <p class="text-lg leading-snug text-muted-foreground">
+          Claude, Codex, Grok and Muse keep running where you already run them. They publish the walkthrough to
+          Porcelain on that machine. Porcelain does not send your prompts or your code to us.
+        </p>
+      </section>
+      <section class="grid gap-4 border-b border-border py-10 lg:grid-cols-[18rem_minmax(0,40rem)] lg:gap-16 lg:py-14">
+        <h2 class="text-2xl leading-tight font-medium tracking-[-0.03em]">Updates</h2>
+        <p class="text-lg leading-snug text-muted-foreground">
+          The Mac app can ask GitHub whether an update is published. That check does not include your code.
+        </p>
+      </section>
+      <section class="grid gap-4 border-b border-border py-10 lg:grid-cols-[18rem_minmax(0,40rem)] lg:gap-16 lg:py-14">
+        <h2 class="text-2xl leading-tight font-medium tracking-[-0.03em]">This website</h2>
+        <p class="text-lg leading-snug text-muted-foreground">
+          This site is a set of static pages. It does not ask you to sign in, and it does not run analytics.
+        </p>
+      </section>
+      <section class="grid gap-4 py-10 lg:grid-cols-[18rem_minmax(0,40rem)] lg:gap-16 lg:py-14">
+        <h2 class="text-2xl leading-tight font-medium tracking-[-0.03em]">The source</h2>
+        <p class="text-lg leading-snug text-muted-foreground">
+          Porcelain is open source, under the MIT license.
+          <a class="text-foreground underline decoration-border underline-offset-4" href="https://github.com/FabioFiorita/porcelain">Read the source.</a>
+          The source is the policy.
+        </p>
+      </section>
+    </div>
+  </main>
+</Site>
