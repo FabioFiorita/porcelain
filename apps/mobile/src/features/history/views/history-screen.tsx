@@ -1,13 +1,11 @@
-import { createContext, useContext } from 'react';
 import { useRouter } from 'expo-router';
 import { Empty } from '../../../components/ui/empty';
 import { WorkspaceGate } from '../../projects';
 import { HistoryNavigation } from './history-navigation';
-
-export const HistoryPaneContext = createContext(false);
+import { useHistoryPresentation } from '../store';
 
 export function HistoryScreen() {
-  const wide = useContext(HistoryPaneContext);
+  const { wide } = useHistoryPresentation();
   const router = useRouter();
   return (
     <WorkspaceGate title="History">
