@@ -31,6 +31,7 @@ import {
   useOpenProjectOnThisComputer,
   worktreeLocation,
 } from '@/app/desktop-actions';
+import { defaultSettingsSection } from '@/app/settings-page';
 import { ShortcutsDialog } from '@/app/shortcuts-dialog';
 import type {
   SetWorkspaceSearch,
@@ -89,7 +90,7 @@ export function ConnectedWorkspace({
   const openWorktree = (target: WorktreeTarget) =>
     navigate({ ...worktreeLocation(target), replace: review === undefined });
   const openHere = useOpenProjectOnThisComputer(local.connection, openWorktree);
-  const openSettings = (section = 'appearance') => {
+  const openSettings = (section = defaultSettingsSection) => {
     setOpenMobile(false);
     void navigate({ to: '/settings/$section', params: { section } });
   };
