@@ -1,0 +1,41 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@porcelain/theme/tokens.css';
+
+@custom-variant light {
+  @media (prefers-color-scheme: light) {
+    @slot;
+  }
+}
+
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    @slot;
+  }
+}
+
+@theme {
+  --font-serif: Georgia, 'Iowan Old Style', Palatino, 'Palatino Linotype', serif;
+}
+
+@source inline('animate-in fade-in slide-in-from-bottom-3 duration-700 fill-mode-both');
+
+/*
+  tw-animate joins the duration to the easing in one shorthand, so the
+  longhands are what actually run.
+*/
+.animate-in {
+  animation-name: enter;
+  animation-duration: var(--tw-animation-duration, var(--tw-duration, 0.15s));
+  animation-timing-function: var(--tw-ease, ease);
+  animation-delay: var(--tw-animation-delay, 0s);
+  animation-iteration-count: var(--tw-animation-iteration-count, 1);
+  animation-direction: var(--tw-animation-direction, normal);
+  animation-fill-mode: var(--tw-animation-fill-mode, none);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-in {
+    animation: none;
+  }
+}

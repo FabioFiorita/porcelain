@@ -1,0 +1,268 @@
+---
+import '../styles/global.css';
+import walkthrough from '../../../../docs/readme/walkthrough.png';
+import comments from '../../../../docs/readme/comments.png';
+import proof from '../../../../docs/readme/proof.png';
+
+const description =
+  'A companion for the coding agents you already run. They publish a walkthrough of what changed. You read it, comment, and decide what to keep.';
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+    <meta
+      name="theme-color"
+      content="#ffffff"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#171717"
+      media="(prefers-color-scheme: dark)"
+    />
+    <title>Porcelain</title>
+  </head>
+  <body class="bg-background text-foreground font-sans text-base leading-normal tracking-[-0.011em] antialiased">
+    <div class="mx-auto max-w-3xl px-6 py-8">
+      <header class="flex items-baseline justify-between pb-7">
+        <div class="font-serif text-lg tracking-[-0.03em]">Porcelain</div>
+        <a
+          class="text-[13px] text-muted-foreground no-underline"
+          href="https://github.com/FabioFiorita/porcelain">Source</a
+        >
+      </header>
+
+      <h1
+        class="max-w-[16ch] font-serif text-[clamp(40px,7vw,58px)] leading-[0.96] font-medium tracking-[-0.035em]"
+      >
+        <span
+          class="block animate-in fade-in slide-in-from-bottom-4 fill-mode-both duration-700"
+          >Agents write the code.</span
+        >
+        <span
+          class="block animate-in fade-in slide-in-from-bottom-4 fill-mode-both delay-150 duration-700"
+          >This is where you read it.</span
+        >
+      </h1>
+      <p
+        class="mt-5 max-w-[38rem] animate-in fade-in slide-in-from-bottom-3 fill-mode-both delay-300 duration-700 text-[17px] leading-snug text-muted-foreground"
+      >
+        ChatGPT, Claude, Codex and T3 Code keep running. Porcelain is where
+        they publish a walkthrough of the change, and where you comment back
+        before you keep it.
+      </p>
+      <div
+        class="mt-6 flex flex-wrap gap-2.5 animate-in fade-in fill-mode-both delay-500 duration-700"
+      >
+        <a
+          class="inline-flex h-10 items-center rounded-full bg-foreground px-4 text-sm text-background no-underline"
+          href="https://github.com/FabioFiorita/porcelain/releases"
+          >Download for Mac</a
+        >
+        <a
+          class="inline-flex h-10 items-center rounded-full px-4 text-sm text-foreground no-underline shadow-[inset_0_0_0_1px_var(--border)]"
+          href="#start">Open in the browser</a
+        >
+      </div>
+      <p class="mt-3.5 text-[13px] text-muted-foreground">
+        Apple silicon and any browser. iPhone, iPad and Android are still
+        being built.
+      </p>
+
+      <figure class="mt-7">
+        <div
+          class="rounded-[calc(var(--radius)+6px)] bg-card p-2 shadow-[inset_0_0_0_1px_var(--border)]"
+        >
+          <img
+            class="block w-full rounded-(--radius)"
+            src={walkthrough.src}
+            width={walkthrough.width}
+            height={walkthrough.height}
+            alt="A Porcelain review on the decision Revoke access across devices, with its route through the code and the diff underneath"
+          />
+        </div>
+        <figcaption class="mt-2.5 text-[13px] text-muted-foreground">
+          One decision, the route it takes, and the diff under the note that
+          explains it.
+        </figcaption>
+      </figure>
+
+      <section class="mt-10 grid gap-6">
+        <article class="grid grid-cols-[28px_1fr] gap-3" data-animate>
+          <div class="pt-1 text-xs text-muted-foreground tabular-nums">01</div>
+          <div>
+            <h2
+              class="font-serif text-[26px] leading-tight font-medium tracking-[-0.03em]"
+            >
+              A walkthrough, in the order the change runs.
+            </h2>
+            <p class="mt-2 text-muted-foreground">
+              The agent publishes a briefing, then one stop for each decision.
+              Numbered notes land on the lines they explain. You mark the
+              decision read, and the files it shows go with it.
+            </p>
+          </div>
+        </article>
+        <article class="grid grid-cols-[28px_1fr] gap-3" data-animate>
+          <div class="pt-1 text-xs text-muted-foreground tabular-nums">02</div>
+          <div>
+            <h2
+              class="font-serif text-[26px] leading-tight font-medium tracking-[-0.03em]"
+            >
+              What the story left out stays visible.
+            </h2>
+            <p class="mt-2 text-muted-foreground">
+              Changed lines no decision covers are Not explained: a stop of
+              their own, and marks inside the files you already opened. A
+              path-sorted diff leaves that work at the bottom of a long list.
+            </p>
+          </div>
+        </article>
+        <article class="grid grid-cols-[28px_1fr] gap-3" data-animate>
+          <div class="pt-1 text-xs text-muted-foreground tabular-nums">03</div>
+          <div>
+            <h2
+              class="font-serif text-[26px] leading-tight font-medium tracking-[-0.03em]"
+            >
+              A comment the agent can answer.
+            </h2>
+            <p class="mt-2 text-muted-foreground">
+              You write on the file. The reply comes back in the same thread,
+              through MCP, on your machine. The agent stays in the app you
+              already pay for.
+            </p>
+            <figure class="mt-4">
+              <div
+                class="rounded-[calc(var(--radius)+6px)] bg-card p-2 shadow-[inset_0_0_0_1px_var(--border)]"
+              >
+                <img
+                  class="block w-full rounded-(--radius)"
+                  src={comments.src}
+                  width={comments.width}
+                  height={comments.height}
+                  alt="A reviewer comment and the agent's reply in the same Porcelain thread"
+                />
+              </div>
+            </figure>
+          </div>
+        </article>
+        <article class="grid grid-cols-[28px_1fr] gap-3" data-animate>
+          <div class="pt-1 text-xs text-muted-foreground tabular-nums">04</div>
+          <div>
+            <h2
+              class="font-serif text-[26px] leading-tight font-medium tracking-[-0.03em]"
+            >
+              The proof it attached.
+            </h2>
+            <p class="mt-2 text-muted-foreground">
+              Checks and images sit beside how far you have read. Porcelain
+              shows what the agent reported, next to the review, so a claim
+              has a trail.
+            </p>
+            <figure class="mt-4">
+              <div
+                class="rounded-[calc(var(--radius)+6px)] bg-card p-2 shadow-[inset_0_0_0_1px_var(--border)]"
+              >
+                <img
+                  class="block w-full rounded-(--radius)"
+                  src={proof.src}
+                  width={proof.width}
+                  height={proof.height}
+                  alt="Proof with check results, an image, and the readiness panel"
+                />
+              </div>
+            </figure>
+          </div>
+        </article>
+      </section>
+
+      <section
+        class="mt-9 grid grid-cols-1 gap-2.5 sm:grid-cols-3"
+        aria-label="Where Porcelain runs"
+      >
+        <div
+          class="rounded-(--radius) bg-card p-4 shadow-[inset_0_0_0_1px_var(--border)]"
+        >
+          <strong class="block text-sm font-medium">Browser</strong>
+          <span
+            class="mt-1.5 block text-[13px] leading-snug text-muted-foreground"
+            >The same review, from the server on your machine.</span
+          >
+        </div>
+        <div
+          class="rounded-(--radius) bg-card p-4 shadow-[inset_0_0_0_1px_var(--border)]"
+        >
+          <strong class="block text-sm font-medium">Mac</strong>
+          <span
+            class="mt-1.5 block text-[13px] leading-snug text-muted-foreground"
+            >The app around that review. Apple silicon today.</span
+          >
+        </div>
+        <div
+          class="rounded-(--radius) bg-card p-4 shadow-[inset_0_0_0_1px_var(--border)]"
+        >
+          <strong class="block text-sm font-medium">Phone and iPad</strong>
+          <span
+            class="mt-1.5 block text-[13px] leading-snug text-muted-foreground"
+            >The seat we are building. It appears here when you can hold it.</span
+          >
+        </div>
+      </section>
+
+      <section class="mt-9" id="start">
+        <h2
+          class="font-serif text-[26px] leading-tight font-medium tracking-[-0.03em]"
+        >
+          On the machine that holds the repositories.
+        </h2>
+        <pre
+          class="mt-3.5 overflow-auto rounded-(--radius) bg-card p-4 font-mono text-[13px] leading-snug text-foreground shadow-[inset_0_0_0_1px_var(--border)]">npx @fabiofiorita/porcelain@latest serve</pre>
+        <p class="mt-2 text-muted-foreground">
+          Pair the browser with the link it prints, then open the repository.
+        </p>
+      </section>
+
+      <footer
+        class="mt-9 flex justify-between pt-4 text-[13px] text-muted-foreground shadow-[inset_0_1px_0_var(--border)]"
+      >
+        <span>MIT</span>
+        <span>One server. Your agents. Your machine.</span>
+      </footer>
+    </div>
+    <script>
+      const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const frames = document.querySelectorAll('[data-animate]');
+      const show = (frame) => {
+        if (reduce) return;
+        frame.classList.add(
+          'animate-in',
+          'fade-in',
+          'slide-in-from-bottom-3',
+          'duration-700',
+          'fill-mode-both',
+        );
+      };
+      if (!('IntersectionObserver' in window)) {
+        frames.forEach(show);
+      } else {
+        const io = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              show(entry.target);
+              io.unobserve(entry.target);
+            }
+          },
+          { threshold: 0.25 },
+        );
+        frames.forEach((frame) => io.observe(frame));
+      }
+    </script>
+  </body>
+</html>
