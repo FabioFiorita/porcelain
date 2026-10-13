@@ -25,7 +25,7 @@
   class before paint when the visitor allows motion, so elements that will
   animate in start hidden instead of flashing.
 */
-.motion :is([data-reveal], [data-word], [data-hero-frame], [data-callout]) {
+.motion :is([data-reveal], [data-word], [data-hero-frame], [data-callout], [data-matters]) {
   opacity: 0;
 }
 

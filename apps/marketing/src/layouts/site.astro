@@ -37,7 +37,13 @@ const footer = [
     <meta name="theme-color" content="#171717" media="(prefers-color-scheme: dark)" />
     <title>{title}</title>
     <script is:inline>
-      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('motion');
+      /* Motion hides what it will animate. If its script never runs, show the page anyway. */
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        document.documentElement.classList.add('motion');
+        setTimeout(() => {
+          if (!document.documentElement.hasAttribute('data-animated')) document.documentElement.classList.remove('motion');
+        }, 2500);
+      }
     </script>
   </head>
   <body class="flex min-h-svh flex-col bg-background font-sans text-base leading-normal tracking-[-0.011em] text-foreground antialiased">
@@ -121,7 +127,17 @@ const footer = [
         button.addEventListener('click', async () => {
           const command = button.dataset.copy;
           if (!command) return;
-          await navigator.clipboard.writeText(command);
+          const status = button.querySelector('[data-copy-status]');
+          try {
+            await navigator.clipboard.writeText(command);
+          } catch {
+            /* Plain http on a local address has no clipboard. Select the command so it can be copied by hand. */
+            const code = button.parentElement?.querySelector('code');
+            if (code) window.getSelection()?.selectAllChildren(code);
+            if (status) status.textContent = 'Command selected';
+            return;
+          }
+          if (status) status.textContent = 'Copied';
           const copy = button.querySelector('[data-copy-icon]');
           const copied = button.querySelector('[data-copied-icon]');
           copy?.classList.add('hidden');
@@ -129,6 +145,7 @@ const footer = [
           setTimeout(() => {
             copy?.classList.remove('hidden');
             copied?.classList.add('hidden');
+            if (status) status.textContent = '';
           }, 1600);
         });
       }

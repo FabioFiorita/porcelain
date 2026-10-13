@@ -93,22 +93,25 @@ const problems = [
   },
 ] as const;
 
+/* The last fourteen of the fifty-five files, by name. The decision is the eighth of them. */
 const changedFiles = [
-  'apps/server/src/actor.ts',
-  'apps/server/src/policy.ts',
-  'apps/web/src/device-list.tsx',
-  'apps/web/src/revoke-access.ts',
-  'docs/decisions/revoke-access.md',
   'packages/client/src/request.ts',
   'packages/client/src/revoke-access.ts',
+  'packages/client/src/session.ts',
+  'packages/workspace/src/actor.ts',
   'packages/workspace/src/journal.ts',
   'packages/workspace/src/policy.ts',
+  'packages/workspace/src/revoke-access.ts',
+  'packages/workspace/src/sessions.ts',
+  'scripts/seed-devices.ts',
   'tests/fixtures/devices.json',
   'tests/journal.spec.ts',
   'tests/policy.spec.ts',
   'tests/revoke-access.spec.ts',
-  'packages/workspace/src/sessions.ts',
+  'tests/sessions.spec.ts',
 ] as const;
+const decisionFile = 'packages/workspace/src/sessions.ts';
+const filesAbove = 55 - changedFiles.length;
 
 const treeRows = [
   { name: 'apps', kind: 'folder', depth: 0 },
@@ -219,7 +222,7 @@ const treeRows = [
                   callouts.map((callout) => (
                     <div
                       data-callout
-                      class="absolute hidden -translate-y-1/2 items-center lg:flex"
+                      class="absolute hidden -translate-y-1/2 items-center xl:flex"
                       style={
                         callout.side === 'left'
                           ? `left: 1.4%; right: ${100 - callout.x * 100}%; top: ${callout.y * 100}%`
@@ -278,27 +281,28 @@ const treeRows = [
             <span class="flex items-center gap-2">
               Attention
               <span class="relative h-1.5 w-20 overflow-hidden rounded-full bg-muted">
-                <span data-attention class="absolute inset-y-0 left-0 w-full rounded-full bg-graph-2"></span>
+                <span data-attention class="absolute inset-y-0 left-0 w-[30%] rounded-full bg-graph-4"></span>
               </span>
             </span>
           </div>
+          <div class="px-3 pb-1 font-mono text-xs text-muted-foreground/70">+ {filesAbove} files above</div>
           <ol class="relative font-mono text-[0.78rem]">
             <span data-scan class="absolute inset-x-0 top-0 h-8 rounded-lg bg-accent" aria-hidden="true"></span>
             {
               changedFiles.map((file, index) => (
                 <li
-                  data-diff-row
+                  data-diff-row={file === decisionFile ? 'decision' : ''}
                   class:list={[
                     'relative flex h-8 items-center gap-3 rounded-lg px-3',
-                    index === changedFiles.length - 1 && 'text-foreground',
+                    file === decisionFile && 'text-foreground',
                   ]}
                 >
-                  <span class="w-4 text-right text-muted-foreground/60">{index + 1}</span>
+                  <span class="w-5 text-right text-muted-foreground/60">{filesAbove + index + 1}</span>
                   <span class="truncate">{file}</span>
-                  {index === changedFiles.length - 1 && (
+                  {file === decisionFile && (
                     <span
                       data-matters
-                      class="ml-auto shrink-0 rounded-full bg-graph-4/15 px-2 py-0.5 font-sans text-[0.7rem] font-medium text-graph-4 opacity-0"
+                      class="ml-auto shrink-0 rounded-full bg-graph-4/15 px-2 py-0.5 font-sans text-[0.7rem] font-medium text-graph-4"
                     >
                       The decision
                     </span>
@@ -307,7 +311,6 @@ const treeRows = [
               ))
             }
           </ol>
-          <div class="px-3 pt-1 pb-2 font-mono text-xs text-muted-foreground/70">+ 41 more files</div>
         </div>
       </div>
 
@@ -347,8 +350,8 @@ const treeRows = [
         <div class="relative hidden h-20 lg:block" aria-hidden="true">
           <div class="absolute inset-x-3 top-[34%] h-px bg-border"></div>
           <div class="absolute inset-x-3 top-[66%] h-px bg-border"></div>
-          <span data-packet="right" class="absolute top-[34%] left-3 size-2 -translate-y-1/2 rounded-full bg-graph-1 shadow-[0_0_12px_var(--graph-1)]"></span>
-          <span data-packet="left" class="absolute top-[66%] right-3 size-2 -translate-y-1/2 rounded-full bg-graph-2 shadow-[0_0_12px_var(--graph-2)]"></span>
+          <span data-packet="right" class="absolute top-[34%] right-5 left-3 h-0"><span class="absolute left-0 size-2 -translate-y-1/2 rounded-full bg-graph-1 shadow-[0_0_12px_var(--graph-1)]"></span></span>
+          <span data-packet="left" class="absolute top-[66%] right-5 left-3 h-0"><span class="absolute left-0 size-2 -translate-y-1/2 rounded-full bg-graph-2 shadow-[0_0_12px_var(--graph-2)]"></span></span>
           <span class="absolute top-0 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] text-muted-foreground">walkthrough</span>
           <span class="absolute bottom-0 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] text-muted-foreground">reply</span>
         </div>
@@ -361,8 +364,8 @@ const treeRows = [
         <div class="relative hidden h-20 lg:block" aria-hidden="true">
           <div class="absolute inset-x-3 top-[34%] h-px bg-border"></div>
           <div class="absolute inset-x-3 top-[66%] h-px bg-border"></div>
-          <span data-packet="right" class="absolute top-[34%] left-3 size-2 -translate-y-1/2 rounded-full bg-graph-1 shadow-[0_0_12px_var(--graph-1)]"></span>
-          <span data-packet="left" class="absolute top-[66%] right-3 size-2 -translate-y-1/2 rounded-full bg-graph-2 shadow-[0_0_12px_var(--graph-2)]"></span>
+          <span data-packet="right" class="absolute top-[34%] right-5 left-3 h-0"><span class="absolute left-0 size-2 -translate-y-1/2 rounded-full bg-graph-1 shadow-[0_0_12px_var(--graph-1)]"></span></span>
+          <span data-packet="left" class="absolute top-[66%] right-5 left-3 h-0"><span class="absolute left-0 size-2 -translate-y-1/2 rounded-full bg-graph-2 shadow-[0_0_12px_var(--graph-2)]"></span></span>
           <span class="absolute top-0 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] text-muted-foreground">review</span>
           <span class="absolute bottom-0 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] text-muted-foreground">comment</span>
         </div>
@@ -722,6 +725,22 @@ const treeRows = [
       root.querySelector(selector) as T | null;
     const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+    /* Runs a demo while its element is in view. Leaving ends that run, so coming back never stacks a second loop. */
+    function whileVisible(element: Element, amount: number, play: (live: () => boolean) => Promise<void>) {
+      let generation = 0;
+      inView(
+        element,
+        () => {
+          const run = ++generation;
+          void play(() => run === generation);
+          return () => {
+            generation += 1;
+          };
+        },
+        { amount },
+      );
+    }
+
     /* The headline arrives word by word, then everything marked for reveal follows it in. */
     function introduce() {
       animate(
@@ -737,7 +756,7 @@ const treeRows = [
             animate(
               element,
               { opacity: [0, 1], y: [28, 0], filter: ['blur(6px)', 'blur(0px)'] },
-              { duration: 0.9, ease: [0.22, 1, 0.36, 1], delay: element.closest('[data-hero-frame]') ? 0 : 0.05 },
+              { duration: 0.9, ease: [0.22, 1, 0.36, 1], delay: 0.05 },
             );
           },
           { amount: 0.25 },
@@ -774,63 +793,49 @@ const treeRows = [
       );
     }
 
-    /* An alphabetical diff: attention drains row by row, and the decision is the last file. */
+    /* An alphabetical diff: forty-one files in, attention drains row by row and runs out around the decision. */
     function drainAttention() {
       const list = one('[data-diff-list]');
       const scan = one('[data-scan]');
       const meter = one('[data-attention]');
       const matters = one('[data-matters]');
-      if (!list || !scan || !meter || !matters) return;
+      const decision = one('[data-diff-row="decision"]');
+      if (!list || !scan || !meter || !matters || !decision) return;
       const rows = all('[data-diff-row]', list);
-      const last = rows.at(-1);
-      if (!last) return;
+      const attention = (left: number) => ({
+        width: `${Math.max(left * 30, 3)}%`,
+        backgroundColor: left > 0.5 ? 'var(--graph-4)' : 'var(--destructive)',
+      });
 
-      let running = false;
-      const play = async () => {
-        while (running) {
-          animate(rows, { opacity: 1 }, { duration: 0.3 });
+      whileVisible(list, 0.5, async (live) => {
+        while (live()) {
+          animate(rows, { opacity: 1, x: 0 }, { duration: 0.3 });
           animate(matters, { opacity: 0 }, { duration: 0.2 });
-          animate(meter, { width: '100%', backgroundColor: 'var(--graph-2)' }, { duration: 0.4 });
+          animate(meter, attention(1), { duration: 0.4 });
           await animate(scan, { y: 0, opacity: 1 }, { duration: 0.4 });
           for (const [index, row] of rows.entries()) {
-            if (!running) return;
-            const left = 1 - (index + 1) / rows.length;
-            animate(meter, {
-              width: `${Math.max(left * 100, 6)}%`,
-              backgroundColor: left > 0.5 ? 'var(--graph-2)' : left > 0.25 ? 'var(--graph-4)' : 'var(--destructive)',
-            });
+            if (!live()) return;
+            animate(meter, attention(1 - (index + 1) / rows.length));
             await animate(scan, { y: row.offsetTop }, { duration: 0.32, ease: 'easeInOut' });
-            if (row !== last) animate(row, { opacity: 0.35 }, { duration: 0.4 });
+            if (row === decision) {
+              animate(matters, { opacity: [0, 1], scale: [0.8, 1] }, spring);
+              animate(row, { x: [0, -3, 3, -2, 0] }, { duration: 0.4 });
+            } else {
+              animate(row, { opacity: 0.35 }, { duration: 0.4 });
+            }
           }
-          await animate(matters, { opacity: [0, 1], scale: [0.8, 1] }, spring);
-          await animate(last, { x: [0, -3, 3, -2, 0] }, { duration: 0.4 });
           await wait(2600);
         }
-      };
-
-      inView(
-        list,
-        () => {
-          running = true;
-          void play();
-          return () => {
-            running = false;
-          };
-        },
-        { amount: 0.5 },
-      );
+      });
     }
 
     /* Packets travel between the agent, Porcelain, and you. */
     function sendPackets() {
-      for (const [index, packet] of all('[data-packet]').entries()) {
-        const toRight = packet.dataset.packet === 'right';
-        const lane = packet.parentElement;
-        if (!lane) continue;
-        const distance = () => lane.clientWidth - 24 - packet.clientWidth;
+      for (const [index, carrier] of all('[data-packet]').entries()) {
+        const toRight = carrier.dataset.packet === 'right';
         animate(
-          packet,
-          { x: toRight ? [0, distance()] : [0, -distance()], opacity: [0, 1, 1, 0] },
+          carrier,
+          { x: toRight ? ['0%', '100%'] : ['100%', '0%'], opacity: [0, 1, 1, 0] },
           { duration: 2.2, repeat: Infinity, ease: 'easeInOut', delay: index * 0.55, repeatDelay: 0.6 },
         );
       }
@@ -897,7 +902,14 @@ const treeRows = [
       };
 
       for (const element of all('[data-stop]', tour)) {
-        inView(element, () => show(Number(element.dataset.stop)), { margin: '-45% 0px -45% 0px' });
+        inView(
+          element,
+          () => {
+            show(Number(element.dataset.stop));
+            return () => {};
+          },
+          { margin: '-45% 0px -45% 0px' },
+        );
       }
     }
 
@@ -943,7 +955,15 @@ const treeRows = [
 
       const rowHeight = 32;
       const pinnedHeight = pinned.scrollHeight;
-      let running = false;
+      const instant = { duration: 0 };
+
+      const reset = () => {
+        animate(menu, { opacity: 0 }, instant);
+        animate([pinned, chip], { opacity: 0 }, instant);
+        animate(pinned, { height: 0 }, instant);
+        animate(pinnedRow, { y: 0 }, instant);
+        animate([pinRow, hideRow], { height: rowHeight, opacity: 1, backgroundColor: 'rgba(0, 0, 0, 0)' }, instant);
+      };
 
       const openMenu = async (row: HTMLElement, label: string) => {
         action.textContent = label;
@@ -955,45 +975,29 @@ const treeRows = [
         await animate(menu, { opacity: 0, scale: 0.97 }, { duration: 0.15 });
       };
 
-      const reset = async () => {
-        await animate([pinned, chip], { opacity: 0 }, { duration: 0.3 });
-        const instant = { duration: 0 };
-        animate(pinned, { height: 0, opacity: 1 }, instant);
-        animate(pinnedRow, { y: 0 }, instant);
-        animate([pinRow, hideRow], { opacity: 0 }, instant);
-        animate([pinRow, hideRow], { height: rowHeight, backgroundColor: 'rgba(0, 0, 0, 0)' }, instant);
-        await animate([pinRow, hideRow], { opacity: 1 }, { duration: 0.4 });
-      };
-
-      const play = async () => {
-        while (running) {
+      whileVisible(tree, 0.6, async (live) => {
+        while (live()) {
+          reset();
+          animate(pinned, { opacity: 1 }, instant);
           await wait(700);
+          if (!live()) return;
           await openMenu(pinRow, 'Pin file');
+          if (!live()) return;
           const travel = pinRow.offsetTop - pinnedRow.offsetTop;
           animate(pinned, { height: [0, pinnedHeight] }, spring);
           animate(pinRow, { height: 0, opacity: 0 }, spring);
           await animate(pinnedRow, { y: [travel, 0], opacity: [0.4, 1] }, spring);
           await wait(900);
-          if (!running) return;
+          if (!live()) return;
           await openMenu(hideRow, 'Hide folder');
+          if (!live()) return;
           animate(hideRow, { height: 0, opacity: 0 }, spring);
           await animate(chip, { opacity: [0, 1], scale: [0.8, 1] }, spring);
           await wait(2600);
-          await reset();
+          if (!live()) return;
+          await animate([pinned, chip, pinRow, hideRow], { opacity: 0 }, { duration: 0.3 });
         }
-      };
-
-      inView(
-        tree,
-        () => {
-          running = true;
-          void play();
-          return () => {
-            running = false;
-          };
-        },
-        { amount: 0.6 },
-      );
+      });
     }
 
     /* Remote: data runs along the wires to each machine. Mobile: a shimmer stands in for the app. */
@@ -1013,6 +1017,7 @@ const treeRows = [
       }
     }
 
+    document.documentElement.toggleAttribute('data-animated', true);
     if (reduced) {
       runTour();
     } else {
