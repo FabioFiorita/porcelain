@@ -1,6 +1,5 @@
 import { Box } from '../../../components/ui/box';
-import { Empty } from '../../../components/ui/empty';
-import { useSelectedWorktree } from '../../projects';
+import { WorkspaceGate, type Workspace } from '../../projects';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
@@ -31,11 +30,12 @@ export function FilesScreen({
 }: {
   onOpen: (path: string, workspace: string) => void;
 }) {
-  const selected = useSelectedWorktree();
-  return selected ? (
-    <WorktreeFiles key={selected.key} selected={selected} onOpen={onOpen} />
-  ) : (
-    <Empty description="Select a worktree to continue." title="Files" />
+  return (
+    <WorkspaceGate title="Files">
+      {(selected) => (
+        <WorktreeFiles key={selected.key} selected={selected} onOpen={onOpen} />
+      )}
+    </WorkspaceGate>
   );
 }
 
@@ -43,7 +43,7 @@ function WorktreeFiles({
   selected,
   onOpen,
 }: {
-  selected: NonNullable<ReturnType<typeof useSelectedWorktree>>;
+  selected: Workspace;
   onOpen: (path: string, workspace: string) => void;
 }) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
@@ -158,6 +158,9 @@ function WorktreeFiles({
       <FileTree
         header={header}
         flat={searching}
+        loaded={
+          searching ? AsyncResult.isSuccess(paths.result) : loading.rootLoaded
+        }
         nodes={
           searching
             ? quickOpenMatches(pathData?.paths ?? [], query).map((path) => ({
@@ -235,6 +238,7 @@ function WorktreeFiles({
         }
       />
       <FileActionSheet
+        selected={selected}
         action={action}
         onClose={() => setAction(undefined)}
         onCreated={open}

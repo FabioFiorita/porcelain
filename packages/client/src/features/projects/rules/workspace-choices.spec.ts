@@ -142,20 +142,91 @@ describe('choosing a workspace across paired environments', () => {
         [laptop('ready', inventory('Laptop', [project('one', false)]))],
         saved,
       ).messages,
-    ).toEqual([
-      "Laptop · Porcelain: Porcelain can't reach this repository right now.",
-      'Saved worktree is unavailable',
-    ]);
+    ).toEqual(["Porcelain can't reach this repository right now."]);
     expect(workspaceChoices([laptop('reading')], saved).messages).toEqual([
       'Laptop · Reading projects…',
     ]);
     expect(
       workspaceChoices([], { ...saved, environmentId: 'forgotten' }).messages,
-    ).toEqual(['No environments paired', 'Saved worktree is unavailable']);
+    ).toEqual([
+      'No environments paired',
+      'This environment is no longer paired.',
+    ]);
   });
 });
 
-it('shows the unavailable project reason outside its disabled menu and offers another read', () => {
+it('uses the selection rule reason in the picker, including unpaired and pending environments', () => {
+  const saved = {
+    environmentId: 'laptop',
+    projectId: 'one',
+    worktreeId: 'one-main',
+  };
+  const result = workspaceChoices(
+    [
+      {
+        environmentId: 'laptop',
+        name: 'Saved laptop name',
+        status: 'ready',
+        inventory: inventory('Laptop', [project('one', false)]),
+      },
+    ],
+    saved,
+  );
+  expect(result.messages).toEqual([
+    "Porcelain can't reach this repository right now.",
+  ]);
+  expect(workspaceChoices([], saved).messages).toEqual([
+    'No environments paired',
+    'This environment is no longer paired.',
+  ]);
+  expect(
+    workspaceChoices(
+      [
+        {
+          environmentId: 'laptop',
+          name: 'Laptop',
+          status: 'reading',
+          inventory: undefined,
+        },
+      ],
+      saved,
+    ).messages,
+  ).toEqual(['Laptop · Reading projects…']);
+});
+
+it.each([
+  [
+    'moved',
+    "Porcelain doesn't recognise this repository as the one it registered. Remove the project and add it again.",
+  ],
+  ['missing', 'The repository folder is missing.'],
+  [
+    'permission',
+    'Porcelain cannot read this repository because access is denied.',
+  ],
+  ['git-failed', 'Git could not read this repository.'],
+] as const)(
+  'shows the selected project reason %s once and offers another read',
+  (unavailableReason, reason) => {
+    const result = workspaceChoices(
+      [
+        {
+          environmentId: 'laptop',
+          name: 'Laptop',
+          status: 'ready',
+          inventory: inventory('Laptop', [
+            { ...project('one', false), available: false, unavailableReason },
+          ]),
+        },
+      ],
+      { environmentId: 'laptop', projectId: 'one', worktreeId: 'one-main' },
+    );
+    expect(result.messages).toEqual([reason]);
+    expect(result.canReadAgain).toBe(true);
+  },
+);
+
+it('shows an unavailable project reason without a saved selection and offers another read', () => {
   const result = workspaceChoices(
     [
       {

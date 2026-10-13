@@ -26,10 +26,7 @@ import { CodeView } from '../../../components/ui/code-view';
 import { FileHeader } from '../../../components/ui/file-header';
 import { ItemMenu } from '../../../components/ui/item-menu';
 import type { ReviewRange } from '../../../components/ui/review-annotation';
-import {
-  useReviewWorkspace,
-  type ReviewWorkspace,
-} from '../adapters/workspace';
+import { WorkspaceGate, type Workspace } from '../../projects';
 import { useReviewSnapshot, useReviewMarks } from '../queries/review';
 import {
   reviewFiles,
@@ -53,19 +50,31 @@ export function ReviewFileScreen({
   path?: string | undefined;
   comparison: ReviewComparison;
 }) {
-  const workspace = useReviewWorkspace(workspaceKey ?? '');
-  return workspace && path ? (
-    <SelectedFile
-      key={`${workspace.key}:${path}:${JSON.stringify(comparison)}`}
-      workspace={workspace}
-      path={path}
-      comparison={comparison}
-    />
-  ) : (
+  const changed = (
     <Empty
       title="Review unavailable"
       description="Return to Review and select a worktree and changed file."
     />
+  );
+  return (
+    <WorkspaceGate
+      title="Review"
+      expectedWorkspace={workspaceKey ?? ''}
+      changed={changed}
+    >
+      {(workspace) =>
+        path ? (
+          <SelectedFile
+            key={`${workspace.key}:${path}:${JSON.stringify(comparison)}`}
+            workspace={workspace}
+            path={path}
+            comparison={comparison}
+          />
+        ) : (
+          changed
+        )
+      }
+    </WorkspaceGate>
   );
 }
 
@@ -74,7 +83,7 @@ function SelectedFile({
   path,
   comparison,
 }: {
-  workspace: ReviewWorkspace;
+  workspace: Workspace;
   path: string;
   comparison: ReviewComparison;
 }) {
@@ -102,7 +111,7 @@ function ReviewedFile({
   path,
   comparison,
 }: {
-  workspace: ReviewWorkspace;
+  workspace: Workspace;
   snapshot: ReviewSnapshot;
   path: string;
   comparison: ReviewComparison;
@@ -156,7 +165,7 @@ function ReviewedFile({
 }
 
 type FileProps = {
-  workspace: ReviewWorkspace;
+  workspace: Workspace;
   snapshot: ReviewSnapshot;
   file: ReviewFile;
   comparison: ReviewComparison;
@@ -363,7 +372,7 @@ function DiffContentView({
   ...props
 }: {
   content: DiffContent;
-  workspace: ReviewWorkspace;
+  workspace: Workspace;
   comparison: ReviewComparison;
   target?: CommentTarget | undefined;
 }) {
@@ -403,7 +412,7 @@ function SelectableContent({
   source,
   lines,
 }: {
-  workspace: ReviewWorkspace;
+  workspace: Workspace;
   comparison: ReviewComparison;
   target?: CommentTarget | undefined;
   source?: string;
@@ -465,7 +474,7 @@ function FileCommentAction({
   target,
   ...props
 }: {
-  workspace: ReviewWorkspace;
+  workspace: Workspace;
   comparison: ReviewComparison;
   target?: CommentTarget | undefined;
 }) {
@@ -486,7 +495,7 @@ function CommentAction({
   anchor,
   label,
 }: {
-  workspace: ReviewWorkspace;
+  workspace: Workspace;
   comparison: ReviewComparison;
   anchor?: CommentAnchor | undefined;
   label: string;

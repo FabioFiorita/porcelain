@@ -5,11 +5,10 @@ import { type WriteNotSentError } from '../../shared/api/write-queue.ts';
 import type { ConnectionError } from '../../shared/api/connection-error.ts';
 import { EnvironmentStorage } from './ports/environment-storage.ts';
 import { withRemote, type Remote } from './rules/remotes.ts';
+import type { PersistedReadState } from '../persistence/rules/read-state.ts';
 
-type AccessState = {
+type AccessState = PersistedReadState & {
   readonly remotes: readonly Remote[];
-  readonly status: 'loading' | 'ready' | 'unreadable';
-  readonly error: string | undefined;
 };
 
 type WriteFailure = ConnectionError | WriteNotSentError;

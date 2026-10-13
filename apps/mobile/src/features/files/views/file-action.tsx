@@ -10,19 +10,20 @@ import { Field } from '../../../components/ui/field';
 import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
 import { ErrorState } from '../../../components/ui/error-state';
-import { useSelectedWorktree } from '../../projects';
+import type { Workspace } from '../../projects';
 import { useEditFile, type FileAction } from '../commands/edit-file';
 
 export function FileActionSheet({
   action,
+  selected,
   onClose,
   onCreated,
 }: {
   action: FileAction | undefined;
+  selected: Workspace;
   onClose: () => void;
   onCreated: (path: string) => void;
 }) {
-  const selected = useSelectedWorktree();
   return (
     <BottomSheet
       isPresented={action !== undefined}
@@ -30,7 +31,7 @@ export function FileActionSheet({
       contentPadding={0}
       snapPoints={['full']}
     >
-      {action && selected ? (
+      {action ? (
         <ActionForm
           key={JSON.stringify([selected.key, action])}
           selected={selected}
@@ -49,7 +50,7 @@ function ActionForm({
   onClose,
   onCreated,
 }: {
-  selected: NonNullable<ReturnType<typeof useSelectedWorktree>>;
+  selected: Workspace;
   action: FileAction;
   onClose: () => void;
   onCreated: (path: string) => void;

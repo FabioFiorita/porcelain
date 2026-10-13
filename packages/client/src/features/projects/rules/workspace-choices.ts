@@ -1,3 +1,4 @@
+import { workspaceSelection } from './workspace-selection.ts';
 import {
   projectUnavailableMessage,
   type Inventory,
@@ -44,15 +45,20 @@ function savedUnavailable(
   const environment = environments.find(
     (entry) => entry.environmentId === saved.environmentId,
   );
-  if (environment === undefined) return true;
-  if (environment.status !== 'ready') return false;
-  const project = environment.inventory?.projects.find(
-    (entry) => entry.id === saved.projectId,
-  );
-  const worktree = project?.worktrees.find(
-    (entry) => entry.id === saved.worktreeId,
-  );
-  return !project?.available || !worktree?.available;
+  const decision = workspaceSelection({
+    readiness: {
+      environmentsReady: true,
+      selectionReady: true,
+      failure: undefined,
+    },
+    remembered: saved,
+    paired: environment !== undefined,
+    inventory:
+      environment?.status === 'ready' && environment.inventory
+        ? { status: 'ready', inventory: environment.inventory }
+        : { status: 'reading' },
+  });
+  return decision.kind === 'unavailable' ? decision.reason : undefined;
 }
 
 export function workspaceChoices(
@@ -75,16 +81,24 @@ export function workspaceChoices(
           const status = statusOf(environment);
           return status ? [`${nameOf(environment)} · ${status}`] : [];
         });
+  const unavailableReason = saved && savedUnavailable(environments, saved);
   messages.push(
     ...choices
-      .filter(({ project }) => !project.available)
+      .filter(
+        ({ project, environmentId }) =>
+          !project.available &&
+          !(
+            unavailableReason &&
+            saved?.environmentId === environmentId &&
+            saved.projectId === project.id
+          ),
+      )
       .map(
         ({ project, environmentName }) =>
           `${environmentName} · ${project.name}: ${projectUnavailableMessage(project)}`,
       ),
   );
-  if (saved !== undefined && savedUnavailable(environments, saved))
-    messages.push('Saved worktree is unavailable');
+  if (unavailableReason) messages.push(unavailableReason);
   return {
     choices,
     messages,

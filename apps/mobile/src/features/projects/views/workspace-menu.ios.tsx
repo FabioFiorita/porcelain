@@ -85,7 +85,7 @@ function ProjectMenu(props: WorkspaceMenuProps) {
       ) : null}
       {props.error ? <Text>{props.error}</Text> : null}
       {props.error ? (
-        <Button onPress={props.onRead} label="Read saved workspace again" />
+        <Button onPress={props.onRead} label="Read again" />
       ) : null}
     </Menu>
   );
