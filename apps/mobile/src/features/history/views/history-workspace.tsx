@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import { shortOid } from '@porcelain/client/history/rules';
 import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
@@ -8,7 +8,6 @@ import {
   emptyDocuments,
   openDocument,
   activateDocument,
-  closeDocument,
   type DocumentTabsState,
 } from '../../../shared/rules/document-tabs';
 import type { Workspace } from '../../projects';
@@ -64,57 +63,73 @@ export function HistoryWorkspace({ current }: { current: Workspace }) {
       )}
     >
       <Box className="flex-1" surface="background">
-        <DocumentTabs
-          tabs={documents.tabs}
-          active={documents.active}
-          onSelect={(key) =>
-            setDocuments((state) => activateDocument(state, key))
-          }
-          onClose={(key) => setDocuments((state) => closeDocument(state, key))}
+        <DocumentTabs documents={documents} onChange={setDocuments} />
+        <SelectedHistoryDocument
+          active={active}
+          current={current}
+          setDocuments={setDocuments}
+          open={open}
         />
-        {active?.kind === 'commit' ? (
-          <CommitContent
-            key={active.key}
-            selection={current}
-            oid={active.oid}
-            parent={active.parent}
-            onParentChange={(parent) =>
-              setDocuments((state) => ({
-                ...state,
-                tabs: state.tabs.map((tab) =>
-                  tab.key === active.key ? { ...tab, parent } : tab,
-                ),
-              }))
-            }
-            onOpenFile={(path) =>
-              open({
-                key: JSON.stringify(['diff', active.oid, active.parent, path]),
-                kind: 'diff',
-                closable: true,
-                oid: active.oid,
-                parent: active.parent,
-                path,
-                title: path.split('/').at(-1) ?? path,
-                label: `${path} · ${shortOid(active.oid)} · Parent ${active.parent}`,
-              })
-            }
-          />
-        ) : active?.kind === 'diff' ? (
-          <DiffContent
-            key={active.key}
-            selection={current}
-            oid={active.oid}
-            parent={active.parent}
-            path={active.path}
-          />
-        ) : (
-          <Empty
-            title="Select a commit"
-            description="Choose a commit from History to see its changes."
-            icon="history"
-          />
-        )}
       </Box>
     </WorkspacePanes>
+  );
+}
+
+function SelectedHistoryDocument({
+  active,
+  current,
+  setDocuments,
+  open,
+}: {
+  active: HistoryDocument | undefined;
+  current: Workspace;
+  setDocuments: Dispatch<SetStateAction<DocumentTabsState<HistoryDocument>>>;
+  open: (document: HistoryDocument) => void;
+}) {
+  if (!active)
+    return (
+      <Empty
+        title="Select a commit"
+        description="Choose a commit from History to see its changes."
+        icon="history"
+      />
+    );
+  if (active.kind === 'diff')
+    return (
+      <DiffContent
+        key={active.key}
+        selection={current}
+        oid={active.oid}
+        parent={active.parent}
+        path={active.path}
+      />
+    );
+  return (
+    <CommitContent
+      key={active.key}
+      selection={current}
+      oid={active.oid}
+      parent={active.parent}
+      onParentChange={(parent) =>
+        setDocuments((state) => ({
+          ...state,
+          tabs: state.tabs.map((tab) =>
+            tab.key === active.key ? { ...tab, parent } : tab,
+          ),
+        }))
+      }
+      onOpenFile={(path) =>
+        open({
+          key: JSON.stringify(['diff', active.oid, active.parent, path]),
+          kind: 'diff',
+          closable: true,
+          oid: active.oid,
+          parent: active.parent,
+          path,
+          title: path.split('/').at(-1) ?? path,
+          label: `${path} · ${shortOid(active.oid)} · Parent ${active.parent}`,
+        })
+      }
+    />
   );
 }

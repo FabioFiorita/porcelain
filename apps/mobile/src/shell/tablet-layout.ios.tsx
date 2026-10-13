@@ -1,20 +1,22 @@
-import { Slot, usePathname } from 'expo-router';
+import { Slot } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { Dimensions, useWindowDimensions } from 'react-native';
 import { Box } from '../components/ui/box';
 import { Separator } from '../components/ui/separator';
 import { useAppSidebar } from '../features/preferences';
 import { TabletSidebar } from './tablet-sidebar';
-import { destinationForPath } from './destinations';
 
 export function TabletLayout() {
-  const inSettings = destinationForPath(usePathname()).group === '(settings)';
   const { sidebar, setSidebarVisible } = useAppSidebar();
-  const sidebarVisible = sidebar?.visible ?? !inSettings;
+  const sidebarVisible = sidebar?.visible ?? true;
   const [width, setWidth] = useState(0);
   const compact = width > 0 && width < 700;
+  const window = useWindowDimensions();
+  const screen = Dimensions.get('screen');
+  const windowed = window.width < screen.width || window.height < screen.height;
   useEffect(() => {
-    setSidebarVisible(!inSettings);
-  }, [inSettings, setSidebarVisible]);
+    setSidebarVisible(true);
+  }, [setSidebarVisible]);
   useEffect(
     () => () => {
       setSidebarVisible(undefined);
@@ -29,18 +31,13 @@ export function TabletLayout() {
     >
       {sidebarVisible ? (
         <>
-          <Box className={compact ? 'flex-1' : 'w-64 shrink-0'}>
-            <TabletSidebar
-              onNavigate={() => {
-                if (compact) setSidebarVisible(false);
-              }}
-              {...(compact ? { onClose: () => setSidebarVisible(false) } : {})}
-            />
+          <Box className={compact ? 'w-48 shrink-0' : 'w-64 shrink-0'}>
+            <TabletSidebar windowed={windowed} />
           </Box>
           <Separator orientation="vertical" />
         </>
       ) : null}
-      <Box className={compact && sidebarVisible ? 'hidden' : 'min-w-0 flex-1'}>
+      <Box className="min-w-0 flex-1">
         <Slot />
       </Box>
     </Box>

@@ -1,4 +1,4 @@
-import { CommitState } from './commit-state';
+import { CommitReadState } from './commit-state';
 import { Box } from '../../../components/ui/box';
 import { AsyncResult } from 'effect/reactivity';
 import type { CommitFile } from '@porcelain/client/history/rules';
@@ -32,17 +32,35 @@ export function DiffContent({
   path: string;
 }) {
   const commit = useCommit(selection, oid, parent);
-  if (AsyncResult.isFailure(commit.result) || !commit.value)
-    return (
-      <CommitState
-        failed={AsyncResult.isFailure(commit.result)}
-        retry={commit.retry}
-      />
-    );
-
-  const file = commit.value.files.find(
-    (candidate) => commitPath(candidate) === path,
+  return (
+    <CommitReadState commit={commit}>
+      {(value) => (
+        <CommitFileContent
+          selection={selection}
+          oid={oid}
+          parent={parent}
+          path={path}
+          files={value.files}
+        />
+      )}
+    </CommitReadState>
   );
+}
+
+function CommitFileContent({
+  selection,
+  oid,
+  parent,
+  path,
+  files,
+}: {
+  selection: HistorySelection;
+  oid: string;
+  parent: number;
+  path: string;
+  files: readonly CommitFile[];
+}) {
+  const file = files.find((candidate) => commitPath(candidate) === path);
   return (
     <Box className="flex-1" surface="background">
       {file ? (

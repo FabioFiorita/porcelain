@@ -6,12 +6,10 @@ export function DestinationLayout({
   name,
   title,
   children,
-  leadingSidebar = true,
 }: {
   name: string;
   title: string;
   children?: ReactNode;
-  leadingSidebar?: boolean;
 }) {
   return (
     <Stack
@@ -22,16 +20,12 @@ export function DestinationLayout({
         headerTintColor: theme.colors.text,
       })}
       screenLayout={({ children, route }) => (
-        <DestinationHeader
-          leading={
-            leadingSidebar && route.name !== 'files' && name !== 'settings'
-          }
-        >
+        <DestinationHeader leading={route.name !== 'files'}>
           {children}
         </DestinationHeader>
       )}
     >
-      <Stack.Screen name={name} options={{ title }} />
+      <Stack.Screen name={name} options={{ title, headerBackVisible: false }} />
       {children}
     </Stack>
   );

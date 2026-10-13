@@ -19,9 +19,8 @@ import { DocumentTabs } from '../../../components/ui/document-tabs';
 import { WorkspacePanes } from '../../../components/ui/workspace-panes';
 import { isTablet } from '../../../shared/navigation/is-tablet';
 import {
-  activateDocument,
-  closeDocument,
   emptyDocuments,
+  activateDocument,
   openDocument,
   type DocumentTabsState,
 } from '../../../shared/rules/document-tabs';
@@ -270,17 +269,7 @@ function ReviewList({
       navigationLabel="Changed files"
       hasSelection={documents.active !== null}
     >
-      <DocumentTabs
-        tabs={documents.tabs}
-        active={documents.active}
-        onSelect={(key) =>
-          setDocuments((current) => activateDocument(current, key))
-        }
-        onClose={(key) => {
-          if (key !== 'overview')
-            setDocuments((current) => closeDocument(current, key));
-        }}
-      />
+      <DocumentTabs documents={documents} onChange={setDocuments} />
       {selectedPath ? (
         <ReviewFileContent
           key={`${workspace.key}:${selectedPath}:${JSON.stringify(comparison)}`}

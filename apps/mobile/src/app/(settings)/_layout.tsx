@@ -1,11 +1,11 @@
 import { Stack } from 'expo-router';
-import { SettingsNavigator } from '../../shell/settings-presentation';
+import { DestinationLayout } from '../../shell/destination-layout';
 
 export const unstable_settings = { anchor: 'settings' };
 
 function SettingsLayout() {
   return (
-    <SettingsNavigator>
+    <DestinationLayout name="settings" title="Settings">
       <Stack.Screen name="appearance" options={{ title: 'Appearance' }} />
       <Stack.Protected guard={__DEV__}>
         <Stack.Screen
@@ -19,7 +19,7 @@ function SettingsLayout() {
           options={{ title: 'Primitives' }}
         />
       </Stack.Protected>
-    </SettingsNavigator>
+    </DestinationLayout>
   );
 }
 

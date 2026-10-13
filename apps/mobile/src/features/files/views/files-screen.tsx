@@ -28,8 +28,6 @@ import { isTablet } from '../../../shared/navigation/is-tablet';
 import {
   emptyDocuments,
   openDocument,
-  activateDocument,
-  closeDocument,
 } from '../../../shared/rules/document-tabs';
 import { directoryRequests } from '../rules/directory-requests';
 import { useDirectories } from '../queries/directory';
@@ -116,16 +114,7 @@ function TabletFiles({
       )}
     >
       <Box className="flex-1" surface="background">
-        <DocumentTabs
-          tabs={documents.tabs}
-          active={documents.active}
-          onSelect={(key) =>
-            setDocuments((current) => activateDocument(current, key))
-          }
-          onClose={(key) =>
-            setDocuments((current) => closeDocument(current, key))
-          }
-        />
+        <DocumentTabs documents={documents} onChange={setDocuments} />
         {active ? (
           <FileContent
             key={active.key}
