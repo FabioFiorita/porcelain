@@ -1,21 +1,16 @@
 import { useRouter } from 'expo-router';
-import { Empty } from '../../../components/ui/empty';
 import { WorkspaceGate } from '../../projects';
+import { isTablet } from '../../../shared/navigation/is-tablet';
 import { HistoryNavigation } from './history-navigation';
-import { useHistoryPresentation } from '../store';
+import { HistoryWorkspace } from './history-workspace';
 
 export function HistoryScreen() {
-  const { wide } = useHistoryPresentation();
   const router = useRouter();
   return (
     <WorkspaceGate title="History">
       {(current) =>
-        wide ? (
-          <Empty
-            title="Select a commit"
-            description="Choose a commit from History to see its changes."
-            icon="history"
-          />
+        isTablet ? (
+          <HistoryWorkspace key={current.key} current={current} />
         ) : (
           <HistoryNavigation
             key={current.key}
