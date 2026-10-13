@@ -66,25 +66,55 @@ final class CodeSurface: ExpoView {
 
 struct CodeContent: View {
   @ObservedObject var model: CodeModel
+  @Environment(\.fontResolutionContext) private var fontContext
   @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1
   private var codeSize: CGFloat { model.tokens.codeSize * textScale }
+  private var codeFont: Font { .system(size: codeSize, design: .monospaced) }
+  private var captionFont: Font { .system(size: model.tokens.captionSize * textScale) }
   var body: some View {
-    let gutterWidth = CGFloat(model.gutterDigits) * ("0" as NSString).size(withAttributes: [.font: UIFont.monospacedSystemFont(ofSize: codeSize, weight: .regular)]).width + model.tokens.inset
-    ScrollView(model.wrap ? [.vertical] : [.vertical, .horizontal]) {
-      LazyVStack(alignment: .leading, spacing: 0) {
-        ForEach(model.lines) { line in
-          if line.kind == "gap" {
-            Button(line.text) { model.onExpand?(line.id) }
-              .font(.system(size: model.tokens.captionSize * textScale)).foregroundStyle(model.muted).padding(model.tokens.blockPadding)
-          } else {
-            row(line, gutterWidth: gutterWidth)
+    let gutterWidth = textWidth(AttributedString(String(repeating: "0", count: model.gutterDigits)), fallbackFont: codeFont) + model.tokens.inset
+    GeometryReader { viewport in
+      // A lazy stack takes its ideal width from its first row, which can be much shorter than a later code line.
+      let contentWidth = model.wrap ? viewport.size.width : model.lines.reduce(viewport.size.width) { width, line in
+        max(width, rowWidth(line, gutterWidth: gutterWidth))
+      }
+      ScrollView(model.wrap ? [.vertical] : [.vertical, .horizontal]) {
+        LazyVStack(alignment: .leading, spacing: 0) {
+          ForEach(model.lines) { line in
+            if line.kind == "gap" {
+              Button(line.text) { model.onExpand?(line.id) }
+                .font(captionFont).foregroundStyle(model.muted).padding(model.tokens.blockPadding)
+            } else {
+              row(line, gutterWidth: gutterWidth)
+            }
           }
         }
+        .frame(width: contentWidth, alignment: .leading)
+        .padding(.vertical, model.tokens.spacing)
       }
-      .frame(maxWidth: model.wrap ? .infinity : nil, alignment: .leading)
-      .padding(.vertical, model.tokens.spacing)
     }
     .background(model.background)
+  }
+  private func textWidth(_ text: AttributedString, fallbackFont: Font) -> CGFloat {
+    let measured = NSMutableAttributedString(string: "")
+    for run in text.runs {
+      let font = (run.font ?? fallbackFont).resolve(in: fontContext).ctFont
+      measured.append(NSAttributedString(string: String(text[run.range].characters), attributes: [.font: font as UIFont]))
+    }
+    return ceil(measured.size().width)
+  }
+  private func rowWidth(_ line: CodeLine, gutterWidth: CGFloat) -> CGFloat {
+    if line.kind == "gap" {
+      return textWidth(AttributedString(line.text), fallbackFont: captionFont) + 2 * model.tokens.blockPadding
+    }
+    let marker = line.kind == "added" || line.kind == "removed"
+    let gutters = model.lineNumbers ? (line.oldLine != nil || marker ? 2 : 1) : 0
+    let gaps = gutters + (marker ? 1 : 0)
+    return textWidth(highlight(line), fallbackFont: codeFont)
+      + CGFloat(gutters) * gutterWidth
+      + (marker ? codeSize : 0)
+      + CGFloat(gaps) * model.tokens.spacing
+      + 2 * model.tokens.spacing
   }
   func row(_ line: CodeLine, gutterWidth: CGFloat) -> some View {
     let side: String? = line.kind == "removed" ? "deletions" : line.oldLine != nil || line.kind == "added" ? "additions" : nil
@@ -108,7 +138,7 @@ struct CodeContent: View {
         .fixedSize(horizontal: !model.wrap, vertical: true)
         .frame(maxWidth: model.wrap ? .infinity : nil, alignment: .leading)
     }
-    .font(.system(size: codeSize, design: .monospaced))
+    .font(codeFont)
     .foregroundStyle(model.muted)
     .padding(.horizontal, model.tokens.spacing).padding(.vertical, model.tokens.inset)
     .frame(maxWidth: .infinity, alignment: .leading)
@@ -141,7 +171,7 @@ struct CodeContent: View {
       part.foregroundColor = model.foreground
       if let color = token.color { part.foregroundColor = Color(red: Double((color >> 16) & 255) / 255, green: Double((color >> 8) & 255) / 255, blue: Double(color & 255) / 255) }
       if let style = token.fontStyle {
-        var font = Font.system(size: codeSize, design: .monospaced)
+        var font = codeFont
         if style & 1 != 0 { font = font.italic() }
         if style & 2 != 0 { font = font.bold() }
         part.font = font

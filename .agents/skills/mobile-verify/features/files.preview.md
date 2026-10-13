@@ -19,4 +19,6 @@ Drive a code file, Markdown reader/source, an image and HTML preview/source. On 
 
 SVG uses the source viewer and remains editable; native bitmap previews are for decodable raster assets. Open a small SVG and confirm its literal source and Edit action.
 
+In Appearance, select Long lines → Scroll. Open source with a short first line and a much longer later line. Drag horizontally past the document viewport and release: the position must stay within the scrolled content instead of springing back to the start. Open and close the iPad inspector and repeat; also scroll vertically to a later long line and confirm the horizontal range does not depend on the first visible row. Select Wrap and confirm every line reflows within the current document width. Repeat on a Review and History diff, with line numbers, merge comparison parents, styled tokens, Unicode and tabs. The shared iOS renderer sizes its lazy stack from all rendered row widths, including gutters, diff markers and gaps; native geometry and gestures require a matching rebuilt development client. Compilation alone does not prove these interactions.
+
 Earlier Files phone evidence opens real source and reaches Edit. The document-tab layout needs a fresh native walkthrough. iPad, Android and physical-device Local Network permission remain unproved until driven.
