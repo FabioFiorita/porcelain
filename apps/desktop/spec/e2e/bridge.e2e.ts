@@ -14,6 +14,34 @@ const saved = JSON.stringify([
   { name: 'Desktop proof', credential: 'test-only-bearer' },
 ]);
 
+test('Settings obtains the local app executable and server directory through its trusted bridge', async ({
+  desktop,
+}) => {
+  const app = await desktop.launch();
+  const page = await app.window();
+  const configuration = await page.evaluate(() =>
+    porcelainDesktop.mcpConfiguration(),
+  );
+  const executable = await app.electron.evaluate(() => process.execPath);
+  expect(configuration.dataDirectory).toBe(app.serverData);
+  expect(configuration.command).toContain(executable);
+  expect(configuration.command).toContain('--porcelain-mcp');
+  expect(configuration.command).toContain(app.serverData);
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Git and agents', exact: true })
+    .click();
+  await expect(
+    page.getByText(configuration.command, { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Copy MCP configuration' }),
+  ).toBeEnabled();
+  await expect(
+    page.getByText(/including when you are viewing a remote computer/),
+  ).toBeVisible();
+});
+
 test('the bridge keeps one opaque credential string encrypted in a file only the owner reads, and restores it after a restart', async ({
   desktop,
 }) => {
@@ -91,7 +119,7 @@ test('with encryption unavailable a write is refused and the saved ciphertext st
   expect(existsSync(app.credentialsFile)).toBe(false);
 });
 
-test('a window the app did not open is refused every credential and app update request', async ({
+test('a window the app did not open is refused MCP configuration, credentials and app updates', async ({
   desktop,
 }) => {
   const app = await desktop.launch();
@@ -118,6 +146,7 @@ test('a window the app did not open is refused every credential and app update r
   const refusals = await rogue.evaluate(async () => {
     const bridge = porcelainDesktop;
     const operations = [
+      () => bridge.mcpConfiguration(),
       () => bridge.credentials.read(),
       () => bridge.credentials.write('untrusted'),
       () => bridge.credentials.clear(),
@@ -138,6 +167,7 @@ test('a window the app did not open is refused every credential and app update r
     BrowserWindow.fromId(id)?.destroy();
   }, rogueId);
   expect(refusals).toEqual([
+    expect.stringContaining('Untrusted desktop request'),
     expect.stringContaining('Untrusted desktop request'),
     expect.stringContaining('Untrusted desktop request'),
     expect.stringContaining('Untrusted desktop request'),

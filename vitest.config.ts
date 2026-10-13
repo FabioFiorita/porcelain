@@ -92,7 +92,10 @@ export default defineConfig({
         test: {
           name: '@porcelain/desktop',
           root,
-          include: ['apps/desktop/src/**/*.spec.ts'],
+          include: [
+            'apps/desktop/src/**/*.spec.ts',
+            'scripts/desktop-build-settings.spec.ts',
+          ],
           expect: { requireAssertions: true },
         },
       },
