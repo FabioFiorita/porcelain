@@ -2,7 +2,7 @@
 import Site from '../layouts/site.astro';
 
 const description =
-  'Run Porcelain on the machine that holds your repositories, in the browser or in the Mac app.';
+  'The Mac app, or a server on Linux or Mac, on the machine that holds your repositories.';
 ---
 
 <Site title="Install — Porcelain" description={description}>
@@ -11,26 +11,32 @@ const description =
       Start where the repository is.
     </h1>
     <p class="mt-5 flex max-w-xl flex-wrap items-center gap-x-3 gap-y-2 text-lg leading-snug text-muted-foreground">
-      <span>Browser and Mac, on Apple silicon.</span>
+      <span>The Mac app, or a server on Linux or Mac.</span>
       <span class="inline-flex items-center rounded-full bg-foreground px-2.5 py-1 text-xs font-medium tracking-[-0.01em] text-background">
         Mobile app coming soon
       </span>
     </p>
 
     <div class="mt-14 grid gap-px overflow-hidden rounded-xl border border-border bg-border lg:grid-cols-2 lg:grid-rows-[auto_1fr_auto]">
-      <section class="grid grid-rows-[auto_1fr_auto] bg-background p-8 lg:row-span-3 lg:grid-rows-subgrid lg:p-10">
-        <h2 class="text-2xl font-medium tracking-[-0.03em]">Browser</h2>
+      <section class="grid min-w-0 grid-rows-[auto_1fr_auto] bg-background p-8 lg:row-span-3 lg:grid-rows-subgrid lg:p-10">
+        <h2 class="text-2xl font-medium tracking-[-0.03em]">Server</h2>
         <p class="mt-3 max-w-md text-muted-foreground">
-          The server runs on the machine that holds your repositories. Open the address it prints.
+          On the Linux or Mac machine that holds your repositories.
         </p>
-        <p class="mt-8 inline-flex h-10 w-fit max-w-full items-center self-start overflow-x-auto rounded-lg bg-muted px-4 font-mono text-sm whitespace-nowrap">
-          <code>npx @fabiofiorita/porcelain@latest serve</code>
-        </p>
+        <div class="mt-8 flex w-full min-w-0 flex-col items-start gap-3 self-start">
+          <p class="inline-flex h-10 w-fit max-w-full items-center overflow-x-auto rounded-lg bg-muted px-4 font-mono text-sm whitespace-nowrap">
+            <code>npx @fabiofiorita/porcelain@latest serve</code>
+          </p>
+          <p class="max-w-md text-sm text-muted-foreground">On Linux, install the user service.</p>
+          <p class="inline-flex h-10 w-fit max-w-full items-center overflow-x-auto rounded-lg bg-muted px-4 font-mono text-sm whitespace-nowrap">
+            <code>npx @fabiofiorita/porcelain@latest service install</code>
+          </p>
+        </div>
       </section>
-      <section class="grid grid-rows-[auto_1fr_auto] bg-background p-8 lg:row-span-3 lg:grid-rows-subgrid lg:p-10">
-        <h2 class="text-2xl font-medium tracking-[-0.03em]">Mac</h2>
+      <section class="grid min-w-0 grid-rows-[auto_1fr_auto] bg-background p-8 lg:row-span-3 lg:grid-rows-subgrid lg:p-10">
+        <h2 class="text-2xl font-medium tracking-[-0.03em]">Mac app</h2>
         <p class="mt-3 max-w-md text-muted-foreground">
-          The app around that review. Apple silicon.
+          The desktop app around that review. Apple silicon.
         </p>
         <a
           class="mt-8 inline-flex h-10 w-fit items-center gap-2 self-start rounded-full bg-foreground px-4 text-sm text-background no-underline"
@@ -46,5 +52,9 @@ const description =
         </a>
       </section>
     </div>
+    <p class="mt-8 max-w-xl text-muted-foreground">
+      Open the address the server prints. The browser is not connected until you pair it from that same machine. The
+      page tells you the command. The files stay there. The iPhone and iPad app will reach that machine too.
+    </p>
   </main>
 </Site>

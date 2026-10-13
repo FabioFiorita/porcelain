@@ -5,7 +5,7 @@ import comments from '../../../../docs/readme/comments.png';
 import proof from '../../../../docs/readme/proof.png';
 
 const description =
-  'A companion for the coding agents you already run. They publish a walkthrough of what changed. You read it, comment, and decide what to keep.';
+  'A diff lists the lines. It does not tell you what changed. Porcelain is where the agent walks you through the decisions, and where you comment back before you keep it.';
 ---
 
 <Site description={description}>
@@ -18,11 +18,12 @@ const description =
         </h1>
         <div class="animate-in slide-in-from-bottom-6 fill-mode-both delay-150 max-w-md duration-700 lg:pb-2">
           <p class="text-lg leading-snug text-muted-foreground">
-            Agents keep running in your preferred place. Porcelain is where they publish a walkthrough of the
-            change, and where you comment back before you keep it.
+            A diff lists the lines. It does not tell you what changed. Agents keep running where you already run
+            them. Porcelain is where they walk you through the decisions, and where you comment back before you keep
+            it.
           </p>
           <p class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm leading-snug text-muted-foreground">
-            <span>Browser and Mac, on Apple silicon.</span>
+            <span>Mac app on Apple silicon. Server on Linux or Mac.</span>
             <span class="inline-flex items-center rounded-full bg-foreground px-2.5 py-1 text-xs font-medium tracking-[-0.01em] text-background">
               Mobile app coming soon
             </span>
@@ -46,8 +47,7 @@ const description =
           />
         </button>
         <figcaption class="mt-3 flex flex-wrap items-baseline justify-between gap-2 text-sm text-muted-foreground">
-          <span>A decision, the route through the code, and the diff.</span>
-          <span>Click a picture to see it larger.</span>
+          <span>One decision inside a long review, with the route through the code and the diff.</span>
         </figcaption>
       </figure>
 
@@ -62,8 +62,8 @@ const description =
         <div data-reveal>
           <h2 class="text-xl leading-tight font-medium tracking-[-0.03em]">Not explained</h2>
           <p class="mt-3 text-muted-foreground">
-            Changes the agent left out of the story stay visible. That stop links back to decisions that still contain
-            those lines.
+            Changes the agent left out of the explanation stay visible. That stop links back to decisions that still
+            contain those lines.
           </p>
         </div>
         <div data-reveal>
@@ -81,8 +81,8 @@ const description =
             Comment back before you keep it.
           </h2>
           <p class="max-w-xl text-lg leading-snug text-muted-foreground lg:pb-1">
-            You write on the file. The agent replies in the same thread, over MCP, on your machine. The conversation
-            stays with this change.
+            You write on the file. Any agent that speaks MCP replies in the same thread, on your machine. The
+            conversation stays with this change.
           </p>
         </div>
         <figure class="mt-8" data-reveal>
@@ -135,6 +135,45 @@ const description =
             These sample results are not checks run on Porcelain itself.
           </figcaption>
         </figure>
+      </section>
+
+      <section class="mt-28 scroll-mt-24 border-t border-border pt-10 lg:mt-36" aria-label="How you run it">
+        <div class="grid items-end gap-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]" data-reveal>
+          <h2 class="max-w-[16ch] text-[clamp(2rem,3.2vw,3.25rem)] leading-[1.02] font-medium tracking-[-0.04em]">
+            Run it where the repository is.
+          </h2>
+          <p class="max-w-xl text-lg leading-snug text-muted-foreground lg:pb-1">
+            One server holds the repository. The Mac app, a browser, and later the phone all read that same machine.
+            The files are not copied across.
+          </p>
+        </div>
+        <div class="mt-10 grid gap-10 md:grid-cols-3" data-reveal>
+          <div>
+            <h3 class="text-xl font-medium tracking-[-0.03em]">Mac app</h3>
+            <p class="mt-3 text-muted-foreground">The desktop app. Apple silicon.</p>
+          </div>
+          <div>
+            <h3 class="text-xl font-medium tracking-[-0.03em]">Server</h3>
+            <p class="mt-3 text-muted-foreground">
+              On Linux or Mac, on the machine that holds the repositories. On Linux it can stay up as a user service.
+              You open it in a browser after you pair.
+            </p>
+          </div>
+          <div>
+            <h3 class="text-xl font-medium tracking-[-0.03em]">Mobile</h3>
+            <p class="mt-3 text-muted-foreground">
+              The iPhone and iPad app reaches that same machine.
+            </p>
+            <p class="mt-4">
+              <span class="inline-flex items-center rounded-full bg-foreground px-2.5 py-1 text-xs font-medium tracking-[-0.01em] text-background">
+                Mobile app coming soon
+              </span>
+            </p>
+          </div>
+        </div>
+        <p class="mt-8 text-sm text-muted-foreground" data-reveal>
+          <a class="text-foreground underline decoration-border underline-offset-4" href="/install">How to install.</a>
+        </p>
       </section>
 
       <section class="mt-28 border-t border-border lg:mt-36" aria-label="More of the review">

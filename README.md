@@ -2,7 +2,7 @@
 
 Porcelain is a place to review a coding agent's work. The agent publishes a walkthrough of its decisions; you follow the explanation alongside the diffs, leave comments, and read the agent's replies.
 
-It is for developers who run coding agents on their own machine and want to understand the result before deciding what to keep. A raw diff tells you what changed. Porcelain gives the agent a place to explain why, and gives you a way to ask about what it left unexplained.
+It is for developers who run coding agents on their own machine and want to understand the result before deciding what to keep. A diff lists the lines. It does not tell you what changed. Porcelain is where the agent walks you through the decisions, and where you ask about what it left unexplained.
 
 ![A decision in a published review, with its route through the code and a diff](docs/readme/walkthrough.png)
 
@@ -10,7 +10,7 @@ It is for developers who run coding agents on their own machine and want to unde
 
 ## What ships today
 
-The [npm package](https://www.npmjs.com/package/@fabiofiorita/porcelain) contains the server and browser app. An Apple silicon Mac app is available from [GitHub Releases](https://github.com/FabioFiorita/porcelain/releases). The [mobile client](apps/mobile) lives in this repository; see the limitations below.
+The [npm package](https://www.npmjs.com/package/@fabiofiorita/porcelain) contains the server and browser app. The server runs on Linux or Mac. On Linux it can be installed as a user service. An Apple silicon Mac app is available from [GitHub Releases](https://github.com/FabioFiorita/porcelain/releases). The [mobile client](apps/mobile) lives in this repository and is not a store release yet. See the limitations below.
 
 The browser review flow includes:
 
