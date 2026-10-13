@@ -15,7 +15,16 @@ import { Text } from '../../../components/ui/text';
 import { Badge } from '../../../components/ui/badge';
 import { Icon } from '../../../components/ui/icon';
 import { FileIcon } from '../../../components/ui/file-icon';
-import { Separator } from '../../../components/ui/separator';
+import { DocumentTabs } from '../../../components/ui/document-tabs';
+import { WorkspacePanes } from '../../../components/ui/workspace-panes';
+import { isTablet } from '../../../shared/navigation/is-tablet';
+import {
+  activateDocument,
+  closeDocument,
+  emptyDocuments,
+  openDocument,
+  type DocumentTabsState,
+} from '../../../shared/rules/document-tabs';
 import type { Workspace } from '../../projects';
 import { useReviewSnapshot, useReviewMarks } from '../queries/review';
 import {
@@ -29,7 +38,6 @@ import { ReviewReadState } from './read-state';
 import { ComparisonMenu } from './comparison-menu';
 import { PublishedReview } from './published-review';
 import { ReviewFileContent } from './review-file-screen';
-import { reviewPanes } from '../adapters/review-panes';
 
 export function ReviewScreen() {
   return (
@@ -43,8 +51,6 @@ function ReviewIndex({ workspace }: { workspace: Workspace }) {
   const [comparison, setComparison] = useState<ReviewComparison>({
     kind: 'worktree',
   });
-  const [width, setWidth] = useState(0);
-  const wide = reviewPanes && width >= 700;
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
   const bases = useAtomValue(
     readBranchBases({
@@ -53,12 +59,7 @@ function ReviewIndex({ workspace }: { workspace: Workspace }) {
     }),
   );
   return (
-    <Box
-      className="flex-1"
-      surface="background"
-      collapsable={false}
-      onLayout={({ nativeEvent: { layout } }) => setWidth(layout.width)}
-    >
+    <Box className="flex-1" surface="background" collapsable={false}>
       <Box
         className="flex-row items-center justify-between"
         paddingX={4}
@@ -83,7 +84,6 @@ function ReviewIndex({ workspace }: { workspace: Workspace }) {
           workspace={workspace}
           snapshot={result.value}
           comparison={comparison}
-          wide={wide}
         />
       ) : (
         <ReviewReadState result={result} refresh={refresh} />
@@ -92,18 +92,33 @@ function ReviewIndex({ workspace }: { workspace: Workspace }) {
   );
 }
 
+type ReviewDocument = {
+  key: string;
+  title: string;
+  label?: string;
+  closable: boolean;
+  path?: string;
+};
+
 function ReviewList({
   workspace,
   snapshot,
   comparison,
-  wide,
 }: {
   workspace: Workspace;
   snapshot: ReviewSnapshot;
   comparison: ReviewComparison;
-  wide: boolean;
 }) {
-  const [selectedPath, selectPath] = useState<string>();
+  const [documents, setDocuments] = useState<DocumentTabsState<ReviewDocument>>(
+    () =>
+      openDocument(emptyDocuments<ReviewDocument>(), {
+        key: 'overview',
+        title: 'Overview',
+        closable: false,
+      }),
+  );
+  const selected = documents.tabs.find((tab) => tab.key === documents.active);
+  const selectedPath = selected?.path;
   const router = useRouter();
   const marks = useReviewMarks(workspace, snapshot);
   const commentsQuery = readCommentThreads({
@@ -112,9 +127,19 @@ function ReviewList({
   });
   const comments = useAtomValue(commentsQuery);
   const refreshComments = useAtomRefresh(commentsQuery);
-  const openFile = (path: string) => {
-    if (wide) selectPath(path);
-    else
+  const openFile = (path: string, showContent?: () => void) => {
+    if (isTablet) {
+      setDocuments((current) =>
+        openDocument(current, {
+          key: `file:${path}`,
+          title: path.split('/').at(-1) ?? path,
+          label: path,
+          closable: true,
+          path,
+        }),
+      );
+      showContent?.();
+    } else
       router.push({
         pathname: '/review-file',
         params: { ...reviewParams(workspace.key, comparison), path },
@@ -129,9 +154,9 @@ function ReviewList({
     snapshot.kind === 'worktree' ? (
       <PublishedReview
         workspace={workspace}
-        onFile={openFile}
+        onFile={(path) => openFile(path)}
         empty={
-          wide ? (
+          isTablet ? (
             <Empty
               title="No agent review"
               description="Choose a changed file to review its diff. Published agent explanations will appear here."
@@ -146,13 +171,13 @@ function ReviewList({
           : 'No comparison base is available. Choose a base from the Branch menu.'}
       </Text>
     );
-  const navigation = (
+  const navigation = (showContent?: () => void) => (
     <ScrollView
       className="flex-1"
       contentInsetAdjustmentBehavior="automatic"
       contentContainerClassName="grow gap-3 p-4"
     >
-      {wide ? (
+      {isTablet ? (
         <Item
           title="Overview"
           description={
@@ -162,7 +187,10 @@ function ReviewList({
           }
           leading={<Icon name="review" />}
           selected={selectedPath === undefined}
-          onPress={() => selectPath(undefined)}
+          onPress={() => {
+            setDocuments((current) => activateDocument(current, 'overview'));
+            showContent?.();
+          }}
         />
       ) : (
         overview
@@ -196,26 +224,28 @@ function ReviewList({
             <Item
               key={file.path}
               title={
-                wide ? (file.path.split('/').at(-1) ?? file.path) : file.path
+                isTablet
+                  ? (file.path.split('/').at(-1) ?? file.path)
+                  : file.path
               }
               description={
-                wide
+                isTablet
                   ? `${file.path} · ${file.note} · ${reviewStatusLabel(file.reviewStatus)}`
                   : file.note
               }
-              leading={wide ? <FileIcon /> : undefined}
-              size={wide ? 'sm' : 'default'}
-              selected={wide && selectedPath === file.path}
+              leading={isTablet ? <FileIcon /> : undefined}
+              size={isTablet ? 'sm' : 'default'}
+              selected={isTablet && selectedPath === file.path}
               accessibilityLabel={`Review ${file.path}`}
               trailing={
-                wide ? undefined : (
+                isTablet ? undefined : (
                   <Badge
                     label={reviewStatusLabel(file.reviewStatus)}
                     variant="secondary"
                   />
                 )
               }
-              onPress={() => openFile(file.path)}
+              onPress={() => openFile(file.path, showContent)}
             />
           ))}
           {files.length === 0 ? (
@@ -234,33 +264,42 @@ function ReviewList({
       )}
     </ScrollView>
   );
-  return (
-    <Box className={wide ? 'flex-1 flex-row' : 'flex-1'}>
-      <Box className={wide ? 'w-64 shrink-0' : 'flex-1'}>{navigation}</Box>
-      {wide ? (
-        <>
-          <Separator orientation="vertical" />
-          <Box className="min-w-0 flex-1">
-            {selectedPath ? (
-              <ReviewFileContent
-                key={`${workspace.key}:${selectedPath}:${JSON.stringify(comparison)}`}
-                workspace={workspace}
-                path={selectedPath}
-                comparison={comparison}
-              />
-            ) : (
-              <ScrollView
-                className="flex-1"
-                contentInsetAdjustmentBehavior="automatic"
-                contentContainerClassName="grow gap-3 p-4"
-              >
-                {overview}
-              </ScrollView>
-            )}
-          </Box>
-        </>
-      ) : null}
-    </Box>
+  return isTablet ? (
+    <WorkspacePanes
+      navigation={navigation}
+      navigationLabel="Changed files"
+      hasSelection={documents.active !== null}
+    >
+      <DocumentTabs
+        tabs={documents.tabs}
+        active={documents.active}
+        onSelect={(key) =>
+          setDocuments((current) => activateDocument(current, key))
+        }
+        onClose={(key) => {
+          if (key !== 'overview')
+            setDocuments((current) => closeDocument(current, key));
+        }}
+      />
+      {selectedPath ? (
+        <ReviewFileContent
+          key={`${workspace.key}:${selectedPath}:${JSON.stringify(comparison)}`}
+          workspace={workspace}
+          path={selectedPath}
+          comparison={comparison}
+        />
+      ) : (
+        <ScrollView
+          className="flex-1"
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerClassName="grow gap-3 p-4"
+        >
+          {overview}
+        </ScrollView>
+      )}
+    </WorkspacePanes>
+  ) : (
+    navigation()
   );
 }
 
