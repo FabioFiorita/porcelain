@@ -8,12 +8,14 @@ selectors:
   - 'History'
   - 'Open documents'
   - 'Choose a document'
-tests: []
+tests:
+  - apps/mobile/src/shared/rules/workspace-documents.spec.ts
+  - apps/mobile/src/shared/rules/document-tabs.spec.ts
 api:
   - GET /api/inventory
 ---
 
-# workspace.workspace
+# app.workspace
 
 On iPad, a selected worktree owns one central document area and a right inspector with Files, Review and History modes. The left sidebar selects worktrees. The native title identifies the project and worktree; its sidebar and inspector controls remain available regardless of the inspector mode or active document. Phones retain their destination tabs and detail routes.
 

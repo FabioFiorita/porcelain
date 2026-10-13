@@ -15,7 +15,7 @@ One file per screen and flow the mobile app offers, named `<domain>.<capability>
 | [access.settings](access.settings.md)                     | /settings          | Settings lists the paired environments with their status and offers Add environment, or says none is paired.                                                     |
 | [app.deep-links](app.deep-links.md)                       | /                  | The app's scheme opens Review, Files, History and Settings directly, warm or after a cold launch.                                                                |
 | [app.phone-shell](app.phone-shell.md)                     | /                  | On a phone, four native tabs, ready on Files within 30 seconds of a cold launch.                                                                                 |
-| [app.tablet-shell](app.tablet-shell.md)                   | /                  | On iPad, a SwiftUI three-column split that keeps its master and detail through sidebar collapse and rotation.                                                    |
+| [app.tablet-shell](app.tablet-shell.md)                   | /                  | On iPad, a worktree sidebar, shared central documents and right inspector with native toolbar controls.                                                    |
 | [files.files](files.files.md)                             | /files             | Browse and search the selected worktree; create, rename and trash entries.                                                                                                              |
 | [files.preview](files.preview.md) | /file | Read source, Markdown, self-contained HTML and images; unsupported entries show notices. |
 | [files.edit](files.edit.md) | /file-edit | Edit with shared autosave and fingerprint conflict protection in a native sheet. |
@@ -34,4 +34,4 @@ Mobile has no E2E suite; drive iPhone and iPad features on demand with the mobil
 - [reviews.file](reviews.file.md): Open a current comparison, mark it reviewed and select lines for feedback.
 - [reviews.comments](reviews.comments.md): Post, reply, resolve and reopen feedback in the native sheet.
 
-- [workspace.workspace](workspace.workspace.md): iPad worktree sessions share one central document area and Files, Review and History in a right inspector.
+- [app.workspace](app.workspace.md): iPad worktree sessions share one central document area and Files, Review and History in a right inspector.

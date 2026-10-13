@@ -1,4 +1,3 @@
-import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { withUniwind } from 'uniwind';
 import { usePathname, useRouter } from 'expo-router';
@@ -7,33 +6,15 @@ import { Item } from '../components/ui/item';
 import { Icon } from '../components/ui/icon';
 import { Text } from '../components/ui/text';
 import { Separator } from '../components/ui/separator';
-import { destinations, destinationForPath } from './destinations';
+import { WorktreeNavigator } from '../features/projects';
+import { destinationForPath } from './destinations';
 
 const StyledSafeAreaView = withUniwind(SafeAreaView);
 
-function SidebarDestination({
-  destination,
-}: {
-  destination: (typeof destinations)[number];
-}) {
-  const pathname = usePathname();
-  const selectedPath = destinationForPath(pathname).path;
-  const router = useRouter();
-  return (
-    <Item
-      title={destination.title}
-      leading={<Icon name={destination.icon} />}
-      selected={selectedPath === destination.path}
-      accessibilityLabel={destination.title}
-      testID={destination.sidebarId}
-      onPress={() => {
-        if (pathname !== destination.path) router.replace(destination.path);
-      }}
-    />
-  );
-}
-
 export function TabletSidebar({ windowed }: { windowed: boolean }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const inSettings = destinationForPath(pathname).group === '(settings)';
   return (
     <StyledSafeAreaView
       edges={['top', 'left', 'bottom']}
@@ -44,28 +25,23 @@ export function TabletSidebar({ windowed }: { windowed: boolean }) {
           <Text variant="heading">Porcelain</Text>
         </Box>
       </Box>
-      <ScrollView className="flex-1" contentInsetAdjustmentBehavior="automatic">
-        <Box gap={1} paddingX={4}>
-          {destinations
-            .filter((destination) => destination.group !== '(settings)')
-            .map((destination) => (
-              <SidebarDestination
-                key={destination.path}
-                destination={destination}
-              />
-            ))}
-        </Box>
-      </ScrollView>
+      <WorktreeNavigator
+        onSelect={() => {
+          if (pathname !== '/files') router.replace('/files');
+        }}
+      />
       <Separator />
       <Box paddingX={4} paddingY={3}>
-        {destinations
-          .filter((destination) => destination.group === '(settings)')
-          .map((destination) => (
-            <SidebarDestination
-              key={destination.path}
-              destination={destination}
-            />
-          ))}
+        <Item
+          title="Settings"
+          leading={<Icon name="settings" />}
+          selected={inSettings}
+          accessibilityLabel="Settings"
+          testID="sidebar-settings"
+          onPress={() => {
+            if (!inSettings) router.replace('/settings');
+          }}
+        />
       </Box>
     </StyledSafeAreaView>
   );

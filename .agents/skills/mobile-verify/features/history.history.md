@@ -5,7 +5,7 @@ selectors:
   - 'Workspace unavailable'
   - 'Read again'
   - 'History'
-  - 'Select a commit'
+  - 'Choose a document'
   - 'Select a worktree to continue.'
   - 'No commits yet'
   - "Couldn't load history"
@@ -28,4 +28,4 @@ See [selected workspace states](projects.workspace-picker.md#selected-workspace-
 
 On iPad, History is a right inspector mode, and commits and diffs share the central closable document tabs with Files and Review. Wide panes show the inspector on the right; narrow panes switch inspector/content in place. Opening a row or changed file must not push a native route. An empty central area asks Choose a document.
 
-Open two commits and a commit diff, then switch the inspector to Files and Review. The central document and every tab remain. Close and reopen tabs, change a merge parent and revisit its commit, hide/show the inspector, and resize. The native title identifies the project/worktree; both sidebar and inspector controls stay available. Visit Settings and switch away from and back to this worktree: its own session returns. Exercise loading, empty, failure, live restart and pagination in the retained inspector. An iPhone run does not prove this iPad presentation. See [workspace.workspace](workspace.workspace.md).
+Open two commits and a commit diff, then switch the inspector to Files and Review. The central document and every tab remain. Close and reopen tabs, change a merge parent and revisit its commit, hide/show the inspector, and resize. The native title identifies the project/worktree; both sidebar and inspector controls stay available. Visit Settings and switch away from and back to this worktree: its own session returns. Exercise loading, empty, failure, live restart and pagination in the retained inspector. An iPhone run does not prove this iPad presentation. See [app.workspace](app.workspace.md).

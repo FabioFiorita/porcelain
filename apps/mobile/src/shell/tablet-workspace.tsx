@@ -1,33 +1,36 @@
 import { Stack, useRouter } from 'expo-router';
 import { ScrollView } from 'react-native';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
-import { Box } from '../../../components/ui/box';
-import { DocumentTabs } from '../../../components/ui/document-tabs';
-import { Empty } from '../../../components/ui/empty';
-import { Item } from '../../../components/ui/item';
-import { LeadingToolbar } from '../../../components/ui/leading-toolbar';
-import { WorkspacePanes } from '../../../components/ui/workspace-panes';
-import { headerIcon } from '../../../shared/icons/header-icon';
-import { FilesNavigation, FileContent } from '../../files';
+import { Box } from '../components/ui/box';
+import { DocumentTabs } from '../components/ui/document-tabs';
+import { Empty } from '../components/ui/empty';
+import { Item } from '../components/ui/item';
+import { LeadingToolbar } from '../components/ui/leading-toolbar';
+import { WorkspacePanes } from '../components/ui/workspace-panes';
+import { headerIcon } from '../shared/icons/header-icon';
+import { FilesNavigation, FileContent } from '../features/files';
 import {
   HistoryNavigation,
   CommitContent,
   HistoryDiffContent,
-} from '../../history';
+} from '../features/history';
 import {
   ReviewNavigation,
   ReviewOverview,
   ReviewFileContent,
-} from '../../reviews';
-import { useAppSidebar } from '../../preferences';
-import { WorkspaceGate, type Workspace } from '../../projects';
+} from '../features/reviews';
+import { useAppSidebar } from '../features/preferences';
+import {
+  WorkspaceGate,
+  useWorkspaceSession,
+  type Workspace,
+} from '../features/projects';
 import {
   documentTab,
   type InspectorMode,
   type WorkspaceDocument,
   type WorkspaceTab,
-} from '../rules/documents';
-import { useWorkspaceSession } from '../store';
+} from '../shared/rules/workspace-documents';
 
 const modes = [
   { id: 'files', title: 'Files' },
@@ -35,7 +38,7 @@ const modes = [
   { id: 'history', title: 'History' },
 ] as const;
 
-export function WorkspaceScreen({
+export function TabletWorkspace({
   initialMode = 'files',
 }: {
   initialMode?: InspectorMode;
@@ -112,8 +115,6 @@ function SelectedWorkspace({
         />
       </Stack.Toolbar>
       <WorkspacePanes
-        navigationLabel="Inspector"
-        hasSelection={active !== undefined}
         navigationVisible={session.inspectorOpen}
         onNavigationVisibleChange={changeInspector}
         navigation={(showContent) => {

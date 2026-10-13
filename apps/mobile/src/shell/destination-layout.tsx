@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import type { ReactNode } from 'react';
 import { DestinationHeader } from './destination-header';
+import { isTablet } from '../shared/navigation/is-tablet';
 
 export function DestinationLayout({
   name,
@@ -20,7 +21,12 @@ export function DestinationLayout({
         headerTintColor: theme.colors.text,
       })}
       screenLayout={({ children, route }) => (
-        <DestinationHeader leading={route.name !== 'files'}>
+        <DestinationHeader
+          leading={
+            route.name !== 'files' &&
+            !(isTablet && (route.name === 'review' || route.name === 'history'))
+          }
+        >
           {children}
         </DestinationHeader>
       )}

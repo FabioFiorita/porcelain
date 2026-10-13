@@ -29,7 +29,7 @@ import { WorkspaceGate, type Workspace } from '../../projects';
 import { commentBodyLimit, useCommentWrite } from '../commands/comments';
 import { ReviewReadState } from './read-state';
 import { useReviewSnapshot } from '../queries/review';
-import { type ReviewComparison } from '../rules/comparison';
+import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 
 export function ReviewCommentsScreen({
   workspaceKey,

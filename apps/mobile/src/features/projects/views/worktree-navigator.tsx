@@ -9,6 +9,11 @@ import { Loading } from '../../../components/ui/loading';
 import { Text } from '../../../components/ui/text';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 
+function worktreeDescription(worktree: { available: boolean; main: boolean }) {
+  if (!worktree.available) return 'Unavailable';
+  return worktree.main ? 'Main worktree' : '';
+}
+
 export function WorktreeNavigator({ onSelect }: { onSelect?: () => void }) {
   const { picker, groups, initializing, reading } = useWorkspacePickerModel();
   return (
@@ -39,7 +44,7 @@ export function WorktreeNavigator({ onSelect }: { onSelect?: () => void }) {
                     />
                     <Text variant="subheading">{project.name}</Text>
                   </Box>
-                  <Box className="pl-3" gap={1}>
+                  <Box className="ml-3" gap={1}>
                     {project.worktrees.map((worktree) => {
                       const label = worktreeLabel(worktree.branch);
                       const selected =
@@ -50,13 +55,7 @@ export function WorktreeNavigator({ onSelect }: { onSelect?: () => void }) {
                         <Item
                           key={worktree.id}
                           title={label}
-                          description={
-                            !worktree.available
-                              ? 'Unavailable'
-                              : worktree.main
-                                ? 'Main worktree'
-                                : ''
-                          }
+                          description={worktreeDescription(worktree)}
                           size="xs"
                           selected={selected}
                           disabled={

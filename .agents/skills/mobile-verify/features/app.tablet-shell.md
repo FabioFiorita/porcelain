@@ -2,17 +2,14 @@
 screen: /
 selectors:
   - 'Porcelain'
-  - 'Files'
-  - 'Review'
+  - 'Projects and worktrees'
   - 'Select a worktree'
-  - 'Select a file'
-  - 'Select a commit'
-  - 'No open tabs'
+  - 'Choose a document'
+  - 'Open documents'
+  - 'Show inspector'
+  - 'Hide inspector'
   - 'Environments'
   - 'Add environment'
-  - 'sidebar-files'
-  - 'sidebar-review'
-  - 'sidebar-history'
   - 'sidebar-settings'
   - 'settings-appearance'
   - 'settings-environments'
@@ -20,6 +17,7 @@ selectors:
 tests:
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
   - apps/mobile/src/shared/rules/document-tabs.spec.ts
+  - apps/mobile/src/shared/rules/workspace-documents.spec.ts
 api: []
 ---
 
@@ -27,7 +25,7 @@ api: []
 
 ## What it is
 
-On iPad the app composes adaptive React Native panes with Porcelain controls and one compact native Expo Stack toolbar per destination. Its glass sidebar button controls the Files/Review/History/Settings app pane. The sidebar starts open and preserves its state across destinations, including Settings; navigation and resizing never change that state. Windowed layouts reserve space above Porcelain for system window controls. Settings categories and Files/Review/History navigation sit beside their content when enough width is available. Files, Review and History use document tabs for iPad selection, including narrow windows, without pushing native detail routes. In a narrow content area a body control switches between its retained navigation and open document. Settings categories move above their detail. Phones retain native tabs and Stack routes.
+On iPad, adaptive React Native panes compose Porcelain controls beneath a compact native Expo Stack toolbar. The left sidebar lists environments, projects and worktrees, with Settings at the bottom. The selected worktree has shared document tabs in the center and Files, Review and History modes in the right inspector. Glass toolbar buttons independently control the worktree sidebar and inspector. Entering Settings preserves the sidebar state. Phones retain their native tabs and Stack routes.
 
 ## How a user reaches it
 
@@ -35,21 +33,19 @@ On iPad the app composes adaptive React Native panes with Porcelain controls and
 
 ## Driving it
 
-1. Launch on the iPad, then show the sidebar if it is hidden. Expect Porcelain and the Files, Review and History rows, with Settings at the bottom. Expect Files selected on a fresh launch.
-2. Select Files with loaded storage and no saved workspace. Expect Select a worktree and guidance to use the workspace filter in the main area. Choose a workspace through its toolbar and expect the existing Files destination; there is no third metadata column.
-3. Hide and show the sidebar. Expect the current destination and selection to remain.
-4. Select Settings, rotate between landscape and portrait, then return. Expect the same app-sidebar state, one Settings native toolbar and the category selector; Appearance is initially selected. Select Environments and expect Add environment. In a narrow window the categories sit above the detail.
-5. Select Appearance. Use the native Settings toolbar sidebar control to show and hide the app sidebar and expect the detail controls to remain fully visible. Follow preferences.appearance for light, dark and system themes, and confirm the native header and sidebar update. Select Development and expect the component selector beside its current preview; selecting Explore Badge replaces that preview inline.
-6. Return to Review and confirm its heading. Select a file on Files or Review and a commit on History; expect an open-document tab beside the retained navigation. Resize narrower, select from the navigation and expect the same content workspace without a new native Back page. Toggle the app sidebar, switch to Settings and confirm its state stays unchanged. In a window, confirm system controls do not overlap Porcelain and no blue Hide sidebar text appears.
+1. Launch on iPad. Expect Porcelain, the worktree navigator and Settings. With no saved workspace, expect Select a worktree and guidance to select it in the sidebar. With no paired environments, use Open Settings and follow access.pairing.
+2. Choose a worktree from the sidebar. Expect its project and branch in the native title, Files in the right inspector, and Choose a document in the central area. Follow app.workspace to open files, review comparisons and commits in one tab strip. No document selection pushes a native detail route.
+3. Hide and show the sidebar and inspector separately. Expect tabs, active document and inspector mode to remain. Narrow the window: the inspector replaces the center in place; selecting a document reveals its central content. The toolbar inspector control remains available to show the list again.
+4. Enter Settings with the app sidebar open. Expect it to stay open, one Settings toolbar and a bounded category pane. Appearance starts selected. On a wide screen the category pane is 224 points wide and a full-height divider separates it from the content; no redundant category heading is inserted above the settings. On a narrow screen the categories sit above the detail.
+5. Select Appearance, Environments and Development. Follow preferences.appearance and access.settings. Development shows its component selector beside the preview. Show/hide the app sidebar and confirm Settings remains correctly positioned. In a window confirm system controls do not overlap Porcelain and no blue Hide sidebar text appears.
+6. Return by selecting the worktree. Expect its tabs, active document, mode, comparison and inspector visibility to return. Switch worktrees and back; each retains its own transient session. A cold launch restores the selected worktree, with a fresh document session.
 
 ## What proves it works
 
-Drive this feature with the mobile-verify skill on demand.
+Drive this feature with the mobile-verify skill on demand. The named rules cover workspace selection and document identities/transitions. Native acceptance requires the developer's iPad walkthrough; static checks do not prove window geometry or toolbar appearance.
 
 ## Gotchas
 
-- There is one native toolbar per destination, labelled Files, Review, History or Settings. Selected documents use body tabs and Settings categories use a compact body title.
-- LeadingToolbar owns the sidebar button and feature leading actions together. On Files, expect both the native sidebar button and Refresh files; separate left toolbars overwrite each other.
-- Use the sidebar test ids to distinguish its destination rows from navigation headings. Sidebar controls announce Show sidebar or Hide sidebar.
-
-Files, Review and History own their existing workspace gate and retry in the main area. Verify Reading workspace…, failed inventory with Read again, Workspace unavailable with its reason, and the loaded no-selection prompt. Keep the sidebar and workspace toolbar reachable. Native acceptance uses the developer's iPad walkthrough.
+- Root workspace and Settings each have one leading native toolbar owner. Embedded Files controls stay in the right inspector body; separate same-placement native toolbars overwrite one another.
+- Toolbar controls announce Show sidebar/Hide sidebar and Show inspector/Hide inspector. They control different panes.
+- Workspace loading, failure, empty and unavailable states keep the sidebar reachable. Follow projects.workspace-picker for inventory recovery, multiple environments and remembered selections.

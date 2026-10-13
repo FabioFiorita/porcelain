@@ -1,10 +1,10 @@
-import { WorkspaceScreen } from '../../features/workspace';
+import { TabletWorkspace } from '../../shell/tablet-workspace';
 import { isTablet } from '../../shared/navigation/is-tablet';
 import { HistoryScreen } from '../../features/history';
 import { DestinationScreen } from '../../shell/destination-screen';
 
 function HistoryRoute() {
-  if (isTablet) return <WorkspaceScreen initialMode="history" />;
+  if (isTablet) return <TabletWorkspace initialMode="history" />;
   return (
     <DestinationScreen>
       <HistoryScreen />

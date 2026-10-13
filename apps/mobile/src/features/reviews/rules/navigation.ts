@@ -1,7 +1,7 @@
 import { Schema, Option } from 'effect';
 import { createCommentThreadResponseSchema } from '@porcelain/contracts/reviews';
 import type { CommentAnchor } from '@porcelain/client/reviews/rules';
-import type { ReviewComparison } from './comparison';
+import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 
 export function reviewComparison(
   kind?: string,

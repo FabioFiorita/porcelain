@@ -1,13 +1,10 @@
+import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import { readChanges, readBranchChanges } from '@porcelain/client/changes';
 import { readReviewedFiles } from '@porcelain/client/reviews';
 import type { Workspace } from '../../projects';
-import {
-  reviewRange,
-  type ReviewComparison,
-  type ReviewSnapshot,
-} from '../rules/comparison';
+import { reviewRange, type ReviewSnapshot } from '../rules/comparison';
 
 const snapshots = Atom.family(
   ({

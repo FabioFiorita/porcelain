@@ -42,8 +42,8 @@ The toolbar picker uses the same metadata, readiness and selection commands as t
 
 ## Driving it
 
-1. Pair two disposable environments, select Files, then open the Workspace toolbar button. Expect projects from both environments in the same menu, with their environment names as subtitles on iOS and no Environment submenu.
-2. Expand one project and select its main worktree. Expect the filter to remain icon-only with accessibility label <project> · <worktree>, the Files context caption to identify that worktree, and Files still selected.
+1. On a phone, pair two disposable environments, select Files, then open the Workspace toolbar button. Expect projects from both environments in the same menu, with their environment names as subtitles on iOS and no Environment submenu. On iPad use the visible worktree navigator described below.
+2. On a phone, expand one project and select its main worktree. Expect the filter to remain icon-only with accessibility label <project> · <worktree>, the Files context caption to identify that worktree, and Files still selected.
 3. Reopen the toolbar picker by its new label. Expect both environments' projects still visible; expand a project from the other environment and choose its worktree. Expect the toolbar to update directly to that workspace.
 4. Dismiss the native menu. Expect the same worktree and destination.
 5. Cold-launch the development client against the same Metro URL. Expect the remembered workspace after returning to Files.

@@ -1,3 +1,4 @@
+import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import { Box } from '../../../components/ui/box';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
@@ -19,7 +20,6 @@ import type { Workspace } from '../../projects';
 import { useReviewSnapshot, useReviewMarks } from '../queries/review';
 import {
   reviewFiles,
-  type ReviewComparison,
   type ReviewFile,
   type ReviewSnapshot,
 } from '../rules/comparison';

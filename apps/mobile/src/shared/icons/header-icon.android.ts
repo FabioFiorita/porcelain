@@ -10,6 +10,7 @@ import { type HeaderIconName } from './icon';
 const symbols = {
   add,
   sidebar: menu,
+  inspector: menu,
   workspace: filterList,
   refresh,
   done: check,

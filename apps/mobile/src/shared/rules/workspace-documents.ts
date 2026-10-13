@@ -1,5 +1,5 @@
 import { shortOid } from '@porcelain/client/history/rules';
-import type { ReviewComparison } from '../../reviews';
+import type { ReviewComparison } from './review-comparison';
 
 export type WorkspaceDocument =
   | { readonly kind: 'file'; readonly path: string }
