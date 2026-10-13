@@ -3,9 +3,10 @@ import { Dialog } from '@base-ui/react/dialog';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 
 type Project = ReadInventoryResponse['projects'][number];
+export type ProjectTarget = { project: Project; remote: string | null };
 
 export const openProjectDialog = Dialog.createHandle<{
   remote: string | null;
 }>();
-export const renameProjectDialog = Dialog.createHandle<Project>();
-export const removeProjectDialog = AlertDialog.createHandle<Project>();
+export const renameProjectDialog = Dialog.createHandle<ProjectTarget>();
+export const removeProjectDialog = AlertDialog.createHandle<ProjectTarget>();
