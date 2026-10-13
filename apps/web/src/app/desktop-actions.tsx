@@ -9,6 +9,7 @@ import {
   useNativeProjectPicker,
   type WorktreeTarget,
 } from '@/features/projects/index';
+import { defaultSettingsSection } from '@/app/settings-page';
 import { onDesktopAction } from '@/shared/adapters/desktop';
 import type { Connection } from '@/shared/workspace/connection';
 
@@ -55,7 +56,7 @@ export function DesktopActions({
         if (action === 'open-settings')
           void navigate({
             to: '/settings/$section',
-            params: { section: 'appearance' },
+            params: { section: defaultSettingsSection },
           });
         else openHere();
       }),

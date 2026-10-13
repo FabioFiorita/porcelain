@@ -64,7 +64,7 @@ None before step 1. Step 5 commits on disk; do it only after step 4, because "Op
 7. Click button named `/^Name the tab after the commit/`
    Look for: Page Title "`OID` — repository".
 8. Click button named `Toggle Sidebar`, then click button named `Settings`
-   Look for: Page URL `/settings/appearance`; Page Title "Settings".
+   Look for: Page URL `/settings/updates`; Page Title "Settings".
 9. Click button named `Back`
    Look for: Page Title "`OID` — repository" again.
 

@@ -43,11 +43,13 @@ import { useRemoteStatus } from '../queries/remotes';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import { remoteStatusVariant } from '../rules/remotes';
 import { type Remote } from '@porcelain/client/access/rules';
-import { useSavedEnvironments } from '../store';
+import { useRemoteConnection, useSavedEnvironments } from '../store';
+import { RemoteServiceUpdate } from './service-update';
 
 function RemoteRow({ remote }: { remote: Remote }) {
   const status = useRemoteStatus(remote);
   const forget = useForgetRemote(remote);
+  const entry = useRemoteConnection(remote.environmentId);
   const note = remoteStatusNote(status);
   const name = status.kind === 'online' ? status.name : remote.name;
   return (
@@ -57,12 +59,7 @@ function RemoteRow({ remote }: { remote: Remote }) {
       </ItemMedia>
       <ItemContent>
         <ItemTitle>{name}</ItemTitle>
-        <ItemDescription>
-          {remote.address}
-          {status.kind === 'online' && status.version
-            ? ` · Porcelain ${status.version}`
-            : ''}
-        </ItemDescription>
+        <ItemDescription>{remote.address}</ItemDescription>
       </ItemContent>
       <ItemActions>
         <Badge variant={remoteStatusVariant(status)}>
@@ -78,6 +75,17 @@ function RemoteRow({ remote }: { remote: Remote }) {
           <Trash2Icon />
         </Button>
       </ItemActions>
+      {status.kind === 'online' && entry && (
+        <ItemFooter>
+          <div className="min-w-0 flex-1">
+            <RemoteServiceUpdate
+              connection={entry.connection}
+              name={name}
+              deviceId={entry.remote.deviceId}
+            />
+          </div>
+        </ItemFooter>
+      )}
       {(note || AsyncResult.isFailure(forget.result)) && (
         <ItemFooter>
           <ItemDescription>

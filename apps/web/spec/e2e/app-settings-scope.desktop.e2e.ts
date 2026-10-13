@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures.ts';
 
-test('desktop Settings splits sharing into This computer, Ways in, Devices and Remote computers, each its own page', async ({
+test('desktop Settings opens on This computer, lists This computer, Ways in, Remote computers, Devices, Git and agents and Appearance with no Connection, and shows each as its own page', async ({
   pairedPage,
 }) => {
   await pairedPage
@@ -17,6 +17,19 @@ test('desktop Settings splits sharing into This computer, Ways in, Devices and R
     name: 'Settings sections',
     exact: true,
   });
+  await expect(sections.getByRole('button')).toHaveText([
+    'This computer',
+    'Ways in',
+    'Remote computers',
+    'Devices',
+    'Git and agents',
+    'Appearance',
+    'Back',
+  ]);
+  await expect(
+    settings.getByRole('heading', { name: 'This computer', exact: true }),
+  ).toBeVisible();
+
   await sections.getByRole('button', { name: 'Ways in', exact: true }).click();
   await expect(
     settings.getByRole('heading', { name: 'Ways in', exact: true }),

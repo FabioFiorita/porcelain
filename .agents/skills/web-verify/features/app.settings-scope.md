@@ -13,7 +13,8 @@ selectors:
   - "Paired devices"
   - "Remote computers"
   - "No remote computers yet"
-  - "Sharing"
+  - "Git and agents"
+  - "Appearance"
 tests:
   - apps/web/spec/e2e/app-settings-scope.desktop.e2e.ts
 api:
@@ -25,13 +26,13 @@ api:
 
 ## What it is
 
-In the desktop app, Settings splits sharing into four sections, each its own page: This computer (its name and updates), Ways in (Local network, Tailscale, Cloudflare tunnel), Devices (pair a device, paired devices) and Remote computers (add one, the saved list). There is no single "Sharing" section.
+In the desktop app, Settings opens on This computer and lists, in order, This computer (its name and update), Ways in (Local network, Tailscale, Cloudflare tunnel), Remote computers (add one, the saved list, each with its own update), Devices (pair a device, paired devices), Git and agents and Appearance, each its own page. The app is not a browser, so there is no Connection ("This browser") section.
 
 ## How a user reaches it
 
-- Sidebar (phone width: `Toggle Sidebar` first) → `Settings` → the section buttons `This computer`, `Ways in`, `Devices`, `Remote computers` in navigation "Settings sections".
-- `Alt+Shift+S` opens Settings on Appearance (ignored while focus is in a text field); then the section button.
-- Routes `/settings/computer`, `/settings/ways-in`, `/settings/devices`, `/settings/remotes` (desktop mode only; in web mode they redirect to `/settings/appearance`).
+- Sidebar (phone width: `Toggle Sidebar` first) → `Settings` → the section buttons in navigation "Settings sections".
+- `Alt+Shift+S` opens Settings on This computer (ignored while focus is in a text field); then the section button.
+- Routes `/settings/computer`, `/settings/ways-in`, `/settings/remotes`, `/settings/devices` (desktop mode only; in web mode they redirect to `/settings/updates`).
 - "Open Remote computers" (desktop navigator row of an unreachable remote computer) opens `/settings/remotes`.
 
 ## Driving it
@@ -47,9 +48,9 @@ None.
 1. Navigate to `/` on the card’s web URL (full page load)
    Look for: Page Title "Changes — repository"; button "Toggle Sidebar".
 2. Click button named `Toggle Sidebar`, then click button named `Settings`
-   Look for: Page URL `/settings/appearance`; main "Settings"; navigation "Settings sections" with buttons Appearance, Git and agents, This computer, Ways in, Devices, Remote computers, Connection; no button "Sharing" and no button "Updates".
+   Look for: Page URL `/settings/computer`; main "Settings"; navigation "Settings sections" holding exactly the buttons This computer, Ways in, Remote computers, Devices, Git and agents, Appearance and Back; no button "Connection" or "Updates"; heading "This computer"; textbox "Name of this computer"; legend text "Updates".
 3. Click button named `This computer`
-   Look for: Page URL `/settings/computer`; heading "This computer"; textbox "Name of this computer"; legend text "Updates".
+   Look for: Page URL stays `/settings/computer`.
 4. Click button named `Ways in`
    Look for: Page URL `/settings/ways-in`; heading "Ways in"; switches "Local network", "Tailscale" and "Cloudflare tunnel"; textbox "Name of this computer" is gone.
 5. Click button named `Devices`
@@ -63,7 +64,7 @@ None.
 
 - Each of the four sections has its own URL and content, and content of one (switch "Local network", textbox "Name of this computer") is absent from the others.
 - Navigate to `/settings/ways-in` on the card’s web URL (full page load) (a fresh page load) lands directly on heading "Ways in": the section is in the URL, not in page state.
-- `apps/web/spec/e2e/app-settings-scope.desktop.e2e.ts` (desktop project, 414x896): Ways in shows heading "Ways in" and switch "Local network"; Devices removes that switch and shows "Paired devices"; Remote computers shows "No remote computers yet". It does not click This computer (`app.settings-page` covers it).
+- `apps/web/spec/e2e/app-settings-scope.desktop.e2e.ts` (desktop project, 414x896): the section buttons read exactly This computer, Ways in, Remote computers, Devices, Git and agents, Appearance, Back, and Settings opens on heading "This computer"; Ways in shows heading "Ways in" and switch "Local network"; Devices removes that switch and shows "Paired devices"; Remote computers shows "No remote computers yet".
 
 ## Gotchas
 

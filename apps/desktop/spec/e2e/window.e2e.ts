@@ -500,6 +500,9 @@ test('restarting restores the saved window bounds, the maximized window, the dar
   await openSmokeProject(page, desktop.repository);
   await app.clickMenu('open-settings');
   const settings = page.getByRole('main', { name: 'Settings', exact: true });
+  await settings
+    .getByRole('button', { name: 'Appearance', exact: true })
+    .click();
   await settings.getByRole('tab', { name: 'Dark', exact: true }).click();
   await expect(page.locator('.dark').first()).toBeAttached();
   await expect

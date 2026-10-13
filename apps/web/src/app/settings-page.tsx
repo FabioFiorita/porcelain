@@ -47,33 +47,38 @@ import {
 } from '@/features/access/index';
 import { usePreferences } from '@/features/preferences/index';
 import type { Preferences } from '@porcelain/client/preferences';
-import { useInventory } from '@/features/projects/index';
+import { NavigatorHeader, useInventory } from '@/features/projects/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
 import { desktopShell } from '@/shared/shell';
 import { copyText } from '@/shared/workspace/copy';
 
 const mcpCommand = 'claude mcp add porcelain -- porcelain mcp';
 
-export const settingsSections: readonly {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-}[] = [
-  { id: 'appearance', label: 'Appearance', icon: PaletteIcon },
+type SettingsSection = { id: string; label: string; icon: LucideIcon };
+
+const preferenceSections: readonly SettingsSection[] = [
   { id: 'git', label: 'Git and agents', icon: GitBranchIcon },
-  ...(desktopShell
-    ? [
-        { id: 'computer', label: 'This computer', icon: MonitorIcon },
-        { id: 'ways-in', label: 'Ways in', icon: RadioTowerIcon },
-        { id: 'devices', label: 'Devices', icon: SmartphoneIcon },
-        { id: 'remotes', label: 'Remote computers', icon: ServerIcon },
-        { id: 'connection', label: 'Connection', icon: UnplugIcon },
-      ]
-    : [
-        { id: 'connection', label: 'Connection', icon: UnplugIcon },
-        { id: 'updates', label: 'Updates', icon: RefreshCwIcon },
-      ]),
+  { id: 'appearance', label: 'Appearance', icon: PaletteIcon },
 ];
+
+export const settingsSections: readonly [
+  SettingsSection,
+  ...SettingsSection[],
+] = desktopShell
+  ? [
+      { id: 'computer', label: 'This computer', icon: MonitorIcon },
+      { id: 'ways-in', label: 'Ways in', icon: RadioTowerIcon },
+      { id: 'remotes', label: 'Remote computers', icon: ServerIcon },
+      { id: 'devices', label: 'Devices', icon: SmartphoneIcon },
+      ...preferenceSections,
+    ]
+  : [
+      { id: 'updates', label: 'Updates', icon: RefreshCwIcon },
+      ...preferenceSections,
+      { id: 'connection', label: 'Connection', icon: UnplugIcon },
+    ];
+
+export const defaultSettingsSection = settingsSections[0].id;
 
 type ChoiceName = {
   [K in keyof Preferences]: Preferences[K] extends string ? K : never;
@@ -368,31 +373,21 @@ export function SettingsPage({ section }: { section: string }) {
   };
   useHotkey('Escape', leave, { target: page, ignoreInputs: true });
   return (
-    <div className="h-svh min-w-0 flex-1 bg-muted text-ui text-foreground md:p-2">
+    <div className="h-svh min-w-0 flex-1 bg-muted p-2 text-ui text-foreground">
       <main
         ref={page}
         aria-label="Settings"
-        className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background md:flex-row md:rounded-xl md:border md:bg-card"
+        className="flex h-full min-h-0 min-w-0 flex-col gap-2 md:flex-row"
       >
         <nav
           aria-label="Settings sections"
-          className="flex shrink-0 flex-col border-b md:w-60 md:border-r md:border-b-0"
+          className="flex shrink-0 flex-col overflow-hidden rounded-xl border bg-card md:w-66"
         >
-          <header className="desktop-sidebar-header flex h-11 shrink-0 items-center gap-2 border-b px-3">
-            <div className="flex min-w-0 flex-col leading-tight">
-              <span className="text-sm font-semibold">Porcelain</span>
-              <span
-                className="truncate text-xs text-muted-foreground"
-                title={`Connected to ${environment.name}`}
-              >
-                {environment.name}
-              </span>
-            </div>
-          </header>
-          <div className="flex gap-1 overflow-x-auto p-3 md:min-h-0 md:flex-1 md:flex-col md:overflow-y-auto">
+          <NavigatorHeader environment={environment.name} />
+          <div className="flex gap-1 overflow-x-auto p-2 md:min-h-0 md:flex-1 md:flex-col md:overflow-y-auto">
             {settingsSections.map((item) => {
               const Icon = item.icon;
-              const selected = current?.id === item.id;
+              const selected = current.id === item.id;
               return (
                 <Button
                   key={item.id}
@@ -417,15 +412,15 @@ export function SettingsPage({ section }: { section: string }) {
           <footer className="flex shrink-0 items-center border-t p-2">
             <Button
               variant="ghost"
-              className="min-w-0 flex-1 justify-start"
+              className="h-8 min-w-0 flex-1 justify-start"
               onClick={leave}
             >
-              <ArrowLeftIcon />
+              <ArrowLeftIcon className="size-3.5" />
               Back
             </Button>
           </footer>
         </nav>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card">
           <header className="flex h-11 shrink-0 items-center border-b px-6">
             <Breadcrumb>
               <BreadcrumbList>
@@ -433,14 +428,14 @@ export function SettingsPage({ section }: { section: string }) {
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
                   <h2>
-                    <BreadcrumbPage>{current?.label}</BreadcrumbPage>
+                    <BreadcrumbPage>{current.label}</BreadcrumbPage>
                   </h2>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
           </header>
           <SectionFrame>
-            <SectionContent section={current?.id ?? 'appearance'} />
+            <SectionContent section={current.id} />
           </SectionFrame>
         </div>
       </main>

@@ -21,8 +21,11 @@ test('Settings opens as its own page with one section at a time, and Back return
   await expect(settings).toBeVisible();
   await expect(review).not.toBeAttached();
   await expect(
-    settings.getByRole('heading', { name: 'Appearance', exact: true }),
+    settings.getByRole('heading', { name: 'This computer', exact: true }),
   ).toBeVisible();
+  await settings
+    .getByRole('button', { name: 'Appearance', exact: true })
+    .click();
   await expect(
     settings.getByText('Diff layout', { exact: true }),
   ).toBeVisible();
@@ -108,7 +111,7 @@ test('Settings still opens once the last project is removed', async ({
     exact: true,
   });
   await expect(
-    settings.getByRole('heading', { name: 'Appearance', exact: true }),
+    settings.getByRole('heading', { name: 'This computer', exact: true }),
   ).toBeVisible();
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(

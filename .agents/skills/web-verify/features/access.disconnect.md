@@ -34,7 +34,7 @@ Settings → Connection → "Disconnect this browser" ends this browser's sessio
 - Sidebar (phone width: `Toggle Sidebar` first) → `Settings` → `Connection` section → `Disconnect this browser`.
 - `Alt+Shift+S` opens Settings (ignored while focus is in a text field or the file editor); then the `Connection` section.
 - Route `/settings/connection` opens the section directly (a full page load: it drops unsaved drafts, so do not use it for the refusal case).
-- Settings section `Connection` exists in both web and desktop modes.
+- Settings section `Connection` exists only in web mode: the desktop app is not a browser and has no This browser section.
 
 ## Driving it
 
@@ -60,7 +60,7 @@ None before step 1. Step 5 writes README.md on disk in the middle of the flow (a
 6. Replace the contents of textbox named `README.md` with 'A draft the browser cannot save', then wait for text 'Not saving: changed on disk' to be visible
    Look for (within about 3 s, the autosave wait): status text "Not saving: changed on disk" and an alert "The file changed on disk since you opened it. Reload it before saving. Your draft is kept here." with buttons "Copy draft" and "Reload".
 7. Click button named `Toggle Sidebar`, then click button named `Settings`
-   Look for: main "Settings", Page URL `/settings/appearance`, Page Title "Settings".
+   Look for: main "Settings", Page URL `/settings/updates`, Page Title "Settings".
 8. Click button named `Connection`
    Look for: Page URL `/settings/connection`; text "This browser"; button "Disconnect this browser".
 9. Click button named `Disconnect this browser`
