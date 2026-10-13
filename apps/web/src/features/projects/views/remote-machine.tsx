@@ -103,7 +103,6 @@ function RemoteProjects({
         project={project}
         onRetry={onRetry}
         selected={selected}
-        manage={false}
         onSelect={(worktreeId) =>
           onSelect({
             remote: environmentId,

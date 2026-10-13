@@ -207,6 +207,7 @@ export function pairClient(
     run(['prepare', 'ios-runner']);
     run(['open', identity.bundleIdentifier, '--foreground']);
     run(['open', identity.bundleIdentifier, developmentLink(metro)]);
+    run(['alert', 'accept', '5000'], true);
     run(['wait', 'text', 'Files', '60000']);
     run(['open', identity.bundleIdentifier, screenLink('/settings')]);
     run(['alert', 'accept', '5000'], true);
