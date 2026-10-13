@@ -16,34 +16,25 @@ import {
   entryTreeActions,
 } from '@porcelain/client/files/rules';
 import { FileTree } from '../../../components/ui/file-tree';
-import { DocumentTabs } from '../../../components/ui/document-tabs';
-import { WorkspacePanes } from '../../../components/ui/workspace-panes';
-import { Empty } from '../../../components/ui/empty';
 import { Input } from '../../../components/ui/input';
+import { Button } from '../../../components/ui/button';
+import { ItemMenu } from '../../../components/ui/item-menu';
 import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Text } from '../../../components/ui/text';
 import { headerIcon } from '../../../shared/icons/header-icon';
-import { isTablet } from '../../../shared/navigation/is-tablet';
-import {
-  emptyDocuments,
-  openDocument,
-} from '../../../shared/rules/document-tabs';
 import { directoryRequests } from '../rules/directory-requests';
 import { useDirectories } from '../queries/directory';
 import { directoryLoading } from '../rules/directory-loading';
 import { useFilePaths } from '../queries/paths';
 import { FileActionSheet } from './file-action';
-import { FileContent } from './file-screen';
 import type { FileAction } from '../commands/edit-file';
 
 export function FilesScreen({
   onOpen,
-  onEdit,
   sidebar,
 }: {
   onOpen: (path: string, workspace: string) => void;
-  onEdit: (path: string, workspace: string) => void;
   sidebar: LeadingToolbarProps['sidebar'];
 }) {
   return (
@@ -51,99 +42,30 @@ export function FilesScreen({
       title="Files"
       fallbackToolbar={<LeadingToolbar sidebar={sidebar} />}
     >
-      {(selected) =>
-        isTablet ? (
-          <TabletFiles
-            key={selected.key}
-            selected={selected}
-            onEdit={onEdit}
-            sidebar={sidebar}
-          />
-        ) : (
-          <WorktreeFiles
-            key={selected.key}
-            selected={selected}
-            onOpen={onOpen}
-            sidebar={sidebar}
-          />
-        )
-      }
+      {(selected) => (
+        <FilesNavigation
+          key={selected.key}
+          selected={selected}
+          onOpen={onOpen}
+          sidebar={sidebar}
+        />
+      )}
     </WorkspaceGate>
   );
 }
 
-function TabletFiles({
-  selected,
-  onEdit,
-  sidebar,
-}: {
-  selected: Workspace;
-  onEdit: (path: string, workspace: string) => void;
-  sidebar: LeadingToolbarProps['sidebar'];
-}) {
-  const [documents, setDocuments] = useState(() =>
-    emptyDocuments<{
-      key: string;
-      title: string;
-      label: string;
-      closable: boolean;
-    }>(),
-  );
-  const active = documents.tabs.find((tab) => tab.key === documents.active);
-  return (
-    <WorkspacePanes
-      navigationLabel="Files"
-      hasSelection={active !== undefined}
-      navigation={(showContent) => (
-        <WorktreeFiles
-          selected={selected}
-          sidebar={sidebar}
-          activePath={active?.key}
-          onOpen={(path) => {
-            setDocuments((current) =>
-              openDocument(current, {
-                key: path,
-                title: path.split('/').at(-1) ?? path,
-                label: path,
-                closable: true,
-              }),
-            );
-            showContent();
-          }}
-        />
-      )}
-    >
-      <Box className="flex-1" surface="background">
-        <DocumentTabs documents={documents} onChange={setDocuments} />
-        {active ? (
-          <FileContent
-            key={active.key}
-            path={active.key}
-            selected={selected}
-            onEdit={() => onEdit(active.key, selected.key)}
-          />
-        ) : (
-          <Empty
-            title="Select a file"
-            description="Choose a file from the directory to open it here."
-            icon="file"
-          />
-        )}
-      </Box>
-    </WorkspacePanes>
-  );
-}
-
-function WorktreeFiles({
+export function FilesNavigation({
   selected,
   onOpen,
   sidebar,
   activePath,
+  embedded = false,
 }: {
   selected: Workspace;
   onOpen: (path: string, workspace: string) => void;
   sidebar: LeadingToolbarProps['sidebar'];
   activePath?: string | undefined;
+  embedded?: boolean;
 }) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [requested, setRequested] = useState<readonly string[]>(['']);
@@ -203,9 +125,41 @@ function WorktreeFiles({
         autoCapitalize="none"
         autoCorrect={false}
       />
-      <Text variant="caption" tone="muted">
-        {selected.project.name} · {worktreeLabel(selected.worktree.branch)}
-      </Text>
+      {embedded ? (
+        <Box className="flex-row items-center justify-between" gap={2}>
+          <Button
+            label="Refresh"
+            variant="ghost"
+            pending={refreshing}
+            onPress={refresh}
+          />
+          <ItemMenu
+            title="Create file or folder"
+            actions={[
+              {
+                id: 'new-file',
+                label: 'New file',
+                onPress: () =>
+                  setAction({ kind: 'create', entryKind: 'file', folder: '' }),
+              },
+              {
+                id: 'new-folder',
+                label: 'New folder',
+                onPress: () =>
+                  setAction({
+                    kind: 'create',
+                    entryKind: 'directory',
+                    folder: '',
+                  }),
+              },
+            ]}
+          />
+        </Box>
+      ) : (
+        <Text variant="caption" tone="muted">
+          {selected.project.name} · {worktreeLabel(selected.worktree.branch)}
+        </Text>
+      )}
       {failure ? (
         <ErrorState
           message={fileErrorMessage(Cause.squash(failure.cause))}
@@ -228,34 +182,42 @@ function WorktreeFiles({
   );
   return (
     <Box className="flex-1" surface="background" collapsable={false}>
-      <LeadingToolbar sidebar={sidebar}>
-        <Stack.Toolbar.Button
-          icon={headerIcon('refresh')}
-          accessibilityLabel={refreshing ? 'Refreshing files' : 'Refresh files'}
-          disabled={refreshing}
-          onPress={refresh}
-        />
-        <Stack.Toolbar.Menu
-          icon={headerIcon('add')}
-          accessibilityLabel="Create file or folder"
-          title="Create file or folder"
-        >
-          <Stack.Toolbar.MenuAction
-            onPress={() =>
-              setAction({ kind: 'create', entryKind: 'file', folder: '' })
+      {!embedded ? (
+        <LeadingToolbar sidebar={sidebar}>
+          <Stack.Toolbar.Button
+            icon={headerIcon('refresh')}
+            accessibilityLabel={
+              refreshing ? 'Refreshing files' : 'Refresh files'
             }
+            disabled={refreshing}
+            onPress={refresh}
+          />
+          <Stack.Toolbar.Menu
+            icon={headerIcon('add')}
+            accessibilityLabel="Create file or folder"
+            title="Create file or folder"
           >
-            New file
-          </Stack.Toolbar.MenuAction>
-          <Stack.Toolbar.MenuAction
-            onPress={() =>
-              setAction({ kind: 'create', entryKind: 'directory', folder: '' })
-            }
-          >
-            New folder
-          </Stack.Toolbar.MenuAction>
-        </Stack.Toolbar.Menu>
-      </LeadingToolbar>
+            <Stack.Toolbar.MenuAction
+              onPress={() =>
+                setAction({ kind: 'create', entryKind: 'file', folder: '' })
+              }
+            >
+              New file
+            </Stack.Toolbar.MenuAction>
+            <Stack.Toolbar.MenuAction
+              onPress={() =>
+                setAction({
+                  kind: 'create',
+                  entryKind: 'directory',
+                  folder: '',
+                })
+              }
+            >
+              New folder
+            </Stack.Toolbar.MenuAction>
+          </Stack.Toolbar.Menu>
+        </LeadingToolbar>
+      ) : null}
       <FileTree
         header={header}
         flat={searching}

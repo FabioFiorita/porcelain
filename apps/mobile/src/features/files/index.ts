@@ -1,2 +1,2 @@
-export { FilesScreen } from './views/files-screen';
-export { FileScreen } from './views/file-screen';
+export { FilesScreen, FilesNavigation } from './views/files-screen';
+export { FileScreen, FileContent } from './views/file-screen';

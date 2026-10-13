@@ -33,3 +33,5 @@ Mobile has no E2E suite; drive iPhone and iPad features on demand with the mobil
 
 - [reviews.file](reviews.file.md): Open a current comparison, mark it reviewed and select lines for feedback.
 - [reviews.comments](reviews.comments.md): Post, reply, resolve and reopen feedback in the native sheet.
+
+- [workspace.workspace](workspace.workspace.md): iPad worktree sessions share one central document area and Files, Review and History in a right inspector.

@@ -24,21 +24,21 @@ api:
 
 ## What it is
 
-Review uses the selected worktree and shared live subscriptions to show uncommitted or branch changes, fingerprint-aware reviewed markers, an agent's published explanation and comments. It uses native comparison menus, stack navigation and a comments sheet with Porcelain content primitives. On iPad, Overview and changed files open workspace tabs without pushing native file routes. When the available pane is at least 700 points wide, navigation stays beside the selected tab; narrow panes switch between navigation and content in place. Overview cannot be closed; file tabs can be switched and closed. Phones retain the list and native file routes.
+Review uses the selected worktree and shared live subscriptions to show uncommitted or branch changes, fingerprint-aware reviewed markers, an agent's published explanation and comments. It uses native comparison menus, stack navigation and a comments sheet with Porcelain content primitives. On iPad, Review is a right inspector mode. Overview and changed files open the single central document tabs shared with Files and History, without pushing native file routes. Wide panes show the inspector on the right; narrow panes switch inspector/content in place. Each review tab captures its comparison and can be closed. Phones retain the list and native file routes.
 
 ## How a user reaches it
 
 - the app opens on Files after a cold launch
-- phone: the Review tab; iPad: Review in the sidebar
+- phone: the Review tab; iPad: Review in the right inspector
 - the deep link `porcelain.dev://`
 
 ## Driving it
 
 1. Open Review without a worktree. Expect Select a worktree to continue.
-2. Pair the disposable server and choose its sample worktree from the existing Workspace toolbar. Expect Review README.md. On a phone, open it and use native Back to return to the same list. On iPad, expect Overview initially selected; open README.md and another changed file as tabs, switch between them, close one, and select Overview. Opening the same file twice leaves one tab. Overview has no close action. In a narrow pane, use the Changed files control to return to navigation, then select a destination to show content in place. The native header stays Review. Opening Comments and using Done returns to that same tab.
-3. Choose Branch from the Uncommitted menu, choose a base from Compare against, and inspect its files. Return to Uncommitted. Marks and comments retain their comparison scope. Changing comparison or base resets the iPad tabs to Overview; changing workspace clears the previous workspace's tabs.
+2. Pair the disposable server and choose its sample worktree from the phone Workspace toolbar or iPad left navigator. Expect Review README.md. On a phone, open it and use native Back to return to the list. On iPad, open Overview and two changed files in the central tabs; reopening a file activates its existing comparison tab. Switch the inspector to Files and History and expect the active review document and all tabs to remain. The native title identifies the project/worktree. Opening Comments and using Done returns to the same central selection.
+3. Choose Branch from the Uncommitted menu and choose a base. Newly opened tabs capture that comparison; changing the inspector comparison leaves existing review tabs and their anchors intact. Switch worktrees and return: each restores its own tabs, comparison and inspector mode. Marks and comments retain their comparison scope.
 4. Change the sample through fixture operations. Expect the list and reviewed status to update without leaving Review. A previous fingerprint reads Changed since review; a clean worktree reads No changes.
-5. Revoke or stop the disposable environment. Expect an error or unavailable-workspace state; no old workspace's writes remain available. Read again through the workspace toolbar after reconnecting.
+5. Revoke or stop the disposable environment. Expect an error or unavailable-workspace state; no old workspace's writes remain available. Read again through the phone workspace toolbar or iPad worktree navigator after reconnecting.
 6. Select Files and return; cold-launch against the card's Metro URL and return to Review. The selected workspace remains the shell's responsibility.
 
 ## What proves it works

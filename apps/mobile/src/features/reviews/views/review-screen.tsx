@@ -15,15 +15,6 @@ import { Text } from '../../../components/ui/text';
 import { Badge } from '../../../components/ui/badge';
 import { Icon } from '../../../components/ui/icon';
 import { FileIcon } from '../../../components/ui/file-icon';
-import { DocumentTabs } from '../../../components/ui/document-tabs';
-import { WorkspacePanes } from '../../../components/ui/workspace-panes';
-import { isTablet } from '../../../shared/navigation/is-tablet';
-import {
-  emptyDocuments,
-  activateDocument,
-  openDocument,
-  type DocumentTabsState,
-} from '../../../shared/rules/document-tabs';
 import type { Workspace } from '../../projects';
 import { useReviewSnapshot, useReviewMarks } from '../queries/review';
 import {
@@ -36,20 +27,56 @@ import { reviewParams } from '../rules/navigation';
 import { ReviewReadState } from './read-state';
 import { ComparisonMenu } from './comparison-menu';
 import { PublishedReview } from './published-review';
-import { ReviewFileContent } from './review-file-screen';
 
 export function ReviewScreen() {
   return (
     <WorkspaceGate title="Review">
-      {(workspace) => <ReviewIndex key={workspace.key} workspace={workspace} />}
+      {(workspace) => <PhoneReview key={workspace.key} workspace={workspace} />}
     </WorkspaceGate>
   );
 }
 
-function ReviewIndex({ workspace }: { workspace: Workspace }) {
+function PhoneReview({ workspace }: { workspace: Workspace }) {
+  const router = useRouter();
   const [comparison, setComparison] = useState<ReviewComparison>({
     kind: 'worktree',
   });
+  return (
+    <ReviewNavigation
+      workspace={workspace}
+      comparison={comparison}
+      onComparison={setComparison}
+      inlineOverview
+      onFile={(path) =>
+        router.push({
+          pathname: '/review-file',
+          params: { ...reviewParams(workspace.key, comparison), path },
+        })
+      }
+      onOverview={() => undefined}
+    />
+  );
+}
+
+export function ReviewNavigation({
+  workspace,
+  comparison,
+  onComparison,
+  onFile,
+  onOverview,
+  selectedPath,
+  overviewSelected = false,
+  inlineOverview = false,
+}: {
+  workspace: Workspace;
+  comparison: ReviewComparison;
+  onComparison: (comparison: ReviewComparison) => void;
+  onFile: (path: string) => void;
+  onOverview: () => void;
+  selectedPath?: string | undefined;
+  overviewSelected?: boolean;
+  inlineOverview?: boolean;
+}) {
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
   const bases = useAtomValue(
     readBranchBases({
@@ -68,7 +95,7 @@ function ReviewIndex({ workspace }: { workspace: Workspace }) {
         <ComparisonMenu
           comparison={comparison}
           bases={AsyncResult.isSuccess(bases) ? bases.value.bases : []}
-          onComparison={setComparison}
+          onComparison={onComparison}
         />
         <Button
           label="Refresh"
@@ -78,11 +105,15 @@ function ReviewIndex({ workspace }: { workspace: Workspace }) {
         />
       </Box>
       {AsyncResult.isSuccess(result) ? (
-        <ReviewList
-          key={JSON.stringify(comparison)}
+        <ReviewNavigationList
           workspace={workspace}
           snapshot={result.value}
           comparison={comparison}
+          onFile={onFile}
+          onOverview={onOverview}
+          selectedPath={selectedPath}
+          overviewSelected={overviewSelected}
+          inlineOverview={inlineOverview}
         />
       ) : (
         <ReviewReadState result={result} refresh={refresh} />
@@ -91,33 +122,65 @@ function ReviewIndex({ workspace }: { workspace: Workspace }) {
   );
 }
 
-type ReviewDocument = {
-  key: string;
-  title: string;
-  label?: string;
-  closable: boolean;
-  path?: string;
-};
+export function ReviewOverview({
+  workspace,
+  comparison,
+  onFile,
+  empty,
+}: {
+  workspace: Workspace;
+  comparison: ReviewComparison;
+  onFile: (path: string) => void;
+  empty?: boolean;
+}) {
+  const { result, refresh } = useReviewSnapshot(workspace, comparison);
+  if (comparison.kind === 'worktree')
+    return (
+      <PublishedReview
+        workspace={workspace}
+        onFile={onFile}
+        empty={
+          empty ? (
+            <Empty
+              title="No agent review"
+              description="Choose a changed file to review its diff. Published agent explanations will appear here."
+            />
+          ) : undefined
+        }
+      />
+    );
+  if (!AsyncResult.isSuccess(result))
+    return <ReviewReadState result={result} refresh={refresh} />;
+  const branch =
+    result.value.kind === 'branch' ? result.value.answer : undefined;
+  return (
+    <Text variant="caption" tone="muted">
+      {branch?.base
+        ? `${branch.head.branch ?? 'Detached HEAD'} compared with ${branch.base.ref} · ${branch.commits} commits`
+        : 'No comparison base is available. Choose a base from the Branch menu.'}
+    </Text>
+  );
+}
 
-function ReviewList({
+function ReviewNavigationList({
   workspace,
   snapshot,
   comparison,
+  onFile,
+  onOverview,
+  selectedPath,
+  overviewSelected,
+  inlineOverview,
 }: {
   workspace: Workspace;
   snapshot: ReviewSnapshot;
   comparison: ReviewComparison;
+  onFile: (path: string) => void;
+  onOverview: () => void;
+  selectedPath: string | undefined;
+  overviewSelected: boolean;
+  inlineOverview: boolean;
 }) {
-  const [documents, setDocuments] = useState<DocumentTabsState<ReviewDocument>>(
-    () =>
-      openDocument(emptyDocuments<ReviewDocument>(), {
-        key: 'overview',
-        title: 'Overview',
-        closable: false,
-      }),
-  );
-  const selected = documents.tabs.find((tab) => tab.key === documents.active);
-  const selectedPath = selected?.path;
   const router = useRouter();
   const marks = useReviewMarks(workspace, snapshot);
   const commentsQuery = readCommentThreads({
@@ -126,57 +189,24 @@ function ReviewList({
   });
   const comments = useAtomValue(commentsQuery);
   const refreshComments = useAtomRefresh(commentsQuery);
-  const openFile = (path: string, showContent?: () => void) => {
-    if (isTablet) {
-      setDocuments((current) =>
-        openDocument(current, {
-          key: `file:${path}`,
-          title: path.split('/').at(-1) ?? path,
-          label: path,
-          closable: true,
-          path,
-        }),
-      );
-      showContent?.();
-    } else
-      router.push({
-        pathname: '/review-file',
-        params: { ...reviewParams(workspace.key, comparison), path },
-      });
-  };
   const branch = snapshot.kind === 'branch' ? snapshot.answer : undefined;
   const anchor = commentsAnchor(branch, comparison);
   const files = AsyncResult.isSuccess(marks.result)
     ? reviewFiles(snapshot, marks.result.value)
     : [];
-  const overview =
-    snapshot.kind === 'worktree' ? (
-      <PublishedReview
-        workspace={workspace}
-        onFile={(path) => openFile(path)}
-        empty={
-          isTablet ? (
-            <Empty
-              title="No agent review"
-              description="Choose a changed file to review its diff. Published agent explanations will appear here."
-            />
-          ) : undefined
-        }
-      />
-    ) : (
-      <Text variant="caption" tone="muted">
-        {branch?.base
-          ? `${branch.head.branch ?? 'Detached HEAD'} compared with ${branch.base.ref} · ${branch.commits} commits`
-          : 'No comparison base is available. Choose a base from the Branch menu.'}
-      </Text>
-    );
-  const navigation = (showContent?: () => void) => (
+  return (
     <ScrollView
       className="flex-1"
       contentInsetAdjustmentBehavior="automatic"
       contentContainerClassName="grow gap-3 p-4"
     >
-      {isTablet ? (
+      {inlineOverview ? (
+        <ReviewOverview
+          workspace={workspace}
+          comparison={comparison}
+          onFile={onFile}
+        />
+      ) : (
         <Item
           title="Overview"
           description={
@@ -185,14 +215,9 @@ function ReviewList({
               : 'Branch comparison'
           }
           leading={<Icon name="review" />}
-          selected={selectedPath === undefined}
-          onPress={() => {
-            setDocuments((current) => activateDocument(current, 'overview'));
-            showContent?.();
-          }}
+          selected={overviewSelected}
+          onPress={onOverview}
         />
-      ) : (
-        overview
       )}
       <Button
         label={
@@ -223,28 +248,28 @@ function ReviewList({
             <Item
               key={file.path}
               title={
-                isTablet
-                  ? (file.path.split('/').at(-1) ?? file.path)
-                  : file.path
+                inlineOverview
+                  ? file.path
+                  : (file.path.split('/').at(-1) ?? file.path)
               }
               description={
-                isTablet
-                  ? `${file.path} · ${file.note} · ${reviewStatusLabel(file.reviewStatus)}`
-                  : file.note
+                inlineOverview
+                  ? file.note
+                  : `${file.path} · ${file.note} · ${reviewStatusLabel(file.reviewStatus)}`
               }
-              leading={isTablet ? <FileIcon /> : undefined}
-              size={isTablet ? 'sm' : 'default'}
-              selected={isTablet && selectedPath === file.path}
+              leading={inlineOverview ? undefined : <FileIcon />}
+              size={inlineOverview ? 'default' : 'sm'}
+              selected={!inlineOverview && selectedPath === file.path}
               accessibilityLabel={`Review ${file.path}`}
               trailing={
-                isTablet ? undefined : (
+                inlineOverview ? (
                   <Badge
                     label={reviewStatusLabel(file.reviewStatus)}
                     variant="secondary"
                   />
-                )
+                ) : undefined
               }
-              onPress={() => openFile(file.path, showContent)}
+              onPress={() => onFile(file.path)}
             />
           ))}
           {files.length === 0 ? (
@@ -262,33 +287,6 @@ function ReviewList({
         <ReviewReadState result={marks.result} refresh={marks.refresh} />
       )}
     </ScrollView>
-  );
-  return isTablet ? (
-    <WorkspacePanes
-      navigation={navigation}
-      navigationLabel="Changed files"
-      hasSelection={documents.active !== null}
-    >
-      <DocumentTabs documents={documents} onChange={setDocuments} />
-      {selectedPath ? (
-        <ReviewFileContent
-          key={`${workspace.key}:${selectedPath}:${JSON.stringify(comparison)}`}
-          workspace={workspace}
-          path={selectedPath}
-          comparison={comparison}
-        />
-      ) : (
-        <ScrollView
-          className="flex-1"
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerClassName="grow gap-3 p-4"
-        >
-          {overview}
-        </ScrollView>
-      )}
-    </WorkspacePanes>
-  ) : (
-    navigation()
   );
 }
 
