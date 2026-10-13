@@ -3,6 +3,56 @@ import '../styles/global.css';
 
 const description =
   'A companion for the coding agents you already run. They publish a walkthrough of what changed. You read it, comment, and decide what to keep.';
+
+const files = [
+  {
+    path: 'apps/web/src/revoke-access.ts',
+    name: 'revoke-access.ts',
+    dir: 'apps/web/src',
+    group: 'apps',
+  },
+  {
+    path: 'apps/web/src/legacy-write.ts',
+    name: 'legacy-write.ts',
+    dir: 'apps/web/src',
+    group: 'apps',
+  },
+  {
+    path: 'apps/server/src/revoke-access.ts',
+    name: 'revoke-access.ts',
+    dir: 'apps/server/src',
+    group: 'apps',
+  },
+  {
+    path: 'packages/workspace/src/session-owner.ts',
+    name: 'session-owner.ts',
+    dir: 'packages/workspace/src',
+    group: 'packages',
+  },
+  {
+    path: 'packages/access/src/policy.ts',
+    name: 'policy.ts',
+    dir: 'packages/access/src',
+    group: 'packages',
+  },
+  {
+    path: 'docs/README.md',
+    name: 'README.md',
+    dir: 'docs',
+    group: 'docs',
+  },
+];
+
+const notes = [
+  ['Revoke from the device list', 'apps/web/src/revoke-access.ts', 'Entry points'],
+  ['Round the request', 'apps/server/src/revoke-access.ts', 'Server'],
+  ['Resolve through the session owner', 'packages/workspace/src/session-owner.ts', 'Owners'],
+  ['Keep the domain decision in its owner', 'packages/access/src/policy.ts', 'Owners'],
+  ['Prove the outcome and permission boundary', 'apps/server/src/revoke-access.ts', 'Server'],
+  ['Record the architectural decision', 'docs/README.md', 'Owners'],
+];
+
+const groups = ['apps', 'packages', 'docs'];
 ---
 
 <html lang="en">
@@ -13,27 +63,17 @@ const description =
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
-    <meta
-      name="theme-color"
-      content="#ffffff"
-      media="(prefers-color-scheme: light)"
-    />
-    <meta
-      name="theme-color"
-      content="#171717"
-      media="(prefers-color-scheme: dark)"
-    />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#171717" media="(prefers-color-scheme: dark)" />
     <title>Porcelain</title>
   </head>
-  <body
-    class="bg-background text-foreground font-sans text-base leading-normal tracking-[-0.011em] antialiased"
-  >
-    <div class="mx-auto flex min-h-svh max-w-[1440px] flex-col px-5 py-6 lg:px-10">
+  <body class="bg-background text-foreground font-sans text-base leading-normal tracking-[-0.011em] antialiased">
+    <div class="mx-auto flex min-h-svh max-w-[1600px] flex-col px-4 py-3 sm:px-6 lg:px-8 xl:h-svh xl:overflow-hidden">
       <header class="flex items-center justify-between gap-4">
         <div class="text-lg font-medium tracking-[-0.03em]">Porcelain</div>
-        <div class="flex items-center gap-2 sm:gap-3">
+        <div class="flex items-center gap-1 sm:gap-2">
           <a
-            class="inline-flex h-10 items-center gap-2 rounded-full px-3 text-sm text-muted-foreground no-underline hover:text-foreground"
+            class="inline-flex h-9 items-center gap-2 rounded-full px-3 text-sm text-muted-foreground no-underline hover:bg-accent hover:text-foreground"
             href="https://github.com/FabioFiorita/porcelain"
           >
             <svg viewBox="0 0 1024 1024" class="size-4" aria-hidden="true">
@@ -46,7 +86,7 @@ const description =
             Source
           </a>
           <a
-            class="inline-flex h-10 items-center gap-2 rounded-full bg-foreground px-4 text-sm text-background no-underline"
+            class="inline-flex h-9 items-center gap-2 rounded-full bg-foreground px-3.5 text-sm text-background no-underline"
             href="https://github.com/FabioFiorita/porcelain/releases"
           >
             <svg viewBox="0 0 814 1000" class="size-4" aria-hidden="true">
@@ -60,30 +100,23 @@ const description =
         </div>
       </header>
 
-      <section class="mt-8 grid items-end gap-6 lg:grid-cols-[minmax(0,1fr)_auto]">
-        <div>
-          <h1
-            class="max-w-[18ch] text-[clamp(2.75rem,4.4vw,4.25rem)] leading-[0.96] font-medium tracking-[-0.045em]"
-          >
+      <section class="mt-3 grid items-end gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
+        <div class="animate-in slide-in-from-bottom-6 duration-700 fill-mode-both">
+          <h1 class="max-w-[16ch] text-[clamp(2.15rem,3.1vw,3rem)] leading-[0.96] font-medium tracking-[-0.045em]">
             Agents write the code. This is where you read it.
           </h1>
-          <p class="mt-5 max-w-xl text-lg leading-snug text-muted-foreground">
+          <p class="mt-2 max-w-xl text-base leading-snug text-muted-foreground">
             ChatGPT, Claude and Codex keep running. Porcelain is where they
             publish a walkthrough of the change, and where you comment back
             before you keep it.
           </p>
         </div>
-        <p class="max-w-xs text-sm leading-snug text-muted-foreground lg:pb-2 lg:text-right">
-          Apple silicon today. Any browser. The iPhone and iPad app is still
-          being built.
+        <p class="max-w-xs text-sm leading-snug text-muted-foreground lg:pb-1 lg:text-right">
+          Apple silicon today. Any browser. The iPhone and iPad app is still being built.
         </p>
       </section>
 
-      <div
-        class="mt-8 flex flex-wrap gap-2"
-        role="tablist"
-        aria-label="Parts of the review"
-      >
+      <div class="mt-3 flex flex-wrap items-center gap-2" role="tablist" aria-label="Parts of the review">
         <button type="button" role="tab" data-scene="walkthrough" aria-selected="true" class="scene">Walkthrough</button>
         <button type="button" role="tab" data-scene="files" aria-selected="false" class="scene">Files</button>
         <button type="button" role="tab" data-scene="history" aria-selected="false" class="scene">History</button>
@@ -91,191 +124,292 @@ const description =
         <button type="button" role="tab" data-scene="remote" aria-selected="false" class="scene">Remote</button>
         <button type="button" role="tab" data-scene="source" aria-selected="false" class="scene">Open source</button>
       </div>
-      <p id="coach" class="mt-3 min-h-12 max-w-3xl text-[15px] leading-snug text-muted-foreground"></p>
+      <p id="coach" class="mt-2 min-h-6 text-sm leading-snug text-muted-foreground"></p>
 
       <div
-        class="mt-4 grid min-h-[680px] overflow-hidden rounded-xl border border-border bg-card shadow-2xl xl:grid-cols-[220px_minmax(0,1fr)_300px]"
+        id="stage"
+        class="animate-in slide-in-from-bottom-6 mt-2 grid min-h-[560px] flex-1 overflow-hidden rounded-xl border border-border bg-card shadow-2xl duration-700 fill-mode-both delay-150 xl:min-h-0 xl:grid-cols-[220px_minmax(0,1fr)_280px]"
       >
-        <aside class="hidden border-border bg-background xl:block xl:border-r">
-          <div class="flex items-center justify-between px-3 py-3 text-sm font-medium">
-            Porcelain
+        <aside aria-label="Repository" class="hidden min-h-0 flex-col border-border bg-sidebar text-sidebar-foreground xl:flex xl:border-r">
+          <div class="px-3 pt-3 pb-2">
+            <div class="text-sm font-medium tracking-[-0.02em]">Porcelain</div>
+            <div class="text-xs text-muted-foreground">Workstation</div>
           </div>
-          <div class="px-3 pb-2 text-xs text-muted-foreground">repository</div>
-          <div class="mx-2 rounded-md bg-accent px-2 py-1.5 text-sm">revoke-access</div>
-          <div class="mt-3 px-3 text-xs text-muted-foreground">main</div>
+          <div class="px-2">
+            <div class="px-2 pt-2 pb-1 text-xs text-muted-foreground">repository</div>
+            <div class="flex items-center gap-2 rounded-md bg-sidebar-accent px-2 py-1.5 text-sm">
+              <span class="size-3.5 shrink-0 rounded-sm border border-sidebar-border" aria-hidden="true"></span>
+              revoke-access
+            </div>
+            <div class="mt-2 flex items-center gap-2 px-2 py-1 text-sm">
+              <span class="size-2 shrink-0 rounded-full bg-graph-1" aria-hidden="true"></span>
+              main
+            </div>
+          </div>
+          <div class="mt-auto border-t border-sidebar-border px-3 py-2.5 text-xs text-muted-foreground">Settings</div>
         </aside>
 
-        <div class="min-w-0 border-border xl:border-r">
-          <div class="flex items-center gap-4 border-b border-border px-4 py-2.5 text-sm">
+        <div id="review" class="flex min-h-0 min-w-0 flex-col border-border xl:border-r">
+          <div class="flex shrink-0 items-center gap-3 border-b border-border px-3 py-2 text-sm">
             <span class="font-medium">Review</span>
             <span class="text-muted-foreground">9 decisions</span>
-            <span class="ml-auto text-muted-foreground">1 of 9 reviewed</span>
+            <span class="ml-auto text-xs text-muted-foreground tabular-nums">1 of 9 reviewed</span>
           </div>
+          <div class="min-h-0 flex-1 overflow-auto">
+            <div data-panel="walkthrough">
+              <div class="flex items-center gap-1 border-b border-border px-2 py-1">
+                <button type="button" class="grid size-7 place-items-center rounded-md text-muted-foreground" disabled aria-label="Previous">
+                  <svg viewBox="0 0 16 16" class="size-3.5" aria-hidden="true"><path d="M10 3 L5 8 L10 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                </button>
+                <button type="button" id="next-stop" class="grid size-7 place-items-center rounded-md hover:bg-accent" aria-label="Next: Not explained">
+                  <svg viewBox="0 0 16 16" class="size-3.5" aria-hidden="true"><path d="M6 3 L11 8 L6 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                </button>
+                <span class="ml-1 text-xs text-muted-foreground tabular-nums">0 of 6 files reviewed here</span>
+                <button type="button" id="mark-reviewed" aria-pressed="false" class="ml-auto inline-flex h-7 items-center gap-1.5 rounded-md border border-border px-2 text-xs hover:bg-accent">
+                  <svg viewBox="0 0 16 16" class="size-3.5" aria-hidden="true"><path d="M3.5 8.5 L6.5 11.5 L12.5 4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                  <span id="mark-label">Mark decision reviewed</span>
+                </button>
+              </div>
 
-          <div data-panel="walkthrough" class="px-4 py-4">
-            <p class="text-xs font-medium tracking-wide text-muted-foreground">DECISION 2 OF 9</p>
-            <h2 class="mt-1 text-xl font-medium tracking-[-0.03em]">Revoke access across devices</h2>
-            <p class="mt-2 max-w-2xl text-sm leading-snug text-muted-foreground">
-              Revocation goes through the session owner, so web and mobile observe the same invalidation event.
-            </p>
-            <ol class="mt-4 grid gap-2 sm:grid-cols-2">
-              <li class="rounded-lg border border-border bg-background px-3 py-2 text-sm"><span class="mr-2 text-muted-foreground">1</span>Resolve from the device list</li>
-              <li class="rounded-lg border border-border bg-background px-3 py-2 text-sm"><span class="mr-2 text-muted-foreground">2</span>Round the request</li>
-              <li class="rounded-lg border border-border bg-background px-3 py-2 text-sm"><span class="mr-2 text-muted-foreground">3</span>Resolve through the session owner</li>
-              <li class="rounded-lg border border-border bg-background px-3 py-2 text-sm"><span class="mr-2 text-muted-foreground">4</span>Keep the domain decision in its owner</li>
-              <li class="rounded-lg border border-border bg-background px-3 py-2 text-sm"><span class="mr-2 text-muted-foreground">5</span>Prove the outcome and permission boundary</li>
-              <li class="rounded-lg border border-border bg-background px-3 py-2 text-sm"><span class="mr-2 text-muted-foreground">6</span>Record the architectural decision</li>
-            </ol>
-            <pre class="mt-4 overflow-auto rounded-lg border border-border bg-background p-3 font-mono text-[12px] leading-5"><span class="text-muted-foreground">apps/web/src/revoke-access.ts</span>
-<span class="block bg-graph-6/15">- export function handle(input) &#123;</span>
-<span class="block bg-graph-2/15">+ export function submit(value: string) &#123;</span>
-<span class="block">    return router(&#123; input, pending: true &#125;)</span>
-<span class="block">  &#125;</span></pre>
-            <p class="mt-3 text-sm text-muted-foreground">Not explained stays its own stop. A path-sorted diff would leave that work at the bottom of a long list.</p>
-          </div>
+              <div class="border-b border-border bg-muted/20 px-4 pt-3 pb-2">
+                <p class="text-[0.6875rem] font-medium tracking-wide text-muted-foreground uppercase">Decision 2 of 9</p>
+                <h2 class="mt-1 text-xl leading-tight font-semibold tracking-[-0.03em]">Revoke access across devices</h2>
+                <p class="mt-1.5 max-w-3xl text-sm leading-snug text-muted-foreground">
+                  Revocation goes through the session owner, so web and mobile observe the same invalidation event.
+                </p>
+                <ol aria-label="Route through the system" class="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
+                  <li class="rounded-md bg-secondary px-2 py-0.5">Entry points</li>
+                  <li class="text-muted-foreground" aria-hidden="true">→</li>
+                  <li class="rounded-md bg-secondary px-2 py-0.5">Shared client</li>
+                  <li class="text-muted-foreground" aria-hidden="true">→</li>
+                  <li class="rounded-md bg-secondary px-2 py-0.5">Server</li>
+                  <li class="text-muted-foreground" aria-hidden="true">→</li>
+                  <li class="rounded-md bg-secondary px-2 py-0.5">Owners</li>
+                </ol>
+                <ol aria-label="Steps" class="mt-2 grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
+                  {
+                    notes.map(([title, path, lane], index) => (
+                      <li class="rounded-lg border border-border bg-background px-2 py-1">
+                        <div class="flex items-start gap-2">
+                          <span class="mt-px grid size-5 shrink-0 place-items-center rounded-full bg-graph-1/12 text-[0.6875rem] font-semibold text-graph-1 tabular-nums">
+                            {index + 1}
+                          </span>
+                          <span class="min-w-0">
+                            <span class="block text-xs leading-4 font-medium">{title}</span>
+                            <span class="block truncate text-[0.6875rem] text-muted-foreground">{path} · {lane}</span>
+                          </span>
+                        </div>
+                      </li>
+                    ))
+                  }
+                </ol>
+              </div>
 
-          <div data-panel="history" class="hidden px-4 py-4" hidden>
-            <h2 class="text-xl font-medium tracking-[-0.03em]">History</h2>
-            <p class="mt-1 text-sm text-muted-foreground">The commit graph sits beside the commits.</p>
-            <div class="mt-4 grid grid-cols-[72px_minmax(0,1fr)] gap-3">
-              <svg viewBox="0 0 72 220" class="h-[220px] w-[72px] text-graph-1" aria-hidden="true">
-                <path d="M24 16 V204" fill="none" stroke="currentColor" stroke-width="2"></path>
-                <path d="M24 70 C24 104 48 104 48 138 V204" fill="none" class="text-graph-2" stroke="currentColor" stroke-width="2"></path>
-                <circle cx="24" cy="28" r="5" fill="currentColor"></circle>
-                <circle cx="24" cy="70" r="5" fill="currentColor"></circle>
-                <circle cx="48" cy="138" r="5" class="text-graph-2" fill="currentColor"></circle>
-                <circle cx="24" cy="176" r="5" fill="currentColor"></circle>
-              </svg>
-              <ol class="space-y-4 pt-1 text-sm">
-                <li><span class="block font-medium">Record the architectural decision</span><span class="text-muted-foreground">main</span></li>
-                <li><span class="block font-medium">Keep the domain decision in its owner</span><span class="text-muted-foreground">main</span></li>
-                <li><span class="block font-medium">Prove the outcome</span><span class="text-graph-2">feature</span></li>
-                <li><span class="block font-medium">Resolve through the session owner</span><span class="text-muted-foreground">main</span></li>
-              </ol>
+              <div class="border-b border-border">
+                <div class="flex items-center gap-2 px-3 py-2 text-xs">
+                  <span class="size-3.5 rounded-sm bg-graph-1/20 text-center text-[0.6rem] leading-3.5 text-graph-1">ts</span>
+                  <span class="min-w-0 truncate font-medium">apps/web/src/revoke-access.ts</span>
+                  <span class="text-muted-foreground">staged · modified</span>
+                  <span class="ml-auto font-mono text-muted-foreground">-2 +3</span>
+                </div>
+                <div class="overflow-auto font-mono text-[12px] leading-4" aria-label="Diff">
+                  <div class="flex bg-graph-6/15"><span class="w-8 shrink-0 pr-2 text-right text-muted-foreground">1</span><span class="w-4 text-graph-6">-</span><span class="pr-3">import &#123; legacyWrite &#125; from './legacy-write';</span></div>
+                  <div class="flex bg-graph-2/15"><span class="w-8 shrink-0 pr-2 text-right text-muted-foreground">2</span><span class="w-4 text-graph-2">+</span><span class="pr-3">import type &#123; Actor &#125; from './actor';</span></div>
+                  <div class="flex bg-graph-2/15"><span class="w-8 shrink-0 pr-2 text-right text-muted-foreground">3</span><span class="w-4 text-graph-2">+</span><span class="pr-3">import &#123; request &#125; from './request';</span></div>
+                  <div class="flex"><span class="w-8 shrink-0 pr-2 text-right text-muted-foreground">4</span><span class="w-4"></span><span class="pr-3"></span></div>
+                  <div class="flex bg-graph-6/15"><span class="w-8 shrink-0 pr-2 text-right text-muted-foreground">5</span><span class="w-4 text-graph-6">-</span><span class="pr-3">export function handle(input) &#123;</span></div>
+                  <div class="flex bg-graph-2/15"><span class="w-8 shrink-0 pr-2 text-right text-muted-foreground">6</span><span class="w-4 text-graph-2">+</span><span class="pr-3">export function submit(actor: Actor, value: string) &#123;</span></div>
+                  <div class="flex bg-graph-2/15"><span class="w-8 shrink-0 pr-2 text-right text-muted-foreground">7</span><span class="w-4 text-graph-2">+</span><span class="pr-3">  const input = request(actor, value);</span></div>
+                  <div class="flex bg-graph-2/15"><span class="w-8 shrink-0 pr-2 text-right text-muted-foreground">8</span><span class="w-4 text-graph-2">+</span><span class="pr-3">  return &#123; route: '/revoke-access', input, pending: true &#125;;</span></div>
+                  <div class="flex"><span class="w-8 shrink-0 pr-2 text-right text-muted-foreground">9</span><span class="w-4"></span><span class="pr-3">&#125;</span></div>
+                </div>
+              </div>
+
+              <aside id="not-explained" class="m-2 flex max-w-3xl gap-2.5 rounded-lg border border-graph-4/40 bg-graph-4/5 px-3 py-2" aria-label="Not explained">
+                <span class="mt-px grid size-5 shrink-0 place-items-center rounded-full bg-graph-4/15 text-graph-4" aria-hidden="true">!</span>
+                <div class="min-w-0 text-sm">
+                  <p class="font-medium">Not explained</p>
+                  <p class="text-muted-foreground">
+                    apps/web/src/legacy-write.ts changed, and no decision points at it. It stays its own stop, so a path-sorted diff cannot bury it.
+                  </p>
+                </div>
+              </aside>
+            </div>
+
+            <div data-panel="files" class="hidden px-5 py-6" hidden>
+              <h2 class="text-xl font-semibold tracking-[-0.03em]">Files</h2>
+              <p class="mt-2 max-w-xl text-sm leading-snug text-muted-foreground">
+                Right-click a file in the list. Pin keeps the ones you return to at the top. Hide takes the rest out of a large repository until you show them again.
+              </p>
+            </div>
+
+            <div data-panel="history" class="hidden px-4 py-4" hidden>
+              <p class="text-[0.6875rem] font-medium tracking-wide text-muted-foreground uppercase">History</p>
+              <h2 class="mt-1 text-xl font-semibold tracking-[-0.03em]">Commit graph</h2>
+              <p class="mt-1 text-sm text-muted-foreground">How main arrived, beside the commits.</p>
+              <div class="mt-4 grid grid-cols-[72px_minmax(0,1fr)] gap-2">
+                <svg viewBox="0 0 72 240" class="h-[240px] w-[72px]" aria-label="Commit graph" role="img">
+                  <path d="M24 30 V210" fill="none" stroke="currentColor" stroke-width="2" class="text-graph-1"></path>
+                  <path d="M24 90 C24 120 48 120 48 150" fill="none" stroke="currentColor" stroke-width="2" class="text-graph-2"></path>
+                  <path d="M48 150 C48 180 24 180 24 210" fill="none" stroke="currentColor" stroke-width="2" class="text-graph-2"></path>
+                  <circle cx="24" cy="30" r="5" fill="currentColor" class="text-graph-1"></circle>
+                  <circle cx="24" cy="90" r="5" fill="currentColor" class="text-graph-1"></circle>
+                  <circle cx="48" cy="150" r="5" fill="currentColor" class="text-graph-2"></circle>
+                  <circle cx="24" cy="210" r="6" fill="var(--card)" stroke="currentColor" stroke-width="2" class="text-graph-1"></circle>
+                </svg>
+                <ol class="text-sm">
+                  <li data-commit class="flex h-[60px] flex-col justify-center"><span class="font-medium">Record the architectural decision</span><span class="text-xs text-muted-foreground">main</span></li>
+                  <li data-commit class="flex h-[60px] flex-col justify-center"><span class="font-medium">Keep the domain decision in its owner</span><span class="text-xs text-muted-foreground">main</span></li>
+                  <li data-commit class="flex h-[60px] flex-col justify-center"><span class="font-medium">Prove the outcome</span><span class="text-xs text-graph-2">feature</span></li>
+                  <li data-commit class="flex h-[60px] flex-col justify-center"><span class="font-medium">Resolve through the session owner</span><span class="text-xs text-muted-foreground">main</span></li>
+                </ol>
+              </div>
+            </div>
+
+            <div data-panel="comment" class="hidden px-4 py-5" hidden>
+              <h2 class="text-xl font-semibold tracking-[-0.03em]">apps/web/src/revoke-access.ts</h2>
+              <div class="mt-4 max-w-xl space-y-3">
+                <article class="rounded-lg border border-border bg-background px-3 py-2.5">
+                  <header class="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span class="font-medium text-foreground">You</span>
+                    <span>just now</span>
+                  </header>
+                  <p class="mt-1 text-sm">Can you explain how this decision reaches the other devices?</p>
+                </article>
+                <article class="rounded-lg border border-border bg-background px-3 py-2.5">
+                  <header class="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span class="font-medium text-foreground">Agent</span>
+                    <span>just now</span>
+                  </header>
+                  <p class="mt-1 text-sm">The session owner publishes one revocation event. Web and mobile both observe it, so neither device keeps a session the other has ended.</p>
+                </article>
+              </div>
+            </div>
+
+            <div data-panel="remote" class="hidden px-5 py-6" hidden>
+              <h2 class="text-xl font-semibold tracking-[-0.03em]">Another computer</h2>
+              <p class="mt-2 max-w-xl text-sm leading-snug text-muted-foreground">
+                On the other computer, run porcelain pair and paste the link it prints. This app keeps its own credential for that computer. The repositories stay on the machine that holds them.
+              </p>
+              <form class="mt-4 flex max-w-xl gap-2">
+                <input class="h-10 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-sm" aria-label="Pairing link" placeholder="The link the server prints" disabled />
+                <button type="button" class="h-10 rounded-md bg-foreground px-3 text-sm text-background" disabled>Add</button>
+              </form>
+              <p class="mt-2 text-xs text-muted-foreground">This model does not pair. The real review runs on your machine.</p>
+            </div>
+
+            <div data-panel="source" class="hidden px-5 py-6" hidden>
+              <h2 class="text-xl font-semibold tracking-[-0.03em]">Open source</h2>
+              <p class="mt-2 max-w-xl text-sm leading-snug text-muted-foreground">
+                Porcelain is open source, under the MIT license. The review stays on your machine. There is no account, and there is nothing of yours to disclose. If you do not trust that, read the source. That is the policy. The iPhone and iPad app is still being built.
+              </p>
+              <p class="mt-4 text-sm">
+                <a class="text-foreground underline" href="https://github.com/FabioFiorita/porcelain">github.com/FabioFiorita/porcelain</a>
+              </p>
             </div>
           </div>
-
-          <div data-panel="comment" class="hidden px-4 py-4" hidden>
-            <h2 class="text-xl font-medium tracking-[-0.03em]">apps/web/src/revoke-access.ts</h2>
-            <div class="mt-4 max-w-xl space-y-3">
-              <div class="rounded-lg border border-border bg-background px-3 py-2.5">
-                <div class="flex items-center gap-2 text-xs text-muted-foreground"><span class="font-medium text-foreground">You</span><span>just now</span></div>
-                <p class="mt-1 text-sm">Can you explain how this decision reaches the other devices?</p>
-              </div>
-              <div class="rounded-lg border border-border bg-background px-3 py-2.5">
-                <div class="flex items-center gap-2 text-xs text-muted-foreground"><span class="font-medium text-foreground">Agent</span><span>just now</span></div>
-                <p class="mt-1 text-sm">The session owner publishes one revocation event. Web and mobile both observe it, so neither device keeps a session the other has ended.</p>
-              </div>
-            </div>
-          </div>
-
-          <div data-panel="remote" class="hidden px-4 py-4" hidden>
-            <h2 class="text-xl font-medium tracking-[-0.03em]">Another computer</h2>
-            <p class="mt-2 max-w-xl text-sm leading-snug text-muted-foreground">
-              On the other computer, run porcelain pair and paste the link it prints. This app keeps its own credential for that computer. The repositories stay on the machine that holds them.
-            </p>
-            <form class="mt-4 flex max-w-xl gap-2">
-              <input
-                class="h-10 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-sm"
-                aria-label="Pairing link"
-                placeholder="The link the server prints"
-                disabled
-              />
-              <button type="button" class="h-10 rounded-md bg-foreground px-3 text-sm text-background" disabled>Add</button>
-            </form>
-            <p class="mt-2 text-xs text-muted-foreground">This model does not pair. The real review runs on your machine.</p>
-          </div>
-
-          <div data-panel="source" class="hidden px-4 py-4" hidden>
-            <h2 class="text-xl font-medium tracking-[-0.03em]">Open source</h2>
-            <p class="mt-2 max-w-xl text-sm leading-snug text-muted-foreground">
-              Porcelain is MIT. The review stays on your machine. There is no account, and there is nothing of yours to disclose. If you do not trust that, read the source. That is the policy.
-            </p>
-            <p class="mt-4 text-sm">
-              <a class="text-foreground underline" href="https://github.com/FabioFiorita/porcelain">github.com/FabioFiorita/porcelain</a>
-            </p>
-            <p class="mt-6 text-sm leading-snug text-muted-foreground">
-              The iPhone and iPad app is in this repository. It appears here when you can hold it.
-            </p>
-          </div>
-
-          <div data-panel="files" class="hidden px-4 py-4" hidden>
-            <h2 class="text-xl font-medium tracking-[-0.03em]">Files</h2>
-            <p class="mt-2 max-w-xl text-sm leading-snug text-muted-foreground">Right-click a file in the list. Pin keeps it at the top. Hide takes it out of the way until you show it again.</p>
-          </div>
+          <footer class="flex shrink-0 items-center justify-between gap-3 border-t border-border px-3 py-2">
+            <p class="text-xs text-muted-foreground">On the machine that holds the repositories.</p>
+            <code class="truncate font-mono text-xs sm:text-sm">npx @fabiofiorita/porcelain@latest serve</code>
+          </footer>
         </div>
 
-        <aside id="files-pane" class="bg-background">
-          <div class="flex items-center justify-between border-b border-border px-3 py-2.5 text-sm">
-            <span class="font-medium">Files</span>
+        <aside id="files-pane" aria-label="Files" class="flex min-h-0 flex-col bg-sidebar text-sidebar-foreground data-[focus=true]:ring-2 data-[focus=true]:ring-foreground data-[focus=true]:ring-inset">
+          <div class="flex items-center justify-between gap-2 border-b border-sidebar-border px-3 py-2">
+            <span class="text-sm font-medium">Files</span>
             <button type="button" id="show-hidden" class="hidden text-xs text-muted-foreground underline" hidden>Show hidden</button>
           </div>
-          <div id="pinned-block" class="hidden border-b border-border px-2 py-2" hidden>
-            <p class="px-1.5 pb-1 text-xs text-muted-foreground">Pinned</p>
-            <ul id="pinned-list" class="space-y-0.5"></ul>
+          <label class="px-3 pt-2">
+            <span class="sr-only">Search files</span>
+            <input id="file-search" class="h-8 w-full rounded-md border border-sidebar-border bg-background px-2 text-xs" placeholder="Search files" autocomplete="off" />
+          </label>
+          <div id="pinned-block" class="hidden border-b border-sidebar-border px-2 py-2" hidden>
+            <p class="px-1.5 pb-1 text-[0.6875rem] font-medium text-muted-foreground">Pinned</p>
+            <ul id="pinned-list" aria-label="Pinned files"></ul>
           </div>
-          <p class="px-3.5 pt-2 pb-1 text-xs text-muted-foreground">All files</p>
-          <ul id="file-list" class="space-y-0.5 px-2 pb-3">
-            <li data-path="apps/web/src/revoke-access.ts"><button type="button" class="file">apps/web/src/revoke-access.ts</button></li>
-            <li data-path="apps/server/src/revoke-access.ts"><button type="button" class="file">apps/server/src/revoke-access.ts</button></li>
-            <li data-path="packages/workspace/src/session-owner.ts"><button type="button" class="file">packages/workspace/src/session-owner.ts</button></li>
-            <li data-path="packages/access/src/policy.ts"><button type="button" class="file">packages/access/src/policy.ts</button></li>
-            <li data-path="docs/README.md"><button type="button" class="file">docs/README.md</button></li>
+          <p class="px-3.5 pt-2 pb-1 text-[0.6875rem] font-medium text-muted-foreground">All files</p>
+          <ul id="file-list" class="min-h-0 flex-1 overflow-auto px-2 pb-3">
+            {
+              groups.map((group) => (
+                <>
+                  <li data-group={group} class="px-1.5 pt-2 pb-0.5 text-[0.6875rem] text-muted-foreground">{group}</li>
+                  {
+                    files
+                      .filter((file) => file.group === group)
+                      .map((file) => (
+                        <li data-path={file.path} data-group-item={file.group}>
+                          <button type="button" class="file" title={file.path} aria-current={file.path === 'apps/web/src/revoke-access.ts' ? 'true' : undefined}>
+                            <span class="file-mark" aria-hidden="true">{file.name.endsWith('.md') ? 'md' : 'ts'}</span>
+                            <span class="shrink-0">{file.name}</span>
+                            <span class="truncate text-muted-foreground">{file.dir}</span>
+                          </button>
+                        </li>
+                      ))
+                  }
+                </>
+              ))
+            }
           </ul>
         </aside>
       </div>
+    </div>
 
-      <div
-        id="menu"
-        role="menu"
-        hidden
-        class="fixed z-30 hidden min-w-40 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md"
-      >
-        <button type="button" role="menuitem" data-act="pin" class="block w-full rounded-md px-2 py-1.5 text-left hover:bg-accent">Pin file</button>
-        <button type="button" role="menuitem" data-act="hide" class="block w-full rounded-md px-2 py-1.5 text-left hover:bg-accent">Hide file</button>
-      </div>
-
-      <section id="start" class="mt-10 grid gap-6 border-t border-border pt-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-        <div>
-          <h2 class="text-2xl font-medium tracking-[-0.03em]">On the machine that holds the repositories.</h2>
-          <pre class="mt-3 overflow-auto rounded-lg border border-border bg-card px-4 py-3 font-mono text-sm">npx @fabiofiorita/porcelain@latest serve</pre>
-          <p class="mt-2 text-sm text-muted-foreground">Pair the browser with the link it prints, then open the repository.</p>
-        </div>
-        <p class="text-sm text-muted-foreground">One server. Your agents. Your machine. MIT.</p>
-      </section>
+    <div id="menu" role="menu" hidden class="fixed z-30 hidden min-w-40 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md">
+      <button type="button" role="menuitem" data-act="pin" class="block w-full rounded-md px-2 py-1.5 text-left hover:bg-accent">Pin file</button>
+      <button type="button" role="menuitem" data-act="hide" class="block w-full rounded-md px-2 py-1.5 text-left hover:bg-accent">Hide file</button>
     </div>
 
     <style>
       .scene {
-        height: 2.25rem;
+        height: 2rem;
         border-radius: 999px;
-        padding-inline: 0.9rem;
+        padding-inline: 0.85rem;
         font-size: 0.875rem;
         color: var(--muted-foreground);
-        background: transparent;
       }
       .scene[aria-selected='true'] {
         color: var(--background);
         background: var(--foreground);
       }
       .file {
-        display: block;
+        display: flex;
         width: 100%;
+        align-items: center;
+        gap: 0.375rem;
+        height: 1.75rem;
         overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
         border-radius: 0.375rem;
-        padding: 0.3rem 0.4rem;
+        padding-inline: 0.375rem;
         text-align: left;
-        font-family: var(--font-mono);
-        font-size: 12px;
+        font-size: 0.75rem;
+      }
+      .file-mark {
+        display: grid;
+        width: 1.15rem;
+        height: 0.95rem;
+        flex: none;
+        place-items: center;
+        border-radius: 0.2rem;
+        background: color-mix(in oklch, var(--graph-1) 16%, transparent);
+        color: var(--graph-1);
+        font-size: 0.5rem;
+        font-weight: 650;
+        letter-spacing: -0.03em;
       }
       .file:hover,
       .file[aria-current='true'] {
-        background: var(--accent);
+        background: var(--sidebar-accent);
       }
-      #files-pane[data-focus='true'] {
-        box-shadow: inset 0 0 0 2px var(--foreground);
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
       }
     </style>
 
@@ -283,28 +417,59 @@ const description =
       const coach = document.querySelector('#coach');
       const menu = document.querySelector('#menu');
       const pinLabel = menu.querySelector('[data-act="pin"]');
-      const hideLabel = menu.querySelector('[data-act="hide"]');
       const fileList = document.querySelector('#file-list');
       const pinnedList = document.querySelector('#pinned-list');
       const pinnedBlock = document.querySelector('#pinned-block');
       const showHidden = document.querySelector('#show-hidden');
       const filesPane = document.querySelector('#files-pane');
+      const search = document.querySelector('#file-search');
+      const mark = document.querySelector('#mark-reviewed');
+      const markLabel = document.querySelector('#mark-label');
+      const notExplained = document.querySelector('#not-explained');
+      const motionNames = [
+        'animate-in',
+        'animate-out',
+        'fade-in',
+        'fade-out',
+        'slide-in-from-bottom-3',
+        'slide-in-from-bottom-6',
+        'slide-in-from-top-2',
+        'slide-in-from-right-2',
+        'zoom-in-95',
+        'duration-300',
+        'duration-500',
+        'duration-700',
+        'fill-mode-both',
+        'delay-100',
+        'delay-150',
+        'delay-200',
+        'delay-300',
+      ];
       const lines = {
         walkthrough:
-          'One decision, the route it takes, and the diff under the note that explains it. Changed lines the story left out stay visible as Not explained.',
+          'One decision, the notes on the change, and the lines the story left out.',
         files:
-          'Right-click a file. Pin the ones you return to. Hide the ones that bury a large repository. They stay that way in the real review.',
-        history:
-          'History draws the commit graph beside the commits, so you can see how the branch arrived.',
+          'Right-click a file. Pin keeps it at the top. Hide takes it out of a large repository.',
+        history: 'History draws the commit graph beside the commits.',
         comment:
-          'You write on the file. The reply comes back in the same thread, through MCP, on your machine. The agent stays in the app you already pay for.',
+          'You write on the file. The agent replies in the same thread, on your machine.',
         remote:
-          'Pair another computer with the link the server prints. You open the same review from where you are sitting. The repositories do not move.',
+          'Pair another computer with the link the server prints. The repositories stay where they are.',
         source:
-          'Porcelain is open source. The review stays on your machine. There is no account and nothing of yours to disclose. If you do not trust that, read the source.',
+          'Open source. The review stays on your machine. The source is the policy.',
       };
       let scene = 'walkthrough';
       let target = null;
+      let booted = false;
+
+      const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      const enter = (el, motion) => {
+        if (!el) return;
+        el.classList.remove(...motionNames);
+        void el.offsetWidth;
+        el.classList.add('animate-in', 'fade-in', 'duration-500', 'fill-mode-both', motion);
+      };
 
       const showScene = (next) => {
         scene = next;
@@ -315,27 +480,57 @@ const description =
           const visible = panel.dataset.panel === next;
           panel.hidden = !visible;
           panel.classList.toggle('hidden', !visible);
+          if (visible && booted) enter(panel, 'slide-in-from-bottom-3');
+        }
+        if (next === 'history' && booted) {
+          const delays = ['delay-100', 'delay-150', 'delay-200', 'delay-300'];
+          document.querySelectorAll('[data-commit]').forEach((row, index) => {
+            enter(row, 'slide-in-from-bottom-3');
+            const delay = delays[index];
+            if (delay) row.classList.add(delay);
+          });
         }
         filesPane.dataset.focus = next === 'files' ? 'true' : 'false';
+        booted = true;
       };
 
+      const rows = () => [
+        ...fileList.querySelectorAll('[data-path]'),
+        ...pinnedList.querySelectorAll('[data-path]'),
+      ];
+
       const row = (path) => document.querySelector(`[data-path="${path}"]`);
-      const nameOf = (path) => path.split('/').slice(-3).join('/');
 
       const paint = () => {
-        const rows = [...fileList.querySelectorAll('[data-path]'), ...pinnedList.querySelectorAll('[data-path]')];
+        const query = search.value.trim().toLowerCase();
         let hiddenCount = 0;
         let pinnedCount = 0;
-        for (const item of rows) {
+        for (const item of rows()) {
           const pinned = item.dataset.pinned === 'true';
           const hidden = item.dataset.hidden === 'true';
+          const matches = query === '' || item.dataset.path.toLowerCase().includes(query);
           if (hidden) hiddenCount += 1;
-          if (pinned) pinnedCount += 1;
+          if (pinned && !hidden) pinnedCount += 1;
           const home = pinned ? pinnedList : fileList;
-          if (item.parentElement !== home) home.append(item);
-          item.hidden = hidden;
-          const button = item.querySelector('button');
-          button.textContent = nameOf(item.dataset.path);
+          if (item.parentElement !== home) {
+            if (pinned) home.append(item);
+            else {
+              const siblings = [...fileList.querySelectorAll(`[data-group-item="${item.dataset.groupItem}"]`)];
+              const anchor = siblings.at(-1) ?? fileList.querySelector(`[data-group="${item.dataset.groupItem}"]`);
+              if (anchor) anchor.after(item);
+              else home.append(item);
+            }
+          }
+          const gone = hidden || !matches;
+          item.hidden = gone;
+          item.classList.toggle('hidden', gone);
+        }
+        for (const group of fileList.querySelectorAll('[data-group]')) {
+          const name = group.dataset.group;
+          const visible = [...fileList.querySelectorAll(`[data-group-item="${name}"]`)].some(
+            (item) => !item.hidden,
+          );
+          group.hidden = !visible;
         }
         pinnedBlock.hidden = pinnedCount === 0;
         pinnedBlock.classList.toggle('hidden', pinnedCount === 0);
@@ -355,7 +550,6 @@ const description =
         target = path;
         const item = row(path);
         pinLabel.textContent = item.dataset.pinned === 'true' ? 'Unpin file' : 'Pin file';
-        hideLabel.textContent = 'Hide file';
         menu.hidden = false;
         menu.classList.remove('hidden');
         const width = 180;
@@ -363,11 +557,31 @@ const description =
         const top = Math.min(event.clientY, window.innerHeight - 88);
         menu.style.left = `${left}px`;
         menu.style.top = `${top}px`;
+        enter(menu, 'zoom-in-95');
+      };
+
+      const ghostLeave = (item) => {
+        const rect = item.getBoundingClientRect();
+        if (rect.width === 0) return;
+        const ghost = item.cloneNode(true);
+        ghost.removeAttribute('data-path');
+        ghost.classList.remove(...motionNames);
+        ghost.classList.add('animate-out', 'fade-out', 'duration-500', 'fill-mode-both');
+        ghost.style.position = 'fixed';
+        ghost.style.left = `${rect.left}px`;
+        ghost.style.top = `${rect.top}px`;
+        ghost.style.width = `${rect.width}px`;
+        ghost.style.margin = '0';
+        ghost.style.pointerEvents = 'none';
+        ghost.style.zIndex = '40';
+        document.body.append(ghost);
+        const remove = () => ghost.remove();
+        ghost.addEventListener('animationend', remove);
+        window.setTimeout(remove, 700);
       };
 
       document.querySelectorAll('[data-path] button').forEach((button) => {
-        const path = button.parentElement.dataset.path;
-        button.addEventListener('contextmenu', (event) => openMenu(event, path));
+        button.addEventListener('contextmenu', (event) => openMenu(event, button.parentElement.dataset.path));
       });
 
       menu.addEventListener('click', (event) => {
@@ -376,24 +590,47 @@ const description =
         const item = row(target);
         if (act === 'pin') {
           item.dataset.pinned = item.dataset.pinned === 'true' ? 'false' : 'true';
+          paint();
+          enter(item, 'slide-in-from-top-2');
           coach.textContent =
             item.dataset.pinned === 'true'
               ? 'Pinned. It stays at the top while the rest of a large repository scrolls past.'
               : 'Unpinned. It returns to the file list.';
         }
         if (act === 'hide') {
+          if (!reduced()) ghostLeave(item);
           item.dataset.hidden = 'true';
           item.dataset.pinned = 'false';
-          coach.textContent = 'Hidden. Show hidden brings it back. The review no longer has to wade through it.';
+          item.classList.add('animate-in', 'fade-in', 'duration-500', 'fill-mode-both');
+          paint();
+          enter(showHidden, 'slide-in-from-right-2');
+          coach.textContent = 'Hidden. Show hidden brings it back.';
         }
-        paint();
         closeMenu();
       });
 
       showHidden.addEventListener('click', () => {
-        for (const item of document.querySelectorAll('[data-path]')) item.dataset.hidden = 'false';
+        for (const item of document.querySelectorAll('[data-path]')) {
+          if (item.dataset.hidden === 'true') {
+            item.dataset.hidden = 'false';
+            enter(item, 'slide-in-from-top-2');
+          }
+        }
         paint();
         coach.textContent = 'The hidden files are back in the list.';
+      });
+
+      search.addEventListener('input', paint);
+
+      mark.addEventListener('click', () => {
+        const pressed = mark.getAttribute('aria-pressed') === 'true';
+        mark.setAttribute('aria-pressed', String(!pressed));
+        markLabel.textContent = pressed ? 'Mark decision reviewed' : 'Decision reviewed';
+      });
+
+      document.querySelector('#next-stop').addEventListener('click', () => {
+        notExplained.scrollIntoView({ block: 'nearest' });
+        enter(notExplained, 'slide-in-from-bottom-3');
       });
 
       document.addEventListener('click', (event) => {
@@ -402,7 +639,6 @@ const description =
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') closeMenu();
       });
-      window.addEventListener('resize', () => showScene(scene));
 
       for (const tab of document.querySelectorAll('[data-scene]'))
         tab.addEventListener('click', () => showScene(tab.dataset.scene));
