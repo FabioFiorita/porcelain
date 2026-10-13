@@ -34,7 +34,7 @@ Settings → Connection → "Disconnect this browser" ends this browser's sessio
 - Sidebar (phone width: `Toggle Sidebar` first) → `Settings` → `Connection` section → `Disconnect this browser`.
 - `Alt+Shift+S` opens Settings (ignored while focus is in a text field or the file editor); then the `Connection` section.
 - Route `/settings/connection` opens the section directly (a full page load: it drops unsaved drafts, so do not use it for the refusal case).
-- Settings section `Connection` exists in both web and desktop modes.
+- Settings section `Connection` exists only in web mode: the desktop app is not a browser and has no This browser section.
 
 ## Driving it
 

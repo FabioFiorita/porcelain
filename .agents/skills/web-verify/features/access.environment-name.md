@@ -41,7 +41,7 @@ Start with `$C start --desktop`; pair your browser using the card’s pairing-li
 1. Click button named `Toggle Sidebar`
    Look for: navigation "Projects and worktrees" whose header shows "Porcelain" and the text `$HOST`.
 2. Click button named `Settings`
-   Look for: Page URL ends `/settings/appearance`; Page Title "Settings".
+   Look for: Page URL ends `/settings/computer`; Page Title "Settings".
 3. Click button named `This computer`
    Look for: Page URL ends `/settings/computer`; textbox "Name of this computer" empty (its placeholder is `$HOST`); button "Save" disabled.
 4. Replace the contents of textbox named `Name of this computer` with 'Workstation'
@@ -57,7 +57,7 @@ Start with `$C start --desktop`; pair your browser using the card’s pairing-li
 9. Click button named `Toggle Sidebar`
    Look for: navigation "Projects and worktrees" header shows "Workstation" (no longer `$HOST`).
 10. Click button named `Settings`
-    Look for: Page URL ends `/settings/appearance`; Page Title "Settings · Workstation".
+    Look for: Page URL ends `/settings/computer`; Page Title "Settings · Workstation".
 11. Click button named `This computer`
     Look for: textbox "Name of this computer" holds "Workstation".
 12. Replace the contents of textbox named `Name of this computer` with ''

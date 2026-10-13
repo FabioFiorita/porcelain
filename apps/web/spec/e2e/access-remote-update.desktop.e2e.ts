@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures.ts';
 
-test('This computer lists each remote computer’s update, tells an untrusted app how to get trusted there, and lets a trusted app start the update on that computer', async ({
+test('Remote computers shows each remote computer’s update in its row, tells an untrusted app how to get trusted there, and lets a trusted app start the update on that computer', async ({
   pairedPage,
   app,
   remote,
@@ -31,12 +31,9 @@ test('This computer lists each remote computer’s update, tells an untrusted ap
         .getByRole('list', { name: 'Remote computers', exact: true })
         .getByRole('listitem', { name: other, exact: true }),
     ).toBeVisible();
-    await settings
-      .getByRole('button', { name: 'This computer', exact: true })
-      .click();
   };
   const row = settings
-    .getByRole('list', { name: 'Remote computer updates', exact: true })
+    .getByRole('list', { name: 'Remote computers', exact: true })
     .getByRole('listitem', { name: other, exact: true });
 
   await add(await app.remoteLink());

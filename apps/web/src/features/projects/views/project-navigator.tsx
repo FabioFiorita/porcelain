@@ -14,6 +14,7 @@ import type { RemoteConnection } from '@porcelain/client/access';
 import type { WorktreeTarget } from '../rules/worktree-target';
 import type { Inventory } from '@porcelain/client/projects/rules';
 import { MachineSection } from './machine-section';
+import { NavigatorHeader } from './navigator-header';
 import { OpenProjectMenu } from './open-project-menu';
 import { RemoteMachine } from './remote-machine';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
@@ -78,18 +79,9 @@ export function ProjectNavigator({
       aria-label="Projects and worktrees"
       className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card text-ui"
     >
-      <header className="desktop-sidebar-header flex h-11 shrink-0 items-center gap-2 border-b px-3">
-        <div className="flex min-w-0 flex-col leading-tight">
-          <span className="text-sm font-semibold">Porcelain</span>
-          <span
-            className="truncate text-2xs text-muted-foreground"
-            title={`Connected to ${inventory.environment.name}`}
-          >
-            {inventory.environment.name}
-          </span>
-        </div>
+      <NavigatorHeader environment={inventory.environment.name}>
         <OpenProjectMenu remotes={remotes} onOpenProject={onOpenProject} />
-      </header>
+      </NavigatorHeader>
 
       <ScrollArea className="h-0 min-h-0 flex-1">
         <div className={remotes ? 'py-2 pr-2' : 'p-2'}>
