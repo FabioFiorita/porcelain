@@ -7,6 +7,7 @@ selectors:
   - 'Files'
   - 'Select a worktree to continue.'
   - 'Search files'
+  - 'Create file or folder'
   - 'New file'
   - 'New folder'
   - 'Rename'
@@ -32,7 +33,7 @@ Reach Files through its phone tab or porcelain.dev://files. Choose a worktree wi
 
 During the first folder read (pending with no previous value), its row replaces the chevron with a loading indicator and exposes loading in its accessibility label. The existing rows stay visible without moving until the children arrive. Reading files… appears in the header only for a root read without a value; background rereads and refreshing loaded folders preserve their rows, chevrons and the header height without loading labels. User-initiated Refresh disables the native toolbar refresh icon and relabels it from Refresh files to Refreshing files until the reads settle. Read folders again shows a pending, disabled retry button while retrying, including failures that retain previous data.
 
-New file and New folder open a native sheet. Holding a row offers Rename and Move to trash; folder menus also create inside that folder. Create a folder and file, rename the file with its full relative path, and confirm trash. Independently inspect the fixture directory after each operation. Errors keep the sheet open for retry. Trash uses the server's recoverable trash operation.
+The native plus menu beside Refresh is labelled Create file or folder. Its New file and New folder actions open a native sheet to create at the worktree root. Search and the selected project/branch caption remain above the file rows. Holding a row offers Rename and Move to trash; folder menus also create inside that folder. Open and dismiss the plus menu, then open each creation sheet and cancel without changing the fixture directory. Create a folder and file, rename the file with its full relative path, and confirm trash. Independently inspect the fixture directory after each operation. Errors keep the sheet open for retry. Trash uses the server's recoverable trash operation.
 
 The named Files phone flow proves browsing, editing and directory operations against a real server. iPad and Android are unproved in this change.
 

@@ -10,11 +10,7 @@ import { WorkspaceMenu } from './workspace-menu';
 import { useWorkspace } from './workspace';
 import { useInventories } from '../queries/inventory';
 
-export function WorkspacePicker({
-  presentation,
-}: {
-  presentation: 'phone' | 'tablet';
-}) {
+export function WorkspacePicker() {
   const workspace = useWorkspace();
   const { environments, access, selection, remembered } = workspace;
   const commands = useProjectSelectionCommands();
@@ -33,7 +29,6 @@ export function WorkspacePicker({
   );
   return (
     <WorkspaceMenu
-      presentation={presentation}
       label={label}
       environmentId={selection.currentEnvironmentId}
       choices={choices}

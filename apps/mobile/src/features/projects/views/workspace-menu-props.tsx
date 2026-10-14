@@ -1,7 +1,6 @@
 import type { WorkspaceChoice } from '@porcelain/client/projects/rules';
 
 export type WorkspaceMenuProps = {
-  presentation: 'phone' | 'tablet';
   label: string;
   environmentId: string | undefined;
   choices: readonly WorkspaceChoice[];

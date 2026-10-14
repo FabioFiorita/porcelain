@@ -4,7 +4,7 @@ import { WorkspacePicker } from '../features/projects';
 export function DestinationScreen({ children }: { children: ReactNode }) {
   return (
     <>
-      <WorkspacePicker presentation="phone" />
+      <WorkspacePicker />
       {children}
     </>
   );

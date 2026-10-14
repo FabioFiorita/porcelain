@@ -10,6 +10,9 @@ selectors:
   - 'No projects registered'
   - 'Could not read projects'
   - 'Read projects again'
+  - 'Select a worktree'
+  - 'Pair an environment'
+  - 'Open Settings'
 
 tests:
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
@@ -26,7 +29,7 @@ api:
 
 ## What it is
 
-The workspace picker in each destination's toolbar (the detail toolbar on iPad) lists projects from every paired environment together. On iOS, a project row shows its name as the title and its environment as a gray subtitle; Android uses `<project> · <environment>`. Each row expands to its worktrees. Choosing one saves its environment and worktree in a single update, without leaving the current destination. The toolbar label becomes `<project> · <worktree>` and the choice survives a cold launch. Forgetting an environment drops its projects and remembered worktree. Each environment reads inventory and subscribes to live updates independently; a failed inventory read leaves other environments' projects available. The shared client can recover retained Git receipts; mobile Git screens are still pending.
+The workspace picker in each destination's toolbar lists projects from every paired environment together. Its filter control is icon-only on iPad and phones, with an accessibility label of `<project> · <worktree>` when selected or Workspace otherwise. On iOS, a project row shows its name as the title and its environment as a gray subtitle; Android uses `<project> · <environment>`. Each row expands to its worktrees. Choosing one saves its environment and worktree in a single update, without leaving the current destination, and the choice survives a cold launch. Forgetting an environment drops its projects and remembered worktree. Each environment reads inventory and subscribes to live updates independently; a failed inventory read leaves other environments' projects available. The shared client can recover retained Git receipts; mobile Git screens are still pending.
 
 ## How a user reaches it
 
@@ -36,7 +39,7 @@ The workspace picker in each destination's toolbar (the detail toolbar on iPad) 
 ## Driving it
 
 1. Pair two disposable environments, select Files, then open the Workspace toolbar button. Expect projects from both environments in the same menu, with their environment names as subtitles on iOS and no Environment submenu.
-2. Expand one project and select its main worktree. Expect <project> · <worktree> in the toolbar and Files still selected.
+2. Expand one project and select its main worktree. Expect the filter to remain icon-only with accessibility label <project> · <worktree>, the Files context caption to identify that worktree, and Files still selected.
 3. Reopen the toolbar picker by its new label. Expect both environments' projects still visible; expand a project from the other environment and choose its worktree. Expect the toolbar to update directly to that workspace.
 4. Dismiss the native menu. Expect the same worktree and destination.
 5. Cold-launch the development client against the same Metro URL. Expect the remembered workspace after returning to Files.
@@ -60,10 +63,10 @@ Drive this feature with the mobile-verify skill on demand.
 
 ## Selected workspace states
 
-1. Start with loaded storage and no saved worktree. Open Files, Review and History; expect Select a worktree to continue. The Workspace menu remains reachable, and choosing a worktree keeps the current tab.
+1. Start with loaded storage and no saved worktree. Open Files, Review and History; expect Select a worktree and guidance to choose a project and worktree from the toolbar filter. The Workspace menu remains reachable, and choosing a worktree keeps the current tab. With no paired environments, expect Pair an environment and Open Settings instead.
 2. Cold-launch with a remembered worktree while the first inventory is pending. Expect Reading workspace… on all three tabs, with no selection prompt. Open and dismiss the toolbar menu without losing the destination.
 3. Fail the first inventory read with no previous data. Expect its error message and Read again on all three tabs; restore the environment and retry. After an inventory has loaded, fail a background reread instead: the tab and any open child screen or sheet stay mounted, retaining search and expanded folders.
 4. Make the fixture project or worktree unavailable, then read its inventory again. Expect Workspace unavailable and the reason on all three tabs. If an entry is absent, expect the distinct no-longer-registered or no-longer-in-project message naming the environment. An unavailable project uses the shared server-reason message, including the neutral fallback for an older server without a reason. The picker uses the same unavailable reason. Press Read again to refresh that environment through POST, or open and dismiss the picker; restoring or selecting another available workspace recovers the current destination. A saved environment that is no longer paired offers Open Settings instead of retrying a missing connection.
 5. In Files, hold the first root directory response. Expect Reading files… without No files. Release an empty root response and expect No files. Search a loaded inventory of paths with no matches and expect No files match this view.
 
-Child file, commit, commit diff and review screens use the same states; a workspace key mismatch retains their existing return-to-Files/History/Review message and native Back or Done control. The iPad detail pane owns the state and retry; its master shows the selected branch/path only, and stays empty otherwise. Its sidebar and detail toolbar remain the way out. An iPhone run does not prove the split view or Android.
+Child file, commit, commit diff and review screens use the same states; a workspace key mismatch retains their existing return-to-Files/History/Review message and native Back or Done control. The current destination owns the state and retry; its sidebar and toolbar remain the way out. An iPhone run does not prove the iPad layout or Android.

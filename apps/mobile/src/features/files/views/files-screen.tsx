@@ -17,7 +17,6 @@ import {
 } from '@porcelain/client/files/rules';
 import { FileTree } from '../../../components/ui/file-tree';
 import { Input } from '../../../components/ui/input';
-import { Button } from '../../../components/ui/button';
 import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Text } from '../../../components/ui/text';
@@ -120,24 +119,6 @@ function WorktreeFiles({
         autoCapitalize="none"
         autoCorrect={false}
       />
-      <Box className="flex-row" gap={2}>
-        <Button
-          label="New file"
-          variant="outline"
-          size="sm"
-          onPress={() =>
-            setAction({ kind: 'create', entryKind: 'file', folder: '' })
-          }
-        />
-        <Button
-          label="New folder"
-          variant="outline"
-          size="sm"
-          onPress={() =>
-            setAction({ kind: 'create', entryKind: 'directory', folder: '' })
-          }
-        />
-      </Box>
       <Text variant="caption" tone="muted">
         {selected.project.name} · {worktreeLabel(selected.worktree.branch)}
       </Text>
@@ -170,6 +151,26 @@ function WorktreeFiles({
           disabled={refreshing}
           onPress={refresh}
         />
+        <Stack.Toolbar.Menu
+          icon={headerIcon('add')}
+          accessibilityLabel="Create file or folder"
+          title="Create file or folder"
+        >
+          <Stack.Toolbar.MenuAction
+            onPress={() =>
+              setAction({ kind: 'create', entryKind: 'file', folder: '' })
+            }
+          >
+            New file
+          </Stack.Toolbar.MenuAction>
+          <Stack.Toolbar.MenuAction
+            onPress={() =>
+              setAction({ kind: 'create', entryKind: 'directory', folder: '' })
+            }
+          >
+            New folder
+          </Stack.Toolbar.MenuAction>
+        </Stack.Toolbar.Menu>
       </LeadingToolbar>
       <FileTree
         header={header}
