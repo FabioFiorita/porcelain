@@ -128,6 +128,7 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
     .connect({
       onNotice: (notice) => {
         if (connection.isClosed() || scope.state._tag === 'Closed') return;
+        if (notice.type === 'inventory') connection.onStatusChange?.();
         if (notice.type === 'ready') recoverPending();
         run(
           Symbol(),
@@ -151,16 +152,19 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
         );
       },
       onReconnect: () => {
-        if (!connection.isClosed() && scope.state._tag !== 'Closed')
+        if (!connection.isClosed() && scope.state._tag !== 'Closed') {
+          connection.onStatusChange?.();
           run(
             Symbol(),
             reactivity.invalidate([
               queryKeys.environment(connection.environmentId),
             ]),
           );
+        }
       },
       onUnauthorized: () => {
         if (connection.isClosed() || scope.state._tag === 'Closed') return;
+        connection.onStatusChange?.();
         if (onUnauthorized) onUnauthorized();
         else
           run(

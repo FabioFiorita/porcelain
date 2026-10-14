@@ -16,6 +16,7 @@ export function openLiveConnection(
     readonly address: string;
     readonly timeoutMs: number;
     readonly liveUpdates: LiveConnection['liveUpdates'];
+    readonly onStatusChange?: (() => void) | undefined;
   },
   platform: Layer.Layer<OperationStorage | Crypto.Crypto>,
   memoMap: Layer.MemoMap,
@@ -33,6 +34,7 @@ export function openLiveConnection(
     ...requests,
     address: input.address,
     liveUpdates: input.liveUpdates,
+    ...(input.onStatusChange ? { onStatusChange: input.onStatusChange } : {}),
     operations: requests.runtime.runSync(OperationStore),
   });
   requests.runtime.runSync(FileDrafts).adopt(connection);
@@ -45,6 +47,7 @@ export function openRemoteConnection(
     'environmentId' | 'address' | 'credential' | 'deviceId'
   > & {
     readonly send: AccessPlatformValue['send'];
+    readonly onStatusChange?: (() => void) | undefined;
     readonly socket: Parameters<typeof remoteLiveUpdates>[2];
     readonly timeoutMs: number;
   },
@@ -63,6 +66,7 @@ export function openRemoteConnection(
       transport,
       cacheIdentity: [input.address, input.deviceId ?? ''],
       liveUpdates: remoteLiveUpdates(input.address, transport, input.socket),
+      ...(input.onStatusChange ? { onStatusChange: input.onStatusChange } : {}),
       timeoutMs: input.timeoutMs,
     },
     platform,

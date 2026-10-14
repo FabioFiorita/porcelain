@@ -3,6 +3,7 @@ import { openRemoteConnection } from '@porcelain/client/live';
 import { OperationStorage } from '@porcelain/client/git-actions';
 import {
   AccessPlatform,
+  revalidateRemoteStatus,
   RemoteConnectionFactory,
 } from '@porcelain/client/access';
 import { operationStorage } from './operation-storage';
@@ -24,6 +25,8 @@ export function remoteConnectionFactoryLayer(memoMap: Layer.MemoMap) {
                   ...remote,
                   send: platform.send,
                   socket: mobileSocket,
+                  onStatusChange: () =>
+                    revalidateRemoteStatus(platform, remote),
                   timeoutMs: REQUEST_TIMEOUT_MS,
                 },
                 Layer.merge(
