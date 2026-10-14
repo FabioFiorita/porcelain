@@ -24,14 +24,26 @@ export function DestinationLayout({
         <DestinationHeader
           leading={
             route.name !== 'files' &&
-            !(isTablet && (route.name === 'review' || route.name === 'history'))
+            !(
+              isTablet &&
+              (route.name === 'review' ||
+                route.name === 'history' ||
+                route.name === 'settings')
+            )
           }
         >
           {children}
         </DestinationHeader>
       )}
     >
-      <Stack.Screen name={name} options={{ title, headerBackVisible: false }} />
+      <Stack.Screen
+        name={name}
+        options={{
+          title,
+          headerBackVisible: false,
+          ...(isTablet && name === 'settings' ? { headerShown: false } : {}),
+        }}
+      />
       {children}
     </Stack>
   );
