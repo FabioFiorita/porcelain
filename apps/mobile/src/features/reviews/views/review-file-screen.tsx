@@ -93,11 +93,13 @@ export function ReviewFileContent({
   path,
   comparison,
   inlineComments = false,
+  leaveScope,
 }: {
   workspace: Workspace;
   path: string;
   comparison: ReviewComparison;
   inlineComments?: boolean | undefined;
+  leaveScope?: string | undefined;
 }) {
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
   const [comparisonScope, setComparisonScope] = useState<string>();
@@ -125,7 +127,12 @@ export function ReviewFileContent({
     </Box>
   );
   return inlineComments ? (
-    <DocumentComments workspace={workspace} path={path} target={target}>
+    <DocumentComments
+      workspace={workspace}
+      path={path}
+      target={target}
+      leaveScope={leaveScope}
+    >
       {(codeSelection) => content(codeSelection)}
     </DocumentComments>
   ) : (

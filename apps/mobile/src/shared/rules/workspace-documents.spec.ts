@@ -1,10 +1,30 @@
 import { expect, it } from 'vitest';
+import { Option, Schema } from 'effect';
 import {
   documentMode,
   documentTab,
+  workspaceDocumentSchema,
   type WorkspaceDocument,
 } from './workspace-documents';
 import { emptyDocuments, openDocument } from './document-tabs';
+
+it('rejects malformed persisted documents before reading server content', () => {
+  const decode = Schema.decodeUnknownOption(workspaceDocumentSchema);
+  expect(
+    decode({ kind: 'diff', oid: 'abc', path: 'README.md', parent: 0 }),
+  ).toEqual(Option.none());
+  expect(decode({ kind: 'commit', oid: 'abc', parent: 1.5 })).toEqual(
+    Option.none(),
+  );
+  expect(decode({ kind: 'file', path: 7 })).toEqual(Option.none());
+  expect(
+    decode({
+      kind: 'review-file',
+      path: 'README.md',
+      comparison: { kind: 'unknown' },
+    }),
+  ).toEqual(Option.none());
+});
 
 it('names a file by its leaf while identifying it by its complete path', () => {
   expect(documentTab({ kind: 'file', path: 'docs/README.md' })).toEqual({

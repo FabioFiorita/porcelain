@@ -1,3 +1,4 @@
+import { requestDocumentLeave } from '../store';
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
@@ -92,14 +93,16 @@ export function WorktreeNavigator({ onSelect }: { onSelect?: () => void }) {
                                 <Icon name="check" size="small" />
                               ) : undefined
                             }
-                            onPress={() => {
-                              picker.onWorktree(
-                                environmentId,
-                                project.id,
-                                worktree.id,
-                              );
-                              onSelect?.();
-                            }}
+                            onPress={() =>
+                              requestDocumentLeave(() => {
+                                picker.onWorktree(
+                                  environmentId,
+                                  project.id,
+                                  worktree.id,
+                                );
+                                onSelect?.();
+                              })
+                            }
                           />
                         );
                       })}

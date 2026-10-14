@@ -6,7 +6,7 @@ import { Item } from '../components/ui/item';
 import { Icon } from '../components/ui/icon';
 import { Text } from '../components/ui/text';
 import { Separator } from '../components/ui/separator';
-import { WorktreeNavigator } from '../features/projects';
+import { WorktreeNavigator, requestDocumentLeave } from '../features/projects';
 import { destinationForPath } from './destinations';
 
 const StyledSafeAreaView = withUniwind(SafeAreaView);
@@ -39,7 +39,8 @@ export function TabletSidebar({ windowed }: { windowed: boolean }) {
           accessibilityLabel="Settings"
           testID="sidebar-settings"
           onPress={() => {
-            if (!inSettings) router.replace('/settings');
+            if (!inSettings)
+              requestDocumentLeave(() => router.replace('/settings'));
           }}
         />
       </Box>

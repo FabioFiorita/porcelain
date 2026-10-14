@@ -3,8 +3,43 @@ import { matchesCommentTarget } from '@porcelain/client/reviews/rules';
 import {
   commitCommentTarget,
   documentCommentAnchor,
+  documentCommentContext,
   savedFileCommentTarget,
 } from './document-comment';
+
+it.each([
+  [
+    { kind: 'file', filePath: 'a.css', comparison: { kind: 'file' } },
+    'Saved file',
+  ],
+  [
+    { kind: 'change', comparison: { kind: 'worktree', scope: 'unstaged' } },
+    'unstaged diff',
+  ],
+  [
+    {
+      kind: 'file',
+      filePath: 'a.ts',
+      revision: 'abcdef123456',
+      comparison: { kind: 'branch', base: 'main' },
+    },
+    'Branch against main · abcdef12',
+  ],
+  [
+    {
+      kind: 'file',
+      filePath: 'a.ts',
+      revision: 'abcdef123456',
+      comparison: { kind: 'commit', parent: 2 },
+    },
+    'Commit abcdef12 · Parent 2',
+  ],
+] satisfies readonly (readonly [
+  Parameters<typeof documentCommentContext>[0],
+  string,
+])[])('labels the visible comment evidence %j as %s', (anchor, label) => {
+  expect(documentCommentContext(anchor)).toBe(label);
+});
 
 it('only anchors saved Files text with server evidence', () => {
   expect(savedFileCommentTarget('app.css', undefined)).toBeUndefined();

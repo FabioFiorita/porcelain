@@ -1,4 +1,9 @@
-import { useAtomRef } from '@effect/atom-react';
+import { useEffect, useId } from 'react';
+import {
+  leaveDocuments,
+  type DocumentLeaveGuard,
+} from '../../shared/rules/document-leave';
+import { useAtom, useAtomRef } from '@effect/atom-react';
 import {
   sameRemoteConnection,
   type Remote,
@@ -8,16 +13,27 @@ import {
   selectionState,
 } from '../../shared/application/store';
 
-import { AtomRef } from 'effect/reactivity';
+import { Schema, SchemaGetter } from 'effect';
+import { Atom, AtomRef } from 'effect/reactivity';
+import { workspaceStorageRuntime } from '../../shared/adapters/workspace-storage';
 import type { ReviewComparison } from '../../shared/rules/review-comparison';
+import type { DocumentTabsState } from '../../shared/rules/document-tabs';
 import {
-  activateDocument,
-  emptyDocuments,
-  openDocument,
-  type DocumentTabsState,
-} from '../../shared/rules/document-tabs';
+  changePane,
+  focusPane,
+  openInPane,
+  openToSide,
+  type PaneId,
+} from '../../shared/rules/document-panes';
 import {
-  documentMode,
+  initialWorkspaceSnapshot,
+  readWorkspaceSnapshot,
+  restoreWorkspace,
+  workspaceSnapshot,
+  workspaceSnapshotSchema,
+  type WorkspaceSession,
+} from '../../shared/rules/workspace-session';
+import {
   documentTab,
   type InspectorMode,
   type WorkspaceDocument,
@@ -34,52 +50,29 @@ export function useProjectConnection(remote: Remote | undefined) {
   )?.connection;
 }
 
-type WorkspaceSession = {
-  readonly documents: DocumentTabsState<WorkspaceTab>;
-  readonly mode: InspectorMode;
-  readonly inspectorOpen: boolean;
-  readonly comparison: ReviewComparison;
-  readonly selected: Readonly<Record<InspectorMode, WorkspaceTab | undefined>>;
-};
-
-const sessions = AtomRef.make<ReadonlyMap<string, WorkspaceSession>>(new Map());
-
-function initialSession(mode: InspectorMode): WorkspaceSession {
-  return {
-    documents: emptyDocuments<WorkspaceTab>(),
-    mode,
-    inspectorOpen: true,
-    comparison: { kind: 'worktree' },
-    selected: { files: undefined, review: undefined, history: undefined },
-  };
-}
-
-function withDocuments(
-  session: WorkspaceSession,
-  documents: DocumentTabsState<WorkspaceTab>,
-): WorkspaceSession {
-  const active = documents.tabs.find((tab) => tab.key === documents.active);
-  return {
-    ...session,
-    documents,
-    selected: active
-      ? { ...session.selected, [documentMode(active)]: active }
-      : session.selected,
-  };
-}
+const sessions = Atom.family((workspace: string) =>
+  Atom.kvs({
+    runtime: workspaceStorageRuntime,
+    key: `workspace.v1.${workspace}`,
+    schema: Schema.Unknown.pipe(
+      Schema.decodeTo(workspaceSnapshotSchema, {
+        decode: SchemaGetter.transform(readWorkspaceSnapshot),
+        encode: SchemaGetter.passthrough(),
+      }),
+    ),
+    defaultValue: initialWorkspaceSnapshot,
+  }).pipe(Atom.keepAlive),
+);
 
 export function useWorkspaceSession(
   workspace: string,
   initialMode: InspectorMode,
 ) {
-  const session =
-    useAtomRef(sessions).get(workspace) ?? initialSession(initialMode);
+  const [snapshot, setSnapshot] = useAtom(sessions(workspace));
+  const session = restoreWorkspace(snapshot, initialMode);
   const update = (change: (session: WorkspaceSession) => WorkspaceSession) =>
-    sessions.update((current) =>
-      new Map(current).set(
-        workspace,
-        change(current.get(workspace) ?? initialSession(initialMode)),
-      ),
+    setSnapshot((current) =>
+      workspaceSnapshot(change(restoreWorkspace(current, initialMode))),
     );
   return {
     session,
@@ -88,25 +81,61 @@ export function useWorkspaceSession(
     changeInspector: (inspectorOpen: boolean) =>
       update((current) => ({ ...current, inspectorOpen })),
     changeComparison: (comparison: ReviewComparison) =>
-      update((current) => ({
-        ...current,
-        comparison,
-        selected: { ...current.selected, review: undefined },
-      })),
+      update((current) => ({ ...current, comparison })),
+    focus: (pane: PaneId) =>
+      update((current) => ({ ...current, ...focusPane(current, pane) })),
     changeDocuments: (
+      pane: PaneId,
       change: (
         documents: DocumentTabsState<WorkspaceTab>,
       ) => DocumentTabsState<WorkspaceTab>,
-    ) => update((current) => withDocuments(current, change(current.documents))),
-    open: (document: WorkspaceDocument) =>
-      update((current) => {
-        const tab = documentTab(document);
-        const documents = current.documents.tabs.some(
-          (entry) => entry.key === tab.key,
-        )
-          ? activateDocument(current.documents, tab.key)
-          : openDocument(current.documents, tab);
-        return withDocuments(current, documents);
-      }),
+    ) =>
+      update((current) => ({
+        ...current,
+        ...changePane(current, pane, change),
+      })),
+    open: (document: WorkspaceDocument, pane?: PaneId) =>
+      update((current) => ({
+        ...current,
+        ...openInPane(current, documentTab(document), pane),
+      })),
+    openBeside: (document: WorkspaceDocument, source?: PaneId) =>
+      update((current) => ({
+        ...current,
+        ...openToSide(current, documentTab(document), source),
+      })),
   };
+}
+
+const leaveGuards = AtomRef.make<
+  ReadonlyMap<string, { scope: string; guard: DocumentLeaveGuard }>
+>(new Map());
+
+export function useDocumentLeave(
+  scope: string | undefined,
+  guard: DocumentLeaveGuard | undefined,
+) {
+  const owner = useId();
+  useEffect(() => {
+    if (!scope || !guard) return;
+    leaveGuards.update((current) =>
+      new Map(current).set(owner, { scope, guard }),
+    );
+    return () => {
+      leaveGuards.update((current) => {
+        const next = new Map(current);
+        next.delete(owner);
+        return next;
+      });
+    };
+  }, [scope, guard, owner]);
+}
+
+export function requestDocumentLeave(leave: () => void, scope?: string) {
+  leaveDocuments(
+    [...leaveGuards.value.values()]
+      .filter((entry) => scope === undefined || entry.scope === scope)
+      .map((entry) => entry.guard),
+    leave,
+  );
 }

@@ -32,12 +32,14 @@ export function DiffContent({
   parent,
   path,
   inlineComments,
+  leaveScope,
 }: {
   selection: HistorySelection;
   oid: string;
   parent: number;
   path: string;
   inlineComments?: boolean | undefined;
+  leaveScope?: string | undefined;
 }) {
   const commit = useCommit(selection, oid, parent);
   const file = commit.value?.files.find(
@@ -61,6 +63,7 @@ export function DiffContent({
   return inlineComments ? (
     <DocumentComments
       workspace={selection}
+      leaveScope={leaveScope}
       path={path}
       target={commitCommentTarget(path, oid, parent)}
       renderToolbar={(actions) => (

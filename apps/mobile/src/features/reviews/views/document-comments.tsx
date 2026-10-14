@@ -1,3 +1,4 @@
+import { Separator } from '../../../components/ui/separator';
 import { useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import {
@@ -28,11 +29,13 @@ export function DocumentComments({
   renderToolbar,
   children,
   selectable = true,
+  leaveScope,
 }: {
   workspace: CommentWorkspace;
   path: string;
   target?: CommentTarget | undefined;
   selectable?: boolean;
+  leaveScope?: string | undefined;
   renderToolbar?: ((actions: ReactNode) => ReactNode) | undefined;
   children: (props: DocumentCodeSelection) => ReactNode;
 }) {
@@ -124,13 +127,10 @@ export function DocumentComments({
               : undefined,
         })}
       </View>
-      {/* Keep the panel mounted when hidden so a draft is never silently lost. */}
-      <View
-        className={
-          showComments ? 'min-h-40 flex-1 border-t border-border' : 'hidden'
-        }
-      >
+      <View className={showComments ? 'min-h-40 flex-1' : 'hidden'}>
+        <Separator />
         <CommentThreads
+          leaveScope={leaveScope}
           workspace={workspace}
           path={path}
           anchor={anchor}

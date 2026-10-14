@@ -8,7 +8,11 @@ import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { retainFileDraft, type FileDraftHandle } from '@porcelain/client/files';
 import { fileErrorMessage } from '@porcelain/client/files/rules';
-import { WorkspaceGate, type Workspace } from '../../projects';
+import {
+  WorkspaceGate,
+  useDocumentLeave,
+  type Workspace,
+} from '../../projects';
 import { DocumentComments, savedFileCommentTarget } from '../../reviews';
 import type { ReviewRange } from '../../../components/ui/review-annotation';
 import { usePreferences } from '../../preferences';
@@ -39,6 +43,7 @@ type ContentProps = {
   onEdit?: () => void;
   onDone?: () => void;
   inlineEditing?: boolean;
+  leaveScope?: string | undefined;
 };
 
 export function FileScreen(props: ContentProps & { workspace: string }) {
@@ -198,18 +203,18 @@ function ReadableFile(
         file={file}
         waiting={waiting}
         onDone={props.onDone}
+        leaveScope={props.leaveScope}
       />
     );
-  const edit =
-    file.contentFingerprint && !waiting
-      ? inlineEditing
-        ? () => setEditing(true)
-        : props.onEdit
-      : undefined;
+  const edit = !file.contentFingerprint || waiting ? undefined : props.onEdit;
+  const editInline =
+    inlineEditing && file.contentFingerprint && !waiting
+      ? () => setEditing(true)
+      : edit;
   return (
     <View className="flex-1">
       <View className={editing ? 'hidden' : 'flex-1'}>
-        <FilePreview {...props} text={file.text} onEdit={edit} />
+        <FilePreview {...props} text={file.text} onEdit={editInline} />
       </View>
       {editing ? (
         <FileEditor
@@ -219,6 +224,7 @@ function ReadableFile(
           waiting={waiting}
           onDone={() => setEditing(false)}
           documentToolbar
+          leaveScope={props.leaveScope}
         />
       ) : null}
     </View>
@@ -232,6 +238,7 @@ function FilePreview({
   selected,
   file,
   inlineEditing,
+  leaveScope,
 }: {
   path: string;
   text: string;
@@ -239,6 +246,7 @@ function FilePreview({
   selected: Workspace;
   file: FileContents;
   inlineEditing?: boolean | undefined;
+  leaveScope?: string | undefined;
 }) {
   const link = usePreviewLink();
   const edit = onEdit ? (
@@ -248,6 +256,7 @@ function FilePreview({
     return (
       <DocumentComments
         workspace={selected}
+        leaveScope={leaveScope}
         path={path}
         target={savedFileCommentTarget(path, file.contentFingerprint)}
         renderToolbar={(actions) => (
@@ -352,6 +361,7 @@ function FileEditor({
   waiting,
   onDone,
   documentToolbar,
+  leaveScope,
 }: {
   selected: Workspace;
   path: string;
@@ -359,6 +369,7 @@ function FileEditor({
   waiting: boolean;
   onDone: () => void;
   documentToolbar?: boolean | undefined;
+  leaveScope?: string | undefined;
 }) {
   const [seed, setSeed] = useState<FileContents | undefined>(() =>
     waiting ? undefined : file,
@@ -374,6 +385,7 @@ function FileEditor({
       seed={seed}
       onDone={onDone}
       documentToolbar={documentToolbar}
+      leaveScope={leaveScope}
     />
   ) : (
     <Loading label="Confirming the file version…" />
@@ -387,6 +399,7 @@ function RetainedFileEditor({
   seed,
   onDone,
   documentToolbar,
+  leaveScope,
 }: {
   selected: Workspace;
   path: string;
@@ -394,6 +407,7 @@ function RetainedFileEditor({
   seed: FileContents;
   onDone: () => void;
   documentToolbar?: boolean | undefined;
+  leaveScope?: string | undefined;
 }) {
   const result = useAtomValue(
     retainFileDraft({
@@ -420,6 +434,7 @@ function RetainedFileEditor({
       onDone={onDone}
       path={path}
       documentToolbar={documentToolbar}
+      leaveScope={leaveScope}
     />
   ) : (
     <Loading label="Preparing editor…" />
@@ -432,30 +447,30 @@ function DraftEditor({
   onDone,
   documentToolbar,
   path,
+  leaveScope,
 }: {
   draft: FileDraftHandle;
   file: FileContents;
   path: string;
   onDone: () => void;
   documentToolbar?: boolean | undefined;
+  leaveScope?: string | undefined;
 }) {
   const editing = useDraftEditing(draft, file);
   const { state, claimed } = editing;
-  const disablePrevention = usePreventRemove(
-    state.saving || state.text !== state.savedText,
-    ({ repeat }) => {
-      Alert.alert(
-        'Unsaved changes',
-        'Save your changes before leaving this file.',
-        [
-          { text: 'Keep editing', style: 'cancel' },
-          {
-            text: 'Save and leave',
-            onPress: () => editing.save(repeat),
-          },
-        ],
-      );
-    },
+  const unsaved = state.saving || state.text !== state.savedText;
+  const confirmLeave = (leave: () => void) =>
+    Alert.alert(
+      'Unsaved changes',
+      'Save your changes before leaving this file.',
+      [
+        { text: 'Keep editing', style: 'cancel' },
+        { text: 'Save and leave', onPress: () => editing.save(leave) },
+      ],
+    );
+  useDocumentLeave(leaveScope, unsaved ? confirmLeave : undefined);
+  const disablePrevention = usePreventRemove(unsaved, ({ repeat }) =>
+    confirmLeave(repeat),
   );
   const discard = () =>
     Alert.alert(

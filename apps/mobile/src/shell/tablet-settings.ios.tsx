@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Dimensions, ScrollView, useWindowDimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { withUniwind } from 'uniwind';
+import { ScrollView } from 'react-native';
+import { TabletSurface } from '../components/ui/tablet-surface';
 import { Box } from '../components/ui/box';
 import { ChromeButton } from '../components/ui/chrome-button';
 import { Item } from '../components/ui/item';
@@ -33,24 +32,15 @@ const categories = [
   },
 ] as const;
 
-const StyledSafeAreaView = withUniwind(SafeAreaView);
-
 export function TabletSettings() {
   const { category, select } = useSettingsCategory();
   const { sidebar } = useAppSidebar();
   const [width, setWidth] = useState(0);
   const wide = width >= 700;
-  const window = useWindowDimensions();
-  const screen = Dimensions.get('screen');
-  const windowed = window.width < screen.width || window.height < screen.height;
   return (
-    <StyledSafeAreaView
-      edges={['top', 'left', 'right', 'bottom']}
-      className="min-w-0 flex-1 bg-background"
-    >
+    <TabletSurface>
       <Box
         className={wide ? 'min-w-0 flex-1 flex-row' : 'min-w-0 flex-1'}
-        {...(windowed ? { paddingTop: 8 } : {})}
         onLayout={({ nativeEvent: { layout } }) => setWidth(layout.width)}
       >
         <Box className={wide ? 'w-56 shrink-0' : 'grow-0'}>
@@ -96,7 +86,7 @@ export function TabletSettings() {
           <SettingsContent />
         </Box>
       </Box>
-    </StyledSafeAreaView>
+    </TabletSurface>
   );
 }
 

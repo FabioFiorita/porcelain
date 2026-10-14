@@ -25,6 +25,7 @@ const symbols = {
   refresh: { ios: 'arrow.clockwise', android: 'refresh' },
   trash: { ios: 'trash', android: 'delete' },
   more: { ios: 'ellipsis', android: 'more_horiz' },
+  split: { ios: 'rectangle.split.2x1', android: 'vertical_split' },
 } satisfies Record<string, SymbolViewProps['name']>;
 const tones = {
   default: 'accent-foreground',

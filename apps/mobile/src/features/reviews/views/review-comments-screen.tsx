@@ -27,7 +27,11 @@ import { headerIcon } from '../../../shared/icons/header-icon';
 import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
-import { WorkspaceGate, type Workspace } from '../../projects';
+import {
+  WorkspaceGate,
+  useDocumentLeave,
+  type Workspace,
+} from '../../projects';
 import {
   commentBodyLimit,
   useCommentCommands,
@@ -99,6 +103,7 @@ export function CommentThreads({
   comparison,
   currentTarget,
   onComposerChange,
+  leaveScope,
 }: {
   workspace: CommentWorkspace;
   path?: string | undefined;
@@ -106,6 +111,7 @@ export function CommentThreads({
   compose: boolean;
   comparison?: ReviewComparison | undefined;
   currentTarget?: CommentTarget | undefined;
+  leaveScope?: string | undefined;
   onComposerChange?: ((anchor: CommentAnchor | undefined) => void) | undefined;
 }) {
   const query = readCommentThreads({
@@ -120,7 +126,12 @@ export function CommentThreads({
   useEffect(() => {
     onComposerChange?.(target?.anchor);
   }, [onComposerChange, target?.anchor]);
-  const draft = useCommentDraft(workspace, target, () => setTarget(undefined));
+  const draft = useCommentDraft(
+    workspace,
+    target,
+    () => setTarget(undefined),
+    leaveScope,
+  );
   const open = (next: ComposerTarget) =>
     draft.confirmDiscard(() => setTarget(next));
   const commands = useCommentCommands(workspace);
@@ -181,7 +192,8 @@ export function CommentThreads({
           <>
             {currentTarget ? (
               <TargetFreshness anchor={target.anchor} target={currentTarget} />
-            ) : comparison ? (
+            ) : null}
+            {!currentTarget && comparison ? (
               <AnchorFreshness
                 workspace={workspace}
                 anchor={target.anchor}
@@ -280,6 +292,7 @@ function useCommentDraft(
   workspace: CommentWorkspace,
   target: ComposerTarget | undefined,
   onClose: () => void,
+  leaveScope?: string,
 ) {
   const commands = useCommentCommands(workspace);
   const create = useCommentWrite(commands.create);
@@ -321,6 +334,10 @@ function useCommentDraft(
       },
     ]);
   };
+  useDocumentLeave(
+    leaveScope,
+    body.length > 0 || pending ? confirmDiscard : undefined,
+  );
   usePreventRemove(body.length > 0 || pending, ({ repeat }) =>
     confirmDiscard(repeat),
   );
