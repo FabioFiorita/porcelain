@@ -84,8 +84,10 @@ test('the Open project button opens the chosen Git repository through the native
     name: 'Review',
     exact: true,
   });
+  const history = page.getByRole('tab', { name: 'History', exact: true });
+  await expect(reviewToggle.or(history).first()).toBeVisible();
   if (await reviewToggle.isVisible()) await reviewToggle.click();
-  await page.getByRole('tab', { name: 'History', exact: true }).click();
+  await history.click();
   await expect(
     page.getByRole('button', { name: 'Create smoke project', exact: false }),
   ).toBeVisible();
