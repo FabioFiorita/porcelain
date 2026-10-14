@@ -2,6 +2,7 @@ import ExpoModulesCore
 import SwiftUI
 
 extension ExpoView {
+  @MainActor
   func mount<Content: View>(_ content: Content) -> UIHostingController<Content> {
     let controller = UIHostingController(rootView: content)
     controller.view.backgroundColor = .clear
