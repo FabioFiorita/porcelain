@@ -14,8 +14,8 @@ test('a sidebar decision menu marks its files and decision, unmarks only the dec
     name: 'Review sidebar',
     exact: true,
   });
-  const row = sidebar.getByRole('button', { name: /1 Phone verification/ });
-  await expect.element(row).toBeVisible();
+  const row = sidebar.getByRole('button', { name: /Phone verification/ });
+  await expect.element(row).toHaveAccessibleName('1 Phone verification 0/1');
   await row.click({ button: 'right' });
   await expect
     .element(
@@ -51,9 +51,12 @@ test('a sidebar decision menu marks its files and decision, unmarks only the dec
     )
     .toEqual([repo.readme.path]);
   const actions = sidebar.getByRole('button', {
-    name: 'Actions for 1. Phone verification',
+    name: 'More actions for decision 1',
     exact: true,
   });
+  await expect
+    .element(actions)
+    .toHaveAccessibleDescription('Phone verification');
   await actions.click();
   await userEvent.keyboard('{Escape}');
   await expect.element(workspace.getByRole('menu')).not.toBeInTheDocument();

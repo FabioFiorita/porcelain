@@ -426,7 +426,14 @@ function WalkthroughRows({
         return (
           <SidebarActionMenu
             key={stop.key}
-            label={`Actions for ${stop.kind === 'decision' ? `${stop.number}. ` : ''}${stopName(stop)}`}
+            label={
+              stop.kind === 'decision'
+                ? `More actions for decision ${stop.number}`
+                : `More actions for ${stopName(stop)}`
+            }
+            {...(stop.kind === 'decision'
+              ? { description: stop.layer.title }
+              : {})}
             actions={reviewSidebarActions(
               stop.kind === 'decision'
                 ? {
@@ -462,7 +469,6 @@ function WalkthroughRows({
                   type="button"
                   className={ROW}
                   aria-pressed={here(stop.key)}
-                  aria-label={`${stop.kind === 'decision' ? `${stop.number} ` : ''}${stopName(stop)}`}
                   onClick={() => open(stop.key)}
                 >
                   <StopIcon stop={stop} done={done} />

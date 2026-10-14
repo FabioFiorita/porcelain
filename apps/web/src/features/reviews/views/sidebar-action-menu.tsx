@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import {
   CheckIcon,
@@ -58,14 +58,17 @@ function ActionIcon({ action }: { action: ReviewSidebarAction }) {
 export function SidebarActionMenu({
   actions,
   label,
+  description,
   onAction,
   children,
 }: {
   actions: readonly ReviewSidebarAction[];
   label: string;
+  description?: string;
   onAction: (id: ReviewSidebarAction['id']) => void;
   children: (menu: ReactNode) => ReactNode;
 }) {
+  const descriptionId = useId();
   const [openingSide, setOpeningSide] = useState(false);
   const act = (id: ReviewSidebarAction['id']) => {
     if (id === 'open-to-side') flushSync(() => setOpeningSide(true));
@@ -79,6 +82,11 @@ export function SidebarActionMenu({
       <ContextMenuTrigger render={<div className="min-w-0" />}>
         {children(
           <DropdownMenu onOpenChange={reset}>
+            {description && (
+              <span id={descriptionId} className="sr-only">
+                {description}
+              </span>
+            )}
             <DropdownMenuTrigger
               render={
                 <Button
@@ -86,6 +94,7 @@ export function SidebarActionMenu({
                   size="icon-xs"
                   className="shrink-0"
                   aria-label={label}
+                  aria-describedby={description ? descriptionId : undefined}
                 />
               }
             >
