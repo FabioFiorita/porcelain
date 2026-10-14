@@ -1,4 +1,4 @@
-import { Effect, Option, Schedule, Stream } from 'effect';
+import { Effect, Layer, Option, Queue, Schedule, Stream } from 'effect';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import {
@@ -14,10 +14,12 @@ import {
 import type { AccessPlatformValue } from '../ports/access-platform.ts';
 import {
   remoteStatus,
+  sameRemoteConnection,
   type Remote,
   type RemoteAnswer,
   type RemoteStatus,
 } from '../rules/remotes.ts';
+import { statusChanges, statusRuntime } from '../store/status.ts';
 import { BootstrapClient } from '../../../shared/api/bootstrap-client.ts';
 
 export function remoteStatusResult<E>(
@@ -60,26 +62,90 @@ export function readRemoteEnvironment(
   );
 }
 
+export function revalidateRemoteStatus(
+  platform: AccessPlatformValue,
+  remote: Remote,
+) {
+  statusChanges(platform.send).set({ remote, revision: Symbol() });
+}
+
 const statusAtoms = Atom.family(
-  ({ send, remote }: { send: AccessPlatformValue['send']; remote: Remote }) =>
-    Atom.make(
-      Stream.fromEffect(
-        readRemoteEnvironment(
-          remoteTransport(remote.address, remote.credential, send),
-          remote.environmentId,
-        ),
-      ).pipe(
-        Stream.repeat(Schedule.spaced(REMOTE_STATUS_REFRESH_MS)),
-        Stream.takeUntil(
-          (answer) => remoteStatus(remote, answer).kind === 'other-server',
-        ),
-      ),
-    ).pipe(Atom.setIdleTTL(0)),
+  ({ platform, remote }: { platform: AccessPlatformValue; remote: Remote }) => {
+    const { send, statusActivity } = platform;
+    return statusRuntime(platform)(Layer.empty)
+      .atom(() => {
+        let pending = false;
+        let wasActive = false;
+        let previous: RemoteAnswer | undefined;
+        const activity = Stream.callback<boolean>(
+          (events) =>
+            Effect.gen(function* () {
+              const changed = () => {
+                const active = statusActivity?.isActive() ?? true;
+                const resumed = active && !wasActive;
+                wasActive = active;
+                if (!active || resumed || !pending)
+                  Queue.offerUnsafe(events, active);
+              };
+              yield* Effect.acquireRelease(
+                Effect.sync(() => {
+                  const unsubscribeActivity =
+                    statusActivity?.subscribe(changed);
+                  const unsubscribeChanges = statusChanges(send).subscribe(
+                    () => {
+                      const change = statusChanges(send).value;
+                      if (change && sameRemoteConnection(change.remote, remote))
+                        changed();
+                    },
+                  );
+                  return () => {
+                    unsubscribeActivity?.();
+                    unsubscribeChanges?.();
+                  };
+                }),
+                (unsubscribe) => Effect.sync(unsubscribe),
+              );
+              changed();
+            }),
+          { bufferSize: 1, strategy: 'sliding' },
+        );
+        const probe = Effect.gen(function* () {
+          pending = true;
+          const answer = yield* readRemoteEnvironment(
+            remoteTransport(remote.address, remote.credential, send),
+            remote.environmentId,
+          );
+          previous = answer;
+          return answer;
+        }).pipe(
+          Effect.ensuring(
+            Effect.sync(() => {
+              pending = false;
+            }),
+          ),
+        );
+        return activity.pipe(
+          Stream.switchMap((active) =>
+            active
+              ? Stream.suspend(() =>
+                  previous?.kind === 'unreachable'
+                    ? Stream.concat(
+                        Stream.make({ kind: 'reconnecting' } as const),
+                        Stream.fromEffect(probe),
+                      )
+                    : Stream.fromEffect(probe),
+                ).pipe(Stream.repeat(Schedule.spaced(REMOTE_STATUS_REFRESH_MS)))
+              : Stream.never,
+          ),
+        );
+      })
+      .pipe(Atom.setIdleTTL(0));
+  },
 );
 
 export function readRemoteStatus(
   platform: AccessPlatformValue,
   remote: Remote,
 ) {
-  return statusAtoms({ send: platform.send, remote });
+  return statusAtoms({ platform, remote });
 }

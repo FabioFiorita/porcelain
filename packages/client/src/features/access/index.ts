@@ -16,6 +16,7 @@ export { remoteConnectionsLayer } from './commands/remote-connections.ts';
 export { pairBrowserSession } from './commands/pairing.ts';
 export {
   readRemoteStatus,
+  revalidateRemoteStatus,
   remoteStatusResult,
 } from './queries/environments.ts';
 export {
@@ -39,3 +40,4 @@ export {
   connectBrowserSession,
   restoreBrowserConnection,
 } from './commands/session.ts';
+export type { StatusActivity } from './ports/status-activity.ts';
