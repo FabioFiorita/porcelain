@@ -65,6 +65,7 @@ const webRoots = [
   'apps/web/dev-pair.ts',
   'apps/web/vitest.config.ts',
   'apps/web/playwright.config.ts',
+  'apps/marketing/astro.config.ts',
 ];
 const allRoots = [...serverRoots, ...webRoots];
 const roots = target === 'web' ? webRoots : serverRoots;

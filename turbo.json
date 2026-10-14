@@ -86,6 +86,19 @@
       "dependsOn": ["transit"],
       "cache": false
     },
+    "//#build:marketing": {
+      "inputs": [
+        "apps/marketing/package.json",
+        "apps/marketing/astro.config.ts",
+        "apps/marketing/tsconfig.json",
+        "apps/marketing/src/**",
+        "apps/marketing/public/**",
+        "apps/web/public/icon-512.png",
+        "packages/theme/src/**",
+        "pnpm-lock.yaml"
+      ],
+      "outputs": ["apps/marketing/dist/**"]
+    },
     "//#build:package": {
       "cache": false,
       "inputs": [
