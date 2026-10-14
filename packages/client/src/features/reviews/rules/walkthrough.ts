@@ -41,6 +41,10 @@ export function decisionKey(layerId: string): `decision:${string}` {
   return `decision:${layerId}`;
 }
 
+export function briefingTitle(decisionCount: number): string {
+  return `${decisionCount} ${decisionCount === 1 ? 'decision shapes' : 'decisions shape'} this change`;
+}
+
 export function walkthroughStops(
   review: Pick<ReviewResponse, 'layers' | 'notExplained'>,
   changedPaths: readonly string[],

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ReviewLayer, ReviewResponse } from './review.ts';
 import {
+  briefingTitle,
   currentStop,
   decisionLinks,
   decisionRoute,
@@ -57,6 +58,16 @@ const keysAndPaths = (
     stop.key,
     stop.paths,
   ]);
+
+describe('briefing title', () => {
+  it.each([
+    [0, '0 decisions shape this change'],
+    [1, '1 decision shapes this change'],
+    [2, '2 decisions shape this change'],
+  ] as const)('agrees with %i decisions', (count, title) => {
+    expect(briefingTitle(count)).toBe(title);
+  });
+});
 
 describe('walkthrough stops', () => {
   it('places every changed file in exactly one stop, in decision order, with unexplained files after the decisions', () => {

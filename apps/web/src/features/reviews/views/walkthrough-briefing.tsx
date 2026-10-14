@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/shared/lib/utils';
 import {
+  briefingTitle,
   decisionKey,
   type DecisionState,
   decisionRoute,
@@ -83,9 +84,7 @@ export function WalkthroughBriefing({
             Briefing · revision {review.revision}
           </p>
           <h2 className="text-2xl leading-tight font-semibold text-balance">
-            {decisionStops.length}{' '}
-            {decisionStops.length === 1 ? 'decision' : 'decisions'} shape this
-            change
+            {briefingTitle(decisionStops.length)}
           </h2>
           <p className="max-w-2xl text-sm text-muted-foreground text-pretty">
             Read each decision through its code and mark it reviewed. Every
