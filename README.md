@@ -112,3 +112,11 @@ pnpm test --project @porcelain/client packages/client/src/features/reviews/rules
 ```
 
 Run the tests you changed by name; CI owns the full suites. For a feature's running proof, use the relevant [verification skill](.agents/skills) and its map, such as the [web feature map](.agents/skills/web-verify/features/README.md). Development uses disposable instances and profiles; never point verification at the installed app or its data.
+
+## License and thanks
+
+Porcelain is released under the [MIT license](LICENSE). Thank you to:
+
+- [T3 Code](https://github.com/pingdotgg/t3code), the main reference. It is an agent harness rather than a companion, and it met many of the same problems on the same stack first, remote environments especially.
+- [Pierre](https://pierre.computer), which renders the code, the diffs and the file tree.
+- [shadcn/ui](https://ui.shadcn.com), which the web components come from.
