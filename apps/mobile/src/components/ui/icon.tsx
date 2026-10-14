@@ -13,10 +13,17 @@ const symbols = {
   image: { ios: 'photo', android: 'image' },
   folder: { ios: 'folder', android: 'folder' },
   openFolder: { ios: 'folder.fill', android: 'folder_open' },
+  files: { ios: 'folder', android: 'folder' },
+  review: { ios: 'plus.minus.capsule', android: 'compare_arrows' },
+  settings: { ios: 'gearshape', android: 'settings' },
+  appearance: { ios: 'paintbrush', android: 'palette' },
+  environments: { ios: 'desktopcomputer', android: 'computer' },
   info: { ios: 'info.circle', android: 'info' },
   warning: { ios: 'exclamationmark.triangle', android: 'warning' },
   comment: { ios: 'bubble', android: 'chat_bubble' },
   history: { ios: 'clock.arrow.circlepath', android: 'history' },
+  refresh: { ios: 'arrow.clockwise', android: 'refresh' },
+  trash: { ios: 'trash', android: 'delete' },
   more: { ios: 'ellipsis', android: 'more_horiz' },
 } satisfies Record<string, SymbolViewProps['name']>;
 const tones = {

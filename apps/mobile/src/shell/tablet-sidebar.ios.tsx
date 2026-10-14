@@ -1,40 +1,95 @@
-import { Label, List, NavigationLink, Section } from '@expo/ui/swift-ui';
-import { listStyle, navigationTitle, tag } from '@expo/ui/swift-ui/modifiers';
+import { ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Button, Host } from '@expo/ui/swift-ui';
+import { withUniwind } from 'uniwind';
 import { usePathname, useRouter } from 'expo-router';
-import { tabIcon } from '../shared/icons/tab-icon';
+import { Box } from '../components/ui/box';
+import { Item } from '../components/ui/item';
+import { Icon } from '../components/ui/icon';
+import { Text } from '../components/ui/text';
+import { Separator } from '../components/ui/separator';
 import { destinations, destinationForPath } from './destinations';
 
-export function TabletSidebar({ onNavigate }: { onNavigate: () => void }) {
+const StyledSafeAreaView = withUniwind(SafeAreaView);
+
+function SidebarDestination({
+  destination,
+  onNavigate,
+}: {
+  destination: (typeof destinations)[number];
+  onNavigate: () => void;
+}) {
   const pathname = usePathname();
   const selectedPath = destinationForPath(pathname).path;
   const router = useRouter();
-
   return (
-    <List
-      selection={[selectedPath]}
-      onSelectionChange={(selection) => {
-        const path = selection.at(-1);
-        if (typeof path === 'string') {
-          if (path !== pathname) router.replace(path);
-          onNavigate();
-        }
+    <Item
+      title={destination.title}
+      leading={<Icon name={destination.icon} />}
+      selected={selectedPath === destination.path}
+      accessibilityLabel={destination.title}
+      testID={destination.sidebarId}
+      onPress={() => {
+        if (pathname !== destination.path) router.replace(destination.path);
+        onNavigate();
       }}
-      modifiers={[listStyle('sidebar'), navigationTitle('Porcelain')]}
+    />
+  );
+}
+
+export function TabletSidebar({
+  onNavigate,
+  onClose,
+}: {
+  onNavigate: () => void;
+  onClose?: () => void;
+}) {
+  return (
+    <StyledSafeAreaView
+      edges={['top', 'left', 'bottom']}
+      className="flex-1 bg-muted/40"
     >
-      <Section>
-        {destinations.map((destination) => (
-          <NavigationLink
-            key={destination.path}
-            value={destination.path}
-            modifiers={[tag(destination.path)]}
-          >
-            <Label
-              title={destination.title}
-              systemImage={tabIcon(destination.icon).sf}
+      <Box
+        className="flex-row items-center justify-between"
+        paddingX={4}
+        paddingY={4}
+      >
+        <Text variant="heading">Porcelain</Text>
+        {onClose ? (
+          <Host matchContents>
+            <Button
+              label="Hide sidebar"
+              systemImage="sidebar.left"
+              onPress={onClose}
             />
-          </NavigationLink>
-        ))}
-      </Section>
-    </List>
+          </Host>
+        ) : null}
+      </Box>
+      <ScrollView className="flex-1" contentInsetAdjustmentBehavior="automatic">
+        <Box gap={1} paddingX={4}>
+          {destinations
+            .filter((destination) => destination.group !== '(settings)')
+            .map((destination) => (
+              <SidebarDestination
+                key={destination.path}
+                destination={destination}
+                onNavigate={onNavigate}
+              />
+            ))}
+        </Box>
+      </ScrollView>
+      <Separator />
+      <Box paddingX={4} paddingY={3}>
+        {destinations
+          .filter((destination) => destination.group === '(settings)')
+          .map((destination) => (
+            <SidebarDestination
+              key={destination.path}
+              destination={destination}
+              onNavigate={onNavigate}
+            />
+          ))}
+      </Box>
+    </StyledSafeAreaView>
   );
 }

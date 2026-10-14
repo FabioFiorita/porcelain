@@ -25,11 +25,11 @@ api:
 
 ## What it is
 
-Add environment opens a native sheet, “Pair an environment”, where the link `porcelain pair` printed is pasted. Pair redeems it as this device, saves the credential in the Keychain and the environment in SQLite, closes the sheet and lists the environment as “Online”. An invalid link is refused in the sheet; editing the link clears that error. Pair is disabled for a blank link or unreadable saved environments, and the request uses the existing 15-second mobile deadline. A save error offers Read saved environments again in the sheet. Cancel closes it, several environments can be paired, and every paired environment is restored after a cold launch.
+Add environment opens “Pair an environment” inline in the iPad Environments detail, or in a native sheet on a phone, where the link `porcelain pair` printed is pasted. Pair redeems it as this device, saves the credential in the Keychain and the environment in SQLite, closes the form and lists the environment as “Online”. An invalid link is refused in the form; editing the link clears that error. Pair is disabled for a blank link or unreadable saved environments, and the request uses the existing 15-second mobile deadline. A save error offers Read saved environments again in the form. Cancel closes it, several environments can be paired, and every paired environment is restored after a cold launch.
 
-The sheet opens at half height and can expand to full height. Its React Native content scrolls and uses the shared Uniwind theme; the field and buttons are the shared `components/ui` primitives inside the Expo UI sheet.
+On phones the sheet opens at half height and can expand to full height. Its React Native content scrolls and uses the shared Uniwind theme; the field and buttons are the shared `components/ui` primitives. The same form renders inside the iPad Environments detail without a sheet.
 
-When Metro is launched by mobile-verify, Use development server requests a fresh single-use link from the disposable server's private owner socket and fills Pairing link. It does not pair automatically: select the normal Pair button to redeem the link. Creating pairing link… disables the field, helper and Pair while the request runs; Cancel remains available. A helper failure stays visible in the sheet, and selecting Use development server again retries. Editing the field clears both errors. The helper is absent from production bundles and development sessions without a configured helper URL; Metro accepts only loopback POST requests.
+When Metro is launched by mobile-verify, Use development server requests a fresh single-use link from the disposable server's private owner socket and fills Pairing link. It does not pair automatically: select the normal Pair button to redeem the link. Creating pairing link… disables the field, helper and Pair while the request runs; Cancel remains available. A helper failure stays visible in the form, and selecting Use development server again retries. Editing the field clears both errors. The helper is absent from production bundles and development sessions without a configured helper URL; Metro accepts only loopback POST requests.
 
 ## How a user reaches it
 
@@ -38,14 +38,14 @@ When Metro is launched by mobile-verify, Use development server requests a fresh
 
 ## Driving it
 
-1. Select Settings, then Add environment (the + toolbar icon on iOS; test id add-environment where it is a content button). Expect Pair an environment.
-2. Enter invalid-link in the pairing-link field and select Pair (test id pair-environment). Expect the sheet to remain open with an invalid-link explanation; no native device is added on the server.
+1. Select Settings and, on iPad, the Environments category. Select Add environment in the Environments section (test id add-environment). Expect Pair an environment inline on iPad or in a sheet on a phone.
+2. Enter invalid-link in the pairing-link field and select Pair (test id pair-environment). Expect the form to remain open with an invalid-link explanation; no native device is added on the server.
 3. Use the card's pairing command to mint a fresh link. Paste it in pairing-link, wait for the keyboard animation to settle, then select Pair.
-4. Expect the sheet to close and the environment to show Online. Read back the native device from the disposable server.
+4. Expect the form to close and the environment to show Online. Read back the native device from the disposable server.
 5. Repeat with a second disposable environment. Cold-launch and expect both environments restored.
-6. Open Add environment and select Cancel (test id cancel-pairing). Expect the sheet closed with neither environment changed.
-7. In the Metro development session, open Add environment and select Use development server (test id development-pairing-link). Expect a full link in pairing-link and no new device until Pair is selected. Request another link and expect its code to change; use Pair and read back the Development mobile device on the disposable server. Exercise this same sheet on iPhone and iPad.
-8. Exercise a helper failure, expect an inline error, then retry after restoring the owner connection. While creating a link, select Cancel and expect the sheet closed; reopen it and expect a blank field with no error or pending request.
+6. Open Add environment and select Cancel (test id cancel-pairing). Expect the inline form or sheet closed with neither environment changed.
+7. In the Metro development session, open Add environment and select Use development server (test id development-pairing-link). Expect a full link in pairing-link and no new device until Pair is selected. Request another link and expect its code to change; use Pair and read back the Development mobile device on the disposable server. Exercise the sheet on iPhone and the inline form on iPad.
+8. Exercise a helper failure, expect an inline error, then retry after restoring the owner connection. While creating a link, select Cancel and expect the form closed; reopen it and expect a blank field with no error or pending request.
 
 ## What proves it works
 

@@ -5,4 +5,5 @@ export type HeaderIconName =
   | 'refresh'
   | 'done'
   | 'compareParent'
+  | 'sidebar'
   | 'add';

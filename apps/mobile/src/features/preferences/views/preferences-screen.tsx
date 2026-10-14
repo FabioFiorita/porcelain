@@ -50,7 +50,12 @@ export function PreferencesScreen() {
       className="flex-1 bg-background"
       contentInsetAdjustmentBehavior="automatic"
     >
-      <Box gap={6} paddingX={6} paddingY={8}>
+      <Box
+        className="w-full max-w-2xl self-center"
+        gap={6}
+        paddingX={6}
+        paddingY={8}
+      >
         {status === 'loading' ? (
           <Loading label="Reading saved preferences…" />
         ) : null}

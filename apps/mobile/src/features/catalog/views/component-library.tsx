@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ScrollView } from 'react-native';
 import { Text } from '../../../components/ui/text';
 import { Button } from '../../../components/ui/button';
+import { primitiveNames } from './component-catalog';
 
 export function ComponentLibrary({
   onOpenText,
@@ -42,22 +43,7 @@ export function ComponentLibrary({
             onPress={onOpenButton}
           />
         </Card>
-        {[
-          'IconButton',
-          'Input',
-          'Badge',
-          'Item',
-          'States',
-          'Files',
-          'FileTree',
-          'Review',
-          'History',
-          'CodeView',
-          'DiffView',
-          'MarkdownView',
-          'ImageView',
-          'HtmlPreview',
-        ].map((name) => (
+        {primitiveNames.map((name) => (
           <Button
             key={name}
             label={`Explore ${name}`}

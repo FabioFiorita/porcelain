@@ -7,6 +7,13 @@ selectors:
   - 'Select a worktree to continue.'
   - 'Environments'
   - 'Add environment'
+  - 'sidebar-files'
+  - 'sidebar-review'
+  - 'sidebar-history'
+  - 'sidebar-settings'
+  - 'settings-appearance'
+  - 'settings-environments'
+  - 'settings-development'
 tests:
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
 api: []
@@ -16,7 +23,7 @@ api: []
 
 ## What it is
 
-On iPad the app is Expo UI's SwiftUI three-column NavigationSplitView: the sidebar “Porcelain” lists Files, Review, History and Settings; the content column holds the destination's master pane, titled Files, Review or History, showing the selected branch/path only and staying empty otherwise, or Settings' native Environments section. Expo Router renders the detail column, whose destinations own the workspace gate and whose toolbar carries the workspace picker. Collapsing the sidebar keeps the master and detail; rotating keeps Settings. In portrait iPadOS shows two columns. The tablet never embeds the phone's tab navigator. The owner chose the SwiftUI split view over Router's, which cannot customize its header.
+On iPad the app composes adaptive React Native panes using Porcelain controls, with Expo's native Stack owning each destination's header, toolbar and Back behavior. The app sidebar lists Files, Review and History, with Settings at the bottom. Porcelain and Settings use the same heading typography. Settings uses categories beside its native detail stack, starting with Appearance visible and the app sidebar collapsed. Its divider extends through the header area. Reopening the app sidebar gives three useful panels in a wide window. In Settings the native Show sidebar / Hide sidebar control sits beside Settings, because it controls the app pane; other destinations place it in the native toolbar. In a narrow window, the app sidebar occupies the main area while open; selecting a destination or its native Hide sidebar action returns to the retained detail. Settings categories move above the detail when its available width is narrow. iPhone and Android retain their tab navigator.
 
 ## How a user reaches it
 
@@ -24,11 +31,12 @@ On iPad the app is Expo UI's SwiftUI three-column NavigationSplitView: the sideb
 
 ## Driving it
 
-1. Launch on the iPad, then show the sidebar if it is hidden; expect Files as the first and selected destination in the Porcelain sidebar.
-2. Select Files with loaded storage and no saved workspace. Expect Files and Select a worktree to continue. in the detail pane; the master pane is titled Files and has no branch/path content. Choose a workspace through the detail toolbar and expect its branch/path in the master.
-3. Hide and show the sidebar. Expect the same selection, master and detail.
-4. Select Settings, rotate between landscape and portrait, then return. Expect Environments and Add environment throughout.
-5. Return to Review and confirm its heading.
+1. Launch on the iPad, then show the sidebar if it is hidden. Expect Porcelain and the Files, Review and History rows, with Settings at the bottom. Expect Files selected on a fresh launch.
+2. Select Files with loaded storage and no saved workspace. Expect Files and Select a worktree to continue. in the main area. Choose a workspace through its toolbar and expect the existing Files destination; there is no third metadata column.
+3. Hide and show the sidebar. Expect the current destination and selection to remain.
+4. Select Settings, rotate between landscape and portrait, then return. Expect the native sidebar control and Settings categories, with Appearance controls immediately visible. Select Environments and expect Add environment. In a narrow window the categories sit above the detail.
+5. Select Appearance. Use the sidebar control beside Settings to show and hide the app sidebar and expect the detail controls to remain fully visible. Follow preferences.appearance for light, dark and system themes, and confirm the native header and sidebar update. Select Development and expect the component selector beside its current preview; selecting Explore Badge replaces that preview inline.
+6. Return to Review and confirm its heading. In a narrow window, select a sidebar destination and confirm the main column appears with a native way back to the sidebar.
 
 ## What proves it works
 
@@ -36,7 +44,8 @@ Drive this feature with the mobile-verify skill on demand.
 
 ## Gotchas
 
-- The simulator starts in portrait, where the sidebar is hidden behind Show Sidebar; rotate to landscape to verify the expanded sidebar, and a development deep link reaches a destination in either orientation.
-- “Hide Sidebar” and “Show Sidebar” are SwiftUI's own labels, so the map cannot name them as selectors.
+- There is one native header per detail stack. Expect the selected Settings category title in that header, not a separate blank bar above it.
+- LeadingToolbar owns the sidebar button and feature leading actions together. On Files, expect both the native sidebar button and Refresh files; separate left toolbars overwrite each other.
+- Use the sidebar test ids to distinguish its destination rows from navigation headings. Sidebar controls announce Show sidebar or Hide sidebar.
 
-The Files, Review and History detail destinations own the workspace gate and retry; the master does not repeat those states. Verify Reading workspace…, failed inventory with Read again, Workspace unavailable with its reason, and the loaded no-selection prompt in the detail pane. The master shows the selected branch/path only and stays empty otherwise. Keep the sidebar and detail workspace toolbar reachable. This requires its own iPad run; native acceptance remains pending.
+Files, Review and History own their existing workspace gate and retry in the main area. Verify Reading workspace…, failed inventory with Read again, Workspace unavailable with its reason, and the loaded no-selection prompt. Keep the sidebar and workspace toolbar reachable. Native acceptance uses the developer's iPad walkthrough.
