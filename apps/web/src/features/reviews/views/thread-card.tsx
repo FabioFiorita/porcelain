@@ -52,6 +52,11 @@ import {
   reviewErrorMessage,
   type ReviewScope,
 } from '@porcelain/client/reviews/rules';
+import { SidebarActionMenu } from './sidebar-action-menu';
+import {
+  reviewSidebarActions,
+  type ReviewSidebarAction,
+} from '@porcelain/client/reviews/rules';
 import { shortOid } from '@porcelain/client/history/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -226,7 +231,7 @@ function ThreadMessage({
       {!wide && <AuthorAvatar author={message.author} />}
       <MessageContent>
         <MessageHeader>
-          <span className="inline-flex min-w-0 items-center gap-2">
+          <span className="inline-flex min-w-0 flex-wrap items-center gap-2">
             {mine ? 'You' : 'Agent'}
             {timestamp !== null && timestamp !== undefined && (
               <span className="font-normal">{timestamp}</span>
@@ -295,7 +300,7 @@ export function ThreadCard({
       title={
         thread.anchor.kind === 'change' ? 'Show the change' : 'Show in the code'
       }
-      className="flex min-w-0 items-center gap-1 rounded px-0.5 font-mono text-foreground hover:underline"
+      className="flex min-w-0 flex-1 flex-wrap items-center gap-1 rounded px-0.5 font-mono text-foreground hover:underline"
     >
       {thread.anchor.kind !== 'change' && (
         <span className="truncate">{basename(thread.anchor.filePath)}</span>
@@ -335,7 +340,7 @@ export function ThreadCard({
   );
 
   const resolveControl = (
-    <span className="inline-flex min-w-0 items-center gap-1">
+    <span className="inline-flex min-w-0 flex-wrap items-center gap-1">
       {resolveButton}
       {AsyncResult.isFailure(resolve.result) && (
         <span role="alert" className="max-w-64 text-2xs text-destructive">
@@ -409,118 +414,152 @@ export function ThreadCard({
     </form>
   );
 
-  if (listed && !thread.resolved) {
-    return (
-      <article
-        className="rounded-xl border bg-card p-3"
-        aria-label="Comment thread"
-      >
-        <div className="mb-3 flex min-w-0 items-center gap-1.5 text-2xs text-muted-foreground">
-          <ThreadStarter thread={thread} />
-          <span aria-hidden>·</span>
-          {where}
-        </div>
-        {!expanded && thread.messages.length > 1 && (
-          <button
-            type="button"
-            onClick={() => setExpanded(true)}
-            className="mb-2 text-2xs text-muted-foreground hover:text-foreground hover:underline"
-          >
-            Show {thread.messages.length - 1} earlier
-          </button>
-        )}
-        <MessageGroup>
-          {(expanded ? thread.messages : thread.messages.slice(-1)).map(
-            (message) => (
-              <ThreadMessage
-                key={message.id}
-                message={message}
-                owner={owner}
-                wide
-              />
-            ),
-          )}
-        </MessageGroup>
-        {replyForm}
-        {!replying && (
-          <div className="mt-3 flex items-center gap-1 border-t pt-2">
-            <Badge
-              variant={state === 'agent-replied' ? 'secondary' : 'outline'}
-              className={cn('h-4   ', state === 'agent-replied' && '')}
-            >
-              {threadStateLabel(thread)}
-            </Badge>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="ml-auto h-6"
-              onClick={() => setReplying(true)}
-            >
-              Reply
-            </Button>
-            {resolveControl}
-          </div>
-        )}
-      </article>
-    );
-  }
-
-  if (thread.resolved) {
-    return (
-      <article
-        className="flex min-w-0 items-center gap-2 rounded-lg border border-dashed px-2.5 py-1.5 text-2xs text-muted-foreground"
-        aria-label="Resolved comment thread"
-      >
-        <CheckIcon className="size-3.5 shrink-0 text-graph-2" />
-        {listed ? where : <ThreadStarter thread={thread} />}
-        <span className="truncate">{thread.messages[0]?.body}</span>
-        {resolveControl}
-      </article>
-    );
-  }
-
+  const act = (id: ReviewSidebarAction['id']) => {
+    if (id === 'reply') setReplying(true);
+    if (id === 'resolution')
+      resolve.send({ threadId: thread.id, resolved: !thread.resolved });
+    if (id === 'reveal') onReveal?.();
+  };
   return (
-    <article
-      className="rounded-xl border bg-card p-3 shadow-sm"
-      aria-label="Comment thread"
+    <SidebarActionMenu
+      label="Thread actions"
+      actions={reviewSidebarActions({
+        kind: 'thread',
+        resolved: thread.resolved,
+        pending: resolve.result.waiting || reply.result.waiting,
+        canReveal: listed,
+      })}
+      onAction={act}
     >
-      <div className="mb-2 flex items-center gap-1.5 text-2xs text-muted-foreground">
-        <ThreadStarter thread={thread} />
-        <span aria-hidden>·</span>
-        <span>{where}</span>
-        <Badge
-          variant={state === 'agent-replied' ? 'secondary' : 'outline'}
-          className="h-4"
-        >
-          {threadStateLabel(thread)}
-        </Badge>
-        {!replying && (
-          <div className="ml-auto flex gap-0.5">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-6"
-              onClick={() => setReplying(true)}
+      {(menu) => {
+        if (listed && !thread.resolved) {
+          return (
+            <article
+              className="min-w-0 rounded-xl border bg-card p-3 select-text"
+              aria-label="Comment thread"
             >
-              Reply
-            </Button>
-            {resolveControl}
-          </div>
-        )}
-      </div>
-      <MessageGroup>
-        {thread.messages.map((message) => (
-          <ThreadMessage key={message.id} message={message} owner={owner} />
-        ))}
-      </MessageGroup>
-      {replyForm}
-      {state === 'awaiting-agent' && !replying && (
-        <p className="mt-2 text-right text-2xs text-muted-foreground">
-          The agent reads this when you ask it to check its comments.
-        </p>
-      )}
-    </article>
+              <div className="mb-3 flex min-w-0 items-center gap-1.5 text-2xs text-muted-foreground">
+                <ThreadStarter thread={thread} />
+                <span aria-hidden>·</span>
+                {where}
+                {menu}
+              </div>
+              {!expanded && thread.messages.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setExpanded(true)}
+                  className="mb-2 text-2xs text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  Show {thread.messages.length - 1} earlier
+                </button>
+              )}
+              <MessageGroup>
+                {(expanded ? thread.messages : thread.messages.slice(-1)).map(
+                  (message) => (
+                    <ThreadMessage
+                      key={message.id}
+                      message={message}
+                      owner={owner}
+                      wide
+                    />
+                  ),
+                )}
+              </MessageGroup>
+              {replyForm}
+              {!replying && (
+                <div className="mt-3 flex flex-wrap items-center justify-end gap-1 border-t pt-2">
+                  <Badge
+                    variant={
+                      state === 'agent-replied' ? 'secondary' : 'outline'
+                    }
+                    className="mr-auto h-4"
+                  >
+                    {threadStateLabel(thread)}
+                  </Badge>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-6"
+                    onClick={() => setReplying(true)}
+                  >
+                    Reply
+                  </Button>
+                  {resolveControl}
+                </div>
+              )}
+            </article>
+          );
+        }
+
+        if (thread.resolved) {
+          return (
+            <article
+              className="flex min-w-0 flex-wrap items-center gap-2 rounded-lg border border-dashed px-2.5 py-1.5 text-2xs text-muted-foreground select-text"
+              aria-label="Resolved comment thread"
+            >
+              <div className="flex w-full min-w-0 items-center gap-2">
+                <CheckIcon className="size-3.5 shrink-0 text-graph-2" />
+                {listed ? where : <ThreadStarter thread={thread} />}
+                {menu}
+              </div>
+              <span className="min-w-0 flex-1 truncate">
+                {thread.messages[0]?.body}
+              </span>
+              {resolveControl}
+            </article>
+          );
+        }
+
+        return (
+          <article
+            className="rounded-xl border bg-card p-3 shadow-sm select-text"
+            aria-label="Comment thread"
+          >
+            <div className="mb-2 flex min-w-0 flex-wrap items-center gap-1.5 text-2xs text-muted-foreground">
+              <ThreadStarter thread={thread} />
+              <span aria-hidden>·</span>
+              <span className="min-w-0">{where}</span>
+              {menu}
+              <Badge
+                variant={state === 'agent-replied' ? 'secondary' : 'outline'}
+                className="h-4"
+              >
+                {threadStateLabel(thread)}
+              </Badge>
+              {!replying && (
+                <div className="ml-auto flex gap-0.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-6"
+                    onClick={() => setReplying(true)}
+                  >
+                    Reply
+                  </Button>
+                  {resolveControl}
+                </div>
+              )}
+            </div>
+            <MessageGroup>
+              {thread.messages.map((message) => (
+                <ThreadMessage
+                  key={message.id}
+                  message={message}
+                  owner={owner}
+                />
+              ))}
+            </MessageGroup>
+            {replyForm}
+            {state === 'awaiting-agent' && !replying && (
+              <p className="mt-2 text-right text-2xs text-muted-foreground">
+                The agent reads this when you ask it to check its comments.
+              </p>
+            )}
+          </article>
+        );
+      }}
+    </SidebarActionMenu>
   );
 }
