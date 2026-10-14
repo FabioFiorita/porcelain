@@ -24,7 +24,7 @@ import { serve, start, startProblems } from './serve.ts';
 const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--instance <id>]
   doctor                   check startup dependencies, matching native build and active instances
   build                    build the matching development client on the Mac
-  start [--device iphone|ipad] [--udid <already-owned-booted-udid>] [--manual-pairing]
+  start [--device iphone|ipad] [--udid <already-owned-booted-udid>] [--manual-pairing] [--fixture development|focused]
                            prepare a disposable server, Metro and development client; manual pairing leaves the app for the developer
   status                   report passive lifecycle status and connection metadata
   logs                     record app, Metro and server logs
@@ -104,6 +104,7 @@ async function command(args: readonly string[]): Promise<string> {
       'agent-device-config': { type: 'string' },
       'agent-device-command': { type: 'string' },
       'manual-pairing': { type: 'boolean', default: false },
+      fixture: { type: 'string', default: 'development' },
     },
     allowPositionals: true,
     strict: true,
@@ -120,12 +121,17 @@ async function command(args: readonly string[]): Promise<string> {
   if (name === 'start') {
     if (values.device !== 'iphone' && values.device !== 'ipad')
       throw new Usage('start takes --device iphone or --device ipad.');
+    if (values.fixture !== 'development' && values.fixture !== 'focused')
+      throw new Usage(
+        'start takes --fixture development or --fixture focused.',
+      );
     return start(
       values.device,
       values.udid,
       values['agent-device-config'],
       values['agent-device-command'],
       values['manual-pairing'],
+      values.fixture,
     );
   }
   if (name === 'doctor') return doctor();

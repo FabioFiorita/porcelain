@@ -14,6 +14,7 @@ import {
   type Hit,
 } from '@porcelain/server/kit/isolated-server';
 import { repositoryRoot } from './development-client.ts';
+import { seedDevelopmentSample } from '@porcelain/server/kit/development-sample';
 
 export type Workspace = { projectName: string; worktreeLabel: string };
 
@@ -45,6 +46,7 @@ export class Environment {
     title: string;
     label: string;
     workspace: boolean;
+    fixture?: 'development';
     onOutput?: (text: string) => void;
     port?: number;
   }): Promise<Environment> {
@@ -59,6 +61,8 @@ export class Environment {
     recorder.secret(server.credential);
     recorder.secret(server.desktopCredential);
     try {
+      if (input.fixture === 'development')
+        await seedDevelopmentSample(server, recorder);
       const name = `Mobile ${input.title} ${randomUUID().slice(0, 8)}`;
       const workspace = input.workspace
         ? await addWorkspace(server, recorder, input.title, name)

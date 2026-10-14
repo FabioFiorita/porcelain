@@ -84,6 +84,9 @@ export function serve(folder: string): Promise<void> {
       title: 'Verification',
       label: pairingLabel,
       workspace: false,
+      ...(options.fixture === 'development'
+        ? { fixture: 'development' as const }
+        : {}),
       onOutput: (text) => appendFileSync(join(evidence, 'server.log'), text),
       ...(ports[0] === undefined ? {} : { port: ports[0] }),
     });
@@ -95,6 +98,17 @@ export function serve(folder: string): Promise<void> {
       environment.link,
       environment.server.credential,
       environment.server.desktopCredential,
+    );
+    await life.evidence().note(
+      'fixture.json',
+      JSON.stringify(
+        environment.recorder.redact({
+          fixture: options.fixture,
+          steps: environment.recorder.steps,
+        }),
+        null,
+        2,
+      ),
     );
     const metro = await startMetro(join(evidence, 'metro.log'), ports[1], {
       ownerSocket: environment.server.socketPath,
@@ -195,6 +209,7 @@ export async function start(
   agentConfig?: string,
   agentCommand?: string,
   manualPairing = false,
+  fixture: 'development' | 'focused' = 'development',
 ): Promise<string> {
   const { remote, simulatorLimit } = deviceHost();
   refuseMissing(await startProblems(remote, agentCommand !== undefined));
@@ -204,6 +219,7 @@ export async function start(
       ...(agentCommand === undefined ? {} : { agentCommand }),
       kind,
       manualPairing,
+      fixture,
       host: remote ?? null,
       simulatorLimit: Math.min(simulatorLimit ?? 2, 2),
       ...(udid === undefined ? {} : { udid }),
@@ -215,5 +231,5 @@ export async function start(
   const card = Schema.decodeUnknownSync(mobileConnectionSchema)(
     JSON.parse(readFileSync(instance.connectionPath, 'utf8')),
   );
-  return `${connectionCard(card, instance.connectionPath)}simulator ${card.mobile.udid} (${card.mobile.simulator})\nmetro ${card.mobile.metroUrl}\nagent-device ${card.mobile.agentDevice.command}\n`;
+  return `${connectionCard(card, instance.connectionPath)}fixture ${fixture}\nsimulator ${card.mobile.udid} (${card.mobile.simulator})\nmetro ${card.mobile.metroUrl}\nagent-device ${card.mobile.agentDevice.command}\n`;
 }
