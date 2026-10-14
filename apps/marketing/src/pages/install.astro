@@ -1,0 +1,59 @@
+---
+import Site from '../layouts/site.astro';
+import Command from '../components/command.astro';
+import ComingSoon from '../components/coming-soon.astro';
+
+const description =
+  'The Mac app, or a server on Linux or Mac, on the machine that holds your repositories.';
+---
+
+<Site title="Install — Porcelain" description={description}>
+  <main class="mx-auto w-full max-w-[1440px] px-5 py-16 lg:px-10 lg:py-24">
+    <h1 class="max-w-[14ch] text-[clamp(2.6rem,4.6vw,4.4rem)] leading-[0.96] font-medium tracking-[-0.045em]">
+      Start where the repository is.
+    </h1>
+    <div class="mt-5 flex max-w-xl flex-col items-start gap-2 text-lg leading-snug text-muted-foreground">
+      <p>The Mac app, or a server on Linux or Mac.</p>
+      <p class="flex items-center gap-2 text-base">
+        <span>Mobile app</span>
+        <ComingSoon />
+      </p>
+    </div>
+
+    <div class="mt-14 grid gap-px overflow-hidden rounded-xl border border-border bg-border lg:grid-cols-2 lg:grid-rows-[auto_1fr_auto]">
+      <section class="grid min-w-0 grid-rows-[auto_1fr_auto] bg-background p-8 lg:row-span-3 lg:grid-rows-subgrid lg:p-10">
+        <h2 class="text-2xl font-medium tracking-[-0.03em]">Server</h2>
+        <p class="mt-3 max-w-md text-muted-foreground">
+          On the Linux or Mac machine that holds your repositories.
+        </p>
+        <div class="mt-8 flex w-full min-w-0 flex-col items-start gap-3 self-start">
+          <Command command="npx @fabiofiorita/porcelain@latest serve" />
+          <p class="max-w-md text-sm text-muted-foreground">On Linux, install the user service.</p>
+          <Command command="npx @fabiofiorita/porcelain@latest service install" />
+        </div>
+      </section>
+      <section class="grid min-w-0 grid-rows-[auto_1fr_auto] bg-background p-8 lg:row-span-3 lg:grid-rows-subgrid lg:p-10">
+        <h2 class="text-2xl font-medium tracking-[-0.03em]">Mac app</h2>
+        <p class="mt-3 max-w-md text-muted-foreground">
+          The desktop app around that review. Apple silicon.
+        </p>
+        <a
+          class="mt-8 inline-flex h-11 w-fit items-center gap-2 self-start rounded-full bg-foreground px-5 text-sm text-background no-underline"
+          href="https://github.com/FabioFiorita/porcelain/releases"
+        >
+          <svg viewBox="0 0 814 1000" class="size-4" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105.6-57-155.5-127C46.7 790.7 0 663 0 541.8c0-194.4 126.4-297.5 250.8-297.5 66.1 0 121.2 43.4 162.7 43.4 39.5 0 101.1-46 176.3-46 28.5 0 130.9 2.6 198.3 99.2zm-234-181.5c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"
+            ></path>
+          </svg>
+          Download for Mac
+        </a>
+      </section>
+    </div>
+    <p class="mt-8 max-w-xl text-muted-foreground">
+      Open the address the server prints. The browser is not connected until you pair it from that same machine. The
+      page tells you the command. The files stay there. The iPhone and iPad app will reach that machine too.
+    </p>
+  </main>
+</Site>
