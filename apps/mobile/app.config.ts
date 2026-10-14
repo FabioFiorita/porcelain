@@ -4,6 +4,7 @@ import { type ExpoConfig } from 'expo/config';
 import { buildIdentity } from './src/shared/rules/build-identity.ts';
 
 const identity = buildIdentity(process.env.APP_VARIANT);
+const projectId = 'e14cdaa2-be46-4c7e-8554-432e5f386871';
 
 const config: ExpoConfig = {
   name: identity.name,
@@ -29,7 +30,12 @@ const config: ExpoConfig = {
     ['expo-build-properties', { ios: { deploymentTarget: '26.0' } }],
   ],
   experiments: { reactCompiler: true },
-  extra: { eas: { projectId: 'e14cdaa2-be46-4c7e-8554-432e5f386871' } },
+  runtimeVersion: { policy: 'fingerprint' },
+  updates: {
+    url: `https://u.expo.dev/${projectId}`,
+    fallbackToCacheTimeout: 0,
+  },
+  extra: { eas: { projectId } },
 };
 
 export default config;

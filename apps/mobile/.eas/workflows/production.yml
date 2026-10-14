@@ -1,0 +1,64 @@
+name: Production delivery
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_build:
+        type: boolean
+        default: false
+        description: Build a new binary even when the native runtime matches
+
+defaults:
+  tools:
+    node: '24.20.0'
+    pnpm: '12.3.4'
+
+jobs:
+  fingerprint:
+    name: Fingerprint production runtime
+    type: fingerprint
+    environment: production
+    env:
+      APP_VARIANT: production
+
+  get_ios_build:
+    name: Find a compatible iOS production build
+    needs: [fingerprint]
+    type: get-build
+    params:
+      platform: ios
+      profile: production
+      distribution: store
+      channel: production
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      wait_for_in_progress: true
+
+  publish_ios_update:
+    name: Publish iOS production OTA
+    needs: [get_ios_build]
+    if: ${{ !inputs.force_build && needs.get_ios_build.outputs.build_id }}
+    type: update
+    environment: production
+    env:
+      APP_VARIANT: production
+    params:
+      platform: ios
+      channel: production
+      message: ${{ substring(github.commit_message || 'Manual production update', 0, 1024) }}
+
+  build_ios:
+    name: Build iOS production
+    needs: [get_ios_build]
+    if: ${{ inputs.force_build || !needs.get_ios_build.outputs.build_id }}
+    type: build
+    params:
+      platform: ios
+      profile: production
+
+  submit_ios:
+    name: Submit iOS to TestFlight
+    needs: [build_ios]
+    type: submit
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+      profile: production

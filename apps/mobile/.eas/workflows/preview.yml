@@ -1,0 +1,56 @@
+name: Preview delivery
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_build:
+        type: boolean
+        default: false
+        description: Build a new binary even when the native runtime matches
+
+defaults:
+  tools:
+    node: '24.20.0'
+    pnpm: '12.3.4'
+
+jobs:
+  fingerprint:
+    name: Fingerprint preview runtime
+    type: fingerprint
+    environment: preview
+    env:
+      APP_VARIANT: preview
+
+  get_ios_build:
+    name: Find a compatible iOS preview
+    needs: [fingerprint]
+    type: get-build
+    params:
+      platform: ios
+      profile: preview
+      distribution: internal
+      channel: preview
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      wait_for_in_progress: true
+
+  publish_ios_update:
+    name: Publish iOS preview OTA
+    needs: [get_ios_build]
+    if: ${{ !inputs.force_build && needs.get_ios_build.outputs.build_id }}
+    type: update
+    environment: preview
+    env:
+      APP_VARIANT: preview
+    params:
+      platform: ios
+      channel: preview
+      message: ${{ substring(github.commit_message || 'Manual preview update', 0, 1024) }}
+
+  build_ios:
+    name: Build iOS ad hoc preview
+    needs: [get_ios_build]
+    if: ${{ inputs.force_build || !needs.get_ios_build.outputs.build_id }}
+    type: build
+    params:
+      platform: ios
+      profile: preview
