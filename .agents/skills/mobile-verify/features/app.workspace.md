@@ -11,6 +11,8 @@ selectors:
 tests:
   - apps/mobile/src/shared/rules/workspace-documents.spec.ts
   - apps/mobile/src/shared/rules/document-tabs.spec.ts
+  - apps/mobile/src/shared/rules/document-tab-layout.spec.ts
+  - apps/mobile/src/shared/rules/workspace-session.spec.ts
 api:
   - GET /api/inventory
 ---
@@ -20,6 +22,8 @@ api:
 On iPad, a selected worktree owns one central document area and a right inspector with Files, Review and History modes. The left sidebar selects worktrees. The document tab strip is the top workspace header, with a native glass worktree-sidebar control before the first tab and an inspector control at the end. These controls and tabs remain visible regardless of inspector mode, active document or narrow-pane visibility. Worktree identity remains in the selected left navigator row. Phones retain their destination tabs and detail routes.
 
 Open a file through Files, a changed file through Review, and a commit and its file diff through History. Expect all documents in the same central tab strip. Opening an existing document activates its tab; closing inactive and active tabs selects the expected remaining document. Changing the inspector mode keeps both open tabs and the active central document. Search and folder expansion remain alive while switching inspector modes. No document selection pushes a native detail route on iPad.
+
+Verify the header in landscape first: zero tabs shows No open tabs without a scroller; one and several fitting tabs have no scrolling or scroll indicator. Open enough documents, including a long filename, to overflow. The activated tab scrolls into view and a horizontal swipe reaches the other tabs. The focus underline belongs to the selected tab, not the whole strip. Close tabs below the overflow threshold and expect scrolling to stop. Toggle the sidebar, rotate, and resize: the strip measures its new width and keeps the selected tab visible. Repeat with a larger Dynamic Type size, then check portrait for reachable tabs and sidebar/inspector controls. Closing the last tab returns to No open tabs and Choose a document.
 
 Each review tab retains its original Uncommitted or Branch/base comparison; changing the inspector comparison affects newly opened review documents and preserves the existing tabs. A commit tab retains its selected parent when reopened; each commit diff tab is identified by commit, parent and path. Live file changes still produce stale reviewed marks or No longer changed, using the existing shared readers.
 
