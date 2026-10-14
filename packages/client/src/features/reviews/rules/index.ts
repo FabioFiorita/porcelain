@@ -78,6 +78,7 @@ export {
 } from './readiness.ts';
 export { groupSpecPaths, isSpecPath } from './spec-paths.ts';
 export {
+  briefingTitle,
   currentStop,
   decisionKey,
   decisionLinks,
