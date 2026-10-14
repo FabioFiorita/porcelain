@@ -38,6 +38,8 @@ These instructions are source-reviewed guidance. Report exactly which maps and b
 | [app.settings-scope](app.settings-scope.md) | /settings/$section (desktop) | Desktop Settings opens on This computer and lists This computer, Ways in, Remote computers, Devices, Git and agents and Appearance, each its own page, with no Connection section. |
 | [app.settings-without-sharing](app.settings-without-sharing.md) | /settings/$section | The web the server serves leaves sharing and remote computers to the desktop app: Settings keeps its preferences and Updates with no Sharing section, and the navigator still names this computer. |
 | [app.shell](app.shell.md) | / | A browser that was never paired finds no session on the real server and sees the instructions to pair it. |
+| [app.not-found](app.not-found.md) | /$ | Unknown URLs and invalid worktree IDs keep the app navigator and offer direct workspace recovery. |
+| [app.settings-entry](app.settings-entry.md) | /settings | Settings without a section opens the default; unknown sections show an in-app not-found. |
 | [app.tab-title](app.tab-title.md) | / | The browser tab is titled after the open file, commit or surface, followed by the project. |
 | [changes.branch-base](changes.branch-base.md) | / | Choosing another base branch compares the branch against it, keeps the choice in the address, and choosing the default branch again returns to the default comparison. |
 | [changes.branch-comment-reveal](changes.branch-comment-reveal.md) | / | Showing a comment written on the branch review opens its file against the base the comment was written against, even after the reviewer chose another base. |
