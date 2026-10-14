@@ -73,23 +73,7 @@ type FilesNavigationProps = {
 };
 
 export function FilesNavigation(props: FilesNavigationProps) {
-  return props.embedded ? (
-    <EmbeddedFilesNavigation key={props.selected.key} {...props} />
-  ) : (
-    <FilesNavigationView key={props.selected.key} {...props} />
-  );
-}
-
-function EmbeddedFilesNavigation(props: FilesNavigationProps) {
-  const read = useFilePreferences(
-    props.selected.connection,
-    props.selected.scope.projectId,
-  );
-  const write = useSetFilePreference(
-    props.selected.connection,
-    props.selected.scope.projectId,
-  );
-  return <FilesNavigationView {...props} preferences={{ read, write }} />;
+  return <FilesNavigationView key={props.selected.key} {...props} />;
 }
 
 function FilesNavigationView({
@@ -99,13 +83,11 @@ function FilesNavigationView({
   activePath,
   embedded = false,
   onOpenToSide,
-  preferences,
-}: FilesNavigationProps & {
-  preferences?: {
-    read: ReturnType<typeof useFilePreferences>;
-    write: ReturnType<typeof useSetFilePreference>;
+}: FilesNavigationProps) {
+  const preferences = {
+    read: useFilePreferences(selected.connection, selected.scope.projectId),
+    write: useSetFilePreference(selected.connection, selected.scope.projectId),
   };
-}) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [requested, setRequested] = useState<readonly string[]>(['']);
   const [query, setQuery] = useState('');
@@ -155,9 +137,9 @@ function FilesNavigationView({
   const searching = Boolean(query.trim());
   const open = (path: string) => onOpen(path, selected.key);
   const nodes = mergeFileTreeEntries(data);
-  const preferenceData = preferences
-    ? Option.getOrUndefined(AsyncResult.value(preferences.read.result))
-    : undefined;
+  const preferenceData = Option.getOrUndefined(
+    AsyncResult.value(preferences.read.result),
+  );
   const preferenceEntries = filePreferenceEntries({
     entries: nodes,
     paths: pathData?.paths ?? [],
@@ -165,16 +147,14 @@ function FilesNavigationView({
     showHidden,
     query,
   });
-  const preferencesLoaded = !preferences || preferenceData !== undefined;
+  const preferencesLoaded = preferenceData !== undefined;
   const visibleEntries = searching
     ? preferenceEntries.matches
     : preferenceEntries.nodes;
-  const preferencePending = Boolean(
-    preferences &&
-    (!preferenceData ||
-      preferences.read.result.waiting ||
-      preferences.write.result.waiting),
-  );
+  const preferencePending =
+    !preferenceData ||
+    preferences.read.result.waiting ||
+    preferences.write.result.waiting;
   const menuFor = (node: FileTreeEntry) => {
     const { path, pin, hide, actions } = filePreferenceActions(
       node,
@@ -182,44 +162,42 @@ function FilesNavigationView({
       preferenceEntries.pinned,
       embedded && onOpenToSide !== undefined,
     );
-    return actions
-      .filter(({ id }) => preferences || (id !== 'pin' && id !== 'hide'))
-      .map(({ id, label }) => ({
-        id,
-        label,
-        destructive: id === 'trash',
-        disabled: (id === 'pin' || id === 'hide') && preferencePending,
-        onPress: () => {
-          switch (id) {
-            case 'new-file':
-            case 'new-folder':
-              setAction({
-                kind: 'create',
-                entryKind: id === 'new-file' ? 'file' : 'directory',
-                folder: path,
-              });
-              break;
-            case 'open':
-              open(path);
-              break;
-            case 'open-to-side':
-              onOpenToSide?.(path);
-              break;
-            case 'rename':
-              setAction({ kind: 'move', path });
-              break;
-            case 'trash':
-              setAction({ kind: 'trash', path });
-              break;
-            case 'pin':
-              if (!preferencePending) preferences?.write.submit(pin);
-              break;
-            case 'hide':
-              if (!preferencePending) preferences?.write.submit(hide);
-              break;
-          }
-        },
-      }));
+    return actions.map(({ id, label }) => ({
+      id,
+      label,
+      destructive: id === 'trash',
+      disabled: (id === 'pin' || id === 'hide') && preferencePending,
+      onPress: () => {
+        switch (id) {
+          case 'new-file':
+          case 'new-folder':
+            setAction({
+              kind: 'create',
+              entryKind: id === 'new-file' ? 'file' : 'directory',
+              folder: path,
+            });
+            break;
+          case 'open':
+            open(path);
+            break;
+          case 'open-to-side':
+            onOpenToSide?.(path);
+            break;
+          case 'rename':
+            setAction({ kind: 'move', path });
+            break;
+          case 'trash':
+            setAction({ kind: 'trash', path });
+            break;
+          case 'pin':
+            if (!preferencePending) preferences.write.submit(pin);
+            break;
+          case 'hide':
+            if (!preferencePending) preferences.write.submit(hide);
+            break;
+        }
+      },
+    }));
   };
   const header = (
     <Box gap={3} paddingX={4} paddingY={3}>
@@ -234,34 +212,32 @@ function FilesNavigationView({
             autoCorrect={false}
           />
         </Box>
+        <IconButton
+          icon="collapse"
+          accessibilityLabel={
+            searching ? 'Clear search and collapse all' : 'Collapse all'
+          }
+          onPress={() => {
+            setQuery('');
+            setExpanded(new Set());
+          }}
+        />
         {embedded ? (
-          <>
-            <IconButton
-              icon="down"
-              accessibilityLabel={
-                searching ? 'Clear search and collapse all' : 'Collapse all'
-              }
-              onPress={() => {
-                setQuery('');
-                setExpanded(new Set());
-              }}
-            />
-            <CreateMenu
-              onFile={() =>
-                setAction({ kind: 'create', entryKind: 'file', folder: '' })
-              }
-              onFolder={() =>
-                setAction({
-                  kind: 'create',
-                  entryKind: 'directory',
-                  folder: '',
-                })
-              }
-            />
-          </>
+          <CreateMenu
+            onFile={() =>
+              setAction({ kind: 'create', entryKind: 'file', folder: '' })
+            }
+            onFolder={() =>
+              setAction({
+                kind: 'create',
+                entryKind: 'directory',
+                folder: '',
+              })
+            }
+          />
         ) : null}
       </Box>
-      {preferences && preferenceEntries.hidden.size > 0 ? (
+      {preferenceEntries.hidden.size > 0 ? (
         <Button
           label={`${showHidden ? 'Hide hidden' : 'Show hidden'} (${preferenceEntries.hidden.size})`}
           variant={showHidden ? 'secondary' : 'ghost'}
@@ -291,12 +267,10 @@ function FilesNavigationView({
         />
       ) : null}
       {searching && !pathData ? <Loading label="Searching files…" /> : null}
-      {preferences &&
-      !preferenceData &&
-      !AsyncResult.isFailure(preferences.read.result) ? (
+      {!preferenceData && !AsyncResult.isFailure(preferences.read.result) ? (
         <Loading label="Reading file preferences…" />
       ) : null}
-      {preferences && AsyncResult.isFailure(preferences.read.result) ? (
+      {AsyncResult.isFailure(preferences.read.result) ? (
         <ErrorState
           message={fileErrorMessage(
             Cause.squash(preferences.read.result.cause),
@@ -308,10 +282,10 @@ function FilesNavigationView({
           }}
         />
       ) : null}
-      {preferences?.write.result.waiting ? (
+      {preferences.write.result.waiting ? (
         <Loading label="Saving file preference…" />
       ) : null}
-      {preferences && AsyncResult.isFailure(preferences.write.result) ? (
+      {AsyncResult.isFailure(preferences.write.result) ? (
         <ErrorState
           message={fileErrorMessage(
             Cause.squash(preferences.write.result.cause),
@@ -323,7 +297,7 @@ function FilesNavigationView({
           }}
         />
       ) : null}
-      {preferences && preferenceEntries.pinnedPaths.length > 0 ? (
+      {preferenceEntries.pinnedPaths.length > 0 ? (
         <Box gap={1}>
           <Text variant="caption" tone="muted" weight="medium">
             Pinned files
@@ -349,14 +323,6 @@ function FilesNavigationView({
     <Box className="flex-1" surface="background" collapsable={false}>
       {!embedded ? (
         <LeadingToolbar sidebar={sidebar}>
-          <Stack.Toolbar.Button
-            icon={headerIcon('refresh')}
-            accessibilityLabel={
-              refreshing ? 'Refreshing files' : 'Refresh files'
-            }
-            disabled={refreshing}
-            onPress={refresh}
-          />
           <Stack.Toolbar.Menu
             icon={headerIcon('add')}
             accessibilityLabel="Create file or folder"
@@ -412,7 +378,7 @@ function FilesNavigationView({
           )
             open(path);
         }}
-        contextMenu={searching && !embedded ? undefined : menuFor}
+        contextMenu={menuFor}
       />
       <FileActionSheet
         selected={selected}

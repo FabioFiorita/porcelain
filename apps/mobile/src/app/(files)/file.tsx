@@ -9,7 +9,7 @@ export default function FileRoute() {
   }>();
   return (
     <DestinationScreen>
-      <FileScreen path={path} workspace={workspace} />
+      <FileScreen path={path} workspace={workspace} inlineComments />
     </DestinationScreen>
   );
 }

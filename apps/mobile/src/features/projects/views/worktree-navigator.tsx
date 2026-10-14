@@ -1,4 +1,3 @@
-import { requestDocumentLeave } from '../store';
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
@@ -17,7 +16,8 @@ function worktreeDescription(worktree: { available: boolean; main: boolean }) {
 }
 
 export function WorktreeNavigator({ onSelect }: { onSelect?: () => void }) {
-  const { picker, groups, initializing, reading } = useWorkspacePickerModel();
+  const { picker, groups, initializing, reading } =
+    useWorkspacePickerModel(onSelect);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   return (
     <ScrollView
@@ -94,14 +94,11 @@ export function WorktreeNavigator({ onSelect }: { onSelect?: () => void }) {
                               ) : undefined
                             }
                             onPress={() =>
-                              requestDocumentLeave(() => {
-                                picker.onWorktree(
-                                  environmentId,
-                                  project.id,
-                                  worktree.id,
-                                );
-                                onSelect?.();
-                              })
+                              picker.onWorktree(
+                                environmentId,
+                                project.id,
+                                worktree.id,
+                              )
                             }
                           />
                         );

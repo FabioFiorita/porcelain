@@ -9,8 +9,9 @@ import { useProjectSelectionCommands } from '../commands/selection';
 import { useInventories } from '../queries/inventory';
 import { useWorkspace } from './workspace';
 import type { WorkspaceMenuProps } from './workspace-menu-props';
+import { requestDocumentLeave } from '../store';
 
-export function useWorkspacePickerModel() {
+export function useWorkspacePickerModel(onSelect?: () => void) {
   const workspace = useWorkspace();
   const { environments, access, selection, remembered } = workspace;
   const commands = useProjectSelectionCommands();
@@ -55,13 +56,25 @@ export function useWorkspacePickerModel() {
       environmentId: string,
       projectId: string,
       worktreeId: string,
-    ) =>
-      commands.submit({
-        kind: 'workspace',
-        environmentId,
-        projectId,
-        worktreeId,
-      }),
+    ) => {
+      if (
+        selection.currentEnvironmentId === environmentId &&
+        remembered?.projectId === projectId &&
+        remembered.worktreeId === worktreeId
+      ) {
+        onSelect?.();
+        return;
+      }
+      requestDocumentLeave(() => {
+        commands.submit({
+          kind: 'workspace',
+          environmentId,
+          projectId,
+          worktreeId,
+        });
+        onSelect?.();
+      });
+    },
   } satisfies WorkspaceMenuProps;
   return {
     picker,

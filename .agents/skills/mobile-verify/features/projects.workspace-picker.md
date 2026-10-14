@@ -52,6 +52,7 @@ The toolbar picker uses the same metadata, readiness and selection commands as t
 7. Stop one disposable environment, then inspect the picker. Expect its inventory error to name that environment, while the other environment's projects remain available. Forgetting an environment removes its projects and saved choice.
 8. Make a registered repository missing, permission denied, replaced, or fail Git. Open the picker and expect its reason sentence with environment and project name. A reason absent on an older server shows "Porcelain can't reach this repository right now." Restore the folder and choose `Read projects again`; expect the original worktree to become available.
 9. Keep the main worktree selected and make another linked checkout unavailable while its project remains healthy. Expect the linked row to be disabled and Read projects again to remain reachable. Restore the checkout and use that action to recover the row.
+10. Start an unsent comment in a Files source view or History diff, then choose a different worktree from the phone header or iPad sidebar. Keep writing must retain the current workspace and draft; Discard must permit the change. A pending comment submission must block the change. Selecting the already current worktree must preserve the draft without prompting.
 
 ## What proves it works
 

@@ -336,7 +336,7 @@ function WorktreeDiff({
   ) : (
     <Empty
       title="Diff unavailable"
-      description="This comparison did not return a diff. Return to Review and refresh."
+      description="This comparison did not return a diff. Return to Review and choose the current change."
     />
   );
 }

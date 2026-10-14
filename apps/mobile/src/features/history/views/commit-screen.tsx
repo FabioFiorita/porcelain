@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Empty } from '../../../components/ui/empty';
-import { headerIcon } from '../../../shared/icons/header-icon';
 import { WorkspaceGate, type Workspace } from '../../projects';
 import { shortOid } from '@porcelain/client/history/rules';
 import { CommitContent } from './commit-content';
@@ -55,23 +54,6 @@ function CommitDetail({ current, oid }: { current: Workspace; oid: string }) {
             },
           })
         }
-        renderParentMenu={(parentOids) => (
-          <Stack.Toolbar placement="right">
-            <Stack.Toolbar.Menu
-              icon={headerIcon('compareParent')}
-              accessibilityLabel="Compare parent"
-              title="Compare parent"
-            >
-              {parentOids.map((parentOid, index) => (
-                <Stack.Toolbar.MenuAction
-                  key={parentOid}
-                  isOn={parent === index + 1}
-                  onPress={() => setParent(index + 1)}
-                >{`Parent ${index + 1} · ${shortOid(parentOid)}`}</Stack.Toolbar.MenuAction>
-              ))}
-            </Stack.Toolbar.Menu>
-          </Stack.Toolbar>
-        )}
       />
     </>
   );

@@ -2,7 +2,6 @@ import { Host, Menu, RNHostView } from '@expo/ui/swift-ui';
 import { buttonStyle } from '@expo/ui/swift-ui/modifiers';
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
-import { isTablet } from '../../shared/navigation/is-tablet';
 import { Icon } from './icon';
 import { Text } from './text';
 
@@ -16,25 +15,21 @@ export function ContentMenu({
   return (
     <Host matchContents>
       <Menu
-        {...(isTablet ? { modifiers: [buttonStyle('plain')] } : {})}
+        modifiers={[buttonStyle('plain')]}
         label={
-          isTablet ? (
-            <RNHostView matchContents>
-              <View
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={label}
-                className="min-h-11 flex-row items-center justify-center gap-2 rounded-2xl border border-border bg-background px-3 py-2"
-              >
-                <Text accessible={false} variant="ui" weight="medium">
-                  {label}
-                </Text>
-                <Icon name="down" size="small" tone="muted" />
-              </View>
-            </RNHostView>
-          ) : (
-            label
-          )
+          <RNHostView matchContents>
+            <View
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={label}
+              className="min-h-11 flex-row items-center justify-center gap-2 rounded-2xl border border-border bg-background px-3 py-2"
+            >
+              <Text accessible={false} variant="ui" weight="medium">
+                {label}
+              </Text>
+              <Icon name="down" size="small" tone="muted" />
+            </View>
+          </RNHostView>
         }
       >
         {children}

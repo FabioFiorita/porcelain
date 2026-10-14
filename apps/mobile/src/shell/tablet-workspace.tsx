@@ -240,7 +240,6 @@ function SelectedWorkspace({
                 workspace={workspace}
                 comparison={session.comparison}
                 onComparison={changeComparison}
-                embedded
                 selectedPath={selectedReviewPath}
                 overviewSelected={overviewSelected}
                 onOverview={() =>

@@ -117,9 +117,9 @@ export function useDocumentLeave(
 ) {
   const owner = useId();
   useEffect(() => {
-    if (!scope || !guard) return;
+    if (!guard) return;
     leaveGuards.update((current) =>
-      new Map(current).set(owner, { scope, guard }),
+      new Map(current).set(owner, { scope: scope ?? owner, guard }),
     );
     return () => {
       leaveGuards.update((current) => {

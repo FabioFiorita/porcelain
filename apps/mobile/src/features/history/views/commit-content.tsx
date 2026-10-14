@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { FlatList } from 'react-native';
 import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
@@ -21,23 +20,18 @@ export function CommitContent({
   parent,
   onParentChange,
   onOpenFile,
-  renderParentMenu,
 }: {
   selection: HistorySelection;
   oid: string;
   parent: number;
   onParentChange: (parent: number) => void;
   onOpenFile: (path: string) => void;
-  renderParentMenu?: (parentOids: readonly string[]) => ReactNode;
 }) {
   const commit = useCommit(selection, oid, parent);
   return (
     <CommitReadState commit={commit}>
       {(value) => (
         <Box collapsable={false} className="flex-1" surface="background">
-          {value.commit.parentOids.length > 1 && renderParentMenu
-            ? renderParentMenu(value.commit.parentOids)
-            : null}
           <FlatList
             contentInsetAdjustmentBehavior="automatic"
             data={value.files}
@@ -71,7 +65,7 @@ export function CommitContent({
                     ? `Against ${shortOid(value.comparison.baseOid)} · Parent ${value.comparison.parentNumber}`
                     : 'Root commit'}
                 </Text>
-                {value.commit.parentOids.length > 1 && !renderParentMenu ? (
+                {value.commit.parentOids.length > 1 ? (
                   <CommitParentMenu
                     parentOids={value.commit.parentOids}
                     parent={parent}

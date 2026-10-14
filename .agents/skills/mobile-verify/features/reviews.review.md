@@ -7,7 +7,6 @@ selectors:
   - 'Review'
   - 'Select a worktree to continue.'
   - 'No changes'
-  - 'Refresh'
 tests:
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
 api:
