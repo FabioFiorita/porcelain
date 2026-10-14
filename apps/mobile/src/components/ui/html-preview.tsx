@@ -1,3 +1,4 @@
+import type { ReviewRange } from './review-annotation';
 import { externalLink } from '@porcelain/client/links/rules';
 import { useState } from 'react';
 import { requireNativeView } from 'expo';
@@ -22,11 +23,15 @@ export function HtmlPreview({
   onLink,
   initialMode = 'preview',
   wrap = true,
+  selection,
+  onSelect,
 }: {
   html: string;
   onLink?: (url: string) => void;
   initialMode?: 'preview' | 'source';
   wrap?: boolean;
+  selection?: ReviewRange | undefined;
+  onSelect?: ((range: ReviewRange) => void) | undefined;
 }) {
   return (
     <HtmlContent
@@ -35,6 +40,8 @@ export function HtmlPreview({
       onLink={onLink}
       initialMode={initialMode}
       wrap={wrap}
+      selection={selection}
+      onSelect={onSelect}
     />
   );
 }
@@ -43,11 +50,15 @@ function HtmlContent({
   onLink,
   initialMode,
   wrap,
+  selection,
+  onSelect,
 }: {
   html: string;
   onLink?: ((url: string) => void) | undefined;
   initialMode: 'preview' | 'source';
   wrap: boolean;
+  selection?: ReviewRange | undefined;
+  onSelect?: ((range: ReviewRange) => void) | undefined;
 }) {
   const [source, setSource] = useState(initialMode === 'source');
   const [error, setError] = useState('');
@@ -63,7 +74,13 @@ function HtmlContent({
         />
       </View>
       {source ? (
-        <CodeView source={html} language="html" wrap={wrap} />
+        <CodeView
+          source={html}
+          language="html"
+          wrap={wrap}
+          selection={selection}
+          onSelect={onSelect}
+        />
       ) : error ? (
         <ErrorState message={error} />
       ) : (

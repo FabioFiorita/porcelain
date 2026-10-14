@@ -1,3 +1,9 @@
+import type { ReviewRange } from '../../../components/ui/review-annotation';
+import {
+  DocumentComments,
+  commitCommentTarget,
+  type DocumentCodeSelection,
+} from '../../reviews';
 import { CommitReadState } from './commit-state';
 import { Box } from '../../../components/ui/box';
 import { AsyncResult } from 'effect/reactivity';
@@ -25,14 +31,21 @@ export function DiffContent({
   oid,
   parent,
   path,
+  inlineComments,
+  leaveScope,
 }: {
   selection: HistorySelection;
   oid: string;
   parent: number;
   path: string;
+  inlineComments?: boolean | undefined;
+  leaveScope?: string | undefined;
 }) {
   const commit = useCommit(selection, oid, parent);
-  return (
+  const file = commit.value?.files.find(
+    (candidate) => commitPath(candidate) === path,
+  );
+  const content = (codeSelection?: DocumentCodeSelection) => (
     <CommitReadState commit={commit}>
       {(value) => (
         <CommitFileContent
@@ -41,9 +54,31 @@ export function DiffContent({
           parent={parent}
           path={path}
           files={value.files}
+          inlineComments={inlineComments}
+          codeSelection={codeSelection}
         />
       )}
     </CommitReadState>
+  );
+  return inlineComments ? (
+    <DocumentComments
+      workspace={selection}
+      leaveScope={leaveScope}
+      path={path}
+      target={commitCommentTarget(path, oid, parent)}
+      renderToolbar={(actions) => (
+        <FileHeader
+          path={path}
+          documentToolbar
+          {...(file ? { status: file.status } : {})}
+          actions={actions}
+        />
+      )}
+    >
+      {(codeSelection) => content(codeSelection)}
+    </DocumentComments>
+  ) : (
+    content()
   );
 }
 
@@ -53,12 +88,16 @@ function CommitFileContent({
   parent,
   path,
   files,
+  inlineComments,
+  codeSelection,
 }: {
   selection: HistorySelection;
   oid: string;
   parent: number;
   path: string;
   files: readonly CommitFile[];
+  inlineComments?: boolean | undefined;
+  codeSelection?: DocumentCodeSelection | undefined;
 }) {
   const file = files.find((candidate) => commitPath(candidate) === path);
   return (
@@ -69,6 +108,8 @@ function CommitFileContent({
           oid={oid}
           parent={parent}
           file={file}
+          inlineComments={inlineComments}
+          codeSelection={codeSelection}
         />
       ) : (
         <Empty
@@ -85,20 +126,28 @@ function FilePatch({
   oid,
   parent,
   file,
+  inlineComments,
+  codeSelection,
 }: {
   selection: HistorySelection;
   oid: string;
   parent: number;
   file: CommitFile;
+  inlineComments?: boolean | undefined;
+  codeSelection?: DocumentCodeSelection | undefined;
 }) {
   return (
     <>
-      <FileHeader path={commitPath(file)} status={file.status} />
+      {!inlineComments ? (
+        <FileHeader path={commitPath(file)} status={file.status} />
+      ) : null}
       <FilePatchContent
         selection={selection}
         oid={oid}
         parent={parent}
         file={file}
+        selectionRange={codeSelection?.selection}
+        onSelect={codeSelection?.onSelect}
       />
     </>
   );
@@ -109,11 +158,15 @@ function FilePatchContent({
   oid,
   parent,
   file,
+  selectionRange,
+  onSelect,
 }: {
   selection: HistorySelection;
   oid: string;
   parent: number;
   file: CommitFile;
+  selectionRange?: ReviewRange | undefined;
+  onSelect?: ((range: ReviewRange) => void) | undefined;
 }) {
   const { preferences } = usePreferences();
   const patch = useCommitPatch(selection, oid, parent, commitPaths(file));
@@ -157,6 +210,8 @@ function FilePatchContent({
     return (
       <DiffView
         lines={parsed.lines}
+        selection={selectionRange}
+        onSelect={onSelect}
         wrap={preferences.lineOverflow === 'wrap'}
       />
     );

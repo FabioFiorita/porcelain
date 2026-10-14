@@ -8,6 +8,7 @@ const symbols = {
   check: { ios: 'checkmark', android: 'check' },
   chevron: { ios: 'chevron.right', android: 'chevron_right' },
   down: { ios: 'chevron.down', android: 'expand_more' },
+  collapse: { ios: 'chevron.up.chevron.down', android: 'unfold_less' },
   file: { ios: 'document', android: 'description' },
   code: { ios: 'chevron.left.forwardslash.chevron.right', android: 'code' },
   image: { ios: 'photo', android: 'image' },
@@ -25,6 +26,7 @@ const symbols = {
   refresh: { ios: 'arrow.clockwise', android: 'refresh' },
   trash: { ios: 'trash', android: 'delete' },
   more: { ios: 'ellipsis', android: 'more_horiz' },
+  split: { ios: 'rectangle.split.2x1', android: 'vertical_split' },
 } satisfies Record<string, SymbolViewProps['name']>;
 const tones = {
   default: 'accent-foreground',

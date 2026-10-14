@@ -11,7 +11,7 @@ const snapshots = Atom.family(
     workspace,
     comparison,
   }: {
-    workspace: Workspace;
+    workspace: Pick<Workspace, 'connection' | 'scope'>;
     comparison: ReviewComparison;
   }) => {
     const input = { connection: workspace.connection, scope: workspace.scope };
@@ -55,7 +55,7 @@ const snapshots = Atom.family(
 );
 
 export function useReviewSnapshot(
-  workspace: Workspace,
+  workspace: Pick<Workspace, 'connection' | 'scope'>,
   comparison: ReviewComparison,
 ) {
   const query = snapshots({ workspace, comparison });

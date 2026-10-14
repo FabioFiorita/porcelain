@@ -25,13 +25,14 @@ type ResolveCommentInput = { threadId: string } & UpdateCommentThreadRequest;
 type EditCommentInput = { threadId: string } & EditCommentMessageRequest;
 type DeleteCommentInput = { threadId: string; messageId: string };
 
-export const commentCommands = Atom.family(
+const commandSets = Atom.family(
   ({
     connection,
     scope,
   }: {
     connection: RuntimeConnection;
     scope: WorktreeScope;
+    owner?: string | undefined;
   }) => {
     const runtime = commentsRuntime({ connection, scope });
     const params = { worktreeId: scope.worktreeId };
@@ -230,3 +231,10 @@ export const commentCommands = Atom.family(
     };
   },
 );
+
+export function commentCommands(
+  input: { connection: RuntimeConnection; scope: WorktreeScope },
+  owner?: string,
+) {
+  return commandSets({ ...input, owner });
+}

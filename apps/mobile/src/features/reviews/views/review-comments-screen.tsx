@@ -6,12 +6,14 @@ import { Alert, ScrollView } from 'react-native';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
-import { commentCommands, readCommentThreads } from '@porcelain/client/reviews';
+import { readCommentThreads } from '@porcelain/client/reviews';
 import {
   anchorLabel,
   anchorPath,
   commentBodyValid,
   commentIsStale,
+  matchesCommentTarget,
+  type CommentTarget,
   retainIntent,
   threadStateLabel,
   type CommentAnchor,
@@ -25,8 +27,17 @@ import { headerIcon } from '../../../shared/icons/header-icon';
 import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
-import { WorkspaceGate, type Workspace } from '../../projects';
-import { commentBodyLimit, useCommentWrite } from '../commands/comments';
+import {
+  WorkspaceGate,
+  useDocumentLeave,
+  type Workspace,
+} from '../../projects';
+import {
+  commentBodyLimit,
+  useCommentCommands,
+  useCommentWrite,
+} from '../commands/comments';
+import { documentCommentContext } from '../rules/document-comment';
 import { ReviewReadState } from './read-state';
 import { useReviewSnapshot } from '../queries/review';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
@@ -66,7 +77,7 @@ export function ReviewCommentsScreen({
         }
       >
         {(workspace) => (
-          <Comments
+          <CommentThreads
             key={`${workspace.key}:${path}:${JSON.stringify(anchor)}`}
             workspace={workspace}
             path={path}
@@ -80,20 +91,28 @@ export function ReviewCommentsScreen({
   );
 }
 
+export type CommentWorkspace = Pick<Workspace, 'connection' | 'scope'>;
+
 type ComposerTarget = { anchor: CommentAnchor; threadId?: string | undefined };
 
-function Comments({
+export function CommentThreads({
   workspace,
   path,
   anchor,
   compose,
   comparison,
+  currentTarget,
+  onComposerChange,
+  leaveScope,
 }: {
-  workspace: Workspace;
+  workspace: CommentWorkspace;
   path?: string | undefined;
   anchor?: CommentAnchor | undefined;
   compose: boolean;
-  comparison: ReviewComparison;
+  comparison?: ReviewComparison | undefined;
+  currentTarget?: CommentTarget | undefined;
+  leaveScope?: string | undefined;
+  onComposerChange?: ((anchor: CommentAnchor | undefined) => void) | undefined;
 }) {
   const query = readCommentThreads({
     connection: workspace.connection,
@@ -104,13 +123,18 @@ function Comments({
   const [target, setTarget] = useState<ComposerTarget | undefined>(() =>
     compose && anchor ? { anchor } : undefined,
   );
-  const draft = useCommentDraft(workspace, target, () => setTarget(undefined));
+  useEffect(() => {
+    onComposerChange?.(target?.anchor);
+  }, [onComposerChange, target?.anchor]);
+  const draft = useCommentDraft(
+    workspace,
+    target,
+    () => setTarget(undefined),
+    leaveScope,
+  );
   const open = (next: ComposerTarget) =>
     draft.confirmDiscard(() => setTarget(next));
-  const commands = commentCommands({
-    connection: workspace.connection,
-    scope: workspace.scope,
-  });
+  const commands = useCommentCommands(workspace);
   const seen = useCommentWrite(commands.seen);
   const highest =
     AsyncResult.isSuccess(result) && !path
@@ -127,8 +151,10 @@ function Comments({
     }
   }, [highest, seen]);
   const threads = AsyncResult.isSuccess(result)
-    ? result.value.filter(
-        (thread) => !path || anchorPath(thread.anchor) === path,
+    ? result.value.filter((thread) =>
+        currentTarget
+          ? matchesCommentTarget(thread.anchor, currentTarget)
+          : !path || anchorPath(thread.anchor) === path,
       )
     : [];
   const replyTarget = target?.threadId;
@@ -136,7 +162,11 @@ function Comments({
     replyTarget !== undefined &&
     !threads.some((thread) => thread.id === replyTarget);
   const composer = target ? (
-    <CommentComposer draft={draft} target={target} />
+    <CommentComposer
+      draft={draft}
+      target={target}
+      showContext={currentTarget !== undefined}
+    />
   ) : null;
   return (
     <Box className="flex-1" surface="background" collapsable={false}>
@@ -158,13 +188,18 @@ function Comments({
             {composer}
           </>
         ) : null}
-        {anchor && target && replyTarget === undefined ? (
+        {target && replyTarget === undefined ? (
           <>
-            <AnchorFreshness
-              workspace={workspace}
-              anchor={anchor}
-              comparison={comparison}
-            />
+            {currentTarget ? (
+              <TargetFreshness anchor={target.anchor} target={currentTarget} />
+            ) : null}
+            {!currentTarget && comparison ? (
+              <AnchorFreshness
+                workspace={workspace}
+                anchor={target.anchor}
+                comparison={comparison}
+              />
+            ) : null}
             {composer}
           </>
         ) : null}
@@ -183,6 +218,7 @@ function Comments({
                 workspace={workspace}
                 thread={thread}
                 replying={replyTarget === thread.id}
+                currentTarget={currentTarget}
                 onReply={() =>
                   open({ threadId: thread.id, anchor: thread.anchor })
                 }
@@ -208,11 +244,11 @@ function Comments({
 function newCommentLabel(
   anchor: CommentAnchor,
   path: string | undefined,
-  comparison: ReviewComparison,
+  comparison: ReviewComparison | undefined,
 ) {
   if (anchor.kind === 'codeRange') return 'Comment on selected lines';
   if (path) return 'Comment on file';
-  if (comparison.kind === 'branch') return 'Comment on the whole branch';
+  if (comparison?.kind === 'branch') return 'Comment on the whole branch';
   return 'Comment on the whole change';
 }
 
@@ -221,7 +257,7 @@ function AnchorFreshness({
   anchor,
   comparison,
 }: {
-  workspace: Workspace;
+  workspace: CommentWorkspace;
   anchor: CommentAnchor;
   comparison: ReviewComparison;
 }) {
@@ -253,14 +289,12 @@ function AnchorFreshness({
 }
 
 function useCommentDraft(
-  workspace: Workspace,
+  workspace: CommentWorkspace,
   target: ComposerTarget | undefined,
   onClose: () => void,
+  leaveScope?: string,
 ) {
-  const commands = commentCommands({
-    connection: workspace.connection,
-    scope: workspace.scope,
-  });
+  const commands = useCommentCommands(workspace);
   const create = useCommentWrite(commands.create);
   const reply = useCommentWrite(commands.reply);
   const result = target?.threadId ? reply.result : create.result;
@@ -300,6 +334,10 @@ function useCommentDraft(
       },
     ]);
   };
+  useDocumentLeave(
+    leaveScope,
+    body.length > 0 || pending ? confirmDiscard : undefined,
+  );
   usePreventRemove(body.length > 0 || pending, ({ repeat }) =>
     confirmDiscard(repeat),
   );
@@ -356,15 +394,17 @@ function writeFailure(result: AsyncResult.AsyncResult<unknown, unknown>) {
 function CommentComposer({
   draft,
   target,
+  showContext,
 }: {
   draft: ReturnType<typeof useCommentDraft>;
   target: ComposerTarget;
+  showContext: boolean;
 }) {
   return (
     <ReviewComposer
       value={draft.body}
       onChangeText={draft.edit}
-      label={`${anchorPath(target.anchor) ?? ''} ${anchorLabel(target.anchor)}${target.threadId ? ' · Reply' : ''}`}
+      label={`${anchorPath(target.anchor) ?? ''} ${anchorLabel(target.anchor)}${showContext ? ` · ${documentCommentContext(target.anchor)}` : ''}${target.threadId ? ' · Reply' : ''}`}
       pending={draft.pending}
       {...(draft.error ? { error: draft.error } : {})}
       onCancel={draft.cancel}
@@ -379,17 +419,16 @@ function CommentThreadView({
   replying,
   onReply,
   children,
+  currentTarget,
 }: {
-  workspace: Workspace;
+  workspace: CommentWorkspace;
   thread: CommentThread;
   replying: boolean;
   onReply: () => void;
   children: ReactNode;
+  currentTarget?: CommentTarget | undefined;
 }) {
-  const commands = commentCommands({
-    connection: workspace.connection,
-    scope: workspace.scope,
-  });
+  const commands = useCommentCommands(workspace);
   const resolve = useCommentWrite(commands.resolve);
   return (
     <Box gap={2}>
@@ -397,11 +436,15 @@ function CommentThreadView({
         {[
           anchorPath(thread.anchor),
           anchorLabel(thread.anchor),
+          currentTarget ? documentCommentContext(thread.anchor) : undefined,
           threadStateLabel(thread),
         ]
           .filter(Boolean)
           .join(' · ')}
       </Text>
+      {currentTarget ? (
+        <TargetFreshness anchor={thread.anchor} target={currentTarget} />
+      ) : null}
       {thread.messages.map((message) => (
         <ReviewAnnotation
           key={message.id}
@@ -439,4 +482,20 @@ function CommentThreadView({
       {children}
     </Box>
   );
+}
+
+function TargetFreshness({
+  anchor,
+  target,
+}: {
+  anchor: CommentAnchor;
+  target: CommentTarget;
+}) {
+  return commentIsStale(anchor, target) ||
+    !matchesCommentTarget(anchor, target) ? (
+    <Text variant="caption" tone="muted">
+      Code changed since this comment was anchored. It refers to the earlier
+      saved code.
+    </Text>
+  ) : null;
 }

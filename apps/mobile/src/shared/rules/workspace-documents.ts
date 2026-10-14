@@ -1,21 +1,33 @@
 import { shortOid } from '@porcelain/client/history/rules';
-import type { ReviewComparison } from './review-comparison';
+import * as Schema from 'effect/Schema';
+import { reviewComparisonSchema } from './review-comparison';
 
-export type WorkspaceDocument =
-  | { readonly kind: 'file'; readonly path: string }
-  | { readonly kind: 'review-overview'; readonly comparison: ReviewComparison }
-  | {
-      readonly kind: 'review-file';
-      readonly path: string;
-      readonly comparison: ReviewComparison;
-    }
-  | { readonly kind: 'commit'; readonly oid: string; readonly parent: number }
-  | {
-      readonly kind: 'diff';
-      readonly oid: string;
-      readonly parent: number;
-      readonly path: string;
-    };
+const parentSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1));
+export const workspaceDocumentSchema = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal('file'), path: Schema.String }),
+  Schema.Struct({
+    kind: Schema.Literal('review-overview'),
+    comparison: reviewComparisonSchema,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal('review-file'),
+    path: Schema.String,
+    comparison: reviewComparisonSchema,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal('commit'),
+    oid: Schema.String,
+    parent: parentSchema,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal('diff'),
+    oid: Schema.String,
+    parent: parentSchema,
+    path: Schema.String,
+  }),
+]);
+
+export type WorkspaceDocument = typeof workspaceDocumentSchema.Type;
 
 export type WorkspaceTab = WorkspaceDocument & {
   readonly key: string;

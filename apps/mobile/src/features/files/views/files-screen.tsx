@@ -11,9 +11,9 @@ import { Array, Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
   fileErrorMessage,
-  quickOpenMatches,
   mergeFileTreeEntries,
-  entryTreeActions,
+  entryName,
+  type FileTreeEntry,
 } from '@porcelain/client/files/rules';
 import { FileTree } from '../../../components/ui/file-tree';
 import { Input } from '../../../components/ui/input';
@@ -28,6 +28,16 @@ import { useFilePaths } from '../queries/paths';
 import { FileActionSheet } from './file-action';
 import { CreateMenu } from './create-menu';
 import type { FileAction } from '../commands/edit-file';
+import { Button } from '../../../components/ui/button';
+import { IconButton } from '../../../components/ui/icon-button';
+import { FileIcon } from '../../../components/ui/file-icon';
+import { ItemMenu } from '../../../components/ui/item-menu';
+import { useFilePreferences } from '../queries/file-preferences';
+import { useSetFilePreference } from '../commands/file-preferences';
+import {
+  filePreferenceActions,
+  filePreferenceEntries,
+} from '../rules/file-preferences';
 
 export function FilesScreen({
   onOpen,
@@ -53,22 +63,35 @@ export function FilesScreen({
   );
 }
 
-export function FilesNavigation({
-  selected,
-  onOpen,
-  sidebar,
-  activePath,
-  embedded = false,
-}: {
+type FilesNavigationProps = {
   selected: Workspace;
   onOpen: (path: string, workspace: string) => void;
   sidebar: LeadingToolbarProps['sidebar'];
   activePath?: string | undefined;
   embedded?: boolean;
-}) {
+  onOpenToSide?: ((path: string) => void) | undefined;
+};
+
+export function FilesNavigation(props: FilesNavigationProps) {
+  return <FilesNavigationView key={props.selected.key} {...props} />;
+}
+
+function FilesNavigationView({
+  selected,
+  onOpen,
+  sidebar,
+  activePath,
+  embedded = false,
+  onOpenToSide,
+}: FilesNavigationProps) {
+  const preferences = {
+    read: useFilePreferences(selected.connection, selected.scope.projectId),
+    write: useSetFilePreference(selected.connection, selected.scope.projectId),
+  };
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [requested, setRequested] = useState<readonly string[]>(['']);
   const [query, setQuery] = useState('');
+  const [showHidden, setShowHidden] = useState(false);
   const [action, setAction] = useState<FileAction>();
   const [refreshRequested, setRefreshRequested] = useState(false);
   const directories = useDirectories({
@@ -114,6 +137,68 @@ export function FilesNavigation({
   const searching = Boolean(query.trim());
   const open = (path: string) => onOpen(path, selected.key);
   const nodes = mergeFileTreeEntries(data);
+  const preferenceData = Option.getOrUndefined(
+    AsyncResult.value(preferences.read.result),
+  );
+  const preferenceEntries = filePreferenceEntries({
+    entries: nodes,
+    paths: pathData?.paths ?? [],
+    preferences: preferenceData?.preferences ?? [],
+    showHidden,
+    query,
+  });
+  const preferencesLoaded = preferenceData !== undefined;
+  const visibleEntries = searching
+    ? preferenceEntries.matches
+    : preferenceEntries.nodes;
+  const preferencePending =
+    !preferenceData ||
+    preferences.read.result.waiting ||
+    preferences.write.result.waiting;
+  const menuFor = (node: FileTreeEntry) => {
+    const { path, pin, hide, actions } = filePreferenceActions(
+      node,
+      preferenceEntries.hidden,
+      preferenceEntries.pinned,
+      embedded && onOpenToSide !== undefined,
+    );
+    return actions.map(({ id, label }) => ({
+      id,
+      label,
+      destructive: id === 'trash',
+      disabled: (id === 'pin' || id === 'hide') && preferencePending,
+      onPress: () => {
+        switch (id) {
+          case 'new-file':
+          case 'new-folder':
+            setAction({
+              kind: 'create',
+              entryKind: id === 'new-file' ? 'file' : 'directory',
+              folder: path,
+            });
+            break;
+          case 'open':
+            open(path);
+            break;
+          case 'open-to-side':
+            onOpenToSide?.(path);
+            break;
+          case 'rename':
+            setAction({ kind: 'move', path });
+            break;
+          case 'trash':
+            setAction({ kind: 'trash', path });
+            break;
+          case 'pin':
+            if (!preferencePending) preferences.write.submit(pin);
+            break;
+          case 'hide':
+            if (!preferencePending) preferences.write.submit(hide);
+            break;
+        }
+      },
+    }));
+  };
   const header = (
     <Box gap={3} paddingX={4} paddingY={3}>
       <Box className="flex-row items-center" gap={2}>
@@ -127,6 +212,16 @@ export function FilesNavigation({
             autoCorrect={false}
           />
         </Box>
+        <IconButton
+          icon="collapse"
+          accessibilityLabel={
+            searching ? 'Clear search and collapse all' : 'Collapse all'
+          }
+          onPress={() => {
+            setQuery('');
+            setExpanded(new Set());
+          }}
+        />
         {embedded ? (
           <CreateMenu
             onFile={() =>
@@ -142,6 +237,13 @@ export function FilesNavigation({
           />
         ) : null}
       </Box>
+      {preferenceEntries.hidden.size > 0 ? (
+        <Button
+          label={`${showHidden ? 'Hide hidden' : 'Show hidden'} (${preferenceEntries.hidden.size})`}
+          variant={showHidden ? 'secondary' : 'ghost'}
+          onPress={() => setShowHidden((current) => !current)}
+        />
+      ) : null}
       {!embedded ? (
         <Text variant="caption" tone="muted">
           {selected.project.name} · {worktreeLabel(selected.worktree.branch)}
@@ -165,20 +267,62 @@ export function FilesNavigation({
         />
       ) : null}
       {searching && !pathData ? <Loading label="Searching files…" /> : null}
+      {!preferenceData && !AsyncResult.isFailure(preferences.read.result) ? (
+        <Loading label="Reading file preferences…" />
+      ) : null}
+      {AsyncResult.isFailure(preferences.read.result) ? (
+        <ErrorState
+          message={fileErrorMessage(
+            Cause.squash(preferences.read.result.cause),
+          )}
+          retry={{
+            label: 'Read file preferences again',
+            onPress: preferences.read.refresh,
+            pending: preferences.read.result.waiting,
+          }}
+        />
+      ) : null}
+      {preferences.write.result.waiting ? (
+        <Loading label="Saving file preference…" />
+      ) : null}
+      {AsyncResult.isFailure(preferences.write.result) ? (
+        <ErrorState
+          message={fileErrorMessage(
+            Cause.squash(preferences.write.result.cause),
+          )}
+          retry={{
+            label: 'Save file preference again',
+            onPress: preferences.write.retry,
+            pending: preferences.write.result.waiting,
+          }}
+        />
+      ) : null}
+      {preferenceEntries.pinnedPaths.length > 0 ? (
+        <Box gap={1}>
+          <Text variant="caption" tone="muted" weight="medium">
+            Pinned files
+          </Text>
+          {preferenceEntries.pinnedPaths.map((path) => (
+            <ItemMenu
+              key={path}
+              title={entryName(path)}
+              description={path}
+              leading={<FileIcon kind="file" />}
+              size="sm"
+              selected={path === activePath}
+              accessibilityLabel={`Open pinned file ${path}`}
+              onPress={() => open(path)}
+              actions={menuFor({ path, kind: 'file' })}
+            />
+          ))}
+        </Box>
+      ) : null}
     </Box>
   );
   return (
     <Box className="flex-1" surface="background" collapsable={false}>
       {!embedded ? (
         <LeadingToolbar sidebar={sidebar}>
-          <Stack.Toolbar.Button
-            icon={headerIcon('refresh')}
-            accessibilityLabel={
-              refreshing ? 'Refreshing files' : 'Refresh files'
-            }
-            disabled={refreshing}
-            onPress={refresh}
-          />
           <Stack.Toolbar.Menu
             icon={headerIcon('add')}
             accessibilityLabel="Create file or folder"
@@ -209,16 +353,10 @@ export function FilesNavigation({
         header={header}
         flat={searching}
         loaded={
-          searching ? AsyncResult.isSuccess(paths.result) : loading.rootLoaded
+          preferencesLoaded &&
+          (searching ? AsyncResult.isSuccess(paths.result) : loading.rootLoaded)
         }
-        nodes={
-          searching
-            ? quickOpenMatches(pathData?.paths ?? [], query).map((path) => ({
-                path,
-                kind: 'file' as const,
-              }))
-            : nodes
-        }
+        nodes={preferencesLoaded ? visibleEntries : []}
         expanded={expanded}
         {...(activePath ? { selected: activePath } : {})}
         loading={loading.folders}
@@ -240,53 +378,7 @@ export function FilesNavigation({
           )
             open(path);
         }}
-        contextMenu={
-          searching
-            ? undefined
-            : (node) => {
-                const path = node.path.replace(/\/$/, '');
-                return entryTreeActions(node, {
-                  changed: false,
-                  hiddenEntry: null,
-                  ownHidden: false,
-                  hiddenName: '',
-                })
-                  .filter(
-                    ({ id }) =>
-                      id === 'new-file' ||
-                      id === 'new-folder' ||
-                      id === 'open' ||
-                      id === 'rename' ||
-                      id === 'trash',
-                  )
-                  .map(({ id, label }) => ({
-                    id,
-                    label,
-                    destructive: id === 'trash',
-                    onPress: () => {
-                      switch (id) {
-                        case 'new-file':
-                        case 'new-folder':
-                          setAction({
-                            kind: 'create',
-                            entryKind: id === 'new-file' ? 'file' : 'directory',
-                            folder: path,
-                          });
-                          break;
-                        case 'open':
-                          open(path);
-                          break;
-                        case 'rename':
-                          setAction({ kind: 'move', path });
-                          break;
-                        case 'trash':
-                          setAction({ kind: 'trash', path });
-                          break;
-                      }
-                    },
-                  }));
-              }
-        }
+        contextMenu={menuFor}
       />
       <FileActionSheet
         selected={selected}

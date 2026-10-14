@@ -18,22 +18,32 @@ export function DocumentTabs<T extends DocumentTab>({
   documents,
   onChange,
   onSelect,
+  onOpenToSide,
+  label = 'Open documents',
+  focused = true,
 }: {
   documents: DocumentTabsState<T>;
   onChange: (
     update: (state: DocumentTabsState<T>) => DocumentTabsState<T>,
   ) => void;
   onSelect: () => void;
+  onOpenToSide?: (document: T) => void;
+  label?: string;
+  focused?: boolean;
 }) {
   const { tabs, active } = documents;
   return (
     <ScrollView
       horizontal
-      className="min-w-0 max-h-14 flex-1"
+      className={
+        focused && tabs.length > 0
+          ? 'min-h-12 min-w-0 max-h-14 flex-1 border-b-2 border-ring'
+          : 'min-h-12 min-w-0 max-h-14 flex-1 border-b-2 border-transparent'
+      }
       contentContainerClassName="min-h-12 items-center gap-1 px-2"
       showsHorizontalScrollIndicator={false}
       accessibilityRole="tablist"
-      accessibilityLabel="Open documents"
+      accessibilityLabel={label}
     >
       {tabs.length === 0 ? (
         <Text variant="caption" tone="muted">
@@ -63,6 +73,13 @@ export function DocumentTabs<T extends DocumentTab>({
               {tab.title}
             </Text>
           </Pressable>
+          {tab.key === active && onOpenToSide ? (
+            <IconButton
+              icon="split"
+              accessibilityLabel={`Open ${tab.label ?? tab.title} to the side`}
+              onPress={() => onOpenToSide(tab)}
+            />
+          ) : null}
           {tab.closable !== false ? (
             <IconButton
               icon="close"

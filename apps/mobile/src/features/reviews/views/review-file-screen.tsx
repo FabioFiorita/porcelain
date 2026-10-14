@@ -15,10 +15,14 @@ import {
 import { readTextFile } from '@porcelain/client/files';
 import { selectionKey, type Change } from '@porcelain/client/changes/rules';
 import {
-  rangeAnchor,
   type CommentAnchor,
   type CommentTarget,
 } from '@porcelain/client/reviews/rules';
+import {
+  DocumentComments,
+  type DocumentCodeSelection,
+} from './document-comments';
+import { documentCommentAnchor } from '../rules/document-comment';
 import { Empty } from '../../../components/ui/empty';
 import { Text } from '../../../components/ui/text';
 import { Button } from '../../../components/ui/button';
@@ -32,6 +36,7 @@ import { useReviewSnapshot, useReviewMarks } from '../queries/review';
 import {
   reviewFiles,
   commentTarget,
+  documentReviewTarget,
   type ReviewFile,
   type ReviewSnapshot,
 } from '../rules/comparison';
@@ -87,13 +92,23 @@ export function ReviewFileContent({
   workspace,
   path,
   comparison,
+  inlineComments = false,
+  leaveScope,
 }: {
   workspace: Workspace;
   path: string;
   comparison: ReviewComparison;
+  inlineComments?: boolean | undefined;
+  leaveScope?: string | undefined;
 }) {
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
-  return (
+  const [comparisonScope, setComparisonScope] = useState<string>();
+  const target = documentReviewTarget(
+    AsyncResult.isSuccess(result) ? result.value : undefined,
+    path,
+    comparisonScope,
+  );
+  const content = (codeSelection?: DocumentCodeSelection) => (
     <Box className="flex-1" surface="background">
       {AsyncResult.isSuccess(result) ? (
         <ReviewedFile
@@ -101,11 +116,27 @@ export function ReviewFileContent({
           snapshot={result.value}
           path={path}
           comparison={comparison}
+          inlineComments={inlineComments}
+          codeSelection={codeSelection}
+          comparisonScope={comparisonScope}
+          onComparisonScopeChange={setComparisonScope}
         />
       ) : (
         <ReviewReadState result={result} refresh={refresh} />
       )}
     </Box>
+  );
+  return inlineComments ? (
+    <DocumentComments
+      workspace={workspace}
+      path={path}
+      target={target}
+      leaveScope={leaveScope}
+    >
+      {(codeSelection) => content(codeSelection)}
+    </DocumentComments>
+  ) : (
+    content()
   );
 }
 
@@ -114,11 +145,19 @@ function ReviewedFile({
   snapshot,
   path,
   comparison,
+  inlineComments,
+  codeSelection,
+  comparisonScope,
+  onComparisonScopeChange,
 }: {
   workspace: Workspace;
   snapshot: ReviewSnapshot;
   path: string;
   comparison: ReviewComparison;
+  inlineComments?: boolean | undefined;
+  codeSelection?: DocumentCodeSelection | undefined;
+  comparisonScope?: string | undefined;
+  onComparisonScopeChange: (scope: string) => void;
 }) {
   const marks = useReviewMarks(workspace, snapshot);
   if (!AsyncResult.isSuccess(marks.result))
@@ -137,6 +176,7 @@ function ReviewedFile({
     <View className="flex-1">
       <FileHeader
         path={path}
+        documentToolbar={inlineComments}
         status={file.note}
         reviewed={file.reviewStatus === 'reviewed'}
         actions={
@@ -149,19 +189,35 @@ function ReviewedFile({
       />
       {snapshot.kind === 'worktree' ? (
         <WorktreeFile
-          key={`${file.fingerprint}:${snapshot.answer.statusToken}`}
+          key={
+            inlineComments
+              ? 'document'
+              : `${file.fingerprint}:${snapshot.answer.statusToken}`
+          }
           workspace={workspace}
           snapshot={snapshot}
           file={file}
           comparison={comparison}
+          inlineComments={inlineComments}
+          codeSelection={codeSelection}
+          comparisonScope={comparisonScope}
+          onComparisonScopeChange={onComparisonScopeChange}
         />
       ) : (
         <BranchFile
-          key={`${file.fingerprint}:${snapshot.answer.head.oid}:${snapshot.answer.mergeBaseOid}`}
+          key={
+            inlineComments
+              ? 'document'
+              : `${file.fingerprint}:${snapshot.answer.head.oid}:${snapshot.answer.mergeBaseOid}`
+          }
           workspace={workspace}
           snapshot={snapshot}
           file={file}
           comparison={comparison}
+          inlineComments={inlineComments}
+          codeSelection={codeSelection}
+          comparisonScope={comparisonScope}
+          onComparisonScopeChange={onComparisonScopeChange}
         />
       )}
     </View>
@@ -173,6 +229,10 @@ type FileProps = {
   snapshot: ReviewSnapshot;
   file: ReviewFile;
   comparison: ReviewComparison;
+  inlineComments?: boolean | undefined;
+  codeSelection?: DocumentCodeSelection | undefined;
+  comparisonScope?: string | undefined;
+  onComparisonScopeChange?: ((scope: string) => void) | undefined;
 };
 
 function WorktreeFile(
@@ -184,7 +244,10 @@ function WorktreeFile(
     props.snapshot.answer.changes.find((file) => file.path === props.file.path)
       ?.comparisons ?? [];
   const [index, setIndex] = useState(0);
-  const change = changes[index] ?? changes[0];
+  const change = props.inlineComments
+    ? (changes.find((entry) => entry.scope === props.comparisonScope) ??
+      changes[0])
+    : (changes[index] ?? changes[0]);
   return (
     <View className="flex-1">
       {changes.length > 1 ? (
@@ -193,7 +256,10 @@ function WorktreeFile(
           actions={changes.map((entry, at) => ({
             id: String(at),
             label: entry.scope,
-            onPress: () => setIndex(at),
+            onPress: () =>
+              props.inlineComments
+                ? props.onComparisonScopeChange?.(entry.scope)
+                : setIndex(at),
           }))}
         />
       ) : null}
@@ -234,6 +300,8 @@ function WorktreeDiff({
   snapshot,
   file,
   comparison,
+  inlineComments,
+  codeSelection,
   change,
 }: FileProps & {
   snapshot: Extract<ReviewSnapshot, { kind: 'worktree' }>;
@@ -261,12 +329,14 @@ function WorktreeDiff({
       content={content}
       workspace={workspace}
       comparison={comparison}
+      inlineComments={inlineComments}
+      codeSelection={codeSelection}
       target={commentTarget(snapshot, file, selection?.scope)}
     />
   ) : (
     <Empty
       title="Diff unavailable"
-      description="This comparison did not return a diff. Return to Review and refresh."
+      description="This comparison did not return a diff. Return to Review and choose the current change."
     />
   );
 }
@@ -276,6 +346,8 @@ function BranchFile({
   snapshot,
   file,
   comparison,
+  inlineComments,
+  codeSelection,
 }: FileProps & { snapshot: Extract<ReviewSnapshot, { kind: 'branch' }> }) {
   const entry = snapshot.answer.files.find((item) => item.path === file.path);
   if (!entry || !snapshot.answer.mergeBaseOid)
@@ -291,6 +363,8 @@ function BranchFile({
       snapshot={snapshot}
       file={file}
       comparison={comparison}
+      inlineComments={inlineComments}
+      codeSelection={codeSelection}
       paths={commitPaths(entry)}
       baseOid={snapshot.answer.mergeBaseOid}
     />
@@ -302,6 +376,8 @@ function BranchDiff({
   snapshot,
   file,
   comparison,
+  inlineComments,
+  codeSelection,
   paths,
   baseOid,
 }: FileProps & {
@@ -324,6 +400,8 @@ function BranchDiff({
       content={content}
       workspace={workspace}
       comparison={comparison}
+      inlineComments={inlineComments}
+      codeSelection={codeSelection}
       target={commentTarget(snapshot, file)}
     />
   ) : (
@@ -339,6 +417,8 @@ function UntrackedFile({
   snapshot,
   file,
   comparison,
+  inlineComments,
+  codeSelection,
 }: FileProps & { snapshot: Extract<ReviewSnapshot, { kind: 'worktree' }> }) {
   const query = readTextFile({
     connection: workspace.connection,
@@ -355,6 +435,7 @@ function UntrackedFile({
         <FileCommentAction
           workspace={workspace}
           comparison={comparison}
+          inlineComments={inlineComments}
           target={commentTarget(snapshot, file, 'untracked')}
         />
         <Empty title="File unavailable" description={result.value.reason} />
@@ -362,9 +443,11 @@ function UntrackedFile({
     );
   return (
     <SelectableContent
-      key={result.value.contentFingerprint}
+      key={inlineComments ? 'document' : result.value.contentFingerprint}
       workspace={workspace}
       comparison={comparison}
+      inlineComments={inlineComments}
+      codeSelection={codeSelection}
       target={commentTarget(snapshot, file, 'untracked')}
       source={result.value.text}
     />
@@ -379,6 +462,8 @@ function DiffContentView({
   workspace: Workspace;
   comparison: ReviewComparison;
   target?: CommentTarget | undefined;
+  inlineComments?: boolean | undefined;
+  codeSelection?: DocumentCodeSelection | undefined;
 }) {
   const { preferences } = usePreferences();
   const presentation = diffPresentation(content);
@@ -415,16 +500,34 @@ function SelectableContent({
   target,
   source,
   lines,
+  inlineComments,
+  codeSelection,
 }: {
   workspace: Workspace;
   comparison: ReviewComparison;
   target?: CommentTarget | undefined;
   source?: string;
   lines?: Parameters<typeof DiffView>[0]['lines'];
+  inlineComments?: boolean | undefined;
+  codeSelection?: DocumentCodeSelection | undefined;
 }) {
   const { preferences } = usePreferences();
   const [selection, setSelection] = useState<ReviewRange>();
-  const anchor = selectionAnchor(target, selection);
+  const anchor = documentCommentAnchor(target, selection);
+  if (inlineComments)
+    return lines ? (
+      <DiffView
+        lines={lines}
+        wrap={preferences.lineOverflow === 'wrap'}
+        {...codeSelection}
+      />
+    ) : (
+      <CodeView
+        source={source ?? ''}
+        wrap={preferences.lineOverflow === 'wrap'}
+        {...codeSelection}
+      />
+    );
   return (
     <View className="flex-1">
       <Box className="flex-row items-center" gap={2} paddingX={4} paddingY={2}>
@@ -461,27 +564,17 @@ function SelectableContent({
   );
 }
 
-function selectionAnchor(
-  target: CommentTarget | undefined,
-  selection: ReviewRange | undefined,
-) {
-  if (!target) return undefined;
-  if (!selection) return { ...target, kind: 'file' as const };
-  return rangeAnchor(target, {
-    start: selection.startLine,
-    end: selection.endLine,
-    ...(selection.side ? { side: selection.side } : {}),
-  });
-}
-
 function FileCommentAction({
   target,
+  inlineComments,
   ...props
 }: {
   workspace: Workspace;
   comparison: ReviewComparison;
   target?: CommentTarget | undefined;
+  inlineComments?: boolean | undefined;
 }) {
+  if (inlineComments) return null;
   return (
     <Box paddingX={4} paddingY={2}>
       <CommentAction

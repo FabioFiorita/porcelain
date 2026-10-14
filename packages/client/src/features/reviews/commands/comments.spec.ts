@@ -1,7 +1,7 @@
 import { holdFirstRead } from '../../../../spec/kit/held-transport.ts';
 import { afterEach, expect, it } from 'vitest';
 import { Layer, Effect, Option, Stream } from 'effect';
-import { AtomRegistry, AsyncResult } from 'effect/reactivity';
+import { Atom, AtomRegistry, AsyncResult } from 'effect/reactivity';
 import {
   createWorktreeConnection,
   type Transport,
@@ -255,4 +255,61 @@ it('rejects an already disconnected create before invoking transport', async () 
   );
   expect(exit._tag).toBe('Failure');
   expect(sent).toBe(0);
+});
+
+it('keeps a second document composer idle when the first sends, resets or confirms', async () => {
+  const response = Promise.withResolvers<Response>();
+  const started = Promise.withResolvers<void>();
+  const subject = fixture((_path, init) => {
+    if (init?.method === 'POST') {
+      started.resolve();
+      return response.promise;
+    }
+    return Promise.resolve(Response.json([]));
+  });
+  const left = commentCommands(
+    {
+      connection: subject.connection,
+      scope,
+    },
+    'left-document',
+  );
+  const right = commentCommands(
+    {
+      connection: subject.connection,
+      scope,
+    },
+    'right-document',
+  );
+  const stopLeft = subject.registry.mount(left.create);
+  const stopRight = subject.registry.mount(right.create);
+  try {
+    subject.registry.set(left.create, {
+      anchor: { kind: 'change' },
+      body: 'Confirmed discussion',
+    });
+    await started.promise;
+    expect(subject.registry.get(left.create).waiting).toBe(true);
+    expect(subject.registry.get(right.create)).toMatchObject({
+      _tag: 'Initial',
+      waiting: false,
+    });
+    subject.registry.set(right.create, Atom.Reset);
+    expect(subject.registry.get(left.create).waiting).toBe(true);
+    const confirmed = Effect.runPromise(
+      AtomRegistry.getResult(subject.registry, left.create, {
+        suspendOnWaiting: true,
+      }),
+    );
+    response.resolve(Response.json(thread));
+    expect(await confirmed).toEqual(thread);
+    expect(subject.registry.get(right.create)).toMatchObject({
+      _tag: 'Initial',
+      waiting: false,
+    });
+  } finally {
+    response.resolve(Response.json(thread));
+    stopLeft();
+    stopRight();
+  }
 });

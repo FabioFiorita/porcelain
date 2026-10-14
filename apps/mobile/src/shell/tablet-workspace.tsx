@@ -1,12 +1,14 @@
-import { Stack, useRouter } from 'expo-router';
-import { Dimensions, ScrollView, useWindowDimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { withUniwind } from 'uniwind';
+import { Stack } from 'expo-router';
+import { useState } from 'react';
+import { ScrollView } from 'react-native';
+import { TabletSurface } from '../components/ui/tablet-surface';
 import { Box } from '../components/ui/box';
 import { ChromeButton } from '../components/ui/chrome-button';
 import { DocumentTabs } from '../components/ui/document-tabs';
 import { Empty } from '../components/ui/empty';
-import { Item } from '../components/ui/item';
+import { IconButton } from '../components/ui/icon-button';
+import { Separator } from '../components/ui/separator';
+import { WorkspaceModeTabs } from '../components/ui/workspace-mode-tabs';
 import { WorkspacePanes } from '../components/ui/workspace-panes';
 import { FilesNavigation, FileContent } from '../features/files';
 import {
@@ -23,8 +25,11 @@ import { useAppSidebar } from '../features/preferences';
 import {
   WorkspaceGate,
   useWorkspaceSession,
+  requestDocumentLeave,
   type Workspace,
 } from '../features/projects';
+import { visiblePanes } from '../shared/rules/document-panes';
+import { selectedDocument } from '../shared/rules/workspace-session';
 import {
   documentTab,
   type InspectorMode,
@@ -32,59 +37,43 @@ import {
   type WorkspaceTab,
 } from '../shared/rules/workspace-documents';
 
-const modes = [
-  { id: 'files', title: 'Files' },
-  { id: 'review', title: 'Review' },
-  { id: 'history', title: 'History' },
-] as const;
-
-const StyledSafeAreaView = withUniwind(SafeAreaView);
-
 export function TabletWorkspace({
   initialMode = 'files',
 }: {
   initialMode?: InspectorMode;
 }) {
   const { sidebar } = useAppSidebar();
-  const window = useWindowDimensions();
-  const screen = Dimensions.get('screen');
-  const windowed = window.width < screen.width || window.height < screen.height;
   return (
-    <StyledSafeAreaView
-      edges={['top', 'left', 'right', 'bottom']}
-      className="min-w-0 flex-1 bg-background"
-    >
+    <TabletSurface>
       <Stack.Screen options={{ headerShown: false }} />
-      <Box className="min-w-0 flex-1" {...(windowed ? { paddingTop: 8 } : {})}>
-        <WorkspaceGate
-          title="Workspace"
-          fallbackToolbar={
-            sidebar ? (
-              <Box
-                className="items-start"
-                paddingX={4}
-                paddingY={2}
-                divider="bottom"
-              >
-                <ChromeButton
-                  icon="sidebar"
-                  label={sidebar.visible ? 'Hide sidebar' : 'Show sidebar'}
-                  onPress={sidebar.toggle}
-                />
-              </Box>
-            ) : null
-          }
-        >
-          {(workspace) => (
-            <SelectedWorkspace
-              key={workspace.key}
-              workspace={workspace}
-              initialMode={initialMode}
-            />
-          )}
-        </WorkspaceGate>
-      </Box>
-    </StyledSafeAreaView>
+      <WorkspaceGate
+        title="Workspace"
+        fallbackToolbar={
+          sidebar ? (
+            <Box
+              className="items-start"
+              paddingX={4}
+              paddingY={2}
+              divider="bottom"
+            >
+              <ChromeButton
+                icon="sidebar"
+                label={sidebar.visible ? 'Hide sidebar' : 'Show sidebar'}
+                onPress={sidebar.toggle}
+              />
+            </Box>
+          ) : null
+        }
+      >
+        {(workspace) => (
+          <SelectedWorkspace
+            key={workspace.key}
+            workspace={workspace}
+            initialMode={initialMode}
+          />
+        )}
+      </WorkspaceGate>
+    </TabletSurface>
   );
 }
 
@@ -95,7 +84,6 @@ function SelectedWorkspace({
   workspace: Workspace;
   initialMode: InspectorMode;
 }) {
-  const router = useRouter();
   const { sidebar } = useAppSidebar();
   const {
     session,
@@ -104,13 +92,14 @@ function SelectedWorkspace({
     changeComparison,
     changeDocuments,
     open,
+    openBeside,
+    focus,
   } = useWorkspaceSession(workspace.key, initialMode);
-  const active = session.documents.tabs.find(
-    (tab) => tab.key === session.documents.active,
-  );
-  const fileSelection = session.selected.files;
-  const historySelection = session.selected.history;
-  const reviewSelection = session.selected.review;
+  const [contentWidth, setContentWidth] = useState(0);
+  const panes = visiblePanes(session, contentWidth);
+  const fileSelection = selectedDocument(session, 'files');
+  const historySelection = selectedDocument(session, 'history');
+  const reviewSelection = selectedDocument(session, 'review');
   const selectedReviewPath =
     reviewSelection?.kind === 'review-file' &&
     reviewSelection.key ===
@@ -125,6 +114,40 @@ function SelectedWorkspace({
     reviewSelection?.key ===
     documentTab({ kind: 'review-overview', comparison: session.comparison })
       .key;
+  const scope = (pane: 'left' | 'right') => `${workspace.key}:${pane}`;
+  const changePaneDocuments = (
+    pane: 'left' | 'right',
+    change: Parameters<typeof changeDocuments>[1],
+  ) => {
+    const documents = session[pane];
+    if (!documents) return;
+    const next = change(documents);
+    const folded = session.right !== null && next.tabs.length === 0;
+    if (folded || documents.active !== next.active)
+      requestDocumentLeave(
+        () => changeDocuments(pane, change),
+        folded ? undefined : scope(pane),
+      );
+    else changeDocuments(pane, change);
+  };
+  const openDocument = (
+    document: WorkspaceDocument,
+    pane?: 'left' | 'right',
+  ) => {
+    const targetPane = pane ?? session.focused;
+    const tab = documentTab(document);
+    if (session[targetPane]?.active === tab.key) open(document, targetPane);
+    else
+      requestDocumentLeave(() => open(document, targetPane), scope(targetPane));
+  };
+  const openSide = (document: WorkspaceDocument, pane?: 'left' | 'right') => {
+    const source = pane ?? session.focused;
+    const destination = source === 'left' ? 'right' : 'left';
+    requestDocumentLeave(
+      () => openBeside(document, source),
+      scope(destination),
+    );
+  };
   return (
     <WorkspacePanes
       navigationVisible={session.inspectorOpen}
@@ -144,11 +167,34 @@ function SelectedWorkspace({
               onPress={sidebar.toggle}
             />
           ) : null}
-          <DocumentTabs
-            documents={session.documents}
-            onChange={changeDocuments}
-            onSelect={showContent}
-          />
+          {panes.map((pane, index) => (
+            <Box key={pane} className="min-w-0 flex-1 flex-row items-center">
+              {index > 0 ? <Separator orientation="vertical" /> : null}
+              <DocumentTabs
+                focused={session.focused === pane}
+                documents={session[pane] ?? session.left}
+                label={`${pane === 'left' ? 'Left' : 'Right'} pane documents`}
+                onChange={(change) => changePaneDocuments(pane, change)}
+                onSelect={() => {
+                  focus(pane);
+                  showContent();
+                }}
+                onOpenToSide={(document) => {
+                  openSide(document, pane);
+                  showContent();
+                }}
+              />
+            </Box>
+          ))}
+          {session.right && panes.length === 1 ? (
+            <IconButton
+              icon="split"
+              accessibilityLabel={`Show ${session.focused === 'left' ? 'right' : 'left'} document pane`}
+              onPress={() =>
+                focus(session.focused === 'left' ? 'right' : 'left')
+              }
+            />
+          ) : null}
           <ChromeButton
             icon="inspector"
             label={session.inspectorOpen ? 'Hide inspector' : 'Show inspector'}
@@ -158,7 +204,7 @@ function SelectedWorkspace({
       )}
       navigation={(showContent) => {
         const openFromInspector = (document: WorkspaceDocument) => {
-          open(document);
+          openDocument(document);
           showContent();
         };
         return (
@@ -170,16 +216,7 @@ function SelectedWorkspace({
               paddingY={2}
               divider="bottom"
             >
-              {modes.map((mode) => (
-                <Box className="min-w-0 flex-1" key={mode.id}>
-                  <Item
-                    title={mode.title}
-                    size="xs"
-                    selected={session.mode === mode.id}
-                    onPress={() => changeMode(mode.id)}
-                  />
-                </Box>
-              ))}
+              <WorkspaceModeTabs value={session.mode} onChange={changeMode} />
             </Box>
             <Box className={session.mode === 'files' ? 'flex-1' : 'hidden'}>
               <FilesNavigation
@@ -192,6 +229,10 @@ function SelectedWorkspace({
                     : undefined
                 }
                 onOpen={(path) => openFromInspector({ kind: 'file', path })}
+                onOpenToSide={(path) => {
+                  openSide({ kind: 'file', path });
+                  showContent();
+                }}
               />
             </Box>
             <Box className={session.mode === 'review' ? 'flex-1' : 'hidden'}>
@@ -199,7 +240,6 @@ function SelectedWorkspace({
                 workspace={workspace}
                 comparison={session.comparison}
                 onComparison={changeComparison}
-                embedded
                 selectedPath={selectedReviewPath}
                 overviewSelected={overviewSelected}
                 onOverview={() =>
@@ -236,35 +276,67 @@ function SelectedWorkspace({
         );
       }}
     >
-      {active ? (
-        <WorkspaceDocumentContent
-          key={active.key}
-          document={active}
-          workspace={workspace}
-          onOpen={open}
-          onEdit={(path) =>
-            router.push({
-              pathname: '/file-edit',
-              params: { path, workspace: workspace.key },
-            })
-          }
-          onParentChange={(parent) =>
-            changeDocuments((documents) => ({
-              ...documents,
-              tabs: documents.tabs.map((tab) =>
-                tab.key === active.key && tab.kind === 'commit'
-                  ? documentTab({ ...tab, parent })
-                  : tab,
-              ),
-            }))
-          }
-        />
-      ) : (
-        <Empty
-          title="Choose a document"
-          description="Open a file, review or commit from the inspector."
-        />
-      )}
+      <Box
+        className="min-w-0 flex-1 flex-row"
+        onLayout={({ nativeEvent: { layout } }) =>
+          setContentWidth(layout.width)
+        }
+      >
+        {(['left', 'right'] as const).map((pane) => {
+          const documents = session[pane];
+          if (!documents) return null;
+          const active = documents.tabs.find(
+            (tab) => tab.key === documents.active,
+          );
+          return (
+            <Box
+              key={pane}
+              className={
+                panes.includes(pane) ? 'min-w-0 flex-1 flex-row' : 'hidden'
+              }
+            >
+              {pane === 'right' && panes.length === 2 ? (
+                <Separator orientation="vertical" />
+              ) : null}
+              <Box
+                className="min-w-0 flex-1"
+                accessibilityLabel={`${pane === 'left' ? 'Left' : 'Right'} document pane`}
+                onPointerDown={() => {
+                  if (session.focused !== pane) focus(pane);
+                }}
+                onTouchStart={() => {
+                  if (session.focused !== pane) focus(pane);
+                }}
+              >
+                {active ? (
+                  <WorkspaceDocumentContent
+                    key={active.key}
+                    document={active}
+                    leaveScope={scope(pane)}
+                    workspace={workspace}
+                    onOpen={(document) => openDocument(document, pane)}
+                    onParentChange={(parent) =>
+                      changeDocuments(pane, (current) => ({
+                        ...current,
+                        tabs: current.tabs.map((tab) =>
+                          tab.key === active.key && tab.kind === 'commit'
+                            ? documentTab({ ...tab, parent })
+                            : tab,
+                        ),
+                      }))
+                    }
+                  />
+                ) : (
+                  <Empty
+                    title="Choose a document"
+                    description="Open a file, review or commit from the inspector."
+                  />
+                )}
+              </Box>
+            </Box>
+          );
+        })}
+      </Box>
     </WorkspacePanes>
   );
 }
@@ -273,13 +345,13 @@ function WorkspaceDocumentContent({
   document,
   workspace,
   onOpen,
-  onEdit,
   onParentChange,
+  leaveScope,
 }: {
   document: WorkspaceTab;
+  leaveScope: string;
   workspace: Workspace;
   onOpen: (document: WorkspaceDocument) => void;
-  onEdit: (path: string) => void;
   onParentChange: (parent: number) => void;
 }) {
   switch (document.kind) {
@@ -288,7 +360,8 @@ function WorkspaceDocumentContent({
         <FileContent
           selected={workspace}
           path={document.path}
-          onEdit={() => onEdit(document.path)}
+          inlineComments
+          leaveScope={leaveScope}
         />
       );
     case 'review-file':
@@ -297,6 +370,8 @@ function WorkspaceDocumentContent({
           workspace={workspace}
           path={document.path}
           comparison={document.comparison}
+          inlineComments
+          leaveScope={leaveScope}
         />
       );
     case 'review-overview':
@@ -344,6 +419,8 @@ function WorkspaceDocumentContent({
           oid={document.oid}
           parent={document.parent}
           path={document.path}
+          inlineComments
+          leaveScope={leaveScope}
         />
       );
   }

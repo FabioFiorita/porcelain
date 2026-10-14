@@ -67,7 +67,6 @@ export function ReviewNavigation({
   selectedPath,
   overviewSelected = false,
   inlineOverview = false,
-  embedded = false,
 }: {
   workspace: Workspace;
   comparison: ReviewComparison;
@@ -77,7 +76,6 @@ export function ReviewNavigation({
   selectedPath?: string | undefined;
   overviewSelected?: boolean;
   inlineOverview?: boolean;
-  embedded?: boolean;
 }) {
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
   const bases = useAtomValue(
@@ -99,14 +97,6 @@ export function ReviewNavigation({
           bases={AsyncResult.isSuccess(bases) ? bases.value.bases : []}
           onComparison={onComparison}
         />
-        {!embedded ? (
-          <Button
-            label="Refresh"
-            variant="ghost"
-            pending={result.waiting}
-            onPress={refresh}
-          />
-        ) : null}
       </Box>
       {AsyncResult.isSuccess(result) ? (
         <ReviewNavigationList

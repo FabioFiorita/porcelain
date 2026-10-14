@@ -40,6 +40,7 @@ export function CommitDiffScreen() {
               oid={oid}
               parent={parent}
               path={path}
+              inlineComments
             />
           </>
         ) : (
