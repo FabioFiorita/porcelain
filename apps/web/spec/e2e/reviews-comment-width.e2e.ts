@@ -1,6 +1,8 @@
 import { expect, test } from './fixtures.ts';
 
-test('long comment filenames, waiting badges and actions fit the full resizable sidebar range and the review sheet', async ({
+declare const window: { getSelection(): { toString(): string } | null };
+
+test('comment text stays selectable and long filenames, waiting badges and actions fit the resizable sidebar and review sheet', async ({
   app,
   repo,
   agent,
@@ -21,6 +23,17 @@ test('long comment filenames, waiting badges and actions fit the full resizable 
     name: 'Comment thread',
     exact: true,
   });
+  await thread.getByText('should be 5', { exact: true }).dblclick();
+  await expect
+    .poll(() => page.evaluate(() => window.getSelection()?.toString()))
+    .toBe('should');
+  await page
+    .getByRole('region', { name: 'Review content', exact: true })
+    .getByText('should be 5', { exact: true })
+    .dblclick();
+  await expect
+    .poll(() => page.evaluate(() => window.getSelection()?.toString()))
+    .toBe('should');
   await thread.getByRole('button', { name: 'Reply', exact: true }).click();
   await sidebar
     .getByRole('textbox', { name: 'Reply', exact: true })

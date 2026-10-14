@@ -435,7 +435,7 @@ export function ThreadCard({
         if (listed && !thread.resolved) {
           return (
             <article
-              className="min-w-0 rounded-xl border bg-card p-3"
+              className="min-w-0 rounded-xl border bg-card p-3 select-text"
               aria-label="Comment thread"
             >
               <div className="mb-3 flex min-w-0 items-center gap-1.5 text-2xs text-muted-foreground">
@@ -495,7 +495,7 @@ export function ThreadCard({
         if (thread.resolved) {
           return (
             <article
-              className="flex min-w-0 flex-wrap items-center gap-2 rounded-lg border border-dashed px-2.5 py-1.5 text-2xs text-muted-foreground"
+              className="flex min-w-0 flex-wrap items-center gap-2 rounded-lg border border-dashed px-2.5 py-1.5 text-2xs text-muted-foreground select-text"
               aria-label="Resolved comment thread"
             >
               <div className="flex w-full min-w-0 items-center gap-2">
@@ -513,7 +513,7 @@ export function ThreadCard({
 
         return (
           <article
-            className="rounded-xl border bg-card p-3 shadow-sm"
+            className="rounded-xl border bg-card p-3 shadow-sm select-text"
             aria-label="Comment thread"
           >
             <div className="mb-2 flex min-w-0 flex-wrap items-center gap-1.5 text-2xs text-muted-foreground">
