@@ -9,8 +9,12 @@ selectors:
   - "pair-environment"
   - "Cancel"
   - "cancel-pairing"
+  - "Use development server"
+  - "development-pairing-link"
+  - "Creating pairing link…"
   - "Online"
-tests: []
+tests:
+  - apps/server/spec/kit/development-pairing.spec.ts
 api:
   - POST /api/pair
   - GET /api/environment
@@ -25,9 +29,12 @@ Add environment opens a native sheet, “Pair an environment”, where the link 
 
 The sheet opens at half height and can expand to full height. Its React Native content scrolls and uses the shared Uniwind theme; the field and buttons are the shared `components/ui` primitives inside the Expo UI sheet.
 
+When Metro is launched by mobile-verify, Use development server requests a fresh single-use link from the disposable server's private owner socket and fills Pairing link. It does not pair automatically: select the normal Pair button to redeem the link. Creating pairing link… disables the field, helper and Pair while the request runs; Cancel remains available. A helper failure stays visible in the sheet, and selecting Use development server again retries. Editing the field clears both errors. The helper is absent from production bundles and development sessions without a configured helper URL; Metro accepts only loopback POST requests.
+
 ## How a user reaches it
 
 - Settings → Add environment → paste the link → Pair
+- Metro development: Settings → Add environment → Use development server → Pair
 
 ## Driving it
 
@@ -37,6 +44,8 @@ The sheet opens at half height and can expand to full height. Its React Native c
 4. Expect the sheet to close and the environment to show Online. Read back the native device from the disposable server.
 5. Repeat with a second disposable environment. Cold-launch and expect both environments restored.
 6. Open Add environment and select Cancel (test id cancel-pairing). Expect the sheet closed with neither environment changed.
+7. In the Metro development session, open Add environment and select Use development server (test id development-pairing-link). Expect a full link in pairing-link and no new device until Pair is selected. Request another link and expect its code to change; use Pair and read back the Development mobile device on the disposable server. Exercise this same sheet on iPhone and iPad.
+8. Exercise a helper failure, expect an inline error, then retry after restoring the owner connection. While creating a link, select Cancel and expect the sheet closed; reopen it and expect a blank field with no error or pending request.
 
 ## What proves it works
 
@@ -47,3 +56,4 @@ Drive this feature with the mobile-verify skill on demand.
 - A link works once, for a few minutes; the card's pairing command issues a fresh one.
 - The invalid-link message comes from the shared client, so the map names the sheet title instead.
 - Use the button test ids when driving pairing: XCTest snapshots can also label a button's enclosing native host, making a label-only selector ambiguous.
+- The verification launcher supplies PORCELAIN_OWNER_SOCKET and PORCELAIN_API_TARGET only to Metro and exposes the nonsecret helper URL as EXPO_PUBLIC_PORCELAIN_DEV_PAIR_URL. The link keeps the disposable server address, including the loopback port forwarded to the existing device host. Restart Metro after changing its configuration or owner socket; native app rebuilding is unnecessary for this JavaScript helper.

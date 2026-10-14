@@ -10,6 +10,10 @@ import {
   nativeFingerprint,
 } from '@porcelain/mobile/kit/development-client';
 import { Environment } from '@porcelain/mobile/kit/environment';
+import {
+  identity,
+  developmentLink,
+} from '@porcelain/mobile/kit/development-client';
 import { startMetro } from '@porcelain/mobile/kit/metro';
 import {
   deviceHost,
@@ -92,7 +96,10 @@ export function serve(folder: string): Promise<void> {
       environment.server.credential,
       environment.server.desktopCredential,
     );
-    const metro = await startMetro(join(evidence, 'metro.log'), ports[1]);
+    const metro = await startMetro(join(evidence, 'metro.log'), ports[1], {
+      ownerSocket: environment.server.socketPath,
+      serverAddress: environment.server.address,
+    });
     life.own(metro.pid);
     life.onStop(() => metro.stop());
     await life
@@ -101,11 +108,26 @@ export function serve(folder: string): Promise<void> {
         'setup.txt',
         `simulator ${simulator.udid}\ninstalled ${simulator.installed}\nsetup session ${session}-setup\n`,
       );
-    pairClient(agent, metro.url, environment.link, `${session}-setup`);
+    if (options.manualPairing) {
+      setupCommand(agent, [
+        'open',
+        identity.bundleIdentifier,
+        developmentLink(metro.url),
+        '--foreground',
+      ]);
+    } else {
+      pairClient(agent, metro.url, environment.link, `${session}-setup`);
+    }
     const devices = await environment.devices();
-    if (devices.length !== 1 || devices[0]?.label !== pairingLabel)
+    if (
+      options.manualPairing
+        ? devices.length !== 0
+        : devices.length !== 1 || devices[0]?.label !== pairingLabel
+    )
       throw new Error(
-        'Pairing did not register exactly one native verification device.',
+        options.manualPairing
+          ? 'The manual preview unexpectedly paired a native device.'
+          : 'Pairing did not register exactly one native verification device.',
       );
     const health = await fetch(`${environment.server.address}/api/health`);
     if (
@@ -124,7 +146,7 @@ export function serve(folder: string): Promise<void> {
       .evidence()
       .note(
         'handoff.txt',
-        `setup session closed\npaired devices ${JSON.stringify(devices)}\n`,
+        `${options.manualPairing ? 'manual pairing; app left for developer' : 'setup session closed'}\npaired devices ${JSON.stringify(devices)}\n`,
       );
     return {
       ...options,
@@ -172,6 +194,7 @@ export async function start(
   udid?: string,
   agentConfig?: string,
   agentCommand?: string,
+  manualPairing = false,
 ): Promise<string> {
   const { remote, simulatorLimit } = deviceHost();
   refuseMissing(await startProblems(remote, agentCommand !== undefined));
@@ -180,6 +203,7 @@ export async function start(
       ...(agentConfig === undefined ? {} : { agentConfig }),
       ...(agentCommand === undefined ? {} : { agentCommand }),
       kind,
+      manualPairing,
       host: remote ?? null,
       simulatorLimit: Math.min(simulatorLimit ?? 2, 2),
       ...(udid === undefined ? {} : { udid }),
