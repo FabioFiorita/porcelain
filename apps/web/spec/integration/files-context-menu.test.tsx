@@ -44,6 +44,7 @@ test('a second right-click on another row opens that row’s menu', async ({
     });
     await expect.element(menu(secondPath)).toBeVisible();
     await expect.element(menu(secondPath)).toHaveAttribute('data-open', '');
+    await expect.element(row(second)).toHaveAttribute('aria-haspopup', 'menu');
     await expect.element(menu(firstPath)).not.toBeInTheDocument();
     const command = secondPath.endsWith('/') ? 'New file' : 'Duplicate';
     await expect
@@ -77,4 +78,30 @@ test('a second right-click on another row opens that row’s menu', async ({
       (await server.directory('alpha')).entries.map((entry) => entry.name),
     )
     .not.toContain('second-target');
+});
+
+test('an agent inserting a preceding file dismisses the menu before its row can acquire another path', async ({
+  render,
+  repo,
+}) => {
+  await repo.write('guide.md', 'Guide\n');
+  const page = await render.workspace();
+  await page.viewport(1280, 800);
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  await page
+    .getByRole('treeitem', { name: 'guide.md', exact: true })
+    .click({ button: 'right' });
+  await expect
+    .element(page.getByRole('menu', { name: 'guide.md actions', exact: true }))
+    .toBeVisible();
+  await repo.write('a-before.md', 'An agent added this file\n');
+  const inserted = page.getByRole('treeitem', {
+    name: 'a-before.md',
+    exact: true,
+    includeHidden: true,
+  });
+  await expect.element(inserted).toBeVisible();
+  await expect.element(page.getByRole('menu')).not.toBeInTheDocument();
+  await expect.element(inserted).not.toHaveAttribute('data-context-menu-open');
+  await expect.element(inserted).not.toHaveAttribute('aria-haspopup');
 });
