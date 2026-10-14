@@ -9,14 +9,14 @@ class PorcelainRendererModule : Module() {
     Name("PorcelainRenderer")
     View(CodeSurface::class) {
       Events("onSelect", "onExpand")
-      Prop("tokens") { view: CodeSurface, value: String -> view.tokens = RenderTokens.decode(value) }
-      Prop("data") { view: CodeSurface, value: String -> view.updateData(value) }
-      Prop("wrap") { view: CodeSurface, value: Boolean -> view.options = view.options.copy(wrap = value) }
-      Prop("lineNumbers") { view: CodeSurface, value: Boolean -> view.options = view.options.copy(lineNumbers = value) }
-      Prop("foreground") { view: CodeSurface, value: Long -> view.options = view.options.copy(foreground = Color(value.toInt())) }
-      Prop("background") { view: CodeSurface, value: Long -> view.options = view.options.copy(background = Color(value.toInt())) }
-      Prop("muted") { view: CodeSurface, value: Long -> view.options = view.options.copy(muted = Color(value.toInt())) }
-      Prop("selection") { view: CodeSurface, value: String -> view.updateSelection(value) }
+      Prop("tokens") { view: CodeSurface, value: String -> view.state.tokens = RenderTokens.decode(value) }
+      Prop("data") { view: CodeSurface, value: String -> view.state.updateData(value) }
+      Prop("wrap") { view: CodeSurface, value: Boolean -> view.state.options = view.state.options.copy(wrap = value) }
+      Prop("lineNumbers") { view: CodeSurface, value: Boolean -> view.state.options = view.state.options.copy(lineNumbers = value) }
+      Prop("foreground") { view: CodeSurface, value: Long -> view.state.options = view.state.options.copy(foreground = Color(value.toInt())) }
+      Prop("background") { view: CodeSurface, value: Long -> view.state.options = view.state.options.copy(background = Color(value.toInt())) }
+      Prop("muted") { view: CodeSurface, value: Long -> view.state.options = view.state.options.copy(muted = Color(value.toInt())) }
+      Prop("selection") { view: CodeSurface, value: String -> view.state.updateSelection(value) }
     }
     View(HtmlSurface::class) {
       Events("onLink", "onError")
@@ -30,8 +30,8 @@ class PorcelainRendererModule : Module() {
     }
     View(MarkdownSurface::class) {
       Events("onLink")
-      Prop("tokens") { view: MarkdownSurface, value: String -> view.tokens = RenderTokens.decode(value) }
-      Prop("data") { view: MarkdownSurface, value: String -> view.updateData(value) }
+      Prop("tokens") { view: MarkdownSurface, value: String -> view.state.tokens = RenderTokens.decode(value) }
+      Prop("data") { view: MarkdownSurface, value: String -> view.state.updateData(value) }
     }
   }
 }
