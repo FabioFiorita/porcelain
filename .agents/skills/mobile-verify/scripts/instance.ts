@@ -1,4 +1,4 @@
-import { Schema } from 'effect';
+import { Effect, Schema } from 'effect';
 import { join } from 'node:path';
 import {
   nativeFingerprint,
@@ -29,6 +29,9 @@ export const optionsSchema = Schema.Struct({
   agentCommand: Schema.optional(Schema.String),
   simulatorLimit: Schema.Finite,
   manualPairing: Schema.Boolean,
+  fixture: Schema.Literals(['development', 'focused']).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed('focused')),
+  ),
   udid: Schema.optional(Schema.String),
 });
 const detailSchema = Schema.Struct({
