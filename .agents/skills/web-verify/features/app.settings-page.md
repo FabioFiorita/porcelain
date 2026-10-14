@@ -17,7 +17,7 @@ selectors:
   - "Remove from Porcelain"
   - "No projects registered"
   - "Select a worktree"
-  - "Worktree no longer present"
+  - "Worktree not found"
 tests:
   - apps/web/spec/e2e/app-settings-page.desktop.e2e.ts
 api:
@@ -36,11 +36,11 @@ Settings is its own page (`main` "Settings") that replaces the workspace and sho
 ## How a user reaches it
 
 - Sidebar footer button `Settings` (phone width: click `Toggle Sidebar` first; the sidebar is a sheet). It opens the first section: `/settings/computer` on desktop, `/settings/appearance` on the web.
-- Keyboard `Alt+Shift+S` anywhere on the workspace (ignored while focus is in a text field). No test covers the shortcut.
+- Keyboard `Alt+Shift+S` anywhere on the workspace (ignored while focus is in a text field). The routing specs cover this shortcut from the in-app not-found views.
 - Route `/settings/$section`. Section slugs, in button order:
   - desktop mode (`start --desktop`): `computer` (This computer), `ways-in` (Ways in), `remotes` (Remote computers), `devices` (Devices), `git` (Git and agents), `appearance` (Appearance).
   - web mode (`start`): `appearance`, `git`, `connection` (Connection), `updates` (Updates).
-  - Any other slug redirects (replace) to the first section.
+  - Any other slug shows an in-app not-found with the project navigator and Back to workspace; `/settings` redirects (replace) to the first section.
 - Desktop app menu "Settings" (the Electron bridge's `open-settings` action); requires the Electron bridge and desktop verification.
 - "Computer settings" buttons and context menus (desktop navigator, unreachable remote) open `/settings/remotes/<environmentId>`. Back from detail first returns to Remote computers.
 
@@ -91,7 +91,7 @@ None.
 4. Click button named `Settings`
    Look for: Page URL `/settings/computer`; heading "This computer".
 5. Click button named `Back`
-   Look for: Page URL `/?worktree=<worktreeId>`; text "Worktree no longer present".
+   Look for: Page URL `/?worktree=<worktreeId>`; text "Worktree not found".
 
 ## What proves it works
 
@@ -100,13 +100,13 @@ None.
 - `apps/web/spec/e2e/app-settings-page.desktop.e2e.ts` (desktop project, 414x896):
   - Settings opens as main "Settings" with heading "This computer", Appearance shows "Diff layout", Git and agents replaces it, Back returns to region "Review content";
   - Escape inside textbox "Name of this computer" keeps Settings, Escape after clicking Devices leaves it;
-  - after removing the project through the alertdialog, "No projects registered" shows, Settings still opens on This computer, and Back shows "Worktree no longer present".
+  - after removing the project through the alertdialog, "No projects registered" shows, Settings still opens on This computer, and Back shows "Worktree not found".
 
 ## Gotchas
 
 - Escape is bound to the Settings `main` element (`apps/web/src/app/settings-page.tsx:332`), so it only works while focus is inside the page: click a section button first. Right after opening Settings from the sidebar, focus may be outside it and Escape does nothing.
 - Back goes back in browser history when there is history, otherwise to `/`. After Navigate to `/settings/<slug>` on the card’s web URL (full page load) (a fresh page load) Back lands on `/`, which redirects to the worktree.
 - Phone width: the project navigator lives in a sheet; click `Toggle Sidebar` before `Settings` or `repository`. On the Settings page itself the sections are a horizontal row at the top.
-- `This computer`, `Ways in`, `Devices` and `Remote computers` exist only in desktop mode; in web mode `/settings/computer` or `/settings/devices` redirects to `/settings/appearance`.
+- `This computer`, `Ways in`, `Devices` and `Remote computers` exist only in desktop mode; in web mode `/settings/computer` or `/settings/devices` shows an in-app not-found with Back to workspace.
 - Case 3 removes the instance's only project and leaks into every later feature: drive it last, or `$C stop` and `$C start --desktop`; pair your browser using the card’s pairing-link command afterwards.
 - "Remove from Porcelain" is both a menuitem and the dialog's button; address them by role as written. The dialog's button reads "Removing…" while the request runs.

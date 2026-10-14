@@ -1,20 +1,8 @@
-import { createFileRoute, redirect, useMatch } from '@tanstack/react-router';
-import {
-  defaultSettingsSection,
-  SettingsPage,
-  settingsSections,
-} from '@/app/settings-page';
+import { createFileRoute, useMatch } from '@tanstack/react-router';
+import { SettingsPage, settingsSections } from '@/app/settings-page';
+import { ConnectedWorkspace } from '@/app/connected-workspace';
 
 export const Route = createFileRoute('/_paired/settings/$section')({
-  beforeLoad: ({ params }) => {
-    if (!settingsSections.some((item) => item.id === params.section))
-      redirect({
-        to: '/settings/$section',
-        params: { section: defaultSettingsSection },
-        replace: true,
-        throw: true,
-      });
-  },
   component: SettingsRoute,
 });
 
@@ -24,6 +12,8 @@ function SettingsRoute() {
     from: '/_paired/settings/$section/$environmentId',
     shouldThrow: false,
   });
+  if (!settingsSections.some((item) => item.id === section))
+    return <ConnectedWorkspace notice="not-found" />;
   return (
     <SettingsPage
       section={section}
