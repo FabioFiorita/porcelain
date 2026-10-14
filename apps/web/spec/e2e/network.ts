@@ -70,3 +70,10 @@ function isPublishedReviewRead(request: RoutedRequest) {
     /^\/api\/worktrees\/[^/]+\/review$/.test(pathOf(request))
   );
 }
+
+export function failRemoteStatus(context: BrowserContext, address: string) {
+  return browserNetwork(context).fail(
+    (request) => request.url() === `${address}/api/environment`,
+    503,
+  );
+}

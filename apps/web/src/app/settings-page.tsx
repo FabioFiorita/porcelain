@@ -14,10 +14,11 @@ import {
 } from 'lucide-react';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { useCanGoBack, useNavigate, useRouter } from '@tanstack/react-router';
-import { useRef, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import {
   Breadcrumb,
   BreadcrumbItem,
+  BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
@@ -40,6 +41,9 @@ import {
   DevicesSettings,
   DisconnectBrowser,
   RemoteComputers,
+  RemoteComputerName,
+  RemoteComputerSettings,
+  useRemoteConnection,
   ServiceUpdateSettings,
   useConnectedContext,
   useMcpConfiguration,
@@ -263,8 +267,6 @@ function SectionContent({ section }: { section: string }) {
       return <WaysInSettings />;
     case 'devices':
       return <DevicesSection />;
-    case 'remotes':
-      return <RemoteComputers />;
     case 'updates':
       return (
         <ItemGroup>
@@ -352,8 +354,48 @@ function SectionFrame({ children }: { children: ReactNode }) {
   );
 }
 
-export function SettingsPage({ section }: { section: string }) {
+export function SettingsPage({
+  section,
+  environmentId,
+}: {
+  section: string;
+  environmentId?: string | undefined;
+}) {
   const navigate = useNavigate();
+  const remote = useRemoteConnection(environmentId ?? '')?.remote;
+  const list = useRef<HTMLDivElement>(null);
+  const listReturn = useRef<{
+    scroll: number;
+    focus: HTMLElement | null;
+  } | null>(null);
+  const returnToList = () => {
+    if (listReturn.current) router.history.back();
+    else
+      void navigate({
+        to: '/settings/$section',
+        params: { section: 'remotes' },
+        replace: true,
+      });
+  };
+  const openRemote = (id: string) => {
+    listReturn.current = {
+      scroll: list.current?.scrollTop ?? 0,
+      focus:
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null,
+    };
+    void navigate({
+      to: '/settings/$section/$environmentId',
+      params: { section: 'remotes', environmentId: id },
+    });
+  };
+  useLayoutEffect(() => {
+    if (environmentId === undefined && list.current && listReturn.current) {
+      list.current.scrollTop = listReturn.current.scroll;
+      listReturn.current.focus?.focus({ preventScroll: true });
+    }
+  }, [environmentId]);
   const router = useRouter();
   const canGoBack = useCanGoBack();
   const page = useRef<HTMLElement>(null);
@@ -365,7 +407,8 @@ export function SettingsPage({ section }: { section: string }) {
   const current =
     settingsSections.find((item) => item.id === section) ?? settingsSections[0];
   const leave = () => {
-    if (canGoBack) router.history.back();
+    if (environmentId !== undefined) returnToList();
+    else if (canGoBack) router.history.back();
     else void navigate({ to: '/' });
   };
   useHotkey('Escape', leave, { target: page, ignoreInputs: true });
@@ -392,13 +435,17 @@ export function SettingsPage({ section }: { section: string }) {
                   size="sm"
                   className="shrink-0 justify-start md:w-full"
                   aria-current={selected ? 'page' : undefined}
-                  onClick={() =>
+                  onClick={() => {
+                    if (environmentId !== undefined && item.id === 'remotes') {
+                      returnToList();
+                      return;
+                    }
                     void navigate({
                       to: '/settings/$section',
                       params: { section: item.id },
                       replace: true,
-                    })
-                  }
+                    });
+                  }}
                 >
                   <Icon />
                   {item.label}
@@ -425,15 +472,65 @@ export function SettingsPage({ section }: { section: string }) {
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
                   <h2>
-                    <BreadcrumbPage>{current.label}</BreadcrumbPage>
+                    {environmentId === undefined ? (
+                      <BreadcrumbPage>{current.label}</BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink
+                        render={<button type="button" onClick={returnToList} />}
+                      >
+                        Remote computers
+                      </BreadcrumbLink>
+                    )}
                   </h2>
                 </BreadcrumbItem>
+                {environmentId !== undefined && (
+                  <>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>
+                        {remote ? (
+                          <RemoteComputerName remote={remote} />
+                        ) : (
+                          'Computer unavailable'
+                        )}
+                      </BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </>
+                )}
               </BreadcrumbList>
             </Breadcrumb>
           </header>
-          <SectionFrame>
-            <SectionContent section={current.id} />
-          </SectionFrame>
+          {current.id === 'remotes' ? (
+            <>
+              <div
+                ref={list}
+                className={
+                  environmentId === undefined
+                    ? 'min-h-0 flex-1 overflow-y-auto'
+                    : 'hidden'
+                }
+                role="region"
+                aria-label="Remote computers list"
+              >
+                <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-6">
+                  <RemoteComputers onOpen={openRemote} />
+                </div>
+              </div>
+              {environmentId !== undefined && (
+                <SectionFrame>
+                  <RemoteComputerSettings
+                    key={environmentId}
+                    environmentId={environmentId}
+                    onForgotten={returnToList}
+                  />
+                </SectionFrame>
+              )}
+            </>
+          ) : (
+            <SectionFrame>
+              <SectionContent section={current.id} />
+            </SectionFrame>
+          )}
         </div>
       </main>
     </div>

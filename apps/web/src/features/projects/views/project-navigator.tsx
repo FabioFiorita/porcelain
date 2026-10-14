@@ -28,7 +28,7 @@ type Props = {
   onSelect: (target: WorktreeTarget) => void;
   onOpenProject: (remote: RemoteConnection | null) => void;
   onOpenSettings: () => void;
-  onOpenRemotes: () => void;
+  onOpenRemotes: (environmentId: string) => void;
   onOpenShortcuts: () => void;
 };
 
@@ -108,7 +108,7 @@ export function ProjectNavigator({
                   entry={entry}
                   selected={selectedOn(entry.remote.environmentId)}
                   onSelect={select}
-                  onOpenRemotes={openRemotes}
+                  onOpenRemotes={() => openRemotes(entry.remote.environmentId)}
                 />
               ))}
             </>

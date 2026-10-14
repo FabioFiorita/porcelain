@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from '@tanstack/react-router';
+import { createFileRoute, redirect, useMatch } from '@tanstack/react-router';
 import {
   defaultSettingsSection,
   SettingsPage,
@@ -20,5 +20,14 @@ export const Route = createFileRoute('/_paired/settings/$section')({
 
 function SettingsRoute() {
   const { section } = Route.useParams();
-  return <SettingsPage section={section} />;
+  const detail = useMatch({
+    from: '/_paired/settings/$section/$environmentId',
+    shouldThrow: false,
+  });
+  return (
+    <SettingsPage
+      section={section}
+      environmentId={detail?.params.environmentId}
+    />
+  );
 }
