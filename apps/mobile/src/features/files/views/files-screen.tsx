@@ -17,8 +17,6 @@ import {
 } from '@porcelain/client/files/rules';
 import { FileTree } from '../../../components/ui/file-tree';
 import { Input } from '../../../components/ui/input';
-import { Button } from '../../../components/ui/button';
-import { ItemMenu } from '../../../components/ui/item-menu';
 import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Text } from '../../../components/ui/text';
@@ -28,6 +26,7 @@ import { useDirectories } from '../queries/directory';
 import { directoryLoading } from '../rules/directory-loading';
 import { useFilePaths } from '../queries/paths';
 import { FileActionSheet } from './file-action';
+import { CreateMenu } from './create-menu';
 import type { FileAction } from '../commands/edit-file';
 
 export function FilesScreen({
@@ -117,49 +116,37 @@ export function FilesNavigation({
   const nodes = mergeFileTreeEntries(data);
   const header = (
     <Box gap={3} paddingX={4} paddingY={3}>
-      <Input
-        accessibilityLabel="Search files"
-        placeholder="Search files"
-        value={query}
-        onChangeText={setQuery}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-      {embedded ? (
-        <Box className="flex-row items-center justify-between" gap={2}>
-          <Button
-            label="Refresh"
-            variant="ghost"
-            pending={refreshing}
-            onPress={refresh}
-          />
-          <ItemMenu
-            title="Create file or folder"
-            actions={[
-              {
-                id: 'new-file',
-                label: 'New file',
-                onPress: () =>
-                  setAction({ kind: 'create', entryKind: 'file', folder: '' }),
-              },
-              {
-                id: 'new-folder',
-                label: 'New folder',
-                onPress: () =>
-                  setAction({
-                    kind: 'create',
-                    entryKind: 'directory',
-                    folder: '',
-                  }),
-              },
-            ]}
+      <Box className="flex-row items-center" gap={2}>
+        <Box className="min-w-0 flex-1">
+          <Input
+            accessibilityLabel="Search files"
+            placeholder="Search files"
+            value={query}
+            onChangeText={setQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
           />
         </Box>
-      ) : (
+        {embedded ? (
+          <CreateMenu
+            onFile={() =>
+              setAction({ kind: 'create', entryKind: 'file', folder: '' })
+            }
+            onFolder={() =>
+              setAction({
+                kind: 'create',
+                entryKind: 'directory',
+                folder: '',
+              })
+            }
+          />
+        ) : null}
+      </Box>
+      {!embedded ? (
         <Text variant="caption" tone="muted">
           {selected.project.name} · {worktreeLabel(selected.worktree.branch)}
         </Text>
-      )}
+      ) : null}
       {failure ? (
         <ErrorState
           message={fileErrorMessage(Cause.squash(failure.cause))}
