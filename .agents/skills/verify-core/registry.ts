@@ -61,7 +61,7 @@ export type Instance<Detail> = Omit<typeof instanceSchema.Type, 'detail'> & {
 export type Surface<Detail> = {
   name: 'server' | 'web' | 'desktop' | 'mobile';
   cli: string;
-  detail: Schema.Codec<Detail>;
+  detail: Schema.Decoder<Detail>;
   inputs: BuildInputs;
   format: EvidenceFormat;
   connection?: (instance: Instance<Detail>) => Connection | Promise<Connection>;
