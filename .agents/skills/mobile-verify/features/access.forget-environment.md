@@ -20,7 +20,7 @@ Each environment row in Settings has a visible trash button labelled “Forget e
 ## Driving it
 
 1. Select Settings and locate the full environment name from the card.
-2. Expect a refresh button labelled Check connection and a trash button labelled Forget environment beside the environment.
+2. Expect a status badge and a trash button labelled Forget environment beside the environment.
 3. Select Forget environment. Expect the row to disappear and No environments paired. if it was the last one.
 4. Cold-launch. Expect the forgotten environment and workspace selection to remain absent.
 5. With two disposable environments, forget one and expect the other to remain. The server retains its registered device; forgetting is a local action.

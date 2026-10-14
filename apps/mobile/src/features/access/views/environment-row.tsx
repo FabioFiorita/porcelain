@@ -21,7 +21,7 @@ export function EnvironmentRow({
   remote: Remote;
   disabled: boolean;
 }) {
-  const { status, read } = useEnvironmentStatus(remote);
+  const { status } = useEnvironmentStatus(remote);
   const command = useForgetEnvironment(remote);
   const note = remoteStatusNote(status);
   return (
@@ -34,12 +34,6 @@ export function EnvironmentRow({
       }
       trailing={
         <Box className="flex-row" gap={1}>
-          <IconButton
-            icon="refresh"
-            accessibilityLabel="Check connection"
-            pending={status.kind === 'checking'}
-            onPress={read}
-          />
           <IconButton
             icon="trash"
             variant="destructive"

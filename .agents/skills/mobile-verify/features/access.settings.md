@@ -14,7 +14,6 @@ selectors:
   - 'settings-appearance'
   - 'settings-environments'
   - 'settings-development'
-  - 'Check connection'
   - 'Forget environment'
 tests: []
 api:
@@ -40,7 +39,7 @@ On iPhone and Android, Settings groups Appearance and Environments in a bounded,
 1. Select the Settings tab or sidebar row, or open porcelain.dev://settings. On the first iPad visit, expect Settings categories and Appearance controls immediately; subsequent visits retain the category. Confirm the app sidebar did not change state, then select Environments. On iPhone and Android, expect the overview. Expect the card's paired environment marked Online and Add environment.
 2. On iPad select Appearance; on a phone select Theme, code and documents under Appearance. Follow preferences.appearance, then return to Environments on iPad or through native Back on a phone. Expect the same environments and Add environment.
 3. Select Add environment. On iPad expect an inline pairing card in Environments; on a phone expect the pairing sheet. Select Cancel and expect the same environment state. On a phone also reopen and dismiss the sheet; expect the same result.
-4. Expect each environment to show its status and visible Check connection (refresh) and Forget environment (trash) buttons. Follow access.environment-status for checking and access.forget-environment for the only paired fixture. Expect No environments paired, the pairing-link guidance and Add environment.
+4. Expect each environment to show its status and a visible Forget environment (trash) button. Follow access.environment-status for automatic recovery and access.forget-environment for the only paired fixture. Expect No environments paired, the pairing-link guidance and Add environment.
 5. On iPad, show the app sidebar and return to the worktree and its Review, Files and History inspector modes; on a phone use the tabs. Reopen Settings and expect the same environment state. On iPad, the Settings content stays in a readable column and does not draw underneath the sidebar; in a narrow window its categories sit above the detail. On a phone, the section action and text fit or wrap without clipping.
 6. Reading saved environments… is transient. Read saved environments again requires a storage-error fixture; do not claim it from normal startup.
 
