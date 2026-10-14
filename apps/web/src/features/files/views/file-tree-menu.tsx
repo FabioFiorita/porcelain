@@ -85,7 +85,7 @@ export function FileTreeMenu({
   const point = anchor.getBoundingClientRect();
   const [openingSide, setOpeningSide] = useState(false);
   return (
-    <DropdownMenu defaultOpen>
+    <DropdownMenu key={path} defaultOpen>
       <DropdownMenuTrigger
         aria-label={`${path} actions`}
         className="fixed size-px"
