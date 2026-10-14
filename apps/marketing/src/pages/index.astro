@@ -1,0 +1,1037 @@
+---
+import Site from '../layouts/site.astro';
+import Command from '../components/command.astro';
+import ComingSoon from '../components/coming-soon.astro';
+import GithubMark from '../components/github-mark.astro';
+import walkthrough from '../../../../docs/readme/walkthrough.png';
+import comments from '../../../../docs/readme/comments.png';
+import proof from '../../../../docs/readme/proof.png';
+import icon from '../../../../apps/web/public/icon-512.png';
+
+const description =
+  'A diff does not tell you what changed. The agent that wrote it can. In Porcelain, it walks you through each decision, and you comment back before you keep the change.';
+const serve = 'npx @fabiofiorita/porcelain@latest serve';
+const github = 'https://github.com/FabioFiorita/porcelain';
+
+const headline = [
+  { words: ['Agents', 'write', 'the', 'code.'], tone: 'text-muted-foreground' },
+  { words: ['This', 'is', 'where', 'you', 'read', 'it.'], tone: 'text-foreground' },
+];
+
+/* Points on the walkthrough picture, as fractions of its width and height. */
+const callouts = [
+  { n: 1, label: 'One stop per decision', side: 'left', y: 0.229, x: 0.198 },
+  { n: 2, label: 'The route through your code', side: 'left', y: 0.312, x: 0.198 },
+  { n: 3, label: 'Notes that lead to the files', side: 'right', y: 0.448, x: 0.755 },
+  { n: 4, label: 'The diff, in the same view', side: 'right', y: 0.79, x: 0.766 },
+] as const;
+
+const shots = [
+  { image: walkthrough, alt: 'A decision in a published review, with its route through the code and a diff' },
+  { image: comments, alt: 'A reviewer asks about a file and the agent replies in the same thread' },
+  { image: proof, alt: 'Proof with passing checks, a web and an iPhone screenshot, beside the readiness of the review' },
+] as const;
+
+/* Each stop of the tour frames one region of one picture: [left, top, right, bottom]. */
+const stops = [
+  {
+    id: 'walkthrough',
+    shot: 0,
+    region: [0.2, 0.18, 0.7, 0.37],
+    title: 'One stop for each decision',
+    body: 'The agent publishes a briefing, then a stop for every decision it made. Each stop says what it decided and the route it took through your code.',
+  },
+  {
+    id: 'notes',
+    shot: 0,
+    region: [0.2, 0.375, 0.76, 0.685],
+    title: 'Notes lead you to the files',
+    body: 'Numbered notes point at the files that carry the decision, in the order to read them, and say which layer each one touches.',
+  },
+  {
+    id: 'diff',
+    shot: 0,
+    region: [0.195, 0.712, 0.767, 1],
+    title: 'The diff stays in the same view',
+    body: 'You read the explanation and the change together. Mark a file reviewed when you are done with it, and the review keeps count.',
+  },
+  {
+    id: 'comments',
+    shot: 1,
+    region: [0.226, 0.205, 0.762, 0.46],
+    title: 'Comment back on the code',
+    body: 'Ask on a file or a line. Any agent that speaks MCP answers in the same thread, and the conversation stays with the change.',
+  },
+  {
+    id: 'readiness',
+    shot: 2,
+    region: [0.776, 0.13, 0.99, 0.69],
+    title: 'See what is left',
+    body: 'Readiness counts what still needs you: files to read, lines the agent never explained, comments waiting on you or on the agent.',
+  },
+  {
+    id: 'proof',
+    shot: 2,
+    region: [0.2, 0.52, 0.745, 0.92],
+    title: 'Proof you can look at',
+    body: 'The checks the agent ran and the screenshots it took, on the web and on a phone, live in the review next to the code.',
+  },
+  {
+    id: 'stale',
+    shot: 2,
+    region: [0.2, 0.1, 0.745, 0.52],
+    title: 'And when it went stale',
+    body: 'When the code changes after the checks ran, Porcelain says so, and asks the agent to run them again.',
+  },
+] as const;
+
+/* On a phone each stop shows only its region of the picture, cropped to the same frame the desktop camera finds. */
+const crop = (shot: number, [left, top, right, bottom]: readonly [number, number, number, number]) => {
+  const { width, height } = shots[shot]!.image;
+  const regionWidth = right - left;
+  const regionHeight = bottom - top;
+  return {
+    frame: `aspect-ratio: ${(regionWidth * width) / (regionHeight * height)}`,
+    image: `width: ${100 / regionWidth}%; left: ${(-left / regionWidth) * 100}%; top: ${(-top / regionHeight) * 100}%`,
+  };
+};
+
+const problems = [
+  {
+    title: 'A diff has no order',
+    body: 'Files arrive by name. A test weighs as much as the decision it proves, and the change you needed to see is the one you skim.',
+  },
+  {
+    title: 'Editors are built for typing',
+    body: 'You read code now more than you write it. An editor full of extensions and autocomplete is heavy for that, and it was never made to review.',
+  },
+  {
+    title: 'The conversation is somewhere else',
+    body: 'Your question lands in a chat window, far from the line that raised it. The answer comes back without the code you were looking at.',
+  },
+] as const;
+
+/* The last fourteen of the fifty-five files, by name. The decision is the eighth of them. */
+const changedFiles = [
+  'packages/client/src/request.ts',
+  'packages/client/src/revoke-access.ts',
+  'packages/client/src/session.ts',
+  'packages/workspace/src/actor.ts',
+  'packages/workspace/src/journal.ts',
+  'packages/workspace/src/policy.ts',
+  'packages/workspace/src/revoke-access.ts',
+  'packages/workspace/src/sessions.ts',
+  'scripts/seed-devices.ts',
+  'tests/fixtures/devices.json',
+  'tests/journal.spec.ts',
+  'tests/policy.spec.ts',
+  'tests/revoke-access.spec.ts',
+  'tests/sessions.spec.ts',
+] as const;
+const decisionFile = 'packages/workspace/src/sessions.ts';
+const filesAbove = 55 - changedFiles.length;
+
+const treeRows = [
+  { name: 'apps', kind: 'folder', depth: 0 },
+  { name: 'server', kind: 'folder', depth: 1 },
+  { name: 'revoke-access.ts', kind: 'file', depth: 2, role: 'pin' },
+  { name: 'routes.ts', kind: 'file', depth: 2 },
+  { name: 'web', kind: 'folder', depth: 1 },
+  { name: 'fixtures', kind: 'folder', depth: 0, role: 'hide' },
+  { name: 'packages', kind: 'folder', depth: 0 },
+  { name: 'README.md', kind: 'file', depth: 0 },
+] as const;
+---
+
+<Site description={description}>
+  <main id="top" class="overflow-x-clip">
+    <!-- Hero -->
+    <section class="relative isolate">
+      <div
+        class="pointer-events-none absolute inset-0 -z-10 [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,black,transparent)]"
+        aria-hidden="true"
+      >
+        <div
+          class="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:64px_64px] opacity-70"
+        >
+        </div>
+        <div data-glow class="absolute top-[-12rem] left-[12%] size-[38rem] rounded-full bg-graph-1/20 blur-[120px]"></div>
+        <div data-glow class="absolute top-[-6rem] right-[8%] size-[30rem] rounded-full bg-graph-3/15 blur-[120px]"></div>
+      </div>
+
+      <div class="mx-auto max-w-[1440px] px-5 pt-14 lg:px-10 lg:pt-24">
+        <a
+          href={github}
+          data-reveal
+          class="group inline-flex items-center gap-2 rounded-full border border-border bg-background/70 py-1 pr-3 pl-1 text-sm text-muted-foreground no-underline backdrop-blur transition-colors hover:text-foreground"
+        >
+          <span class="rounded-full bg-foreground px-2 py-0.5 text-xs font-medium whitespace-nowrap text-background">Open source</span>
+          Works with any agent that speaks MCP
+          <span class="transition-transform group-hover:translate-x-0.5" aria-hidden="true">→</span>
+        </a>
+
+        <h1
+          class="mt-7 max-w-[16ch] text-[clamp(3rem,7.4vw,7.25rem)] leading-[0.92] font-semibold tracking-[-0.055em] lg:max-w-none"
+        >
+          {
+            headline.map((line) => (
+              <span class:list={['block', line.tone]}>
+                {line.words.map((word) => (
+                  <>
+                    <span data-word class="inline-block">
+                      {word}
+                    </span>{' '}
+                  </>
+                ))}
+              </span>
+            ))
+          }
+        </h1>
+
+        <div class="mt-9 grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,42rem)_auto] lg:items-end lg:justify-between">
+          <p data-reveal class="text-lg leading-relaxed text-muted-foreground lg:text-xl lg:leading-relaxed">
+            A diff does not tell you what changed. The agent that wrote it can. In Porcelain, it walks you through each
+            decision, and you comment back before you keep the change.
+          </p>
+
+          <div data-reveal class="flex min-w-0 flex-col items-start gap-4 lg:items-end">
+            <div class="flex max-w-full flex-wrap items-center gap-3">
+              <a
+                class="inline-flex h-11 items-center gap-2 rounded-full bg-foreground px-5 text-sm font-medium text-background no-underline transition-transform hover:scale-[1.03] active:scale-[0.98]"
+                href="/install"
+              >
+                Download
+                <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M12 4v12m0 0-5-5m5 5 5-5M5 20h14"></path>
+                </svg>
+              </a>
+              <Command command={serve} />
+            </div>
+            <p class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+              <span>Mac app</span>
+              <span class="text-border" aria-hidden="true">/</span>
+              <span>Browser</span>
+              <span class="text-border" aria-hidden="true">/</span>
+              <span class="inline-flex items-center gap-2">Mobile app <ComingSoon /></span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="mx-auto mt-16 max-w-[1440px] px-5 lg:mt-20 lg:px-10">
+        <div data-hero-frame class="relative [perspective:2000px]">
+          <div data-hero-tilt class="relative origin-top">
+            <div
+              class="pointer-events-none absolute inset-x-[8%] -top-10 -z-10 h-2/3 rounded-full bg-graph-1/25 blur-[100px]"
+              aria-hidden="true"
+            >
+            </div>
+            <div class="rounded-[1.4rem] bg-muted/80 p-1.5 shadow-[inset_0_0_0_1px_var(--border),0_40px_120px_-40px_rgb(0_0_0/0.35)] backdrop-blur lg:p-2">
+              <div class="relative overflow-hidden rounded-2xl shadow-[0_0_0_1px_var(--border)]">
+                <img
+                  class="block w-full"
+                  src={walkthrough.src}
+                  width={walkthrough.width}
+                  height={walkthrough.height}
+                  alt={shots[0].alt}
+                  fetchpriority="high"
+                />
+                {
+                  callouts.map((callout) => (
+                    <div
+                      data-callout
+                      class="absolute hidden -translate-y-1/2 items-center xl:flex"
+                      style={
+                        callout.side === 'left'
+                          ? `left: 1.4%; right: ${100 - callout.x * 100}%; top: ${callout.y * 100}%`
+                          : `left: ${callout.x * 100}%; right: 1.4%; top: ${callout.y * 100}%`
+                      }
+                    >
+                      {callout.side === 'right' && (
+                        <span data-callout-line class="h-px flex-1 origin-left bg-graph-1/70" />
+                      )}
+                      <span class="inline-flex shrink-0 items-center gap-2 rounded-full bg-popover py-1 pr-3 pl-1 text-[0.8rem] font-medium whitespace-nowrap text-popover-foreground shadow-[0_0_0_1px_var(--border),0_8px_24px_-8px_rgb(0_0_0/0.25)]">
+                        <span class="inline-flex size-5 items-center justify-center rounded-full bg-graph-1/15 text-[0.7rem] font-semibold text-graph-1">
+                          {callout.n}
+                        </span>
+                        {callout.label}
+                      </span>
+                      {callout.side === 'left' && (
+                        <span data-callout-line class="h-px flex-1 origin-right bg-graph-1/70" />
+                      )}
+                      <span
+                        class:list={[
+                          'absolute size-2.5 rounded-full bg-graph-1 ring-4 ring-graph-1/20',
+                          callout.side === 'left' ? '-right-1' : '-left-1',
+                        ]}
+                      />
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- The problem -->
+    <section class="mx-auto max-w-[1440px] px-5 pt-32 lg:px-10 lg:pt-48">
+      <div class="grid grid-cols-1 gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,34rem)] lg:gap-20">
+        <div>
+          <p data-reveal class="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">Why it exists</p>
+          <h2
+            data-reveal
+            class="mt-5 text-[clamp(2.4rem,4.6vw,4.5rem)] leading-[0.98] font-semibold tracking-[-0.05em]"
+          >
+            Fifty-five files, sorted by name.{' '}
+            <span class="text-muted-foreground">The one that matters is near the bottom.</span>
+          </h2>
+          <p data-reveal class="mt-7 max-w-xl text-lg leading-relaxed text-muted-foreground">
+            An agent can change more code in ten minutes than you can read in an hour. The review tools you have list it
+            alphabetically, and your attention runs out before the decision does.
+          </p>
+        </div>
+
+        <div data-reveal data-diff-list class="relative self-center rounded-2xl border border-border bg-card p-2 shadow-[0_30px_80px_-50px_rgb(0_0_0/0.35)]">
+          <div class="flex items-center justify-between px-3 pt-2 pb-3 text-xs text-muted-foreground">
+            <span class="font-mono">55 changed files · by name</span>
+            <span class="flex items-center gap-2">
+              Attention
+              <span class="relative h-1.5 w-20 overflow-hidden rounded-full bg-muted">
+                <span data-attention class="absolute inset-y-0 left-0 w-[30%] rounded-full bg-graph-4"></span>
+              </span>
+            </span>
+          </div>
+          <div class="px-3 pb-1 font-mono text-xs text-muted-foreground/70">+ {filesAbove} files above</div>
+          <ol class="relative font-mono text-[0.78rem]">
+            <span data-scan class="absolute inset-x-0 top-0 h-8 rounded-lg bg-accent" aria-hidden="true"></span>
+            {
+              changedFiles.map((file, index) => (
+                <li
+                  data-diff-row={file === decisionFile ? 'decision' : ''}
+                  class:list={[
+                    'relative flex h-8 items-center gap-3 rounded-lg px-3',
+                    file === decisionFile && 'text-foreground',
+                  ]}
+                >
+                  <span class="w-5 text-right text-muted-foreground/60">{filesAbove + index + 1}</span>
+                  <span class="truncate">{file}</span>
+                  {file === decisionFile && (
+                    <span
+                      data-matters
+                      class="ml-auto shrink-0 rounded-full bg-graph-4/15 px-2 py-0.5 font-sans text-[0.7rem] font-medium text-graph-4"
+                    >
+                      The decision
+                    </span>
+                  )}
+                </li>
+              ))
+            }
+          </ol>
+        </div>
+      </div>
+
+      <div class="mt-24 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-border bg-border md:grid-cols-3">
+        {
+          problems.map((problem, index) => (
+            <div data-reveal class="bg-background p-8 lg:p-10">
+              <span class="font-mono text-xs text-muted-foreground">0{index + 1}</span>
+              <h3 class="mt-6 text-xl font-semibold tracking-[-0.03em]">{problem.title}</h3>
+              <p class="mt-3 leading-relaxed text-muted-foreground">{problem.body}</p>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+
+    <!-- Beside the agent -->
+    <section class="mx-auto max-w-[1440px] px-5 pt-32 lg:px-10 lg:pt-44">
+      <div class="max-w-3xl">
+        <p data-reveal class="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">How it fits</p>
+        <h2 data-reveal class="mt-5 text-[clamp(2.4rem,4.6vw,4.5rem)] leading-[0.98] font-semibold tracking-[-0.05em]">
+          It sits beside your agent.{' '}
+          <span class="text-muted-foreground">It does not replace it.</span>
+        </h2>
+        <p data-reveal class="mt-7 max-w-xl text-lg leading-relaxed text-muted-foreground">
+          Keep the agent in the terminal, desktop app or editor you already like. It publishes a walkthrough to Porcelain
+          over MCP. You read it, reply on the code, and the agent reads your reply where it is working.
+        </p>
+      </div>
+
+      <div data-reveal class="mt-16 grid grid-cols-1 items-center gap-6 lg:grid-cols-[1fr_minmax(6rem,1fr)_1.15fr_minmax(6rem,1fr)_1fr] lg:gap-0">
+        <div class="rounded-2xl border border-border bg-card p-6">
+          <div class="flex size-10 items-center justify-center rounded-xl bg-muted font-mono text-sm">&gt;_</div>
+          <p class="mt-5 font-semibold tracking-[-0.02em]">Your agent</p>
+          <p class="mt-1 text-sm text-muted-foreground">In the app you already run it in.</p>
+        </div>
+        <div class="relative hidden h-20 lg:block" aria-hidden="true">
+          <div class="absolute inset-x-3 top-[34%] h-px bg-border"></div>
+          <div class="absolute inset-x-3 top-[66%] h-px bg-border"></div>
+          <span data-packet="right" class="absolute top-[34%] right-5 left-3 h-0"><span class="absolute left-0 size-2 -translate-y-1/2 rounded-full bg-graph-1 shadow-[0_0_12px_var(--graph-1)]"></span></span>
+          <span data-packet="left" class="absolute top-[66%] right-5 left-3 h-0"><span class="absolute left-0 size-2 -translate-y-1/2 rounded-full bg-graph-2 shadow-[0_0_12px_var(--graph-2)]"></span></span>
+          <span class="absolute top-0 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] text-muted-foreground">walkthrough</span>
+          <span class="absolute bottom-0 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] text-muted-foreground">reply</span>
+        </div>
+        <div class="relative rounded-2xl bg-foreground p-7 text-background shadow-[0_30px_80px_-30px_rgb(0_0_0/0.5)]">
+          <span class="absolute top-6 right-6 rounded-full border border-background/20 px-2 py-0.5 font-mono text-[0.68rem] text-background/70">MCP</span>
+          <img src="/apple-touch-icon.png" alt="" width="40" height="40" class="size-10 rounded-xl" />
+          <p class="mt-5 text-lg font-semibold tracking-[-0.02em]">Porcelain</p>
+          <p class="mt-1 text-sm text-background/65">On the machine that holds the repository.</p>
+        </div>
+        <div class="relative hidden h-20 lg:block" aria-hidden="true">
+          <div class="absolute inset-x-3 top-[34%] h-px bg-border"></div>
+          <div class="absolute inset-x-3 top-[66%] h-px bg-border"></div>
+          <span data-packet="right" class="absolute top-[34%] right-5 left-3 h-0"><span class="absolute left-0 size-2 -translate-y-1/2 rounded-full bg-graph-1 shadow-[0_0_12px_var(--graph-1)]"></span></span>
+          <span data-packet="left" class="absolute top-[66%] right-5 left-3 h-0"><span class="absolute left-0 size-2 -translate-y-1/2 rounded-full bg-graph-2 shadow-[0_0_12px_var(--graph-2)]"></span></span>
+          <span class="absolute top-0 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] text-muted-foreground">review</span>
+          <span class="absolute bottom-0 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] text-muted-foreground">comment</span>
+        </div>
+        <div class="rounded-2xl border border-border bg-card p-6">
+          <div class="flex size-10 items-center justify-center rounded-xl bg-muted">
+            <svg viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+              <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </div>
+          <p class="mt-5 font-semibold tracking-[-0.02em]">You</p>
+          <p class="mt-1 text-sm text-muted-foreground">In a browser, the Mac app, and soon your phone.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- The tour -->
+    <section class="mx-auto max-w-[1440px] px-5 pt-32 lg:px-10 lg:pt-44">
+      <div class="max-w-3xl">
+        <p data-reveal class="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">The walkthrough</p>
+        <h2 data-reveal class="mt-5 text-[clamp(2.4rem,4.6vw,4.5rem)] leading-[0.98] font-semibold tracking-[-0.05em]">
+          A review that reads in order.
+        </h2>
+        <p data-reveal class="mt-7 max-w-xl text-lg leading-relaxed text-muted-foreground">
+          The agent explains the change one decision at a time, the way it would if it sat next to you. Scroll through
+          one.
+        </p>
+      </div>
+
+      <div data-tour class="relative mt-16 grid grid-cols-1 gap-10 lg:mt-8 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:gap-20">
+        <ol class="relative">
+          <span class="absolute top-0 bottom-0 left-[0.9375rem] hidden w-px bg-border lg:block" aria-hidden="true">
+            <span data-tour-progress class="absolute inset-x-0 top-0 h-full origin-top bg-foreground"></span>
+          </span>
+          {
+            stops.map((stop, index) => (
+              <li
+                id={stop.id}
+                data-stop={index}
+                class="relative flex scroll-mt-24 flex-col justify-center gap-5 py-6 lg:min-h-[78svh] lg:py-0"
+              >
+                <div data-stop-copy class="flex gap-5 transition-opacity duration-500 lg:opacity-30">
+                  <span class="relative z-10 inline-flex size-[1.875rem] shrink-0 items-center justify-center rounded-full bg-background text-xs font-semibold shadow-[inset_0_0_0_1px_var(--border)]">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <h3 class="text-2xl font-semibold tracking-[-0.035em]">{stop.title}</h3>
+                    <p class="mt-3 leading-relaxed text-muted-foreground">{stop.body}</p>
+                  </div>
+                </div>
+                <div
+                  class="relative overflow-hidden rounded-xl bg-card shadow-[0_0_0_1px_var(--border)] lg:hidden"
+                  style={crop(stop.shot, stop.region).frame}
+                >
+                  <img
+                    class="absolute block max-w-none"
+                    style={crop(stop.shot, stop.region).image}
+                    src={shots[stop.shot].image.src}
+                    width={shots[stop.shot].image.width}
+                    height={shots[stop.shot].image.height}
+                    alt={shots[stop.shot].alt}
+                    loading="lazy"
+                  />
+                </div>
+              </li>
+            ))
+          }
+        </ol>
+
+        <div class="hidden lg:block">
+          <div class="sticky top-0 flex h-svh items-center pt-16">
+            <div class="w-full">
+            <div class="rounded-[1.4rem] bg-muted/80 p-2 shadow-[inset_0_0_0_1px_var(--border),0_40px_120px_-50px_rgb(0_0_0/0.35)]">
+              <div class="relative aspect-[1.44] overflow-hidden rounded-2xl bg-card shadow-[0_0_0_1px_var(--border)]">
+                {
+                  shots.map((shot, index) => (
+                    <div data-camera={index} class="absolute inset-0 origin-top-left" style={index === 0 ? '' : 'opacity: 0'}>
+                      <img
+                        class="block size-full"
+                        src={shot.image.src}
+                        width={shot.image.width}
+                        height={shot.image.height}
+                        alt={shot.alt}
+                        loading="lazy"
+                      />
+                    </div>
+                  ))
+                }
+                <div
+                  data-spotlight
+                  class="pointer-events-none absolute rounded-xl opacity-0 shadow-[0_0_0_2px_var(--graph-1),0_0_0_9999px_rgb(10_10_10/0.14)]"
+                  aria-hidden="true"
+                >
+                </div>
+                <span
+                  data-spotlight-label
+                  class="absolute top-4 left-4 inline-flex items-center gap-2 rounded-full bg-popover py-1 pr-3 pl-1 text-[0.8rem] font-medium text-popover-foreground opacity-0 shadow-[0_0_0_1px_var(--border),0_8px_24px_-8px_rgb(0_0_0/0.25)]"
+                >
+                  <span data-spotlight-number class="inline-flex size-5 items-center justify-center rounded-full bg-graph-1/15 text-[0.7rem] font-semibold text-graph-1">1</span>
+                  <span data-spotlight-title>{stops[0].title}</span>
+                </span>
+              </div>
+            </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <script type="application/json" id="tour-stops" set:html={JSON.stringify(stops.map(({ shot, region, title }) => ({ shot, region, title })))} />
+    </section>
+
+    <!-- Around the review -->
+    <section class="mx-auto max-w-[1440px] px-5 pt-32 lg:px-10 lg:pt-44">
+      <div class="max-w-3xl">
+        <p data-reveal class="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">Around the review</p>
+        <h2 data-reveal class="mt-5 text-[clamp(2.4rem,4.6vw,4.5rem)] leading-[0.98] font-semibold tracking-[-0.05em]">
+          Made for repositories too big to scroll.
+        </h2>
+        <p data-reveal class="mt-7 max-w-xl text-lg leading-relaxed text-muted-foreground">
+          The parts of an editor and a Git client you still reach for, and nothing you stopped using.
+        </p>
+      </div>
+
+      <div class="mt-16 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <!-- History -->
+        <article
+          id="history"
+          data-reveal
+          class="scroll-mt-24 overflow-hidden rounded-3xl border border-border bg-card p-8 lg:col-span-2 lg:p-10"
+        >
+          <div class="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] lg:items-center">
+            <div>
+              <h3 class="text-2xl font-semibold tracking-[-0.035em]">History, drawn as lanes.</h3>
+              <p class="mt-3 leading-relaxed text-muted-foreground">
+                The commit graph of the repository and a timeline for each file. Commit, pull and push from the same
+                place.
+              </p>
+            </div>
+            <svg data-graph viewBox="0 0 520 220" class="w-full" fill="none" aria-hidden="true">
+              <path data-lane d="M20 110 H500" stroke="var(--graph-1)" stroke-width="3" stroke-linecap="round"></path>
+              <path data-lane d="M70 110 C110 110 110 52 150 52 H290 C330 52 330 110 370 110" stroke="var(--graph-3)" stroke-width="3" stroke-linecap="round"></path>
+              <path data-lane d="M200 110 C240 110 240 168 280 168 H400 C440 168 440 110 480 110" stroke="var(--graph-2)" stroke-width="3" stroke-linecap="round"></path>
+              {
+                [
+                  [20, 110, 'graph-1'],
+                  [110, 110, 'graph-1'],
+                  [180, 52, 'graph-3'],
+                  [240, 52, 'graph-3'],
+                  [300, 110, 'graph-1'],
+                  [310, 168, 'graph-2'],
+                  [370, 110, 'graph-1'],
+                  [360, 168, 'graph-2'],
+                  [480, 110, 'graph-1'],
+                ].map(([cx, cy, color]) => (
+                  <circle data-commit cx={cx} cy={cy} r="7" fill="var(--card)" stroke={`var(--${color})`} stroke-width="3" />
+                ))
+              }
+              <text x="150" y="30" class="fill-muted-foreground font-mono text-[11px]">feat/revoke-access</text>
+              <text x="270" y="200" class="fill-muted-foreground font-mono text-[11px]">fix/journal-order</text>
+              <text x="440" y="90" class="fill-muted-foreground font-mono text-[11px]">main</text>
+            </svg>
+          </div>
+        </article>
+
+        <!-- Files -->
+        <article
+          id="files"
+          data-reveal
+          class="scroll-mt-24 overflow-hidden rounded-3xl border border-border bg-card p-8 lg:row-span-2 lg:p-10"
+        >
+          <h3 class="text-2xl font-semibold tracking-[-0.035em]">Pin what you read. Hide what you never open.</h3>
+          <p class="mt-3 leading-relaxed text-muted-foreground">
+            Right-click a file to keep it at the top of the tree, or hide a folder you never touch. A giant monorepo stays
+            navigable.
+          </p>
+          <div data-tree class="relative mt-8 rounded-2xl border border-border bg-background p-2 font-mono text-[0.8rem]">
+            <div data-pinned class="overflow-hidden" style="height: 0">
+              <p class="px-2 pt-1 pb-1 font-sans text-[0.7rem] text-muted-foreground">Pinned</p>
+              <div data-pinned-row class="flex h-8 items-center gap-2 rounded-lg bg-accent px-2">
+                <svg viewBox="0 0 24 24" class="size-3.5 text-graph-1" fill="currentColor" aria-hidden="true">
+                  <path d="M16 3a1 1 0 0 1 .7 1.7L15 6.4l2.6 4.3 1.7-.6a1 1 0 0 1 1 1.7l-4.2 4.2 4.6 4.6a1 1 0 0 1-1.4 1.4l-4.6-4.6-4.2 4.2a1 1 0 0 1-1.7-1l.6-1.7-4.3-2.6-1.7 1.7A1 1 0 0 1 1.1 16L8 9.1 7.4 6.6 3.3 4.7A1 1 0 0 1 4 3Z" transform="scale(.9) translate(1.5 1.5)"></path>
+                </svg>
+                revoke-access.ts
+              </div>
+            </div>
+            <p class="px-2 pt-1 pb-1 font-sans text-[0.7rem] text-muted-foreground">All files</p>
+            <ul>
+              {
+                treeRows.map((row) => (
+                  <li
+                    data-tree-row={'role' in row ? row.role : undefined}
+                    class="flex h-8 items-center gap-2 overflow-hidden rounded-lg px-2"
+                    style={`padding-left: ${0.5 + row.depth * 1}rem`}
+                  >
+                    {row.kind === 'folder' ? (
+                      <svg viewBox="0 0 24 24" class="size-3.5 shrink-0 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="m9 6 6 6-6 6" />
+                      </svg>
+                    ) : (
+                      <span class="size-3.5 shrink-0" />
+                    )}
+                    {row.name}
+                  </li>
+                ))
+              }
+            </ul>
+            <div
+              data-menu
+              class="absolute right-4 z-10 w-44 rounded-xl bg-popover p-1 font-sans text-[0.8rem] text-popover-foreground opacity-0 shadow-[0_0_0_1px_var(--border),0_16px_40px_-12px_rgb(0_0_0/0.35)]"
+              style="top: 0"
+            >
+              <p data-menu-action class="rounded-lg bg-accent px-2.5 py-1.5">Pin file</p>
+              <p class="px-2.5 py-1.5 text-muted-foreground">Open to the side</p>
+              <p class="px-2.5 py-1.5 text-muted-foreground">Copy path</p>
+            </div>
+            <div class="flex items-center justify-end px-2 pt-2 pb-1">
+              <span data-hidden-chip class="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 font-sans text-[0.7rem] text-muted-foreground opacity-0">
+                <svg viewBox="0 0 24 24" class="size-3" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"></path>
+                </svg>
+                1 hidden
+              </span>
+            </div>
+          </div>
+        </article>
+
+        <!-- Remote -->
+        <article id="remote" data-reveal class="scroll-mt-24 overflow-hidden rounded-3xl border border-border bg-card p-8 lg:p-10">
+          <h3 class="text-2xl font-semibold tracking-[-0.035em]">Every machine, one place.</h3>
+          <p class="mt-3 leading-relaxed text-muted-foreground">
+            Run a server where each repository lives. One Porcelain reaches all of them, nearby or remote. The files stay
+            put.
+          </p>
+          <svg data-remote viewBox="0 0 320 120" class="mt-8 w-full" fill="none" aria-hidden="true">
+            <path data-wire d="M160 60 C110 60 100 22 46 22" stroke="var(--border)" stroke-width="2" stroke-dasharray="4 6"></path>
+            <path data-wire d="M160 60 C110 60 100 98 46 98" stroke="var(--border)" stroke-width="2" stroke-dasharray="4 6"></path>
+            <path data-wire d="M160 60 H274" stroke="var(--border)" stroke-width="2" stroke-dasharray="4 6"></path>
+            <rect x="136" y="38" width="48" height="44" rx="12" fill="var(--foreground)"></rect>
+            <text x="160" y="65" text-anchor="middle" class="fill-background font-mono text-[11px]">app</text>
+            <rect x="6" y="8" width="64" height="28" rx="8" fill="var(--background)" stroke="var(--border)"></rect>
+            <text x="38" y="26" text-anchor="middle" class="fill-foreground font-mono text-[10px]">linux</text>
+            <rect x="6" y="84" width="64" height="28" rx="8" fill="var(--background)" stroke="var(--border)"></rect>
+            <text x="38" y="102" text-anchor="middle" class="fill-foreground font-mono text-[10px]">mac</text>
+            <rect x="262" y="46" width="52" height="28" rx="8" fill="var(--background)" stroke="var(--border)"></rect>
+            <text x="288" y="64" text-anchor="middle" class="fill-foreground font-mono text-[10px]">remote</text>
+          </svg>
+        </article>
+
+        <!-- Mobile -->
+        <article data-reveal class="relative overflow-hidden rounded-3xl border border-border bg-card p-8 lg:p-10">
+          <div class="flex items-center gap-3">
+            <h3 class="text-2xl font-semibold tracking-[-0.035em]">iPhone and iPad.</h3>
+            <ComingSoon />
+          </div>
+          <p class="mt-3 leading-relaxed text-muted-foreground">
+            Review without sitting at a desk. The mobile app reaches the same machines, with native navigation and the
+            Porcelain you know.
+          </p>
+          <div class="mt-8 flex items-end gap-4" aria-hidden="true">
+            <div class="h-28 w-16 rounded-[14px] border-2 border-border bg-background p-1.5">
+              <div data-shimmer class="h-full rounded-[9px] bg-[linear-gradient(110deg,var(--muted)_35%,var(--accent)_50%,var(--muted)_65%)] bg-[length:250%_100%]"></div>
+            </div>
+            <div class="h-28 w-40 rounded-[14px] border-2 border-border bg-background p-1.5">
+              <div data-shimmer class="h-full rounded-[9px] bg-[linear-gradient(110deg,var(--muted)_35%,var(--accent)_50%,var(--muted)_65%)] bg-[length:250%_100%]"></div>
+            </div>
+          </div>
+        </article>
+
+        <!-- Privacy -->
+        <article data-reveal class="rounded-3xl border border-border bg-card p-8 lg:p-10">
+          <h3 class="text-2xl font-semibold tracking-[-0.035em]">Your code stays on your machines.</h3>
+          <ul class="mt-6 space-y-3 text-muted-foreground">
+            {
+              ['No account to create', 'No analytics on the app or this site', 'No code, review or comment sent to us'].map((line) => (
+                <li class="flex items-center gap-3">
+                  <svg viewBox="0 0 24 24" class="size-4 shrink-0 text-graph-2" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+                    <path d="m5 12.5 4.5 4.5L19 7.5" />
+                  </svg>
+                  {line}
+                </li>
+              ))
+            }
+          </ul>
+          <a class="mt-6 inline-block text-sm text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground" href="/privacy">
+            Read the privacy policy
+          </a>
+        </article>
+
+        <!-- Open source -->
+        <article data-reveal class="relative overflow-hidden rounded-3xl bg-foreground p-8 text-background lg:col-span-2 lg:p-10">
+          <span
+            class="pointer-events-none absolute -right-6 -bottom-16 text-[13rem] leading-none font-semibold tracking-[-0.08em] text-background/[0.07] select-none"
+            aria-hidden="true"
+          >
+            MIT
+          </span>
+          <h3 class="text-2xl font-semibold tracking-[-0.035em]">Open source, all of it.</h3>
+          <p class="mt-3 max-w-md leading-relaxed text-background/65">
+            The server, the apps and the MCP tools are on GitHub under the MIT license. If you would rather not trust us,
+            read the source.
+          </p>
+          <a
+            class="mt-8 inline-flex h-11 items-center gap-2 rounded-full bg-background px-5 text-sm font-medium text-foreground no-underline transition-transform hover:scale-[1.03]"
+            href={github}
+          >
+            <GithubMark />
+            Read the source
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <!-- Start -->
+    <section class="mx-auto max-w-[1440px] px-5 pt-32 pb-24 lg:px-10 lg:pt-44 lg:pb-32">
+      <div
+        data-reveal
+        class="relative isolate overflow-hidden rounded-[2rem] bg-foreground px-8 py-16 text-background lg:px-16 lg:py-24"
+      >
+        <div
+          class="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_right,color-mix(in_oklab,var(--background)_9%,transparent)_1px,transparent_1px),linear-gradient(to_bottom,color-mix(in_oklab,var(--background)_9%,transparent)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:radial-gradient(ellipse_60%_80%_at_100%_0%,black,transparent)]"
+          aria-hidden="true"
+        >
+        </div>
+        <div data-glow class="pointer-events-none absolute -top-40 -right-20 -z-10 size-[30rem] rounded-full bg-graph-1/30 blur-[120px]" aria-hidden="true"></div>
+        <h2 class="max-w-[14ch] text-[clamp(2.6rem,5.6vw,5.5rem)] leading-[0.95] font-semibold tracking-[-0.055em]">
+          Read what your agents wrote.
+        </h2>
+        <p class="mt-6 max-w-lg text-lg leading-relaxed text-background/65">
+          Start the server on the machine that holds your repositories, or download the Mac app.
+        </p>
+        <div class="mt-10 flex flex-wrap items-center gap-3">
+          <a
+            class="inline-flex h-11 items-center gap-2 rounded-full bg-background px-5 text-sm font-medium text-foreground no-underline transition-transform hover:scale-[1.03] active:scale-[0.98]"
+            href="/install"
+          >
+            Download
+          </a>
+          <Command command={serve} tone="inverse" />
+        </div>
+        <p class="mt-6 text-sm text-background/55">Mac app on Apple silicon. Server on Linux or Mac.</p>
+        <div class="pointer-events-none absolute top-1/2 right-[8%] hidden -translate-y-1/2 lg:block" aria-hidden="true">
+          <div class="absolute inset-6 rounded-[3rem] bg-graph-1/50 blur-[70px]"></div>
+          <img data-float src={icon.src} width={icon.width} height={icon.height} alt="" class="relative size-64 rounded-[3.5rem] shadow-[0_40px_80px_-20px_rgb(0_0_0/0.6)] xl:size-80" />
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    import { animate, inView, scroll, stagger } from 'motion';
+
+    type Region = readonly [number, number, number, number];
+    interface Stop {
+      readonly shot: number;
+      readonly region: Region;
+      readonly title: string;
+    }
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const spring = { type: 'spring', stiffness: 120, damping: 22, mass: 0.9 } as const;
+    const all = <T extends Element = HTMLElement>(selector: string, root: ParentNode = document) =>
+      Array.from(root.querySelectorAll<T & Element>(selector)) as T[];
+    const one = <T extends Element = HTMLElement>(selector: string, root: ParentNode = document) =>
+      root.querySelector(selector) as T | null;
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    /* Runs a demo while its element is in view. Leaving ends that run, so coming back never stacks a second loop. */
+    function whileVisible(element: Element, amount: number, play: (live: () => boolean) => Promise<void>) {
+      let generation = 0;
+      inView(
+        element,
+        () => {
+          const run = ++generation;
+          void play(() => run === generation);
+          return () => {
+            generation += 1;
+          };
+        },
+        { amount },
+      );
+    }
+
+    /* The glows drift behind the hero and the closing panel. */
+    function drift() {
+      for (const [index, glow] of all('[data-glow]').entries()) {
+        animate(
+          glow,
+          { x: [0, index % 2 ? -60 : 70, 0], y: [0, index % 2 ? 40 : -30, 0], scale: [1, 1.12, 1] },
+          { duration: 14 + index * 3, repeat: Infinity, ease: 'easeInOut' },
+        );
+      }
+    }
+
+    /* The hero picture lies back and stands up as the page scrolls, then its numbered notes point at it. */
+    function stageHero() {
+      const frame = one('[data-hero-frame]');
+      const tilt = one('[data-hero-tilt]');
+      if (!frame || !tilt) return;
+
+      animate(frame, { opacity: [0, 1], y: [80, 0] }, { duration: 1.2, delay: 0.45, ease: [0.22, 1, 0.36, 1] });
+      scroll(animate(tilt, { rotateX: [24, 0], scale: [0.9, 1], y: [-30, 0] }, { ease: 'linear' }), {
+        target: frame,
+        offset: ['start end', 'start 0.18'],
+      });
+
+      const callouts = all('[data-callout]');
+      animate(callouts, { opacity: [0, 1], x: [-8, 0] }, { delay: stagger(0.18, { startDelay: 1.4 }), duration: 0.6 });
+      animate(
+        all('[data-callout-line]'),
+        { scaleX: [0, 1] },
+        { delay: stagger(0.18, { startDelay: 1.55 }), duration: 0.7, ease: [0.22, 1, 0.36, 1] },
+      );
+    }
+
+    /* An alphabetical diff: forty-one files in, attention drains row by row and runs out around the decision. */
+    function drainAttention() {
+      const list = one('[data-diff-list]');
+      const scan = one('[data-scan]');
+      const meter = one('[data-attention]');
+      const matters = one('[data-matters]');
+      const decision = one('[data-diff-row="decision"]');
+      if (!list || !scan || !meter || !matters || !decision) return;
+      const rows = all('[data-diff-row]', list);
+      const attention = (left: number) => ({
+        width: `${Math.max(left * 30, 3)}%`,
+        backgroundColor: left > 0.5 ? 'var(--graph-4)' : 'var(--destructive)',
+      });
+
+      whileVisible(list, 0.5, async (live) => {
+        while (live()) {
+          animate(rows, { opacity: 1, x: 0 }, { duration: 0.3 });
+          animate(matters, { opacity: 0 }, { duration: 0.2 });
+          animate(meter, attention(1), { duration: 0.4 });
+          await animate(scan, { y: 0, opacity: 1 }, { duration: 0.4 });
+          for (const [index, row] of rows.entries()) {
+            if (!live()) return;
+            animate(meter, attention(1 - (index + 1) / rows.length));
+            await animate(scan, { y: row.offsetTop }, { duration: 0.32, ease: 'easeInOut' });
+            if (row === decision) {
+              animate(matters, { opacity: [0, 1], scale: [0.8, 1] }, spring);
+              animate(row, { x: [0, -3, 3, -2, 0] }, { duration: 0.4 });
+            } else {
+              animate(row, { opacity: 0.35 }, { duration: 0.4 });
+            }
+          }
+          await wait(2600);
+        }
+      });
+    }
+
+    /* Packets travel between the agent, Porcelain, and you. */
+    function sendPackets() {
+      for (const [index, carrier] of all('[data-packet]').entries()) {
+        const toRight = carrier.dataset.packet === 'right';
+        animate(
+          carrier,
+          { x: toRight ? ['0%', '100%'] : ['100%', '0%'], opacity: [0, 1, 1, 0] },
+          { duration: 2.2, repeat: Infinity, ease: 'easeInOut', delay: index * 0.55, repeatDelay: 0.6 },
+        );
+      }
+    }
+
+    /* The tour holds the picture still and moves a camera across it, one stop at a time. */
+    function runTour() {
+      const tour = one('[data-tour]');
+      const data = one('#tour-stops');
+      const spotlight = one('[data-spotlight]');
+      const label = one('[data-spotlight-label]');
+      const number = one('[data-spotlight-number]');
+      const title = one('[data-spotlight-title]');
+      if (!tour || !data?.textContent || !spotlight || !label || !number || !title) return;
+      const stops = JSON.parse(data.textContent) as Stop[];
+      const cameras = all('[data-camera]', tour);
+      const copies = all('[data-stop-copy]', tour);
+      const desktop = window.matchMedia('(min-width: 64rem)');
+
+      const progress = one('[data-tour-progress]', tour);
+      if (progress) {
+        scroll(animate(progress, { scaleY: [0, 1] }, { ease: 'linear' }), {
+          target: tour,
+          offset: ['start 0.5', 'end 0.5'],
+        });
+      }
+
+      let current = -1;
+      const show = (index: number) => {
+        if (index === current || !desktop.matches) return;
+        current = index;
+        const stop = stops[index];
+        if (!stop) return;
+        const [left, top, right, bottom] = stop.region;
+        const width = right - left;
+        const height = bottom - top;
+        const zoom = Math.min(Math.max(Math.min(1 / width, 1 / height) / 1.12, 1), 2.4);
+        const centerX = left + width / 2;
+        const centerY = top + height / 2;
+        const x = Math.min(Math.max(0.5 - centerX * zoom, 1 - zoom), 0);
+        const y = Math.min(Math.max(0.5 - centerY * zoom, 1 - zoom), 0);
+        const options = reduced ? { duration: 0 } : spring;
+
+        for (const [shot, camera] of cameras.entries()) {
+          const active = shot === stop.shot;
+          animate(camera, { opacity: active ? 1 : 0 }, reduced ? { duration: 0 } : { duration: 0.45 });
+          if (active) animate(camera, { x: `${x * 100}%`, y: `${y * 100}%`, scale: zoom }, options);
+        }
+        animate(
+          spotlight,
+          {
+            left: `${(x + left * zoom) * 100}%`,
+            top: `${(y + top * zoom) * 100}%`,
+            width: `${width * zoom * 100}%`,
+            height: `${height * zoom * 100}%`,
+            opacity: 1,
+          },
+          options,
+        );
+        number.textContent = String(index + 1);
+        title.textContent = stop.title;
+        animate(label, { opacity: [0, 1], y: [-6, 0] }, reduced ? { duration: 0 } : { duration: 0.35 });
+        for (const [copyIndex, copy] of copies.entries()) copy.style.opacity = copyIndex === index ? '1' : '';
+      };
+
+      for (const element of all('[data-stop]', tour)) {
+        inView(
+          element,
+          () => {
+            show(Number(element.dataset.stop));
+            return () => {};
+          },
+          { margin: '-45% 0px -45% 0px' },
+        );
+      }
+    }
+
+    /* History draws its lanes, then drops each commit onto them. */
+    function drawHistory() {
+      const graph = one<SVGSVGElement>('[data-graph]');
+      if (!graph) return;
+      const lanes = all<SVGPathElement>('[data-lane]', graph);
+      const commits = all<SVGCircleElement>('[data-commit]', graph);
+      for (const lane of lanes) {
+        const length = lane.getTotalLength();
+        lane.style.strokeDasharray = `${length}`;
+        lane.style.strokeDashoffset = `${length}`;
+      }
+      for (const commit of commits) commit.style.opacity = '0';
+
+      inView(
+        graph,
+        () => {
+          animate(lanes, { strokeDashoffset: 0 }, { duration: 1.4, delay: stagger(0.35), ease: [0.65, 0, 0.35, 1] });
+          animate(
+            commits,
+            { opacity: [0, 1], scale: [0, 1] },
+            { ...spring, delay: stagger(0.12, { startDelay: 0.5 }) },
+          );
+        },
+        { amount: 0.5 },
+      );
+    }
+
+    /* Files: the context menu pins a file to the top, then hides a folder. */
+    function pinAndHide() {
+      const tree = one('[data-tree]');
+      if (!tree) return;
+      const pinned = one('[data-pinned]', tree);
+      const pinnedRow = one('[data-pinned-row]', tree);
+      const pinRow = one('[data-tree-row="pin"]', tree);
+      const hideRow = one('[data-tree-row="hide"]', tree);
+      const menu = one('[data-menu]', tree);
+      const action = one('[data-menu-action]', tree);
+      const chip = one('[data-hidden-chip]', tree);
+      if (!pinned || !pinnedRow || !pinRow || !hideRow || !menu || !action || !chip) return;
+
+      const rowHeight = 32;
+      const pinnedHeight = pinned.scrollHeight;
+      const instant = { duration: 0 };
+
+      const reset = () => {
+        animate(menu, { opacity: 0 }, instant);
+        animate([pinned, chip], { opacity: 0 }, instant);
+        animate(pinned, { height: 0 }, instant);
+        animate(pinnedRow, { y: 0 }, instant);
+        animate([pinRow, hideRow], { height: rowHeight, opacity: 1, backgroundColor: 'rgba(0, 0, 0, 0)' }, instant);
+      };
+
+      const openMenu = async (row: HTMLElement, label: string) => {
+        action.textContent = label;
+        animate(row, { backgroundColor: 'var(--accent)' }, { duration: 0.2 });
+        menu.style.top = `${row.offsetTop + rowHeight - 4}px`;
+        await animate(menu, { opacity: [0, 1], scale: [0.94, 1], y: [-4, 0] }, { duration: 0.2 });
+        await wait(650);
+        await animate(action, { scale: [1, 0.96, 1] }, { duration: 0.18 });
+        await animate(menu, { opacity: 0, scale: 0.97 }, { duration: 0.15 });
+      };
+
+      whileVisible(tree, 0.6, async (live) => {
+        while (live()) {
+          reset();
+          animate(pinned, { opacity: 1 }, instant);
+          await wait(700);
+          if (!live()) return;
+          await openMenu(pinRow, 'Pin file');
+          if (!live()) return;
+          const travel = pinRow.offsetTop - pinnedRow.offsetTop;
+          animate(pinned, { height: [0, pinnedHeight] }, spring);
+          animate(pinRow, { height: 0, opacity: 0 }, spring);
+          await animate(pinnedRow, { y: [travel, 0], opacity: [0.4, 1] }, spring);
+          await wait(900);
+          if (!live()) return;
+          await openMenu(hideRow, 'Hide folder');
+          if (!live()) return;
+          animate(hideRow, { height: 0, opacity: 0 }, spring);
+          await animate(chip, { opacity: [0, 1], scale: [0.8, 1] }, spring);
+          await wait(2600);
+          if (!live()) return;
+          await animate([pinned, chip, pinRow, hideRow], { opacity: 0 }, { duration: 0.3 });
+        }
+      });
+    }
+
+    /* Remote: data runs along the wires to each machine. Mobile: a shimmer stands in for the app. */
+    function ambient() {
+      for (const [index, wire] of all<SVGPathElement>('[data-wire]').entries()) {
+        animate(wire, { strokeDashoffset: [0, -40] }, { duration: 1.6, repeat: Infinity, ease: 'linear', delay: index * 0.2 });
+      }
+      for (const mark of all('[data-float]')) {
+        animate(mark, { y: [0, -14, 0], rotate: [-2, 2, -2] }, { duration: 7, repeat: Infinity, ease: 'easeInOut' });
+      }
+      for (const shimmer of all('[data-shimmer]')) {
+        animate(
+          shimmer,
+          { backgroundPosition: ['100% 0%', '-50% 0%'] },
+          { duration: 2.4, repeat: Infinity, ease: 'easeInOut', repeatDelay: 0.6 },
+        );
+      }
+    }
+
+    if (reduced) {
+      runTour();
+    } else {
+      drift();
+      stageHero();
+      drainAttention();
+      sendPackets();
+      runTour();
+      drawHistory();
+      pinAndHide();
+      ambient();
+    }
+  </script>
+</Site>

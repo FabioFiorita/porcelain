@@ -2,7 +2,7 @@
 
 Porcelain is a place to review a coding agent's work. The agent publishes a walkthrough of its decisions; you follow the explanation alongside the diffs, leave comments, and read the agent's replies.
 
-It is for developers who run coding agents on their own machine and want to understand the result before deciding what to keep. A raw diff tells you what changed. Porcelain gives the agent a place to explain why, and gives you a way to ask about what it left unexplained.
+It is for developers who run coding agents on their own machine and want to understand the result before deciding what to keep. A diff does not tell you what changed. The agent that wrote it can. In Porcelain, it walks you through each decision, and you comment back before you keep the change.
 
 ![A decision in a published review, with its route through the code and a diff](docs/readme/walkthrough.png)
 
@@ -10,7 +10,7 @@ It is for developers who run coding agents on their own machine and want to unde
 
 ## What ships today
 
-The [npm package](https://www.npmjs.com/package/@fabiofiorita/porcelain) contains the server and browser app. An Apple silicon Mac app is available from [GitHub Releases](https://github.com/FabioFiorita/porcelain/releases). The [mobile client](apps/mobile) lives in this repository; see the limitations below.
+The [npm package](https://www.npmjs.com/package/@fabiofiorita/porcelain) contains the server and browser app. The server runs on Linux or Mac. On Linux it can be installed as a user service. An Apple silicon Mac app is available from [GitHub Releases](https://github.com/FabioFiorita/porcelain/releases). The [mobile client](apps/mobile) lives in this repository and is not a store release yet. See the limitations below.
 
 The browser review flow includes:
 
@@ -24,7 +24,7 @@ The browser review flow includes:
 
 *A file comment and a reply sent through the sample MCP connection.*
 
-![Proof shows illustrative passing and failing checks, an image attachment and the readiness panel](docs/readme/proof.png)
+![Proof shows passing checks, a web and an iPhone screenshot the agent attached, and the readiness panel](docs/readme/proof.png)
 
 *Proof displays what the agent reported; these sample results are not checks run on Porcelain itself.*
 

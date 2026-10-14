@@ -87,6 +87,7 @@ function expoEntries(source: string, path: string): string {
   return source;
 }
 export default {
+  ignoreWorkspaces: ['apps/marketing'],
   include: [
     'files',
     'exports',
