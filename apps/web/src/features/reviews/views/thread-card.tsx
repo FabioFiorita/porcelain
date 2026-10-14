@@ -226,20 +226,22 @@ function ThreadMessage({
       {!wide && <AuthorAvatar author={message.author} />}
       <MessageContent>
         <MessageHeader>
-          {mine ? 'You' : 'Agent'}
-          {timestamp !== null && timestamp !== undefined && (
-            <span className="font-normal">{timestamp}</span>
-          )}
-          {message.editedAt !== null && message.editedAt !== undefined && (
-            <span className="font-normal">edited</span>
-          )}
-          {mine && !editing && (
-            <MessageMenu
-              owner={owner}
-              messageId={message.id}
-              onEdit={() => setEditing(true)}
-            />
-          )}
+          <span className="inline-flex min-w-0 items-center gap-2">
+            {mine ? 'You' : 'Agent'}
+            {timestamp !== null && timestamp !== undefined && (
+              <span className="font-normal">{timestamp}</span>
+            )}
+            {message.editedAt !== null && message.editedAt !== undefined && (
+              <span className="font-normal">edited</span>
+            )}
+            {mine && !editing && (
+              <MessageMenu
+                owner={owner}
+                messageId={message.id}
+                onEdit={() => setEditing(true)}
+              />
+            )}
+          </span>
         </MessageHeader>
         {editing ? (
           <MessageEditor
