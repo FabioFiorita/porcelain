@@ -27,6 +27,10 @@ import { cn } from '@/shared/lib/utils';
 import { type ChangeScope, isChangeScope } from '@/shared/workspace/search';
 import { useBranchChanges, useChanges } from '@/features/changes/index';
 import { useMarkCommentsSeen } from '../commands/comments';
+import { useCompleteDecision } from '../commands/decisions';
+import { SidebarActionMenu } from './sidebar-action-menu';
+import { SidebarGroup, SidebarDocumentRow } from './sidebar-section';
+import { reviewSidebarActions } from '@porcelain/client/reviews/rules';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useComments, usePrefetchComments } from '../queries/comments';
 import { usePublishedReview } from '../queries/published-review';
@@ -255,6 +259,7 @@ function LayersView({
   threads: readonly CommentThread[];
 }) {
   const { preferences } = usePreferences();
+  const [groups, setGroups] = useState({ changes: true, specs: false });
   const paths = list.changes.map((entry) => entry.path);
   const mainPaths = preferences.collapseSpecs
     ? paths.filter((path) => !isSpecPath(path))
@@ -322,43 +327,53 @@ function LayersView({
             files={paths.length}
           />
         ) : (
-          <button
-            type="button"
-            className={ROW}
-            aria-pressed={activeEntry === 'handoff'}
-            onClick={() => onOpen({ kind: 'handoff' })}
+          <SidebarDocumentRow
+            label="All changes"
+            active={activeEntry === 'handoff'}
+            onOpen={() => onOpen({ kind: 'handoff' })}
           >
             All changes
-          </button>
-        )}
-        {review && (
-          <p className="px-2 pt-4 pb-1 text-xs text-muted-foreground">
-            Changed files
-          </p>
+          </SidebarDocumentRow>
         )}
         {paths.length === 0 && (
           <p className="p-3 text-sm text-muted-foreground">No changes</p>
         )}
-        {mainPaths.map(renderChange)}
-        {specPaths.length > 0 && (
-          <details
-            key={String(preferences.collapseSpecs)}
-            open={!preferences.collapseSpecs}
-            className="mt-3 border-t pt-2"
+        {mainPaths.length > 0 && (
+          <SidebarGroup
+            name="Changed files"
+            count={mainPaths.length}
+            expanded={groups.changes}
+            onExpanded={(changes) =>
+              setGroups((current) => ({ ...current, changes }))
+            }
+            onAll={(expanded) =>
+              setGroups({ changes: expanded, specs: expanded })
+            }
           >
-            <summary className="cursor-pointer px-2 py-2 text-xs font-medium">
-              Specs · {specPaths.length} files
-            </summary>
-            <button
-              type="button"
-              className={ROW}
-              aria-pressed={activeEntry === 'specs'}
-              onClick={() => onOpen(SPECS)}
+            {mainPaths.map(renderChange)}
+          </SidebarGroup>
+        )}
+        {specPaths.length > 0 && (
+          <SidebarGroup
+            name="Specs"
+            count={specPaths.length}
+            expanded={groups.specs}
+            onExpanded={(specs) =>
+              setGroups((current) => ({ ...current, specs }))
+            }
+            onAll={(expanded) =>
+              setGroups({ changes: expanded, specs: expanded })
+            }
+          >
+            <SidebarDocumentRow
+              label="Open all specs"
+              active={activeEntry === 'specs'}
+              onOpen={() => onOpen(SPECS)}
             >
               Open all specs
-            </button>
+            </SidebarDocumentRow>
             {specPaths.map(renderChange)}
-          </details>
+          </SidebarGroup>
         )}
         {discard && (
           <DiscardButton
@@ -390,6 +405,9 @@ function WalkthroughRows({
   files: number;
 }) {
   const walk = useWalkthrough(scope, context, review);
+  const completion = useCompleteDecision(scope, context, (notice) =>
+    toast.add(notice),
+  );
   const open = (key: WalkthroughKey) => {
     walk.go(key);
     onOpen({ kind: 'handoff' });
@@ -406,31 +424,69 @@ function WalkthroughRows({
             ? walk.decisions.states.get(stop.layer.id)
             : undefined;
         return (
-          <button
+          <SidebarActionMenu
             key={stop.key}
-            type="button"
-            className={ROW}
-            aria-pressed={here(stop.key)}
-            onClick={() => open(stop.key)}
+            label={`Actions for ${stop.kind === 'decision' ? `${stop.number}. ` : ''}${stopName(stop)}`}
+            actions={reviewSidebarActions(
+              stop.kind === 'decision'
+                ? {
+                    kind: 'decision',
+                    reviewed: state?.reviewed === true,
+                    stale: state?.stale === true,
+                    settled: walk.decisions.settled,
+                    pending: completion.pending,
+                  }
+                : { kind: 'section' },
+            )}
+            onAction={(id) => {
+              if (id === 'open') open(stop.key);
+              if (id === 'review' && stop.kind === 'decision') {
+                const decision = {
+                  layerId: stop.layer.id,
+                  fingerprint: stop.layer.fingerprint,
+                };
+                if (state?.reviewed) completion.reopen(decision);
+                else
+                  completion.complete({
+                    files: walk.items.filter((item) =>
+                      stop.paths.includes(item.path),
+                    ),
+                    decision: { ...decision, reviewed: false },
+                  });
+              }
+            }}
           >
-            <StopIcon stop={stop} done={done} />
-            <span className="min-w-0 flex-1 truncate">
-              {stopName(stop)}
-              {stop.kind === 'unexplained' &&
-                ` · ${notExplainedLabel(review.notExplained) ?? `${stop.paths.length} files`}`}
-            </span>
-            {state?.stale && (
-              <span
-                className="size-1.5 shrink-0 rounded-full bg-graph-4"
-                aria-label="Code moved"
-              />
+            {(menu) => (
+              <div className="flex min-w-0 items-center">
+                <button
+                  type="button"
+                  className={ROW}
+                  aria-pressed={here(stop.key)}
+                  aria-label={`${stop.kind === 'decision' ? `${stop.number} ` : ''}${stopName(stop)}`}
+                  onClick={() => open(stop.key)}
+                >
+                  <StopIcon stop={stop} done={done} />
+                  <span className="min-w-0 flex-1 truncate">
+                    {stopName(stop)}
+                    {stop.kind === 'unexplained' &&
+                      ` · ${notExplainedLabel(review.notExplained) ?? `${stop.paths.length} files`}`}
+                  </span>
+                  {state?.stale && (
+                    <span
+                      className="size-1.5 shrink-0 rounded-full bg-graph-4"
+                      aria-label="Code moved"
+                    />
+                  )}
+                  {stop.kind !== 'briefing' && progress.total > 0 && (
+                    <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
+                      {progress.reviewed}/{progress.total}
+                    </span>
+                  )}
+                </button>
+                {menu}
+              </div>
             )}
-            {stop.kind !== 'briefing' && progress.total > 0 && (
-              <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
-                {progress.reviewed}/{progress.total}
-              </span>
-            )}
-          </button>
+          </SidebarActionMenu>
         );
       })}
       <ProofRow
@@ -438,17 +494,16 @@ function WalkthroughRows({
         active={activeEntry === entryKey(PROOF)}
         onOpen={onOpen}
       />
-      <button
-        type="button"
-        className={ROW}
-        aria-pressed={activeEntry === 'all-changes'}
-        onClick={() => onOpen(ALL_CHANGES)}
+      <SidebarDocumentRow
+        label="All changes"
+        active={activeEntry === 'all-changes'}
+        onOpen={() => onOpen(ALL_CHANGES)}
       >
         <FileDiffIcon className="size-3.5 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate">
           All changes · {files} files
         </span>
-      </button>
+      </SidebarDocumentRow>
     </nav>
   );
 }
@@ -492,11 +547,10 @@ function ProofRow({
 }) {
   const status = proofStatus(review.proof);
   return (
-    <button
-      type="button"
-      className={ROW}
-      aria-pressed={active}
-      onClick={() => onOpen(PROOF)}
+    <SidebarDocumentRow
+      label="Proof"
+      active={active}
+      onOpen={() => onOpen(PROOF)}
     >
       <FlaskConicalIcon
         className={cn(
@@ -516,7 +570,7 @@ function ProofRow({
           {proofLabel(status)}
         </span>
       </span>
-    </button>
+    </SidebarDocumentRow>
   );
 }
 
