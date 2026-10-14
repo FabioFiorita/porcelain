@@ -9,6 +9,8 @@ import { AsyncResult } from 'effect/reactivity';
 import { retainFileDraft, type FileDraftHandle } from '@porcelain/client/files';
 import { fileErrorMessage } from '@porcelain/client/files/rules';
 import { WorkspaceGate, type Workspace } from '../../projects';
+import { DocumentComments, savedFileCommentTarget } from '../../reviews';
+import type { ReviewRange } from '../../../components/ui/review-annotation';
 import { usePreferences } from '../../preferences';
 import { useDirectories } from '../queries/directory';
 import { useTextFile, type FileContents } from '../queries/text';
@@ -36,6 +38,7 @@ type ContentProps = {
   path: string;
   onEdit?: () => void;
   onDone?: () => void;
+  inlineEditing?: boolean;
 };
 
 export function FileScreen(props: ContentProps & { workspace: string }) {
@@ -78,7 +81,7 @@ export function FileContent(props: ContentProps & { selected: Workspace }) {
   const data = result
     ? Option.getOrUndefined(AsyncResult.value(result))
     : undefined;
-  if (result && AsyncResult.isFailure(result))
+  if (result && AsyncResult.isFailure(result) && !data)
     return (
       <ErrorState
         message={fileErrorMessage(Cause.squash(result.cause))}
@@ -105,7 +108,9 @@ export function FileContent(props: ContentProps & { selected: Workspace }) {
     );
   return (
     <Box className="flex-1" surface="background">
-      <FileHeader path={path} />
+      {!props.inlineEditing || isNativeImagePath(path) ? (
+        <FileHeader path={path} documentToolbar={props.inlineEditing} />
+      ) : null}
       {isNativeImagePath(path) ? (
         <FileImage path={path} selected={selected} />
       ) : (
@@ -149,7 +154,7 @@ function FileText(props: ContentProps & { selected: Workspace }) {
     props.path,
   );
   const data = Option.getOrUndefined(AsyncResult.value(file.result));
-  if (AsyncResult.isFailure(file.result))
+  if (AsyncResult.isFailure(file.result) && !data)
     return (
       <ErrorState
         message={fileErrorMessage(Cause.squash(file.result.cause))}
@@ -159,24 +164,64 @@ function FileText(props: ContentProps & { selected: Workspace }) {
   if (!data) return <Loading label="Reading file…" />;
   if ('kind' in data)
     return <FileNotice kind="unsupported" description={data.reason} />;
-  return props.onDone ? (
-    <FileEditor
-      selected={props.selected}
-      path={props.path}
-      file={data}
-      waiting={file.result.waiting}
-      onDone={props.onDone}
-    />
-  ) : (
-    <FilePreview
-      path={props.path}
-      text={data.text}
-      onEdit={
-        data.contentFingerprint && !file.result.waiting
-          ? props.onEdit
-          : undefined
-      }
-    />
+  return (
+    <View className="flex-1">
+      {AsyncResult.isFailure(file.result) ? (
+        <ErrorState
+          message={fileErrorMessage(Cause.squash(file.result.cause))}
+          retry={{ label: 'Read file again', onPress: file.refresh }}
+        />
+      ) : null}
+      <ReadableFile
+        {...props}
+        file={data}
+        waiting={file.result.waiting || AsyncResult.isFailure(file.result)}
+      />
+    </View>
+  );
+}
+
+function ReadableFile(
+  props: ContentProps & {
+    selected: Workspace;
+    file: FileContents;
+    waiting: boolean;
+  },
+) {
+  const [editing, setEditing] = useState(false);
+  const { inlineEditing, file, waiting } = props;
+  if (props.onDone)
+    return (
+      <FileEditor
+        selected={props.selected}
+        path={props.path}
+        file={file}
+        waiting={waiting}
+        onDone={props.onDone}
+      />
+    );
+  const edit =
+    file.contentFingerprint && !waiting
+      ? inlineEditing
+        ? () => setEditing(true)
+        : props.onEdit
+      : undefined;
+  return (
+    <View className="flex-1">
+      <View className={editing ? 'hidden' : 'flex-1'}>
+        <FilePreview {...props} text={file.text} onEdit={edit} />
+      </View>
+      {editing ? (
+        <FileEditor
+          selected={props.selected}
+          path={props.path}
+          file={file}
+          waiting={waiting}
+          onDone={() => setEditing(false)}
+          documentToolbar
+        />
+      ) : null}
+    </View>
   );
 }
 
@@ -184,17 +229,58 @@ function FilePreview({
   path,
   text,
   onEdit,
+  selected,
+  file,
+  inlineEditing,
 }: {
   path: string;
   text: string;
   onEdit: (() => void) | undefined;
+  selected: Workspace;
+  file: FileContents;
+  inlineEditing?: boolean | undefined;
 }) {
   const link = usePreviewLink();
+  const edit = onEdit ? (
+    <Button label="Edit" variant="outline" size="sm" onPress={onEdit} />
+  ) : null;
+  if (inlineEditing)
+    return (
+      <DocumentComments
+        workspace={selected}
+        path={path}
+        target={savedFileCommentTarget(path, file.contentFingerprint)}
+        renderToolbar={(actions) => (
+          <FileHeader
+            path={path}
+            documentToolbar
+            actions={
+              <>
+                {edit}
+                {actions}
+              </>
+            }
+          />
+        )}
+      >
+        {(selection) => (
+          <View className="flex-1">
+            {link.error ? <ErrorState message={link.error} /> : null}
+            <FileContentsPreview
+              path={path}
+              text={text}
+              onLink={link.open}
+              {...selection}
+            />
+          </View>
+        )}
+      </DocumentComments>
+    );
   return (
     <View className="flex-1">
-      {onEdit ? (
+      {edit ? (
         <Box className="items-end" divider="bottom" paddingX={4} paddingY={2}>
-          <Button label="Edit" variant="outline" size="sm" onPress={onEdit} />
+          {edit}
         </Box>
       ) : null}
       {link.error ? <ErrorState message={link.error} /> : null}
@@ -207,10 +293,14 @@ function FileContentsPreview({
   path,
   text,
   onLink,
+  selection,
+  onSelect,
 }: {
   path: string;
   text: string;
   onLink: (url: string) => void;
+  selection?: ReviewRange | undefined;
+  onSelect?: ((range: ReviewRange) => void) | undefined;
 }) {
   const { preferences } = usePreferences();
   if (/\.mdx?$/i.test(path))
@@ -221,6 +311,8 @@ function FileContentsPreview({
         onLink={onLink}
         initialMode={preferences.markdownDefault}
         wrap={preferences.lineOverflow === 'wrap'}
+        selection={selection}
+        onSelect={onSelect}
       />
     );
   if (/\.html?$/i.test(path))
@@ -236,6 +328,8 @@ function FileContentsPreview({
           onLink={onLink}
           initialMode={preferences.htmlDefault}
           wrap={preferences.lineOverflow === 'wrap'}
+          selection={selection}
+          onSelect={onSelect}
         />
       </View>
     );
@@ -243,6 +337,8 @@ function FileContentsPreview({
   return (
     <CodeView
       source={text}
+      selection={selection}
+      onSelect={onSelect}
       wrap={preferences.lineOverflow === 'wrap'}
       {...(language ? { language } : {})}
     />
@@ -255,12 +351,14 @@ function FileEditor({
   file,
   waiting,
   onDone,
+  documentToolbar,
 }: {
   selected: Workspace;
   path: string;
   file: FileContents;
   waiting: boolean;
   onDone: () => void;
+  documentToolbar?: boolean | undefined;
 }) {
   const [seed, setSeed] = useState<FileContents | undefined>(() =>
     waiting ? undefined : file,
@@ -275,6 +373,7 @@ function FileEditor({
       file={file}
       seed={seed}
       onDone={onDone}
+      documentToolbar={documentToolbar}
     />
   ) : (
     <Loading label="Confirming the file version…" />
@@ -287,12 +386,14 @@ function RetainedFileEditor({
   file,
   seed,
   onDone,
+  documentToolbar,
 }: {
   selected: Workspace;
   path: string;
   file: FileContents;
   seed: FileContents;
   onDone: () => void;
+  documentToolbar?: boolean | undefined;
 }) {
   const result = useAtomValue(
     retainFileDraft({
@@ -313,7 +414,13 @@ function RetainedFileEditor({
       <ErrorState message="The server did not confirm an editable file version." />
     );
   return draft ? (
-    <DraftEditor draft={draft} file={file} onDone={onDone} />
+    <DraftEditor
+      draft={draft}
+      file={file}
+      onDone={onDone}
+      path={path}
+      documentToolbar={documentToolbar}
+    />
   ) : (
     <Loading label="Preparing editor…" />
   );
@@ -323,10 +430,14 @@ function DraftEditor({
   draft,
   file,
   onDone,
+  documentToolbar,
+  path,
 }: {
   draft: FileDraftHandle;
   file: FileContents;
+  path: string;
   onDone: () => void;
+  documentToolbar?: boolean | undefined;
 }) {
   const editing = useDraftEditing(draft, file);
   const { state, claimed } = editing;
@@ -364,65 +475,92 @@ function DraftEditor({
         },
       ],
     );
+  const done = () =>
+    editing.save(() => {
+      disablePrevention();
+      onDone();
+    });
   return (
-    <ScrollView
-      className="flex-1 bg-background"
-      keyboardShouldPersistTaps="handled"
-      contentInsetAdjustmentBehavior="automatic"
-    >
-      <Box gap={3} paddingX={4} paddingY={4}>
-        {!claimed ? (
-          <ErrorState message="This file is being edited in another view." />
-        ) : null}
-        <Text variant="caption" tone="muted">
-          {saveStatus(state)} · Changes save automatically.
-        </Text>
-        {state.error ? (
-          <ErrorState
-            message={fileErrorMessage(state.error)}
-            {...(editing.blocked
-              ? {}
-              : {
-                  retry: { label: 'Save again', onPress: () => editing.save() },
-                })}
-          />
-        ) : null}
-        {editing.blocked ? (
-          <Text variant="ui" tone="destructive">
-            The file changed on the computer. Your draft is kept; discard it to
-            load the latest version.
-          </Text>
-        ) : null}
-        <Input
-          accessibilityLabel="File contents"
-          multiline
-          className="min-h-96"
-          value={state.text}
-          onChangeText={editing.change}
-          disabled={!claimed || state.saving || editing.blocked}
-          autoCapitalize="none"
-          autoCorrect={false}
-          spellCheck={false}
-        />
-        <Button
-          label="Save and done"
-          pending={state.saving}
-          disabled={!claimed || editing.blocked}
-          onPress={() =>
-            editing.save(() => {
-              disablePrevention();
-              onDone();
-            })
+    <View className="flex-1">
+      {documentToolbar ? (
+        <FileHeader
+          path={path}
+          documentToolbar
+          actions={
+            <Button
+              label="Done"
+              size="sm"
+              pending={state.saving}
+              disabled={!claimed || editing.blocked}
+              onPress={done}
+            />
           }
         />
-        <Button
-          label="Discard changes"
-          variant="ghost"
-          disabled={state.saving}
-          onPress={discard}
-        />
-      </Box>
-    </ScrollView>
+      ) : null}
+      <ScrollView
+        className="flex-1 bg-background"
+        keyboardShouldPersistTaps="handled"
+        contentInsetAdjustmentBehavior="automatic"
+      >
+        <Box gap={3} paddingX={4} paddingY={4}>
+          {!claimed ? (
+            <ErrorState message="This file is being edited in another view." />
+          ) : null}
+          <Text variant="caption" tone="muted">
+            {saveStatus(state)} · Changes save automatically.
+          </Text>
+          {state.error ? (
+            <ErrorState
+              message={fileErrorMessage(state.error)}
+              {...(editing.blocked
+                ? {}
+                : {
+                    retry: {
+                      label: 'Save again',
+                      onPress: () => editing.save(),
+                    },
+                  })}
+            />
+          ) : null}
+          {editing.blocked ? (
+            <Text variant="ui" tone="destructive">
+              The file changed on the computer. Your draft is kept; discard it
+              to load the latest version.
+            </Text>
+          ) : null}
+          <Input
+            accessibilityLabel="File contents"
+            multiline
+            className="min-h-96"
+            value={state.text}
+            onChangeText={editing.change}
+            disabled={!claimed || state.saving || editing.blocked}
+            autoCapitalize="none"
+            autoCorrect={false}
+            spellCheck={false}
+          />
+          {!documentToolbar ? (
+            <Button
+              label="Save and done"
+              pending={state.saving}
+              disabled={!claimed || editing.blocked}
+              onPress={() =>
+                editing.save(() => {
+                  disablePrevention();
+                  onDone();
+                })
+              }
+            />
+          ) : null}
+          <Button
+            label="Discard changes"
+            variant="ghost"
+            disabled={state.saving}
+            onPress={discard}
+          />
+        </Box>
+      </ScrollView>
+    </View>
   );
 }
 

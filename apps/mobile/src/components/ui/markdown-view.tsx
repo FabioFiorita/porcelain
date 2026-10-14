@@ -1,3 +1,4 @@
+import type { ReviewRange } from './review-annotation';
 import { parseMarkdown } from '../../shared/rules/markdown';
 import { externalLink } from '@porcelain/client/links/rules';
 import { useRenderTokens } from './use-render-tokens';
@@ -18,11 +19,15 @@ export function MarkdownView({
   onLink,
   initialMode = 'reader',
   wrap = true,
+  selection,
+  onSelect,
 }: {
   source: string;
   onLink?: (url: string) => void;
   initialMode?: 'reader' | 'source';
   wrap?: boolean;
+  selection?: ReviewRange | undefined;
+  onSelect?: ((range: ReviewRange) => void) | undefined;
 }) {
   const data = JSON.stringify(parseMarkdown(source));
   const tokens = useRenderTokens();
@@ -38,7 +43,13 @@ export function MarkdownView({
         />
       </View>
       {raw ? (
-        <CodeView source={source} language="markdown" wrap={wrap} />
+        <CodeView
+          source={source}
+          language="markdown"
+          wrap={wrap}
+          selection={selection}
+          onSelect={onSelect}
+        />
       ) : (
         <NativeMarkdown
           data={data}

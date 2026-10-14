@@ -9,3 +9,12 @@ export {
 } from './views/review-file-screen';
 export { ReviewCommentsScreen } from './views/review-comments-screen';
 export { decodeCommentAnchor, reviewComparison } from './rules/navigation';
+
+export {
+  DocumentComments,
+  type DocumentCodeSelection,
+} from './views/document-comments';
+export {
+  savedFileCommentTarget,
+  commitCommentTarget,
+} from './rules/document-comment';

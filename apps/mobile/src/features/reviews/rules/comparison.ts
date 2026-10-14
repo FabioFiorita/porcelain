@@ -11,6 +11,7 @@ import {
   type ReviewRange,
   type ReviewStatus,
 } from '@porcelain/client/reviews/rules';
+import { commitPath } from '@porcelain/client/history/rules';
 import type { ListReviewedFilesResponse } from '@porcelain/contracts/reviews';
 
 export type ReviewSnapshot =
@@ -52,7 +53,7 @@ export function reviewFiles(
 
 export function commentTarget(
   snapshot: ReviewSnapshot,
-  file: ReviewFile,
+  file: Pick<ReviewFile, 'path' | 'fingerprint'>,
   scope?: 'staged' | 'unstaged' | 'untracked',
 ): CommentTarget | undefined {
   if (!file.fingerprint) return undefined;
@@ -72,4 +73,26 @@ export function commentTarget(
         contentFingerprint: file.fingerprint,
       }
     : undefined;
+}
+
+export function documentReviewTarget(
+  snapshot: ReviewSnapshot | undefined,
+  path: string,
+  preferredScope: string | undefined,
+) {
+  if (!snapshot) return undefined;
+  if (snapshot.kind === 'branch') {
+    const file = snapshot.answer.files.find(
+      (entry) => commitPath(entry) === path,
+    );
+    return file
+      ? commentTarget(snapshot, { path, fingerprint: file.fingerprint })
+      : undefined;
+  }
+  const file = snapshot.answer.changes.find((entry) => entry.path === path);
+  const comparison =
+    file?.comparisons.find((entry) => entry.scope === preferredScope) ??
+    file?.comparisons[0];
+  if (!file || !comparison || comparison.scope === 'unmerged') return undefined;
+  return commentTarget(snapshot, file, comparison.scope);
 }

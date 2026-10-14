@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   commentTarget,
+  documentReviewTarget,
   reviewFiles,
   reviewRange,
   type ReviewSnapshot,
@@ -150,4 +151,43 @@ it('names the conflict type in the review file note', () => {
 });
 it('does not submit worktree feedback without a comparison scope', () => {
   expect(commentTarget(worktree, file)).toBeUndefined();
+});
+
+it('binds document comments to the selected worktree scope and falls back only to an available comparison', () => {
+  const snapshot: ReviewSnapshot = {
+    ...worktree,
+    answer: {
+      ...worktree.answer,
+      changes: [
+        {
+          path: 'new.ts',
+          fingerprint: 'current',
+          comparisons: [staged, { ...staged, scope: 'unstaged' }],
+        },
+      ],
+    },
+  };
+  expect(documentReviewTarget(snapshot, 'new.ts', 'unstaged')).toEqual({
+    filePath: 'new.ts',
+    contentFingerprint: 'current',
+    comparison: { kind: 'worktree', scope: 'unstaged' },
+  });
+  expect(documentReviewTarget(snapshot, 'new.ts', 'untracked')).toEqual({
+    filePath: 'new.ts',
+    contentFingerprint: 'current',
+    comparison: { kind: 'worktree', scope: 'staged' },
+  });
+});
+it('keeps document comments disabled when a comparison disappears or its snapshot is unavailable', () => {
+  expect(documentReviewTarget(undefined, 'new.ts', 'staged')).toBeUndefined();
+  expect(documentReviewTarget(worktree, 'gone.ts', 'staged')).toBeUndefined();
+});
+it('uses the displayed branch rename destination and snapshot evidence for a document', () => {
+  expect(documentReviewTarget(branch, 'new.ts', undefined)).toEqual({
+    filePath: 'new.ts',
+    contentFingerprint: 'branch-content',
+    revision: 'tip',
+    comparison: { kind: 'branch', base: 'refs/heads/main' },
+  });
+  expect(documentReviewTarget(branch, 'old.ts', undefined)).toBeUndefined();
 });
