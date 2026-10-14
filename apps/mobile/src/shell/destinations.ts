@@ -7,7 +7,7 @@ export const destinations = [
     title: 'Files',
     icon: 'files',
     sidebarId: 'sidebar-files',
-    routes: ['/files', '/file', '/file-edit'],
+    routes: ['/files', '/file'],
   },
   {
     group: '(review)',

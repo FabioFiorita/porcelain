@@ -5,7 +5,6 @@ describe('mobile destination ownership', () => {
   it('keeps pushed screens in their parent destination on tablet', () => {
     expect(destinationForPath('/files').title).toBe('Files');
     expect(destinationForPath('/file').path).toBe('/files');
-    expect(destinationForPath('/file-edit').path).toBe('/files');
     expect(destinationForPath('/review').title).toBe('Review');
     expect(destinationForPath('/review-file').path).toBe('/review');
     expect(destinationForPath('/review-comments').path).toBe('/review');

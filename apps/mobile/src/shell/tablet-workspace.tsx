@@ -361,7 +361,7 @@ function WorkspaceDocumentContent({
         <FileContent
           selected={workspace}
           path={document.path}
-          inlineEditing
+          inlineComments
           leaveScope={leaveScope}
         />
       );
