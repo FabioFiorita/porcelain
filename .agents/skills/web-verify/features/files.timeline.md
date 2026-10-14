@@ -11,6 +11,7 @@ selectors:
   - "Show timeline"
 tests:
   - apps/web/spec/integration/files-timeline.test.tsx
+  - apps/web/spec/integration/reviews-reopen-document.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/commits/:oid/files
   - GET /api/worktrees/:worktreeId/file-commits
@@ -83,4 +84,4 @@ The last line prints `Move the readme to the guide`, `Explain the change to revi
 - After the setup README.md no longer exists, and the working tree is clean, so the Changes tab is empty. Clicking guide.md opens it as a file document, which is the one with the "Timeline" button. A changed file opens as a diff instead.
 - A commit row's name starts with its subject and continues with the short id, author and age, so address it with `/^<subject>/`.
 - At phone width the tree lives in the sheet behind button "Review". Each opened document closes it.
-- The timeline document tab is named after the file, like the file document tab: both read "guide.md Close guide.md", so tab named `guide.md Close guide.md` is ambiguous once both are open; move between them with the buttons inside the documents ("Timeline") or the Page URL (`entry=timeline%3Aguide.md`, `entry=file%3Aguide.md`).
+- The timeline is a distinct document: its tab is named `Timeline of guide.md Close Timeline of guide.md`, while the file tab is `guide.md Close guide.md`. Repeating "Timeline" or "Show timeline" focuses the existing timeline tab, including in the other pane, and adds no tab.

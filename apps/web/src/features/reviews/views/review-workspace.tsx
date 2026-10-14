@@ -156,7 +156,7 @@ function ReviewWorkspaceContent({
   const open: OpenDocument = (ref, anchor, options) => {
     const key = entryKey(ref);
     const otherPane: PaneIndex = focusedPane === 0 ? 1 : 0;
-    const pane = options?.toSide ? otherPane : focusedPane;
+    const pane = options?.toSide ? otherPane : layout.open(focusedPane, key);
     setReveal(
       anchor
         ? {
@@ -172,10 +172,7 @@ function ReviewWorkspaceContent({
     if (options?.toSide) {
       layout.openToSide(focusedPane, key);
       if (base !== undefined) onSearch({ base });
-    } else {
-      layout.activate(focusedPane, key);
-      if (base !== undefined) onSearch({ base });
-    }
+    } else if (base !== undefined) onSearch({ base });
     setMobileOpen(false);
   };
   const setSurface = (next: Surface) => {
