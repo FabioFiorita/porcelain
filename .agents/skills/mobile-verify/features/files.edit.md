@@ -1,9 +1,9 @@
 ---
 screen: /file-edit
 selectors:
-  - "File contents"
-  - "Save and done"
-  - "Discard changes"
+  - 'File contents'
+  - 'Save and done'
+  - 'Discard changes'
 tests: []
 api:
   - GET /api/worktrees/:worktreeId/directory
@@ -14,6 +14,8 @@ api:
 # files.edit
 
 Edit opens a native full-height form sheet with Porcelain Input and buttons. The shared FileDraft service owns autosave, retained drafts, editing ownership and fingerprint conflict protection. Save and done dismisses only after a confirmed save; Discard changes asks before replacing the draft with the latest file. Removing a screen with an unsaved draft prompts to keep editing or save and leave.
+
+On iPad, Edit opens the same native sheet from the active document tab. Save and done, a confirmed discard, and dismissal of a clean editor return to that tab on the Files screen. Opening the editor must not add a separate file preview route or replace the directory/document layout. Repeat from a narrow iPad window and check the selected tab is retained.
 
 Edit a real file, save, return and independently read its literal disk contents. Change the file on the computer during editing and attempt a save: expect a conflict, retained draft and no overwrite. Discard to read the latest version. A missing fingerprint never exposes editing.
 

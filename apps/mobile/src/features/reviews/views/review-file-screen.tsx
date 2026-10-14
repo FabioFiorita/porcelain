@@ -1,3 +1,4 @@
+import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import { diffSelection } from '@porcelain/client/changes/rules';
 import { commitPaths } from '@porcelain/client/history/rules';
 import { Box } from '../../../components/ui/box';
@@ -31,7 +32,6 @@ import { useReviewSnapshot, useReviewMarks } from '../queries/review';
 import {
   reviewFiles,
   commentTarget,
-  type ReviewComparison,
   type ReviewFile,
   type ReviewSnapshot,
 } from '../rules/comparison';

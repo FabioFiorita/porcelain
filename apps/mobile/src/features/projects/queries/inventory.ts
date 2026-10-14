@@ -47,6 +47,9 @@ export function useInventories(
   );
   const results = useAtomValue(atom);
   return {
+    reading: results.some(
+      ({ result }) => AsyncResult.isInitial(result) || result.waiting,
+    ),
     environments: environments.map(
       ({ environmentId, name }): EnvironmentInventory => {
         const result = results.find(

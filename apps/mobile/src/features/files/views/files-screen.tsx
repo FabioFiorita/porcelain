@@ -17,6 +17,8 @@ import {
 } from '@porcelain/client/files/rules';
 import { FileTree } from '../../../components/ui/file-tree';
 import { Input } from '../../../components/ui/input';
+import { Button } from '../../../components/ui/button';
+import { ItemMenu } from '../../../components/ui/item-menu';
 import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Text } from '../../../components/ui/text';
@@ -41,7 +43,7 @@ export function FilesScreen({
       fallbackToolbar={<LeadingToolbar sidebar={sidebar} />}
     >
       {(selected) => (
-        <WorktreeFiles
+        <FilesNavigation
           key={selected.key}
           selected={selected}
           onOpen={onOpen}
@@ -52,14 +54,18 @@ export function FilesScreen({
   );
 }
 
-function WorktreeFiles({
+export function FilesNavigation({
   selected,
   onOpen,
   sidebar,
+  activePath,
+  embedded = false,
 }: {
   selected: Workspace;
   onOpen: (path: string, workspace: string) => void;
   sidebar: LeadingToolbarProps['sidebar'];
+  activePath?: string | undefined;
+  embedded?: boolean;
 }) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [requested, setRequested] = useState<readonly string[]>(['']);
@@ -119,9 +125,41 @@ function WorktreeFiles({
         autoCapitalize="none"
         autoCorrect={false}
       />
-      <Text variant="caption" tone="muted">
-        {selected.project.name} · {worktreeLabel(selected.worktree.branch)}
-      </Text>
+      {embedded ? (
+        <Box className="flex-row items-center justify-between" gap={2}>
+          <Button
+            label="Refresh"
+            variant="ghost"
+            pending={refreshing}
+            onPress={refresh}
+          />
+          <ItemMenu
+            title="Create file or folder"
+            actions={[
+              {
+                id: 'new-file',
+                label: 'New file',
+                onPress: () =>
+                  setAction({ kind: 'create', entryKind: 'file', folder: '' }),
+              },
+              {
+                id: 'new-folder',
+                label: 'New folder',
+                onPress: () =>
+                  setAction({
+                    kind: 'create',
+                    entryKind: 'directory',
+                    folder: '',
+                  }),
+              },
+            ]}
+          />
+        </Box>
+      ) : (
+        <Text variant="caption" tone="muted">
+          {selected.project.name} · {worktreeLabel(selected.worktree.branch)}
+        </Text>
+      )}
       {failure ? (
         <ErrorState
           message={fileErrorMessage(Cause.squash(failure.cause))}
@@ -144,34 +182,42 @@ function WorktreeFiles({
   );
   return (
     <Box className="flex-1" surface="background" collapsable={false}>
-      <LeadingToolbar sidebar={sidebar}>
-        <Stack.Toolbar.Button
-          icon={headerIcon('refresh')}
-          accessibilityLabel={refreshing ? 'Refreshing files' : 'Refresh files'}
-          disabled={refreshing}
-          onPress={refresh}
-        />
-        <Stack.Toolbar.Menu
-          icon={headerIcon('add')}
-          accessibilityLabel="Create file or folder"
-          title="Create file or folder"
-        >
-          <Stack.Toolbar.MenuAction
-            onPress={() =>
-              setAction({ kind: 'create', entryKind: 'file', folder: '' })
+      {!embedded ? (
+        <LeadingToolbar sidebar={sidebar}>
+          <Stack.Toolbar.Button
+            icon={headerIcon('refresh')}
+            accessibilityLabel={
+              refreshing ? 'Refreshing files' : 'Refresh files'
             }
+            disabled={refreshing}
+            onPress={refresh}
+          />
+          <Stack.Toolbar.Menu
+            icon={headerIcon('add')}
+            accessibilityLabel="Create file or folder"
+            title="Create file or folder"
           >
-            New file
-          </Stack.Toolbar.MenuAction>
-          <Stack.Toolbar.MenuAction
-            onPress={() =>
-              setAction({ kind: 'create', entryKind: 'directory', folder: '' })
-            }
-          >
-            New folder
-          </Stack.Toolbar.MenuAction>
-        </Stack.Toolbar.Menu>
-      </LeadingToolbar>
+            <Stack.Toolbar.MenuAction
+              onPress={() =>
+                setAction({ kind: 'create', entryKind: 'file', folder: '' })
+              }
+            >
+              New file
+            </Stack.Toolbar.MenuAction>
+            <Stack.Toolbar.MenuAction
+              onPress={() =>
+                setAction({
+                  kind: 'create',
+                  entryKind: 'directory',
+                  folder: '',
+                })
+              }
+            >
+              New folder
+            </Stack.Toolbar.MenuAction>
+          </Stack.Toolbar.Menu>
+        </LeadingToolbar>
+      ) : null}
       <FileTree
         header={header}
         flat={searching}
@@ -187,6 +233,7 @@ function WorktreeFiles({
             : nodes
         }
         expanded={expanded}
+        {...(activePath ? { selected: activePath } : {})}
         loading={loading.folders}
         onToggle={(id) => {
           setExpanded((current) => {

@@ -3,6 +3,7 @@ import { type HeaderIconName } from './icon';
 
 const symbols = {
   sidebar: 'sidebar.left',
+  inspector: 'sidebar.right',
   add: 'plus',
   workspace: 'line.3.horizontal.decrease',
   refresh: 'arrow.clockwise',

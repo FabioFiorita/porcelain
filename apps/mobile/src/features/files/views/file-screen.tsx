@@ -32,14 +32,13 @@ import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
 
-type Props = {
+type ContentProps = {
   path: string;
-  workspace: string;
   onEdit?: () => void;
   onDone?: () => void;
 };
 
-export function FileScreen(props: Props) {
+export function FileScreen(props: ContentProps & { workspace: string }) {
   return (
     <>
       <Stack.Screen
@@ -56,7 +55,7 @@ export function FileScreen(props: Props) {
         }
       >
         {(selected) => (
-          <ScopedFile
+          <FileContent
             key={`${selected.key}:${props.path}`}
             {...props}
             selected={selected}
@@ -67,7 +66,7 @@ export function FileScreen(props: Props) {
   );
 }
 
-function ScopedFile(props: Props & { selected: Workspace }) {
+export function FileContent(props: ContentProps & { selected: Workspace }) {
   const { path, selected } = props;
   const parent = path.split('/').slice(0, -1).join('/');
   const directories = useDirectories({
@@ -143,7 +142,7 @@ function FileImage({ path, selected }: { path: string; selected: Workspace }) {
   );
 }
 
-function FileText(props: Props & { selected: Workspace }) {
+function FileText(props: ContentProps & { selected: Workspace }) {
   const file = useTextFile(
     props.selected.connection,
     props.selected.scope,

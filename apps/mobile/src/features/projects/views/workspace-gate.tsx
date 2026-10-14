@@ -4,6 +4,7 @@ import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Loading } from '../../../components/ui/loading';
+import { isTablet } from '../../../shared/navigation/is-tablet';
 import type { Workspace } from '../commands/workspace-connection';
 import { useWorkspace } from './workspace';
 
@@ -92,7 +93,11 @@ export function WorkspaceGate({
             ) : (
               <Empty
                 title="Select a worktree"
-                description={`Choose a project and worktree with the workspace filter in the toolbar to continue to ${title}.`}
+                description={
+                  isTablet
+                    ? `Choose a worktree in the sidebar to continue to ${title}.`
+                    : `Choose a project and worktree with the workspace filter in the toolbar to continue to ${title}.`
+                }
               />
             ))}
         </WorkspaceFallback>

@@ -1,6 +1,29 @@
 import { ErrorState } from '../../../components/ui/error-state';
 import { Loading } from '../../../components/ui/loading';
-export function CommitState({
+import type { ReactNode } from 'react';
+import { AsyncResult } from 'effect/reactivity';
+import type { useCommit } from '../queries/history';
+
+export function CommitReadState({
+  commit,
+  children,
+}: {
+  commit: ReturnType<typeof useCommit>;
+  children: (
+    value: NonNullable<ReturnType<typeof useCommit>['value']>,
+  ) => ReactNode;
+}) {
+  if (AsyncResult.isFailure(commit.result) || !commit.value)
+    return (
+      <CommitState
+        failed={AsyncResult.isFailure(commit.result)}
+        retry={commit.retry}
+      />
+    );
+  return children(commit.value);
+}
+
+function CommitState({
   failed,
   retry,
 }: {

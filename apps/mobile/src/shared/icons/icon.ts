@@ -6,4 +6,5 @@ export type HeaderIconName =
   | 'done'
   | 'compareParent'
   | 'sidebar'
+  | 'inspector'
   | 'add';

@@ -13,9 +13,6 @@ import {
 } from '@porcelain/client/reviews/rules';
 import type { ListReviewedFilesResponse } from '@porcelain/contracts/reviews';
 
-export type ReviewComparison =
-  | { kind: 'worktree' }
-  | { kind: 'branch'; base?: string };
 export type ReviewSnapshot =
   | { kind: 'worktree'; answer: ReadChangesResponse }
   | { kind: 'branch'; answer: ReadBranchChangesResponse };
