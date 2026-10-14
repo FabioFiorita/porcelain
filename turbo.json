@@ -93,9 +93,6 @@
         "apps/marketing/tsconfig.json",
         "apps/marketing/src/**",
         "apps/marketing/public/**",
-        "docs/readme/walkthrough.png",
-        "docs/readme/comments.png",
-        "docs/readme/proof.png",
         "apps/web/public/icon-512.png",
         "packages/theme/src/**",
         "pnpm-lock.yaml"
