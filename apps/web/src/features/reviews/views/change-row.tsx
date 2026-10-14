@@ -1,29 +1,15 @@
-import {
-  CheckIcon,
-  Columns2Icon,
-  CopyIcon,
-  FileDiffIcon,
-  FileIcon,
-  HistoryIcon,
-  MessageSquareIcon,
-  MessageSquarePlusIcon,
-  RotateCcwIcon,
-  Undo2Icon,
-} from 'lucide-react';
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from '@/components/ui/context-menu';
-import { useState } from 'react';
-import { flushSync } from 'react-dom';
+import { CheckIcon, MessageSquareIcon, RotateCcwIcon } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { copyText } from '@/shared/workspace/copy';
 import { FileTypeIcon } from '@/features/files/index';
 import type { DocumentRef, OpenDocument } from '../rules/documents';
-import { basename, type ReviewStatus } from '@porcelain/client/reviews/rules';
+import {
+  basename,
+  reviewSidebarActions,
+  type ReviewStatus,
+  type ReviewSidebarAction,
+} from '@porcelain/client/reviews/rules';
+import { SidebarActionMenu } from './sidebar-action-menu';
 
 export const ROW =
   'flex w-full min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-caption transition-colors hover:bg-accent aria-pressed:bg-accent aria-pressed:font-medium';
@@ -57,16 +43,49 @@ export function ChangeRow({
   onDiscard?: () => void;
   indented?: boolean;
 }) {
-  const [openingSide, setOpeningSide] = useState(false);
   const label = `${basename(path)}${scopes.length > 0 ? ` · ${scopes.join(' + ')}` : ''}`;
+  const act = (id: ReviewSidebarAction['id']) => {
+    switch (id) {
+      case 'review':
+        onReview();
+        break;
+      case 'comment':
+        onOpen(document, { kind: 'file', filePath: path }, { compose: true });
+        break;
+      case 'open':
+        onOpen(document);
+        break;
+      case 'open-to-side':
+        onOpen(document, undefined, { toSide: true });
+        break;
+      case 'open-file':
+        onOpen({ kind: 'file', path });
+        break;
+      case 'timeline':
+        onOpen({ kind: 'timeline', path });
+        break;
+      case 'copy-relative':
+        copyText(path, 'relative path');
+        break;
+      case 'discard':
+        onDiscard?.();
+        break;
+    }
+  };
   return (
-    <ContextMenu
-      onOpenChange={(open) => {
-        if (open) setOpeningSide(false);
-      }}
+    <SidebarActionMenu
+      label={`Actions for ${path}`}
+      actions={reviewSidebarActions({
+        kind: 'file',
+        status: reviewStatus,
+        canReview,
+        sideLabel,
+        canDiscard: onDiscard !== undefined,
+      })}
+      onAction={act}
     >
-      <ContextMenuTrigger
-        render={
+      {(menu) => (
+        <div className="flex min-w-0 items-center">
           <button
             type="button"
             aria-pressed={active}
@@ -76,96 +95,37 @@ export function ChangeRow({
             }
             className={cn(
               ROW,
-              'text-muted-foreground',
+              'flex-1 text-muted-foreground',
               indented && 'pl-7',
               active && 'bg-accent font-medium text-foreground',
             )}
             onClick={(event) =>
               onOpen(document, undefined, { toSide: event.altKey })
             }
-          />
-        }
-      >
-        <ReviewStatusIcon status={reviewStatus} />
-        <FileTypeIcon path={path} className="size-3.5 shrink-0" />
-        <span
-          className={cn(
-            'min-w-0 flex-1 truncate',
-            reviewStatus === 'reviewed' &&
-              'line-through decoration-muted-foreground/40',
-          )}
-        >
-          {basename(path)}
-        </span>
-        {commentCount > 0 && (
-          <span className="flex shrink-0 items-center gap-0.5 text-2xs">
-            <MessageSquareIcon className="size-3" />
-            {commentCount}
-          </span>
-        )}
-      </ContextMenuTrigger>
-      <ContextMenuContent className="min-w-52" finalFocus={!openingSide}>
-        <ContextMenuItem disabled={!canReview} onClick={onReview}>
-          <CheckIcon />
-          {reviewMenuLabel(reviewStatus)}
-        </ContextMenuItem>
-        <ContextMenuItem
-          onClick={() =>
-            onOpen(
-              document,
-              { kind: 'file', filePath: path },
-              { compose: true },
-            )
-          }
-        >
-          <MessageSquarePlusIcon />
-          Comment
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onClick={() => onOpen(document)}>
-          <FileDiffIcon />
-          Open diff
-        </ContextMenuItem>
-        <ContextMenuItem
-          onClick={() => {
-            flushSync(() => setOpeningSide(true));
-            onOpen(document, undefined, { toSide: true });
-          }}
-        >
-          <Columns2Icon />
-          {sideLabel}
-        </ContextMenuItem>
-        <ContextMenuItem onClick={() => onOpen({ kind: 'file', path })}>
-          <FileIcon />
-          Open file
-        </ContextMenuItem>
-        <ContextMenuItem onClick={() => onOpen({ kind: 'timeline', path })}>
-          <HistoryIcon />
-          Show timeline
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onClick={() => copyText(path, 'relative path')}>
-          <CopyIcon />
-          Copy relative path
-        </ContextMenuItem>
-        {onDiscard && (
-          <>
-            <ContextMenuSeparator />
-            <ContextMenuItem variant="destructive" onClick={onDiscard}>
-              <Undo2Icon />
-              Discard
-            </ContextMenuItem>
-          </>
-        )}
-      </ContextMenuContent>
-    </ContextMenu>
+          >
+            <ReviewStatusIcon status={reviewStatus} />
+            <FileTypeIcon path={path} className="size-3.5 shrink-0" />
+            <span
+              className={cn(
+                'min-w-0 flex-1 truncate',
+                reviewStatus === 'reviewed' &&
+                  'line-through decoration-muted-foreground/40',
+              )}
+            >
+              {basename(path)}
+            </span>
+            {commentCount > 0 && (
+              <span className="flex shrink-0 items-center gap-0.5 text-2xs">
+                <MessageSquareIcon className="size-3" />
+                {commentCount}
+              </span>
+            )}
+          </button>
+          {menu}
+        </div>
+      )}
+    </SidebarActionMenu>
   );
-}
-
-function reviewMenuLabel(status: ReviewStatus | undefined) {
-  if (status === 'reviewed') return 'Unmark as reviewed';
-  if (status === 'stale') return 'Mark as reviewed again';
-  return 'Mark as reviewed';
 }
 
 function ReviewStatusIcon({ status }: { status: ReviewStatus | undefined }) {
