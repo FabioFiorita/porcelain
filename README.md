@@ -115,13 +115,8 @@ Run the tests you changed by name; CI owns the full suites. For a feature's runn
 
 ## License and thanks
 
-Porcelain is released under the [MIT license](LICENSE). It stands on other people's work:
+Porcelain is released under the [MIT license](LICENSE). Thank you to:
 
-- [T3 Code](https://github.com/pingdotgg/t3code) was the main reference. It is an agent harness rather than a companion, and it met many of the same problems on the same stack first, remote environments especially.
-- [Pierre](https://pierre.computer) renders the code, the diffs and the file tree.
-- [Effect](https://effect.website) runs the server and the client logic.
-- [TanStack](https://tanstack.com) handles routing, forms, hotkeys and Markdown.
-- [shadcn/ui](https://ui.shadcn.com) and [Base UI](https://base-ui.com) provide the web components, [Tailwind CSS](https://tailwindcss.com) and [Uniwind](https://uniwind.dev) the styling, [Lucide](https://lucide.dev) the icons and [Geist](https://vercel.com/font) the type.
-- [Expo](https://expo.dev) builds the mobile app, [Electron](https://www.electronjs.org) the Mac app, and [Shiki](https://shiki.style) highlights code on mobile.
-
-Thank you.
+- [T3 Code](https://github.com/pingdotgg/t3code), the main reference. It is an agent harness rather than a companion, and it met many of the same problems on the same stack first, remote environments especially.
+- [Pierre](https://pierre.computer), which renders the code, the diffs and the file tree.
+- [shadcn/ui](https://ui.shadcn.com), which the web components come from.
