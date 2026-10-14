@@ -44,6 +44,7 @@ test('hidden directories and descendants disappear from tree, search and pinned 
 });
 
 test('show hidden restores the same tree, search and pinned paths while leaving saved preferences intact', () => {
+  const savedPreferences = structuredClone(preferences);
   const result = filePreferenceEntries({ ...input, showHidden: true });
   expect(result.nodes).toEqual(entries);
   expect(result.matches.map((entry) => entry.path).sort()).toEqual([
@@ -52,12 +53,7 @@ test('show hidden restores the same tree, search and pinned paths while leaving 
     'docs/private/secret.md',
   ]);
   expect(result.pinnedPaths).toEqual(['docs/guide.md', 'README.md']);
-  expect(preferences).toEqual([
-    { path: 'docs', hidden: true, pinned: false },
-    { path: 'docs/private', hidden: true, pinned: false },
-    { path: 'docs/guide.md', hidden: false, pinned: true },
-    { path: 'README.md', hidden: false, pinned: true },
-  ]);
+  expect(preferences).toEqual(savedPreferences);
 });
 
 test('durable pins remain reachable before their containing directory has been read', () => {
@@ -71,7 +67,7 @@ test('durable pins remain reachable before their containing directory has been r
   ).toEqual(['docs/guide.md', 'README.md']);
 });
 
-test('files can be pinned and unpinned, while folders and links have no pin or side action', () => {
+test('files can be pinned and unpinned with an optional side action', () => {
   const file = { path: 'README.md', kind: 'file' as const };
   const unpinned = filePreferenceActions(file, new Set(), new Set(), true);
   expect(unpinned.actions).toContainEqual({ id: 'pin', label: 'Pin file' });
@@ -102,7 +98,11 @@ test('files can be pinned and unpinned, while folders and links have no pin or s
     value: false,
   });
   expect(pinned.actions.some(({ id }) => id === 'open-to-side')).toBe(false);
-  for (const kind of ['directory', 'symlink', 'submodule', 'other'] as const) {
+});
+
+test.each(['directory', 'symlink', 'submodule', 'other'] as const)(
+  '%s entries have no pin or side action',
+  (kind) => {
     const result = filePreferenceActions(
       { path: 'docs/', kind },
       new Set(),
@@ -111,8 +111,8 @@ test('files can be pinned and unpinned, while folders and links have no pin or s
     );
     expect(result.actions.some(({ id }) => id === 'pin')).toBe(false);
     expect(result.actions.some(({ id }) => id === 'open-to-side')).toBe(false);
-  }
-});
+  },
+);
 
 test('show file and folder requests clear their canonical preference, including a trailing directory slash', () => {
   const hidden = new Set(['README.md', 'docs']);

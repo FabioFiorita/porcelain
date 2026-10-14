@@ -166,6 +166,9 @@ function FilesNavigationView({
     query,
   });
   const preferencesLoaded = !preferences || preferenceData !== undefined;
+  const visibleEntries = searching
+    ? preferenceEntries.matches
+    : preferenceEntries.nodes;
   const preferencePending = Boolean(
     preferences &&
     (!preferenceData ||
@@ -387,13 +390,7 @@ function FilesNavigationView({
           preferencesLoaded &&
           (searching ? AsyncResult.isSuccess(paths.result) : loading.rootLoaded)
         }
-        nodes={
-          !preferencesLoaded
-            ? []
-            : searching
-              ? preferenceEntries.matches
-              : preferenceEntries.nodes
-        }
+        nodes={preferencesLoaded ? visibleEntries : []}
         expanded={expanded}
         {...(activePath ? { selected: activePath } : {})}
         loading={loading.folders}
