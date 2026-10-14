@@ -1,0 +1,197 @@
+---
+import '../styles/global.css';
+import GithubMark from '../components/github-mark.astro';
+import icon from '../../../../apps/web/public/icon-512.png';
+
+interface Props {
+  title?: string;
+  description: string;
+}
+
+const { title = 'Porcelain', description } = Astro.props;
+const here = Astro.url.pathname.replace(/\/$/, '') || '/';
+/* Link previews in chat apps and social sites read these. They need absolute addresses. */
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const shareImage = new URL('/og.png', Astro.site);
+const sections = [
+  ['walkthrough', 'Walkthrough'],
+  ['comments', 'Comments'],
+  ['proof', 'Proof'],
+  ['files', 'Files'],
+  ['history', 'History'],
+  ['remote', 'Remote'],
+] as const;
+const sectionHref = (id: string) => (here === '/' ? `#${id}` : `/#${id}`);
+const footer = [
+  ['/install', 'Install'],
+  ['/privacy', 'Privacy'],
+] as const;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#171717" media="(prefers-color-scheme: dark)" />
+    <title>{title}</title>
+    <link rel="canonical" href={canonical} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Porcelain" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={shareImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Agents write the code. This is where you read it." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={shareImage} />
+    <script is:inline>
+      /* Motion hides what it will animate. If its script never runs, show the page anyway. */
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        document.documentElement.classList.add('motion');
+        setTimeout(() => {
+          if (!document.documentElement.hasAttribute('data-animated')) document.documentElement.classList.remove('motion');
+        }, 2500);
+      }
+    </script>
+  </head>
+  <body class="flex min-h-svh flex-col bg-background font-sans text-base leading-normal tracking-[-0.011em] text-foreground antialiased">
+    <header data-header class="sticky top-0 z-30 border-b border-transparent transition-[background-color,border-color] duration-300 data-[scrolled]:border-border/70 data-[scrolled]:bg-background/80 data-[scrolled]:backdrop-blur-xl">
+      <div class="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-5 py-3 lg:px-10">
+        <a class="inline-flex items-center gap-2 text-lg font-medium tracking-[-0.03em] text-foreground no-underline" href="/">
+          <img src={icon.src} width={icon.width} height={icon.height} alt="" class="size-7 rounded-[7px]" />
+          Porcelain
+        </a>
+        <nav class="hidden items-center gap-5 text-sm text-muted-foreground xl:flex" aria-label="Sections">
+          {
+            sections.map(([id, label]) => (
+              <a class="no-underline transition-colors hover:text-foreground" href={sectionHref(id)} data-nav={id}>
+                {label}
+              </a>
+            ))
+          }
+        </nav>
+        <div class="flex items-center gap-1 sm:gap-2">
+          <a
+            class="inline-flex h-9 items-center gap-2 rounded-full px-2.5 text-sm whitespace-nowrap text-muted-foreground no-underline hover:bg-accent hover:text-foreground sm:px-3"
+            href="https://github.com/FabioFiorita/porcelain"
+          >
+            <GithubMark />
+            Source
+          </a>
+          <a
+            class="inline-flex h-9 items-center rounded-full bg-foreground px-3.5 text-sm whitespace-nowrap text-background no-underline"
+            href="/install"
+          >
+            Download
+          </a>
+        </div>
+      </div>
+      <nav
+        class="mx-auto flex max-w-[1440px] gap-4 overflow-x-auto px-5 pb-3 text-sm text-muted-foreground xl:hidden"
+        aria-label="Sections"
+      >
+        {
+          sections.map(([id, label]) => (
+            <a class="shrink-0 no-underline hover:text-foreground" href={sectionHref(id)}>
+              {label}
+            </a>
+          ))
+        }
+      </nav>
+    </header>
+
+    <slot />
+
+    <footer class="mt-auto border-t border-border">
+      <div class="mx-auto flex max-w-[1440px] flex-col gap-3 px-5 py-8 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between lg:px-10">
+        <a class="inline-flex items-center gap-2 text-foreground no-underline" href="/">
+          <img src={icon.src} width={icon.width} height={icon.height} alt="" class="size-5" />
+          Porcelain
+        </a>
+        <nav class="flex items-center gap-5" aria-label="Footer">
+          {
+            footer.map(([href, label]) => (
+              <a
+                class="no-underline hover:text-foreground"
+                href={href}
+                aria-current={here === href ? 'page' : undefined}
+              >
+                {label}
+              </a>
+            ))
+          }
+          <a class="no-underline hover:text-foreground" href="https://github.com/FabioFiorita/porcelain">Source</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script>
+      import { animate, inView, stagger } from 'motion';
+
+      /* Headline words arrive one by one, and everything marked for reveal rises in as it scrolls into view. */
+      document.documentElement.toggleAttribute('data-animated', true);
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const ease = [0.22, 1, 0.36, 1] as const;
+        animate(
+          Array.from(document.querySelectorAll<HTMLElement>('[data-word]')),
+          { opacity: [0, 1], y: ['0.35em', 0], filter: ['blur(10px)', 'blur(0px)'] },
+          { duration: 0.8, delay: stagger(0.06, { startDelay: 0.1 }), ease },
+        );
+        for (const element of document.querySelectorAll<HTMLElement>('[data-reveal]')) {
+          inView(
+            element,
+            () => {
+              animate(
+                element,
+                { opacity: [0, 1], y: [28, 0], filter: ['blur(6px)', 'blur(0px)'] },
+                { duration: 0.9, ease, delay: 0.05 },
+              );
+            },
+            { amount: 0.25 },
+          );
+        }
+      }
+
+      const header = document.querySelector('[data-header]');
+      const mark = () => header?.toggleAttribute('data-scrolled', window.scrollY > 8);
+      mark();
+      window.addEventListener('scroll', mark, { passive: true });
+
+      for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
+        button.addEventListener('click', async () => {
+          const command = button.dataset.copy;
+          if (!command) return;
+          const status = button.querySelector('[data-copy-status]');
+          try {
+            await navigator.clipboard.writeText(command);
+          } catch {
+            /* Plain http on a local address has no clipboard. Select the command so it can be copied by hand. */
+            const code = button.parentElement?.querySelector('code');
+            if (code) window.getSelection()?.selectAllChildren(code);
+            if (status) status.textContent = 'Command selected';
+            return;
+          }
+          if (status) status.textContent = 'Copied';
+          const copy = button.querySelector('[data-copy-icon]');
+          const copied = button.querySelector('[data-copied-icon]');
+          copy?.classList.add('hidden');
+          copied?.classList.remove('hidden');
+          setTimeout(() => {
+            copy?.classList.remove('hidden');
+            copied?.classList.add('hidden');
+            if (status) status.textContent = '';
+          }, 1600);
+        });
+      }
+    </script>
+  </body>
+</html>
