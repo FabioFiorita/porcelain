@@ -123,7 +123,7 @@ test("a removed project's worktree address says the worktree is no longer presen
   await app.open(`${removed.path}${removed.query}`);
 
   await expect(
-    pairedPage.getByText('Worktree no longer present', { exact: true }),
+    pairedPage.getByText('Worktree not found', { exact: true }),
   ).toBeVisible();
   await expect(
     pairedPage.getByRole('region', { name: 'Review content', exact: true }),

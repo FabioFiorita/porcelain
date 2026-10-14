@@ -53,5 +53,11 @@ function WorkspaceIndex() {
         replace
       />
     );
-  return <ConnectedWorkspace missing={worktree !== undefined && settled} />;
+  return (
+    <ConnectedWorkspace
+      notice={
+        worktree !== undefined && settled ? 'missing-worktree' : undefined
+      }
+    />
+  );
 }
