@@ -364,6 +364,7 @@ export function SettingsPage({
   const navigate = useNavigate();
   const remote = useRemoteConnection(environmentId ?? '')?.remote;
   const list = useRef<HTMLDivElement>(null);
+  const page = useRef<HTMLElement>(null);
   const listReturn = useRef<{
     scroll: number;
     focus: HTMLElement | null;
@@ -391,14 +392,15 @@ export function SettingsPage({
     });
   };
   useLayoutEffect(() => {
-    if (environmentId === undefined && list.current && listReturn.current) {
+    if (environmentId !== undefined) {
+      page.current?.focus({ preventScroll: true });
+    } else if (list.current && listReturn.current) {
       list.current.scrollTop = listReturn.current.scroll;
       listReturn.current.focus?.focus({ preventScroll: true });
     }
   }, [environmentId]);
   const router = useRouter();
   const canGoBack = useCanGoBack();
-  const page = useRef<HTMLElement>(null);
   const { connection } = useConnectedContext();
   const { environment } = useInventory(connection);
   useDocumentTitle(
@@ -416,6 +418,7 @@ export function SettingsPage({
     <div className="h-svh min-w-0 flex-1 bg-muted p-2 text-ui text-foreground">
       <main
         ref={page}
+        tabIndex={-1}
         aria-label="Settings"
         className="flex h-full min-h-0 min-w-0 flex-col gap-2 md:flex-row"
       >

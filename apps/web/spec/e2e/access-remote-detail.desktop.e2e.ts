@@ -264,3 +264,70 @@ test('forgetting from detail refuses an unsavable remote draft and leaves the co
     .poll(async () => (await remote.server.text(readme)).text)
     .toBe(disk);
 });
+
+for (const status of ['online', 'offline']) {
+  for (const activation of ['click', 'Tab+Enter']) {
+    test(`Escape immediately returns from ${status} computer detail opened by ${activation}`, async ({
+      pairedPage: page,
+      app,
+      remote,
+    }) => {
+      const inventory = await remote.server.inventory();
+      const name = inventory.environment.name;
+      await openRemotes(page);
+      const link = await app.remoteLink();
+      await page
+        .getByRole('textbox', { name: 'Pairing link', exact: true })
+        .fill(link);
+      await page.getByRole('button', { name: 'Add', exact: true }).click();
+      const row = page
+        .getByRole('listitem', { name, exact: true })
+        .getByRole('button');
+      await expect(row).toBeVisible();
+      const restore =
+        status === 'offline' ? await app.failRemoteStatus(link) : undefined;
+      try {
+        if (status === 'offline') await app.reload();
+        await expect(row).toBeVisible();
+        if (activation === 'click') await row.click();
+        else {
+          await page
+            .getByRole('textbox', {
+              name: 'Search remote computers',
+              exact: true,
+            })
+            .focus();
+          await page.keyboard.press('Tab');
+          await expect(
+            page.getByRole('combobox', {
+              name: 'Computer status',
+              exact: true,
+            }),
+          ).toBeFocused();
+          await page.keyboard.press('Tab');
+          await expect(row).toBeFocused();
+          await page.keyboard.press('Enter');
+        }
+        await expect(page).toHaveURL(
+          new RegExp(`/settings/remotes/${inventory.environmentId}$`),
+        );
+        await page.keyboard.press('Escape');
+        await expect(page).toHaveURL(/\/settings\/remotes$/);
+        await expect(row).toBeFocused();
+        await row.click();
+        await expect(
+          page.getByRole('main', { name: 'Settings', exact: true }),
+        ).toBeFocused();
+        await expect(
+          page
+            .getByRole('group', { name: 'Overview', exact: true })
+            .getByText(status === 'online' ? 'Online' : 'Offline', {
+              exact: true,
+            }),
+        ).toBeVisible();
+      } finally {
+        await restore?.();
+      }
+    });
+  }
+}
