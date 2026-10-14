@@ -1,117 +1,74 @@
 # Porcelain
 
-Porcelain is a place to review a coding agent's work. The agent publishes a walkthrough of its decisions; you follow the explanation alongside the diffs, leave comments, and read the agent's replies.
+Porcelain is where you read what your coding agents wrote.
 
-It is for developers who run coding agents on their own machine and want to understand the result before deciding what to keep. A diff does not tell you what changed. The agent that wrote it can. In Porcelain, it walks you through each decision, and you comment back before you keep the change.
+A diff does not tell you what changed. The agent that wrote it can. In Porcelain, it walks you through each decision, and you comment back before you keep the change.
 
-![A decision in a published review, with its route through the code and a diff](docs/readme/walkthrough.png)
+[Website](https://porcelain.fabiofiorita.com) · [Download](https://github.com/FabioFiorita/porcelain/releases) · [npm](https://www.npmjs.com/package/@fabiofiorita/porcelain)
 
-*The screenshots use a disposable sample repository. Its features, comments and check results are illustrative.*
+## "Wait, isn't this just another editor?"
 
-## What ships today
+No. Agents write, run and test most of my code now, and my job became reading it. Editors are built for typing: autocomplete, extensions, plugins I no longer use. A diff sorted by file name buries the one change that matters under fifty that don't.
 
-The [npm package](https://www.npmjs.com/package/@fabiofiorita/porcelain) contains the server and browser app. The server runs on Linux or Mac. On Linux it can be installed as a user service. An Apple silicon Mac app is available from [GitHub Releases](https://github.com/FabioFiorita/porcelain/releases). The [mobile client](apps/mobile) lives in this repository and is not a store release yet. See the limitations below.
+I started building my own agent harness and then watched T3 Code do it better than I could. So Porcelain does not run your agent. It sits beside the one you already use, in the terminal, the desktop app or the editor, and gives you a place to read its work in order and answer it.
 
-The browser review flow includes:
+It is free, open source and has no account, and Porcelain never sends your code anywhere.
 
-- A briefing and a stop for each decision, with diffs and numbered agent notes that lead you to the relevant code.
-- A **Not explained** stop for changes outside the agent's explanation, with links back to decisions that contain unexplained lines.
-- Reviewed marks on files, so you can keep track of what you have read.
-- File comments and agent replies over MCP.
-- A **Readiness** panel showing review progress, unexplained changes, comments and checks; **Proof** opens the checks and images attached to the review.
+## What it does
 
-![A reviewer asks about the sample decision and the agent replies in the same thread](docs/readme/comments.png)
+- **A walkthrough of every decision.** The agent publishes a briefing and one stop per decision, with numbered notes that lead you through the diff.
+- **Nothing hides.** Changes the agent did not explain get their own stop, and reviewed marks keep count of what is left.
+- **Comment back.** Ask on a file or a line. The agent answers in the same thread over MCP.
+- **Proof.** The checks it ran and the screenshots it took live in the review, and Porcelain says when the code changed after them.
+- **Made for big repositories.** Pin the files you read, hide the ones you never open, and browse History as a commit graph, with commit, pull and push in the same place.
+- **Every machine, one place.** Run a server where each repository lives and reach all of them from one Porcelain.
 
-*A file comment and a reply sent through the sample MCP connection.*
+## Install
 
-![Proof shows passing checks, a web and an iPhone screenshot the agent attached, and the readiness panel](docs/readme/proof.png)
+**Mac app.** Download it from [GitHub Releases](https://github.com/FabioFiorita/porcelain/releases). It runs on Apple silicon.
 
-*Proof displays what the agent reported; these sample results are not checks run on Porcelain itself.*
-
-## Install and first use
-
-The server needs macOS or Linux, Git, and **Node >=24.20.0 and <25**, as declared in [package.json](package.json). Start it on the machine that holds your repositories:
+**Server and browser.** On the Linux or Mac machine that holds your repositories, with Git and Node 24:
 
 ```sh
 npx @fabiofiorita/porcelain@latest serve
 ```
 
-Open the address it prints. The browser initially shows **This browser is not paired**, with a command to run on the server's machine. For the default local address, run this in another terminal:
+Open the address it prints. The page shows the command that pairs this browser; run it on the same machine and open the link it prints. Then choose **Open project** and pick a repository.
+
+On Linux, keep it running as a user service:
 
 ```sh
-npx @fabiofiorita/porcelain@latest pair "This browser" --address http://127.0.0.1:3000
+npx @fabiofiorita/porcelain@latest service install
 ```
 
-Open the printed one-time link in that browser. Choose **Open project** (the plus button in the sidebar), browse to a Git repository on the server, and open it.
+**iPhone and iPad.** Coming soon.
 
-For agent publication and feedback over MCP, use the source-built package described in **Develop from source** below.
+`npx @fabiofiorita/porcelain@latest --help` lists every command, and the [npm readme](https://www.npmjs.com/package/@fabiofiorita/porcelain?activeTab=readme) covers sharing on your network, updates and recovery.
 
-State defaults to `~/.porcelain/`. If you choose another location with `--data-directory`, use the same absolute directory for the server, pairing and MCP commands. The [package readme](https://www.npmjs.com/package/@fabiofiorita/porcelain?activeTab=readme) covers background services, sharing, updates and recovery. CLI options are available through:
+## Connect your agent
 
-```sh
-npx @fabiofiorita/porcelain@latest --help
+Porcelain talks to agents over MCP. Add it to your agent's MCP configuration and start the agent from a repository you opened in Porcelain:
+
+```json
+{
+  "mcpServers": {
+    "porcelain": {
+      "command": "npx",
+      "args": ["-y", "@fabiofiorita/porcelain@latest", "mcp"]
+    }
+  }
+}
 ```
 
-## Known limitations
+Then ask the agent to read `porcelain://review-guide` and publish a review of its work. Your comments reach it through `list_comments`, and its replies appear in the thread.
 
-- The Mac app's MCP setup is a [known issue (#247)](https://github.com/FabioFiorita/porcelain/issues/247). The npm-server instructions above do not establish a working MCP connection to the Mac app's private server.
-- Mobile is a source development client, not a store release. Android still needs its own build and native verification; see the [mobile verification map](.agents/skills/mobile-verify/features/README.md).
-- The server's background service installer targets Linux systemd user services. See the package readme for that separate setup.
+## Privacy
 
-## Plans
+Porcelain has no account and no analytics, and it never sends your code, reviews or comments anywhere. The [privacy page](https://porcelain.fabiofiorita.com/privacy) has the details, and the source is right here.
 
-[GitHub issues](https://github.com/FabioFiorita/porcelain/issues) track proposed work and known bugs. They are not promises of shipped behaviour or release dates.
+## Contributing
 
-## Architecture and decisions
-
-Porcelain is a TypeScript monorepo using pnpm, Turborepo and Effect. The server owns repositories and persistent state; the clients present that state and send commands.
-
-| Path | Responsibility |
-| --- | --- |
-| [apps/server](apps/server) | HTTP, WebSocket and MCP entry points, server use cases, CLI and installer |
-| [apps/web](apps/web) | React and Vite browser views |
-| [apps/desktop](apps/desktop) | Electron host around the web app |
-| [apps/mobile](apps/mobile) | Expo native client |
-| [packages/contracts](packages/contracts) | Schemas for data crossing the wire |
-| [packages/client](packages/client) | Shared client queries, commands, stores and rules |
-| Domain packages under [packages](packages) | Access, changes, files, projects, reviews and Git actions |
-
-- **The agent supplies the explanation.** The [MCP toolkit](packages/contracts/src/reviews/review-toolkit.ts) defines review publication and feedback; the [review guide](apps/server/src/http/mcp/review-guide.ts) tells agents how to explain their work.
-- **Browser pairing and local agent access have different paths.** Browser devices pair with single-use links. The [MCP bridge](apps/server/src/cli/mcp-bridge.ts) relays an agent's standard input/output through a [local owner socket](apps/server/src/config/owner-socket-settings.ts), carrying its working directory.
-- **Git remains Git.** Repository operations use the [Git CLI](packages/git/src/shared/commands/run-git.ts); persistent review and access data use SQLite with [migrations](packages/storage/drizzle).
-- **Each layer has one job.** Features move from contracts through domain services, server use cases and the shared client to app views. [read-environment-service.ts](packages/access/src/services/read-environment-service.ts) shows the Effect service and Layer pattern. [Architecture checks](scripts/architecture.ts) and [dependency rules](architecture/dependency-cruiser.cjs) enforce the boundaries.
-
-[AGENTS.md](AGENTS.md) is the development guide: it explains these decisions, testing, verification and pull requests.
-
-## Develop from source
-
-Use the Node version in [.node-version](.node-version) and the pnpm version named by `packageManager` in [package.json](package.json). Disposable server development also needs Git and either Linux with bubblewrap (`bwrap`) or macOS with `sandbox-exec`.
-
-```sh
-git clone https://github.com/FabioFiorita/porcelain.git
-cd porcelain
-pnpm install --frozen-lockfile
-pnpm dev:review
-```
-
-Open the web address in the connection card and choose **Pair this browser**. The sample review opens with a briefing; choose **Continue with 2. Revoke access across devices**, then a numbered step to reach its diff and note. The card also prints the command that stops that disposable instance.
-
-Build the server and browser app into the npm package:
-
-```sh
-pnpm build:package
-```
-
-The output is generated in `dist-porcelain/`, including its package readme. Pack it with `npm pack ./dist-porcelain`, then install the printed tarball into a separate directory with `npm install --prefix <directory> <tarball>`. This installs the runtime dependencies; the CLI is `<directory>/node_modules/.bin/porcelain`. Start it with `serve` and pair a browser with `pair`, using the same absolute `--data-directory` for all commands. Configure your agent's MCP client to run the built CLI's `mcp` command from the registered repository or worktree. The server must stay running. Ask the agent to read `porcelain://review-guide`, publish with `publish_review`, and read your feedback with `list_comments`; its replies appear in the browser's comment threads.
-
-Check static rules and run a single named unit test, for example:
-
-```sh
-pnpm check:local
-pnpm test --project @porcelain/client packages/client/src/features/reviews/rules/comments.spec.ts
-```
-
-Run the tests you changed by name; CI owns the full suites. For a feature's running proof, use the relevant [verification skill](.agents/skills) and its map, such as the [web feature map](.agents/skills/web-verify/features/README.md). Development uses disposable instances and profiles; never point verification at the installed app or its data.
+Bug reports and ideas are welcome in [issues](https://github.com/FabioFiorita/porcelain/issues). Before you open a pull request, read [CONTRIBUTING.md](CONTRIBUTING.md): it covers the architecture, developing from source, and how changes are verified.
 
 ## License and thanks
 
