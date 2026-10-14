@@ -7,7 +7,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { branchErrorMessage } from '@porcelain/client/changes/rules';
 import { refLabel } from '@porcelain/client/history/rules';
 import { useBranchChanges } from '@/features/changes/index';
-import { cn } from '@/shared/lib/utils';
 import { toast } from '@/components/ui/toast';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useReviewedMarks } from '../queries/reviewed';
@@ -22,7 +21,8 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { branchReviewRange } from '@porcelain/client/reviews/rules';
 import { BranchBasePicker } from './branch-base-picker';
-import { ChangeRow, ROW } from './change-row';
+import { SidebarDocumentRow } from './sidebar-section';
+import { ChangeRow } from './change-row';
 import { ReviewEmpty } from './review-empty';
 import { groupSpecPaths } from '@porcelain/client/reviews/rules';
 import { usePreferences } from '@/features/preferences/index';
@@ -183,18 +183,17 @@ function BranchFileList({
         <p className="px-2 pb-1.5 text-2xs text-muted-foreground">
           {commits} on {head} since {refLabel(branch.base.ref)}
         </p>
-        <button
-          type="button"
-          className={cn(ROW, activeEntry === entryKey(BRANCH) && 'bg-accent')}
-          aria-pressed={activeEntry === entryKey(BRANCH)}
-          onClick={() => onOpen(BRANCH)}
+        <SidebarDocumentRow
+          label="All branch changes"
+          active={activeEntry === entryKey(BRANCH)}
+          onOpen={() => onOpen(BRANCH)}
         >
           <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
-          All branch changes
+          <span className="min-w-0 flex-1 truncate">All branch changes</span>
           <span className="ml-auto text-2xs text-muted-foreground tabular-nums">
             {items.length}
           </span>
-        </button>
+        </SidebarDocumentRow>
         {items.length === 0 && (
           <p className="p-3 text-sm text-muted-foreground">
             No changes since {refLabel(branch.base.ref)}
