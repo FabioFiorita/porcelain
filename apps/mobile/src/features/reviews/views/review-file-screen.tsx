@@ -57,28 +57,33 @@ export function ReviewFileScreen({
     />
   );
   return (
-    <WorkspaceGate
-      title="Review"
-      expectedWorkspace={workspaceKey ?? ''}
-      changed={changed}
-    >
-      {(workspace) =>
-        path ? (
-          <SelectedFile
-            key={`${workspace.key}:${path}:${JSON.stringify(comparison)}`}
-            workspace={workspace}
-            path={path}
-            comparison={comparison}
-          />
-        ) : (
-          changed
-        )
-      }
-    </WorkspaceGate>
+    <>
+      <Stack.Screen
+        options={{ title: path?.split('/').at(-1) ?? 'Changed file' }}
+      />
+      <WorkspaceGate
+        title="Review"
+        expectedWorkspace={workspaceKey ?? ''}
+        changed={changed}
+      >
+        {(workspace) =>
+          path ? (
+            <ReviewFileContent
+              key={`${workspace.key}:${path}:${JSON.stringify(comparison)}`}
+              workspace={workspace}
+              path={path}
+              comparison={comparison}
+            />
+          ) : (
+            changed
+          )
+        }
+      </WorkspaceGate>
+    </>
   );
 }
 
-function SelectedFile({
+export function ReviewFileContent({
   workspace,
   path,
   comparison,
@@ -90,7 +95,6 @@ function SelectedFile({
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
   return (
     <Box className="flex-1" surface="background">
-      <Stack.Screen options={{ title: path.split('/').at(-1) ?? path }} />
       {AsyncResult.isSuccess(result) ? (
         <ReviewedFile
           workspace={workspace}

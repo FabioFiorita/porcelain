@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Box } from '../../../components/ui/box';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
@@ -15,9 +16,11 @@ import type { Workspace } from '../../projects';
 export function PublishedReview({
   workspace,
   onFile,
+  empty,
 }: {
   workspace: Workspace;
   onFile: (path: string) => void;
+  empty?: ReactNode;
 }) {
   const query = readPublishedReview({
     connection: workspace.connection,
@@ -28,7 +31,7 @@ export function PublishedReview({
   if (!AsyncResult.isSuccess(result))
     return <ReviewReadState result={result} refresh={refresh} />;
   const review = result.value;
-  if (!review) return null;
+  if (!review) return empty ?? null;
   return (
     <Box gap={3}>
       <Text variant="heading">
@@ -52,6 +55,7 @@ export function PublishedReview({
               key={step.id}
               title={step.title}
               description={`${step.pointer.path} · ${step.location.state}`}
+              disabled={step.location.state === 'broken'}
               onPress={() => {
                 if (step.location.state !== 'broken') onFile(step.pointer.path);
               }}
