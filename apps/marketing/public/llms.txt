@@ -9,8 +9,8 @@ Porcelain runs on the machine that holds your repositories. The Mac app runs on 
 ## Pages
 
 - [Porcelain](https://porcelain.fabiofiorita.com/): The walkthrough, comments on the code, proof, files, history and remote environments.
-- [Install](https://porcelain.fabiofiorita.com/install): The Mac app, or a server on Linux or Mac, on the machine that holds your repositories.
-- [Privacy](https://porcelain.fabiofiorita.com/privacy): Porcelain has no account, no analytics, and no copy of your code. Here is everything it knows about you, and the source to prove it.
+- [Install](https://porcelain.fabiofiorita.com/install/): The Mac app, or a server on Linux or Mac, on the machine that holds your repositories.
+- [Privacy](https://porcelain.fabiofiorita.com/privacy/): Porcelain has no account, no analytics, and no copy of your code. Here is everything it knows about you, and the source to prove it.
 
 ## Source
 
