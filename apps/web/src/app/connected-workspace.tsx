@@ -1,7 +1,10 @@
 import type { RemoteConnection } from '@porcelain/client/access';
-import type { selectedWorktreeInProject } from '@porcelain/client/projects/rules';
+import {
+  firstWaitingWorktree,
+  selectedWorktreeInProject,
+} from '@porcelain/client/projects/rules';
 import { detectPlatform, useHotkey } from '@tanstack/react-hotkeys';
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { type ReactNode, type RefObject, useRef, useState } from 'react';
 import {
   Empty,
@@ -10,6 +13,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { Sidebar, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
+import { buttonVariants } from '@/components/ui/button';
 import {
   RemoteUnavailable,
   useConnectedContext,
@@ -39,6 +43,7 @@ import type {
 } from '@/shared/workspace/search';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { desktopShell } from '@/shared/shell';
+import { cn } from '@/shared/lib/utils';
 
 type Review = {
   selection: NonNullable<ReturnType<typeof selectedWorktreeInProject>>;
@@ -46,23 +51,43 @@ type Review = {
   inventory: Inventory;
 };
 
+const workspaceMessages = {
+  'not-found': {
+    title: 'Page not found',
+    description: 'This URL does not open a page in Porcelain.',
+  },
+  'missing-worktree': {
+    title: 'Worktree not found',
+    description: 'This URL has an invalid or unavailable worktree ID.',
+  },
+  empty: {
+    title: 'Select a worktree',
+    description: 'Choose a worktree to establish your review context.',
+  },
+};
+
 export function ConnectedWorkspace({
   review,
   remote,
   unavailable,
-  missing = false,
+  notice,
 }: {
   review?: Review;
   remote?: RemoteConnection;
   unavailable?: RemoteStatus;
-  missing?: boolean;
+  notice?: 'not-found' | 'missing-worktree' | undefined;
 }) {
   const navigationTrigger = useRef<HTMLButtonElement>(null);
+  const message = workspaceMessages[notice ?? 'empty'];
   const [shortcuts, setShortcuts] = useState(false);
   const { setOpenMobile, isMobile, open, openMobile } = useSidebar();
   const navigate = useNavigate();
   const local = useConnectedContext();
   const localInventory = useInventory(local.connection);
+  const recovery = selectedWorktreeInProject(
+    localInventory,
+    firstWaitingWorktree(localInventory)?.id,
+  );
   const refreshInventory = useRefreshInventory(local.connection);
   const remotes = useRemoteConnections();
   const context = useConnectedContext(remote?.connection);
@@ -173,16 +198,31 @@ export function ConnectedWorkspace({
               <Empty>
                 <EmptyHeader>
                   <EmptyTitle>
-                    {missing
-                      ? 'Worktree no longer present'
-                      : 'Select a worktree'}
+                    <h1>{message.title}</h1>
                   </EmptyTitle>
-                  <EmptyDescription>
-                    {missing
-                      ? 'Choose a worktree that is still in the sidebar.'
-                      : 'Choose a worktree to establish your review context.'}
-                  </EmptyDescription>
+                  <EmptyDescription>{message.description}</EmptyDescription>
                 </EmptyHeader>
+                {notice === 'missing-worktree' && recovery && (
+                  <Link
+                    className={cn(buttonVariants())}
+                    to="/$projectId/$worktreeId"
+                    params={{
+                      projectId: recovery.projectId,
+                      worktreeId: recovery.worktree.id,
+                    }}
+                  >
+                    Open available worktree
+                  </Link>
+                )}
+                {notice && (
+                  <Link
+                    className={cn(buttonVariants({ variant: 'outline' }))}
+                    to="/"
+                    search={{}}
+                  >
+                    Back to workspace
+                  </Link>
+                )}
               </Empty>
             )}
           </EmptyWorkspace>

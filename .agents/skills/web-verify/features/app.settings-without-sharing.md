@@ -28,7 +28,7 @@ The web the server serves (web mode) leaves sharing and remote computers to the 
 
 - Sidebar (phone width: `Toggle Sidebar` first) → `Settings` → section buttons in navigation "Settings sections".
 - `Alt+Shift+S` opens Settings on Appearance (ignored while focus is in a text field).
-- Routes `/settings/appearance`, `/settings/git`, `/settings/connection`, `/settings/updates`; a desktop-only slug such as `/settings/devices` redirects to `/settings/appearance`.
+- Routes `/settings/appearance`, `/settings/git`, `/settings/connection`, `/settings/updates`; a desktop-only slug such as `/settings/devices` shows an in-app not-found with Back to workspace.
 
 ## Driving it
 
@@ -51,11 +51,11 @@ None. Note the computer's name with `hostname` on the machine running the instan
 5. Inspect HTTP requests and responses
    Look for: `GET /api/service/update` with status 200.
 6. Navigate to `/settings/devices` on the card’s web URL (full page load)
-   Look for: Page URL `/settings/appearance` (redirected); heading "Appearance".
+   Look for: Page URL `/settings/devices` (unchanged); text "Page not found" and link "Back to workspace". Follow that link to return to the workspace.
 
 ## What proves it works
 
-- The section list in step 3 and the redirect in step 6 prove the web mode has no sharing pages; step 2 proves the navigator still shows this computer's name.
+- The section list in step 3 and the not-found in step 6 prove the web mode has no sharing pages; step 2 proves the navigator still shows this computer's name.
 - `apps/web/spec/e2e/app-settings-without-sharing.e2e.ts` (web project, 414x896): the navigator shows `server.inventory().environment.name`; the four section buttons Appearance, Git and agents, Connection and Updates are visible and no Sharing button exists; Updates shows heading "Updates" and the text `Porcelain <version from GET /api/service/update>`.
 
 ## Gotchas
