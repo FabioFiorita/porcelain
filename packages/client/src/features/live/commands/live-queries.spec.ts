@@ -38,6 +38,7 @@ const request: RunGitActionRequest = {
 async function setup(
   transport?: Transport,
   onSubscription?: (subscription: LiveSubscription) => void,
+  onStatusChange?: () => void,
 ) {
   const { store: operations } = operationStoreFixture();
   const lifetime = createWorktreeConnection(
@@ -89,6 +90,7 @@ async function setup(
     ...lifetime.connection,
     operations,
     liveUpdates,
+    ...(onStatusChange ? { onStatusChange } : {}),
   });
   const owner = liveQueries({ connection, onUnauthorized: () => {} });
   const unmount = registry.mount(owner);
@@ -423,6 +425,26 @@ it('native file reads subscribe their paths, refresh from a live notice and rele
     expect(subject.sent.at(-1)?.worktrees).toEqual([]);
   } finally {
     stop();
+    await subject.cleanup();
+  }
+});
+
+it('revalidates status on reconnect, identity-relevant notices and rejected credentials only while subscribed', async () => {
+  let checks = 0;
+  const subject = await setup(undefined, undefined, () => {
+    checks += 1;
+  });
+  try {
+    subject.live()?.onReconnect();
+    subject.live()?.onNotice({ type: 'inventory' });
+    subject.live()?.onUnauthorized();
+    expect(checks).toBe(3);
+    await subject.close();
+    subject.live()?.onReconnect();
+    subject.live()?.onNotice({ type: 'inventory' });
+    subject.live()?.onUnauthorized();
+    expect(checks).toBe(3);
+  } finally {
     await subject.cleanup();
   }
 });

@@ -2,14 +2,26 @@ import { afterEach, describe, expect } from 'vitest';
 import { AsyncResult, AtomRegistry } from 'effect/reactivity';
 import type { AccessPlatformValue } from '../ports/access-platform.ts';
 import { it } from '@effect/vitest';
-import { Redacted, Deferred, Effect, Exit, Fiber, Option } from 'effect';
+import {
+  Redacted,
+  Deferred,
+  Effect,
+  Exit,
+  Fiber,
+  Option,
+  Clock,
+  Layer,
+  ManagedRuntime,
+} from 'effect';
 import { TestClock } from 'effect/testing';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import {
   readRemoteEnvironment,
   readRemoteStatus,
+  revalidateRemoteStatus,
   remoteStatusResult,
 } from './environments.ts';
+import { statusRuntime } from '../store/status.ts';
 import type { RemoteAnswer } from '../rules/remotes.ts';
 import type { Transport } from '@porcelain/client/transport';
 const environment = {
@@ -139,6 +151,7 @@ const registries = new Set<AtomRegistry.AtomRegistry>();
 afterEach(() => {
   for (const registry of registries) registry.dispose();
   registries.clear();
+  for (const runtime of testRuntimes.splice(0)) void runtime.dispose();
 });
 function registryFixture() {
   const registry = AtomRegistry.make();
@@ -277,3 +290,229 @@ it('classifies remote status results and prioritizes failure over retained succe
     'offline',
   ]);
 });
+
+const testRuntimes: ManagedRuntime.ManagedRuntime<never, never>[] = [];
+
+async function lifecycleFixture(
+  initial: {
+    answer?: typeof environment;
+    hold?: Promise<void>;
+    outage?: boolean;
+  } = {},
+) {
+  const runtime = ManagedRuntime.make(TestClock.layer());
+  testRuntimes.push(runtime);
+  const clock = await runtime.runPromise(Clock.Clock);
+  let active = true;
+  const listeners = new Set<() => void>();
+  let answer = initial.answer ?? environment;
+  let outage = initial.outage ?? false;
+  let hold: Promise<void> | undefined = initial.hold;
+  const requests: {
+    path: string;
+    authorization: string | null;
+    signal: AbortSignal | null | undefined;
+  }[] = [];
+  const platform: AccessPlatformValue = {
+    name: () => 'Lifecycle test',
+    statusActivity: {
+      isActive: () => active,
+      subscribe: (changed) => {
+        listeners.add(changed);
+        return () => {
+          listeners.delete(changed);
+        };
+      },
+    },
+    send: async (url, init) => {
+      requests.push({
+        path: url.pathname,
+        authorization: new Headers(init?.headers).get('authorization'),
+        signal: init?.signal,
+      });
+      const descriptor =
+        url.port === '3001'
+          ? {
+              ...environment,
+              environmentId: 'other-environment',
+              name: 'Other computer',
+            }
+          : answer;
+      if (hold) await hold;
+      if (outage) throw new TypeError('Host unavailable');
+      return Response.json(
+        url.pathname === '/api/environment' ? descriptor : { kind: 'owner' },
+      );
+    },
+  };
+  const registry = registryFixture();
+  statusRuntime(platform).addGlobalLayer(Layer.succeed(Clock.Clock, clock));
+  const atom = readRemoteStatus(platform, remote);
+  const stop = registry.mount(atom);
+  return {
+    platform,
+    registry,
+    atom,
+    requests,
+    listeners,
+    stop,
+    status: () => remoteStatusResult(remote, registry.get(atom)),
+    activity: (value: boolean) => {
+      active = value;
+      for (const changed of listeners) changed();
+    },
+    answer: (value: typeof environment) => {
+      answer = value;
+    },
+    outage: (value: boolean) => {
+      outage = value;
+    },
+    hold: (value: Promise<void> | undefined) => {
+      hold = value;
+    },
+    advance: (ms: number) => runtime.runPromise(TestClock.adjust(ms)),
+    flush: () => runtime.runPromise(TestClock.adjust(0)),
+  };
+}
+
+it('recovers from an outage on the next automatic probe and distinguishes reconnecting', async () => {
+  const subject = await lifecycleFixture({ outage: true });
+  await subject.flush();
+  expect(subject.status()).toEqual({ kind: 'offline' });
+  let release = () => {};
+  subject.hold(
+    new Promise<void>((resolve) => {
+      release = resolve;
+    }),
+  );
+  subject.outage(false);
+  await subject.advance(30_000);
+  expect(subject.status()).toEqual({ kind: 'reconnecting' });
+  release();
+  await subject.flush();
+  expect(subject.status()).toEqual({
+    kind: 'online',
+    name: 'Computer',
+    version: '1.0.0',
+  });
+});
+
+it('pauses in background and revalidates on foreground without overlapping event bursts', async () => {
+  const subject = await lifecycleFixture();
+  await subject.flush();
+  subject.activity(false);
+  await subject.flush();
+  await subject.advance(90_000);
+  expect(subject.requests).toHaveLength(2);
+  subject.answer({ ...environment, name: 'Foreground name' });
+  let release = () => {};
+  subject.hold(
+    new Promise<void>((resolve) => {
+      release = resolve;
+    }),
+  );
+  subject.activity(true);
+  await subject.flush();
+  subject.activity(true);
+  revalidateRemoteStatus(subject.platform, remote);
+  await subject.flush();
+  expect(subject.requests).toHaveLength(3);
+  release();
+  await subject.flush();
+  expect(subject.status()).toEqual({
+    kind: 'online',
+    name: 'Foreground name',
+    version: '1.0.0',
+  });
+  expect(subject.requests).toHaveLength(4);
+});
+
+it('recovers after identity mismatch without reading the substituted host session', async () => {
+  const subject = await lifecycleFixture({
+    answer: { ...environment, environmentId: 'substituted-host' },
+  });
+  await subject.flush();
+  expect(subject.status()).toEqual({ kind: 'other-server' });
+  await subject.advance(30_000);
+  expect(
+    subject.requests.map(({ path, authorization }) => ({
+      path,
+      authorization,
+    })),
+  ).toEqual([
+    { path: '/api/environment', authorization: 'Bearer original-credential' },
+    { path: '/api/environment', authorization: 'Bearer original-credential' },
+  ]);
+  subject.answer(environment);
+  await subject.advance(30_000);
+  expect(subject.status()).toEqual({
+    kind: 'online',
+    name: 'Computer',
+    version: '1.0.0',
+  });
+});
+
+it('switches environments without displaying a late answer from the previous selection', async () => {
+  const { subject, release } = await pendingLifecycle();
+  await subject.flush();
+  const other = {
+    ...remote,
+    environmentId: 'other-environment',
+    address: 'http://127.0.0.1:3001',
+  };
+  const otherAtom = readRemoteStatus(subject.platform, other);
+  subject.registry.mount(otherAtom);
+  expect(remoteStatusResult(other, subject.registry.get(otherAtom))).toEqual({
+    kind: 'checking',
+  });
+  subject.stop();
+  await subject.flush();
+  subject.answer({
+    ...environment,
+    environmentId: other.environmentId,
+    name: 'Other computer',
+  });
+  release();
+  await subject.flush();
+  expect(subject.requests[0]?.signal?.aborted).toBe(true);
+  expect(remoteStatusResult(other, subject.registry.get(otherAtom))).toEqual({
+    kind: 'online',
+    name: 'Other computer',
+    version: '1.0.0',
+  });
+});
+
+it('cancels background requests and releases every activity subscription when unmounted', async () => {
+  const subject = await lifecycleFixture({ hold: new Promise<void>(() => {}) });
+  await subject.flush();
+  subject.activity(false);
+  await subject.flush();
+  expect(subject.requests[0]?.signal?.aborted).toBe(true);
+  subject.stop();
+  await subject.flush();
+  expect(subject.listeners.size).toBe(0);
+  subject.activity(true);
+  await subject.advance(60_000);
+  expect(subject.requests).toHaveLength(1);
+});
+
+it('does not lose foreground recovery when background and foreground arrive during a pending probe', async () => {
+  const { subject, release } = await pendingLifecycle();
+  await subject.flush();
+  subject.activity(false);
+  subject.activity(true);
+  await subject.flush();
+  expect(subject.requests[0]?.signal?.aborted).toBe(true);
+  expect(subject.requests).toHaveLength(2);
+  release();
+  await subject.flush();
+  expect(subject.status().kind).toBe('online');
+});
+
+async function pendingLifecycle() {
+  const held = Promise.withResolvers<void>();
+  return {
+    subject: await lifecycleFixture({ hold: held.promise }),
+    release: () => held.resolve(),
+  };
+}

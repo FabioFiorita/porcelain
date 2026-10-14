@@ -6,7 +6,8 @@ import * as Schema from 'effect/Schema';
 export type RemoteAnswer =
   | { kind: 'described'; environment: ReadEnvironmentResponse }
   | { kind: 'unauthorized' }
-  | { kind: 'unreachable' };
+  | { kind: 'unreachable' }
+  | { kind: 'reconnecting' };
 
 const remoteSchema = Schema.Struct({
   environmentId: Schema.String,
@@ -23,6 +24,7 @@ export function serializeRemotes(remotes: readonly Remote[]): string {
 
 export type RemoteStatus =
   | { kind: 'checking' }
+  | { kind: 'reconnecting' }
   | { kind: 'online'; name: string; version?: string | undefined }
   | { kind: 'offline' }
   | { kind: 'needs-pairing' }
@@ -34,6 +36,7 @@ export function remoteStatus(
   answer: RemoteAnswer | undefined,
 ): RemoteStatus {
   if (answer === undefined) return { kind: 'checking' };
+  if (answer.kind === 'reconnecting') return { kind: 'reconnecting' };
   if (answer.kind === 'unauthorized') return { kind: 'needs-pairing' };
   if (answer.kind === 'unreachable') return { kind: 'offline' };
   const { environment } = answer;
@@ -101,6 +104,8 @@ export function remoteStatusText(status: RemoteStatus): string {
   switch (status.kind) {
     case 'checking':
       return 'Checking';
+    case 'reconnecting':
+      return 'Reconnecting';
     case 'online':
       return 'Online';
     case 'offline':

@@ -13,11 +13,13 @@ import {
   EnvironmentCommands,
   EnvironmentMutations,
   EnvironmentStorage,
+  revalidateRemoteStatus,
   type AccessPlatformValue,
 } from '@porcelain/client/access';
 import { Effect, Layer, ManagedRuntime, Option } from 'effect';
 import { Atom } from 'effect/reactivity';
 import { useAtomRef, useAtomValue } from '@effect/atom-react';
+import { statusActivity } from './adapters/status-activity';
 import { environmentStorage } from './adapters/environment-storage';
 
 export const pairingPlatform: AccessPlatformValue = {
@@ -26,6 +28,7 @@ export const pairingPlatform: AccessPlatformValue = {
       ? 'Browser'
       : navigator.userAgent.slice(0, WEB_PLATFORM_NAME_MAX_LENGTH) || 'Browser',
   send: fetch,
+  statusActivity,
 };
 import { type Remote } from '@porcelain/client/access/rules';
 import { REQUEST_TIMEOUT_MS } from '@/config/limits';
@@ -94,6 +97,7 @@ function remoteConnection(remote: Remote): Connection {
       ...remote,
       send: fetch,
       socket: webSocket,
+      onStatusChange: () => revalidateRemoteStatus(pairingPlatform, remote),
       timeoutMs: REQUEST_TIMEOUT_MS,
     },
     Layer.merge(

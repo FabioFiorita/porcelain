@@ -4,14 +4,14 @@ import { Effect, Exit } from 'effect';
 import { useState } from 'react';
 import {
   EnvironmentCommands,
-  readRemoteStatus,
+  revalidateRemoteStatus,
 } from '@porcelain/client/access';
 import type { Remote } from '@porcelain/client/access/rules';
 import { REQUEST_TIMEOUT_MS } from '@/config/limits';
 import { accessSession, environmentRuntime, pairingPlatform } from '../store';
 
 const addRemote = Atom.family((_identity: symbol) =>
-  environmentRuntime.fn((value: string, get) =>
+  environmentRuntime.fn((value: string) =>
     Effect.gen(function* () {
       const commands = yield* EnvironmentCommands;
       const remote = yield* commands
@@ -21,7 +21,7 @@ const addRemote = Atom.family((_identity: symbol) =>
             accessSession.state.value.connection?.environmentId,
         })
         .pipe(Effect.timeout(REQUEST_TIMEOUT_MS));
-      get.registry.refresh(readRemoteStatus(pairingPlatform, remote));
+      revalidateRemoteStatus(pairingPlatform, remote);
       return remote;
     }),
   ),
@@ -40,9 +40,9 @@ const readSavedEnvironments = environmentRuntime.fn((_: void) =>
     yield* commands.read();
   }),
 );
-const recheckRemote = Atom.fn((remote: Remote, get) =>
+const recheckRemote = Atom.fn((remote: Remote) =>
   Effect.sync(() => {
-    get.registry.refresh(readRemoteStatus(pairingPlatform, remote));
+    revalidateRemoteStatus(pairingPlatform, remote);
   }),
 );
 
