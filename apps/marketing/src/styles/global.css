@@ -1,0 +1,44 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+@import '@porcelain/theme/tokens.css';
+
+@custom-variant light {
+  @media (prefers-color-scheme: light) {
+    @slot;
+  }
+}
+
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    @slot;
+  }
+}
+
+@theme {
+  --font-sans: 'Geist Variable', sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+}
+
+/*
+  Motion owns every animation on these pages. The html element gets the motion
+  class before paint when the visitor allows motion, so elements that will
+  animate in start hidden instead of flashing.
+*/
+.motion :is([data-reveal], [data-word], [data-hero-frame], [data-callout], [data-matters]) {
+  opacity: 0;
+}
+
+.motion [data-callout-line] {
+  transform: scaleX(0);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

@@ -1,0 +1,38 @@
+---
+interface Props {
+  command: string;
+  tone?: 'default' | 'inverse';
+}
+
+const { command, tone = 'default' } = Astro.props;
+---
+
+<div
+  class:list={[
+    'group inline-flex h-11 max-w-full items-center gap-3 rounded-full pr-1.5 pl-4 font-mono text-[0.8125rem]',
+    tone === 'default'
+      ? 'bg-muted text-foreground shadow-[inset_0_0_0_1px_var(--border)]'
+      : 'bg-background/10 text-background shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--background)_18%,transparent)]',
+  ]}
+>
+  <span class="opacity-50 select-none" aria-hidden="true">$</span>
+  <code class="min-w-0 overflow-x-auto whitespace-nowrap">{command}</code>
+  <button
+    type="button"
+    class:list={[
+      'inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors',
+      tone === 'default' ? 'hover:bg-background' : 'hover:bg-background/15',
+    ]}
+    data-copy={command}
+    aria-label="Copy the command"
+  >
+    <svg data-copy-icon viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+      <rect x="8" y="8" width="12" height="12" rx="2.5"></rect>
+      <path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"></path>
+    </svg>
+    <span data-copy-status class="sr-only" aria-live="polite"></span>
+    <svg data-copied-icon viewBox="0 0 24 24" class="hidden size-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <path d="m5 12.5 4.5 4.5L19 7.5"></path>
+    </svg>
+  </button>
+</div>
