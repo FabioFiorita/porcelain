@@ -97,3 +97,7 @@ export {
   type WalkthroughKey,
   type WalkthroughStop,
 } from './walkthrough.ts';
+export {
+  reviewSidebarActions,
+  type ReviewSidebarAction,
+} from './sidebar-actions.ts';
