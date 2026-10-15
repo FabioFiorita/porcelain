@@ -43,6 +43,8 @@ The toolbar picker uses the same metadata, readiness and selection commands as t
 
 ## Driving it
 
+Before switching worktrees, check activation with ordinary short taps on the toolbar button at its center and near its edges, immediately after opening a child screen and after scrolling Files. Each tap must open the menu; use screenshots as well as snapshots, because an expanded SwiftUI submenu can be missing from the accessibility tree. If a short tap misses, compare a held press at the same point and retain the trigger's native bounds. A held press does not count as proof that normal activation works. The toolbar uses the native menu button instead of a glyph-sized SwiftUI `Host matchContents` trigger.
+
 1. On a phone, pair two disposable environments, select Files, then open the Workspace toolbar button. Expect directly selectable worktrees from both environments in the same menu, with project and environment labels and no submenu expansion. On iPad use the visible worktree navigator described below.
 2. On a phone, select one project’s main worktree directly. Expect the filter to remain icon-only with accessibility label <project> · <worktree>, the Files context caption to identify that worktree, and Files still selected.
 3. Reopen the toolbar picker by its new label. Expect both environments' worktrees still visible; choose a worktree from the other environment directly. Expect the toolbar to update directly to that workspace.
