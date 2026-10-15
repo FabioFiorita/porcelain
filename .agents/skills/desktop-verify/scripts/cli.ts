@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { connectionCard } from '../../verify-core/connection.ts';
 import {
+  memoryProblem,
   refuseMissing,
   runCli,
   stopOutput,
@@ -84,7 +85,7 @@ async function main(args: readonly string[]): Promise<string> {
     return '';
   }
   if (command === 'start') {
-    refuseMissing(desktopProblems());
+    refuseMissing([...desktopProblems(), memoryProblem()]);
     const instance = await registry.launch({}, 10 * 60_000);
     if (instance.connectionPath === undefined)
       throw new Error('The desktop published no connection file');
