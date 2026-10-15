@@ -5,7 +5,7 @@ import SwiftUI
 @MainActor
 final class CodeSurface: ExpoView {
   let model = CodeState()
-  let onSelect = EventDispatcher()
+  let onCodeSelect = EventDispatcher()
   let onExpand = EventDispatcher()
   private var host: UIHostingController<CodeContent>?
 
@@ -17,7 +17,7 @@ final class CodeSurface: ExpoView {
       let selection = model.choose(location.side, location.line, reset: reset)
       var range: [String: Any] = ["startLine": selection.startLine, "endLine": selection.endLine]
       if let side = selection.side { range["side"] = side }
-      onSelect(range)
+      onCodeSelect(range)
     }, expand: { [weak self] id in
       self?.onExpand(["id": id])
     }, copy: { text in

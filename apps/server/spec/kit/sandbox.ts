@@ -465,6 +465,7 @@ async function main() {
           PORCELAIN_DEV_INSTALLATION: dirname(installation.serverAt),
           PORCELAIN_DEV_CODING_TOOL: codingToolExecutable,
           PORCELAIN_DEV_PORT: String(network.port),
+          PORCELAIN_DEV_ALLOWED_HOSTS: option('--allowed-hosts') ?? '[]',
           ...(process.platform === 'darwin' ? { TRASH_FALLBACK: '1' } : {}),
           ...(process.env.PORCELAIN_DEV_SAMPLE === 'review' ||
           process.env.PORCELAIN_DEV_SAMPLE === 'perf'

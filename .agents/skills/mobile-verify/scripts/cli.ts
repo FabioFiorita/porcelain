@@ -1,10 +1,16 @@
-import { pairingLink } from '@porcelain/contracts/access';
+import { IsolatedServer } from '@porcelain/server/kit/isolated-server';
+import { issuePairingLink } from '@porcelain/mobile/kit/environment';
+import { emulatorAddress } from '@porcelain/mobile/kit/android';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { buildDevelopmentClient } from '@porcelain/mobile/kit/development-client';
 import { deviceHost } from '@porcelain/mobile/kit/device-host';
+import {
+  devicePlatform,
+  type DeviceKind,
+} from '@porcelain/mobile/kit/simulator';
 import { missingTools } from '@porcelain/mobile/kit/tools';
 import {
   runCli,
@@ -14,7 +20,6 @@ import {
 } from '../../verify-core/cli.ts';
 import {
   agentCommand,
-  issuedLink,
   serverRead,
   serverOptions,
 } from '../../verify-core/fixtures.ts';
@@ -23,8 +28,8 @@ import { serve, start, startProblems } from './serve.ts';
 
 const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--instance <id>]
   doctor                   check startup dependencies, matching native build and active instances
-  build                    build the matching development client on the Mac
-  start [--device iphone|ipad] [--udid <already-owned-booted-udid>] [--manual-pairing] [--fixture development|focused]
+  build                    build the matching development client (--device android on Linux)
+  start [--device iphone|ipad|android] [--udid <owned-ios-udid> | --serial <owned-android-serial>] [--manual-pairing] [--fixture development|focused]
                            prepare a disposable server, Metro and development client; manual pairing leaves the app for the developer
   status                   report passive lifecycle status and connection metadata
   logs                     record app, Metro and server logs
@@ -37,10 +42,20 @@ const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--inst
                            read back the disposable server's state
 Drive the app with the full agent-device invocation from the connection card.
 `;
-async function doctor(): Promise<string> {
-  const problems = (await startProblems(deviceHost().remote)).filter(
-    (problem) => problem !== undefined,
-  );
+async function doctor(
+  kind: DeviceKind,
+  serial?: string,
+  ownDriver = false,
+): Promise<string> {
+  const host = deviceHost();
+  const problems = (
+    await startProblems(
+      kind === 'android' ? undefined : host.remote,
+      ownDriver,
+      kind,
+      serial ?? host.androidSerial,
+    )
+  ).filter((problem) => problem !== undefined);
   if (problems.length > 0) process.exitCode = 1;
   const live = registry.list().filter((entry) => entry.alive);
   return [
@@ -58,25 +73,31 @@ async function doctor(): Promise<string> {
 }
 function logs(instance: MobileInstance): string {
   const app =
-    instance.detail.host === null
+    instance.detail.kind === 'android'
       ? spawnSync(
-          'xcrun',
-          [
-            'simctl',
-            'spawn',
-            instance.detail.udid,
-            'log',
-            'show',
-            '--last',
-            '10m',
-            '--style',
-            'compact',
-            '--predicate',
-            'process == "PorcelainDev" AND (subsystem BEGINSWITH "com.facebook.react" OR messageType == error OR messageType == fault)',
-          ],
-          { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+          'adb',
+          ['-s', instance.detail.udid, 'logcat', '-d', '-t', '400'],
+          { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
         )
-      : undefined;
+      : instance.detail.host === null
+        ? spawnSync(
+            'xcrun',
+            [
+              'simctl',
+              'spawn',
+              instance.detail.udid,
+              'log',
+              'show',
+              '--last',
+              '10m',
+              '--style',
+              'compact',
+              '--predicate',
+              'process == "PorcelainDev" AND (subsystem BEGINSWITH "com.facebook.react" OR messageType == error OR messageType == fault)',
+            ],
+            { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+          )
+        : undefined;
   const tail = (text: string) => text.split('\n').slice(-400).join('\n');
   return [
     '## app',
@@ -101,6 +122,8 @@ async function command(args: readonly string[]): Promise<string> {
       instance: { type: 'string' },
       device: { type: 'string', default: 'iphone' },
       udid: { type: 'string' },
+      serial: { type: 'string' },
+      'agent-device-session': { type: 'string' },
       'agent-device-config': { type: 'string' },
       'agent-device-command': { type: 'string' },
       'manual-pairing': { type: 'boolean', default: false },
@@ -118,28 +141,46 @@ async function command(args: readonly string[]): Promise<string> {
     await serve(rest[0]);
     return '';
   }
+  if (
+    values.device !== 'iphone' &&
+    values.device !== 'ipad' &&
+    values.device !== 'android'
+  )
+    throw new Usage('--device takes iphone, ipad or android.');
+  if (
+    values.device === 'android'
+      ? values.udid !== undefined
+      : values.serial !== undefined
+  )
+    throw new Usage('Use --serial for Android and --udid for iOS.');
   if (name === 'start') {
-    if (values.device !== 'iphone' && values.device !== 'ipad')
-      throw new Usage('start takes --device iphone or --device ipad.');
     if (values.fixture !== 'development' && values.fixture !== 'focused')
       throw new Usage(
         'start takes --fixture development or --fixture focused.',
       );
     return start(
       values.device,
-      values.udid,
+      values.device === 'android' ? values.serial : values.udid,
       values['agent-device-config'],
       values['agent-device-command'],
       values['manual-pairing'],
       values.fixture,
+      values['agent-device-session'],
     );
   }
-  if (name === 'doctor') return doctor();
+  if (name === 'doctor')
+    return doctor(
+      values.device,
+      values.serial,
+      values['agent-device-command'] !== undefined,
+    );
   if (name === 'build') {
-    refuseMissing(missingTools(['simulator']));
+    refuseMissing(
+      missingTools([values.device === 'android' ? 'android' : 'simulator']),
+    );
     mkdirSync(registry.home, { recursive: true });
     const log = join(registry.home, `build-${Date.now()}.log`);
-    await buildDevelopmentClient(log);
+    await buildDevelopmentClient(log, devicePlatform(values.device));
     return `built matching development client; log ${log}\n`;
   }
   if (name === 'stop')
@@ -158,13 +199,16 @@ async function command(args: readonly string[]): Promise<string> {
     throw new Usage(usage);
   const instance = registry.chosen(values.instance);
   if (name === 'pairing-link') {
-    const grant = await issuedLink(
-      instance.detail.manifest,
-      'Verification simulator',
-      false,
+    const server = await IsolatedServer.attach(instance.detail.manifest);
+    const link = await issuePairingLink(
+      server,
       registry.redactor(instance).recorder(),
+      'Verification simulator',
+      instance.detail.kind === 'android'
+        ? emulatorAddress(server.address)
+        : server.address,
     );
-    return `${pairingLink({ addresses: [grant.address], code: grant.code, environmentId: grant.environmentId })}\n`;
+    return `${link}\n`;
   }
   return registry.drive(instance, args, async () => {
     if (name === 'logs')

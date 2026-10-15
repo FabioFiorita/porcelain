@@ -8,7 +8,7 @@ class PorcelainRendererModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("PorcelainRenderer")
     View(CodeSurface::class) {
-      Events("onSelect", "onExpand")
+      Events("onCodeSelect", "onExpand")
       Prop("tokens") { view: CodeSurface, value: String -> view.state.tokens = RenderTokens.decode(value) }
       Prop("data") { view: CodeSurface, value: String -> view.state.updateData(value) }
       Prop("wrap") { view: CodeSurface, value: Boolean -> view.state.options = view.state.options.copy(wrap = value) }

@@ -1,3 +1,7 @@
+# Local development
+
+Linux contributors can build and drive the native Android development client without a Mac or an Expo account. Follow [Android development and verification](../../.agents/skills/mobile-verify/references/android.md) for SDK setup, an explicit emulator selection, the disposable server/Metro fixture, pairing, evidence and cleanup. The same mobile verification launcher supports iOS on macOS; see [mobile verification](../../.agents/skills/mobile-verify/SKILL.md).
+
 # Porcelain mobile delivery
 
 The [Porcelain Expo project](https://expo.dev/accounts/fabiofiorita/projects/porcelain) uses the repository's `apps/mobile` base directory. In Expo, open **Workflows → Run a workflow**, choose `main` and select **Preview delivery** or **Production delivery**. Both workflows are manual only; pushes and pull requests do not start EAS jobs.

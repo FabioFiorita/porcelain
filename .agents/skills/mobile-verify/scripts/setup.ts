@@ -1,7 +1,8 @@
 import { Schema } from 'effect';
 import { spawn, spawnSync } from 'node:child_process';
+import type { MobilePlatform } from '@porcelain/mobile/kit/development-client';
 import { simulatorSchema } from '@porcelain/mobile/kit/simulator';
-import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   identity,
@@ -114,24 +115,24 @@ export function driver(
   session: string,
   suppliedConfig?: string,
   suppliedCommand?: string,
+  platform: MobilePlatform = 'ios',
 ) {
-  const config = join(folder, 'agent-device.json');
-  writeFileSync(
-    config,
-    suppliedConfig === undefined
-      ? JSON.stringify(
-          host === null
-            ? { platform: 'ios' }
-            : {
-                platform: 'ios',
-                daemonBaseUrl: hubUrl(host),
-                daemonAuthToken: hubToken(host),
-                daemonTransport: 'http',
-              },
-        )
-      : readFileSync(suppliedConfig, 'utf8'),
-    { mode: 0o600 },
-  );
+  const config = suppliedConfig ?? join(folder, 'agent-device.json');
+  if (suppliedConfig === undefined)
+    writeFileSync(
+      config,
+      JSON.stringify(
+        host === null
+          ? { platform }
+          : {
+              platform,
+              daemonBaseUrl: hubUrl(host),
+              daemonAuthToken: hubToken(host),
+              daemonTransport: 'http',
+            },
+      ),
+      { mode: 0o600 },
+    );
   const executable = agentDevice();
   if (
     suppliedCommand === undefined &&
@@ -146,7 +147,7 @@ export function driver(
 import { spawnSync } from 'node:child_process';
 const args = process.argv.slice(2);
 const transport = ['connect', 'disconnect'].includes(args[0]);
-const required = transport ? ['--config', '--session'] : ['--config', '--session', '--platform', '--udid'];
+const required = transport ? ['--config', '--session'] : ['--config', '--session', '--platform', ${JSON.stringify(platform === 'ios' ? '--udid' : '--serial')}];
 if (!required.every(flag => args.includes(flag) && args[args.indexOf(flag) + 1])) {
   console.error('Use the full invocation from the connection card.'); process.exit(2);
 }
@@ -164,8 +165,8 @@ process.exit(result.status ?? 1);
     '--session',
     session,
     '--platform',
-    'ios',
-    '--udid',
+    platform,
+    platform === 'ios' ? '--udid' : '--serial',
     udid,
   ];
   return {
@@ -204,14 +205,16 @@ export function pairClient(
 ): void {
   const run = (args: string[], optional = false) =>
     setupCommand(driver, args, session, optional);
+  const ios =
+    driver.targetArgs[driver.targetArgs.indexOf('--platform') + 1] === 'ios';
   try {
-    run(['prepare', 'ios-runner']);
+    if (ios) run(['prepare', 'ios-runner']);
     run(['open', identity.bundleIdentifier, '--foreground']);
     run(['open', identity.bundleIdentifier, developmentLink(metro)]);
-    run(['alert', 'accept', '5000'], true);
+    if (ios) run(['alert', 'accept', '5000'], true);
     run(['wait', 'text', 'Files', '60000']);
     run(['open', identity.bundleIdentifier, screenLink('/settings')]);
-    run(['alert', 'accept', '5000'], true);
+    if (ios) run(['alert', 'accept', '5000'], true);
     run(['press', 'label="Add environment"', '--settle']);
     run(['fill', 'id="pairing-link"', link, '--settle']);
     run(['wait', '1500']);

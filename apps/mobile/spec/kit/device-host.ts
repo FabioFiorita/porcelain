@@ -13,6 +13,7 @@ const fileSchema = Schema.Struct({
       }),
     ),
   ),
+  androidSerial: Schema.optional(Schema.NonEmptyString),
   ssh: Schema.optional(Schema.String),
   checkout: Schema.optional(Schema.String),
   hub: Schema.optional(
@@ -47,6 +48,7 @@ export type RemoteHost = {
   ports: readonly number[];
 };
 export type DeviceHost = {
+  androidSerial: string | undefined;
   agentDevice: string | undefined;
   remote: RemoteHost | undefined;
   simulatorLimit: number | undefined;
@@ -71,6 +73,7 @@ function fileProblem(hostFile: string, wrong: readonly string[]): Error {
     [
       `${hostFile} describes this machine's simulators; every field is optional:`,
       '  "agentDevice": the absolute path of the agent-device executable this machine drives devices with, such as the one `npm install --global agent-device` installs; it must run the same version as the device hub',
+      '  "androidSerial": the booted local emulator serial selected for Android verification (or pass --serial); never a personal device',
       '  "simulatorLimit": the most simulators the device host may have booted at once, a positive integer; defaults to two, and mobile verification never exceeds two',
       "and, to drive a Mac's simulators from another machine, all three of:",
       '  "hub": the agent-device hub URL as this machine reaches it, such as "http://127.0.0.1:4310"',
@@ -84,6 +87,7 @@ export function deviceHost(): DeviceHost {
   const hostFile = mainCheckoutHostFile();
   if (!existsSync(hostFile))
     return {
+      androidSerial: undefined,
       agentDevice: undefined,
       remote: undefined,
       simulatorLimit: undefined,
@@ -104,6 +108,7 @@ export function hostFromJson(value: unknown, hostFile: string): DeviceHost {
     throw fileProblem(hostFile, [parsed.failure.message]);
   const {
     agentDevice,
+    androidSerial,
     hub,
     tokenVariable,
     ports,
@@ -121,6 +126,7 @@ export function hostFromJson(value: unknown, hostFile: string): DeviceHost {
         ...(checkout === undefined ? {} : { checkout }),
       },
       agentDevice,
+      androidSerial,
       simulatorLimit,
     };
   const present = hubFields.filter(
@@ -130,5 +136,5 @@ export function hostFromJson(value: unknown, hostFile: string): DeviceHost {
     throw fileProblem(hostFile, [
       `it has ${present.join(' and ')} but not ${hubFields.filter((field) => !present.includes(field)).join(' and ')}; give all three to drive a remote device host, or none to drive this Mac's simulators`,
     ]);
-  return { agentDevice, remote: undefined, simulatorLimit };
+  return { agentDevice, androidSerial, remote: undefined, simulatorLimit };
 }

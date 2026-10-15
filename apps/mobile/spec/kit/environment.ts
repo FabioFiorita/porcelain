@@ -13,7 +13,8 @@ import {
   type ServerHandle,
   type Hit,
 } from '@porcelain/server/kit/isolated-server';
-import { repositoryRoot } from './development-client.ts';
+import { repositoryRoot, type MobilePlatform } from './development-client.ts';
+import { emulatorAddress } from './android.ts';
 import { seedDevelopmentSample } from '@porcelain/server/kit/development-sample';
 
 export type Workspace = { projectName: string; worktreeLabel: string };
@@ -43,6 +44,7 @@ export class Environment {
 
   static async start(input: {
     build: string;
+    platform?: MobilePlatform;
     title: string;
     label: string;
     workspace: boolean;
@@ -56,6 +58,7 @@ export class Environment {
       undefined,
       input.onOutput,
       input.port,
+      input.platform === 'android' ? ['10.0.2.2'] : [],
     );
     const recorder = new Recorder();
     recorder.secret(server.credential);
@@ -72,7 +75,14 @@ export class Environment {
         path: '/api/environment/name',
         body: { name },
       });
-      const link = await issuePairingLink(server, recorder, input.label);
+      const link = await issuePairingLink(
+        server,
+        recorder,
+        input.label,
+        input.platform === 'android'
+          ? emulatorAddress(server.address)
+          : server.address,
+      );
       recorder.phase = 'follow-up';
       return new Environment({ server, recorder, name, link, workspace });
     } catch (error) {
@@ -134,6 +144,7 @@ export async function issuePairingLink(
   server: ServerHandle,
   recorder: Recorder,
   label: string,
+  address = server.address,
 ): Promise<string> {
   const issued = Schema.decodeUnknownSync(issuePairingResponseSchema)(
     (
@@ -141,7 +152,7 @@ export async function issuePairingLink(
         method: 'POST',
         path: '/pairings',
         target: 'owner',
-        body: { labels: [label], addresses: [server.address] },
+        body: { labels: [label], addresses: [address] },
       })
     ).body,
   );
@@ -149,7 +160,7 @@ export async function issuePairingLink(
   if (grant === undefined)
     throw new Error('The disposable server issued no pairing grant.');
   const link = pairingLink({
-    addresses: [server.address],
+    addresses: [address],
     code: grant.code,
     environmentId: grant.link.environmentId,
   });

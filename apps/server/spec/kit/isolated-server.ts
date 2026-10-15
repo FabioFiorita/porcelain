@@ -1139,6 +1139,7 @@ export class IsolatedServer extends ServerHandle {
     sample?: 'perf',
     onOutput?: (text: string) => void,
     port?: number,
+    allowedHosts: readonly string[] = [],
   ): Promise<IsolatedServer> {
     const env = Object.fromEntries(
       Object.entries(process.env).filter(
@@ -1152,6 +1153,8 @@ export class IsolatedServer extends ServerHandle {
         '--server',
         build,
         ...(port === undefined ? [] : ['--port', String(port)]),
+        '--allowed-hosts',
+        JSON.stringify(allowedHosts),
       ],
       {
         cwd: repositoryRoot,
