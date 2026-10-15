@@ -12,7 +12,7 @@ import type { RemoteHost } from '@porcelain/mobile/kit/device-host';
 import { agentDevice, agentDeviceMissing } from '@porcelain/mobile/kit/tools';
 import { Refusal } from '../../verify-core/cli.ts';
 import { shellCommand } from '../../verify-core/connection.ts';
-import { hubToken, hubUrl } from './host.ts';
+import { hostArgs, hubToken, hubUrl } from './host.ts';
 import { simulatorHost, type HostRequest } from './simulator-host.ts';
 
 const preparedSchema = Schema.Struct({
@@ -37,8 +37,7 @@ export async function prepareHost(
     throw new Refusal(
       'Remote start needs ssh and checkout in the private device-host config for simulator claims, app installation and cleanup. UI control uses the hub.',
     );
-  const remote = `cd ${shellCommand([host.checkout])} && mise exec -- ${shellCommand(['node', '.agents/skills/mobile-verify/scripts/simulator-host.ts', JSON.stringify(request)])}`;
-  const child = spawn('ssh', ['-o', 'BatchMode=yes', host.ssh, remote], {
+  const child = spawn('ssh', hostArgs(host.ssh, host.checkout, request), {
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   let stderr = '';

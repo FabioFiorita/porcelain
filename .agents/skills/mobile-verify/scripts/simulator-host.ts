@@ -8,6 +8,7 @@ import {
   simulatorSchema,
 } from '@porcelain/mobile/kit/simulator';
 import {
+  buildCommand,
   developmentClient,
   identity,
   nativeFingerprint,
@@ -22,6 +23,18 @@ const requestSchema = Schema.Struct({
   limit: Schema.Finite,
 });
 export type HostRequest = typeof requestSchema.Type;
+const inspectSchema = Schema.Struct({ action: Schema.Literal('inspect') });
+export const inspectionSchema = Schema.Struct({
+  fingerprint: Schema.String,
+  client: Schema.Boolean,
+});
+async function inspectHost(): Promise<typeof inspectionSchema.Type> {
+  const fingerprint = await nativeFingerprint();
+  return {
+    fingerprint,
+    client: (await developmentClient(fingerprint)) !== undefined,
+  };
+}
 export async function simulatorHost(request: HostRequest) {
   const file = join('/tmp/porcelain-simulator-pool', `${request.owner}.json`);
   if (request.action === 'release') {
@@ -36,12 +49,12 @@ export async function simulatorHost(request: HostRequest) {
   }
   if ((await nativeFingerprint()) !== request.fingerprint)
     throw new Error(
-      'The device-host checkout has different native inputs; use a matching checkout.',
+      `The device-host checkout has different native inputs; check out the same commit here, then run ${buildCommand}.`,
     );
   const client = await developmentClient();
   if (client === undefined)
     throw new Error(
-      'Build the matching development client on the Mac before starting.',
+      `No development client matches these native inputs; run ${buildCommand} on the Mac before starting.`,
     );
   const simulator = await bootSimulator(
     request.kind,
@@ -63,14 +76,18 @@ export async function simulatorHost(request: HostRequest) {
   }
 }
 if (process.argv[1] === import.meta.filename) {
-  const request = Schema.decodeUnknownSync(requestSchema)(
-    JSON.parse(process.argv[2] ?? '{}'),
-  );
-  const simulator = await simulatorHost(request);
-  process.stdout.write(`${JSON.stringify(simulator)}\n`);
-  if (request.action === 'prepare') {
-    process.stdin.resume();
-    await new Promise<void>((done) => process.stdin.once('end', done));
-    await simulatorHost({ ...request, action: 'release' });
+  const request = Schema.decodeUnknownSync(
+    Schema.Union([requestSchema, inspectSchema]),
+  )(JSON.parse(process.argv[2] ?? '{}'));
+  if (request.action === 'inspect')
+    process.stdout.write(`${JSON.stringify(await inspectHost())}\n`);
+  else {
+    const simulator = await simulatorHost(request);
+    process.stdout.write(`${JSON.stringify(simulator)}\n`);
+    if (request.action === 'prepare') {
+      process.stdin.resume();
+      await new Promise<void>((done) => process.stdin.once('end', done));
+      await simulatorHost({ ...request, action: 'release' });
+    }
   }
 }

@@ -7,7 +7,7 @@ Linux runs the disposable server and Metro. The Mac owns Xcode, the fixed simula
 
 The lifecycle CLI uses an SSH connection held for the run’s lifetime solely for simulator preparation and release. The host helper owns the claim until that connection closes; a dead helper’s claim is reclaimed by the next allocation.
 
-Required: Node/pnpm from the repository toolchain on both machines, authenticated SSH, full Xcode with an iOS 26+ runtime on the Mac, and the same native inputs in a Mac worktree. Install/build there, then keep the checkout for cleanup. Never point at the installed app or its data. That Mac checkout is shared by every Linux run: put it on your branch's native inputs before `start`, and do not move it while another run uses it.
+Required: Node/pnpm from the repository toolchain on both machines, authenticated SSH, full Xcode with an iOS 26+ runtime on the Mac, and the same native inputs in a Mac worktree. Install/build there, then keep the checkout for cleanup. Never point at the installed app or its data. That Mac checkout is shared by every Linux run: put it on your branch's native inputs before `start`, and do not move it while another run uses it. `doctor` and `start` ask the Mac for its native fingerprint first and refuse, before any setup, when it differs from this checkout or has no development client yet; run `cli build` on the Mac then. The fingerprint covers iOS inputs only, so Android files in the Mac checkout do not change it.
 
 The ignored `.mobile-device-host.json` in the Linux main checkout is shared by its worktrees. Set these machine-local values (no credentials in the repository):
 
