@@ -52,7 +52,7 @@ const keyTargets = new Set([...globalObjects, 'document']);
 const keyEvents = new Set(['keydown', 'keyup', 'keypress']);
 const historyGlobals = new Set(['history']);
 const pureRuleModules =
-  /^(?:@porcelain\/contracts(?:\/|$)|@porcelain\/client\/[^/]+\/rules$|effect\/(?:Schema|Redacted)$)/;
+  /^(?:@porcelain\/contracts(?:\/|$)|@porcelain\/client\/[^/]+\/rules$|effect\/(?:Schema|Redacted)$|@pierre\/diffs\/utils\/(?:parsePatchFiles|parseLineType|getFiletypeFromFileName)$)/;
 const loopStatements = new Set([
   'ForStatement',
   'ForInStatement',
