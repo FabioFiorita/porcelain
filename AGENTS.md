@@ -4,11 +4,10 @@ Porcelain is a companion to coding agents: it is where a developer reviews what 
 
 ## Product
 
-- **A companion, not a harness.** Agents run in their own apps; Porcelain reads their work and answers them through MCP.
-- **Review in order of what matters.** A review walks through the changes by importance, not by file name; tests and specs need less attention than product code.
+- **Not a harness.** Agents run in their own apps; Porcelain reads their work beside them instead of running them.
+- **A review walks through decisions, never file names.** The agent publishes one stop per decision, in an order that meets an owner before what uses it; `apps/server/src/http/mcp/review-guide.ts` owns that shape.
 - **A file tree for very large repositories.** The developer pins the files and folders they care about and hides the ones they never open.
 - **Git beside the review:** history, a per-file timeline, commit, pull and push.
-- **One Porcelain for every machine.** It connects to the server on each of the developer's machines.
 - **Phone and tablet.** The iPhone is a companion: check, review, comment and small controls. The iPad can replace the desk, so its layouts are designed and verified in landscape first, and portrait stays usable.
 
 ## How we work
@@ -37,11 +36,10 @@ Before calling a change done, check each of these and say which applied:
 
 ## Libraries
 
-Each job has one library; the checks enforce most of them, and these have no check:
+Each job has one library. Rules already hold Zustand's ban, the shadcn pins, routing, forms, hotkeys and Expo UI chrome; these choices have no check:
 
-- Code, diffs and file trees render with Pierre (`@pierre/diffs`, `@pierre/trees`). Mobile highlights code with Shiki, because Pierre's renderers need a browser page.
-- On the web, Markdown renders with TanStack Markdown.
-- Shared and saved client state lives in Effect atoms; `useState` holds only one component's UI details.
+- On web and desktop, code, diffs and file trees render with Pierre (`@pierre/diffs`, `@pierre/trees`) and Markdown with TanStack Markdown. Pierre's renderers need a browser page, so mobile draws its own code, diff, tree and Markdown views and highlights with Shiki.
+- `useState` holds only one component's UI details; anything shared or saved is an Effect atom.
 
 ## Library documentation
 
