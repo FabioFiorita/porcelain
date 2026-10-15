@@ -12,7 +12,6 @@
   "apps/web/src/features/reviews/rules/tab-strip.ts#closeUnpinnedInPane",
   "apps/web/src/features/reviews/rules/tab-strip.ts#emptyPane",
   "apps/web/src/features/reviews/rules/tab-strip.ts#neighbourAfterClose",
-  "apps/web/src/features/reviews/rules/tab-strip.ts#openInPane",
   "apps/web/src/features/reviews/rules/tab-strip.ts#orderedTabs",
   "apps/web/src/features/reviews/rules/tab-strip.ts#togglePinInPane",
   "packages/access/src/rules/device-activity.ts#sighted",

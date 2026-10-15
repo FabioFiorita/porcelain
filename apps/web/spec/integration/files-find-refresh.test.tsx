@@ -19,7 +19,12 @@ test('the find count follows a file that changes on disk and stays within its ma
     .element(workspace.getByText('needle three', { exact: true }))
     .toBeVisible();
   await expect
-    .element(workspace.getByRole('button', { name: 'Review', exact: true }))
+    .element(
+      workspace.getByRole('tab', {
+        name: 'notes.txt Close notes.txt',
+        exact: true,
+      }),
+    )
     .toHaveFocus();
 
   await userEvent.keyboard('{ControlOrMeta>}f{/ControlOrMeta}');

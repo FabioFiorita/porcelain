@@ -7,6 +7,16 @@ export type Pane = {
 
 export const emptyPane = (): Pane => ({ tabs: [], pinned: [] });
 
+export function documentPane(
+  panes: readonly Pane[],
+  preferred: 0 | 1,
+  key: string,
+): 0 | 1 {
+  if (panes[preferred]?.tabs.includes(key)) return preferred;
+  const other = preferred === 0 ? 1 : 0;
+  return panes[other]?.tabs.includes(key) ? other : preferred;
+}
+
 export function orderedTabs(pane: Pane): string[] {
   return [
     ...pane.pinned.filter((key) => pane.tabs.includes(key)),

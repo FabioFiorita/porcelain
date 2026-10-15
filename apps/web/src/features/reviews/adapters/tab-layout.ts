@@ -10,6 +10,7 @@ import {
   closeInPane,
   closeOthersInPane,
   closeUnpinnedInPane,
+  documentPane,
   emptyPane,
   neighbourAfterClose,
   openInPane,
@@ -274,6 +275,13 @@ export function useTabLayout({
     activate(index: PaneIndex, key: string) {
       setFocused(index);
       goPane(index, key);
+    },
+    open(index: PaneIndex, key: string) {
+      const target = documentPane(panes, index, key);
+      goPane(target, key);
+      destinationFocus.current = { pane: target, key };
+      setFocused(target);
+      return target;
     },
     close(index: PaneIndex, key: string) {
       const pane = panes[index] ?? emptyPane();

@@ -116,7 +116,7 @@ function describeTab(key: string, reviewing: boolean) {
     case 'timeline':
       return {
         Icon: HistoryIcon,
-        title: basename(ref.path),
+        title: `Timeline of ${basename(ref.path)}`,
         hint: `${ref.path} · timeline`,
       };
     default:

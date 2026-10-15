@@ -391,7 +391,12 @@ export function PierreFileTree({
               if (event.key === 'Escape') pendingCreate.current = null;
             }}
             onClickCapture={(event) => {
-              if (!event.altKey || event.button !== 0) return;
+              if (event.button !== 0) return;
+              if (
+                !event.altKey &&
+                (event.ctrlKey || event.metaKey || event.shiftKey)
+              )
+                return;
               const targets = event.nativeEvent.composedPath();
               if (targets.some((target) => target instanceof HTMLInputElement))
                 return;
@@ -407,9 +412,13 @@ export function PierreFileTree({
               event.preventDefault();
               event.stopPropagation();
               syncing.current = true;
+              for (const selectedPath of model.getSelectedPaths()) {
+                if (selectedPath !== path)
+                  model.getItem(selectedPath)?.deselect();
+              }
               item.select();
               syncing.current = false;
-              latest.current.onSelect(path, true);
+              latest.current.onSelect(path, event.altKey);
             }}
             onBlurCapture={(event) => acceptDefaultName(event.nativeEvent)}
           />
