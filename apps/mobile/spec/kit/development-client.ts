@@ -24,6 +24,7 @@ const fingerprintFile = join(derivedData, 'native-fingerprint');
 const sharedClients = '/tmp/porcelain-development-clients';
 const developerMenuFlags =
   '__expo_disable_fab=1&__expo_disable_auto_launch=1&__expo_disable_onboarding=1';
+const androidSourcesOutsideTheIosClient = '**/android/**/*';
 export const buildCommand = '.agents/skills/mobile-verify/scripts/cli build';
 
 export async function nativeFingerprint(
@@ -32,6 +33,7 @@ export async function nativeFingerprint(
   const fingerprint = await createFingerprintAsync(projectRoot, {
     platforms: ['ios'],
     preset: 'strict',
+    ignorePaths: [androidSourcesOutsideTheIosClient],
     concurrentIoLimit: 2,
     silent: true,
   });
@@ -59,8 +61,10 @@ export function builtFingerprint(): string | undefined {
     : undefined;
 }
 
-export async function developmentClient(): Promise<string | undefined> {
-  const fingerprint = await nativeFingerprint();
+export async function developmentClient(
+  fingerprint?: string,
+): Promise<string | undefined> {
+  fingerprint ??= await nativeFingerprint();
   if (builtFingerprint() === fingerprint) return appPath;
   const shared = sharedClientPath(fingerprint);
   return existsSync(shared) ? shared : undefined;

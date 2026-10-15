@@ -1,4 +1,5 @@
 import { Schema } from 'effect';
+import { execFile } from 'node:child_process';
 import { createServer } from 'node:net';
 import {
   hostFileName,
@@ -8,7 +9,13 @@ import {
   agentDeviceMissing,
   agentDeviceVersion,
 } from '@porcelain/mobile/kit/tools';
+import {
+  buildCommand,
+  nativeFingerprint,
+} from '@porcelain/mobile/kit/development-client';
 import { sandboxProblems } from '../../verify-core/cli.ts';
+import { shellCommand } from '../../verify-core/connection.ts';
+import { inspectionSchema } from './simulator-host.ts';
 const hubLimitMs = 5000;
 const healthSchema = Schema.Struct({
   ok: Schema.Boolean,
@@ -75,15 +82,72 @@ async function hubProblems(host: RemoteHost): Promise<string[]> {
         `the agent-device hub runs ${[...versions].join(' and ')} but this machine's synced client runs ${client}, and the two refuse each other; run \`device sync\` from the engineering plugin to move both to the version T3 Code pins`,
       ];
 }
+export function hostArgs(
+  ssh: string,
+  checkout: string,
+  request: object,
+): string[] {
+  return [
+    '-o',
+    'BatchMode=yes',
+    ssh,
+    `cd ${shellCommand([checkout])} && mise exec -- ${shellCommand(['node', '.agents/skills/mobile-verify/scripts/simulator-host.ts', JSON.stringify(request)])}`,
+  ];
+}
+type Inspection = typeof inspectionSchema.Type | { failure: string };
+function inspectHost(ssh: string, checkout: string): Promise<Inspection> {
+  return new Promise((done) =>
+    execFile(
+      'ssh',
+      hostArgs(ssh, checkout, { action: 'inspect' }),
+      { timeout: 120_000 },
+      (error, stdout, stderr) =>
+        done(
+          error === null
+            ? Schema.decodeUnknownSync(inspectionSchema)(
+                JSON.parse(stdout.trim().split('\n').at(-1) ?? ''),
+              )
+            : { failure: stderr.trim() || error.message },
+        ),
+    ),
+  );
+}
+async function nativeProblem(
+  ssh: string,
+  checkout: string,
+  inspect: typeof inspectHost,
+): Promise<string | undefined> {
+  const [local, mac] = await Promise.all([
+    nativeFingerprint(),
+    inspect(ssh, checkout),
+  ]);
+  const build = shellCommand([
+    'ssh',
+    ssh,
+    `cd ${shellCommand([checkout])} && mise exec -- ${buildCommand}`,
+  ]);
+  if ('failure' in mac)
+    return `the Mac checkout ${checkout} could not report its native fingerprint over ssh ${ssh}: ${mac.failure}`;
+  if (mac.fingerprint !== local)
+    return `the Mac checkout ${checkout} has different native inputs (fingerprint ${mac.fingerprint}) from this checkout (${local}); check out this commit there and run pnpm install, then build its development client with ${build}`;
+  if (!mac.client)
+    return `the Mac has no development client for this native fingerprint (${local}); native inputs changed since the last build, so build it with ${build}`;
+  return undefined;
+}
 export async function hostProblems(
   host: RemoteHost,
   ownDriver: boolean,
+  inspect = inspectHost,
 ): Promise<string[]> {
   const problems = [...sandboxProblems()];
   if (host.ssh === undefined || host.checkout === undefined)
     problems.push(
       'Add ssh (the Mac SSH alias) and checkout (a matching Mac worktree) to the private device-host config; the launcher prepares and releases simulators there.',
     );
+  else {
+    const native = await nativeProblem(host.ssh, host.checkout, inspect);
+    if (native !== undefined) problems.push(native);
+  }
   if (!ownDriver) problems.push(...(await hubProblems(host)));
   if ((await freeHostPorts(host, 2)).length < 2)
     problems.push(
