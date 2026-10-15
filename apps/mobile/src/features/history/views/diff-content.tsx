@@ -13,7 +13,7 @@ import { ErrorState } from '../../../components/ui/error-state';
 import { Loading } from '../../../components/ui/loading';
 import { FileHeader } from '../../../components/ui/file-header';
 import { DiffView } from '../../../components/ui/diff-view';
-import { patchLines } from '@porcelain/client/changes/rules';
+import { diffLines } from '@porcelain/client/changes/rules';
 import { usePreferences } from '../../preferences';
 import {
   useCommit,
@@ -172,7 +172,7 @@ function FilePatchContent({
   const patch = useCommitPatch(selection, oid, parent, commitPaths(file));
   const content = patch.value;
   const parsed =
-    content?.kind === 'text' ? patchLines(content.patch) : undefined;
+    content?.kind === 'text' ? diffLines(content.patch) : undefined;
   const failed = AsyncResult.isFailure(patch.result);
   const submodule = isSubmoduleChange(file);
   const unavailable = diffUnavailableReason(file, content, failed);

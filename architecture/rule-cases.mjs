@@ -1088,6 +1088,24 @@ export function probeLoose(left: string, right: string): boolean {
       'export const pair = async (command: () => Promise<void>) => { await command(); };',
     errors: 1,
   },
+  ...['parsePatchFiles', 'parseLineType', 'getFiletypeFromFileName'].map(
+    (utility) => ({
+      rule: 'web-rules-are-pure',
+      path: 'packages/client/src/features/changes/rules/diff-lines.ts',
+      valid: `import { ${utility} } from '@pierre/diffs/utils/${utility}'; export const parse = ${utility};`,
+      invalid: `import { ${utility} } from '@pierre/diffs'; export const parse = ${utility};`,
+      errors: 1,
+    }),
+  ),
+  {
+    rule: 'web-rules-are-pure',
+    path: 'apps/mobile/src/shared/rules/highlight-code.ts',
+    valid:
+      "import { getFiletypeFromFileName } from '@pierre/diffs/utils/getFiletypeFromFileName'; export const language = getFiletypeFromFileName;",
+    invalid:
+      "import { createAnnotationElement } from '@pierre/diffs/utils/createAnnotationElement'; export const element = createAnnotationElement;",
+    errors: 1,
+  },
   {
     rule: 'web-rules-are-pure',
     path: 'packages/client/src/features/access/rules/probe-rule.ts',

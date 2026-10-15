@@ -1,6 +1,6 @@
 export { diffUnavailableReason, omissionReason } from './diff-presentation.ts';
 export { diffSelection } from './selection.ts';
-export { patchLines, type PatchLine } from './patch.ts';
+export { diffLines, type DiffLine } from './diff-lines.ts';
 export {
   focusPatch,
   contextPatch,
