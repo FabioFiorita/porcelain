@@ -1,11 +1,12 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router';
-import { useEffect } from 'react';
+import { useAtomMount } from '@effect/atom-react';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import {
   DisconnectedPage,
   NotPaired,
   pairBrowser,
   PairingView,
+  pairingLinkChanges,
   restoreSession,
 } from '@/features/access/index';
 import { parsePairingLink } from '@porcelain/client/access/rules';
@@ -44,13 +45,11 @@ export const Route = createFileRoute('/pair')({
 function PairRoute() {
   const data = Route.useLoaderData();
   const router = useRouter();
-  useEffect(() => {
-    const pairFromLink = () => {
-      if (window.location.hash) void router.invalidate();
-    };
-    window.addEventListener('hashchange', pairFromLink);
-    return () => window.removeEventListener('hashchange', pairFromLink);
-  }, [router]);
+  useAtomMount(
+    pairingLinkChanges(() => {
+      void router.invalidate();
+    }),
+  );
   return (
     <DisconnectedPage>
       {data ? <NotPaired reason={data.reason} /> : <NotPaired />}

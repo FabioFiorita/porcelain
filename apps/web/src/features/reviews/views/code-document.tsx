@@ -4,11 +4,7 @@ import type {
   CodeViewLineSelection,
   DiffLineAnnotation,
 } from '@pierre/diffs';
-import {
-  CodeView,
-  type CodeViewHandle,
-  type CodeViewReactOptions,
-} from '@pierre/diffs/react';
+import { CodeView, type CodeViewReactOptions } from '@pierre/diffs/react';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import {
   ChevronDownIcon,
@@ -17,7 +13,7 @@ import {
   ChevronsUpDownIcon,
   MessageSquarePlusIcon,
 } from 'lucide-react';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { toast } from '@/components/ui/toast';
@@ -48,7 +44,7 @@ import {
 import type { DocumentInteraction } from '../rules/documents';
 import { basename, type ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ReviewRange } from '@porcelain/client/reviews/rules';
-import { useCodeFolds } from '../store';
+import { useCodeFolds, useCodeViewScroll } from '../store';
 import { InlineComposer } from './inline-composer';
 import { AgentNote } from './agent-note';
 import { ThreadCard } from './thread-card';
@@ -123,7 +119,7 @@ function CodeSurface({
   const { preferences } = usePreferences();
   const entries = groupSpecPaths(given, preferences.collapseSpecs);
   const folds = useCodeFolds(interaction.worktreeId, interaction.entry);
-  const viewer = useRef<CodeViewHandle<Note, undefined>>(null);
+  const viewer = useCodeViewScroll();
   const [composer, setComposer] = useState<{
     id: string;
     anchor: FileCommentAnchor;
@@ -159,32 +155,13 @@ function CodeSurface({
     setComposer(null);
     setSelection(null);
   };
-  const handledComment = useRef<number | undefined>(undefined);
-  useEffect(() => {
-    if (
-      commentRequest === undefined ||
-      handledComment.current === commentRequest
-    )
-      return;
-    handledComment.current = commentRequest;
+  const [handledComment, setHandledComment] = useState<number>();
+  if (commentRequest !== undefined && handledComment !== commentRequest) {
+    setHandledComment(commentRequest);
     openFileComment(entries[0]);
-  });
-  const handledFound = useRef<number | undefined>(undefined);
-  useEffect(() => {
-    const entry = entries[0];
-    if (!foundLine || !entry || handledFound.current === foundLine.nonce)
-      return;
-    handledFound.current = foundLine.nonce;
-    const range = { start: foundLine.line, end: foundLine.line };
-    setSelection({ id: entry.id, range });
-    viewer.current?.scrollTo({
-      type: 'line',
-      id: entry.id,
-      lineNumber: foundLine.line,
-      align: 'center',
-    });
-  });
-  const handledReveal = useRef<number | undefined>(undefined);
+  }
+  const [handledFound, setHandledFound] = useState<number>();
+  const [handledReveal, setHandledReveal] = useState<number>();
   const reveal = interaction.reveal;
   const revealEntry =
     reveal &&
@@ -192,40 +169,11 @@ function CodeSurface({
       (entry) =>
         entry.comment && matchesCommentTarget(reveal.anchor, entry.comment),
     );
-  useEffect(() => {
-    if (!reveal || !revealEntry || handledReveal.current === reveal.nonce)
-      return;
-    if (collapsed.has(revealEntry.id)) {
-      folds.setCollapsed([revealEntry.id], false);
-      return;
-    }
-    const timer = requestAnimationFrame(() => {
-      const anchor = reveal.anchor;
-      const stale =
-        revealEntry.comment && commentIsStale(anchor, revealEntry.comment);
-      viewer.current?.scrollTo(
-        anchor.kind === 'codeRange' && !stale
-          ? {
-              type: 'line',
-              id: revealEntry.id,
-              lineNumber: anchor.startLine,
-              ...(revealEntry.kind === 'diff'
-                ? { side: anchor.side ?? 'additions' }
-                : {}),
-              align: 'center',
-            }
-          : { type: 'item', id: revealEntry.id, align: 'start' },
-      );
-      setFocused(entries.findIndex((entry) => entry.id === revealEntry.id));
-      handledReveal.current = reveal.nonce;
-    });
-    return () => cancelAnimationFrame(timer);
-  });
   const focusEntry = (index: number) => {
     const entry = entries[index];
     if (!entry) return;
     setFocused(index);
-    viewer.current?.scrollTo({ type: 'item', id: entry.id, align: 'start' });
+    viewer.scrollTo({ type: 'item', id: entry.id, align: 'start' });
   };
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
   const items: CodeViewItem<Note>[] = entries.map((entry) => {
@@ -439,7 +387,62 @@ function CodeSurface({
       )}
       {entries.length > 0 && (
         <CodeView
-          ref={viewer}
+          ref={(handle) => {
+            if (!handle) return;
+            const release = viewer.attach(handle);
+            if (
+              reveal &&
+              revealEntry &&
+              handledReveal !== reveal.nonce &&
+              collapsed.has(revealEntry.id)
+            ) {
+              folds.setCollapsed([revealEntry.id], false);
+              return release;
+            }
+            const frame = requestAnimationFrame(() => {
+              const entry = entries[0];
+              if (foundLine && entry && handledFound !== foundLine.nonce) {
+                setSelection({
+                  id: entry.id,
+                  range: { start: foundLine.line, end: foundLine.line },
+                });
+                handle.scrollTo({
+                  type: 'line',
+                  id: entry.id,
+                  lineNumber: foundLine.line,
+                  align: 'center',
+                });
+                setHandledFound(foundLine.nonce);
+              }
+              if (reveal && revealEntry && handledReveal !== reveal.nonce) {
+                const anchor = reveal.anchor;
+                const stale =
+                  revealEntry.comment &&
+                  commentIsStale(anchor, revealEntry.comment);
+                handle.scrollTo(
+                  anchor.kind === 'codeRange' && !stale
+                    ? {
+                        type: 'line',
+                        id: revealEntry.id,
+                        lineNumber: anchor.startLine,
+                        ...(revealEntry.kind === 'diff'
+                          ? { side: anchor.side ?? 'additions' }
+                          : {}),
+                        align: 'center',
+                      }
+                    : { type: 'item', id: revealEntry.id, align: 'start' },
+                );
+                setFocused(
+                  entries.findIndex((entry) => entry.id === revealEntry.id),
+                );
+                setHandledReveal(reveal.nonce);
+              }
+            });
+            return () => {
+              cancelAnimationFrame(frame);
+              release?.();
+            };
+          }}
           items={items}
           selectedLines={selection}
           onSelectedLinesChange={(next) => {

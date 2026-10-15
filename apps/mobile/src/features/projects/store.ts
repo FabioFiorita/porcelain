@@ -1,9 +1,9 @@
-import { useEffect, useId } from 'react';
+import { useId } from 'react';
 import {
   leaveDocuments,
   type DocumentLeaveGuard,
 } from '../../shared/rules/document-leave';
-import { useAtom, useAtomRef } from '@effect/atom-react';
+import { useAtom, useAtomRef, useAtomMount } from '@effect/atom-react';
 import {
   sameRemoteConnection,
   type Remote,
@@ -111,24 +111,38 @@ const leaveGuards = AtomRef.make<
   ReadonlyMap<string, { scope: string; guard: DocumentLeaveGuard }>
 >(new Map());
 
+const documentLeave = Atom.family(
+  ({
+    scope,
+    guard,
+    owner,
+  }: {
+    scope: string | undefined;
+    guard: DocumentLeaveGuard | undefined;
+    owner: string;
+  }) =>
+    Atom.make((get) => {
+      if (!guard) return;
+      leaveGuards.update((current) =>
+        new Map(current).set(owner, { scope: scope ?? owner, guard }),
+      );
+      get.addFinalizer(() => {
+        leaveGuards.update((current) => {
+          if (current.get(owner)?.guard !== guard) return current;
+          const next = new Map(current);
+          next.delete(owner);
+          return next;
+        });
+      });
+    }),
+);
+
 export function useDocumentLeave(
   scope: string | undefined,
   guard: DocumentLeaveGuard | undefined,
 ) {
   const owner = useId();
-  useEffect(() => {
-    if (!guard) return;
-    leaveGuards.update((current) =>
-      new Map(current).set(owner, { scope: scope ?? owner, guard }),
-    );
-    return () => {
-      leaveGuards.update((current) => {
-        const next = new Map(current);
-        next.delete(owner);
-        return next;
-      });
-    };
-  }, [scope, guard, owner]);
+  useAtomMount(documentLeave({ scope, guard, owner }));
 }
 
 export function requestDocumentLeave(leave: () => void, scope?: string) {

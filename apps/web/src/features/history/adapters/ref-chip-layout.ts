@@ -1,14 +1,12 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 
 export function useRefChipLayout(refs: readonly string[]) {
-  const row = useRef<HTMLDivElement>(null);
-  const measurement = useRef<HTMLDivElement>(null);
   const [visibleCount, setVisibleCount] = useState(1);
 
-  useLayoutEffect(() => {
-    const container = row.current;
-    const measured = measurement.current;
-    if (container === null || measured === null) return;
+  function row(container: HTMLDivElement | null) {
+    if (!container) return;
+    const measured = container.querySelector('[data-ref-measurement]');
+    if (!measured) return;
 
     const update = () => {
       const widths = Array.from(
@@ -41,7 +39,7 @@ export function useRefChipLayout(refs: readonly string[]) {
     observer.observe(measured);
     update();
     return () => observer.disconnect();
-  }, [refs]);
+  }
 
-  return { row, measurement, visibleCount };
+  return { row, visibleCount };
 }

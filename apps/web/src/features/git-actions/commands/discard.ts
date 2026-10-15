@@ -1,5 +1,5 @@
 import type { ReadChangesResponse } from '@porcelain/contracts/changes';
-import { useAtom, useAtomSet } from '@effect/atom-react';
+import { useAtom, useAtomSet, useAtomMount } from '@effect/atom-react';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import { Cause, Effect, Option } from 'effect';
 import { useState } from 'react';
@@ -25,12 +25,30 @@ type Hunk = {
   endLine: number;
 };
 
+const discardRequest = Atom.family(
+  ({
+    signal,
+    submit,
+    recover,
+  }: {
+    signal: number | undefined;
+    submit: Atom.Writable<unknown, typeof Atom.Reset>;
+    recover: Atom.Writable<unknown, typeof Atom.Reset>;
+  }) =>
+    Atom.make((get) => {
+      if (signal === undefined) return;
+      get.set(submit, Atom.Reset);
+      get.set(recover, Atom.Reset);
+    }),
+);
+
 export function useDiscard(
   scope: GitScope,
   context: ConnectionContext,
   {
     path,
     hunk,
+    signal,
     what,
     look,
     readChanges,
@@ -40,6 +58,7 @@ export function useDiscard(
   }: {
     path: string;
     hunk: Hunk | undefined;
+    signal?: number | undefined;
     what: string;
     look: GitActionStatus | null;
     readChanges: () => Promise<ReadChangesResponse>;
@@ -86,6 +105,9 @@ export function useDiscard(
   const [recovered, recover] = useAtom(recoverCommand, { mode: 'promiseExit' });
   const resetSubmit = useAtomSet(submitCommand);
   const resetRecover = useAtomSet(recoverCommand);
+  useAtomMount(
+    discardRequest({ signal, submit: submitCommand, recover: recoverCommand }),
+  );
   const busy = submitted.waiting || recovered.waiting;
   const failure = (result: typeof submitted): DiscardFailure | null =>
     Option.getOrUndefined(AsyncResult.value(result)) ??

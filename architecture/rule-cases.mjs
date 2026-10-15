@@ -3048,6 +3048,50 @@ export const ProbeContext = createContext('');
       'export function read(run: () => void) { try { run(); } catch {} }',
     errors: 1,
   })),
+  ...[
+    'apps/web/src/features/files/adapters/tree.tsx',
+    'apps/desktop/src/main/window.ts',
+    'apps/mobile/src/components/ui/probe.tsx',
+    'packages/client/src/features/files/store.ts',
+    'apps/web/src/components/ui/custom.tsx',
+  ].flatMap((path) => [
+    {
+      rule: 'react-no-effects-or-refs',
+      path,
+      valid:
+        "import { useState } from 'react'; import { useAtomMount } from '@effect/atom-react'; export function Probe() { const [open] = useState(false); useAtomMount(resource); return open; }",
+      invalid:
+        "import { useEffect, useLayoutEffect as layout, useRef } from 'react'; useEffect(subscribe, []); layout(measure, []); useRef(null);",
+      errors: 3,
+    },
+    {
+      rule: 'react-no-effects-or-refs',
+      path,
+      valid:
+        "import * as React from 'react'; export const read = () => React.useState(false);",
+      invalid:
+        "import * as React from 'react'; React.useEffect(subscribe, []); React.useLayoutEffect(measure, []); React.useRef(null);",
+      errors: 3,
+    },
+    {
+      rule: 'react-no-effects-or-refs',
+      path,
+      valid:
+        'export const attach = (element) => { const widget = createWidget(element); return () => widget.dispose(); };',
+      invalid:
+        "import React from 'react'; React.useEffect(subscribe, []); React.useLayoutEffect(measure, []); React.useRef(null);",
+      errors: 3,
+    },
+  ]),
+  {
+    rule: 'react-no-effects-or-refs',
+    path: 'apps/web/src/components/ui/custom.tsx',
+    validPath: 'apps/web/src/components/ui/sidebar.tsx',
+    valid:
+      "import * as React from 'react'; React.useEffect(subscribe, []); React.useRef(null);",
+    invalid: "import { useEffect } from 'react'; useEffect(subscribe, []);",
+    errors: 1,
+  },
   {
     rule: 'web-no-manual-memo',
     path: 'apps/web/src/features/access/views/probe-view.tsx',

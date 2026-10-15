@@ -1,6 +1,6 @@
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { CheckIcon, CompassIcon } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { desktopAppAddress } from '@/shared/adapters/desktop';
@@ -18,7 +18,7 @@ import {
   type WalkthroughKey,
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
-import { useSummaryLayerRequests } from '../adapters/summary-messages';
+import { bindSummaryLayerRequests } from '../adapters/summary-messages';
 import { useWalkthrough } from '../queries/walkthrough';
 import { DocumentToolbar } from './document-toolbar';
 import { WalkthroughBriefing } from './walkthrough-briefing';
@@ -291,15 +291,16 @@ function SummaryFrame({
   address: string;
   onLayer: (layerId: string) => void;
 }) {
-  const frame = useRef<HTMLIFrameElement>(null);
   const { dark } = useTheme();
-  useSummaryLayerRequests(frame, (layerNumber) => {
-    const layer = review.layers[layerNumber - 1];
-    if (layer) onLayer(layer.id);
-  });
   return (
     <iframe
-      ref={frame}
+      ref={(frame) => {
+        if (!frame) return;
+        return bindSummaryLayerRequests(frame, (layerNumber) => {
+          const layer = review.layers[layerNumber - 1];
+          if (layer) onLayer(layer.id);
+        });
+      }}
       title="Review summary"
       src={`${reviewSummaryUrl(review.summary, address, desktopAppAddress())}#theme=${dark ? 'dark' : 'light'}`}
       sandbox="allow-scripts allow-forms allow-popups allow-modals"

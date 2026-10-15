@@ -1,11 +1,14 @@
 import { Effect } from 'effect';
 import { Atom } from 'effect/reactivity';
-import { useAtom } from '@effect/atom-react';
-import { useEffect, useState } from 'react';
-import { clientRuntime } from '../../../shared/application/store';
+import { useAtom, useAtomMount } from '@effect/atom-react';
+import { useId } from 'react';
+import {
+  clientRuntime,
+  interruptCommandOnUnmount,
+} from '../../../shared/application/store';
 import { requestDevelopmentPairingLink } from '../api';
 
-const developmentPairing = Atom.family((_identity: symbol) =>
+const developmentPairing = Atom.family((_identity: string) =>
   clientRuntime.fn(({ onLink }: { onLink: (link: string) => void }) =>
     Effect.gen(function* () {
       const link = yield* requestDevelopmentPairingLink();
@@ -15,14 +18,10 @@ const developmentPairing = Atom.family((_identity: symbol) =>
 );
 
 export function useDevelopmentPairing() {
-  const [identity] = useState(Symbol);
+  const identity = useId();
   const [result, run] = useAtom(developmentPairing(identity));
-  useEffect(
-    () => () => {
-      run(Atom.Interrupt);
-    },
-    [run],
-  );
+  useAtomMount(interruptCommandOnUnmount(developmentPairing(identity)));
+
   return {
     result,
     request: (onLink: (link: string) => void) => run({ onLink }),

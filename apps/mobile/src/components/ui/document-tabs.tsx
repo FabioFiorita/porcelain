@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ComponentRef } from 'react';
+import { useState, type ComponentRef } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import {
   documentTabLayout,
@@ -37,8 +37,12 @@ export function DocumentTabs<T extends DocumentTab>({
   focused?: boolean;
 }) {
   const { tabs, active } = documents;
-  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
-  const offset = useRef(0);
+  const [offset, setOffset] = useState(0);
+  const [scrolledFor, setScrolledFor] = useState<{
+    viewport: number;
+    width: number;
+    bounds: DocumentTabBounds | undefined;
+  }>();
   const [viewport, setViewport] = useState(0);
   const [content, setContent] = useState({ width: 0, height: 0 });
   const [bounds, setBounds] = useState<ReadonlyMap<string, DocumentTabBounds>>(
@@ -46,16 +50,6 @@ export function DocumentTabs<T extends DocumentTab>({
   );
   const activeBounds = active ? bounds.get(active) : undefined;
   const { overflow } = documentTabLayout(viewport, content.width, 0);
-  useEffect(() => {
-    const next = documentTabLayout(
-      viewport,
-      content.width,
-      offset.current,
-      activeBounds,
-    );
-    scroll.current?.scrollTo({ x: next.offset, animated: false });
-    offset.current = next.offset;
-  }, [viewport, content.width, activeBounds]);
 
   if (tabs.length === 0)
     return (
@@ -72,7 +66,27 @@ export function DocumentTabs<T extends DocumentTab>({
 
   return (
     <ScrollView
-      ref={scroll}
+      ref={(scroll: ComponentRef<typeof ScrollView> | null) => {
+        if (
+          !scroll ||
+          (scrolledFor?.viewport === viewport &&
+            scrolledFor.width === content.width &&
+            scrolledFor.bounds === activeBounds)
+        )
+          return;
+        const next = documentTabLayout(
+          viewport,
+          content.width,
+          offset,
+          activeBounds,
+        );
+        scroll.scrollTo({ x: next.offset, animated: false });
+        setScrolledFor({
+          viewport,
+          width: content.width,
+          bounds: activeBounds,
+        });
+      }}
       horizontal
       className="min-h-12 min-w-0 flex-1"
       style={{ height: content.height || undefined }}
@@ -80,7 +94,7 @@ export function DocumentTabs<T extends DocumentTab>({
       onLayout={({ nativeEvent: { layout } }) => setViewport(layout.width)}
       onContentSizeChange={(width, height) => setContent({ width, height })}
       onScroll={({ nativeEvent }) => {
-        offset.current = nativeEvent.contentOffset.x;
+        setOffset(nativeEvent.contentOffset.x);
       }}
       scrollEventThrottle={16}
       scrollEnabled={overflow}

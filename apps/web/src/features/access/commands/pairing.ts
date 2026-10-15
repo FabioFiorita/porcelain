@@ -1,4 +1,4 @@
-import type { AtomRegistry } from 'effect/reactivity';
+import { Atom, type AtomRegistry } from 'effect/reactivity';
 import {
   pairBrowserSession,
   connectBrowserSession,
@@ -24,3 +24,15 @@ export function pairBrowser(
     { signal },
   );
 }
+
+export const pairingLinkChanges = Atom.family((invalidate: () => void) =>
+  Atom.make((get) => {
+    const pairFromLink = () => {
+      if (window.location.hash) invalidate();
+    };
+    window.addEventListener('hashchange', pairFromLink);
+    get.addFinalizer(() =>
+      window.removeEventListener('hashchange', pairFromLink),
+    );
+  }),
+);

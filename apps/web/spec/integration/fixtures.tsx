@@ -1,7 +1,8 @@
+import { useElement } from '../../src/shared/hooks/use-element';
 import { getHotkeyManager } from '@tanstack/react-hotkeys';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { AtomRegistry } from 'effect/reactivity';
-import { Suspense, useRef, useState, type ReactNode } from 'react';
+import { Suspense, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test as base } from 'vitest';
 import { page } from 'vitest/browser';
@@ -131,7 +132,7 @@ function Providers({
 function Workspace({ connection }: { connection: Connection }) {
   const inventory = useInventory(connection);
   const [search, setSearch] = useState<WorkspaceSearch>({});
-  const trigger = useRef<HTMLButtonElement>(null);
+  const trigger = useElement<HTMLButtonElement>();
   const project = inventory.projects[0];
   const worktree = project?.worktrees.find((entry) => entry.main);
   if (project === undefined || worktree === undefined) return null;

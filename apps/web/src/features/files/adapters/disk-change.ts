@@ -1,22 +1,12 @@
-import { Effect } from 'effect';
-import { useEffect, useRef } from 'react';
+import { useAtomMount } from '@effect/atom-react';
 import type { FileDraftHandle } from '@porcelain/client/files';
+import { diskChangeObservation, diskChangeViewer } from '../store';
 
 export function useDiskChangeNotice(
   draft: FileDraftHandle,
   viewer: string,
   fingerprint: string | undefined,
 ) {
-  const previous = useRef(fingerprint);
-  useEffect(() => {
-    if (previous.current === fingerprint) return;
-    previous.current = fingerprint;
-    Effect.runFork(draft.noticeDiskChange(viewer, fingerprint));
-  }, [draft, viewer, fingerprint]);
-  useEffect(
-    () => () => {
-      Effect.runFork(draft.forgetDiskChange(viewer));
-    },
-    [draft, viewer],
-  );
+  useAtomMount(diskChangeViewer({ draft, viewer }));
+  useAtomMount(diskChangeObservation({ draft, viewer, fingerprint }));
 }

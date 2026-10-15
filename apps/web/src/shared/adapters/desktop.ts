@@ -1,3 +1,4 @@
+import { Atom } from 'effect/reactivity';
 import { Context, Effect, Layer, Option, Queue, Stream } from 'effect';
 import { ConnectionError } from '@porcelain/client/transport';
 import type {
@@ -19,9 +20,7 @@ export function desktopLiveAddress(): string | undefined {
   return desktopShell ? window.porcelainDesktop?.liveAddress() : undefined;
 }
 
-export function onDesktopAction(
-  receive: (action: DesktopAction) => void,
-): () => void {
+function onDesktopAction(receive: (action: DesktopAction) => void): () => void {
   return desktopShell
     ? (window.porcelainDesktop?.onAction(receive) ?? (() => undefined))
     : () => undefined;
@@ -175,3 +174,10 @@ export function desktopAppAddress(): string | undefined {
 export function desktopCredentials() {
   return desktopShell ? window.porcelainDesktop?.credentials : undefined;
 }
+
+export const desktopActions = Atom.family(
+  (receive: (action: DesktopAction) => void) =>
+    Atom.make((get) => {
+      get.addFinalizer(onDesktopAction(receive));
+    }),
+);

@@ -1,7 +1,7 @@
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import { Undo2Icon } from 'lucide-react';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -62,6 +62,7 @@ export function DiscardButton({
   const discard = useDiscard(scope, context, {
     path,
     hunk,
+    signal,
     what,
     look: candidate,
     readChanges,
@@ -71,15 +72,12 @@ export function DiscardButton({
   });
   const { busy, error, uncertain } = discard;
   const shown = Boolean(candidate && (file || isOpen));
-  const openedSignal = useRef<number | undefined>(undefined);
-  useEffect(() => {
-    if (signal === undefined || signal === openedSignal.current || !status)
-      return;
-    openedSignal.current = signal;
-    discard.reset();
+  const [openedSignal, setOpenedSignal] = useState<number>();
+  if (signal !== undefined && signal !== openedSignal && status) {
+    setOpenedSignal(signal);
     setOpenedStatus(status);
     setOpen(true);
-  }, [signal, status]);
+  }
   const trigger =
     shown && !hiddenTrigger ? (
       <Button

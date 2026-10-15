@@ -1,10 +1,6 @@
-import {
-  type RefObject,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react';
+import { useId, useState } from 'react';
+import { useAtomMount, useAtomValue } from '@effect/atom-react';
+import { Atom } from 'effect/reactivity';
 import { parseEntry } from '../rules/documents';
 import {
   closeInPane,
@@ -18,7 +14,7 @@ import {
   type Pane,
   togglePinInPane,
 } from '../rules/tab-strip';
-import { useTabLayoutStore } from '../store';
+import { tabLayoutState, useTabLayoutStore } from '../store';
 import type { SetWorkspaceSearch } from '@/shared/workspace/search';
 
 export type PaneIndex = 0 | 1;
@@ -44,7 +40,7 @@ export function useTabLayout({
   ready: boolean;
   focused: PaneIndex;
   setFocused: (pane: PaneIndex) => void;
-  focusBoundary: RefObject<HTMLElement | null>;
+  focusBoundary: HTMLElement | null;
   focusBoundaryOpen: boolean;
 }) {
   const { panes: stored, saved, save } = useTabLayoutStore(worktreeId);
@@ -56,23 +52,8 @@ export function useTabLayout({
     null,
     null,
   ]);
-  const fallbackHandled = useRef(false);
-  const paneElements = useRef<[HTMLElement | null, HTMLElement | null]>([
-    null,
-    null,
-  ]);
-  const destinationFocus = useRef<{ pane: PaneIndex; key: string } | null>(
-    null,
-  );
-  const focusFrame = useRef<number | null>(null);
-  const cancelFocusFrame = () => {
-    if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
-    focusFrame.current = null;
-  };
-  const cancelDestinationFocus = () => {
-    destinationFocus.current = null;
-    cancelFocusFrame();
-  };
+  const focus = useAtomValue(tabFocus(useId()));
+  const cancelDestinationFocus = focus.cancel;
   const urlActive: [string | undefined, string | undefined] = [
     entry !== null &&
     entry !== undefined &&
@@ -84,21 +65,7 @@ export function useTabLayout({
       : undefined,
   ];
 
-  useEffect(() => {
-    if (!ready) return;
-    if (
-      entry !== null &&
-      entry !== undefined &&
-      (parseEntry(entry) ?? null) === null
-    )
-      onSearch({ entry: undefined }, { replace: true });
-    if (
-      side !== null &&
-      side !== undefined &&
-      (parseEntry(side) ?? null) === null
-    )
-      onSearch({ side: undefined }, { replace: true });
-  }, [entry, side, onSearch, ready]);
+  useAtomMount(tabRoute({ ready, entry, side, onSearch, fallback, saved }));
 
   const current = (index: PaneIndex): string | undefined => {
     const target = pending[index];
@@ -131,8 +98,7 @@ export function useTabLayout({
   else if (base[1]?.tabs.length) panes[1] = base[1];
   const split = panes.length > 1;
 
-  useEffect(() => {
-    if (!ready) return;
+  if (ready) {
     const settled = pending.map((target, index) =>
       target !== undefined && (urlActive[index] ?? null) === (target ?? null)
         ? undefined
@@ -143,14 +109,8 @@ export function useTabLayout({
     if (lastActive[0] !== actives[0] || lastActive[1] !== actives[1])
       setLastActive(actives);
     if (focused === 1 && !split) setFocused(0);
-    if (
-      stored !== null &&
-      stored !== undefined &&
-      JSON.stringify(stored) === JSON.stringify(panes)
-    )
-      return;
-    save(panes);
-  });
+  }
+  useAtomMount(persistTabLayout({ worktreeId, panes, ready }));
 
   const go = (updates: { entry?: string | null; side?: string | null }) => {
     cancelDestinationFocus();
@@ -181,70 +141,10 @@ export function useTabLayout({
     if (activeAfter !== actives[index]) goPane(index, activeAfter);
   };
 
-  useEffect(() => {
-    if (
-      !ready ||
-      fallback === null ||
-      fallback === undefined ||
-      fallbackHandled.current ||
-      saved ||
-      (entry !== null && entry !== undefined) ||
-      (side !== null && side !== undefined)
-    )
-      return;
-    fallbackHandled.current = true;
-    save([{ tabs: [fallback], pinned: [] }]);
-    setPending((previous) => [fallback, previous[1]]);
-    onSearch({ entry: fallback }, { replace: true });
-  }, [entry, fallback, saved, onSearch, side, save, ready]);
-
-  const currentDestinationFocus = () => {
-    const target = destinationFocus.current;
-    if (
-      target !== null &&
-      (focused !== target.pane ||
-        actives[target.pane] !== target.key ||
-        !panes[target.pane]?.tabs.includes(target.key))
-    ) {
-      cancelDestinationFocus();
-      return null;
-    }
-    return target;
-  };
-
-  const focusDestination = () => {
-    if (destinationFocus.current === null || focusFrame.current !== null)
-      return;
-    focusFrame.current = requestAnimationFrame(() => {
-      focusFrame.current = null;
-      const target = currentDestinationFocus();
-      if (target === null || focusBoundary.current?.isConnected) return;
-      const tab = [
-        ...(paneElements.current[target.pane]?.querySelectorAll<HTMLElement>(
-          '[role="tab"]',
-        ) ?? []),
-      ].find((element) => element.dataset.entry === target.key);
-      if (tab === undefined || !tab.isConnected) return;
-      tab.focus();
-      if (
-        tab.ownerDocument.activeElement === tab &&
-        destinationFocus.current === target
-      )
-        destinationFocus.current = null;
-    });
-  };
-
-  useLayoutEffect(() => {
-    cancelFocusFrame();
-    currentDestinationFocus();
-    focusDestination();
-    return cancelFocusFrame;
-  });
-
   return {
-    focusDestination,
+    focusDestination: focus.schedule,
     hasDestinationFocus() {
-      return currentDestinationFocus() !== null;
+      return focus.current() !== null;
     },
     selectPane(index: PaneIndex) {
       cancelDestinationFocus();
@@ -252,7 +152,7 @@ export function useTabLayout({
     },
     focusPane(index: PaneIndex, element: Element) {
       if (focusBoundaryOpen) return;
-      const target = destinationFocus.current;
+      const target = focus.destination;
       if (
         target !== null &&
         (target.pane !== index ||
@@ -263,8 +163,12 @@ export function useTabLayout({
       setFocused(index);
     },
     bindPane(index: PaneIndex, element: HTMLElement | null) {
-      paneElements.current[index] = element;
-      if (element !== null) focusDestination();
+      return focus.bind(index, element, {
+        focused,
+        actives,
+        panes,
+        focusBoundary,
+      });
     },
     split,
     panes: panes.map((pane, index) => ({
@@ -279,7 +183,7 @@ export function useTabLayout({
     open(index: PaneIndex, key: string) {
       const target = documentPane(panes, index, key);
       goPane(target, key);
-      destinationFocus.current = { pane: target, key };
+      focus.request({ pane: target, key });
       setFocused(target);
       return target;
     },
@@ -323,7 +227,7 @@ export function useTabLayout({
       );
       save(next);
       goPane(target, key);
-      destinationFocus.current = { pane: target, key };
+      focus.request({ pane: target, key });
       setFocused(target);
     },
     step(index: PaneIndex, delta: number) {
@@ -338,3 +242,134 @@ export function useTabLayout({
     },
   };
 }
+
+type FocusTarget = { pane: PaneIndex; key: string };
+type FocusSnapshot = {
+  focused: PaneIndex;
+  actives: readonly (string | null)[];
+  panes: readonly Pane[];
+  focusBoundary: HTMLElement | null;
+};
+const tabFocus = Atom.family((_owner: string) =>
+  Atom.make((get) => {
+    const elements: [HTMLElement | null, HTMLElement | null] = [null, null];
+    let destination: FocusTarget | null = null;
+    let snapshot: FocusSnapshot | undefined;
+    let frame: number | null = null;
+    const cancelFrame = () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = null;
+    };
+    const cancel = () => {
+      destination = null;
+      cancelFrame();
+    };
+    const current = () => {
+      if (
+        destination &&
+        snapshot &&
+        (snapshot.focused !== destination.pane ||
+          snapshot.actives[destination.pane] !== destination.key ||
+          !snapshot.panes[destination.pane]?.tabs.includes(destination.key))
+      )
+        cancel();
+      return destination;
+    };
+    const schedule = () => {
+      if (!destination || frame !== null) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        const target = current();
+        if (!target || snapshot?.focusBoundary?.isConnected) return;
+        const tab = [
+          ...(elements[target.pane]?.querySelectorAll<HTMLElement>(
+            '[role="tab"]',
+          ) ?? []),
+        ].find((element) => element.dataset.entry === target.key);
+        if (!tab?.isConnected) return;
+        tab.focus();
+        if (tab.ownerDocument.activeElement === tab && destination === target)
+          destination = null;
+      });
+    };
+    get.addFinalizer(cancel);
+    return {
+      get destination() {
+        return destination;
+      },
+      current,
+      cancel,
+      schedule,
+      request(target: FocusTarget) {
+        destination = target;
+      },
+      bind(index: PaneIndex, element: HTMLElement | null, next: FocusSnapshot) {
+        cancelFrame();
+        snapshot = next;
+        elements[index] = element;
+        current();
+        if (!element) return;
+        schedule();
+        return () => {
+          if (elements[index] === element) elements[index] = null;
+          cancelFrame();
+        };
+      },
+    };
+  }),
+);
+
+const tabRoute = Atom.family(
+  ({
+    ready,
+    entry,
+    side,
+    onSearch,
+    fallback,
+    saved,
+  }: {
+    ready: boolean;
+    entry: string | undefined;
+    side: string | undefined;
+    onSearch: SetWorkspaceSearch;
+    fallback: string | null;
+    saved: boolean;
+  }) =>
+    Atom.make(() => {
+      if (!ready) return;
+      if (entry !== undefined && parseEntry(entry) === null)
+        onSearch({ entry: undefined }, { replace: true });
+      if (side !== undefined && parseEntry(side) === null)
+        onSearch({ side: undefined }, { replace: true });
+      if (
+        !saved &&
+        entry === undefined &&
+        side === undefined &&
+        fallback !== null
+      )
+        onSearch({ entry: fallback }, { replace: true });
+    }),
+);
+
+const persistTabLayout = Atom.family(
+  ({
+    worktreeId,
+    panes,
+    ready,
+  }: {
+    worktreeId: string;
+    panes: readonly Pane[];
+    ready: boolean;
+  }) =>
+    Atom.make((get) => {
+      if (!ready) return;
+      const atom = tabLayoutState(worktreeId);
+      const current = get.once(atom);
+      if (
+        current.saved &&
+        JSON.stringify(current.panes) === JSON.stringify(panes)
+      )
+        return;
+      get.set(atom, { panes, saved: true });
+    }),
+);

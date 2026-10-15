@@ -1,18 +1,15 @@
 import { Effect } from 'effect';
-import {
-  Editor,
-  type EditorFactory,
-  type EditorOptions,
-} from '@pierre/diffs/edit';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { Virtualizer, VirtualizedFile } from '@pierre/diffs';
+import { Editor } from '@pierre/diffs/edit';
+import { useAtomValue } from '@effect/atom-react';
 import type { FileDraftHandle } from '@porcelain/client/files';
+import {
+  preferenceValues,
+  resolvedAppearance,
+} from '@/features/preferences/index';
+import { createPierreFileOptions } from '@/shared/lib/pierre';
+import { atomRegistry } from '@/shared/store';
 import { editorFile, clearEditorFile } from '../store';
-
-export const createEditor: EditorFactory<undefined, undefined> = (
-  type,
-  options,
-  key,
-) => new Editor(type, options, key);
 
 export function usePierreFileEditor(
   owner: string,
@@ -22,30 +19,56 @@ export function usePierreFileEditor(
   onUnsaved: (path: string) => void,
 ) {
   const session = editorFile(draft, owner, path, initialText);
-  const { file, initialText: editorInitialText } = session;
-  const latest = useRef(onUnsaved);
-  useLayoutEffect(() => {
-    latest.current = onUnsaved;
-  });
-  const options: EditorOptions<'file', undefined, undefined> = {
-    onAttach(editor) {
-      editor.focus({ lineNumber: 1, character: 0 });
-    },
-    onBlur() {
-      if (!draft.state.value.error) void Effect.runPromise(draft.save());
-    },
-  };
-  useEffect(() => {
+  const registry = useAtomValue(atomRegistry);
+  function attach(host: HTMLDivElement | null) {
+    if (!host) return;
+    const content = document.createElement('div');
+    host.append(content);
+    const virtualizer = new Virtualizer();
+    virtualizer.setup(host, content);
+    const options = () => ({
+      ...createPierreFileOptions(registry.get(resolvedAppearance), {
+        overflow: registry.get(preferenceValues).lineOverflow,
+      }),
+      onEditChange: (event: { file: { contents: string } }) => {
+        Effect.runFork(draft.change(event.file.contents));
+      },
+      onEditComplete: () => 'reject' as const,
+    });
+    const file = new VirtualizedFile(options(), virtualizer);
+    file.render({ file: session.file, containerWrapper: content });
+    const editor = new Editor('file', {
+      onAttach(editor) {
+        if (!host.matches(':focus-within'))
+          editor.focus({ lineNumber: 1, character: 0 });
+      },
+      onBlur() {
+        if (!draft.state.value.error) Effect.runFork(draft.save());
+      },
+    });
     draft.attachEditor(owner);
+    editor.edit(file);
+    const update = () => {
+      file.setOptions(options());
+      file.rerender();
+    };
+    const unsubscribePreferences = registry.subscribe(preferenceValues, update);
+    const unsubscribeTheme = registry.subscribe(resolvedAppearance, update);
     return () => {
-      void Effect.runPromise(
+      unsubscribePreferences();
+      unsubscribeTheme();
+      editor.cleanUp('discard');
+      file.cleanUp();
+      virtualizer.cleanUp();
+      content.remove();
+      Effect.runFork(
         draft.finishEditing(
           owner,
-          () => latest.current(path),
+          () => onUnsaved(path),
           () => clearEditorFile(draft, owner, session),
         ),
       );
     };
-  }, [draft, owner, path]);
-  return { file, initialText: editorInitialText, options };
+  }
+  return { initialText: session.initialText, attach };
 }

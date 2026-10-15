@@ -1,7 +1,7 @@
 import type { FileDraftHandle } from '@porcelain/client/files';
 import { CopyIcon, FileDiffIcon, HistoryIcon, PencilIcon } from 'lucide-react';
 import { useHotkey } from '@tanstack/react-hotkeys';
-import { type ReactNode, useEffect, useId, useState } from 'react';
+import { type ReactNode, useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -166,13 +166,16 @@ function ReadableFileDocument({
     defaultFileDisplayMode(kind, preferences),
   );
   const { reveal, active } = interaction;
-  useEffect(() => {
-    if (
-      reveal?.anchor.comparison?.kind === 'file' &&
-      reveal.anchor.filePath === path
-    )
-      setMode('source');
-  }, [reveal, path]);
+  const [shownReveal, setShownReveal] = useState<number>();
+  if (
+    reveal &&
+    shownReveal !== reveal.nonce &&
+    reveal.anchor.comparison?.kind === 'file' &&
+    reveal.anchor.filePath === path
+  ) {
+    setShownReveal(reveal.nonce);
+    setMode('source');
+  }
   const [editing, setEditing] = useState(false);
   const [finding, setFinding] = useState<number>();
   const [foundLine, setFoundLine] = useState<{ line: number; nonce: number }>();

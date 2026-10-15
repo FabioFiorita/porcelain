@@ -87,7 +87,7 @@ export function useFileDraft(
   };
 }
 
-export function useFileDraftSaving(
+export function fileDraftSaving(
   owner: string,
   draft: FileDraftHandle,
   notify: (message: {
@@ -97,7 +97,6 @@ export function useFileDraftSaving(
   }) => void,
 ) {
   return {
-    changedOnDisk: draft.blocked,
     change: (text: string) => {
       Effect.runFork(draft.change(text));
     },

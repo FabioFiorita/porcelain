@@ -1,11 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { AccessibilityInfo } from 'react-native';
+import type { View } from 'react-native';
+import { type ReactNode, type ComponentRef } from 'react';
 import Animated, {
   cancelAnimation,
   Easing,
   ReduceMotion,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
@@ -17,45 +16,39 @@ export function SidebarPane({
   visible,
   compact,
   children,
+  reduceMotion,
 }: {
   visible: boolean;
   compact: boolean;
   children: ReactNode;
+  reduceMotion: boolean;
 }) {
   const width = compact ? 192 : 256;
   const extent = useSharedValue(visible ? width : 0);
-  const initialReduceMotion = useReducedMotion();
-  const [reduceMotion, setReduceMotion] = useState(initialReduceMotion);
-  useEffect(() => {
-    const subscription = AccessibilityInfo.addEventListener(
-      'reduceMotionChanged',
-      setReduceMotion,
-    );
-    return () => subscription.remove();
-  }, []);
-  useEffect(() => {
-    transitionSidebar(
-      {
-        stop: () => cancelAnimation(extent),
-        settle: (target) => extent.set(target),
-        animate: (target) =>
-          extent.set(
-            withTiming(target, {
-              duration: 200,
-              easing: Easing.bezier(0.23, 1, 0.32, 1),
-              reduceMotion: ReduceMotion.Never,
-            }),
-          ),
-      },
-      visible,
-      width,
-      reduceMotion,
-    );
-    return () => cancelAnimation(extent);
-  }, [extent, visible, width, reduceMotion]);
   const style = useAnimatedStyle(() => ({ width: extent.get() }));
   return (
     <Animated.View
+      ref={(element: ComponentRef<typeof View> | null) => {
+        if (!element) return;
+        transitionSidebar(
+          {
+            stop: () => cancelAnimation(extent),
+            settle: (target) => extent.set(target),
+            animate: (target) =>
+              extent.set(
+                withTiming(target, {
+                  duration: 200,
+                  easing: Easing.bezier(0.23, 1, 0.32, 1),
+                  reduceMotion: ReduceMotion.Never,
+                }),
+              ),
+          },
+          visible,
+          width,
+          reduceMotion,
+        );
+        return () => cancelAnimation(extent);
+      }}
       className="shrink-0 overflow-hidden"
       style={style}
       pointerEvents={visible ? 'auto' : 'none'}

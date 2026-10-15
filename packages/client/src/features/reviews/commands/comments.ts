@@ -1,3 +1,4 @@
+import { readCommentThreads } from '../queries/comments.ts';
 import type {
   CreateCommentThreadRequest,
   ReplyToCommentRequest,
@@ -5,7 +6,7 @@ import type {
   EditCommentMessageRequest,
 } from '@porcelain/contracts/reviews';
 import { Effect, Option } from 'effect';
-import { Atom, Reactivity } from 'effect/reactivity';
+import { Atom, AsyncResult, Reactivity } from 'effect/reactivity';
 import type {
   RuntimeConnection,
   WorktreeScope,
@@ -13,9 +14,14 @@ import type {
 import { porcelainClient, requestApi } from '../../../shared/api/client.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
-import { CommentThreadsState, commentsRuntime } from '../store/comments.ts';
+import {
+  CommentThreadsState,
+  commentsRuntime,
+  commentVisibilityState,
+} from '../store/comments.ts';
 import {
   mergeCommentThreads,
+  commentsSeenThrough,
   type CommentThread,
   type ConfirmedThreads,
 } from '../rules/comments.ts';
@@ -238,3 +244,56 @@ export function commentCommands(
 ) {
   return commandSets({ ...input, owner });
 }
+
+export const observeCommentVisibility = Atom.family(
+  (input: {
+    connection: RuntimeConnection;
+    scope: WorktreeScope;
+    owner: string;
+    filter: 'open' | 'resolved' | 'all' | undefined;
+  }) =>
+    Atom.make((get) => {
+      const { filter, ...owner } = input;
+      if (!filter) return;
+      const history = commentVisibilityState(owner);
+      const seen = commentCommands(input, input.owner).seen;
+      get.mount(history);
+      get.mount(seen);
+      get.subscribe(
+        readCommentThreads(input),
+        (result) => {
+          if (!AsyncResult.isSuccess(result)) return;
+          const threads = result.value;
+          const snapshot = threads
+            .map((thread) => `${thread.id}:${thread.revision}`)
+            .sort()
+            .join('\n');
+          const current = get.registry.get(history);
+          const filters = new Set(
+            current.snapshot === snapshot ? current.filters : [],
+          );
+          filters.add(filter);
+          const highest = threads.reduce(
+            (top, thread) => Math.max(top, thread.revision),
+            0,
+          );
+          const open = threads.filter((thread) => !thread.resolved).length;
+          const through =
+            filter === 'all'
+              ? highest
+              : commentsSeenThrough(
+                  { highest, open, resolved: threads.length - open },
+                  filters,
+                );
+          get.registry.set(history, {
+            snapshot,
+            filters,
+            through: Math.max(current.through, through ?? 0),
+          });
+          if (through !== null && through > current.through)
+            get.registry.set(seen, through);
+        },
+        { immediate: true },
+      );
+    }),
+);

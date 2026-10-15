@@ -1,3 +1,4 @@
+import { useElement } from '@/shared/hooks/use-element';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
 import {
   ArrowLeftIcon,
@@ -14,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { useCanGoBack, useNavigate, useRouter } from '@tanstack/react-router';
-import { useRef, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -356,7 +357,7 @@ export function SettingsPage({ section }: { section: string }) {
   const navigate = useNavigate();
   const router = useRouter();
   const canGoBack = useCanGoBack();
-  const page = useRef<HTMLElement>(null);
+  const page = useElement<HTMLElement>();
   const { connection } = useConnectedContext();
   const { environment } = useInventory(connection);
   useDocumentTitle(
@@ -368,11 +369,11 @@ export function SettingsPage({ section }: { section: string }) {
     if (canGoBack) router.history.back();
     else void navigate({ to: '/' });
   };
-  useHotkey('Escape', leave, { target: page, ignoreInputs: true });
+  useHotkey('Escape', leave, { target: page.element, ignoreInputs: true });
   return (
     <div className="h-svh min-w-0 flex-1 bg-muted p-2 text-ui text-foreground">
       <main
-        ref={page}
+        ref={(element) => page.attach(element)}
         aria-label="Settings"
         className="flex h-full min-h-0 min-w-0 flex-col gap-2 md:flex-row"
       >

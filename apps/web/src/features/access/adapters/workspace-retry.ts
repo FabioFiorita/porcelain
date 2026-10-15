@@ -1,14 +1,19 @@
-import { useEffect } from 'react';
+import { useAtomMount } from '@effect/atom-react';
+import { Atom } from 'effect/reactivity';
 
-export function useWorkspaceRetry(reset: () => void) {
-  useEffect(() => {
+const workspaceRetry = Atom.family((reset: () => void) =>
+  Atom.make((get) => {
     window.addEventListener('focus', reset);
     window.addEventListener('online', reset);
     window.addEventListener('visibilitychange', reset);
-    return () => {
+    get.addFinalizer(() => {
       window.removeEventListener('focus', reset);
       window.removeEventListener('online', reset);
       window.removeEventListener('visibilitychange', reset);
-    };
-  }, [reset]);
+    });
+  }),
+);
+
+export function useWorkspaceRetry(reset: () => void) {
+  useAtomMount(workspaceRetry(reset));
 }

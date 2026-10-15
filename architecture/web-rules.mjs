@@ -1,3 +1,4 @@
+import shadcnPins from './shadcn-pins.json' with { type: 'json' };
 import { replacesGlobal } from './spec-globals.mjs';
 import { variableOf } from './scope.mjs';
 import { posix } from 'node:path';
@@ -477,11 +478,11 @@ function globalUses(context, program, names) {
   return [...direct, ...viaGlobal];
 }
 
-function hookBan({ names, modules, allowed, message }) {
+function hookBan({ names, modules, allowed, message, applies = runtimeWeb }) {
   return {
     create(context) {
       const path = webPath(context);
-      if (!runtimeWeb(path) || allowed(path)) return {};
+      if (!applies(path) || allowed(path)) return {};
       let imports = { locals: new Map(), namespaces: new Set() };
       return {
         Program(program) {
@@ -633,6 +634,25 @@ export const webRules = {
     allowed: never,
     message: (name) =>
       `\`${name}\` is not ours here: writes are commands/ mutations, optimistic updates live in the command, and form state is TanStack Form, because writes and optimistic updates need one command owner.`,
+  }),
+  'react-no-effects-or-refs': hookBan({
+    names: new Set(['useEffect', 'useLayoutEffect', 'useRef']),
+    modules: reactModules,
+    applies: (path) =>
+      [
+        'apps/web/src/',
+        'apps/desktop/src/',
+        'apps/mobile/src/',
+        'packages/client/src/',
+      ].some((prefix) => path.startsWith(prefix)),
+    allowed: (path) =>
+      path.startsWith('apps/web/src/components/ui/') &&
+      Object.hasOwn(
+        shadcnPins,
+        path.slice('apps/web/src/components/ui/'.length),
+      ),
+    message: (name) =>
+      `\`${name}\` keeps React in step with something outside it, so that resource belongs in an atom with a finalizer or a ref callback with cleanup; compute derived values during render and handle events in their handler.`,
   }),
   'web-no-manual-memo': hookBan({
     names: new Set(['useMemo', 'useCallback']),

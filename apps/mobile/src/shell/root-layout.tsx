@@ -1,11 +1,10 @@
 import '../app.css';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import type { ColorValue } from 'react-native';
-import { Uniwind, useCSSVariable, useUniwind } from 'uniwind';
+import { useCSSVariable, useUniwind } from 'uniwind';
 import { ShellStartup } from './shell-startup';
-import { RegistryProvider } from '@effect/atom-react';
-import { usePreferences } from '../features/preferences';
-import { useEffect } from 'react';
+import { RegistryProvider, useAtomMount } from '@effect/atom-react';
+import { preferenceTheme } from '../features/preferences';
 
 function themeColor(
   value: string | number | undefined,
@@ -23,11 +22,7 @@ export function RootLayout() {
 }
 
 function ThemedShell() {
-  const { preferences, read } = usePreferences();
-  useEffect(() => read(undefined), [read]);
-  useEffect(() => {
-    Uniwind.setTheme(preferences.appearance);
-  }, [preferences.appearance]);
+  useAtomMount(preferenceTheme);
   const { theme } = useUniwind();
   const [background, foreground, border] = useCSSVariable([
     '--background',

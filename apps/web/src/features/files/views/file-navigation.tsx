@@ -10,7 +10,7 @@ import {
   ListChevronsUpDownIcon,
   PlusIcon,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -44,6 +44,7 @@ import {
 } from '@/features/projects/index';
 import { discardRejection } from '@/shared/lib/submit-form';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
+import { useFileTreeControls } from '../store';
 import { PierreFileTree } from '../adapters/pierre-file-tree';
 import { useEditFile } from '../commands/edit-file';
 import { runFileTreeAction } from '../commands/tree-menu';
@@ -133,14 +134,10 @@ function ScopedFileNavigation({
   const [fileQuery, setFileQuery] = useState('');
   const collapseLabel =
     fileQuery === '' ? 'Collapse all' : 'Clear search and collapse all';
-  const [requested, setRequested] = useState<readonly string[]>(() =>
-    fileTreeAncestors(selected),
-  );
-  useEffect(() => {
-    setRequested((current) => union(current, fileTreeAncestors(selected)));
-  }, [selected]);
+  const [requested, setRequested] = useState<readonly string[]>([]);
+  const requestedPaths = union(requested, fileTreeAncestors(selected));
 
-  const directoriesRead = useDirectories(connection, scope, requested);
+  const directoriesRead = useDirectories(connection, scope, requestedPaths);
   const directories = [
     root,
     ...directoriesRead.results.flatMap((result) =>
@@ -201,14 +198,8 @@ function ScopedFileNavigation({
       onOpen({ kind: 'file', path }, undefined, { toSide });
     else if (kind === 'file') openFile(path, toSide);
   };
-  const collapseAll = useRef<() => void>(() => undefined);
-  const bindCollapseAll = (collapse: () => void) => {
-    collapseAll.current = collapse;
-  };
-  const renameFile = useRef<(path: string) => void>(() => undefined);
-  const bindRename = (rename: (path: string) => void) => {
-    renameFile.current = rename;
-  };
+  const { collapseAll, renameFile, bindCollapseAll, bindRename } =
+    useFileTreeControls(`${scope.projectId}:${scope.worktreeId}`);
   const menuFor = (path: string) => {
     const hiddenEntry = hiddenPathFor(path, hidden);
     const entry =
@@ -337,7 +328,7 @@ function ScopedFileNavigation({
           variant="ghost"
           aria-label={collapseLabel}
           title={collapseLabel}
-          onClick={() => collapseAll.current()}
+          onClick={() => collapseAll()}
         >
           <ListChevronsUpDownIcon className="text-muted-foreground" />
         </Button>
@@ -358,7 +349,7 @@ function ScopedFileNavigation({
               menu.run(
                 id,
                 () => undefined,
-                () => renameFile.current(path),
+                () => renameFile(path),
               ),
           };
         }}

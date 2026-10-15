@@ -5,7 +5,7 @@ import {
 } from '../../../components/ui/leading-toolbar';
 import { WorkspaceGate, type Workspace } from '../../projects';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Stack } from 'expo-router';
 import { Array, Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -102,18 +102,19 @@ function FilesNavigationView({
   const data = directories.results.flatMap((result) =>
     Option.toArray(AsyncResult.value(result)),
   );
-  useEffect(() => {
+  {
     const confirmed = directories.results.flatMap((result) =>
       AsyncResult.isSuccess(result) && !result.waiting ? [result.value] : [],
     );
     const reachable = directoryRequests(requested, confirmed);
-    if (reachable.length === requested.length) return;
-    setRequested(reachable);
-    setExpanded(
-      (current) =>
-        new Set([...current].filter((path) => reachable.includes(path))),
-    );
-  }, [directories.results, requested]);
+    if (reachable.length !== requested.length) {
+      setRequested(reachable);
+      setExpanded(
+        (current) =>
+          new Set([...current].filter((path) => reachable.includes(path))),
+      );
+    }
+  }
   const failure = directories.results.find(AsyncResult.isFailure);
   const loading = directoryLoading(
     Array.zip(requested, directories.results).map(([path, result]) => ({
@@ -125,9 +126,7 @@ function FilesNavigationView({
     (result) => AsyncResult.isInitial(result) || result.waiting,
   );
   const refreshing = refreshRequested && pending;
-  useEffect(() => {
-    if (refreshRequested && !pending) setRefreshRequested(false);
-  }, [pending, refreshRequested]);
+  if (refreshRequested && !pending) setRefreshRequested(false);
   const refresh = () => {
     setRefreshRequested(true);
     directories.refresh();

@@ -28,3 +28,5 @@ export {
 export { RemoteComputers } from './views/remote-computers';
 export { RemoteUnavailable } from './views/remote-unavailable';
 export { useMcpConfiguration } from './queries/mcp-configuration';
+
+export { pairingLinkChanges } from './commands/pairing';

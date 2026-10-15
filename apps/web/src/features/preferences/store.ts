@@ -1,3 +1,7 @@
+import {
+  connectDesktopChrome,
+  setDesktopAppearance,
+} from '@/shared/adapters/desktop';
 import { useAtomSet, useAtomValue } from '@effect/atom-react';
 import { Atom } from 'effect/reactivity';
 import { storageRuntime } from '@/shared/adapters/storage';
@@ -39,3 +43,28 @@ export function useTheme() {
   const { resolvedTheme: theme } = usePreferences();
   return { dark: theme === 'dark' };
 }
+
+export const themeConnection = Atom.make((get) => {
+  get.addFinalizer(connectDesktopChrome());
+  const root = document.documentElement;
+  const previousDark = root.classList.contains('dark');
+  const update = () => {
+    const value = get.once(preferences);
+    setDesktopAppearance(value.appearance);
+    root.classList.toggle(
+      'dark',
+      resolvedTheme(value.appearance, get.once(systemDark)) === 'dark',
+    );
+  };
+  get.subscribe(preferences, update);
+  get.subscribe(systemDark, update);
+  update();
+  get.addFinalizer(() => {
+    root.classList.toggle('dark', previousDark);
+  });
+});
+
+export { preferences as preferenceValues };
+export const resolvedAppearance = Atom.make((get) =>
+  resolvedTheme(get(preferences).appearance, get(systemDark)),
+);

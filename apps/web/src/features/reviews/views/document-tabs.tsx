@@ -18,7 +18,7 @@ import {
   XIcon,
 } from 'lucide-react';
 import type { ComponentType, ReactNode, SVGProps } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
   ContextMenu,
@@ -243,18 +243,8 @@ function DocumentTab({
   side: 'left' | 'right' | null;
 }) {
   const { Icon, title, hint } = describeTab(tabKey, reviewing);
-  const tabRef = useRef<HTMLDivElement>(null);
   const [openingSide, setOpeningSide] = useState(false);
   const openToSideLabel = openToSideText(side);
-
-  useEffect(() => {
-    if (active) {
-      tabRef.current?.scrollIntoView?.({
-        block: 'nearest',
-        inline: 'nearest',
-      });
-    }
-  }, [active]);
 
   return (
     <ContextMenu
@@ -265,7 +255,10 @@ function DocumentTab({
       <ContextMenuTrigger
         render={
           <div
-            ref={tabRef}
+            ref={(tab) => {
+              if (active)
+                tab?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+            }}
             role="tab"
             tabIndex={0}
             aria-selected={active}

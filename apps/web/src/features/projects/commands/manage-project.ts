@@ -1,20 +1,31 @@
 import { renameProjectRequestSchema } from '@porcelain/contracts/projects';
-import { useAtom, useAtomSet } from '@effect/atom-react';
-import { Atom } from 'effect/reactivity';
-import { useEffect, useEffectEvent } from 'react';
+import { useAtom, useAtomMount } from '@effect/atom-react';
+import { Atom, type AsyncResult } from 'effect/reactivity';
 import { removeProject, renameProject } from '@porcelain/client/projects';
 import type { Connection } from '@/shared/workspace/connection';
+
+const dialogCommandLifetime = Atom.family(
+  (
+    command: Atom.Writable<
+      AsyncResult.AsyncResult<unknown, unknown>,
+      typeof Atom.Reset
+    >,
+  ) =>
+    Atom.make((get) => {
+      get.mount(command);
+      const registry = get.registry;
+      get.addFinalizer(() => {
+        if (!registry.get(command).waiting) registry.set(command, Atom.Reset);
+      });
+    }),
+);
 
 function useDialogCommand<Input, A, E>(
   command: Atom.AtomResultFn<Input, A, E>,
   close: () => void,
 ) {
   const [result, run] = useAtom(command, { mode: 'promise' });
-  const reset = useAtomSet(command);
-  const release = useEffectEvent(() => {
-    if (!result.waiting) reset(Atom.Reset);
-  });
-  useEffect(() => () => release(), []);
+  useAtomMount(dialogCommandLifetime(command));
   return {
     result,
     submit: (input: Input) => run(input).then(close, () => undefined),
