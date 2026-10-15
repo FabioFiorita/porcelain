@@ -1,6 +1,7 @@
 import { workspaceSelection } from './workspace-selection.ts';
 import {
   projectUnavailableMessage,
+  worktreeLabel,
   type Inventory,
   type Project,
 } from './inventory.ts';
@@ -23,7 +24,15 @@ export type WorkspaceChoice = {
   readonly environmentId: string;
   readonly environmentName: string;
   readonly project: Project;
-  readonly unavailable: boolean;
+  readonly worktrees: readonly {
+    readonly key: string;
+    readonly workspace: SavedWorkspace;
+    readonly worktree: Project['worktrees'][number];
+    readonly label: string;
+    readonly accessibilityLabel: string;
+    readonly selected: boolean;
+    readonly disabled: boolean;
+  }[];
 };
 
 function nameOf(environment: EnvironmentInventory) {
@@ -71,7 +80,25 @@ export function workspaceChoices(
       environmentId: environment.environmentId,
       environmentName: nameOf(environment),
       project,
-      unavailable: environment.status === 'failed',
+      worktrees: project.worktrees.map((worktree) => ({
+        key: `${environment.environmentId}/${project.id}/${worktree.id}`,
+        workspace: {
+          environmentId: environment.environmentId,
+          projectId: project.id,
+          worktreeId: worktree.id,
+        },
+        worktree,
+        label: worktreeLabel(worktree.branch),
+        accessibilityLabel: `Select ${worktreeLabel(worktree.branch)} in ${project.name} on ${nameOf(environment)}`,
+        selected:
+          saved?.environmentId === environment.environmentId &&
+          saved.projectId === project.id &&
+          saved.worktreeId === worktree.id,
+        disabled:
+          environment.status === 'failed' ||
+          !project.available ||
+          !worktree.available,
+      })),
     })),
   );
   const messages =

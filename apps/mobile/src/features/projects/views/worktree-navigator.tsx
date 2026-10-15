@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
-import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
 import { ErrorState } from '../../../components/ui/error-state';
@@ -36,83 +35,72 @@ export function WorktreeNavigator({ onSelect }: { onSelect?: () => void }) {
                 {group.name}
               </Text>
             </Box>
-            {group.choices.map(
-              ({ key, environmentId, project, unavailable }) => (
-                <Box key={key} gap={1}>
-                  <Item
-                    title={project.name}
-                    size="xs"
-                    leading={
-                      <Icon
-                        name={project.available ? 'folder' : 'warning'}
-                        tone="muted"
-                        size="small"
-                      />
-                    }
-                    trailing={
-                      <Icon
-                        name={collapsed.has(key) ? 'chevron' : 'down'}
-                        tone="muted"
-                        size="small"
-                      />
-                    }
-                    accessibilityLabel={`${collapsed.has(key) ? 'Expand' : 'Collapse'} ${project.name} on ${group.name}`}
-                    onPress={() =>
-                      setCollapsed((current) => {
-                        const next = new Set(current);
-                        if (next.has(key)) next.delete(key);
-                        else next.add(key);
-                        return next;
-                      })
-                    }
-                  />
-                  {!collapsed.has(key) ? (
-                    <Box className="ml-3" gap={1}>
-                      {project.worktrees.map((worktree) => {
-                        const label = worktreeLabel(worktree.branch);
-                        const selected =
-                          picker.environmentId === environmentId &&
-                          picker.projectId === project.id &&
-                          picker.worktreeId === worktree.id;
-                        return (
-                          <Item
-                            key={worktree.id}
-                            title={label}
-                            description={worktreeDescription(worktree)}
-                            size="xs"
-                            selected={selected}
-                            disabled={
-                              picker.disabled ||
-                              unavailable ||
-                              !project.available ||
-                              !worktree.available
-                            }
-                            accessibilityLabel={`Select ${label} in ${project.name} on ${group.name}`}
-                            trailing={
-                              selected ? (
-                                <Icon name="check" size="small" />
-                              ) : undefined
-                            }
-                            onPress={() =>
-                              picker.onWorktree(
-                                environmentId,
-                                project.id,
-                                worktree.id,
-                              )
-                            }
-                          />
-                        );
-                      })}
-                      {project.worktrees.length === 0 ? (
-                        <Text variant="caption" tone="muted">
-                          No worktrees available
-                        </Text>
-                      ) : null}
-                    </Box>
-                  ) : null}
-                </Box>
-              ),
-            )}
+            {group.choices.map(({ key, project, worktrees }) => (
+              <Box key={key} gap={1}>
+                <Item
+                  title={project.name}
+                  size="xs"
+                  leading={
+                    <Icon
+                      name={project.available ? 'folder' : 'warning'}
+                      tone="muted"
+                      size="small"
+                    />
+                  }
+                  trailing={
+                    <Icon
+                      name={collapsed.has(key) ? 'chevron' : 'down'}
+                      tone="muted"
+                      size="small"
+                    />
+                  }
+                  accessibilityLabel={`${collapsed.has(key) ? 'Expand' : 'Collapse'} ${project.name} on ${group.name}`}
+                  onPress={() =>
+                    setCollapsed((current) => {
+                      const next = new Set(current);
+                      if (next.has(key)) next.delete(key);
+                      else next.add(key);
+                      return next;
+                    })
+                  }
+                />
+                {!collapsed.has(key) ? (
+                  <Box className="ml-3" gap={1}>
+                    {worktrees.map((choice) => {
+                      const { label, selected, worktree } = choice;
+                      return (
+                        <Item
+                          key={choice.key}
+                          title={label}
+                          description={worktreeDescription(worktree)}
+                          size="xs"
+                          selected={selected}
+                          disabled={picker.disabled || choice.disabled}
+                          accessibilityLabel={choice.accessibilityLabel}
+                          trailing={
+                            selected ? (
+                              <Icon name="check" size="small" />
+                            ) : undefined
+                          }
+                          onPress={() =>
+                            picker.onWorktree(
+                              choice.workspace.environmentId,
+                              choice.workspace.projectId,
+                              choice.workspace.worktreeId,
+                            )
+                          }
+                        />
+                      );
+                    })}
+                    {worktrees.length === 0 ? (
+                      <Text variant="caption" tone="muted">
+                        No worktrees available
+                      </Text>
+                    ) : null}
+                  </Box>
+                ) : null}
+              </Box>
+            ))}
           </Box>
         ))}
         {!initializing

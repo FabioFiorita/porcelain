@@ -2,10 +2,7 @@ import type { WorkspaceChoice } from '@porcelain/client/projects/rules';
 
 export type WorkspaceMenuProps = {
   label: string;
-  environmentId: string | undefined;
   choices: readonly WorkspaceChoice[];
-  projectId: string | undefined;
-  worktreeId: string | undefined;
   disabled: boolean;
   messages: readonly string[];
   canReadInventory: boolean;
