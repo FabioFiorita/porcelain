@@ -12,7 +12,10 @@ function SettingsRoute() {
     from: '/_paired/settings/$section/$environmentId',
     shouldThrow: false,
   });
-  if (!settingsSections.some((item) => item.id === section))
+  if (
+    !settingsSections.some((item) => item.id === section) ||
+    (detail !== undefined && section !== 'remotes')
+  )
     return <ConnectedWorkspace notice="not-found" />;
   return (
     <SettingsPage

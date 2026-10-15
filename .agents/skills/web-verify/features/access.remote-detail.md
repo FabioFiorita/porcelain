@@ -24,7 +24,7 @@ api:
 
 ## What it is
 
-Desktop Settings keeps Remote computers as a compact list. Each row opens `/settings/remotes/<environmentId>` with the current name as the third breadcrumb label. Existing status, address, version, remote update and Forget controls live on detail. Browser mode remains scoped to its host and redirects this route to its default Settings section.
+Desktop Settings keeps Remote computers as a compact list. Each row opens `/settings/remotes/<environmentId>` with the current name as the third breadcrumb label. Existing status, address, version, remote update and Forget controls live on detail. Browser mode remains scoped to its host and redirects this route to its default Settings section. An extra segment on any other Settings section shows the recoverable not-found view at the original URL.
 
 ## Driving it
 

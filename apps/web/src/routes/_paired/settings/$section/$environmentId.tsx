@@ -6,7 +6,7 @@ export const Route = createFileRoute(
   '/_paired/settings/$section/$environmentId',
 )({
   beforeLoad: ({ params }) => {
-    if (!desktopShell || params.section !== 'remotes')
+    if (!desktopShell && params.section === 'remotes')
       redirect({
         to: '/settings/$section',
         params: { section: defaultSettingsSection },
