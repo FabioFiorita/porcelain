@@ -70,7 +70,15 @@ The root integration command runs suite tasks sequentially, because each Vitest 
 
 ## Pull requests
 
-Work on your own branch from `main`, in your own worktree. Open a pull request into `main` from the template once the work is done. Name its door under Risks. A two-way door, easy to revert, gets auto-merge with `gh pr merge --auto --squash`, which waits for the `checks` job on top of the latest `main`; when `main` moves, run `gh pr update-branch` so the pull request is tested again. The work is done when the pull request's checks are green, not when it opens: wait with `gh pr checks --watch`, fix each failure, and end your turn only on green. A one-way door, such as data loss, a migration, a public contract, a rule change or a release, keeps auto-merge off and opens the body with what needs deciding. One concern per pull request. The developer reads every body, so make it easy to read: what and why in a few sentences, how it was verified, screenshots attached with `gh pr create --attach` inside a collapsed section, and the risks. Commit only the paths you changed, each commit one short imperative sentence. Plans and scratch notes stay out of the repository.
+Work on your own branch from `main`, in your own worktree, one concern per pull request. Before opening it, get one fresh-context review of the diff and fix the real bugs it finds; never start a second round. Open it into `main` from the template. The developer reads every body, so make it easy to read: what and why in a few sentences, how it was verified, screenshots attached with `gh pr create --attach` inside a collapsed section, and the risks. Commit only the paths you changed, each commit one short imperative sentence. Plans and scratch notes stay out of the repository.
+
+Name its door under Risks, and merge by it:
+
+- A two-way door, easy to revert, gets auto-merge with `gh pr merge --auto --squash`. It merges on green `checks` without the latest `main`, so never run `gh pr update-branch`.
+- A web or desktop UI change also waits for QA: add the `needs-qa` label instead of auto-merge. Once CI is green the QA reviewer tests the head commit and sets `qa-passed` or `qa-changes`. Fix High and Medium findings on the same branch, wait for green and set `needs-qa` again; open each Low finding as an issue labelled `qa-low`. Turn on auto-merge once it has `qa-passed`; a later commit of its own sends it back to `needs-qa`.
+- A one-way door, such as data loss, a migration, a public contract, a rule change or a release, keeps auto-merge off and opens the body with what needs deciding.
+
+The work is done when the pull request's checks are green, not when it opens: wait with `gh pr checks --watch`, fix each failure, and end your turn only on green. When `main` turns red after your pull request merges, fix it forward with a follow-up pull request instead of reverting.
 
 ## Where code lives
 
