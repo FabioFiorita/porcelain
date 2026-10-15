@@ -13,48 +13,23 @@ import {
   PinIcon,
   Trash2Icon,
 } from 'lucide-react';
-import { useState } from 'react';
-import { flushSync } from 'react-dom';
-import type { ComponentProps, ComponentType, KeyboardEvent } from 'react';
+import type { KeyboardEvent } from 'react';
 import {
+  ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
 } from '@/components/ui/context-menu';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import type { TreeAction } from '@porcelain/client/files/rules';
-
-type MenuParts = {
-  Item: ComponentType<ComponentProps<typeof ContextMenuItem>>;
-  Separator: ComponentType;
-};
 
 type MenuListProps = {
   actions: readonly { id: TreeAction; label: string }[];
   hidden: boolean;
   onAction: (id: TreeAction) => void;
-  parts?: MenuParts;
-};
-
-const contextParts: MenuParts = {
-  Item: ContextMenuItem,
-  Separator: ContextMenuSeparator,
-};
-
-const dropdownParts: MenuParts = {
-  Item: DropdownMenuItem,
-  Separator: DropdownMenuSeparator,
 };
 
 type Props = MenuListProps & {
   path: string;
-  anchor: HTMLElement;
-  onMenuKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
+  finalFocus: () => HTMLElement | false;
 };
 
 const icons = {
@@ -76,53 +51,38 @@ const icons = {
 
 export function FileTreeMenu({
   path,
-  anchor,
+  finalFocus,
   actions,
   hidden,
   onAction,
-  onMenuKeyDown,
 }: Props) {
-  const point = anchor.getBoundingClientRect();
-  const [openingSide, setOpeningSide] = useState(false);
   return (
-    <DropdownMenu key={path} defaultOpen>
-      <DropdownMenuTrigger
-        aria-label={`${path} actions`}
-        className="fixed size-px"
-        style={{ left: point.left, top: point.top }}
-      />
-      <DropdownMenuContent
-        data-file-tree-context-menu-root="true"
-        onKeyDownCapture={onMenuKeyDown}
-        finalFocus={!openingSide}
-      >
-        <FileTreeMenuList
-          actions={actions}
-          hidden={hidden}
-          onAction={(id) => {
-            if (id === 'open-to-side') flushSync(() => setOpeningSide(true));
-            onAction(id);
-          }}
-          parts={dropdownParts}
-        />
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <ContextMenuContent
+      aria-label={`${path} actions`}
+      className="w-max max-w-[calc(100vw-2rem)] whitespace-nowrap"
+      onKeyDownCapture={(event: KeyboardEvent<HTMLDivElement>) => {
+        if (event.key !== 'ArrowDown' || event.target !== event.currentTarget)
+          return;
+        const first = event.currentTarget.querySelector('[role="menuitem"]');
+        if (!(first instanceof HTMLElement)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        first.focus();
+      }}
+      finalFocus={finalFocus}
+    >
+      <FileTreeMenuList actions={actions} hidden={hidden} onAction={onAction} />
+    </ContextMenuContent>
   );
 }
 
-export function FileTreeMenuList({
-  actions,
-  hidden,
-  onAction,
-  parts = contextParts,
-}: MenuListProps) {
+export function FileTreeMenuList({ actions, hidden, onAction }: MenuListProps) {
   return actions.map((action) => (
     <FileTreeMenuAction
       key={action.id}
       action={action}
       onAction={onAction}
       hidden={hidden}
-      parts={parts}
     />
   ));
 }
@@ -131,26 +91,24 @@ function FileTreeMenuAction({
   action,
   onAction,
   hidden,
-  parts: { Item, Separator },
 }: {
   action: { id: TreeAction; label: string };
   onAction: (id: TreeAction) => void;
   hidden: boolean;
-  parts: MenuParts;
 }) {
   const Icon = action.id === 'hide' && hidden ? EyeIcon : icons[action.id];
   return (
     <>
       {(action.id === 'hide' ||
         action.id === 'copy-relative' ||
-        action.id === 'trash') && <Separator />}
-      <Item
+        action.id === 'trash') && <ContextMenuSeparator />}
+      <ContextMenuItem
         variant={action.id === 'trash' ? 'destructive' : 'default'}
         onClick={() => onAction(action.id)}
       >
         <Icon />
         {action.label}
-      </Item>
+      </ContextMenuItem>
     </>
   );
 }

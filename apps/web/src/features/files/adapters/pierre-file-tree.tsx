@@ -3,13 +3,14 @@ import { moveFileEntries } from '@porcelain/client/files';
 import type { GitStatusEntry } from '@pierre/trees';
 import { FileTree, useFileTree } from '@pierre/trees/react';
 import {
-  type KeyboardEvent,
   type ReactNode,
   useEffect,
+  useState,
   useLayoutEffect,
   useRef,
 } from 'react';
-import type { ContextMenuItem, ContextMenuOpenContext } from '@pierre/trees';
+import type { ContextMenuItem } from '@pierre/trees';
+import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { treeIconsFor } from './file-icons';
 import {
   canDropPaths,
@@ -20,15 +21,6 @@ import {
   nextCreatePath,
   selectedDirectories,
 } from '@porcelain/client/files/rules';
-
-function focusFirstMenuItem(event: KeyboardEvent<HTMLDivElement>) {
-  if (event.key !== 'ArrowDown' || event.target !== event.currentTarget) return;
-  const first = event.currentTarget.querySelector('[role="menuitem"]');
-  if (!(first instanceof HTMLElement)) return;
-  event.preventDefault();
-  event.stopPropagation();
-  first.focus();
-}
 
 function expandedDirectories(
   model: ReturnType<typeof useFileTree>['model'],
@@ -75,13 +67,30 @@ export function PierreFileTree({
   onFilterChange: (value: string) => void;
   renderMenu: (
     item: ContextMenuItem,
-    context: ContextMenuOpenContext,
+    context: {
+      finalFocus: () => HTMLElement | false;
+      close: (restoreFocus: boolean) => void;
+    },
     rename: () => void,
-    onMenuKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void,
   ) => ReactNode;
   onInvalidName: (error: string) => void;
   onSelect: (path: string, toSide?: boolean) => void;
 }) {
+  const pathsKey = paths.join('\0');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuTarget, setMenuTarget] = useState<{
+    item: ContextMenuItem;
+    row: HTMLElement;
+    pathsKey: string;
+    filter: string;
+    rename: () => void;
+    finalFocus: () => HTMLElement | false;
+    close: (restoreFocus: boolean) => void;
+  } | null>(null);
+  const menuTargetIsCurrent =
+    menuTarget?.pathsKey === pathsKey && menuTarget.filter === filter;
+  if (menuOpen && !menuTargetIsCurrent) setMenuOpen(false);
+
   const current = {
     paths,
     kinds,
@@ -117,7 +126,7 @@ export function PierreFileTree({
     initialExpansion: 'closed',
     icons: treeIconsFor(links),
     unsafeCSS:
-      '[data-icon-name="file-tree-icon-chevron"] { color: var(--trees-fg-muted); }',
+      '[data-icon-name="file-tree-icon-chevron"] { color: var(--trees-fg-muted); } [data-context-menu-open] { outline: 1px solid var(--trees-fg-muted); outline-offset: -1px; border-radius: 4px; }',
     gitStatus,
     search: false,
     onSearchChange: (value) => {
@@ -242,7 +251,6 @@ export function PierreFileTree({
     if (expanded.length) latest.current.onExpand(expanded);
   }
 
-  const pathsKey = paths.join('\0');
   useEffect(() => {
     const shown = latest.current.paths;
     if (reveal.current.selected !== selected)
@@ -310,62 +318,130 @@ export function PierreFileTree({
       .catch(() => model.resetPaths(latest.current.paths));
   }
 
+  function targetMenu(event: Event) {
+    const row = event
+      .composedPath()
+      .find(
+        (target): target is HTMLElement =>
+          target instanceof HTMLElement &&
+          target.hasAttribute('data-item-path'),
+      );
+    const path = row?.dataset.itemPath;
+    const item = path === undefined ? null : model.getItem(path);
+    if (!row || !path || !item || row.querySelector('[data-item-rename-input]'))
+      return false;
+    const focus = { restore: true };
+    setMenuTarget({
+      row,
+      pathsKey,
+      filter,
+      finalFocus: () =>
+        focus.restore && row.isConnected && row.dataset.itemPath === path
+          ? row
+          : false,
+      close: (restoreFocus) => {
+        focus.restore = restoreFocus;
+        setMenuOpen(false);
+      },
+      rename: () => {
+        requestAnimationFrame(() => {
+          syncing.current = true;
+          model.startRenaming(path);
+          syncing.current = false;
+        });
+      },
+      item: {
+        path,
+        name: entryName(path),
+        kind: item.isDirectory() ? 'directory' : 'file',
+      },
+    });
+    return true;
+  }
+
+  useLayoutEffect(() => {
+    if (!menuOpen || !menuTargetIsCurrent || !menuTarget) return;
+    const { row } = menuTarget;
+    row.setAttribute('aria-haspopup', 'menu');
+    row.setAttribute('data-context-menu-open', '');
+    return () => {
+      row.removeAttribute('aria-haspopup');
+      row.removeAttribute('data-context-menu-open');
+    };
+  }, [menuOpen, menuTarget, menuTargetIsCurrent]);
+
   return (
-    <div
-      ref={hostRef}
-      className="flex min-h-0 flex-1 flex-col"
-      onKeyDownCapture={(event) => {
-        if (event.key === 'Enter') acceptDefaultName(event.nativeEvent);
-        if (event.key === 'Escape') pendingCreate.current = null;
-      }}
-      onClickCapture={(event) => {
-        if (event.button !== 0) return;
-        if (!event.altKey && (event.ctrlKey || event.metaKey || event.shiftKey))
-          return;
-        const targets = event.nativeEvent.composedPath();
-        if (targets.some((target) => target instanceof HTMLInputElement))
-          return;
-        const row = targets.find(
-          (target): target is HTMLElement =>
-            target instanceof HTMLElement &&
-            target.hasAttribute('data-item-path'),
-        );
-        const path = row?.dataset.itemPath;
-        if (!path || latest.current.kinds.get(path) !== 'file') return;
-        const item = model.getItem(path);
-        if (item === null || pendingCreate.current?.path === path) return;
-        event.preventDefault();
-        event.stopPropagation();
-        syncing.current = true;
-        for (const selectedPath of model.getSelectedPaths()) {
-          if (selectedPath !== path) model.getItem(selectedPath)?.deselect();
-        }
-        item.select();
-        syncing.current = false;
-        latest.current.onSelect(path, event.altKey);
-      }}
-      onBlurCapture={(event) => acceptDefaultName(event.nativeEvent)}
+    <ContextMenu
+      open={menuOpen && menuTargetIsCurrent}
+      onOpenChange={setMenuOpen}
     >
-      <FileTree
-        model={model}
-        data-slot="file-tree"
-        aria-label="Worktree files"
-        className="min-h-0 flex-1"
-        renderContextMenu={(item, context) =>
-          renderMenu(
-            item,
-            context,
-            () => {
-              requestAnimationFrame(() => {
-                syncing.current = true;
-                model.startRenaming(item.path);
-                syncing.current = false;
-              });
-            },
-            focusFirstMenuItem,
-          )
+      <ContextMenuTrigger
+        onContextMenuCapture={(event) => {
+          if (!targetMenu(event.nativeEvent)) event.stopPropagation();
+        }}
+        onTouchStartCapture={(event) => {
+          if (!targetMenu(event.nativeEvent)) event.stopPropagation();
+        }}
+        render={
+          <div
+            ref={hostRef}
+            className="flex min-h-0 flex-1 flex-col"
+            onKeyDownCapture={(event) => {
+              if (event.key === 'Enter') acceptDefaultName(event.nativeEvent);
+              if (event.key === 'Escape') pendingCreate.current = null;
+            }}
+            onClickCapture={(event) => {
+              if (event.button !== 0) return;
+              if (
+                !event.altKey &&
+                (event.ctrlKey || event.metaKey || event.shiftKey)
+              )
+                return;
+              const targets = event.nativeEvent.composedPath();
+              if (targets.some((target) => target instanceof HTMLInputElement))
+                return;
+              const row = targets.find(
+                (target): target is HTMLElement =>
+                  target instanceof HTMLElement &&
+                  target.hasAttribute('data-item-path'),
+              );
+              const path = row?.dataset.itemPath;
+              if (!path || latest.current.kinds.get(path) !== 'file') return;
+              const item = model.getItem(path);
+              if (item === null || pendingCreate.current?.path === path) return;
+              event.preventDefault();
+              event.stopPropagation();
+              syncing.current = true;
+              for (const selectedPath of model.getSelectedPaths()) {
+                if (selectedPath !== path)
+                  model.getItem(selectedPath)?.deselect();
+              }
+              item.select();
+              syncing.current = false;
+              latest.current.onSelect(path, event.altKey);
+            }}
+            onBlurCapture={(event) => acceptDefaultName(event.nativeEvent)}
+          />
         }
-      />
-    </div>
+      >
+        <FileTree
+          model={model}
+          data-slot="file-tree"
+          aria-label="Worktree files"
+          className="min-h-0 flex-1"
+        />
+      </ContextMenuTrigger>
+      {menuTarget &&
+        renderMenu(
+          menuTarget.item,
+          {
+            finalFocus: menuTargetIsCurrent
+              ? menuTarget.finalFocus
+              : () => false,
+            close: menuTarget.close,
+          },
+          menuTarget.rename,
+        )}
+    </ContextMenu>
   );
 }
