@@ -1,3 +1,4 @@
+import { userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('History lists each commit message without a graph beside it and marks a merge commit with a merge icon', async ({
@@ -42,16 +43,90 @@ test('History lists each commit message without a graph beside it and marks a me
     .element(described.getByRole('img', { name: 'Merge commit', exact: true }))
     .not.toBeInTheDocument();
   await expect
-    .element(
-      sidebar
-        .getByRole('button', { name: new RegExp(`^${topic}`) })
-        .getByText('topic', { exact: true }),
-    )
+    .element(sidebar.getByText('topic', { exact: true }))
     .toBeVisible();
   await expect
     .element(sidebar.getByRole('list', { name: 'Commit graph', exact: true }))
     .not.toBeInTheDocument();
   await expect
     .element(sidebar.getByRole('button', { name: 'Open graph', exact: true }))
+    .toBeVisible();
+});
+
+test('every ref is reachable at a narrow width in the History list and graph', async ({
+  workspace,
+  repo,
+  server,
+  refChips,
+}) => {
+  const branches = [
+    'experiment/aaa-very-long-branch-name-that-overflows-the-history-chip-row',
+    'experiment/bbb-another-long-name-for-the-same-commit',
+    'experiment/ccc-one-more-long-name-for-the-same-commit',
+  ];
+  for (const branch of branches) await repo.branch(branch);
+  await expect
+    .poll(async () => (await server.commits()).commits[0]?.refs.length)
+    .toBe(4);
+
+  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'History', exact: true }).click();
+
+  for (const surface of ['list', 'graph'] as const) {
+    const scope =
+      surface === 'list'
+        ? workspace.getByRole('complementary', {
+            name: 'Review sidebar',
+            exact: true,
+          })
+        : workspace.getByRole('list', { name: 'Commit graph', exact: true });
+    await expect
+      .element(scope.getByText(repo.initialBranch, { exact: true }).last())
+      .toBeVisible();
+    const first = scope.getByText(branches[2]!, { exact: true });
+    await expect.element(first).toBeVisible();
+    const row = scope.getByRole('button', { name: /^Initial commit/ });
+    const more = scope.getByRole('button', { name: /^Show \d+ more refs$/ });
+    await expect.element(more).toBeVisible();
+    await expect
+      .poll(() => refChips.presentation(first, row, more))
+      .toEqual({
+        textOverflow: 'ellipsis',
+        truncated: true,
+        nameInsideRow: true,
+        countInsideRow: true,
+      });
+    refChips.focus(row);
+    await userEvent.keyboard('{Tab}{Tab}');
+    await expect.poll(() => refChips.tooltipName()).toBe(branches[2]!);
+    await userEvent.keyboard('{Escape}');
+
+    await userEvent.keyboard('{Tab}{Enter}');
+    const remaining = workspace.getByRole('dialog', {
+      name: 'More refs',
+      exact: true,
+    });
+    for (const branch of [branches[0]!, branches[1]!]) {
+      await expect
+        .element(remaining.getByText(branch, { exact: true }))
+        .toBeVisible();
+    }
+    await userEvent.keyboard('{Escape}');
+    await expect.element(remaining).not.toBeInTheDocument();
+    await expect.element(more).toHaveFocus();
+    if (surface === 'list') {
+      await scope
+        .getByRole('button', { name: 'Open graph', exact: true })
+        .click();
+    }
+  }
+  await workspace
+    .getByRole('list', { name: 'Commit graph', exact: true })
+    .getByRole('button', { name: repo.initialBranch, exact: true })
+    .click();
+  await expect
+    .element(
+      workspace.getByRole('heading', { name: 'Initial commit', exact: true }),
+    )
     .toBeVisible();
 });
