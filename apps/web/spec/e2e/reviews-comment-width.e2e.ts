@@ -6,13 +6,14 @@ test('comment text stays selectable and long filenames, waiting badges and actio
   app,
   repo,
   agent,
+  page,
 }, info) => {
   const path =
     'phone-otp-with-an-extremely-long-file-name-that-must-not-push-actions-outside-the-review-sidebar.ts';
   await repo.write(path, 'export const retries = 11;\n');
   await agent.comment(path, 'should be 5');
-  const page = await app.open(await app.link('this'));
   await page.setViewportSize({ width: 1440, height: 896 });
+  await app.open(await app.link('this'));
   const sidebar = page.getByRole('complementary', {
     name: 'Review sidebar',
     exact: true,

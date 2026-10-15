@@ -27,7 +27,12 @@ test('finding in a long file brings a match far below the fold into view in the 
     .element(workspace.getByText(needle, { exact: true }))
     .not.toBeInTheDocument();
   await expect
-    .element(workspace.getByRole('button', { name: 'Review', exact: true }))
+    .element(
+      workspace.getByRole('tab', {
+        name: 'long.txt Close long.txt',
+        exact: true,
+      }),
+    )
     .toHaveFocus();
 
   await userEvent.keyboard('{ControlOrMeta>}f{/ControlOrMeta}');
