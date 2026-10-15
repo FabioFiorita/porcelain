@@ -98,7 +98,7 @@ jobs:
       && contains(github.event.pull_request.labels.*.name, 'qa-passed')
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       issues: write
       pull-requests: write
     steps:
@@ -117,8 +117,8 @@ jobs:
             echo "This push to #$NUMBER only merges another branch in; the QA pass still covers its own code."
             exit 0
           fi
+          gh pr edit "$NUMBER" --repo "$REPO" --remove-label qa-passed --add-label needs-qa
           if [ "$(gh pr view "$NUMBER" --repo "$REPO" --json autoMergeRequest --jq '.autoMergeRequest != null')" = true ]; then
             gh pr merge "$NUMBER" --repo "$REPO" --disable-auto
           fi
-          gh pr edit "$NUMBER" --repo "$REPO" --remove-label qa-passed --add-label needs-qa
           echo "#$NUMBER changed after its QA pass ($(printf '%s\n' "$changed" | wc -l) new commits); it needs QA again at $SHA."
