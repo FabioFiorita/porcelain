@@ -437,7 +437,7 @@ function WalkthroughRows({
               stop.kind === 'decision'
                 ? {
                     kind: 'decision',
-                    reviewed: state?.reviewed === true,
+                    reviewed: done,
                     stale: state?.stale === true,
                     settled: walk.decisions.settled,
                     pending: completion.pending,
@@ -451,13 +451,16 @@ function WalkthroughRows({
                   layerId: stop.layer.id,
                   fingerprint: stop.layer.fingerprint,
                 };
-                if (state?.reviewed) completion.reopen(decision);
+                if (done) completion.reopen(decision);
                 else
                   completion.complete({
                     files: walk.items.filter((item) =>
                       stop.paths.includes(item.path),
                     ),
-                    decision: { ...decision, reviewed: false },
+                    decision: {
+                      ...decision,
+                      reviewed: state?.reviewed === true,
+                    },
                   });
               }
             }}
