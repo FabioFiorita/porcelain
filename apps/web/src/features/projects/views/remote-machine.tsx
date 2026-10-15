@@ -37,7 +37,6 @@ export function RemoteMachine({
       environmentId={remote.environmentId}
       name={name}
       icon={ServerIcon}
-      onOpenSettings={onOpenRemotes}
       status={
         <Badge variant={remoteStatusVariant(status)}>
           {remoteStatusText(status)}
@@ -50,7 +49,7 @@ export function RemoteMachine({
             {note && <p>{note}</p>}
             {status.kind !== 'checking' && (
               <Button variant="link" size="xs" onClick={onOpenRemotes}>
-                Computer settings
+                Open Remote computers
               </Button>
             )}
           </div>

@@ -131,13 +131,7 @@ export function ConnectedWorkspace({
           })
         : openHere(),
     onOpenSettings: () => openSettings(),
-    onOpenRemotes: (environmentId: string) => {
-      setOpenMobile(false);
-      void navigate({
-        to: '/settings/$section/$environmentId',
-        params: { section: 'remotes', environmentId },
-      });
-    },
+    onOpenRemotes: () => openSettings('remotes'),
     onOpenShortcuts: () => setShortcuts(true),
   };
   const onSearch: SetWorkspaceSearch = (update, options) => {
@@ -198,9 +192,7 @@ export function ConnectedWorkspace({
               <RemoteUnavailable
                 name={remote.remote.name}
                 status={unavailable}
-                onOpenRemotes={() =>
-                  navigator.onOpenRemotes(remote.remote.environmentId)
-                }
+                onOpenRemotes={() => openSettings('remotes')}
               />
             ) : (
               <Empty>

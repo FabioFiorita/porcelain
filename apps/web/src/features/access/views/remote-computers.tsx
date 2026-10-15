@@ -1,8 +1,18 @@
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { KeyRoundIcon, MonitorIcon, ChevronRightIcon } from 'lucide-react';
+import {
+  remoteStatusNote,
+  remoteStatusText,
+} from '@porcelain/client/access/rules';
+import {
+  KeyRoundIcon,
+  MonitorIcon,
+  ServerIcon,
+  Trash2Icon,
+} from 'lucide-react';
 import { useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -15,71 +25,81 @@ import { FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
   Item,
+  ItemActions,
   ItemContent,
   ItemDescription,
+  ItemFooter,
   ItemGroup,
+  ItemMedia,
+  ItemTitle,
 } from '@/components/ui/item';
 import { submitForm } from '@/shared/lib/submit-form';
-import { useAddRemote, useReadSavedEnvironments } from '../commands/remotes';
+import {
+  useAddRemote,
+  useForgetRemote,
+  useReadSavedEnvironments,
+} from '../commands/remotes';
 import { useRemoteStatus } from '../queries/remotes';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
+import { remoteStatusVariant } from '../rules/remotes';
 import { type Remote } from '@porcelain/client/access/rules';
-import { useSavedEnvironments } from '../store';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { useRemoteConnection, useSavedEnvironments } from '../store';
+import { RemoteServiceUpdate } from './service-update';
 
-const statusFilters = [
-  { value: 'all', label: 'All computers' },
-  { value: 'online', label: 'Online' },
-  { value: 'offline', label: 'Offline' },
-  { value: 'attention', label: 'Needs attention' },
-];
-
-function RemoteRow({
-  remote,
-  search,
-  filter,
-  onOpen,
-}: {
-  remote: Remote;
-  search: string;
-  filter: string;
-  onOpen: (environmentId: string) => void;
-}) {
+function RemoteRow({ remote }: { remote: Remote }) {
   const status = useRemoteStatus(remote);
+  const forget = useForgetRemote(remote);
+  const entry = useRemoteConnection(remote.environmentId);
+  const note = remoteStatusNote(status);
   const name = status.kind === 'online' ? status.name : remote.name;
-  if (
-    !`${name} ${remote.address} ${remote.environmentId}`
-      .toLowerCase()
-      .includes(search.trim().toLowerCase()) ||
-    (filter === 'online' && status.kind !== 'online') ||
-    (filter === 'offline' && status.kind !== 'offline') ||
-    (filter === 'attention' &&
-      (status.kind === 'online' || status.kind === 'checking'))
-  )
-    return null;
   return (
-    <Item variant="outline" size="sm" role="listitem" aria-label={name}>
+    <Item variant="outline" role="listitem" aria-label={name}>
+      <ItemMedia variant="icon">
+        <ServerIcon />
+      </ItemMedia>
       <ItemContent>
+        <ItemTitle>{name}</ItemTitle>
+        <ItemDescription>
+          {remote.address}
+          {status.kind === 'online' && status.version
+            ? ` · Porcelain ${status.version}`
+            : ''}
+        </ItemDescription>
+      </ItemContent>
+      <ItemActions>
+        <Badge variant={remoteStatusVariant(status)}>
+          {remoteStatusText(status)}
+        </Badge>
         <Button
           variant="ghost"
-          className="h-auto w-full justify-between text-left"
-          onClick={() => onOpen(remote.environmentId)}
+          size="icon-sm"
+          aria-label={`Remove ${name}`}
+          disabled={forget.result.waiting}
+          onClick={() => forget.submit()}
         >
-          <span className="min-w-0">
-            <span className="block truncate font-medium">{name}</span>
-            <span className="block truncate text-xs text-muted-foreground">
-              {remote.address} · {remote.environmentId.slice(0, 8)}
-            </span>
-          </span>
-          <ChevronRightIcon />
+          <Trash2Icon />
         </Button>
-      </ItemContent>
+      </ItemActions>
+      {status.kind === 'online' && entry && (
+        <ItemFooter>
+          <div className="min-w-0 flex-1">
+            <RemoteServiceUpdate
+              connection={entry.connection}
+              name={name}
+              deviceId={entry.remote.deviceId}
+            />
+          </div>
+        </ItemFooter>
+      )}
+      {(note || AsyncResult.isFailure(forget.result)) && (
+        <ItemFooter>
+          <ItemDescription>
+            {AsyncResult.isFailure(forget.result)
+              ? connectionErrorMessage(Cause.squash(forget.result.cause))
+              : note}
+          </ItemDescription>
+        </ItemFooter>
+      )}
     </Item>
   );
 }
@@ -131,13 +151,7 @@ function AddRemote() {
   );
 }
 
-export function RemoteComputers({
-  onOpen,
-}: {
-  onOpen: (environmentId: string) => void;
-}) {
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
+export function RemoteComputers() {
   const { remotes, error: unreadable } = useSavedEnvironments();
   const restore = useReadSavedEnvironments();
   return (
@@ -168,32 +182,6 @@ export function RemoteComputers({
       </FieldSet>
       <FieldSet>
         <FieldLegend variant="label">Remote computers</FieldLegend>
-        <div className="flex gap-2">
-          <Input
-            aria-label="Search remote computers"
-            placeholder="Search name or address"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-          <Select
-            items={statusFilters}
-            value={filter}
-            onValueChange={(value) => {
-              if (value) setFilter(value);
-            }}
-          >
-            <SelectTrigger aria-label="Computer status">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {statusFilters.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
         {remotes.length === 0 ? (
           <Empty>
             <EmptyHeader>
@@ -208,31 +196,11 @@ export function RemoteComputers({
             </EmptyHeader>
           </Empty>
         ) : (
-          <ItemGroup aria-label="Remote computers" className="peer">
-            {[...remotes]
-              .sort(
-                (a, b) =>
-                  a.name.localeCompare(b.name) ||
-                  a.environmentId.localeCompare(b.environmentId),
-              )
-              .map((remote) => (
-                <RemoteRow
-                  key={remote.environmentId}
-                  remote={remote}
-                  search={search}
-                  filter={filter}
-                  onOpen={onOpen}
-                />
-              ))}
+          <ItemGroup aria-label="Remote computers">
+            {remotes.map((remote) => (
+              <RemoteRow key={remote.environmentId} remote={remote} />
+            ))}
           </ItemGroup>
-        )}
-        {remotes.length > 0 && (
-          <p
-            className="text-sm text-muted-foreground peer-has-[[role=listitem]]:hidden"
-            role="status"
-          >
-            No computers match this search and filter.
-          </p>
         )}
       </FieldSet>
     </>

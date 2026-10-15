@@ -42,7 +42,7 @@ Settings is its own page (`main` "Settings") that replaces the workspace and sho
   - web mode (`start`): `appearance`, `git`, `connection` (Connection), `updates` (Updates).
   - Any other slug shows an in-app not-found with the project navigator and Back to workspace; `/settings` redirects (replace) to the first section.
 - Desktop app menu "Settings" (the Electron bridge's `open-settings` action); requires the Electron bridge and desktop verification.
-- "Computer settings" buttons and context menus (desktop navigator, unreachable remote) open `/settings/remotes/<environmentId>`. Back from detail first returns to Remote computers.
+- "Open Remote computers" buttons (desktop navigator, unreachable remote) open `/settings/remotes`.
 
 ## Driving it
 

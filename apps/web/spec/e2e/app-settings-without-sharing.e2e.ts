@@ -3,7 +3,6 @@ import { expect, test } from './fixtures.ts';
 test('the web the server serves lists Appearance, Git and agents, Connection and Updates in Settings and no Sharing, and the navigator still names this computer', async ({
   pairedPage,
   server,
-  app,
 }) => {
   const host = (await server.inventory()).environment.name;
   const offered = await server.serviceUpdate();
@@ -45,12 +44,4 @@ test('the web the server serves lists Appearance, Git and agents, Connection and
   await expect(
     settings.getByText(`Porcelain ${offered.version ?? ''}`, { exact: true }),
   ).toBeVisible();
-  await app.follow('/settings/remotes/a-saved-computer');
-  await expect(pairedPage).toHaveURL(/\/settings\/appearance$/);
-  await expect(
-    sections.getByRole('button', { name: 'Remote computers', exact: true }),
-  ).not.toBeAttached();
-  await expect(
-    settings.getByRole('button', { name: 'Forget on this app', exact: true }),
-  ).not.toBeAttached();
 });

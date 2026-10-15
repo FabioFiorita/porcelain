@@ -3,13 +3,16 @@ name: QA webhook
 # Starts the QA reviewer once a pull request labelled `needs-qa` has green CI. The reviewer's
 # webhook starts one run per POST and does not deduplicate, so send exactly once per commit:
 # when CI succeeds on a labelled pull request, or when the label is added after CI already passed.
+# A pass covers the commit the reviewer tested: a push with new commits of its own (not only a
+# merge from main) turns `qa-passed` back into `needs-qa` and turns auto-merge off, so its green
+# CI starts the next review instead of merging untested code.
 
 on:
   workflow_run:
     workflows: [CI]
     types: [completed]
   pull_request:
-    types: [labeled]
+    types: [labeled, synchronize]
 
 permissions:
   actions: read
@@ -87,3 +90,35 @@ jobs:
             -d "$body"
           echo
           echo "Started QA for #$NUMBER at $SHA."
+
+  requalify:
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.action == 'synchronize'
+      && contains(github.event.pull_request.labels.*.name, 'qa-passed')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Send new code after a QA pass back to QA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          own=$(gh api --paginate "repos/$REPO/pulls/$NUMBER/commits" --jq '.[] | select((.parents | length) == 1) | .sha')
+          pushed=$(gh api "repos/$REPO/compare/$BEFORE...$SHA" --jq '.commits[].sha')
+          changed=$(printf '%s\n' "$pushed" | grep -Fxf - <(printf '%s\n' "$own") || true)
+          if [ -z "$changed" ]; then
+            echo "This push to #$NUMBER only merges another branch in; the QA pass still covers its own code."
+            exit 0
+          fi
+          gh pr edit "$NUMBER" --repo "$REPO" --remove-label qa-passed --add-label needs-qa
+          if [ "$(gh pr view "$NUMBER" --repo "$REPO" --json autoMergeRequest --jq '.autoMergeRequest != null')" = true ]; then
+            gh pr merge "$NUMBER" --repo "$REPO" --disable-auto
+          fi
+          echo "#$NUMBER changed after its QA pass ($(printf '%s\n' "$changed" | wc -l) new commits); it needs QA again at $SHA."
