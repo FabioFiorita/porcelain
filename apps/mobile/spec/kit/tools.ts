@@ -4,29 +4,35 @@ import { deviceHost, mainCheckoutHostFile } from './device-host.ts';
 export function agentDevice(): string | undefined {
   return deviceHost().agentDevice;
 }
-export function agentDeviceMissing(): string {
-  return `agent-device is not set up on this machine: install it (npm install --global agent-device) at the same version as your device hub, and set "agentDevice" in ${mainCheckoutHostFile()} to its absolute path`;
-}
-export function agentDeviceVersion(): string | undefined {
-  const executable = agentDevice();
-  if (executable === undefined) return undefined;
-  const result = spawnSync(executable, ['--version'], { encoding: 'utf8' });
+
+function output(command: string, args: readonly string[]): string | undefined {
+  const result = spawnSync(command, args, { encoding: 'utf8' });
   return result.error === undefined && result.status === 0
     ? result.stdout.trim()
     : undefined;
 }
 
-export type Tool = 'simulator' | 'agent-device';
-
-function simulatorProblem(): string | undefined {
-  const result = spawnSync('xcrun', ['simctl', 'help'], { encoding: 'utf8' });
-  return result.error === undefined && result.status === 0
+export function agentDeviceVersion(): string | undefined {
+  const executable = agentDevice();
+  return executable === undefined
     ? undefined
-    : 'Xcode with an iOS 26 or newer simulator runtime is missing: install Xcode from the App Store, run xcode-select --switch /Applications/Xcode.app and add the runtime in Xcode > Settings > Components';
+    : output(executable, ['--version']);
 }
 
+export function agentDeviceMissing(): string {
+  const executable = agentDevice();
+  return executable === undefined
+    ? `agent-device is not set up on this machine: install it (npm install --global agent-device; when you drive a Mac through its hub, use the hub's version) and set "agentDevice" in ${mainCheckoutHostFile()} to its absolute path`
+    : `${executable}, named by "agentDevice" in ${mainCheckoutHostFile()}, does not run: install agent-device there or correct the path`;
+}
+
+export type Tool = 'simulator' | 'agent-device';
+
 const problems: Record<Tool, () => string | undefined> = {
-  simulator: simulatorProblem,
+  simulator: () =>
+    output('xcrun', ['simctl', 'help']) === undefined
+      ? 'Xcode with an iOS 26 or newer simulator runtime is missing: install Xcode from the App Store, run xcode-select --switch /Applications/Xcode.app and add the runtime in Xcode > Settings > Components'
+      : undefined,
   'agent-device': () =>
     agentDeviceVersion() === undefined ? agentDeviceMissing() : undefined,
 };

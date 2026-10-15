@@ -19,6 +19,6 @@ it('leaves agent-device unset when the machine names none', () => {
 
 it('refuses a relative agent-device path and explains the field', () => {
   expect(() => hostFromJson({ agentDevice: 'agent-device' }, hostFile)).toThrow(
-    /"agentDevice": the absolute path of the agent-device executable/,
+    /wrong: agentDevice must be an absolute path/,
   );
 });

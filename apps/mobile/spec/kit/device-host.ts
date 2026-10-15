@@ -6,7 +6,13 @@ import { repositoryRoot } from './development-client.ts';
 export const hostFileName = '.mobile-device-host.json';
 const hubFields = ['hub', 'tokenVariable', 'ports'] as const;
 const fileSchema = Schema.Struct({
-  agentDevice: Schema.optional(Schema.String.check(Schema.isPattern(/^\/.+/))),
+  agentDevice: Schema.optional(
+    Schema.String.check(
+      Schema.isPattern(/^\/.+/, {
+        message: 'agentDevice must be an absolute path',
+      }),
+    ),
+  ),
   ssh: Schema.optional(Schema.String),
   checkout: Schema.optional(Schema.String),
   hub: Schema.optional(
