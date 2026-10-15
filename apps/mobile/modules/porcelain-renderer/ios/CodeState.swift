@@ -8,7 +8,7 @@ final class CodeState {
   private(set) var gutterDigits = 1
   private(set) var lines: [CodeLine] = []
   private(set) var selection: ReviewSelection?
-  @ObservationIgnored private var anchor: CodeAnchor?
+  @ObservationIgnored private var anchor: CodeLocation?
   var wrap = true
   var lineNumbers = true
   var selectable = false
@@ -29,8 +29,11 @@ final class CodeState {
     selection = ReviewSelection.decode(value)
     if selection == nil { anchor = nil }
   }
+  func location(_ line: CodeLine) -> CodeLocation? {
+    line.location(preferredSide: anchor?.side ?? selection?.side)
+  }
   func choose(_ side: String?, _ line: Int, reset: Bool) -> ReviewSelection {
-    if reset || anchor == nil || anchor?.side != side { anchor = CodeAnchor(side: side, line: line) }
+    if reset || anchor == nil || anchor?.side != side { anchor = CodeLocation(side: side, line: line) }
     let start = anchor?.line ?? line
     let range = ReviewSelection(side: side, startLine: min(start, line), endLine: max(start, line))
     // A second tap can arrive before the bridge echoes the first selection.

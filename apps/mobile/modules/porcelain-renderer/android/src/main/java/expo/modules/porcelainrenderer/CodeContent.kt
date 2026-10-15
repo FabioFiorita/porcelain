@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: RenderTokens, selection: ReviewSelection?, selectable: Boolean, choose: (String?, Int, Boolean) -> Unit, expand: (String) -> Unit, copy: (String) -> Unit) {
+internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: RenderTokens, selection: ReviewSelection?, selectable: Boolean, location: (CodeLine) -> CodeLocation?, choose: (String?, Int, Boolean) -> Unit, expand: (String) -> Unit, copy: (String) -> Unit) {
   val digits = remember(lines) { (lines.maxOfOrNull { maxOf(it.oldLine ?: 0, it.newLine ?: 0) } ?: 1).toString().length }
   val measurer = rememberTextMeasurer()
   val density = LocalDensity.current
@@ -39,9 +39,10 @@ internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: Re
         if (line.kind == "gap") {
           TextButton(onClick = { expand(line.id) }) { Text(line.text, color = options.muted) }
         } else {
-          val side = if (line.kind == "removed") "deletions" else if (line.oldLine != null || line.kind == "added") "additions" else null
-          val number = if (side == "deletions") line.oldLine else line.newLine
-          val selected = selection?.let { it.side == side && number != null && number in it.startLine..it.endLine } ?: false
+          val point = location(line)
+          val side = point?.side
+          val number = point?.line
+          val selected = selection?.let { range -> line.location(range.side)?.let { it.side == range.side && it.line in range.startLine..range.endLine } } ?: false
           var menu by remember { mutableStateOf(false) }
           Box {
             Row(Modifier.fillMaxWidth().background(if (selected) Color.Blue.copy(alpha = 0.12f) else if (line.kind == "added") Color.Green.copy(alpha = 0.1f) else if (line.kind == "removed") Color.Red.copy(alpha = 0.1f) else Color.Transparent)

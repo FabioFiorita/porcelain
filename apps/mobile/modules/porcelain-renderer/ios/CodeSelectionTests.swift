@@ -55,5 +55,20 @@ struct CodeSelectionTests {
     state.decode("[{\"id\":\"7\",\"text\":\"let ready = false\",\"newLine\":7},{\"id\":\"9\",\"text\":\"return ready\",\"newLine\":9}]")
     #expect(state.choose(nil, 9, reset: false) == ReviewSelection(side: nil, startLine: 9, endLine: 9))
   }
+
+  @Test func contextUsesTheActiveSourceSideAndItsActualLineNumber() {
+    let state = CodeState()
+    let context = CodeLine(id: "context", text: "return ready", oldLine: 9, newLine: 6, kind: "context", tokens: nil)
+    let added = CodeLine(id: "added", text: "let ready = true", oldLine: nil, newLine: 8, kind: "added", tokens: nil)
+    _ = state.choose("deletions", 7, reset: false)
+    #expect(state.location(context)?.side == "deletions")
+    #expect(state.location(context)?.line == 9)
+    #expect(added.location(preferredSide: "deletions")?.side == "additions")
+    _ = state.choose("additions", 8, reset: false)
+    state.select("{\"side\":\"deletions\",\"startLine\":7,\"endLine\":7}")
+    #expect(state.location(context)?.side == "additions")
+    #expect(state.location(context)?.line == 6)
+    #expect(context.location(preferredSide: "deletions")?.line == 9)
+  }
 }
 #endif

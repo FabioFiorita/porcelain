@@ -57,11 +57,12 @@ struct CodeContent: View {
       + 2 * model.tokens.spacing
   }
   func row(_ line: CodeLine, gutterWidth: CGFloat) -> some View {
-    let side: String? = line.kind == "removed" ? "deletions" : line.oldLine != nil || line.kind == "added" ? "additions" : nil
-    let number = side == "deletions" ? line.oldLine : line.newLine
+    let location = model.location(line)
+    let side = location?.side
+    let number = location?.line
     let selected: Bool = {
-      guard let selection = model.selection, selection.side == side, let number else { return false }
-      return (selection.startLine...selection.endLine).contains(number)
+      guard let selection = model.selection, let selectedLocation = line.location(preferredSide: selection.side), selectedLocation.side == selection.side else { return false }
+      return (selection.startLine...selection.endLine).contains(selectedLocation.line)
     }()
     return HStack(alignment: .top, spacing: model.tokens.spacing) {
       if model.lineNumbers {

@@ -13,7 +13,7 @@ class CodeSurface(context: Context, appContext: AppContext) : ExpoView(context, 
   internal val state = CodeState()
 
   init {
-    mountContent { CodeContent(state.lines, state.options, state.tokens, state.selection, state.selectable, ::select, { id -> onExpand(mapOf("id" to id)) }, ::copy) }
+    mountContent { CodeContent(state.lines, state.options, state.tokens, state.selection, state.selectable, state::location, ::select, { id -> onExpand(mapOf("id" to id)) }, ::copy) }
   }
 
   private fun select(side: String?, line: Int, reset: Boolean) {
