@@ -8,7 +8,7 @@ import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
 
 class CodeSurface(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
-  val onSelect by EventDispatcher()
+  val onCodeSelect by EventDispatcher()
   val onExpand by EventDispatcher()
   internal val state = CodeState()
 
@@ -22,7 +22,7 @@ class CodeSurface(context: Context, appContext: AppContext) : ExpoView(context, 
     val selection = state.choose(location.side, location.line, reset)
     val range = mutableMapOf<String, Any>("startLine" to selection.startLine, "endLine" to selection.endLine)
     selection.side?.let { range["side"] = it }
-    onSelect(range)
+    onCodeSelect(range)
   }
 
   private fun copy(text: String) {

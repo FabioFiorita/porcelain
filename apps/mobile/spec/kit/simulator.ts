@@ -16,18 +16,21 @@ import {
   releasePoolFile,
   type PoolClaim,
 } from './simulator-pool.ts';
-export type DeviceKind = 'iphone' | 'ipad';
+export type DeviceKind = 'iphone' | 'ipad' | 'android';
+export function devicePlatform(kind: DeviceKind): 'ios' | 'android' {
+  return kind === 'android' ? 'android' : 'ios';
+}
 export const simulatorSchema = Schema.Struct({
   udid: Schema.String,
   name: Schema.String,
-  kind: Schema.Literals(['iphone', 'ipad']),
+  kind: Schema.Literals(['iphone', 'ipad', 'android']),
   owner: Schema.String,
   ownerProcess: poolProcessSchema,
   borrowed: Schema.Boolean,
 });
 export type Simulator = typeof simulatorSchema.Type;
 const poolDirectory = '/tmp/porcelain-simulator-pool';
-const poolNames: Record<DeviceKind, readonly string[]> = {
+const poolNames: Record<Exclude<DeviceKind, 'android'>, readonly string[]> = {
   iphone: ['iPhone 17', 'iPhone 18 Pro'],
   ipad: ['iPad Pro 13-inch (M5)'],
 };
@@ -84,7 +87,7 @@ export async function localBootProblem(
     : simulatorLimitProblem(await bootedSimulators(), limit);
 }
 export async function bootSimulator(
-  kind: DeviceKind,
+  kind: Exclude<DeviceKind, 'android'>,
   owner: string,
   requested?: string,
   limit = 2,

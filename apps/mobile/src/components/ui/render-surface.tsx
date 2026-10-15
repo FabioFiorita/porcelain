@@ -15,7 +15,9 @@ type SurfaceProps = {
   muted: number;
   selection: string;
   selectable: boolean;
-  onSelect?: ((event: NativeSyntheticEvent<ReviewRange>) => void) | undefined;
+  onCodeSelect?:
+    | ((event: NativeSyntheticEvent<ReviewRange>) => void)
+    | undefined;
   onExpand?:
     | ((event: NativeSyntheticEvent<{ id: string }>) => void)
     | undefined;
@@ -60,7 +62,9 @@ export function RenderSurface({
       muted={color(muted.color)}
       selection={selection ? JSON.stringify(selection) : ''}
       selectable={onSelect !== undefined}
-      onSelect={onSelect ? (event) => onSelect(event.nativeEvent) : undefined}
+      onCodeSelect={
+        onSelect ? (event) => onSelect(event.nativeEvent) : undefined
+      }
       onExpand={
         onExpand ? (event) => onExpand(event.nativeEvent.id) : undefined
       }

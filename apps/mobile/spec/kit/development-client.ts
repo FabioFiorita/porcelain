@@ -5,7 +5,7 @@ import {
   existsSync,
   readFileSync,
 } from 'node:fs';
-import { cp, writeFile } from 'node:fs/promises';
+import { cp, mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { createFingerprintAsync } from 'expo/fingerprint';
 import { buildIdentity } from '../../src/shared/rules/build-identity.ts';
@@ -21,19 +21,41 @@ const appPath = join(
   'Build/Products/Debug-iphonesimulator/PorcelainDev.app',
 );
 const fingerprintFile = join(derivedData, 'native-fingerprint');
+export type MobilePlatform = 'ios' | 'android';
+const androidBuild = join(mobileRoot, 'android/app/build');
+const apkPath = join(androidBuild, 'outputs/apk/debug/app-debug.apk');
+function buildPaths(platform: MobilePlatform) {
+  return platform === 'ios'
+    ? { app: appPath, marker: fingerprintFile }
+    : { app: apkPath, marker: join(androidBuild, 'native-fingerprint') };
+}
 const sharedClients = '/tmp/porcelain-development-clients';
 const developerMenuFlags =
   '__expo_disable_fab=1&__expo_disable_auto_launch=1&__expo_disable_onboarding=1';
 const androidSourcesOutsideTheIosClient = '**/android/**/*';
 export const buildCommand = '.agents/skills/mobile-verify/scripts/cli build';
 
+function requireDevelopmentVariant(): void {
+  if (
+    process.env.APP_VARIANT !== undefined &&
+    process.env.APP_VARIANT !== 'development'
+  )
+    throw new Error(
+      'Mobile verification only builds Porcelain Dev. Unset APP_VARIANT or set it to development.',
+    );
+}
+
 export async function nativeFingerprint(
   projectRoot = mobileRoot,
+  platform: MobilePlatform = 'ios',
 ): Promise<string> {
+  requireDevelopmentVariant();
   const fingerprint = await createFingerprintAsync(projectRoot, {
-    platforms: ['ios'],
+    platforms: [platform],
     preset: 'strict',
-    ignorePaths: [androidSourcesOutsideTheIosClient],
+    ignorePaths: [
+      platform === 'ios' ? androidSourcesOutsideTheIosClient : '**/ios/**/*',
+    ],
     concurrentIoLimit: 2,
     silent: true,
   });
@@ -51,30 +73,44 @@ export async function nativeFingerprint(
   return fingerprint.hash;
 }
 
-export function sharedClientPath(fingerprint: string): string {
-  return join(sharedClients, fingerprint, 'PorcelainDev.app');
+export function sharedClientPath(
+  fingerprint: string,
+  platform: MobilePlatform = 'ios',
+): string {
+  return join(
+    sharedClients,
+    fingerprint,
+    platform === 'ios' ? 'PorcelainDev.app' : 'PorcelainDev.apk',
+  );
 }
 
-export function builtFingerprint(): string | undefined {
-  return existsSync(appPath) && existsSync(fingerprintFile)
-    ? readFileSync(fingerprintFile, 'utf8').trim()
+export function builtFingerprint(
+  platform: MobilePlatform = 'ios',
+): string | undefined {
+  const { app, marker } = buildPaths(platform);
+  return existsSync(app) && existsSync(marker)
+    ? readFileSync(marker, 'utf8').trim()
     : undefined;
 }
 
 export async function developmentClient(
   fingerprint?: string,
+  platform: MobilePlatform = 'ios',
 ): Promise<string | undefined> {
-  fingerprint ??= await nativeFingerprint();
-  if (builtFingerprint() === fingerprint) return appPath;
-  const shared = sharedClientPath(fingerprint);
+  fingerprint ??= await nativeFingerprint(mobileRoot, platform);
+  if (builtFingerprint(platform) === fingerprint)
+    return buildPaths(platform).app;
+  const shared = sharedClientPath(fingerprint, platform);
   return existsSync(shared) ? shared : undefined;
 }
 
-export async function buildProblem(): Promise<string | undefined> {
-  if ((await developmentClient()) !== undefined) return undefined;
-  if (builtFingerprint() === undefined)
-    return `The development client is not built in this checkout (${appPath}), and no build on this machine left a copy for this native code at ${sharedClientPath(await nativeFingerprint())}. Build it with ${buildCommand}: Expo prebuild, then xcodebuild for the iOS simulator.`;
-  return `Expo Fingerprint found changed native modules, configuration or native source since the development client was built; JavaScript changes refresh through Metro, but this change needs a native rebuild: ${buildCommand}.`;
+export async function buildProblem(
+  platform: MobilePlatform = 'ios',
+): Promise<string | undefined> {
+  if ((await developmentClient(undefined, platform)) !== undefined)
+    return undefined;
+  const command = `${buildCommand}${platform === 'android' ? ' --device android' : ''}`;
+  return `No development client matches the ${platform} native inputs. JavaScript changes refresh through Metro; native modules, configuration or source need a rebuild with ${command}.`;
 }
 
 function run(
@@ -88,7 +124,12 @@ function run(
     output.write(`\n$ ${command} ${args.join(' ')}\n`);
     const child = spawn(command, args, {
       cwd,
-      env: { ...process.env, CI: '1', EXPO_NO_TELEMETRY: '1' },
+      env: {
+        ...process.env,
+        APP_VARIANT: 'development',
+        CI: '1',
+        EXPO_NO_TELEMETRY: '1',
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     child.stdout.pipe(output, { end: false });
@@ -102,42 +143,78 @@ function run(
   });
 }
 
-export async function buildDevelopmentClient(log: string): Promise<void> {
+export async function buildDevelopmentClient(
+  log: string,
+  platform: MobilePlatform = 'ios',
+): Promise<void> {
+  requireDevelopmentVariant();
   await run(
     join(mobileRoot, 'node_modules/.bin/expo'),
-    ['prebuild', '--platform', 'ios'],
-    mobileRoot,
-    log,
-  );
-  const fingerprint = await nativeFingerprint();
-  await run(
-    'xcodebuild',
     [
-      '-workspace',
-      workspace,
-      '-scheme',
-      'PorcelainDev',
-      '-configuration',
-      'Debug',
-      '-sdk',
-      'iphonesimulator',
-      '-destination',
-      'generic/platform=iOS Simulator',
-      '-derivedDataPath',
-      derivedData,
-      `ARCHS=${process.arch === 'arm64' ? 'arm64' : 'x86_64'}`,
-      'ONLY_ACTIVE_ARCH=YES',
-      'build',
+      'prebuild',
+      '--platform',
+      platform,
+      ...(platform === 'android' ? ['--no-install'] : []),
     ],
     mobileRoot,
     log,
   );
-  if ((await nativeFingerprint()) !== fingerprint)
-    throw new Error(
-      `Native inputs changed while the development client was building; run ${buildCommand} again before using it.`,
+  const gradle = join(mobileRoot, 'android/gradlew');
+  const gradleArgs = [
+    '--no-daemon',
+    '--max-workers=2',
+    '-Pkotlin.compiler.execution.strategy=in-process',
+    '-Dorg.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=1024m',
+    '-PreactNativeArchitectures=x86_64,arm64-v8a',
+  ];
+  if (platform === 'android')
+    await run(
+      gradle,
+      ['help', ...gradleArgs],
+      join(mobileRoot, 'android'),
+      log,
     );
-  await writeFile(fingerprintFile, `${fingerprint}\n`);
-  await cp(appPath, sharedClientPath(fingerprint), {
+  const fingerprint = await nativeFingerprint(mobileRoot, platform);
+  if (platform === 'android') {
+    await run(
+      gradle,
+      ['app:assembleDebug', ...gradleArgs],
+      join(mobileRoot, 'android'),
+      log,
+    );
+  } else
+    await run(
+      'xcodebuild',
+      [
+        '-workspace',
+        workspace,
+        '-scheme',
+        'PorcelainDev',
+        '-configuration',
+        'Debug',
+        '-sdk',
+        'iphonesimulator',
+        '-destination',
+        'generic/platform=iOS Simulator',
+        '-derivedDataPath',
+        derivedData,
+        `ARCHS=${process.arch === 'arm64' ? 'arm64' : 'x86_64'}`,
+        'ONLY_ACTIVE_ARCH=YES',
+        'build',
+      ],
+      mobileRoot,
+      log,
+    );
+  const after = await nativeFingerprint(mobileRoot, platform);
+  if (after !== fingerprint)
+    throw new Error(
+      `Native inputs changed while the ${platform} development client was building (${fingerprint} -> ${after}); run ${buildCommand} --device ${platform === 'android' ? 'android' : 'iphone'} again before using it.`,
+    );
+  const { app, marker } = buildPaths(platform);
+  await writeFile(marker, `${fingerprint}\n`);
+  const shared = sharedClientPath(fingerprint, platform);
+  await mkdir(resolve(shared, '..'), { recursive: true });
+  await cp(app, shared, {
     recursive: true,
     mode: constants.COPYFILE_FICLONE,
   });

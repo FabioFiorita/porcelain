@@ -6,7 +6,7 @@ public class PorcelainRendererModule: Module {
     Name("PorcelainRenderer")
     // Expo applies view props on the UI thread. Keep updates synchronous and actor-checked.
     View(CodeSurface.self) {
-      Events("onSelect", "onExpand")
+      Events("onCodeSelect", "onExpand")
       Prop("tokens") { (view: CodeSurface, value: String) in MainActor.assumeIsolated { view.model.tokens = RenderTokens.decode(value) } }
       Prop("data") { (view: CodeSurface, value: String) in MainActor.assumeIsolated { view.model.decode(value) } }
       Prop("wrap") { (view: CodeSurface, value: Bool) in MainActor.assumeIsolated { view.model.wrap = value } }

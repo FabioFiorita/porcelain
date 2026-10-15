@@ -24,7 +24,10 @@ import { InMemoryRouteListenerRunner } from '../fakes/in-memory-route-listener-r
 import { ScriptedServiceUpdateRunner } from '../fakes/scripted-service-update-runner.ts';
 import { ScriptedTunnelProbe } from '../fakes/scripted-tunnel-probe.ts';
 import { composeServer } from '../../src/bootstrap/compose-server.ts';
-import { readServerSettings } from '../../src/config/server-settings.ts';
+import {
+  readServerSettings,
+  listenHostSchema,
+} from '../../src/config/server-settings.ts';
 import type { Runtime } from '../../src/ports/runtime.ts';
 import { codingTool } from './coding-tool.ts';
 import {
@@ -479,6 +482,9 @@ try {
     dataDirectory: state,
     projectHome: root,
     port,
+    allowedHosts: Schema.decodeUnknownSync(Schema.Array(listenHostSchema))(
+      JSON.parse(process.env.PORCELAIN_DEV_ALLOWED_HOSTS ?? '[]'),
+    ),
     webRoot: web,
   });
   server = await runtime.runPromise(

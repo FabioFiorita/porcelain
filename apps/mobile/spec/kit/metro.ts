@@ -1,9 +1,10 @@
+import { emulatorAddress } from './android.ts';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { openSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { mobileRoot } from './development-client.ts';
+import { mobileRoot, type MobilePlatform } from './development-client.ts';
 
 export type Metro = { url: string; port: number; pid: number; stop(): void };
 
@@ -39,8 +40,12 @@ function exited(child: ChildProcess): boolean {
   return child.exitCode !== null || child.signalCode !== null;
 }
 
-async function warmBundle(url: string, child: ChildProcess): Promise<void> {
-  const bundle = `${url}/.expo/.virtual-metro-entry.bundle?platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=src%2Fapp`;
+async function warmBundle(
+  url: string,
+  child: ChildProcess,
+  platform: MobilePlatform,
+): Promise<void> {
+  const bundle = `${url}/.expo/.virtual-metro-entry.bundle?platform=${platform}&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=src%2Fapp`;
   const deadline = Date.now() + bundleLimitMs;
   while (Date.now() < deadline && !exited(child)) {
     const response = await fetch(bundle, {
@@ -52,16 +57,18 @@ async function warmBundle(url: string, child: ChildProcess): Promise<void> {
     }
     await sleep(pollMs);
   }
-  throw new Error(`Metro did not build the iOS bundle at ${url}`);
+  throw new Error(`Metro did not build the ${platform} bundle at ${url}`);
 }
 
 export async function startMetro(
   log: string,
   requestedPort?: number,
   pairing?: { ownerSocket: string; serverAddress: string },
+  platform: MobilePlatform = 'ios',
 ): Promise<Metro> {
   const port = requestedPort ?? (await freePort());
   const url = `http://localhost:${port}`;
+  const nativeUrl = platform === 'android' ? emulatorAddress(url) : url;
   const output = openSync(log, 'a');
   const child = spawn(
     join(mobileRoot, 'node_modules/.bin/expo'),
@@ -80,11 +87,16 @@ export async function startMetro(
       env: {
         ...process.env,
         EXPO_NO_TELEMETRY: '1',
+        APP_VARIANT: 'development',
         BROWSER: 'none',
         PORCELAIN_OWNER_SOCKET: pairing?.ownerSocket ?? '',
-        PORCELAIN_API_TARGET: pairing?.serverAddress ?? '',
+        PORCELAIN_API_TARGET: pairing
+          ? platform === 'android'
+            ? emulatorAddress(pairing.serverAddress)
+            : pairing.serverAddress
+          : '',
         EXPO_PUBLIC_PORCELAIN_DEV_PAIR_URL: pairing
-          ? `${url}/__porcelain/dev/pair`
+          ? `${nativeUrl}/__porcelain/dev/pair`
           : '',
       },
       stdio: ['ignore', output, output],
@@ -102,10 +114,10 @@ export async function startMetro(
         throw new Error(`Metro did not answer ${url}/status; read ${log}`);
       await sleep(pollMs);
     }
-    await warmBundle(url, child);
+    await warmBundle(url, child, platform);
   } catch (error) {
     stop();
     throw error;
   }
-  return { url, port, pid, stop };
+  return { url: nativeUrl, port, pid, stop };
 }

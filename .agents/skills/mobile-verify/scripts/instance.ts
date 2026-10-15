@@ -1,7 +1,9 @@
+import { devicePlatform } from '@porcelain/mobile/kit/simulator';
 import { Effect, Schema } from 'effect';
 import { join } from 'node:path';
 import {
   nativeFingerprint,
+  mobileRoot,
   identity,
 } from '@porcelain/mobile/kit/development-client';
 import {
@@ -23,10 +25,11 @@ const remoteSchema = Schema.Struct({
   checkout: Schema.optional(Schema.String),
 });
 export const optionsSchema = Schema.Struct({
-  kind: Schema.Literals(['iphone', 'ipad']),
+  kind: Schema.Literals(['iphone', 'ipad', 'android']),
   host: Schema.NullOr(remoteSchema),
   agentConfig: Schema.optional(Schema.String),
   agentCommand: Schema.optional(Schema.String),
+  agentSession: Schema.optional(Schema.String),
   simulatorLimit: Schema.Finite,
   manualPairing: Schema.Boolean,
   fixture: Schema.Literals(['development', 'focused']).pipe(
@@ -61,19 +64,29 @@ const detailSchema = Schema.Struct({
     command: Schema.String,
   }),
 });
+const mobileFields = {
+  simulator: Schema.String,
+  bundleIdentifier: Schema.String,
+  metroUrl: Schema.String,
+  environmentName: Schema.String,
+  borrowed: Schema.Boolean,
+  installed: Schema.Boolean,
+  agentDevice: detailSchema.fields.driver,
+};
 export const mobileConnectionSchema = Schema.Struct({
   ...connectionSchema.fields,
-  mobile: Schema.Struct({
-    platform: Schema.Literal('ios'),
-    udid: Schema.String,
-    simulator: Schema.String,
-    bundleIdentifier: Schema.String,
-    metroUrl: Schema.String,
-    environmentName: Schema.String,
-    borrowed: Schema.Boolean,
-    installed: Schema.Boolean,
-    agentDevice: detailSchema.fields.driver,
-  }),
+  mobile: Schema.Union([
+    Schema.Struct({
+      ...mobileFields,
+      platform: Schema.Literal('ios'),
+      udid: Schema.String,
+    }),
+    Schema.Struct({
+      ...mobileFields,
+      platform: Schema.Literal('android'),
+      serial: Schema.String,
+    }),
+  ]),
 });
 export type MobileInstance = Instance<typeof detailSchema.Type>;
 export const registry = new Registry({
@@ -84,8 +97,13 @@ export const registry = new Registry({
   format: 'text',
   connection: mobileConnection,
   stale: async (instance, changed) => {
-    if ((await nativeFingerprint()) !== instance.detail.native)
-      return 'Native inputs changed; stop, build the matching development client on the Mac, then start again.';
+    if (
+      (await nativeFingerprint(
+        mobileRoot,
+        devicePlatform(instance.detail.kind),
+      )) !== instance.detail.native
+    )
+      return 'Native inputs changed; stop, build the matching development client for this platform, then start again.';
     return changed
       ? 'Server or CLI code changed; stop and start again.'
       : undefined;
@@ -134,8 +152,9 @@ function mobileConnection(instance: MobileInstance) {
     logsCommand: command('logs'),
     stopCommand: command('stop'),
     mobile: {
-      platform: 'ios' as const,
-      udid: detail.udid,
+      ...(detail.kind === 'android'
+        ? { platform: 'android' as const, serial: detail.udid }
+        : { platform: 'ios' as const, udid: detail.udid }),
       simulator: detail.simulator,
       bundleIdentifier: identity.bundleIdentifier,
       metroUrl: detail.metro,

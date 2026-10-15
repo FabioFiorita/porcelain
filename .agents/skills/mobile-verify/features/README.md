@@ -28,7 +28,7 @@ One file per screen and flow the mobile app offers, named `<domain>.<capability>
 
 ## Platform coverage
 
-Mobile has no E2E suite; drive iPhone and iPad features on demand with the mobile-verify skill. Android has its own native views (`*.android.tsx`) and is not proven yet: it needs its own build and native proof. The iOS Local Network permission prompt needs a physical device.
+Mobile has no E2E suite; drive each platform on demand with the mobile-verify skill. [Android development](../references/android.md) builds, installs, pairs and drives the same disposable fixture locally on Linux. Android has its own native views (`*.android.tsx`); an iPhone or iPad journey does not prove them. Capture the platform and the specific journeys driven in each change's evidence. The iOS Local Network permission prompt needs a physical device.
 
 - [reviews.file](reviews.file.md): Open a current comparison, mark it reviewed and select lines for feedback.
 - [reviews.comments](reviews.comments.md): Post, reply, resolve and reopen feedback in the native sheet.

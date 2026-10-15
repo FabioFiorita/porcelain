@@ -24,10 +24,12 @@ Fixture commands remain on the lifecycle CLI: `pairing-link`, `agent`, and `serv
 
 # T3-owned device
 
-Open the assigned simulator in T3's Device panel; from Linux this is also the way to drive the Mac without the hub (see [remote](remote.md)). Use its exact UDID, launcher and private host config:
+Open the assigned simulator or Android emulator in T3's Device panel; from Linux this is also the way to drive the Mac without the hub (see [remote](remote.md)). Use its exact UDID, launcher and private host config:
 
 ```sh
 .agents/skills/mobile-verify/scripts/cli start --udid OWNED_UDID --agent-device-command /t3/returned/launcher --agent-device-config /t3/returned/host.json
 ```
+
+For Android pass `--device android --serial OWNED_SERIAL` instead of `--udid`, and add `--agent-device-session RETURNED_SESSION` to preserve T3's exact journey session. Use the exact launcher and config returned by `device_open`. Android does not use `prepare ios-runner`; follow [Android development](android.md).
 
 Only an already booted device is accepted by `--udid`. The CLI reserves it against other Porcelain runs, resets the development app, closes its own setup session and prints a unique journey session on that same host. It never changes T3's state directory or shuts down the borrowed simulator. If another agent-device session owns the device, its owner must release that session before setup; never force a takeover. At the end stop the fixture, then let T3 close its own panel/device.

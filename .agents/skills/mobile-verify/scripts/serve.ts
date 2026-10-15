@@ -8,6 +8,7 @@ import { buildIsolatedServer } from '@porcelain/server/kit/sandbox';
 import {
   buildProblem,
   nativeFingerprint,
+  mobileRoot,
 } from '@porcelain/mobile/kit/development-client';
 import { Environment } from '@porcelain/mobile/kit/environment';
 import {
@@ -20,7 +21,11 @@ import {
   mainCheckoutHostFile,
   type RemoteHost,
 } from '@porcelain/mobile/kit/device-host';
-import type { DeviceKind } from '@porcelain/mobile/kit/simulator';
+import { adb } from '@porcelain/mobile/kit/android';
+import {
+  devicePlatform,
+  type DeviceKind,
+} from '@porcelain/mobile/kit/simulator';
 import { missingTools } from '@porcelain/mobile/kit/tools';
 import {
   memoryProblem,
@@ -45,12 +50,14 @@ export function serve(folder: string): Promise<void> {
     const evidence = registry.evidenceFolder(life.id);
     const hub = options.agentCommand === undefined ? host : null;
     if (hub !== null) life.secret(hubToken(hub));
-    const session = `porcelain-mobile-${life.id}`;
-    const native = await nativeFingerprint();
+    const session = options.agentSession ?? `porcelain-mobile-${life.id}`;
+    const setupSession = options.agentSession ?? `${session}-setup`;
+    const platform = devicePlatform(kind);
+    const native = await nativeFingerprint(mobileRoot, platform);
     const request = {
       action: 'prepare' as const,
       kind,
-      owner: session,
+      owner: `porcelain-mobile-${life.id}`,
       fingerprint: native,
       limit: simulatorLimit,
       ...(options.udid === undefined ? {} : { udid: options.udid }),
@@ -65,6 +72,7 @@ export function serve(folder: string): Promise<void> {
       session,
       options.agentConfig,
       options.agentCommand,
+      platform,
     );
     if (hub !== null)
       setupCommand(agent, [
@@ -85,6 +93,7 @@ export function serve(folder: string): Promise<void> {
     await buildIsolatedServer(build);
     const environment = await Environment.start({
       build,
+      platform,
       title: 'Verification',
       label: pairingLabel,
       workspace: false,
@@ -114,17 +123,33 @@ export function serve(folder: string): Promise<void> {
         2,
       ),
     );
-    const metro = await startMetro(join(evidence, 'metro.log'), ports[1], {
-      ownerSocket: environment.server.socketPath,
-      serverAddress: environment.server.address,
-    });
+    const metro = await startMetro(
+      join(evidence, 'metro.log'),
+      ports[1],
+      {
+        ownerSocket: environment.server.socketPath,
+        serverAddress: environment.server.address,
+      },
+      platform,
+    );
     life.own(metro.pid);
     life.onStop(() => metro.stop());
+    if (platform === 'android') {
+      life.onStop(async () => {
+        await adb(
+          simulator.udid,
+          'shell',
+          'am',
+          'force-stop',
+          identity.bundleIdentifier,
+        );
+      });
+    }
     await life
       .evidence()
       .note(
         'setup.txt',
-        `simulator ${simulator.udid}\ninstalled ${simulator.installed}\nsetup session ${session}-setup\n`,
+        `simulator ${simulator.udid}\ninstalled ${simulator.installed}\nsetup session ${setupSession}\n`,
       );
     if (options.manualPairing) {
       setupCommand(agent, [
@@ -134,13 +159,15 @@ export function serve(folder: string): Promise<void> {
         '--foreground',
       ]);
     } else {
-      pairClient(agent, metro.url, environment.link, `${session}-setup`);
+      pairClient(agent, metro.url, environment.link, setupSession);
     }
     const devices = await environment.devices();
     if (
       options.manualPairing
         ? devices.length !== 0
-        : devices.length !== 1 || devices[0]?.label !== pairingLabel
+        : devices.length !== 1 ||
+          devices[0]?.label !== pairingLabel ||
+          (platform === 'android' && devices[0]?.platform !== 'Android')
     )
       throw new Error(
         options.manualPairing
@@ -192,7 +219,38 @@ export function serve(folder: string): Promise<void> {
 export async function startProblems(
   host: RemoteHost | undefined,
   ownDriver = false,
+  kind: DeviceKind = 'iphone',
+  serial?: string,
 ): Promise<(string | undefined)[]> {
+  if (kind === 'android') {
+    const problems = [
+      ...sandboxProblems(),
+      memoryProblem(),
+      ...missingTools(ownDriver ? ['android'] : ['android', 'agent-device']),
+    ];
+    if (serial === undefined || !/^emulator-\d+$/.test(serial))
+      problems.push(
+        'Select an already booted local Android emulator with --serial or androidSerial in .mobile-device-host.json; run adb devices -l to find it.',
+      );
+    else {
+      const ready = await adb(
+        serial,
+        'shell',
+        'getprop',
+        'sys.boot_completed',
+      ).catch(() => '');
+      if (ready !== '1')
+        problems.push(
+          `Android emulator ${serial} is unavailable or still booting. Boot it in Android Studio or T3 and retry.`,
+        );
+    }
+    return [
+      ...problems,
+      problems.filter(Boolean).length === 0
+        ? await buildProblem('android')
+        : undefined,
+    ];
+  }
   if (host !== undefined)
     return [...(await hostProblems(host, ownDriver)), memoryProblem()];
   const problems = [
@@ -216,17 +274,23 @@ export async function start(
   agentCommand?: string,
   manualPairing = false,
   fixture: 'development' | 'focused' = 'development',
+  agentSession?: string,
 ): Promise<string> {
-  const { remote, simulatorLimit } = deviceHost();
-  refuseMissing(await startProblems(remote, agentCommand !== undefined));
+  const { remote, simulatorLimit, androidSerial } = deviceHost();
+  const host = kind === 'android' ? undefined : remote;
+  udid ??= kind === 'android' ? androidSerial : undefined;
+  refuseMissing(
+    await startProblems(host, agentCommand !== undefined, kind, udid),
+  );
   const instance = await registry.launch(
     {
       ...(agentConfig === undefined ? {} : { agentConfig }),
       ...(agentCommand === undefined ? {} : { agentCommand }),
+      ...(agentSession === undefined ? {} : { agentSession }),
       kind,
       manualPairing,
       fixture,
-      host: remote ?? null,
+      host: host ?? null,
       simulatorLimit: Math.min(simulatorLimit ?? 2, 2),
       ...(udid === undefined ? {} : { udid }),
     },
@@ -237,5 +301,7 @@ export async function start(
   const card = Schema.decodeUnknownSync(mobileConnectionSchema)(
     JSON.parse(readFileSync(instance.connectionPath, 'utf8')),
   );
-  return `${connectionCard(card, instance.connectionPath)}fixture ${fixture}\nsimulator ${card.mobile.udid} (${card.mobile.simulator})\nmetro ${card.mobile.metroUrl}\nagent-device ${card.mobile.agentDevice.command}\n`;
+  const target =
+    card.mobile.platform === 'android' ? card.mobile.serial : card.mobile.udid;
+  return `${connectionCard(card, instance.connectionPath)}fixture ${fixture}\nsimulator ${target} (${card.mobile.simulator})\nmetro ${card.mobile.metroUrl}\nagent-device ${card.mobile.agentDevice.command}\n`;
 }

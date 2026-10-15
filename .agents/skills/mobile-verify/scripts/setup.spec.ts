@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it } from 'vitest';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { pairClient } from './setup.ts';
+import { driver as makeDriver, pairClient } from './setup.ts';
 
 let directory: string;
 beforeEach(async () => {
@@ -16,6 +16,7 @@ async function deviceDriver(
   failOpen: boolean,
   failClose: boolean,
   failPrepare = false,
+  platform = 'ios',
 ) {
   const launcher = join(directory, 'driver');
   const calls = join(directory, 'calls.jsonl');
@@ -48,8 +49,8 @@ if (args[0] === 'close' && ${failClose}) {
         '--session',
         'journey',
         '--platform',
-        'ios',
-        '--udid',
+        platform,
+        platform === 'ios' ? '--udid' : '--serial',
         'owned',
       ],
       command: launcher,
@@ -91,4 +92,50 @@ it('closes the setup session after a successful pairing', async () => {
   pairClient(driver, 'http://localhost:5183', 'fixture-link', 'setup');
 
   expect((await commands()).at(-1)).toBe('close');
+});
+
+it('pairs Android without invoking the Apple runner or iOS alerts and releases setup before handoff', async () => {
+  const { driver, commands } = await deviceDriver(
+    false,
+    false,
+    false,
+    'android',
+  );
+  pairClient(driver, 'http://localhost:5183', 'fixture-link', 'setup');
+  expect(await commands()).toEqual([
+    'open',
+    'open',
+    'wait',
+    'open',
+    'press',
+    'fill',
+    'wait',
+    'press',
+    'wait',
+    'close',
+  ]);
+});
+
+it('hands Android driving to the exact supplied launcher, config and session with its serial', () => {
+  const driver = makeDriver(
+    directory,
+    null,
+    'emulator-5580',
+    't3-session',
+    '/private/t3/host.json',
+    '/private/t3/agent-device',
+    'android',
+  );
+  expect(driver.launcher).toBe('/private/t3/agent-device');
+  expect(driver.config).toBe('/private/t3/host.json');
+  expect(driver.targetArgs).toEqual([
+    '--config',
+    '/private/t3/host.json',
+    '--session',
+    't3-session',
+    '--platform',
+    'android',
+    '--serial',
+    'emulator-5580',
+  ]);
 });

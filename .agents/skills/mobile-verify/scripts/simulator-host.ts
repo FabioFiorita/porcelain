@@ -1,4 +1,10 @@
 import { Schema } from 'effect';
+import {
+  claimAndroid,
+  resetAndroid,
+  releaseAndroid,
+} from '@porcelain/mobile/kit/android';
+import { devicePlatform } from '@porcelain/mobile/kit/simulator';
 import { readFile, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
@@ -12,11 +18,12 @@ import {
   developmentClient,
   identity,
   nativeFingerprint,
+  mobileRoot,
 } from '@porcelain/mobile/kit/development-client';
 
 const requestSchema = Schema.Struct({
   action: Schema.Literals(['prepare', 'release']),
-  kind: Schema.Literals(['iphone', 'ipad']),
+  kind: Schema.Literals(['iphone', 'ipad', 'android']),
   owner: Schema.String,
   fingerprint: Schema.String,
   udid: Schema.optional(Schema.String),
@@ -43,27 +50,32 @@ export async function simulatorHost(request: HostRequest) {
     );
     if (simulator.owner !== request.owner)
       throw new Error('The simulator claim belongs to another run.');
-    await releaseSimulator(simulator);
+    if (simulator.kind === 'android') await releaseAndroid(simulator);
+    else await releaseSimulator(simulator);
     await rm(file);
     return { ...simulator, installed: false };
   }
-  if ((await nativeFingerprint()) !== request.fingerprint)
+  const platform = devicePlatform(request.kind);
+  if ((await nativeFingerprint(mobileRoot, platform)) !== request.fingerprint)
     throw new Error(
       `The device-host checkout has different native inputs; check out the same commit here, then run ${buildCommand}.`,
     );
-  const client = await developmentClient();
+  const client = await developmentClient(request.fingerprint, platform);
   if (client === undefined)
     throw new Error(
-      `No development client matches these native inputs; run ${buildCommand} on the Mac before starting.`,
+      `No development client matches these native inputs; run ${buildCommand} --device ${request.kind} before starting.`,
     );
-  const simulator = await bootSimulator(
-    request.kind,
-    request.owner,
-    request.udid,
-    request.limit,
-  );
+  const simulator =
+    request.kind === 'android'
+      ? await claimAndroid(request.udid, request.owner)
+      : await bootSimulator(
+          request.kind,
+          request.owner,
+          request.udid,
+          request.limit,
+        );
   try {
-    const installed = await resetApp(
+    const installed = await (platform === 'android' ? resetAndroid : resetApp)(
       simulator.udid,
       client,
       identity.bundleIdentifier,
@@ -71,7 +83,8 @@ export async function simulatorHost(request: HostRequest) {
     await writeFile(file, JSON.stringify(simulator), { mode: 0o600 });
     return { ...simulator, installed };
   } catch (error) {
-    await releaseSimulator(simulator);
+    if (simulator.kind === 'android') await releaseAndroid(simulator);
+    else await releaseSimulator(simulator);
     throw error;
   }
 }
