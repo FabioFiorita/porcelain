@@ -7,7 +7,6 @@
     "githubActionsRemoteBaseRefFallback": true
   },
   "globalEnv": ["CI"],
-  "globalDependencies": [".github/workflows/ci.yml"],
   "tasks": {
     "transit": {
       "dependsOn": ["^transit"],
