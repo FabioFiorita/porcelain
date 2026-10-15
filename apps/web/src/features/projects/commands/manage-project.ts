@@ -15,6 +15,7 @@ const dialogCommandLifetime = Atom.family(
       get.mount(command);
       const registry = get.registry;
       get.addFinalizer(() => {
+        if (!registry.getNodes().has(command)) return;
         if (!registry.get(command).waiting) registry.set(command, Atom.Reset);
       });
     }),

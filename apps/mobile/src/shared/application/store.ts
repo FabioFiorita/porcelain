@@ -92,6 +92,9 @@ export const interruptCommandOnUnmount = Atom.family(
     Atom.make((get) => {
       get.mount(command);
       const registry = get.registry;
-      get.addFinalizer(() => registry.set(command, Atom.Interrupt));
+      get.addFinalizer(() => {
+        if (registry.getNodes().has(command))
+          registry.set(command, Atom.Interrupt);
+      });
     }),
 );
