@@ -229,12 +229,12 @@ export function WalkthroughStopView({
             {collapseControl}
             {layer && (
               <Button
-                variant={decision?.reviewed ? 'ghost' : 'outline'}
+                variant={finished ? 'ghost' : 'outline'}
                 size="sm"
-                aria-pressed={decision?.reviewed === true}
+                aria-pressed={finished}
                 disabled={!decisionsSettled || completion.pending}
                 onClick={() =>
-                  decision?.reviewed
+                  finished
                     ? completion.reopen({
                         layerId: layer.id,
                         fingerprint: layer.fingerprint,
@@ -243,9 +243,7 @@ export function WalkthroughStopView({
                 }
               >
                 <CheckIcon data-icon="inline-start" />
-                {decision?.reviewed
-                  ? 'Decision reviewed'
-                  : 'Mark decision reviewed'}
+                {finished ? 'Decision reviewed' : 'Mark decision reviewed'}
               </Button>
             )}
           </nav>
@@ -256,6 +254,7 @@ export function WalkthroughStopView({
             stops={stops}
             review={review}
             decision={decision}
+            finished={finished}
             onStep={revealStep}
             onGo={onGo}
           />
@@ -309,6 +308,7 @@ function StopBrief({
   stops,
   review,
   decision,
+  finished,
   onStep,
   onGo,
 }: {
@@ -316,6 +316,7 @@ function StopBrief({
   stops: readonly WalkthroughStop[];
   review: WalkthroughProps['review'];
   decision: DecisionState | undefined;
+  finished: boolean;
   onStep: (step: ReviewStep) => void;
   onGo: (key: WalkthroughKey) => void;
 }) {
@@ -326,6 +327,7 @@ function StopBrief({
         total={stops.filter((item) => item.kind === 'decision').length}
         review={review}
         decision={decision}
+        finished={finished}
         onStep={onStep}
         onGo={onGo}
       />
@@ -448,6 +450,7 @@ function DecisionBrief({
   total,
   review,
   decision,
+  finished,
   onStep,
   onGo,
 }: {
@@ -455,6 +458,7 @@ function DecisionBrief({
   total: number;
   review: WalkthroughProps['review'];
   decision: DecisionState | undefined;
+  finished: boolean;
   onStep: (step: ReviewStep) => void;
   onGo: (key: WalkthroughKey) => void;
 }) {
@@ -478,7 +482,7 @@ function DecisionBrief({
           <span className="tracking-wide uppercase">
             Decision {stop.number} of {total}
           </span>
-          {decision?.reviewed && (
+          {finished && (
             <Badge variant="outline">
               <CheckIcon className="text-graph-2" /> Reviewed
             </Badge>
