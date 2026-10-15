@@ -6,6 +6,13 @@ import { repositoryRoot } from './development-client.ts';
 export const hostFileName = '.mobile-device-host.json';
 const hubFields = ['hub', 'tokenVariable', 'ports'] as const;
 const fileSchema = Schema.Struct({
+  agentDevice: Schema.optional(
+    Schema.String.check(
+      Schema.isPattern(/^\/.+/, {
+        message: 'agentDevice must be an absolute path',
+      }),
+    ),
+  ),
   ssh: Schema.optional(Schema.String),
   checkout: Schema.optional(Schema.String),
   hub: Schema.optional(
@@ -40,6 +47,7 @@ export type RemoteHost = {
   ports: readonly number[];
 };
 export type DeviceHost = {
+  agentDevice: string | undefined;
   remote: RemoteHost | undefined;
   simulatorLimit: number | undefined;
 };
@@ -62,6 +70,7 @@ function fileProblem(hostFile: string, wrong: readonly string[]): Error {
   return new Error(
     [
       `${hostFile} describes this machine's simulators; every field is optional:`,
+      '  "agentDevice": the absolute path of the agent-device executable this machine drives devices with, such as the one `npm install --global agent-device` installs; it must run the same version as the device hub',
       '  "simulatorLimit": the most simulators the device host may have booted at once, a positive integer; defaults to two, and mobile verification never exceeds two',
       "and, to drive a Mac's simulators from another machine, all three of:",
       '  "hub": the agent-device hub URL as this machine reaches it, such as "http://127.0.0.1:4310"',
@@ -74,7 +83,11 @@ function fileProblem(hostFile: string, wrong: readonly string[]): Error {
 export function deviceHost(): DeviceHost {
   const hostFile = mainCheckoutHostFile();
   if (!existsSync(hostFile))
-    return { remote: undefined, simulatorLimit: undefined };
+    return {
+      agentDevice: undefined,
+      remote: undefined,
+      simulatorLimit: undefined,
+    };
   let value: unknown;
   try {
     value = JSON.parse(readFileSync(hostFile, 'utf8'));
@@ -83,11 +96,21 @@ export function deviceHost(): DeviceHost {
       `${hostFile} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
+  return hostFromJson(value, hostFile);
+}
+export function hostFromJson(value: unknown, hostFile: string): DeviceHost {
   const parsed = Schema.decodeUnknownResult(fileSchema)(value);
   if (!Result.isSuccess(parsed))
     throw fileProblem(hostFile, [parsed.failure.message]);
-  const { hub, tokenVariable, ports, simulatorLimit, ssh, checkout } =
-    parsed.success;
+  const {
+    agentDevice,
+    hub,
+    tokenVariable,
+    ports,
+    simulatorLimit,
+    ssh,
+    checkout,
+  } = parsed.success;
   if (hub !== undefined && tokenVariable !== undefined && ports !== undefined)
     return {
       remote: {
@@ -97,6 +120,7 @@ export function deviceHost(): DeviceHost {
         ...(ssh === undefined ? {} : { ssh }),
         ...(checkout === undefined ? {} : { checkout }),
       },
+      agentDevice,
       simulatorLimit,
     };
   const present = hubFields.filter(
@@ -106,5 +130,5 @@ export function deviceHost(): DeviceHost {
     throw fileProblem(hostFile, [
       `it has ${present.join(' and ')} but not ${hubFields.filter((field) => !present.includes(field)).join(' and ')}; give all three to drive a remote device host, or none to drive this Mac's simulators`,
     ]);
-  return { remote: undefined, simulatorLimit };
+  return { agentDevice, remote: undefined, simulatorLimit };
 }

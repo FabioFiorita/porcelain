@@ -132,8 +132,12 @@ export function driver(
       : readFileSync(suppliedConfig, 'utf8'),
     { mode: 0o600 },
   );
-  if (suppliedCommand === undefined && !existsSync(agentDevice))
-    throw new Refusal(agentDeviceMissing);
+  const executable = agentDevice();
+  if (
+    suppliedCommand === undefined &&
+    (executable === undefined || !existsSync(executable))
+  )
+    throw new Refusal(agentDeviceMissing());
   const launcher = suppliedCommand ?? join(folder, 'agent-device');
   if (suppliedCommand === undefined)
     writeFileSync(
@@ -148,7 +152,7 @@ if (!required.every(flag => args.includes(flag) && args[args.indexOf(flag) + 1])
 }
 const env = { ...process.env, AGENT_DEVICE_STATE_DIR: '/tmp/porcelain-agent-device' };
 for (const key of ['AGENT_DEVICE_DAEMON_BASE_URL', 'AGENT_DEVICE_DAEMON_AUTH_TOKEN', 'AGENT_DEVICE_CONFIG']) delete env[key];
-const result = spawnSync(${JSON.stringify(agentDevice)}, args, { env, stdio: 'inherit' });
+const result = spawnSync(${JSON.stringify(executable)}, args, { env, stdio: 'inherit' });
 if (result.error) throw result.error;
 process.exit(result.status ?? 1);
 `,
