@@ -12,6 +12,19 @@ const description =
   'A diff does not tell you what changed. The agent that wrote it can. In Porcelain, it walks you through each decision, and you comment back before you keep the change.';
 const serve = 'npx @fabiofiorita/porcelain@latest serve';
 const github = 'https://github.com/FabioFiorita/porcelain';
+/* Search and answer engines read what the product is from this, not from the page layout. Keep it to what the page says. */
+const application = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Porcelain',
+  description,
+  url: Astro.site?.href,
+  applicationCategory: 'DeveloperApplication',
+  operatingSystem: 'macOS, Linux',
+  downloadUrl: `${github}/releases`,
+  license: `${github}/blob/main/LICENSE`,
+  sameAs: [github],
+};
 
 const headline = [
   { words: ['Agents', 'write', 'the', 'code.'], tone: 'text-muted-foreground' },
@@ -144,6 +157,7 @@ const treeRows = [
 ---
 
 <Site description={description}>
+  <script type="application/ld+json" is:inline set:html={JSON.stringify(application)} />
   <main id="top" class="overflow-x-clip">
     <!-- Hero -->
     <section class="relative isolate">
