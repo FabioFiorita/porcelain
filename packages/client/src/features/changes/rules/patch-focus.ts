@@ -1,4 +1,4 @@
-import { parsePatch } from './patch.ts';
+import { readDiff } from './diff-lines.ts';
 
 export type LineSpan = { startLine: number; endLine: number };
 
@@ -46,7 +46,7 @@ export function focusPatch(
   spans: readonly LineSpan[],
   context = 3,
 ): string | null {
-  const parsed = parsePatch(patch);
+  const parsed = readDiff(patch);
   if (parsed.kind !== 'valid') return parsed.kind === 'empty' ? patch : null;
   const { header, hunks } = parsed;
   const near = (position: number) =>

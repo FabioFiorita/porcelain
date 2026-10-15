@@ -53,3 +53,26 @@ index 2fd5213232a3c550d483dcdf61497ed40f070a9b..4fa7fbeaafce055283b43ca29082a4ed
  		this.syncSelection();
  	}
  	/**
+diff --git a/package.json b/package.json
+index c18ce9f7a53c52249e98a391edca3e7434cb4e57..bba9e932b37f10adbc6c3ce0ccfa3cfae4e2957b 100644
+--- a/package.json
++++ b/package.json
+@@ -31,6 +31,18 @@
+     }
+   },
+   "exports": {
++    "./utils/parsePatchFiles": {
++      "types": "./dist/utils/parsePatchFiles.d.ts",
++      "import": "./dist/utils/parsePatchFiles.js"
++    },
++    "./utils/parseLineType": {
++      "types": "./dist/utils/parseLineType.d.ts",
++      "import": "./dist/utils/parseLineType.js"
++    },
++    "./utils/getFiletypeFromFileName": {
++      "types": "./dist/utils/getFiletypeFromFileName.d.ts",
++      "import": "./dist/utils/getFiletypeFromFileName.js"
++    },
+     ".": {
+       "types": "./dist/index.d.ts",
+       "import": "./dist/index.js"

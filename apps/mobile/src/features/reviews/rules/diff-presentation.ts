@@ -1,6 +1,6 @@
 import { omissionReason } from '@porcelain/client/changes/rules';
 import type { DiffContent } from '@porcelain/client/changes/rules';
-import { patchLines } from '@porcelain/client/changes/rules';
+import { diffLines } from '@porcelain/client/changes/rules';
 
 export function diffPresentation(content: DiffContent) {
   if (content.kind === 'binary')
@@ -17,7 +17,7 @@ export function diffPresentation(content: DiffContent) {
       title: 'Diff unavailable',
       description: omissionReason(content.reason),
     };
-  const parsed = patchLines(content.patch);
+  const parsed = diffLines(content.patch);
   if (parsed.kind === 'text') return parsed;
   return parsed.kind === 'empty'
     ? {

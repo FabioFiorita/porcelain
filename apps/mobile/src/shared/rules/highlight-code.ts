@@ -1,3 +1,25 @@
+import { getFiletypeFromFileName } from '@pierre/diffs/utils/getFiletypeFromFileName';
+
+export function sourceLanguage(path: string): string | undefined {
+  const language = getFiletypeFromFileName(
+    path.toLowerCase().replace(/\.svg$/, '.xml'),
+  );
+  switch (language) {
+    case 'angular-ts':
+      return 'typescript';
+    case 'angular-html':
+      return 'html';
+    case 'text':
+      return undefined;
+    case 'zsh':
+      return 'bash';
+    case 'mdx':
+      return 'markdown';
+    default:
+      return language;
+  }
+}
+
 import type { RenderToken } from './render-model.ts';
 
 type SyntaxToken = { content: string; color?: string; fontStyle?: number };

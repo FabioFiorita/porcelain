@@ -1,9 +1,9 @@
 import { expect, it } from 'vitest';
-import { parsePatch, patchLines } from './patch.ts';
+import { diffLines, readDiff } from './diff-lines.ts';
 
 it('keeps both line numbers across multiple hunks and does not confuse content with file headers', () => {
   expect(
-    patchLines(
+    diffLines(
       'diff --git a/a b/a\n--- a/a\n+++ b/a\n@@ -4,2 +4,2 @@ fn\n keep\n--- old\n+++ new\n@@ -12 +12 @@\n-before\n+after\n\\ No newline at end of file\n',
     ),
   ).toEqual({
@@ -22,7 +22,7 @@ it('keeps both line numbers across multiple hunks and does not confuse content w
 });
 
 it('handles added and deleted files with an empty side and blank content lines', () => {
-  expect(patchLines('@@ -0,0 +1,2 @@\n+hello\n+\n')).toEqual({
+  expect(diffLines('@@ -0,0 +1,2 @@\n+hello\n+\n')).toEqual({
     kind: 'text',
     lines: [
       { id: 'patch:0', text: '@@ -0,0 +1,2 @@' },
@@ -30,7 +30,7 @@ it('handles added and deleted files with an empty side and blank content lines',
       { id: 'patch:2', text: '', kind: 'added', newLine: 2 },
     ],
   });
-  expect(patchLines('@@ -1 +0,0 @@\n-goodbye')).toEqual({
+  expect(diffLines('@@ -1 +0,0 @@\n-goodbye')).toEqual({
     kind: 'text',
     lines: [
       { id: 'patch:0', text: '@@ -1 +0,0 @@' },
@@ -40,12 +40,17 @@ it('handles added and deleted files with an empty side and blank content lines',
 });
 
 it('reports empty content and context-only patches without a blank diff', () => {
-  expect(patchLines('')).toEqual({ kind: 'empty' });
-  expect(patchLines('@@ -1 +1 @@\n unchanged\n')).toEqual({ kind: 'empty' });
+  expect(diffLines('')).toEqual({ kind: 'empty' });
+  expect(diffLines('@@ -1 +1 @@\n unchanged\n')).toEqual({ kind: 'empty' });
 });
 
 it.each([
   ['missing patch', 'not a patch'],
+  ['unexpected footer', '@@ -1 +1 @@\n-old\n+new\nGARBAGE\n'],
+  [
+    'unexpected inter-hunk content',
+    '@@ -1 +1 @@\n-old\n+new\nGARBAGE\n@@ -3 +3 @@\n-before\n+after\n',
+  ],
   [
     'metadata without a hunk',
     'diff --git a/a b/a\nold mode 100644\nnew mode 100755',
@@ -56,12 +61,12 @@ it.each([
   ['interrupted hunk', '@@ -1 +1 @@\n-a\n@@ -3 +3 @@\n-c\n+d'],
   ['negative remaining count', '@@ -0,0 +1 @@\n context'],
 ])('rejects %s instead of displaying a partial diff', (_name, patch) => {
-  expect(patchLines(patch)).toEqual({ kind: 'invalid' });
+  expect(diffLines(patch)).toEqual({ kind: 'invalid' });
 });
 
 it('preserves carriage returns in CRLF file content and markers on either side', () => {
   expect(
-    patchLines(
+    diffLines(
       '@@ -1 +1 @@\n-old\r\n\\ No newline at end of file\n+new\r\n\\ No newline at end of file\n',
     ),
   ).toEqual({
@@ -76,28 +81,26 @@ it('preserves carriage returns in CRLF file content and markers on either side',
   });
 });
 
-it('counts changed lines per patch and rejects a hunk whose body disagrees with its header', () => {
-  const parsed = parsePatch(
-    '--- a/a\n+++ b/a\n@@ -1,2 +1,2 @@\n keep\n-before\n+after\n',
+it('keeps interleaved changes on their own side', () => {
+  expect(diffLines('@@ -1,2 +1,2 @@\n-a\n+A\n-b\n+B\n')).toEqual({
+    kind: 'text',
+    lines: [
+      { id: 'patch:0', text: '@@ -1,2 +1,2 @@' },
+      { id: 'patch:1', text: 'a', kind: 'removed', oldLine: 1 },
+      { id: 'patch:2', text: 'A', kind: 'added', newLine: 1 },
+      { id: 'patch:3', text: 'b', kind: 'removed', oldLine: 2 },
+      { id: 'patch:4', text: 'B', kind: 'added', newLine: 2 },
+    ],
+  });
+});
+
+it('keeps the original file header when preparing a focused excerpt', () => {
+  const result = readDiff(
+    'diff --git a/a b/a\n--- a/a\n+++ b/a\n@@ -1 +1 @@\n-before\n+after\n',
   );
-  expect(
-    parsed.kind === 'valid'
-      ? {
-          header: parsed.header,
-          hunks: parsed.hunks.length,
-          changes: parsed.changes,
-        }
-      : parsed,
-  ).toEqual({ header: ['--- a/a', '+++ b/a'], hunks: 1, changes: 2 });
-  expect([
-    parsePatch('  \n'),
-    parsePatch('@@ -1,2 +1,2 @@\n-before\n+after\n'),
-    parsePatch('@@ -1 +1 @@\n-before\n+after\n+extra\n'),
-    parsePatch('--- a/a\n+++ b/a\n'),
-  ]).toEqual([
-    { kind: 'empty' },
-    { kind: 'invalid' },
-    { kind: 'invalid' },
-    { kind: 'invalid' },
+  expect(result.kind === 'valid' ? result.header : result).toEqual([
+    'diff --git a/a b/a',
+    '--- a/a',
+    '+++ b/a',
   ]);
 });

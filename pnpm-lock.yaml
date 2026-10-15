@@ -111,7 +111,7 @@ overrides:
 packageExtensionsChecksum: sha256-4ROEX6iFbLbG9Lqq+wJj6dLUpHe0RF6NtOu4q++cqJ8=
 
 patchedDependencies:
-  '@pierre/diffs@1.4.2': 9e7dbdbd285b20317c23610e61bd29a6e411d80134ea8cd49608210786df1fc6
+  '@pierre/diffs@1.4.2': 71d90d8b913d07e680ac5baf477a77e637dccd1309ae1d1f27310bdae80626d9
 
 importers:
 
@@ -287,6 +287,9 @@ importers:
       '@expo/ui':
         specifier: 58.0.9
         version: 58.0.9(@babel/core@7.29.7(supports-color@7.2.0))(expo@58.0.0)(react-dom@19.2.8(react@19.3.0))(react-native-worklets@0.13.0(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(react-native@0.88.0-rc.3(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@types/react@19.2.18)(react@19.3.0)(supports-color@7.2.0))(react@19.3.0)(supports-color@7.2.0))(react-native@0.88.0-rc.3(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@types/react@19.2.18)(react@19.3.0)(supports-color@7.2.0))(react@19.3.0)
+      '@pierre/diffs':
+        specifier: 1.4.2
+        version: 1.4.2(patch_hash=71d90d8b913d07e680ac5baf477a77e637dccd1309ae1d1f27310bdae80626d9)(@shikijs/themes@4.4.3)(react-dom@19.2.8(react@19.3.0))(react@19.3.0)
       '@pierre/theme':
         specifier: 2.0.0
         version: 2.0.0
@@ -468,7 +471,7 @@ importers:
         version: 5.3.0
       '@pierre/diffs':
         specifier: 1.4.2
-        version: 1.4.2(patch_hash=9e7dbdbd285b20317c23610e61bd29a6e411d80134ea8cd49608210786df1fc6)(@shikijs/themes@4.4.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 1.4.2(patch_hash=71d90d8b913d07e680ac5baf477a77e637dccd1309ae1d1f27310bdae80626d9)(@shikijs/themes@4.4.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@pierre/trees':
         specifier: 1.0.0-beta.6
         version: 1.0.0-beta.6(@pierre/theme@2.0.0)(@shikijs/themes@4.4.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(shiki@4.4.3)
@@ -612,6 +615,9 @@ importers:
 
   packages/client:
     dependencies:
+      '@pierre/diffs':
+        specifier: 1.4.2
+        version: 1.4.2(patch_hash=71d90d8b913d07e680ac5baf477a77e637dccd1309ae1d1f27310bdae80626d9)(@shikijs/themes@4.4.3)(react-dom@19.2.8(react@19.3.0))(react@19.3.0)
       '@porcelain/access':
         specifier: workspace:*
         version: link:../access
@@ -9878,7 +9884,30 @@ snapshots:
       '@parcel/watcher-win32-arm64': 2.6.0
       '@parcel/watcher-win32-x64': 2.6.0
 
-  '@pierre/diffs@1.4.2(patch_hash=9e7dbdbd285b20317c23610e61bd29a6e411d80134ea8cd49608210786df1fc6)(@shikijs/themes@4.4.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@pierre/theming@1.0.1(@pierre/theme@2.0.0)(@shikijs/themes@4.4.3)(react-dom@19.2.8(react@19.3.0))(react@19.3.0)(shiki@4.4.3)':
+    optionalDependencies:
+      '@pierre/theme': 2.0.0
+      '@shikijs/themes': 4.4.3
+      react: 19.3.0
+      react-dom: 19.2.8(react@19.3.0)
+      shiki: 4.4.3
+
+  '@pierre/diffs@1.4.2(patch_hash=71d90d8b913d07e680ac5baf477a77e637dccd1309ae1d1f27310bdae80626d9)(@shikijs/themes@4.4.3)(react-dom@19.2.8(react@19.3.0))(react@19.3.0)':
+    dependencies:
+      '@pierre/theme': 2.0.0
+      '@pierre/theming': 1.0.1(@pierre/theme@2.0.0)(@shikijs/themes@4.4.3)(react-dom@19.2.8(react@19.3.0))(react@19.3.0)(shiki@4.4.3)
+      '@shikijs/transformers': 4.4.3
+      diff: 9.0.0
+      hast-util-to-html: 9.0.5
+      lru_map: 0.4.1
+      shiki: 4.4.3
+    optionalDependencies:
+      react: 19.3.0
+      react-dom: 19.2.8(react@19.3.0)
+    transitivePeerDependencies:
+      - '@shikijs/themes'
+
+  '@pierre/diffs@1.4.2(patch_hash=71d90d8b913d07e680ac5baf477a77e637dccd1309ae1d1f27310bdae80626d9)(@shikijs/themes@4.4.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@pierre/theme': 2.0.0
       '@pierre/theming': 1.0.1(@pierre/theme@2.0.0)(@shikijs/themes@4.4.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(shiki@4.4.3)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { highlightCode } from './highlight-code.ts';
+import { highlightCode, sourceLanguage } from './highlight-code.ts';
 import { mergeDiffTokens } from './merge-diff-tokens.ts';
 
 describe('mobile source highlighting', () => {
@@ -98,4 +98,17 @@ describe('mobile source highlighting', () => {
       ),
     ).toEqual([{ text: 'actual source', color: 0xfffc2b73 }]);
   });
+});
+
+it.each([
+  ['src/APP.TSX', 'tsx'],
+  ['src/app.component.ts', 'typescript'],
+  ['src/app.component.html', 'html'],
+  ['assets/logo.SVG', 'xml'],
+  ['scripts/check.sh', 'bash'],
+  ['docs/guide.mdx', 'markdown'],
+  ['src/main.py', 'python'],
+  ['unknown.xyz', undefined],
+])('selects the source grammar for %s', (path, language) => {
+  expect(sourceLanguage(path)).toBe(language);
 });

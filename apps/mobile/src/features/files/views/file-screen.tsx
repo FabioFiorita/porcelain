@@ -1,3 +1,4 @@
+import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import type { FileTreeEntry } from '@porcelain/client/files/rules';
 import { Box } from '../../../components/ui/box';
 import { View } from 'react-native';
@@ -13,10 +14,7 @@ import { useDirectories } from '../queries/directory';
 import { useTextFile, type FileContents } from '../queries/text';
 import { usePreviewLink } from '../commands/preview-link';
 import { useFileAsset } from '../queries/asset';
-import {
-  isNativeImagePath,
-  sourceLanguage,
-} from '../../../shared/rules/file-tree';
+import { isNativeImagePath } from '../../../shared/rules/file-tree';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Loading } from '../../../components/ui/loading';
