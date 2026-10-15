@@ -1,28 +1,35 @@
-import { useEffect } from 'react';
-import { readFileDrafts, type FileDrafts } from '@porcelain/client/files';
+import { readFileDrafts } from '@porcelain/client/files';
 import type { Connection } from '@/shared/workspace/connection';
-import { useAtomValue } from '@effect/atom-react';
+import { useAtomMount } from '@effect/atom-react';
 import { Atom, AsyncResult } from 'effect/reactivity';
-import { Option, type Context } from 'effect';
+import { Option } from 'effect';
 
-const disconnected = Atom.make(
-  AsyncResult.initial<Context.Service.Shape<typeof FileDrafts>>(),
+const unsavedDraftsGuard = Atom.family(
+  ({
+    connection,
+    environmentIds,
+  }: {
+    connection: Connection | null;
+    environmentIds: readonly string[];
+  }) =>
+    Atom.make((get) => {
+      if (!connection || environmentIds.length === 0) return;
+      const result = get(readFileDrafts(connection));
+      const drafts = Option.getOrUndefined(AsyncResult.value(result));
+      if (!drafts) return;
+      const leaving = (event: BeforeUnloadEvent) => {
+        if (drafts.hasUnsaved(environmentIds)) event.preventDefault();
+      };
+      window.addEventListener('beforeunload', leaving);
+      get.addFinalizer(() =>
+        window.removeEventListener('beforeunload', leaving),
+      );
+    }),
 );
 
 export function useUnsavedDraftsGuard(
   connection: Connection | null,
   environmentIds: readonly string[],
 ) {
-  const result = useAtomValue(
-    connection ? readFileDrafts(connection) : disconnected,
-  );
-  const drafts = Option.getOrUndefined(AsyncResult.value(result));
-  useEffect(() => {
-    if (!drafts || environmentIds.length === 0) return;
-    const leaving = (event: BeforeUnloadEvent) => {
-      if (drafts.hasUnsaved(environmentIds)) event.preventDefault();
-    };
-    window.addEventListener('beforeunload', leaving);
-    return () => window.removeEventListener('beforeunload', leaving);
-  }, [drafts, environmentIds]);
+  useAtomMount(unsavedDraftsGuard({ connection, environmentIds }));
 }

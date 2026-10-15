@@ -1,3 +1,4 @@
+import { useElement, type ElementTarget } from '@/shared/hooks/use-element';
 import type { RemoteConnection } from '@porcelain/client/access';
 import {
   firstWaitingWorktree,
@@ -5,7 +6,7 @@ import {
 } from '@porcelain/client/projects/rules';
 import { detectPlatform, useHotkey } from '@tanstack/react-hotkeys';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { type ReactNode, type RefObject, useRef, useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import {
   Empty,
   EmptyDescription,
@@ -77,7 +78,7 @@ export function ConnectedWorkspace({
   unavailable?: RemoteStatus;
   notice?: 'not-found' | 'missing-worktree' | undefined;
 }) {
-  const navigationTrigger = useRef<HTMLButtonElement>(null);
+  const navigationTrigger = useElement<HTMLButtonElement>();
   const message = workspaceMessages[notice ?? 'empty'];
   const [shortcuts, setShortcuts] = useState(false);
   const { setOpenMobile, isMobile, open, openMobile } = useSidebar();
@@ -241,7 +242,7 @@ function EmptyWorkspace({
   openMobile,
   children,
 }: {
-  navigationTrigger: RefObject<HTMLButtonElement | null>;
+  navigationTrigger: ElementTarget<HTMLButtonElement>;
   isMobile: boolean;
   open: boolean;
   openMobile: boolean;
@@ -250,7 +251,7 @@ function EmptyWorkspace({
   return (
     <div className="relative grid h-full min-h-0 place-items-center rounded-xl border bg-card p-8">
       <SidebarTrigger
-        ref={navigationTrigger}
+        ref={(element) => navigationTrigger.attach(element)}
         className="absolute top-3 left-3"
         aria-label="Toggle Sidebar"
         aria-expanded={isMobile ? openMobile : open}

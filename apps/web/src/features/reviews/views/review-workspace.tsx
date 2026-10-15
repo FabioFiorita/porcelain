@@ -1,3 +1,4 @@
+import { useElement, type ElementTarget } from '@/shared/hooks/use-element';
 import { AsyncResult } from 'effect/reactivity';
 import { Cause, Option } from 'effect';
 import {
@@ -6,13 +7,7 @@ import {
   useHotkey,
 } from '@tanstack/react-hotkeys';
 import { PanelRightIcon, LayersIcon as ReviewLayersIcon } from 'lucide-react';
-import {
-  type ReactNode,
-  type RefObject,
-  type SyntheticEvent,
-  useRef,
-  useState,
-} from 'react';
+import { type ReactNode, type SyntheticEvent, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -73,7 +68,7 @@ type ReviewWorkspaceProps = {
   context: ConnectionContext;
   search: WorkspaceSearch;
   onSearch: SetWorkspaceSearch;
-  navigationTrigger: RefObject<HTMLButtonElement | null>;
+  navigationTrigger: ElementTarget<HTMLButtonElement>;
 };
 
 export function ReviewWorkspace(props: ReviewWorkspaceProps) {
@@ -99,9 +94,9 @@ function ReviewWorkspaceContent({
   const [mobileOpen, setMobileOpen] = useState(false);
   const desktop = useDesktopReview();
   const [focusedPane, setFocusedPane] = useState<PaneIndex>(0);
-  const desktopTrigger = useRef<HTMLButtonElement>(null);
-  const mobileTrigger = useRef<HTMLButtonElement>(null);
-  const mobileSheet = useRef<HTMLDivElement>(null);
+  const desktopTrigger = useElement<HTMLButtonElement>();
+  const mobileTrigger = useElement<HTMLButtonElement>();
+  const mobileSheet = useElement<HTMLDivElement>();
   const {
     isMobile: navigatorIsMobile,
     open: navigatorOpen,
@@ -132,13 +127,13 @@ function ReviewWorkspaceContent({
     focused: focusedPane,
     setFocused: setFocusedPane,
     ready,
-    focusBoundary: mobileSheet,
+    focusBoundary: mobileSheet.element,
     focusBoundaryOpen: mobileOpen,
   });
   const sideLabel = openToSideText(paneSide(layout.split, focusedPane));
 
   const toggleSidebar = () => {
-    if (sidebarOpen) desktopTrigger.current?.focus();
+    if (sidebarOpen) desktopTrigger.element?.focus();
     setSidebarOpen((open) => !open);
   };
   useHotkey(
@@ -212,7 +207,7 @@ function ReviewWorkspaceContent({
     <div data-review-controls="" className="contents">
       <GitButton scope={scope} context={context} />
       <Button
-        ref={desktopTrigger}
+        ref={(element) => desktopTrigger.attach(element)}
         className="hidden xl:inline-flex"
         variant="ghost"
         size="icon-sm"
@@ -232,7 +227,7 @@ function ReviewWorkspaceContent({
           <Button
             variant="ghost"
             size="icon-sm"
-            ref={mobileTrigger}
+            ref={(element) => mobileTrigger.attach(element)}
             className="xl:hidden"
             aria-label="Review"
             aria-keyshortcuts={SHORTCUTS.toggleSidebar}
@@ -301,15 +296,15 @@ function ReviewWorkspaceContent({
       </ResizablePanelGroup>
       <SheetContent
         ref={(element) => {
-          mobileSheet.current = element;
+          mobileSheet.attach(element);
           if (element === null) layout.focusDestination();
         }}
         finalFocus={() => {
           if (layout.hasDestinationFocus()) return false;
           const active = document.activeElement;
           const stayed =
-            active === document.body || mobileSheet.current?.contains(active);
-          return stayed ? mobileTrigger.current : false;
+            active === document.body || mobileSheet.element?.contains(active);
+          return stayed ? mobileTrigger.element : false;
         }}
         className="w-[min(90vw,22rem)]!"
         showCloseButton={false}
@@ -332,7 +327,7 @@ type PaneContext = {
   base: string | undefined;
   onOpen: OpenDocument;
   reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
-  navigationTrigger: RefObject<HTMLButtonElement | null>;
+  navigationTrigger: ElementTarget<HTMLButtonElement>;
   navigatorIsMobile: boolean;
   navigatorOpen: boolean;
   navigatorOpenMobile: boolean;
@@ -521,7 +516,7 @@ function PaneView({
         leading={
           index === 0 ? (
             <SidebarTrigger
-              ref={navigationTrigger}
+              ref={(element) => navigationTrigger.attach(element)}
               aria-label="Toggle Sidebar"
               aria-expanded={
                 navigatorIsMobile ? navigatorOpenMobile : navigatorOpen
@@ -533,7 +528,7 @@ function PaneView({
               onClick={() => {
                 if (!navigatorIsMobile && navigatorOpen) {
                   requestAnimationFrame(() =>
-                    navigationTrigger.current?.focus(),
+                    navigationTrigger.element?.focus(),
                   );
                 }
               }}

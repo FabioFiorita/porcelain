@@ -1,4 +1,4 @@
-import { Layer, ManagedRuntime } from 'effect';
+import { Effect, Layer, ManagedRuntime } from 'effect';
 import { Atom } from 'effect/reactivity';
 import {
   AccessPlatform,
@@ -75,3 +75,26 @@ export const preferencesState =
 export const pendingSelections = applicationRuntime.runSync(
   ProjectSelectionCommands,
 ).pending;
+
+export const shellStartup = clientRuntime.atom(
+  Effect.gen(function* () {
+    const environments = yield* EnvironmentCommands;
+    const selection = yield* ProjectSelectionCommands;
+    yield* Effect.all(
+      [environments.read(), selection.execute({ kind: 'read' })],
+      { concurrency: 'unbounded' },
+    );
+  }),
+);
+
+export const interruptCommandOnUnmount = Atom.family(
+  (command: Atom.Writable<unknown, typeof Atom.Interrupt>) =>
+    Atom.make((get) => {
+      get.mount(command);
+      const registry = get.registry;
+      get.addFinalizer(() => {
+        if (registry.getNodes().has(command))
+          registry.set(command, Atom.Interrupt);
+      });
+    }),
+);

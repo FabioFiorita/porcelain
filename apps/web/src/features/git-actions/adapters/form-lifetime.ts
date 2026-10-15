@@ -1,11 +1,15 @@
-import { useEffect } from 'react';
+import { useAtomMount } from '@effect/atom-react';
+import { Atom } from 'effect/reactivity';
 
-export function useDraftCancellation(controllers: Set<AbortController>) {
-  useEffect(
-    () => () => {
+const draftLifetime = Atom.family((controllers: Set<AbortController>) =>
+  Atom.make((get) => {
+    get.addFinalizer(() => {
       for (const controller of controllers) controller.abort();
       controllers.clear();
-    },
-    [controllers],
-  );
+    });
+  }),
+);
+
+export function useDraftCancellation(controllers: Set<AbortController>) {
+  useAtomMount(draftLifetime(controllers));
 }

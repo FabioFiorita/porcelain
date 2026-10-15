@@ -1,5 +1,6 @@
+import { Uniwind } from 'uniwind';
 import { Effect } from 'effect';
-import { AtomRef } from 'effect/reactivity';
+import { Atom, AtomRef } from 'effect/reactivity';
 import { useAtomRef, useAtomSet } from '@effect/atom-react';
 import { PreferencesStore } from '@porcelain/client/preferences';
 import type { Preferences } from '@porcelain/client/preferences';
@@ -37,3 +38,16 @@ export function usePreferences() {
     setPreferences: useAtomSet(change),
   };
 }
+
+export const preferenceTheme = Atom.make((get) => {
+  const update = () =>
+    Uniwind.setTheme(preferencesState.value.preferences.appearance);
+  get.addFinalizer(preferencesState.subscribe(update));
+  get.mount(read);
+  get.set(read, undefined);
+  update();
+});
+export const tabletSidebar = Atom.make((get) => {
+  sidebarVisible.set(true);
+  get.addFinalizer(() => sidebarVisible.set(undefined));
+});

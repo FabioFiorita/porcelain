@@ -1,5 +1,5 @@
 import { linkOptions, useNavigate } from '@tanstack/react-router';
-import { useEffect } from 'react';
+import { useAtomMount } from '@effect/atom-react';
 import { toast } from '@/components/ui/toast';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import { useRemoteConnections } from '@/features/access/index';
@@ -10,7 +10,7 @@ import {
   type WorktreeTarget,
 } from '@/features/projects/index';
 import { defaultSettingsSection } from '@/app/settings-page';
-import { onDesktopAction } from '@/shared/adapters/desktop';
+import { desktopActions } from '@/shared/adapters/desktop';
 import type { Connection } from '@/shared/workspace/connection';
 
 export function worktreeLocation(target: WorktreeTarget) {
@@ -50,17 +50,15 @@ export function DesktopActions({
   const openWorktree = (target: WorktreeTarget) =>
     navigate({ ...worktreeLocation(target), replace: empty });
   const openHere = useOpenProjectOnThisComputer(connection, openWorktree);
-  useEffect(
-    () =>
-      onDesktopAction((action) => {
-        if (action === 'open-settings')
-          void navigate({
-            to: '/settings/$section',
-            params: { section: defaultSettingsSection },
-          });
-        else openHere();
-      }),
-    [navigate, openHere],
+  useAtomMount(
+    desktopActions((action) => {
+      if (action === 'open-settings')
+        void navigate({
+          to: '/settings/$section',
+          params: { section: defaultSettingsSection },
+        });
+      else openHere();
+    }),
   );
   return (
     <OpenProjectDialog

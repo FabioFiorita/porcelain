@@ -4,7 +4,7 @@ import {
   SearchIcon,
   XIcon,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { FILE_FIND_MAX_MATCHES } from '@/config/limits';
 import {
   InputGroup,
@@ -26,14 +26,10 @@ export function FindBar({
   onReveal: (line: number) => void;
   onClose: () => void;
 }) {
-  const input = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
   const matches = findMatches(text, query, FILE_FIND_MAX_MATCHES);
-  useEffect(() => {
-    input.current?.focus();
-    input.current?.select();
-  }, [focusRequest]);
+  const [focusedRequest, setFocusedRequest] = useState<number>();
   const show = (next: number, found = matches) => {
     setIndex(next);
     const match = found[next];
@@ -56,7 +52,12 @@ export function FindBar({
           <SearchIcon />
         </InputGroupAddon>
         <InputGroupInput
-          ref={input}
+          ref={(input) => {
+            if (!input || focusedRequest === focusRequest) return;
+            input.focus();
+            input.select();
+            setFocusedRequest(focusRequest);
+          }}
           aria-label="Find in file"
           placeholder="Find in file"
           value={query}

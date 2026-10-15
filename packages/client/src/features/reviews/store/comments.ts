@@ -70,3 +70,16 @@ export const commentsRuntime = Atom.family(
       ),
     ),
 );
+
+export const commentVisibilityState = Atom.family(
+  (_input: {
+    connection: RuntimeConnection;
+    scope: WorktreeScope;
+    owner: string;
+  }) =>
+    Atom.make<{
+      readonly snapshot: string;
+      readonly filters: ReadonlySet<string>;
+      readonly through: number;
+    }>({ snapshot: '', filters: new Set<string>(), through: 0 }),
+);

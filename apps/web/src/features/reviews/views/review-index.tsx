@@ -8,7 +8,7 @@ import {
   FlaskConicalIcon,
   MessageSquarePlusIcon,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
@@ -26,7 +26,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/shared/lib/utils';
 import { type ChangeScope, isChangeScope } from '@/shared/workspace/search';
 import { useBranchChanges, useChanges } from '@/features/changes/index';
-import { useMarkCommentsSeen } from '../commands/comments';
+import { useVisibleComments } from '../commands/comments';
 import { useCompleteDecision } from '../commands/decisions';
 import { SidebarActionMenu } from './sidebar-action-menu';
 import { SidebarGroup, SidebarDocumentRow } from './sidebar-section';
@@ -39,7 +39,6 @@ import {
   type CommentAnchor,
   anchorPath,
   changeAnchor,
-  commentsSeenThrough,
   type CommentThread,
   type FileCommentAnchor,
 } from '@porcelain/client/reviews/rules';
@@ -690,26 +689,7 @@ function CommentsView({
   const empty =
     filter === 'open' ? 'No open comments yet.' : 'Nothing resolved yet.';
 
-  const snapshot = threads
-    .map((thread) => `${thread.id}:${thread.revision}`)
-    .sort()
-    .join('\n');
-  const highest = threads.reduce(
-    (top, thread) => Math.max(top, thread.revision),
-    0,
-  );
-  const markSeen = useMarkCommentsSeen(scope, context);
-  const shown = useRef({ snapshot: '', filters: new Set<string>() });
-  useEffect(() => {
-    if (shown.current.snapshot !== snapshot)
-      shown.current = { snapshot, filters: new Set() };
-    shown.current.filters.add(filter);
-    const through = commentsSeenThrough(
-      { highest, open: openCount, resolved: resolvedCount },
-      shown.current.filters,
-    );
-    if (through !== null) markSeen(through);
-  }, [filter, highest, markSeen, openCount, resolvedCount, snapshot]);
+  useVisibleComments(scope, context, filter);
 
   const reveal = (anchor: CommentAnchor) => {
     if (anchor.kind === 'change') {

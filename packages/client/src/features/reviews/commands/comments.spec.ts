@@ -1,12 +1,13 @@
 import { holdFirstRead } from '../../../../spec/kit/held-transport.ts';
 import { afterEach, expect, it } from 'vitest';
 import { Layer, Effect, Option, Stream } from 'effect';
-import { Atom, AtomRegistry, AsyncResult } from 'effect/reactivity';
+import { Atom, AtomRegistry, AsyncResult, Reactivity } from 'effect/reactivity';
 import {
   createWorktreeConnection,
+  queryKeys,
   type Transport,
 } from '@porcelain/client/transport';
-import { commentCommands } from './comments.ts';
+import { commentCommands, observeCommentVisibility } from './comments.ts';
 import { readCommentThreads } from '@porcelain/client/reviews';
 
 const scope = {
@@ -311,5 +312,115 @@ it('keeps a second document composer idle when the first sends, resets or confir
     response.resolve(Response.json(thread));
     stopLeft();
     stopRight();
+  }
+});
+
+function visibilityFixture(initial: (typeof thread)[]) {
+  let current = initial;
+  const writes: unknown[] = [];
+  const subject = fixture(async (path, init) => {
+    if (!path.endsWith('/comments/seen')) return Response.json(current);
+    writes.push(JSON.parse(await new Response(init?.body).text()));
+    return Response.json({
+      worktreeId: scope.worktreeId,
+      seenThrough: Math.max(...current.map((entry) => entry.revision)),
+    });
+  });
+  return {
+    ...subject,
+    writes,
+    revision: () =>
+      Option.getOrUndefined(
+        AsyncResult.value(subject.registry.get(subject.state)),
+      )?.[0]?.revision,
+    publish: async (threads: (typeof thread)[]) => {
+      current = threads;
+      await subject.connection.runtime.runPromise(
+        Reactivity.invalidate([
+          queryKeys.reviewSurface(subject.connection.environmentId, scope, [
+            'comments',
+          ]),
+        ]),
+      );
+    },
+  };
+}
+
+it('visible comments follow new revisions and stop marking when their view unmounts', async () => {
+  const subject = visibilityFixture([thread]);
+  const { writes } = subject;
+  const keepRead = subject.registry.mount(subject.state);
+  const stop = subject.registry.mount(
+    observeCommentVisibility({
+      connection: subject.connection,
+      scope,
+      owner: 'all-comments',
+      filter: 'all',
+    }),
+  );
+  try {
+    await expect.poll(() => writes).toEqual([{ throughRevision: 1 }]);
+    await subject.publish([{ ...thread, revision: 2 }]);
+    await expect
+      .poll(() => writes)
+      .toEqual([{ throughRevision: 1 }, { throughRevision: 2 }]);
+    stop();
+    await Effect.runPromise(Effect.yieldNow);
+    await subject.publish([{ ...thread, revision: 3 }]);
+    await expect.poll(subject.revision).toBe(3);
+    expect(writes).toEqual([{ throughRevision: 1 }, { throughRevision: 2 }]);
+  } finally {
+    stop();
+    keepRead();
+  }
+});
+
+it('comment visibility waits for both nonempty filters again after the discussion changes', async () => {
+  const initial = [
+    thread,
+    {
+      ...thread,
+      id: '11111111-1111-4111-8111-111111111111',
+      resolved: true,
+      revision: 2,
+    },
+  ];
+  const subject = visibilityFixture(initial);
+  const { writes } = subject;
+  const input = {
+    connection: subject.connection,
+    scope,
+    owner: 'filtered-comments',
+  };
+  const keepRead = subject.registry.mount(subject.state);
+  let stop = subject.registry.mount(
+    observeCommentVisibility({ ...input, filter: 'open' }),
+  );
+  try {
+    await Effect.runPromise(
+      AtomRegistry.getResult(subject.registry, subject.state),
+    );
+    expect(writes).toEqual([]);
+    const resolved = subject.registry.mount(
+      observeCommentVisibility({ ...input, filter: 'resolved' }),
+    );
+    stop();
+    stop = resolved;
+    await expect.poll(() => writes).toEqual([{ throughRevision: 2 }]);
+    await Effect.runPromise(Effect.yieldNow);
+    await subject.publish([{ ...thread, revision: 3 }, initial[1]!]);
+    await expect.poll(subject.revision).toBe(3);
+    expect(writes).toEqual([{ throughRevision: 2 }]);
+    const open = subject.registry.mount(
+      observeCommentVisibility({ ...input, filter: 'open' }),
+    );
+    stop();
+    stop = open;
+    await expect
+      .poll(() => writes)
+      .toEqual([{ throughRevision: 2 }, { throughRevision: 3 }]);
+  } finally {
+    stop();
+    keepRead();
   }
 });

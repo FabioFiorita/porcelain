@@ -1,187 +1,175 @@
-import { Cause, Effect } from 'effect';
+import { Cause, Effect, Option } from 'effect';
+import type { Atom, AtomRegistry } from 'effect/reactivity';
+import { useAtomValue } from '@effect/atom-react';
 import { moveFileEntries } from '@porcelain/client/files';
-import type { GitStatusEntry } from '@pierre/trees';
-import { FileTree, useFileTree } from '@pierre/trees/react';
-import {
-  type ReactNode,
-  useEffect,
-  useState,
-  useLayoutEffect,
-  useRef,
-} from 'react';
-import type { ContextMenuItem } from '@pierre/trees';
+import { FileTree, type ContextMenuItem } from '@pierre/trees';
+import { useId, useState } from 'react';
 import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu';
+import { atomRegistry } from '@/shared/store';
+import { fileTreeInputs, type PierreFileTreeInput } from '../store';
 import { treeIconsFor } from './file-icons';
 import {
   canDropPaths,
   directoryPaths,
   entryName,
   fileTreeExpansion,
-  type FileTreeEntry,
   nextCreatePath,
   selectedDirectories,
 } from '@porcelain/client/files/rules';
 
-function expandedDirectories(
-  model: ReturnType<typeof useFileTree>['model'],
-  paths: readonly string[],
-) {
+function expandedDirectories(model: FileTree, paths: readonly string[]) {
   return directoryPaths(paths).filter((path) => {
     const item = model.getItem(path);
     return item !== null && 'isExpanded' in item && item.isExpanded();
   });
 }
 
-export function PierreFileTree({
-  paths,
-  kinds,
-  links,
-  creating,
-  onCreate,
-  onMove,
-  gitStatus,
-  selected,
-  onExpand,
-  renderMenu,
-  bindRename,
-  bindCollapseAll,
-  filter,
-  onFilterChange,
-  onInvalidName,
-  onSelect,
-}: {
-  paths: readonly string[];
-  kinds: ReadonlyMap<string, FileTreeEntry['kind']>;
-  links: readonly { path: string; kind: string; target?: string | undefined }[];
-  creating?:
-    | { kind: 'file' | 'directory'; folder: string; nonce: number }
-    | undefined;
-  onCreate: (path: string, kind: 'file' | 'directory') => Promise<void>;
-  onMove: (from: string, to: string) => Promise<void>;
-  gitStatus: readonly GitStatusEntry[];
-  selected: string;
-  onExpand: (paths: readonly string[]) => void;
-  bindRename: (rename: (path: string) => void) => void;
-  bindCollapseAll: (collapse: () => void) => void;
+type MenuTarget = {
+  item: ContextMenuItem;
+  row: HTMLElement;
+  pathsKey: string;
   filter: string;
-  onFilterChange: (value: string) => void;
-  renderMenu: (
-    item: ContextMenuItem,
-    context: {
-      finalFocus: () => HTMLElement | false;
-      close: (restoreFocus: boolean) => void;
-    },
-    rename: () => void,
-  ) => ReactNode;
-  onInvalidName: (error: string) => void;
-  onSelect: (path: string, toSide?: boolean) => void;
-}) {
-  const pathsKey = paths.join('\0');
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuTarget, setMenuTarget] = useState<{
-    item: ContextMenuItem;
-    row: HTMLElement;
-    pathsKey: string;
-    filter: string;
-    rename: () => void;
-    finalFocus: () => HTMLElement | false;
-    close: (restoreFocus: boolean) => void;
-  } | null>(null);
-  const menuTargetIsCurrent =
-    menuTarget?.pathsKey === pathsKey && menuTarget.filter === filter;
-  if (menuOpen && !menuTargetIsCurrent) setMenuOpen(false);
+  rename: () => void;
+  finalFocus: () => HTMLElement | false;
+  close: (restoreFocus: boolean) => void;
+};
 
-  const current = {
-    paths,
-    kinds,
-    links,
-    onCreate,
-    onMove,
-    gitStatus,
-    selected,
-    onExpand,
-    renderMenu,
-    bindRename,
-    bindCollapseAll,
-    onFilterChange,
-    onInvalidName,
-    onSelect,
-  };
-  const latest = useRef(current);
-  useLayoutEffect(() => {
-    latest.current = current;
-  });
-  const reveal = useRef({ selected: '', complete: false });
-  const modelRef = useRef<ReturnType<typeof useFileTree>['model'] | null>(null);
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  const syncing = useRef(false);
-  const pendingCreate = useRef<{
-    path: string;
-    kind: 'file' | 'directory';
-  } | null>(null);
-  const { model } = useFileTree({
-    paths,
+export function PierreFileTree(props: PierreFileTreeInput) {
+  const input = fileTreeInputs(useId());
+  const registry = useAtomValue(atomRegistry);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuTarget, setMenuTarget] = useState<MenuTarget | null>(null);
+  const current =
+    menuTarget?.pathsKey === props.paths.join('\0') &&
+    menuTarget.filter === props.filter;
+  if (menuOpen && !current) setMenuOpen(false);
+  function attach(host: HTMLDivElement | null) {
+    if (!host) return;
+    return mountTree(host, registry, input, setMenuTarget);
+  }
+  return (
+    <ContextMenu open={menuOpen && current} onOpenChange={setMenuOpen}>
+      <ContextMenuTrigger
+        render={<div className="flex min-h-0 flex-1 flex-col" />}
+      >
+        <span
+          hidden
+          ref={(node) => {
+            if (node) registry.set(input, Option.some(props));
+          }}
+        />
+        <div ref={attach} className="flex min-h-0 flex-1 flex-col" />
+      </ContextMenuTrigger>
+      {menuOpen && current && menuTarget && (
+        <span
+          hidden
+          ref={() => {
+            const { row } = menuTarget;
+            row.setAttribute('aria-haspopup', 'menu');
+            row.setAttribute('data-context-menu-open', '');
+            return () => {
+              row.removeAttribute('aria-haspopup');
+              row.removeAttribute('data-context-menu-open');
+            };
+          }}
+        />
+      )}
+      {menuTarget &&
+        props.renderMenu(
+          menuTarget.item,
+          {
+            finalFocus: current ? menuTarget.finalFocus : () => false,
+            close: menuTarget.close,
+          },
+          menuTarget.rename,
+        )}
+    </ContextMenu>
+  );
+}
+
+function mountTree(
+  host: HTMLDivElement,
+  registry: AtomRegistry.AtomRegistry,
+  input: Atom.Writable<Option.Option<PierreFileTreeInput>>,
+  setMenuTarget: (target: MenuTarget | null) => void,
+) {
+  const read = () => Option.getOrThrow(registry.get(input));
+  let active = true;
+  let syncing = false;
+  let reveal = { selected: '', complete: false };
+  let pendingCreate: { path: string; kind: 'file' | 'directory' } | null = null;
+  let handledCreate: number | undefined;
+  const frames = new Set<number>();
+  function frame(run: () => void) {
+    const id = requestAnimationFrame(() => {
+      frames.delete(id);
+      if (active) run();
+    });
+    frames.add(id);
+  }
+  const model = new FileTree({
+    paths: read().paths,
     density: 'compact',
     flattenEmptyDirectories: true,
     initialExpansion: 'closed',
-    icons: treeIconsFor(links),
+    icons: treeIconsFor(read().links),
     unsafeCSS:
       '[data-icon-name="file-tree-icon-chevron"] { color: var(--trees-fg-muted); } [data-context-menu-open] { outline: 1px solid var(--trees-fg-muted); outline-offset: -1px; border-radius: 4px; }',
-    gitStatus,
+    gitStatus: read().gitStatus,
     search: false,
     onSearchChange: (value) => {
-      if (value === null || value === undefined)
-        latest.current.onFilterChange('');
+      if (value === null || value === undefined) read().onFilterChange('');
     },
     renaming: {
       onError: (error) => {
-        pendingCreate.current = null;
-        latest.current.onInvalidName(error);
-        queueMicrotask(() =>
-          modelRef.current?.resetPaths(latest.current.paths),
-        );
+        pendingCreate = null;
+        read().onInvalidName(error);
+        queueMicrotask(() => {
+          if (active) model.resetPaths(read().paths);
+        });
       },
       onRename: (event) => {
-        const pending = pendingCreate.current;
-        pendingCreate.current = null;
+        const pending = pendingCreate;
+        pendingCreate = null;
         const operation =
           pending?.path.replace(/\/$/, '') ===
           event.sourcePath.replace(/\/$/, '')
-            ? latest.current.onCreate(event.destinationPath, pending.kind)
-            : latest.current.onMove(event.sourcePath, event.destinationPath);
-        void operation.catch(() =>
-          modelRef.current?.resetPaths(latest.current.paths),
-        );
+            ? read().onCreate(event.destinationPath, pending.kind)
+            : read().onMove(event.sourcePath, event.destinationPath);
+        void operation.catch(() => {
+          if (active) model.resetPaths(read().paths);
+        });
       },
     },
     dragAndDrop: {
       canDrag: () => {
-        syncing.current = true;
+        syncing = true;
         queueMicrotask(() => {
-          syncing.current = false;
+          syncing = false;
         });
         return true;
       },
       canDrop: ({ draggedPaths, target }) =>
         canDropPaths(draggedPaths, target.directoryPath ?? ''),
       onDropComplete: (event) => {
+        const onMove = read().onMove;
         void Effect.runPromise(
           moveFileEntries(
             event.draggedPaths,
             event.target.directoryPath ?? '',
             (from, to) =>
               Effect.tryPromise({
-                try: () => latest.current.onMove(from, to),
+                try: () => onMove(from, to),
                 catch: (cause) => new Cause.UnknownError(cause),
               }),
           ),
-        ).catch(() => modelRef.current?.resetPaths(latest.current.paths));
+        ).catch(() => {
+          if (active) model.resetPaths(read().paths);
+        });
       },
     },
     renderRowDecoration: ({ item }) => {
-      const link = latest.current.links.find(
-        (entry) => entry.path === item.path,
-      );
+      const link = read().links.find((entry) => entry.path === item.path);
       return link
         ? {
             text:
@@ -192,72 +180,65 @@ export function PierreFileTree({
     },
     onSelectionChange: ([path]) => {
       if (
-        !syncing.current &&
+        !syncing &&
         path &&
-        pendingCreate.current?.path.replace(/\/$/, '') !==
-          path.replace(/\/$/, '') &&
-        path !== latest.current.selected
+        pendingCreate?.path.replace(/\/$/, '') !== path.replace(/\/$/, '') &&
+        path !== read().selected
       )
-        latest.current.onSelect(path);
+        read().onSelect(path);
     },
   });
 
-  useLayoutEffect(() => {
-    syncing.current = true;
-    model.setSearch(filter === '' ? null : filter);
-    syncing.current = false;
-  }, [filter, model]);
-  useLayoutEffect(() => {
-    modelRef.current = model;
-    latest.current.bindCollapseAll(() => {
-      syncing.current = true;
-      reveal.current = { selected: latest.current.selected, complete: true };
+  function bindControls() {
+    read().bindCollapseAll(() => {
+      syncing = true;
+      reveal = { selected: read().selected, complete: true };
       model.setSearch(null);
-      model.resetPaths(latest.current.paths, { initialExpandedPaths: [] });
-      syncing.current = false;
+      model.resetPaths(read().paths, { initialExpandedPaths: [] });
+      syncing = false;
     });
-    latest.current.bindRename((path) => {
-      requestAnimationFrame(() => {
-        syncing.current = true;
+    read().bindRename((path) => {
+      frame(() => {
+        syncing = true;
         model.startRenaming(path);
-        syncing.current = false;
+        syncing = false;
       });
     });
-  }, [model]);
-  const handledCreate = useRef<number | undefined>(undefined);
-  useEffect(() => {
-    if (!creating || handledCreate.current === creating.nonce) return;
-    handledCreate.current = creating.nonce;
+  }
+  function create() {
+    const { creating } = read();
+    if (!creating || handledCreate === creating.nonce) return;
+    handledCreate = creating.nonce;
     const path = nextCreatePath(
       creating.kind,
       creating.folder,
-      (candidate) => (model.getItem(candidate) ?? null) !== null,
+      (candidate) => model.getItem(candidate) !== null,
     );
-    pendingCreate.current = { path, kind: creating.kind };
+    pendingCreate = { path, kind: creating.kind };
     model.add(path);
     model.startRenaming(path, { removeIfCanceled: true });
-    requestAnimationFrame(() => {
-      const input = hostRef.current
-        ?.querySelector('[data-slot="file-tree"]')
+    frame(() => {
+      const input = host
+        .querySelector('[data-slot="file-tree"]')
         ?.shadowRoot?.querySelector('[data-item-rename-input]');
       if (input instanceof HTMLInputElement) input.focus();
     });
-  }, [creating, model]);
-
-  function reportExpanded() {
-    const expanded = expandedDirectories(model, latest.current.paths).map(
-      (path) => path.replace(/\/$/, ''),
-    );
-    if (expanded.length) latest.current.onExpand(expanded);
   }
 
-  useEffect(() => {
-    const shown = latest.current.paths;
-    if (reveal.current.selected !== selected)
-      reveal.current = { selected, complete: false };
+  function reportExpanded() {
+    const expanded = expandedDirectories(model, read().paths).map((path) =>
+      path.replace(/\/$/, ''),
+    );
+    if (expanded.length) read().onExpand(expanded);
+  }
+
+  function reset() {
+    const { selected } = read();
+    const shown = read().paths;
+    if (reveal.selected !== selected) reveal = { selected, complete: false };
     const expanded = fileTreeExpansion(
       shown.flatMap((path) => {
-        const kind = latest.current.kinds.get(path);
+        const kind = read().kinds.get(path);
         return kind === undefined ? [] : [{ path, kind }];
       }),
       new Set(expandedDirectories(model, shown)),
@@ -265,44 +246,49 @@ export function PierreFileTree({
         directoryPaths(shown).filter((path) => model.getItem(path) !== null),
       ),
     ).map((path) => `${path}/`);
-    syncing.current = true;
+    syncing = true;
     {
-      const revealPaths = reveal.current.complete
-        ? []
-        : selectedDirectories(selected);
-      model.resetPaths(
-        pendingCreate.current ? [...shown, pendingCreate.current.path] : shown,
-        {
-          initialExpandedPaths: [...new Set([...expanded, ...revealPaths])],
-        },
-      );
+      const revealPaths = reveal.complete ? [] : selectedDirectories(selected);
+      model.resetPaths(pendingCreate ? [...shown, pendingCreate.path] : shown, {
+        initialExpandedPaths: [...new Set([...expanded, ...revealPaths])],
+      });
       const selectedItem = model.getItem(selected);
-      if (
-        !reveal.current.complete &&
-        selectedItem &&
-        !selectedItem.isDirectory()
-      ) {
+      if (!reveal.complete && selectedItem && !selectedItem.isDirectory()) {
         selectedItem.select();
-        reveal.current.complete = true;
+        reveal.complete = true;
       }
     }
-    syncing.current = false;
+    syncing = false;
     reportExpanded();
-  }, [model, pathsKey, selected]);
-
-  useEffect(() => model.setGitStatus(gitStatus), [model, gitStatus]);
-  useEffect(() => model.setIcons(treeIconsFor(links)), [model, links]);
-
-  useEffect(
-    () =>
-      model.subscribe(() => {
-        if (!syncing.current) reportExpanded();
-      }),
-    [model],
-  );
+  }
+  let previous: PierreFileTreeInput | undefined;
+  function sync() {
+    const current = read();
+    bindControls();
+    syncing = true;
+    if (!previous || previous.filter !== current.filter)
+      model.setSearch(current.filter === '' ? null : current.filter);
+    syncing = false;
+    if (
+      !previous ||
+      previous.paths.join('\0') !== current.paths.join('\0') ||
+      previous.selected !== current.selected
+    )
+      reset();
+    if (previous?.gitStatus !== current.gitStatus)
+      model.setGitStatus(current.gitStatus);
+    if (previous?.links !== current.links)
+      model.setIcons(treeIconsFor(current.links));
+    previous = current;
+    create();
+  }
+  const unsubscribeInput = registry.subscribe(input, sync);
+  const unsubscribeModel = model.subscribe(() => {
+    if (!syncing) reportExpanded();
+  });
 
   function acceptDefaultName(event: Event) {
-    const pending = pendingCreate.current;
+    const pending = pendingCreate;
     if (!pending) return;
     const input = event
       .composedPath()
@@ -312,10 +298,12 @@ export function PierreFileTree({
           target.hasAttribute('data-item-rename-input'),
       );
     if (input?.value !== entryName(pending.path)) return;
-    pendingCreate.current = null;
-    void latest.current
+    pendingCreate = null;
+    void read()
       .onCreate(pending.path, pending.kind)
-      .catch(() => model.resetPaths(latest.current.paths));
+      .catch(() => {
+        if (active) model.resetPaths(read().paths);
+      });
   }
 
   function targetMenu(event: Event) {
@@ -331,9 +319,10 @@ export function PierreFileTree({
     if (!row || !path || !item || row.querySelector('[data-item-rename-input]'))
       return false;
     const focus = { restore: true };
+    const { paths, filter } = read();
     setMenuTarget({
       row,
-      pathsKey,
+      pathsKey: paths.join('\0'),
       filter,
       finalFocus: () =>
         focus.restore && row.isConnected && row.dataset.itemPath === path
@@ -341,13 +330,13 @@ export function PierreFileTree({
           : false,
       close: (restoreFocus) => {
         focus.restore = restoreFocus;
-        setMenuOpen(false);
+        setMenuTarget(null);
       },
       rename: () => {
-        requestAnimationFrame(() => {
-          syncing.current = true;
+        frame(() => {
+          syncing = true;
           model.startRenaming(path);
-          syncing.current = false;
+          syncing = false;
         });
       },
       item: {
@@ -359,89 +348,62 @@ export function PierreFileTree({
     return true;
   }
 
-  useLayoutEffect(() => {
-    if (!menuOpen || !menuTargetIsCurrent || !menuTarget) return;
-    const { row } = menuTarget;
-    row.setAttribute('aria-haspopup', 'menu');
-    row.setAttribute('data-context-menu-open', '');
-    return () => {
-      row.removeAttribute('aria-haspopup');
-      row.removeAttribute('data-context-menu-open');
-    };
-  }, [menuOpen, menuTarget, menuTargetIsCurrent]);
-
-  return (
-    <ContextMenu
-      open={menuOpen && menuTargetIsCurrent}
-      onOpenChange={setMenuOpen}
-    >
-      <ContextMenuTrigger
-        onContextMenuCapture={(event) => {
-          if (!targetMenu(event.nativeEvent)) event.stopPropagation();
-        }}
-        onTouchStartCapture={(event) => {
-          if (!targetMenu(event.nativeEvent)) event.stopPropagation();
-        }}
-        render={
-          <div
-            ref={hostRef}
-            className="flex min-h-0 flex-1 flex-col"
-            onKeyDownCapture={(event) => {
-              if (event.key === 'Enter') acceptDefaultName(event.nativeEvent);
-              if (event.key === 'Escape') pendingCreate.current = null;
-            }}
-            onClickCapture={(event) => {
-              if (event.button !== 0) return;
-              if (
-                !event.altKey &&
-                (event.ctrlKey || event.metaKey || event.shiftKey)
-              )
-                return;
-              const targets = event.nativeEvent.composedPath();
-              if (targets.some((target) => target instanceof HTMLInputElement))
-                return;
-              const row = targets.find(
-                (target): target is HTMLElement =>
-                  target instanceof HTMLElement &&
-                  target.hasAttribute('data-item-path'),
-              );
-              const path = row?.dataset.itemPath;
-              if (!path || latest.current.kinds.get(path) !== 'file') return;
-              const item = model.getItem(path);
-              if (item === null || pendingCreate.current?.path === path) return;
-              event.preventDefault();
-              event.stopPropagation();
-              syncing.current = true;
-              for (const selectedPath of model.getSelectedPaths()) {
-                if (selectedPath !== path)
-                  model.getItem(selectedPath)?.deselect();
-              }
-              item.select();
-              syncing.current = false;
-              latest.current.onSelect(path, event.altKey);
-            }}
-            onBlurCapture={(event) => acceptDefaultName(event.nativeEvent)}
-          />
-        }
-      >
-        <FileTree
-          model={model}
-          data-slot="file-tree"
-          aria-label="Worktree files"
-          className="min-h-0 flex-1"
-        />
-      </ContextMenuTrigger>
-      {menuTarget &&
-        renderMenu(
-          menuTarget.item,
-          {
-            finalFocus: menuTargetIsCurrent
-              ? menuTarget.finalFocus
-              : () => false,
-            close: menuTarget.close,
-          },
-          menuTarget.rename,
-        )}
-    </ContextMenu>
-  );
+  function keyDown(event: KeyboardEvent) {
+    if (event.key === 'Enter') acceptDefaultName(event);
+    if (event.key === 'Escape') pendingCreate = null;
+  }
+  function click(event: MouseEvent) {
+    if (
+      event.button !== 0 ||
+      (!event.altKey && (event.ctrlKey || event.metaKey || event.shiftKey))
+    )
+      return;
+    const targets = event.composedPath();
+    if (targets.some((target) => target instanceof HTMLInputElement)) return;
+    const row = targets.find(
+      (target): target is HTMLElement =>
+        target instanceof HTMLElement && target.hasAttribute('data-item-path'),
+    );
+    const path = row?.dataset.itemPath;
+    if (!path || read().kinds.get(path) !== 'file') return;
+    const item = model.getItem(path);
+    if (!item || pendingCreate?.path === path) return;
+    event.preventDefault();
+    event.stopPropagation();
+    syncing = true;
+    for (const selectedPath of model.getSelectedPaths()) {
+      if (selectedPath !== path) model.getItem(selectedPath)?.deselect();
+    }
+    item.select();
+    syncing = false;
+    read().onSelect(path, event.altKey);
+  }
+  function contextMenu(event: Event) {
+    if (!targetMenu(event)) event.stopPropagation();
+  }
+  host.addEventListener('keydown', keyDown, true);
+  host.addEventListener('click', click, true);
+  host.addEventListener('blur', acceptDefaultName, true);
+  host.addEventListener('contextmenu', contextMenu, true);
+  host.addEventListener('touchstart', contextMenu, true);
+  model.render({ containerWrapper: host });
+  model.getFileTreeContainer()?.setAttribute('class', 'min-h-0 flex-1');
+  model.getFileTreeContainer()?.setAttribute('data-slot', 'file-tree');
+  model.getFileTreeContainer()?.setAttribute('aria-label', 'Worktree files');
+  sync();
+  return () => {
+    active = false;
+    for (const id of frames) cancelAnimationFrame(id);
+    unsubscribeInput();
+    unsubscribeModel();
+    read().bindRename(() => undefined);
+    read().bindCollapseAll(() => undefined);
+    host.removeEventListener('keydown', keyDown, true);
+    host.removeEventListener('click', click, true);
+    host.removeEventListener('blur', acceptDefaultName, true);
+    host.removeEventListener('contextmenu', contextMenu, true);
+    host.removeEventListener('touchstart', contextMenu, true);
+    model.cleanUp();
+    host.replaceChildren();
+  };
 }

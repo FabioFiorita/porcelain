@@ -1,4 +1,7 @@
-import { useAtomSet, useAtomValue } from '@effect/atom-react';
+import { useId } from 'react';
+import type { CodeViewHandle } from '@pierre/diffs/react';
+import { atomRegistry } from '@/shared/store';
+import { useAtomSet, useAtomValue, useAtomMount } from '@effect/atom-react';
 import { Atom } from 'effect/reactivity';
 import { Option, Schema, SchemaGetter } from 'effect';
 import { storageRuntime } from '@/shared/adapters/storage';
@@ -111,3 +114,26 @@ export function useWalkthroughPlace(worktreeId: string) {
     },
   };
 }
+
+type CodeScroll = Pick<CodeViewHandle<undefined, undefined>, 'scrollTo'>;
+const codeViewScroll = Atom.family((_owner: string) =>
+  Atom.make<CodeScroll | null>(null),
+);
+export function useCodeViewScroll() {
+  const atom = codeViewScroll(useId());
+  useAtomMount(atom);
+  const registry = useAtomValue(atomRegistry);
+  return {
+    scrollTo: (request: Parameters<CodeScroll['scrollTo']>[0]) =>
+      registry.get(atom)?.scrollTo(request),
+    attach: (viewer: CodeScroll | null) => {
+      if (!viewer) return;
+      registry.set(atom, viewer);
+      return () => {
+        if (registry.get(atom) === viewer) registry.set(atom, null);
+      };
+    },
+  };
+}
+
+export { tabs as tabLayoutState };

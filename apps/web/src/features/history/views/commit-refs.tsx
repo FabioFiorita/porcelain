@@ -23,7 +23,7 @@ export function CommitRefs({
   refs: readonly string[];
   onOpenCommit: (event: MouseEvent<HTMLButtonElement>) => void;
 }) {
-  const { row, measurement, visibleCount } = useRefChipLayout(refs);
+  const { row, visibleCount } = useRefChipLayout(refs);
   const hidden = refs.slice(visibleCount);
   return (
     <div
@@ -34,7 +34,7 @@ export function CommitRefs({
         aria-hidden="true"
         className="pointer-events-none invisible absolute inset-0 overflow-hidden"
       >
-        <div ref={measurement} className="flex w-max gap-1">
+        <div data-ref-measurement className="flex w-max gap-1">
           {refs.map((ref) => (
             <Badge key={ref} variant="secondary" className={chipClass}>
               <span

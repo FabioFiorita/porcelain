@@ -1,16 +1,19 @@
 import { Effect } from 'effect';
 import { Atom } from 'effect/reactivity';
-import { useAtom, useAtomSet } from '@effect/atom-react';
-import { useEffect, useState } from 'react';
+import { useAtom, useAtomSet, useAtomMount } from '@effect/atom-react';
+import { useId } from 'react';
 import {
   EnvironmentCommands,
   revalidateRemoteStatus,
 } from '@porcelain/client/access';
-import { clientRuntime } from '../../../shared/application/store';
+import {
+  clientRuntime,
+  interruptCommandOnUnmount,
+} from '../../../shared/application/store';
 import { accessPlatform } from '../../../shared/adapters/access-platform';
 import { REQUEST_TIMEOUT_MS } from '../../../config/limits';
 
-const pairEnvironment = Atom.family((_identity: symbol) =>
+const pairEnvironment = Atom.family((_identity: string) =>
   clientRuntime.fn(
     ({ value, onPaired }: { value: string; onPaired: () => void }) =>
       Effect.gen(function* () {
@@ -31,14 +34,10 @@ const readEnvironments = clientRuntime.fn((_: void) =>
 );
 
 export function usePairEnvironment(onPaired: () => void) {
-  const [identity] = useState(Symbol);
+  const identity = useId();
   const [result, run] = useAtom(pairEnvironment(identity));
-  useEffect(
-    () => () => {
-      run(Atom.Interrupt);
-    },
-    [run],
-  );
+  useAtomMount(interruptCommandOnUnmount(pairEnvironment(identity)));
+
   return {
     result,
     submit: (value: string) => run({ value, onPaired }),

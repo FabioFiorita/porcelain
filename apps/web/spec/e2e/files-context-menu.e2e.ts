@@ -70,19 +70,15 @@ test('a menu at the bottom right keeps every label on one line and every action 
   const page = await app.open(await app.link('this'));
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
-  const target = await page
-    .getByRole('treeitem', { name: 'qa-21.md', exact: true })
-    .boundingBox();
+  const bottomRow = page.getByRole('treeitem', {
+    name: 'qa-21.md',
+    exact: true,
+  });
+  await expect(bottomRow).toBeVisible();
+  const target = await bottomRow.boundingBox();
   if (!target) throw new Error('The bottom row must be visible');
   await expect
-    .poll(
-      async () =>
-        (
-          await page
-            .getByRole('treeitem', { name: 'qa-21.md', exact: true })
-            .boundingBox()
-        )?.y ?? 0,
-    )
+    .poll(async () => (await bottomRow.boundingBox())?.y ?? 0)
     .toBeGreaterThan(600);
   await page.mouse.click(target.x + target.width - 10, target.y + 12, {
     button: 'right',

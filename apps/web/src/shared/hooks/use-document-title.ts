@@ -1,11 +1,6 @@
-import { useEffect } from 'react';
+import { useAtomMount } from '@effect/atom-react';
+import { documentTitle } from '../store';
 
 export function useDocumentTitle(title: string) {
-  useEffect(() => {
-    const previous = document.title;
-    document.title = title;
-    return () => {
-      document.title = previous;
-    };
-  }, [title]);
+  useAtomMount(documentTitle(title));
 }

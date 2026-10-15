@@ -10,7 +10,7 @@ import {
   Trash2Icon,
   UserIcon,
 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Bubble, BubbleContent } from '@/components/ui/bubble';
 import { Button } from '@/components/ui/button';
@@ -284,9 +284,9 @@ export function ThreadCard({
   const [replying, setReplying] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [body, setBody] = useState('');
-  const pendingReply = useRef<{ body: string; messageId: string } | undefined>(
-    undefined,
-  );
+  const [pendingReply, setPendingReply] = useState<
+    { body: string; messageId: string } | undefined
+  >(undefined);
   const reply = useReplyComment(scope, context);
   const resolve = useResolveComment(scope, context);
   const state = threadState(thread);
@@ -356,15 +356,15 @@ export function ThreadCard({
       onSubmit={(event) => {
         event.preventDefault();
         if (!commentBodyValid(body) || reply.result.waiting) return;
-        const intent = retainIntent(pendingReply.current, body, () => ({
+        const intent = retainIntent(pendingReply, body, () => ({
           body,
           messageId: crypto.randomUUID(),
         }));
-        pendingReply.current = intent;
+        setPendingReply(intent);
         reply.send(
           { threadId: thread.id, body, messageId: intent.messageId },
           () => {
-            pendingReply.current = undefined;
+            setPendingReply(undefined);
             setBody('');
             setReplying(false);
           },
@@ -381,7 +381,7 @@ export function ThreadCard({
             required
             disabled={reply.result.waiting}
             onChange={(event) => {
-              pendingReply.current = undefined;
+              setPendingReply(undefined);
               setBody(event.target.value);
             }}
             placeholder="Add a reply…"

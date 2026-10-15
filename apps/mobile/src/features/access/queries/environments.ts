@@ -1,5 +1,5 @@
-import { useAtomValue } from '@effect/atom-react';
-import { useEffect } from 'react';
+import { useAtomValue, useAtomMount } from '@effect/atom-react';
+import { Atom } from 'effect/reactivity';
 import { useIsFocused } from 'expo-router';
 import {
   readRemoteStatus,
@@ -9,13 +9,18 @@ import {
 import type { Remote } from '@porcelain/client/access/rules';
 import { accessPlatform } from '../../../shared/adapters/access-platform';
 
+const focusedRemoteStatus = Atom.family(
+  ({ focused, remote }: { focused: boolean; remote: Remote }) =>
+    Atom.make(() => {
+      if (focused) revalidateRemoteStatus(accessPlatform, remote);
+    }),
+);
+
 export function useEnvironmentStatus(remote: Remote) {
   const atom = readRemoteStatus(accessPlatform, remote);
   const result = useAtomValue(atom);
   const focused = useIsFocused();
-  useEffect(() => {
-    if (focused) revalidateRemoteStatus(accessPlatform, remote);
-  }, [focused, remote]);
+  useAtomMount(focusedRemoteStatus({ focused, remote }));
   return {
     status: remoteStatusResult(remote, result),
   };

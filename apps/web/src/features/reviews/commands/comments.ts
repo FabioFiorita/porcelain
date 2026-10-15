@@ -1,20 +1,31 @@
+import { useId } from 'react';
 import { COMMENT_BODY_LENGTH } from '@porcelain/contracts/shared';
-import { useAtom, useAtomSet } from '@effect/atom-react';
+import { useAtom, useAtomMount } from '@effect/atom-react';
 import { Atom } from 'effect/reactivity';
 import { commentWriteBinding } from '@porcelain/client/reviews';
-import { commentCommands } from '@porcelain/client/reviews';
+import {
+  commentCommands,
+  observeCommentVisibility,
+} from '@porcelain/client/reviews';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 
 function useCommentWrite<Input, A, E>(command: Atom.AtomResultFn<Input, A, E>) {
   return commentWriteBinding(useAtom(command, { mode: 'promiseExit' }));
 }
-export function useMarkCommentsSeen(
+export function useVisibleComments(
   scope: ReviewScope,
   context: ConnectionContext,
+  filter: 'open' | 'resolved',
 ) {
-  return useAtomSet(
-    commentCommands({ scope, connection: context.connection }).seen,
+  const owner = useId();
+  useAtomMount(
+    observeCommentVisibility({
+      connection: context.connection,
+      scope,
+      owner,
+      filter,
+    }),
   );
 }
 export function useCreateComment(

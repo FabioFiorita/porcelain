@@ -5,7 +5,6 @@ export {
   changeAnchor,
   commentBodyValid,
   commentIsStale,
-  commentsSeenThrough,
   matchesCommentTarget,
   rangeAnchor,
   resolvedCleanup,

@@ -1,6 +1,6 @@
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { useId, useRef, useState } from 'react';
+import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { shortOid } from '@porcelain/client/history/rules';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,7 +31,7 @@ export function InlineComposer({
 }) {
   const id = useId();
   const [body, setBody] = useState('');
-  const pending = useRef<
+  const [pending, setPending] = useState<
     | { body: string; anchor: string; threadId: string; messageId: string }
     | undefined
   >(undefined);
@@ -41,7 +41,7 @@ export function InlineComposer({
   const submit = () => {
     if (!valid || mutation.result.waiting) return;
     const intent = retainIntent(
-      pending.current?.anchor === anchorKey ? pending.current : undefined,
+      pending?.anchor === anchorKey ? pending : undefined,
       body,
       () => ({
         body,
@@ -50,11 +50,11 @@ export function InlineComposer({
         messageId: crypto.randomUUID(),
       }),
     );
-    pending.current = intent;
+    setPending(intent);
     mutation.send(
       { anchor, body, threadId: intent.threadId, messageId: intent.messageId },
       () => {
-        pending.current = undefined;
+        setPending(undefined);
         onClose();
       },
     );
@@ -89,7 +89,7 @@ export function InlineComposer({
         maxLength={mutation.bodyLimit}
         disabled={mutation.result.waiting}
         onChange={(event) => {
-          pending.current = undefined;
+          setPending(undefined);
           setBody(event.target.value);
         }}
         onKeyDown={(event) => {

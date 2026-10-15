@@ -1,20 +1,14 @@
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
-import { EditProvider, File, Virtualizer } from '@pierre/diffs/react';
 import { CheckIcon } from 'lucide-react';
 import { type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
 import type { FileDraftHandle } from '@porcelain/client/files';
 import type { FileDraftState } from '@porcelain/client/files';
-import { createPierreFileOptions } from '@/shared/lib/pierre';
-import { useFileDraftSaving } from '@/features/files/commands/edit-file';
+import { fileDraftSaving } from '@/features/files/commands/edit-file';
 import { fileErrorMessage } from '@porcelain/client/files/rules';
-import {
-  createEditor,
-  usePierreFileEditor,
-} from '../adapters/pierre-file-editor';
-import { usePreferences, useTheme } from '@/features/preferences/index';
+import { usePierreFileEditor } from '../adapters/pierre-file-editor';
 
 function FileEditor({
   owner,
@@ -37,22 +31,19 @@ function FileEditor({
   onDiscard: () => void;
   renderToolbar?: (controls: ReactNode) => ReactNode;
 }) {
-  const { preferences } = usePreferences();
-  const { dark } = useTheme();
-  const {
-    changedOnDisk,
-    change,
-    copyDraft,
-    save,
-    done,
-    discard,
+  const changedOnDisk = draft.blocked;
+  const { copyDraft, save, done, discard, notifyUnsaved } = fileDraftSaving(
+    owner,
+    draft,
+    toast.add,
+  );
+  const { initialText, attach } = usePierreFileEditor(
+    owner,
+    path,
+    state.text,
+    draft,
     notifyUnsaved,
-  } = useFileDraftSaving(owner, draft, toast.add);
-  const {
-    file,
-    initialText,
-    options: editorOptions,
-  } = usePierreFileEditor(owner, path, state.text, draft, notifyUnsaved);
+  );
   const label = saveLabel(state, changedOnDisk, initialText);
   const controls = (
     <>
@@ -102,20 +93,7 @@ function FileEditor({
           </Button>
         </div>
       )}
-      <Virtualizer className="min-h-0 flex-1 overflow-auto">
-        <EditProvider createEditor={createEditor}>
-          <File
-            file={file}
-            edit
-            editorOptions={editorOptions}
-            options={createPierreFileOptions(dark ? 'dark' : 'light', {
-              overflow: preferences.lineOverflow,
-            })}
-            onEditChange={(event) => change(event.file.contents)}
-            onEditComplete={() => 'reject'}
-          />
-        </EditProvider>
-      </Virtualizer>
+      <div ref={attach} className="min-h-0 flex-1 overflow-auto" />
     </div>
   );
 }

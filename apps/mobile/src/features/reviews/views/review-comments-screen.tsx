@@ -1,5 +1,5 @@
 import { Box } from '../../../components/ui/box';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Stack, useRouter, usePreventRemove } from 'expo-router';
 import { randomUUID } from 'expo-crypto';
 import { Alert, ScrollView } from 'react-native';
@@ -35,6 +35,7 @@ import {
 import {
   commentBodyLimit,
   useCommentCommands,
+  useVisibleComments,
   useCommentWrite,
 } from '../commands/comments';
 import { documentCommentContext } from '../rules/document-comment';
@@ -123,33 +124,22 @@ export function CommentThreads({
   const [target, setTarget] = useState<ComposerTarget | undefined>(() =>
     compose && anchor ? { anchor } : undefined,
   );
-  useEffect(() => {
-    onComposerChange?.(target?.anchor);
-  }, [onComposerChange, target?.anchor]);
   const draft = useCommentDraft(
     workspace,
     target,
-    () => setTarget(undefined),
+    () => {
+      setTarget(undefined);
+      onComposerChange?.(undefined);
+    },
     leaveScope,
   );
   const open = (next: ComposerTarget) =>
-    draft.confirmDiscard(() => setTarget(next));
-  const commands = useCommentCommands(workspace);
-  const seen = useCommentWrite(commands.seen);
-  const highest =
-    AsyncResult.isSuccess(result) && !path
-      ? result.value.reduce(
-          (value, thread) => Math.max(value, thread.revision),
-          0,
-        )
-      : 0;
-  const marked = useRef(0);
-  useEffect(() => {
-    if (highest > marked.current) {
-      marked.current = highest;
-      seen.send(highest);
-    }
-  }, [highest, seen]);
+    draft.confirmDiscard(() => {
+      setTarget(next);
+      onComposerChange?.(next.anchor);
+    });
+  useVisibleComments(workspace, !path);
+
   const threads = AsyncResult.isSuccess(result)
     ? result.value.filter((thread) =>
         currentTarget
@@ -301,14 +291,14 @@ function useCommentDraft(
   const pending = target !== undefined && result.waiting;
   const [body, setBody] = useState('');
   const [invalid, setInvalid] = useState<string>();
-  const intent = useRef<
+  const [intent, setIntent] = useState<
     { body: string; threadId: string; messageId: string } | undefined
   >(undefined);
   const failure = target ? writeFailure(result) : undefined;
   const reset = (complete: () => void) => {
     setBody('');
     setInvalid(undefined);
-    intent.current = undefined;
+    setIntent(undefined);
     create.reset();
     reply.reset();
     complete();
@@ -358,12 +348,12 @@ function useCommentDraft(
         );
         return;
       }
-      intent.current = retainIntent(intent.current, body, () => ({
+      const input = retainIntent(intent, body, () => ({
         body,
         threadId: target.threadId ?? randomUUID(),
         messageId: randomUUID(),
       }));
-      const input = intent.current;
+      setIntent(input);
       const sent = () => reset(onClose);
       if (target.threadId)
         reply.send(

@@ -1,5 +1,5 @@
 import { diffSelection, omissionReason } from '@porcelain/client/changes/rules';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { isImagePath } from '@porcelain/client/files/rules';
 import { Button } from '@/components/ui/button';
@@ -353,13 +353,11 @@ function OmittedDiscussion({
 }) {
   const { threads } = useComments(scope, context);
   const [compose, setCompose] = useState(false);
-  const handled = useRef<number | undefined>(undefined);
-  useEffect(() => {
-    if (commentRequest !== undefined && handled.current !== commentRequest) {
-      handled.current = commentRequest;
-      setCompose(true);
-    }
-  }, [commentRequest]);
+  const [handled, setHandled] = useState<number>();
+  if (commentRequest !== undefined && handled !== commentRequest) {
+    setHandled(commentRequest);
+    setCompose(true);
+  }
   const visible = threads.filter(
     (thread) =>
       thread.anchor.kind === 'file' &&
