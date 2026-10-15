@@ -2,6 +2,15 @@
 
 Porcelain is a companion to coding agents: it is where a developer reviews what an agent changed, comments back to the agent through MCP, reads the code and makes small edits, from a browser, the Mac app or a phone. One server runs on the developer's machine; the web, desktop and mobile apps connect to it locally, over the local network or across several remote environments.
 
+## Product
+
+- **A companion, not a harness.** Agents run in their own apps; Porcelain reads their work and answers them through MCP.
+- **Review in order of what matters.** A review walks through the changes by importance, not by file name; tests and specs need less attention than product code.
+- **A file tree for very large repositories.** The developer pins the files and folders they care about and hides the ones they never open.
+- **Git beside the review:** history, a per-file timeline, commit, pull and push.
+- **One Porcelain for every machine.** It connects to the server on each of the developer's machines.
+- **Phone and tablet.** The iPhone is a companion: check, review, comment and small controls. The iPad can replace the desk, so its layouts are designed and verified in landscape first, and portrait stays usable.
+
 ## How we work
 
 Simple systems, the smallest model that makes the correct behaviour unsurprising, and no machinery because it looks impressive. Fight scope creep; honour the developer's intent in a minimal and realistic way. Everything below is a good default, and the developer's request overrides it. Work autonomously and ask only when the answer would change the result.
@@ -25,6 +34,14 @@ Before calling a change done, check each of these and say which applied:
 - **Contract:** anything crossing the wire is a schema in `packages/contracts`. The server contract stays the server's; clients follow it.
 - **The way back:** a way in needs a way out and a way to see it.
 - **Connections:** local, local network and remote environments behave differently.
+
+## Libraries
+
+Each job has one library; the checks enforce most of them, and these have no check:
+
+- Code, diffs and file trees render with Pierre (`@pierre/diffs`, `@pierre/trees`). Mobile highlights code with Shiki, because Pierre's renderers need a browser page.
+- On the web, Markdown renders with TanStack Markdown.
+- Shared and saved client state lives in Effect atoms; `useState` holds only one component's UI details.
 
 ## Library documentation
 
