@@ -2,7 +2,7 @@ import { Slot } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Dimensions, useWindowDimensions } from 'react-native';
 import { Box } from '../components/ui/box';
-import { Separator } from '../components/ui/separator';
+import { SidebarPane } from '../components/ui/sidebar-pane';
 import { useAppSidebar } from '../features/preferences';
 import { TabletSidebar } from './tablet-sidebar';
 
@@ -29,14 +29,9 @@ export function TabletLayout() {
       surface="background"
       onLayout={({ nativeEvent: { layout } }) => setWidth(layout.width)}
     >
-      {sidebarVisible ? (
-        <>
-          <Box className={compact ? 'w-48 shrink-0' : 'w-64 shrink-0'}>
-            <TabletSidebar windowed={windowed} />
-          </Box>
-          <Separator orientation="vertical" />
-        </>
-      ) : null}
+      <SidebarPane visible={sidebarVisible} compact={compact}>
+        <TabletSidebar windowed={windowed} />
+      </SidebarPane>
       <Box className="min-w-0 flex-1">
         <Slot />
       </Box>
