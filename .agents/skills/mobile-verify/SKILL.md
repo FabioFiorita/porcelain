@@ -1,6 +1,6 @@
 ---
 name: mobile-verify
-description: Prepare a disposable Porcelain mobile run, drive its development client with the pinned agent-device CLI, and retain evidence. Use before calling a mobile change done or correcting maps.
+description: Prepare a disposable Porcelain mobile run, drive its development client with the synced agent-device CLI, and retain evidence. Use before calling a mobile change done or correcting maps.
 ---
 
 # Mobile verification
@@ -8,7 +8,7 @@ description: Prepare a disposable Porcelain mobile run, drive its development cl
 From the repository root, `C=.agents/skills/mobile-verify/scripts/cli`.
 
 1. Follow the workstation's device-usage rules. Run `$C doctor`, then `$C start --fixture focused` (or add `--device ipad`) for the feature-map journeys. Native changes need `$C build` on the Mac first. The launcher owns a disposable server, Metro, pairing and a simulator claim; it closes its setup session before handing over.
-2. Read the short card and private `connection.json`. Use **the entire pinned agent-device invocation** on every call: config, session, platform and owned UDID. Open the card's app with `--foreground` to establish the journey's proxy lease, then prepare its Apple runner with `prepare ios-runner` before interactions; setup already prepares its own session before pairing. Drive with that CLI, never agent-device MCP or interaction commands on `$C`. See [driving](references/driving.md).
+2. Read the short card and private `connection.json`. Use **the entire agent-device invocation from the card** on every call: config, session, platform and owned UDID. Open the card's app with `--foreground` to establish the journey's proxy lease, then prepare its Apple runner with `prepare ios-runner` before interactions; setup already prepares its own session before pairing. Drive with that CLI, never agent-device MCP or interaction commands on `$C`. See [driving](references/driving.md).
 3. Read [the feature map](features/README.md), drive its entry points and way back, and check each end state with fresh interactive snapshots, screenshots and independent server/storage reads. Save evidence in the card's folder. Pairing links and host tokens stay private.
 4. Run the card's logs and stop commands. Stop closes only this run's sessions, stops captured processes and releases its claim; pooled simulators are shut down and never deleted. A borrowed `--udid` stays booted. Evidence remains. A failed stop retains private runtime state; inspect and retry by instance id.
 5. Run `pnpm check:local` and only the changed specs by name. CI owns full suites. Keep the live instance running while you iterate; Metro reloads JavaScript edits. Mobile features are driven on demand through this skill.

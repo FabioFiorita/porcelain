@@ -9,7 +9,7 @@ import {
   screenLink,
 } from '@porcelain/mobile/kit/development-client';
 import type { RemoteHost } from '@porcelain/mobile/kit/device-host';
-import { agentDevice } from '@porcelain/mobile/kit/tools';
+import { agentDevice, agentDeviceMissing } from '@porcelain/mobile/kit/tools';
 import { Refusal } from '../../verify-core/cli.ts';
 import { shellCommand } from '../../verify-core/connection.ts';
 import { hubToken, hubUrl } from './host.ts';
@@ -134,9 +134,7 @@ export function driver(
     { mode: 0o600 },
   );
   if (suppliedCommand === undefined && !existsSync(agentDevice))
-    throw new Refusal(
-      'agent-device is missing from this checkout: run pnpm install.',
-    );
+    throw new Refusal(agentDeviceMissing);
   const launcher = suppliedCommand ?? join(folder, 'agent-device');
   if (suppliedCommand === undefined)
     writeFileSync(
@@ -147,7 +145,7 @@ const args = process.argv.slice(2);
 const transport = ['connect', 'disconnect'].includes(args[0]);
 const required = transport ? ['--config', '--session'] : ['--config', '--session', '--platform', '--udid'];
 if (!required.every(flag => args.includes(flag) && args[args.indexOf(flag) + 1])) {
-  console.error('Use the full pinned invocation from the connection card.'); process.exit(2);
+  console.error('Use the full invocation from the connection card.'); process.exit(2);
 }
 const env = { ...process.env, AGENT_DEVICE_STATE_DIR: '/tmp/porcelain-agent-device' };
 for (const key of ['AGENT_DEVICE_DAEMON_BASE_URL', 'AGENT_DEVICE_DAEMON_AUTH_TOKEN', 'AGENT_DEVICE_CONFIG']) delete env[key];

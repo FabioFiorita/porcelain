@@ -4,7 +4,10 @@ import {
   hostFileName,
   type RemoteHost,
 } from '@porcelain/mobile/kit/device-host';
-import { agentDeviceVersion } from '@porcelain/mobile/kit/tools';
+import {
+  agentDeviceMissing,
+  agentDeviceVersion,
+} from '@porcelain/mobile/kit/tools';
 import { sandboxProblems } from '../../verify-core/cli.ts';
 const hubLimitMs = 5000;
 const healthSchema = Schema.Struct({
@@ -63,11 +66,13 @@ async function hubProblems(host: RemoteHost): Promise<string[]> {
     return [
       `the agent-device hub at ${host.hub} answers, but the device daemon behind it does not; restart the hub on the device host, and keep its daemon alive with AGENT_DEVICE_DAEMON_IDLE_TIMEOUT_MS=0 (references/remote.md)`,
     ];
+  const client = agentDeviceVersion();
+  if (client === undefined) return [agentDeviceMissing];
   const versions = new Set([health.version, health.upstream.version]);
-  return versions.size === 1 && versions.has(agentDeviceVersion)
+  return versions.size === 1 && versions.has(client)
     ? []
     : [
-        `the agent-device hub runs ${[...versions].join(' and ')} but this checkout pins ${agentDeviceVersion}, and the two refuse each other; install agent-device ${agentDeviceVersion} on the device host and restart its hub`,
+        `the agent-device hub runs ${[...versions].join(' and ')} but this machine's synced client runs ${client}, and the two refuse each other; run \`device sync\` from the engineering plugin to move both to the version T3 Code pins`,
       ];
 }
 export async function hostProblems(

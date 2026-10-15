@@ -198,7 +198,7 @@ export async function startProblems(
   const problems = [
     ...sandboxProblems(),
     memoryProblem(),
-    ...missingTools(['simulator', 'agent-device']),
+    ...missingTools(ownDriver ? ['simulator'] : ['simulator', 'agent-device']),
   ];
   if (process.platform !== 'darwin')
     problems.push(
