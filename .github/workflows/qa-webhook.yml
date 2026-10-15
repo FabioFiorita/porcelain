@@ -4,8 +4,7 @@ name: QA webhook
 # webhook starts one run per POST and does not deduplicate, so send exactly once per commit:
 # when CI succeeds on a labelled pull request, or when the label is added after CI already passed.
 # A pass covers the commit the reviewer tested: a push with new commits of its own (not only a
-# merge from main) turns `qa-passed` back into `needs-qa` and turns auto-merge off, so its green
-# CI starts the next review instead of merging untested code.
+# merge from main) turns `qa-passed` back into `needs-qa`, so its green CI starts the next review.
 
 on:
   workflow_run:
@@ -98,7 +97,6 @@ jobs:
       && contains(github.event.pull_request.labels.*.name, 'qa-passed')
     runs-on: ubuntu-latest
     permissions:
-      contents: write
       issues: write
       pull-requests: write
     steps:
@@ -118,7 +116,4 @@ jobs:
             exit 0
           fi
           gh pr edit "$NUMBER" --repo "$REPO" --remove-label qa-passed --add-label needs-qa
-          if [ "$(gh pr view "$NUMBER" --repo "$REPO" --json autoMergeRequest --jq '.autoMergeRequest != null')" = true ]; then
-            gh pr merge "$NUMBER" --repo "$REPO" --disable-auto
-          fi
           echo "#$NUMBER changed after its QA pass ($(printf '%s\n' "$changed" | wc -l) new commits); it needs QA again at $SHA."
