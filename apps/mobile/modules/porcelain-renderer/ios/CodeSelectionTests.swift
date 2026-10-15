@@ -36,5 +36,13 @@ struct CodeSelectionTests {
     #expect(state.choose(nil, 20, reset: false) == ReviewSelection(side: nil, startLine: 20, endLine: 20))
     #expect(state.choose(nil, 22, reset: true) == ReviewSelection(side: nil, startLine: 22, endLine: 22))
   }
+
+  @Test func delayedEchoFromThePreviousSideKeepsTheNativeAnchor() {
+    let state = CodeState()
+    _ = state.choose("deletions", 30, reset: false)
+    _ = state.choose("additions", 8, reset: false)
+    state.select("{\"side\":\"deletions\",\"startLine\":30,\"endLine\":30}")
+    #expect(state.choose("additions", 9, reset: false) == ReviewSelection(side: "additions", startLine: 8, endLine: 9))
+  }
 }
 #endif

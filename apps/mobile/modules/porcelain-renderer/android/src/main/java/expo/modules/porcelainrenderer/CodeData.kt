@@ -7,6 +7,7 @@ import org.json.JSONObject
 data class CodeToken(val text: String, val changed: Boolean, val color: Color?, val fontStyle: Int)
 data class CodeLine(val id: String, val text: String, val oldLine: Int?, val newLine: Int?, val kind: String, val tokens: List<CodeToken>)
 data class ReviewSelection(val side: String?, val startLine: Int, val endLine: Int)
+data class CodeAnchor(val side: String?, val line: Int)
 data class CodeOptions(val wrap: Boolean = true, val lineNumbers: Boolean = true, val foreground: Color = Color.Black, val background: Color = Color.White, val muted: Color = Color.Gray)
 
 internal fun decodeCodeLines(value: String): List<CodeLine> {

@@ -27,3 +27,7 @@ struct ReviewSelection: Decodable, Equatable {
     value.isEmpty ? nil : try? JSONDecoder().decode(ReviewSelection.self, from: Data(value.utf8))
   }
 }
+struct CodeAnchor {
+  let side: String?
+  let line: Int
+}
