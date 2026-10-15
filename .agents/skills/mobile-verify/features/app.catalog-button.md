@@ -1,11 +1,11 @@
 ---
 screen: /component-button
 selectors:
-  - "Explore Button"
-  - "Variants"
-  - "Disabled and pending"
-  - "Start pending demo"
-  - "Finish pending demo"
+  - 'Explore Button'
+  - 'Variants'
+  - 'Disabled and pending'
+  - 'Start pending demo'
+  - 'Finish pending demo'
 tests: []
 api: []
 ---

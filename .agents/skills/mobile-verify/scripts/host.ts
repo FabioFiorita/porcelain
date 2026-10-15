@@ -121,17 +121,13 @@ async function nativeProblem(
     nativeFingerprint(),
     inspect(ssh, checkout),
   ]);
-  const build = shellCommand([
-    'ssh',
-    ssh,
-    `cd ${shellCommand([checkout])} && mise exec -- ${buildCommand}`,
-  ]);
+  const build = `run ${buildCommand} on the Mac in ${checkout} (ssh ${ssh})`;
   if ('failure' in mac)
     return `the Mac checkout ${checkout} could not report its native fingerprint over ssh ${ssh}: ${mac.failure}`;
   if (mac.fingerprint !== local)
-    return `the Mac checkout ${checkout} has different native inputs (fingerprint ${mac.fingerprint}) from this checkout (${local}); check out this commit there and run pnpm install, then build its development client with ${build}`;
+    return `the Mac checkout ${checkout} has different native inputs (fingerprint ${mac.fingerprint}) from this checkout (${local}); check out this commit there and run pnpm install, then ${build}`;
   if (!mac.client)
-    return `the Mac has no development client for this native fingerprint (${local}); native inputs changed since the last build, so build it with ${build}`;
+    return `the Mac has no development client for this native fingerprint (${local}); native inputs changed since the last build, so ${build}`;
   return undefined;
 }
 export async function hostProblems(

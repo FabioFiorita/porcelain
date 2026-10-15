@@ -10,7 +10,7 @@ const host = {
   checkout: '/Users/developer/porcelain',
 };
 const build =
-  "'ssh' 'mac' 'cd '\\''/Users/developer/porcelain'\\'' && mise exec -- .agents/skills/mobile-verify/scripts/cli build'";
+  'run .agents/skills/mobile-verify/scripts/cli build on the Mac in /Users/developer/porcelain (ssh mac)';
 
 it('refuses to start when the Mac checkout has different native inputs', async () => {
   const local = await nativeFingerprint();
@@ -21,7 +21,7 @@ it('refuses to start when the Mac checkout has different native inputs', async (
   }));
 
   expect(problems).toContain(
-    `the Mac checkout /Users/developer/porcelain has different native inputs (fingerprint mac-fingerprint) from this checkout (${local}); check out this commit there and run pnpm install, then build its development client with ${build}`,
+    `the Mac checkout /Users/developer/porcelain has different native inputs (fingerprint mac-fingerprint) from this checkout (${local}); check out this commit there and run pnpm install, then ${build}`,
   );
 });
 
@@ -34,7 +34,7 @@ it('refuses to start when the Mac has no development client for these native inp
   }));
 
   expect(problems).toContain(
-    `the Mac has no development client for this native fingerprint (${local}); native inputs changed since the last build, so build it with ${build}`,
+    `the Mac has no development client for this native fingerprint (${local}); native inputs changed since the last build, so ${build}`,
   );
 });
 
