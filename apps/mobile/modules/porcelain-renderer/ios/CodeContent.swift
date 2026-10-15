@@ -2,7 +2,7 @@ import SwiftUI
 
 struct CodeContent: View {
   @Bindable var model: CodeState
-  let choose: (String?, Int, Bool) -> Void
+  let choose: (CodeLine, Bool) -> Void
   let expand: (String) -> Void
   let copy: (String) -> Void
   @Environment(\.fontResolutionContext) private var fontContext
@@ -84,22 +84,21 @@ struct CodeContent: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(selected ? Color.accentColor.opacity(0.18) : line.kind == "added" ? Color.green.opacity(0.1) : line.kind == "removed" ? Color.red.opacity(0.1) : .clear)
     .contentShape(Rectangle())
-    .onTapGesture { if let number { select(side, number, reset: false) } }
+    .onTapGesture { select(line, reset: false) }
     .accessibilityElement(children: .combine)
     .accessibilityLabel("\(line.kind ?? "code") \(side ?? "file") line \(number ?? 0): \(line.text)")
-    .accessibilityAction(named: "Select for review") { if let number { select(side, number, reset: true) } }
-    .accessibilityAction(named: "Extend review selection") { if let number { select(side, number, reset: false) } }
+    .accessibilityAction(named: "Select for review") { select(line, reset: true) }
+    .accessibilityAction(named: "Extend review selection") { select(line, reset: false) }
     .contextMenu {
       Button("Copy line") { copy(line.text) }
-      if model.selectable, let number {
-        Button("Select for review") { select(side, number, reset: true) }
-        Button("Extend review selection") { select(side, number, reset: false) }
+      if model.selectable, number != nil {
+        Button("Select for review") { select(line, reset: true) }
+        Button("Extend review selection") { select(line, reset: false) }
       }
     }
   }
-  func select(_ side: String?, _ line: Int, reset: Bool) {
-    guard model.selectable else { return }
-    choose(side, line, reset)
+  func select(_ line: CodeLine, reset: Bool) {
+    choose(line, reset)
   }
   func highlight(_ line: CodeLine) -> AttributedString {
     guard let tokens = line.tokens else { return AttributedString(line.text.isEmpty ? " " : line.text) }

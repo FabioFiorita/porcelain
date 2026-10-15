@@ -16,8 +16,10 @@ class CodeSurface(context: Context, appContext: AppContext) : ExpoView(context, 
     mountContent { CodeContent(state.lines, state.options, state.tokens, state.selection, state.selectable, state::location, ::select, { id -> onExpand(mapOf("id" to id)) }, ::copy) }
   }
 
-  private fun select(side: String?, line: Int, reset: Boolean) {
-    val selection = state.choose(side, line, reset)
+  private fun select(line: CodeLine, reset: Boolean) {
+    if (!state.selectable) return
+    val location = state.location(line) ?: return
+    val selection = state.choose(location.side, location.line, reset)
     val range = mutableMapOf<String, Any>("startLine" to selection.startLine, "endLine" to selection.endLine)
     selection.side?.let { range["side"] = it }
     onSelect(range)

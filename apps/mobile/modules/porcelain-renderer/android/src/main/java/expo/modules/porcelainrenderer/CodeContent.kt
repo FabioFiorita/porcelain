@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: RenderTokens, selection: ReviewSelection?, selectable: Boolean, location: (CodeLine) -> CodeLocation?, choose: (String?, Int, Boolean) -> Unit, expand: (String) -> Unit, copy: (String) -> Unit) {
+internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: RenderTokens, selection: ReviewSelection?, selectable: Boolean, location: (CodeLine) -> CodeLocation?, choose: (CodeLine, Boolean) -> Unit, expand: (String) -> Unit, copy: (String) -> Unit) {
   val digits = remember(lines) { (lines.maxOfOrNull { maxOf(it.oldLine ?: 0, it.newLine ?: 0) } ?: 1).toString().length }
   val measurer = rememberTextMeasurer()
   val density = LocalDensity.current
@@ -46,8 +46,8 @@ internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: Re
           var menu by remember { mutableStateOf(false) }
           Box {
             Row(Modifier.fillMaxWidth().background(if (selected) Color.Blue.copy(alpha = 0.12f) else if (line.kind == "added") Color.Green.copy(alpha = 0.1f) else if (line.kind == "removed") Color.Red.copy(alpha = 0.1f) else Color.Transparent)
-              .combinedClickable(onClick = { if (selectable && number != null) choose(side, number, false) }, onLongClick = { menu = true })
-              .semantics { contentDescription = "${line.kind} ${side ?: "file"} line ${number ?: 0}: ${line.text}"; customActions = listOf(CustomAccessibilityAction("Select for review") { if (selectable && number != null) { choose(side, number, true); true } else false }, CustomAccessibilityAction("Extend review selection") { if (selectable && number != null) { choose(side, number, false); true } else false }) }
+              .combinedClickable(onClick = { if (selectable && number != null) choose(line, false) }, onLongClick = { menu = true })
+              .semantics { contentDescription = "${line.kind} ${side ?: "file"} line ${number ?: 0}: ${line.text}"; customActions = listOf(CustomAccessibilityAction("Select for review") { if (selectable && number != null) { choose(line, true); true } else false }, CustomAccessibilityAction("Extend review selection") { if (selectable && number != null) { choose(line, false); true } else false }) }
               .padding(horizontal = tokens.spacing.dp, vertical = tokens.inset.dp), horizontalArrangement = Arrangement.spacedBy(tokens.spacing.dp)) {
               if (options.lineNumbers) {
                 if (line.oldLine != null || line.kind in listOf("added", "removed")) Text(line.oldLine?.toString() ?: " ", Modifier.width(gutterWidth), color = options.muted, fontSize = tokens.codeSize.sp, fontFamily = FontFamily.Monospace)
@@ -62,8 +62,8 @@ internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: Re
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
               DropdownMenuItem(text = { Text("Copy line") }, onClick = { copy(line.text); menu = false })
               if (selectable && number != null) {
-                DropdownMenuItem(text = { Text("Select for review") }, onClick = { choose(side, number, true); menu = false })
-                DropdownMenuItem(text = { Text("Extend review selection") }, onClick = { choose(side, number, false); menu = false })
+                DropdownMenuItem(text = { Text("Select for review") }, onClick = { choose(line, true); menu = false })
+                DropdownMenuItem(text = { Text("Extend review selection") }, onClick = { choose(line, false); menu = false })
               }
             }
           }
