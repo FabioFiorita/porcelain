@@ -26,12 +26,23 @@ test('History shows a commit made on disk above the start of history, and the se
     name: new RegExp(`^${subject}`),
   });
   await expect.element(tip).toBeVisible();
-  await expect
-    .element(initial.getByText('before-commit', { exact: true }))
-    .toBeVisible();
+  const beforeCommit = workspace.getByRole('button', {
+    name: 'before-commit',
+    exact: true,
+  });
+  await expect.element(beforeCommit).toBeVisible();
   await expect
     .poll(() => subjects(server.commits))
     .toEqual([subject, repo.initialCommit]);
+  await beforeCommit.click();
+  await expect
+    .element(
+      workspace.getByRole('heading', {
+        name: repo.initialCommit,
+        exact: true,
+      }),
+    )
+    .toBeVisible();
 });
 
 test('switching the worktree to a branch without that commit drops it from History', async ({
