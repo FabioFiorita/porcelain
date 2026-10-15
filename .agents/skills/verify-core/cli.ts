@@ -49,10 +49,17 @@ export function sandboxProblems(): string[] {
 
 const memoryFloorGiB = 4;
 
-export function memoryProblem(
-  meminfo = process.platform === 'linux'
-    ? readFileSync('/proc/meminfo', 'utf8')
-    : undefined,
+function readMeminfo(): string | undefined {
+  if (process.platform !== 'linux') return undefined;
+  try {
+    return readFileSync('/proc/meminfo', 'utf8');
+  } catch {
+    return undefined;
+  }
+}
+
+export function memoryShortage(
+  meminfo: string | undefined,
 ): string | undefined {
   const kib = meminfo && /^MemAvailable:\s+(\d+) kB$/m.exec(meminfo)?.[1];
   if (!kib) return undefined;
@@ -60,6 +67,10 @@ export function memoryProblem(
   return available < memoryFloorGiB
     ? `only ${available.toFixed(1)} GiB of memory is available and a disposable instance needs ${memoryFloorGiB} GiB free, because starting instances under memory pressure has crashed this machine; stop an instance you own or wait for other runs to finish`
     : undefined;
+}
+
+export function memoryProblem(): string | undefined {
+  return memoryShortage(readMeminfo());
 }
 
 export function optionalDrivers(): string[] {
