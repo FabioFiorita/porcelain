@@ -38,6 +38,7 @@ import {
   type SampleRepository,
 } from '../kit/shapes.ts';
 import { createPierreCodeView } from './pierre-code-view.ts';
+import { refChips } from './ref-chips.ts';
 import { host } from './commands.ts';
 import { createFetchGate, live } from './network.ts';
 
@@ -340,6 +341,7 @@ export const test = base
     onCleanup(() => viewer.dispose());
     return viewer;
   })
+  .extend('refChips', () => refChips)
   .extend('fetchGate', ({ repo }, { onCleanup }) => {
     const gate = createFetchGate(repo.readme.path);
     onCleanup(() => gate.restore());

@@ -396,25 +396,19 @@ function ScopedFileNavigation({
               type: 'error',
             })
           }
-          renderMenu={(item, context, rename, onMenuKeyDown) => {
+          renderMenu={(item, context, rename) => {
             const folder = item.kind === 'directory';
             const path =
               folder && !item.path.endsWith('/') ? `${item.path}/` : item.path;
             const menu = menuFor(path);
             return (
               <FileTreeMenu
+                key={path}
                 path={path}
-                anchor={context.anchorElement}
+                finalFocus={context.finalFocus}
                 actions={menu.actions}
                 hidden={menu.hidden}
-                onMenuKeyDown={onMenuKeyDown}
-                onAction={(id) =>
-                  menu.run(
-                    id,
-                    (restoreFocus) => context.close({ restoreFocus }),
-                    rename,
-                  )
-                }
+                onAction={(id) => menu.run(id, context.close, rename)}
               />
             );
           }}
