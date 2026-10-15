@@ -28,17 +28,20 @@ export function useWorkspacePickerModel(onSelect?: () => void) {
       ? { environmentId: selection.currentEnvironmentId, ...remembered }
       : undefined,
   );
+  const initializing =
+    access.status === 'loading' || selection.status === 'loading';
   const picker = {
     label,
-    environmentId: selection.currentEnvironmentId,
     choices,
-    projectId: remembered?.projectId,
-    worktreeId: remembered?.worktreeId,
     disabled:
       access.status !== 'ready' ||
       selection.status !== 'ready' ||
       commands.pending > 0,
-    messages,
+    messages: initializing
+      ? ['Reading workspace…']
+      : commands.pending > 0
+        ? ['Changing workspace…', ...messages]
+        : messages,
     canReadInventory: canReadAgain,
     error:
       (workspace.state.kind === 'failed'
@@ -85,7 +88,7 @@ export function useWorkspacePickerModel(onSelect?: () => void) {
         (choice) => choice.environmentId === environment.environmentId,
       ),
     })),
-    initializing: access.status === 'loading' || selection.status === 'loading',
+    initializing,
     reading: workspace.reading || inventories.reading,
   };
 }

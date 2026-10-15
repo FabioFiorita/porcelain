@@ -281,3 +281,87 @@ it('shows an unavailable project reason without a saved selection and offers ano
   ]);
   expect(result.canReadAgain).toBe(true);
 });
+
+it('gives same-named worktrees distinct targets and labels, selecting only the saved environment', () => {
+  const shared = project('shared');
+  const result = workspaceChoices(
+    ['Laptop', 'Remote'].map((name) => ({
+      environmentId: name.toLowerCase(),
+      name,
+      status: 'ready' as const,
+      inventory: inventory(name, [shared]),
+    })),
+    { environmentId: 'remote', projectId: 'shared', worktreeId: 'shared-main' },
+  );
+  expect(result.choices).toMatchObject([
+    {
+      worktrees: [
+        {
+          key: 'laptop/shared/shared-main',
+          workspace: {
+            environmentId: 'laptop',
+            projectId: 'shared',
+            worktreeId: 'shared-main',
+          },
+          label: 'main',
+          accessibilityLabel: 'Select main in Porcelain on Laptop',
+          selected: false,
+          disabled: false,
+        },
+      ],
+    },
+    {
+      worktrees: [
+        {
+          key: 'remote/shared/shared-main',
+          workspace: {
+            environmentId: 'remote',
+            projectId: 'shared',
+            worktreeId: 'shared-main',
+          },
+          label: 'main',
+          accessibilityLabel: 'Select main in Porcelain on Remote',
+          selected: true,
+          disabled: false,
+        },
+      ],
+    },
+  ]);
+});
+
+it.each(['environment', 'project', 'worktree'] as const)(
+  'disables an unavailable %s without disabling another healthy choice',
+  (unavailable) => {
+    const unhealthy = project('one', unavailable !== 'project');
+    const result = workspaceChoices(
+      [
+        {
+          environmentId: 'laptop',
+          name: 'Laptop',
+          status: unavailable === 'environment' ? 'failed' : 'ready',
+          inventory: inventory('Laptop', [
+            {
+              ...unhealthy,
+              worktrees: unhealthy.worktrees.map((worktree) => ({
+                ...worktree,
+                available: unavailable !== 'worktree',
+              })),
+            },
+          ]),
+        },
+        {
+          environmentId: 'remote',
+          name: 'Remote',
+          status: 'ready',
+          inventory: inventory('Remote', [project('two')]),
+        },
+      ],
+      undefined,
+    );
+    expect(result.choices).toMatchObject([
+      { worktrees: [{ disabled: true, selected: false }] },
+      { worktrees: [{ disabled: false, selected: false }] },
+    ]);
+    expect(result.canReadAgain).toBe(true);
+  },
+);

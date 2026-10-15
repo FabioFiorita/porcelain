@@ -33,19 +33,19 @@ api:
 
 On iPad, the sidebar lists environments, their projects and directly selectable worktree rows. It highlights the current worktree, marks the main worktree and disables unavailable entries. Its worktree rows expose Select <branch> in <project> on <environment>. There are no Files, Review or History app links in this navigator; those views belong to the selected workspace. The healthy iPad navigator has no routine refresh button. Read projects again appears for unavailable projects, unavailable linked worktrees or inventory errors and refreshes paired environments; initial storage or selection failures offer Read again.
 
-The toolbar picker uses the same metadata, readiness and selection commands as the sidebar. Its filter control is icon-only, with an accessibility label of `<project> · <worktree>` when selected or Workspace otherwise. On iOS, a project row shows its name as the title and its environment as a gray subtitle; Android uses `<project> · <environment>`. Each menu project expands to its worktrees. Choosing one saves its environment and worktree in a single update, and the choice survives a cold launch. Forgetting an environment drops its projects and remembered worktree. Each environment reads inventory and subscribes to live updates independently; a failed inventory read leaves other environments' projects available. The shared client can recover retained Git receipts.
+The toolbar picker uses the same metadata, readiness and selection commands as the sidebar. Its filter control is icon-only, with an accessibility label of `<project> · <worktree>` when selected or Workspace otherwise. Worktrees are directly selectable native toolbar menu actions, labelled `<worktree> · <project> · <environment>` with a checkmark for the saved selection; sections separate projects without a submenu expansion. Worktree accessibility labels include the project and environment, so same-named branches remain distinct. Both platforms use the shared client worktree targets, selected state and availability. The picker explains Reading workspace… and Changing workspace… while saved state or a selection command is pending. Choosing one saves its environment and worktree in a single update, and the choice survives a cold launch. Forgetting an environment drops its projects and remembered worktree. Each environment reads inventory and subscribes to live updates independently; a failed inventory read leaves other environments' projects available. The shared client can recover retained Git receipts.
 
 ## How a user reaches it
 
-- the Workspace button in the toolbar → a project with its environment subtitle → a worktree
+- the Workspace button in the toolbar → a worktree labelled with its project and environment
 - On iPad, show the sidebar → find an environment and project → select its visible worktree row. Settings remains in the shell footer.
 - An unavailable project shows a state sentence outside its disabled row, prefixed by its environment and project name. `Read projects again` refreshes every paired environment through `POST /api/inventory/refresh` and uses the returned inventory; a server without that route answers 404 and the inventory is read again instead. Mobile has no Remove project action; the web sidebar's unavailable-project popover offers Retry and, where management is enabled, Remove.
 
 ## Driving it
 
-1. On a phone, pair two disposable environments, select Files, then open the Workspace toolbar button. Expect projects from both environments in the same menu, with their environment names as subtitles on iOS and no Environment submenu. On iPad use the visible worktree navigator described below.
-2. On a phone, expand one project and select its main worktree. Expect the filter to remain icon-only with accessibility label <project> · <worktree>, the Files context caption to identify that worktree, and Files still selected.
-3. Reopen the toolbar picker by its new label. Expect both environments' projects still visible; expand a project from the other environment and choose its worktree. Expect the toolbar to update directly to that workspace.
+1. On a phone, pair two disposable environments, select Files, then open the Workspace toolbar button. Expect directly selectable worktrees from both environments in the same menu, with project and environment labels and no submenu expansion. On iPad use the visible worktree navigator described below.
+2. On a phone, select one project’s main worktree directly. Expect the filter to remain icon-only with accessibility label <project> · <worktree>, the Files context caption to identify that worktree, and Files still selected.
+3. Reopen the toolbar picker by its new label. Expect both environments' worktrees still visible; choose a worktree from the other environment directly. Expect the toolbar to update directly to that workspace.
 4. Dismiss the native menu. Expect the same worktree and destination.
 5. Cold-launch the development client against the same Metro URL. Expect the remembered workspace after returning to Files.
 6. Read the app's saved selection IDs from its SQLite store and compare them to fixtures.environmentId, projectId and worktreeId in connection.json; also retain the native inventory/live requests from the server log.
@@ -65,10 +65,8 @@ For the iPad sidebar, pair two disposable environments and check their project/w
 - Live tickets and receipt recovery use the shared client. iPhone evidence does not prove iPad or Android behavior.
 
 - After choosing a worktree, reopen the picker through its new `<project> · <worktree>` label.
-- iPad sidebar rows are Porcelain controls; its optional toolbar picker and the iPhone toolbar picker use SwiftUI Menus with native checkmarked worktree actions. Android uses Expo Router's toolbar menu. Drive each entry point on its platform during mobile verification.
+- iPad sidebar rows are Porcelain controls; its optional toolbar picker and the iPhone toolbar picker use Expo Router's native toolbar menu with checkmarked worktree actions. Android uses the same toolbar menu component. Drive each entry point on its platform during mobile verification.
 - The shared forget-environments flow ends in Settings. The workspace flow returns to Files before checking its toolbar's reset label and absence of the old worktree labels.
-
-- Native iOS project rows expose an accessibility label of `<project>, <environment>` for their title and subtitle.
 
 ## Selected workspace states
 
