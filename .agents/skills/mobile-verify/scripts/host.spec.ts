@@ -32,20 +32,19 @@ afterEach(async () => {
 });
 
 async function mac(stdout: string, stderr = '', status = 0) {
-  const calls = join(directory, 'calls.json');
+  const calls = join(directory, 'calls.txt');
   await writeFile(
     join(directory, 'ssh'),
     `#!${process.execPath}
 import { writeFileSync } from 'node:fs';
-writeFileSync(${JSON.stringify(calls)}, JSON.stringify(process.argv.slice(2)));
+writeFileSync(${JSON.stringify(calls)}, process.argv.slice(2).join('\\n'));
 process.stdout.write(${JSON.stringify(stdout)});
 process.stderr.write(${JSON.stringify(stderr)});
 process.exit(${status});
 `,
     { mode: 0o700 },
   );
-  return async () =>
-    JSON.parse(await readFile(calls, 'utf8')) as readonly string[];
+  return async () => (await readFile(calls, 'utf8')).split('\n');
 }
 
 it('asks the Mac checkout for its native inputs and refuses when they differ', async () => {
