@@ -16,8 +16,12 @@ internal class CodeState {
   var selectable by mutableStateOf(false)
 
   fun updateData(value: String) {
-    lines = decodeCodeLines(value)
-    anchor = null
+    val next = decodeCodeLines(value)
+    // Token/color updates do not change the source the user tapped.
+    if (lines.size != next.size || lines.zip(next).any { (before, after) ->
+      before.id != after.id || before.text != after.text || before.oldLine != after.oldLine || before.newLine != after.newLine || before.kind != after.kind
+    }) anchor = null
+    lines = next
   }
 
   // JavaScript owns the selection; clearing it also drops the anchor.

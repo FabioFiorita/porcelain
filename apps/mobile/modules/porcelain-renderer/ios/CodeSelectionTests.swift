@@ -44,5 +44,16 @@ struct CodeSelectionTests {
     state.select("{\"side\":\"deletions\",\"startLine\":30,\"endLine\":30}")
     #expect(state.choose("additions", 9, reset: false) == ReviewSelection(side: "additions", startLine: 8, endLine: 9))
   }
+
+  @Test func highlightingRefreshKeepsTheSourceAnchor() {
+    let state = CodeState()
+    state.decode("[{\"id\":\"7\",\"text\":\"let ready = true\",\"newLine\":7},{\"id\":\"9\",\"text\":\"return ready\",\"newLine\":9}]")
+    _ = state.choose(nil, 7, reset: false)
+    state.decode("[{\"id\":\"7\",\"text\":\"let ready = true\",\"newLine\":7,\"tokens\":[{\"text\":\"let ready = true\",\"color\":255}]},{\"id\":\"9\",\"text\":\"return ready\",\"newLine\":9}]")
+    #expect(state.choose(nil, 9, reset: false) == ReviewSelection(side: nil, startLine: 7, endLine: 9))
+    // A changed source still ends the old anchor, even if its line numbers match.
+    state.decode("[{\"id\":\"7\",\"text\":\"let ready = false\",\"newLine\":7},{\"id\":\"9\",\"text\":\"return ready\",\"newLine\":9}]")
+    #expect(state.choose(nil, 9, reset: false) == ReviewSelection(side: nil, startLine: 9, endLine: 9))
+  }
 }
 #endif

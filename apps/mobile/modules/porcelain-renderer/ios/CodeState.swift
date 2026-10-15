@@ -16,9 +16,13 @@ final class CodeState {
   var background = Color.clear
   var muted = Color.secondary
   func decode(_ value: String) {
-    lines = CodeLine.decode(value)
+    let next = CodeLine.decode(value)
+    // Token/color updates do not change the source the user tapped.
+    if lines.count != next.count || !zip(lines, next).allSatisfy({ before, after in
+      before.id == after.id && before.text == after.text && before.oldLine == after.oldLine && before.newLine == after.newLine && before.kind == after.kind
+    }) { anchor = nil }
+    lines = next
     gutterDigits = String(lines.compactMap { max($0.oldLine ?? 0, $0.newLine ?? 0) }.max() ?? 1).count
-    anchor = nil
   }
   // JavaScript owns the selection; clearing it also drops the anchor so the next tap cannot extend a finished range.
   func select(_ value: String) {
