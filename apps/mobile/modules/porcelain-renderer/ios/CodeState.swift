@@ -11,6 +11,7 @@ final class CodeState {
   @ObservationIgnored private var anchor: Int?
   var wrap = true
   var lineNumbers = true
+  var selectable = false
   var foreground = Color.primary
   var background = Color.clear
   var muted = Color.secondary
@@ -27,6 +28,9 @@ final class CodeState {
   func choose(_ side: String?, _ line: Int, reset: Bool) -> ReviewSelection {
     if reset || anchor == nil || selection?.side != side { anchor = line }
     let start = anchor ?? line
-    return ReviewSelection(side: side, startLine: min(start, line), endLine: max(start, line))
+    let range = ReviewSelection(side: side, startLine: min(start, line), endLine: max(start, line))
+    // A second tap can arrive before the bridge echoes the first selection.
+    selection = range
+    return range
   }
 }

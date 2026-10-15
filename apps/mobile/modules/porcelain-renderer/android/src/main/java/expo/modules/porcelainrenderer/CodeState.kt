@@ -13,6 +13,7 @@ internal class CodeState {
   var selection by mutableStateOf<ReviewSelection?>(null)
     private set
   private var anchor: Int? = null
+  var selectable by mutableStateOf(false)
 
   fun updateData(value: String) {
     lines = decodeCodeLines(value)
@@ -28,6 +29,9 @@ internal class CodeState {
   fun choose(side: String?, line: Int, reset: Boolean): ReviewSelection {
     if (reset || anchor == null || selection?.side != side) anchor = line
     val start = anchor ?: line
-    return ReviewSelection(side, minOf(start, line), maxOf(start, line))
+    val range = ReviewSelection(side, minOf(start, line), maxOf(start, line))
+    // A second tap can arrive before the bridge echoes the first selection.
+    selection = range
+    return range
   }
 }

@@ -74,7 +74,6 @@ struct CodeContent: View {
         Text(line.kind == "added" ? "+" : "−").frame(width: codeSize)
       }
       Text(highlight(line)).foregroundStyle(model.foreground)
-        .textSelection(.enabled)
         .fixedSize(horizontal: !model.wrap, vertical: true)
         .frame(maxWidth: model.wrap ? .infinity : nil, alignment: .leading)
     }
@@ -84,21 +83,21 @@ struct CodeContent: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(selected ? Color.accentColor.opacity(0.18) : line.kind == "added" ? Color.green.opacity(0.1) : line.kind == "removed" ? Color.red.opacity(0.1) : .clear)
     .contentShape(Rectangle())
-    .onLongPressGesture { if let number { select(side, number, reset: true) } }
-    .onTapGesture { if model.selection != nil, let number { select(side, number, reset: false) } }
+    .onTapGesture { if let number { select(side, number, reset: false) } }
     .accessibilityElement(children: .combine)
     .accessibilityLabel("\(line.kind ?? "code") \(side ?? "file") line \(number ?? 0): \(line.text)")
     .accessibilityAction(named: "Select for review") { if let number { select(side, number, reset: true) } }
     .accessibilityAction(named: "Extend review selection") { if let number { select(side, number, reset: false) } }
     .contextMenu {
       Button("Copy line") { copy(line.text) }
-      if let number {
+      if model.selectable, let number {
         Button("Select for review") { select(side, number, reset: true) }
         Button("Extend review selection") { select(side, number, reset: false) }
       }
     }
   }
   func select(_ side: String?, _ line: Int, reset: Bool) {
+    guard model.selectable else { return }
     choose(side, line, reset)
   }
   func highlight(_ line: CodeLine) -> AttributedString {

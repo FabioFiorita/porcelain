@@ -95,15 +95,6 @@ export function DocumentComments({
           </Text>
         </Box>
       ) : null}
-      {target && selectable ? (
-        <Box paddingX={4} paddingY={2}>
-          <Text variant="caption" tone="muted">
-            Long-press a source line to select it; tap another line on the same
-            side to extend. Open Comments to comment on the file or selected
-            lines.
-          </Text>
-        </Box>
-      ) : null}
       {anchor &&
       target &&
       (commentIsStale(anchor, target) ||
