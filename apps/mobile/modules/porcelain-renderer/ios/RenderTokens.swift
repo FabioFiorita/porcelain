@@ -16,3 +16,9 @@ struct RenderTokens: Decodable {
     (try? JSONDecoder().decode(RenderTokens.self, from: Data(value.utf8))) ?? RenderTokens()
   }
 }
+
+extension Color {
+  init(argb: UInt32) {
+    self.init(.sRGB, red: Double((argb >> 16) & 255) / 255, green: Double((argb >> 8) & 255) / 255, blue: Double(argb & 255) / 255, opacity: Double((argb >> 24) & 255) / 255)
+  }
+}
