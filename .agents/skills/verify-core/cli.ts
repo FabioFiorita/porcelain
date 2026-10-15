@@ -1,6 +1,6 @@
 import type { StopResult } from './processes.ts';
 import { createHash } from 'node:crypto';
-import { accessSync, constants, existsSync } from 'node:fs';
+import { accessSync, constants, existsSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { delimiter, join } from 'node:path';
 
@@ -45,6 +45,21 @@ export function sandboxProblems(): string[] {
       'ps is missing: install procps on Linux or restore the macOS system PATH; captured process ownership requires ps',
     );
   return problems;
+}
+
+const memoryFloorGiB = 4;
+
+export function memoryProblem(
+  meminfo = process.platform === 'linux'
+    ? readFileSync('/proc/meminfo', 'utf8')
+    : undefined,
+): string | undefined {
+  const kib = meminfo && /^MemAvailable:\s+(\d+) kB$/m.exec(meminfo)?.[1];
+  if (!kib) return undefined;
+  const available = Number(kib) / 1024 ** 2;
+  return available < memoryFloorGiB
+    ? `only ${available.toFixed(1)} GiB of memory is available and a disposable instance needs ${memoryFloorGiB} GiB free, because starting instances under memory pressure has crashed this machine; stop an instance you own or wait for other runs to finish`
+    : undefined;
 }
 
 export function optionalDrivers(): string[] {

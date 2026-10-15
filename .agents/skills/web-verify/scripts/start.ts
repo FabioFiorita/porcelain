@@ -20,6 +20,7 @@ import { prepareRemote } from '@porcelain/server/kit/remote-computer';
 import { buildIsolatedServer } from '@porcelain/server/kit/sandbox';
 import {
   worktreePort,
+  memoryProblem,
   refuseMissing,
   sandboxProblems,
 } from '../../verify-core/cli.ts';
@@ -211,6 +212,7 @@ export async function start(
 ): Promise<string> {
   refuseMissing([
     ...sandboxProblems(),
+    memoryProblem(),
     existsSync(vite)
       ? undefined
       : 'Vite is missing: run pnpm install --frozen-lockfile',

@@ -84,7 +84,10 @@ export default defineConfig({
         test: {
           name: '@porcelain/verification',
           root,
-          include: ['.agents/skills/*/scripts/*.spec.ts'],
+          include: [
+            '.agents/skills/*/scripts/*.spec.ts',
+            '.agents/skills/verify-core/*.spec.ts',
+          ],
           expect: { requireAssertions: true },
         },
       },

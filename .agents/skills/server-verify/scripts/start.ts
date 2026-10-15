@@ -4,7 +4,11 @@ import { appendFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { IsolatedServer } from '@porcelain/server/kit/isolated-server';
 import { buildIsolatedServer } from '@porcelain/server/kit/sandbox';
-import { refuseMissing, sandboxProblems } from '../../verify-core/cli.ts';
+import {
+  memoryProblem,
+  refuseMissing,
+  sandboxProblems,
+} from '../../verify-core/cli.ts';
 import { repositoryRoot } from '../../verify-core/registry.ts';
 import {
   connectionCard,
@@ -20,7 +24,7 @@ const manifestSchema = Schema.Struct({
 
 export async function start(): Promise<string> {
   const started = performance.now();
-  refuseMissing(sandboxProblems());
+  refuseMissing([...sandboxProblems(), memoryProblem()]);
   const instance = await registry.launch({}, READY_LIMIT_MS);
   const durationMs = Math.round(performance.now() - started);
   const written = await registry.evidence(instance).json('start', {

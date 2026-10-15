@@ -22,7 +22,11 @@ import {
 } from '@porcelain/mobile/kit/device-host';
 import type { DeviceKind } from '@porcelain/mobile/kit/simulator';
 import { missingTools } from '@porcelain/mobile/kit/tools';
-import { refuseMissing, sandboxProblems } from '../../verify-core/cli.ts';
+import {
+  memoryProblem,
+  refuseMissing,
+  sandboxProblems,
+} from '../../verify-core/cli.ts';
 import { connectionCard } from '../../verify-core/connection.ts';
 import { freeHostPorts, hostProblems, hubUrl, hubToken } from './host.ts';
 import { registry, optionsSchema, mobileConnectionSchema } from './instance.ts';
@@ -189,9 +193,11 @@ export async function startProblems(
   host: RemoteHost | undefined,
   ownDriver = false,
 ): Promise<(string | undefined)[]> {
-  if (host !== undefined) return hostProblems(host, ownDriver);
+  if (host !== undefined)
+    return [...(await hostProblems(host, ownDriver)), memoryProblem()];
   const problems = [
     ...sandboxProblems(),
+    memoryProblem(),
     ...missingTools(['simulator', 'agent-device']),
   ];
   if (process.platform !== 'darwin')
