@@ -35,7 +35,7 @@ const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--inst
                            act through the disposable server's MCP fixture
   server published-review|reviewed-files|reviewed-layers|comment-threads|project|devices|pending-links|receipt ...
                            read back the disposable server's state
-Drive the app with the pinned agent-device invocation from the connection card.
+Drive the app with the full agent-device invocation from the connection card.
 `;
 async function doctor(): Promise<string> {
   const problems = (await startProblems(deviceHost().remote)).filter(

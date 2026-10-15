@@ -1,28 +1,33 @@
-import { Schema } from 'effect';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { repositoryRoot } from './development-client.ts';
 
 export const agentDevice = join(
-  repositoryRoot,
+  homedir(),
+  '.local',
+  'share',
+  'engineering',
+  'agent-device',
+  'current',
   'node_modules',
   '.bin',
   'agent-device',
 );
-export const agentDeviceVersion = Schema.decodeUnknownSync(
-  Schema.Struct({
-    devDependencies: Schema.Struct({ 'agent-device': Schema.String }),
-  }),
-)(JSON.parse(readFileSync(join(repositoryRoot, 'package.json'), 'utf8')))
-  .devDependencies['agent-device'];
+export const agentDeviceMissing =
+  'agent-device is not synced on this machine: run `device sync` from the engineering plugin, which keeps it at the version T3 Code pins';
+export function agentDeviceVersion(): string | undefined {
+  const result = spawnSync(agentDevice, ['--version'], { encoding: 'utf8' });
+  return result.error === undefined && result.status === 0
+    ? result.stdout.trim()
+    : undefined;
+}
 
 export type Tool = 'simulator' | 'agent-device';
 
 const installs: Record<Tool, string> = {
   simulator:
     'Xcode with an iOS 26 or newer simulator runtime is missing: install Xcode from the App Store, run xcode-select --switch /Applications/Xcode.app and add the runtime in Xcode > Settings > Components',
-  'agent-device': `agent-device ${agentDeviceVersion} is missing from this checkout: run pnpm install, which installs the version the repository pins`,
+  'agent-device': agentDeviceMissing,
 };
 
 const probes: Record<Tool, readonly [string, ...string[]]> = {
