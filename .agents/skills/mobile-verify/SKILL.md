@@ -1,6 +1,6 @@
 ---
 name: mobile-verify
-description: Prepare a disposable Porcelain mobile run, drive its development client with the synced agent-device CLI, and retain evidence. Use before calling a mobile change done or correcting maps.
+description: Prepare a disposable Porcelain mobile run, drive its development client with this machine's agent-device CLI, and retain evidence. Use before calling a mobile change done or correcting maps.
 ---
 
 # Mobile verification

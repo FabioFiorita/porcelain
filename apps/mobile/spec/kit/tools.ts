@@ -1,22 +1,16 @@
 import { spawnSync } from 'node:child_process';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { deviceHost, mainCheckoutHostFile } from './device-host.ts';
 
-export const agentDevice = join(
-  homedir(),
-  '.local',
-  'share',
-  'engineering',
-  'agent-device',
-  'current',
-  'node_modules',
-  '.bin',
-  'agent-device',
-);
-export const agentDeviceMissing =
-  'agent-device is not synced on this machine: run `device sync` from the engineering plugin, which keeps it at the version T3 Code pins';
+export function agentDevice(): string | undefined {
+  return deviceHost().agentDevice;
+}
+export function agentDeviceMissing(): string {
+  return `agent-device is not set up on this machine: install it (npm install --global agent-device) at the same version as your device hub, and set "agentDevice" in ${mainCheckoutHostFile()} to its absolute path`;
+}
 export function agentDeviceVersion(): string | undefined {
-  const result = spawnSync(agentDevice, ['--version'], { encoding: 'utf8' });
+  const executable = agentDevice();
+  if (executable === undefined) return undefined;
+  const result = spawnSync(executable, ['--version'], { encoding: 'utf8' });
   return result.error === undefined && result.status === 0
     ? result.stdout.trim()
     : undefined;
@@ -24,26 +18,23 @@ export function agentDeviceVersion(): string | undefined {
 
 export type Tool = 'simulator' | 'agent-device';
 
-const installs: Record<Tool, string> = {
-  simulator:
-    'Xcode with an iOS 26 or newer simulator runtime is missing: install Xcode from the App Store, run xcode-select --switch /Applications/Xcode.app and add the runtime in Xcode > Settings > Components',
-  'agent-device': agentDeviceMissing,
-};
-
-const probes: Record<Tool, readonly [string, ...string[]]> = {
-  simulator: ['xcrun', 'simctl', 'help'],
-  'agent-device': [agentDevice, '--version'],
-};
-
-function runs([command, ...args]: readonly [string, ...string[]]): boolean {
-  const result = spawnSync(command, args, { encoding: 'utf8' });
-  return result.error === undefined && result.status === 0;
+function simulatorProblem(): string | undefined {
+  const result = spawnSync('xcrun', ['simctl', 'help'], { encoding: 'utf8' });
+  return result.error === undefined && result.status === 0
+    ? undefined
+    : 'Xcode with an iOS 26 or newer simulator runtime is missing: install Xcode from the App Store, run xcode-select --switch /Applications/Xcode.app and add the runtime in Xcode > Settings > Components';
 }
+
+const problems: Record<Tool, () => string | undefined> = {
+  simulator: simulatorProblem,
+  'agent-device': () =>
+    agentDeviceVersion() === undefined ? agentDeviceMissing() : undefined,
+};
 
 export function missingTools(tools: readonly Tool[]): string[] {
   if (process.platform !== 'darwin')
     return [
       `Mobile proof needs macOS with Xcode and an iOS simulator; this is ${process.platform}. Run it on a Mac.`,
     ];
-  return tools.flatMap((tool) => (runs(probes[tool]) ? [] : [installs[tool]]));
+  return tools.flatMap((tool) => problems[tool]() ?? []);
 }
