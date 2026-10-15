@@ -1,0 +1,24 @@
+#!/bin/sh
+# Run the actual observable Swift selection owner on macOS without Expo or a simulator.
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)
+workspace=$(mktemp -d "${TMPDIR:-/tmp}/porcelain-selection.XXXXXX")
+trap 'rm -rf "$workspace"' EXIT HUP INT TERM
+mkdir -p "$workspace/Sources/CodeSelection" "$workspace/Tests/CodeSelectionTests"
+for source in CodeData CodeState RenderTokens; do
+  cp "$root/apps/mobile/modules/porcelain-renderer/ios/$source.swift" "$workspace/Sources/CodeSelection/"
+done
+cp "$root/apps/mobile/modules/porcelain-renderer/ios/CodeSelectionTests.swift" "$workspace/Tests/CodeSelectionTests/"
+cat > "$workspace/Package.swift" <<'SWIFT'
+// swift-tools-version: 6.0
+import PackageDescription
+let package = Package(
+  name: "CodeSelection",
+  platforms: [.macOS(.v15)],
+  targets: [
+    .target(name: "CodeSelection"),
+    .testTarget(name: "CodeSelectionTests", dependencies: ["CodeSelection"])
+  ]
+)
+SWIFT
+swift test --package-path "$workspace" --jobs 2 --filter CodeSelectionTests

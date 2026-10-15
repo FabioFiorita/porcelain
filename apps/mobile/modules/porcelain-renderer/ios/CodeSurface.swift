@@ -11,9 +11,10 @@ final class CodeSurface: ExpoView {
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
-    host = mount(CodeContent(model: model, choose: { [weak self] side, line, reset in
+    host = mount(CodeContent(model: model, choose: { [weak self] line, reset in
       guard let self else { return }
-      let selection = model.choose(side, line, reset: reset)
+      guard model.selectable, let location = model.location(line) else { return }
+      let selection = model.choose(location.side, location.line, reset: reset)
       var range: [String: Any] = ["startLine": selection.startLine, "endLine": selection.endLine]
       if let side = selection.side { range["side"] = side }
       onSelect(range)

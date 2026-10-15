@@ -5,8 +5,20 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 data class CodeToken(val text: String, val changed: Boolean, val color: Color?, val fontStyle: Int)
-data class CodeLine(val id: String, val text: String, val oldLine: Int?, val newLine: Int?, val kind: String, val tokens: List<CodeToken>)
+data class CodeLine(val id: String, val text: String, val oldLine: Int?, val newLine: Int?, val kind: String, val tokens: List<CodeToken>) {
+  fun location(preferredSide: String? = null): CodeLocation? {
+    if (kind == "gap") return null
+    if (kind == "removed") return oldLine?.let { CodeLocation("deletions", it) }
+    if (kind == "added") return newLine?.let { CodeLocation("additions", it) }
+    if (oldLine != null) {
+      if (preferredSide == "deletions" || newLine == null) return CodeLocation("deletions", oldLine)
+      return newLine?.let { CodeLocation("additions", it) }
+    }
+    return newLine?.let { CodeLocation(null, it) }
+  }
+}
 data class ReviewSelection(val side: String?, val startLine: Int, val endLine: Int)
+data class CodeLocation(val side: String?, val line: Int)
 data class CodeOptions(val wrap: Boolean = true, val lineNumbers: Boolean = true, val foreground: Color = Color.Black, val background: Color = Color.White, val muted: Color = Color.Gray)
 
 internal fun decodeCodeLines(value: String): List<CodeLine> {

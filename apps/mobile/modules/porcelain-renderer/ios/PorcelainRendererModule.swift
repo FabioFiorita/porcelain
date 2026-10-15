@@ -11,6 +11,7 @@ public class PorcelainRendererModule: Module {
       Prop("data") { (view: CodeSurface, value: String) in MainActor.assumeIsolated { view.model.decode(value) } }
       Prop("wrap") { (view: CodeSurface, value: Bool) in MainActor.assumeIsolated { view.model.wrap = value } }
       Prop("lineNumbers") { (view: CodeSurface, value: Bool) in MainActor.assumeIsolated { view.model.lineNumbers = value } }
+      Prop("selectable") { (view: CodeSurface, value: Bool) in MainActor.assumeIsolated { view.model.selectable = value } }
       Prop("foreground") { (view: CodeSurface, value: UInt32) in MainActor.assumeIsolated { view.model.foreground = Color(argb: value) } }
       Prop("background") { (view: CodeSurface, value: UInt32) in MainActor.assumeIsolated { view.model.background = Color(argb: value) } }
       Prop("muted") { (view: CodeSurface, value: UInt32) in MainActor.assumeIsolated { view.model.muted = Color(argb: value) } }
