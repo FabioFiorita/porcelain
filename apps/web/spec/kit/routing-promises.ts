@@ -11,6 +11,7 @@ export function routingPromises() {
     for (const path of [
       '/nonexistent-route',
       `${workspace}/remotes`,
+      '/settings/appearance/extra',
       '/settings/unknown/extra',
     ]) {
       await app.open(path);

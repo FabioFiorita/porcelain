@@ -16,6 +16,7 @@ import { World } from '../kit/world.ts';
 import { serverBuild } from './global-setup.ts';
 import {
   failInventory,
+  failRemoteStatus,
   failChangesRead,
   holdNextPost,
   holdNextReviewRead,
@@ -189,6 +190,8 @@ async function appOf(page: Page, world: World, live: LiveFixture) {
           .map((entry) => new URL(entry.url ?? '', location.href).pathname),
       ),
     failReviewRead: () => failChangesRead(page.context()),
+    failRemoteStatus: (link: string) =>
+      failRemoteStatus(page.context(), new URL(link).origin),
     async failSessionRestore() {
       const end = await failInventory(page.context());
       return {
