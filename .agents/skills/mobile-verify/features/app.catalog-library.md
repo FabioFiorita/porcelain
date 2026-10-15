@@ -1,8 +1,8 @@
 ---
 screen: /component-library
 selectors:
-  - 'Component library'
-  - 'Explore Text'
+  - "Component library"
+  - "Explore Text"
 tests: []
 api: []
 ---

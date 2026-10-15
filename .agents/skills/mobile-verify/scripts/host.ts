@@ -90,11 +90,22 @@ export function hostArgs(
   return [
     '-o',
     'BatchMode=yes',
+    '-o',
+    'ConnectTimeout=10',
     ssh,
     `cd ${shellCommand([checkout])} && mise exec -- ${shellCommand(['node', '.agents/skills/mobile-verify/scripts/simulator-host.ts', JSON.stringify(request)])}`,
   ];
 }
 type Inspection = typeof inspectionSchema.Type | { failure: string };
+function inspection(stdout: string): Inspection {
+  try {
+    return Schema.decodeUnknownSync(inspectionSchema)(
+      JSON.parse(stdout.trim().split('\n').at(-1) ?? ''),
+    );
+  } catch {
+    return { failure: `it answered without a fingerprint: ${stdout.trim()}` };
+  }
+}
 function inspectHost(ssh: string, checkout: string): Promise<Inspection> {
   return new Promise((done) =>
     execFile(
@@ -104,9 +115,7 @@ function inspectHost(ssh: string, checkout: string): Promise<Inspection> {
       (error, stdout, stderr) =>
         done(
           error === null
-            ? Schema.decodeUnknownSync(inspectionSchema)(
-                JSON.parse(stdout.trim().split('\n').at(-1) ?? ''),
-              )
+            ? inspection(stdout)
             : { failure: stderr.trim() || error.message },
         ),
     ),
@@ -115,11 +124,10 @@ function inspectHost(ssh: string, checkout: string): Promise<Inspection> {
 async function nativeProblem(
   ssh: string,
   checkout: string,
-  inspect: typeof inspectHost,
 ): Promise<string | undefined> {
   const [local, mac] = await Promise.all([
     nativeFingerprint(),
-    inspect(ssh, checkout),
+    inspectHost(ssh, checkout),
   ]);
   const build = `run ${buildCommand} on the Mac in ${checkout} (ssh ${ssh})`;
   if ('failure' in mac)
@@ -133,7 +141,6 @@ async function nativeProblem(
 export async function hostProblems(
   host: RemoteHost,
   ownDriver: boolean,
-  inspect = inspectHost,
 ): Promise<string[]> {
   const problems = [...sandboxProblems()];
   if (host.ssh === undefined || host.checkout === undefined)
@@ -141,7 +148,7 @@ export async function hostProblems(
       'Add ssh (the Mac SSH alias) and checkout (a matching Mac worktree) to the private device-host config; the launcher prepares and releases simulators there.',
     );
   else {
-    const native = await nativeProblem(host.ssh, host.checkout, inspect);
+    const native = await nativeProblem(host.ssh, host.checkout);
     if (native !== undefined) problems.push(native);
   }
   if (!ownDriver) problems.push(...(await hubProblems(host)));

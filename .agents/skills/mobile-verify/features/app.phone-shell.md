@@ -1,11 +1,11 @@
 ---
 screen: /
 selectors:
-  - 'Review'
-  - 'Files'
-  - 'History'
-  - 'Settings'
-  - 'Select a worktree to continue.'
+  - "Review"
+  - "Files"
+  - "History"
+  - "Settings"
+  - "Select a worktree to continue."
 tests: []
 api: []
 ---

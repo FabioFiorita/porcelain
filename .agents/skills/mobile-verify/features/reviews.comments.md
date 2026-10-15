@@ -1,14 +1,14 @@
 ---
 screen: /review-comments
 selectors:
-  - 'Review comment'
-  - 'Add comment'
-  - 'Cancel'
-  - 'Reply'
-  - 'Resolve'
-  - 'Reopen'
-  - 'Done'
-  - 'No comments'
+  - "Review comment"
+  - "Add comment"
+  - "Cancel"
+  - "Reply"
+  - "Resolve"
+  - "Reopen"
+  - "Done"
+  - "No comments"
 tests: []
 api:
   - GET /api/worktrees/:worktreeId/comments

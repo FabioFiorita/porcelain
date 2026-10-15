@@ -1,12 +1,12 @@
 ---
 screen: /
 selectors:
-  - 'Review'
-  - 'Files'
-  - 'History'
-  - 'Settings'
-  - 'Select a worktree to continue.'
-  - 'No environments paired.'
+  - "Review"
+  - "Files"
+  - "History"
+  - "Settings"
+  - "Select a worktree to continue."
+  - "No environments paired."
 tests: []
 api:
   - GET /api/environment

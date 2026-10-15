@@ -1,18 +1,18 @@
 ---
 screen: /settings
 selectors:
-  - 'Add environment'
-  - 'add-environment'
-  - 'Pair an environment'
-  - 'pairing-link'
-  - 'Pair'
-  - 'pair-environment'
-  - 'Cancel'
-  - 'cancel-pairing'
-  - 'Use development server'
-  - 'development-pairing-link'
-  - 'Creating pairing link…'
-  - 'Online'
+  - "Add environment"
+  - "add-environment"
+  - "Pair an environment"
+  - "pairing-link"
+  - "Pair"
+  - "pair-environment"
+  - "Cancel"
+  - "cancel-pairing"
+  - "Use development server"
+  - "development-pairing-link"
+  - "Creating pairing link…"
+  - "Online"
 tests:
   - apps/server/spec/kit/development-pairing.spec.ts
 api:

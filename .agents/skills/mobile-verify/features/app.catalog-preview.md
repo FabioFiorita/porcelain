@@ -1,8 +1,8 @@
 ---
 screen: /component-preview
 selectors:
-  - 'Add example'
-  - 'Disabled field'
+  - "Add example"
+  - "Disabled field"
 tests: []
 api: []
 ---

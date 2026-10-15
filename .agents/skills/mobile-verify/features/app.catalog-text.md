@@ -1,9 +1,9 @@
 ---
 screen: /component-text
 selectors:
-  - 'Type scale'
-  - 'Tones and weights'
-  - 'Wrapping and selection'
+  - "Type scale"
+  - "Tones and weights"
+  - "Wrapping and selection"
 tests: []
 api: []
 ---

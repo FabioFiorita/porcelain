@@ -1,22 +1,22 @@
 ---
 screen: /appearance
 selectors:
-  - 'Appearance'
-  - 'Theme'
-  - 'theme-system'
-  - 'theme-light'
-  - 'theme-dark'
-  - 'Long lines'
-  - 'lines-wrap'
-  - 'lines-scroll'
-  - 'Markdown opens as'
-  - 'markdown-reader'
-  - 'markdown-source'
-  - 'HTML opens as'
-  - 'html-preview'
-  - 'html-source'
-  - 'Reading saved preferences…'
-  - 'Read saved preferences again'
+  - "Appearance"
+  - "Theme"
+  - "theme-system"
+  - "theme-light"
+  - "theme-dark"
+  - "Long lines"
+  - "lines-wrap"
+  - "lines-scroll"
+  - "Markdown opens as"
+  - "markdown-reader"
+  - "markdown-source"
+  - "HTML opens as"
+  - "html-preview"
+  - "html-source"
+  - "Reading saved preferences…"
+  - "Read saved preferences again"
 tests:
   - packages/client/src/features/preferences/store.spec.ts
   - packages/client/src/features/preferences/store/saved-preferences.spec.ts

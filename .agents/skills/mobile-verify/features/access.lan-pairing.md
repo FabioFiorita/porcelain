@@ -1,10 +1,10 @@
 ---
 screen: /settings
 selectors:
-  - 'add-environment'
-  - 'pairing-link'
-  - 'pair-environment'
-  - 'Online'
+  - "add-environment"
+  - "pairing-link"
+  - "pair-environment"
+  - "Online"
 tests: []
 api:
   - POST /api/pair
