@@ -1,4 +1,8 @@
 export { deleteReview } from './commands/publication.ts';
+export {
+  completeDecision,
+  decisionCompletionBinding,
+} from './commands/decisions.ts';
 export { readReviewedFiles } from './queries/reviewed.ts';
 export {
   readLayerMarks,
@@ -15,9 +19,6 @@ export {
   reviewedCommandFailure,
   reviewedCommands,
 } from './commands/reviewed.ts';
-export {
-  setLayerMark,
-  type SetLayerMarkInput,
-} from './commands/layer-marks.ts';
+export { setLayerMark } from './commands/layer-marks.ts';
 
 export { commentWriteBinding } from './commands/comment-write-binding.ts';

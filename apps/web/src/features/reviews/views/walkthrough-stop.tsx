@@ -17,6 +17,7 @@ import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import {
   basename,
   checkResultLabel,
+  completionPlan,
   type CommentAnchor,
   decisionKey,
   decisionLinks,
@@ -37,7 +38,11 @@ import {
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
 import { LONG_DECISION_SUMMARY } from '@/config/limits';
-import { useCompleteDecision } from '../commands/decisions';
+import { useAtom } from '@effect/atom-react';
+import {
+  completeDecision,
+  decisionCompletionBinding,
+} from '@porcelain/client/reviews';
 import { decisionNotes, gapNotes, mergeNotes } from '../rules/code-notes';
 import { spansLabel } from '@porcelain/client/changes/rules';
 import { ReviewCodeDocument } from './review-code-document';
@@ -67,11 +72,15 @@ export function WalkthroughStopView({
 }) {
   const { review, scope, context, interaction } = props;
   const [reveal, setReveal] = useState<RevealComment>();
-  const completion = useCompleteDecision(scope, context, (notice) =>
-    toast.add(notice),
+  const completion = decisionCompletionBinding(
+    useAtom(completeDecision({ scope, connection: context.connection }), {
+      mode: 'promiseExit',
+    }),
+    (notice) => toast.add(notice),
   );
   const shown = new Set(stop.paths);
   const files = items.filter((item) => shown.has(item.path));
+  const plan = completionPlan(files);
   const progress = filesReviewed(stop.paths, items);
   const previous = neighbourStop(stops, stop.key, -1);
   const next = neighbourStop(stops, stop.key, 1);
@@ -90,7 +99,7 @@ export function WalkthroughStopView({
           }
         : {}),
     });
-  const remaining = progress.total - progress.reviewed;
+  const remaining = plan.eligible;
   const tally =
     progress.total === 0
       ? 'No changed files of its own'
@@ -232,7 +241,10 @@ export function WalkthroughStopView({
                 variant={finished ? 'ghost' : 'outline'}
                 size="sm"
                 aria-pressed={finished}
-                disabled={!decisionsSettled || completion.pending}
+                disabled={
+                  !decisionsSettled || completion.pending || plan.blocked
+                }
+                title={plan.explanation}
                 onClick={() =>
                   finished
                     ? completion.reopen({
@@ -243,7 +255,9 @@ export function WalkthroughStopView({
                 }
               >
                 <CheckIcon data-icon="inline-start" />
-                {finished ? 'Decision reviewed' : 'Mark decision reviewed'}
+                {finished
+                  ? 'Decision reviewed'
+                  : (plan.action ?? 'Mark decision reviewed')}
               </Button>
             )}
           </nav>
@@ -284,14 +298,20 @@ export function WalkthroughStopView({
                       remaining,
                       total: progress.total,
                       decides: layer !== undefined,
+                      unavailable: plan.explanation,
                     })}
                   </p>
                 </div>
                 <Button
-                  disabled={completion.pending || (layer && !decisionsSettled)}
+                  disabled={
+                    completion.pending ||
+                    plan.blocked ||
+                    (layer && !decisionsSettled)
+                  }
                   onClick={() => (finished ? advance() : markDecision(advance))}
                 >
-                  {finishAction(finished, next !== undefined)}
+                  {(!finished && plan.action) ||
+                    finishAction(finished, next !== undefined)}
                   <ArrowRightIcon data-icon="inline-end" />
                 </Button>
               </div>
@@ -361,15 +381,22 @@ function finishDetail({
   remaining,
   total,
   decides,
+  unavailable,
 }: {
   finished: boolean;
   next: WalkthroughStop | undefined;
   remaining: number;
   total: number;
   decides: boolean;
+  unavailable: string | undefined;
 }) {
   if (finished) {
     return next ? `Next: ${stopTitle(next)}` : 'This was the last stop.';
+  }
+  if (unavailable) {
+    return remaining > 0
+      ? `Marks the ${remaining} available ${remaining === 1 ? 'file' : 'files'} here reviewed. ${unavailable}`
+      : unavailable;
   }
   if (remaining > 0) {
     return `Marks the ${remaining} remaining ${remaining === 1 ? 'file' : 'files'} here reviewed${decides ? ' and records the decision' : ''}.`;

@@ -34,16 +34,22 @@ import { usePreviewLink } from '../../../shared/adapters/preview-link';
 import { ReviewReadState } from './read-state';
 import { ReviewPointer } from './review-pointer';
 import { useReviewPlace } from '../store';
+import { useWalkthroughProgress } from '../queries/walkthrough';
+import type { ReviewSnapshot } from '../rules/comparison';
+import {
+  WalkthroughCompletion,
+  WalkthroughProgress,
+} from './walkthrough-completion';
 import type { Workspace } from '../../projects';
 
 export function PublishedReview({
   workspace,
   onFile,
-  changedPaths,
+  snapshot,
 }: {
   workspace: Workspace;
   onFile: (path: string) => void;
-  changedPaths: readonly string[] | undefined;
+  snapshot: Extract<ReviewSnapshot, { kind: 'worktree' }> | undefined;
 }) {
   const query = readPublishedReview({
     connection: workspace.connection,
@@ -65,7 +71,8 @@ export function PublishedReview({
       key={`${workspace.key}:${result.value.publishedAt}:${result.value.revision}`}
       workspace={workspace}
       review={result.value}
-      changedPaths={changedPaths}
+      snapshot={snapshot}
+      publicationSettled={!result.waiting}
       onFile={onFile}
       onRefresh={refresh}
     />
@@ -75,21 +82,33 @@ export function PublishedReview({
 function PublishedContent({
   workspace,
   review,
-  changedPaths,
+  snapshot,
   onFile,
   onRefresh,
+  publicationSettled,
 }: {
   workspace: Workspace;
   review: ReviewResponse;
-  changedPaths: readonly string[] | undefined;
+  snapshot: Extract<ReviewSnapshot, { kind: 'worktree' }> | undefined;
   onFile: (path: string) => void;
   onRefresh: () => void;
+  publicationSettled: boolean;
 }) {
   const [place, setPlace] = useReviewPlace(
     JSON.stringify([workspace.key, review.publishedAt, review.revision]),
   );
   const [previousSummary, setPreviousSummary] =
     useState<ReviewResponse['summary']>();
+  const changedPaths =
+    snapshot?.kind === 'worktree'
+      ? snapshot.answer.changes.map((file) => file.path)
+      : undefined;
+  const progress = useWalkthroughProgress(
+    workspace,
+    review,
+    snapshot,
+    publicationSettled,
+  );
   const stops = walkthroughStops(review, changedPaths ?? [], {
     specsApart: false,
   });
@@ -109,6 +128,7 @@ function PublishedContent({
       <Text variant="caption" tone="muted">
         Revision {review.revision}
       </Text>
+      <WalkthroughProgress stops={stops} progress={progress} />
       {review.diagnostics === 'unavailable' ? (
         <Text variant="ui">
           The worktree is unavailable. This is the saved review; code locations
@@ -150,7 +170,10 @@ function PublishedContent({
         </>
       ) : (
         <>
-          <Text variant="heading">{stopTitle(stop)}</Text>
+          <Text variant="heading">
+            {stopTitle(stop)}
+            {progress.done(stop) ? ' · Reviewed' : ''}
+          </Text>
           <ReviewPage
             workspace={workspace}
             review={review}
@@ -160,10 +183,24 @@ function PublishedContent({
             changedPaths={changedPaths}
             onFile={onFile}
             go={go}
+            done={progress.done}
             readStep={(step) =>
               setPlace({ stop: stop.key, summary: false, step })
             }
           />
+          {stop.kind !== 'briefing' && !pointer ? (
+            <WalkthroughCompletion
+              key={stop.key}
+              workspace={workspace}
+              snapshot={snapshot}
+              stop={stop}
+              progress={progress}
+              next={next}
+              go={go}
+              onFile={onFile}
+              unavailable={review.diagnostics === 'unavailable'}
+            />
+          ) : null}
           <Box className="flex-row flex-wrap" gap={2}>
             <Button
               label="Previous"
@@ -202,6 +239,7 @@ function ReviewPage({
   onFile,
   go,
   readStep,
+  done,
 }: {
   workspace: Workspace;
   review: ReviewResponse;
@@ -212,6 +250,7 @@ function ReviewPage({
   onFile: (path: string) => void;
   go: (key: WalkthroughKey) => void;
   readStep: (step: string) => void;
+  done: (stop: WalkthroughStop) => boolean;
 }) {
   if (pointer)
     return (
@@ -256,7 +295,7 @@ function ReviewPage({
             title={stopTitle(entry)}
             description={
               entry.kind === 'decision'
-                ? entry.layer.summary
+                ? `${done(entry) ? 'Reviewed · ' : ''}${entry.layer.summary}`
                 : 'Changes no decision explains'
             }
             accessibilityLabel={`Open ${stopTitle(entry)}`}

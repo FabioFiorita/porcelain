@@ -9,9 +9,13 @@ selectors:
   - "Mark "
   - "Unmark "
   - "Could not update the decision"
+  - "Mark available files reviewed"
+  - "Review unavailable"
+  - "Some files cannot be marked reviewed"
 tests:
   - apps/web/spec/integration/reviews-mark-decision.test.tsx
   - apps/web/spec/integration/reviews-mark-decision-refresh.test.tsx
+  - apps/web/spec/integration/reviews-unavailable-completion.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/review
   - GET /api/worktrees/:worktreeId/reviewed-layers
@@ -71,6 +75,8 @@ Use the HTTP hold recipe in [failure-injection.md](../references/failure-injecti
 - `apps/web/spec/integration/reviews-mark-decision-refresh.test.tsx`: holds the next review read, rewrites README.md, sees the server mark go stale while "Mark decision reviewed" stays disabled; after release the notice shows, the button enables, and marking makes the decision mark fresh again.
 
 ## Gotchas
+
+- A file above the fingerprint limit or otherwise unreadable cannot be marked. A mixed stop offers "Mark available files reviewed" and names the unavailable paths, explaining that the stop stays open. Its successful file marks remain, with no new decision mark or advance. Once no available files remain, the toolbar, closing card and sidebar completion action show disabled "Review unavailable"; navigation stays available. Making the file readable restores ordinary completion. The same rule applies to Not explained. The bulk report counts unavailable files as skipped and describes already-reviewed files separately.
 
 - Without the hold, the disabled window after a disk change is too short to catch by hand. Release a held read within 15 s: a read held past the web's request timeout fails and the walkthrough shows "Review could not be loaded" until a reload.
 - Address the sidebar row by `/Readme layer/`: its accessible name joins the number, title and file count ("1 Readme layer 0/1").

@@ -105,16 +105,67 @@ export function bulkMarkReport(
 
 export function bulkReportText(report: BulkReviewReport) {
   const failed = report.failed.length;
-  const skipped = report.skipped.length;
+  const skipped = report.skipped.filter(
+    (entry) => entry.reason === 'not-fingerprintable',
+  ).length;
+  const reviewed = report.skipped.length - skipped;
   return [
     report.marked.length > 0
       ? `Marked ${report.marked.length} ${report.marked.length === 1 ? 'file' : 'files'}.`
       : 'No files marked.',
     skipped > 0 ? `Skipped ${skipped}.` : '',
+    reviewed > 0 ? `${reviewed} already reviewed.` : '',
     failed > 0 ? `${failed} failed.` : '',
   ]
     .filter(Boolean)
     .join(' ');
+}
+
+function unavailableCompletionText(paths: readonly string[]) {
+  return `${paths.join(', ')} cannot be marked reviewed because ${paths.length === 1 ? 'its fingerprint is' : 'their fingerprints are'} unavailable (too large or unreadable). This stop stays open until every file can be marked reviewed.`;
+}
+
+export function completionPlan(entries: readonly ReviewableItem[]) {
+  const { files, report } = bulkMarkPlan(entries);
+  const unavailable = report.skipped
+    .filter((entry) => entry.reason === 'not-fingerprintable')
+    .map((entry) => entry.path);
+  return {
+    eligible: files.length,
+    unavailable,
+    blocked: unavailable.length > 0 && files.length === 0,
+    action:
+      unavailable.length === 0
+        ? undefined
+        : files.length > 0
+          ? 'Mark available files reviewed'
+          : 'Review unavailable',
+    explanation:
+      unavailable.length > 0
+        ? unavailableCompletionText(unavailable)
+        : undefined,
+  };
+}
+
+export function completionRefusal(
+  report: BulkReviewReport,
+): ReviewNotice | undefined {
+  const unavailable = report.skipped
+    .filter((entry) => entry.reason === 'not-fingerprintable')
+    .map((entry) => entry.path);
+  if (unavailable.length > 0)
+    return {
+      title: 'Some files cannot be marked reviewed',
+      description: `${bulkReportText(report)} ${unavailableCompletionText(unavailable)}`,
+      type: 'error',
+    };
+  if (report.failed.length > 0)
+    return {
+      title: 'Some files changed before they were marked',
+      description: bulkReportText(report),
+      type: 'error',
+    };
+  return undefined;
 }
 
 export function markAllPlan(entries: readonly ReviewableItem[]) {
