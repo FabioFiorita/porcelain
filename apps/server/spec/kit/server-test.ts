@@ -79,13 +79,11 @@ export const test = base
       sample === 'perf' ? sample : undefined,
     );
     onCleanup(async () => {
-      let failure: string | undefined;
       try {
         await recordHandlers(server, routeLog);
       } finally {
-        failure = await server.stop();
+        await server.stop();
       }
-      if (failure) throw new Error(failure);
     });
     return server;
   })

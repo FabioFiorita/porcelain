@@ -86,7 +86,15 @@ export class Environment {
       recorder.phase = 'follow-up';
       return new Environment({ server, recorder, name, link, workspace });
     } catch (error) {
-      await server.stop();
+      try {
+        await server.stop();
+      } catch (cleanup) {
+        throw new AggregateError(
+          [error, cleanup],
+          `Startup failed: ${String(error)}; cleanup failed: ${String(cleanup)}`,
+          { cause: error },
+        );
+      }
       throw error;
     }
   }
@@ -135,7 +143,7 @@ export class Environment {
     );
   }
 
-  stop(): Promise<string | undefined> {
+  stop(): Promise<void> {
     return this.server.stop();
   }
 }

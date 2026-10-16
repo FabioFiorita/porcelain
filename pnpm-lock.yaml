@@ -213,6 +213,9 @@ importers:
       '@porcelain/server':
         specifier: workspace:*
         version: link:../../apps/server
+      '@porcelain/web':
+        specifier: workspace:*
+        version: link:../../apps/web
       effect:
         specifier: 4.0.1
         version: 4.0.1

@@ -104,8 +104,7 @@ export function serve(folder: string): Promise<void> {
       ...(ports[0] === undefined ? {} : { port: ports[0] }),
     });
     life.onStop(async () => {
-      const failure = await environment.stop();
-      if (failure !== undefined) throw new Error(failure);
+      await environment.stop();
     });
     life.secret(
       environment.link,
