@@ -15,11 +15,12 @@ import {
 } from 'lucide-react';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { useCanGoBack, useNavigate, useRouter } from '@tanstack/react-router';
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbList,
+  BreadcrumbLink,
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
@@ -41,6 +42,9 @@ import {
   DevicesSettings,
   DisconnectBrowser,
   RemoteComputers,
+  RemoteComputerSettings,
+  RemoteComputerName,
+  useRemoteConnection,
   ServiceUpdateSettings,
   useConnectedContext,
   useMcpConfiguration,
@@ -264,8 +268,6 @@ function SectionContent({ section }: { section: string }) {
       return <WaysInSettings />;
     case 'devices':
       return <DevicesSection />;
-    case 'remotes':
-      return <RemoteComputers />;
     case 'updates':
       return (
         <ItemGroup>
@@ -353,11 +355,58 @@ function SectionFrame({ children }: { children: ReactNode }) {
   );
 }
 
-export function SettingsPage({ section }: { section: string }) {
+export function SettingsPage({
+  section,
+  environmentId,
+}: {
+  section: string;
+  environmentId?: string | undefined;
+}) {
   const navigate = useNavigate();
+  const remote = useRemoteConnection(environmentId ?? '')?.remote;
+  const { element: list, attach: setList } = useElement<HTMLDivElement>();
+  const { element: page, attach: setPage } = useElement<HTMLElement>();
+  const [listReturn, setListReturn] = useState<{
+    scroll: number;
+    focus: HTMLElement | null;
+  } | null>(null);
+  const returnToList = () => {
+    if (listReturn) router.history.back();
+    else
+      void navigate({
+        to: '/settings/$section',
+        params: { section: 'remotes' },
+        replace: true,
+      });
+  };
+  const openRemote = (id: string) => {
+    setListReturn({
+      scroll: list?.scrollTop ?? 0,
+      focus:
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null,
+    });
+    void navigate({
+      to: '/settings/$section/$environmentId',
+      params: { section: 'remotes', environmentId: id },
+    });
+  };
+  const attachPage = (element: HTMLElement | null) => {
+    setPage(element);
+    if (environmentId !== undefined) element?.focus({ preventScroll: true });
+  };
+  const attachList = (element: HTMLDivElement | null) => {
+    setList(element);
+    if (environmentId === undefined && element) {
+      if (listReturn) element.scrollTop = listReturn.scroll;
+      const target = listReturn?.focus;
+      if (target?.isConnected) target.focus({ preventScroll: true });
+      else element.focus({ preventScroll: true });
+    }
+  };
   const router = useRouter();
   const canGoBack = useCanGoBack();
-  const page = useElement<HTMLElement>();
   const { connection } = useConnectedContext();
   const { environment } = useInventory(connection);
   useDocumentTitle(
@@ -366,14 +415,16 @@ export function SettingsPage({ section }: { section: string }) {
   const current =
     settingsSections.find((item) => item.id === section) ?? settingsSections[0];
   const leave = () => {
-    if (canGoBack) router.history.back();
+    if (environmentId !== undefined) returnToList();
+    else if (canGoBack) router.history.back();
     else void navigate({ to: '/' });
   };
-  useHotkey('Escape', leave, { target: page.element, ignoreInputs: true });
+  useHotkey('Escape', leave, { target: page, ignoreInputs: true });
   return (
     <div className="h-svh min-w-0 flex-1 bg-muted p-2 text-ui text-foreground">
       <main
-        ref={(element) => page.attach(element)}
+        ref={attachPage}
+        tabIndex={-1}
         aria-label="Settings"
         className="flex h-full min-h-0 min-w-0 flex-col gap-2 md:flex-row"
       >
@@ -393,13 +444,17 @@ export function SettingsPage({ section }: { section: string }) {
                   size="sm"
                   className="shrink-0 justify-start md:w-full"
                   aria-current={selected ? 'page' : undefined}
-                  onClick={() =>
+                  onClick={() => {
+                    if (environmentId !== undefined && item.id === 'remotes') {
+                      returnToList();
+                      return;
+                    }
                     void navigate({
                       to: '/settings/$section',
                       params: { section: item.id },
                       replace: true,
-                    })
-                  }
+                    });
+                  }}
                 >
                   <Icon />
                   {item.label}
@@ -426,15 +481,66 @@ export function SettingsPage({ section }: { section: string }) {
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
                   <h2>
-                    <BreadcrumbPage>{current.label}</BreadcrumbPage>
+                    {environmentId === undefined ? (
+                      <BreadcrumbPage>{current.label}</BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink
+                        render={<button type="button" onClick={returnToList} />}
+                      >
+                        Remote computers
+                      </BreadcrumbLink>
+                    )}
                   </h2>
                 </BreadcrumbItem>
+                {environmentId !== undefined && (
+                  <>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>
+                        {remote ? (
+                          <RemoteComputerName remote={remote} />
+                        ) : (
+                          'Computer unavailable'
+                        )}
+                      </BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </>
+                )}
               </BreadcrumbList>
             </Breadcrumb>
           </header>
-          <SectionFrame>
-            <SectionContent section={current.id} />
-          </SectionFrame>
+          {current.id === 'remotes' ? (
+            <>
+              <div
+                ref={attachList}
+                className={
+                  environmentId === undefined
+                    ? 'min-h-0 flex-1 overflow-y-auto'
+                    : 'hidden'
+                }
+                role="region"
+                aria-label="Remote computers list"
+                tabIndex={-1}
+              >
+                <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-6">
+                  <RemoteComputers onOpen={openRemote} />
+                </div>
+              </div>
+              {environmentId !== undefined && (
+                <SectionFrame>
+                  <RemoteComputerSettings
+                    key={environmentId}
+                    environmentId={environmentId}
+                    onForgotten={returnToList}
+                  />
+                </SectionFrame>
+              )}
+            </>
+          ) : (
+            <SectionFrame>
+              <SectionContent section={current.id} />
+            </SectionFrame>
+          )}
         </div>
       </main>
     </div>

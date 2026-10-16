@@ -37,7 +37,7 @@ export function RemoteUnavailable({
       </EmptyHeader>
       <EmptyContent>
         <Button variant="outline" onClick={onOpenRemotes}>
-          Open Remote computers
+          Computer settings
         </Button>
       </EmptyContent>
     </Empty>

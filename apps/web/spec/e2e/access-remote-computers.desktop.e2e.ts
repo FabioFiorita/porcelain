@@ -1,11 +1,12 @@
 import { expect, test } from './fixtures.ts';
 
-test('the desktop app adds a remote computer from the link porcelain pair prints, shows it online, refuses a used or broken link, shows needs pairing after revocation, and forgets it', async ({
+test('the desktop app adds a remote computer from the link porcelain pair prints, shows it online, refuses a used or broken link, shows needs pairing after revocation, and forgets it from its detail page', async ({
   pairedPage,
   app,
   remote,
 }) => {
-  const host = (await remote.server.inventory()).environment.name;
+  const inventory = await remote.server.inventory();
+  const host = inventory.environment.name;
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
@@ -51,7 +52,14 @@ test('the desktop app adds a remote computer from the link porcelain pair prints
   });
   const listed = remotes.getByRole('listitem', { name: host, exact: true });
   await expect(listed).toBeVisible();
-  await expect(listed.getByText('Online', { exact: true })).toBeVisible();
+  await expect(listed.getByText('Online', { exact: true })).not.toBeAttached();
+  await expect(listed.getByRole('button')).toBeVisible();
+  await listed.getByRole('button').click();
+  await expect(pairedPage).toHaveURL(
+    new RegExp(`/settings/remotes/${inventory.environmentId}$`),
+  );
+  await expect(settings.getByText('Online', { exact: true })).toBeVisible();
+  await settings.getByRole('button', { name: 'Back', exact: true }).click();
   await expect
     .poll(async () =>
       (await remote.server.devices()).map((device) => device.label),
@@ -76,12 +84,14 @@ test('the desktop app adds a remote computer from the link porcelain pair prints
     kind: 'device',
   });
   await app.reload();
+  await listed.getByRole('button').click();
   await expect(
-    listed.getByText('Needs pairing', { exact: true }),
+    settings.getByText('Needs pairing', { exact: true }),
   ).toBeVisible();
 
-  await listed
-    .getByRole('button', { name: `Remove ${host}`, exact: true })
+  await settings
+    .getByRole('button', { name: 'Forget on this app', exact: true })
     .click();
   await expect(empty).toBeVisible();
+  await expect(pairedPage).toHaveURL(/\/settings\/remotes$/);
 });
