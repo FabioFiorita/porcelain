@@ -44,6 +44,7 @@ import {
 } from '@porcelain/client/reviews/rules';
 import {
   ALL_CHANGES,
+  publishedReviewTitle,
   SPECS,
   BRANCH,
   type DocumentRef,
@@ -109,7 +110,7 @@ export function ReviewIndex({
   usePrefetchComments(scope, context);
   const list = useChanges(scope, connection);
   const published = usePublishedReview(scope, context);
-  const review = published.review?.active ? published.review : null;
+  const review = published.review ?? null;
   const { threads } = useComments(scope, context);
   const changes = useReviewChangeItems(scope, context, list);
   const openComments = threads.filter((thread) => !thread.resolved).length;
@@ -415,6 +416,15 @@ function WalkthroughRows({
     activeEntry === 'handoff' && walk.stop.key === key;
   return (
     <nav aria-label="Walkthrough" className="flex flex-col">
+      {!review.active && (
+        <SidebarDocumentRow
+          label="Saved review"
+          active={here('briefing')}
+          onOpen={() => open('briefing')}
+        >
+          {publishedReviewTitle(review)}
+        </SidebarDocumentRow>
+      )}
       {walk.stops.map((stop) => {
         const progress = filesReviewed(stop.paths, walk.items);
         const done = walk.done(stop);

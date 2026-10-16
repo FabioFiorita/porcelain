@@ -8,7 +8,7 @@ import type {
 import { ReviewEmpty } from './review-empty';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
-export function ActiveReview({
+export function PublishedReview({
   scope,
   context,
   absent,
@@ -20,7 +20,7 @@ export function ActiveReview({
   children: (review: ReviewResponse) => ReactNode;
 }) {
   const published = usePublishedReview(scope, context);
-  const review = published.review?.active ? published.review : null;
+  const review = published.review;
   if (AsyncResult.isInitial(published.result))
     return (
       <p role="status" className="p-4 text-sm">

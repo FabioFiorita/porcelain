@@ -179,7 +179,7 @@ function HandoffDocument(props: DocumentProps) {
     );
   if (AsyncResult.isFailure(published.result))
     return <PublicationFailure retry={published.refresh} />;
-  if (review?.active)
+  if (review)
     return (
       <ReviewWalkthrough
         {...props}

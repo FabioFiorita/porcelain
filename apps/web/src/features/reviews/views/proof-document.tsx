@@ -9,7 +9,7 @@ import type {
   ReviewResponse,
   ReviewScope,
 } from '@porcelain/client/reviews/rules';
-import { ActiveReview } from './active-review';
+import { PublishedReview } from './published-review';
 import { DocumentToolbar } from './document-toolbar';
 import { ProofList } from './proof-list';
 import { ReviewEmpty } from './review-empty';
@@ -23,7 +23,7 @@ export function ProofDocument({
   context: ConnectionContext;
 }) {
   return (
-    <ActiveReview
+    <PublishedReview
       scope={scope}
       context={context}
       absent="Proof comes with a published review. This worktree has no review now."
@@ -31,7 +31,7 @@ export function ProofDocument({
       {(review) => (
         <PublishedProof scope={scope} context={context} review={review} />
       )}
-    </ActiveReview>
+    </PublishedReview>
   );
 }
 

@@ -1,3 +1,4 @@
+import { publishedReviewTitle, type ReviewTitle } from '../rules/documents';
 import { useElement, type ElementTarget } from '@/shared/hooks/use-element';
 import { AsyncResult } from 'effect/reactivity';
 import { Cause, Option } from 'effect';
@@ -115,7 +116,7 @@ function ReviewWorkspaceContent({
     !saved && !parseEntry(search.entry) && !parseEntry(search.side);
   const ready = !needsDefault || (!awaitingChanges && !awaitingPublication);
   const hasHandoff =
-    Boolean(published.review?.active) ||
+    Boolean(published.review) ||
     (Option.getOrUndefined(AsyncResult.value(overview))?.changes.length ?? 0) >
       0;
   const layout = useTabLayout({
@@ -422,8 +423,10 @@ function DocumentPanes({
     focused: focused === index,
     scope,
     context,
-    reviewing: published.review?.active === true,
-    handoff: handoffKind(published.review?.active === true, hasHandoff),
+    reviewTitle: publishedReviewTitle(published.review),
+    handoff:
+      publishedReviewTitle(published.review) ??
+      (hasHandoff ? ('Changes' as const) : null),
     base,
     onOpen,
     navigationTrigger,
@@ -447,15 +450,6 @@ function DocumentPanes({
   );
 }
 
-function handoffKind(
-  reviewing: boolean,
-  hasHandoff: boolean,
-): 'review' | 'changes' | null {
-  if (reviewing) return 'review';
-  if (hasHandoff) return 'changes';
-  return null;
-}
-
 function paneSide(split: boolean, index: PaneIndex): 'left' | 'right' | null {
   if (!split) return null;
   return index === 0 ? 'left' : 'right';
@@ -469,7 +463,7 @@ function PaneView({
   focused,
   scope,
   context,
-  reviewing,
+  reviewTitle,
   handoff,
   base,
   onOpen,
@@ -483,8 +477,8 @@ function PaneView({
   layout: ReturnType<typeof useTabLayout>;
   split: boolean;
   focused: boolean;
-  reviewing: boolean;
-  handoff: 'review' | 'changes' | null;
+  reviewTitle: ReviewTitle | undefined;
+  handoff: ReviewTitle | 'Changes' | null;
 }) {
   const pane = layout.panes[index] ?? { tabs: [], pinned: [], active: null };
   const document = parseEntry(pane.active ?? undefined);
@@ -538,7 +532,7 @@ function PaneView({
         tabs={pane.tabs}
         pinned={pane.pinned}
         active={pane.active}
-        reviewing={reviewing}
+        reviewTitle={reviewTitle}
         side={paneSide(split, index)}
         focused={focused}
         onActivate={(key) => layout.activate(index, key)}
@@ -583,10 +577,19 @@ function EmptyDocument({
   handoff,
   onOpen,
 }: {
-  handoff: 'review' | 'changes' | null;
+  handoff: ReviewTitle | 'Changes' | null;
   onOpen: OpenDocument;
 }) {
-  const opens = handoff === 'review' ? 'the review' : 'all changes';
+  const target =
+    handoff &&
+    {
+      Review: { opens: 'the review', action: 'Open review' },
+      'Saved review': {
+        opens: 'the saved review',
+        action: 'Open saved review',
+      },
+      Changes: { opens: 'all changes', action: 'Open all changes' },
+    }[handoff];
   return (
     <div className="grid min-h-0 flex-1 place-items-center p-8">
       <Empty>
@@ -598,14 +601,14 @@ function EmptyDocument({
             {handoff ? 'Nothing open' : 'No changes to review'}
           </EmptyTitle>
           <EmptyDescription>
-            {handoff
-              ? `Open ${opens}, or choose a file or commit from the right.`
+            {target
+              ? `Open ${target.opens}, or choose a file or commit from the right.`
               : 'Browse files or history from the right.'}
           </EmptyDescription>
         </EmptyHeader>
-        {handoff && (
+        {target && (
           <Button onClick={() => onOpen({ kind: 'handoff' })}>
-            {handoff === 'review' ? 'Open review' : 'Open all changes'}
+            {target.action}
           </Button>
         )}
       </Empty>

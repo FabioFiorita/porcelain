@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { entryKey, parseEntry, workspaceTitle } from './documents.ts';
+import {
+  entryKey,
+  parseEntry,
+  publishedReviewTitle,
+  workspaceTitle,
+} from './documents.ts';
 
 describe('workspaceTitle', () => {
   it('names the open file by its name, then the project', () => {
@@ -84,4 +89,11 @@ it('restores distinct all-changes and Specs documents after navigation or reload
   expect(
     workspaceTitle({ entry: 'specs', surface: 'changes', project: 'p' }),
   ).toBe('Specs — p');
+});
+
+it('names the current publication independently of whether its code is still active', () => {
+  expect(publishedReviewTitle({ active: true })).toBe('Review');
+  expect(publishedReviewTitle({ active: false })).toBe('Saved review');
+  expect(publishedReviewTitle(undefined)).toBeUndefined();
+  expect(publishedReviewTitle(null)).toBeUndefined();
 });

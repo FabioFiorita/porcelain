@@ -1,3 +1,4 @@
+import { publishedReviewTitle } from '../rules/documents';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { CheckIcon, CompassIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -50,7 +51,7 @@ export function ReviewWalkthrough({
         <WalkthroughShortcuts step={step} />
       )}
       <DocumentToolbar
-        title="Review"
+        title={publishedReviewTitle(review)}
         subtitle={`${review.layers.length} ${review.layers.length === 1 ? 'decision' : 'decisions'} · ${changedFiles.length} changed ${changedFiles.length === 1 ? 'file' : 'files'}`}
       >
         <Tabs
@@ -70,6 +71,16 @@ export function ReviewWalkthrough({
           </TabsList>
         </Tabs>
       </DocumentToolbar>
+      {!review.active && (
+        <p
+          role="status"
+          className="shrink-0 border-b px-3.5 py-2 text-xs text-muted-foreground"
+        >
+          This is the latest saved publication, not a frozen archive. Historical
+          diff replay is unavailable. Code pointers follow the current worktree;
+          publishing another review replaces this one.
+        </p>
+      )}
       <WalkthroughBar
         stops={walk.stops}
         items={walk.items}
