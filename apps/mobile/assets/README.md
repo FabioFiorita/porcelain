@@ -13,8 +13,10 @@ uses that same layer.
 
 The built-in imagegen tool preserved the carved branch mark and turquoise accent
 while extending the ceramic tile and extracting the transparent glyph. The
-1254-square source PNGs are intentionally passed directly to Expo's standard
-native asset generation. There is no custom resizing pipeline.
+1254-square source PNGs pass through Expo's standard native asset generation.
+`porcelain-logo-ios.png` is the 1024-square output of Expo's PNG icon prebuild
+path, fitted to Icon Composer's 1024-square canvas. The full-size source remains
+the Android legacy input. There is no custom resizing pipeline.
 
 `adaptive-foreground.png` pads the glyph inside Android's adaptive safe area;
 its alpha also supplies the system-tinted monochrome icon. `splash.png` is the
