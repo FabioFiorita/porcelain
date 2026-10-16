@@ -1,0 +1,35 @@
+name: Disposable corrected iOS icon proof 306
+on:
+  push:
+    branches: [proof/mobile306-ios-icon-20261016]
+permissions:
+  contents: read
+jobs:
+  corrected-icon:
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      APP_VARIANT: preview
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - run: mkdir -p "$RUNNER_TEMP/proof306"
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@24.20.0
+          cache: false
+          require-lockfile: true
+      - run: pnpm install --frozen-lockfile
+      - name: Build and drive corrected Preview binary
+        run: bash .github/proof306/run.sh
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mobile306-corrected-ios
+          path: ${{ runner.temp }}/proof306/
+          retention-days: 14
+          if-no-files-found: error
