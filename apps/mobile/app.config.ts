@@ -42,7 +42,6 @@ const config: ExpoConfig = {
         image: './assets/splash.png',
         imageWidth: 192,
         resizeMode: 'contain',
-        // packages/theme background: oklch(1 0 0) / oklch(0.145 0 0).
         backgroundColor: '#ffffff',
         dark: {
           image: './assets/splash-dark.png',
