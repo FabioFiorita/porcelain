@@ -10,7 +10,7 @@ import {
   statSync,
 } from 'node:fs';
 import { chmod, cp, mkdir, mkdtemp, rm, symlink } from 'node:fs/promises';
-import { connect, createServer, Socket, type Server } from 'node:net';
+import { connect, createServer, Socket } from 'node:net';
 import { tmpdir, userInfo } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -317,9 +317,14 @@ function seatbeltProfile(sandbox: Sandbox): string {
 function relayTo(
   socketPath: string,
   port: number,
-): Promise<{ relay: Server; port: number }> {
+): Promise<{ close: () => Promise<void>; port: number }> {
+  const sockets = new Set<Socket>();
   const relay = createServer((incoming) => {
     const outgoing = connect(socketPath);
+    for (const socket of [incoming, outgoing]) {
+      sockets.add(socket);
+      socket.once('close', () => sockets.delete(socket));
+    }
     incoming.pipe(outgoing).pipe(incoming);
     incoming.on('error', () => outgoing.destroy());
     outgoing.on('error', () => incoming.destroy());
@@ -330,7 +335,17 @@ function relayTo(
       const address = relay.address();
       if (address === null || typeof address === 'string')
         rejectRelay(new Error('The network relay has no port'));
-      else resolveRelay({ relay, port: address.port });
+      else
+        resolveRelay({
+          port: address.port,
+          close: () =>
+            new Promise<void>((resolveClose, rejectClose) => {
+              relay.close((error) =>
+                error ? rejectClose(error) : resolveClose(),
+              );
+              for (const socket of sockets) socket.destroy();
+            }),
+        });
     });
   });
 }
@@ -407,7 +422,7 @@ async function main() {
   const given = option('--server');
   const requested = portOption();
   let stopping = false;
-  let relay: Server | undefined;
+  let closeRelay: (() => Promise<void>) | undefined;
   let stopChild = () => undefined;
   const stop = () => {
     stopping = true;
@@ -429,8 +444,8 @@ async function main() {
     const network =
       process.platform === 'linux'
         ? await relayTo(join(root, 'network.sock'), requested ?? 0)
-        : { relay: undefined, port: requested ?? (await freePort()) };
-    relay = network.relay;
+        : { close: undefined, port: requested ?? (await freePort()) };
+    closeRelay = network.close;
     const sandbox: Sandbox = {
       node: realpathSync(process.execPath),
       git,
@@ -500,7 +515,7 @@ async function main() {
   } finally {
     process.off('SIGINT', stop);
     process.off('SIGTERM', stop);
-    relay?.close();
+    await closeRelay?.();
     for (const path of scratch)
       await rm(path, { recursive: true, force: true });
   }
