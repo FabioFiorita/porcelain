@@ -221,6 +221,7 @@ function SelectedWorkspace({
             <Box className={session.mode === 'files' ? 'flex-1' : 'hidden'}>
               <FilesNavigation
                 selected={workspace}
+                comparison={session.comparison}
                 sidebar={sidebar}
                 embedded
                 activePath={

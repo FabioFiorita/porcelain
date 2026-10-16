@@ -27,6 +27,7 @@ export function FileTree({
   header,
   loaded,
   flat = false,
+  annotations,
 }: {
   nodes: readonly FileTreeEntry[];
   expanded: ReadonlySet<string>;
@@ -37,6 +38,7 @@ export function FileTree({
   header?: ReactNode;
   loaded: boolean;
   flat?: boolean;
+  annotations?: ReadonlyMap<string, string>;
   contextMenu?: ((node: FileTreeEntry) => ItemMenuProps['actions']) | undefined;
 }) {
   const padding = useResolveClassNames('px-2');
@@ -68,11 +70,14 @@ export function FileTree({
       renderItem={({ item: { entry: node, depth } }) => {
         const path = node.path.replace(/\/$/, '');
         const busy = node.kind === 'directory' && Boolean(loading?.has(path));
+        const annotation =
+          node.kind === 'directory' ? undefined : annotations?.get(path);
         const item: ItemProps = {
           title: flat ? node.path : entryName(node.path),
+          ...(annotation ? { description: annotation } : {}),
           size: 'sm',
           selected: path === selected,
-          accessibilityLabel: `${node.kind === 'directory' ? (expanded.has(path) ? 'Collapse' : 'Expand') : 'Open'} ${entryName(node.path)}${busy ? ', loading' : ''}`,
+          accessibilityLabel: `${node.kind === 'directory' ? (expanded.has(path) ? 'Collapse' : 'Expand') : 'Open'} ${path}${busy ? ', loading' : ''}${annotation ? `, ${annotation}` : ''}`,
           leading: (
             <View
               className="flex-row items-center gap-2"
