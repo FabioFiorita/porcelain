@@ -120,28 +120,31 @@ export function ReviewOverview({
   workspace,
   comparison,
   onFile,
-  empty,
 }: {
   workspace: Workspace;
   comparison: ReviewComparison;
   onFile: (path: string) => void;
-  empty?: boolean;
 }) {
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
   if (comparison.kind === 'worktree')
     return (
-      <PublishedReview
-        workspace={workspace}
-        onFile={onFile}
-        empty={
-          empty ? (
-            <Empty
-              title="No agent review"
-              description="Choose a changed file to review its diff. Published agent explanations will appear here."
-            />
-          ) : undefined
-        }
-      />
+      <Box gap={3}>
+        {!AsyncResult.isSuccess(result) ? (
+          <Box gap={2}>
+            <Text variant="ui">Changed-file coverage is unavailable.</Text>
+            <ReviewReadState result={result} refresh={refresh} />
+          </Box>
+        ) : null}
+        <PublishedReview
+          workspace={workspace}
+          onFile={onFile}
+          changedPaths={
+            AsyncResult.isSuccess(result) && result.value.kind === 'worktree'
+              ? result.value.answer.changes.map((file) => file.path)
+              : undefined
+          }
+        />
+      </Box>
     );
   if (!AsyncResult.isSuccess(result))
     return <ReviewReadState result={result} refresh={refresh} />;

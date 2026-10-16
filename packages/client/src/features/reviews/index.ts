@@ -3,6 +3,7 @@ export { readReviewedFiles } from './queries/reviewed.ts';
 export {
   readLayerMarks,
   readPublishedReview,
+  readReviewSummary,
   readProofFile,
 } from './queries/publication.ts';
 export { readCommentThreads } from './queries/comments.ts';

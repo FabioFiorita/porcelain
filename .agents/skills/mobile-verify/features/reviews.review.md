@@ -7,9 +7,19 @@ selectors:
   - 'Review'
   - 'Select a worktree to continue.'
   - 'No changes'
+  - 'Open review overview'
+  - 'Read agent summary'
+  - 'Return to walkthrough'
+  - 'Show whole file'
+  - 'Show relevant range'
+  - 'No agent review'
+  - 'No walkthrough decisions'
 tests:
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
+  - apps/mobile/src/features/reviews/rules/pointer-source.spec.ts
+  - packages/client/src/features/reviews/queries/publication.spec.ts
 api:
+  - GET /api/worktrees/:worktreeId/text
   - GET /api/inventory
   - GET /api/worktrees/:worktreeId/changes
   - GET /api/worktrees/:worktreeId/branch-changes
@@ -46,8 +56,20 @@ Drive this feature with the mobile-verify skill on demand.
 
 ## Gotchas
 
-- Agent explanations can refer to context or committed files outside the current comparison. The current changed-file destination explicitly reports No longer changed instead of fabricating a diff.
+- Walkthrough code pointers open the current source at their resolved range, including context and committed files outside the comparison. Broken pointers explain that code is unavailable and disable reading. Changed pointers warn that the original snippet moved and do not highlight it as current. Changed-file diffs remain a separate destination.
 - Pane width is measured after the app sidebar consumes its space. A wide phone still uses native file routes; Android keeps its existing compact presentation. Resize the iPad pane across the threshold and verify the same tabs and active content remain, with no native file-route push.
 - Native acceptance requires driving the changed iPad presentation and existing compact flow; source inspection does not establish either.
 
 See [selected workspace states](projects.workspace-picker.md#selected-workspace-states) for shared loading, failure, availability and recovery behavior.
+
+## Agent overview and walkthrough
+
+Use `--fixture development`. On the phone open Review; on iPad open Review in the inspector, then Overview. Verify the briefing's three decisions match the published response and web walkthrough in order: Keep document holds visible, Filter completed deliveries, Explain the dispatch handoff. Decision completion and sidebar status are independent features.
+
+Open each numbered decision, read its supplied explanation, and move with Next and Previous. Read a code pointer: expect the path, source range and source line numbers, Show whole file and Show relevant range. Return to the named decision; open its changed-file diff and use phone Back or the iPad Review tab to return to the same decision/pointer. Open Read agent summary and expect the supplied HTML; Return to walkthrough restores the stop. The existing isolated HTML renderer displays self-contained content without executing scripts or loading remote assets.
+
+Switch worktrees and return: no review leaks into the other workspace; the same review restores its stop. A newly published revision starts with its own briefing. Choose Branch and return to Uncommitted; branch comparison remains independent. Verify No agent review when none was supplied; No walkthrough decisions when a saved response has no decisions; loading and read failures must show a state and Read again. Refresh review retries publication, including expired summary links. On iPad Overview, a failed or loading changed-file read shows its own state and Read again while saved decisions remain available; unknown coverage must not look like an empty comparison. Its retry restores Not explained and changed-file diff links. A missing worktree displays the saved-review diagnostics and disables code pointers.
+
+Capture Android, iPhone and iPad evidence separately. iPad landscape first, then portrait, plus larger Dynamic Type. Check unique accessible labels for overview, summary, decision entry, range reading and previous/next controls.
+
+Agent summaries read the existing signed `/review-summaries/:token` HTML endpoint through the selected connection. The feature-map API frontmatter currently accepts only `/api/` routes.

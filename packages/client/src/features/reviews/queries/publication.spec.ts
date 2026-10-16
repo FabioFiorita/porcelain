@@ -5,7 +5,11 @@ import {
   createWorktreeConnection,
   type Transport,
 } from '@porcelain/client/transport';
-import { readPublishedReview, readProofFile } from './publication.ts';
+import {
+  readPublishedReview,
+  readProofFile,
+  readReviewSummary,
+} from './publication.ts';
 
 const scope = { projectId: 'project', worktreeId: 'a'.repeat(32) };
 const environmentId = '00000000-0000-4000-8000-000000000001';
@@ -124,4 +128,36 @@ it('refuses an attachment returned for a different proof id', async () => {
     message:
       'The connected context changed. Reopen Porcelain to continue safely.',
   });
+});
+
+it('reads the exact published summary HTML through the selected connection and signed capability', async () => {
+  const paths: string[] = [];
+  const html = '<style>h1{color:navy}</style><h1>Dispatch decisions</h1>';
+  const subject = fixture((path) => {
+    paths.push(path);
+    return Promise.resolve(
+      new Response(html, {
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+      }),
+    );
+  });
+  owned.push(subject);
+  const summary = {
+    token: proofId,
+    expires: '2026-10-15T23:00:00.000Z',
+    signature: 's'.repeat(43),
+    byteLength: html.length,
+  };
+  expect(
+    await Effect.runPromise(
+      AtomRegistry.getResult(
+        subject.registry,
+        readReviewSummary({ connection: subject.connection, scope, summary }),
+        { suspendOnWaiting: true },
+      ),
+    ),
+  ).toBe(html);
+  expect(paths).toEqual([
+    `/review-summaries/${proofId}?expires=2026-10-15T23%3A00%3A00.000Z&signature=${'s'.repeat(43)}`,
+  ]);
 });
