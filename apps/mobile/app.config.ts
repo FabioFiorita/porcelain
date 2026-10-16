@@ -14,7 +14,9 @@ const config: ExpoConfig = {
   scheme: identity.scheme,
   platforms: ['ios', 'android'],
   userInterfaceStyle: 'automatic',
+  icon: './assets/porcelain.icon/Assets/porcelain-logo.png',
   ios: {
+    icon: './assets/porcelain.icon',
     bundleIdentifier: identity.bundleIdentifier,
     supportsTablet: true,
     infoPlist: {
@@ -23,10 +25,31 @@ const config: ExpoConfig = {
         'Connect to your Porcelain environments on the local network.',
     },
   },
-  android: { package: identity.bundleIdentifier },
+  android: {
+    package: identity.bundleIdentifier,
+    adaptiveIcon: {
+      foregroundImage: './assets/adaptive-foreground.png',
+      monochromeImage: './assets/adaptive-foreground.png',
+      backgroundColor: '#f5f5f4',
+    },
+  },
   plugins: [
     'expo-router',
     'expo-secure-store',
+    [
+      'expo-splash-screen',
+      {
+        image: './assets/splash.png',
+        imageWidth: 192,
+        resizeMode: 'contain',
+        // packages/theme background: oklch(1 0 0) / oklch(0.145 0 0).
+        backgroundColor: '#ffffff',
+        dark: {
+          image: './assets/splash-dark.png',
+          backgroundColor: '#0a0a0a',
+        },
+      },
+    ],
     ['expo-build-properties', { ios: { deploymentTarget: '26.0' } }],
   ],
   experiments: { reactCompiler: true },
