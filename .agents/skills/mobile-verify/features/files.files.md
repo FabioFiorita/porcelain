@@ -18,11 +18,17 @@ selectors:
   - 'Pin file'
   - 'Unpin file'
   - 'Hide folder'
+  - 'Uncommitted review status'
+  - 'Branch review status'
+  - 'Reading file review status…'
+  - 'File review status is unavailable.'
+  - 'Read file review status again'
 tests:
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
   - apps/mobile/src/features/files/rules/directory-loading.spec.ts
   - apps/mobile/src/features/files/rules/directory-requests.spec.ts
   - apps/mobile/src/features/files/rules/file-preferences.spec.ts
+  - apps/mobile/src/features/reviews/rules/comparison.spec.ts
 api:
   - GET /api/inventory
   - GET /api/worktrees/:worktreeId/directory
@@ -30,6 +36,9 @@ api:
   - POST /api/worktrees/:worktreeId/files
   - GET /api/projects/:projectId/file-preferences
   - PUT /api/projects/:projectId/file-preferences
+  - GET /api/worktrees/:worktreeId/changes
+  - GET /api/worktrees/:worktreeId/branch-changes
+  - GET /api/worktrees/:worktreeId/reviewed
 ---
 
 # files.files
@@ -51,3 +60,7 @@ Earlier phone evidence covers browsing and directory operations against a real s
 See [selected workspace states](projects.workspace-picker.md#selected-workspace-states) for shared loading, failure, availability and recovery behavior.
 
 On both devices, long-press a file in the tree, search or Pinned files to Pin file, Unpin file or Hide file. Directories offer Hide folder. Show hidden reveals saved hidden paths; Show file/folder clears the actual hidden preference, including an inherited hidden ancestor. Pins remain reachable before their containing folders are opened. Verify preferences through the server and after leaving and reopening Files. Preference reads/writes expose pending, error and retry states. Switching environment/project must not carry preferences into a different project. Only iPad offers Open to the side.
+
+Applicable changed files show their canonical Reviewed, Unreviewed or Changed since review status beneath the name in the tree, search and Pinned files. Unchanged files and directories have no review label. Each row's accessible Open label includes its full path and review status, so duplicate leaf names remain distinct. Opening any file, including from its menu or pin, does not mark it reviewed. Existing kind/ignored badges and context-menu actions remain available.
+
+On iPad, Files follows the workspace's Uncommitted or Branch comparison and names that context above the tree. Phone Files uses Uncommitted marks. Verify a reviewed file beside an unreviewed file, mark/unmark through the native review, then update marks through an independent authorized server client while Files is visible. Change the reviewed file's contents and expect Changed since review. Switch comparison and worktree, return, and relaunch/reconnect: marks must agree with independent server reads. Review reads that are pending or unavailable leave file navigation usable, display Reading file review status… or File review status is unavailable. with Read file review status again, and show no retained Reviewed labels. Repeat landscape first, portrait and a larger Dynamic Type size. This outcome uses file marks independently from Overview and Walkthrough commands.

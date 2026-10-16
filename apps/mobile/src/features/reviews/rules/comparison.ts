@@ -13,6 +13,7 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { commitPath } from '@porcelain/client/history/rules';
 import type { ListReviewedFilesResponse } from '@porcelain/contracts/reviews';
+import { AsyncResult } from 'effect/reactivity';
 
 export type ReviewSnapshot =
   | { kind: 'worktree'; answer: ReadChangesResponse }
@@ -49,6 +50,31 @@ export function reviewFiles(
         ...file,
         note: file.status,
       }));
+}
+
+export function fileReviewLabels<E, F>(
+  snapshot: AsyncResult.AsyncResult<ReviewSnapshot, E>,
+  marks: AsyncResult.AsyncResult<ListReviewedFilesResponse, F>,
+): ReadonlyMap<string, string> {
+  if (
+    !AsyncResult.isSuccess(snapshot) ||
+    snapshot.waiting ||
+    !AsyncResult.isSuccess(marks) ||
+    marks.waiting
+  )
+    return new Map();
+  return new Map(
+    reviewFiles(snapshot.value, marks.value).map((file) => [
+      file.path,
+      !file.fingerprint
+        ? 'Review status unavailable'
+        : file.reviewStatus === 'reviewed'
+          ? 'Reviewed'
+          : file.reviewStatus === 'stale'
+            ? 'Changed since review'
+            : 'Unreviewed',
+    ]),
+  );
 }
 
 export function commentTarget(

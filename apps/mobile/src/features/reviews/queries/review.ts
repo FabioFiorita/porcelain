@@ -3,8 +3,13 @@ import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import { readChanges, readBranchChanges } from '@porcelain/client/changes';
 import { readReviewedFiles } from '@porcelain/client/reviews';
+import { WORKTREE_RANGE } from '@porcelain/client/reviews/rules';
 import type { Workspace } from '../../projects';
-import { reviewRange, type ReviewSnapshot } from '../rules/comparison';
+import {
+  fileReviewLabels,
+  reviewRange,
+  type ReviewSnapshot,
+} from '../rules/comparison';
 
 const snapshots = Atom.family(
   ({
@@ -62,11 +67,40 @@ export function useReviewSnapshot(
   return { result: useAtomValue(query), refresh: useAtomRefresh(query) };
 }
 
-export function useReviewMarks(workspace: Workspace, snapshot: ReviewSnapshot) {
+export function useReviewMarks(
+  workspace: Workspace,
+  snapshot?: ReviewSnapshot,
+) {
   const query = readReviewedFiles({
     connection: workspace.connection,
     scope: workspace.scope,
-    range: reviewRange(snapshot),
+    range: snapshot ? reviewRange(snapshot) : WORKTREE_RANGE,
   });
   return { result: useAtomValue(query), refresh: useAtomRefresh(query) };
+}
+
+export function useFileReview(
+  workspace: Workspace,
+  comparison: ReviewComparison,
+) {
+  const snapshot = useReviewSnapshot(workspace, comparison);
+  const marks = useReviewMarks(
+    workspace,
+    AsyncResult.isSuccess(snapshot.result) ? snapshot.result.value : undefined,
+  );
+  const results: readonly AsyncResult.AsyncResult<unknown, unknown>[] = [
+    snapshot.result,
+    marks.result,
+  ];
+  return {
+    labels: fileReviewLabels(snapshot.result, marks.result),
+    unavailable: results.some(AsyncResult.isFailure),
+    pending: results.some(
+      (result) => AsyncResult.isInitial(result) || result.waiting,
+    ),
+    refresh: () => {
+      snapshot.refresh();
+      marks.refresh();
+    },
+  };
 }

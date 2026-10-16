@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   commentTarget,
   documentReviewTarget,
+  fileReviewLabels,
   reviewFiles,
   reviewRange,
   type ReviewSnapshot,
 } from './comparison';
 import { rangeAnchor } from '@porcelain/client/reviews/rules';
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
 
 const staged = {
   scope: 'staged',
@@ -61,6 +64,114 @@ const file = {
   note: 'staged',
   reviewStatus: 'unreviewed' as const,
 };
+
+describe('Files navigation review labels', () => {
+  const marks = {
+    worktreeId: 'tree',
+    marks: [
+      {
+        path: 'new.ts',
+        fingerprint: 'current',
+        reviewedAt: '2026-10-15T00:00:00Z',
+      },
+    ],
+  };
+  const snapshot = AsyncResult.success(worktree);
+  const reviewed = AsyncResult.success(marks);
+
+  it('names only applicable files using canonical marks and fingerprints', () => {
+    const changed: ReviewSnapshot = {
+      ...worktree,
+      answer: {
+        ...worktree.answer,
+        changes: [
+          ...worktree.answer.changes,
+          { path: 'fresh.ts', fingerprint: 'fresh', comparisons: [] },
+          { path: 'changed.ts', fingerprint: 'now', comparisons: [] },
+          { path: 'unknown.ts', fingerprint: undefined, comparisons: [] },
+        ],
+      },
+    };
+    expect([
+      ...fileReviewLabels(
+        AsyncResult.success(changed),
+        AsyncResult.success({
+          ...marks,
+          marks: [
+            ...marks.marks,
+            { ...marks.marks[0]!, path: 'changed.ts', fingerprint: 'old' },
+            { ...marks.marks[0]!, path: 'unknown.ts' },
+            { ...marks.marks[0]!, path: 'unchanged.ts' },
+          ],
+        }),
+      ),
+    ]).toEqual([
+      ['new.ts', 'Reviewed'],
+      ['fresh.ts', 'Unreviewed'],
+      ['changed.ts', 'Changed since review'],
+      ['unknown.ts', 'Review status unavailable'],
+    ]);
+  });
+
+  it.each([
+    {
+      name: 'initial changes',
+      snapshot: AsyncResult.initial(),
+      marks: reviewed,
+    },
+    {
+      name: 'refreshing changes',
+      snapshot: AsyncResult.waiting(snapshot),
+      marks: reviewed,
+    },
+    {
+      name: 'failed changes retaining old data',
+      snapshot: AsyncResult.failWithPrevious('offline', {
+        previous: Option.some(snapshot),
+      }),
+      marks: reviewed,
+    },
+    { name: 'initial marks', snapshot, marks: AsyncResult.initial() },
+    {
+      name: 'refreshing marks',
+      snapshot,
+      marks: AsyncResult.waiting(reviewed),
+    },
+    {
+      name: 'failed marks retaining old data',
+      snapshot,
+      marks: AsyncResult.failWithPrevious('offline', {
+        previous: Option.some(reviewed),
+      }),
+    },
+  ])('does not present $name as reviewed', ({ snapshot, marks }) => {
+    expect([...fileReviewLabels(snapshot, marks)]).toEqual([]);
+  });
+
+  it('updates on mark removal, changed content and a different comparison', () => {
+    expect([...fileReviewLabels(snapshot, reviewed)]).toEqual([
+      ['new.ts', 'Reviewed'],
+    ]);
+    expect([
+      ...fileReviewLabels(
+        snapshot,
+        AsyncResult.success({ worktreeId: 'tree', marks: [] }),
+      ),
+    ]).toEqual([['new.ts', 'Unreviewed']]);
+    expect([
+      ...fileReviewLabels(AsyncResult.success(branch), reviewed),
+    ]).toEqual([['new.ts', 'Changed since review']]);
+    expect([
+      ...fileReviewLabels(
+        AsyncResult.success({
+          ...worktree,
+          answer: { ...worktree.answer, worktreeId: 'other', changes: [] },
+        }),
+        AsyncResult.success({ worktreeId: 'other', marks: [] }),
+      ),
+    ]).toEqual([]);
+  });
+});
 
 describe('mobile review comparisons', () => {
   it('uses branch reviewed marks independently from worktree marks', () => {

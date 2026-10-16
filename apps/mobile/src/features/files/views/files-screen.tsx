@@ -4,6 +4,8 @@ import {
   type LeadingToolbarProps,
 } from '../../../components/ui/leading-toolbar';
 import { WorkspaceGate, type Workspace } from '../../projects';
+import { useFileReview } from '../../reviews';
+import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { useState } from 'react';
 import { Stack } from 'expo-router';
@@ -70,6 +72,7 @@ type FilesNavigationProps = {
   activePath?: string | undefined;
   embedded?: boolean;
   onOpenToSide?: ((path: string) => void) | undefined;
+  comparison?: ReviewComparison;
 };
 
 export function FilesNavigation(props: FilesNavigationProps) {
@@ -83,7 +86,9 @@ function FilesNavigationView({
   activePath,
   embedded = false,
   onOpenToSide,
+  comparison = { kind: 'worktree' },
 }: FilesNavigationProps) {
+  const review = useFileReview(selected, comparison);
   const preferences = {
     read: useFilePreferences(selected.connection, selected.scope.projectId),
     write: useSetFilePreference(selected.connection, selected.scope.projectId),
@@ -248,6 +253,24 @@ function FilesNavigationView({
           {selected.project.name} · {worktreeLabel(selected.worktree.branch)}
         </Text>
       ) : null}
+      <Text variant="caption" tone="muted">
+        {comparison.kind === 'worktree'
+          ? 'Uncommitted review status'
+          : 'Branch review status'}
+      </Text>
+      {review.unavailable ? (
+        <ErrorState
+          message="File review status is unavailable."
+          retry={{
+            label: 'Read file review status again',
+            onPress: review.refresh,
+            pending: review.pending,
+          }}
+        />
+      ) : null}
+      {!review.unavailable && review.pending ? (
+        <Loading label="Reading file review status…" />
+      ) : null}
       {failure ? (
         <ErrorState
           message={fileErrorMessage(Cause.squash(failure.cause))}
@@ -305,11 +328,13 @@ function FilesNavigationView({
             <ItemMenu
               key={path}
               title={entryName(path)}
-              description={path}
+              description={[path, review.labels.get(path)]
+                .filter(Boolean)
+                .join(' · ')}
               leading={<FileIcon kind="file" />}
               size="sm"
               selected={path === activePath}
-              accessibilityLabel={`Open pinned file ${path}`}
+              accessibilityLabel={`Open pinned file ${path}${review.labels.has(path) ? `, ${review.labels.get(path)}` : ''}`}
               onPress={() => open(path)}
               actions={menuFor({ path, kind: 'file' })}
             />
@@ -356,6 +381,7 @@ function FilesNavigationView({
           (searching ? AsyncResult.isSuccess(paths.result) : loading.rootLoaded)
         }
         nodes={preferencesLoaded ? visibleEntries : []}
+        annotations={review.labels}
         expanded={expanded}
         {...(activePath ? { selected: activePath } : {})}
         loading={loading.folders}

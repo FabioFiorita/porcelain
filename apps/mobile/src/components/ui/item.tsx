@@ -55,7 +55,7 @@ export function Item({
   const content = (
     <>
       {leading}
-      <View className="min-w-0 flex-1 gap-1">
+      <View className="min-w-0 flex-1 shrink gap-1">
         <Text variant="ui" weight="medium">
           {title}
         </Text>
