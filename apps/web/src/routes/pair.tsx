@@ -34,6 +34,8 @@ export const Route = createFileRoute('/pair')({
     try {
       await pairBrowser(context.registry, link, abortController.signal);
     } catch (error) {
+      if (await restoreSession(context.registry))
+        redirect({ to: '/', replace: true, throw: true });
       return { reason: connectionErrorMessage(error) };
     }
     redirect({ to: '/', replace: true, throw: true });
