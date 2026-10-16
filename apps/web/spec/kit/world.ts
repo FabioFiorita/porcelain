@@ -50,7 +50,15 @@ export class World {
           await prepareRemote(started, this.recorder);
           return started;
         } catch (error) {
-          await started.stop();
+          try {
+            await started.stop();
+          } catch (cleanup) {
+            throw new AggregateError(
+              [error, cleanup],
+              `Startup failed: ${String(error)}; cleanup failed: ${String(cleanup)}`,
+              { cause: error },
+            );
+          }
           throw error;
         }
       },
@@ -200,9 +208,12 @@ export class World {
 
   async stop(): Promise<string[]> {
     const remote = await this.remote?.catch(() => undefined);
-    const stopped = await Promise.all([this.server.stop(), remote?.stop()]);
-    return stopped.flatMap((message) =>
-      message === undefined ? [] : [message],
+    const stopped = await Promise.allSettled([
+      this.server.stop(),
+      remote?.stop(),
+    ]);
+    return stopped.flatMap((result) =>
+      result.status === 'rejected' ? [String(result.reason)] : [],
     );
   }
 }

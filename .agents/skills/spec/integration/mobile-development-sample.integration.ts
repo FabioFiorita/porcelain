@@ -56,8 +56,7 @@ test('the mobile development fixture exposes nested files, a merge, two distinct
   });
   const elapsedMs = Math.round(performance.now() - started);
   onTestFinished(async () => {
-    const failure = await environment.stop();
-    if (failure !== undefined) throw new Error(failure);
+    await environment.stop();
   });
   const readers = readersOf(environment);
   const project = await readers.project();
@@ -219,8 +218,7 @@ test('focused mobile verification keeps its one-README fixture with no published
     workspace: false,
   });
   onTestFinished(async () => {
-    const failure = await environment.stop();
-    if (failure !== undefined) throw new Error(failure);
+    await environment.stop();
   });
   const readers = readersOf(environment);
   expect((await readers.project()).worktrees).toHaveLength(1);

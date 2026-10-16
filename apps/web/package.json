@@ -2,6 +2,9 @@
   "name": "@porcelain/web",
   "private": true,
   "type": "module",
+  "exports": {
+    "./kit/world": "./spec/kit/world.ts"
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json && vite build",

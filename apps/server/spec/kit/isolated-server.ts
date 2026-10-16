@@ -1,3 +1,4 @@
+import { IsolatedProcess } from './isolated-process.ts';
 import { randomUUID } from 'node:crypto';
 import { Writable } from 'node:stream';
 import {
@@ -156,7 +157,6 @@ const issuedToken =
 const setCookie = /(?:^|\n)[^=;\s]+=([^;\n]+)/g;
 const repositoryOptions = /^(?:-C|--git-dir|--work-tree|--namespace)(?:=|$)/;
 const READY_TIMEOUT_MS = 30_000;
-const STOP_TIMEOUT_MS = 10_000;
 const REQUEST_TIMEOUT_MS = 30_000;
 
 export class Recorder {
@@ -1110,13 +1110,12 @@ export class ServerHandle {
 
 export class IsolatedServer extends ServerHandle {
   readonly manifestPath: string;
-  private readonly child: ChildProcess;
+  private readonly lifetime: IsolatedProcess;
   readonly exited: Promise<void>;
   private readonly output: { stdout: string; stderr: string };
 
   private constructor(
-    child: ChildProcess,
-    exited: Promise<void>,
+    lifetime: IsolatedProcess,
     output: { stdout: string; stderr: string },
     manifestPath: string,
     read: {
@@ -1127,8 +1126,8 @@ export class IsolatedServer extends ServerHandle {
   ) {
     const { manifest, ...credentials } = read;
     super(manifest, credentials);
-    this.child = child;
-    this.exited = exited;
+    this.lifetime = lifetime;
+    this.exited = lifetime.exited;
     this.output = output;
     this.manifestPath = manifestPath;
   }
@@ -1167,9 +1166,7 @@ export class IsolatedServer extends ServerHandle {
       },
     );
     const output = { stdout: '', stderr: '' };
-    const exited = new Promise<void>((resolveExit) =>
-      child.once('close', () => resolveExit()),
-    );
+    const lifetime = new IsolatedProcess(child);
     child.stderr.on('data', (chunk: Buffer) => {
       output.stderr += chunk.toString('utf8');
       onOutput?.(chunk.toString('utf8'));
@@ -1180,15 +1177,21 @@ export class IsolatedServer extends ServerHandle {
     try {
       const manifestPath = await waitForReady(child, output);
       return new IsolatedServer(
-        child,
-        exited,
+        lifetime,
         output,
         manifestPath,
         await readManifest(manifestPath),
       );
     } catch (error) {
-      child.kill('SIGTERM');
-      await exited;
+      try {
+        await lifetime.stop();
+      } catch (cleanup) {
+        throw new AggregateError(
+          [error, cleanup],
+          `Startup failed: ${String(error)}; cleanup failed: ${String(cleanup)}`,
+          { cause: error },
+        );
+      }
       throw error;
     }
   }
@@ -1199,15 +1202,15 @@ export class IsolatedServer extends ServerHandle {
 
   async advanceTime(milliseconds: number): Promise<void> {
     const id = randomUUID();
-    const output = this.child.stdout;
-    const control = this.child.stdio[3];
+    const output = this.lifetime.child.stdout;
+    const control = this.lifetime.child.stdio[3];
     if (!output || !(control instanceof Writable))
       throw new Error('The isolated clock control is unavailable');
     await new Promise<void>((resolveAdvance, rejectAdvance) => {
       let pending = '';
       const cleanup = () => {
         output.off('data', read);
-        this.child.off('close', closed);
+        this.lifetime.child.off('close', closed);
       };
       const closed = () => {
         cleanup();
@@ -1228,28 +1231,12 @@ export class IsolatedServer extends ServerHandle {
         }
       };
       output.on('data', read);
-      this.child.once('close', closed);
+      this.lifetime.child.once('close', closed);
       control.write(`${JSON.stringify({ advanceTime: milliseconds, id })}\n`);
     });
   }
 
-  async stop(): Promise<string | undefined> {
-    this.child.kill('SIGTERM');
-    let timer: NodeJS.Timeout | undefined;
-    const timeoutMessage = 'Isolated server did not stop within 10 seconds';
-    const closed = await Promise.race([
-      this.exited.then(() => true),
-      new Promise<never>((_resolveTimeout, rejectTimeout) => {
-        timer = setTimeout(
-          () => rejectTimeout(new Error(timeoutMessage)),
-          STOP_TIMEOUT_MS,
-        );
-      }).catch(() => false),
-    ]);
-    if (timer) clearTimeout(timer);
-    if (closed) return undefined;
-    this.child.kill('SIGKILL');
-    await this.exited;
-    return timeoutMessage;
+  stop(): Promise<void> {
+    return this.lifetime.stop();
   }
 }

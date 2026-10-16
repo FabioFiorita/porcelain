@@ -104,7 +104,12 @@ export const serverProxy = {
 };
 
 const porcelainStart: BrowserCommand<[], void> = async (context) => {
-  await worlds.get(context.sessionId)?.stop();
+  const failures = await worlds.get(context.sessionId)?.stop();
+  if (failures?.length)
+    throw new AggregateError(
+      failures,
+      'The previous browser fixture did not stop.',
+    );
   worlds.set(
     context.sessionId,
     await World.start(

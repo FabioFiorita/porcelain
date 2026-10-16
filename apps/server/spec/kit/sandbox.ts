@@ -491,7 +491,7 @@ async function main() {
       child.once('error', rejectExit);
       child.once('close', resolveExit);
     });
-    if (!stopping && code !== 0) process.exitCode = code ?? 1;
+    if (code !== 0) process.exitCode = code ?? 1;
   } catch (error) {
     process.stderr.write(
       `${error instanceof Error ? error.message : String(error)}\n`,
