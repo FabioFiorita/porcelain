@@ -11,9 +11,12 @@ export type RoutedCall = {
 };
 
 type RoutedSocket = {
-  close(): Promise<void>;
+  close(options?: {
+    code?: number | undefined;
+    reason?: string | undefined;
+  }): Promise<void>;
   connectToServer(): RoutedSocket;
-  onClose(handler: () => void): void;
+  onClose(handler: (code?: number, reason?: string) => Promise<void>): void;
   onMessage(handler: (message: string | Buffer) => void): void;
   send(message: string | Buffer): void;
 };
@@ -56,8 +59,14 @@ export function browserNetwork(context: RoutedContext) {
         }
         const server = socket.connectToServer();
         sockets.add(socket);
-        socket.onClose(() => sockets.delete(socket));
-        server.onClose(() => sockets.delete(socket));
+        socket.onClose((code, reason) => {
+          sockets.delete(socket);
+          return server.close({ code, reason });
+        });
+        server.onClose((code, reason) => {
+          sockets.delete(socket);
+          return socket.close({ code, reason });
+        });
         server.onMessage((message) => {
           if (holding) notices.push(() => socket.send(message));
           else socket.send(message);

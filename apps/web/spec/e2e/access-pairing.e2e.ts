@@ -122,11 +122,18 @@ test('a revoked browser session cannot regain access through its used link', asy
   await expect(
     page.getByRole('region', { name: 'Review content', exact: true }),
   ).toBeVisible();
+  await expect(page.getByRole('code')).toContainText('A change to review.');
   const browser = (await server.devices()).find(
     (device) => device.label === 'Journey browser',
   );
   if (!browser) throw new Error('The paired browser was not registered.');
   await app.revokeDevice(browser.id, 'this');
+  await expect(
+    page.getByRole('heading', {
+      name: 'This browser is not paired',
+      exact: true,
+    }),
+  ).toBeVisible();
   await app.open(link);
   await expect(
     page.getByText('This pairing link is not usable. Ask for a new one.', {
