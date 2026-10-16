@@ -57,6 +57,7 @@ None.
 
 ## Gotchas
 
+- Use a separate browser context for clean-browser refusal. Clearing cookies in a live paired context can race an authenticated response that renews the session cookie.
 - Startup never pairs a browser. Open the card’s web URL in a fresh context to watch the unpaired state, then redeem a link from `$C pairing-link`. Each invocation issues a fresh link; a used code cannot be replayed. An existing valid session can still open the workspace after the code is refused.
 - `start` prints no code; `pairing-link` prints the one-time code locally and redacts it in recorded evidence. Sanitize browser artifacts before sharing them.
 - Inspect HTTP requests and responses may no longer include the pairing requests after an a full page load; read it first.

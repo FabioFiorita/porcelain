@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures.ts';
+import { expect, observeBrowserFailures, test } from './fixtures.ts';
 
 test('a one-time link pairs the browser and opens the workspace without leaving its code in the address', async ({
   pairedPage,
@@ -66,17 +66,24 @@ test('reopening a used link restores the paired browser across reloads without p
 
 test('a clean unpaired browser cannot reuse a used link and can return through a fresh link', async ({
   page,
-  context,
+  browser,
+  observed,
   app,
   server,
 }) => {
   const link = await app.link('this');
-  await app.open(link);
-  await expect(
-    page.getByRole('region', { name: 'Review content', exact: true }),
-  ).toBeVisible();
+  const pairedContext = await browser.newContext();
+  observeBrowserFailures(pairedContext, observed);
+  try {
+    const pairedPage = await pairedContext.newPage();
+    await pairedPage.goto(link);
+    await expect(
+      pairedPage.getByRole('region', { name: 'Review content', exact: true }),
+    ).toBeVisible();
+  } finally {
+    await pairedContext.close();
+  }
   const devices = await server.devices();
-  await context.clearCookies();
   await app.open(link);
   await expect(
     page.getByText('This pairing link is not usable. Ask for a new one.', {
