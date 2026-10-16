@@ -6,6 +6,7 @@ import {
 } from '@porcelain/client/reviews';
 import {
   filesReviewed,
+  completionPlan,
   stopTitle,
   type ReviewNotice,
   type WalkthroughKey,
@@ -91,18 +92,24 @@ export function WalkthroughCompletion({
   );
   const finished = progress.done(stop);
   const tally = filesReviewed(stop.paths, progress.items);
+  const files = progress.items
+    .filter((item) => stop.paths.includes(item.path))
+    .map((item) => ({ ...item, fingerprint: item.fingerprint ?? undefined }));
+  const plan = completionPlan(files);
   const layer = stop.kind === 'decision' ? stop.layer : undefined;
-  const disabled = !progress.settled || unavailable || completion.pending;
+  const disabled =
+    !progress.settled || unavailable || completion.pending || plan.blocked;
+  const markLabel = plan.action
+    ? `${plan.action} for ${stopTitle(stop)}`
+    : `Mark decision ${stopTitle(stop)} as reviewed`;
+  const continueLabel = plan.action
+    ? `${plan.action} for ${stopTitle(stop)} and stay here`
+    : `Mark remaining files for ${stopTitle(stop)} and continue`;
   const complete = (onDone?: () => void) => {
     if (disabled) return;
     setNotice(undefined);
     completion.complete({
-      files: progress.items
-        .filter((item) => stop.paths.includes(item.path))
-        .map((item) => ({
-          ...item,
-          fingerprint: item.fingerprint ?? undefined,
-        })),
+      files,
       ...(layer
         ? {
             decision: {
@@ -121,6 +128,11 @@ export function WalkthroughCompletion({
       <Text variant="ui" weight="medium">
         {finished ? 'Reviewed' : 'Review this stop'}
       </Text>
+      {plan.explanation ? (
+        <Text variant="ui" tone="muted">
+          {plan.explanation}
+        </Text>
+      ) : null}
       <Text variant="caption" tone="muted">
         {tally.reviewed} of {tally.total} files reviewed here
       </Text>
@@ -163,12 +175,14 @@ export function WalkthroughCompletion({
       {layer ? (
         <Button
           label={
-            finished ? 'Unmark decision reviewed' : 'Mark decision reviewed'
+            finished
+              ? 'Unmark decision reviewed'
+              : (plan.action ?? 'Mark decision reviewed')
           }
           accessibilityLabel={
             finished
               ? `Unmark decision ${stopTitle(stop)} as unreviewed`
-              : `Mark decision ${stopTitle(stop)} as reviewed`
+              : markLabel
           }
           variant="outline"
           disabled={disabled}
@@ -185,11 +199,13 @@ export function WalkthroughCompletion({
         />
       ) : null}
       <Button
-        label={finished ? 'Continue' : 'Mark remaining files and continue'}
-        accessibilityLabel={
+        label={
           finished
-            ? `Continue from ${stopTitle(stop)}`
-            : `Mark remaining files for ${stopTitle(stop)} and continue`
+            ? 'Continue'
+            : (plan.action ?? 'Mark remaining files and continue')
+        }
+        accessibilityLabel={
+          finished ? `Continue from ${stopTitle(stop)}` : continueLabel
         }
         disabled={disabled}
         onPress={() => (finished ? advance() : complete(advance))}

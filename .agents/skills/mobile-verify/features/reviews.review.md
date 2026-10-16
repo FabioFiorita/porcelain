@@ -18,6 +18,8 @@ selectors:
   - 'Unmark decision reviewed'
   - 'Mark remaining files and continue'
   - 'Review progress is unavailable.'
+  - 'Mark available files reviewed'
+  - 'Review unavailable'
 tests:
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
   - apps/mobile/src/features/reviews/rules/pointer-source.spec.ts
@@ -91,3 +93,5 @@ Use a multi-decision publication with one file shared by several decisions, a de
 Mark a decision and independently read reviewed-files and reviewed-layers. Unmark one owned file: the decision loses its Reviewed badge/count even though its decision mark remains. Mark decision reviewed fills the missing file mark. Unmark decision reviewed removes only the decision mark. Mark remaining files and continue uses the shared bulk command, records the decision only after successful file writes, and advances to the next stop (or overview at the end). Opening code or a changed-file diff alone writes no marks. Individual file controls remain available in the stop and its diff.
 
 Drive a partial bulk refusal with a stale fingerprint: retain successful file marks, show the refusal, stay on the same stop and record no new decision mark. Failed/unreadable or loading marks hide completed badges/counts and disable completion; Read again retries failures. Change code inside and outside a published pointer, review again, reconnect, switch worktrees and comparisons, and compare literal server marks and visible counts with a connected web client. Check the controls at larger Dynamic Type on iPhone and iPad separately.
+
+For an unavailable fingerprint (for example a 66 MiB file), the controls name the file and explain that the stop stays open. Mark available files reviewed preserves successful readable marks without recording the decision or advancing. When no available files remain, Review unavailable is disabled. Making the file readable restores ordinary completion; unavailable files are never silently treated as reviewed.

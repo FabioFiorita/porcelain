@@ -2,6 +2,46 @@ import { describe, expect, it } from 'vitest';
 import { reviewSidebarActions } from './sidebar-actions.ts';
 
 describe('review sidebar actions', () => {
+  it('offers only available decision files and blocks a futile repeat', () => {
+    const unavailable = {
+      path: 'scripts/large-sample.txt',
+      fingerprint: undefined,
+      reviewStatus: 'unreviewed' as const,
+    };
+    const target = {
+      kind: 'decision' as const,
+      reviewed: false,
+      stale: false,
+      settled: true,
+      pending: false,
+    };
+    expect(
+      reviewSidebarActions({
+        ...target,
+        files: [
+          { path: 'readable.ts', fingerprint: 'a', reviewStatus: 'unreviewed' },
+          unavailable,
+        ],
+      }),
+    ).toContainEqual({
+      id: 'review',
+      label: 'Mark available files reviewed',
+      disabled: false,
+    });
+    expect(
+      reviewSidebarActions({
+        ...target,
+        files: [
+          { path: 'readable.ts', fingerprint: 'a', reviewStatus: 'reviewed' },
+          unavailable,
+        ],
+      }),
+    ).toContainEqual({
+      id: 'review',
+      label: 'Review unavailable',
+      disabled: true,
+    });
+  });
   it('offers only supported file operations and gates reviewing on the file fingerprint', () => {
     expect(
       reviewSidebarActions({
@@ -66,6 +106,7 @@ describe('review sidebar actions', () => {
     expect(
       reviewSidebarActions({
         kind: 'decision',
+        files: [],
         reviewed: false,
         stale: true,
         settled,
@@ -80,6 +121,7 @@ describe('review sidebar actions', () => {
     expect(
       reviewSidebarActions({
         kind: 'decision',
+        files: [],
         reviewed: true,
         stale: false,
         settled: false,

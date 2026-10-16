@@ -35,12 +35,15 @@ selectors:
   - "Read in "
   - "Mark reviewed and continue"
   - "Mark reviewed and finish"
+  - "Mark available files reviewed"
+  - "Review unavailable"
   - "Continue"
   - "Back to the briefing"
   - "Changed files"
 tests:
   - apps/web/spec/integration/reviews-walkthrough.test.tsx
   - apps/web/spec/integration/reviews-walkthrough-shortcuts.test.tsx
+  - apps/web/spec/integration/reviews-unavailable-completion.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/review
   - GET /api/worktrees/:worktreeId/changes
@@ -100,6 +103,8 @@ Once the agent publishes a review, the handoff tab "Review" shows one document, 
 - `apps/web/spec/integration/reviews-walkthrough-shortcuts.test.tsx`: `N` and `P` move between stops 3 and 4; `J` then `R` marks only packages/client/src/publish-note.ts on the server; no shortcut is registered twice.
 
 ## Gotchas
+
+- Completion copy counts only files with available fingerprints as markable. With a real 66 MiB untracked file, the closing card names the unavailable path and explicitly says the stop stays open. After marking its readable peers, "Review unavailable" is disabled; shrinking that file below the read limit restores completion without discarding successful marks.
 
 - The current stop is kept per worktree in browser storage, not in the URL: the address stays `?entry=handoff`, and a reload returns to the last stop. Click "Open the briefing" or the sidebar row "Briefing" to start over.
 - `N` and `P` only act while tab "Walkthrough" is selected and the pane is active; they ignore typing in inputs.

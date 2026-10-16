@@ -423,6 +423,9 @@ function WalkthroughRows({
   return (
     <nav aria-label="Walkthrough" className="flex flex-col">
       {walk.stops.map((stop) => {
+        const files = walk.items.filter((item) =>
+          stop.paths.includes(item.path),
+        );
         const progress = filesReviewed(stop.paths, walk.items);
         const done = walk.done(stop);
         const state =
@@ -448,6 +451,7 @@ function WalkthroughRows({
                     stale: state?.stale === true,
                     settled: walk.decisions.settled,
                     pending: completion.pending,
+                    files,
                   }
                 : { kind: 'section' },
             )}
@@ -461,9 +465,7 @@ function WalkthroughRows({
                 if (done) completion.reopen(decision);
                 else
                   completion.complete({
-                    files: walk.items.filter((item) =>
-                      stop.paths.includes(item.path),
-                    ),
+                    files,
                     decision: {
                       ...decision,
                       reviewed: state?.reviewed === true,

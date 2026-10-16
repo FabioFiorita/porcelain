@@ -3,6 +3,8 @@ import {
   bulkMarkPlan,
   bulkMarkReport,
   bulkReportText,
+  completionPlan,
+  completionRefusal,
   inChunks,
   layerReviewed,
   markAllPlan,
@@ -101,7 +103,7 @@ describe('bulkReportText', () => {
         skipped: [{ path: 'b.ts', reason: 'already-reviewed' }],
         failed: [{ path: 'c.ts', error: new Error('no') }],
       }),
-    ).toBe('Marked 1 file. Skipped 1. 1 failed.');
+    ).toBe('Marked 1 file. 1 already reviewed. 1 failed.');
   });
 
   it('says nothing was marked when every file was skipped', () => {
@@ -111,7 +113,100 @@ describe('bulkReportText', () => {
         skipped: [{ path: 'b.ts', reason: 'already-reviewed' }],
         failed: [],
       }),
-    ).toBe('No files marked. Skipped 1.');
+    ).toBe('No files marked. 1 already reviewed.');
+  });
+
+  it('counts only unavailable files as skipped on a repeat attempt', () => {
+    expect(
+      bulkReportText({
+        marked: [],
+        skipped: [
+          ...['a.ts', 'b.ts', 'c.ts'].map((path) => ({
+            path,
+            reason: 'already-reviewed' as const,
+          })),
+          { path: 'scripts/large-sample.txt', reason: 'not-fingerprintable' },
+        ],
+        failed: [],
+      }),
+    ).toBe('No files marked. Skipped 1. 3 already reviewed.');
+  });
+});
+
+describe('completion availability', () => {
+  it('offers only the available files without promising to complete a blocked stop', () => {
+    const entries = [
+      entry('a.ts', 'a', 'unreviewed'),
+      entry('b.ts', 'b', 'stale'),
+      entry('done.ts', 'd', 'reviewed'),
+      entry('scripts/large-sample.txt', undefined, 'unreviewed'),
+    ];
+    expect(completionPlan(entries)).toEqual({
+      eligible: 2,
+      unavailable: ['scripts/large-sample.txt'],
+      blocked: false,
+      action: 'Mark available files reviewed',
+      explanation:
+        'scripts/large-sample.txt cannot be marked reviewed because its fingerprint is unavailable (too large or unreadable). This stop stays open until every file can be marked reviewed.',
+    });
+    expect(
+      completionPlan(
+        entries.map((file) =>
+          file.fingerprint ? { ...file, reviewStatus: 'reviewed' } : file,
+        ),
+      ),
+    ).toMatchObject({
+      eligible: 0,
+      unavailable: ['scripts/large-sample.txt'],
+      blocked: true,
+      action: 'Review unavailable',
+    });
+    expect(completionPlan([entry('a.ts', 'a', 'unreviewed')])).toMatchObject({
+      eligible: 1,
+      blocked: false,
+      action: undefined,
+      explanation: undefined,
+    });
+    expect(completionPlan([])).toMatchObject({
+      eligible: 0,
+      blocked: false,
+      action: undefined,
+    });
+  });
+
+  it('distinguishes unavailable fingerprints from actual write conflicts', () => {
+    expect(
+      completionRefusal({
+        marked: ['a.ts'],
+        skipped: [
+          { path: 'scripts/large-sample.txt', reason: 'not-fingerprintable' },
+        ],
+        failed: [],
+      }),
+    ).toEqual({
+      title: 'Some files cannot be marked reviewed',
+      description:
+        'Marked 1 file. Skipped 1. scripts/large-sample.txt cannot be marked reviewed because its fingerprint is unavailable (too large or unreadable). This stop stays open until every file can be marked reviewed.',
+      type: 'error',
+    });
+    expect(
+      completionRefusal({
+        marked: [],
+        skipped: [],
+        failed: [{ path: 'a.ts', error: new Error('stale') }],
+      }),
+    ).toEqual({
+      title: 'Some files changed before they were marked',
+      description: 'No files marked. 1 failed.',
+      type: 'error',
+    });
+    expect(
+      completionRefusal({
+        marked: [],
+        skipped: [{ path: 'a.ts', reason: 'already-reviewed' }],
+        failed: [],
+      }),
+    ).toBeUndefined();
   });
 });
 

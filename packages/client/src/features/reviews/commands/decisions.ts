@@ -5,7 +5,7 @@ import type {
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
 import {
-  bulkReportText,
+  completionRefusal,
   WORKTREE_RANGE,
   type ReviewableItem,
   type ReviewNotice,
@@ -40,18 +40,11 @@ export const completeDecision = Atom.family(
                 type: 'error',
               })),
             );
-          if (
-            result.kind === 'mark' &&
-            (result.report.failed.length > 0 ||
-              result.report.skipped.some(
-                (entry) => entry.reason === 'not-fingerprintable',
-              ))
-          )
-            return yield* Effect.fail<ReviewNotice>({
-              title: 'Some files changed before they were marked',
-              description: bulkReportText(result.report),
-              type: 'error',
-            });
+          const refusal =
+            result.kind === 'mark'
+              ? completionRefusal(result.report)
+              : undefined;
+          if (refusal) return yield* Effect.fail(refusal);
           if (!action.decision || action.decision.reviewed) return;
         }
         if (!target) return;

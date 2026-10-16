@@ -1,4 +1,5 @@
 import type { ReviewStatus } from './review.ts';
+import { completionPlan, type ReviewableItem } from './reviewed.ts';
 
 export type ReviewSidebarAction = {
   id:
@@ -34,6 +35,7 @@ type Target =
       stale: boolean;
       settled: boolean;
       pending: boolean;
+      files: readonly ReviewableItem[];
     }
   | { kind: 'section' }
   | { kind: 'group' }
@@ -71,15 +73,19 @@ export function reviewSidebarActions(
           ? [{ id: 'discard' as const, label: 'Discard', destructive: true }]
           : []),
       ];
-    case 'decision':
+    case 'decision': {
+      const plan = completionPlan(target.files);
       return [
         { id: 'open', label: 'Open' },
         {
           id: 'review',
-          label: reviewLabel(target.reviewed, target.stale),
-          disabled: !target.settled || target.pending,
+          label: target.reviewed
+            ? reviewLabel(true, target.stale)
+            : (plan.action ?? reviewLabel(false, target.stale)),
+          disabled: !target.settled || target.pending || plan.blocked,
         },
       ];
+    }
     case 'section':
       return [{ id: 'open', label: 'Open' }];
     case 'group':

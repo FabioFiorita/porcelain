@@ -260,6 +260,34 @@ it('refuses unavailable file fingerprints without recording the decision or cont
   expect(subject.writes).toEqual([]);
   expect(subject.continued()).toBe(0);
   expect(subject.notices).toEqual([
-    'Some files changed before they were marked: No files marked. Skipped 1.',
+    'Some files cannot be marked reviewed: No files marked. Skipped 1. unreadable.ts cannot be marked reviewed because its fingerprint is unavailable (too large or unreadable). This stop stays open until every file can be marked reviewed.',
+  ]);
+});
+
+it('retains readable marks and names only the unavailable file on repeated completion attempts', async () => {
+  const subject = fixture();
+  const unavailable = {
+    path: 'scripts/large-sample.txt',
+    fingerprint: undefined,
+    reviewStatus: 'unreviewed' as const,
+  };
+  subject.start([...files, unavailable]);
+  await subject.finish();
+  subject.start([
+    ...files.map((file) => ({ ...file, reviewStatus: 'reviewed' as const })),
+    unavailable,
+  ]);
+  await subject.finish();
+  expect(subject.writes).toEqual([
+    `PUT /api/worktrees/${scope.worktreeId}/reviewed-bulk`,
+  ]);
+  expect(subject.continued()).toBe(0);
+  expect((await read(subject.registry, subject.marks)).marks).toEqual(
+    files.map(({ path, fingerprint }) => ({ path, fingerprint, reviewedAt })),
+  );
+  expect((await read(subject.registry, subject.layers)).marks).toEqual([]);
+  expect(subject.notices).toEqual([
+    'Some files cannot be marked reviewed: Marked 2 files. Skipped 1. scripts/large-sample.txt cannot be marked reviewed because its fingerprint is unavailable (too large or unreadable). This stop stays open until every file can be marked reviewed.',
+    'Some files cannot be marked reviewed: No files marked. Skipped 1. 2 already reviewed. scripts/large-sample.txt cannot be marked reviewed because its fingerprint is unavailable (too large or unreadable). This stop stays open until every file can be marked reviewed.',
   ]);
 });

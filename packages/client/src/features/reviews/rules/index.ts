@@ -59,6 +59,7 @@ export {
   WORKTREE_RANGE,
   branchReviewRange,
   bulkReportText,
+  completionPlan,
   markAllPlan,
   reviewToggle,
   reviewedControlLabel,
