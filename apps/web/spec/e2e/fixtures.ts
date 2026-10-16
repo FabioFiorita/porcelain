@@ -1,7 +1,12 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { expect, test as base, type Page } from '@playwright/test';
+import {
+  expect,
+  test as base,
+  type BrowserContext,
+  type Page,
+} from '@playwright/test';
 import { pairingLink } from '@porcelain/contracts/access';
 import { createServer, type ViteDevServer } from 'vite';
 import {
@@ -24,6 +29,22 @@ import {
 
 export { expect };
 export type { Page };
+
+export function observeBrowserFailures(
+  context: BrowserContext,
+  observed: BrowserFailure[],
+) {
+  context.on('console', (message) => {
+    if (message.type() === 'error' && message.args().length > 0)
+      observed.push({ kind: 'console error', message: message.text() });
+  });
+  context.on('weberror', (failure) =>
+    observed.push({
+      kind: 'uncaught error',
+      message: failure.error().message,
+    }),
+  );
+}
 
 declare const navigation: { entries(): { url: string | null }[] };
 declare const location: { href: string };
@@ -286,16 +307,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   },
   observed: async ({ context }, use) => {
     const observed: BrowserFailure[] = [];
-    context.on('console', (message) => {
-      if (message.type() === 'error' && message.args().length > 0)
-        observed.push({ kind: 'console error', message: message.text() });
-    });
-    context.on('weberror', (failure) =>
-      observed.push({
-        kind: 'uncaught error',
-        message: failure.error().message,
-      }),
-    );
+    observeBrowserFailures(context, observed);
     await use(observed);
   },
   page: async ({ page, observed: _observed, live: _live }, use, testInfo) => {
