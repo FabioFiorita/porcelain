@@ -138,9 +138,11 @@ export function ReviewOverview({
         <PublishedReview
           workspace={workspace}
           onFile={onFile}
-          changedPaths={
-            AsyncResult.isSuccess(result) && result.value.kind === 'worktree'
-              ? result.value.answer.changes.map((file) => file.path)
+          snapshot={
+            AsyncResult.isSuccess(result) &&
+            !result.waiting &&
+            result.value.kind === 'worktree'
+              ? result.value
               : undefined
           }
         />

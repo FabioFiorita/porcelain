@@ -37,7 +37,11 @@ import {
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
 import { LONG_DECISION_SUMMARY } from '@/config/limits';
-import { useCompleteDecision } from '../commands/decisions';
+import { useAtom } from '@effect/atom-react';
+import {
+  completeDecision,
+  decisionCompletionBinding,
+} from '@porcelain/client/reviews';
 import { decisionNotes, gapNotes, mergeNotes } from '../rules/code-notes';
 import { spansLabel } from '@porcelain/client/changes/rules';
 import { ReviewCodeDocument } from './review-code-document';
@@ -67,8 +71,11 @@ export function WalkthroughStopView({
 }) {
   const { review, scope, context, interaction } = props;
   const [reveal, setReveal] = useState<RevealComment>();
-  const completion = useCompleteDecision(scope, context, (notice) =>
-    toast.add(notice),
+  const completion = decisionCompletionBinding(
+    useAtom(completeDecision({ scope, connection: context.connection }), {
+      mode: 'promiseExit',
+    }),
+    (notice) => toast.add(notice),
   );
   const shown = new Set(stop.paths);
   const files = items.filter((item) => shown.has(item.path));

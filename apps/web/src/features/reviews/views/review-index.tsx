@@ -27,7 +27,11 @@ import { cn } from '@/shared/lib/utils';
 import { type ChangeScope, isChangeScope } from '@/shared/workspace/search';
 import { useBranchChanges, useChanges } from '@/features/changes/index';
 import { useVisibleComments } from '../commands/comments';
-import { useCompleteDecision } from '../commands/decisions';
+import { useAtom } from '@effect/atom-react';
+import {
+  completeDecision,
+  decisionCompletionBinding,
+} from '@porcelain/client/reviews';
 import { SidebarActionMenu } from './sidebar-action-menu';
 import { SidebarGroup, SidebarDocumentRow } from './sidebar-section';
 import { reviewSidebarActions } from '@porcelain/client/reviews/rules';
@@ -404,8 +408,11 @@ function WalkthroughRows({
   files: number;
 }) {
   const walk = useWalkthrough(scope, context, review);
-  const completion = useCompleteDecision(scope, context, (notice) =>
-    toast.add(notice),
+  const completion = decisionCompletionBinding(
+    useAtom(completeDecision({ scope, connection: context.connection }), {
+      mode: 'promiseExit',
+    }),
+    (notice) => toast.add(notice),
   );
   const open = (key: WalkthroughKey) => {
     walk.go(key);

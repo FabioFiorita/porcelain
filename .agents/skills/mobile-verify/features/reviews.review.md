@@ -14,10 +14,16 @@ selectors:
   - 'Show relevant range'
   - 'No agent review'
   - 'No walkthrough decisions'
+  - 'Mark decision reviewed'
+  - 'Unmark decision reviewed'
+  - 'Mark remaining files and continue'
+  - 'Review progress is unavailable.'
 tests:
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
   - apps/mobile/src/features/reviews/rules/pointer-source.spec.ts
   - packages/client/src/features/reviews/queries/publication.spec.ts
+  - packages/client/src/features/reviews/commands/decisions.spec.ts
+  - packages/client/src/features/reviews/rules/walkthrough.spec.ts
 api:
   - GET /api/worktrees/:worktreeId/text
   - GET /api/inventory
@@ -25,6 +31,10 @@ api:
   - GET /api/worktrees/:worktreeId/branch-changes
   - GET /api/worktrees/:worktreeId/branch-bases
   - GET /api/worktrees/:worktreeId/review
+  - GET /api/worktrees/:worktreeId/reviewed-layers
+  - PUT /api/worktrees/:worktreeId/reviewed-layers
+  - DELETE /api/worktrees/:worktreeId/reviewed-layers
+  - PUT /api/worktrees/:worktreeId/reviewed-bulk
   - GET /api/worktrees/:worktreeId/reviewed
   - GET /api/worktrees/:worktreeId/comments
 ---
@@ -64,7 +74,7 @@ See [selected workspace states](projects.workspace-picker.md#selected-workspace-
 
 ## Agent overview and walkthrough
 
-Use `--fixture development`. On the phone open Review; on iPad open Review in the inspector, then Overview. Verify the briefing's three decisions match the published response and web walkthrough in order: Keep document holds visible, Filter completed deliveries, Explain the dispatch handoff. Decision completion and sidebar status are independent features.
+Use `--fixture development`. On the phone open Review; on iPad open Review in the inspector, then Overview. Verify the briefing's three decisions match the published response and web walkthrough in order: Keep document holds visible, Filter completed deliveries, Explain the dispatch handoff. Decision completion is available in the walkthrough; Files/sidebar indicators are a separate feature.
 
 Open each numbered decision, read its supplied explanation, and move with Next and Previous. Read a code pointer: expect the path, source range and source line numbers, Show whole file and Show relevant range. Return to the named decision; open its changed-file diff and use phone Back or the iPad Review tab to return to the same decision/pointer. Open Read agent summary and expect the supplied HTML; Return to walkthrough restores the stop. The existing isolated HTML renderer displays self-contained content without executing scripts or loading remote assets.
 
@@ -73,3 +83,11 @@ Switch worktrees and return: no review leaks into the other workspace; the same 
 Capture Android, iPhone and iPad evidence separately. iPad landscape first, then portrait, plus larger Dynamic Type. Check unique accessible labels for overview, summary, decision entry, range reading and previous/next controls.
 
 Agent summaries read the existing signed `/review-summaries/:token` HTML endpoint through the selected connection. The feature-map API frontmatter currently accepts only `/api/` routes.
+
+## Decision completion and progress
+
+Use a multi-decision publication with one file shared by several decisions, a decision with no files of its own, and an unexplained file. The aggregate count, decision heading and overview entry use the same completed state as web: every file owned by the stop and its separate decision mark must be reviewed. Shared files appear once under their owning stop; Open owning stop returns there.
+
+Mark a decision and independently read reviewed-files and reviewed-layers. Unmark one owned file: the decision loses its Reviewed badge/count even though its decision mark remains. Mark decision reviewed fills the missing file mark. Unmark decision reviewed removes only the decision mark. Mark remaining files and continue uses the shared bulk command, records the decision only after successful file writes, and advances to the next stop (or overview at the end). Opening code or a changed-file diff alone writes no marks. Individual file controls remain available in the stop and its diff.
+
+Drive a partial bulk refusal with a stale fingerprint: retain successful file marks, show the refusal, stay on the same stop and record no new decision mark. Failed/unreadable or loading marks hide completed badges/counts and disable completion; Read again retries failures. Change code inside and outside a published pointer, review again, reconnect, switch worktrees and comparisons, and compare literal server marks and visible counts with a connected web client. Check the controls at larger Dynamic Type on iPhone and iPad separately.
