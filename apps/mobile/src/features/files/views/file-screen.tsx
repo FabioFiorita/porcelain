@@ -12,7 +12,7 @@ import type { ReviewRange } from '../../../components/ui/review-annotation';
 import { usePreferences } from '../../preferences';
 import { useDirectories } from '../queries/directory';
 import { useTextFile, type FileContents } from '../queries/text';
-import { usePreviewLink } from '../commands/preview-link';
+import { usePreviewLink } from '../../../shared/adapters/preview-link';
 import { useFileAsset } from '../queries/asset';
 import { isNativeImagePath } from '../../../shared/rules/file-tree';
 import { Empty } from '../../../components/ui/empty';

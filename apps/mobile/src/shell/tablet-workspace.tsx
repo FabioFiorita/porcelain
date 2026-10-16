@@ -384,7 +384,6 @@ function WorkspaceDocumentContent({
           <ReviewOverview
             workspace={workspace}
             comparison={document.comparison}
-            empty
             onFile={(path) =>
               onOpen({
                 kind: 'review-file',
