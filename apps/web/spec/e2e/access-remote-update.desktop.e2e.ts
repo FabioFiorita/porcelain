@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures.ts';
 
-test('Remote computers shows each remote computer’s update in its row, tells an untrusted app how to get trusted there, and lets a trusted app start the update on that computer', async ({
+test('Remote computers shows each remote computer’s update on its detail page, tells an untrusted app how to get trusted there, and lets a trusted app start the update on that computer', async ({
   pairedPage,
   app,
   remote,
@@ -20,6 +20,7 @@ test('Remote computers shows each remote computer’s update in its row, tells a
   });
   const add = async (link: string) => {
     await settings
+      .getByRole('navigation', { name: 'Settings sections', exact: true })
       .getByRole('button', { name: 'Remote computers', exact: true })
       .click();
     await settings
@@ -31,25 +32,25 @@ test('Remote computers shows each remote computer’s update in its row, tells a
         .getByRole('list', { name: 'Remote computers', exact: true })
         .getByRole('listitem', { name: other, exact: true }),
     ).toBeVisible();
+    const row = settings.getByRole('listitem', { name: other, exact: true });
+    await expect(row.getByRole('button')).toBeVisible();
+    await row.getByRole('button').click();
   };
-  const row = settings
-    .getByRole('list', { name: 'Remote computers', exact: true })
-    .getByRole('listitem', { name: other, exact: true });
 
   await add(await app.remoteLink());
   await expect(
-    row.getByText(
+    settings.getByText(
       new RegExp(
         `^Trust this app on ${other} to update it from here: run porcelain trust \\S+ there\\.$`,
       ),
     ),
   ).toBeVisible();
   await expect(
-    row.getByRole('button', { name: `Update to ${to}`, exact: true }),
+    settings.getByRole('button', { name: `Update to ${to}`, exact: true }),
   ).not.toBeAttached();
 
   await add(await app.remoteLink('remote', { trusted: true }));
-  await row
+  await settings
     .getByRole('button', { name: `Update to ${to}`, exact: true })
     .click();
   await expect

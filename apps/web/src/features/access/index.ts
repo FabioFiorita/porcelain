@@ -30,3 +30,8 @@ export { RemoteUnavailable } from './views/remote-unavailable';
 export { useMcpConfiguration } from './queries/mcp-configuration';
 
 export { pairingLinkChanges } from './commands/pairing';
+
+export {
+  RemoteComputerSettings,
+  RemoteComputerName,
+} from './views/remote-computer-settings';

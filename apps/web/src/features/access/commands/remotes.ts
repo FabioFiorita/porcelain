@@ -61,9 +61,15 @@ export function useAddRemote(onAdded: () => void) {
   };
 }
 
-export function useForgetRemote(remote: Remote) {
-  const [result, submit] = useAtom(forgetRemote(remote));
-  return { result, submit: () => submit(undefined) };
+export function useForgetRemote(remote: Remote, onForgotten: () => void) {
+  const [result, run] = useAtom(forgetRemote(remote), { mode: 'promiseExit' });
+  return {
+    result,
+    submit: async () => {
+      const exit = await run(undefined);
+      if (Exit.isSuccess(exit)) onForgotten();
+    },
+  };
 }
 
 export function useRecheckRemote() {
