@@ -31,7 +31,7 @@ import {
 import { ScrollBar } from '@/components/ui/scroll-area';
 import { shortOid } from '@porcelain/client/history/rules';
 import { cn } from '@/shared/lib/utils';
-import { parseEntry } from '../rules/documents';
+import { parseEntry, type ReviewTitle } from '../rules/documents';
 import { openToSideText } from '../rules/tab-strip';
 import { basename } from '@porcelain/client/reviews/rules';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
@@ -48,14 +48,14 @@ const fileTypeIcon = (path: string): TabIcon =>
     );
   };
 
-function describeTab(key: string, reviewing: boolean) {
+function describeTab(key: string, reviewTitle: ReviewTitle | undefined) {
   const ref = parseEntry(key);
   switch (ref?.kind) {
     case 'handoff':
-      return reviewing
+      return reviewTitle
         ? {
             Icon: LayersIcon,
-            title: 'Review',
+            title: reviewTitle,
             hint: 'Walkthrough of the decisions',
           }
         : { Icon: FileDiffIcon, title: 'Changes', hint: 'All changes' };
@@ -137,7 +137,7 @@ export function DocumentTabs({
   tabs,
   pinned,
   active,
-  reviewing,
+  reviewTitle,
   side,
   focused,
   leading,
@@ -147,7 +147,7 @@ export function DocumentTabs({
   tabs: readonly string[];
   pinned: readonly string[];
   active: string | null;
-  reviewing: boolean;
+  reviewTitle: ReviewTitle | undefined;
   side: 'left' | 'right' | null;
   focused: boolean;
   leading?: ReactNode;
@@ -192,7 +192,7 @@ export function DocumentTabs({
                     active={key === active}
                     pinned={isPinned}
                     hasUnpinned={tabs.some((item) => !pinned.includes(item))}
-                    reviewing={reviewing}
+                    reviewTitle={reviewTitle}
                     side={side}
                     {...actions}
                   />
@@ -226,7 +226,7 @@ function DocumentTab({
   active,
   pinned,
   hasUnpinned,
-  reviewing,
+  reviewTitle,
   side,
   onActivate,
   onClose,
@@ -239,10 +239,10 @@ function DocumentTab({
   active: boolean;
   pinned: boolean;
   hasUnpinned: boolean;
-  reviewing: boolean;
+  reviewTitle: ReviewTitle | undefined;
   side: 'left' | 'right' | null;
 }) {
-  const { Icon, title, hint } = describeTab(tabKey, reviewing);
+  const { Icon, title, hint } = describeTab(tabKey, reviewTitle);
   const [openingSide, setOpeningSide] = useState(false);
   const openToSideLabel = openToSideText(side);
 

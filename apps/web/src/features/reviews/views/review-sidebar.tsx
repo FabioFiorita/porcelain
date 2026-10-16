@@ -1,3 +1,4 @@
+import { publishedReviewTitle } from '../rules/documents';
 import {
   FileDiffIcon,
   FilesIcon,
@@ -9,10 +10,7 @@ import { FileNavigation } from '@/features/files/index';
 import { HistoryNavigation } from '@/features/history/index';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  useHasReviewLayers,
-  usePublishedReview,
-} from '../queries/published-review';
+import { usePublishedReview } from '../queries/published-review';
 import type { OpenDocument } from '../rules/documents';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import {
@@ -134,12 +132,14 @@ function ChangesSurfaceLabel({
   scope: ReviewScope;
   context: ConnectionContext;
 }) {
-  const hasReview = useHasReviewLayers(scope, context) === true;
+  const { review } = usePublishedReview(scope, context);
+  const title = publishedReviewTitle(review);
+  const hasReview = review !== null && review !== undefined;
   const Icon = hasReview ? ListChecksIcon : FileDiffIcon;
   return (
     <>
       <Icon className="size-3.5 shrink-0" />
-      <span className="truncate">{hasReview ? 'Review' : 'Changes'}</span>
+      <span className="truncate">{title ?? 'Changes'}</span>
     </>
   );
 }

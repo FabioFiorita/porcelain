@@ -25,10 +25,3 @@ export function usePublishedReview(
     refresh: useAtomRefresh(atom),
   };
 }
-
-export function useHasReviewLayers(
-  scope: ReviewScope,
-  context: ConnectionContext,
-) {
-  return usePublishedReview(scope, context).review?.active ?? false;
-}

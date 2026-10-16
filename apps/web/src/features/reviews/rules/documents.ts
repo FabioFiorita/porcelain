@@ -2,6 +2,7 @@ import { shortOid } from '@porcelain/client/history/rules';
 import type {
   CommentAnchor,
   RevealComment,
+  ReviewResponse,
 } from '@porcelain/client/reviews/rules';
 export type DocumentRef =
   | { kind: 'handoff' }
@@ -104,6 +105,15 @@ export type DocumentInteraction = {
   entry: string;
   reveal?: RevealComment | undefined;
 };
+
+export type ReviewTitle = 'Review' | 'Saved review';
+
+export function publishedReviewTitle(
+  review: Pick<ReviewResponse, 'active'> | null | undefined,
+): ReviewTitle | undefined {
+  if (!review) return undefined;
+  return review.active ? 'Review' : 'Saved review';
+}
 
 type Surface = 'changes' | 'files' | 'history';
 

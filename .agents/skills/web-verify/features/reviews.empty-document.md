@@ -6,6 +6,7 @@ selectors:
   - "No open tabs"
   - "Open all changes"
   - "Open review"
+  - "Open saved review"
   - "Review walkthrough"
 tests:
   - apps/web/spec/integration/reviews-empty-document.test.tsx
@@ -18,7 +19,7 @@ api:
 
 ## What it is
 
-With every tab closed, the document pane says "Nothing open" and offers one button: "Open all changes" while there is no published review, "Open review" once the agent has published one. Either button reopens the handoff tab.
+With every tab closed, the document pane says "Nothing open" and offers one button: "Open all changes" while there is no published review, "Open review" once the agent has published one. An inactive latest publication offers "Open saved review", even with no uncommitted changes. Each button reopens the handoff tab.
 
 ## How a user reaches it
 
