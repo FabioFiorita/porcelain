@@ -42,6 +42,7 @@ export function createLiveUpdates<E>(
   context: Context.Context<never> = Context.empty(),
   options?: {
     readonly activity?: StatusActivity;
+    readonly onForeground?: () => void;
     readonly recoverUnauthorized?: () => Effect.Effect<boolean>;
   },
 ): LiveUpdatePort {
@@ -56,6 +57,10 @@ export function createLiveUpdates<E>(
         worktrees: [],
       });
       const wakeups = yield* Queue.sliding<void>(1);
+      const foreground = Queue.take(wakeups).pipe(
+        Effect.tap(() => Effect.sync(() => options?.onForeground?.())),
+        Effect.as('foreground' as const),
+      );
       if (options?.activity) {
         const activity = options.activity;
         let wasActive = activity.isActive();
@@ -126,11 +131,7 @@ export function createLiveUpdates<E>(
           yield* Effect.addFinalizer(() => Queue.shutdown(updates));
           while (true) {
             const result = yield* Effect.exit(
-              connection.pipe(
-                Effect.raceFirst(
-                  Queue.take(wakeups).pipe(Effect.as('foreground' as const)),
-                ),
-              ),
+              connection.pipe(Effect.raceFirst(foreground)),
             );
             if (
               Exit.isFailure(result) &&
@@ -147,9 +148,7 @@ export function createLiveUpdates<E>(
             }
             if (Exit.isSuccess(result) && result.value === 'foreground')
               continue;
-            yield* Effect.sleep(retryMs).pipe(
-              Effect.raceFirst(Queue.take(wakeups)),
-            );
+            yield* Effect.sleep(retryMs).pipe(Effect.raceFirst(foreground));
             retryMs = Math.min(
               retryMs * LIVE_RECONNECT_BACKOFF,
               LIVE_RECONNECT_MAX_MS,

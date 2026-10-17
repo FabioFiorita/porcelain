@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import { Effect, Redacted } from 'effect';
+import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { RequestError } from '../../../shared/api/request-error.ts';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import { createRouteTransport } from './route-transport.ts';
@@ -78,6 +79,7 @@ function fixture() {
   const routing = createRouteTransport(remote, send);
   return {
     routing,
+    send,
     calls,
     setLan(value: typeof lan) {
       lan = value;
@@ -116,6 +118,96 @@ it('falls back to Tailscale with its own credential and keeps one active route',
   expect(subject.calls.at(-1)?.host).toBe('development.example.ts.net');
   await Effect.runPromise(subject.routing.select(true));
   expect(subject.routing.active.value?.address).toBe(remote.address);
+});
+
+it('tries another route when a read fails but the preferred health and session still answer', async () => {
+  const subject = fixture();
+  const reads: string[] = [];
+  const routing = createRouteTransport(remote, (url, init) => {
+    if (url.pathname === '/api/inventory') {
+      reads.push(url.hostname);
+      if (url.hostname === '192.168.1.2')
+        return Promise.reject(new TypeError('Read connection reset'));
+    }
+    return subject.send(url, init);
+  });
+  expect(await (await routing.transport('/api/inventory')).json()).toEqual({
+    host: 'development.example.ts.net',
+  });
+  expect(reads).toEqual(['192.168.1.2', 'development.example.ts.net']);
+});
+
+it('preserves a healthy Tailscale route when its caller cancels a read', async () => {
+  const subject = fixture();
+  subject.setLan('offline');
+  const started = Promise.withResolvers<void>();
+  let hold = true;
+  const routing = createRouteTransport(remote, (url, init) => {
+    if (hold && url.pathname === '/api/inventory') {
+      started.resolve();
+      return new Promise((_resolve, reject) =>
+        init?.signal?.addEventListener(
+          'abort',
+          () => reject(init?.signal?.reason),
+          { once: true },
+        ),
+      );
+    }
+    return subject.send(url, init);
+  });
+  await Effect.runPromise(routing.select());
+  subject.setLan('online');
+  const controller = new AbortController();
+  const pending = routing.transport('/api/inventory', {
+    signal: controller.signal,
+  });
+  await started.promise;
+  controller.abort();
+  await expect(pending).rejects.toBeDefined();
+  expect(routing.active.value?.address).toBe(
+    'https://development.example.ts.net',
+  );
+  hold = false;
+  await routing.transport('/api/inventory');
+  expect(routing.active.value?.address).toBe(
+    'https://development.example.ts.net',
+  );
+});
+
+it('keeps a mixed revoked and unreachable set retryable until the offline route recovers', async () => {
+  const subject = fixture();
+  subject.setLan('revoked');
+  let available = false;
+  const routing = createRouteTransport(remote, (url, init) =>
+    !available && url.hostname === 'development.example.ts.net'
+      ? Promise.reject(new TypeError('VPN unavailable'))
+      : subject.send(url, init),
+  );
+  await expect(Effect.runPromise(routing.select())).rejects.toBeInstanceOf(
+    ConnectionError,
+  );
+  available = true;
+  expect((await routing.transport('/api/inventory')).status).toBe(200);
+  expect(routing.active.value?.address).toBe(
+    'https://development.example.ts.net',
+  );
+});
+
+it('reconsiders a failed route after the remaining routes were also unavailable', async () => {
+  const subject = fixture();
+  let readsAvailable = false;
+  const routing = createRouteTransport(remote, (url, init) => {
+    if (
+      url.hostname === 'development.example.ts.net' ||
+      (!readsAvailable && url.pathname === '/api/inventory')
+    )
+      return Promise.reject(new TypeError('Route unavailable'));
+    return subject.send(url, init);
+  });
+  await expect(routing.transport('/api/inventory')).rejects.toBeDefined();
+  readsAvailable = true;
+  expect((await routing.transport('/api/inventory')).status).toBe(200);
+  expect(routing.active.value?.address).toBe(remote.address);
 });
 
 it.each(['other', 'revoked'] as const)(
@@ -178,7 +270,7 @@ it('cancels an unreachable preferred route before trying another route', async (
         'abort',
         () => {
           aborted.resolve();
-          reject(init.signal?.reason);
+          reject(init?.signal?.reason);
         },
         { once: true },
       ),
@@ -204,7 +296,7 @@ it('bounds an unresponsive LAN probe before using Tailscale', async () => {
           'abort',
           () => {
             aborted.resolve();
-            reject(init.signal?.reason);
+            reject(init?.signal?.reason);
           },
           { once: true },
         ),

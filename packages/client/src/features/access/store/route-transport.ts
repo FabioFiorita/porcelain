@@ -21,13 +21,26 @@ export function createRouteTransport(
   send: AccessPlatformValue['send'],
 ) {
   const active = AtomRef.make<ConnectionRoute | undefined>(undefined);
+  const routes = connectionRoutes(remote);
+  const failedRoutes = new Set<string>();
+  const reset = () => {
+    failedRoutes.clear();
+    active.set(undefined);
+  };
+  const failed = (route: ConnectionRoute) => {
+    failedRoutes.add(route.address);
+    if (active.value?.address === route.address) active.set(undefined);
+  };
   const gate = Semaphore.makeUnsafe(1);
   const select = Effect.fn('RemoteRoute.select')((refresh = false) =>
     Effect.gen(function* () {
-      if (refresh) active.set(undefined);
+      if (refresh) reset();
       if (active.value) return active.value;
-      let refused = false;
-      for (const route of connectionRoutes(remote)) {
+      if (routes.every((route) => failedRoutes.has(route.address)))
+        failedRoutes.clear();
+      let refused = 0;
+      for (const route of routes) {
+        if (failedRoutes.has(route.address)) continue;
         const result = yield* readRemoteRoute(
           route,
           remote.environmentId,
@@ -41,9 +54,10 @@ export function createRouteTransport(
           return route;
         }
         if (Option.isSome(result) && result.value.kind === 'unauthorized')
-          refused = true;
+          refused++;
       }
-      if (refused)
+      failedRoutes.clear();
+      if (refused === routes.length)
         return yield* Effect.fail(
           new RequestError({
             status: 401,
@@ -68,30 +82,40 @@ export function createRouteTransport(
       init?.method === undefined ||
       init.method === 'GET' ||
       init.method === 'HEAD';
+    const sendRoute = async (selected: ConnectionRoute) => {
+      try {
+        const response = await transportFor(selected)(path, init);
+        if (response.status === 401) failed(selected);
+        return response;
+      } catch (error) {
+        if (!init?.signal?.aborted) failed(selected);
+        throw error;
+      }
+    };
     let response: Response;
     try {
-      response = await transportFor(route)(path, init);
+      response = await sendRoute(route);
     } catch (error) {
-      if (active.value === route) active.set(undefined);
-      if (!read || init?.signal?.aborted) throw error;
+      if (!read || init?.signal?.aborted || routes.length === 1) throw error;
       const fallback = await Effect.runPromise(select(), options);
       if (fallback.address === route.address) throw error;
-      return transportFor(fallback)(path, init);
+      return sendRoute(fallback);
     }
     if (response.status !== 401) return response;
-    if (active.value === route) active.set(undefined);
-    if (!read) return response;
+    if (!read || routes.length === 1) return response;
     const fallback = await Effect.runPromise(
       select().pipe(Effect.option),
       options,
     );
     return Option.isSome(fallback) && fallback.value.address !== route.address
-      ? transportFor(fallback.value)(path, init)
+      ? sendRoute(fallback.value)
       : response;
   };
 
   return {
     active,
+    reset,
+    failed,
     select,
     transport,
     transportFor,

@@ -1,5 +1,7 @@
 import { expect, it } from '@effect/vitest';
-import { Cause, Effect, Exit, Queue, Scope, Stream } from 'effect';
+import { Cause, Effect, Exit, Queue, Scope, Stream, Redacted } from 'effect';
+import { createRouteTransport } from '../../access/store/route-transport.ts';
+import { remoteLiveUpdates } from './remote-live-updates.ts';
 import { RpcSerialization, RpcServer } from 'effect/rpc';
 import { Socket, SocketServer } from 'effect/socket';
 import { NetAddress } from 'effect/net';
@@ -269,6 +271,215 @@ function activityFixture() {
     subscribed: () => changed !== undefined,
   };
 }
+
+function routedFixture() {
+  const remote = {
+    environmentId: 'computer',
+    name: 'Computer',
+    address: 'http://192.168.1.2:4738',
+    credential: Redacted.make('lan'),
+    alternateRoutes: [
+      {
+        address: 'https://development.example.ts.net',
+        credential: Redacted.make('tailnet'),
+      },
+    ],
+  };
+  let revoked = false;
+  let tailnetAvailable = true;
+  const routing = createRouteTransport(remote, async (url) => {
+    if (!tailnetAvailable && url.hostname === 'development.example.ts.net')
+      throw new TypeError('VPN unavailable');
+    if (
+      revoked &&
+      url.hostname === '192.168.1.2' &&
+      url.pathname === '/api/session'
+    )
+      return new Response(null, { status: 401 });
+    return Response.json(
+      url.pathname === '/api/health'
+        ? { status: 'ok', environmentId: 'computer' }
+        : url.pathname === '/api/environment'
+          ? {
+              environmentId: 'computer',
+              name: 'Computer',
+              version: null,
+              protocol: 2,
+            }
+          : url.pathname === '/api/live/tickets'
+            ? { ticket: 'ticket', expiresAt: '2026-10-18T00:00:00.000Z' }
+            : { kind: 'owner' },
+    );
+  });
+  return {
+    remote,
+    routing,
+    revokeLan() {
+      revoked = true;
+    },
+    tailnet(value: boolean) {
+      tailnetAvailable = value;
+    },
+  };
+}
+
+const routedSession = Effect.fn(function* (
+  lan: 'online' | 'revoked' | 'bad-upgrade' = 'online',
+) {
+  const { serverScope, scope, openings } = yield* reconnectionFixture;
+  const subject = routedFixture();
+  const failedUpgrades = yield* Queue.make<void>();
+  const activity = activityFixture();
+  const hosts: string[] = [];
+  let unauthorized = 0;
+  if (lan === 'revoked') {
+    subject.revokeLan();
+    subject.tailnet(false);
+  }
+  yield* remoteLiveUpdates(
+    subject.remote.address,
+    subject.routing.transport,
+    (url) => {
+      const host = new URL(url).hostname;
+      hosts.push(host);
+      return lan === 'bad-upgrade' && host === '192.168.1.2'
+        ? Effect.succeed(
+            Socket.make({
+              reader: Queue.offer(failedUpgrades, undefined).pipe(
+                Effect.andThen(
+                  Effect.fail(
+                    new Socket.SocketError({
+                      reason: new Socket.SocketOpenError({
+                        kind: 'Unknown',
+                        cause: 'Upgrade unavailable',
+                      }),
+                    }),
+                  ),
+                ),
+              ),
+              writer: Effect.succeed({
+                write: () => Effect.void,
+                writeAll: () => Effect.void,
+              }),
+            }),
+          )
+        : recordedSocket(serverScope, openings);
+    },
+    subject.routing,
+    activity.port,
+  )
+    .connect({
+      onNotice() {},
+      onReconnect() {},
+      onUnauthorized() {
+        unauthorized++;
+      },
+    })
+    .pipe(Effect.provideService(Scope.Scope, scope));
+  return {
+    failedUpgrades,
+    subject,
+    activity,
+    hosts,
+    scope,
+    openings,
+    unauthorized: () => unauthorized,
+  };
+});
+
+it.effect(
+  'a socket upgrade failure tries the alternate before reopening the preferred route',
+  () =>
+    Effect.gen(function* () {
+      const session = yield* routedSession('bad-upgrade');
+      yield* Queue.take(session.failedUpgrades);
+      yield* TestClock.adjust(500);
+      expect(session.hosts).toEqual([
+        '192.168.1.2',
+        'development.example.ts.net',
+      ]);
+      const opened = yield* Queue.take(session.openings);
+      yield* Queue.take(opened.followed);
+      yield* Scope.close(session.scope, Exit.void);
+    }),
+);
+
+it.effect(
+  'a failed LAN socket advances to Tailscale even when LAN HTTP stays healthy, and foreground restores preference',
+  () =>
+    Effect.gen(function* () {
+      const { scope, openings, hosts, activity } = yield* routedSession();
+      const first = yield* Queue.take(openings);
+      yield* Queue.take(first.followed);
+      first.disconnect(1006);
+      yield* Queue.take(first.closed);
+      yield* TestClock.adjust(500);
+      const second = yield* Queue.take(openings);
+      yield* Queue.take(second.followed);
+      expect(hosts).toEqual(['192.168.1.2', 'development.example.ts.net']);
+      activity.setActive(false);
+      activity.setActive(true);
+      yield* Queue.take(second.closed);
+      yield* TestClock.adjust(1);
+      const third = yield* Queue.take(openings);
+      yield* Queue.take(third.followed);
+      expect(hosts).toEqual([
+        '192.168.1.2',
+        'development.example.ts.net',
+        '192.168.1.2',
+      ]);
+      yield* Scope.close(scope, Exit.void);
+    }),
+);
+
+const mixedRecovery = Effect.fn(function* (established: boolean) {
+  const session = yield* routedSession(established ? 'online' : 'revoked');
+  if (established) {
+    const first = yield* Queue.take(session.openings);
+    yield* Queue.take(first.followed);
+    session.subject.revokeLan();
+    session.subject.tailnet(false);
+    first.disconnect(4001);
+    yield* Queue.take(first.closed);
+  }
+  yield* TestClock.adjust(1000);
+  const lostAccess = session.unauthorized();
+  session.subject.tailnet(true);
+  yield* TestClock.adjust(1000);
+  let subscribed = false;
+  if ((yield* Queue.size(session.openings)) > 0) {
+    const recovered = yield* Queue.take(session.openings);
+    yield* Queue.take(recovered.followed);
+    subscribed = true;
+  }
+  yield* Scope.close(session.scope, Exit.void);
+  return { lostAccess, hosts: session.hosts, subscribed };
+});
+
+it.effect(
+  'a revoked route and an offline alternate recover before any socket has connected',
+  () =>
+    Effect.gen(function* () {
+      expect(yield* mixedRecovery(false)).toEqual({
+        lostAccess: 0,
+        hosts: ['development.example.ts.net'],
+        subscribed: true,
+      });
+    }),
+);
+it.effect(
+  'an established revoked socket keeps retrying until its offline alternate recovers',
+  () =>
+    Effect.gen(function* () {
+      const recovered = yield* mixedRecovery(true);
+      expect(recovered.lostAccess).toBe(0);
+      expect(recovered.hosts).toEqual([
+        '192.168.1.2',
+        'development.example.ts.net',
+      ]);
+      expect(recovered.subscribed).toBe(true);
+    }),
+);
 
 const reconnectionFixture = Effect.gen(function* () {
   const serverScope = yield* Scope.Scope;
