@@ -8,10 +8,11 @@ export function remoteTransport(
   send: (input: URL, init: RequestInit) => Promise<Response>,
 ): Transport {
   return (input, init) => {
+    const url = new URL(input, address);
     const headers = new Headers(init?.headers);
-    if (credential)
+    if (credential && url.pathname !== '/api/health')
       headers.set('authorization', `Bearer ${Redacted.value(credential)}`);
-    return send(new URL(input, address), {
+    return send(url, {
       ...init,
       headers,
       mode: 'cors',

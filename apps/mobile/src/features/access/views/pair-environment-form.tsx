@@ -13,9 +13,15 @@ import { useEnvironmentStorageStatus } from '../store';
 import { developmentPairingUrl } from '../api';
 import { useDevelopmentPairing } from '../commands/development-pairing';
 
-export function PairEnvironmentForm({ onClose }: { onClose: () => void }) {
+export function PairEnvironmentForm({
+  onClose,
+  environmentId,
+}: {
+  onClose: () => void;
+  environmentId?: string;
+}) {
   const [value, setValue] = useState('');
-  const pair = usePairEnvironment(onClose);
+  const pair = usePairEnvironment(onClose, environmentId);
   const development = useDevelopmentPairing();
   const storage = useEnvironmentStorageStatus();
   const read = useReadEnvironments();
@@ -25,7 +31,9 @@ export function PairEnvironmentForm({ onClose }: { onClose: () => void }) {
     storage.status !== 'ready';
   return (
     <Box gap={4}>
-      <Text variant="heading">Pair an environment</Text>
+      <Text variant="heading">
+        {environmentId ? 'Add a connection' : 'Pair an environment'}
+      </Text>
       <Field
         label="Pairing link"
         description="Run porcelain pair on the computer you want to connect, then paste the whole link it prints."

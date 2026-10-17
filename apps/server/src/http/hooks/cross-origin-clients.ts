@@ -5,6 +5,8 @@ import { RequestContext } from '../request-context.ts';
 import { bearerCredential } from './authenticate.ts';
 
 const PAIRING_PATH = '/api/pair';
+const HEALTH_PATH = '/api/health';
+const HEALTH_METHODS = new Set(['GET', 'HEAD']);
 const PAIRING_METHODS = new Set(['POST', 'OPTIONS']);
 function crossOriginClients(options: { maxAgeSeconds: number }) {
   return Effect.gen(function* () {
@@ -18,6 +20,10 @@ function crossOriginClients(options: { maxAgeSeconds: number }) {
         .some((header) => header.trim().toLowerCase() === 'authorization') ??
       false;
     const allowed =
+      (path === HEALTH_PATH &&
+        HEALTH_METHODS.has(
+          request.headers['access-control-request-method'] ?? '',
+        )) ||
       (path === PAIRING_PATH && PAIRING_METHODS.has(request.method)) ||
       (request.method === 'OPTIONS'
         ? bearerPreflight
@@ -48,7 +54,9 @@ export function crossOriginHeaders(
     const context = yield* RequestContext;
     const path = context.request.originalUrl.split('?', 1)[0] ?? '';
     return path.startsWith('/api/') &&
-      ((path === PAIRING_PATH && PAIRING_METHODS.has(context.request.method)) ||
+      ((path === HEALTH_PATH && HEALTH_METHODS.has(context.request.method)) ||
+        (path === PAIRING_PATH &&
+          PAIRING_METHODS.has(context.request.method)) ||
         bearerCredential(context) !== undefined)
       ? HttpServerResponse.setHeader(
           response,

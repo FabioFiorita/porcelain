@@ -1,3 +1,5 @@
+import type { AtomRef } from 'effect/reactivity';
+import type { ConnectionRoute } from '../rules/remotes.ts';
 import { Context, type Effect, type Scope } from 'effect';
 import type { LiveConnection } from '../../live/ports/connection.ts';
 import type { BrowserSession } from '../rules/browser-session.ts';
@@ -5,6 +7,7 @@ import type { Remote } from '../rules/remotes.ts';
 
 export type EnvironmentConnection = LiveConnection & {
   readonly address: string;
+  readonly activeRoute?: AtomRef.ReadonlyRef<ConnectionRoute | undefined>;
 };
 
 export type RemoteConnection = {

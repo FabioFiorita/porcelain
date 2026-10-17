@@ -36,7 +36,11 @@ function rejectedPairing(error: PairFailure) {
   );
 }
 
-function pairRemote(platform: AccessPlatformValue, value: string) {
+function pairRemote(
+  platform: AccessPlatformValue,
+  value: string,
+  expectedEnvironmentId?: string,
+) {
   return Effect.gen(function* () {
     const link = remoteLink(value);
     if (!link)
@@ -46,7 +50,27 @@ function pairRemote(platform: AccessPlatformValue, value: string) {
             'Paste the whole link porcelain pair printed, starting with http.',
         }),
       );
+    if (expectedEnvironmentId && link.environmentId !== expectedEnvironmentId)
+      return yield* Effect.fail(
+        new ConnectionError({
+          message:
+            'That pairing link belongs to another computer. Add it as a separate environment.',
+        }),
+      );
     const transport = remoteTransport(link.address, undefined, platform.send);
+    const health = yield* mapRequestErrors(
+      Effect.gen(function* () {
+        const api = yield* BootstrapClient;
+        return yield* api.publicAccess.readHealth();
+      }).pipe(Effect.provide(BootstrapClient.layer(transport))),
+    );
+    if (health.environmentId !== link.environmentId)
+      return yield* Effect.fail(
+        new ConnectionError({
+          message:
+            'Another Porcelain answered at that address than the one that made the link.',
+        }),
+      );
     const paired = yield* mapRequestErrors(
       Effect.gen(function* () {
         const api = yield* BootstrapClient;
@@ -104,6 +128,7 @@ function pairRemote(platform: AccessPlatformValue, value: string) {
 
 export const pairEnvironment = Effect.fn('Environments.pairAndSave')(function* (
   value: string,
+  expectedEnvironmentId?: string,
 ) {
   const store = yield* AccessStore;
   const platform = yield* AccessPlatform;
@@ -113,7 +138,7 @@ export const pairEnvironment = Effect.fn('Environments.pairAndSave')(function* (
         message: 'Read saved environments before pairing.',
       }),
     );
-  const remote = yield* pairRemote(platform, value);
+  const remote = yield* pairRemote(platform, value, expectedEnvironmentId);
   yield* store.save(remote);
   return remote;
 });

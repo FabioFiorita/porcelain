@@ -116,19 +116,21 @@ function fixture(
       });
       return Promise.resolve(
         Response.json(
-          url.pathname === '/api/pair'
-            ? {
-                credential: 'paired-credential',
-                device: {
-                  id: 'device',
-                  label: 'Phone',
-                  platform: 'iOS',
-                  createdAt: '2026-10-02T00:00:00Z',
-                },
-              }
-            : url.pathname === '/api/session'
-              ? { kind: 'owner' }
-              : { environmentId, name: 'Computer', version: null, protocol },
+          url.pathname === '/api/health'
+            ? { status: 'ok', environmentId }
+            : url.pathname === '/api/pair'
+              ? {
+                  credential: 'paired-credential',
+                  device: {
+                    id: 'device',
+                    label: 'Phone',
+                    platform: 'iOS',
+                    createdAt: '2026-10-02T00:00:00Z',
+                  },
+                }
+              : url.pathname === '/api/session'
+                ? { kind: 'owner' }
+                : { environmentId, name: 'Computer', version: null, protocol },
         ),
       );
     },
@@ -150,6 +152,7 @@ describe('pairing an environment', () => {
       { signal: new AbortController().signal },
     );
     expect(requests).toEqual([
+      { path: '/api/health', authorization: null, body: undefined },
       {
         path: '/api/pair',
         authorization: null,
@@ -253,4 +256,22 @@ describe('pairing an environment', () => {
     expect(requests).toEqual([]);
     expect(saved).toEqual([]);
   });
+});
+
+it('rejects adding another computer as an alternate connection before contacting it', async () => {
+  const { store, platform, saved, requests } = fixture();
+  await Effect.runPromise(store.load());
+  await expect(
+    Effect.runPromise(
+      pairEnvironment(
+        'https://development.example.ts.net/pair#c=code&e=another',
+        'installation',
+      ).pipe(
+        Effect.provideService(AccessStore, store),
+        Effect.provideService(AccessPlatform, platform),
+      ),
+    ),
+  ).rejects.toThrow('another computer');
+  expect(requests).toEqual([]);
+  expect(saved).toEqual([]);
 });

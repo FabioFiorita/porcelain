@@ -22,6 +22,7 @@ const makeEnvironmentCommands = Effect.gen(function* () {
     pair: Effect.fn('Environments.pair')(
       (input: {
         readonly value: string;
+        readonly environmentId?: string | undefined;
         readonly localEnvironmentId?: string | undefined;
       }) => {
         return mutations.run(
@@ -37,13 +38,33 @@ const makeEnvironmentCommands = Effect.gen(function* () {
                   message: 'That link is for this computer.',
                 }),
               );
-            return yield* pairEnvironment(input.value).pipe(
+            return yield* pairEnvironment(
+              input.value,
+              input.environmentId,
+            ).pipe(
               Effect.provideService(AccessStore, access),
               Effect.provideService(AccessPlatform, platform),
             );
           }),
         );
       },
+    ),
+    route: Effect.fn('Environments.route')(
+      (input: {
+        readonly environmentId: string;
+        readonly address: string;
+        readonly kind: 'prefer' | 'remove';
+      }) =>
+        mutations.run(
+          'access',
+          Effect.gen(function* () {
+            if (!(yield* drafts.save(input.environmentId)))
+              return yield* Effect.fail(
+                new ConnectionError({ message: UNSAVED_DRAFTS_MESSAGE }),
+              );
+            yield* access.route(input);
+          }),
+        ),
     ),
     forget: Effect.fn('Environments.forget')((environmentId: string) =>
       mutations.run(

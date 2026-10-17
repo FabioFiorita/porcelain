@@ -1,3 +1,4 @@
+import { operationJournalKey } from '@porcelain/client/access/rules';
 import { Effect, Layer } from 'effect';
 import { openRemoteConnection } from '@porcelain/client/live';
 import { OperationStorage } from '@porcelain/client/git-actions';
@@ -24,6 +25,9 @@ export function remoteConnectionFactoryLayer(memoMap: Layer.MemoMap) {
                 {
                   ...remote,
                   send: platform.send,
+                  ...(platform.statusActivity
+                    ? { activity: platform.statusActivity }
+                    : {}),
                   socket: mobileSocket,
                   onStatusChange: () =>
                     revalidateRemoteStatus(platform, remote),
@@ -34,11 +38,12 @@ export function remoteConnectionFactoryLayer(memoMap: Layer.MemoMap) {
                   Layer.succeed(
                     OperationStorage,
                     operationStorage(
-                      JSON.stringify([
-                        remote.environmentId,
-                        remote.address,
-                        remote.deviceId,
-                      ]),
+                      operationJournalKey(remote) ??
+                        JSON.stringify([
+                          remote.environmentId,
+                          remote.address,
+                          remote.deviceId,
+                        ]),
                     ),
                   ),
                 ),

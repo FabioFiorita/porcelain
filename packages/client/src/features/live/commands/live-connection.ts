@@ -1,4 +1,8 @@
 import { operationStoreLayer } from '../../git-actions/store/operations.ts';
+import type { AtomRef } from 'effect/reactivity';
+import type { StatusActivity } from '../../access/ports/status-activity.ts';
+import { createRouteTransport } from '../../access/store/route-transport.ts';
+import type { ConnectionRoute } from '../../access/rules/remotes.ts';
 import { Equal, Layer, type Crypto } from 'effect';
 import { OperationStore } from '../../git-actions/ports/operation-store.ts';
 import type { OperationStorage } from '../../git-actions/ports/operation-storage.ts';
@@ -8,12 +12,12 @@ import type { WorktreeConnection } from '../../../shared/api/connection.ts';
 import type { LiveConnection } from '../ports/connection.ts';
 import type { Remote } from '../../access/rules/remotes.ts';
 import type { AccessPlatformValue } from '../../access/ports/access-platform.ts';
-import { remoteTransport } from '../../../shared/api/transport.ts';
 import { remoteLiveUpdates } from './remote-live-updates.ts';
 
 export function openLiveConnection(
   input: Omit<WorktreeConnection, 'request' | 'scope' | 'isClosed'> & {
     readonly address: string;
+    readonly activeRoute?: AtomRef.ReadonlyRef<ConnectionRoute | undefined>;
     readonly timeoutMs: number;
     readonly liveUpdates: LiveConnection['liveUpdates'];
     readonly onStatusChange?: (() => void) | undefined;
@@ -32,7 +36,10 @@ export function openLiveConnection(
   );
   const connection = Equal.byReference({
     ...requests,
-    address: input.address,
+    get address() {
+      return input.activeRoute?.value?.address ?? input.address;
+    },
+    ...(input.activeRoute ? { activeRoute: input.activeRoute } : {}),
     liveUpdates: input.liveUpdates,
     ...(input.onStatusChange ? { onStatusChange: input.onStatusChange } : {}),
     operations: requests.runtime.runSync(OperationStore),
@@ -44,9 +51,10 @@ export function openLiveConnection(
 export function openRemoteConnection(
   input: Pick<
     Remote,
-    'environmentId' | 'address' | 'credential' | 'deviceId'
+    'environmentId' | 'address' | 'credential' | 'deviceId' | 'alternateRoutes'
   > & {
     readonly send: AccessPlatformValue['send'];
+    readonly activity?: StatusActivity;
     readonly onStatusChange?: (() => void) | undefined;
     readonly socket: Parameters<typeof remoteLiveUpdates>[2];
     readonly timeoutMs: number;
@@ -54,18 +62,22 @@ export function openRemoteConnection(
   platform: Layer.Layer<OperationStorage | Crypto.Crypto>,
   memoMap: Layer.MemoMap,
 ) {
-  const transport = remoteTransport(
-    input.address,
-    input.credential,
-    input.send,
-  );
+  const routing = createRouteTransport({ ...input, name: '' }, input.send);
+  const transport = routing.transport;
   return openLiveConnection(
     {
       environmentId: input.environmentId,
       address: input.address,
       transport,
       cacheIdentity: [input.address, input.deviceId ?? ''],
-      liveUpdates: remoteLiveUpdates(input.address, transport, input.socket),
+      activeRoute: routing.active,
+      liveUpdates: remoteLiveUpdates(
+        input.address,
+        transport,
+        input.socket,
+        routing,
+        input.activity,
+      ),
       ...(input.onStatusChange ? { onStatusChange: input.onStatusChange } : {}),
       timeoutMs: input.timeoutMs,
     },

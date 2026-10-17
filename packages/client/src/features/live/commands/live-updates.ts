@@ -14,6 +14,7 @@ import { RpcClient, RpcClientError, RpcSerialization } from 'effect/rpc';
 import { Socket } from 'effect/socket';
 import { LiveUpdatesRpc } from '@porcelain/contracts/access';
 import { RequestError } from '../../../shared/api/request-error.ts';
+import type { StatusActivity } from '../../access/ports/status-activity.ts';
 import type { LiveSubscription, LiveUpdatePort } from '../ports/live-update.ts';
 import {
   LIVE_ACCESS_REVOKED_CLOSE_CODE,
@@ -39,6 +40,11 @@ function unauthorized(error: unknown) {
 export function createLiveUpdates<E>(
   open: Effect.Effect<Socket.Socket, E, Scope.Scope>,
   context: Context.Context<never> = Context.empty(),
+  options?: {
+    readonly activity?: StatusActivity;
+    readonly onForeground?: () => void;
+    readonly recoverUnauthorized?: () => Effect.Effect<boolean>;
+  },
 ): LiveUpdatePort {
   return {
     connect: Effect.fn('LiveUpdates.connect')(function* ({
@@ -50,6 +56,25 @@ export function createLiveUpdates<E>(
         projects: [],
         worktrees: [],
       });
+      const wakeups = yield* Queue.sliding<void>(1);
+      const foreground = Queue.take(wakeups).pipe(
+        Effect.tap(() => Effect.sync(() => options?.onForeground?.())),
+        Effect.as('foreground' as const),
+      );
+      if (options?.activity) {
+        const activity = options.activity;
+        let wasActive = activity.isActive();
+        yield* Effect.acquireRelease(
+          Effect.sync(() =>
+            activity.subscribe(() => {
+              const active = activity.isActive();
+              if (active && !wasActive) Queue.offerUnsafe(wakeups, undefined);
+              wasActive = active;
+            }),
+          ),
+          (unsubscribe) => Effect.sync(unsubscribe),
+        );
+      }
       const updates = yield* Queue.sliding<LiveSubscription>(
         LIVE_SUBSCRIPTION_BUFFER,
       );
@@ -105,15 +130,25 @@ export function createLiveUpdates<E>(
         Effect.gen(function* () {
           yield* Effect.addFinalizer(() => Queue.shutdown(updates));
           while (true) {
-            const result = yield* Effect.exit(connection);
+            const result = yield* Effect.exit(
+              connection.pipe(Effect.raceFirst(foreground)),
+            );
             if (
               Exit.isFailure(result) &&
               unauthorized(Cause.squash(result.cause))
             ) {
-              onUnauthorized();
-              return;
+              if (
+                !(yield* (
+                  options?.recoverUnauthorized?.() ?? Effect.succeed(false)
+                ))
+              ) {
+                onUnauthorized();
+                return;
+              }
             }
-            yield* Effect.sleep(retryMs);
+            if (Exit.isSuccess(result) && result.value === 'foreground')
+              continue;
+            yield* Effect.sleep(retryMs).pipe(Effect.raceFirst(foreground));
             retryMs = Math.min(
               retryMs * LIVE_RECONNECT_BACKOFF,
               LIVE_RECONNECT_MAX_MS,

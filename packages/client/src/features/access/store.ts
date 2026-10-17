@@ -1,10 +1,15 @@
 import { persistedState } from '../persistence/store.ts';
 import { Context, Effect, Layer } from 'effect';
 import type { AtomRef } from 'effect/reactivity';
+import { ConnectionError } from '../../shared/api/connection-error.ts';
 import { type WriteNotSentError } from '../../shared/api/write-queue.ts';
-import type { ConnectionError } from '../../shared/api/connection-error.ts';
 import { EnvironmentStorage } from './ports/environment-storage.ts';
-import { withRemote, type Remote } from './rules/remotes.ts';
+import {
+  withRemote,
+  connectionRoutes,
+  withConnectionRoutes,
+  type Remote,
+} from './rules/remotes.ts';
 import type { PersistedReadState } from '../persistence/rules/read-state.ts';
 
 type AccessState = PersistedReadState & {
@@ -19,6 +24,11 @@ export class AccessStore extends Context.Service<
     readonly state: AtomRef.ReadonlyRef<AccessState>;
     readonly load: () => Effect.Effect<void, WriteFailure>;
     readonly save: (remote: Remote) => Effect.Effect<void, WriteFailure>;
+    readonly route: (input: {
+      readonly environmentId: string;
+      readonly address: string;
+      readonly kind: 'prefer' | 'remove';
+    }) => Effect.Effect<void, WriteFailure>;
     readonly forget: (
       environmentId: string,
     ) => Effect.Effect<void, WriteFailure>;
@@ -49,6 +59,50 @@ export class AccessStore extends Context.Service<
         load: owner.load,
         save: Effect.fn('AccessStore.save')((remote: Remote) =>
           write((remotes) => withRemote(remotes, remote)),
+        ),
+        route: Effect.fn('AccessStore.route')((input) =>
+          owner.write(({ remotes }) =>
+            Effect.gen(function* () {
+              const remote = remotes.find(
+                (entry) => entry.environmentId === input.environmentId,
+              );
+              if (!remote)
+                return yield* Effect.fail(
+                  new ConnectionError({
+                    message: 'That environment is no longer saved.',
+                  }),
+                );
+              const routes = connectionRoutes(remote);
+              const chosen = routes.find(
+                (route) => route.address === input.address,
+              );
+              if (!chosen)
+                return yield* Effect.fail(
+                  new ConnectionError({
+                    message: 'That connection is no longer saved.',
+                  }),
+                );
+              const rest = routes.filter(
+                (route) => route.address !== input.address,
+              );
+              if (input.kind === 'remove' && !rest.length)
+                return yield* Effect.fail(
+                  new ConnectionError({
+                    message:
+                      'Forget the environment to remove its last connection.',
+                  }),
+                );
+              const updated = withConnectionRoutes(
+                remote,
+                input.kind === 'prefer' ? [chosen, ...rest] : rest,
+              );
+              return {
+                remotes: remotes.map((entry) =>
+                  entry.environmentId === input.environmentId ? updated : entry,
+                ),
+              };
+            }),
+          ),
         ),
         forget: Effect.fn('AccessStore.forget')((environmentId: string) =>
           write((remotes) =>

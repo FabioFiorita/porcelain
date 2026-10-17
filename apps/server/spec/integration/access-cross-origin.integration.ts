@@ -74,7 +74,7 @@ test('a preflight from another origin is answered before any origin or credentia
   expect(response.headers['access-control-allow-credentials']).toBeUndefined();
 });
 
-test('a page on another origin cannot read the public environment or health, while a bearer client can', async ({
+test('a page can read only the opaque health identity before pairing and needs a bearer for the environment descriptor', async ({
   session,
 }) => {
   const anonymous = await session.send({
@@ -116,7 +116,7 @@ test('a page on another origin cannot read the public environment or health, whi
       Schema.toStandardSchemaV1(Schema.toEncoded(readHealthResponseSchema)),
     ),
   );
-  expect(health.headers['access-control-allow-origin']).toBeUndefined();
+  expect(health.headers['access-control-allow-origin']).toBe('*');
   expect(bearer.status).toBe(200);
   expect(bearer.body).toStrictEqual(anonymous.body);
   expect(bearer.headers['access-control-allow-origin']).toBe('*');
