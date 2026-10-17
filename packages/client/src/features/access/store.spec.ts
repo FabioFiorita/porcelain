@@ -3,11 +3,16 @@ import {
   promiseStorage,
   blockedPersistence,
 } from '../../../spec/kit/promise-storage.ts';
-import { Redacted, Effect, Fiber } from 'effect';
+import { operationStoreFixture } from '../../../spec/kit/operation-store.ts';
+import { runGitActionRequestSchema } from '@porcelain/contracts/git-actions';
+import { Redacted, Effect, Fiber, Schema } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { AccessStore } from './store.ts';
 import { EnvironmentStorage } from '@porcelain/client/access';
-import type { Remote } from '@porcelain/client/access/rules';
+import {
+  operationJournalKey,
+  type Remote,
+} from '@porcelain/client/access/rules';
 
 const first: Remote = {
   environmentId: 'first',
@@ -95,13 +100,19 @@ describe('saved environments', () => {
     };
     await Effect.runPromise(store.save(replacement));
     expect(observed).toEqual([[first, second]]);
-    expect(store.state.value.remotes).toEqual([second, replacement]);
+    expect(store.state.value.remotes).toEqual([
+      second,
+      { ...replacement, operationIdentity: operationJournalKey(first) },
+    ]);
     const restored = fixture({
       read: () => Promise.resolve(saved),
       write: () => Promise.resolve(),
     });
     await Effect.runPromise(restored.load());
-    expect(restored.state.value.remotes).toEqual([second, replacement]);
+    expect(restored.state.value.remotes).toEqual([
+      second,
+      { ...replacement, operationIdentity: operationJournalKey(first) },
+    ]);
   });
 
   it('does not overwrite unreadable saved state or expose storage internals', async () => {
@@ -192,4 +203,126 @@ it('publishes an admitted save before cancellation finishes, so a later save inc
   expect(writes).toEqual([[first], [first, second]]);
   expect(store.state.value.remotes).toEqual([first, second]);
   expect(snapshots).toHaveLength(observed);
+});
+
+it('persists route preference and removal without duplicating or forgetting the computer', async () => {
+  let saved: readonly Remote[] = [first];
+  const storage = {
+    read: () => Promise.resolve(saved),
+    write: (value: readonly Remote[]) => {
+      saved = value;
+      return Promise.resolve();
+    },
+  };
+  const store = fixture(storage);
+  await Effect.runPromise(store.load());
+  const tailnet = {
+    ...first,
+    address: 'https://development.example.ts.net',
+    credential: Redacted.make('tailnet-credential'),
+    deviceId: 'tailnet-device',
+  };
+  await Effect.runPromise(store.save(tailnet));
+  expect(saved).toHaveLength(1);
+  expect(saved[0]?.address).toBe(first.address);
+  await Effect.runPromise(
+    store.route({
+      environmentId: first.environmentId,
+      address: tailnet.address,
+      kind: 'prefer',
+    }),
+  );
+  const restored = fixture(storage);
+  await Effect.runPromise(restored.load());
+  expect(restored.state.value.remotes[0]?.address).toBe(tailnet.address);
+  expect(restored.state.value.remotes[0]?.alternateRoutes?.[0]?.address).toBe(
+    first.address,
+  );
+  await Effect.runPromise(
+    restored.route({
+      environmentId: first.environmentId,
+      address: tailnet.address,
+      kind: 'remove',
+    }),
+  );
+  expect(saved).toEqual([
+    { ...first, operationIdentity: operationJournalKey(first) },
+  ]);
+  await expect(
+    Effect.runPromise(
+      restored.route({
+        environmentId: first.environmentId,
+        address: first.address,
+        kind: 'remove',
+      }),
+    ),
+  ).rejects.toThrow('last connection');
+  expect(saved).toEqual([
+    { ...first, operationIdentity: operationJournalKey(first) },
+  ]);
+});
+
+it('restores a pending Git request from the same journal after a preference change', async () => {
+  const alternative = {
+    address: 'https://development.example.ts.net',
+    credential: Redacted.make('alternate'),
+    deviceId: 'alternate-device',
+  };
+  const identity = operationJournalKey(first);
+  if (!identity) throw new Error('No initial journal');
+  const saved = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => saved.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      saved.set(key, value);
+    },
+    removeItem: (key: string) => {
+      saved.delete(key);
+    },
+  };
+  const original = operationStoreFixture({ key: identity, storage });
+  const request = Schema.decodeUnknownSync(runGitActionRequestSchema)({
+    requestId: '33333333-3333-4333-8333-333333333333',
+    input: {
+      action: 'fetch',
+      remoteName: 'upstream',
+      sourceRef: 'refs/heads/topic',
+    },
+    expected: {
+      headOid: null,
+      branch: null,
+      inProgress: null,
+      mergeHeadOid: null,
+    },
+  });
+  await Effect.runPromise(
+    original.store.set('pending-fetch', {
+      projectId: 'project',
+      worktreeId: 'a'.repeat(32),
+      requestId: request.requestId,
+      request,
+    }),
+  );
+  const commands = fixture({
+    read: () => Promise.resolve([{ ...first, alternateRoutes: [alternative] }]),
+    write: () => Promise.resolve(),
+  });
+  await Effect.runPromise(commands.load());
+  await Effect.runPromise(
+    commands.route({
+      environmentId: first.environmentId,
+      address: alternative.address,
+      kind: 'prefer',
+    }),
+  );
+  const remote = commands.state.value.remotes[0];
+  if (!remote) throw new Error('Environment disappeared');
+  const key = operationJournalKey(remote);
+  if (!key) throw new Error('Journal disappeared');
+  const replacement = operationStoreFixture({ key, storage });
+  expect(
+    [...replacement.store.state.value.operations.values()].map(
+      (operation) => operation.requestId,
+    ),
+  ).toEqual(['33333333-3333-4333-8333-333333333333']);
 });

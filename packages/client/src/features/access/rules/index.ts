@@ -1,5 +1,9 @@
 export { parsePairingLink, type PairingCode } from './pairing-link.ts';
 export {
+  connectionRoutes,
+  operationJournalKey,
+  connectionRouteTitle,
+  type ConnectionRoute,
   sameRemoteConnection,
   remoteStatusText,
   remoteStatusNote,

@@ -161,7 +161,18 @@ function registryFixture() {
 function statusPlatform(
   send: AccessPlatformValue['send'],
 ): AccessPlatformValue {
-  return { send, name: () => 'Test device' };
+  return {
+    send: (url, init) =>
+      url.pathname === '/api/health'
+        ? Promise.resolve(
+            Response.json({
+              status: 'ok',
+              environmentId: environment.environmentId,
+            }),
+          )
+        : send(url, init),
+    name: () => 'Test device',
+  };
 }
 
 it('shares the authenticated status read between consumers of one saved identity', async () => {
@@ -341,7 +352,11 @@ async function lifecycleFixture(
       if (hold) await hold;
       if (outage) throw new TypeError('Host unavailable');
       return Response.json(
-        url.pathname === '/api/environment' ? descriptor : { kind: 'owner' },
+        url.pathname === '/api/health'
+          ? { status: 'ok', environmentId: descriptor.environmentId }
+          : url.pathname === '/api/environment'
+            ? descriptor
+            : { kind: 'owner' },
       );
     },
   };
@@ -403,7 +418,7 @@ it('pauses in background and revalidates on foreground without overlapping event
   subject.activity(false);
   await subject.flush();
   await subject.advance(90_000);
-  expect(subject.requests).toHaveLength(2);
+  expect(subject.requests).toHaveLength(3);
   subject.answer({ ...environment, name: 'Foreground name' });
   let release = () => {};
   subject.hold(
@@ -416,7 +431,7 @@ it('pauses in background and revalidates on foreground without overlapping event
   subject.activity(true);
   revalidateRemoteStatus(subject.platform, remote);
   await subject.flush();
-  expect(subject.requests).toHaveLength(3);
+  expect(subject.requests).toHaveLength(4);
   release();
   await subject.flush();
   expect(subject.status()).toEqual({
@@ -424,7 +439,7 @@ it('pauses in background and revalidates on foreground without overlapping event
     name: 'Foreground name',
     version: '1.0.0',
   });
-  expect(subject.requests).toHaveLength(4);
+  expect(subject.requests).toHaveLength(6);
 });
 
 it('recovers after identity mismatch without reading the substituted host session', async () => {
@@ -440,8 +455,8 @@ it('recovers after identity mismatch without reading the substituted host sessio
       authorization,
     })),
   ).toEqual([
-    { path: '/api/environment', authorization: 'Bearer original-credential' },
-    { path: '/api/environment', authorization: 'Bearer original-credential' },
+    { path: '/api/health', authorization: null },
+    { path: '/api/health', authorization: null },
   ]);
   subject.answer(environment);
   await subject.advance(30_000);

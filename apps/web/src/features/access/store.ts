@@ -30,7 +30,10 @@ export const pairingPlatform: AccessPlatformValue = {
   send: fetch,
   statusActivity,
 };
-import { type Remote } from '@porcelain/client/access/rules';
+import {
+  operationJournalKey,
+  type Remote,
+} from '@porcelain/client/access/rules';
 import { REQUEST_TIMEOUT_MS } from '@/config/limits';
 import { browserTransport } from '@/shared/api/transport';
 import type { Transport } from '@porcelain/client/transport';
@@ -96,6 +99,9 @@ function remoteConnection(remote: Remote): Connection {
     {
       ...remote,
       send: fetch,
+      ...(pairingPlatform.statusActivity
+        ? { activity: pairingPlatform.statusActivity }
+        : {}),
       socket: webSocket,
       onStatusChange: () => revalidateRemoteStatus(pairingPlatform, remote),
       timeoutMs: REQUEST_TIMEOUT_MS,
@@ -105,8 +111,8 @@ function remoteConnection(remote: Remote): Connection {
       Layer.succeed(
         OperationStorage,
         operationStorage(
-          remote.deviceId
-            ? `porcelain-git-requests:${JSON.stringify([remote.environmentId, remote.address, remote.deviceId])}`
+          operationJournalKey(remote)
+            ? `porcelain-git-requests:${operationJournalKey(remote)}`
             : undefined,
         ),
       ),

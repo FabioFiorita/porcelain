@@ -248,3 +248,146 @@ function revocationCallbacks(revoked: Queue.Queue<void>) {
     },
   };
 }
+
+function activityFixture() {
+  let active = true;
+  let changed: (() => void) | undefined;
+  return {
+    port: {
+      isActive: () => active,
+      subscribe: (listener: () => void) => {
+        changed = listener;
+        return () => {
+          changed = undefined;
+        };
+      },
+    },
+    setActive(value: boolean) {
+      active = value;
+      changed?.();
+    },
+    subscribed: () => changed !== undefined,
+  };
+}
+
+const reconnectionFixture = Effect.gen(function* () {
+  const serverScope = yield* Scope.Scope;
+  const scope = yield* Scope.fork(serverScope, 'sequential');
+  const openings = yield* Queue.make<Effect.Success<typeof socketPort>>();
+  return { serverScope, scope, openings };
+});
+
+it.effect(
+  'reopens the live session on foreground and releases its activity listener on close',
+  () =>
+    Effect.gen(function* () {
+      const { serverScope, scope, openings } = yield* reconnectionFixture;
+      const activity = activityFixture();
+      let reconnects = 0;
+      yield* createLiveUpdates(
+        recordedSocket(serverScope, openings),
+        yield* Effect.context(),
+        {
+          activity: activity.port,
+        },
+      )
+        .connect({
+          onNotice: () => {},
+          onReconnect: () => {
+            reconnects++;
+          },
+          onUnauthorized: () => {},
+        })
+        .pipe(Effect.provideService(Scope.Scope, scope));
+      const first = yield* Queue.take(openings);
+      yield* Queue.take(first.followed);
+      activity.setActive(false);
+      activity.setActive(true);
+      yield* Queue.take(first.closed);
+      yield* TestClock.adjust(500);
+      const second = yield* Queue.take(openings);
+      yield* Queue.take(second.followed);
+      expect(reconnects).toBe(1);
+      yield* Scope.close(scope, Exit.void);
+      yield* Queue.take(second.closed);
+      expect(activity.subscribed()).toBe(false);
+    }),
+);
+
+it.effect(
+  'recovers a revoked socket through an authorized alternate route before reporting lost access',
+  () =>
+    Effect.gen(function* () {
+      const { serverScope, scope, openings } = yield* reconnectionFixture;
+      let recovered = 0;
+      let revoked = 0;
+      yield* createLiveUpdates(
+        recordedSocket(serverScope, openings),
+        yield* Effect.context(),
+        {
+          recoverUnauthorized: () =>
+            Effect.sync(() => {
+              recovered++;
+              return true;
+            }),
+        },
+      )
+        .connect({
+          onNotice: () => {},
+          onReconnect: () => {},
+          onUnauthorized: () => {
+            revoked++;
+          },
+        })
+        .pipe(Effect.provideService(Scope.Scope, scope));
+      const first = yield* Queue.take(openings);
+      yield* Queue.take(first.followed);
+      first.disconnect(4001);
+      yield* Queue.take(first.closed);
+      yield* TestClock.adjust(500);
+      const second = yield* Queue.take(openings);
+      yield* Queue.take(second.followed);
+      expect(recovered).toBe(1);
+      expect(revoked).toBe(0);
+      yield* Scope.close(scope, Exit.void);
+    }),
+);
+
+it.effect(
+  'foreground interrupts reconnect backoff without cancelling the replacement attempt',
+  () =>
+    Effect.gen(function* () {
+      const scope = yield* Scope.fork(yield* Scope.Scope, 'sequential');
+      const activity = activityFixture();
+      let attempts = 0;
+      const started = yield* Queue.make<void>();
+      yield* createLiveUpdates(
+        Effect.suspend(() => {
+          attempts++;
+          Queue.offerUnsafe(started, undefined);
+          return attempts === 1
+            ? Effect.fail(new RequestError({ status: 503, message: 'Offline' }))
+            : Effect.never;
+        }),
+        undefined,
+        {
+          activity: activity.port,
+        },
+      )
+        .connect({
+          onNotice: () => {},
+          onReconnect: () => {},
+          onUnauthorized: () => {},
+        })
+        .pipe(Effect.provideService(Scope.Scope, scope));
+      yield* Queue.take(started);
+      yield* TestClock.adjust(100);
+      activity.setActive(false);
+      activity.setActive(true);
+      yield* TestClock.adjust(1);
+      expect(attempts).toBe(2);
+      yield* TestClock.adjust(20000);
+      expect(attempts).toBe(2);
+      yield* Scope.close(scope, Exit.void);
+    }),
+);

@@ -54,6 +54,21 @@ it('adopts a replacement remote connection without releasing application drafts 
   const originalConnection = original;
   const written: { url: string; body: string }[] = [];
   const replacement = open('https://second.example', (url, init) => {
+    if (url.pathname === '/api/health')
+      return Promise.resolve(
+        Response.json({ status: 'ok', environmentId: 'environment' }),
+      );
+    if (url.pathname === '/api/environment')
+      return Promise.resolve(
+        Response.json({
+          environmentId: 'environment',
+          name: 'Development server',
+          version: null,
+          protocol: 2,
+        }),
+      );
+    if (url.pathname === '/api/session')
+      return Promise.resolve(Response.json({ kind: 'owner' }));
     const body = init?.body;
     if (!(body instanceof Uint8Array))
       throw new Error('Expected encoded request bytes');

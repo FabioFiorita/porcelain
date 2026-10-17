@@ -1,9 +1,25 @@
+import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { afterEach, expect, inject } from 'vitest';
-import { Redacted, Schema } from 'effect';
+import { Redacted, Schema, Effect } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
-import { readEnvironmentResponseSchema } from '@porcelain/contracts/access';
+import {
+  readEnvironmentResponseSchema,
+  issuePairingResponseSchema,
+  pairingLink,
+} from '@porcelain/contracts/access';
 import { test } from '@porcelain/server/kit/server-test';
-import { IsolatedServer } from '@porcelain/server/kit/isolated-server';
+import { createRouteTransport } from '../../src/features/access/store/route-transport.ts';
+import { pairEnvironment } from '../../src/features/access/commands/pairing.ts';
+import {
+  AccessStore,
+  AccessPlatform,
+  EnvironmentStorage,
+} from '@porcelain/client/access';
+import type { Remote } from '@porcelain/client/access/rules';
+import {
+  IsolatedServer,
+  Recorder,
+} from '@porcelain/server/kit/isolated-server';
 import {
   readRemoteStatus,
   remoteStatusResult,
@@ -93,8 +109,8 @@ test('real hosts recover automatically from outage and substitution without acce
   ).toEqual([
     {
       target: substitute.address,
-      path: '/api/environment',
-      authorization: `Bearer ${server.credential}`,
+      path: '/api/health',
+      authorization: null,
       status: 200,
     },
   ]);
@@ -113,4 +129,87 @@ test('real hosts recover automatically from outage and substitution without acce
   ).toEqual([200, 200, 200]);
   stop();
   await expect.poll(() => listeners.size).toBe(0);
+});
+
+test('pairing two real endpoints retains both devices and falls back without replacing the environment', async ({
+  server,
+}) => {
+  const recorder = new Recorder();
+  let persisted: readonly Remote[] = [];
+  const store = Effect.runSync(
+    AccessStore.pipe(
+      Effect.provide(AccessStore.layer),
+      Effect.provideService(EnvironmentStorage, {
+        read: () => Effect.succeed([...persisted]),
+        write: (remotes) =>
+          Effect.sync(() => {
+            persisted = remotes;
+          }),
+      }),
+    ),
+  );
+  await Effect.runPromise(store.load());
+  const alternate = new URL(server.address);
+  alternate.hostname = 'localhost';
+  const addresses = [server.address, alternate.origin];
+  const devices: string[] = [];
+  for (const address of addresses) {
+    const issued = Schema.decodeUnknownSync(issuePairingResponseSchema)(
+      (
+        await server.read(recorder, {
+          method: 'POST',
+          path: '/pairings',
+          target: 'owner',
+          body: { labels: ['Alternate endpoint'], addresses: [address] },
+        })
+      ).body,
+    );
+    const grant = issued.grants[0];
+    if (!grant) throw new Error('No pairing grant');
+    recorder.secret(grant.code);
+    const remote = await Effect.runPromise(
+      pairEnvironment(
+        pairingLink({
+          addresses: [address],
+          code: grant.code,
+          environmentId: grant.link.environmentId,
+        }),
+      ).pipe(
+        Effect.provideService(AccessStore, store),
+        Effect.provideService(AccessPlatform, {
+          name: () => 'Integration client',
+          send: fetch,
+        }),
+      ),
+    );
+    if (!remote.deviceId) throw new Error('No paired device');
+    devices.push(remote.deviceId);
+  }
+  expect(persisted).toHaveLength(1);
+  expect(devices[0]).not.toBe(devices[1]);
+  const remote = persisted[0];
+  if (!remote) throw new Error('No saved environment');
+  expect(remote.address).toBe(server.address);
+  expect(remote.alternateRoutes?.[0]?.address).toBe(alternate.origin);
+  let primaryAvailable = false;
+  const routing = createRouteTransport(remote, (url, init) => {
+    if (!primaryAvailable && url.origin === server.address)
+      return Promise.reject(new TypeError('Controlled primary outage'));
+    return fetch(url, init);
+  });
+  const inventory = Schema.decodeUnknownSync(readInventoryResponseSchema)(
+    await (await routing.transport('/api/inventory')).json(),
+  );
+  expect(inventory.environmentId).toBe(remote.environmentId);
+  expect(routing.active.value?.address).toBe(alternate.origin);
+  primaryAvailable = true;
+  await server.read(recorder, {
+    method: 'POST',
+    path: '/access/revoke',
+    target: 'owner',
+    body: { id: devices[0] },
+  });
+  await Effect.runPromise(routing.select(true));
+  expect(routing.active.value?.address).toBe(alternate.origin);
+  expect((await routing.transport('/api/inventory')).status).toBe(200);
 });

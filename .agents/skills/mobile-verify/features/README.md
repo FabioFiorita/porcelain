@@ -34,3 +34,5 @@ Mobile has no E2E suite; drive each platform on demand with the mobile-verify sk
 - [reviews.comments](reviews.comments.md): Post, reply, resolve and reopen feedback in the native sheet.
 
 - [app.workspace](app.workspace.md): iPad worktree sessions share one central document area and Files, Review and History in a right inspector.
+
+- [Multiple connections](access.connections.md) — pairing, preference, fallback and removal for one environment.

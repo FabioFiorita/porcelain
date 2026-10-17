@@ -3,6 +3,7 @@ import { AsyncResult, Atom } from 'effect/reactivity';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import {
   REMOTE_STATUS_REFRESH_MS,
+  REMOTE_ROUTE_TIMEOUT_MS,
   REMOTE_STATUS_TIMEOUT_MS,
 } from '../../../config/limits.ts';
 import { mapRequestErrors } from '../../../shared/api/effect-client.ts';
@@ -13,9 +14,11 @@ import {
 } from '../../../shared/api/transport.ts';
 import type { AccessPlatformValue } from '../ports/access-platform.ts';
 import {
+  connectionRoutes,
   remoteStatus,
   sameRemoteConnection,
   type Remote,
+  type ConnectionRoute,
   type RemoteAnswer,
   type RemoteStatus,
 } from '../rules/remotes.ts';
@@ -69,6 +72,48 @@ export function revalidateRemoteStatus(
   statusChanges(platform.send).set({ remote, revision: Symbol() });
 }
 
+export const readRemoteRoute = Effect.fn('Environments.readVerifiedRoute')(
+  function* (
+    route: ConnectionRoute,
+    environmentId: string,
+    send: AccessPlatformValue['send'],
+  ) {
+    const transport = remoteTransport(route.address, route.credential, send);
+    return yield* Effect.gen(function* () {
+      const api = yield* BootstrapClient;
+      const health = yield* mapRequestErrors(api.publicAccess.readHealth());
+      if (health.environmentId !== environmentId)
+        return { kind: 'foreign' as const };
+      return yield* readRemoteEnvironment(transport, environmentId);
+    }).pipe(
+      Effect.provide(BootstrapClient.layer(transport)),
+      Effect.catch(() => Effect.succeed<RemoteAnswer>({ kind: 'unreachable' })),
+    );
+  },
+);
+
+const readRemoteRoutes = Effect.fn('Environments.readRoutes')(function* (
+  platform: AccessPlatformValue,
+  remote: Remote,
+) {
+  let failure: RemoteAnswer = { kind: 'unreachable' };
+  for (const route of connectionRoutes(remote)) {
+    const answer = yield* readRemoteRoute(
+      route,
+      remote.environmentId,
+      platform.send,
+    ).pipe(
+      Effect.timeoutOption(REMOTE_ROUTE_TIMEOUT_MS),
+      Effect.map((value) =>
+        Option.getOrElse(value, (): RemoteAnswer => ({ kind: 'unreachable' })),
+      ),
+    );
+    if (remoteStatus(remote, answer).kind === 'online') return answer;
+    if (answer.kind !== 'unreachable') failure = answer;
+  }
+  return failure;
+});
+
 const statusAtoms = Atom.family(
   ({ platform, remote }: { platform: AccessPlatformValue; remote: Remote }) => {
     const { send, statusActivity } = platform;
@@ -111,10 +156,7 @@ const statusAtoms = Atom.family(
         );
         const probe = Effect.gen(function* () {
           pending = true;
-          const answer = yield* readRemoteEnvironment(
-            remoteTransport(remote.address, remote.credential, send),
-            remote.environmentId,
-          );
+          const answer = yield* readRemoteRoutes(platform, remote);
           previous = answer;
           return answer;
         }).pipe(

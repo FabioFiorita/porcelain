@@ -5,18 +5,80 @@ import * as Schema from 'effect/Schema';
 
 export type RemoteAnswer =
   | { kind: 'described'; environment: ReadEnvironmentResponse }
+  | { kind: 'foreign' }
   | { kind: 'unauthorized' }
   | { kind: 'unreachable' }
   | { kind: 'reconnecting' };
 
-const remoteSchema = Schema.Struct({
-  environmentId: Schema.String,
-  name: Schema.String,
+const connectionRouteSchema = Schema.Struct({
   address: Schema.String,
   credential: Schema.RedactedFromValue(Schema.String),
   deviceId: Schema.optional(Schema.String),
 });
+export type ConnectionRoute = typeof connectionRouteSchema.Type;
+const remoteSchema = Schema.Struct({
+  ...connectionRouteSchema.fields,
+  environmentId: Schema.String,
+  name: Schema.String,
+  alternateRoutes: Schema.optional(Schema.Array(connectionRouteSchema)),
+  operationIdentity: Schema.optional(Schema.String),
+});
 export type Remote = typeof remoteSchema.Type;
+
+function routeFields({
+  address,
+  credential,
+  deviceId,
+}: ConnectionRoute): ConnectionRoute {
+  return { address, credential, ...(deviceId ? { deviceId } : {}) };
+}
+
+export function connectionRoutes(
+  remote: ConnectionRoute & {
+    readonly alternateRoutes?: readonly ConnectionRoute[] | undefined;
+  },
+): readonly ConnectionRoute[] {
+  return [
+    routeFields(remote),
+    ...(remote.alternateRoutes ?? []).map(routeFields),
+  ];
+}
+
+export function operationJournalKey(remote: Remote): string | undefined {
+  return (
+    remote.operationIdentity ??
+    (remote.deviceId
+      ? JSON.stringify([remote.environmentId, remote.address, remote.deviceId])
+      : undefined)
+  );
+}
+
+export function withConnectionRoutes(
+  remote: Remote,
+  routes: readonly ConnectionRoute[],
+): Remote {
+  const [first, ...rest] = routes;
+  if (!first)
+    throw new Error('A saved environment needs at least one connection.');
+  return {
+    environmentId: remote.environmentId,
+    name: remote.name,
+    ...routeFields(first),
+    ...(operationJournalKey(remote)
+      ? { operationIdentity: operationJournalKey(remote) }
+      : {}),
+    ...(rest.length ? { alternateRoutes: rest.map(routeFields) } : {}),
+  };
+}
+
+export function connectionRouteTitle(address: string): string {
+  const host = URL.parse(address)?.hostname ?? '';
+  return host.endsWith('.ts.net')
+    ? 'Tailscale'
+    : /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host)
+      ? 'LAN'
+      : 'Network';
+}
 
 export function serializeRemotes(remotes: readonly Remote[]): string {
   return JSON.stringify(Schema.encodeSync(Schema.Array(remoteSchema))(remotes));
@@ -37,6 +99,7 @@ export function remoteStatus(
 ): RemoteStatus {
   if (answer === undefined) return { kind: 'checking' };
   if (answer.kind === 'reconnecting') return { kind: 'reconnecting' };
+  if (answer.kind === 'foreign') return { kind: 'other-server' };
   if (answer.kind === 'unauthorized') return { kind: 'needs-pairing' };
   if (answer.kind === 'unreachable') return { kind: 'offline' };
   const { environment } = answer;
@@ -56,21 +119,43 @@ function text(value: object, key: string): string | undefined {
   return typeof field === 'string' ? field : undefined;
 }
 
+function savedRoute(value: unknown): ConnectionRoute | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const address = text(value, 'address');
+  const credential = text(value, 'credential');
+  const deviceId = text(value, 'deviceId');
+  return address && credential
+    ? {
+        address,
+        credential: Redacted.make(credential),
+        ...(deviceId ? { deviceId } : {}),
+      }
+    : undefined;
+}
+
 function savedRemote(value: unknown): Remote[] {
   if (!value || typeof value !== 'object') return [];
   const environmentId = text(value, 'environmentId');
   const name = text(value, 'name');
-  const address = text(value, 'address');
-  const credential = text(value, 'credential');
-  const deviceId = text(value, 'deviceId');
-  return environmentId && name !== undefined && address && credential
+  const route = savedRoute(value);
+  const alternatives: unknown = Reflect.get(value, 'alternateRoutes');
+  return environmentId && name !== undefined && route
     ? [
         {
           environmentId,
           name,
-          address,
-          credential: Redacted.make(credential),
-          ...(deviceId ? { deviceId } : {}),
+          ...route,
+          ...(text(value, 'operationIdentity')
+            ? { operationIdentity: text(value, 'operationIdentity') }
+            : {}),
+          ...(Array.isArray(alternatives)
+            ? {
+                alternateRoutes: alternatives.flatMap((value: unknown) => {
+                  const saved = savedRoute(value);
+                  return saved ? [saved] : [];
+                }),
+              }
+            : {}),
         },
       ]
     : [];
@@ -81,9 +166,22 @@ export function parseRemotes(value: unknown): Remote[] {
 }
 
 export function withRemote(remotes: readonly Remote[], remote: Remote) {
+  const previous = remotes.find(
+    (entry) => entry.environmentId === remote.environmentId,
+  );
+  if (!previous) return [...remotes, remote];
+  const incoming = connectionRoutes(remote);
+  const routes = connectionRoutes(previous).map(
+    (route) => incoming.find((next) => next.address === route.address) ?? route,
+  );
+  routes.push(
+    ...incoming.filter(
+      (route) => !routes.some((saved) => saved.address === route.address),
+    ),
+  );
   return [
     ...remotes.filter((entry) => entry.environmentId !== remote.environmentId),
-    remote,
+    withConnectionRoutes({ ...previous, name: remote.name }, routes),
   ];
 }
 
@@ -96,7 +194,18 @@ export function sameRemoteConnection(left: Remote, right: Remote): boolean {
     left.environmentId === right.environmentId &&
     left.address === right.address &&
     sameCredential(left.credential, right.credential) &&
-    left.deviceId === right.deviceId
+    left.deviceId === right.deviceId &&
+    (left.alternateRoutes ?? []).length ===
+      (right.alternateRoutes ?? []).length &&
+    (left.alternateRoutes ?? []).every((route, index) => {
+      const other = right.alternateRoutes?.[index];
+      return (
+        other !== undefined &&
+        route.address === other.address &&
+        route.deviceId === other.deviceId &&
+        sameCredential(route.credential, other.credential)
+      );
+    })
   );
 }
 

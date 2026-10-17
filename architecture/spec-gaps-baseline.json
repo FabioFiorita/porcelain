@@ -38,7 +38,6 @@
   "packages/client/src/features/access/rules/connection-error-message.ts#UNSAVED_DRAFTS_MESSAGE",
   "packages/client/src/features/access/rules/remotes.ts#remoteStatusText",
   "packages/client/src/features/access/rules/remotes.ts#sameRemoteConnection",
-  "packages/client/src/features/access/rules/remotes.ts#serializeRemotes",
   "packages/client/src/features/access/rules/share.ts#deviceRouteTitles",
   "packages/client/src/features/access/rules/share.ts#issuedLink",
   "packages/client/src/features/access/rules/share.ts#networkName",

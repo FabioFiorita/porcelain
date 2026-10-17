@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import { Button } from '../../../components/ui/button';
+import { EnvironmentConnections } from './environment-connections';
 import { Text } from '../../../components/ui/text';
 import { Box } from '../../../components/ui/box';
 import { IconButton } from '../../../components/ui/icon-button';
@@ -21,46 +24,67 @@ export function EnvironmentRow({
   remote: Remote;
   disabled: boolean;
 }) {
+  const [managing, setManaging] = useState(false);
+  const [adding, setAdding] = useState(false);
   const { status } = useEnvironmentStatus(remote);
   const command = useForgetEnvironment(remote);
   const note = remoteStatusNote(status);
   return (
-    <Item
-      title={status.kind === 'online' ? status.name : remote.name}
-      description={
-        status.kind === 'online' && status.version
-          ? `${remote.address} · Porcelain ${status.version}`
-          : remote.address
-      }
-      trailing={
-        <Box className="flex-row" gap={1}>
-          <IconButton
-            icon="trash"
-            variant="destructive"
-            accessibilityLabel="Forget environment"
-            disabled={disabled}
-            pending={command.result.waiting}
-            onPress={() => command.forget()}
+    <Box>
+      <Item
+        title={status.kind === 'online' ? status.name : remote.name}
+        description={
+          status.kind === 'online' && status.version
+            ? `${remote.address} · Porcelain ${status.version}`
+            : remote.address
+        }
+        trailing={
+          <Box className="flex-row" gap={1}>
+            <IconButton
+              icon="trash"
+              variant="destructive"
+              accessibilityLabel="Forget environment"
+              disabled={disabled || adding}
+              pending={command.result.waiting}
+              onPress={() => command.forget()}
+            />
+          </Box>
+        }
+      >
+        <Box className="flex-row">
+          <Badge
+            label={remoteStatusText(status)}
+            variant={status.kind === 'online' ? 'secondary' : 'outline'}
           />
         </Box>
-      }
-    >
-      <Box className="flex-row">
-        <Badge
-          label={remoteStatusText(status)}
-          variant={status.kind === 'online' ? 'secondary' : 'outline'}
+        {note ? (
+          <Text variant="caption" tone="muted">
+            {note}
+          </Text>
+        ) : null}
+        {AsyncResult.isFailure(command.result) ? (
+          <Text variant="ui" tone="destructive">
+            {connectionErrorMessage(Cause.squash(command.result.cause))}
+          </Text>
+        ) : null}
+      </Item>
+      <Box paddingX={4} paddingY={3} gap={3}>
+        <Button
+          variant="ghost"
+          label={managing ? 'Hide connections' : 'Manage connections'}
+          accessibilityLabel={`${managing ? 'Hide' : 'Manage'} connections for ${remote.name}`}
+          onPress={() => setManaging(!managing)}
+          disabled={disabled || adding}
         />
+        {managing ? (
+          <EnvironmentConnections
+            remote={remote}
+            disabled={disabled}
+            adding={adding}
+            setAdding={setAdding}
+          />
+        ) : null}
       </Box>
-      {note ? (
-        <Text variant="caption" tone="muted">
-          {note}
-        </Text>
-      ) : null}
-      {AsyncResult.isFailure(command.result) ? (
-        <Text variant="ui" tone="destructive">
-          {connectionErrorMessage(Cause.squash(command.result.cause))}
-        </Text>
-      ) : null}
-    </Item>
+    </Box>
   );
 }
