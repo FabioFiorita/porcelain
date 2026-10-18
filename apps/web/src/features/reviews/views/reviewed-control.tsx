@@ -27,6 +27,7 @@ import {
   markAllPlan,
   type ReviewableItem,
   reviewedControlLabel,
+  unavailableReviewText,
   type ReviewRange,
   WORKTREE_RANGE,
 } from '@porcelain/client/reviews/rules';
@@ -81,11 +82,11 @@ export function ReviewedControl({
   if (fingerprint === null || fingerprint === undefined)
     return (
       <span
-        title={`${path} cannot be marked as reviewed because its current state could not be established`}
+        title={unavailableReviewText([path])}
         className="inline-flex items-center gap-1 text-2xs text-muted-foreground"
       >
         <EyeOffIcon className="size-3" aria-hidden="true" />
-        <span className={cn(compact && 'sr-only')}>Not reviewable</span>
+        Not reviewable: too large or unreadable
       </span>
     );
 

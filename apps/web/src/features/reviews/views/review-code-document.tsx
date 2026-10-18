@@ -301,7 +301,7 @@ function OmittedChanges({
             key={item.path}
             className="flex min-w-0 flex-wrap items-center gap-2"
           >
-            <span className="min-w-0 flex-1 truncate">{item.path}</span>
+            <span className="min-w-0 basis-full truncate">{item.path}</span>
             {isImagePath(item.path) && (
               <>
                 <span>Current worktree image</span>
