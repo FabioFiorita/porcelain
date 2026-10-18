@@ -7,3 +7,4 @@ export {
   useDocumentLeave,
   requestDocumentLeave,
 } from './store';
+export { WorkspacePickerScreen } from './views/workspace-picker-screen';

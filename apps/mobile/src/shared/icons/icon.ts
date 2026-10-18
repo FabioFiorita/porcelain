@@ -4,6 +4,7 @@ export type HeaderIconName =
   | 'workspace'
   | 'refresh'
   | 'done'
+  | 'close'
   | 'compareParent'
   | 'sidebar'
   | 'inspector'

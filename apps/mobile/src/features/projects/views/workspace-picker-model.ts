@@ -8,7 +8,7 @@ import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import { useProjectSelectionCommands } from '../commands/selection';
 import { useInventories } from '../queries/inventory';
 import { useWorkspace } from './workspace';
-import type { WorkspaceMenuProps } from './workspace-menu-props';
+import type { WorkspacePickerProps } from './workspace-picker-props';
 import { requestDocumentLeave } from '../store';
 
 export function useWorkspacePickerModel(onSelect?: () => void) {
@@ -78,16 +78,9 @@ export function useWorkspacePickerModel(onSelect?: () => void) {
         onSelect?.();
       });
     },
-  } satisfies WorkspaceMenuProps;
+  } satisfies WorkspacePickerProps;
   return {
     picker,
-    groups: inventories.environments.map((environment) => ({
-      key: environment.environmentId,
-      name: environment.inventory?.environment.name ?? environment.name,
-      choices: choices.filter(
-        (choice) => choice.environmentId === environment.environmentId,
-      ),
-    })),
     initializing,
     reading: workspace.reading || inventories.reading,
   };

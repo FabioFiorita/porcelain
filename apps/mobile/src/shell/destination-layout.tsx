@@ -24,6 +24,7 @@ export function DestinationLayout({
         <DestinationHeader
           leading={
             route.name !== 'files' &&
+            route.name !== 'workspaces' &&
             !(
               isTablet &&
               (route.name === 'review' ||
@@ -44,6 +45,16 @@ export function DestinationLayout({
           ...(isTablet && name === 'settings' ? { headerShown: false } : {}),
         }}
       />
+      {name !== 'settings' ? (
+        <Stack.Screen
+          name="workspaces"
+          options={{
+            title: 'Choose workspace',
+            presentation: 'fullScreenModal',
+            headerBackVisible: false,
+          }}
+        />
+      ) : null}
       {children}
     </Stack>
   );

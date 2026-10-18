@@ -1,3 +1,4 @@
+import close from '@expo/material-symbols/close.xml';
 import check from '@expo/material-symbols/check.xml';
 import add from '@expo/material-symbols/add.xml';
 import menu from '@expo/material-symbols/menu.xml';
@@ -14,6 +15,7 @@ const symbols = {
   workspace: filterList,
   refresh,
   done: check,
+  close,
   compareParent: merge,
 } satisfies Record<HeaderIconName, ImageSourcePropType>;
 

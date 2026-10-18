@@ -1,6 +1,6 @@
 import type { WorkspaceChoice } from '@porcelain/client/projects/rules';
 
-export type WorkspaceMenuProps = {
+export type WorkspacePickerProps = {
   label: string;
   choices: readonly WorkspaceChoice[];
   disabled: boolean;
