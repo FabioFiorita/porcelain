@@ -8,6 +8,7 @@ const symbols = {
   workspace: 'line.3.horizontal.decrease',
   refresh: 'arrow.clockwise',
   done: 'checkmark',
+  close: 'xmark',
   compareParent: 'arrow.triangle.merge',
 } satisfies Record<HeaderIconName, NonNullable<SFSymbolIcon['sf']>>;
 
