@@ -322,7 +322,7 @@ function OmittedChanges({
                 path={item.path}
                 fingerprint={item.fingerprint}
                 status={item.reviewStatus}
-                compact
+                compact={Boolean(item.fingerprint)}
               />
             )}
             {!renderedPaths.has(item.path) && (

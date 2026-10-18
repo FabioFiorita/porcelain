@@ -86,7 +86,7 @@ export function ReviewedControl({
         className="inline-flex items-center gap-1 text-2xs text-muted-foreground"
       >
         <EyeOffIcon className="size-3" aria-hidden="true" />
-        Not reviewable: too large or unreadable
+        {compact ? 'Not reviewable' : 'Not reviewable: too large or unreadable'}
       </span>
     );
 
