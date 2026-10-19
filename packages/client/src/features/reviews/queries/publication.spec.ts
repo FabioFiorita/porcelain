@@ -10,6 +10,8 @@ import {
   readProofFile,
   readReviewSummary,
 } from './publication.ts';
+import { reviewSummaryUrl } from '../rules/review.ts';
+import type { SummaryDelivery } from '../api.ts';
 
 const scope = { projectId: 'project', worktreeId: 'a'.repeat(32) };
 const environmentId = '00000000-0000-4000-8000-000000000001';
@@ -130,6 +132,31 @@ it('refuses an attachment returned for a different proof id', async () => {
   });
 });
 
+const summaryCapability = {
+  token: proofId,
+  expires: '2026-10-15T23:00:00.000Z',
+  signature: 's'.repeat(43),
+};
+
+function readSummary(
+  subject: ReturnType<typeof fixture>,
+  summary: typeof summaryCapability & { byteLength: number },
+  delivery?: SummaryDelivery,
+) {
+  return Effect.runPromise(
+    AtomRegistry.getResult(
+      subject.registry,
+      readReviewSummary({
+        connection: subject.connection,
+        scope,
+        summary,
+        ...(delivery ? { delivery } : {}),
+      }),
+      { suspendOnWaiting: true },
+    ),
+  );
+}
+
 it('reads the exact published summary HTML through the selected connection and signed capability', async () => {
   const paths: string[] = [];
   const html = '<style>h1{color:navy}</style><h1>Dispatch decisions</h1>';
@@ -143,21 +170,39 @@ it('reads the exact published summary HTML through the selected connection and s
   });
   owned.push(subject);
   const summary = {
-    token: proofId,
-    expires: '2026-10-15T23:00:00.000Z',
-    signature: 's'.repeat(43),
+    ...summaryCapability,
+    byteLength: html.length,
+  };
+  expect(await readSummary(subject, summary)).toBe(html);
+  expect(paths).toEqual([
+    `/review-summaries/${proofId}?expires=2026-10-15T23%3A00%3A00.000Z&signature=${'s'.repeat(43)}`,
+  ]);
+});
+
+it('reads a remote signed summary through the public app proxy without using the authenticated remote transport', async () => {
+  const paths: string[] = [];
+  const html = '<h1>Remote summary</h1>';
+  const subject = fixture(() =>
+    Promise.reject(
+      new Error('The remote summary endpoint does not allow CORS'),
+    ),
+  );
+  owned.push(subject);
+  const summary = {
+    ...summaryCapability,
     byteLength: html.length,
   };
   expect(
-    await Effect.runPromise(
-      AtomRegistry.getResult(
-        subject.registry,
-        readReviewSummary({ connection: subject.connection, scope, summary }),
-        { suspendOnWaiting: true },
-      ),
-    ),
+    await readSummary(subject, summary, {
+      url: reviewSummaryUrl(summary, 'https://remote.test', 'porcelain://app'),
+      transport: (path, init) => {
+        paths.push(path);
+        expect(new Headers(init?.headers).has('authorization')).toBe(false);
+        return Promise.resolve(new Response(html));
+      },
+    }),
   ).toBe(html);
   expect(paths).toEqual([
-    `/review-summaries/${proofId}?expires=2026-10-15T23%3A00%3A00.000Z&signature=${'s'.repeat(43)}`,
+    `porcelain://app/remote-review-summaries/${proofId}?computer=https%3A%2F%2Fremote.test&expires=2026-10-15T23%3A00%3A00.000Z&signature=${'s'.repeat(43)}`,
   ]);
 });

@@ -2,7 +2,6 @@
 route: /
 selectors:
   - "All changes"
-  - "Open all specs"
   - "Collapse all"
   - "Expand all"
   - "Mark all"
@@ -28,20 +27,18 @@ All changes opens one scrollable document of every current changed file, also wi
 
 ## Driving it
 
-`$C start --review-sample`; pair your browser. The sample has 55 changed files, six of them already reviewed by the first decision.
+`$C start --review-sample`; pair your browser. The architecture is committed in its published revision. In the card's fixture repository, remove `packages/workspace/src/actor.ts` and append a line to `tests/publish-note.spec.ts`. There are now five current changes: the deleted actor, policy, revoke-access, the unexplained migration script and the spec. These are current worktree changes; the retained review's committed file count is a separate inventory.
 
 1. Open Review → tab "Review" → button "All changes".
-   Look for: the All changes document with "55 files"; the first files are the first decision's, each with "1. Invite a teammate" beside it; button "Mark all 49 files reviewed".
+   Look for: the All changes document with "5 files" and button "Mark all 5 files reviewed". The revoke-access change retains its decision's agent notes.
 2. Click "Collapse all", scroll to the end and expand an individual file.
-   Look for: scripts/migrate-workspaces.ts marked "Not explained", the removed packages/workspace/src/legacy-write.ts, and the specs, as well as the decision files.
-3. Click "Mark all 49 files reviewed" and wait for "Unmark all" to become enabled.
-   Look for: `$C server reviewed-files` holds 55 marks, including scripts/migrate-workspaces.ts, packages/workspace/src/legacy-write.ts and tests/invite-member.spec.ts. `$C server reviewed-layers` is unchanged: marking files records no decision.
-4. Click "Unmark all" and wait for "Mark all 55 files reviewed" to become enabled.
+   Look for: all five paths, including the removed packages/workspace/src/actor.ts, scripts/migrate-workspaces.ts and tests/publish-note.spec.ts. Expanding a file restores its content.
+3. Click "Mark all 5 files reviewed" and wait for "Unmark all" to become enabled.
+   Look for: `$C server reviewed-files` holds exactly those five marks. The bulk action records current-file marks, not a reviewed decision on the retained revision.
+4. Click "Unmark all" and wait for "Mark all 5 files reviewed" to become enabled.
    Look for: `$C server reviewed-files` holds no marks.
-5. Enable Spec files in Settings, return, then open Review, expand "Specs · 8 files" and click "Open all specs".
-   Look for: the Specs document with "8 files". Marking all eight marks only tests in the server readback.
-6. Return to All changes through its document tab, reload, and check both document tabs restore. Repeat at 414 × 896.
-   Look for: toolbar actions, file folding and the Specs section stay reachable.
+5. Reload the All changes document. Repeat at 414 × 896.
+   Look for: its complete file count, bulk actions and file folding stay reachable. The separate Specs document is covered by [reviews.spec-files](reviews.spec-files.md).
 
 ## What proves it works
 
@@ -51,5 +48,5 @@ All changes opens one scrollable document of every current changed file, also wi
 
 ## Gotchas
 
-- The bulk count leaves out files already reviewed: the sample starts with six, so it offers 49, not 55.
-- Run step 3 last in a session that also drives the walkthrough, or unmark afterwards: the marks change the walkthrough's counts.
+- The bulk count leaves out current files already reviewed. Unmark first if the fixture has marks from an earlier run.
+- Files committed in a retained review are not all current worktree changes. Use the retained walkthrough to read the complete published revision.

@@ -17,7 +17,6 @@ import { AsyncResult } from 'effect/reactivity';
 import { Suspense, useState, type ReactNode } from 'react';
 import {
   readReview,
-  readReviewSummary,
   readReviewMarks,
   readReviewComments,
   observeReviewSeen,
@@ -43,13 +42,9 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePreferences, useTheme } from '@/features/preferences/index';
 import { useBranchChanges } from '@/features/changes/index';
 import type { ConnectionContext } from '@/shared/workspace/connection';
-import { desktopAppAddress } from '@/shared/adapters/desktop';
-import {
-  publishedLabel,
-  reviewSummaryUrl,
-} from '@porcelain/client/reviews/rules';
+import { publishedLabel } from '@porcelain/client/reviews/rules';
 import { bindSummaryLayerRequests } from '../adapters/summary-messages';
-import { hasAgentSummary } from '../adapters/summary-content';
+import { useReviewSummary } from '../queries/summary';
 import { useWalkthroughPlace } from '../store';
 import { ReviewVerdict } from './review-verdict';
 import { WalkthroughBriefing } from './walkthrough-briefing';
@@ -196,15 +191,11 @@ function ReviewRevisionPage({
     worktreeId: review.worktreeId,
     review: { reviewId: revision.reviewId, revision: revision.revision },
   };
-  const summary = useAtomValue(
-    readReviewSummary({
-      connection: context.connection,
-      scope,
-      summary: review.summary,
-    }),
-  );
-  const summaryPage = Option.getOrUndefined(AsyncResult.value(summary));
-  const showSummary = summaryPage !== undefined && hasAgentSummary(summaryPage);
+  const {
+    result: summary,
+    url: summaryUrl,
+    available: showSummary,
+  } = useReviewSummary(scope, context, review.summary);
   useAtomMount(
     observeReviewSeen({
       connection: context.connection,
@@ -591,7 +582,7 @@ function ReviewRevisionPage({
                 : undefined
             }
             title="Review summary"
-            src={`${reviewSummaryUrl(review.summary, context.connection.address, desktopAppAddress())}#theme=${dark ? 'dark' : 'light'}`}
+            src={`${summaryUrl}#theme=${dark ? 'dark' : 'light'}`}
             sandbox="allow-scripts allow-forms allow-popups allow-modals"
             referrerPolicy="no-referrer"
             className="min-h-96 w-full flex-1 border-0"

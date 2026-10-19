@@ -17,8 +17,13 @@ declare const window: {
   updateFixture: UpdateFixture;
 };
 
-export async function updateFeed(page: Page, enabled: boolean) {
-  await page.addInitScript((enabled) => {
+export async function updateFeed(
+  page: Page,
+  enabled: boolean,
+  liveAddress = '',
+) {
+  const bridgeConfiguration = { enabled, liveAddress };
+  await page.addInitScript(({ enabled, liveAddress }) => {
     let state: DesktopAppUpdateState = enabled
       ? { status: 'idle' }
       : { status: 'unavailable' };
@@ -92,11 +97,11 @@ export async function updateFeed(page: Page, enabled: boolean) {
         write: async () => undefined,
         clear: async () => undefined,
       },
-      liveAddress: () => '',
+      liveAddress: () => liveAddress,
       isFullscreen: () => false,
       onFullscreen: () => () => undefined,
       onAction: () => () => undefined,
       setAppearance: () => undefined,
     };
-  }, enabled);
+  }, bridgeConfiguration);
 }
