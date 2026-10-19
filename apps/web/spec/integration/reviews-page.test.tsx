@@ -1,7 +1,39 @@
+import { page } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 const title =
   'Keep every committed revision readable after the publishing worktree has been removed';
+
+test.for([
+  title,
+  'Keep packages/reviews/src/services/retainEveryPublishedRevisionAfterThePublishingWorktreeHasBeenRemovedAndNeverLoseItsDecisionHistory.ts readable',
+])(
+  'the verdict start button fits a 390 px viewport and names its full decision: %s',
+  async (decision, { repo, render, reviewLayout }) => {
+    await page.viewport(390, 844);
+    try {
+      const fixture = await repo.review(decision);
+      const app = await render.route(`/reviews/${fixture.reviewId}/1`);
+      const start = app.page.getByRole('button', {
+        name: `Start here · ${decision} →`,
+        exact: true,
+      });
+      await expect.element(start).toBeVisible();
+      await expect
+        .poll(() => reviewLayout.fitsViewport(start))
+        .toEqual({
+          insideViewport: true,
+          contentFits: true,
+        });
+      await start.click();
+      await expect
+        .poll(() => app.location())
+        .toBe(`/reviews/${fixture.reviewId}/1/decisions/${fixture.layerId}`);
+    } finally {
+      await page.viewport(414, 896);
+    }
+  },
+);
 
 test('the latest, revision and decision routes share the verdict, retain immutable code after checkout removal, and recover unknown destinations', async ({
   repo,

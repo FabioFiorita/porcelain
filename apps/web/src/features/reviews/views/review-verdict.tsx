@@ -123,12 +123,14 @@ export function ReviewVerdict({
       )}
       {sections.startHere && (
         <Button
-          className="h-auto max-w-full self-start text-left whitespace-normal"
+          className="h-auto max-w-full min-w-0 self-start text-left whitespace-normal"
           onClick={() =>
             sections.startHere && onStart(sections.startHere.layerId)
           }
         >
-          Start here · {sections.startHere.title} →
+          <span className="min-w-0 wrap-anywhere">
+            Start here · {sections.startHere.title} →
+          </span>
         </Button>
       )}
     </section>

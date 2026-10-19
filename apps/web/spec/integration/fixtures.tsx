@@ -48,6 +48,7 @@ import {
 } from '../kit/shapes.ts';
 import { createPierreCodeView } from './pierre-code-view.ts';
 import { refChips } from './ref-chips.ts';
+import { reviewLayout } from './review-layout.ts';
 import { host } from './commands.ts';
 import { createFetchGate, live } from './network.ts';
 
@@ -479,6 +480,7 @@ export const test = base
     return viewer;
   })
   .extend('refChips', () => refChips)
+  .extend('reviewLayout', () => reviewLayout)
   .extend('fetchGate', ({ repo }, { onCleanup }) => {
     const gate = createFetchGate(repo.readme.path);
     onCleanup(() => gate.restore());
