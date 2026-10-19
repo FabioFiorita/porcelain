@@ -88,7 +88,11 @@ it.each([false, true])(
               },
             ],
             messages: [{ body: 'Why?' }],
-            migrations: [{ migrationId: 1 }, { migrationId: 2 }],
+            migrations: [
+              { migrationId: 1 },
+              { migrationId: 2 },
+              { migrationId: 3 },
+            ],
           });
           await expect(
             Effect.runPromise(

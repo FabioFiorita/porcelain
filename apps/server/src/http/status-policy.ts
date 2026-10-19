@@ -102,6 +102,7 @@ import {
   WorktreeUnavailableError,
 } from '@porcelain/projects/errors';
 import {
+  GitHubReadError,
   UnknownBoxLayerError,
   CommentAuthorMismatchError,
   CommentIdentityConflictError,
@@ -153,6 +154,11 @@ const OPERATION_UNAVAILABLE = 'Operation unavailable';
 
 const rules: readonly StatusRule[] = [
   { errors: [InvalidReviewComparisonError], statusCode: 400 },
+  {
+    errors: [GitHubReadError],
+    statusCode: 503,
+    message: 'GitHub is unavailable',
+  },
   { errors: [ReviewPublishRefusedError], statusCode: 409 },
   { errors: [ReviewNotFoundError], statusCode: 404 },
   {
@@ -189,6 +195,7 @@ const rules: readonly StatusRule[] = [
       DuplicateStepIdError,
       StepLaneOutOfRangeError,
       InvalidDecisionBoxError,
+      GitHubReadError,
       UnknownBoxLayerError,
       UnknownArrowBoxError,
       DuplicateLayerIdError,

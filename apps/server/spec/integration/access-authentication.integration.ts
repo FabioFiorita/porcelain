@@ -71,6 +71,16 @@ test.for<{ credential: string; auth: NonNullable<HttpRequest['auth']> }>([
     const routes = pairedRoutes(server.routes);
     const answers = [];
     expect(routes).toHaveLength(PAIRED_ROUTES);
+    expect(routes).toEqual(
+      expect.arrayContaining([
+        'GET /api/reviews/:reviewId/compare',
+        'GET /api/reviews/:reviewId/interdiff',
+        'GET /api/reviews/:reviewId/pull-request',
+        'GET /api/projects/:projectId/pull-requests',
+        'GET /api/projects/:projectId/github-account',
+        'PUT /api/projects/:projectId/github-account',
+      ]),
+    );
 
     for (const route of routes) {
       const response = await session.send(requestFor(session, route, auth));
