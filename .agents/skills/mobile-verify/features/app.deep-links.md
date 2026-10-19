@@ -1,15 +1,14 @@
 ---
 screen: /open/reviews/[reviewId]
 selectors:
-  - "Review"
-  - "Files"
-  - "History"
-  - "Settings"
-  - "Back to Review"
-  - "Pair this computer"
-  - "All decisions"
-  - "Select a worktree to continue."
-  - "No environments paired."
+  - 'Review'
+  - 'Files'
+  - 'History'
+  - 'Settings'
+  - 'Pair this computer'
+  - 'All decisions'
+  - 'Select a worktree to continue.'
+  - 'No environments paired.'
 tests:
   - packages/client/src/features/reviews/rules/app-link.spec.ts
   - packages/client/src/features/projects/commands/selection.spec.ts
@@ -67,7 +66,7 @@ was supplied. The saved destination stays in the route through pairing.
 4. With no paired environment, open a decision link. Select Pair this computer,
    fill the pairing form for that environment, and pair. Expect the same review
    and decision without opening the link again. Cancel leaves the destination
-   and offers pairing again; Back to Review exits.
+   and offers pairing again; the native header back exits to Review.
 5. Try a missing review, revision and decision, an offline computer, and a host
    containing a scheme or path. Expect an explanatory state and a way back;
    connectivity failures offer Read again. A missing decision leaves the verdict
@@ -76,8 +75,8 @@ was supplied. The saved destination stays in the route through pairing.
 
 The marketing browser fallback requires its Cloudflare Pages rewrite; it validates
 in the browser and only navigates after pressing the button. Association files
-contain named signing placeholders until the owner supplies the Team ID and
-Preview/Production fingerprints. Physical iPhone association requires the new
+use the supplied Apple Team ID; Android signing fingerprints remain placeholders
+until an Android binary is distributed. Physical iPhone association requires the new
 Preview binary and deployed hub files. Android local intent proof, iOS simulator
 proof and physical-device domain association are distinct results.
 

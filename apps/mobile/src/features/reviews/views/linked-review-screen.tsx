@@ -1,5 +1,5 @@
 import { useState, type ComponentRef } from 'react';
-import { useLocalSearchParams, useRouter, useIsFocused } from 'expo-router';
+import { useLocalSearchParams, useIsFocused } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 import {
   useAtomMount,
@@ -45,7 +45,6 @@ type DecisionNavigation = {
 export function LinkedReviewScreen() {
   const navigation = useLinkedReviewNavigation();
   const params = useLocalSearchParams();
-  const router = useRouter();
   const query = new URLSearchParams();
   for (const key of ['environment', 'host', 'revision', 'decision']) {
     const value = params[key];
@@ -73,11 +72,6 @@ export function LinkedReviewScreen() {
           padding={4}
           paddingBottom={8}
         >
-          <Button
-            label="Back to Review"
-            variant="ghost"
-            onPress={() => router.replace('/review')}
-          />
           {destination ? (
             <ReviewEnvironment
               key={JSON.stringify(destination)}

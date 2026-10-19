@@ -2,8 +2,10 @@ import type { ViewProps } from 'react-native';
 import { Box, type BoxProps } from './box';
 
 const variants = {
-  default: 'border-border',
-  destructive: 'border-destructive',
+  default: 'border-border bg-card',
+  destructive: 'border-destructive bg-card',
+  success: 'border-graph-2/50 bg-graph-2/5',
+  warning: 'border-graph-4/60 bg-graph-4/5',
 };
 
 export function Card({
@@ -15,7 +17,7 @@ export function Card({
   return (
     <Box
       {...props}
-      className={['rounded-2xl border bg-card', variants[variant], className]
+      className={['rounded-2xl border', variants[variant], className]
         .filter(Boolean)
         .join(' ')}
     />

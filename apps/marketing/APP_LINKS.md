@@ -14,13 +14,12 @@ the static browser fallback for arbitrary `/open/reviews/<reviewId>` URLs with a
 200 rewrite, retaining the original path and query for validation in the browser.
 The button only appears after validation and only navigates when pressed.
 
-Before deployment, replace `REPLACE_WITH_APPLE_TEAM_ID` in the AASA file with
-the signing team's identifier, and replace each named Preview/Production Android
-SHA-256 placeholder in `assetlinks.json` with the corresponding signing certificate
-fingerprint. Neither value is present in the repository or `apps/mobile/eas.json`.
-EAS project IDs and App Store Connect numeric app IDs are not Apple Team IDs.
-Do not substitute the local debug signing key for a Preview or store key.
-These placeholders deliberately cannot establish an association.
+The AASA file uses the supplied Apple Team ID `9QH8M89WF9` for Preview and
+Production. The Preview/Production Android SHA-256 placeholders in
+`assetlinks.json` remain because no Android binary is distributed. Before Android
+delivery, replace them with the corresponding signing certificate fingerprints;
+do not substitute the local debug signing key for a Preview or store key.
+These Android placeholders deliberately cannot establish an association.
 
 The mobile configuration applies to development, Preview and Production builds.
 The public association lists Preview and Production only: development routing can
@@ -29,7 +28,8 @@ This does not prove automatic domain verification. New native binaries and the
 marketing deployment are both required; an OTA update cannot add the entitlement
 or intent filter. After authorized deployment and binary delivery, verify HTTPS
 200 responses without redirects and `Content-Type: application/json`, then test a
-physical iPhone and Android device. iOS delivery remains blocked on #399.
+physical iPhone and Android device. Merging triggers the marketing deployment;
+Fábio will run the new iOS Preview build from `main`.
 
 References: [Expo iOS universal links](https://docs.expo.dev/linking/ios-universal-links/),
 [Expo Android App Links](https://docs.expo.dev/linking/android-app-links/),

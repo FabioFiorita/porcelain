@@ -1,4 +1,5 @@
 import { Card } from '../../../components/ui/card';
+import { Badge } from '../../../components/ui/badge';
 import { ProofChecks } from './proof-checks';
 import {
   verdictSections,
@@ -34,14 +35,21 @@ export function LinkedVerdict({ revision }: { revision: ReviewRevision }) {
           ),
         )}
       </Box>
-      <Box gap={2}>
+      <Card
+        variant={
+          sections.recommendation.value === 'hold' ? 'warning' : 'success'
+        }
+        padding={4}
+        gap={2}
+      >
+        <Badge label="Recommendation" variant="outline" />
         <Text variant="heading">{sections.recommendation.label}</Text>
         {sections.recommendation.reasons.map((reason, index) => (
           <Text key={index} selectable>
             {reason}
           </Text>
         ))}
-      </Box>
+      </Card>
       <Box gap={2}>
         <Text variant="heading">Proven at {sections.proven.shortHead}</Text>
         {sections.proven.checks.length === 0 &&
@@ -50,9 +58,6 @@ export function LinkedVerdict({ revision }: { revision: ReviewRevision }) {
             No proof was published.
           </Text>
         ) : null}
-        <Text variant="caption" selectable>
-          {sections.proven.headOid}
-        </Text>
         <ProofChecks checks={sections.proven.checks} />
         {sections.proven.assets.map((asset) =>
           asset.kind === 'link' && externalLink(asset.url) ? (
