@@ -4,7 +4,7 @@ selectors:
   - "Review"
   - "Proof"
   - " failing"
-  - "1 check failed"
+  - "check failed"
   - "The agent reported this work as not passing yet."
   - "Checks"
   - "Attachments"

@@ -202,3 +202,58 @@ test('review-owned marks and comments persist, closing keeps the review readable
   await expect.poll(() => app.location()).toBe('/');
   await expect.poll(() => server.reviewStatus(fixture.reviewId)).toBe(404);
 });
+
+test('durable routes warn when the live branch tip differs from the latest published revision', async ({
+  repo,
+  render,
+}) => {
+  const fixture = await repo.review(title);
+  await repo.advanceReviewBranch();
+  const app = await render.route(`/reviews/${fixture.reviewId}`);
+  await expect
+    .element(
+      app.page.getByText(
+        'The branch tip differs from this review. Publish a revision to include it.',
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+});
+
+test('stored changed-step excerpts remain readable when the project Git repository is unavailable', async ({
+  repo,
+  render,
+}) => {
+  const fixture = await repo.review(title);
+  await repo.removeReviewRepository();
+  const app = await render.route(
+    `/reviews/${fixture.reviewId}/1/decisions/${fixture.layerId}`,
+  );
+  const excerpt = app.page.getByRole('article', {
+    name: 'Step Read the retained revision',
+    exact: true,
+  });
+  await expect
+    .element(
+      excerpt.getByText(/^export const revision = 1;\nexport const title = /u),
+    )
+    .toBeVisible();
+  await app.page
+    .getByRole('button', {
+      name: 'Go to step 1: Read the retained revision',
+      exact: true,
+    })
+    .click();
+  await expect
+    .element(
+      app.page.getByText(
+        /^review-page\.ts · Code unavailable at this revision$/u,
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      excerpt.getByText(/^export const revision = 1;\nexport const title = /u),
+    )
+    .toBeVisible();
+});

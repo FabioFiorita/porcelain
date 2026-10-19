@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { contextPatch, focusPatch, spansLabel } from './patch-focus.ts';
+import { focusPatch, spansLabel } from './patch-focus.ts';
 
 it('focuses a patch with shared line accounting and preserves no-newline markers', () => {
   expect(
@@ -27,10 +27,7 @@ it('keeps empty patches empty and includes the default surrounding context', () 
     ]),
   ).toBe('@@ -1,3 +1,3 @@\n first\n-before\n+after\n last\n');
 });
-it('builds context-only hunks with quoted paths and labels single and multiple spans', () => {
-  expect(contextPatch('a file.ts', 4, ['one', 'two'])).toBe(
-    'diff --git "a/a file.ts" "b/a file.ts"\n--- "a/a file.ts"\n+++ "b/a file.ts"\n@@ -4,2 +4,2 @@\n one\n two\n',
-  );
+it('labels single and multiple line spans', () => {
   expect(spansLabel([{ startLine: 4, endLine: 4 }])).toBe('Line 4');
   expect(
     spansLabel([

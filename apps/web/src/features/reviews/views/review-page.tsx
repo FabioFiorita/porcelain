@@ -1,3 +1,4 @@
+import { refLabel } from '@porcelain/client/history/rules';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import {
@@ -13,10 +14,11 @@ import {
 } from '@effect/atom-react';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { useState } from 'react';
+import { Suspense, useState, type ReactNode } from 'react';
 import {
   readReview,
   readReviewMarks,
+  readReviewComments,
   observeReviewSeen,
   reviewCommands,
 } from '@porcelain/client/reviews';
@@ -24,12 +26,13 @@ import type { DurableReviewRead } from '@porcelain/client/reviews/rules';
 import {
   currentStop,
   decisionKey,
-  decisionStates,
+  revisionDecisionStates,
   stopDone,
   stopTitle,
   walkthroughStops,
   revisionReviewItems,
   type ReviewRevision,
+  type ReviewStep,
   type ReviewScope,
   type WalkthroughKey,
 } from '@porcelain/client/reviews/rules';
@@ -40,7 +43,10 @@ import { usePreferences, useTheme } from '@/features/preferences/index';
 import { useBranchChanges } from '@/features/changes/index';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { desktopAppAddress } from '@/shared/adapters/desktop';
-import { reviewSummaryUrl } from '@porcelain/client/reviews/rules';
+import {
+  publishedLabel,
+  reviewSummaryUrl,
+} from '@porcelain/client/reviews/rules';
 import { bindSummaryLayerRequests } from '../adapters/summary-messages';
 import { useWalkthroughPlace } from '../store';
 import { ReviewVerdict } from './review-verdict';
@@ -54,6 +60,7 @@ import { ProofList } from './proof-list';
 
 type ReviewPageProps = {
   reviewId: string;
+  navigation?: ReactNode;
   revision?: number | undefined;
   decision?: string | undefined;
   context: ConnectionContext;
@@ -64,10 +71,12 @@ type ReviewPageProps = {
   onDeleted?: (() => void) | undefined;
   liveScope?: ReviewScope | undefined;
   initialView?: 'proof' | undefined;
+  proofCurrent?: boolean | undefined;
 };
 
 export function ReviewPage({
   reviewId,
+  navigation,
   revision,
   decision,
   context,
@@ -77,6 +86,7 @@ export function ReviewPage({
   onDeleted,
   liveScope,
   initialView,
+  proofCurrent = true,
   active = true,
 }: ReviewPageProps) {
   const query = readReview({
@@ -122,6 +132,7 @@ export function ReviewPage({
   return (
     <ReviewRevisionPage
       key={`${reviewId}:${data.revision.revision}:${decision ?? ''}`}
+      navigation={navigation}
       data={data}
       revision={data.revision}
       context={context}
@@ -133,12 +144,14 @@ export function ReviewPage({
       onDeleted={onDeleted}
       liveScope={liveScope}
       initialView={initialView}
+      proofCurrent={proofCurrent}
       active={active}
     />
   );
 }
 
 function ReviewRevisionPage({
+  navigation,
   data,
   revision,
   context,
@@ -150,6 +163,7 @@ function ReviewRevisionPage({
   onDeleted,
   liveScope,
   initialView,
+  proofCurrent = true,
   active = true,
 }: Omit<ReviewPageProps, 'reviewId' | 'revision'> & {
   data: DurableReviewRead;
@@ -161,7 +175,9 @@ function ReviewRevisionPage({
     (entry) => entry.id === revision.projectId,
   );
   const worktree = project?.worktrees.find(
-    (entry) => entry.available && entry.branch === revision.branch,
+    (entry) =>
+      entry.available &&
+      refLabel(entry.branch ?? '') === refLabel(revision.branch),
   );
   const currentScope =
     liveScope ??
@@ -192,6 +208,12 @@ function ReviewRevisionPage({
       revision: revision.revision,
     }),
   );
+  useAtomMount(
+    readReviewComments({
+      connection: context.connection,
+      reviewId: revision.reviewId,
+    }),
+  );
   const marksRead = readReviewMarks({
     connection: context.connection,
     reviewId: revision.reviewId,
@@ -208,7 +230,7 @@ function ReviewRevisionPage({
   const [view, setView] = useState<
     'walkthrough' | 'summary' | 'comments' | 'proof'
   >(initialView ?? 'walkthrough');
-  const [file, setFile] = useState<string>();
+  const [file, setFile] = useState<{ path: string; step?: ReviewStep }>();
   const stops = walkthroughStops(
     review,
     revision.files.map((entry) => entry.path),
@@ -221,15 +243,7 @@ function ReviewRevisionPage({
   if (decision) destination = decisionKey(decision);
   if (missingDecision) destination = 'briefing';
   const stop = currentStop(stops, chosen ?? destination);
-  const decisions = decisionStates(
-    review.layers,
-    marks
-      ? {
-          worktreeId: scope.worktreeId,
-          marks: marks.decisions.map((mark) => ({ ...mark, stale: false })),
-        }
-      : undefined,
-  );
+  const decisions = revisionDecisionStates(revision, marks);
   const items = revisionReviewItems(revision, marks);
   const done = (item: typeof stop) => stopDone(item, items, decisions);
   const go = (key: WalkthroughKey) => {
@@ -253,7 +267,7 @@ function ReviewRevisionPage({
     interaction,
     onOpen: (document: { kind: string; path?: string }) => {
       if (document.kind === 'proof') setView('proof');
-      else if (document.path) setFile(document.path);
+      else if (document.path) setFile({ path: document.path });
     },
   };
   const record = data.review;
@@ -265,35 +279,42 @@ function ReviewRevisionPage({
       {active && view === 'walkthrough' && (
         <WalkthroughKeys stops={stops} current={stop.key} onGo={go} />
       )}
-      <header className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
-        <Button variant="ghost" size="sm" onClick={onBack}>
-          Back
-        </Button>
+      <header className="flex shrink-0 flex-col gap-2 border-b px-4 py-3">
+        <div className="flex items-center gap-2">
+          {navigation}
+          <Button variant="ghost" size="sm" onClick={onBack}>
+            Back
+          </Button>
+          <span className="flex-1" />
+          <Badge variant="outline">{record?.state ?? 'open'}</Badge>
+          <ReviewActions
+            reviewId={revision.reviewId}
+            state={record?.state ?? 'open'}
+            context={context}
+            onDeleted={onDeleted ?? onBack}
+          />
+        </div>
         <h1
           aria-label="Review"
-          className="min-w-0 flex-1 text-sm font-semibold break-all"
+          className="min-w-0 text-sm font-semibold break-words"
         >
-          {record?.pullRequest ? (
-            <a
-              href={record.pullRequest}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              PR #{record.pullRequest.split('/').filter(Boolean).at(-1)}
-            </a>
-          ) : (
-            'Review'
-          )}{' '}
-          · {revision.branch} → {revision.base} ·{' '}
-          <span className="font-mono">{revision.headOid.slice(0, 7)}</span>
+          {record?.pullRequest && (
+            <>
+              <a
+                href={record.pullRequest}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                PR #{record.pullRequest.split('/').filter(Boolean).at(-1)}
+              </a>
+              {' · '}
+            </>
+          )}
+          {revision.branch} → {refLabel(revision.base)} ·{' '}
+          <span className="font-mono whitespace-nowrap">
+            {revision.headOid.slice(0, 7)}
+          </span>
         </h1>
-        <Badge variant="outline">{record?.state ?? 'open'}</Badge>
-        <ReviewActions
-          reviewId={revision.reviewId}
-          state={record?.state ?? 'open'}
-          context={context}
-          onDeleted={onDeleted ?? onBack}
-        />
         <nav
           aria-label="Review revisions"
           className="flex w-full flex-wrap gap-1"
@@ -326,7 +347,7 @@ function ReviewRevisionPage({
         </nav>
       </header>
       {currentScope && (
-        <NewerCommits
+        <BranchTipNotice
           scope={currentScope}
           context={context}
           headOid={latestHead}
@@ -375,144 +396,196 @@ function ReviewRevisionPage({
           <TabsTrigger value="comments">Comments</TabsTrigger>
         </TabsList>
       </Tabs>
-      {view === 'walkthrough' && (
-        <>
-          <nav
-            aria-label="Walkthrough"
-            className="flex flex-wrap gap-1 border-b p-3"
-          >
-            {stops.map((item) => (
-              <Button
-                key={item.key}
-                size="xs"
-                variant={item.key === stop.key ? 'secondary' : 'ghost'}
-                className="h-auto max-w-full text-left whitespace-normal"
-                aria-pressed={item.key === stop.key}
-                onClick={() => go(item.key)}
-              >
-                {stopTitle(item)}
-                {done(item) ? ' ✓' : ''}
-              </Button>
-            ))}
-          </nav>
-          {AsyncResult.isFailure(markResult) && (
-            <p role="alert" className="p-3 text-sm">
-              Reviewed marks could not be read.{' '}
-              <Button variant="outline" size="xs" onClick={retryMarks}>
-                Try again
-              </Button>
-            </p>
-          )}
-          {file ? (
-            <>
-              <Button
-                variant="ghost"
-                className="self-start"
-                onClick={() => setFile(undefined)}
-              >
-                Back to decision
-              </Button>
-              <RevisionFile
-                revision={revision}
-                scope={scope}
-                context={context}
-                path={file}
-              />
-            </>
-          ) : null}
-          {!file && stop.kind === 'briefing' && (
-            <WalkthroughBriefing
-              {...props}
-              stops={stops}
-              items={items}
-              decisions={decisions}
-              done={done}
-              onGo={go}
-            />
-          )}
-          {!file && stop.kind !== 'briefing' && (
-            <section
-              role="region"
-              aria-label={stopTitle(stop)}
-              className="flex flex-col"
+      <Suspense
+        fallback={
+          <p role="status" className="p-4">
+            Loading review content…
+          </p>
+        }
+      >
+        {view === 'walkthrough' && (
+          <>
+            <nav
+              aria-label="Walkthrough progress"
+              className="flex flex-wrap gap-1 border-b p-3"
             >
-              <StopBrief
-                stop={stop}
-                stops={stops}
-                review={review}
-                decision={
-                  stop.kind === 'decision'
-                    ? decisions.get(stop.layer.id)
-                    : undefined
-                }
-                finished={done(stop)}
-                onGo={go}
-                onStep={(step) => setFile(step.pointer.path)}
-              />
-              {stop.kind === 'decision' && (
-                <DecisionMark
+              <span className="text-xs text-muted-foreground">
+                ·{' '}
+                {
+                  stops.filter((item) => item.kind === 'decision' && done(item))
+                    .length
+                }{' '}
+                of {review.layers.length} decisions
+              </span>
+              <Button
+                size="xs"
+                variant="ghost"
+                aria-label="Open the briefing"
+                onClick={() => go('briefing')}
+              >
+                Briefing
+              </Button>
+              {stops
+                .filter((item) => item.kind !== 'briefing')
+                .map((item) => (
+                  <Button
+                    key={item.key}
+                    size="xs"
+                    variant={item.key === stop.key ? 'secondary' : 'ghost'}
+                    className="h-auto max-w-full text-left whitespace-normal"
+                    aria-pressed={item.key === stop.key}
+                    onClick={() => go(item.key)}
+                  >
+                    {stopTitle(item)}
+                    {done(item) ? ' ✓' : ''}
+                  </Button>
+                ))}
+            </nav>
+            {AsyncResult.isFailure(markResult) && (
+              <p role="alert" className="p-3 text-sm">
+                Reviewed marks could not be read.{' '}
+                <Button variant="outline" size="xs" onClick={retryMarks}>
+                  Try again
+                </Button>
+              </p>
+            )}
+            {file ? (
+              <>
+                <Button
+                  variant="ghost"
+                  className="self-start"
+                  onClick={() => setFile(undefined)}
+                >
+                  Back to decision
+                </Button>
+                <RevisionFile
                   revision={revision}
-                  layerId={stop.layer.id}
-                  fingerprint={stop.layer.fingerprint}
-                  reviewed={done(stop)}
-                  files={revision.files.filter((file) =>
-                    stop.paths.includes(file.path),
-                  )}
-                  settled={AsyncResult.isSuccess(markResult)}
+                  scope={scope}
                   context={context}
+                  path={file.path}
+                  step={file.step}
+                  active={active}
                 />
-              )}
-              <RevisionCode
-                key={stop.key}
-                revision={revision}
-                paths={stop.paths}
-                scope={scope}
-                context={context}
-                marks={marks ?? { files: [], decisions: [] }}
-                steps={stop.kind === 'decision' ? stop.layer.steps : []}
+              </>
+            ) : null}
+            {!file && stop.kind === 'briefing' && (
+              <WalkthroughBriefing
+                {...props}
+                stops={stops}
+                items={items}
+                decisions={decisions}
+                done={done}
+                onGo={go}
               />
-            </section>
-          )}
-        </>
-      )}
-      {view === 'proof' && (
-        <section aria-label="Proof" className="p-4">
-          <ProofList
+            )}
+            {!file && stop.kind !== 'briefing' && (
+              <section
+                role="region"
+                aria-label={stopTitle(stop)}
+                className="flex flex-col"
+              >
+                <StopBrief
+                  stop={stop}
+                  stops={stops}
+                  review={review}
+                  decision={
+                    stop.kind === 'decision'
+                      ? decisions.get(stop.layer.id)
+                      : undefined
+                  }
+                  finished={done(stop)}
+                  onGo={go}
+                  onStep={(step) => setFile({ path: step.pointer.path, step })}
+                />
+                {stop.kind === 'decision' && (
+                  <DecisionMark
+                    revision={revision}
+                    layerId={stop.layer.id}
+                    fingerprint={stop.layer.fingerprint}
+                    reviewed={done(stop)}
+                    files={revision.files.filter((file) =>
+                      stop.paths.includes(file.path),
+                    )}
+                    settled={AsyncResult.isSuccess(markResult)}
+                    context={context}
+                  />
+                )}
+                <RevisionCode
+                  key={stop.key}
+                  revision={revision}
+                  paths={stop.paths}
+                  scope={scope}
+                  context={context}
+                  active={active}
+                  marks={marks ?? { files: [], decisions: [] }}
+                  steps={stop.kind === 'decision' ? stop.layer.steps : []}
+                />
+              </section>
+            )}
+          </>
+        )}
+        {view === 'proof' && (
+          <section aria-label="Proof" className="p-4">
+            <h2 className="mb-2 text-sm font-semibold">Proof</h2>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Published {publishedLabel(revision.publishedAt)} · at{' '}
+              {revision.headOid.slice(0, 7)}
+            </p>
+            {!proofCurrent && (
+              <p role="status" className="mb-3 text-sm">
+                These checks ran before the latest changes
+              </p>
+            )}
+            {review.proof.checks.some((check) => check.result === 'fail') && (
+              <div role="alert" className="mb-3 text-sm text-destructive">
+                <p>
+                  {
+                    review.proof.checks.filter(
+                      (check) => check.result === 'fail',
+                    ).length
+                  }{' '}
+                  check failed
+                </p>
+                <p>The agent reported this work as not passing yet.</p>
+              </div>
+            )}
+            <ProofList
+              scope={scope}
+              context={context}
+              proof={review.proof}
+              layers={review.layers}
+            />
+          </section>
+        )}
+        {view === 'comments' && (
+          <ReviewComments
             scope={scope}
             context={context}
-            proof={review.proof}
-            layers={review.layers}
+            revision={revision}
+            onReveal={(path) => {
+              setFile({ path });
+              setView('walkthrough');
+            }}
           />
-        </section>
-      )}
-      {view === 'comments' && (
-        <ReviewComments
-          scope={scope}
-          context={context}
-          revision={revision}
-          onReveal={(path) => {
-            setFile(path);
-            setView('walkthrough');
-          }}
-        />
-      )}
-      {view === 'summary' && review.summary.byteLength > 0 && (
-        <iframe
-          ref={(frame) =>
-            frame
-              ? bindSummaryLayerRequests(frame, (number) => {
-                  const layer = review.layers[number - 1];
-                  if (layer) go(decisionKey(layer.id));
-                })
-              : undefined
-          }
-          title="Review summary"
-          src={`${reviewSummaryUrl(review.summary, context.connection.address, desktopAppAddress())}#theme=${dark ? 'dark' : 'light'}`}
-          sandbox="allow-scripts allow-forms allow-popups allow-modals"
-          referrerPolicy="no-referrer"
-          className="min-h-96 w-full flex-1 border-0"
-        />
-      )}
+        )}
+        {view === 'summary' && review.summary.byteLength > 0 && (
+          <iframe
+            ref={(frame) =>
+              frame
+                ? bindSummaryLayerRequests(frame, (number) => {
+                    const layer = review.layers[number - 1];
+                    if (layer) go(decisionKey(layer.id));
+                  })
+                : undefined
+            }
+            title="Review summary"
+            src={`${reviewSummaryUrl(review.summary, context.connection.address, desktopAppAddress())}#theme=${dark ? 'dark' : 'light'}`}
+            sandbox="allow-scripts allow-forms allow-popups allow-modals"
+            referrerPolicy="no-referrer"
+            className="min-h-96 w-full flex-1 border-0"
+          />
+        )}
+      </Suspense>
     </section>
   );
 }
@@ -571,7 +644,7 @@ function DecisionMark({
     </div>
   );
 }
-function NewerCommits({
+function BranchTipNotice({
   scope,
   context,
   headOid,
@@ -580,14 +653,14 @@ function NewerCommits({
   context: ConnectionContext;
   headOid: string;
 }) {
-  const read = useBranchChanges(scope, context.connection, headOid);
+  const read = useBranchChanges(scope, context.connection, undefined);
   const data = Option.getOrUndefined(AsyncResult.value(read.result));
-  return data && data.commits > 0 ? (
+  return data && data.head.oid !== headOid ? (
     <p
       role="status"
       className="border-b px-4 py-2 text-sm text-muted-foreground"
     >
-      {data.commits} newer commits are not in this review
+      The branch tip differs from this review. Publish a revision to include it.
     </p>
   ) : null;
 }

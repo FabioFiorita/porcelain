@@ -22,6 +22,14 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
           await step({ kind: 'review-fixture', operation: 'publish', title }),
         ),
       ),
+    advanceReviewBranch: () =>
+      step({ kind: 'review-fixture', operation: 'advance', title: '' }),
+    removeReviewRepository: () =>
+      step({
+        kind: 'review-fixture',
+        operation: 'remove-repository',
+        title: '',
+      }),
     removeReviewWorktree: () =>
       step({ kind: 'review-fixture', operation: 'remove-worktree', title: '' }),
     write: (path: string, text: string) => step({ kind: 'write', path, text }),

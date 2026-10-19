@@ -7,7 +7,7 @@ import {
   reviewCommands,
 } from '@porcelain/client/reviews';
 import {
-  decisionStates,
+  revisionDecisionStates,
   filesReviewed,
   proofLabel,
   proofStatus,
@@ -17,11 +17,10 @@ import {
   stopName,
   walkthroughStops,
   type ReviewResponse,
-  type ReviewScope,
 } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { usePreferences } from '@/features/preferences/index';
-import { useWalkthroughPlace } from '../store';
+import { useWalkthroughPlace, useReviewRevisionSelection } from '../store';
 import { type OpenDocument, ALL_CHANGES, PROOF } from '../rules/documents';
 import { SidebarDocumentRow } from './sidebar-section';
 import { SidebarActionMenu } from './sidebar-action-menu';
@@ -29,13 +28,11 @@ import { Button } from '@/components/ui/button';
 
 export function ReviewNavigation({
   review,
-  scope,
   context,
   onOpen,
   activeEntry,
 }: {
   review: ReviewResponse;
-  scope: ReviewScope;
   context: ConnectionContext;
   onOpen: OpenDocument;
   activeEntry: string | undefined;
@@ -45,7 +42,6 @@ export function ReviewNavigation({
     <PublishedNavigation
       reviewId={review.reviewId}
       revision={review.revision}
-      scope={scope}
       context={context}
       onOpen={onOpen}
       activeEntry={activeEntry}
@@ -55,14 +51,12 @@ export function ReviewNavigation({
 function PublishedNavigation({
   reviewId,
   revision,
-  scope,
   context,
   onOpen,
   activeEntry,
 }: {
   reviewId: string;
   revision: number;
-  scope: ReviewScope;
   context: ConnectionContext;
   onOpen: OpenDocument;
   activeEntry: string | undefined;
@@ -76,6 +70,7 @@ function PublishedNavigation({
   const [completed, complete] = useAtom(commands.completeDecision);
   const [unmarked, unmark] = useAtom(commands.unmark);
   const place = useWalkthroughPlace(`${reviewId}:${revision}`);
+  const selection = useReviewRevisionSelection(reviewId);
   const { preferences } = usePreferences();
   if (!data?.revision)
     return (
@@ -94,16 +89,9 @@ function PublishedNavigation({
     { specsApart: preferences.collapseSpecs },
   );
   const items = revisionReviewItems(snapshot, marks);
-  const decisions = decisionStates(
-    snapshot.content.layers,
-    marks
-      ? {
-          worktreeId: scope.worktreeId,
-          marks: marks.decisions.map((mark) => ({ ...mark, stale: false })),
-        }
-      : undefined,
-  );
+  const decisions = revisionDecisionStates(snapshot, marks);
   const open = (key: string) => {
+    selection.choose(undefined);
     place.setPlace(key);
     onOpen({ kind: 'handoff' });
   };

@@ -9,7 +9,7 @@ selectors:
   - "Delete"
   - "Back"
 tests:
-  - apps/web/spec/integration/reviews-delete-review.test.tsx
+  - apps/web/spec/integration/reviews-page.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/review
   - DELETE /api/reviews/:reviewId

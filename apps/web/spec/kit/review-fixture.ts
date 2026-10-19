@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -17,11 +17,26 @@ const filename = 'review-page.ts';
 
 export async function durableReviewFixture(
   session: Session,
-  operation: 'publish' | 'remove-worktree',
+  operation: 'publish' | 'remove-worktree' | 'advance' | 'remove-repository',
   title: string,
 ) {
   const worktree = join(session.projectHome, name);
   const git = (...args: string[]) => execute('git', ['-C', worktree, ...args]);
+  if (operation === 'remove-repository') {
+    await rename(session.repository, `${session.repository}-unavailable`);
+    return JSON.stringify({ unavailable: session.repository });
+  }
+  if (operation === 'advance') {
+    await git(
+      'commit',
+      '--allow-empty',
+      '-m',
+      'Advance beyond the published review',
+    );
+    return JSON.stringify({
+      headOid: (await git('rev-parse', 'HEAD')).stdout.trim(),
+    });
+  }
   if (operation === 'remove-worktree') {
     await session.git('worktree', 'remove', worktree);
     return JSON.stringify({ removed: worktree });

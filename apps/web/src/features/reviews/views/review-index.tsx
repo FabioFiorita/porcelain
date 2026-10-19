@@ -301,7 +301,6 @@ function LayersView({
       <div className="p-2 pr-3">
         {review ? (
           <ReviewNavigation
-            scope={scope}
             context={context}
             review={review}
             activeEntry={activeEntry}

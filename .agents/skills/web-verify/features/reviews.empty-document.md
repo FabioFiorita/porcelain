@@ -18,7 +18,7 @@ api:
 
 ## What it is
 
-With every tab closed, the document pane says "Nothing open" and offers one button: "Open all changes" while there is no published review, "Open review" once the agent has published one. The branch review remains "Review" after later commits, with a count of newer commits. Each button reopens the handoff tab.
+With every tab closed, the document pane says "Nothing open" and offers one button: "Open all changes" while there is no published review, "Open review" once the agent has published one. The branch review remains "Review" after later commits, with a notice when its branch tip differs. Each button reopens the handoff tab.
 
 ## How a user reaches it
 

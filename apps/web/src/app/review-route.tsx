@@ -1,3 +1,4 @@
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useNavigate } from '@tanstack/react-router';
 import {
   useConnectedContext,
@@ -49,6 +50,7 @@ export function ReviewRoute({
   return (
     <ConnectedWorkspace {...(remote ? { remote } : {})}>
       <ReviewPage
+        navigation={<SidebarTrigger aria-label="Toggle Sidebar" />}
         reviewId={reviewId}
         revision={number}
         decision={decision}

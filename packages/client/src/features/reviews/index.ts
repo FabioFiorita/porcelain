@@ -1,4 +1,3 @@
-export { deleteReview } from './commands/publication.ts';
 export {
   completeDecision,
   decisionCompletionBinding,

@@ -1,18 +1,11 @@
 import { expect, test } from './fixtures.tsx';
 
-test('a published review opens on a briefing of what the change adds, walks each decision through its code, ends with what no decision explains, and the sidebar leaves the agent summary for the stop it names', async ({
-  workspace,
+test('the briefing keeps system owners and questions, the decisions open retained code, and Not explained stays a separate stop', async ({
   agent,
+  render,
 }) => {
   await agent.publishArchitecture();
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  const drawer = workspace.getByRole('dialog', {
-    name: 'Worktree review',
-    exact: true,
-  });
-  await drawer.getByRole('tab', { name: 'Review', exact: true }).click();
-  await drawer.getByRole('button', { name: 'Briefing', exact: true }).click();
-
+  const workspace = await render.workspace();
   const review = workspace.getByRole('region', {
     name: 'Review walkthrough',
     exact: true,
@@ -26,9 +19,6 @@ test('a published review opens on a briefing of what the change adds, walks each
     )
     .toBeVisible();
   await expect
-    .element(review.getByText('0 of 3 files reviewed', { exact: true }))
-    .toBeVisible();
-  await expect
     .element(
       review.getByText('Needs your decision · Delivery outbox', {
         exact: true,
@@ -38,10 +28,9 @@ test('a published review opens on a briefing of what the change adds, walks each
   await expect
     .element(review.getByText('Page-owned writes', { exact: true }))
     .toBeVisible();
-
   await review
     .getByRole('button', {
-      name: 'Continue with 2. Revoke access across devices',
+      name: '2. Revoke access across devices',
       exact: true,
     })
     .click();
@@ -51,83 +40,25 @@ test('a published review opens on a briefing of what the change adds, walks each
   });
   await expect
     .element(
+      revoke.getByRole('heading', {
+        name: 'Revoke access across devices',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
       revoke.getByText('Code moved since it was explained', { exact: true }),
     )
     .not.toBeInTheDocument();
-  await revoke
-    .getByRole('button', {
-      name: 'Go to step 3: Revoke through the session owner',
-      exact: true,
-    })
+  await review
+    .getByRole('button', { name: 'Not explained', exact: true })
     .click();
   await expect
-    .element(
-      revoke.getByRole('complementary', {
-        name: 'Agent note · Revoke through the session owner',
-        exact: true,
-      }),
-    )
-    .toBeVisible();
-
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await drawer
-    .getByRole('button', {
-      name: 'Not explained · 3 lines in 3 files 0/1',
-      exact: true,
-    })
-    .click();
-  const unexplained = review.getByRole('region', {
-    name: 'Not explained',
-    exact: true,
-  });
-  await expect
-    .element(
-      unexplained.getByRole('heading', { name: 'Not explained', exact: true }),
-    )
-    .toBeVisible();
-  await expect
-    .element(unexplained.getByText('Loading changes…', { exact: true }))
-    .not.toBeInTheDocument();
-  await unexplained.wheel({ delta: { y: 2000 } });
-  await expect
-    .element(
-      unexplained.getByText('scripts/migrate-workspaces.ts', { exact: true }),
-    )
-    .toBeInViewport();
-  await unexplained
-    .getByRole('button', {
-      name: 'Read in 9. Establish the shared mutation boundary',
-      exact: true,
-    })
-    .click();
-  await expect
-    .element(
-      review.getByRole('region', {
-        name: '9. Establish the shared mutation boundary',
-        exact: true,
-      }),
-    )
+    .element(review.getByRole('region', { name: 'Not explained', exact: true }))
     .toBeVisible();
   await review.getByRole('tab', { name: 'Agent summary', exact: true }).click();
   await expect
     .element(review.getByRole('tab', { name: 'Agent summary', exact: true }))
-    .toHaveAttribute('aria-selected', 'true');
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await drawer
-    .getByRole('button', {
-      name: '3 Publish an immutable note',
-      exact: true,
-    })
-    .click();
-  await expect
-    .element(
-      review.getByRole('region', {
-        name: '3. Publish an immutable note',
-        exact: true,
-      }),
-    )
-    .toBeVisible();
-  await expect
-    .element(review.getByRole('tab', { name: 'Walkthrough', exact: true }))
     .toHaveAttribute('aria-selected', 'true');
 });

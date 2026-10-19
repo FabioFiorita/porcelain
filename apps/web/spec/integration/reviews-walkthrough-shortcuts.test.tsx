@@ -1,49 +1,31 @@
 import { userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
-test('N and P move between decisions, and file shortcuts act once on the decision being read', async ({
-  workspace,
+test('N and P move between retained decisions without moving their published revision', async ({
   agent,
-  server,
-  repo,
+  render,
 }) => {
   await agent.publishArchitecture();
-  await repo.write(
-    'apps/web/src/publish-note.ts',
-    `${await repo.read('apps/web/src/publish-note.ts')}\n// Follow-up keyboard review change.\n`,
-  );
-  await repo.write(
-    'packages/client/src/publish-note.ts',
-    `${await repo.read('packages/client/src/publish-note.ts')}\n// Follow-up keyboard review change.\n`,
-  );
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  const drawer = workspace.getByRole('dialog', {
-    name: 'Worktree review',
+  const workspace = await render.workspace();
+  const review = workspace.getByRole('region', {
+    name: 'Review walkthrough',
     exact: true,
   });
-  await drawer.getByRole('tab', { name: 'Review', exact: true }).click();
-  await drawer
-    .getByRole('button', {
-      name: '3 Publish an immutable note 0/2',
-      exact: true,
-    })
+  await review
+    .getByRole('button', { name: '3. Publish an immutable note', exact: true })
     .click();
-  const note = workspace.getByRole('region', {
-    name: '3. Publish an immutable note',
-    exact: true,
-  });
   await expect
     .element(
-      note.getByRole('button', {
-        name: 'Mark apps/web/src/publish-note.ts as reviewed',
+      review.getByRole('region', {
+        name: '3. Publish an immutable note',
         exact: true,
       }),
     )
-    .toBeEnabled();
+    .toBeVisible();
   await userEvent.keyboard('n');
   await expect
     .element(
-      workspace.getByRole('region', {
+      review.getByRole('region', {
         name: '4. Export history without blocking writes',
         exact: true,
       }),
@@ -52,28 +34,10 @@ test('N and P move between decisions, and file shortcuts act once on the decisio
   await userEvent.keyboard('p');
   await expect
     .element(
-      note.getByRole('button', {
-        name: 'Mark apps/web/src/publish-note.ts as reviewed',
+      review.getByRole('region', {
+        name: '3. Publish an immutable note',
         exact: true,
       }),
     )
-    .toBeEnabled();
-  await userEvent.keyboard('jr');
-  await expect
-    .element(
-      note.getByRole('button', {
-        name: 'Unmark packages/client/src/publish-note.ts as unreviewed',
-        exact: true,
-      }),
-    )
-    .toBeEnabled();
-  await expect(
-    server
-      .reviewedFiles()
-      .then(({ marks }) =>
-        marks
-          .map((mark) => mark.path)
-          .filter((path) => path.includes('publish-note')),
-      ),
-  ).resolves.toEqual(['packages/client/src/publish-note.ts']);
+    .toBeVisible();
 });

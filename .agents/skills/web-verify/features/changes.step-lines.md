@@ -4,11 +4,10 @@ selectors:
   - "Review"
   - "Step "
   - "Existing code it relies on"
-  - "Code changed since the review was written."
 tests:
   - apps/web/spec/integration/changes-step-lines.test.tsx
 api:
-  - GET /api/worktrees/:worktreeId/changes/lines
+  - GET /api/reviews/:reviewId/revisions/:revision/file
   - GET /api/worktrees/:worktreeId/review
 ---
 

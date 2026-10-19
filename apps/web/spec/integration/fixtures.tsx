@@ -324,6 +324,18 @@ export const test = base
   })
   .extend('server', ({ world: _world }) => ({
     ...readersOf('this'),
+    branchReviewMarks: async () => {
+      const published = await readersOf('this').publishedReview();
+      const reviewId = published.review?.reviewId;
+      if (!reviewId) throw new Error('The fixture has no branch review.');
+      return (
+        await host.porcelainRead({
+          server: 'this',
+          target: 'network',
+          path: `/api/reviews/${reviewId}/marks`,
+        })
+      ).body;
+    },
     review: async (reviewId: string) =>
       (
         await host.porcelainRead({

@@ -108,4 +108,4 @@ export {
 
 export { verdictSections, type ReviewRevision } from './verdict.ts';
 
-export { revisionReviewItems } from './revision.ts';
+export { revisionReviewItems, revisionDecisionStates } from './revision.ts';

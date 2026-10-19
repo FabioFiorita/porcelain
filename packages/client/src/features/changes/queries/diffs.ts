@@ -104,38 +104,6 @@ export const readCommitDiffs = Atom.family(
     ),
 );
 
-export const readChangeLines = Atom.family(
-  ({
-    connection,
-    scope,
-    path,
-    from,
-    to,
-  }: Selection & { path: string; from: number; to: number }) =>
-    worktreeRead(
-      connection,
-      scope,
-      ['step-lines', path, from, to],
-      Effect.gen(function* () {
-        const client = yield* porcelainClient(connection);
-        const answer = yield* client.request((api) =>
-          api.changes.readChangeLines({
-            params: { worktreeId: scope.worktreeId },
-            query: { path, from, to, at: 'worktree' },
-          }),
-        );
-        yield* currentAnswerEffect(
-          connection,
-          answer.environmentId === connection.environmentId &&
-            answer.worktreeId === scope.worktreeId,
-        );
-        return answer;
-      }),
-      clientRuntime(connection),
-      [path],
-    ),
-);
-
 type DiffRead =
   | ReturnType<typeof readChangeDiffs>
   | ReturnType<typeof readBranchDiffs>

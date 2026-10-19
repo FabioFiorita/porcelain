@@ -1,58 +1,81 @@
 import { expect, test } from './fixtures.tsx';
 
-test('while a published decision is read again after a live edit, marking it waits for the new reading and then records it', async ({
-  agent,
-  render,
-  fetchGate,
+test('an open latest review follows a new publication while a numbered revision stays pinned', async ({
   repo,
-  server,
+  render,
 }) => {
-  const title = 'Readme layer';
-  const decisions = async () =>
-    (await server.reviewedLayers()).marks.map((mark) =>
-      mark.stale ? 'stale' : 'reviewed',
-    );
-  const held = fetchGate.holdNextReviewRead();
-  await agent.publishReview(title);
-  const opened = await render.workspace();
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
-  await opened.getByRole('tab', { name: 'Review', exact: true }).click();
-  await opened.getByRole('button', { name: new RegExp(title) }).click();
-  const decision = opened.getByRole('region', {
-    name: `1. ${title}`,
+  const first = await repo.review('Read the first immutable decision');
+  const app = await render.route(`/reviews/${first.reviewId}`);
+  const review = app.page.getByRole('region', {
+    name: 'Review walkthrough',
     exact: true,
   });
-  const mark = decision.getByRole('button', {
-    name: 'Mark decision reviewed',
-    exact: true,
-  });
-  const reviewed = decision.getByRole('button', {
-    name: 'Decision reviewed',
-    exact: true,
-  });
-  await mark.click();
-  await expect.element(reviewed).toHaveAttribute('aria-pressed', 'true');
-  await expect.poll(decisions).toEqual(['reviewed']);
-
-  await reviewed.click();
-  await expect.poll(decisions).toEqual([]);
-  held.arm();
-  await repo.write(
-    repo.readme.path,
-    `${repo.readme.committed}\nA revised change to review.\n`,
-  );
-  await held.requested;
-  await expect.poll(decisions).toEqual([]);
-  await expect.element(mark).toBeDisabled();
-
-  held.release();
   await expect
     .element(
-      decision.getByText('Code moved since it was explained', { exact: true }),
+      review.getByRole('heading', {
+        name: `Proven at ${first.headOid.slice(0, 7)}`,
+        exact: true,
+      }),
     )
-    .not.toBeInTheDocument();
-  await expect.element(mark).toBeEnabled();
-  await mark.click();
-  await expect.element(reviewed).toHaveAttribute('aria-pressed', 'true');
-  await expect.poll(decisions).toEqual(['reviewed']);
+    .toBeVisible();
+  const second = await repo.review('Read the second immutable decision');
+  await expect
+    .element(review.getByRole('button', { name: 'r2', exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      review.getByRole('heading', {
+        name: `Proven at ${second.headOid.slice(0, 7)}`,
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await review.getByRole('button', { name: 'r1', exact: true }).click();
+  await expect
+    .element(
+      review.getByRole('heading', {
+        name: `Proven at ${first.headOid.slice(0, 7)}`,
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect.poll(() => app.location()).toBe(`/reviews/${first.reviewId}/1`);
+});
+
+test('sidebar decisions return from an older revision or summary to the latest walkthrough', async ({
+  agent,
+  render,
+}) => {
+  await agent.publishReview('First decision');
+  await agent.publishReview('Latest decision');
+  const workspace = await render.workspace();
+  const review = workspace.getByRole('region', {
+    name: 'Review walkthrough',
+    exact: true,
+  });
+  await review.getByRole('button', { name: 'r1', exact: true }).click();
+  await expect
+    .element(review.getByRole('button', { name: 'r1', exact: true }))
+    .toHaveAttribute('aria-pressed', 'true');
+  await review.getByRole('tab', { name: 'Agent summary', exact: true }).click();
+  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('dialog', { name: 'Worktree review', exact: true })
+    .getByRole('tab', { name: 'Review', exact: true })
+    .click();
+  const row = workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('button', { name: /^1 Latest decision/ });
+  await row.click();
+  await expect
+    .element(review.getByRole('button', { name: 'latest', exact: true }))
+    .toHaveAttribute('aria-pressed', 'true');
+  await expect
+    .element(review.getByRole('tab', { name: 'Walkthrough', exact: true }))
+    .toHaveAttribute('aria-selected', 'true');
+  await expect
+    .element(
+      review.getByRole('region', { name: '1. Latest decision', exact: true }),
+    )
+    .toBeVisible();
 });

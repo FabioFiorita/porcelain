@@ -1,4 +1,4 @@
-import { ProjectReviews } from '@/features/reviews/index';
+import { ProjectReviews } from './project-reviews';
 import type { Connection } from '@/shared/workspace/connection';
 import {
   ChevronRightIcon,

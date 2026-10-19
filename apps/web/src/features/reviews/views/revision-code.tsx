@@ -31,6 +31,7 @@ export function RevisionCode({
   context,
   marks,
   steps = [],
+  active,
 }: {
   revision: ReviewRevision;
   paths: readonly string[];
@@ -38,12 +39,13 @@ export function RevisionCode({
   context: ConnectionContext;
   marks: ReviewMarks;
   steps?: readonly ReviewStep[];
+  active: boolean;
 }) {
   const [shown, setShown] = useState(DIFF_WINDOW_FILES);
   const files = revision.files.filter((file) => paths.includes(file.path));
   const reached = files.slice(0, shown);
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex shrink-0 flex-col">
       {reached.length > 0 && (
         <RevisionDiffs
           revision={revision}
@@ -51,6 +53,8 @@ export function RevisionCode({
           scope={scope}
           context={context}
           marks={marks}
+          steps={steps}
+          active={active}
         />
       )}
       {files.length > shown && (
@@ -62,20 +66,30 @@ export function RevisionCode({
           Read more files
         </Button>
       )}
-      {steps
-        .filter(
-          (step) => !files.some((file) => file.path === step.pointer.path),
-        )
-        .map((step) => (
-          <RevisionFile
-            key={step.id}
-            revision={revision}
-            scope={scope}
-            context={context}
-            path={step.pointer.path}
-            step={step}
-          />
-        ))}
+      {steps.some(
+        (step) => !files.some((file) => file.path === step.pointer.path),
+      ) && (
+        <section aria-label="Existing code it relies on">
+          <h3 className="p-4 text-sm font-semibold">
+            Existing code it relies on
+          </h3>
+          {steps
+            .filter(
+              (step) => !files.some((file) => file.path === step.pointer.path),
+            )
+            .map((step, index) => (
+              <RevisionFile
+                key={step.id}
+                revision={revision}
+                scope={scope}
+                context={context}
+                path={step.pointer.path}
+                step={step}
+                active={active && reached.length === 0 && index === 0}
+              />
+            ))}
+        </section>
+      )}
     </div>
   );
 }
@@ -86,12 +100,16 @@ function RevisionDiffs({
   scope,
   context,
   marks,
+  steps,
+  active,
 }: {
   revision: ReviewRevision;
   files: ReviewRevision['files'];
   scope: ReviewScope;
   context: ConnectionContext;
   marks: ReviewMarks;
+  steps: readonly ReviewStep[];
+  active: boolean;
 }) {
   const result = useAtomValue(
     readReviewRevisionDiffs({
@@ -213,7 +231,7 @@ function RevisionDiffs({
           scope={scope}
           context={context}
           interaction={{
-            active: true,
+            active,
             worktreeId: revision.reviewId,
             entry: `revision:${revision.revision}`,
           }}
@@ -243,20 +261,34 @@ function RevisionDiffs({
           }}
         />
       )}
-      {diffs &&
+      {(diffs || AsyncResult.isFailure(result)) &&
         files
           .filter((file) => !entries.some((entry) => entry.path === file.path))
           .map((file) => {
-            const content = diffs.diffs.find((item) =>
+            const content = diffs?.diffs.find((item) =>
               item.paths.includes(file.path),
             )?.content;
             return (
-              <p key={file.path} className="p-3 text-sm break-all">
-                {file.path} ·{' '}
-                {content
-                  ? diffUnavailableReason(file, content, false)
-                  : 'Diff unavailable'}
-              </p>
+              <div key={file.path} className="p-3 text-sm break-all">
+                <p>
+                  {file.path} ·{' '}
+                  {content
+                    ? diffUnavailableReason(file, content, false)
+                    : 'Diff unavailable'}
+                </p>
+                {steps
+                  .filter((step) => step.pointer.path === file.path)
+                  .map((step) => (
+                    <article key={step.id} aria-label={`Step ${step.title}`}>
+                      <AgentNote title={step.title} text={step.text} />
+                      {step.published && (
+                        <pre className="overflow-auto whitespace-pre-wrap">
+                          {step.published.join('\n')}
+                        </pre>
+                      )}
+                    </article>
+                  ))}
+              </div>
             );
           })}
     </>
@@ -269,12 +301,14 @@ export function RevisionFile({
   context,
   path,
   step,
+  active,
 }: {
   revision: ReviewRevision;
   scope: ReviewScope;
   context: ConnectionContext;
   path: string;
-  step?: ReviewStep;
+  step?: ReviewStep | undefined;
+  active: boolean;
 }) {
   const result = useAtomValue(
     readReviewRevisionFile({
@@ -301,8 +335,8 @@ export function RevisionFile({
         }
       : undefined;
   return (
-    <section
-      aria-label={`File ${path}`}
+    <article
+      aria-label={step ? `Step ${step.title}` : `File ${path}`}
       className="flex min-h-0 flex-col border-t"
     >
       {step && <AgentNote title={step.title} text={step.text} />}
@@ -311,7 +345,7 @@ export function RevisionFile({
           scope={scope}
           context={context}
           interaction={{
-            active: true,
+            active,
             worktreeId: revision.reviewId,
             entry: `file:${revision.revision}:${path}`,
           }}
@@ -333,6 +367,6 @@ export function RevisionFile({
           )}
         </div>
       )}
-    </section>
+    </article>
   );
 }

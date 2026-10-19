@@ -184,10 +184,12 @@ export const readProjectGitHubAccount = Atom.family(
     ),
 );
 export const observeReviewSeen = Atom.family((input: RevisionInput) =>
-  query(input.connection, (api) =>
-    api.reviews.setReviewSeen({
-      params: { reviewId: input.reviewId },
-      payload: { revision: input.revision },
-    }),
+  clientRuntime(input.connection).atom(
+    requestApi(input.connection, (api) =>
+      api.reviews.setReviewSeen({
+        params: { reviewId: input.reviewId },
+        payload: { revision: input.revision },
+      }),
+    ),
   ),
 );

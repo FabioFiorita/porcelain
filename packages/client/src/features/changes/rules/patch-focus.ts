@@ -73,19 +73,3 @@ export function focusPatch(
   }
   return out.length === header.length ? null : `${out.join('\n')}\n`;
 }
-
-export function contextPatch(
-  path: string,
-  startLine: number,
-  lines: readonly string[],
-): string {
-  const body = lines.map((line) => ` ${line}`);
-  return [
-    `diff --git ${JSON.stringify(`a/${path}`)} ${JSON.stringify(`b/${path}`)}`,
-    `--- ${JSON.stringify(`a/${path}`)}`,
-    `+++ ${JSON.stringify(`b/${path}`)}`,
-    `@@ -${startLine},${lines.length} +${startLine},${lines.length} @@`,
-    ...body,
-    '',
-  ].join('\n');
-}

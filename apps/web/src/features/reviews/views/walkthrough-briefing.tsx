@@ -73,11 +73,7 @@ export function WalkthroughBriefing({
   const hasParts =
     parts.added.length + parts.changed.length + parts.removed.length > 0;
   return (
-    <div
-      className="min-h-0 flex-1 overflow-auto"
-      aria-label="Briefing"
-      role="region"
-    >
+    <div className="shrink-0" aria-label="Briefing" role="region">
       <div className="mx-auto flex max-w-3xl flex-col gap-9 px-6 pt-8 pb-16">
         <header className="flex flex-col gap-4">
           <p className="text-2xs font-medium tracking-wide text-muted-foreground uppercase">

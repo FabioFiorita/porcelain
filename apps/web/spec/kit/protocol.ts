@@ -19,7 +19,11 @@ export type ServerRead = {
 export type RepoStep =
   | {
       kind: 'review-fixture';
-      operation: 'publish' | 'remove-worktree';
+      operation:
+        | 'publish'
+        | 'remove-worktree'
+        | 'advance'
+        | 'remove-repository';
       title: string;
     }
   | { kind: 'write'; path: string; text: string }

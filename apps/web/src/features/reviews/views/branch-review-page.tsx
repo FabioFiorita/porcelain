@@ -3,6 +3,7 @@ import { AsyncResult } from 'effect/reactivity';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { usePublishedReview } from '../queries/published-review';
+import { useReviewRevisionSelection } from '../store';
 import { ReviewPage } from './review-page';
 import { ReviewEmpty } from './review-empty';
 
@@ -18,12 +19,9 @@ export function BranchReviewPage({
   active?: boolean | undefined;
 }) {
   const published = usePublishedReview(scope, context);
-  const [selected, setSelected] = useState<{
-    reviewId: string;
-    revision: number | undefined;
-  }>();
   const [deleted, setDeleted] = useState<string>();
   const reviewId = published.review?.reviewId;
+  const selection = useReviewRevisionSelection(reviewId ?? '');
   if (AsyncResult.isInitial(published.result))
     return (
       <p role="status" className="p-4">
@@ -46,12 +44,14 @@ export function BranchReviewPage({
     );
   return (
     <ReviewPage
+      key={selection.request}
+      proofCurrent={published.review?.proof.current}
       active={active}
       reviewId={reviewId}
-      revision={selected?.reviewId === reviewId ? selected.revision : undefined}
+      revision={selection.revision}
       context={context}
-      onRevision={(revision) => setSelected({ reviewId, revision })}
-      onBack={() => setSelected({ reviewId, revision: undefined })}
+      onRevision={selection.choose}
+      onBack={() => selection.choose(undefined)}
       onDeleted={() => {
         setDeleted(reviewId);
         published.refresh();

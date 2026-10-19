@@ -67,7 +67,7 @@ test('split published reviews keep one walkthrough shortcut owner as focus chang
   await drawer.getByRole('tab', { name: 'Review', exact: true }).click();
   await drawer
     .getByRole('button', {
-      name: '3 Publish an immutable note',
+      name: '3 Publish an immutable note 0/6',
       exact: true,
     })
     .click();
@@ -95,10 +95,11 @@ test('split published reviews keep one walkthrough shortcut owner as focus chang
     .getByRole('tab', { name: 'Review Close Review', exact: true })
     .click();
   await expect
-    .poll(() => tabShortcuts.registered(['N', 'P']))
+    .poll(() => tabShortcuts.registered(['N', 'P', 'R']))
     .toEqual([
       ['N', 'error'],
       ['P', 'error'],
+      ['R', 'error'],
     ]);
   await userEvent.keyboard('n');
   await expect
@@ -122,9 +123,10 @@ test('split published reviews keep one walkthrough shortcut owner as focus chang
     )
     .toBeVisible();
   await expect
-    .poll(() => tabShortcuts.registered(['N', 'P']))
+    .poll(() => tabShortcuts.registered(['N', 'P', 'R']))
     .toEqual([
       ['N', 'error'],
       ['P', 'error'],
+      ['R', 'error'],
     ]);
 });
