@@ -147,3 +147,28 @@ export const readReviewInterdiff = Atom.family(
           (input.to === undefined || answer.to === input.to)),
     ).pipe(reactive(input)),
 );
+export const readReviewPullRequest = Atom.family((input: ReviewInput) =>
+  query(input.connection, (api) =>
+    api.reviews.readReviewPullRequest({ params: { reviewId: input.reviewId } }),
+  ).pipe(reactive(input)),
+);
+export const readProjectPullRequests = Atom.family(
+  (input: { connection: RuntimeConnection; projectId: string }) =>
+    query(input.connection, (api) =>
+      api.reviews.listProjectPullRequests({
+        params: { projectId: input.projectId },
+      }),
+    ).pipe(
+      input.connection.atoms.withReactivity([
+        queryKeys.projectReviews(input.connection.environmentId),
+      ]),
+    ),
+);
+export const readProjectGitHubAccount = Atom.family(
+  (input: { connection: RuntimeConnection; projectId: string }) =>
+    query(input.connection, (api) =>
+      api.reviews.readProjectGitHubAccount({
+        params: { projectId: input.projectId },
+      }),
+    ),
+);

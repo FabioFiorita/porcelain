@@ -26,3 +26,5 @@ export { ReviewPublishRefusedError } from './review-publish-refused-error.ts';
 
 export { ReviewNotFoundError } from './review-not-found-error.ts';
 export { InvalidReviewComparisonError } from './invalid-review-comparison-error.ts';
+
+export { GitHubReadError } from './github-read-error.ts';

@@ -3952,6 +3952,18 @@ Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => unde
   {
     rule: 'lane-per-table',
     valid: {
+      'packages/reviews/src/ports/github-account-store.ts':
+        'export interface GitHubAccountStore { read(): string; detect(): void; override(): void; }',
+    },
+    invalid: {
+      'packages/reviews/src/ports/unregistered-account-store.ts':
+        'export interface UnregisteredAccountStore { read(): string; detect(): void; }',
+    },
+    errors: ['lane-per-table'],
+  },
+  {
+    rule: 'lane-per-table',
+    valid: {
       'apps/server/src/ports/device-connection-store.ts':
         'export interface DeviceConnectionStore { insert(): void; }',
     },

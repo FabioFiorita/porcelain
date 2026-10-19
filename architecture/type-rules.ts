@@ -50,6 +50,7 @@ const tableLanes: Readonly<
   CommentSeenStore: { any: repositoryTables },
   FilePreferenceStore: { any: ['project'] },
   InventoryStore: { any: ['inventory'] },
+  GitHubAccountStore: { any: ['project'] },
   WorktreePresenceStore: {
     save: ['inventory'],
     remove: ['repository', 'project'],

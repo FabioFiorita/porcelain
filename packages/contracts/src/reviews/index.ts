@@ -89,3 +89,10 @@ export {
   type CompareReviewResponse,
   type ReadReviewInterdiffResponse,
 } from './review-comparison.ts';
+
+export {
+  type ReadPullRequestResponse,
+  type ListPullRequestsResponse,
+  type GitHubAccountResponse,
+  type SetGitHubAccountRequest,
+} from './pull-requests.ts';

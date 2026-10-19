@@ -49,3 +49,14 @@ export {
   comparisonUnknownSchema,
   type CompareReviewInput,
 } from './review-comparison.ts';
+
+export {
+  githubUnavailableSchema,
+  githubAccountResultSchema,
+  githubPullRequestSchema,
+  githubPullSummarySchema,
+  pullRequestSchema,
+  pullRequestSummarySchema,
+  type GitHubRepository,
+  type GitHubAccountResult,
+} from './pull-request.ts';

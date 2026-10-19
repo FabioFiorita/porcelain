@@ -1,3 +1,4 @@
+import { GitHubAccountStore } from '@porcelain/reviews/ports';
 import { Context, Effect, Layer } from 'effect';
 import {
   DeviceStore,
@@ -54,6 +55,7 @@ export const composeStores = Effect.fn('Server.composeStores')(function* () {
     routeStates: Context.get(memory, RouteStateStore),
     gitActions: yield* GitActionReceiptStore,
     reviews: yield* ReviewStore,
+    githubAccounts: yield* GitHubAccountStore,
     reviewedFiles: yield* ReviewedFileStore,
     reviewedLayers: yield* ReviewedLayerStore,
     comments: yield* CommentStore,

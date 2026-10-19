@@ -35,3 +35,10 @@ export {
   readReviewComments,
 } from './queries/project-reviews.ts';
 export { reviewCommands } from './commands/project-reviews.ts';
+
+export {
+  readReviewPullRequest,
+  readProjectPullRequests,
+  readProjectGitHubAccount,
+} from './queries/project-reviews.ts';
+export { setProjectGitHubAccount } from './commands/github-account.ts';

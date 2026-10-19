@@ -1,4 +1,5 @@
 import { compareRevisions } from './compare-revisions.ts';
+import { liveGitHubRead } from './github-read.ts';
 import { Schema } from 'effect';
 import { pairingLink } from '@porcelain/contracts/access';
 import { readFile } from 'node:fs/promises';
@@ -22,6 +23,7 @@ import { registry } from './instance.ts';
 import { serve, start } from './start.ts';
 
 const usage = `Usage: .agents/skills/server-verify/scripts/cli <command> [--instance <id>]
+  github-read             live read-only PR #423 and project PR list using host gh accounts
   start                   build a disposable server and print its connection card
   doctor                  check startup dependencies and list optional drivers
   status                  inspect captured ownership, build staleness and connection metadata
@@ -119,12 +121,27 @@ async function main(argv: readonly string[]): Promise<string> {
   if (command === 'status')
     return `${JSON.stringify(await registry.status(values.instance), null, 2)}\n`;
   if (
-    !['logs', 'ids', 'agent', 'server', 'pairing-link', 'fixture'].includes(
-      command ?? '',
-    )
+    ![
+      'logs',
+      'ids',
+      'agent',
+      'server',
+      'pairing-link',
+      'fixture',
+      'github-read',
+    ].includes(command ?? '')
   )
     throw new Usage(usage);
   const instance = registry.chosen(values.instance);
+  if (command === 'github-read')
+    return registry.drive(instance, argv, async () => {
+      const result = await liveGitHubRead(
+        instance.detail.manifestPath,
+        instance.detail.logFile,
+      );
+      await registry.evidence(instance).json('github-live-read', result);
+      return `${JSON.stringify(result, null, 2)}\n`;
+    });
   if (command === 'logs')
     return registry
       .redactor(instance)

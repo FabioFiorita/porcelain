@@ -1,5 +1,8 @@
 import type { CompareReviewUseCase } from '../../../use-cases/reviews/compare-review.ts';
 import type { ReadReviewInterdiffUseCase } from '../../../use-cases/reviews/read-review-interdiff.ts';
+import type { ReadProjectGitHubAccountUseCase } from '../../../use-cases/reviews/read-project-github-account.ts';
+import type { ReadReviewPullRequestUseCase } from '../../../use-cases/reviews/read-review-pull-request.ts';
+import type { ListProjectPullRequestsUseCase } from '../../../use-cases/reviews/list-project-pull-requests.ts';
 import { type RemoveReviewMarkUseCase } from '../../../use-cases/reviews/remove-review-mark.ts';
 import { type SetReviewMarkUseCase } from '../../../use-cases/reviews/set-review-mark.ts';
 import { type ListReviewMarksUseCase } from '../../../use-cases/reviews/list-review-marks.ts';
@@ -44,6 +47,15 @@ type ReviewsUseCases = {
   readReviewInterdiff: Pick<
     Context.Service.Shape<typeof ReadReviewInterdiffUseCase>,
     'execute'
+  >;
+  readProjectGitHubAccount: Context.Service.Shape<
+    typeof ReadProjectGitHubAccountUseCase
+  >;
+  readReviewPullRequest: Context.Service.Shape<
+    typeof ReadReviewPullRequestUseCase
+  >;
+  listProjectPullRequests: Context.Service.Shape<
+    typeof ListProjectPullRequestsUseCase
   >;
   removeReviewMark: Context.Service.Shape<typeof RemoveReviewMarkUseCase>;
   setReviewMark: Context.Service.Shape<typeof SetReviewMarkUseCase>;
@@ -136,6 +148,21 @@ export function reviewsRoutes(
       )
       .handle('readReviewInterdiff', ({ params, query }) =>
         useCases.readReviewInterdiff.execute({ ...params, ...query }),
+      )
+      .handle('readReviewPullRequest', ({ params }) =>
+        useCases.readReviewPullRequest.execute(params),
+      )
+      .handle('listProjectPullRequests', ({ params }) =>
+        useCases.listProjectPullRequests.execute(params),
+      )
+      .handle('readProjectGitHubAccount', ({ params }) =>
+        useCases.readProjectGitHubAccount.execute(params),
+      )
+      .handle('setProjectGitHubAccount', ({ params, payload }) =>
+        useCases.readProjectGitHubAccount.execute({
+          ...params,
+          override: { account: payload.account },
+        }),
       )
       .handle('deleteReviewCommentMessage', ({ params, query }) =>
         Effect.flatMap(RequestCaller, (writer) =>
