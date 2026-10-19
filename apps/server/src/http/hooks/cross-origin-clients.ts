@@ -19,11 +19,17 @@ function crossOriginClients(options: { maxAgeSeconds: number }) {
         ?.split(',')
         .some((header) => header.trim().toLowerCase() === 'authorization') ??
       false;
+    const healthPreflight =
+      path === HEALTH_PATH &&
+      HEALTH_METHODS.has(
+        request.headers['access-control-request-method'] ?? '',
+      );
+    const anonymousHealthPreflight =
+      healthPreflight &&
+      !bearerPreflight &&
+      bearerCredential(context) === undefined;
     const allowed =
-      (path === HEALTH_PATH &&
-        HEALTH_METHODS.has(
-          request.headers['access-control-request-method'] ?? '',
-        )) ||
+      healthPreflight ||
       (path === PAIRING_PATH && PAIRING_METHODS.has(request.method)) ||
       (request.method === 'OPTIONS'
         ? bearerPreflight
@@ -39,8 +45,12 @@ function crossOriginClients(options: { maxAgeSeconds: number }) {
       status: 204,
       headers: {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, HEAD, POST, PUT, PATCH, DELETE',
-        'Access-Control-Allow-Headers': 'authorization, content-type',
+        'Access-Control-Allow-Methods': anonymousHealthPreflight
+          ? 'GET, HEAD'
+          : 'GET, HEAD, POST, PUT, PATCH, DELETE',
+        'Access-Control-Allow-Headers': anonymousHealthPreflight
+          ? 'content-type'
+          : 'authorization, content-type',
         'Access-Control-Max-Age': String(options.maxAgeSeconds),
       },
     });
