@@ -1,6 +1,12 @@
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
-import { KeyboardIcon, MonitorIcon, SettingsIcon } from 'lucide-react';
+import { KeyboardIcon, MonitorIcon, SettingsIcon, XIcon } from 'lucide-react';
+import { useElement } from '@/shared/hooks/use-element';
+import { Input } from '@/components/ui/input';
+import {
+  WorkspaceSearchResults,
+  RemoteWorkspaceSearch,
+} from './workspace-search-results';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -43,6 +49,16 @@ export function ProjectNavigator({
   onOpenRemotes: openRemotes,
   onOpenShortcuts: openShortcuts,
 }: Props) {
+  const [query, setQuery] = useState('');
+  const searching = query.trim().length > 0;
+  const { element: searchInput, attach: attachSearchInput } =
+    useElement<HTMLInputElement>();
+  const { element: results, attach: attachResults } =
+    useElement<HTMLDivElement>();
+  const clearSearch = () => {
+    setQuery('');
+    searchInput?.focus();
+  };
   const projects = inventory.projects;
   const selectedOn = (remote: string | null) =>
     selected?.remote === remote ? selected.worktreeId : undefined;
@@ -83,8 +99,99 @@ export function ProjectNavigator({
         <OpenProjectMenu remotes={remotes} onOpenProject={onOpenProject} />
       </NavigatorHeader>
 
+      <div className="flex items-center gap-1 border-b p-2">
+        <Input
+          ref={attachSearchInput}
+          type="search"
+          aria-label="Search projects and worktrees"
+          placeholder="Search workspaces…"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape' && query) {
+              event.preventDefault();
+              event.stopPropagation();
+              clearSearch();
+            }
+            if (
+              searching &&
+              (event.key === 'ArrowDown' ||
+                event.key === 'ArrowUp' ||
+                event.key === 'Enter')
+            ) {
+              event.preventDefault();
+              const rows = results?.querySelectorAll<HTMLButtonElement>(
+                'button[data-workspace-result]:not(:disabled)',
+              );
+              const row =
+                event.key === 'ArrowUp' ? rows?.[rows.length - 1] : rows?.[0];
+              if (event.key === 'Enter') row?.click();
+              else row?.focus();
+            }
+          }}
+        />
+        {query && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Clear search"
+            title="Clear search"
+            onClick={clearSearch}
+          >
+            <XIcon />
+          </Button>
+        )}
+      </div>
       <ScrollArea className="h-0 min-h-0 flex-1">
-        <div className={remotes ? 'py-2 pr-2' : 'p-2'}>
+        {searching && (
+          <div
+            ref={attachResults}
+            role="region"
+            aria-label="Workspace search results"
+            className="p-2"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                clearSearch();
+              }
+              if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+              const rows = Array.from(
+                event.currentTarget.querySelectorAll<HTMLButtonElement>(
+                  'button[data-workspace-result]:not(:disabled)',
+                ),
+              );
+              const index = rows.findIndex((row) => row === event.target);
+              if (index < 0) return;
+              event.preventDefault();
+              const next = index + (event.key === 'ArrowDown' ? 1 : -1);
+              if (next < 0) searchInput?.focus();
+              else rows[next]?.focus();
+            }}
+          >
+            <h2 className="px-2 py-1 text-caption text-muted-foreground">
+              {inventory.environment.name} · This computer
+            </h2>
+            <WorkspaceSearchResults
+              inventory={inventory}
+              remote={null}
+              query={query}
+              selected={selected}
+              onSelect={select}
+            />
+            {remotes?.map((entry) => (
+              <RemoteWorkspaceSearch
+                key={entry.remote.environmentId}
+                entry={entry}
+                query={query}
+                selected={selected}
+                onSelect={select}
+                onOpenRemotes={() => openRemotes(entry.remote.environmentId)}
+              />
+            ))}
+          </div>
+        )}
+        <div hidden={searching} className={remotes ? 'py-2 pr-2' : 'p-2'}>
           {remotes ? (
             <>
               <MachineSection

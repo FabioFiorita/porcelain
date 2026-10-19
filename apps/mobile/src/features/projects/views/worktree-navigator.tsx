@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
-import type { WorkspaceChoice } from '@porcelain/client/projects/rules';
+import {
+  searchWorkspaces,
+  type WorkspaceChoice,
+} from '@porcelain/client/projects/rules';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
@@ -10,10 +13,7 @@ import { Input } from '../../../components/ui/input';
 import { Item } from '../../../components/ui/item';
 import { Loading } from '../../../components/ui/loading';
 import { Text } from '../../../components/ui/text';
-import {
-  searchWorkspaces,
-  worktreeDescription,
-} from '../rules/workspace-browser';
+import { worktreeDescription } from '../rules/workspace-browser';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 import type { WorkspacePickerProps } from './workspace-picker-props';
 

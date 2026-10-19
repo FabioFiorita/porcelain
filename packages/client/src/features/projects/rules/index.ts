@@ -24,3 +24,4 @@ export {
   type WorkspaceSelection,
   type WorkspaceReadiness,
 } from './workspace-selection.ts';
+export { searchWorkspaces } from './workspace-search.ts';

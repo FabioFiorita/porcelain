@@ -44,9 +44,13 @@ export function WorktreeRow({
   projectName,
   selected,
   onSelect,
+  searchContext,
+  disabled = false,
 }: {
   worktree: Worktree;
   projectName: string;
+  searchContext?: string;
+  disabled?: boolean;
   selected: boolean;
   onSelect: (id: string) => void;
 }) {
@@ -57,12 +61,14 @@ export function WorktreeRow({
         render={
           <button
             type="button"
+            disabled={disabled}
+            data-workspace-result={searchContext ? true : undefined}
             aria-pressed={selected}
             aria-current={selected ? 'page' : undefined}
             data-unavailable={!worktree.available || undefined}
             onClick={() => onSelect(worktree.id)}
             className={cn(
-              'flex w-full min-w-0 items-center gap-1.5 rounded-lg py-1.5 pr-2 pl-7 text-left text-caption text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+              'flex w-full min-w-0 items-center gap-1.5 rounded-lg py-1.5 pr-2 pl-7 text-left text-caption text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed',
               selected && 'bg-accent font-medium text-foreground',
               !worktree.available && 'opacity-60',
             )}
@@ -72,8 +78,21 @@ export function WorktreeRow({
         <Icon className="size-3.5 shrink-0" aria-hidden="true" />
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="truncate">{worktreeDisplayLabel(worktree)}</span>
-          <span className="sr-only">{worktree.path}</span>
+          <span
+            className={
+              searchContext
+                ? 'text-2xs break-all font-mono text-muted-foreground'
+                : 'sr-only'
+            }
+            title={worktree.path}
+          >
+            {worktree.path}
+          </span>
+          {searchContext && selected && (
+            <span className="text-2xs">Current</span>
+          )}
           <span className="sr-only">{projectName}</span>
+          {searchContext && <span className="sr-only">{searchContext}</span>}
           {!worktree.available && (
             <span className="flex items-center gap-1 text-2xs text-muted-foreground">
               <CircleAlertIcon className="size-3" aria-hidden="true" />
