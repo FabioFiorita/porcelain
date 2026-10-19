@@ -6,6 +6,7 @@ import { ConnectionError } from '../../../shared/api/connection-error.ts';
 
 type SelectionCommand =
   | { readonly kind: 'read' }
+  | { readonly kind: 'environment'; readonly environmentId: string }
   | {
       readonly kind: 'workspace';
       readonly environmentId: string;
@@ -58,6 +59,10 @@ const makeSelectionCommands = Effect.gen(function* () {
                     'That environment is no longer paired. Open the workspace picker again.',
                 }),
               );
+            if (command.kind === 'environment') {
+              yield* selection.selectEnvironment(command.environmentId);
+              return;
+            }
             yield* selection.selectWorkspace(
               command.environmentId,
               command.projectId,

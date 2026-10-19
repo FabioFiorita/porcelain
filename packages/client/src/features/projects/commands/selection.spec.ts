@@ -414,3 +414,57 @@ async function blockedEnvironmentWrite(
   f.writes.length = 0;
   return { f, writing, finish };
 }
+
+it('selects a review computer without inventing a workspace and preserves workspace choices', async () => {
+  const f = fixture({
+    selection: {
+      currentEnvironmentId: 'first',
+      selections: { first: { projectId: 'one', worktreeId: 'one-tree' } },
+    },
+  });
+  await f.runtime.runPromise(f.environments.read());
+  await f.runtime.runPromise(f.commands.execute({ kind: 'read' }));
+  await f.runtime.runPromise(
+    f.commands.execute({ kind: 'environment', environmentId: 'second' }),
+  );
+  expect(f.saved().selection).toEqual({
+    currentEnvironmentId: 'second',
+    selections: { first: { projectId: 'one', worktreeId: 'one-tree' } },
+  });
+  await f.runtime.runPromise(
+    f.commands.execute({
+      kind: 'workspace',
+      environmentId: 'second',
+      projectId: 'two',
+      worktreeId: 'two-tree',
+    }),
+  );
+  await f.runtime.runPromise(
+    f.commands.execute({ kind: 'environment', environmentId: 'first' }),
+  );
+  expect(f.saved().selection.currentEnvironmentId).toBe('first');
+  expect(f.saved().selection.selections.second).toEqual({
+    projectId: 'two',
+    worktreeId: 'two-tree',
+  });
+});
+
+it('refuses an unpaired review computer and retains the current workspace', async () => {
+  const f = fixture();
+  await f.runtime.runPromise(f.environments.read());
+  await f.runtime.runPromise(f.commands.execute({ kind: 'read' }));
+  const exit = await f.runtime.runPromiseExit(
+    f.commands.execute({ kind: 'environment', environmentId: 'unpaired' }),
+  );
+  expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toMatchObject({
+    message:
+      'That environment is no longer paired. Open the workspace picker again.',
+  });
+  expect(f.saved().selection).toEqual({
+    currentEnvironmentId: 'first',
+    selections: {
+      first: { projectId: 'one', worktreeId: 'one-tree' },
+      second: { projectId: 'two', worktreeId: 'two-tree' },
+    },
+  });
+});
