@@ -113,6 +113,7 @@ import {
   ProofFileNotFoundError,
   ProofFileUnreadableError,
   ProofTooLargeError,
+  InvalidReviewComparisonError,
   ReviewConflictError,
   ReviewPublishRefusedError,
   ReviewNotFoundError,
@@ -151,6 +152,7 @@ const REPOSITORY_UNAVAILABLE = 'Repository could not be inspected';
 const OPERATION_UNAVAILABLE = 'Operation unavailable';
 
 const rules: readonly StatusRule[] = [
+  { errors: [InvalidReviewComparisonError], statusCode: 400 },
   { errors: [ReviewPublishRefusedError], statusCode: 409 },
   { errors: [ReviewNotFoundError], statusCode: 404 },
   {
