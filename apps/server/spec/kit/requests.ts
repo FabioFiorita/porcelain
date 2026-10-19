@@ -223,6 +223,11 @@ export async function pairBrowser(
 }
 
 export async function commitReviewFixture(session: Session) {
+  if (
+    (await session.git('branch', '--list', 'porcelain-fixture-base')).trim() ===
+    ''
+  )
+    await session.git('branch', 'porcelain-fixture-base');
   if ((await session.git('status', '--porcelain')).trim() === '') return;
   await session.git('add', '-A');
   await session.git('commit', '-m', 'Commit review fixture');

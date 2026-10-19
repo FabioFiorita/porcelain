@@ -5,7 +5,10 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { Schema } from 'effect';
 import { expect, inject, test } from 'vitest';
-import { readChangesResponseSchema } from '@porcelain/contracts/changes';
+import {
+  readBranchChangesResponseSchema,
+  readChangesResponseSchema,
+} from '@porcelain/contracts/changes';
 import { Environment } from '@porcelain/mobile/kit/environment';
 import { seedDevelopmentSample } from '@porcelain/server/kit/development-sample';
 import { serverReaders } from '@porcelain/server/kit/typed-readers';
@@ -96,27 +99,42 @@ test('the mobile development fixture exposes nested files, a merge, two distinct
     "'awaiting-documents'",
   );
   const changes = await readers.changes();
-  expect(
-    changes.changes.find((change) => change.path === 'src/domain/shipment.ts')
-      ?.comparisons,
-  ).toMatchObject([{ kind: 'modified', scope: 'unstaged' }]);
-  expect(
-    changes.changes.find(
-      (change) => change.path === 'src/ui/shipment-filters.tsx',
-    )?.comparisons,
-  ).toMatchObject([{ scope: 'untracked' }]);
-  expect(
-    changes.changes.find(
-      (change) => change.path === 'docs/operations/release-checklist.md',
-    )?.comparisons,
-  ).toMatchObject([{ kind: 'deleted' }]);
-  expect(
-    changes.changes.find(
-      (change) => change.path === 'docs/operations/dispatch-guide.md',
-    )?.comparisons,
-  ).toMatchObject([
-    { kind: 'renamed', oldPath: 'docs/operations/dispatch.md' },
+  expect(changes.changes.map((change) => change.path)).toEqual([
+    'docs/operations/next-shift.md',
   ]);
+  expect(changes.changes[0]?.comparisons).toMatchObject([
+    { scope: 'untracked' },
+  ]);
+  const committed = Schema.decodeUnknownSync(readBranchChangesResponseSchema)(
+    (
+      await session.read({
+        method: 'GET',
+        path: `/api/worktrees/${main.id}/branch-changes`,
+        query: { base: 'refs/heads/porcelain-fixture-base' },
+      })
+    ).body,
+  );
+  expect(committed.files).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        path: 'src/domain/shipment.ts',
+        status: 'modified',
+      }),
+      expect.objectContaining({
+        path: 'src/ui/shipment-filters.tsx',
+        status: 'added',
+      }),
+      expect.objectContaining({
+        path: 'docs/operations/release-checklist.md',
+        status: 'deleted',
+      }),
+      expect.objectContaining({
+        path: 'docs/operations/dispatch-guide.md',
+        oldPath: 'docs/operations/dispatch.md',
+        status: 'renamed',
+      }),
+    ]),
+  );
   const commits = await readers.commits();
   expect(commits.commits.map((commit) => commit.subject)).toEqual(
     expect.arrayContaining([
@@ -126,13 +144,16 @@ test('the mobile development fixture exposes nested files, a merge, two distinct
       'Merge offline dispatch queue',
     ]),
   );
-  expect(
-    (await session.git('rev-parse', 'HEAD^1', 'HEAD^2')).trim().split('\n'),
-  ).toHaveLength(2);
   const merge = commits.commits.find(
     (commit) => commit.subject === 'Merge offline dispatch queue',
   );
   expect(merge?.parentOids).toHaveLength(2);
+  if (merge === undefined) throw new Error('The sample merge must be present');
+  expect(
+    (await session.git('rev-parse', `${merge.oid}^1`, `${merge.oid}^2`))
+      .trim()
+      .split('\n'),
+  ).toHaveLength(2);
   const offlineChanges = Schema.decodeUnknownSync(readChangesResponseSchema)(
     (
       await environment.server.read(environment.recorder, {

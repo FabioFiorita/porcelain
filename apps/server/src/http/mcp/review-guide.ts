@@ -7,7 +7,9 @@ import {
 
 export const REVIEW_GUIDE = `# Publishing a Porcelain review
 
-A review explains decisions. Each layer is one behavior or ownership decision; lanes describe the parts of the system that decision crosses. Put an owner before the decisions that use it. Step pointers explain a block and its consequence. Uncovered changed lines appear as Not explained. Diagram owners can be New, Changed or Removed; problems appear as Needs your decision. These are authored explanations, not automatically verified architectural claims.
+The review helps the developer understand how the architecture changes and which decisions future agents will copy. Porcelain shows it as a walkthrough: a briefing of what the change adds to the system, then one stop per layer in the order you publish, then whatever no layer explains. Each layer is one decision: a behavior told from entry point to outcome, or one coherent ownership or architectural decision. Do not make Server, Client or Interface separate layers: those are lanes within a decision, and Porcelain shows the lanes a decision crosses as its route. Order layers so a reader meets an owner before the decisions that use it.
+
+The reader marks a decision reviewed, and that marks every file it shows. Each changed file appears in full, once, in the first layer whose changed step points at it, so point the layer that introduces a shared owner at that owner's file. A changed step points at code this committed revision alters; its text appears as a numbered note under the last line it points at, so end the step where the explained block ends. A context step points at unchanged code the reader needs and appears as an excerpt after the decision's code. Write step text as one or two sentences on the decision and its consequence, not a narration of the code. Keep the layer summary to two or three sentences; longer text is folded. Changed lines no step covers are listed as Not explained, both as files of their own and as marked lines inside explained files.
 
 ## Commit, then publish
 
@@ -47,7 +49,30 @@ Every file deleted between the merge base and head must appear by its exact path
 
 Layers have UUID ids, a title, summary, lanes and steps. A step has a UUID id, lane index, title, text, \`kind: "changed" | "context"\`, and a pointer with path and inclusive line range. A context step introduces useful unchanged code. Keep explanations concise and order steps as the behavior flows.
 
-An optional \`diagram.after\` holds boxes and arrows. A decision box has \`decision: true\` and a valid \`layerId\`; owner boxes can use \`change: "new" | "changed" | "removed"\`, detail and a layerId. A problem names a decision still needing the developer. Arrows name existing boxes; their labels describe relationships. Diagram claims need support in the linked code.
+When the change crosses more than one part of the system, add a diagram with boxes and explicit arrows in \`diagram.after\`. Porcelain does not draw it as a graph. It reads it as the briefing "What this adds to the system" and as each decision's connections, so write it for those:
+
+- Mark each owner the work adds, alters or removes as New, Changed or Removed using \`change: "new"\`, \`"changed"\` or \`"removed"\`, and add a one-line \`detail\`. Set \`decision: true\` on the one box that stands for a decision, and name its layer with \`layerId\`. It is not listed as an owner; labels do not determine ownership.
+- Name the layer behind each box with \`layerId\` so the reader can jump from an owner to its code.
+- Use \`problem\` for a decision the developer must make: two writes without a shared transaction, a second copy of an owner that already exists, a pattern this change follows differently from the rest of the codebase. Each problem is shown as "Needs your decision" in the briefing and in every decision connected to that box.
+- Label every arrow with its meaning, such as calls, reads, writes, publishes or depends on. An arrow labelled \`uses\` from a decision box to an owner labelled \`Delivery outbox\` appears as "uses Delivery outbox". For an arrow arriving at a decision box, Porcelain shows "<owner label> <verb>". Porcelain uses the label verbatim; an unlabelled arrow reads "relates to". Describe all actual relationships, including ordinary calls; step order never creates an arrow.
+
+These are your architectural claims, not automatically verified call traces. Support them with code pointers in the linked layer, and leave uncertain relationships in the detail instead of drawing a confident arrow.
+
+For example, a decision introducing an owner can link to that owner even though both boxes name the same layer:
+
+\`\`\`json
+{
+  "diagram": {
+    "after": {
+      "boxes": [
+        { "id": "10000000-0000-4000-8000-000000000001", "label": "Introduce delivery", "decision": true, "layerId": "20000000-0000-4000-8000-000000000001" },
+        { "id": "10000000-0000-4000-8000-000000000002", "label": "Delivery outbox", "change": "new", "detail": "Owns retry identity", "layerId": "20000000-0000-4000-8000-000000000001" }
+      ],
+      "arrows": [{ "from": "10000000-0000-4000-8000-000000000001", "to": "10000000-0000-4000-8000-000000000002", "label": "uses" }]
+    }
+  }
+}
+\`\`\`
 
 ## Optional summary
 
@@ -58,6 +83,20 @@ An optional \`diagram.after\` holds boxes and arrows. A decision box has \`decis
 Report checks actually run, including failures. Each check has name, \`result: "pass" | "fail"\` and optional output (at most ${REVIEW_PROOF_OUTPUT_LENGTH} characters).
 
 Supply at most ${REVIEW_PROOF_ASSETS} assets: image (PNG/JPEG/GIF/WebP), video (MP4/WebM), or an HTTP(S) link. A file path is relative to the publishing worktree; Porcelain copies at most ${REVIEW_PROOF_FILE_MEBIBYTES} MiB per file and ${REVIEW_PROOF_MEBIBYTES} MiB together. Its bytes must match its kind. Checks and assets can name a valid layerId, or layerId plus stepId.
+
+\`\`\`json
+{
+  "proof": {
+    "checks": [
+      { "name": "pnpm test", "result": "pass" },
+      { "name": "Save journey", "result": "fail", "output": "Expected the Saved notice", "layerId": "<layer id>" }
+    ],
+    "assets": [
+      { "kind": "image", "title": "Saved notice", "path": "tmp/saved.png", "layerId": "<layer id>" }
+    ]
+  }
+}
+\`\`\`
 
 To carry an image or video into a later revision, supply its prior \`proofId\` instead of path. Use exactly one. Every revision keeps its own proof; republishing does not alter earlier revisions. The current worktree view reports proof stale when its branch tip differs from that revision's head or code differs from HEAD; its own proof paths are excluded. A new head needs fresh proof and another publish.
 

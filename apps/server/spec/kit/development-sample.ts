@@ -271,4 +271,8 @@ export async function seedDevelopmentSample(
     },
     200,
   );
+  await write(
+    'docs/operations/next-shift.md',
+    '# Next shift\n\nConfirm the next document check with the dispatcher.\n',
+  );
 }

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import { test } from '../kit/server-test.ts';
 import {
+  commitReviewFixture,
   read,
   sampleReview,
   toolCall,
@@ -14,8 +15,7 @@ import { unknownWorktreeId, worktreeNotFound } from '../kit/answers.ts';
 test('HTTP deletes a review, is idempotent, and allows a fresh review for the branch', async ({
   session,
 }) => {
-  await session.git('add', '-A');
-  await session.git('commit', '-m', 'Commit the review fixture');
+  await commitReviewFixture(session);
   const path = worktreePath(session, '/review');
   const draft = sampleReview(session, 0, randomUUID(), randomUUID());
   const published = await read(session, { method: 'PUT', path, body: draft });

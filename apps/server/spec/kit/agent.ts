@@ -3,7 +3,12 @@ import { randomUUID } from 'node:crypto';
 import { readPublishedReviewResponseSchema } from '@porcelain/contracts/reviews';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { kitHeaders } from './isolated-server.ts';
-import { sampleReview, toolCall, toolResult } from './requests.ts';
+import {
+  commitReviewFixture,
+  sampleReview,
+  toolCall,
+  toolResult,
+} from './requests.ts';
 import type { AgentAction, HttpRequest, Session } from './session.ts';
 import { seedArchitectureSample } from './architecture-sample.ts';
 
@@ -98,10 +103,7 @@ export async function agentActs(
   if (action.kind === 'publish-architecture')
     return seedArchitectureSample(agent);
   if (action.kind === 'publish-review' || action.kind === 'publish-proof') {
-    if ((await agent.git('status', '--porcelain')).trim() !== '') {
-      await agent.git('add', '-A');
-      await agent.git('commit', '-m', 'Prepare the committed review fixture');
-    }
+    await commitReviewFixture(agent);
   }
   const request = await agentRequest(agent, action);
   if (action.kind === 'publish-proof')

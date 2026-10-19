@@ -9,7 +9,12 @@ import {
   inventory,
   watching,
 } from '../kit/reads.ts';
-import { gitPath, sampleReview, worktreePath } from '../kit/requests.ts';
+import {
+  commitReviewFixture,
+  gitPath,
+  sampleReview,
+  worktreePath,
+} from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { list, record, type Session } from '../kit/session.ts';
 
@@ -266,8 +271,7 @@ test("publishing a review tells a watching viewer the worktree's review changed"
     session.fixture.readme.path,
     session.fixture.readme.changed,
   );
-  await session.git('add', '-A');
-  await session.git('commit', '-m', 'Commit review fixture');
+  await commitReviewFixture(session);
   const response = await session.send({
     method: 'PUT',
     path: worktreePath(session, '/review'),
