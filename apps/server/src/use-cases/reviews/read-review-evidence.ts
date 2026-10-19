@@ -1,18 +1,17 @@
+import { ReadRetainedBranchDiffsService } from '@porcelain/changes/services';
+import { ReadReviewTextsService } from '@porcelain/reviews/services';
 import {
-  ReadChangeDiffsService,
-  ReadChangeFingerprintsService,
-  ReadWorktreeStatusService,
-} from '@porcelain/changes/services';
-import { ReadTextFilesService } from '@porcelain/files/services';
+  type IncompleteDiffReadError,
+  type CommitNotFoundError,
+} from '@porcelain/changes/errors';
 import {
   type ReadReviewEvidenceInput,
   type ReviewEvidence,
 } from '@porcelain/reviews/models';
-import { reviewPaths, trackedComparisons } from '@porcelain/reviews/rules';
+import { reviewPaths } from '@porcelain/reviews/rules';
 import { Effect, Context, Layer } from 'effect';
 import { type WorktreeRead } from '@porcelain/effects';
 import { type GitIoFailure } from '@porcelain/git/errors';
-import { type IncompleteDiffReadError } from '@porcelain/changes/errors';
 
 export class ReadReviewEvidenceUseCase extends Context.Service<
   ReadReviewEvidenceUseCase,
@@ -21,7 +20,7 @@ export class ReadReviewEvidenceUseCase extends Context.Service<
       input: ReadReviewEvidenceInput,
     ) => Effect.Effect<
       ReviewEvidence,
-      GitIoFailure | IncompleteDiffReadError,
+      GitIoFailure | IncompleteDiffReadError | CommitNotFoundError,
       WorktreeRead
     >;
   }
@@ -29,38 +28,66 @@ export class ReadReviewEvidenceUseCase extends Context.Service<
   static readonly layer = Layer.effect(
     ReadReviewEvidenceUseCase,
     Effect.gen(function* () {
-      const readWorktreeStatusCapability = yield* ReadWorktreeStatusService;
-      const readChangeFingerprintsCapability =
-        yield* ReadChangeFingerprintsService;
-      const readTextFilesCapability = yield* ReadTextFilesService;
-      const readChangeDiffsCapability = yield* ReadChangeDiffsService;
+      const branches = yield* ReadRetainedBranchDiffsService;
+      const code = yield* ReadReviewTextsService;
 
       return {
         execute: Effect.fn('ReadReviewEvidenceUseCase.execute')(function* (
           input: ReadReviewEvidenceInput,
         ): Effect.fn.Return<
           ReviewEvidence,
-          GitIoFailure | IncompleteDiffReadError,
+          GitIoFailure | IncompleteDiffReadError | CommitNotFoundError,
           WorktreeRead
         > {
-          const { worktreeId } = input;
-          const status = yield* readWorktreeStatusCapability.execute({
-            worktreeId,
-          });
-          const { changes } = yield* readChangeFingerprintsCapability.execute({
-            worktreeId,
-            comparisons: status.changes,
-            paths: undefined,
-          });
-          const { texts, missing } = yield* readTextFilesCapability.execute({
-            worktreeId,
+          const revision = input.revision;
+          const changes = revision.files.map((file) => ({
+            path: file.path,
+            fingerprint: file.newOid,
+            comparisons: [
+              {
+                scope: 'staged' as const,
+                kind: file.status,
+                oldPath: file.oldPath,
+                newPath: file.newPath,
+                oldMode: file.oldMode,
+                newMode: file.newMode,
+                oldOid: file.oldOid,
+                newOid: file.newOid,
+                supported: true,
+              },
+            ],
+          }));
+          const { texts, missing } = yield* code.execute({
+            commonDirectory: revision.commonDirectory,
+            oid: revision.headOid,
             paths: reviewPaths(input.layers, changes),
           });
-          const diffs = yield* readChangeDiffsCapability.execute({
-            worktreeId,
-            comparisons: trackedComparisons(changes),
-          });
-          return { changes, texts, missing, diffs };
+          const paths = revision.files.map((file) => [
+            ...new Set(
+              [file.oldPath, file.newPath].filter((path) => path !== undefined),
+            ),
+          ]);
+          const patches =
+            paths.length === 0
+              ? { diffs: [] }
+              : yield* branches.execute({
+                  commonDirectory: revision.commonDirectory,
+                  baseOid: revision.mergeBaseOid,
+                  headOid: revision.headOid,
+                  paths,
+                });
+          const diffs = revision.files.map((file, index) => ({
+            selection: {
+              scope: 'staged' as const,
+              oldPath: file.oldPath,
+              newPath: file.newPath,
+            },
+            content: patches.diffs[index]?.content ?? {
+              kind: 'omitted' as const,
+              reason: 'size-limit' as const,
+            },
+          }));
+          return { headOid: revision.headOid, changes, texts, missing, diffs };
         }),
       };
     }),

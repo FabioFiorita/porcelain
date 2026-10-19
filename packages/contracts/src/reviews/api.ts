@@ -1,3 +1,8 @@
+import { Schema } from 'effect';
+import {
+  readBranchDiffsRequestSchema,
+  readBranchDiffsResponseSchema,
+} from '../changes/branch-changes.ts';
 import { environmentUnavailable } from '../shared/environment-failure.ts';
 import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';
 import { porcelainApi } from '../shared/http-api.ts';
@@ -9,11 +14,13 @@ import { worktreeParamsSchema } from '../shared/worktree-params.ts';
 import { InvalidLineRangeError } from '@porcelain/kernel/errors';
 import {
   IncompleteDiffReadError,
+  CommitNotFoundError,
   BranchBaseNotFoundError,
   UnbornBranchError,
   UnrelatedBranchError,
 } from '@porcelain/changes/errors';
 import {
+  ReviewNotFoundError,
   CommentIdentityConflictError,
   CommentLimitExceededError,
   CommentRevisionMismatchError,
@@ -28,6 +35,7 @@ import {
   UnknownArrowBoxError,
   InvalidReviewPointerError,
   UnknownProofTargetError,
+  ReviewPublishRefusedError,
   ReviewConflictError,
   ProofTooLargeError,
   UnknownProofFileError,
@@ -60,6 +68,18 @@ import {
   readProofFileResponseSchema,
 } from './review-proof.ts';
 import {
+  reviewMarksResponseSchema,
+  setReviewMarkRequestSchema,
+  removeReviewMarkRequestSchema,
+  reviewParamsSchema,
+  reviewRevisionParamsSchema,
+  readReviewResponseSchema,
+  listProjectReviewsResponseSchema,
+  setReviewSeenRequestSchema,
+  setReviewStateRequestSchema,
+  reviewUpdatedResponseSchema,
+  readReviewFileQuerySchema,
+  readReviewFileResponseSchema,
   deleteReviewResponseSchema,
   publishReviewRequestSchema,
   publishReviewResponseSchema,
@@ -86,6 +106,270 @@ import {
 export class ReviewsApi extends porcelainApi.add(
   HttpApiGroup.make('reviews')
     .add(
+      HttpApiEndpoint.delete(
+        'deleteReviewCommentMessage',
+        '/api/reviews/:reviewId/comments/:threadId/messages',
+        {
+          disableCodecs: true,
+          params: Schema.Struct({
+            ...reviewParamsSchema.fields,
+            threadId: Schema.String.check(Schema.isUUID()),
+          }),
+          query: deleteCommentMessageQuerySchema.fields,
+          success: deleteCommentMessageResponseSchema,
+          error: [
+            ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+            httpFailure(CommentTargetNotFoundError, 'NotFound', {
+              message: 'Comment target not found',
+            }),
+            httpFailure(CommentAuthorMismatchError, 'Forbidden'),
+          ],
+        },
+      ),
+      HttpApiEndpoint.post(
+        'deleteResolvedReviewComments',
+        '/api/reviews/:reviewId/comments/resolved/deletion',
+        {
+          disableCodecs: true,
+          params: reviewParamsSchema,
+          payload: deleteResolvedCommentsRequestSchema,
+          success: deleteResolvedCommentsResponseSchema,
+          error: [
+            ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+          ],
+        },
+      ),
+      HttpApiEndpoint.patch(
+        'editReviewCommentMessage',
+        '/api/reviews/:reviewId/comments/:threadId/messages',
+        {
+          disableCodecs: true,
+          params: Schema.Struct({
+            ...reviewParamsSchema.fields,
+            threadId: Schema.String.check(Schema.isUUID()),
+          }),
+          payload: editCommentMessageRequestSchema,
+          success: editCommentMessageResponseSchema,
+          error: [
+            ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+            httpFailure(CommentTargetNotFoundError, 'NotFound', {
+              message: 'Comment target not found',
+            }),
+            httpFailure(CommentAuthorMismatchError, 'Forbidden'),
+            httpFailure(CommentLimitExceededError, 'Conflict'),
+          ],
+        },
+      ),
+      HttpApiEndpoint.get('listReviewMarks', '/api/reviews/:reviewId/marks', {
+        disableCodecs: true,
+        params: reviewParamsSchema,
+        success: reviewMarksResponseSchema,
+        error: [httpFailure(ReviewNotFoundError, 'NotFound')],
+      }),
+      HttpApiEndpoint.put('setReviewMark', '/api/reviews/:reviewId/marks', {
+        disableCodecs: true,
+        params: reviewParamsSchema,
+        payload: setReviewMarkRequestSchema,
+        success: reviewUpdatedResponseSchema,
+        error: [
+          httpFailure(ReviewNotFoundError, 'NotFound'),
+          httpFailure(ReviewedMarkConflictError, 'Conflict'),
+        ],
+      }),
+      HttpApiEndpoint.post(
+        'removeReviewMark',
+        '/api/reviews/:reviewId/marks/removal',
+        {
+          disableCodecs: true,
+          params: reviewParamsSchema,
+          payload: removeReviewMarkRequestSchema,
+          success: reviewUpdatedResponseSchema,
+          error: [httpFailure(ReviewNotFoundError, 'NotFound')],
+        },
+      ),
+      HttpApiEndpoint.post(
+        'createReviewCommentThread',
+        '/api/reviews/:reviewId/comments',
+        {
+          disableCodecs: true,
+          params: reviewParamsSchema,
+          payload: createCommentThreadRequestSchema,
+          success: createCommentThreadResponseSchema,
+          error: [
+            ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+            httpFailure(CommentIdentityConflictError, 'Conflict'),
+            httpFailure(CommentLimitExceededError, 'Conflict'),
+            httpFailure(InvalidLineRangeError, 'BadRequest', {
+              message: 'Invalid request',
+            }),
+            httpFailure(CommentRevisionMismatchError, 'BadRequest', {
+              message: 'Invalid request',
+            }),
+            httpFailure(UnsupportedCommentComparisonError, 'BadRequest', {
+              message: 'Invalid request',
+            }),
+          ],
+        },
+      ),
+      HttpApiEndpoint.get(
+        'listReviewCommentThreads',
+        '/api/reviews/:reviewId/comments',
+        {
+          disableCodecs: true,
+          params: reviewParamsSchema,
+          success: listCommentThreadsResponseSchema,
+          error: [
+            ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+          ],
+        },
+      ),
+      HttpApiEndpoint.post(
+        'replyToReviewComment',
+        '/api/reviews/:reviewId/comments/:threadId/replies',
+        {
+          disableCodecs: true,
+          params: Schema.Struct({
+            ...reviewParamsSchema.fields,
+            threadId: Schema.String.check(Schema.isUUID()),
+          }),
+          payload: replyToCommentRequestSchema,
+          success: replyToCommentResponseSchema,
+          error: [
+            ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+            httpFailure(CommentIdentityConflictError, 'Conflict'),
+            httpFailure(CommentTargetNotFoundError, 'NotFound', {
+              message: 'Comment target not found',
+            }),
+            httpFailure(CommentLimitExceededError, 'Conflict'),
+          ],
+        },
+      ),
+      HttpApiEndpoint.put(
+        'updateReviewCommentThread',
+        '/api/reviews/:reviewId/comments/:threadId',
+        {
+          disableCodecs: true,
+          params: Schema.Struct({
+            ...reviewParamsSchema.fields,
+            threadId: Schema.String.check(Schema.isUUID()),
+          }),
+          payload: updateCommentThreadRequestSchema,
+          success: updateCommentThreadResponseSchema,
+          error: [
+            ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+            httpFailure(CommentTargetNotFoundError, 'NotFound', {
+              message: 'Comment target not found',
+            }),
+          ],
+        },
+      ),
+      HttpApiEndpoint.get('readReview', '/api/reviews/:reviewId', {
+        disableCodecs: true,
+        params: reviewParamsSchema,
+        success: readReviewResponseSchema,
+        error: [
+          environmentUnavailable,
+          ...worktreeFailures,
+          httpFailure(ReviewNotFoundError, 'NotFound'),
+        ],
+      }),
+      HttpApiEndpoint.get(
+        'readReviewRevision',
+        '/api/reviews/:reviewId/revisions/:revision',
+        {
+          disableCodecs: true,
+          params: reviewRevisionParamsSchema,
+          success: readReviewResponseSchema,
+          error: [
+            environmentUnavailable,
+            ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+          ],
+        },
+      ),
+      HttpApiEndpoint.get(
+        'listProjectReviews',
+        '/api/projects/:projectId/reviews',
+        {
+          disableCodecs: true,
+          params: Schema.Struct({ projectId: Schema.String }),
+          success: listProjectReviewsResponseSchema,
+        },
+      ),
+      HttpApiEndpoint.put('setReviewSeen', '/api/reviews/:reviewId/seen', {
+        disableCodecs: true,
+        params: reviewParamsSchema,
+        payload: setReviewSeenRequestSchema,
+        success: reviewUpdatedResponseSchema,
+        error: [httpFailure(ReviewNotFoundError, 'NotFound')],
+      }),
+      HttpApiEndpoint.patch('setReviewState', '/api/reviews/:reviewId', {
+        disableCodecs: true,
+        params: reviewParamsSchema,
+        payload: setReviewStateRequestSchema,
+        success: reviewUpdatedResponseSchema,
+        error: [httpFailure(ReviewNotFoundError, 'NotFound')],
+      }),
+      HttpApiEndpoint.delete('deleteProjectReview', '/api/reviews/:reviewId', {
+        disableCodecs: true,
+        params: reviewParamsSchema,
+        success: deleteReviewResponseSchema,
+        error: [
+          ...worktreeFailures,
+          httpFailure(ReviewNotFoundError, 'NotFound'),
+        ],
+      }),
+      HttpApiEndpoint.get(
+        'readReviewProofFile',
+        '/api/reviews/:reviewId/revisions/:revision/proof',
+        {
+          disableCodecs: true,
+          params: reviewRevisionParamsSchema,
+          query: readProofFileQuerySchema.fields,
+          success: readProofFileResponseSchema,
+          error: [
+            ...worktreeFailures,
+            httpFailure(ProofFileNotFoundError, 'NotFound'),
+          ],
+        },
+      ),
+      HttpApiEndpoint.get(
+        'readReviewFile',
+        '/api/reviews/:reviewId/revisions/:revision/file',
+        {
+          disableCodecs: true,
+          params: reviewRevisionParamsSchema,
+          query: readReviewFileQuerySchema.fields,
+          success: readReviewFileResponseSchema,
+          error: [httpFailure(ReviewNotFoundError, 'NotFound')],
+        },
+      ),
+      HttpApiEndpoint.post(
+        'readReviewDiffs',
+        '/api/reviews/:reviewId/revisions/:revision/diffs',
+        {
+          disableCodecs: true,
+          params: reviewRevisionParamsSchema,
+          payload: Schema.Struct({
+            paths: readBranchDiffsRequestSchema.fields.paths,
+          }),
+          success: readBranchDiffsResponseSchema,
+          error: [
+            ...worktreeFailures,
+            ...gitReadFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+            httpFailure(CommitNotFoundError, 'NotFound'),
+            httpFailure(IncompleteDiffReadError, 'UnprocessableEntity'),
+          ],
+        },
+      ),
       HttpApiEndpoint.post(
         'createCommentThread',
         '/api/worktrees/:worktreeId/comments',
@@ -96,6 +380,7 @@ export class ReviewsApi extends porcelainApi.add(
           success: createCommentThreadResponseSchema,
           error: [
             ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
             httpFailure(CommentIdentityConflictError, 'Conflict'),
             httpFailure(CommentLimitExceededError, 'Conflict'),
             httpFailure(InvalidLineRangeError, 'BadRequest', {
@@ -120,6 +405,7 @@ export class ReviewsApi extends porcelainApi.add(
           success: deleteCommentMessageResponseSchema,
           error: [
             ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
             httpFailure(CommentTargetNotFoundError, 'NotFound', {
               message: 'Comment target not found',
             }),
@@ -135,7 +421,10 @@ export class ReviewsApi extends porcelainApi.add(
           params: worktreeParamsSchema,
           payload: deleteResolvedCommentsRequestSchema,
           success: deleteResolvedCommentsResponseSchema,
-          error: [...worktreeFailures],
+          error: [
+            ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+          ],
         },
       ),
       HttpApiEndpoint.patch(
@@ -148,6 +437,7 @@ export class ReviewsApi extends porcelainApi.add(
           success: editCommentMessageResponseSchema,
           error: [
             ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
             httpFailure(CommentTargetNotFoundError, 'NotFound', {
               message: 'Comment target not found',
             }),
@@ -163,7 +453,10 @@ export class ReviewsApi extends porcelainApi.add(
           disableCodecs: true,
           params: worktreeParamsSchema,
           success: listCommentThreadsResponseSchema,
-          error: [...worktreeFailures],
+          error: [
+            ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+          ],
         },
       ),
       HttpApiEndpoint.get(
@@ -174,7 +467,10 @@ export class ReviewsApi extends porcelainApi.add(
           params: worktreeParamsSchema,
           query: listReviewedFilesQuerySchema.fields,
           success: listReviewedFilesResponseSchema,
-          error: [...worktreeFailures],
+          error: [
+            ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+          ],
         },
       ),
       HttpApiEndpoint.get(
@@ -184,7 +480,10 @@ export class ReviewsApi extends porcelainApi.add(
           disableCodecs: true,
           params: worktreeParamsSchema,
           success: listReviewedLayersResponseSchema,
-          error: [...worktreeFailures],
+          error: [
+            ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+          ],
         },
       ),
       HttpApiEndpoint.post(
@@ -195,7 +494,10 @@ export class ReviewsApi extends porcelainApi.add(
           params: worktreeParamsSchema,
           payload: markCommentsSeenRequestSchema,
           success: markCommentsSeenResponseSchema,
-          error: [...worktreeFailures],
+          error: [
+            ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+          ],
         },
       ),
       HttpApiEndpoint.delete(
@@ -205,7 +507,10 @@ export class ReviewsApi extends porcelainApi.add(
           disableCodecs: true,
           params: worktreeParamsSchema,
           success: deleteReviewResponseSchema,
-          error: [...worktreeFailures],
+          error: [
+            ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+          ],
         },
       ),
       HttpApiEndpoint.put(
@@ -246,6 +551,10 @@ export class ReviewsApi extends porcelainApi.add(
               message: { fromError: true },
             }),
             httpFailure(ReviewConflictError, 'Conflict'),
+            httpFailure(ReviewPublishRefusedError, 'Conflict', {
+              message: { fromError: true },
+            }),
+            httpFailure(CommitNotFoundError, 'NotFound'),
             httpFailure(ProofTooLargeError, 'PayloadTooLarge'),
             httpFailure(UnknownProofFileError, 'BadRequest'),
             httpFailure(UnsupportedProofFileError, 'UnprocessableEntity'),
@@ -291,7 +600,7 @@ export class ReviewsApi extends porcelainApi.add(
           params: worktreeParamsSchema,
           query: removeReviewedFileQuerySchema.fields,
           success: removeReviewedFileResponseSchema,
-          error: [...worktreeFailures],
+          error: worktreeFailures,
         },
       ),
       HttpApiEndpoint.delete(
@@ -302,7 +611,7 @@ export class ReviewsApi extends porcelainApi.add(
           params: worktreeParamsSchema,
           payload: removeReviewedFilesRequestSchema,
           success: removeReviewedFilesResponseSchema,
-          error: [...worktreeFailures],
+          error: worktreeFailures,
         },
       ),
       HttpApiEndpoint.delete(
@@ -313,7 +622,10 @@ export class ReviewsApi extends porcelainApi.add(
           params: worktreeParamsSchema,
           query: removeReviewedLayerQuerySchema.fields,
           success: removeReviewedLayerResponseSchema,
-          error: [...worktreeFailures],
+          error: [
+            ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+          ],
         },
       ),
       HttpApiEndpoint.post(
@@ -326,6 +638,7 @@ export class ReviewsApi extends porcelainApi.add(
           success: replyToCommentResponseSchema,
           error: [
             ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
             httpFailure(CommentIdentityConflictError, 'Conflict'),
             httpFailure(CommentTargetNotFoundError, 'NotFound', {
               message: 'Comment target not found',
@@ -395,6 +708,7 @@ export class ReviewsApi extends porcelainApi.add(
           success: updateCommentThreadResponseSchema,
           error: [
             ...worktreeFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
             httpFailure(CommentTargetNotFoundError, 'NotFound', {
               message: 'Comment target not found',
             }),

@@ -5,6 +5,7 @@ import type {
 } from './comment-thread.ts';
 
 export type ReplyToCommentInput = {
+  reviewId?: string | undefined;
   worktreeId: string;
   threadId: string;
   messageId?: string | undefined;

@@ -30,7 +30,7 @@ const usage = `Usage: .agents/skills/server-verify/scripts/cli <command> [--inst
   ids                     print deterministic fixture IDs and paths
   pairing-link            print a fresh one-time browser pairing link
   agent publish-review "<title>" [--context] [--summary-html <html>]
-  agent publish-proof "<title>" --check "<name>=pass|fail|skipped" [--output "<name>=<text>"] --screenshot "<title>"
+  agent publish-proof "<title>" --check "<name>=pass|fail" [--output "<name>=<text>"] --screenshot "<title>"
   agent comment <path> "<body>" | reply <threadId|latest> "<body>"
   server published-review | reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | pending-links | receipt <requestId>
                           deterministic fixture actions and typed server readbacks

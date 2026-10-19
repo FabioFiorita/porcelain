@@ -11,3 +11,9 @@ export { ReadProofFileOptions } from './read-proof-file-options.ts';
 export { ReplyToCommentOptions } from './reply-to-comment-options.ts';
 export { ResolvePublishedReviewOptions } from './resolve-published-review-options.ts';
 export { SetReviewedFilesOptions } from './set-reviewed-files-options.ts';
+
+export { BranchReviewReader } from './branch-review-reader.ts';
+
+export { ReviewCommitPinner } from './review-commit-pinner.ts';
+
+export { ReviewCodeReader } from './review-code-reader.ts';

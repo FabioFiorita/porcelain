@@ -6,6 +6,7 @@ import {
 import { CommentStore } from '../ports/comment-store.ts';
 import {
   commentAuthor,
+  commentHasOwner,
   unchangedResolvedThread,
 } from '../rules/comment-threads.ts';
 
@@ -35,8 +36,9 @@ export class DeleteResolvedCommentsService extends Context.Service<
             });
             if (
               thread !== undefined &&
+              commentHasOwner(thread, input) &&
               unchangedResolvedThread(thread, {
-                worktreeId: input.worktreeId,
+                worktreeId: thread.worktreeId,
                 revision: confirmed.revision,
                 author,
               })

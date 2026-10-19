@@ -25,6 +25,8 @@ const branchFileSchema = Schema.Struct({
     'renamed',
     'type-changed',
   ]),
+  oldOid: Schema.optional(oidSchema),
+  newOid: Schema.optional(oidSchema),
   oldMode: Schema.String,
   newMode: Schema.String,
   fingerprint: fingerprintSchema,

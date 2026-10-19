@@ -1,7 +1,8 @@
 import type { ProofMediaType } from './review-proof.ts';
 
 export type ReadProofFileInput = {
-  worktreeId: string;
+  reviewId: string;
+  revision?: number | undefined;
   proofId: string;
 };
 

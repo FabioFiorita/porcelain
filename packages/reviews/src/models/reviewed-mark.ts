@@ -52,8 +52,10 @@ export type WorktreeReviewedLayerMark = ReviewedLayerMark & {
   worktreeId: string;
 };
 
-export type ReviewedFileKey = {
-  worktreeId: string;
+export type ReviewedFileKey = (
+  | { worktreeId: string; reviewId?: never }
+  | { reviewId: string; worktreeId?: never }
+) & {
   scope?: ReviewedScope | undefined;
   branch?: string | undefined;
 };
@@ -63,17 +65,26 @@ export type ReviewedFileSave = ReviewedFileKey & {
 };
 
 export type ReviewedFileRemoval = ReviewedFileKey & {
+  fingerprint?: string | undefined;
   paths: readonly string[];
 };
 
-export type ReviewedFileStaleness = ReviewedFileKey & {
+export type ReviewedFileStaleness = {
+  worktreeId: string;
+  scope?: ReviewedScope | undefined;
+  branch?: string | undefined;
+} & {
   paths: readonly string[];
   stale: boolean;
 };
 
 export type ReviewedLayerSave = {
-  worktreeId: string;
+  reviewId: string;
   marks: readonly ReviewedLayerMark[];
 };
 
-export type ReviewedLayerRemoval = { worktreeId: string; layerId: string };
+export type ReviewedLayerRemoval = {
+  reviewId: string;
+  layerId: string;
+  fingerprint: string;
+};

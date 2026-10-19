@@ -67,7 +67,7 @@ test('split published reviews keep one walkthrough shortcut owner as focus chang
   await drawer.getByRole('tab', { name: 'Review', exact: true }).click();
   await drawer
     .getByRole('button', {
-      name: '3 Publish an immutable note 0/6',
+      name: '3 Publish an immutable note',
       exact: true,
     })
     .click();

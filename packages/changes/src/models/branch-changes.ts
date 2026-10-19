@@ -34,7 +34,7 @@ export type BranchRangeRequest = {
   base: string | undefined;
 };
 
-type BranchFile = Omit<BranchRangeFile, 'oldOid' | 'newOid'> & {
+type BranchFile = BranchRangeFile & {
   path: string;
   fingerprint: string;
 };
@@ -69,3 +69,8 @@ export type BranchBases = {
   defaultRef: string | undefined;
   bases: { ref: string; name: string; remote: boolean }[];
 };
+
+export type RetainedBranchPatchesRequest = Omit<
+  BranchPatchesRequest,
+  'worktreeId'
+> & { commonDirectory: string };

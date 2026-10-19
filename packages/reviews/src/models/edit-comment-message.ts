@@ -1,6 +1,7 @@
 import type { CommentThread, CommentWriter } from './comment-thread.ts';
 
 export type EditCommentMessageInput = {
+  reviewId?: string | undefined;
   worktreeId: string;
   threadId: string;
   messageId: string;

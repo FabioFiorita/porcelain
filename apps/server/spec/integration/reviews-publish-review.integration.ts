@@ -1,3 +1,4 @@
+import { commitReviewFixture } from '../kit/requests.ts';
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { publishReviewResponseSchema } from '@porcelain/contracts/reviews';
@@ -8,7 +9,7 @@ import {
   unknownWorktreeId,
   worktreeNotFound,
 } from '../kit/answers.ts';
-import { eventually, inventory } from '../kit/reads.ts';
+import { inventory } from '../kit/reads.ts';
 import {
   SAMPLE_SUMMARY_HTML,
   sampleReview,
@@ -34,6 +35,7 @@ const worktreeStatus = async (session: Session) =>
 test('the first publish resolves each pointer, signs a summary link and marks the worktree review pending', async ({
   session,
 }) => {
+  await commitReviewFixture(session);
   const response = await session.send(
     publish(session, sampleReview(session, 0, layerId, stepId)),
   );
@@ -128,6 +130,7 @@ test('publishing unreadable text and out-of-range lines reports the actual point
   session,
 }) => {
   await session.writeFile('binary.md', '\0binary');
+  await commitReviewFixture(session);
   const draft = sampleReview(session, 1, layerId, stepId, {
     path: 'binary.md',
   });
@@ -157,9 +160,10 @@ test('publishing unreadable text and out-of-range lines reports the actual point
     ),
   );
   await session.remove('binary.md');
+  await commitReviewFixture(session);
 });
 
-test('publishing without layers or without a summary is invalid and to an unknown worktree is not found', async ({
+test('publishing without layers or without a verdict is invalid and to an unknown worktree is not found', async ({
   session,
 }) => {
   const noLayers = await session.send(
@@ -171,7 +175,7 @@ test('publishing without layers or without a summary is invalid and to an unknow
   const noSummary = await session.send(
     publish(session, {
       ...sampleReview(session, 1, layerId, stepId),
-      summaryHtml: '',
+      verdict: undefined,
     }),
   );
   const unknown = await session.send({
@@ -188,28 +192,28 @@ test('publishing without layers or without a summary is invalid and to an unknow
   expect(unknown.body).toStrictEqual(worktreeNotFound);
 });
 
-test('once every line the review explains is committed the inventory stops marking the review pending', async ({
+test('republishing the committed head keeps the branch review active and pending', async ({
   session,
 }) => {
   const response = await session.send(
-    publish(session, sampleReview(session, 1, layerId, stepId)),
+    publish(session, {
+      ...sampleReview(session, 1, layerId, stepId),
+      verdict: {
+        ...sampleReview(session, 1, layerId, stepId).verdict,
+        removed: [
+          {
+            behavior: 'Binary test fixture',
+            why: 'Only needed for the refusal test',
+            paths: ['binary.md'],
+          },
+        ],
+      },
+    }),
   );
-
   expect(response.status).toBe(200);
   expect(record(response.body).review).toMatchObject({
     revision: 2,
     active: true,
   });
   expect(await worktreeStatus(session)).toBe('pending');
-  await session.git('commit', '-am', 'Commit the readme');
-  const settled = await eventually(
-    session,
-    { method: 'GET', path: '/api/inventory' },
-    (body) =>
-      record(list(record(list(body.projects)[0]).worktrees)[0]).status !==
-      'pending',
-  );
-  expect(
-    record(list(record(list(settled.projects)[0]).worktrees)[0]).status,
-  ).toBeNull();
 });

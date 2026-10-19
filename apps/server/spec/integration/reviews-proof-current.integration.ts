@@ -1,3 +1,4 @@
+import { commitReviewFixture } from '../kit/requests.ts';
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import { sampleReview, worktreePath } from '../kit/requests.ts';
@@ -17,6 +18,7 @@ const review = (session: Session) => ({
 const proofOf = (body: unknown) => record(record(record(body).review).proof);
 
 test('proof published with a review is current', async ({ session }) => {
+  await commitReviewFixture(session);
   const response = await session.send({
     method: 'PUT',
     path: worktreePath(session, '/review'),
@@ -55,6 +57,7 @@ test('proof is no longer current once a changed file is edited again', async ({
 test('deleting a published screenshot from the worktree keeps the proof current', async ({
   session,
 }) => {
+  await commitReviewFixture(session);
   await session.writeFile('current-shot.png', shot);
   await session.read({
     method: 'PUT',

@@ -73,6 +73,12 @@ export class CreateCommentThreadService extends Context.Service<
           | CommentRevisionMismatchError
           | UnsupportedCommentComparisonError
         > {
+          if (
+            input.review !== undefined &&
+            input.anchor.revision !== undefined &&
+            input.anchor.revision !== input.review.headOid
+          )
+            return yield* Effect.fail(new CommentRevisionMismatchError());
           const problem = commentAnchorProblem(input.anchor);
           if (problem) return yield* Effect.fail(operationFailure(problem));
           const threadId = input.threadId ?? idSourceCapability.next();
@@ -81,8 +87,12 @@ export class CreateCommentThreadService extends Context.Service<
           const existing = yield* commentsCapability.find({ threadId });
           if (existing) {
             if (
+              existing.review?.reviewId !== input.review?.reviewId ||
               !repeatsCreation(existing, {
-                worktreeId: input.worktreeId,
+                worktreeId:
+                  input.review === undefined
+                    ? input.worktreeId
+                    : existing.worktreeId,
                 anchor: input.anchor,
                 messageId,
                 body: input.body,
@@ -95,6 +105,7 @@ export class CreateCommentThreadService extends Context.Service<
           if (yield* commentsCapability.findMessage({ messageId }))
             return yield* Effect.fail(new CommentIdentityConflictError());
           const content: CommentContent = {
+            ...(input.review === undefined ? {} : { review: input.review }),
             id: threadId,
             worktreeId: input.worktreeId,
             anchor: structuredClone(input.anchor),
@@ -110,9 +121,11 @@ export class CreateCommentThreadService extends Context.Service<
             ],
           };
           const sizeBytes = commentStorageSize(content);
-          const usage = yield* commentsCapability.usage({
-            worktreeId: input.worktreeId,
-          });
+          const usage = yield* commentsCapability.usage(
+            input.review === undefined
+              ? { worktreeId: input.worktreeId }
+              : { reviewId: input.review.reviewId },
+          );
           if (!threadFits(usage, sizeBytes, optionsCapability))
             return yield* Effect.fail(new CommentLimitExceededError());
           return yield* commentsCapability.insert({

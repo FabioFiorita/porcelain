@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { readHeadBlob } from './read-head-blob.ts';
+import { readBlobAtOid } from './read-blob-at-oid.ts';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 
 let base: string;
@@ -38,28 +38,36 @@ afterEach(() => {
   rmSync(base, { recursive: true, force: true });
 });
 
-describe('readHeadBlob', () => {
+describe('readBlobAtOid', () => {
   it('reads the committed bytes of a file, not the worktree edit', async () => {
     const blob = await run(
-      readHeadBlob(
+      readBlobAtOid(
         { path: checkout },
-        { path: 'README.md', maxBytes: 100 },
+        { oid: 'HEAD', path: 'README.md', maxBytes: 100 },
         gitLimits,
       ),
     );
-    expect(blob).toEqual({ kind: 'bytes', bytes: Buffer.from('committed\n') });
+    expect(blob).toEqual({
+      kind: 'bytes',
+      blobOid: 'd0fe82252177cb2caf3563f8190643a292c2caa1',
+      bytes: Buffer.from('committed\n'),
+    });
   });
 
   it('reads a blob exactly at the limit', async () => {
     expect(
       await run(
-        readHeadBlob(
+        readBlobAtOid(
           { path: checkout },
-          { path: 'README.md', maxBytes: 'committed\n'.length },
+          { oid: 'HEAD', path: 'README.md', maxBytes: 'committed\n'.length },
           gitLimits,
         ),
       ),
-    ).toEqual({ kind: 'bytes', bytes: Buffer.from('committed\n') });
+    ).toEqual({
+      kind: 'bytes',
+      blobOid: 'd0fe82252177cb2caf3563f8190643a292c2caa1',
+      bytes: Buffer.from('committed\n'),
+    });
   });
 
   it('answers missing for a path HEAD does not hold, even when it is on disk', async () => {
@@ -68,9 +76,9 @@ describe('readHeadBlob', () => {
       await Promise.all(
         ['new.md', 'absent.md'].map((path) =>
           run(
-            readHeadBlob(
+            readBlobAtOid(
               { path: checkout },
-              { path, maxBytes: 100 },
+              { oid: 'HEAD', path, maxBytes: 100 },
               gitLimits,
             ),
           ),
@@ -85,9 +93,9 @@ describe('readHeadBlob', () => {
     writeFileSync(join(empty, 'README.md'), 'not committed\n');
     expect(
       await run(
-        readHeadBlob(
+        readBlobAtOid(
           { path: empty },
-          { path: 'README.md', maxBytes: 100 },
+          { oid: 'HEAD', path: 'README.md', maxBytes: 100 },
           gitLimits,
         ),
       ),
@@ -97,13 +105,20 @@ describe('readHeadBlob', () => {
   it('answers too large for a blob one byte past the limit', async () => {
     expect(
       await run(
-        readHeadBlob(
+        readBlobAtOid(
           { path: checkout },
-          { path: 'README.md', maxBytes: 'committed\n'.length - 1 },
+          {
+            oid: 'HEAD',
+            path: 'README.md',
+            maxBytes: 'committed\n'.length - 1,
+          },
           gitLimits,
         ),
       ),
-    ).toEqual({ kind: 'too-large' });
+    ).toEqual({
+      kind: 'too-large',
+      blobOid: 'd0fe82252177cb2caf3563f8190643a292c2caa1',
+    });
   });
 });
 

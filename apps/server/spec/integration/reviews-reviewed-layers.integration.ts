@@ -1,3 +1,4 @@
+import { commitReviewFixture } from '../kit/requests.ts';
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { listReviewedLayersResponseSchema } from '@porcelain/contracts/reviews';
@@ -9,7 +10,7 @@ import {
   unknownWorktreeId,
   worktreeNotFound,
 } from '../kit/answers.ts';
-import { eventually, watching } from '../kit/reads.ts';
+import { watching } from '../kit/reads.ts';
 import { read, sampleReview, worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { list, record, text, type Session } from '../kit/session.ts';
@@ -48,6 +49,7 @@ const isWorktree =
 test('marking a layer before any review is published is not found and stores nothing', async ({
   session,
 }) => {
+  await commitReviewFixture(session);
   const response = await session.send({
     method: 'PUT',
     path: layers(session),
@@ -115,24 +117,21 @@ test('marking at a fingerprint the layer does not have is a conflict, a layer th
   ).toStrictEqual([layerId]);
 });
 
-test('a file change while no viewer watches keeps the layer mark and flags it stale', async ({
+test('a file change while no viewer watches keeps the published layer mark current', async ({
   session,
 }) => {
   await session.writeFile(
     session.fixture.readme.path,
     'Changed while nobody watched\n',
   );
-  await eventually(session, { method: 'GET', path: layers(session) }, (body) =>
-    marks(body).some((mark) => record(mark).stale === true),
-  ).catch(() => undefined);
 
   const response = await session.send({ method: 'GET', path: layers(session) });
 
   expect(response.status).toBe(200);
-  expect(marks(response.body)).toMatchObject([{ layerId, stale: true }]);
+  expect(marks(response.body)).toMatchObject([{ layerId, stale: false }]);
 });
 
-test('a file change while a viewer watches keeps the layer mark and flags it stale', async ({
+test('a file change while a viewer watches keeps the published layer mark current', async ({
   session,
 }) => {
   const connection = await watching(session);
@@ -140,15 +139,12 @@ test('a file change while a viewer watches keeps the layer mark and flags it sta
     session.fixture.readme.path,
     'Changed while a viewer watched\n',
   );
-  await eventually(session, { method: 'GET', path: layers(session) }, (body) =>
-    marks(body).some((mark) => record(mark).stale === true),
-  ).catch(() => undefined);
   await connection.close();
 
   const response = await session.send({ method: 'GET', path: layers(session) });
 
   expect(response.status).toBe(200);
-  expect(marks(response.body)).toMatchObject([{ layerId, stale: true }]);
+  expect(marks(response.body)).toMatchObject([{ layerId, stale: false }]);
 });
 
 test('unmarking a layer answers the remaining marks as the list reads them', async ({
@@ -167,7 +163,7 @@ test('unmarking a layer answers the remaining marks as the list reads them', asy
   ).toStrictEqual(response.body);
 });
 
-test('an edit through the API flags the layer mark stale as it answers and tells a watching viewer once that the files changed', async ({
+test('an edit through the API preserves the published layer mark as it answers and tells a watching viewer once that the files changed', async ({
   session,
 }) => {
   await session.writeFile(
@@ -178,6 +174,7 @@ test('an edit through the API flags the layer mark stale as it answers and tells
     method: 'GET',
     path: worktreePath(session, '/review'),
   });
+  await commitReviewFixture(session);
   const republished = await read(session, {
     method: 'PUT',
     path: worktreePath(session, '/review'),
@@ -230,7 +227,7 @@ test('an edit through the API flags the layer mark stale as it answers and tells
   );
   expect(
     marks(await read(session, { method: 'GET', path: layers(session) })),
-  ).toMatchObject([{ layerId, stale: true }]);
+  ).toMatchObject([{ layerId, stale: false }]);
   await read(session, {
     method: 'DELETE',
     path: layers(session),

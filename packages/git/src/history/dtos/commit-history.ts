@@ -76,3 +76,5 @@ export type FileCommits = {
   commits: FileCommit[];
   more: boolean;
 };
+
+export type HistoryRepository = { kind: 'repository'; path: string };

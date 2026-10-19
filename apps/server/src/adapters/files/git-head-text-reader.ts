@@ -1,6 +1,6 @@
 import type { FileReadInput, TextRead } from '@porcelain/files/models';
 import { HeadTextReader } from '@porcelain/files/ports';
-import { readHeadBlob } from '@porcelain/git/inspection';
+import { readBlobAtOid } from '@porcelain/git/inspection';
 import { Effect, Layer } from 'effect';
 import { readGitEffect } from '../../runtime/git-io.ts';
 import { captureGitPlatform } from '@porcelain/git/discovery';
@@ -20,9 +20,9 @@ export const gitHeadTextReaderLayer = (open: OpenInspection) =>
               Effect.gen(function* () {
                 const { checkout, limits } = yield* open(input.worktreeId);
                 yield* checkout.verify();
-                const blob = yield* readHeadBlob(
+                const blob = yield* readBlobAtOid(
                   checkout,
-                  { path: input.path, maxBytes: input.maxBytes },
+                  { oid: 'HEAD', path: input.path, maxBytes: input.maxBytes },
                   limits,
                 );
                 if (blob.kind === 'too-large') return blob;

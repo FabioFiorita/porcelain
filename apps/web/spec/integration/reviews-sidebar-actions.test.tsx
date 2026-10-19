@@ -8,6 +8,10 @@ test('a sidebar decision menu marks its files and decision, unmarks only the dec
   repo,
 }) => {
   await agent.publishReview('Phone verification');
+  await repo.write(
+    repo.readme.path,
+    `${repo.readme.changed}A follow-up edit.\n`,
+  );
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
   await workspace.getByRole('tab', { name: 'Review', exact: true }).click();
   const sidebar = workspace.getByRole('complementary', {

@@ -463,6 +463,7 @@ try {
   await writeFile(readme, fixture.readme.committed);
   await git('add', fixture.readme.path);
   await git('commit', '-m', fixture.initialCommit);
+  await git('branch', 'porcelain-fixture-base');
   if (sample === 'review') await seedReviewSample(repository);
   if (sample === 'perf')
     perf = await changePerfSample({ root, repository, git: sampleGit });

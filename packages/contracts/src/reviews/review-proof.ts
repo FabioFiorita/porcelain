@@ -31,7 +31,7 @@ const proofMediaTypeSchema = Schema.Literals([
 
 const proofCheckSchema = Schema.Struct({
   name: titleSchema,
-  result: Schema.Literals(['pass', 'fail', 'skipped']),
+  result: Schema.Literals(['pass', 'fail']),
   output: Schema.optional(
     Schema.String.check(Schema.isMinLength(1)).check(
       Schema.isMaxLength(REVIEW_PROOF_OUTPUT_LENGTH),

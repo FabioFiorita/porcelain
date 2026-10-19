@@ -1,3 +1,4 @@
+import { type AtReviewScopeUseCase } from '../../use-cases/reviews/at-review-scope.ts';
 import { type Context, Effect, Layer } from 'effect';
 import { McpServer } from 'effect/ai';
 import { HttpServerRequest } from 'effect/http';
@@ -7,25 +8,22 @@ import { RequestError } from '../../runtime/errors/request-error.ts';
 import { type AtWorktreePathUseCase } from '../../use-cases/reviews/at-worktree-path.ts';
 import { type CreateCommentThreadUseCase } from '../../use-cases/reviews/create-comment-thread.ts';
 import { type ListCommentThreadsUseCase } from '../../use-cases/reviews/list-comment-threads.ts';
-import { type DeleteReviewUseCase } from '../../use-cases/reviews/delete-review.ts';
 import { type PublishReviewUseCase } from '../../use-cases/reviews/publish-review.ts';
-import { type ReadPublishedReviewUseCase } from '../../use-cases/reviews/read-published-review.ts';
+import { type ReadReviewUseCase } from '../../use-cases/reviews/read-review.ts';
 import { type ReplyToCommentUseCase } from '../../use-cases/reviews/reply-to-comment.ts';
 import { type UpdateCommentThreadUseCase } from '../../use-cases/reviews/update-comment-thread.ts';
 import { httpEvent, toolAudit } from '../diagnostics.ts';
 import { REVIEW_GUIDE } from './review-guide.ts';
 export type ReviewMcpUseCases = {
   reviewTools: {
+    atReviewScope: Context.Service.Shape<typeof AtReviewScopeUseCase>;
     atWorktreePath: Context.Service.Shape<typeof AtWorktreePathUseCase>;
     createCommentThread: Context.Service.Shape<
       typeof CreateCommentThreadUseCase
     >;
     listCommentThreads: Context.Service.Shape<typeof ListCommentThreadsUseCase>;
-    deleteReview: Context.Service.Shape<typeof DeleteReviewUseCase>;
     publishReview: Context.Service.Shape<typeof PublishReviewUseCase>;
-    readPublishedReview: Context.Service.Shape<
-      typeof ReadPublishedReviewUseCase
-    >;
+    readReview: Context.Service.Shape<typeof ReadReviewUseCase>;
     replyToComment: Context.Service.Shape<typeof ReplyToCommentUseCase>;
     updateCommentThread: Context.Service.Shape<
       typeof UpdateCommentThreadUseCase
@@ -101,28 +99,22 @@ export function reviewMcpHandlers(useCases: ReviewMcpUseCases) {
                 };
               }),
             ),
-          delete_review: ({ cwd }) =>
-            invocation('delete_review', (defaultCwd) =>
-              useCases.reviewTools.atWorktreePath.execute({
-                operation: useCases.reviewTools.deleteReview,
-                cwd: cwd ?? defaultCwd,
-                request: {},
-              }),
-            ),
-          read_review: ({ cwd }) =>
+          read_review: ({ cwd, reviewId, revision }) =>
             invocation('read_review', (defaultCwd) =>
-              useCases.reviewTools.atWorktreePath.execute({
-                operation: useCases.reviewTools.readPublishedReview,
+              useCases.reviewTools.atReviewScope.execute({
+                operation: useCases.reviewTools.readReview,
                 cwd: cwd ?? defaultCwd,
-                request: {},
+                reviewId,
+                request: { revision },
               }),
             ),
-          list_comments: ({ cwd, scope }) =>
+          list_comments: ({ cwd, scope, reviewId }) =>
             invocation('list_comments', (defaultCwd) =>
               Effect.map(
-                useCases.reviewTools.atWorktreePath.execute({
+                useCases.reviewTools.atReviewScope.execute({
                   operation: useCases.reviewTools.listCommentThreads,
                   cwd: cwd ?? defaultCwd,
+                  reviewId,
                   request: { scope },
                 }),
                 (threads) => ({ threads }),
@@ -130,25 +122,28 @@ export function reviewMcpHandlers(useCases: ReviewMcpUseCases) {
             ),
           create_comment: ({ cwd, ...input }) =>
             invocation('create_comment', (defaultCwd) =>
-              useCases.reviewTools.atWorktreePath.execute({
+              useCases.reviewTools.atReviewScope.execute({
                 operation: useCases.reviewTools.createCommentThread,
                 cwd: cwd ?? defaultCwd,
+                reviewId: input.reviewId,
                 request: { ...input, writer: agent },
               }),
             ),
           reply_to_comment: ({ cwd, ...input }) =>
             invocation('reply_to_comment', (defaultCwd) =>
-              useCases.reviewTools.atWorktreePath.execute({
+              useCases.reviewTools.atReviewScope.execute({
                 operation: useCases.reviewTools.replyToComment,
                 cwd: cwd ?? defaultCwd,
+                reviewId: input.reviewId,
                 request: { ...input, writer: agent },
               }),
             ),
           resolve_comment: ({ cwd, ...input }) =>
             invocation('resolve_comment', (defaultCwd) =>
-              useCases.reviewTools.atWorktreePath.execute({
+              useCases.reviewTools.atReviewScope.execute({
                 operation: useCases.reviewTools.updateCommentThread,
                 cwd: cwd ?? defaultCwd,
+                reviewId: input.reviewId,
                 request: input,
               }),
             ),

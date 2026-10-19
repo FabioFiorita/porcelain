@@ -130,6 +130,13 @@ async function publishSummary(page: Page, repository: string, title: string) {
   if (worktree === undefined)
     throw new Error('The summary project has no main worktree');
   const review: PublishReviewRequest = {
+    verdict: {
+      asked: { text: 'Verify desktop summary navigation' },
+      recommendation: 'merge',
+      reasons: ['Disposable summary fixture'],
+      notProven: [],
+      removed: [],
+    },
     expectedRevision: 0,
     summaryHtml: `<html><body><h1>${title}</h1><a href="#layer-1">Open ${title} layer</a> <a href="https://example.com/">Leave for a website</a></body></html>`,
     layers: [

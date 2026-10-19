@@ -123,13 +123,6 @@ function resolveLayer(
   };
 }
 
-export function currentLayerFingerprint(
-  layer: ReviewLayer,
-  files: ReviewTexts,
-): string {
-  return resolveLayer(layer, files, undefined, new Set()).fingerprint;
-}
-
 export function publishedLayerFingerprint(
   steps: readonly ReviewStep[],
 ): string {
@@ -163,28 +156,6 @@ export function resolveReview(
       ),
     ),
   };
-}
-
-export function reviewIsActive(layers: readonly ResolvedLayer[]): boolean {
-  const changedSteps = layers
-    .flatMap((layer) => layer.steps)
-    .filter((step) => step.kind === 'changed');
-  return (
-    changedSteps.length === 0 ||
-    changedSteps.some((step) => {
-      const location = step.location;
-      switch (location.state) {
-        case 'current':
-        case 'changed':
-          return true;
-        case 'committed':
-        case 'broken':
-          return false;
-        default:
-          return location satisfies never;
-      }
-    })
-  );
 }
 
 function contiguous(values: readonly number[]): {

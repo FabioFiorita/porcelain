@@ -1,3 +1,5 @@
+import { reviewDirtyPaths } from '@porcelain/reviews/rules';
+import { ReadWorktreeStatusService } from '@porcelain/changes/services';
 import { type MissingEnvironmentIdentityError } from '@porcelain/access/errors';
 import { type GitIoFailure } from '@porcelain/git/errors';
 import { type IncompleteDiffReadError } from '@porcelain/changes/errors';
@@ -11,7 +13,6 @@ import {
   ResolvePublishedReviewService,
   ReadPublishedReviewService,
 } from '@porcelain/reviews/services';
-import { ReadReviewEvidenceUseCasePort } from '../../ports/read-review-evidence-use-case-port.ts';
 
 export class ReadPublishedReviewUseCase extends Context.Service<
   ReadPublishedReviewUseCase,
@@ -32,7 +33,7 @@ export class ReadPublishedReviewUseCase extends Context.Service<
     Effect.gen(function* () {
       const accessCapability = yield* WorktreeAccess;
       const readPublishedReviewCapability = yield* ReadPublishedReviewService;
-      const readReviewEvidenceCapability = yield* ReadReviewEvidenceUseCasePort;
+      const status = yield* ReadWorktreeStatusService;
       const readEnvironmentCapability = yield* ReadEnvironmentService;
       const resolvePublishedReviewCapability =
         yield* ResolvePublishedReviewService;
@@ -54,15 +55,13 @@ export class ReadPublishedReviewUseCase extends Context.Service<
                 worktreeId,
               });
               if (published.kind === 'none') return { review: undefined };
-              const evidence = yield* readReviewEvidenceCapability.execute({
-                worktreeId,
-                layers: published.review.layers,
-              });
+              const observed = yield* status.execute({ worktreeId });
               const resolved = yield* resolvePublishedReviewCapability.execute({
                 environmentId: (yield* readEnvironmentCapability.execute())
                   .environmentId,
                 review: published.review,
-                evidence,
+                headOid: observed.headOid,
+                dirtyPaths: reviewDirtyPaths(observed.changes),
               });
               return { review: resolved };
             }),

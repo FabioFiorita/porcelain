@@ -5,14 +5,12 @@ import {
 import { Effect, Context, Layer } from 'effect';
 import { WorktreeAccess } from '../../runtime/worktree-access.ts';
 import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
-import { ReadTextFilesService } from '@porcelain/files/services';
 import {
   type SetReviewedLayerRequest,
   type SetReviewedLayerResponse,
 } from '@porcelain/contracts/reviews';
 import { type WorktreeParams } from '@porcelain/contracts/shared';
 import {
-  ListReviewedLayerPathsService,
   ListReviewedLayersService,
   ReadReviewLayerService,
   SetReviewedLayerService,
@@ -37,10 +35,7 @@ export class SetReviewedLayerUseCase extends Context.Service<
     Effect.gen(function* () {
       const accessCapability = yield* WorktreeAccess;
       const readReviewLayerCapability = yield* ReadReviewLayerService;
-      const readTextFilesCapability = yield* ReadTextFilesService;
       const setReviewedLayerCapability = yield* SetReviewedLayerService;
-      const listReviewedLayerPathsCapability =
-        yield* ListReviewedLayerPathsService;
       const listReviewedLayersCapability = yield* ListReviewedLayersService;
       const eventsCapability = yield* EventPublisher;
 
@@ -58,40 +53,29 @@ export class SetReviewedLayerUseCase extends Context.Service<
             return accessCapability.transaction(
               worktreeId,
               () =>
-                Effect.gen(function* () {
-                  const { layer, paths } =
-                    yield* readReviewLayerCapability.execute({
-                      worktreeId,
-                      layerId: input.layerId,
-                    });
-                  const marked =
-                    yield* listReviewedLayerPathsCapability.execute({
-                      worktreeId,
-                    });
-                  const { texts } = yield* readTextFilesCapability.execute({
-                    worktreeId,
-                    paths: [...new Set([...paths, ...marked.paths])],
-                  });
-                  return { layer, texts };
+                readReviewLayerCapability.execute({
+                  worktreeId,
+                  layerId: input.layerId,
                 }),
-              ({ layer, texts }) =>
+              ({ reviewId, layer }) =>
                 Effect.gen(function* () {
                   yield* setReviewedLayerCapability.execute({
-                    worktreeId,
+                    reviewId,
                     layer,
                     fingerprint: input.fingerprint,
-                    texts,
                   });
                   return yield* listReviewedLayersCapability.execute({
                     worktreeId,
-                    texts,
                   });
                 }),
               () =>
-                eventsCapability.worktreeChanged({
-                  worktreeId,
-                  change: 'reviewed',
-                }),
+                Effect.andThen(
+                  eventsCapability.worktreeChanged({
+                    worktreeId,
+                    change: 'reviewed',
+                  }),
+                  eventsCapability.inventoryChanged(),
+                ),
             );
           });
         }),

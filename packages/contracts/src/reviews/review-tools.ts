@@ -7,7 +7,7 @@ import {
 } from './comments.ts';
 import {
   publishReviewRequestSchema,
-  readPublishedReviewResponseSchema,
+  publishReviewResponseSchema,
 } from './review.ts';
 import { PATH_LENGTH } from '../shared/limits.ts';
 
@@ -24,14 +24,18 @@ export const publishReviewToolRequestSchema = Schema.Struct({
   ...publishReviewRequestSchema.fields,
 });
 export const publishReviewToolResponseSchema = Schema.Struct({
-  ...readPublishedReviewResponseSchema.fields,
+  ...publishReviewResponseSchema.fields,
   ...{
     warnings: Schema.Array(Schema.String),
   },
 });
-export const deleteReviewToolRequestSchema = reviewToolScopeSchema;
-export const readReviewToolRequestSchema = reviewToolScopeSchema;
+export const readReviewToolRequestSchema = Schema.Struct({
+  ...reviewToolScopeSchema.fields,
+  reviewId: Schema.optional(Schema.String.check(Schema.isUUID())),
+  revision: Schema.optional(Schema.Int.check(Schema.isGreaterThan(0))),
+});
 export const listCommentsToolRequestSchema = Schema.Struct({
+  reviewId: Schema.optional(Schema.String.check(Schema.isUUID())),
   ...reviewToolScopeSchema.fields,
   ...{
     scope: commentThreadScopeSchema.pipe(

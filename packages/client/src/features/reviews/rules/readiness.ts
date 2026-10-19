@@ -33,7 +33,7 @@ function counted(total: number, one: string, many: string) {
 
 function checksItem(proof: ReviewProof | undefined): ReadinessItem {
   const status = proofStatus(proof);
-  const total = status.failing + status.skipped + status.passing;
+  const total = status.failing + status.passing;
   if (status.failing > 0)
     return {
       key: 'checks',
@@ -46,12 +46,6 @@ function checksItem(proof: ReviewProof | undefined): ReadinessItem {
     return {
       key: 'checks',
       label: 'Checks ran before the latest changes',
-      tone: 'attention',
-    };
-  if (status.skipped > 0)
-    return {
-      key: 'checks',
-      label: `${counted(status.skipped, 'check', 'checks')} skipped`,
       tone: 'attention',
     };
   return {

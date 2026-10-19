@@ -100,7 +100,14 @@ export type CommentMessage = {
   editedAt?: string | undefined;
 };
 
+export type ReviewThreadOrigin = {
+  reviewId: string;
+  revision: number;
+  headOid: string;
+};
+export type CommentOwner = { worktreeId: string } | { reviewId: string };
 export type CommentThread = {
+  review?: ReviewThreadOrigin | undefined;
   id: string;
   worktreeId: string;
   anchor: CommentAnchor;
@@ -111,7 +118,7 @@ export type CommentThread = {
 
 export type CommentContent = Pick<
   CommentThread,
-  'id' | 'worktreeId' | 'anchor' | 'messages'
+  'id' | 'worktreeId' | 'anchor' | 'messages' | 'review'
 >;
 
 export type PostedCommentMessage = CommentMessage & {

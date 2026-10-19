@@ -1,3 +1,4 @@
+import type { ReviewThreadOrigin } from './comment-thread.ts';
 import type {
   CommentAnchor,
   CommentLimits,
@@ -6,6 +7,7 @@ import type {
 } from './comment-thread.ts';
 
 export type CreateCommentThreadInput = {
+  review?: ReviewThreadOrigin | undefined;
   worktreeId: string;
   threadId?: string | undefined;
   messageId?: string | undefined;

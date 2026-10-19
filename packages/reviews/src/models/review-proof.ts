@@ -11,11 +11,7 @@ const proofCheckSchema = Schema.Struct({
   ...proofTargetSchema.fields,
   name: Schema.mutableKey(Schema.String),
   result: Schema.mutableKey(
-    Schema.Union([
-      Schema.Literal('pass'),
-      Schema.Literal('fail'),
-      Schema.Literal('skipped'),
-    ]),
+    Schema.Union([Schema.Literal('pass'), Schema.Literal('fail')]),
   ),
   output: Schema.mutableKey(
     Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
@@ -55,16 +51,10 @@ const proofAssetSchema = Schema.Union([
   proofFileAssetSchema,
   proofLinkAssetSchema,
 ]);
-const proofBaselineSchema = Schema.Struct({
-  digest: Schema.mutableKey(Schema.String),
-  proofPaths: Schema.mutableKey(Schema.Array(Schema.String)),
-});
 export const reviewProofSchema = Schema.Struct({
+  paths: Schema.optional(Schema.Array(Schema.String)),
   checks: Schema.mutableKey(Schema.Array(proofCheckSchema)),
   assets: Schema.mutableKey(Schema.Array(proofAssetSchema)),
-  baseline: Schema.mutableKey(
-    Schema.optional(Schema.Union([proofBaselineSchema, Schema.Undefined])),
-  ),
 });
 
 export type ProofTarget = typeof proofTargetSchema.Type;
@@ -105,11 +95,6 @@ export type ProofFile = {
   id: string;
   mediaType: ProofMediaType;
   bytes: Uint8Array;
-};
-
-export type ProofFileKey = {
-  worktreeId: string;
-  proofId: string;
 };
 
 export type ProofFileReads = {

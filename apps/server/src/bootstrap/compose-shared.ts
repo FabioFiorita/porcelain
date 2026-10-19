@@ -1,3 +1,5 @@
+import { catalogBranchReviewReaderLayer } from '../adapters/reviews/catalog-branch-review-reader.ts';
+import { gitReviewCodeReaderLayer } from '../adapters/reviews/git-review-code-reader.ts';
 import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
 import {
   ChangeStatusReader,
@@ -5,6 +7,7 @@ import {
   BranchRangeReader,
 } from '@porcelain/changes/ports';
 import {
+  BranchReviewReader,
   ReviewStore,
   ReviewedLayerStore,
   CommentStore,
@@ -30,6 +33,7 @@ import {
 import { osHostNameReaderLayer } from '../adapters/access/os-host-name-reader.ts';
 import {
   ReadBranchChangesService,
+  ReadRetainedBranchDiffsService,
   ReadChangeDiffsService,
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
@@ -51,7 +55,7 @@ import {
 } from '@porcelain/projects/services';
 import {
   InvalidateReviewedMarksService,
-  ListReviewedLayerPathsService,
+  ReadReviewTextsService,
   ReadPublishedReviewService,
   ReadReviewBadgesService,
   RecordReviewActivityService,
@@ -122,6 +126,10 @@ export function composeShared(dependencies: SharedDependencies) {
       Layer.succeed(ReadBinaryFilesOptions, limits.reviews.proof),
       Layer.succeed(ReviewedFileStore, stores.reviewedFiles),
     );
+    const reviewPorts = Layer.mergeAll(
+      catalogBranchReviewReaderLayer,
+      gitReviewCodeReaderLayer(dependencies.settings.limits),
+    ).pipe(Layer.provideMerge(ports));
     const native = Layer.mergeAll(
       ReadEnvironmentService.layer,
       ReadEnvironmentNameService.layer,
@@ -141,7 +149,7 @@ export function composeShared(dependencies: SharedDependencies) {
           ),
         ),
       )
-      .pipe(Layer.provideMerge(ports));
+      .pipe(Layer.provideMerge(reviewPorts));
     const services = Layer.mergeAll(
       ReadTextFileService.layer,
       ReadTextFilesService.layer,
@@ -152,13 +160,14 @@ export function composeShared(dependencies: SharedDependencies) {
       ConfirmWorktreeService.layer,
       CheckRefreshedWorktreeService.layer,
       ReadBranchChangesService.layer,
+      ReadRetainedBranchDiffsService.layer,
+      ReadReviewTextsService.layer,
       ReadInterruptedGitActionService.layer,
       ListRegisteredProjectsService.layer,
       ListKnownWorktreesService.layer,
       ListRecordedWorktreesService.layer,
       ReadReviewBadgesService.layer,
       ReadPublishedReviewService.layer,
-      ListReviewedLayerPathsService.layer,
       ReadBinaryFilesService.layer,
       RecordReviewActivityService.layer,
       InvalidateReviewedMarksService.layer,
@@ -170,6 +179,7 @@ export function composeShared(dependencies: SharedDependencies) {
     return yield* Effect.gen(function* () {
       return {
         gitVersion,
+        branchReviewReader: yield* BranchReviewReader,
         catalog,
         worktreeAccess,
         openInspection,
@@ -193,7 +203,6 @@ export function composeShared(dependencies: SharedDependencies) {
         listRecordedWorktrees: yield* ListRecordedWorktreesService,
         readWorktreeStatuses: yield* ReadReviewBadgesService,
         readPublishedReview: yield* ReadPublishedReviewService,
-        listReviewedLayerPaths: yield* ListReviewedLayerPathsService,
         readTextFilesService: yield* ReadTextFilesService,
         readBinaryFiles: yield* ReadBinaryFilesService,
         readReviewEvidence: yield* ReadReviewEvidenceUseCase,

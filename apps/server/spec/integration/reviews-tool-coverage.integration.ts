@@ -50,7 +50,7 @@ test('MCP coverage records validated owner handler entry and excludes other traf
   });
   const spoofed = await session.send({
     ...constructed,
-    headers: { ...constructed.headers, 'mcp-name': 'delete_review' },
+    headers: { ...constructed.headers, 'mcp-name': 'resolve_comment' },
   });
   expect(spoofed.status).toBe(400);
   const missingCwd = await session.send({
@@ -77,7 +77,7 @@ test('MCP coverage records validated owner handler entry and excludes other traf
   expect(await server.invokedTools()).toStrictEqual(['list_comments']);
 
   const refused = await session.send(
-    toolCall(session, 33, 'delete_review', { cwd: session.projectHome }),
+    toolCall(session, 33, 'read_review', { cwd: session.projectHome }),
   );
   expect(refused.status).toBe(200);
   expect(toolResult(refused.body).isError).toBe(true);
@@ -89,8 +89,8 @@ test('MCP coverage records validated owner handler entry and excludes other traf
     ),
   );
   expect(await server.invokedTools()).toStrictEqual([
-    'delete_review',
     'list_comments',
+    'read_review',
   ]);
 
   const readReview = await session.send(constructed);
@@ -98,7 +98,6 @@ test('MCP coverage records validated owner handler entry and excludes other traf
   expect(toolResult(readReview.body).isError).toBe(false);
   expect(toolValue(readReview.body)).toMatchObject({ review: null });
   expect(await server.invokedTools()).toStrictEqual([
-    'delete_review',
     'list_comments',
     'read_review',
   ]);
@@ -112,7 +111,6 @@ test('the production integration teardown judges recorded MCP handlers only for 
   const inputs = {
     publish_review: sampleReview(session, 0, randomUUID(), randomUUID()),
     read_review: {},
-    delete_review: {},
     list_comments: {},
     create_comment: {
       anchor: { kind: 'file', filePath: 'README.md' },

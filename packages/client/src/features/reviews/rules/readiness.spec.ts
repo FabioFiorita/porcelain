@@ -112,31 +112,6 @@ describe('readinessItems', () => {
     });
   });
 
-  it('counts skipped checks as not yet proven', () => {
-    const items = readinessItems({
-      files: [],
-      review: {
-        notExplained: [],
-        proof: {
-          checks: [
-            { name: 'Tests', result: 'pass' },
-            { name: 'E2E', result: 'skipped' },
-          ],
-          assets: [],
-          current: true,
-        },
-      },
-      explains: false,
-      threads: [],
-    });
-    expect(items.map((item) => [item.key, item.label, item.tone])).toEqual([
-      ['files', 'No changed files', 'ok'],
-      ['stale', 'No marks went stale', 'ok'],
-      ['comments', 'No open comments', 'ok'],
-      ['checks', '1 check skipped', 'attention'],
-    ]);
-  });
-
   it('counts an open thread the agent answered last as waiting on the reviewer', () => {
     const items = readinessItems({
       files: [{ reviewStatus: 'reviewed' }],

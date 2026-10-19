@@ -3,7 +3,7 @@ import {
   type ReadPublishedReviewInput,
   type ReadPublishedReviewResult,
 } from '../models/read-published-review.ts';
-import { ReviewStore } from '../ports/review-store.ts';
+import { BranchReviewReader } from '../ports/branch-review-reader.ts';
 
 export class ReadPublishedReviewService extends Context.Service<
   ReadPublishedReviewService,
@@ -16,7 +16,7 @@ export class ReadPublishedReviewService extends Context.Service<
   static readonly layer = Layer.effect(
     ReadPublishedReviewService,
     Effect.gen(function* () {
-      const reviewsCapability = yield* ReviewStore;
+      const reviewsCapability = yield* BranchReviewReader;
 
       return {
         execute: Effect.fn('ReadPublishedReviewService.execute')(function* (

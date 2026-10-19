@@ -4,7 +4,7 @@ import {
   type ReadReviewLayerInput,
   type ReadReviewLayerResult,
 } from '../models/read-review-layer.ts';
-import { ReviewStore } from '../ports/review-store.ts';
+import { BranchReviewReader } from '../ports/branch-review-reader.ts';
 import { reviewPaths } from '../rules/review-evidence.ts';
 
 export class ReadReviewLayerService extends Context.Service<
@@ -18,17 +18,25 @@ export class ReadReviewLayerService extends Context.Service<
   static readonly layer = Layer.effect(
     ReadReviewLayerService,
     Effect.gen(function* () {
-      const reviewsCapability = yield* ReviewStore;
+      const reviewsCapability = yield* BranchReviewReader;
 
       return {
         execute: Effect.fn('ReadReviewLayerService.execute')(function* (
           input: ReadReviewLayerInput,
         ): Effect.fn.Return<ReadReviewLayerResult, ReviewLayerNotFoundError> {
-          const layer = (yield* reviewsCapability.read({
+          const review = yield* reviewsCapability.read({
             worktreeId: input.worktreeId,
-          }))?.layers.find((candidate) => candidate.id === input.layerId);
-          if (!layer) return yield* Effect.fail(new ReviewLayerNotFoundError());
-          return { layer, paths: reviewPaths([layer], []) };
+          });
+          const layer = review?.layers.find(
+            (candidate) => candidate.id === input.layerId,
+          );
+          if (!layer || !review)
+            return yield* Effect.fail(new ReviewLayerNotFoundError());
+          return {
+            reviewId: review.reviewId,
+            layer,
+            paths: reviewPaths([layer], []),
+          };
         }),
       };
     }),

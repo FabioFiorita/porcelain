@@ -1,14 +1,17 @@
 import {
   type ReviewDraftFailure,
   ValidateReviewDraftService,
-  CheckReviewDraftService,
   PublishReviewService,
   ResolvePublishedReviewService,
 } from '@porcelain/reviews/services';
 import { type MissingEnvironmentIdentityError } from '@porcelain/access/errors';
 import { type GitIoFailure } from '@porcelain/git/errors';
-import { type IncompleteDiffReadError } from '@porcelain/changes/errors';
 import {
+  type IncompleteDiffReadError,
+  type CommitNotFoundError,
+} from '@porcelain/changes/errors';
+import {
+  type ReviewPublishRefusedError,
   type InvalidReviewPointerError,
   type ReviewConflictError,
   type ProofTooLargeError,
@@ -26,7 +29,19 @@ import {
 } from '@porcelain/contracts/reviews';
 import { type WorktreeParams } from '@porcelain/contracts/shared';
 import { ReadBinaryFilesService } from '@porcelain/files/services';
-import { proofFilePaths } from '@porcelain/reviews/rules';
+
+import {
+  ReadBranchChangesService,
+  ReadWorktreeStatusService,
+} from '@porcelain/changes/services';
+import { ReadRepositoryOriginService } from '@porcelain/projects/services';
+import { type ReviewPublicationInput } from '@porcelain/reviews/models';
+import { ReviewLinkSource } from '../../ports/review-link-source.ts';
+import {
+  BuildReviewLinksService,
+  ValidateReviewPublicationService,
+} from '@porcelain/reviews/services';
+import { reviewDirtyPaths, proofFilePaths } from '@porcelain/reviews/rules';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import { ReadReviewEvidenceUseCasePort } from '../../ports/read-review-evidence-use-case-port.ts';
 
@@ -37,6 +52,7 @@ export class PublishReviewUseCase extends Context.Service<
       input: WorktreeParams & PublishReviewRequest,
     ) => Effect.Effect<
       PublishReviewToolResponse,
+      | ReviewPublishRefusedError
       | MissingEnvironmentIdentityError
       | WorktreeAccessFailure
       | ReviewDraftFailure
@@ -47,6 +63,7 @@ export class PublishReviewUseCase extends Context.Service<
       | UnsupportedProofFileError
       | ProofFileUnreadableError
       | GitIoFailure
+      | CommitNotFoundError
       | IncompleteDiffReadError
     >;
   }
@@ -56,7 +73,12 @@ export class PublishReviewUseCase extends Context.Service<
     Effect.gen(function* () {
       const accessCapability = yield* WorktreeAccess;
       const validateReviewDraftCapability = yield* ValidateReviewDraftService;
-      const checkReviewDraftCapability = yield* CheckReviewDraftService;
+      const branches = yield* ReadBranchChangesService;
+      const publication = yield* ValidateReviewPublicationService;
+      const hosts = yield* ReviewLinkSource;
+      const statusReader = yield* ReadWorktreeStatusService;
+      const origins = yield* ReadRepositoryOriginService;
+      const links = yield* BuildReviewLinksService;
       const readReviewEvidenceCapability = yield* ReadReviewEvidenceUseCasePort;
       const readBinaryFilesCapability = yield* ReadBinaryFilesService;
       const publishReviewCapability = yield* PublishReviewService;
@@ -70,6 +92,7 @@ export class PublishReviewUseCase extends Context.Service<
           input: WorktreeParams & PublishReviewRequest,
         ): Effect.fn.Return<
           PublishReviewToolResponse,
+          | ReviewPublishRefusedError
           | MissingEnvironmentIdentityError
           | WorktreeAccessFailure
           | ReviewDraftFailure
@@ -80,25 +103,79 @@ export class PublishReviewUseCase extends Context.Service<
           | UnsupportedProofFileError
           | ProofFileUnreadableError
           | GitIoFailure
+          | CommitNotFoundError
           | IncompleteDiffReadError
         > {
           return yield* Effect.suspend(() => {
             const { worktreeId, ...unvalidatedDraft } = input;
             return accessCapability.transaction(
               worktreeId,
-              () =>
+              (worktree) =>
                 Effect.gen(function* () {
                   const draft =
                     yield* validateReviewDraftCapability.execute(
                       unvalidatedDraft,
                     );
-                  yield* checkReviewDraftCapability.execute({
-                    worktreeId,
-                    draft,
+                  const read = yield* branches
+                    .execute({ worktreeId, base: draft.base })
+                    .pipe(
+                      Effect.map((range) => ({
+                        kind: 'range' as const,
+                        range,
+                      })),
+                      Effect.catchTags({
+                        UnbornBranchError: () =>
+                          Effect.succeed({ kind: 'unborn' as const }),
+                        BranchBaseNotFoundError: () =>
+                          Effect.succeed({ kind: 'base-unavailable' as const }),
+                        UnrelatedBranchError: () =>
+                          Effect.succeed({ kind: 'base-unavailable' as const }),
+                      }),
+                    );
+                  const status = yield* statusReader.execute({ worktreeId });
+                  const origin = yield* origins.execute({
+                    path: worktree.path,
+                  });
+                  const publicationStatus: ReviewPublicationInput['status'] =
+                    read.kind !== 'range'
+                      ? read
+                      : read.range.head.branch === undefined
+                        ? { kind: 'detached' }
+                        : read.range.base === undefined ||
+                            read.range.mergeBaseOid === undefined
+                          ? { kind: 'base-unavailable' }
+                          : {
+                              kind: 'ready',
+                              commit: {
+                                projectId: worktree.projectId,
+                                commonDirectory: worktree.commonDirectory,
+                                branch: read.range.head.branch.replace(
+                                  /^refs\/heads\//,
+                                  '',
+                                ),
+                                worktreePath: worktree.path,
+                                worktreeName:
+                                  worktree.path.split('/').at(-1) ??
+                                  worktree.path,
+                                headOid: read.range.head.oid,
+                                base: read.range.base.ref,
+                                baseOid: read.range.base.oid,
+                                mergeBaseOid: read.range.mergeBaseOid,
+                                files: read.range.files,
+                              },
+                            };
+                  const commit = yield* publication.execute({
+                    status: publicationStatus,
+                    dirtyPaths: reviewDirtyPaths(status.changes),
+                    proofPaths: proofFilePaths(draft.proof),
+                    verdict: draft.verdict,
+                    origin: origin.originUrl,
+                    pullRequest: draft.pullRequest,
                   });
                   const evidence = yield* readReviewEvidenceCapability.execute({
                     worktreeId,
                     layers: draft.layers,
+                    revision: commit,
                   });
                   const proofFiles = yield* readBinaryFilesCapability.execute({
                     worktreeId,
@@ -106,31 +183,44 @@ export class PublishReviewUseCase extends Context.Service<
                   });
                   const environment =
                     yield* readEnvironmentCapability.execute();
-                  return { draft, evidence, proofFiles, environment };
+                  return { draft, commit, evidence, proofFiles, environment };
                 }),
-              ({ draft, evidence, proofFiles, environment }) =>
+              ({ draft, commit, evidence, proofFiles, environment }) =>
                 Effect.gen(function* () {
                   const { review, warnings } =
                     yield* publishReviewCapability.execute({
                       worktreeId,
+                      commit,
                       draft,
                       evidence,
                       proofFiles,
                     });
                   return {
+                    reviewId: review.reviewId,
+                    revision: review.revision,
+                    headOid: review.headOid,
+                    baseOid: review.baseOid,
+                    links: yield* links.execute({
+                      review,
+                      environmentId: environment.environmentId,
+                      hosts: yield* hosts.read(),
+                    }),
                     review: yield* resolvePublishedReviewCapability.execute({
                       environmentId: environment.environmentId,
                       review,
-                      evidence,
+                      headOid: review.headOid,
                     }),
                     warnings,
                   };
                 }),
               () =>
-                eventsCapability.worktreeChanged({
-                  worktreeId,
-                  change: 'review',
-                }),
+                Effect.andThen(
+                  eventsCapability.worktreeChanged({
+                    worktreeId,
+                    change: 'review',
+                  }),
+                  eventsCapability.inventoryChanged(),
+                ),
             );
           });
         }),

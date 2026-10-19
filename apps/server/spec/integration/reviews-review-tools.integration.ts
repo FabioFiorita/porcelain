@@ -1,3 +1,4 @@
+import { commitReviewFixture } from '../kit/requests.ts';
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import { apiError } from '../kit/answers.ts';
@@ -48,6 +49,7 @@ async function reviewerThread(session: Session) {
 test('publish_review rejects a missing pointer with a named tool error before saving', async ({
   session,
 }) => {
+  await commitReviewFixture(session);
   const response = await session.send(
     toolCall(
       session,
@@ -105,7 +107,9 @@ test('an agent reads the published review with read_review as a reviewer reads i
 
   expect(response.status).toBe(200);
   expect(response.body).toMatchObject(answered(2));
-  const value = record(record(toolValue(response.body)).review);
+  const value = record(
+    record(record(toolValue(response.body)).revision).content,
+  );
   expect(value.revision).toStrictEqual(record(before.review).revision);
   expect(value.layers).toStrictEqual(record(before.review).layers);
 });
@@ -230,9 +234,6 @@ test('a review tool called from a directory outside every registered worktree is
         ...sampleReview(session, 1, randomUUID(), randomUUID()),
         cwd: session.projectHome,
       }),
-    ),
-    await session.send(
-      toolCall(session, 11, 'delete_review', { cwd: session.projectHome }),
     ),
   ];
 

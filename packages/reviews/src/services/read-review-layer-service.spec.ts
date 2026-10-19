@@ -1,4 +1,5 @@
-import { ReviewStore } from '@porcelain/reviews/ports';
+import { reviewFixture, reviewSave } from '../../spec/fixtures/review.ts';
+import { BranchReviewReader } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { ReviewLayerNotFoundError } from '@porcelain/reviews/errors';
@@ -21,6 +22,7 @@ function step(id: string, path: string): ReviewStep {
 }
 
 const review: Review = {
+  ...reviewFixture(),
   worktreeId,
   revision: 1,
   publishedAt: '2026-01-01T00:00:00.000Z',
@@ -47,12 +49,12 @@ const review: Review = {
 describe('ReadReviewLayerService', () => {
   it('reads a layer of the published review with the files its steps point at', async () => {
     const store = new InMemoryReviewStore();
-    await Effect.runPromise(store.save(review));
+    await Effect.runPromise(store.save(reviewSave(review)));
     const read = Effect.runSync(
       Effect.runSync(
         ReadReviewLayerService.pipe(
           Effect.provide(ReadReviewLayerService.layer),
-          Effect.provideService(ReviewStore, store),
+          Effect.provideService(BranchReviewReader, store.branchReader),
         ),
       ).execute({
         worktreeId,
@@ -68,13 +70,13 @@ describe('ReadReviewLayerService', () => {
     const service = Effect.runSync(
       ReadReviewLayerService.pipe(
         Effect.provide(ReadReviewLayerService.layer),
-        Effect.provideService(ReviewStore, store),
+        Effect.provideService(BranchReviewReader, store.branchReader),
       ),
     );
     expect(() =>
       Effect.runSync(service.execute({ worktreeId, layerId: 'layer-1' })),
     ).toThrow(ReviewLayerNotFoundError);
-    await Effect.runPromise(store.save(review));
+    await Effect.runPromise(store.save(reviewSave(review)));
     expect(() =>
       Effect.runSync(service.execute({ worktreeId, layerId: 'layer-9' })),
     ).toThrow(ReviewLayerNotFoundError);

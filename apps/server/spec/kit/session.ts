@@ -127,7 +127,7 @@ export type Hit = {
 
 export type ProofCheckStep = {
   name: string;
-  result: 'pass' | 'fail' | 'skipped';
+  result: 'pass' | 'fail';
   output?: string;
 };
 

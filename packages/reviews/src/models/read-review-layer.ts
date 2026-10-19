@@ -6,6 +6,7 @@ export type ReadReviewLayerInput = {
 };
 
 export type ReadReviewLayerResult = {
+  reviewId: string;
   layer: ReviewLayer;
   paths: readonly string[];
 };

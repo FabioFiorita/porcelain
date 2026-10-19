@@ -13,6 +13,7 @@ import {
   CommentSeenStore,
 } from '@porcelain/reviews/ports';
 import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
+import { reviewFixture, reviewSave } from '@porcelain/reviews/store-contracts';
 import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -92,16 +93,16 @@ async function seed(
     }),
   );
   await Effect.runPromise(
-    (await session.runPromise(ReviewStore)).save({
-      worktreeId,
-      revision: 1,
-      publishedAt: at,
-      active: true,
-      summaryHtml: '<p>Summary</p>',
-      summaryToken: `token-${worktreeId}`,
-      summarySecret: 'secret',
-      layers: [],
-    }),
+    (await session.runPromise(ReviewStore)).save(
+      reviewSave(
+        reviewFixture({
+          reviewId: `review-${worktreeId}`,
+          projectId,
+          worktreeId,
+          summaryToken: `token-${worktreeId}`,
+        }),
+      ),
+    ),
   );
   await Effect.runPromise(
     (await session.runPromise(ReviewedFileStore)).save({
@@ -118,7 +119,7 @@ async function seed(
   );
   await Effect.runPromise(
     (await session.runPromise(ReviewedLayerStore)).save({
-      worktreeId,
+      reviewId: `review-${worktreeId}`,
       marks: [
         {
           layerId: 'layer',
@@ -178,7 +179,9 @@ async function stored(
     ),
     review:
       (await Effect.runPromise(
-        (await session.runPromise(ReviewStore)).read({ worktreeId }),
+        (await session.runPromise(ReviewStore)).read({
+          reviewId: `review-${worktreeId}`,
+        }),
       )) !== undefined,
     reviewedFiles: (
       await Effect.runPromise(
@@ -187,7 +190,9 @@ async function stored(
     ).length,
     reviewedLayers: (
       await Effect.runPromise(
-        (await session.runPromise(ReviewedLayerStore)).list({ worktreeId }),
+        (await session.runPromise(ReviewedLayerStore)).list({
+          reviewId: `review-${worktreeId}`,
+        }),
       )
     ).length,
     threads: (
@@ -235,7 +240,7 @@ describe('SqliteInventoryStore removal', () => {
     rmSync(dataDirectory, { recursive: true, force: true });
   });
 
-  it('removes everything stored for the project and its worktrees and keeps every other project', async () => {
+  it('removes worktree data and preserves project reviews and their marks', async () => {
     await seed(session, 'removed', 'removed-worktree');
     await seed(session, 'kept', 'kept-worktree');
 
@@ -249,9 +254,9 @@ describe('SqliteInventoryStore removal', () => {
       project: false,
       presence: 0,
       preferences: 0,
-      review: false,
+      review: true,
       reviewedFiles: 0,
-      reviewedLayers: 0,
+      reviewedLayers: 1,
       threads: 0,
       message: false,
       seenThrough: 0,

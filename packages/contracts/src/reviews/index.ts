@@ -8,7 +8,6 @@ export {
   replyToCommentResponseSchema,
   updateCommentThreadResponseSchema,
   type CommentAuthor,
-  type CommentThreadParams,
   type CreateCommentThreadRequest,
   type CreateCommentThreadResponse,
   type DeleteCommentMessageQuery,
@@ -27,7 +26,6 @@ export {
   type UpdateCommentThreadResponse,
 } from './comments.ts';
 export {
-  deleteReviewResponseSchema,
   type DeleteReviewResponse,
   publishReviewResponseSchema,
   readPublishedReviewResponseSchema,
@@ -70,3 +68,18 @@ export {
 export { ReviewsApi } from './api.ts';
 export { ReviewSummaryApi } from './summary-api.ts';
 export { ReviewToolkit } from './review-toolkit.ts';
+
+export {
+  listProjectReviewsResponseSchema,
+  type ReadReviewResponse,
+} from './review.ts';
+
+export { readReviewFileResponseSchema } from './review.ts';
+
+export {
+  type ReviewMarksResponse,
+  type SetReviewMarkRequest,
+  type RemoveReviewMarkRequest,
+} from './review.ts';
+
+export type { ReviewScope } from './review.ts';

@@ -5,19 +5,16 @@ import type {
   ReviewedFileRemoval,
   ReviewedFileSave,
   ReviewedFileStaleness,
-  ReviewedScope,
 } from '../../src/models/reviewed-mark.ts';
 import type { ReviewedFileStore } from '../../src/ports/reviewed-file-store.ts';
 
-type Row = {
-  worktreeId: string;
-  scope?: ReviewedScope | undefined;
-  branch?: string | undefined;
-  mark: ReviewedFileMark;
-};
-
-function rowKey(key: ReviewedFileKey, path: string): string {
-  return `${key.worktreeId}\0${key.scope ?? 'worktree'}\0${key.branch ?? ''}\0${path}`;
+type Row = ReviewedFileKey & { mark: ReviewedFileMark };
+function rowKey(
+  key: ReviewedFileKey,
+  path: string,
+  fingerprint?: string,
+): string {
+  return `${key.reviewId ?? key.worktreeId}\0${key.scope ?? 'worktree'}\0${key.branch ?? ''}\0${path}${(key.reviewId && `\0${fingerprint ?? ''}`) || ''}`;
 }
 
 export class InMemoryReviewedFileStore implements ReviewedFileStore {
@@ -27,7 +24,7 @@ export class InMemoryReviewedFileStore implements ReviewedFileStore {
   constructor(rows: readonly Row[] = []) {
     this.rows = new Map(
       rows.map((row) => [
-        rowKey(row, row.mark.path),
+        rowKey(row, row.mark.path, row.mark.fingerprint),
         { ...row, mark: { ...row.mark } },
       ]),
     );
@@ -39,13 +36,16 @@ export class InMemoryReviewedFileStore implements ReviewedFileStore {
         .filter(
           (row) =>
             row.worktreeId === input.worktreeId &&
+            row.reviewId === input.reviewId &&
             (row.scope ?? 'worktree') === (input.scope ?? 'worktree') &&
             (row.branch ?? '') === (input.branch ?? ''),
         )
         .map((row) => ({
           ...row.mark,
           stale:
-            this.staleness.get(rowKey(row, row.mark.path)) ?? row.mark.stale,
+            this.staleness.get(
+              rowKey(row, row.mark.path, row.mark.fingerprint),
+            ) ?? row.mark.stale,
         }))
         .sort(
           (left, right) =>
@@ -57,13 +57,13 @@ export class InMemoryReviewedFileStore implements ReviewedFileStore {
   save(input: ReviewedFileSave): Effect.Effect<void> {
     return Effect.sync(() => {
       input.marks.forEach((mark) => {
-        this.rows.set(rowKey(input, mark.path), {
-          worktreeId: input.worktreeId,
+        this.rows.set(rowKey(input, mark.path, mark.fingerprint), {
+          ...input,
           scope: input.scope,
           branch: input.branch,
           mark: { ...mark },
         });
-        this.staleness.delete(rowKey(input, mark.path));
+        this.staleness.delete(rowKey(input, mark.path, mark.fingerprint));
       });
     });
   }
@@ -71,8 +71,9 @@ export class InMemoryReviewedFileStore implements ReviewedFileStore {
   remove(input: ReviewedFileRemoval): Effect.Effect<void> {
     return Effect.sync(() => {
       input.paths.forEach((path) => {
-        this.rows.delete(rowKey(input, path));
-        this.staleness.delete(rowKey(input, path));
+        const key = rowKey(input, path, input.fingerprint);
+        this.rows.delete(key);
+        this.staleness.delete(key);
       });
     });
   }

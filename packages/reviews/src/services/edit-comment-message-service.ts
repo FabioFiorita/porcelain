@@ -1,3 +1,4 @@
+import { commentHasOwner } from '../rules/comment-threads.ts';
 import { EditCommentMessageOptions } from '../ports/edit-comment-message-options.ts';
 import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { CommentAuthorMismatchError } from '../errors/comment-author-mismatch-error.ts';
@@ -49,7 +50,7 @@ export class EditCommentMessageService extends Context.Service<
           const message = current?.messages.find(
             (entry) => entry.id === input.messageId,
           );
-          if (!current || !message || current.worktreeId !== input.worktreeId)
+          if (!current || !message || !commentHasOwner(current, input))
             return yield* Effect.fail(new CommentTargetNotFoundError());
           if (message.author !== commentAuthor(input.writer))
             return yield* Effect.fail(new CommentAuthorMismatchError());
@@ -66,9 +67,11 @@ export class EditCommentMessageService extends Context.Service<
                 : entry,
             ),
           });
-          const usage = yield* commentsCapability.usage({
-            worktreeId: input.worktreeId,
-          });
+          const usage = yield* commentsCapability.usage(
+            current.review === undefined
+              ? { worktreeId: input.worktreeId }
+              : { reviewId: current.review.reviewId },
+          );
           if (
             !rewriteFits(
               current,

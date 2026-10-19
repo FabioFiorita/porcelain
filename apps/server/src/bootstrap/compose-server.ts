@@ -286,6 +286,10 @@ function serverResources(
           shared,
           checkWorktree,
           findWorktreeByPath: projects.findWorktreeByPath,
+          networkAddressReader: Context.get(
+            remoteContext,
+            NetworkAddressReader,
+          ),
         });
         const announcements = yield* AnnounceWorktreeChangeUseCase.pipe(
           Effect.provide(AnnounceWorktreeChangeUseCase.layer),

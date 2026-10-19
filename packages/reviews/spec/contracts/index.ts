@@ -18,3 +18,5 @@ export {
   reviewedLayerStoreContract,
   type ReviewedLayerStoreSubject,
 } from './reviewed-layer-store-contract.ts';
+
+export { reviewFixture, reviewSave } from '../fixtures/review.ts';

@@ -1,3 +1,4 @@
+import { ReadWorktreeStatusService } from '@porcelain/changes/services';
 import { type GitIoFailure } from '@porcelain/git/errors';
 import { type IncompleteDiffReadError } from '@porcelain/changes/errors';
 import { Effect, Context, Layer } from 'effect';
@@ -9,7 +10,6 @@ import {
   RecordReviewActivityService,
 } from '@porcelain/reviews/services';
 import { EventPublisher } from '../../ports/event-publisher.ts';
-import { ReadReviewEvidenceUseCasePort } from '../../ports/read-review-evidence-use-case-port.ts';
 
 export class RefreshWorktreeReviewUseCase extends Context.Service<
   RefreshWorktreeReviewUseCase,
@@ -27,7 +27,7 @@ export class RefreshWorktreeReviewUseCase extends Context.Service<
     Effect.gen(function* () {
       const accessCapability = yield* WorktreeAccess;
       const readPublishedReviewCapability = yield* ReadPublishedReviewService;
-      const readReviewEvidenceCapability = yield* ReadReviewEvidenceUseCasePort;
+      const status = yield* ReadWorktreeStatusService;
       const recordReviewActivityCapability = yield* RecordReviewActivityService;
       const eventsCapability = yield* EventPublisher;
 
@@ -50,11 +50,13 @@ export class RefreshWorktreeReviewUseCase extends Context.Service<
                         worktreeId,
                       });
                     if (published.kind === 'none') return undefined;
-                    const evidence =
-                      yield* readReviewEvidenceCapability.execute({
-                        worktreeId,
-                        layers: published.review.layers,
-                      });
+                    const evidence = {
+                      headOid: (yield* status.execute({ worktreeId })).headOid,
+                      changes: [],
+                      texts: new Map<string, string>(),
+                      missing: new Set<string>(),
+                      diffs: [],
+                    };
                     return { review: published.review, evidence };
                   }),
                 (prepared) =>

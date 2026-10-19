@@ -12,10 +12,7 @@ async function openStep(agent: Agent, render: Render) {
   return opened;
 }
 
-test('a review step that points at worktree lines shows those lines from disk', async ({
-  render,
-  agent,
-}) => {
+test('a review step renders its committed text', async ({ render, agent }) => {
   const opened = await openStep(agent, render);
   const code = opened.getByRole('article', { name: step, exact: true });
   await expect
@@ -23,7 +20,7 @@ test('a review step that points at worktree lines shows those lines from disk', 
     .toBeVisible();
 });
 
-test('a review step whose lines another writer changed says so instead of showing stale lines', async ({
+test('a retained review pointer and text stay fixed after a worktree edit', async ({
   agent,
   render,
   repo,
@@ -41,15 +38,11 @@ test('a review step whose lines another writer changed says so instead of showin
         (await server.publishedReview()).review?.layers[0]?.steps[0]?.location
           .state,
     )
-    .toBe('changed');
-  await expect
-    .element(
-      code.getByText('Code changed since the review was written.', {
-        exact: true,
-      }),
-    )
-    .toBeVisible();
+    .toBe('current');
   await expect
     .element(code.getByText('A change to review.', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(code.getByText('Rewritten.', { exact: true }))
     .not.toBeInTheDocument();
 });

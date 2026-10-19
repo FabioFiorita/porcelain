@@ -44,6 +44,11 @@ export const listenPortSchema = Schema.Int.check(
 );
 
 const serverSettingsSchema = Schema.Struct({
+  reviewHubOrigin: Schema.String.pipe(
+    Schema.withDecodingDefault(
+      Effect.succeed('https://porcelain.fabiofiorita.com'),
+    ),
+  ),
   dataDirectory: absolutePathSchema,
   projectHome: absolutePathSchema,
   host: listenHostSchema.pipe(

@@ -62,6 +62,8 @@ describe('ReadBranchChangesService', () => {
           status: 'renamed',
           oldMode: '100644',
           newMode: '100644',
+          oldOid: renamed.oldOid,
+          newOid: renamed.newOid,
           fingerprint: fingerprintBranchFile(renamed),
         },
         {
@@ -71,6 +73,8 @@ describe('ReadBranchChangesService', () => {
           status: 'deleted',
           oldMode: '100644',
           newMode: '000000',
+          oldOid: deleted.oldOid,
+          newOid: deleted.newOid,
           fingerprint: fingerprintBranchFile(deleted),
         },
       ],

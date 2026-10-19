@@ -1,6 +1,5 @@
 import type { ExpectedFile } from '@porcelain/kernel/models';
 import { expectationHolds } from '@porcelain/kernel/rules';
-import type { ReviewTexts } from '../models/review-evidence.ts';
 import type { ReviewLayer } from '../models/review.ts';
 import type {
   ReviewedFile,
@@ -11,7 +10,6 @@ import type {
   ReviewedLayerMark,
   ReviewedMark,
 } from '../models/reviewed-mark.ts';
-import { currentLayerFingerprint } from './resolve-review.ts';
 
 export function selectReviewedFiles(
   files: readonly ReviewedFile[],
@@ -63,24 +61,19 @@ export function touchedMarks(
   );
 }
 
-function markIsStale(
-  mark: { fingerprint: string },
-  key: string,
-  current: ReadonlyMap<string, string | undefined>,
-): boolean {
-  return current.get(key) !== mark.fingerprint;
-}
-
 export function reviewedLayerMarks(
   marks: readonly ReviewedLayerMark[],
   layers: readonly ReviewLayer[],
-  texts: ReviewTexts,
 ): ListedReviewedLayerMark[] {
-  const current = currentLayerFingerprints(layers, texts);
-  return marks.map((mark) => ({
-    ...mark,
-    stale: markIsStale(mark, mark.layerId, current),
-  }));
+  return layers.flatMap((layer) => {
+    const candidates = marks.filter((mark) => mark.layerId === layer.id);
+    const mark =
+      candidates.find((mark) => mark.fingerprint === layer.fingerprint) ??
+      candidates.at(-1);
+    return mark === undefined
+      ? []
+      : [{ ...mark, stale: mark.fingerprint !== layer.fingerprint }];
+  });
 }
 
 export function reviewedMarks(
@@ -91,21 +84,4 @@ export function reviewedMarks(
     fingerprint,
     reviewedAt,
   }));
-}
-
-export function markedLayers(
-  layers: readonly ReviewLayer[],
-  marks: readonly ReviewedLayerMark[],
-): ReviewLayer[] {
-  const marked = new Set(marks.map((mark) => mark.layerId));
-  return layers.filter((layer) => marked.has(layer.id));
-}
-
-function currentLayerFingerprints(
-  layers: readonly ReviewLayer[],
-  texts: ReviewTexts,
-): Map<string, string> {
-  return new Map(
-    layers.map((layer) => [layer.id, currentLayerFingerprint(layer, texts)]),
-  );
 }

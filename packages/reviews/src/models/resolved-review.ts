@@ -1,6 +1,7 @@
 import type { ReviewChange, ReviewDiagnostics } from './review-evidence.ts';
 import type { ResolvedProof } from './review-proof.ts';
 import type {
+  ReviewVerdict,
   CodePointer,
   ReviewDiagram,
   ReviewLayer,
@@ -12,6 +13,7 @@ type StepLocation =
   | { state: 'current' | 'committed'; startLine: number; endLine: number };
 
 export type ResolvedStep = Omit<StepDraft, 'pointer'> & {
+  published?: readonly string[] | undefined;
   pointer: CodePointer & { textFingerprint: string };
   location: StepLocation;
 };
@@ -39,6 +41,12 @@ export type SummaryLinkLimits = {
 };
 
 export type ResolvedReview = {
+  reviewId: string;
+  headOid: string;
+  base: string;
+  baseOid: string;
+  mergeBaseOid: string;
+  verdict: ReviewVerdict;
   environmentId: string;
   worktreeId: string;
   revision: number;

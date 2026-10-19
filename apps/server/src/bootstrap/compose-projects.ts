@@ -5,10 +5,7 @@ import {
 } from '@porcelain/access/services';
 import { ReadInventoryBadgesUseCasePort } from '../ports/read-inventory-badges-use-case-port.ts';
 import { ReadTextFilesService } from '@porcelain/files/services';
-import {
-  ListReviewedLayerPathsService,
-  ReadReviewBadgesService,
-} from '@porcelain/reviews/services';
+import { ReadReviewBadgesService } from '@porcelain/reviews/services';
 import { InventoryScan } from '../ports/inventory-scan.ts';
 import { EventPublisher } from '../ports/event-publisher.ts';
 import { LaneKeys } from '../runtime/lane-keys.ts';
@@ -125,7 +122,6 @@ export function composeProjects(
     Layer.succeed(CheckWorktreeService, shared.checkWorktreeService),
     Layer.succeed(CheckRefreshedWorktreeService, shared.checkRefreshedWorktree),
     Layer.succeed(WorktreeConsistencyProbe, shared.confirmWorktree),
-    Layer.succeed(ListReviewedLayerPathsService, shared.listReviewedLayerPaths),
     Layer.succeed(ReadTextFilesService, shared.readTextFilesService),
     Layer.succeed(ReadReviewBadgesService, readWorktreeStatuses),
     Layer.succeed(ReadEnvironmentService, shared.readEnvironment),

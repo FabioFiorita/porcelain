@@ -1,3 +1,4 @@
+import { commitReviewFixture } from '../kit/requests.ts';
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import { invalidRequest, literally } from '../kit/answers.ts';
@@ -32,6 +33,7 @@ async function summaryUrl(session: Session) {
 test('a signed summary link serves the published page with the bridge before the closing body, sandboxed, uncached and without referrer', async ({
   session,
 }) => {
+  await commitReviewFixture(session);
   const url = await summaryUrl(session);
 
   const response = await session.send({
@@ -99,7 +101,7 @@ test('a summary link served before it expired is not found with an empty body on
   expect(response.body).toBeUndefined();
 });
 
-test('the link of a replaced summary is not found with an empty body', async ({
+test('a prior revision summary remains readable after republishing', async ({
   session,
 }) => {
   const replaced = await summaryUrl(session);
@@ -111,8 +113,8 @@ test('the link of a replaced summary is not found with an empty body', async ({
     auth: 'none',
   });
 
-  expect(response.status).toBe(404);
-  expect(response.body).toBeUndefined();
+  expect(response.status).toBe(200);
+  expect(text(response.body)).toContain('<h1>Summary</h1>');
 });
 
 test('a summary link without its signature or with a malformed token is invalid', async ({

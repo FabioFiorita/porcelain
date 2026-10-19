@@ -22,7 +22,18 @@ function threadFromRows(
 ): CommentThread {
   return {
     id: row.id,
-    worktreeId: row.worktreeId,
+    worktreeId: row.sourceWorktreeId,
+    ...(row.reviewId === null ||
+    row.reviewRevision === null ||
+    row.headOid === null
+      ? {}
+      : {
+          review: {
+            reviewId: row.reviewId,
+            revision: row.reviewRevision,
+            headOid: row.headOid,
+          },
+        }),
     anchor: row.anchor,
     resolved: row.resolved,
     messages: messages.map(messageFromRow),
@@ -40,17 +51,25 @@ export const sqliteCommentStoreLayer = Layer.effect(
       execute: () =>
         sql`INSERT INTO comment_revision (singleton, revision) VALUES (1, 1) ON CONFLICT (singleton) DO UPDATE SET revision = revision + 1 RETURNING revision`,
     });
+    const owner = Schema.Union([
+      Schema.Struct({ worktreeId: Schema.String }),
+      Schema.Struct({ reviewId: Schema.String }),
+    ]);
     const threads = SqlSchema.findAll({
-      Request: Schema.Struct({ worktreeId: Schema.String }),
+      Request: owner,
       Result: CommentThreadRow,
       execute: (input) =>
-        sql`SELECT * FROM comment_threads WHERE worktree_id = ${input.worktreeId} ORDER BY sequence`,
+        'reviewId' in input
+          ? sql`SELECT * FROM comment_threads WHERE review_id = ${input.reviewId} ORDER BY sequence`
+          : sql`SELECT * FROM comment_threads WHERE worktree_id = ${input.worktreeId} ORDER BY sequence`,
     });
     const messages = SqlSchema.findAll({
-      Request: Schema.Struct({ worktreeId: Schema.String }),
+      Request: owner,
       Result: CommentMessageRow,
       execute: (input) =>
-        sql`SELECT * FROM comment_messages WHERE worktree_id = ${input.worktreeId} ORDER BY sequence`,
+        'reviewId' in input
+          ? sql`SELECT m.* FROM comment_messages m JOIN comment_threads t ON t.id = m.thread_id WHERE t.review_id = ${input.reviewId} ORDER BY m.sequence`
+          : sql`SELECT m.* FROM comment_messages m JOIN comment_threads t ON t.id = m.thread_id WHERE t.worktree_id = ${input.worktreeId} ORDER BY m.sequence`,
     });
     const findThread = SqlSchema.findOneOption({
       Request: Schema.Struct({ threadId: Schema.String }),
@@ -71,10 +90,12 @@ export const sqliteCommentStoreLayer = Layer.effect(
         sql`SELECT * FROM comment_messages WHERE id = ${input.messageId} ORDER BY sequence LIMIT 1`,
     });
     const usage = SqlSchema.findOne({
-      Request: Schema.Struct({ worktreeId: Schema.String }),
+      Request: owner,
       Result: Schema.Struct({ threads: Schema.Int, bytes: Schema.Int }),
       execute: (input) =>
-        sql`SELECT COUNT(*) AS threads, COALESCE(SUM(size_bytes), 0) AS bytes FROM comment_threads WHERE worktree_id = ${input.worktreeId}`,
+        'reviewId' in input
+          ? sql`SELECT COUNT(*) AS threads, COALESCE(SUM(size_bytes), 0) AS bytes FROM comment_threads WHERE review_id = ${input.reviewId}`
+          : sql`SELECT COUNT(*) AS threads, COALESCE(SUM(size_bytes), 0) AS bytes FROM comment_threads WHERE worktree_id = ${input.worktreeId}`,
     });
     const lastRevision = SqlSchema.findOne({
       Request: Schema.Struct({ worktreeId: Schema.String }),
@@ -137,7 +158,7 @@ export const sqliteCommentStoreLayer = Layer.effect(
         return {
           ...messageFromRow(row.value),
           threadId: row.value.threadId,
-          worktreeId: row.value.worktreeId,
+          worktreeId: row.value.worktreeId ?? '',
         };
       }),
       usage: Effect.fn('CommentStore.usage')(function* (input) {
@@ -157,7 +178,12 @@ export const sqliteCommentStoreLayer = Layer.effect(
           const { revision } = yield* nextRevision(undefined);
           const row = yield* Schema.encodeEffect(CommentThreadRow.insert)({
             id: content.id,
-            worktreeId: content.worktreeId,
+            worktreeId:
+              content.review === undefined ? content.worktreeId : null,
+            sourceWorktreeId: content.worktreeId,
+            reviewId: content.review?.reviewId ?? null,
+            reviewRevision: content.review?.revision ?? null,
+            headOid: content.review?.headOid ?? null,
             anchor: content.anchor,
             resolved: false,
             revision,

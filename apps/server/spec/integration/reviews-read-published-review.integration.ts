@@ -1,3 +1,4 @@
+import { commitReviewFixture } from '../kit/requests.ts';
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { readPublishedReviewResponseSchema } from '@porcelain/contracts/reviews';
@@ -22,6 +23,7 @@ function withoutSummaryUrl(body: unknown) {
 test('reading the review before anything is published answers null', async ({
   session,
 }) => {
+  await commitReviewFixture(session);
   const response = await session.send({
     method: 'GET',
     path: worktreePath(session, '/review'),

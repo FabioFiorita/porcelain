@@ -83,6 +83,13 @@ const commentMessageSchema = Schema.Struct({
 });
 
 const commentThreadSchema = Schema.Struct({
+  review: Schema.optional(
+    Schema.Struct({
+      reviewId: Schema.String.check(Schema.isUUID()),
+      revision: Schema.Int.check(Schema.isGreaterThan(0)),
+      headOid: Schema.String,
+    }),
+  ),
   id: Schema.String.check(Schema.isUUID()),
   worktreeId: worktreeIdSchema,
   anchor: commentAnchorSchema,
@@ -100,6 +107,7 @@ export const commentThreadParamsSchema = Schema.Struct({
 
 export const commentThreadScopeSchema = Schema.Literals(['waiting', 'all']);
 const listCommentThreadsQuerySchema = Schema.Struct({
+  reviewId: Schema.optional(Schema.String.check(Schema.isUUID())),
   scope: Schema.optional(commentThreadScopeSchema),
 });
 const commentWriterSchema = Schema.Struct({
@@ -109,6 +117,8 @@ export const listCommentThreadsResponseSchema =
   Schema.Array(commentThreadSchema);
 
 export const createCommentThreadRequestSchema = Schema.Struct({
+  reviewRevision: Schema.optional(Schema.Int.check(Schema.isGreaterThan(0))),
+  reviewId: Schema.optional(Schema.String.check(Schema.isUUID())),
   threadId: Schema.optional(Schema.String.check(Schema.isUUID())),
   messageId: Schema.optional(Schema.String.check(Schema.isUUID())),
   anchor: commentAnchorSchema,
@@ -117,21 +127,25 @@ export const createCommentThreadRequestSchema = Schema.Struct({
 export const createCommentThreadResponseSchema = commentThreadSchema;
 
 export const replyToCommentRequestSchema = Schema.Struct({
+  reviewId: Schema.optional(Schema.String.check(Schema.isUUID())),
   messageId: Schema.optional(Schema.String.check(Schema.isUUID())),
   body: bodySchema,
 });
 export const replyToCommentResponseSchema = commentThreadSchema;
 
 export const updateCommentThreadRequestSchema = Schema.Struct({
+  reviewId: Schema.optional(Schema.String.check(Schema.isUUID())),
   resolved: Schema.Boolean,
 });
 export const updateCommentThreadResponseSchema = commentThreadSchema;
 
 export const editCommentMessageRequestSchema = Schema.Struct({
+  reviewId: Schema.optional(Schema.String.check(Schema.isUUID())),
   messageId: Schema.String.check(Schema.isUUID()),
   body: bodySchema,
 });
 export const deleteCommentMessageQuerySchema = Schema.Struct({
+  reviewId: Schema.optional(Schema.String.check(Schema.isUUID())),
   messageId: Schema.String.check(Schema.isUUID()),
 });
 export const editCommentMessageResponseSchema = commentThreadSchema;
@@ -141,6 +155,7 @@ export const deleteCommentMessageResponseSchema = Schema.Struct({
 });
 
 export const deleteResolvedCommentsRequestSchema = Schema.Struct({
+  reviewId: Schema.optional(Schema.String.check(Schema.isUUID())),
   threads: Schema.Array(
     Schema.Struct({
       threadId: Schema.String.check(Schema.isUUID()),
@@ -169,7 +184,6 @@ export const markCommentsSeenResponseSchema = Schema.Struct({
   ),
 });
 
-export type CommentThreadParams = typeof commentThreadParamsSchema.Type;
 export type ListCommentThreadsQuery = typeof listCommentThreadsQuerySchema.Type;
 type CommentWriter = typeof commentWriterSchema.Type;
 export type CommentAuthor = { writer: CommentWriter };

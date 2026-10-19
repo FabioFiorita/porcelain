@@ -75,6 +75,7 @@ export async function seedDevelopmentSample(
     '-m',
     'Merge offline dispatch queue',
   );
+  await session.git('branch', '-f', 'porcelain-fixture-base', 'HEAD');
   const secondary = join(server.projectHome, 'offline-cache');
   await session.git('worktree', 'add', secondary, 'demo/offline-cache');
 
@@ -153,7 +154,25 @@ export async function seedDevelopmentSample(
   }
   await session.read({ method: 'POST', path: '/api/inventory/refresh' }, 200);
 
+  await session.git('add', '-A');
+  await session.git('commit', '-m', 'Keep document holds visible');
   const review: PublishReviewRequest = {
+    base: 'refs/heads/porcelain-fixture-base',
+    verdict: {
+      asked: { text: 'Show the dispatch document-hold decisions' },
+      recommendation: 'hold',
+      reasons: ['This synthetic fixture demonstrates review reading'],
+      notProven: [
+        { what: 'Application checks', why: 'Synthetic source-reading fixture' },
+      ],
+      removed: [
+        {
+          behavior: 'Release checklist',
+          why: 'The dispatch guide and escalation procedure replace it',
+          paths: ['docs/operations/release-checklist.md'],
+        },
+      ],
+    },
     expectedRevision: 0,
     summaryHtml:
       '<!doctype html><h1>Dispatch document holds</h1><p>This synthetic source-reading sample adds a document hold status, keeps the next action visible, and explains the dispatch handoff. Application checks have not been run.</p>',

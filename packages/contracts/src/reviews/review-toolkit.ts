@@ -11,13 +11,9 @@ import {
   updateCommentThreadResponseSchema,
 } from './comments.ts';
 
-import {
-  deleteReviewResponseSchema,
-  readPublishedReviewResponseSchema,
-} from './review.ts';
+import { readReviewResponseSchema } from './review.ts';
 
 import {
-  deleteReviewToolRequestSchema,
   createCommentToolRequestSchema,
   listCommentsToolRequestSchema,
   publishReviewToolRequestSchema,
@@ -33,28 +29,15 @@ const publish_review = Tool.make('publish_review', {
   failure: apiErrorSchema,
   failureMode: 'return',
   description:
-    'Atomically replace the latest summary, diagram, review layers and proof. Read the current revision and porcelain://review-guide first. Include your own CSS, matching the reviewed application where possible; missing CSS produces an advisory warning. Attach proof that the work is done: checks you ran with their result, and screenshots, short videos or links.',
+    'Publish an immutable revision of committed branch work with a required verdict. Read the current revision and porcelain://review-guide first. Include your own CSS, matching the reviewed application where possible; missing CSS produces an advisory warning. Attach proof that the work is done: checks you ran with their result, and screenshots, short videos or links.',
 })
   .annotate(Tool.Strict, true)
   .annotate(Tool.OpenWorld, false)
   .annotate(Tool.Destructive, true);
 
-const delete_review = Tool.make('delete_review', {
-  parameters: deleteReviewToolRequestSchema,
-  success: deleteReviewResponseSchema,
-  failure: apiErrorSchema,
-  failureMode: 'return',
-  description:
-    'Permanently delete the published review, its proof files and reviewed layer decisions for this worktree. Comment threads and reviewed file marks stay. Returns deleted false if there was no review.',
-})
-  .annotate(Tool.Strict, true)
-  .annotate(Tool.OpenWorld, false)
-  .annotate(Tool.Destructive, true)
-  .annotate(Tool.Idempotent, true);
-
 const read_review = Tool.make('read_review', {
   parameters: readReviewToolRequestSchema,
-  success: readPublishedReviewResponseSchema,
+  success: readReviewResponseSchema,
   failure: apiErrorSchema,
   failureMode: 'return',
   description:
@@ -116,7 +99,6 @@ const resolve_comment = Tool.make('resolve_comment', {
 
 export const ReviewToolkit = Toolkit.make(
   publish_review,
-  delete_review,
   read_review,
   list_comments,
   create_comment,

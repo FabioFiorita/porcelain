@@ -1,3 +1,4 @@
+import { reviewFixture } from '../../spec/fixtures/review.ts';
 import { describe, expect, it } from 'vitest';
 import type {
   Diagram,
@@ -42,6 +43,7 @@ function diagram(overrides: Partial<Diagram> = {}): Diagram {
 
 function draft(overrides: Partial<ReviewDraft> = {}): ReviewDraft {
   return {
+    verdict: reviewFixture().verdict,
     expectedRevision: 0,
     summaryHtml: '<p>Summary</p>',
     diagram: { after: diagram() },

@@ -1,3 +1,4 @@
+import { commitReviewFixture } from '../kit/requests.ts';
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import { unreadablePath } from '../kit/answers.ts';
@@ -9,6 +10,7 @@ const LONG_NAME = `${'n'.repeat(300)}.png`;
 test('reading a name longer than the file system allows is refused as unreadable', async ({
   session,
 }) => {
+  await commitReviewFixture(session);
   const response = await session.send({
     method: 'GET',
     path: worktreePath(session, '/text'),

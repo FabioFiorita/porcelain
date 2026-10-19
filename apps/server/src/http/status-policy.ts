@@ -114,6 +114,8 @@ import {
   ProofFileUnreadableError,
   ProofTooLargeError,
   ReviewConflictError,
+  ReviewPublishRefusedError,
+  ReviewNotFoundError,
   ReviewedMarkConflictError,
   ReviewLayerNotFoundError,
   ReviewSummaryNotFoundError,
@@ -149,6 +151,8 @@ const REPOSITORY_UNAVAILABLE = 'Repository could not be inspected';
 const OPERATION_UNAVAILABLE = 'Operation unavailable';
 
 const rules: readonly StatusRule[] = [
+  { errors: [ReviewPublishRefusedError], statusCode: 409 },
+  { errors: [ReviewNotFoundError], statusCode: 404 },
   {
     errors: [
       InvalidPairingAddressError,

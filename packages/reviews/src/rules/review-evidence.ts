@@ -1,4 +1,4 @@
-import type { FileChange, TrackedComparison } from '@porcelain/kernel/models';
+import type { FileChange } from '@porcelain/kernel/models';
 import { isTracked, trackedPath } from '@porcelain/kernel/rules';
 import type {
   ReviewChange,
@@ -40,12 +40,6 @@ export function reviewPaths(
       ...changes.map((change) => change.path),
     ]),
   ];
-}
-
-export function trackedComparisons(
-  changes: readonly FileChange[],
-): TrackedComparison[] {
-  return changes.flatMap((change) => change.comparisons.filter(isTracked));
 }
 
 export function reviewChanges(changes: readonly FileChange[]): ReviewChange[] {

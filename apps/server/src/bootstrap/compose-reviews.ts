@@ -1,3 +1,38 @@
+import {
+  ReadReviewService,
+  ReadReviewRevisionService,
+  ListProjectReviewsService,
+  SetReviewSeenService,
+  SetReviewStateService,
+  ListReviewMarksService,
+  SetReviewMarkService,
+  RemoveReviewMarkService,
+  ReadReviewFileService,
+  BuildReviewLinksService,
+  ValidateReviewPublicationService,
+} from '@porcelain/reviews/services';
+import { AtReviewScopeUseCase } from '../use-cases/reviews/at-review-scope.ts';
+import { remoteReviewLinkSourceLayer } from '../adapters/reviews/remote-review-link-source.ts';
+import { ReadRetainedBranchDiffsService } from '@porcelain/changes/services';
+import { RemoveReviewMarkUseCase } from '../use-cases/reviews/remove-review-mark.ts';
+import { SetReviewMarkUseCase } from '../use-cases/reviews/set-review-mark.ts';
+import { ListReviewMarksUseCase } from '../use-cases/reviews/list-review-marks.ts';
+import { ReadReviewDiffsUseCase } from '../use-cases/reviews/read-review-diffs.ts';
+import { ReadReviewFileUseCase } from '../use-cases/reviews/read-review-file.ts';
+import { SetReviewStateUseCase } from '../use-cases/reviews/set-review-state.ts';
+import { SetReviewSeenUseCase } from '../use-cases/reviews/set-review-seen.ts';
+import { ListProjectReviewsUseCase } from '../use-cases/reviews/list-project-reviews.ts';
+import { ReadReviewUseCase } from '../use-cases/reviews/read-review.ts';
+import { gitReviewCodeReaderLayer } from '../adapters/reviews/git-review-code-reader.ts';
+import { ReviewLinkOptions } from '../ports/review-link-options.ts';
+import {
+  RemoteAccessStore,
+  NetworkAddressReader,
+} from '@porcelain/access/ports';
+import { BranchRangeReader } from '@porcelain/changes/ports';
+import { ReadRepositoryOriginService } from '@porcelain/projects/services';
+import { gitProjectRepositoryReaderLayer } from '../adapters/projects/git-project-repository-reader.ts';
+import { gitReviewCommitPinnerLayer } from '../adapters/reviews/git-review-commit-pinner.ts';
 import { FindWorktreeByPathUseCasePort } from '../ports/at-worktree-path-use-case-port.ts';
 import {
   ReadWorktreeStatusService,
@@ -27,6 +62,7 @@ import {
   CommentStore,
   CreateCommentThreadOptions,
   ReplyToCommentOptions,
+  BranchReviewReader,
   ReviewStore,
   ProofLimits,
   ReviewedLayerStore,
@@ -41,7 +77,6 @@ import { reviewsRoutes } from '../http/routes/reviews/reviews-api.ts';
 import { WorktreeAccess } from '../runtime/worktree-access.ts';
 import {
   ValidateReviewDraftService,
-  CheckReviewDraftService,
   CreateCommentThreadService,
   DeleteCommentMessageService,
   DeleteReviewService,
@@ -65,7 +100,6 @@ import {
   ReadPublishedReviewService,
   RecordReviewActivityService,
   InvalidateReviewedMarksService,
-  ListReviewedLayerPathsService,
 } from '@porcelain/reviews/services';
 import { hmacSignatureSourceLayer } from '../adapters/reviews/hmac-signature-source.ts';
 import { randomSecretSourceLayer } from '../adapters/runtime/random-secret-source.ts';
@@ -102,6 +136,7 @@ type ReviewsDependencies = {
   shared: Shared;
   checkWorktree: CheckWorktreeUseCasePort;
   findWorktreeByPath: FindWorktreeByPathUseCasePort;
+  networkAddressReader: NetworkAddressReader;
 };
 
 export function composeReviews(
@@ -118,9 +153,23 @@ export function composeReviews(
   const reviewedFileStore = stores.reviewedFiles;
   const reviewedLayerStore = stores.reviewedLayers;
   const { readPublishedReview } = shared;
-  const listReviewedLayerPaths = shared.listReviewedLayerPaths;
   const { findWorktreeByPath } = dependencies;
+  const originLayer = ReadRepositoryOriginService.layer.pipe(
+    Layer.provide(gitProjectRepositoryReaderLayer(context.settings.limits.git)),
+  );
   const ports = Layer.mergeAll(
+    gitReviewCodeReaderLayer(context.settings.limits),
+    originLayer,
+    gitReviewCommitPinnerLayer(context.settings.limits.git),
+    Layer.succeed(BranchReviewReader, shared.branchReviewReader),
+    Layer.succeed(BranchRangeReader, shared.branchRangeReader),
+    Layer.succeed(RemoteAccessStore, stores.remoteAccess),
+    Layer.succeed(NetworkAddressReader, dependencies.networkAddressReader),
+    Layer.succeed(ReviewLinkOptions, {
+      hubOrigin: context.settings.reviewHubOrigin,
+      localHost: context.settings.host,
+      localPort: context.settings.port,
+    }),
     Layer.succeed(CheckWorktreeUseCasePort, checkWorktree),
     Layer.succeed(WorktreeConsistencyProbe, shared.confirmWorktree),
     Layer.succeed(Lanes, lanes),
@@ -158,10 +207,24 @@ export function composeReviews(
     Layer.succeed(ReadWorktreeStatusService, shared.readWorktreeStatus),
     Layer.succeed(ReadChangeFingerprintsService, shared.readChangeFingerprints),
     Layer.succeed(ReadBranchChangesService, shared.readBranchChanges),
-    Layer.succeed(ListReviewedLayerPathsService, listReviewedLayerPaths),
     Layer.succeed(ReadTextFilesService, shared.readTextFilesService),
   );
+  const linkPorts = remoteReviewLinkSourceLayer.pipe(Layer.provideMerge(ports));
   const services = Layer.mergeAll(
+    AtReviewScopeUseCase.layer,
+    ReadRetainedBranchDiffsService.layer,
+    ReadReviewService.layer,
+    ReadReviewRevisionService.layer,
+    ListProjectReviewsService.layer,
+    SetReviewSeenService.layer,
+    SetReviewStateService.layer,
+    ListReviewMarksService.layer,
+    SetReviewMarkService.layer,
+    RemoveReviewMarkService.layer,
+    ReadReviewFileService.layer,
+    BuildReviewLinksService.layer,
+    ValidateReviewPublicationService.layer,
+
     WorktreeAccess.layer,
     ResolvePublishedReviewService.layer,
     SetReviewedFilesService.layer,
@@ -170,7 +233,6 @@ export function composeReviews(
     ReplyToCommentService.layer,
     UpdateCommentThreadService.layer,
     ValidateReviewDraftService.layer,
-    CheckReviewDraftService.layer,
     PublishReviewService.layer,
     ListReviewedLayersService.layer,
     AtWorktreePathUseCase.layer,
@@ -186,8 +248,17 @@ export function composeReviews(
     ReadReviewLayerService.layer,
     SetReviewedLayerService.layer,
     RemoveReviewedLayerService.layer,
-  ).pipe(Layer.provideMerge(ports));
+  ).pipe(Layer.provideMerge(linkPorts));
   const operations = Layer.mergeAll(
+    RemoveReviewMarkUseCase.layer,
+    SetReviewMarkUseCase.layer,
+    ListReviewMarksUseCase.layer,
+    ReadReviewDiffsUseCase.layer,
+    ReadReviewFileUseCase.layer,
+    SetReviewStateUseCase.layer,
+    SetReviewSeenUseCase.layer,
+    ListProjectReviewsUseCase.layer,
+    ReadReviewUseCase.layer,
     ListCommentThreadsUseCase.layer,
     CreateCommentThreadUseCase.layer,
     ReplyToCommentUseCase.layer,
@@ -223,6 +294,16 @@ export function composeReviews(
     const runtime = yield* Layer.build(application);
     return yield* Effect.gen(function* () {
       const useCases = {
+        atReviewScope: yield* AtReviewScopeUseCase,
+        removeReviewMark: yield* RemoveReviewMarkUseCase,
+        setReviewMark: yield* SetReviewMarkUseCase,
+        listReviewMarks: yield* ListReviewMarksUseCase,
+        readReviewDiffs: yield* ReadReviewDiffsUseCase,
+        readReviewFile: yield* ReadReviewFileUseCase,
+        setReviewState: yield* SetReviewStateUseCase,
+        setReviewSeen: yield* SetReviewSeenUseCase,
+        listProjectReviews: yield* ListProjectReviewsUseCase,
+        readReview: yield* ReadReviewUseCase,
         atWorktreePath: yield* AtWorktreePathUseCase,
 
         refreshReviewActivity: yield* RefreshReviewActivityUseCase,

@@ -266,6 +266,8 @@ test("publishing a review tells a watching viewer the worktree's review changed"
     session.fixture.readme.path,
     session.fixture.readme.changed,
   );
+  await session.git('add', '-A');
+  await session.git('commit', '-m', 'Commit review fixture');
   const response = await session.send({
     method: 'PUT',
     path: worktreePath(session, '/review'),
@@ -282,6 +284,10 @@ test("publishing a review tells a watching viewer the worktree's review changed"
 test("marking a file reviewed tells a watching viewer the worktree's reviewed marks changed", async ({
   session,
 }) => {
+  await session.writeFile(
+    session.fixture.readme.path,
+    `${session.fixture.readme.changed}A new change to mark.\n`,
+  );
   const connection = await watching(session);
   const fingerprint = await fingerprintOf(session, session.fixture.readme.path);
 

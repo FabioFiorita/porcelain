@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures.tsx';
 
-test('the latest publication stays reachable after commit, with its decisions and proof, and the empty pane reopens it', async ({
+test('the latest publication stays reachable after the branch advances, with its decisions and proof, and the empty pane reopens it', async ({
   repo,
   agent,
   server,
@@ -10,7 +10,8 @@ test('the latest publication stays reachable after commit, with its decisions an
     checks: [{ name: 'Saved review check', result: 'pass' }],
     screenshot: 'Published evidence',
   });
-  await repo.commit('Commit the published change');
+  await repo.write('later.md', 'A later committed change.\n');
+  await repo.commit('Advance the branch');
   await expect
     .poll(async () => (await server.publishedReview()).review?.active)
     .toBe(false);
@@ -48,12 +49,7 @@ test('the latest publication stays reachable after commit, with its decisions an
     )
     .toBeVisible();
   await expect
-    .element(
-      review.getByRole('button', {
-        name: 'Committed · Show code',
-        exact: true,
-      }),
-    )
+    .element(review.getByText('A change to review.', { exact: true }))
     .toBeVisible();
 
   await workspace
@@ -93,7 +89,7 @@ test('the latest publication stays reachable after commit, with its decisions an
   await expect.element(review).toBeVisible();
 });
 
-test('an active review becomes saved live after an external commit and keeps explaining an unavailable pointer', async ({
+test('an active review becomes saved live after an external commit and retains its code after the live file is removed', async ({
   workspace,
   agent,
   repo,
@@ -110,6 +106,7 @@ test('an active review becomes saved live after an external commit and keeps exp
   await expect
     .element(review.getByText(/Historical diff replay is unavailable/))
     .not.toBeInTheDocument();
+  await repo.write('later.md', 'An external committed change.\n');
   await repo.commit('Commit externally');
   await expect
     .element(review.getByRole('heading', { name: 'Saved review', exact: true }))
@@ -121,7 +118,7 @@ test('an active review becomes saved live after an external commit and keeps exp
         (await server.publishedReview()).review?.layers[0]?.steps[0]?.location
           .state,
     )
-    .toBe('broken');
+    .toBe('current');
   await review
     .getByRole('button', {
       name: 'Start with 1. Keep the decision readable',
@@ -130,11 +127,11 @@ test('an active review becomes saved live after an external commit and keeps exp
     .click();
   await expect
     .element(review.getByText(/Broken pointer · File no longer exists/))
-    .toBeVisible();
+    .not.toBeInTheDocument();
   await expect
     .element(review.getByText('A line is added', { exact: true }))
     .toBeVisible();
   await expect
     .element(review.getByRole('button', { name: 'Open file', exact: true }))
-    .toBeDisabled();
+    .toBeEnabled();
 });
