@@ -74,6 +74,44 @@ test('a preflight from another origin is answered before any origin or credentia
   expect(response.headers['access-control-allow-credentials']).toBeUndefined();
 });
 
+test('anonymous health preflights advertise only reads without authorization', async ({
+  session,
+}) => {
+  for (const method of ['GET', 'HEAD']) {
+    const response = await session.send({
+      method: 'OPTIONS',
+      path: '/api/health',
+      auth: 'none',
+      headers: { origin: APP, 'access-control-request-method': method },
+    });
+
+    expect(response.status).toBe(204);
+    expect(response.headers['access-control-allow-origin']).toBe('*');
+    expect(response.headers['access-control-allow-methods']).toBe('GET, HEAD');
+    expect(response.headers['access-control-allow-headers']).toBe(
+      'content-type',
+    );
+  }
+
+  const bearer = await session.send({
+    method: 'OPTIONS',
+    path: '/api/health',
+    auth: 'none',
+    headers: {
+      origin: APP,
+      'access-control-request-method': 'GET',
+      'access-control-request-headers': 'Authorization, content-type',
+    },
+  });
+  expect(bearer.status).toBe(204);
+  expect(bearer.headers['access-control-allow-methods']).toBe(
+    'GET, HEAD, POST, PUT, PATCH, DELETE',
+  );
+  expect(bearer.headers['access-control-allow-headers']).toBe(
+    'authorization, content-type',
+  );
+});
+
 test('a page can read only the opaque health identity before pairing and needs a bearer for the environment descriptor', async ({
   session,
 }) => {
@@ -145,6 +183,12 @@ test('a pairing redemption may be preflighted from another origin without allowi
   expect(response.body).toBeUndefined();
   expect(response.headers['access-control-allow-origin']).toBe('*');
   expect(response.headers['access-control-allow-credentials']).toBeUndefined();
+  expect(response.headers['access-control-allow-methods']).toBe(
+    'GET, HEAD, POST, PUT, PATCH, DELETE',
+  );
+  expect(response.headers['access-control-allow-headers']).toBe(
+    'authorization, content-type',
+  );
 });
 
 test('a bearer client on another origin, or on an opaque one, reads and writes', async ({
