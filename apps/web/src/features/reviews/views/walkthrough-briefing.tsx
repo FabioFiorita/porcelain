@@ -42,7 +42,7 @@ export function WalkthroughBriefing({
   onOpen,
 }: WalkthroughProps & {
   stops: readonly WalkthroughStop[];
-  items: readonly ReviewChangeItem[];
+  items: readonly Pick<ReviewChangeItem, 'path' | 'reviewStatus'>[];
   decisions: ReadonlyMap<string, DecisionState>;
   done: (stop: WalkthroughStop) => boolean;
   onGo: (key: WalkthroughKey) => void;
@@ -118,7 +118,10 @@ export function WalkthroughBriefing({
           </dl>
           <div className="flex flex-wrap items-center gap-2">
             {next ? (
-              <Button onClick={() => onGo(next.key)}>
+              <Button
+                className="h-auto max-w-full min-w-0 text-left whitespace-normal"
+                onClick={() => onGo(next.key)}
+              >
                 {done === 0 && total.reviewed === 0
                   ? 'Start with'
                   : 'Continue with'}{' '}

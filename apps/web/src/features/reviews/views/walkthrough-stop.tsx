@@ -1,329 +1,37 @@
 import {
   ArrowRightIcon,
   CheckIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   FileCodeIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
-import { formatForDisplay } from '@tanstack/react-hotkeys';
 import { type ReactNode, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/toast';
 import { MarkdownView } from '@/features/files/index';
 import { cn } from '@/shared/lib/utils';
-import { SHORTCUTS } from '@/shared/workspace/shortcuts';
+import { LONG_DECISION_SUMMARY } from '@/config/limits';
+import { spansLabel } from '@porcelain/client/changes/rules';
 import {
   basename,
   checkResultLabel,
-  completionPlan,
-  type CommentAnchor,
   decisionKey,
   decisionLinks,
-  type DecisionState,
   decisionRoute,
-  filesReviewed,
-  neighbourStop,
   orderedChecks,
   proofOnLayer,
-  type ReviewChangeItem,
+  systemChanges,
+  stopTitle,
+  type DecisionState,
   type ReviewLayer,
   type ReviewStep,
-  type RevealComment,
-  stopTitle,
-  reviewStepLines,
-  systemChanges,
   type WalkthroughKey,
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
-import { LONG_DECISION_SUMMARY } from '@/config/limits';
-import { useAtom } from '@effect/atom-react';
-import {
-  completeDecision,
-  decisionCompletionBinding,
-} from '@porcelain/client/reviews';
-import { decisionNotes, gapNotes, mergeNotes } from '../rules/code-notes';
-import { spansLabel } from '@porcelain/client/changes/rules';
-import { ReviewCodeDocument } from './review-code-document';
-import { DecisionExcerpts, excerptId } from './walkthrough-excerpt';
 import { DecisionQuestion } from './walkthrough-question';
 import type { WalkthroughProps } from './walkthrough-props';
-
 type CodeStop = Exclude<WalkthroughStop, { kind: 'briefing' }>;
 
-export function WalkthroughStopView({
-  stop,
-  stops,
-  items,
-  decision,
-  decisionsSettled,
-  finished,
-  onGo,
-  ...props
-}: WalkthroughProps & {
-  stop: CodeStop;
-  stops: readonly WalkthroughStop[];
-  items: readonly ReviewChangeItem[];
-  decision: DecisionState | undefined;
-  decisionsSettled: boolean;
-  finished: boolean;
-  onGo: (key: WalkthroughKey) => void;
-}) {
-  const { review, scope, context, interaction } = props;
-  const [reveal, setReveal] = useState<RevealComment>();
-  const completion = decisionCompletionBinding(
-    useAtom(completeDecision({ scope, connection: context.connection }), {
-      mode: 'promiseExit',
-    }),
-    (notice) => toast.add(notice),
-  );
-  const shown = new Set(stop.paths);
-  const files = items.filter((item) => shown.has(item.path));
-  const plan = completionPlan(files);
-  const progress = filesReviewed(stop.paths, items);
-  const previous = neighbourStop(stops, stop.key, -1);
-  const next = neighbourStop(stops, stop.key, 1);
-  const layer = stop.kind === 'decision' ? stop.layer : undefined;
-  const markDecision = (onDone?: () => void) =>
-    completion.complete({
-      files,
-      ...(onDone ? { onDone } : {}),
-      ...(layer
-        ? {
-            decision: {
-              layerId: layer.id,
-              fingerprint: layer.fingerprint,
-              reviewed: decision?.reviewed === true,
-            },
-          }
-        : {}),
-    });
-  const remaining = plan.eligible;
-  const tally =
-    progress.total === 0
-      ? 'No changed files of its own'
-      : `${progress.reviewed} of ${progress.total} ${progress.total === 1 ? 'file' : 'files'} reviewed here`;
-  const advance = () => onGo(next?.key ?? 'briefing');
-  const notes = mergeNotes(
-    ...review.layers.map((item, index) =>
-      item.id === layer?.id
-        ? decisionNotes(item)
-        : decisionNotes(item, index + 1),
-    ),
-    stop.kind === 'unexplained'
-      ? {}
-      : gapNotes(review.notExplained.filter((gap) => shown.has(gap.path))),
-  );
-  const excerpts =
-    stop.kind === 'decision'
-      ? stop.layer.steps.filter((step) => {
-          const location = step.location;
-          switch (location.state) {
-            case 'committed':
-            case 'broken':
-              return true;
-            case 'current':
-            case 'changed':
-              return (
-                !shown.has(step.pointer.path) &&
-                !stop.elsewhere.some((file) => file.path === step.pointer.path)
-              );
-            default:
-              return location satisfies never;
-          }
-        })
-      : [];
-  const revealStep = (step: ReviewStep) => {
-    const location = step.location;
-    switch (location.state) {
-      case 'broken':
-        document
-          .getElementById(excerptId(step))
-          ?.scrollIntoView({ block: 'start' });
-        return;
-      case 'current':
-      case 'committed':
-      case 'changed':
-        break;
-      default:
-        location satisfies never;
-    }
-    const item = items.find(
-      (candidate) => candidate.path === step.pointer.path,
-    );
-    const anchor = item && shown.has(item.path) ? stepAnchor(step, item) : null;
-    if (anchor) {
-      setReveal({ anchor, nonce: Date.now() });
-      return;
-    }
-    const owner =
-      stop.kind === 'decision'
-        ? stop.elsewhere.find((file) => file.path === step.pointer.path)
-        : undefined;
-    if (owner) {
-      onGo(owner.stop);
-      return;
-    }
-    if (excerpts.includes(step)) {
-      document
-        .getElementById(excerptId(step))
-        ?.scrollIntoView({ block: 'start' });
-      return;
-    }
-    const lines = reviewStepLines(step);
-    props.onOpen(
-      { kind: 'file', path: step.pointer.path },
-      {
-        kind: 'codeRange',
-        filePath: step.pointer.path,
-        startLine: lines.startLine,
-        endLine: lines.endLine,
-        comparison: { kind: 'file' },
-      },
-    );
-  };
-
-  return (
-    <div
-      className="flex min-h-0 flex-1 flex-col"
-      role="region"
-      aria-label={stopTitle(stop)}
-    >
-      <ReviewCodeDocument
-        scope={scope}
-        context={context}
-        interaction={{ ...interaction, reveal: reveal ?? interaction.reveal }}
-        paths={stop.paths}
-        files={stop.paths.map((path) => ({ path }))}
-        agentNotes={notes}
-        toolbar={(collapseControl) => (
-          <nav
-            aria-label="Walkthrough stop"
-            className="flex shrink-0 flex-wrap items-center gap-1 border-b px-2 py-1"
-          >
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              disabled={!previous}
-              aria-label={
-                previous ? `Previous: ${stopTitle(previous)}` : 'Previous'
-              }
-              title={
-                previous
-                  ? `${stopTitle(previous)} (${formatForDisplay(SHORTCUTS.previousStop)})`
-                  : undefined
-              }
-              onClick={() => previous && onGo(previous.key)}
-            >
-              <ChevronLeftIcon />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              disabled={!next}
-              aria-label={next ? `Next: ${stopTitle(next)}` : 'Next'}
-              title={
-                next
-                  ? `${stopTitle(next)} (${formatForDisplay(SHORTCUTS.nextStop)})`
-                  : undefined
-              }
-              onClick={advance}
-            >
-              <ChevronRightIcon />
-            </Button>
-            <span className="ml-1 min-w-0 flex-1 truncate text-xs text-muted-foreground tabular-nums">
-              {tally}
-            </span>
-            {collapseControl}
-            {layer && (
-              <Button
-                variant={finished ? 'ghost' : 'outline'}
-                size="sm"
-                aria-pressed={finished}
-                disabled={
-                  !decisionsSettled || completion.pending || plan.blocked
-                }
-                title={plan.explanation}
-                onClick={() =>
-                  finished
-                    ? completion.reopen({
-                        layerId: layer.id,
-                        fingerprint: layer.fingerprint,
-                      })
-                    : markDecision()
-                }
-              >
-                <CheckIcon data-icon="inline-start" />
-                {finished
-                  ? 'Decision reviewed'
-                  : (plan.action ?? 'Mark decision reviewed')}
-              </Button>
-            )}
-          </nav>
-        )}
-        header={() => (
-          <StopBrief
-            stop={stop}
-            stops={stops}
-            review={review}
-            decision={decision}
-            finished={finished}
-            onStep={revealStep}
-            onGo={onGo}
-          />
-        )}
-        footer={() => (
-          <>
-            {stop.kind === 'decision' && (
-              <DecisionExcerpts
-                scope={scope}
-                context={context}
-                interaction={interaction}
-                onOpen={props.onOpen}
-                layer={stop.layer}
-                steps={excerpts}
-              />
-            )}
-            <div className="mt-3 border-t bg-muted/20">
-              <div className="flex flex-wrap items-center justify-between gap-4 px-4 pt-5 pb-16 font-sans">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">
-                    {finishHeading(finished, layer !== undefined)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {finishDetail({
-                      finished,
-                      next,
-                      remaining,
-                      total: progress.total,
-                      decides: layer !== undefined,
-                      unavailable: plan.explanation,
-                    })}
-                  </p>
-                </div>
-                <Button
-                  disabled={
-                    completion.pending ||
-                    plan.blocked ||
-                    (layer && !decisionsSettled)
-                  }
-                  onClick={() => (finished ? advance() : markDecision(advance))}
-                >
-                  {(!finished && plan.action) ||
-                    finishAction(finished, next !== undefined)}
-                  <ArrowRightIcon data-icon="inline-end" />
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
-      />
-    </div>
-  );
-}
-
-function StopBrief({
+export function StopBrief({
   stop,
   stops,
   review,
@@ -369,74 +77,10 @@ function StopBrief({
   );
 }
 
-function finishHeading(finished: boolean, decides: boolean) {
-  if (finished) return 'All reviewed here';
-  if (decides) return 'Done with this decision?';
-  return 'Done here?';
-}
-
-function finishDetail({
-  finished,
-  next,
-  remaining,
-  total,
-  decides,
-  unavailable,
-}: {
-  finished: boolean;
-  next: WalkthroughStop | undefined;
-  remaining: number;
-  total: number;
-  decides: boolean;
-  unavailable: string | undefined;
-}) {
-  if (finished) {
-    return next ? `Next: ${stopTitle(next)}` : 'This was the last stop.';
-  }
-  if (unavailable) {
-    return remaining > 0
-      ? `Marks the ${remaining} available ${remaining === 1 ? 'file' : 'files'} here reviewed. ${unavailable}`
-      : unavailable;
-  }
-  if (remaining > 0) {
-    return `Marks the ${remaining} remaining ${remaining === 1 ? 'file' : 'files'} here reviewed${decides ? ' and records the decision' : ''}.`;
-  }
-  if (total === 0) {
-    return 'Records the decision. Its code is shown in other stops.';
-  }
-  return 'Its files are reviewed; this records the decision.';
-}
-
-function finishAction(finished: boolean, hasNext: boolean) {
-  if (finished) return hasNext ? 'Continue' : 'Back to the briefing';
-  return hasNext ? 'Mark reviewed and continue' : 'Mark reviewed and finish';
-}
-
 function changeLabel(change: 'new' | 'changed' | 'removed') {
   if (change === 'new') return 'New';
   if (change === 'changed') return 'Changed';
   return 'Removed';
-}
-
-function stepAnchor(
-  step: ReviewStep,
-  item: ReviewChangeItem,
-): CommentAnchor | null {
-  const scope = (['unstaged', 'staged', 'untracked'] as const).find((value) =>
-    item.comparisons.some((change) => change.scope === value),
-  );
-  if (!scope) return null;
-  const comparison = { kind: 'worktree' as const, scope };
-  return step.location.state === 'current'
-    ? {
-        kind: 'codeRange',
-        filePath: item.path,
-        startLine: step.location.startLine,
-        endLine: step.location.endLine,
-        side: 'additions',
-        comparison,
-      }
-    : { kind: 'file', filePath: item.path, comparison };
 }
 
 function Brief({

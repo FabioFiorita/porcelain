@@ -1,3 +1,5 @@
+import { Schema } from 'effect';
+import { reviewFixtureSchema } from './protocol.ts';
 import type { EditFileRequest } from '@porcelain/contracts/files';
 import type {
   AgentAction,
@@ -14,6 +16,14 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
   return {
     ...rest,
     initialBranch,
+    review: async (title: string) =>
+      Schema.decodeUnknownSync(reviewFixtureSchema)(
+        JSON.parse(
+          await step({ kind: 'review-fixture', operation: 'publish', title }),
+        ),
+      ),
+    removeReviewWorktree: () =>
+      step({ kind: 'review-fixture', operation: 'remove-worktree', title: '' }),
     write: (path: string, text: string) => step({ kind: 'write', path, text }),
     remove: (path: string) => step({ kind: 'remove', path }),
     read: (path: string) => step({ kind: 'read', path }),

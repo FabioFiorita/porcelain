@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./kit/world": "./spec/kit/world.ts"
+    "./kit/world": "./spec/kit/world.ts",
+    "./kit/review-fixture": "./spec/kit/review-fixture.ts"
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",

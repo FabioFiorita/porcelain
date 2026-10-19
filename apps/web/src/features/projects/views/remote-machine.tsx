@@ -58,6 +58,7 @@ export function RemoteMachine({
       ) : (
         <RemoteProjects
           inventory={inventory}
+          connection={connection}
           onRetry={refreshInventory}
           environmentId={remote.environmentId}
           selected={selected}
@@ -69,12 +70,14 @@ export function RemoteMachine({
 }
 
 function RemoteProjects({
+  connection,
   inventory,
   onRetry,
   environmentId,
   selected,
   onSelect,
 }: {
+  connection: RemoteConnection['connection'];
   onRetry: () => void;
   inventory: ReturnType<typeof useRemoteInventory>['inventory'];
   environmentId: RemoteConnection['remote']['environmentId'];
@@ -101,6 +104,7 @@ function RemoteProjects({
     <SidebarMenuSubItem key={project.id}>
       <ProjectSection
         environmentId={environmentId}
+        connection={connection}
         project={project}
         onRetry={onRetry}
         selected={selected}

@@ -42,3 +42,4 @@ export {
   readProjectGitHubAccount,
 } from './queries/project-reviews.ts';
 export { setProjectGitHubAccount } from './commands/github-account.ts';
+export { observeReviewSeen } from './queries/project-reviews.ts';

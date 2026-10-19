@@ -584,10 +584,6 @@ function EmptyDocument({
     handoff &&
     {
       Review: { opens: 'the review', action: 'Open review' },
-      'Saved review': {
-        opens: 'the saved review',
-        action: 'Open saved review',
-      },
       Changes: { opens: 'all changes', action: 'Open all changes' },
     }[handoff];
   return (

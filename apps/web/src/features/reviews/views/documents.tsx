@@ -1,4 +1,3 @@
-import { AsyncResult } from 'effect/reactivity';
 import { FileIcon, GitGraphIcon, HistoryIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CommitGraph, FileTimeline } from '@/features/history/index';
@@ -28,7 +27,7 @@ import { ProofDocument } from './proof-document';
 import { ReviewCodeDocument } from './review-code-document';
 import { MarkAllReviewed } from './reviewed-control';
 import { ReviewEmpty } from './review-empty';
-import { ReviewWalkthrough } from './review-walkthrough';
+import { BranchReviewPage } from './branch-review-page';
 import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -170,24 +169,8 @@ function TimelineDocument({
 
 function HandoffDocument(props: DocumentProps) {
   const published = usePublishedReview(props.scope, props.context);
-  const review = published.review;
-  if (AsyncResult.isInitial(published.result))
-    return (
-      <p role="status" className="p-4 text-sm">
-        Loading review…
-      </p>
-    );
-  if (AsyncResult.isFailure(published.result))
-    return <PublicationFailure retry={published.refresh} />;
-  if (review)
-    return (
-      <ReviewWalkthrough
-        {...props}
-        review={review}
-        onRefresh={published.refresh}
-        address={props.context.connection.address}
-      />
-    );
+  if (published.review?.reviewId)
+    return <BranchReviewPage {...props} active={props.interaction.active} />;
   return <PlainChangesDocument {...props} />;
 }
 
@@ -316,20 +299,6 @@ function ChangeDocument({
           />
         )}
       </DiscardButton>
-    </div>
-  );
-}
-
-function PublicationFailure({ retry }: { retry: () => void }) {
-  return (
-    <div className="flex flex-col items-center p-4">
-      <ReviewEmpty
-        title="Review could not be loaded"
-        description="The saved publication could not be read."
-      />
-      <Button variant="outline" onClick={retry}>
-        Retry review
-      </Button>
     </div>
   );
 }

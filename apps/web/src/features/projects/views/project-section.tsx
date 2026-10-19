@@ -1,3 +1,5 @@
+import { ProjectReviews } from '@/features/reviews/index';
+import type { Connection } from '@/shared/workspace/connection';
 import {
   ChevronRightIcon,
   CircleAlertIcon,
@@ -37,12 +39,14 @@ import { WorktreeRow } from './worktree-row';
 
 export function ProjectSection({
   environmentId,
+  connection,
   project,
   onRetry,
   selected,
   onSelect,
 }: {
   environmentId: string | null;
+  connection: Connection;
   project: Project;
   onRetry: () => void;
   selected: string | null | undefined;
@@ -136,6 +140,11 @@ export function ProjectSection({
       </ContextMenu>
 
       <CollapsibleContent>
+        <ProjectReviews
+          connection={connection}
+          projectId={project.id}
+          environmentId={environmentId}
+        />
         {path && (
           <p
             className="truncate pb-1 pl-8 font-mono text-2xs text-muted-foreground"

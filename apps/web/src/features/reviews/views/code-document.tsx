@@ -55,6 +55,7 @@ type Note =
   | { kind: 'thread'; thread: CommentThread; stale: boolean }
   | { kind: 'composer'; anchor: FileCommentAnchor };
 type Props = {
+  onReview?: (entry: CodeEntry) => void;
   entries: readonly CodeEntry[];
   scope: ReviewScope;
   context: ConnectionContext;
@@ -89,7 +90,9 @@ export function CodeDocument(props: Props) {
       <CodeSurface
         {...props}
         threads={threads}
-        onToggleReviewed={(entry) => review.toggle(entry.review)}
+        onToggleReviewed={
+          props.onReview ?? ((entry) => review.toggle(entry.review))
+        }
       />
     </>
   );

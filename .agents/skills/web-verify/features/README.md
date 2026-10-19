@@ -119,5 +119,8 @@ These instructions are source-reviewed guidance. Report exactly which maps and b
 | [reviews.resolve](reviews.resolve.md) | /$projectId/$worktreeId | Resolving a comment thread moves it from the open comments to the resolved ones and the server keeps it resolved, and reopening it moves it back. |
 | [reviews.spec-files](reviews.spec-files.md) | / | The Spec files setting enables a separate Specs section and document. |
 | [reviews.split-shortcuts](reviews.split-shortcuts.md) | / | In a split view the tab shortcuts act on the focused pane alone, and opening the split registers them once. |
-| [reviews.saved-review](reviews.saved-review.md) | / | The latest publication remains readable as Saved review after commit, and explains the limits of current-code pointers and historical diff replay. |
 | [reviews.walkthrough](reviews.walkthrough.md) | / | A published review opens as one walkthrough: a briefing of what the change adds, then each decision through the complete diffs of its files with numbered agent notes and the existing code it relies on, then what no decision explains and the specs, with every changed file in exactly one stop, N and P to move between stops, and the agent's HTML summary one tab away. |
+
+| [reviews.page](reviews.page.md) | /reviews/$reviewId | One durable page for the verdict, revisions, decisions, retained code, review-owned comments and marks. |
+| [reviews.revision](reviews.revision.md) | /reviews/$reviewId/$revision | Read an immutable revision after its publishing checkout is gone. |
+| [reviews.decision-link](reviews.decision-link.md) | /reviews/$reviewId/$revision/decisions/$layerId | Open a decision directly, retaining the destination through pairing. |

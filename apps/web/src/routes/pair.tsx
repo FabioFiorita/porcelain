@@ -1,3 +1,7 @@
+import {
+  pairingDestination,
+  clearPairingDestination,
+} from '@/features/access/index';
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router';
 import { useAtomMount } from '@effect/atom-react';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
@@ -18,10 +22,11 @@ export const Route = createFileRoute('/pair')({
   pendingMs: PAIRING_PENDING_MS,
   pendingComponent: PairingView,
   loader: async ({ context, abortController }) => {
+    const destination = pairingDestination();
     const fragment = window.location.hash;
     if (!fragment) {
       if (await restoreSession(context.registry))
-        redirect({ to: '/', replace: true, throw: true });
+        redirect({ href: destination, replace: true, throw: true });
       return undefined;
     }
     window.history.replaceState(
@@ -35,10 +40,11 @@ export const Route = createFileRoute('/pair')({
       await pairBrowser(context.registry, link, abortController.signal);
     } catch (error) {
       if (await restoreSession(context.registry))
-        redirect({ to: '/', replace: true, throw: true });
+        redirect({ href: destination, replace: true, throw: true });
       return { reason: connectionErrorMessage(error) };
     }
-    redirect({ to: '/', replace: true, throw: true });
+    clearPairingDestination();
+    redirect({ href: destination, replace: true, throw: true });
   },
   errorComponent: WorkspaceError,
   component: PairRoute,

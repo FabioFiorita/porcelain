@@ -1,3 +1,5 @@
+import { durableReviewFixture } from '@porcelain/web/kit/review-fixture';
+import { ServerHandle } from '@porcelain/server/kit/isolated-server';
 import { pairingLink } from '@porcelain/contracts/access';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -35,6 +37,7 @@ const usage = `Usage: .agents/skills/web-verify/scripts/cli <command> [--instanc
   pairing-link            mint a fresh one-time link to open in your browser
   agent publish-review "<title>" [--context] [--summary-html <html>]
   agent publish-architecture
+  agent publish-revision "<title>" | remove-review-worktree
   agent publish-proof "<title>" --check "<name>=pass|fail" [--output "<name>=<text>"] --screenshot "<title>"
   agent comment <path> "<body>" | reply <threadId|latest> "<body>"
   server published-review | reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | pending-links | receipt <requestId>
@@ -112,6 +115,23 @@ async function serverSide(
       .json(label, { command: args, output }, recorder);
     return registry.redactor(instance).known(output);
   };
+  if (
+    name === 'agent' &&
+    (rest[0] === 'publish-revision' || rest[0] === 'remove-review-worktree')
+  ) {
+    const handle = await ServerHandle.attach(manifest());
+    recorder.secret(handle.credential);
+    recorder.secret(handle.desktopCredential);
+    const session = handle.session(recorder, { projectId: '', worktreeId: '' });
+    return record(
+      `agent-${rest[0]}`,
+      await durableReviewFixture(
+        session,
+        rest[0] === 'publish-revision' ? 'publish' : 'remove-worktree',
+        rest[1] ?? 'Retain code after the publishing checkout is removed',
+      ),
+    );
+  }
   if (name === 'agent')
     return record(
       `agent-${rest[0] ?? ''}`,

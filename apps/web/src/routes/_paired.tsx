@@ -1,3 +1,4 @@
+import { rememberPairingDestination } from '@/features/access/index';
 import {
   createFileRoute,
   Navigate,
@@ -12,9 +13,11 @@ import { WorkspacePending } from '@/app/workspace-pending';
 import { DesktopActions } from '@/app/desktop-actions';
 
 export const Route = createFileRoute('/_paired')({
-  beforeLoad: async ({ context }) => {
-    if (!(await restoreSession(context.registry)))
+  beforeLoad: async ({ context, location }) => {
+    if (!(await restoreSession(context.registry))) {
+      rememberPairingDestination(location.href);
       redirect({ to: '/pair', replace: true, throw: true });
+    }
   },
   pendingMs: 0,
   pendingMinMs: 0,

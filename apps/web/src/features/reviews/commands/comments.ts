@@ -5,6 +5,7 @@ import { Atom } from 'effect/reactivity';
 import { commentWriteBinding } from '@porcelain/client/reviews';
 import {
   commentCommands,
+  reviewCommands,
   observeCommentVisibility,
 } from '@porcelain/client/reviews';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
@@ -34,7 +35,12 @@ export function useCreateComment(
 ) {
   return {
     ...useCommentWrite(
-      commentCommands({ scope, connection: context.connection }).create,
+      scope.review
+        ? reviewCommands({
+            reviewId: scope.review.reviewId,
+            connection: context.connection,
+          }).createComment
+        : commentCommands({ scope, connection: context.connection }).create,
     ),
     bodyLimit: COMMENT_BODY_LENGTH,
   };
@@ -45,7 +51,12 @@ export function useReplyComment(
 ) {
   return {
     ...useCommentWrite(
-      commentCommands({ scope, connection: context.connection }).reply,
+      scope.review
+        ? reviewCommands({
+            reviewId: scope.review.reviewId,
+            connection: context.connection,
+          }).reply
+        : commentCommands({ scope, connection: context.connection }).reply,
     ),
     bodyLimit: COMMENT_BODY_LENGTH,
   };
@@ -55,13 +66,23 @@ export function useResolveComment(
   context: ConnectionContext,
 ) {
   return useCommentWrite(
-    commentCommands({ scope, connection: context.connection }).resolve,
+    scope.review
+      ? reviewCommands({
+          reviewId: scope.review.reviewId,
+          connection: context.connection,
+        }).resolve
+      : commentCommands({ scope, connection: context.connection }).resolve,
   );
 }
 export function useEditComment(scope: ReviewScope, context: ConnectionContext) {
   return {
     ...useCommentWrite(
-      commentCommands({ scope, connection: context.connection }).edit,
+      scope.review
+        ? reviewCommands({
+            reviewId: scope.review.reviewId,
+            connection: context.connection,
+          }).edit
+        : commentCommands({ scope, connection: context.connection }).edit,
     ),
     bodyLimit: COMMENT_BODY_LENGTH,
   };
@@ -71,7 +92,12 @@ export function useDeleteComment(
   context: ConnectionContext,
 ) {
   return useCommentWrite(
-    commentCommands({ scope, connection: context.connection }).remove,
+    scope.review
+      ? reviewCommands({
+          reviewId: scope.review.reviewId,
+          connection: context.connection,
+        }).deleteComment
+      : commentCommands({ scope, connection: context.connection }).remove,
   );
 }
 export function useDeleteResolvedComments(

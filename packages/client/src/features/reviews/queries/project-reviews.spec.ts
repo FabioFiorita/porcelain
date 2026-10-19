@@ -1,7 +1,11 @@
 import { expect, it } from 'vitest';
 import { Effect } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
-import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
+import {
+  clientFixtures,
+  readClientAtom,
+} from '../../../../spec/kit/client-fixture.ts';
+import { readReview } from './project-reviews.ts';
 import {
   readReviewComparison,
   readReviewInterdiff,
@@ -137,3 +141,30 @@ it.each([
       'The connected context changed. Reopen Porcelain to continue safely.',
   });
 });
+
+it.each([
+  { revision: undefined, path: `/api/reviews/${reviewId}` },
+  { revision: 7, path: `/api/reviews/${reviewId}/revisions/7` },
+])(
+  'preserves an absent review from $path as a successful empty read',
+  async ({ revision, path }) => {
+    const paths: string[] = [];
+    const subject = fixture((sent) => {
+      paths.push(sent);
+      return Promise.resolve(
+        Response.json({ review: null, revisions: [], revision: null }),
+      );
+    });
+    expect(
+      await readClientAtom(
+        subject.registry,
+        readReview({
+          connection: subject.connection,
+          reviewId,
+          ...(revision === undefined ? {} : { revision }),
+        }),
+      ),
+    ).toEqual({ review: undefined, revisions: [], revision: undefined });
+    expect(paths).toEqual([path]);
+  },
+);

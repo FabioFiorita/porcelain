@@ -135,6 +135,39 @@ export const reviewCommands = Atom.family(
           return answer;
         }),
       ),
+      completeDecision: runtime.fn(
+        Effect.fn('Reviews.completeDecision')(function* (payload: {
+          revision: number;
+          layerId: string;
+          fingerprint: string;
+          files: readonly { path: string; headBlobOid: string }[];
+        }) {
+          return yield* Effect.gen(function* () {
+            for (const file of payload.files)
+              yield* requestApi(input.connection, (api) =>
+                api.reviews.setReviewMark({
+                  params,
+                  payload: {
+                    kind: 'file',
+                    revision: payload.revision,
+                    ...file,
+                  },
+                }),
+              );
+            return yield* requestApi(input.connection, (api) =>
+              api.reviews.setReviewMark({
+                params,
+                payload: {
+                  kind: 'decision',
+                  revision: payload.revision,
+                  layerId: payload.layerId,
+                  fingerprint: payload.fingerprint,
+                },
+              }),
+            );
+          }).pipe(Effect.ensuring(invalidate));
+        }),
+      ),
       mark: runtime.fn(
         Effect.fn('Reviews.mark')(function* (payload: SetReviewMarkRequest) {
           const answer = yield* requestApi(input.connection, (api) =>

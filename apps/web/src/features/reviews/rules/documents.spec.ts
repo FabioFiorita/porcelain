@@ -93,7 +93,7 @@ it('restores distinct all-changes and Specs documents after navigation or reload
 
 it('names the current publication independently of whether its code is still active', () => {
   expect(publishedReviewTitle({ active: true })).toBe('Review');
-  expect(publishedReviewTitle({ active: false })).toBe('Saved review');
+  expect(publishedReviewTitle({ active: false })).toBe('Review');
   expect(publishedReviewTitle(undefined)).toBeUndefined();
   expect(publishedReviewTitle(null)).toBeUndefined();
 });

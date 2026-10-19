@@ -6,6 +6,8 @@ import type {
 import type {
   ListReviewedFilesResponse,
   ReadPublishedReviewResponse,
+  ReadReviewResponse,
+  ReviewMarksResponse,
   SetReviewedFileRequest,
   SetReviewedFilesResponse,
 } from '@porcelain/contracts/reviews';
@@ -27,7 +29,11 @@ export type ReviewChangeItem = FileChange & {
   reviewStatus: ReviewStatus;
   mark?: ReviewedMark;
 };
-export type ReviewScope = { projectId: string; worktreeId: string };
+export type ReviewScope = {
+  projectId: string;
+  worktreeId: string;
+  review?: { reviewId: string; revision: number };
+};
 type BranchFile = ReadBranchChangesResponse['files'][number];
 export type BranchChangeItem = BranchFile & {
   reviewStatus: ReviewStatus;
@@ -202,3 +208,7 @@ export function summaryLayerNumber(message: unknown): number | null {
     ? message.openLayer
     : null;
 }
+
+export type DurableReviewRead = ReadReviewResponse;
+export type ReviewRecord = NonNullable<ReadReviewResponse['review']>;
+export type ReviewMarks = ReviewMarksResponse;
