@@ -53,8 +53,6 @@ export class ReadReviewInterdiffUseCase extends Context.Service<
               return { kind: 'unavailable', reason: 'path-not-reviewed' };
             if (old.newOid === next.newOid && old.oldOid === next.oldOid)
               return { kind: 'unavailable', reason: 'not-changed' };
-            if (old.newOid === undefined || next.newOid === undefined)
-              return { kind: 'unavailable', reason: 'missing-head-blob' };
             const answer = yield* diffs.execute({
               commonDirectory: to.commonDirectory,
               baseOid: from.headOid,

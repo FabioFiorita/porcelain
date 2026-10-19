@@ -22,6 +22,9 @@ test('compares retained review blobs across a rebase, carries marks, reports con
   session,
 }) => {
   await commitReviewFixture(session);
+  await session.writeFile('removed-later.ts', 'export const removed = 1;\n');
+  await session.git('add', 'removed-later.ts');
+  await session.git('commit', '-m', 'Prepare a file that can be removed');
   await session.git('branch', 'comparison-base');
   const path = join(session.projectHome, 'comparison-branch');
   await session.git('worktree', 'add', '-b', 'comparison-branch', path);
@@ -49,6 +52,7 @@ test('compares retained review blobs across a rebase, carries marks, reports con
       step.pointer.endLine += 1;
     }
   write('README.md', `${session.fixture.readme.changed}First decision.\n`);
+  write('removed-later.ts', 'export const removed = 2;\n');
   write('stable.ts', 'export const stable = true;\n');
   git('add', '-A');
   git('commit', '-qm', 'First review revision');
@@ -118,7 +122,8 @@ test('compares retained review blobs across a rebase, carries marks, reports con
   const threadId = text(created.id);
   await call(3, 'resolve_comment', { reviewId, threadId, resolved: true });
   write('README.md', `${session.fixture.readme.changed}Second decision.\n`);
-  git('commit', '-am', 'Change only the decision file');
+  git('rm', 'removed-later.ts');
+  git('commit', '-am', 'Revise the decision and remove obsolete code');
   await session.git('checkout', 'comparison-base');
   await session.writeFile(
     'unrelated-main.ts',
@@ -128,7 +133,7 @@ test('compares retained review blobs across a rebase, carries marks, reports con
   await session.git('commit', '-m', 'Advance the base with an unrelated file');
   git('rebase', 'comparison-base');
   expect(git('diff', '--name-only', text(first.headOid), 'HEAD')).toBe(
-    'README.md\nunrelated-main.ts',
+    'README.md\nremoved-later.ts\nunrelated-main.ts',
   );
   const second = await call(4, 'publish_review', {
     ...draft,
@@ -140,6 +145,13 @@ test('compares retained review blobs across a rebase, carries marks, reports con
     verdict: {
       ...draft.verdict,
       recommendation: 'hold',
+      removed: [
+        {
+          behavior: 'Obsolete fixture',
+          why: 'Verify deletion interdiff',
+          paths: ['removed-later.ts'],
+        },
+      ],
       notProven: [{ what: 'Native apps', why: 'Server-only fixture' }],
     },
     proof: { checks: [{ name: 'focused tests', result: 'pass' }] },
@@ -155,6 +167,12 @@ test('compares retained review blobs across a rebase, carries marks, reports con
       files: [
         {
           path: 'README.md',
+          change: 'changed',
+          headChanged: true,
+          baseChanged: false,
+        },
+        {
+          path: 'removed-later.ts',
           change: 'changed',
           headChanged: true,
           baseChanged: false,
@@ -206,7 +224,7 @@ test('compares retained review blobs across a rebase, carries marks, reports con
     (await compare({ from: '2', to: '2' })).comparison?.files.map(
       (file) => file.change,
     ),
-  ).toEqual(['unchanged', 'unchanged']);
+  ).toEqual(['unchanged', 'unchanged', 'unchanged']);
   const patch = await interdiff();
   expect(patch).toMatchObject({
     kind: 'diff',
@@ -221,6 +239,16 @@ test('compares retained review blobs across a rebase, carries marks, reports con
   expect(contentPatch.patch).toContain('-First decision.');
   expect(contentPatch.patch).toContain('+Second decision.');
   expect(contentPatch.patch).not.toContain('unrelated');
+  const deletion = await interdiff('removed-later.ts');
+  expect(deletion).toMatchObject({
+    kind: 'diff',
+    diffs: [{ content: { kind: 'text' } }],
+  });
+  const deletionContent =
+    deletion.kind === 'diff' ? deletion.diffs[0]?.content : undefined;
+  if (deletionContent?.kind !== 'text')
+    throw new Error('Expected a text deletion interdiff');
+  expect(deletionContent.patch).toContain('-export const removed = 2;');
   expect(await interdiff('stable.ts')).toEqual({
     kind: 'unavailable',
     reason: 'not-changed',
@@ -274,4 +302,7 @@ test('compares retained review blobs across a rebase, carries marks, reports con
   execFileSync('git', ['-C', session.repository, 'gc', '--prune=now']);
   expect(await compare({ from: '1', to: '2' })).toEqual(answer);
   expect(await interdiff('README.md', { from: '1', to: '2' })).toEqual(patch);
+  expect(await interdiff('removed-later.ts', { from: '1', to: '2' })).toEqual(
+    deletion,
+  );
 });

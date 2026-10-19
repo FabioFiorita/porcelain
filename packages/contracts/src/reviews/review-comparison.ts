@@ -39,7 +39,6 @@ export const readReviewInterdiffResponseSchema = Schema.Union([
       'no-baseline',
       'path-not-reviewed',
       'not-changed',
-      'missing-head-blob',
     ]),
   }),
 ]);

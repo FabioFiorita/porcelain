@@ -9,7 +9,7 @@ Contracts: `packages/contracts/src/reviews/review-comparison.ts` and `api.ts`.
 - Verdict additions/drops compare full entries (removal path order is ignored), and deleted-file membership comes from each manifest.
 - Conversation counts agent messages created strictly after A's publication and currently resolved review-owned threads. It does not infer resolution time. Missing creation timestamps are unknown. Messages can be newer than B, since this is the current conversation.
 - Proof includes B's published checks. Result changes match a unique `(name, layerId, stepId)` in both revisions. Duplicate identities are unknown, and no execution OID is claimed.
-- `GET /api/reviews/:reviewId/interdiff?from=1&to=2&path=decision.ts` returns `{kind:"diff",from,to,path,diffs:[{paths,content}]}` using the existing bounded retained reader for one literal path. Missing baseline, absent manifest membership, unchanged files and missing head blobs return `kind:"unavailable"` with a reason. Base-only changes can return a metadata-only empty patch. Retention works after worktree and branch removal.
+- `GET /api/reviews/:reviewId/interdiff?from=1&to=2&path=decision.ts` returns `{kind:"diff",from,to,path,diffs:[{paths,content}]}` using the existing bounded retained reader for one literal path. Missing baseline, absent manifest membership, and unchanged files return `kind:"unavailable"` with a reason. A missing head side is rendered as an addition/deletion by that same reader. Base-only changes can return a metadata-only empty patch. Retention works after worktree and branch removal.
 
 Run `.agents/skills/server-verify/scripts/cli doctor`, then `start`. Then run the comparison fixture:
 
