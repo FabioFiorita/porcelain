@@ -12,6 +12,7 @@ import {
 import { ImagePreview, useTextContents } from '@/features/files/index';
 import { type CodeEntry, fileEntry } from '../adapters/code-entries';
 import type { AgentCodeNote } from '../rules/code-notes';
+import { omittedReasonText } from '../rules/omitted-reasons';
 import { useComments } from '../queries/comments';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import type { DocumentInteraction } from '../rules/documents';
@@ -312,8 +313,11 @@ function OmittedChanges({
                 />
               </>
             )}
-            <Badge variant="outline" className="shrink-0">
-              {reasons.join(', ')}
+            <Badge
+              variant="outline"
+              className="h-auto max-w-full text-left whitespace-normal"
+            >
+              {omittedReasonText(reasons)}
             </Badge>
             {!renderedPaths.has(item.path) && (
               <ReviewedControl
@@ -366,7 +370,12 @@ function OmittedDiscussion({
   );
   return (
     <>
-      <Button size="xs" variant="ghost" onClick={() => setCompose(true)}>
+      <Button
+        size="xs"
+        variant="ghost"
+        className="h-auto max-w-full text-left whitespace-normal"
+        onClick={() => setCompose(true)}
+      >
         Comment on {path}
       </Button>
       {(visible.length > 0 || compose) && (
