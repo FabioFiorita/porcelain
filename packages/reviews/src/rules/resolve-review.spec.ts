@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ReviewLayer, ReviewStep } from '../models/review.ts';
-import {
-  currentLayerFingerprint,
-  resolveReview,
-  reviewIsActive,
-  unexplainedChanges,
-} from './resolve-review.ts';
+import { resolveReview, unexplainedChanges } from './resolve-review.ts';
 
 const step: ReviewStep = {
   id: 's3',
@@ -45,31 +40,9 @@ describe('broken review pointers', () => {
   it('resolves a disappeared file as broken and changes the layer fingerprint', () => {
     const resolved = resolve([step]);
     expect(resolved.layers[0]?.steps[0]?.location).toEqual({ state: 'broken' });
-    expect(currentLayerFingerprint(layer, new Map())).not.toBe(
-      currentLayerFingerprint(layer, new Map([['src/x.ts', 'return 1;\n']])),
+    expect(resolved.layers[0]?.fingerprint).not.toBe(
+      resolve([step], [['src/x.ts', 'return 1;\n']]).layers[0]?.fingerprint,
     );
-  });
-
-  it('makes a review inactive when its only remaining changed-kind steps are broken', () => {
-    expect(
-      reviewIsActive(resolve([step], [['src/x.ts', 'return 2;\n']]).layers),
-    ).toBe(true);
-    expect(reviewIsActive(resolve([step]).layers)).toBe(false);
-    expect(
-      reviewIsActive(
-        resolve(
-          [
-            step,
-            {
-              ...step,
-              id: 'committed',
-              pointer: { path: 'kept.ts', startLine: 1, endLine: 1 },
-            },
-          ],
-          [['kept.ts', 'return 1;\n']],
-        ).layers,
-      ),
-    ).toBe(false);
   });
 
   it('keeps an unreadable or transiently failed read changed and active', () => {
@@ -77,7 +50,6 @@ describe('broken review pointers', () => {
     expect(resolved.layers[0]?.steps[0]?.location).toEqual({
       state: 'changed',
     });
-    expect(reviewIsActive(resolved.layers)).toBe(true);
   });
 
   it('keeps a review active when a broken step accompanies current uncommitted work', () => {
@@ -104,7 +76,6 @@ describe('broken review pointers', () => {
     expect(
       resolved.layers[0]?.steps.map((entry) => entry.location.state),
     ).toEqual(['broken', 'current']);
-    expect(reviewIsActive(resolved.layers)).toBe(true);
   });
 
   it('resolves a legacy empty published block as broken even when the file exists', () => {
@@ -113,7 +84,6 @@ describe('broken review pointers', () => {
       [['src/x.ts', 'return 1;\n']],
     );
     expect(resolved.layers[0]?.steps[0]?.location).toEqual({ state: 'broken' });
-    expect(reviewIsActive(resolved.layers)).toBe(false);
   });
 
   it('leaves deleted files unexplained and gives broken pointers no covered lines', () => {

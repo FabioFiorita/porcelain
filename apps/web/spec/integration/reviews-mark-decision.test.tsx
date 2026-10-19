@@ -8,6 +8,7 @@ const test = base.extend(
       const files = async () =>
         (await server.reviewedFiles()).marks.map((mark) => mark.path);
       await agent.publishReview(title);
+      await repo.write(readme, `${repo.readme.changed}A follow-up edit.\n`);
       await workspace
         .getByRole('button', { name: 'Review', exact: true })
         .click();
@@ -21,7 +22,7 @@ const test = base.extend(
     },
 );
 
-test('marking a decision reviews its unreviewed files and records the decision, a change to its code reopens it, and unmarking keeps the files', async ({
+test('marking a decision reviews its unreviewed files and records the decision, a live edit keeps the committed decision reviewed, and unmarking keeps the files', async ({
   repo,
   server,
   openDecision,
@@ -46,16 +47,8 @@ test('marking a decision reviews its unreviewed files and records the decision, 
   await expect.poll(decisions).toEqual(['reviewed']);
 
   await repo.write(readme, `${repo.readme.committed}\nA revised change.\n`);
-  await expect
-    .element(
-      decision.getByText('Code moved since it was explained', { exact: true }),
-    )
-    .toBeVisible();
-  await expect.poll(decisions).toEqual(['stale']);
-  await expect.element(mark).toBeEnabled();
-  await mark.click();
-  await expect.element(reviewed).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(decisions).toEqual(['reviewed']);
+  await expect.element(reviewed).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(files).toEqual([readme]);
 
   await reviewed.click();

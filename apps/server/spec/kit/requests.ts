@@ -82,6 +82,14 @@ export function sampleReview(
   const line = lineCount(session.fixture.readme.changed);
   return {
     expectedRevision,
+    base: 'refs/heads/porcelain-fixture-base',
+    verdict: {
+      asked: { text: 'Verify the disposable README review' },
+      recommendation: 'merge' as const,
+      reasons: ['The fixture demonstrates committed review rendering'],
+      notProven: [],
+      removed: [],
+    },
     summaryHtml: SAMPLE_SUMMARY_HTML,
     layers: [
       {
@@ -212,4 +220,15 @@ export async function pairBrowser(
   )?.[0];
   if (!cookie) throw new Error('Browser pairing set no device cookie');
   return { cookie, deviceId: text(record(record(paired.body).device).id) };
+}
+
+export async function commitReviewFixture(session: Session) {
+  if (
+    (await session.git('branch', '--list', 'porcelain-fixture-base')).trim() ===
+    ''
+  )
+    await session.git('branch', 'porcelain-fixture-base');
+  if ((await session.git('status', '--porcelain')).trim() === '') return;
+  await session.git('add', '-A');
+  await session.git('commit', '-m', 'Commit review fixture');
 }

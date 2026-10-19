@@ -8,16 +8,11 @@ export type ProofFile = ReadProofFileResponse;
 
 type ProofStatus = {
   failing: number;
-  skipped: number;
   passing: number;
   current: boolean;
 };
 
-const RESULT_ORDER: readonly ProofCheck['result'][] = [
-  'fail',
-  'skipped',
-  'pass',
-];
+const RESULT_ORDER: readonly ProofCheck['result'][] = ['fail', 'pass'];
 
 export function proofStatus(proof: ReviewProof | undefined): ProofStatus {
   const checks = proof?.checks ?? [];
@@ -25,7 +20,6 @@ export function proofStatus(proof: ReviewProof | undefined): ProofStatus {
     checks.filter((check) => check.result === result).length;
   return {
     failing: count('fail'),
-    skipped: count('skipped'),
     passing: count('pass'),
     current: proof?.current ?? true,
   };
@@ -52,11 +46,10 @@ export function proofOnLayer(
 }
 
 export function proofLabel(status: ProofStatus): string {
-  const total = status.failing + status.skipped + status.passing;
+  const total = status.failing + status.passing;
   if (total === 0) return 'no checks';
   if (status.failing > 0) return `${status.failing} failing`;
   if (!status.current) return 'outdated';
-  if (status.skipped > 0) return `${status.skipped} skipped`;
   return total === 1 ? 'passed' : `all ${total} passed`;
 }
 
@@ -64,8 +57,6 @@ export function checkResultLabel(result: ProofCheck['result']): string {
   switch (result) {
     case 'fail':
       return 'Failed';
-    case 'skipped':
-      return 'Skipped';
     case 'pass':
       return 'Passed';
   }

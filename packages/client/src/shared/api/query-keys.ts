@@ -33,6 +33,10 @@ export const queryKeys = {
       queryKeys.inventory(connection.environmentId),
       connection,
     ),
+  projectReviews: (environmentId: string) =>
+    ['project-reviews', environmentId] as const,
+  durableReview: (environmentId: string, reviewId: string) =>
+    ['project-review', environmentId, reviewId] as const,
   environment: (environmentId: string) =>
     ['environment', environmentId] as const,
   filePreferences: (environmentId: string, projectId: string) =>

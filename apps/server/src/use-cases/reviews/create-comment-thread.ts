@@ -1,68 +1,95 @@
-import { type InvalidLineRangeError } from '@porcelain/kernel/errors';
-import {
-  type CommentIdentityConflictError,
-  type CommentLimitExceededError,
-  type CommentRevisionMismatchError,
-  type UnsupportedCommentComparisonError,
+import { Context, Effect, Layer } from 'effect';
+import type {
+  ReviewNotFoundError,
+  CommentIdentityConflictError,
+  CommentLimitExceededError,
+  CommentRevisionMismatchError,
+  UnsupportedCommentComparisonError,
 } from '@porcelain/reviews/errors';
-import { Effect, Context, Layer } from 'effect';
-import { WorktreeAccess } from '../../runtime/worktree-access.ts';
-import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
-import {
-  type CommentAuthor,
-  type CreateCommentThreadRequest,
-  type CreateCommentThreadResponse,
+import type { InvalidLineRangeError } from '@porcelain/kernel/errors';
+import type {
+  ReviewScope,
+  CreateCommentThreadRequest,
+  CreateCommentThreadResponse,
+  CommentAuthor,
 } from '@porcelain/contracts/reviews';
-import { type WorktreeParams } from '@porcelain/contracts/shared';
-import { CreateCommentThreadService } from '@porcelain/reviews/services';
+import {
+  CreateCommentThreadService,
+  ReadReviewRevisionService,
+} from '@porcelain/reviews/services';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { Lanes } from '../../runtime/lanes.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 
 export class CreateCommentThreadUseCase extends Context.Service<
   CreateCommentThreadUseCase,
   {
     readonly execute: (
-      input: WorktreeParams & CreateCommentThreadRequest & CommentAuthor,
+      input: ReviewScope & CreateCommentThreadRequest & CommentAuthor,
     ) => Effect.Effect<
       CreateCommentThreadResponse,
       | WorktreeAccessFailure
+      | ReviewNotFoundError
       | CommentIdentityConflictError
       | CommentLimitExceededError
-      | InvalidLineRangeError
       | CommentRevisionMismatchError
       | UnsupportedCommentComparisonError
+      | InvalidLineRangeError
     >;
   }
 >()('@porcelain/server/CreateCommentThreadUseCase') {
   static readonly layer = Layer.effect(
     CreateCommentThreadUseCase,
     Effect.gen(function* () {
-      const accessCapability = yield* WorktreeAccess;
-      const createCommentThreadCapability = yield* CreateCommentThreadService;
-      const eventsCapability = yield* EventPublisher;
-
+      const access = yield* WorktreeAccess;
+      const revisions = yield* ReadReviewRevisionService;
+      const operation = yield* CreateCommentThreadService;
+      const lanes = yield* Lanes;
+      const keys = yield* LaneKeys;
+      const events = yield* EventPublisher;
       return {
-        execute: Effect.fn('CreateCommentThreadUseCase.execute')(function* (
-          input: WorktreeParams & CreateCommentThreadRequest & CommentAuthor,
-        ): Effect.fn.Return<
-          CreateCommentThreadResponse,
-          | WorktreeAccessFailure
-          | CommentIdentityConflictError
-          | CommentLimitExceededError
-          | InvalidLineRangeError
-          | CommentRevisionMismatchError
-          | UnsupportedCommentComparisonError
-        > {
-          return yield* accessCapability.transaction(
-            input.worktreeId,
-            () => Effect.void,
-            () => createCommentThreadCapability.execute(input),
-            () =>
-              eventsCapability.worktreeChanged({
-                worktreeId: input.worktreeId,
-                change: 'comments',
-              }),
-          );
-        }),
+        execute: Effect.fn('CreateCommentThreadUseCase.execute')(
+          function* (input) {
+            if (input.reviewId !== undefined)
+              return yield* lanes
+                .run(
+                  keys.reviews({ repositoryId: `review:${input.reviewId}` }),
+                  'write',
+                  () =>
+                    Effect.gen(function* () {
+                      const review = yield* revisions.execute({
+                        reviewId: input.reviewId ?? '',
+                        revision: input.reviewRevision,
+                      });
+                      const result = yield* operation.execute({
+                        ...input,
+                        worktreeId: review.worktreeId,
+                        review: {
+                          reviewId: review.reviewId,
+                          revision: review.revision,
+                          headOid: review.headOid,
+                        },
+                      });
+                      yield* events.worktreeChanged({
+                        worktreeId: review.worktreeId,
+                        change: 'comments',
+                      });
+                      return result;
+                    }),
+                )
+                .pipe(Effect.tap(() => events.inventoryChanged()));
+            const worktreeId = input.worktreeId ?? '';
+            const result = yield* access.transaction(
+              worktreeId,
+              () => Effect.void,
+              () => operation.execute({ ...input, worktreeId }),
+              () => events.worktreeChanged({ worktreeId, change: 'comments' }),
+            );
+            return result;
+          },
+        ),
       };
     }),
   );

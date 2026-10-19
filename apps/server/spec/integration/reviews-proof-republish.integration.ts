@@ -1,3 +1,4 @@
+import { commitReviewFixture } from '../kit/requests.ts';
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import { apiError, invalidRequest, UNKNOWN_UUID } from '../kit/answers.ts';
@@ -43,6 +44,7 @@ const publishedId = async (session: Session) =>
 test('publishing a screenshot keeps it as a PNG of its size', async ({
   session,
 }) => {
+  await commitReviewFixture(session);
   await session.writeFile(SHOT_PATH, shot);
 
   const response = await session.send(

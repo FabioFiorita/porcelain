@@ -7,6 +7,7 @@ type ConfirmedCommentThread = {
 
 export type DeleteResolvedCommentsInput = {
   worktreeId: string;
+  reviewId?: string | undefined;
   writer: CommentWriter;
   threads: readonly ConfirmedCommentThread[];
 };

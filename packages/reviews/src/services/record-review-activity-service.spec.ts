@@ -1,143 +1,34 @@
-import { ReviewStore } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
-import { type FileChange } from '@porcelain/kernel/models';
-import { type Review, type ReviewEvidence } from '@porcelain/reviews/models';
-import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
+import { expect, it } from 'vitest';
+import { reviewFixture } from '../../spec/fixtures/review.ts';
 import { RecordReviewActivityService } from './record-review-activity-service.ts';
 
-const worktreeId = 'a'.repeat(64);
-const readme = 'first\nsecond\nadded\n';
-
-function review(overrides: Partial<Review> = {}): Review {
-  return {
-    worktreeId,
-    revision: 1,
-    publishedAt: '2026-01-01T00:00:00.000Z',
-    active: true,
-    summaryHtml: '<p>Summary</p>',
-    summaryToken: 'token',
-    summarySecret: 'secret',
-    layers: [
-      {
-        id: 'layer-1',
-        title: 'Readme',
-        summary: 'Adds a line',
-        lanes: ['Docs'],
-        fingerprint: 'published',
-        steps: [
-          {
-            id: 'step-1',
-            lane: 0,
-            title: 'New line',
-            text: 'A line is added',
-            kind: 'changed',
-            pointer: { path: 'README.md', startLine: 3, endLine: 3 },
-            published: ['added'],
-          },
-        ],
-      },
-    ],
-    ...overrides,
-  };
-}
-
-const modified: FileChange = {
-  path: 'README.md',
-  fingerprint: 'f',
-  comparisons: [
-    {
-      scope: 'unstaged',
-      kind: 'modified',
-      oldPath: 'README.md',
-      newPath: 'README.md',
-      oldMode: '100644',
-      newMode: '100644',
-      oldOid: undefined,
-      newOid: undefined,
-      supported: true,
-    },
-  ],
-};
-const committed: ReviewEvidence = {
-  changes: [],
-  missing: new Set<string>(),
-  texts: new Map([['README.md', readme]]),
-  diffs: [],
-};
-const stillChanged: ReviewEvidence = {
-  changes: [modified],
-  missing: new Set<string>(),
-  texts: new Map([['README.md', readme]]),
-  diffs: [
-    {
-      selection: {
-        scope: 'unstaged',
-        oldPath: 'README.md',
-        newPath: 'README.md',
-      },
-      content: { kind: 'text', patch: '@@ -2,0 +3 @@\n+added\n' },
-    },
-  ],
-};
-
-async function setup(stored: Review) {
-  const store = new InMemoryReviewStore();
-  await Effect.runPromise(store.save(stored));
-  return {
-    store,
-    service: Effect.runSync(
-      RecordReviewActivityService.pipe(
-        Effect.provide(RecordReviewActivityService.layer),
-        Effect.provideService(ReviewStore, store),
-      ),
+it('reports branch-tip transitions without mutating immutable revision data', () => {
+  const service = Effect.runSync(
+    RecordReviewActivityService.pipe(
+      Effect.provide(RecordReviewActivityService.layer),
     ),
+  );
+  const review = reviewFixture();
+  const evidence = {
+    headOid: review.headOid,
+    changes: [],
+    texts: new Map<string, string>(),
+    missing: new Set<string>(),
+    diffs: [],
   };
-}
-
-describe('RecordReviewActivityService', () => {
-  it('records the review inactive once every line it explains is committed', async () => {
-    const { store, service } = await setup(review());
-    expect(
-      Effect.runSync(
-        service.execute({ review: review(), evidence: committed }),
-      ),
-    ).toEqual({
-      changed: true,
-    });
-    expect((await Effect.runPromise(store.read({ worktreeId })))?.active).toBe(
-      false,
-    );
+  expect(Effect.runSync(service.execute({ review, evidence }))).toEqual({
+    changed: false,
   });
-
-  it('records the review active again while a line it explains still changes', async () => {
-    const { store, service } = await setup(review({ active: false }));
-    Effect.runSync(
-      service.execute({
-        review: review({ active: false }),
-        evidence: stillChanged,
-      }),
-    );
-    expect((await Effect.runPromise(store.read({ worktreeId })))?.active).toBe(
-      true,
-    );
+  const advanced = { ...evidence, headOid: 'c'.repeat(40) };
+  expect(
+    Effect.runSync(service.execute({ review, evidence: advanced })),
+  ).toEqual({ changed: true });
+  expect(
+    Effect.runSync(service.execute({ review, evidence: advanced })),
+  ).toEqual({ changed: false });
+  expect(Effect.runSync(service.execute({ review, evidence }))).toEqual({
+    changed: true,
   });
-
-  it('reports no change while the review stays as active as it was', async () => {
-    const { service } = await setup(review());
-    expect(
-      Effect.runSync(
-        service.execute({ review: review(), evidence: stillChanged }),
-      ),
-    ).toEqual({ changed: false });
-  });
-
-  it('leaves a review published after the one it resolved alone', async () => {
-    const { store, service } = await setup(review({ revision: 2 }));
-    Effect.runSync(service.execute({ review: review(), evidence: committed }));
-    expect(await Effect.runPromise(store.read({ worktreeId }))).toMatchObject({
-      revision: 2,
-      active: true,
-    });
-  });
+  expect(review.headOid).toBe('a'.repeat(40));
 });

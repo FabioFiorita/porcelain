@@ -1,17 +1,15 @@
 import { ResolvePublishedReviewOptions } from '../ports/resolve-published-review-options.ts';
 import { Effect, Context, Layer, Clock, DateTime } from 'effect';
-import { instantAfter, utf8ByteLength } from '@porcelain/kernel/rules';
+import {
+  instantAfter,
+  utf8ByteLength,
+  sha256Hex,
+} from '@porcelain/kernel/rules';
 import {
   type ResolvePublishedReviewInput,
   type ResolvePublishedReviewResult,
 } from '../models/resolve-published-review.ts';
 import { SignatureSource } from '../ports/signature-source.ts';
-import { changesDigest } from '../rules/review-proof.ts';
-import {
-  resolveReview,
-  reviewIsActive,
-  unexplainedChanges,
-} from '../rules/resolve-review.ts';
 import { summaryMessage } from '../rules/review-digests.ts';
 
 export class ResolvePublishedReviewService extends Context.Service<
@@ -37,11 +35,23 @@ export class ResolvePublishedReviewService extends Context.Service<
             DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
           );
           return yield* Effect.sync<ResolvePublishedReviewResult>(() => {
-            const { review, evidence } = input;
-            const { changes, diagnostics, layers } = resolveReview(
-              review,
-              evidence,
-            );
+            const { review } = input;
+            const layers = review.layers.map((layer) => ({
+              ...layer,
+              steps: layer.steps.map(({ published, ...step }) => ({
+                ...step,
+                published: [...published],
+                pointer: {
+                  ...step.pointer,
+                  textFingerprint: sha256Hex(published.join('\n')),
+                },
+                location: {
+                  state: 'current' as const,
+                  startLine: step.pointer.startLine,
+                  endLine: step.pointer.endLine,
+                },
+              })),
+            }));
             const expires = instantAfter(
               observedAt,
               optionsCapability.lifetimeMs,
@@ -51,11 +61,17 @@ export class ResolvePublishedReviewService extends Context.Service<
               message: summaryMessage(review.summaryToken, expires),
             });
             return {
+              reviewId: review.reviewId,
+              headOid: review.headOid,
+              base: review.base,
+              baseOid: review.baseOid,
+              mergeBaseOid: review.mergeBaseOid,
+              verdict: review.verdict,
               environmentId: input.environmentId,
               worktreeId: review.worktreeId,
               revision: review.revision,
               publishedAt: review.publishedAt,
-              active: reviewIsActive(layers),
+              active: input.headOid === review.headOid,
               diagnostics: 'current',
               summary: {
                 token: review.summaryToken,
@@ -67,22 +83,15 @@ export class ResolvePublishedReviewService extends Context.Service<
                 ? {}
                 : { diagram: structuredClone(review.diagram) }),
               layers,
-              notExplained: unexplainedChanges(
-                changes,
-                evidence.texts,
-                diagnostics,
-                layers,
-              ),
+              notExplained: review.notExplained,
               proof: {
                 checks: structuredClone(review.proof?.checks ?? []),
                 assets: structuredClone(review.proof?.assets ?? []),
                 current:
-                  review.proof === undefined ||
-                  review.proof.baseline?.digest ===
-                    changesDigest(
-                      evidence.changes,
-                      review.proof.baseline?.proofPaths ?? [],
-                    ),
+                  input.headOid === review.headOid &&
+                  !(input.dirtyPaths ?? []).some(
+                    (path) => !(review.proof?.paths ?? []).includes(path),
+                  ),
               },
             };
           });

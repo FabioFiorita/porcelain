@@ -4,6 +4,7 @@ import { captureGitPlatform } from '@porcelain/git/discovery';
 import { makeGitSession } from '@porcelain/git/inspection';
 import type { Limits } from '../../config/limits.ts';
 import {
+  type RetainedBranchPatchesRequest,
   type BranchBases,
   type BranchPatches,
   type BranchPatchesRequest,
@@ -136,6 +137,27 @@ export const gitBranchRangeReaderLayer = (
               readBranchPatchesNative(input).pipe(provideGit),
             ),
         ),
+        readRetainedBranchPatches: Effect.fn(
+          'BranchRangeReader.readRetainedBranchPatches',
+        )(function* (input: RetainedBranchPatchesRequest) {
+          const read = yield* history
+            .readBranchDiffs(
+              { kind: 'repository', path: input.commonDirectory },
+              input,
+              limits,
+            )
+            .pipe(provideGit, Effect.orDie);
+          if (read.kind === 'missing') return read;
+          if (read.sections === null)
+            return { kind: 'over-limit' } satisfies BranchPatches;
+          return {
+            kind: 'within-limit',
+            patches: [...read.sections].map(([key, content]) => ({
+              paths: key.split('\0'),
+              content,
+            })),
+          } satisfies BranchPatches;
+        }),
         listBranchBases: Effect.fn('BranchRangeReader.listBranchBases')(
           (input) =>
             readGitEffect(

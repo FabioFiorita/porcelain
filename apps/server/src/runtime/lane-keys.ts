@@ -19,7 +19,7 @@ export class LaneKeys extends Context.Service<
     readonly project: (project: ListableProject) => string;
     readonly repository: (worktree: Worktree) => string;
     readonly receipts: (worktree: Worktree) => string;
-    readonly reviews: (worktree: Worktree) => string;
+    readonly reviews: (worktree: Pick<Worktree, 'repositoryId'>) => string;
   }
 >()('@porcelain/server/LaneKeys') {
   static readonly layer = Layer.effect(
@@ -49,8 +49,8 @@ export class LaneKeys extends Context.Service<
       function receipts(worktree: Worktree): string {
         return repository(worktree);
       }
-      function reviews(worktree: Worktree): string {
-        return repository(worktree);
+      function reviews(worktree: Pick<Worktree, 'repositoryId'>): string {
+        return worktree.repositoryId;
       }
       return {
         access,

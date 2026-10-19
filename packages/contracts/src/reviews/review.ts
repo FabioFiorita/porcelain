@@ -79,6 +79,7 @@ const reviewStepSchema = Schema.Struct({
 });
 
 const resolvedReviewStepSchema = Schema.Struct({
+  published: Schema.optional(Schema.Array(Schema.String)),
   ...reviewStepSchema.fields,
   ...{
     pointer: resolvedCodePointerSchema,
@@ -179,7 +180,67 @@ const notExplainedSchema = Schema.Struct({
   binary: Schema.optional(Schema.Boolean),
 });
 
+const reviewIdSchema = Schema.String.check(Schema.isUUID());
+const revisionSchema = Schema.Int.check(Schema.isGreaterThan(0));
+const proseSchema = Schema.String.check(Schema.isMinLength(1)).check(
+  Schema.isMaxLength(REVIEW_PROSE_LENGTH),
+);
+const httpUrlSchema = Schema.String.check(Schema.isPattern(/^https?:\/\//));
+const reviewVerdictSchema = Schema.Struct({
+  asked: Schema.Struct({
+    text: proseSchema,
+    links: Schema.optional(
+      Schema.Array(Schema.Struct({ title: proseSchema, url: httpUrlSchema })),
+    ),
+  }),
+  recommendation: Schema.Literals(['merge', 'hold']),
+  reasons: Schema.Array(proseSchema)
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(5)),
+  notProven: Schema.Array(
+    Schema.Struct({ what: proseSchema, why: proseSchema }),
+  ),
+  removed: Schema.Array(
+    Schema.Struct({
+      behavior: proseSchema,
+      why: proseSchema,
+      paths: Schema.Array(relativePathSchema).check(Schema.isMinLength(1)),
+    }),
+  ),
+});
+const reviewLinksSchema = Schema.Struct({
+  web: Schema.String,
+  app: Schema.String,
+  revision: Schema.Struct({ web: Schema.String, app: Schema.String }),
+  decisions: Schema.Array(
+    Schema.Struct({
+      layerId: idSchema,
+      web: Schema.String,
+      app: Schema.String,
+    }),
+  ),
+});
+const revisionMetadataSchema = Schema.Struct({
+  reviewId: reviewIdSchema,
+  projectId: Schema.String,
+  revision: revisionSchema,
+  headOid: Schema.String,
+  base: Schema.String,
+  baseOid: Schema.String,
+  mergeBaseOid: Schema.String,
+  publishedAt: isoDateTimeSchema,
+  branch: Schema.String,
+  worktreePath: Schema.String,
+  worktreeName: Schema.String,
+});
 const publishedReviewSchema = Schema.Struct({
+  reviewId: Schema.optional(reviewIdSchema),
+  headOid: Schema.optional(Schema.String),
+  baseOid: Schema.optional(Schema.String),
+  base: Schema.optional(Schema.String),
+  mergeBaseOid: Schema.optional(Schema.String),
+  verdict: Schema.optional(reviewVerdictSchema),
+  links: Schema.optional(reviewLinksSchema),
   environmentId: Schema.String.check(Schema.isUUID()),
   worktreeId: worktreeIdSchema,
   revision: Schema.Number.check(Schema.isInt()).check(Schema.isGreaterThan(0)),
@@ -201,7 +262,17 @@ export const publishReviewRequestSchema = Schema.Struct({
   expectedRevision: Schema.Number.check(Schema.isInt())
     .check(Schema.isGreaterThanOrEqualTo(0))
     .check(Schema.isLessThanOrEqualTo(Number.MAX_SAFE_INTEGER - 1)),
-  summaryHtml: summaryHtmlSchema,
+  summaryHtml: Schema.optional(summaryHtmlSchema),
+  verdict: reviewVerdictSchema,
+  base: Schema.optional(Schema.String.check(Schema.isMinLength(1))),
+  pullRequest: Schema.optional(
+    Schema.String.check(
+      Schema.isPattern(
+        /^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/[1-9][0-9]*\/?$/,
+      ),
+    ),
+  ),
+  reviewId: Schema.optional(reviewIdSchema),
   diagram: Schema.optional(reviewDiagramSchema),
   layers: Schema.Array(reviewLayerSchema)
     .check(Schema.isMinLength(1))
@@ -212,7 +283,68 @@ export const publishReviewRequestSchema = Schema.Struct({
 export const readPublishedReviewResponseSchema = Schema.Struct({
   review: nullableAsUndefined(publishedReviewSchema),
 });
-export const publishReviewResponseSchema = readPublishedReviewResponseSchema;
+export const publishReviewResponseSchema = Schema.Struct({
+  ...readPublishedReviewResponseSchema.fields,
+  reviewId: reviewIdSchema,
+  revision: revisionSchema,
+  headOid: Schema.String,
+  baseOid: Schema.String,
+  links: reviewLinksSchema,
+});
+export const reviewParamsSchema = Schema.Struct({ reviewId: reviewIdSchema });
+export const reviewRevisionParamsSchema = Schema.Struct({
+  ...reviewParamsSchema.fields,
+  revision: Schema.FiniteFromString.check(Schema.isInt()).check(
+    Schema.isGreaterThan(0),
+  ),
+});
+const reviewRecordSchema = Schema.Struct({
+  reviewId: reviewIdSchema,
+  projectId: Schema.String,
+  branch: Schema.String,
+  pullRequest: Schema.optional(Schema.String),
+  state: Schema.Literals(['open', 'closed']),
+  latestRevision: revisionSchema,
+  lastSeenRevision: Schema.Int,
+});
+export const readReviewResponseSchema = Schema.Struct({
+  review: nullableAsUndefined(reviewRecordSchema),
+  revisions: Schema.Array(revisionMetadataSchema),
+  revision: nullableAsUndefined(
+    Schema.Struct({
+      ...revisionMetadataSchema.fields,
+      files: Schema.Array(
+        Schema.Struct({
+          path: relativePathSchema,
+          oldPath: Schema.optional(relativePathSchema),
+          newPath: Schema.optional(relativePathSchema),
+          oldOid: Schema.optional(Schema.String),
+          newOid: Schema.optional(Schema.String),
+          oldMode: Schema.String,
+          newMode: Schema.String,
+          status: Schema.Literals([
+            'added',
+            'modified',
+            'deleted',
+            'renamed',
+            'type-changed',
+          ]),
+        }),
+      ),
+      verdict: reviewVerdictSchema,
+      content: publishedReviewSchema,
+    }),
+  ),
+});
+export const listProjectReviewsResponseSchema =
+  Schema.Array(reviewRecordSchema);
+export const setReviewSeenRequestSchema = Schema.Struct({
+  revision: revisionSchema,
+});
+export const setReviewStateRequestSchema = Schema.Struct({
+  state: Schema.Literal('closed'),
+});
+export type ReadReviewResponse = typeof readReviewResponseSchema.Type;
 
 export const deleteReviewResponseSchema = Schema.Struct({
   deleted: Schema.Boolean,
@@ -222,3 +354,79 @@ export type DeleteReviewResponse = typeof deleteReviewResponseSchema.Type;
 export type PublishReviewRequest = typeof publishReviewRequestSchema.Type;
 export type ReadPublishedReviewResponse =
   typeof readPublishedReviewResponseSchema.Type;
+
+export const reviewUpdatedResponseSchema = Schema.Struct({
+  updated: Schema.Boolean,
+});
+export const readReviewFileQuerySchema = Schema.Struct({
+  path: relativePathSchema,
+});
+export const readReviewFileResponseSchema = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal('text'),
+    text: Schema.String,
+    blobOid: Schema.String,
+  }),
+  Schema.Struct({ kind: Schema.Literal('missing') }),
+  Schema.Struct({
+    kind: Schema.Literals(['too-large', 'unsupported']),
+    blobOid: Schema.String,
+  }),
+]);
+
+const reviewFileMarkSchema = Schema.Struct({
+  path: relativePathSchema,
+  fingerprint: Schema.String,
+  reviewedAt: isoDateTimeSchema,
+  stale: Schema.Boolean,
+});
+const reviewDecisionMarkSchema = Schema.Struct({
+  layerId: idSchema,
+  fingerprint: fingerprintSchema,
+  reviewedAt: isoDateTimeSchema,
+});
+export const reviewMarksResponseSchema = Schema.Struct({
+  files: Schema.Array(reviewFileMarkSchema),
+  decisions: Schema.Array(reviewDecisionMarkSchema),
+});
+export const setReviewMarkRequestSchema = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal('file'),
+    revision: revisionSchema,
+    path: relativePathSchema,
+    headBlobOid: Schema.String,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal('decision'),
+    revision: revisionSchema,
+    layerId: idSchema,
+    fingerprint: fingerprintSchema,
+  }),
+]);
+export const removeReviewMarkRequestSchema = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal('file'),
+    path: relativePathSchema,
+    headBlobOid: Schema.String,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal('decision'),
+    layerId: idSchema,
+    fingerprint: fingerprintSchema,
+  }),
+]);
+export type ReviewMarksResponse = typeof reviewMarksResponseSchema.Type;
+export type SetReviewMarkRequest = typeof setReviewMarkRequestSchema.Type;
+export type RemoveReviewMarkRequest = typeof removeReviewMarkRequestSchema.Type;
+
+const reviewScopeSchema = Schema.Union([
+  Schema.Struct({
+    worktreeId: worktreeIdSchema,
+    reviewId: Schema.optional(reviewIdSchema),
+  }),
+  Schema.Struct({
+    reviewId: reviewIdSchema,
+    worktreeId: Schema.optional(worktreeIdSchema),
+  }),
+]);
+export type ReviewScope = typeof reviewScopeSchema.Type;

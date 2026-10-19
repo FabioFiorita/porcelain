@@ -117,7 +117,6 @@ function CheckRow({
             'size-4 shrink-0',
             check.result === 'pass' && 'text-graph-2',
             failed && 'text-destructive',
-            check.result === 'skipped' && 'text-muted-foreground',
           )}
         />
         <span className="min-w-0 flex-1 truncate text-sm font-medium">

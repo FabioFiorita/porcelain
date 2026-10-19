@@ -5,7 +5,6 @@ import {
   type SetReviewedLayerResult,
 } from '../models/set-reviewed-layer.ts';
 import { ReviewedLayerStore } from '../ports/reviewed-layer-store.ts';
-import { currentLayerFingerprint } from '../rules/resolve-review.ts';
 
 export class SetReviewedLayerService extends Context.Service<
   SetReviewedLayerService,
@@ -25,8 +24,8 @@ export class SetReviewedLayerService extends Context.Service<
         execute: Effect.fn('SetReviewedLayerService.execute')(function* (
           input: SetReviewedLayerInput,
         ): Effect.fn.Return<SetReviewedLayerResult, ReviewedMarkConflictError> {
-          const { worktreeId, layer, fingerprint } = input;
-          if (currentLayerFingerprint(layer, input.texts) !== fingerprint)
+          const { reviewId, layer, fingerprint } = input;
+          if (layer.fingerprint !== fingerprint)
             return yield* Effect.fail(new ReviewedMarkConflictError());
           const mark = {
             layerId: layer.id,
@@ -35,7 +34,7 @@ export class SetReviewedLayerService extends Context.Service<
               DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
             ),
           };
-          yield* reviewedLayersCapability.save({ worktreeId, marks: [mark] });
+          yield* reviewedLayersCapability.save({ reviewId, marks: [mark] });
           return mark;
         }),
       };

@@ -1,69 +1,47 @@
 import { Effect } from 'effect';
-import type { WorktreeKey, WorktreeKeys } from '@porcelain/kernel/models';
 import type {
   ReviewedLayerMark,
-  ReviewedLayerRemoval,
   ReviewedLayerSave,
-  WorktreeReviewedLayerMark,
+  ReviewedLayerRemoval,
 } from '../../src/models/reviewed-mark.ts';
 import type { ReviewedLayerStore } from '../../src/ports/reviewed-layer-store.ts';
 
-function rowKey(worktreeId: string, layerId: string): string {
-  return `${worktreeId}\0${layerId}`;
+type Row = ReviewedLayerMark & { reviewId: string };
+function rowKey(reviewId: string, layerId: string, fingerprint: string) {
+  return `${reviewId}\0${layerId}\0${fingerprint}`;
 }
-
 export class InMemoryReviewedLayerStore implements ReviewedLayerStore {
-  private readonly rows: Map<string, WorktreeReviewedLayerMark>;
-
-  constructor(rows: readonly WorktreeReviewedLayerMark[] = []) {
+  private readonly rows: Map<string, Row>;
+  constructor(rows: readonly Row[] = []) {
     this.rows = new Map(
-      rows.map((row) => [rowKey(row.worktreeId, row.layerId), { ...row }]),
+      rows.map((row) => [
+        rowKey(row.reviewId, row.layerId, row.fingerprint),
+        { ...row },
+      ]),
     );
   }
-
-  list(input: WorktreeKey): Effect.Effect<ReviewedLayerMark[]> {
-    return Effect.sync(() => {
-      return this.stored()
-        .filter((row) => row.worktreeId === input.worktreeId)
-        .map((row) => ({
-          layerId: row.layerId,
-          fingerprint: row.fingerprint,
-          reviewedAt: row.reviewedAt,
-        }))
-        .sort(
-          (left, right) =>
-            left.reviewedAt.localeCompare(right.reviewedAt) ||
-            left.layerId.localeCompare(right.layerId),
-        );
-    });
+  list(input: { reviewId: string }): Effect.Effect<ReviewedLayerMark[]> {
+    return Effect.sync(() =>
+      [...this.rows.values()]
+        .filter((row) => row.reviewId === input.reviewId)
+        .map(({ reviewId: _, ...mark }) => ({ ...mark })),
+    );
   }
-
-  byWorktrees(input: WorktreeKeys): Effect.Effect<WorktreeReviewedLayerMark[]> {
+  save(input: ReviewedLayerSave): Effect.Effect<void> {
     return Effect.sync(() => {
-      return this.stored().filter((row) =>
-        input.worktreeIds.includes(row.worktreeId),
+      input.marks.forEach((mark) =>
+        this.rows.set(rowKey(input.reviewId, mark.layerId, mark.fingerprint), {
+          reviewId: input.reviewId,
+          ...mark,
+        }),
       );
     });
   }
-
-  save(input: ReviewedLayerSave): Effect.Effect<void> {
-    return Effect.sync(() => {
-      input.marks.forEach((mark) => {
-        this.rows.set(rowKey(input.worktreeId, mark.layerId), {
-          worktreeId: input.worktreeId,
-          ...mark,
-        });
-      });
-    });
-  }
-
   remove(input: ReviewedLayerRemoval): Effect.Effect<void> {
     return Effect.sync(() => {
-      this.rows.delete(rowKey(input.worktreeId, input.layerId));
+      this.rows.delete(
+        rowKey(input.reviewId, input.layerId, input.fingerprint),
+      );
     });
-  }
-
-  private stored(): WorktreeReviewedLayerMark[] {
-    return [...this.rows.values()].map((row) => ({ ...row }));
   }
 }

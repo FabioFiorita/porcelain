@@ -1,3 +1,4 @@
+import { reviewFixture, reviewSave } from '../../spec/fixtures/review.ts';
 import { testClock } from '@porcelain/kernel/test-kit';
 import { ReviewStore, SignatureSource } from '@porcelain/reviews/ports';
 import { Effect, Clock } from 'effect';
@@ -13,6 +14,7 @@ const expires = '2026-01-01T01:00:00.000Z';
 const signature = `secret:${token}\0${expires}`;
 
 const review: Review = {
+  ...reviewFixture(),
   worktreeId: 'a'.repeat(64),
   revision: 1,
   publishedAt: '2026-01-01T00:00:00.000Z',
@@ -25,7 +27,7 @@ const review: Review = {
 
 async function setup(now = '2026-01-01T00:30:00.000Z') {
   const store = new InMemoryReviewStore();
-  await Effect.runPromise(store.save(review));
+  await Effect.runPromise(store.save(reviewSave(review)));
   return Effect.runSync(
     ReadReviewSummaryService.pipe(
       Effect.provide(ReadReviewSummaryService.layer),

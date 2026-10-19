@@ -174,7 +174,10 @@ describe('Native storage adoption', () => {
         database
           .prepare('SELECT migration_id, name FROM porcelain_migrations')
           .all(),
-      ).toEqual([{ migration_id: 1, name: 'adopt_legacy_schema' }]);
+      ).toEqual([
+        { migration_id: 1, name: 'adopt_legacy_schema' },
+        { migration_id: 2, name: 'project_review_revisions' },
+      ]);
     } finally {
       database.close();
     }
@@ -242,23 +245,11 @@ describe('Native storage adoption', () => {
           },
         ],
       );
-      expect(database.prepare('SELECT * FROM reviews').all()).toEqual([
-        {
-          worktree_id: 'new-worktree',
-          revision: 3,
-          published_at: '2026-01-01T00:00:00.000Z',
-          active: 1,
-          summary_html: '<p>Keep review</p>',
-          summary_token: 'new-token',
-          summary_secret: 'secret',
-          diagram: null,
-          layers: '[]',
-          proof: null,
-        },
-      ]);
+      expect(database.prepare('SELECT * FROM reviews').all()).toEqual([]);
       expect(database.prepare('SELECT * FROM reviewed_files').all()).toEqual([
         {
           worktree_id: 'new-worktree',
+          review_id: null,
           scope: 'worktree',
           branch: '',
           path: 'README.md',
@@ -267,19 +258,18 @@ describe('Native storage adoption', () => {
           stale: 0,
         },
       ]);
-      expect(database.prepare('SELECT * FROM reviewed_layers').all()).toEqual([
-        {
-          worktree_id: 'new-worktree',
-          layer_id: 'layer',
-          fingerprint: 'layer-print',
-          reviewed_at: '2026-01-01T00:00:00.000Z',
-        },
-      ]);
+      expect(database.prepare('SELECT * FROM reviewed_layers').all()).toEqual(
+        [],
+      );
       expect(database.prepare('SELECT * FROM comment_threads').all()).toEqual([
         {
           sequence: 2,
           id: 'new-thread',
           worktree_id: 'new-worktree',
+          review_id: null,
+          source_worktree_id: 'new-worktree',
+          review_revision: null,
+          head_oid: null,
           anchor: '{"kind":"file","filePath":"README.md"}',
           resolved: 0,
           revision: 7,
@@ -308,19 +298,8 @@ describe('Native storage adoption', () => {
         { project_id: 'new', path: 'README.md', pinned: 1, hidden: 0 },
       ]);
       expect(
-        database
-          .prepare(
-            'SELECT worktree_id, id, media_type, hex(bytes) AS bytes FROM review_proof_files',
-          )
-          .all(),
-      ).toEqual([
-        {
-          worktree_id: 'new-worktree',
-          id: 'proof',
-          media_type: 'image/png',
-          bytes: '010203',
-        },
-      ]);
+        database.prepare('SELECT * FROM review_proof_files').all(),
+      ).toEqual([]);
       expect(
         database.prepare('SELECT * FROM git_action_receipts').all(),
       ).toEqual([
@@ -571,7 +550,10 @@ describe('Native storage adoption', () => {
         database
           .prepare('SELECT migration_id, name FROM porcelain_migrations')
           .all(),
-      ).toEqual([{ migration_id: 1, name: 'adopt_legacy_schema' }]);
+      ).toEqual([
+        { migration_id: 1, name: 'adopt_legacy_schema' },
+        { migration_id: 2, name: 'project_review_revisions' },
+      ]);
       expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
     } finally {
       database.close();
@@ -619,7 +601,10 @@ describe('Native storage adoption', () => {
           stored
             .prepare('SELECT migration_id, name FROM porcelain_migrations')
             .all(),
-        ).toEqual([{ migration_id: 1, name: 'adopt_legacy_schema' }]);
+        ).toEqual([
+          { migration_id: 1, name: 'adopt_legacy_schema' },
+          { migration_id: 2, name: 'project_review_revisions' },
+        ]);
         expect(
           stored
             .prepare('SELECT count(*) AS count FROM __drizzle_migrations')

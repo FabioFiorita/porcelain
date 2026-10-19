@@ -13,11 +13,7 @@ export type { EditCommentMessageInput } from './edit-comment-message.ts';
 export type { InvalidateReviewedMarksInput } from './invalidate-reviewed-marks.ts';
 export type { ReadReviewEvidenceInput } from './read-review-evidence.ts';
 export type { ReplyToCommentInput } from './reply-to-comment.ts';
-export type {
-  ReviewDiff,
-  ReviewEvidence,
-  ReviewTexts,
-} from './review-evidence.ts';
+export type { ReviewEvidence } from './review-evidence.ts';
 export type {
   Diagram,
   DiagramBox,
@@ -29,10 +25,7 @@ export type {
   ReviewStep,
   StepDraft,
 } from './review.ts';
-export type {
-  ReviewedLayerMark,
-  WorktreeReviewedLayerMark,
-} from './reviewed-mark.ts';
+export type { WorktreeReviewedLayerMark } from './reviewed-mark.ts';
 export type { ProofFileReads } from './review-proof.ts';
 
 export { reviewLayerSchema, reviewDiagramSchema } from './review.ts';
@@ -41,3 +34,13 @@ export {
   commentAnchorSchema,
   commentAuthorRoleSchema,
 } from './comment-thread.ts';
+
+export { reviewVerdictSchema, reviewRecordSchema } from './review.ts';
+
+export { reviewFileSchema } from './review.ts';
+
+export { unexplainedChangeSchema } from './review.ts';
+
+export type { ReviewLinkHosts } from './review-management.ts';
+
+export type { ReviewPublicationInput } from './review-management.ts';

@@ -1,3 +1,4 @@
+import { reviewFixture, reviewSave } from '../../spec/fixtures/review.ts';
 import { ReviewStore, ReadProofFileOptions } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
@@ -11,6 +12,7 @@ const otherWorktreeId = 'b'.repeat(64);
 
 function review(id: string): Review {
   return {
+    ...reviewFixture({ reviewId: id, branch: id }),
     worktreeId: id,
     revision: 1,
     publishedAt: '2026-01-01T00:00:00.000Z',
@@ -26,7 +28,7 @@ async function setup() {
   const store = new InMemoryReviewStore();
   await Effect.runPromise(
     store.save({
-      ...review(worktreeId),
+      ...reviewSave(review(worktreeId)),
       proofFiles: [
         {
           id: 'shot',
@@ -36,7 +38,7 @@ async function setup() {
       ],
     }),
   );
-  await Effect.runPromise(store.save(review(otherWorktreeId)));
+  await Effect.runPromise(store.save(reviewSave(review(otherWorktreeId))));
   return Effect.runSync(
     ReadProofFileService.pipe(
       Effect.provide(ReadProofFileService.layer),
@@ -49,7 +51,9 @@ async function setup() {
 describe('ReadProofFileService', () => {
   it('answers a stored proof file with its media type and base64 content', async () => {
     expect(
-      Effect.runSync((await setup()).execute({ worktreeId, proofId: 'shot' })),
+      Effect.runSync(
+        (await setup()).execute({ reviewId: worktreeId, proofId: 'shot' }),
+      ),
     ).toEqual({
       id: 'shot',
       mediaType: 'image/png',
@@ -60,7 +64,9 @@ describe('ReadProofFileService', () => {
   it('refuses an id the review does not hold', async () => {
     const service = await setup();
     expect(() =>
-      Effect.runSync(service.execute({ worktreeId, proofId: 'other' })),
+      Effect.runSync(
+        service.execute({ reviewId: worktreeId, proofId: 'other' }),
+      ),
     ).toThrow(ProofFileNotFoundError);
   });
 
@@ -69,7 +75,7 @@ describe('ReadProofFileService', () => {
     expect(() =>
       Effect.runSync(
         service.execute({
-          worktreeId: otherWorktreeId,
+          reviewId: otherWorktreeId,
           proofId: 'shot',
         }),
       ),

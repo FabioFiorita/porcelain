@@ -3,11 +3,7 @@ import { WorktreeAccess } from '../../runtime/worktree-access.ts';
 import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 import { type ListReviewedLayersResponse } from '@porcelain/contracts/reviews';
 import { type WorktreeParams } from '@porcelain/contracts/shared';
-import { ReadTextFilesService } from '@porcelain/files/services';
-import {
-  ListReviewedLayerPathsService,
-  ListReviewedLayersService,
-} from '@porcelain/reviews/services';
+import { ListReviewedLayersService } from '@porcelain/reviews/services';
 
 export class ListReviewedLayersUseCase extends Context.Service<
   ListReviewedLayersUseCase,
@@ -21,9 +17,6 @@ export class ListReviewedLayersUseCase extends Context.Service<
     ListReviewedLayersUseCase,
     Effect.gen(function* () {
       const accessCapability = yield* WorktreeAccess;
-      const listReviewedLayerPathsCapability =
-        yield* ListReviewedLayerPathsService;
-      const readTextFilesCapability = yield* ReadTextFilesService;
       const listReviewedLayersCapability = yield* ListReviewedLayersService;
 
       return {
@@ -32,20 +25,7 @@ export class ListReviewedLayersUseCase extends Context.Service<
         ): Effect.fn.Return<ListReviewedLayersResponse, WorktreeAccessFailure> {
           const { worktreeId } = input;
           return yield* accessCapability.reviews(worktreeId, 'read', () =>
-            Effect.gen(function* () {
-              const { paths: marked } =
-                yield* listReviewedLayerPathsCapability.execute({
-                  worktreeId,
-                });
-              const listed = yield* readTextFilesCapability.execute({
-                worktreeId,
-                paths: marked,
-              });
-              return yield* listReviewedLayersCapability.execute({
-                worktreeId,
-                texts: listed.texts,
-              });
-            }),
+            listReviewedLayersCapability.execute({ worktreeId }),
           );
         }),
       };

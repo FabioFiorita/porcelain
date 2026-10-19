@@ -15,7 +15,7 @@ const unpairedRoutes = new Set([
   'POST /api/pair',
 ]);
 
-const PAIRED_ROUTES = 60;
+const PAIRED_ROUTES = 79;
 
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
@@ -28,6 +28,8 @@ function pairedRoutes(routes: readonly string[]) {
 function parameter(session: Session, name: string, route: string): string {
   if (name === 'projectId') return session.projectId;
   if (name === 'worktreeId') return session.worktreeId;
+  if (name === 'reviewId') return UNKNOWN_UUID;
+  if (name === 'revision') return '1';
   if (name === 'oid') return unknownOid;
   if (name === 'threadId' || name === 'requestId') return UNKNOWN_UUID;
   throw new Error(`${route} has a parameter the sweep cannot fill: ${name}`);

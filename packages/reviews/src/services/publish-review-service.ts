@@ -1,3 +1,9 @@
+import {
+  normalizedReviewPullRequest,
+  reviewPullRequestNumber,
+} from '../rules/review-publication.ts';
+import { ReviewCommitPinner } from '../ports/review-commit-pinner.ts';
+import { ReviewPublishRefusedError } from '../errors/review-publish-refused-error.ts';
 import { InvalidReviewPointerError } from '../errors/invalid-review-pointer-error.ts';
 import { ProofLimits } from '../ports/proof-limits.ts';
 import { Effect, Context, Layer, Clock, DateTime } from 'effect';
@@ -21,13 +27,15 @@ import {
 } from '../models/review-proof.ts';
 import { type Review, type ReviewLayer } from '../models/review.ts';
 import { ReviewStore } from '../ports/review-store.ts';
-import { publishedLayerFingerprint } from '../rules/resolve-review.ts';
-import { reviewActivity } from '../rules/review-activity.ts';
+import {
+  resolveReview,
+  unexplainedChanges,
+  publishedLayerFingerprint,
+} from '../rules/resolve-review.ts';
 import { publishedLines, textLines } from '../rules/review-evidence.ts';
 import {
-  changesDigest,
-  proofFileKind,
   proofFilePaths,
+  proofFileKind,
   proofMediaType,
 } from '../rules/review-proof.ts';
 import { summaryStyleWarnings } from '../rules/summary-style.ts';
@@ -39,6 +47,7 @@ export class PublishReviewService extends Context.Service<
       input: PublishReviewInput,
     ) => Effect.Effect<
       PublishReviewResult,
+      | ReviewPublishRefusedError
       | InvalidReviewPointerError
       | ReviewConflictError
       | ProofTooLargeError
@@ -52,12 +61,13 @@ export class PublishReviewService extends Context.Service<
     PublishReviewService,
     Effect.gen(function* () {
       const reviewsCapability = yield* ReviewStore;
+      const pinner = yield* ReviewCommitPinner;
       const clockCapability = yield* Clock.Clock;
       const idSourceCapability = yield* IdSource;
       const secretSourceCapability = yield* SecretSource;
       const proofLimitsCapability = yield* ProofLimits;
       const operationProof = Effect.fn('PublishReviewService.proof')(function* (
-        worktreeId: string,
+        reviewId: string,
         draft: ProofDraft | undefined,
         reads: ProofFileReads | undefined,
       ): Effect.fn.Return<
@@ -73,12 +83,7 @@ export class PublishReviewService extends Context.Service<
           Effect.gen(function* () {
             const id = idSourceCapability.next();
             if (asset.kind === 'link') return { ...structuredClone(asset), id };
-            const file = yield* operationProofFile(
-              worktreeId,
-              id,
-              asset,
-              reads,
-            );
+            const file = yield* operationProofFile(reviewId, id, asset, reads);
             proofFiles.push(file);
             return operationFileAsset(asset, file);
           }),
@@ -90,13 +95,17 @@ export class PublishReviewService extends Context.Service<
         if (total > proofLimitsCapability.totalBytes)
           return yield* Effect.fail(new ProofTooLargeError());
         return {
-          proof: { checks: structuredClone(draft.checks ?? []), assets },
+          proof: {
+            checks: structuredClone(draft.checks ?? []),
+            assets,
+            paths: proofFilePaths(draft),
+          },
           proofFiles,
         };
       });
       const operationProofFile = Effect.fn('PublishReviewService.proofFile')(
         function* (
-          worktreeId: string,
+          reviewId: string,
           id: string,
           asset: ProofFileDraft,
           reads: ProofFileReads | undefined,
@@ -109,7 +118,7 @@ export class PublishReviewService extends Context.Service<
         > {
           if (asset.proofId !== undefined) {
             const kept = yield* reviewsCapability.readProofFile({
-              worktreeId,
+              reviewId,
               proofId: asset.proofId,
             });
             if (kept === undefined)
@@ -154,6 +163,7 @@ export class PublishReviewService extends Context.Service<
           input: PublishReviewInput,
         ): Effect.fn.Return<
           PublishReviewResult,
+          | ReviewPublishRefusedError
           | InvalidReviewPointerError
           | ReviewConflictError
           | ProofTooLargeError
@@ -162,27 +172,42 @@ export class PublishReviewService extends Context.Service<
           | ProofFileUnreadableError
         > {
           const { draft } = input;
-          const current = yield* reviewsCapability.read({
-            worktreeId: input.worktreeId,
-          });
-          if ((current?.revision ?? 0) !== draft.expectedRevision)
+          const { commit } = input;
+          const pullRequest = normalizedReviewPullRequest(draft.pullRequest);
+          const current =
+            draft.reviewId === undefined
+              ? yield* reviewsCapability.findOpen({ ...commit, pullRequest })
+              : yield* reviewsCapability.readRecord({
+                  reviewId: draft.reviewId,
+                });
+          if (draft.reviewId !== undefined && current === undefined)
+            return yield* new ReviewPublishRefusedError({
+              message:
+                'Review not found: read_review first, or omit reviewId to start a review.',
+            });
+          if (
+            current !== undefined &&
+            (current.projectId !== commit.projectId ||
+              current.state !== 'open' ||
+              (pullRequest !== undefined &&
+                current.pullRequest !== undefined &&
+                reviewPullRequestNumber(pullRequest) !==
+                  reviewPullRequestNumber(current.pullRequest)) ||
+              (current.pullRequest === undefined &&
+                current.branch !== commit.branch))
+          )
+            return yield* new ReviewPublishRefusedError({
+              message:
+                'This review belongs to another key or is closed. Omit reviewId to publish a new review.',
+            });
+          if ((current?.latestRevision ?? 0) !== draft.expectedRevision)
             return yield* Effect.fail(new ReviewConflictError());
+          const reviewId = current?.reviewId ?? idSourceCapability.next();
           const { proof, proofFiles } = yield* operationProof(
-            input.worktreeId,
+            reviewId,
             draft.proof,
             input.proofFiles,
           );
-          const proofPaths = proofFilePaths(draft.proof);
-          const proven =
-            proof === undefined
-              ? undefined
-              : {
-                  ...proof,
-                  baseline: {
-                    digest: changesDigest(input.evidence.changes, proofPaths),
-                    proofPaths,
-                  },
-                };
           const files = input.evidence.texts;
           const layers: ReviewLayer[] = [];
           for (const layer of draft.layers) {
@@ -220,24 +245,62 @@ export class PublishReviewService extends Context.Service<
               fingerprint: publishedLayerFingerprint(steps),
             });
           }
+          const resolution = resolveReview({ layers }, input.evidence);
+          const notExplained = unexplainedChanges(
+            resolution.changes,
+            input.evidence.texts,
+            resolution.diagnostics,
+            resolution.layers,
+          );
           const review: Review = {
+            notExplained,
+            ...commit,
+            reviewId,
+            verdict: structuredClone(draft.verdict),
             worktreeId: input.worktreeId,
             revision: draft.expectedRevision + 1,
             publishedAt: DateTime.formatIso(
               DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
             ),
-            active: reviewActivity({ layers }, input.evidence),
-            summaryHtml: draft.summaryHtml,
+            active: true,
+            summaryHtml:
+              draft.summaryHtml ?? '<!doctype html><html><body></body></html>',
             summaryToken: idSourceCapability.next(),
             summarySecret: secretSourceCapability.next(),
             ...(draft.diagram === undefined
               ? {}
               : { diagram: structuredClone(draft.diagram) }),
             layers,
-            ...(proven === undefined ? {} : { proof: proven }),
+            ...(proof === undefined ? {} : { proof }),
           };
-          yield* reviewsCapability.save({ ...review, proofFiles });
-          return { review, warnings: summaryStyleWarnings(draft.summaryHtml) };
+          yield* pinner.pin({
+            commonDirectory: commit.commonDirectory,
+            reviewId,
+            revision: review.revision,
+            headOid: commit.headOid,
+          });
+          yield* reviewsCapability.save({
+            ...review,
+            proofFiles,
+            expectedRevision: draft.expectedRevision,
+            record: {
+              reviewId,
+              projectId: commit.projectId,
+              commonDirectory: commit.commonDirectory,
+              branch: commit.branch,
+              pullRequest: pullRequest ?? current?.pullRequest,
+              state: 'open',
+              latestRevision: review.revision,
+              lastSeenRevision: current?.lastSeenRevision ?? 0,
+            },
+          });
+          return {
+            review,
+            warnings:
+              draft.summaryHtml === undefined
+                ? []
+                : summaryStyleWarnings(draft.summaryHtml),
+          };
         }),
       };
     }),

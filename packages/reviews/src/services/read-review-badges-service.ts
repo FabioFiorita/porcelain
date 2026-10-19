@@ -5,7 +5,7 @@ import {
 } from '../models/read-review-badges.ts';
 import { CommentSeenStore } from '../ports/comment-seen-store.ts';
 import { CommentStore } from '../ports/comment-store.ts';
-import { ReviewStore } from '../ports/review-store.ts';
+import { BranchReviewReader } from '../ports/branch-review-reader.ts';
 import { ReviewedLayerStore } from '../ports/reviewed-layer-store.ts';
 import { worktreeStatuses } from '../rules/worktree-statuses.ts';
 
@@ -20,7 +20,7 @@ export class ReadReviewBadgesService extends Context.Service<
   static readonly layer = Layer.effect(
     ReadReviewBadgesService,
     Effect.gen(function* () {
-      const reviewsCapability = yield* ReviewStore;
+      const reviewsCapability = yield* BranchReviewReader;
       const reviewedLayersCapability = yield* ReviewedLayerStore;
       const commentsCapability = yield* CommentStore;
       const commentSeenCapability = yield* CommentSeenStore;
@@ -30,13 +30,23 @@ export class ReadReviewBadgesService extends Context.Service<
           input: ReadReviewBadgesInput,
         ): Effect.fn.Return<ReadReviewBadgesResult, never> {
           const { worktreeIds } = input;
+          const reviews = yield* reviewsCapability.byWorktrees({ worktreeIds });
+          const marks = (yield* Effect.forEach(reviews, (review) =>
+            Effect.map(
+              reviewedLayersCapability.list({ reviewId: review.reviewId }),
+              (marks) =>
+                marks.map((mark) => ({
+                  ...mark,
+                  worktreeId: review.worktreeId,
+                })),
+            ),
+          )).flat();
           return {
             statuses: worktreeStatuses(
-              yield* reviewsCapability.byWorktrees({ worktreeIds }),
-              yield* reviewedLayersCapability.byWorktrees({ worktreeIds }),
+              reviews,
+              marks,
               yield* commentsCapability.listAgentReplies({ worktreeIds }),
               yield* commentSeenCapability.seenByWorktrees({ worktreeIds }),
-              input.texts,
             ),
           };
         }),

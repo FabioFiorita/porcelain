@@ -1,3 +1,4 @@
+import { commentHasOwner } from '../rules/comment-threads.ts';
 import { ReplyToCommentOptions } from '../ports/reply-to-comment-options.ts';
 import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { IdSource } from '@porcelain/kernel/ports';
@@ -56,8 +57,9 @@ export class ReplyToCommentService extends Context.Service<
           if (earlier) {
             if (
               !current ||
+              !commentHasOwner(current, input) ||
               !repeatsReply(earlier, {
-                worktreeId: input.worktreeId,
+                worktreeId: current.worktreeId,
                 threadId: input.threadId,
                 body: input.body,
                 author,
@@ -66,7 +68,7 @@ export class ReplyToCommentService extends Context.Service<
               return yield* Effect.fail(new CommentIdentityConflictError());
             return current;
           }
-          if (!current || current.worktreeId !== input.worktreeId)
+          if (!current || !commentHasOwner(current, input))
             return yield* Effect.fail(new CommentTargetNotFoundError());
           const message: CommentMessage = {
             id: messageId,
@@ -80,9 +82,11 @@ export class ReplyToCommentService extends Context.Service<
             ...current,
             messages: [...current.messages, message],
           });
-          const usage = yield* commentsCapability.usage({
-            worktreeId: input.worktreeId,
-          });
+          const usage = yield* commentsCapability.usage(
+            current.review === undefined
+              ? { worktreeId: input.worktreeId }
+              : { reviewId: current.review.reviewId },
+          );
           if (!replyFits(current, usage, sizeBytes, optionsCapability))
             return yield* Effect.fail(new CommentLimitExceededError());
           return yield* commentsCapability.append({

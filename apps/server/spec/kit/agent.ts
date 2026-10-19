@@ -1,8 +1,14 @@
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
+import { readPublishedReviewResponseSchema } from '@porcelain/contracts/reviews';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { kitHeaders } from './isolated-server.ts';
-import { sampleReview, toolCall, toolResult } from './requests.ts';
+import {
+  commitReviewFixture,
+  sampleReview,
+  toolCall,
+  toolResult,
+} from './requests.ts';
 import type { AgentAction, HttpRequest, Session } from './session.ts';
 import { seedArchitectureSample } from './architecture-sample.ts';
 
@@ -40,10 +46,27 @@ async function agentRequest(
       path: `/api/worktrees/${encodeURIComponent(await mainWorktree(agent))}/files`,
       body: action.edit,
     };
+  const latest =
+    action.kind === 'publish-proof' || action.kind === 'publish-review'
+      ? (Schema.decodeUnknownSync(readPublishedReviewResponseSchema)(
+          (
+            await agent.read(
+              {
+                method: 'GET',
+                path: `/api/worktrees/${await mainWorktree(agent)}/review`,
+                headers: kitHeaders,
+              },
+              200,
+            )
+          ).body,
+        ).review?.revision ?? 0)
+      : 0;
   if (action.kind === 'publish-proof') {
     const layerId = randomUUID();
     return toolCall(agent, 1, 'publish_review', {
-      ...sampleReview(agent, 0, layerId, randomUUID(), { title: action.title }),
+      ...sampleReview(agent, latest, layerId, randomUUID(), {
+        title: action.title,
+      }),
       proof: {
         checks: action.checks.map((check) => ({ ...check, layerId })),
         assets: [
@@ -59,7 +82,7 @@ async function agentRequest(
     });
   return action.kind === 'publish-review'
     ? toolCall(agent, 1, 'publish_review', {
-        ...sampleReview(agent, 0, randomUUID(), randomUUID(), {
+        ...sampleReview(agent, latest, randomUUID(), randomUUID(), {
           title: action.title,
           kind: action.step,
         }),
@@ -79,6 +102,9 @@ export async function agentActs(
 ): Promise<unknown> {
   if (action.kind === 'publish-architecture')
     return seedArchitectureSample(agent);
+  if (action.kind === 'publish-review' || action.kind === 'publish-proof') {
+    await commitReviewFixture(agent);
+  }
   const request = await agentRequest(agent, action);
   if (action.kind === 'publish-proof')
     await agent.writeFile(PROOF_SCREENSHOT, onePixelPng);

@@ -14,6 +14,15 @@ function useCases(calls: unknown[]): ReviewMcpUseCases {
   };
   return {
     reviewTools: {
+      atReviewScope: {
+        execute: (input) => {
+          calls.push({ cwd: input.cwd, request: input.request });
+          return input.operation.execute({
+            ...input.request,
+            worktreeId: 'a0000000-0000-4000-8000-000000000001',
+          });
+        },
+      },
       atWorktreePath: {
         execute: (input) => {
           calls.push({ cwd: input.cwd, request: input.request });
@@ -24,9 +33,8 @@ function useCases(calls: unknown[]): ReviewMcpUseCases {
         },
       },
       listCommentThreads: { execute: () => Effect.succeed([]) },
-      deleteReview: unused,
       publishReview: unused,
-      readPublishedReview: unused,
+      readReview: unused,
       createCommentThread: unused,
       replyToComment: unused,
       updateCommentThread: unused,

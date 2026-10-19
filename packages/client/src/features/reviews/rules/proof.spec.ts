@@ -1,10 +1,9 @@
 import { expect, it } from 'vitest';
 import { orderedChecks, type ProofCheck } from './proof.ts';
 
-it('orders failures before skips and passes without modern array methods or changing the input', () => {
+it('orders failures before passes without modern array methods or changing the input', () => {
   const checks: readonly ProofCheck[] = Object.freeze([
     { name: 'first pass', result: 'pass' },
-    { name: 'skip', result: 'skipped' },
     { name: 'failure', result: 'fail' },
     { name: 'second pass', result: 'pass' },
   ]);
@@ -16,13 +15,11 @@ it('orders failures before skips and passes without modern array methods or chan
   try {
     expect(orderedChecks(checks).map((check) => check.name)).toEqual([
       'failure',
-      'skip',
       'first pass',
       'second pass',
     ]);
     expect(checks.map((check) => check.name)).toEqual([
       'first pass',
-      'skip',
       'failure',
       'second pass',
     ]);

@@ -69,9 +69,9 @@ function pairs(values: readonly string[] | undefined, flag: string) {
 function checksOf(values: ServerValues): ProofCheckStep[] {
   const outputs = new Map(pairs(values.output, 'output'));
   return pairs(values.check, 'check').map(([name, result]) => {
-    if (result !== 'pass' && result !== 'fail' && result !== 'skipped')
+    if (result !== 'pass' && result !== 'fail')
       throw new Usage(
-        `--check "${name}=${result}" needs pass, fail or skipped.`,
+        `--check "${name}=${result}" needs pass or fail. Put checks not run in verdict.notProven.`,
       );
     const output = outputs.get(name);
     return output === undefined ? { name, result } : { name, result, output };

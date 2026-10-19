@@ -23,9 +23,17 @@ export class ListCommentThreadsService extends Context.Service<
         execute: Effect.fn('ListCommentThreadsService.execute')(function* (
           input: ListCommentThreadsInput,
         ): Effect.fn.Return<ListCommentThreadsResult, never> {
-          const threads = yield* commentsCapability.list({
-            worktreeId: input.worktreeId,
-          });
+          const worktreeThreads =
+            input.worktreeId === undefined
+              ? []
+              : yield* commentsCapability.list({
+                  worktreeId: input.worktreeId,
+                });
+          const reviewThreads =
+            input.reviewId === undefined
+              ? []
+              : yield* commentsCapability.list({ reviewId: input.reviewId });
+          const threads = [...worktreeThreads, ...reviewThreads];
           return input.scope === 'waiting'
             ? threads.filter(waitsForAgent)
             : threads;

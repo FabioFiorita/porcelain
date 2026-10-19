@@ -1,3 +1,4 @@
+import { commitReviewFixture } from '../kit/requests.ts';
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import {
@@ -73,6 +74,7 @@ const firstAssetId = async (session: Session) =>
 test('publishing checks, a screenshot and a link keeps the screenshot as a PNG of its size under its own id', async ({
   session,
 }) => {
+  await commitReviewFixture(session);
   await session.writeFile(SHOT_PATH, shot);
 
   const response = await session.send(
@@ -133,6 +135,7 @@ test('proof that is not its kind, is missing, names an unknown layer or step, or
   session,
 }) => {
   await session.writeFile(DISGUISED_PATH, disguised);
+  await commitReviewFixture(session);
   const before = await currentReview(session);
 
   const responses = [];
@@ -178,10 +181,11 @@ test('proof that is not its kind, is missing, names an unknown layer or step, or
   expect(after.proof).toStrictEqual(before.proof);
 });
 
-test('publishing again without proof drops the kept files', async ({
+test('publishing again omits proof in the latest view while keeping prior revision files', async ({
   session,
 }) => {
   const proofId = await firstAssetId(session);
+  await commitReviewFixture(session);
 
   const published = await session.send(
     publish(session, sampleReview(session, 1, layerId, stepId)),

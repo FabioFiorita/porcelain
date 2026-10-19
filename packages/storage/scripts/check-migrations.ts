@@ -22,7 +22,11 @@ import { RemoteAccessRow } from '../src/db/models/remote-access.ts';
 import { ProofFileRow } from '../src/db/models/review-proof-files.ts';
 import { ReviewedFileRow } from '../src/db/models/reviewed-files.ts';
 import { ReviewedLayerRow } from '../src/db/models/reviewed-layers.ts';
-import { ReviewRow } from '../src/db/models/reviews.ts';
+import {
+  ReviewRow,
+  ReviewRecordRow,
+  ReviewSeenRow,
+} from '../src/db/models/reviews.ts';
 import { WorktreePresenceRow } from '../src/db/models/worktree-presence.ts';
 
 class MigrationCheckError extends Data.TaggedError('MigrationCheckError')<{
@@ -47,6 +51,8 @@ const models = [
   ReviewedFileRow,
   ReviewedLayerRow,
   ReviewRow,
+  ReviewRecordRow,
+  ReviewSeenRow,
   WorktreePresenceRow,
 ];
 const git = Effect.fn('StorageCheck.git')(function* (args: readonly string[]) {

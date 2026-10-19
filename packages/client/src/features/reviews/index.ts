@@ -22,3 +22,14 @@ export {
 export { setLayerMark } from './commands/layer-marks.ts';
 
 export { commentWriteBinding } from './commands/comment-write-binding.ts';
+
+export {
+  readReview,
+  readProjectReviews,
+  readReviewMarks,
+  readReviewRevisionFile,
+  readReviewRevisionDiffs,
+  readReviewRevisionProof,
+  readReviewComments,
+} from './queries/project-reviews.ts';
+export { reviewCommands } from './commands/project-reviews.ts';

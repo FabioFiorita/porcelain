@@ -179,3 +179,12 @@ export function seenThrough(
 ): number {
   return Math.max(current, Math.min(requested, latest));
 }
+
+export function commentHasOwner(
+  thread: CommentThread,
+  input: { worktreeId: string; reviewId?: string | undefined },
+): boolean {
+  return thread.review === undefined
+    ? input.reviewId === undefined && thread.worktreeId === input.worktreeId
+    : thread.review.reviewId === input.reviewId;
+}

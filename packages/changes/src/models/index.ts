@@ -30,3 +30,5 @@ export type {
   WorktreeEntriesRequest,
   WorktreeEntry,
 } from './worktree-side.ts';
+
+export type { RetainedBranchPatchesRequest } from './branch-changes.ts';

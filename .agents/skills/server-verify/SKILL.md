@@ -70,6 +70,8 @@ Use Git and the filesystem directly in `fixtures.repositoryPath`.
 
 `ids` prints fixture IDs/paths. `agent publish-review`, `agent publish-proof`, `agent comment` and `agent reply` prepare repeatable changes through the disposable owner's MCP route. `server project`, `server published-review`, `server reviewed-layers`, `server reviewed-files`, `server comment-threads`, `server devices`, `server pending-links` and `server receipt <id>` read typed state back. All accept `--instance <id>`; run the CLI alone for arguments.
 
+Review fixture commands commit changes before publishing, include the required verdict and accept only pass/fail proof checks. Unrun checks belong in verdict.notProven. Republishing appends a revision to the branch review.
+
 The card's MCP command runs the checkout's stdio bridge against the disposable data directory, with its working directory set to the sample repository so MCP resolves that worktree. Use that command with your harness's MCP client for arbitrary agent operations. The deterministic `agent` commands are also suitable for fixture publication; their evidence includes the MCP exchange.
 
 ## Evidence and cleanup

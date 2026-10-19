@@ -70,6 +70,8 @@ export class ReadBranchChangesService extends Context.Service<
                 commits: range.commits,
                 files: range.files.map((file) => ({
                   path: branchFilePath(file),
+                  oldOid: file.oldOid,
+                  newOid: file.newOid,
                   oldPath: file.oldPath,
                   newPath: file.newPath,
                   status: file.status,

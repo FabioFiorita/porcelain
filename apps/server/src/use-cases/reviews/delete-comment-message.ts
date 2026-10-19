@@ -1,27 +1,36 @@
-import {
-  type CommentTargetNotFoundError,
-  type CommentAuthorMismatchError,
+import { Context, Effect, Layer } from 'effect';
+import type {
+  ReviewNotFoundError,
+  CommentTargetNotFoundError,
+  CommentAuthorMismatchError,
 } from '@porcelain/reviews/errors';
-import { Effect, Context, Layer } from 'effect';
-import { WorktreeAccess } from '../../runtime/worktree-access.ts';
-import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
-import {
-  type CommentAuthor,
-  type CommentThreadParams,
-  type DeleteCommentMessageQuery,
-  type DeleteCommentMessageResponse,
+import type {
+  ReviewScope,
+  DeleteCommentMessageQuery,
+  DeleteCommentMessageResponse,
+  CommentAuthor,
 } from '@porcelain/contracts/reviews';
-import { DeleteCommentMessageService } from '@porcelain/reviews/services';
+import {
+  DeleteCommentMessageService,
+  ReadReviewRevisionService,
+} from '@porcelain/reviews/services';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { Lanes } from '../../runtime/lanes.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 
 export class DeleteCommentMessageUseCase extends Context.Service<
   DeleteCommentMessageUseCase,
   {
     readonly execute: (
-      input: CommentThreadParams & DeleteCommentMessageQuery & CommentAuthor,
+      input: ReviewScope &
+        DeleteCommentMessageQuery &
+        CommentAuthor & { threadId: string },
     ) => Effect.Effect<
       DeleteCommentMessageResponse,
       | WorktreeAccessFailure
+      | ReviewNotFoundError
       | CommentTargetNotFoundError
       | CommentAuthorMismatchError
     >;
@@ -30,32 +39,48 @@ export class DeleteCommentMessageUseCase extends Context.Service<
   static readonly layer = Layer.effect(
     DeleteCommentMessageUseCase,
     Effect.gen(function* () {
-      const accessCapability = yield* WorktreeAccess;
-      const deleteCommentMessageCapability = yield* DeleteCommentMessageService;
-      const eventsCapability = yield* EventPublisher;
-
+      const access = yield* WorktreeAccess;
+      const revisions = yield* ReadReviewRevisionService;
+      const operation = yield* DeleteCommentMessageService;
+      const lanes = yield* Lanes;
+      const keys = yield* LaneKeys;
+      const events = yield* EventPublisher;
       return {
-        execute: Effect.fn('DeleteCommentMessageUseCase.execute')(function* (
-          input: CommentThreadParams &
-            DeleteCommentMessageQuery &
-            CommentAuthor,
-        ): Effect.fn.Return<
-          DeleteCommentMessageResponse,
-          | WorktreeAccessFailure
-          | CommentTargetNotFoundError
-          | CommentAuthorMismatchError
-        > {
-          return yield* accessCapability.transaction(
-            input.worktreeId,
-            () => Effect.void,
-            () => deleteCommentMessageCapability.execute(input),
-            () =>
-              eventsCapability.worktreeChanged({
-                worktreeId: input.worktreeId,
-                change: 'comments',
-              }),
-          );
-        }),
+        execute: Effect.fn('DeleteCommentMessageUseCase.execute')(
+          function* (input) {
+            if (input.reviewId !== undefined)
+              return yield* lanes
+                .run(
+                  keys.reviews({ repositoryId: `review:${input.reviewId}` }),
+                  'write',
+                  () =>
+                    Effect.gen(function* () {
+                      const review = yield* revisions.execute({
+                        reviewId: input.reviewId ?? '',
+                        revision: undefined,
+                      });
+                      const result = yield* operation.execute({
+                        ...input,
+                        worktreeId: review.worktreeId,
+                      });
+                      yield* events.worktreeChanged({
+                        worktreeId: review.worktreeId,
+                        change: 'comments',
+                      });
+                      return result;
+                    }),
+                )
+                .pipe(Effect.tap(() => events.inventoryChanged()));
+            const worktreeId = input.worktreeId ?? '';
+            const result = yield* access.transaction(
+              worktreeId,
+              () => Effect.void,
+              () => operation.execute({ ...input, worktreeId }),
+              () => events.worktreeChanged({ worktreeId, change: 'comments' }),
+            );
+            return result;
+          },
+        ),
       };
     }),
   );

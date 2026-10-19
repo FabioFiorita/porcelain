@@ -29,13 +29,15 @@ export const setLayerMark = Atom.family(
         const marks = yield* LayerMarksState;
         const answer = yield* marks.confirm(
           Effect.gen(function* () {
-            const result = yield* client.request((api) =>
-              input.kind === 'unmark'
-                ? api.reviews.removeReviewedLayer({
+            const result = yield* input.kind === 'unmark'
+              ? client.request((api) =>
+                  api.reviews.removeReviewedLayer({
                     params: { worktreeId: scope.worktreeId },
                     query: { layerId: input.layerId },
-                  })
-                : api.reviews.setReviewedLayer({
+                  }),
+                )
+              : client.request((api) =>
+                  api.reviews.setReviewedLayer({
                     params: { worktreeId: scope.worktreeId },
                     payload: {
                       layerId: input.layerId,
@@ -43,7 +45,7 @@ export const setLayerMark = Atom.family(
                       reviewed: true,
                     },
                   }),
-            );
+                );
             yield* currentAnswerEffect(
               connection,
               result.worktreeId === scope.worktreeId,

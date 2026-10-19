@@ -1,3 +1,4 @@
+import { commentHasOwner } from '../rules/comment-threads.ts';
 import { Effect, Context, Layer } from 'effect';
 import { CommentTargetNotFoundError } from '../errors/comment-target-not-found-error.ts';
 import {
@@ -29,7 +30,7 @@ export class UpdateCommentThreadService extends Context.Service<
           const current = yield* commentsCapability.find({
             threadId: input.threadId,
           });
-          if (!current || current.worktreeId !== input.worktreeId)
+          if (!current || !commentHasOwner(current, input))
             return yield* Effect.fail(new CommentTargetNotFoundError());
           if (current.resolved === input.resolved)
             return { thread: current, changed: false };

@@ -82,6 +82,8 @@ test('an authored decision with an unavailable file blocks toolbar, closing and 
   agent,
 }) => {
   await agent.publishReview('Cap decision');
+  const followup = `${repo.readme.changed}A follow-up edit.\n`;
+  await repo.write(repo.readme.path, followup);
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
   await workspace.getByRole('tab', { name: 'Review', exact: true }).click();
   await workspace.getByRole('button', { name: /1 Cap decision/ }).click();
@@ -145,7 +147,7 @@ test('an authored decision with an unavailable file blocks toolbar, closing and 
       (await server.reviewedFiles()).marks.map((mark) => mark.path),
     )
     .toEqual([repo.readme.path]);
-  await repo.write(repo.readme.path, repo.readme.changed);
+  await repo.write(repo.readme.path, followup);
   await expect
     .element(
       stop.getByRole('button', { name: 'Mark decision reviewed', exact: true }),

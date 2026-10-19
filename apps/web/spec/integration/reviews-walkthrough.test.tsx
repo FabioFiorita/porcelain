@@ -26,7 +26,7 @@ test('a published review opens on a briefing of what the change adds, walks each
     )
     .toBeVisible();
   await expect
-    .element(review.getByText('6 of 55 files reviewed', { exact: true }))
+    .element(review.getByText('0 of 3 files reviewed', { exact: true }))
     .toBeVisible();
   await expect
     .element(
@@ -53,7 +53,7 @@ test('a published review opens on a briefing of what the change adds, walks each
     .element(
       revoke.getByText('Code moved since it was explained', { exact: true }),
     )
-    .toBeVisible();
+    .not.toBeInTheDocument();
   await revoke
     .getByRole('button', {
       name: 'Go to step 3: Revoke through the session owner',
@@ -72,7 +72,7 @@ test('a published review opens on a briefing of what the change adds, walks each
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
   await drawer
     .getByRole('button', {
-      name: 'Not explained · 9 lines in 5 files 0/3',
+      name: 'Not explained · 3 lines in 3 files 0/1',
       exact: true,
     })
     .click();
@@ -115,7 +115,7 @@ test('a published review opens on a briefing of what the change adds, walks each
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
   await drawer
     .getByRole('button', {
-      name: '3 Publish an immutable note 0/6',
+      name: '3 Publish an immutable note',
       exact: true,
     })
     .click();

@@ -36,6 +36,7 @@ export type ReviewDiagnostics = {
 };
 
 export type ReviewEvidence = {
+  headOid?: string | undefined;
   changes: readonly FileChange[];
   texts: ReviewTexts;
   missing: ReadonlySet<string>;

@@ -1,6 +1,6 @@
 import { afterEach } from 'vitest';
 import { Effect, Layer } from 'effect';
-import { AtomRegistry } from 'effect/reactivity';
+import { AtomRegistry, type Atom, type AsyncResult } from 'effect/reactivity';
 import { createWorktreeConnection } from '../../src/shared/api/worktree-connection.ts';
 import type { Transport } from '../../src/shared/api/transport.ts';
 
@@ -77,4 +77,13 @@ export function sharedMemoConnections() {
     first: createWorktreeConnection(input, memoMap, Layer.empty),
     second: createWorktreeConnection(input, memoMap, Layer.empty),
   };
+}
+
+export function readClientAtom<A, E>(
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<AsyncResult.AsyncResult<A, E>>,
+) {
+  return Effect.runPromise(
+    AtomRegistry.getResult(registry, atom, { suspendOnWaiting: true }),
+  );
 }

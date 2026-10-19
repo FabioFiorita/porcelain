@@ -1,3 +1,12 @@
+import { type RemoveReviewMarkUseCase } from '../../../use-cases/reviews/remove-review-mark.ts';
+import { type SetReviewMarkUseCase } from '../../../use-cases/reviews/set-review-mark.ts';
+import { type ListReviewMarksUseCase } from '../../../use-cases/reviews/list-review-marks.ts';
+import { type ReadReviewDiffsUseCase } from '../../../use-cases/reviews/read-review-diffs.ts';
+import { type ReadReviewFileUseCase } from '../../../use-cases/reviews/read-review-file.ts';
+import { type SetReviewStateUseCase } from '../../../use-cases/reviews/set-review-state.ts';
+import { type SetReviewSeenUseCase } from '../../../use-cases/reviews/set-review-seen.ts';
+import { type ListProjectReviewsUseCase } from '../../../use-cases/reviews/list-project-reviews.ts';
+import { type ReadReviewUseCase } from '../../../use-cases/reviews/read-review.ts';
 import { requestBody } from '../../hooks/request-body.ts';
 import { handlerAudit } from '../../diagnostics.ts';
 import { requestBodyLimit } from '../../hooks/request-body.ts';
@@ -26,6 +35,15 @@ import { type SetReviewedLayerUseCase } from '../../../use-cases/reviews/set-rev
 import { type UpdateCommentThreadUseCase } from '../../../use-cases/reviews/update-comment-thread.ts';
 
 type ReviewsUseCases = {
+  removeReviewMark: Context.Service.Shape<typeof RemoveReviewMarkUseCase>;
+  setReviewMark: Context.Service.Shape<typeof SetReviewMarkUseCase>;
+  listReviewMarks: Context.Service.Shape<typeof ListReviewMarksUseCase>;
+  readReviewDiffs: Context.Service.Shape<typeof ReadReviewDiffsUseCase>;
+  readReviewFile: Context.Service.Shape<typeof ReadReviewFileUseCase>;
+  setReviewState: Context.Service.Shape<typeof SetReviewStateUseCase>;
+  setReviewSeen: Context.Service.Shape<typeof SetReviewSeenUseCase>;
+  listProjectReviews: Context.Service.Shape<typeof ListProjectReviewsUseCase>;
+  readReview: Context.Service.Shape<typeof ReadReviewUseCase>;
   deleteReview: Context.Service.Shape<typeof DeleteReviewUseCase>;
   createCommentThread: Pick<
     Context.Service.Shape<typeof CreateCommentThreadUseCase>,
@@ -103,6 +121,87 @@ export function reviewsRoutes(
 ) {
   const handlers = HttpApiBuilder.group(ReviewsApi, 'reviews', (handlers) =>
     handlers
+      .handle('deleteReviewCommentMessage', ({ params, query }) =>
+        Effect.flatMap(RequestCaller, (writer) =>
+          useCases.deleteCommentMessage.execute({
+            ...query,
+            ...params,
+            writer,
+          }),
+        ),
+      )
+      .handle('deleteResolvedReviewComments', ({ params, payload }) =>
+        Effect.flatMap(RequestCaller, (writer) =>
+          useCases.deleteResolvedComments.execute({
+            ...payload,
+            ...params,
+            writer,
+          }),
+        ),
+      )
+      .handle('editReviewCommentMessage', ({ params, payload }) =>
+        Effect.flatMap(RequestCaller, (writer) =>
+          useCases.editCommentMessage.execute({
+            ...payload,
+            ...params,
+            writer,
+          }),
+        ),
+      )
+      .handle('listReviewMarks', ({ params }) =>
+        useCases.listReviewMarks.execute(params),
+      )
+      .handle('setReviewMark', ({ params, payload }) =>
+        useCases.setReviewMark.execute({ ...payload, ...params }),
+      )
+      .handle('removeReviewMark', ({ params, payload }) =>
+        useCases.removeReviewMark.execute({ ...payload, ...params }),
+      )
+      .handle('createReviewCommentThread', ({ params, payload }) =>
+        Effect.flatMap(RequestCaller, (writer) =>
+          useCases.createCommentThread.execute({
+            ...payload,
+            ...params,
+            writer,
+          }),
+        ),
+      )
+      .handle('listReviewCommentThreads', ({ params }) =>
+        useCases.listCommentThreads.execute(params),
+      )
+      .handle('replyToReviewComment', ({ params, payload }) =>
+        Effect.flatMap(RequestCaller, (writer) =>
+          useCases.replyToComment.execute({ ...payload, ...params, writer }),
+        ),
+      )
+      .handle('updateReviewCommentThread', ({ params, payload }) =>
+        useCases.updateCommentThread.execute({ ...payload, ...params }),
+      )
+      .handle('readReview', ({ params }) => useCases.readReview.execute(params))
+      .handle('readReviewRevision', ({ params }) =>
+        useCases.readReview.execute(params),
+      )
+      .handle('listProjectReviews', ({ params }) =>
+        useCases.listProjectReviews.execute(params),
+      )
+      .handle('setReviewSeen', ({ params, payload }) =>
+        useCases.setReviewSeen.execute({ ...params, ...payload }),
+      )
+      .handle('setReviewState', ({ params, payload }) =>
+        useCases.setReviewState.execute({ ...params, ...payload }),
+      )
+      .handle('deleteProjectReview', ({ params }) =>
+        useCases.deleteReview.execute(params),
+      )
+      .handle('readReviewProofFile', ({ params, query }) =>
+        useCases.readProofFile.execute({ ...params, ...query }),
+      )
+      .handle('readReviewFile', ({ params, query }) =>
+        useCases.readReviewFile.execute({ ...params, ...query }),
+      )
+      .handle('readReviewDiffs', ({ params, payload }) =>
+        useCases.readReviewDiffs.execute({ ...params, ...payload }),
+      )
       .handle('createCommentThread', ({ params, payload }) =>
         Effect.flatMap(RequestCaller, (writer) =>
           useCases.createCommentThread.execute({
@@ -155,9 +254,7 @@ export function reviewsRoutes(
         useCases.deleteReview.execute(params),
       )
       .handle('publishReview', ({ params, payload }) =>
-        useCases.publishReview
-          .execute({ ...params, ...payload })
-          .pipe(Effect.map(({ review }) => ({ review }))),
+        useCases.publishReview.execute({ ...params, ...payload }),
       )
       .handle('readProofFile', ({ params, query }) =>
         useCases.readProofFile.execute({ ...params, ...query }),

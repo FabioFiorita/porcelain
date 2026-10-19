@@ -87,9 +87,79 @@ export type Diagram = typeof diagramSchema.Type;
 
 export type ReviewDiagram = typeof reviewDiagramSchema.Type;
 
+export const reviewVerdictSchema = Schema.Struct({
+  asked: Schema.Struct({
+    text: Schema.String,
+    links: Schema.optional(
+      Schema.Array(Schema.Struct({ title: Schema.String, url: Schema.String })),
+    ),
+  }),
+  recommendation: Schema.Literals(['merge', 'hold']),
+  reasons: Schema.Array(Schema.String),
+  notProven: Schema.Array(
+    Schema.Struct({ what: Schema.String, why: Schema.String }),
+  ),
+  removed: Schema.Array(
+    Schema.Struct({
+      behavior: Schema.String,
+      why: Schema.String,
+      paths: Schema.Array(Schema.String),
+    }),
+  ),
+});
+export type ReviewVerdict = typeof reviewVerdictSchema.Type;
+export const reviewRecordSchema = Schema.Struct({
+  reviewId: Schema.String,
+  projectId: Schema.String,
+  commonDirectory: Schema.String,
+  branch: Schema.String,
+  pullRequest: Schema.optional(Schema.String),
+  state: Schema.Literals(['open', 'closed']),
+  latestRevision: Schema.Int,
+  lastSeenRevision: Schema.Int,
+});
+export type ReviewRecord = typeof reviewRecordSchema.Type;
+export type ReviewKey = { reviewId: string; revision?: number | undefined };
+export type BranchReviewKey = {
+  projectId: string;
+  branch: string;
+  pullRequest?: string | undefined;
+};
+export const reviewFileSchema = Schema.Struct({
+  path: Schema.String,
+  oldPath: Schema.optional(Schema.String),
+  newPath: Schema.optional(Schema.String),
+  oldOid: Schema.optional(Schema.String),
+  newOid: Schema.optional(Schema.String),
+  oldMode: Schema.String,
+  newMode: Schema.String,
+  status: Schema.Literals([
+    'added',
+    'modified',
+    'deleted',
+    'renamed',
+    'type-changed',
+  ]),
+});
+export type ReviewCommit = {
+  files: readonly (typeof reviewFileSchema.Type)[];
+  projectId: string;
+  commonDirectory: string;
+  branch: string;
+  worktreePath: string;
+  worktreeName: string;
+  headOid: string;
+  base: string;
+  baseOid: string;
+  mergeBaseOid: string;
+};
 export type ReviewDraft = {
   expectedRevision: number;
-  summaryHtml: string;
+  summaryHtml?: string | undefined;
+  verdict: ReviewVerdict;
+  reviewId?: string | undefined;
+  base?: string | undefined;
+  pullRequest?: string | undefined;
   diagram?: ReviewDiagram | undefined;
   layers: readonly LayerDraft[];
   proof?: ProofDraft | undefined;
@@ -99,7 +169,18 @@ export type ReviewStep = typeof reviewStepSchema.Type;
 
 export type ReviewLayer = typeof reviewLayerSchema.Type;
 
-export type Review = {
+export const unexplainedChangeSchema = Schema.Struct({
+  path: Schema.String,
+  ranges: Schema.Array(
+    Schema.Struct({ startLine: Schema.Number, endLine: Schema.Number }),
+  ),
+  deleted: Schema.optional(Schema.Boolean),
+  binary: Schema.optional(Schema.Boolean),
+});
+export type Review = ReviewCommit & {
+  notExplained: readonly (typeof unexplainedChangeSchema.Type)[];
+  reviewId: string;
+  verdict: ReviewVerdict;
   worktreeId: string;
   revision: number;
   publishedAt: string;
@@ -122,12 +203,6 @@ export type ReviewSummary = Pick<
 >;
 
 export type ReviewSummaryKey = { token: string };
-
-export type ReviewActivity = {
-  worktreeId: string;
-  revision: number;
-  active: boolean;
-};
 
 export type SignatureRequest = { secret: string; message: string };
 

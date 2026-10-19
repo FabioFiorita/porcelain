@@ -9,54 +9,45 @@ export const REVIEW_GUIDE = `# Publishing a Porcelain review
 
 The review helps the developer understand how the architecture changes and which decisions future agents will copy. Porcelain shows it as a walkthrough: a briefing of what the change adds to the system, then one stop per layer in the order you publish, then whatever no layer explains. Each layer is one decision: a behavior told from entry point to outcome, or one coherent ownership or architectural decision. Do not make Server, Client or Interface separate layers: those are lanes within a decision, and Porcelain shows the lanes a decision crosses as its route. Order layers so a reader meets an owner before the decisions that use it.
 
-The reader marks a decision reviewed, and that marks every file it shows. Each changed file appears in full, once, in the first layer whose changed step points at it, so point the layer that introduces a shared owner at that owner's file. A changed step points at code this change alters; its text appears as a numbered note under the last line it points at, so end the step where the explained block ends. A context step points at unchanged code the reader needs and appears as an excerpt after the decision's code. Write step text as one or two sentences on the decision and its consequence, not a narration of the code. Keep the layer summary to two or three sentences; longer text is folded. Changed lines no step covers are listed as Not explained, both as files of their own and as marked lines inside explained files.
+The reader marks a decision reviewed, and that marks every file it shows. Each changed file appears in full, once, in the first layer whose changed step points at it, so point the layer that introduces a shared owner at that owner's file. A changed step points at code this committed revision alters; its text appears as a numbered note under the last line it points at, so end the step where the explained block ends. A context step points at unchanged code the reader needs and appears as an excerpt after the decision's code. Write step text as one or two sentences on the decision and its consequence, not a narration of the code. Keep the layer summary to two or three sentences; longer text is folded. Changed lines no step covers are listed as Not explained, both as files of their own and as marked lines inside explained files.
 
-Use \`delete_review\` only for a review published on the wrong worktree or one that should no longer be reviewed. Deletion is final; comments and reviewed file marks stay.
+## Commit, then publish
 
-## Summary
+Publish committed branch work. HEAD must be a commit on an attached branch, and staged, unstaged and untracked changes must be committed first. Paths explicitly supplied as proof assets are excluded from the clean-tree check.
 
-The summary is the Agent summary tab beside the walkthrough. It is one complete HTML document, at most 10 MiB. It runs in an opaque sandbox with scripts, forms, popups, and modals. Network resources such as CDN fonts and libraries are allowed. The page cannot reach Porcelain login state or APIs. Link to layers with \`#layer-N\`, where N is the 1-based published order. Porcelain handles that navigation. Do not embed credentials.
+Call \`read_review\` first. With no \`reviewId\`, it resolves the cwd branch's open review. It returns the review, revision list and selected revision (latest by default). Pass \`reviewId\` and optionally \`revision\` to read a retained review without its original worktree.
 
-You own the design and must include CSS. Inspect the reviewed application's styles, theme tokens, and components first. Match its colors, background, typography, and visual language where it has them. If it has none, choose a coherent readable design. Style the layer navigation as well as the content: clear headings, spacing, and a content width that works in a narrow pane. Do not rely on browser-default links, and do not add an empty token rule only to silence the warning.
+Publish with \`expectedRevision\` set to the review's latest revision number, or 0 for a new review. An intervening publish causes a conflict: read again before retrying. \`base\` defaults to the repository's default branch; an explicit base names a full local or remote branch ref.
 
-Porcelain displays the HTML as authored. \`--porcelain-background\`, \`--porcelain-foreground\`, and \`data-theme\` (\`light\` or \`dark\`) are available when you want the page to follow Porcelain's theme. They are not a required palette. Preview the summary, check contrast, navigation, and overflow, and say so if you could not look at it. Publishing without detectable CSS returns an advisory warning. The warning does not reject the review, and CSS being present does not certify that the page looks right.
+The review belongs to the project. Its key is the supplied GitHub \`pullRequest\` URL's PR, otherwise the branch. The PR repository must match origin. Adding a PR later keeps the open branch review; a different PR starts a review for that key. An explicit \`reviewId\` must name an open review with the same key. Closing and deleting belong to the developer; there is no MCP delete tool.
 
-A compact page that matches a light application:
+Each successful publish adds an immutable numbered revision, with head, base and merge-base commit OIDs, publishing-worktree labels, verdict, layers, diagram and proof. Porcelain pins the head in the project's common Git directory, so code remains readable after branch or worktree removal. Stored excerpts remain readable even if the repository disappears. Pointers must name existing lines at the head commit; deleted files cannot supply a head pointer.
 
-\`\`\`html
-<!doctype html>
-<html data-theme="light">
-  <head>
-    <meta charset="utf-8" />
-    <style>
-      :root {
-        color-scheme: light dark;
-        --ink: var(--porcelain-foreground, #1c1917);
-        --paper: var(--porcelain-background, #fafaf9);
-        --rule: color-mix(in srgb, var(--ink) 16%, transparent);
-      }
-      body {
-        margin: 0;
-        background: var(--paper);
-        color: var(--ink);
-        font: 16px/1.5 ui-sans-serif, system-ui, sans-serif;
-      }
-      main { max-width: 42rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
-      nav a { color: inherit; margin-right: 0.75rem; }
-      h1 { font-size: 1.5rem; line-height: 1.2; }
-    </style>
-  </head>
-  <body>
-    <main>
-      <nav><a href="#layer-1">Save a file</a></nav>
-      <h1>Saving writes the bytes, then tells the review</h1>
-      <p>Verified with the file-save spec. The new path rejects an empty name.</p>
-    </main>
-  </body>
-</html>
+## Verdict
+
+Every publish requires:
+
+\`\`\`json
+{
+  "verdict": {
+    "asked": { "text": "What the developer asked for", "links": [{ "title": "Brief", "url": "https://github.com/owner/repository/issues/1" }] },
+    "recommendation": "hold",
+    "reasons": ["Why this should merge or wait"],
+    "notProven": [{ "what": "Desktop", "why": "Mac is off" }],
+    "removed": []
+  }
+}
 \`\`\`
 
-## Diagram
+Recommendation is \`merge\` or \`hold\`. Supply 1–5 reason lines. Put work you did not run in \`notProven\`; proof checks accept only \`pass\` or \`fail\`.
+
+## Removals
+
+Every file deleted between the merge base and head must appear by its exact path in \`verdict.removed[].paths\`. Each entry names the removed behavior and why it was removed. Publication refuses an unexplained deletion with \`Explain every removal: <path> is deleted but no verdict.removed entry names it.\` Diagram Removed owners do not replace this declaration.
+
+## Decisions and diagram
+
+Layers have UUID ids, a title, summary, lanes and steps. A step has a UUID id, lane index, title, text, \`kind: "changed" | "context"\`, and a pointer with path and inclusive line range. A context step introduces useful unchanged code. Keep explanations concise and order steps as the behavior flows.
 
 When the change crosses more than one part of the system, add a diagram with boxes and explicit arrows in \`diagram.after\`. Porcelain does not draw it as a graph. It reads it as the briefing "What this adds to the system" and as each decision's connections, so write it for those:
 
@@ -83,13 +74,15 @@ For example, a decision introducing an owner can link to that owner even though 
 }
 \`\`\`
 
+## Optional summary
+
+\`summaryHtml\` is optional, for diagrams or media the structured verdict cannot hold. It is a complete HTML document of at most 10 MiB, rendered in an opaque sandbox. It cannot access Porcelain credentials or APIs. Author CSS for a readable narrow pane; missing detectable CSS produces an advisory warning. Theme values \`--porcelain-background\`, \`--porcelain-foreground\` and \`data-theme\` are available. Links such as \`#layer-1\` open that decision. Never embed credentials.
+
 ## Proof
 
-Attach proof that the work is done in \`proof\`. Porcelain shows it beside the review, and a failing check stands out. Report what you actually ran; never mark a check you did not run as passing.
+Report checks actually run, including failures. Each check has name, \`result: "pass" | "fail"\` and optional output (at most ${REVIEW_PROOF_OUTPUT_LENGTH} characters).
 
-- \`checks\`: one entry per check you ran, with \`name\`, \`result\` (\`pass\`, \`fail\` or \`skipped\`) and an optional short \`output\` of at most ${REVIEW_PROOF_OUTPUT_LENGTH} characters, such as the failing assertion or the summary line. Publish a failing check as \`fail\` rather than leaving it out.
-- \`assets\`: at most ${REVIEW_PROOF_ASSETS}. An \`image\` (PNG, JPEG, GIF or WebP) or a \`video\` (MP4 or WebM) names a \`path\` relative to the worktree root. Porcelain reads the file when you publish and keeps its own copy: at most ${REVIEW_PROOF_FILE_MEBIBYTES} MiB per file and ${REVIEW_PROOF_MEBIBYTES} MiB together. Its content must match its kind; an SVG or any other document is refused. Save a screenshot inside the worktree, publish, then delete the file so it does not show up as an unexplained change; Porcelain keeps its copy. A \`link\` names an \`http\` or \`https\` \`url\`, such as a CI run.
-- Every check and asset has a \`title\` or \`name\`, and may name the \`layerId\`, or the \`layerId\` and \`stepId\`, it proves. Without them it belongs to the whole review.
+Supply at most ${REVIEW_PROOF_ASSETS} assets: image (PNG/JPEG/GIF/WebP), video (MP4/WebM), or an HTTP(S) link. A file path is relative to the publishing worktree; Porcelain copies at most ${REVIEW_PROOF_FILE_MEBIBYTES} MiB per file and ${REVIEW_PROOF_MEBIBYTES} MiB together. Its bytes must match its kind. Checks and assets can name a valid layerId, or layerId plus stepId.
 
 \`\`\`json
 {
@@ -105,25 +98,17 @@ Attach proof that the work is done in \`proof\`. Porcelain shows it beside the r
 }
 \`\`\`
 
-Proof describes the changes as they were when you published it. Once they change, Porcelain shows the checks as out of date until you run them and publish again; your own proof files coming or going do not count. Publishing replaces the proof with the one you send. When you republish, send every check again, and every asset you want to keep: a new file by \`path\`, and an image or video already published by \`proofId\`, its \`id\` from \`read_review\`, in place of \`path\`. Porcelain reuses its copy, so the file does not need to exist any more. Name either \`path\` or \`proofId\`, never both.
-
-## Repair gaps before handing the review off
-
-1. Call \`read_review\` and keep its revision.
-2. Publish with \`expectedRevision\` set to that revision. A mismatch means someone published since you read: read again, then publish.
-3. Every pointer must name existing lines in the selected worktree; publishing rejects missing files and out-of-range lines. Fix changed or broken pointers before republishing. Deleted files appear under Not explained with \`deleted: true\`; explain their removal in the summary rather than pointing at absent code.
-4. Fix lines Porcelain reports as Not explained: either cover them with a changed step or leave them out of the diff you are handing off.
-5. Publish the whole review again. Publishing replaces the latest summary, diagram, layers, and proof. Keep anything that should stay; keep published images and videos by their \`proofId\`.
+To carry an image or video into a later revision, supply its prior \`proofId\` instead of path. Use exactly one. Every revision keeps its own proof; republishing does not alter earlier revisions. The current worktree view reports proof stale when its branch tip differs from that revision's head or code differs from HEAD; its own proof paths are excluded. A new head needs fresh proof and another publish.
 
 ## Comments
 
-Nothing is pushed to you. When asked to read comments, call \`list_comments\`.
+\`list_comments\` reads the cwd branch's review threads together with worktree-owned threads. Its default \`scope: "waiting"\` returns unresolved threads whose latest message is not from the agent; \`scope: "all"\` includes every thread. An explicit reviewId reads that review's threads even after worktree removal.
 
-The tool result includes a \`threads\` array. The default, and \`scope: "waiting"\`, returns unresolved threads whose latest message is not from the agent. That is the work waiting on you. A thread you already answered, and a resolved thread, stay out of that list.
+Comment tools accept \`reviewId\` to select a review owner. Each review thread reports \`review: { reviewId, revision, headOid }\` for the revision it was written on, independently of its comment-update revision. Threads span review revisions. Worktree-owned comments remain separate. Branch anchors use a branch comparison and a commit OID; additions are at that head and deletions are at its merge base. Re-find the code if the head changed. Stable creation and message ids make retries idempotent. Reply in Markdown; resolve after addressing the comment or the developer accepts it.
 
-\`scope: "all"\` returns every thread, including resolved threads and threads whose latest message is yours.
+## Handoff
 
-A thread's \`anchor.comparison\` names what the reviewer was reading. \`worktree\` is the uncommitted changes, staged, unstaged or untracked. \`commit\` is one commit against a parent, and \`revision\` is that commit. \`branch\` is the whole branch since it forked from \`base\`, like a pull request, and \`revision\` is the branch tip the reviewer read: \`additions\` lines are lines of the file at that tip and \`deletions\` lines are lines at the merge base. If you committed since, find the code again before you change it.
+A publish returns \`reviewId\`, \`revision\`, \`headOid\`, \`baseOid\` and \`links\`. Web destinations cover the review, its revision and each decision. The app links use the configured Porcelain hub origin and retain the environment, selected host, revision and decision. Hosts prefer configured Cloudflare, then Tailscale, then LAN.
 
-Reply in Markdown with \`reply_to_comment\`. Resolve a thread only after you fixed it or the reviewer accepted it. Use the optional ids on create and reply so a retry does not add a second copy.
+Put the returned decision app link from \`links.decisions\` in the handoff, alongside the exact head commit and any unproven surfaces. New web review destinations and native universal-link handling are delivered separately; producing a link does not certify those clients can open it yet.
 `;

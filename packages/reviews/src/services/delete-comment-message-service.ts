@@ -1,3 +1,4 @@
+import { commentHasOwner } from '../rules/comment-threads.ts';
 import { Effect, Context, Layer } from 'effect';
 import { CommentAuthorMismatchError } from '../errors/comment-author-mismatch-error.ts';
 import { CommentTargetNotFoundError } from '../errors/comment-target-not-found-error.ts';
@@ -37,7 +38,7 @@ export class DeleteCommentMessageService extends Context.Service<
           const message = current?.messages.find(
             (entry) => entry.id === input.messageId,
           );
-          if (!current || !message || current.worktreeId !== input.worktreeId)
+          if (!current || !message || !commentHasOwner(current, input))
             return yield* Effect.fail(new CommentTargetNotFoundError());
           if (message.author !== commentAuthor(input.writer))
             return yield* Effect.fail(new CommentAuthorMismatchError());

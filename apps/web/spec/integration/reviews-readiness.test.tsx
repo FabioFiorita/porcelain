@@ -75,7 +75,7 @@ test('the readiness panel follows reviewed and stale files, unexplained lines, w
   await expect.element(line('1 of 2 checks failing')).toBeVisible();
   await expect
     .element(readiness.getByRole('button', { name: /^Readiness/ }))
-    .toMatchTextContent('5 things to check');
+    .toMatchTextContent('3 things to check');
 
   await line('1 of 2 checks failing').click();
   await expect

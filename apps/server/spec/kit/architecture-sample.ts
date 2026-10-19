@@ -318,6 +318,7 @@ export async function seedArchitectureSample(session: Session) {
     '-m',
     'Establish the synthetic workspace baseline',
   );
+  await session.git('branch', '-f', 'porcelain-fixture-base', 'HEAD');
   for (const [path, text] of changed) await session.writeFile(path, text);
   await session.remove('packages/workspace/src/legacy-write.ts');
   await session.git('add', 'apps/web', 'packages/client');
@@ -494,7 +495,34 @@ export async function seedArchitectureSample(session: Session) {
       ? { ...box, layerId: sharedLayer }
       : box,
   );
+  const policyPath = 'packages/workspace/src/policy.ts';
+  changed.set(
+    policyPath,
+    `${changed.get(policyPath)}\nexport const auditLogEnabled = true;\n`,
+  );
+  await session.writeFile(policyPath, changed.get(policyPath)!);
+  await session.git('add', '-A');
+  await session.git('commit', '-m', 'Establish the shared mutation boundary');
   const body: PublishReviewRequest = {
+    base: 'refs/heads/porcelain-fixture-base',
+    verdict: {
+      asked: { text: 'Explore the synthetic workspace decisions' },
+      recommendation: 'hold',
+      reasons: ['Illustrative architecture sample'],
+      notProven: [
+        {
+          what: 'Sample application tests',
+          why: 'No application test result is claimed',
+        },
+      ],
+      removed: [
+        {
+          behavior: 'Legacy workspace writes',
+          why: 'Shared owners replace the legacy writer',
+          paths: ['packages/workspace/src/legacy-write.ts'],
+        },
+      ],
+    },
     expectedRevision: saved?.revision ?? 0,
     summaryHtml:
       '<!doctype html><style>body{font:16px/1.5 system-ui;padding:2rem;max-width:48rem;color:var(--porcelain-foreground);background:var(--porcelain-background)}a{color:inherit}</style><h1>A workspace grows shared owners</h1><p>This wholly synthetic sample contains eight behaviors and a shared ownership change. Explore the map and follow each decision into its code.</p><p>Some work is intentionally unexplained, and one location changes after publication.</p><a href="#layer-9">Shared mutation boundary</a>',
@@ -505,15 +533,7 @@ export async function seedArchitectureSample(session: Session) {
       },
     },
     layers,
-    proof: {
-      checks: [
-        {
-          name: 'Sample application tests',
-          result: 'skipped',
-          output: 'Illustrative sample; no application test result is claimed.',
-        },
-      ],
-    },
+    proof: { checks: [] },
   };
   const result = Schema.decodeUnknownSync(readPublishedReviewResponseSchema)(
     await accepted(session, { method: 'PUT', path: reviewPath, body }),

@@ -5,8 +5,17 @@ test('N and P move between decisions, and file shortcuts act once on the decisio
   workspace,
   agent,
   server,
+  repo,
 }) => {
   await agent.publishArchitecture();
+  await repo.write(
+    'apps/web/src/publish-note.ts',
+    `${await repo.read('apps/web/src/publish-note.ts')}\n// Follow-up keyboard review change.\n`,
+  );
+  await repo.write(
+    'packages/client/src/publish-note.ts',
+    `${await repo.read('packages/client/src/publish-note.ts')}\n// Follow-up keyboard review change.\n`,
+  );
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
   const drawer = workspace.getByRole('dialog', {
     name: 'Worktree review',
@@ -15,7 +24,7 @@ test('N and P move between decisions, and file shortcuts act once on the decisio
   await drawer.getByRole('tab', { name: 'Review', exact: true }).click();
   await drawer
     .getByRole('button', {
-      name: '3 Publish an immutable note 0/6',
+      name: '3 Publish an immutable note 0/2',
       exact: true,
     })
     .click();

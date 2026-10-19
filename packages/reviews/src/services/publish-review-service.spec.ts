@@ -1,10 +1,15 @@
+import { reviewFixture } from '../../spec/fixtures/review.ts';
 import { testClock } from '@porcelain/kernel/test-kit';
 import {
   SequentialIdSource,
   SequentialSecretSource,
 } from '@porcelain/kernel/fakes';
 import { IdSource, SecretSource } from '@porcelain/kernel/ports';
-import { ReviewStore, ProofLimits } from '@porcelain/reviews/ports';
+import {
+  ReviewStore,
+  ProofLimits,
+  ReviewCommitPinner,
+} from '@porcelain/reviews/ports';
 import { ValidateReviewDraftService } from '@porcelain/reviews/services';
 import { Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
@@ -24,10 +29,10 @@ import {
   type ValidatedReviewDraft,
   type ReviewEvidence,
 } from '@porcelain/reviews/models';
-import { changesDigest } from '@porcelain/reviews/rules';
 import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
 import { PublishReviewService } from './publish-review-service.ts';
 
+const publishedReviewId = '00000000-0000-4000-8000-000000000001';
 const worktreeId = 'a'.repeat(64);
 const styled = '<style>h1{color:red}</style><h1>Summary</h1>';
 const readme = 'first\nsecond\nadded\n';
@@ -104,6 +109,7 @@ function draft(overrides: Partial<ReviewDraft> = {}): ValidatedReviewDraft {
         Effect.provide(ValidateReviewDraftService.layer),
       ),
     ).execute({
+      verdict: reviewFixture().verdict,
       expectedRevision: 0,
       summaryHtml: styled,
       layers: [layer()],
@@ -131,6 +137,7 @@ async function setup(totalBytes = 1024) {
     PublishReviewService.pipe(
       Effect.provide(PublishReviewService.layer),
       Effect.provideService(ReviewStore, store),
+      Effect.provideService(ReviewCommitPinner, { pin: () => Effect.void }),
       Effect.provideService(
         Clock.Clock,
         await testClock('2026-01-01T00:00:00.000Z'),
@@ -140,7 +147,16 @@ async function setup(totalBytes = 1024) {
       Effect.provideService(ProofLimits, { totalBytes, signatureBytes: 16 }),
     ),
   );
-  return { store, service };
+  return {
+    store,
+    service: {
+      execute: (
+        input: Omit<Parameters<typeof service.execute>[0], 'commit'> & {
+          commit?: Parameters<typeof service.execute>[0]['commit'];
+        },
+      ) => service.execute({ commit: reviewFixture(), ...input }),
+    },
+  };
 }
 
 describe('PublishReviewService', () => {
@@ -149,6 +165,7 @@ describe('PublishReviewService', () => {
     const { review, warnings } = Effect.runSync(
       service.execute({
         worktreeId,
+        commit: reviewFixture(),
         draft: draft(),
         evidence: stillChanged,
       }),
@@ -162,22 +179,26 @@ describe('PublishReviewService', () => {
     });
     expect(review.layers[0]?.steps[0]?.published).toEqual(['second', 'added']);
     expect(warnings).toEqual([]);
-    expect(await Effect.runPromise(store.read({ worktreeId }))).toEqual(review);
+    expect(
+      await Effect.runPromise(store.read({ reviewId: publishedReviewId })),
+    ).toEqual(review);
   });
 
-  it('stores the first review inactive when every line it explains is already committed', async () => {
+  it('stores a committed revision active even when no worktree diff remains', async () => {
     const { service, store } = await setup();
     const { review } = Effect.runSync(
       service.execute({
         worktreeId,
+        commit: reviewFixture(),
         draft: draft(),
         evidence: evidence([['README.md', readme]]),
       }),
     );
-    expect(review.active).toBe(false);
-    expect((await Effect.runPromise(store.read({ worktreeId })))?.active).toBe(
-      false,
-    );
+    expect(review.active).toBe(true);
+    expect(
+      (await Effect.runPromise(store.read({ reviewId: publishedReviewId })))
+        ?.active,
+    ).toBe(true);
   });
 
   it.each([
@@ -233,7 +254,7 @@ describe('PublishReviewService', () => {
         );
       }
       expect(
-        await Effect.runPromise(store.read({ worktreeId })),
+        await Effect.runPromise(store.read({ reviewId: publishedReviewId })),
       ).toBeUndefined();
     },
   );
@@ -243,6 +264,7 @@ describe('PublishReviewService', () => {
     const first = Effect.runSync(
       service.execute({
         worktreeId,
+        commit: reviewFixture(),
         draft: draft(),
         evidence: evidence(),
       }),
@@ -250,6 +272,7 @@ describe('PublishReviewService', () => {
     const second = Effect.runSync(
       service.execute({
         worktreeId,
+        commit: reviewFixture(),
         draft: draft({ expectedRevision: 1 }),
         evidence: evidence(),
       }),
@@ -278,7 +301,8 @@ describe('PublishReviewService', () => {
         ),
       ).toThrow(ReviewConflictError);
       expect(
-        (await Effect.runPromise(store.read({ worktreeId })))?.summaryHtml,
+        (await Effect.runPromise(store.read({ reviewId: publishedReviewId })))
+          ?.summaryHtml,
       ).toBe(styled);
     },
   );
@@ -288,13 +312,15 @@ describe('PublishReviewService', () => {
     const { warnings } = Effect.runSync(
       service.execute({
         worktreeId,
+        commit: reviewFixture(),
         draft: draft({ summaryHtml: '<h1>Summary</h1>' }),
         evidence: evidence(),
       }),
     );
     expect(warnings).toEqual(['missing-style']);
     expect(
-      (await Effect.runPromise(store.read({ worktreeId })))?.revision,
+      (await Effect.runPromise(store.read({ reviewId: publishedReviewId })))
+        ?.revision,
     ).toBe(1);
   });
 
@@ -303,6 +329,7 @@ describe('PublishReviewService', () => {
     const { review } = Effect.runSync(
       service.execute({
         worktreeId,
+        commit: reviewFixture(),
         draft: draft({
           proof: {
             checks: [
@@ -340,6 +367,7 @@ describe('PublishReviewService', () => {
     );
     const [image, video, link] = review.proof?.assets ?? [];
     expect(review.proof).toEqual({
+      paths: ['shot.png', 'run.webm'],
       checks: [
         { name: 'Unit tests', result: 'pass' },
         {
@@ -373,37 +401,61 @@ describe('PublishReviewService', () => {
           url: 'https://ci.example/run/1',
         },
       ],
-      baseline: {
-        digest: changesDigest([], ['shot.png', 'run.webm']),
-        proofPaths: ['shot.png', 'run.webm'],
-      },
     });
     expect(new Set([image?.id, video?.id, link?.id]).size).toBe(3);
     expect(
-      (await Effect.runPromise(store.read({ worktreeId })))?.proof,
+      (await Effect.runPromise(store.read({ reviewId: publishedReviewId })))
+        ?.proof,
     ).toEqual(review.proof);
     expect(
       await Effect.runPromise(
-        store.readProofFile({ worktreeId, proofId: image?.id ?? '' }),
+        store.readProofFile({
+          reviewId: publishedReviewId,
+          proofId: image?.id ?? '',
+        }),
       ),
     ).toEqual({ id: image?.id, mediaType: 'image/png', bytes: png });
     expect(
       await Effect.runPromise(
-        store.readProofFile({ worktreeId, proofId: video?.id ?? '' }),
+        store.readProofFile({
+          reviewId: publishedReviewId,
+          proofId: video?.id ?? '',
+        }),
       ),
     ).toEqual({ id: video?.id, mediaType: 'video/webm', bytes: webm });
     expect(
       await Effect.runPromise(
-        store.readProofFile({ worktreeId, proofId: link?.id ?? '' }),
+        store.readProofFile({
+          reviewId: publishedReviewId,
+          proofId: link?.id ?? '',
+        }),
       ),
     ).toBeUndefined();
   });
 
-  it('drops the previous proof files when a later publish attaches none', async () => {
-    const { service, store } = await setup();
-    const first = Effect.runSync(
+  it('publishes without summary HTML using an empty document readable by existing clients', async () => {
+    const { service } = await setup();
+    const { summaryHtml: _, ...input } = draft();
+    const published = Effect.runSync(
       service.execute({
         worktreeId,
+        commit: reviewFixture(),
+        draft: input,
+        evidence: evidence(),
+      }),
+    );
+    expect(published.review.summaryHtml).toBe(
+      '<!doctype html><html><body></body></html>',
+    );
+    expect(published.warnings).toEqual([]);
+  });
+
+  it('retains prior revision proof files when a later publish attaches none', async () => {
+    const { service, store } = await setup();
+    Effect.runSync(
+      service.execute({
+        worktreeId,
+        commit: reviewFixture(),
         draft: draft({
           proof: {
             assets: [{ kind: 'image', title: 'Shot', path: 'shot.png' }],
@@ -416,6 +468,7 @@ describe('PublishReviewService', () => {
     const second = Effect.runSync(
       service.execute({
         worktreeId,
+        commit: reviewFixture(),
         draft: draft({ expectedRevision: 1 }),
         evidence: evidence(),
       }),
@@ -424,11 +477,15 @@ describe('PublishReviewService', () => {
     expect(
       await Effect.runPromise(
         store.readProofFile({
-          worktreeId,
-          proofId: first.review.proof?.assets[0]?.id ?? '',
+          reviewId: publishedReviewId,
+          proofId: '00000000-0000-4000-8000-000000000002',
         }),
       ),
-    ).toBeUndefined();
+    ).toEqual({
+      id: '00000000-0000-4000-8000-000000000002',
+      mediaType: 'image/png',
+      bytes: png,
+    });
   });
 
   it.each<{
@@ -488,7 +545,8 @@ describe('PublishReviewService', () => {
         ),
       ).toThrow(error);
       expect(
-        (await Effect.runPromise(store.read({ worktreeId })))?.revision,
+        (await Effect.runPromise(store.read({ reviewId: publishedReviewId })))
+          ?.revision,
       ).toBe(1);
     },
   );
@@ -499,6 +557,7 @@ describe('PublishReviewService', () => {
       Effect.runSync(
         service.execute({
           worktreeId,
+          commit: reviewFixture(),
           draft: draft({
             proof: {
               assets: [
@@ -515,7 +574,9 @@ describe('PublishReviewService', () => {
         }),
       ),
     ).toThrow(ProofTooLargeError);
-    expect(await Effect.runPromise(store.read({ worktreeId }))).toBeUndefined();
+    expect(
+      await Effect.runPromise(store.read({ reviewId: publishedReviewId })),
+    ).toBeUndefined();
   });
 
   it('keeps a published file when the next publish names it by its proof id', async () => {
@@ -523,6 +584,7 @@ describe('PublishReviewService', () => {
     const first = Effect.runSync(
       service.execute({
         worktreeId,
+        commit: reviewFixture(),
         draft: draft({
           proof: {
             assets: [{ kind: 'image', title: 'Shot', path: 'shot.png' }],
@@ -536,6 +598,7 @@ describe('PublishReviewService', () => {
     const second = Effect.runSync(
       service.execute({
         worktreeId,
+        commit: reviewFixture(),
         draft: draft({
           expectedRevision: 1,
           proof: {
@@ -563,7 +626,10 @@ describe('PublishReviewService', () => {
     });
     expect(
       await Effect.runPromise(
-        store.readProofFile({ worktreeId, proofId: asset?.id ?? '' }),
+        store.readProofFile({
+          reviewId: publishedReviewId,
+          proofId: asset?.id ?? '',
+        }),
       ),
     ).toEqual({ id: asset?.id, mediaType: 'image/png', bytes: png });
   });
@@ -584,6 +650,7 @@ describe('PublishReviewService', () => {
     const first = Effect.runSync(
       service.execute({
         worktreeId,
+        commit: reviewFixture(),
         draft: draft({
           proof: {
             assets: [{ kind: 'image', title: 'Shot', path: 'shot.png' }],
@@ -600,6 +667,7 @@ describe('PublishReviewService', () => {
       Effect.runSync(
         service.execute({
           worktreeId,
+          commit: reviewFixture(),
           draft: draft({
             expectedRevision: 1,
             proof: { assets: [{ kind, title: 'Shot', proofId }] },
@@ -609,7 +677,8 @@ describe('PublishReviewService', () => {
       ),
     ).toThrow(known ? UnsupportedProofFileError : UnknownProofFileError);
     expect(
-      (await Effect.runPromise(store.read({ worktreeId })))?.revision,
+      (await Effect.runPromise(store.read({ reviewId: publishedReviewId })))
+        ?.revision,
     ).toBe(1);
   });
 });

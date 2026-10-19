@@ -5,6 +5,10 @@ test.for(['keyboard', 'toolbar', 'sidebar'] as const)(
   'decision badge, count and controls follow file review toggles through the %s',
   async (entry, { workspace, agent, server, repo }) => {
     await agent.publishReview('Readme decision');
+    await repo.write(
+      repo.readme.path,
+      `${repo.readme.changed}A follow-up edit.\n`,
+    );
     await workspace
       .getByRole('button', { name: 'Review', exact: true })
       .click();

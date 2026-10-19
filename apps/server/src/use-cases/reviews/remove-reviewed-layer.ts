@@ -6,9 +6,7 @@ import {
   type RemoveReviewedLayerResponse,
 } from '@porcelain/contracts/reviews';
 import { type WorktreeParams } from '@porcelain/contracts/shared';
-import { ReadTextFilesService } from '@porcelain/files/services';
 import {
-  ListReviewedLayerPathsService,
   ListReviewedLayersService,
   RemoveReviewedLayerService,
 } from '@porcelain/reviews/services';
@@ -27,9 +25,6 @@ export class RemoveReviewedLayerUseCase extends Context.Service<
     Effect.gen(function* () {
       const accessCapability = yield* WorktreeAccess;
       const removeReviewedLayerCapability = yield* RemoveReviewedLayerService;
-      const listReviewedLayerPathsCapability =
-        yield* ListReviewedLayerPathsService;
-      const readTextFilesCapability = yield* ReadTextFilesService;
       const listReviewedLayersCapability = yield* ListReviewedLayersService;
       const eventsCapability = yield* EventPublisher;
 
@@ -45,18 +40,8 @@ export class RemoveReviewedLayerUseCase extends Context.Service<
             return accessCapability
               .transaction(
                 worktreeId,
+                () => Effect.void,
                 () =>
-                  Effect.gen(function* () {
-                    const { paths } =
-                      yield* listReviewedLayerPathsCapability.execute({
-                        worktreeId,
-                      });
-                    return yield* readTextFilesCapability.execute({
-                      worktreeId,
-                      paths,
-                    });
-                  }),
-                ({ texts }) =>
                   Effect.gen(function* () {
                     const { removed } =
                       yield* removeReviewedLayerCapability.execute(input);
@@ -64,17 +49,19 @@ export class RemoveReviewedLayerUseCase extends Context.Service<
                       removed,
                       ...(yield* listReviewedLayersCapability.execute({
                         worktreeId,
-                        texts,
                       })),
                     };
                   }),
                 ({ removed }) =>
                   Effect.gen(function* () {
                     if (removed)
-                      yield* eventsCapability.worktreeChanged({
-                        worktreeId,
-                        change: 'reviewed',
-                      });
+                      yield* Effect.andThen(
+                        eventsCapability.worktreeChanged({
+                          worktreeId,
+                          change: 'reviewed',
+                        }),
+                        eventsCapability.inventoryChanged(),
+                      );
                   }),
               )
               .pipe(Effect.map(({ removed, ...response }) => response));

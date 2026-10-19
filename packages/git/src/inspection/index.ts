@@ -22,4 +22,6 @@ export type {
 } from './interfaces/git-session.ts';
 export { readCheckoutStatus, readBranchDetails } from './inspection-git.ts';
 export { readSubmoduleHeads } from './commands/read-submodule-heads.ts';
-export { readHeadBlob } from './commands/read-head-blob.ts';
+export { readBlobAtOid } from './commands/read-blob-at-oid.ts';
+
+export { pinReviewRevision } from './commands/pin-review-revision.ts';

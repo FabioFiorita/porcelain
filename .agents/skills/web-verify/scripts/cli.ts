@@ -35,7 +35,7 @@ const usage = `Usage: .agents/skills/web-verify/scripts/cli <command> [--instanc
   pairing-link            mint a fresh one-time link to open in your browser
   agent publish-review "<title>" [--context] [--summary-html <html>]
   agent publish-architecture
-  agent publish-proof "<title>" --check "<name>=pass|fail|skipped" [--output "<name>=<text>"] --screenshot "<title>"
+  agent publish-proof "<title>" --check "<name>=pass|fail" [--output "<name>=<text>"] --screenshot "<title>"
   agent comment <path> "<body>" | reply <threadId|latest> "<body>"
   server published-review | reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | pending-links | receipt <requestId>
   remote start            start a second disposable computer

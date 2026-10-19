@@ -1,11 +1,11 @@
+import { reviewedLayerMarks } from '../rules/reviewed-marks.ts';
 import { Effect, Context, Layer } from 'effect';
 import {
   type ListReviewedLayersInput,
   type ListReviewedLayersResult,
 } from '../models/list-reviewed-layers.ts';
-import { ReviewStore } from '../ports/review-store.ts';
+import { BranchReviewReader } from '../ports/branch-review-reader.ts';
 import { ReviewedLayerStore } from '../ports/reviewed-layer-store.ts';
-import { reviewedLayerMarks } from '../rules/reviewed-marks.ts';
 
 export class ListReviewedLayersService extends Context.Service<
   ListReviewedLayersService,
@@ -18,7 +18,7 @@ export class ListReviewedLayersService extends Context.Service<
   static readonly layer = Layer.effect(
     ListReviewedLayersService,
     Effect.gen(function* () {
-      const reviewsCapability = yield* ReviewStore;
+      const reviewsCapability = yield* BranchReviewReader;
       const reviewedLayersCapability = yield* ReviewedLayerStore;
 
       return {
@@ -26,13 +26,16 @@ export class ListReviewedLayersService extends Context.Service<
           input: ListReviewedLayersInput,
         ): Effect.fn.Return<ListReviewedLayersResult, never> {
           const { worktreeId } = input;
+          const review = yield* reviewsCapability.read({ worktreeId });
+          const marks =
+            review === undefined
+              ? []
+              : yield* reviewedLayersCapability.list({
+                  reviewId: review.reviewId,
+                });
           return {
             worktreeId,
-            marks: reviewedLayerMarks(
-              yield* reviewedLayersCapability.list({ worktreeId }),
-              (yield* reviewsCapability.read({ worktreeId }))?.layers ?? [],
-              input.texts,
-            ),
+            marks: reviewedLayerMarks(marks, review?.layers ?? []),
           };
         }),
       };

@@ -1,3 +1,4 @@
+import { reviewFixture } from '../../spec/fixtures/review.ts';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { InvalidLineRangeError } from '@porcelain/kernel/errors';
@@ -41,6 +42,7 @@ function layer(overrides: Partial<LayerDraft> = {}): LayerDraft {
 
 function draft(overrides: Partial<ReviewDraft> = {}): ReviewDraft {
   return {
+    verdict: reviewFixture().verdict,
     expectedRevision: 0,
     summaryHtml: styled,
     layers: [layer()],

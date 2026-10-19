@@ -19,7 +19,7 @@ api:
 
 ## What it is
 
-After confirming, the reviewer permanently deletes the published review, its proof and its reviewed decisions for everyone connected. Comments and reviewed file marks stay.
+After confirming, the reviewer permanently deletes the published review, its proof and its reviewed decisions for everyone connected. Worktree-owned comments and file marks stay; review-owned comments and marks are deleted with their review.
 
 ## How a user reaches it
 
@@ -37,7 +37,7 @@ Publish a review: `$C agent publish-review 'Readme layer'`.
 1. Navigate to `/` on the card's web URL (full page load), then click button named `Review` and tab named `Review`
    Look for: the review index with the published review and button "Review actions".
 2. Click button named `Review actions`, then menuitem named `Delete review`
-   Look for: alertdialog "Delete review?" explaining that the review, proof and reviewed decisions are permanently deleted for everyone connected, while comments and reviewed file marks stay; buttons "Cancel" and "Delete". `$C server published-review` still returns revision 1.
+   Look for: alertdialog "Delete review?" explaining that the review, proof and reviewed decisions are permanently deleted for everyone connected, while worktree-owned comments and reviewed file marks stay; buttons "Cancel" and "Delete". `$C server published-review` still returns revision 1.
 3. Click button named `Cancel`
    Look for: the alertdialog is gone; "Review actions" is still available. `$C server published-review` still returns the original review.
 4. Click button named `Review actions`, then menuitem named `Delete review`, then button named `Delete` within the alertdialog
@@ -55,4 +55,4 @@ Publish a review: `$C agent publish-review 'Readme layer'`.
 
 - Button "Review" and tab "Review" are different roles; use their exact role and name.
 - Menuitem "Delete review" opens confirmation; button "Delete" exists only within the alertdialog.
-- A review publishes once per fixture worktree. Use a clean disposable instance for a new run.
+- Review fixture commands commit before publishing a verdict; repeat publication appends a revision. Use a clean disposable instance for a new run.
