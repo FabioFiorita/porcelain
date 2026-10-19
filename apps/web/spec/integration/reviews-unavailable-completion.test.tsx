@@ -31,6 +31,16 @@ test('an unexplained stop marks only available files, explains the open remainde
       ),
     )
     .toBeVisible();
+  const marker = stop.getByText('Not reviewable: too large or unreadable', {
+    exact: true,
+  });
+  await expect.element(marker).toBeVisible();
+  await expect
+    .element(marker)
+    .toHaveAttribute(
+      'title',
+      'large-sample.txt cannot be marked reviewed because its fingerprint is unavailable (too large or unreadable).',
+    );
   await stop
     .getByRole('button', { name: 'Mark available files reviewed', exact: true })
     .click();

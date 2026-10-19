@@ -6,6 +6,7 @@ import {
 } from '@porcelain/client/reviews';
 import {
   reviewedControlLabel,
+  unavailableReviewText,
   reviewErrorMessage,
 } from '@porcelain/client/reviews/rules';
 import { Button } from '../../../components/ui/button';
@@ -54,7 +55,7 @@ export function ReviewedAction({
         />
       ) : (
         <Text variant="caption" tone="muted">
-          Not reviewable: the current file state could not be established.
+          {unavailableReviewText([file.path])}
         </Text>
       )}
       {error ? (

@@ -5,6 +5,7 @@ import {
   bulkReportText,
   completionPlan,
   completionRefusal,
+  unavailableReviewText,
   inChunks,
   layerReviewed,
   markAllPlan,
@@ -133,6 +134,17 @@ describe('bulkReportText', () => {
   });
 });
 
+describe('unavailableReviewText', () => {
+  it('names the unavailable files and the fingerprint limitation consistently', () => {
+    expect(unavailableReviewText(['large.txt'])).toBe(
+      'large.txt cannot be marked reviewed because its fingerprint is unavailable (too large or unreadable).',
+    );
+    expect(unavailableReviewText(['large.txt', 'unreadable.ts'])).toBe(
+      'large.txt, unreadable.ts cannot be marked reviewed because their fingerprints are unavailable (too large or unreadable).',
+    );
+  });
+});
+
 describe('completion availability', () => {
   it('offers only the available files without promising to complete a blocked stop', () => {
     const entries = [
@@ -187,7 +199,7 @@ describe('completion availability', () => {
       title: 'Some files cannot be marked reviewed',
       description:
         'Marked 1 file. Skipped 1. scripts/large-sample.txt cannot be marked reviewed because its fingerprint is unavailable (too large or unreadable). This stop stays open until every file can be marked reviewed.',
-      type: 'error',
+      type: 'warning',
     });
     expect(
       completionRefusal({
@@ -198,6 +210,18 @@ describe('completion availability', () => {
     ).toEqual({
       title: 'Some files changed before they were marked',
       description: 'No files marked. 1 failed.',
+      type: 'error',
+    });
+    expect(
+      completionRefusal({
+        marked: ['a.ts'],
+        skipped: [{ path: 'large.txt', reason: 'not-fingerprintable' }],
+        failed: [{ path: 'b.ts', error: new Error('stale') }],
+      }),
+    ).toEqual({
+      title: 'Some files cannot be marked reviewed',
+      description:
+        'Marked 1 file. Skipped 1. 1 failed. large.txt cannot be marked reviewed because its fingerprint is unavailable (too large or unreadable). This stop stays open until every file can be marked reviewed.',
       type: 'error',
     });
     expect(

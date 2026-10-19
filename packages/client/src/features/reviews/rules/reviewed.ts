@@ -121,8 +121,12 @@ export function bulkReportText(report: BulkReviewReport) {
     .join(' ');
 }
 
+export function unavailableReviewText(paths: readonly string[]) {
+  return `${paths.join(', ')} cannot be marked reviewed because ${paths.length === 1 ? 'its fingerprint is' : 'their fingerprints are'} unavailable (too large or unreadable).`;
+}
+
 function unavailableCompletionText(paths: readonly string[]) {
-  return `${paths.join(', ')} cannot be marked reviewed because ${paths.length === 1 ? 'its fingerprint is' : 'their fingerprints are'} unavailable (too large or unreadable). This stop stays open until every file can be marked reviewed.`;
+  return `${unavailableReviewText(paths)} This stop stays open until every file can be marked reviewed.`;
 }
 
 export function completionPlan(entries: readonly ReviewableItem[]) {
@@ -157,7 +161,7 @@ export function completionRefusal(
     return {
       title: 'Some files cannot be marked reviewed',
       description: `${bulkReportText(report)} ${unavailableCompletionText(unavailable)}`,
-      type: 'error',
+      type: report.failed.length > 0 ? 'error' : 'warning',
     };
   if (report.failed.length > 0)
     return {
@@ -234,7 +238,7 @@ export function layerReviewed(
 export type ReviewNotice = {
   title: string;
   description: string;
-  type: 'error';
+  type: 'error' | 'warning';
 };
 
 export type ReviewToggleTarget = {

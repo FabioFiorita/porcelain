@@ -211,7 +211,12 @@ export function WalkthroughCompletion({
         onPress={() => (finished ? advance() : complete(advance))}
       />
       {notice ? (
-        <Text variant="ui" tone="destructive" accessibilityRole="alert">
+        <Text
+          variant="ui"
+          tone={notice.type === 'error' ? 'destructive' : 'default'}
+          accessibilityRole={notice.type === 'error' ? 'alert' : undefined}
+          accessibilityLiveRegion="polite"
+        >
           {notice.title}. {notice.description}
         </Text>
       ) : null}

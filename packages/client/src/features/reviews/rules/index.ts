@@ -63,6 +63,7 @@ export {
   markAllPlan,
   reviewToggle,
   reviewedControlLabel,
+  unavailableReviewText,
   type BulkReviewReport,
   type ReviewNotice,
   type ReviewRange,
