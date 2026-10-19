@@ -115,3 +115,35 @@ export const readReviewRevisionProof = Atom.family(
       (answer) => answer.id === input.proofId,
     ),
 );
+
+export const readReviewComparison = Atom.family(
+  (input: ReviewInput & { from?: number; to?: number }) =>
+    query(
+      input.connection,
+      (api) =>
+        api.reviews.compareReview({
+          params: { reviewId: input.reviewId },
+          query: { from: input.from, to: input.to },
+        }),
+      (answer) =>
+        answer.reviewId === input.reviewId &&
+        (input.from === undefined || answer.from === input.from) &&
+        (input.to === undefined || answer.to === input.to),
+    ).pipe(reactive(input)),
+);
+export const readReviewInterdiff = Atom.family(
+  (input: ReviewInput & { from?: number; to?: number; path: string }) =>
+    query(
+      input.connection,
+      (api) =>
+        api.reviews.readReviewInterdiff({
+          params: { reviewId: input.reviewId },
+          query: { from: input.from, to: input.to, path: input.path },
+        }),
+      (answer) =>
+        answer.kind === 'unavailable' ||
+        (answer.path === input.path &&
+          (input.from === undefined || answer.from === input.from) &&
+          (input.to === undefined || answer.to === input.to)),
+    ).pipe(reactive(input)),
+);

@@ -24,6 +24,8 @@ export { setLayerMark } from './commands/layer-marks.ts';
 export { commentWriteBinding } from './commands/comment-write-binding.ts';
 
 export {
+  readReviewComparison,
+  readReviewInterdiff,
   readReview,
   readProjectReviews,
   readReviewMarks,

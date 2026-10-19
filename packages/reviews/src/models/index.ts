@@ -44,3 +44,8 @@ export { unexplainedChangeSchema } from './review.ts';
 export type { ReviewLinkHosts } from './review-management.ts';
 
 export type { ReviewPublicationInput } from './review-management.ts';
+export {
+  reviewComparisonSchema,
+  comparisonUnknownSchema,
+  type CompareReviewInput,
+} from './review-comparison.ts';

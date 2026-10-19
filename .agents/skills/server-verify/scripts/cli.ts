@@ -1,3 +1,4 @@
+import { compareRevisions } from './compare-revisions.ts';
 import { Schema } from 'effect';
 import { pairingLink } from '@porcelain/contracts/access';
 import { readFile } from 'node:fs/promises';
@@ -28,6 +29,7 @@ const usage = `Usage: .agents/skills/server-verify/scripts/cli <command> [--inst
   stop                    stop owned processes, remove private runtime data, keep evidence
   evidence                print the evidence folder (retained sessions require --instance)
   ids                     print deterministic fixture IDs and paths
+  fixture compare-revisions  publish, rebase and compare two retained revisions
   pairing-link            print a fresh one-time browser pairing link
   agent publish-review "<title>" [--context] [--summary-html <html>]
   agent publish-proof "<title>" --check "<name>=pass|fail" [--output "<name>=<text>"] --screenshot "<title>"
@@ -117,7 +119,9 @@ async function main(argv: readonly string[]): Promise<string> {
   if (command === 'status')
     return `${JSON.stringify(await registry.status(values.instance), null, 2)}\n`;
   if (
-    !['logs', 'ids', 'agent', 'server', 'pairing-link'].includes(command ?? '')
+    !['logs', 'ids', 'agent', 'server', 'pairing-link', 'fixture'].includes(
+      command ?? '',
+    )
   )
     throw new Usage(usage);
   const instance = registry.chosen(values.instance);
@@ -128,7 +132,14 @@ async function main(argv: readonly string[]): Promise<string> {
   return registry.drive(instance, argv, async () => {
     const recorder = registry.redactor(instance).recorder();
     let output: string;
-    if (command === 'agent')
+    if (command === 'fixture') {
+      if (
+        rest[0] !== 'compare-revisions' ||
+        instance.connectionPath === undefined
+      )
+        throw new Usage(usage);
+      output = await compareRevisions(instance.connectionPath);
+    } else if (command === 'agent')
       output = await agentCommand(
         instance.detail.manifestPath,
         rest,

@@ -7,7 +7,7 @@ const proofTargetSchema = Schema.Struct({
     Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
   ),
 });
-const proofCheckSchema = Schema.Struct({
+export const proofCheckSchema = Schema.Struct({
   ...proofTargetSchema.fields,
   name: Schema.mutableKey(Schema.String),
   result: Schema.mutableKey(

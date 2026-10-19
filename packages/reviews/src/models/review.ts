@@ -87,6 +87,16 @@ export type Diagram = typeof diagramSchema.Type;
 
 export type ReviewDiagram = typeof reviewDiagramSchema.Type;
 
+export const reviewRecommendationSchema = Schema.Literals(['merge', 'hold']);
+export const reviewNotProvenSchema = Schema.Struct({
+  what: Schema.String,
+  why: Schema.String,
+});
+export const reviewRemovalSchema = Schema.Struct({
+  behavior: Schema.String,
+  why: Schema.String,
+  paths: Schema.Array(Schema.String),
+});
 export const reviewVerdictSchema = Schema.Struct({
   asked: Schema.Struct({
     text: Schema.String,
@@ -94,18 +104,10 @@ export const reviewVerdictSchema = Schema.Struct({
       Schema.Array(Schema.Struct({ title: Schema.String, url: Schema.String })),
     ),
   }),
-  recommendation: Schema.Literals(['merge', 'hold']),
+  recommendation: reviewRecommendationSchema,
   reasons: Schema.Array(Schema.String),
-  notProven: Schema.Array(
-    Schema.Struct({ what: Schema.String, why: Schema.String }),
-  ),
-  removed: Schema.Array(
-    Schema.Struct({
-      behavior: Schema.String,
-      why: Schema.String,
-      paths: Schema.Array(Schema.String),
-    }),
-  ),
+  notProven: Schema.Array(reviewNotProvenSchema),
+  removed: Schema.Array(reviewRemovalSchema),
 });
 export type ReviewVerdict = typeof reviewVerdictSchema.Type;
 export const reviewRecordSchema = Schema.Struct({

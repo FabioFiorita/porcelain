@@ -1,4 +1,10 @@
 import {
+  CompareReviewService,
+  SelectReviewComparisonService,
+} from '@porcelain/reviews/services';
+import { CompareReviewUseCase } from '../use-cases/reviews/compare-review.ts';
+import { ReadReviewInterdiffUseCase } from '../use-cases/reviews/read-review-interdiff.ts';
+import {
   ReadReviewService,
   ReadReviewRevisionService,
   ListProjectReviewsService,
@@ -210,7 +216,11 @@ export function composeReviews(
     Layer.succeed(ReadTextFilesService, shared.readTextFilesService),
   );
   const linkPorts = remoteReviewLinkSourceLayer.pipe(Layer.provideMerge(ports));
+  const comparisonPorts = SelectReviewComparisonService.layer.pipe(
+    Layer.provideMerge(linkPorts),
+  );
   const services = Layer.mergeAll(
+    CompareReviewService.layer,
     AtReviewScopeUseCase.layer,
     ReadRetainedBranchDiffsService.layer,
     ReadReviewService.layer,
@@ -248,8 +258,10 @@ export function composeReviews(
     ReadReviewLayerService.layer,
     SetReviewedLayerService.layer,
     RemoveReviewedLayerService.layer,
-  ).pipe(Layer.provideMerge(linkPorts));
+  ).pipe(Layer.provideMerge(comparisonPorts));
   const operations = Layer.mergeAll(
+    CompareReviewUseCase.layer,
+    ReadReviewInterdiffUseCase.layer,
     RemoveReviewMarkUseCase.layer,
     SetReviewMarkUseCase.layer,
     ListReviewMarksUseCase.layer,
@@ -294,6 +306,8 @@ export function composeReviews(
     const runtime = yield* Layer.build(application);
     return yield* Effect.gen(function* () {
       const useCases = {
+        compareReview: yield* CompareReviewUseCase,
+        readReviewInterdiff: yield* ReadReviewInterdiffUseCase,
         atReviewScope: yield* AtReviewScopeUseCase,
         removeReviewMark: yield* RemoveReviewMarkUseCase,
         setReviewMark: yield* SetReviewMarkUseCase,
