@@ -21,6 +21,7 @@ selectors:
 
 tests:
   - apps/mobile/src/features/projects/rules/workspace-browser.spec.ts
+  - packages/client/src/features/projects/rules/workspace-search.spec.ts
   - packages/client/src/features/projects/rules/workspace-choices.spec.ts
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
   - packages/client/src/features/projects/queries/inventory-state.spec.ts
@@ -38,7 +39,7 @@ api:
 
 Files, Review and History open a full-screen native workspace picker from their toolbar's Workspace button. Its accessible name is `<project> · <worktree>` when selected, or Workspace otherwise. It reopens in the selected project, with the current worktree marked. All projects returns to an alphabetic project list, where each row shows its computer and worktree count. Choosing a project opens its worktrees without selecting one. Close workspace picker dismisses without changing the workspace or originating destination.
 
-Search projects and worktrees searches all paired inventories by project, branch, computer and folder path, regardless of which project is open. Space-separated terms must all match a result. Results retain project and computer headings. Clear search restores the previous project/list. Duplicate branch names within a project show full paths; Main checkout, Current and Unavailable describe worktree rows. Worktree rows use the existing shared targets, availability, atomic persisted selection and document-leave safeguards.
+Search projects and worktrees searches all paired inventories by project, branch, computer and folder path, regardless of which project is open. Space-separated terms must all match a result; `packages/client/src/features/projects/rules/workspace-search.ts` owns these matching rules for mobile and the web/Mac navigator. Results retain project and computer headings. Clear search restores the previous project/list. Duplicate branch names within a project show full paths; Main checkout, Current and Unavailable describe worktree rows. Worktree rows use the existing shared targets, availability, atomic persisted selection and document-leave safeguards.
 
 The iPad sidebar uses the same searchable project browser. Selecting a sidebar worktree reveals Files as before. A toolbar selection returns to its originating destination, including a child screen's existing workspace-changed fallback.
 
