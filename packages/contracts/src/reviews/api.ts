@@ -1,3 +1,9 @@
+import {
+  compareReviewQuerySchema,
+  compareReviewResponseSchema,
+  readReviewInterdiffQuerySchema,
+  readReviewInterdiffResponseSchema,
+} from './review-comparison.ts';
 import { Schema } from 'effect';
 import {
   readBranchDiffsRequestSchema,
@@ -20,6 +26,7 @@ import {
   UnrelatedBranchError,
 } from '@porcelain/changes/errors';
 import {
+  InvalidReviewComparisonError,
   ReviewNotFoundError,
   CommentIdentityConflictError,
   CommentLimitExceededError,
@@ -106,6 +113,38 @@ import {
 export class ReviewsApi extends porcelainApi.add(
   HttpApiGroup.make('reviews')
     .add(
+      HttpApiEndpoint.get('compareReview', '/api/reviews/:reviewId/compare', {
+        disableCodecs: true,
+        params: reviewParamsSchema,
+        query: compareReviewQuerySchema.fields,
+        success: compareReviewResponseSchema,
+        error: [
+          httpFailure(ReviewNotFoundError, 'NotFound'),
+          httpFailure(InvalidReviewComparisonError, 'BadRequest', {
+            message: { fromError: true },
+          }),
+        ],
+      }),
+      HttpApiEndpoint.get(
+        'readReviewInterdiff',
+        '/api/reviews/:reviewId/interdiff',
+        {
+          disableCodecs: true,
+          params: reviewParamsSchema,
+          query: readReviewInterdiffQuerySchema.fields,
+          success: readReviewInterdiffResponseSchema,
+          error: [
+            ...worktreeFailures,
+            ...gitReadFailures,
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+            httpFailure(InvalidReviewComparisonError, 'BadRequest', {
+              message: { fromError: true },
+            }),
+            httpFailure(CommitNotFoundError, 'NotFound'),
+            httpFailure(IncompleteDiffReadError, 'UnprocessableEntity'),
+          ],
+        },
+      ),
       HttpApiEndpoint.delete(
         'deleteReviewCommentMessage',
         '/api/reviews/:reviewId/comments/:threadId/messages',

@@ -1,3 +1,5 @@
+import type { CompareReviewUseCase } from '../../../use-cases/reviews/compare-review.ts';
+import type { ReadReviewInterdiffUseCase } from '../../../use-cases/reviews/read-review-interdiff.ts';
 import { type RemoveReviewMarkUseCase } from '../../../use-cases/reviews/remove-review-mark.ts';
 import { type SetReviewMarkUseCase } from '../../../use-cases/reviews/set-review-mark.ts';
 import { type ListReviewMarksUseCase } from '../../../use-cases/reviews/list-review-marks.ts';
@@ -35,6 +37,14 @@ import { type SetReviewedLayerUseCase } from '../../../use-cases/reviews/set-rev
 import { type UpdateCommentThreadUseCase } from '../../../use-cases/reviews/update-comment-thread.ts';
 
 type ReviewsUseCases = {
+  compareReview: Pick<
+    Context.Service.Shape<typeof CompareReviewUseCase>,
+    'execute'
+  >;
+  readReviewInterdiff: Pick<
+    Context.Service.Shape<typeof ReadReviewInterdiffUseCase>,
+    'execute'
+  >;
   removeReviewMark: Context.Service.Shape<typeof RemoveReviewMarkUseCase>;
   setReviewMark: Context.Service.Shape<typeof SetReviewMarkUseCase>;
   listReviewMarks: Context.Service.Shape<typeof ListReviewMarksUseCase>;
@@ -121,6 +131,12 @@ export function reviewsRoutes(
 ) {
   const handlers = HttpApiBuilder.group(ReviewsApi, 'reviews', (handlers) =>
     handlers
+      .handle('compareReview', ({ params, query }) =>
+        useCases.compareReview.execute({ ...params, ...query }),
+      )
+      .handle('readReviewInterdiff', ({ params, query }) =>
+        useCases.readReviewInterdiff.execute({ ...params, ...query }),
+      )
       .handle('deleteReviewCommentMessage', ({ params, query }) =>
         Effect.flatMap(RequestCaller, (writer) =>
           useCases.deleteCommentMessage.execute({

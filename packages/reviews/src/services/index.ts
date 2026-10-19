@@ -42,3 +42,5 @@ export { BuildReviewLinksService } from './build-review-links-service.ts';
 export { ValidateReviewPublicationService } from './validate-review-publication-service.ts';
 
 export { ReadReviewTextsService } from './read-review-texts-service.ts';
+export { SelectReviewComparisonService } from './select-review-comparison-service.ts';
+export { CompareReviewService } from './compare-review-service.ts';

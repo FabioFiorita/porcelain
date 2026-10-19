@@ -83,3 +83,9 @@ export {
 } from './review.ts';
 
 export type { ReviewScope } from './review.ts';
+export {
+  compareReviewResponseSchema,
+  readReviewInterdiffResponseSchema,
+  type CompareReviewResponse,
+  type ReadReviewInterdiffResponse,
+} from './review-comparison.ts';
