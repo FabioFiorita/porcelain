@@ -337,7 +337,7 @@ export function RevisionFile({
   return (
     <article
       aria-label={step ? `Step ${step.title}` : `File ${path}`}
-      className="flex min-h-0 flex-col border-t"
+      className="flex min-h-0 shrink-0 flex-col border-t"
     >
       {step && <AgentNote title={step.title} text={step.text} />}
       {entry ? (
