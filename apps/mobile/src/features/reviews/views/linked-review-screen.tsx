@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ScrollView } from 'react-native';
+import { useState, type ComponentRef } from 'react';
+import { useLocalSearchParams, useRouter, useIsFocused } from 'expo-router';
+import { ScrollView, View } from 'react-native';
 import {
   useAtomMount,
+  useAtomSet,
   useAtomRef,
-  useAtomRefresh,
   useAtomValue,
 } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
@@ -33,16 +33,23 @@ import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
 import { DiffView } from '../../../components/ui/diff-view';
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
+import { useLinkedReviewNavigation } from '../store';
+import { LinkedVerdict } from './linked-verdict';
 import { ReviewReadState } from './read-state';
 
 type Revision = LinkedRevision;
+type DecisionNavigation = {
+  onDecision: (target: ComponentRef<typeof View> | null) => void | (() => void);
+};
 
 export function LinkedReviewScreen() {
+  const navigation = useLinkedReviewNavigation();
   const params = useLocalSearchParams();
   const router = useRouter();
   const query = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (key === 'reviewId' || value === undefined) continue;
+  for (const key of ['environment', 'host', 'revision', 'decision']) {
+    const value = params[key];
+    if (value === undefined) continue;
     for (const entry of Array.isArray(value) ? value : [value])
       query.append(key, entry);
   }
@@ -52,35 +59,44 @@ export function LinkedReviewScreen() {
   );
   return (
     <ScrollView
+      ref={(view) => navigation.scroll(view)}
+      onContentSizeChange={() => navigation.scrollToDecision()}
+      removeClippedSubviews={false}
       className="flex-1 bg-background"
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
     >
-      <Box
-        className="w-full max-w-3xl self-center"
-        gap={4}
-        padding={4}
-        paddingBottom={8}
-      >
-        <Button
-          label="Back to Review"
-          variant="ghost"
-          onPress={() => router.replace('/review')}
-        />
-        {destination ? (
-          <ReviewEnvironment
-            key={JSON.stringify(destination)}
-            destination={destination}
+      <View ref={(view) => navigation.content(view)} collapsable={false}>
+        <Box
+          className="w-full max-w-3xl self-center"
+          gap={4}
+          padding={4}
+          paddingBottom={8}
+        >
+          <Button
+            label="Back to Review"
+            variant="ghost"
+            onPress={() => router.replace('/review')}
           />
-        ) : (
-          <ErrorState message="This review link is invalid. Ask the agent for a new link." />
-        )}
-      </Box>
+          {destination ? (
+            <ReviewEnvironment
+              key={JSON.stringify(destination)}
+              destination={destination}
+              onDecision={(view) => navigation.decision(view)}
+            />
+          ) : (
+            <ErrorState message="This review link is invalid. Ask the agent for a new link." />
+          )}
+        </Box>
+      </View>
     </ScrollView>
   );
 }
 
-function ReviewEnvironment({ destination }: { destination: ReviewAppLink }) {
+function ReviewEnvironment({
+  destination,
+  onDecision,
+}: { destination: ReviewAppLink } & DecisionNavigation) {
   const remotes = useEnvironments();
   const storage = useEnvironmentStorageStatus();
   const connections = useAtomRef(remoteConnectionState);
@@ -119,27 +135,34 @@ function ReviewEnvironment({ destination }: { destination: ReviewAppLink }) {
     <SelectedReviewEnvironment
       key={destination.environmentId}
       destination={destination}
+      onDecision={onDecision}
       connection={connection}
       name={remote.name}
       ready={selection.status === 'ready'}
+      error={selection.error}
     />
   );
 }
 
 function SelectedReviewEnvironment({
   destination,
+  onDecision,
   connection,
   name,
   ready,
+  error,
 }: {
   destination: ReviewAppLink;
   connection: RuntimeConnection;
   name: string;
   ready: boolean;
-}) {
+  error: string | undefined;
+} & DecisionNavigation) {
+  if (error) return <ErrorState message={error} />;
   return ready ? (
     <ReviewEnvironmentSelection
       destination={destination}
+      onDecision={onDecision}
       connection={connection}
       name={name}
     />
@@ -150,27 +173,38 @@ function SelectedReviewEnvironment({
 
 function ReviewEnvironmentSelection({
   destination,
+  onDecision,
   connection,
   name,
 }: {
   destination: ReviewAppLink;
   connection: RuntimeConnection;
   name: string;
-}) {
-  const selection = useAtomValue(
-    selectReviewEnvironment(destination.environmentId),
-  );
-  const refresh = useAtomRefresh(
-    selectReviewEnvironment(destination.environmentId),
-  );
+} & DecisionNavigation) {
+  const currentEnvironmentId = useAtomRef(selectionState).currentEnvironmentId;
+  const focused = useIsFocused();
+  const action = selectReviewEnvironment({
+    environmentId: destination.environmentId,
+    currentEnvironmentId,
+    focused,
+  });
+  useAtomMount(action.start);
+  const selection = useAtomValue(action.select);
+  const run = useAtomSet(action.select);
   if (!AsyncResult.isSuccess(selection))
-    return <ReviewReadState result={selection} refresh={refresh} />;
+    return (
+      <ReviewReadState result={selection} refresh={() => run(undefined)} />
+    );
   return (
     <Box gap={4}>
       <Text variant="caption" tone="muted">
         Review on {name}
       </Text>
-      <LinkedReview connection={connection} destination={destination} />
+      <LinkedReview
+        connection={connection}
+        destination={destination}
+        onDecision={onDecision}
+      />
     </Box>
   );
 }
@@ -178,17 +212,22 @@ function ReviewEnvironmentSelection({
 function LinkedReview({
   connection,
   destination,
+  onDecision,
 }: {
   connection: RuntimeConnection;
   destination: ReviewAppLink;
-}) {
-  const { result, refresh } = useLinkedReview({
+} & DecisionNavigation) {
+  const { result, refresh, missing } = useLinkedReview({
     reviewId: destination.reviewId,
     connection,
     ...(destination.revision === undefined
       ? {}
       : { revision: destination.revision }),
   });
+  if (missing)
+    return (
+      <ErrorState message="This review or revision could not be found. Ask the agent for a current link." />
+    );
   if (!AsyncResult.isSuccess(result))
     return <ReviewReadState result={result} refresh={refresh} />;
   if (!result.value.revision)
@@ -200,6 +239,7 @@ function LinkedReview({
       key={`${result.value.revision.revision}:${destination.decision ?? ''}`}
       connection={connection}
       destination={destination}
+      onDecision={onDecision}
       revision={result.value.revision}
     />
   );
@@ -208,17 +248,20 @@ function LinkedReview({
 function LinkedReviewContent({
   connection,
   destination,
+  onDecision,
   revision,
 }: {
   connection: RuntimeConnection;
   destination: ReviewAppLink;
   revision: Revision;
-}) {
+} & DecisionNavigation) {
+  const focused = useIsFocused();
   useAtomMount(
     openReview({
       connection,
       reviewId: destination.reviewId,
       revision: revision.revision,
+      focused,
     }),
   );
   const [decision, setDecision] = useState(destination.decision);
@@ -230,6 +273,7 @@ function LinkedReviewContent({
       <Text variant="heading">
         {revision.branch} · Revision {revision.revision}
       </Text>
+      <LinkedVerdict revision={revision} />
       {decision && !selected ? (
         <ErrorState message="This decision is not in this revision." />
       ) : null}
@@ -241,7 +285,7 @@ function LinkedReviewContent({
         />
       ) : null}
       {selected ? (
-        <Decision layer={selected} />
+        <Decision key={selected.id} layer={selected} onDecision={onDecision} />
       ) : (
         <Box gap={3}>
           <Text variant="heading">Decisions</Text>
@@ -263,37 +307,44 @@ function LinkedReviewContent({
   );
 }
 
-function Decision({ layer }: { layer: Revision['content']['layers'][number] }) {
+function Decision({
+  layer,
+  onDecision,
+}: { layer: Revision['content']['layers'][number] } & DecisionNavigation) {
   return (
-    <Box gap={4}>
-      <Text variant="heading">{layer.title}</Text>
-      <Text selectable>{layer.summary}</Text>
-      {layer.steps.map((step, index) => (
-        <Box key={step.id} gap={3}>
-          <Text variant="subheading">
-            {index + 1}. {step.title}
-          </Text>
-          <Text selectable>{step.text}</Text>
-          <Text variant="caption" tone="muted">
-            {step.pointer.path} · Published excerpt
-          </Text>
-          {step.published?.length ? (
-            <DiffView
-              lines={step.published.map((text, line) => ({
-                id: String(line),
-                text,
-                newLine: step.pointer.startLine + line,
-              }))}
-              {...excerptLanguage(step.pointer.path)}
-            />
-          ) : (
-            <Text variant="caption">
-              No excerpt was published for this step.
+    <View ref={onDecision} collapsable={false}>
+      <Box gap={4}>
+        <Text variant="heading">{layer.title}</Text>
+        <Text selectable>{layer.summary}</Text>
+        {layer.steps.map((step, index) => (
+          <Box key={step.id} gap={3}>
+            <Text variant="subheading">
+              {index + 1}. {step.title}
             </Text>
-          )}
-        </Box>
-      ))}
-    </Box>
+            <Text selectable>{step.text}</Text>
+            <Text variant="caption" tone="muted">
+              {step.pointer.path} · Published excerpt
+            </Text>
+            {step.published?.length ? (
+              <Box className="h-64">
+                <DiffView
+                  lines={step.published.map((text, line) => ({
+                    id: String(line),
+                    text,
+                    newLine: step.pointer.startLine + line,
+                  }))}
+                  {...excerptLanguage(step.pointer.path)}
+                />
+              </Box>
+            ) : (
+              <Text variant="caption">
+                No excerpt was published for this step.
+              </Text>
+            )}
+          </Box>
+        ))}
+      </Box>
+    </View>
   );
 }
 

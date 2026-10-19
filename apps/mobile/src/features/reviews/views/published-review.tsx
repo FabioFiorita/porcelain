@@ -1,3 +1,4 @@
+import { ProofChecks } from './proof-checks';
 import { useState } from 'react';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
@@ -305,18 +306,7 @@ function ReviewPage({
         <Text variant="ui">
           Proof · {proofLabel(proofStatus(review.proof))}
         </Text>
-        {review.proof.checks.map((check, index) => (
-          <Box key={`${index}:${check.name}`} gap={1}>
-            <Text variant="ui" weight="medium">
-              {check.name} · {check.result}
-            </Text>
-            {check.output ? (
-              <Text variant="caption" selectable>
-                {check.output}
-              </Text>
-            ) : null}
-          </Box>
-        ))}
+        <ProofChecks checks={review.proof.checks} />
       </>
     );
   if (stop.kind === 'decision')

@@ -80,3 +80,15 @@ contain named signing placeholders until the owner supplies the Team ID and
 Preview/Production fingerprints. Physical iPhone association requires the new
 Preview binary and deployed hub files. Android local intent proof, iOS simulator
 proof and physical-device domain association are distinct results.
+
+## Cold-start proof boundary
+
+An HTTPS cold intent to the debug development client is intercepted by Expo's
+DevLauncherActivity before Expo Router loads. For U6, a one-off local release-mode
+APK kept the Porcelain Dev identity and reached MainActivity and the review route
+on cold start. Its HTTP fixture read showed the recoverable connection state:
+Android release cleartext policy is tracked separately in #424. Warm content,
+pairing and decisions were proved under the normal development client. A permanent
+standalone cold-start command is a verification-skill follow-up; no launcher or
+build-script change is part of U6. Restore the normal debug client or leave the
+emulator shut down after this one-off proof.
