@@ -200,7 +200,7 @@ export function WalkthroughStopView({
         toolbar={(collapseControl) => (
           <nav
             aria-label="Walkthrough stop"
-            className="flex shrink-0 items-center gap-1 border-b px-2 py-1"
+            className="flex shrink-0 flex-wrap items-center gap-1 border-b px-2 py-1"
           >
             <Button
               variant="ghost"
