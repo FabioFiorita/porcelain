@@ -17,6 +17,7 @@ import { list, record, text } from '../kit/session.ts';
 test('publication refuses dirty, unexplained removal, foreign PR, detached and unborn heads with actionable messages', async ({
   session,
 }) => {
+  await session.git('branch', 'porcelain-fixture-base');
   const draft = sampleReview(session, 0, randomUUID(), randomUUID());
   const publish = () =>
     session.send({
