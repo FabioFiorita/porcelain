@@ -17,6 +17,7 @@ import { AsyncResult } from 'effect/reactivity';
 import { Suspense, useState, type ReactNode } from 'react';
 import {
   readReview,
+  readReviewSummary,
   readReviewMarks,
   readReviewComments,
   observeReviewSeen,
@@ -48,6 +49,7 @@ import {
   reviewSummaryUrl,
 } from '@porcelain/client/reviews/rules';
 import { bindSummaryLayerRequests } from '../adapters/summary-messages';
+import { hasAgentSummary } from '../adapters/summary-content';
 import { useWalkthroughPlace } from '../store';
 import { ReviewVerdict } from './review-verdict';
 import { WalkthroughBriefing } from './walkthrough-briefing';
@@ -194,6 +196,15 @@ function ReviewRevisionPage({
     worktreeId: review.worktreeId,
     review: { reviewId: revision.reviewId, revision: revision.revision },
   };
+  const summary = useAtomValue(
+    readReviewSummary({
+      connection: context.connection,
+      scope,
+      summary: review.summary,
+    }),
+  );
+  const summaryPage = Option.getOrUndefined(AsyncResult.value(summary));
+  const showSummary = summaryPage !== undefined && hasAgentSummary(summaryPage);
   useAtomMount(
     observeReviewSeen({
       connection: context.connection,
@@ -387,9 +398,10 @@ function ReviewRevisionPage({
         <TabsList
           className="flex h-auto flex-wrap"
           aria-label="Review presentation"
+          aria-busy={AsyncResult.isInitial(summary) || summary.waiting}
         >
           <TabsTrigger value="walkthrough">Walkthrough</TabsTrigger>
-          {review.summary.byteLength > 0 && (
+          {showSummary && (
             <TabsTrigger value="summary">Agent summary</TabsTrigger>
           )}
           <TabsTrigger value="proof">Proof</TabsTrigger>
@@ -568,7 +580,7 @@ function ReviewRevisionPage({
             }}
           />
         )}
-        {view === 'summary' && review.summary.byteLength > 0 && (
+        {view === 'summary' && showSummary && (
           <iframe
             ref={(frame) =>
               frame

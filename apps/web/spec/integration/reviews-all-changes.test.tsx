@@ -17,7 +17,7 @@ test('all changes includes every changed file, including unexplained, deleted an
   });
   await drawer.getByRole('tab', { name: 'Review', exact: true }).click();
   await drawer
-    .getByRole('button', { name: 'All changes · 5 files', exact: true })
+    .getByRole('button', { name: 'All changes', exact: true })
     .click();
   await expect
     .element(workspace.getByText('5 files', { exact: true }))

@@ -16,6 +16,7 @@ selectors:
   - "Comment on this review"
 tests:
   - apps/web/spec/integration/reviews-page.test.tsx
+  - apps/web/spec/integration/reviews-summary.test.tsx
 api:
   - GET /api/reviews/:reviewId
   - GET /api/projects/:projectId/reviews
@@ -46,5 +47,6 @@ Check `free -g` before startup. Start one disposable instance and retain the con
 7. Open Comments, then Comment on this review. Post a comment. Independently read the review comments endpoint: the thread names this review, revision and head OID. Reply and resolve through the thread controls.
 8. Review actions → Close review. The closed review stays readable. Its menu has Delete review and no Reopen. Delete review opens a confirmation covering every revision and its owned proof, comments and marks. Cancel keeps it; Delete removes it and returns to the workspace.
 9. Open an unknown review, revision and decision. A missing review/revision has a clear state and Back to workspace. An absent decision shows the briefing and a note explaining that the decision is not in this revision.
+10. The publish-revision fixture omits summary HTML: expect no Agent summary tab, including after checkout removal. With `$C agent publish-review 'Optional summary' --summary-html '   '`, expect no tab either. Publish authored HTML with `--summary-html '<h1>Extra context</h1>'`: expect Agent summary to open its sandboxed page. The endpoint's injected theme/link bridge does not count as agent content.
 
 Drive at 390 × 844 and 1280 × 800, light and dark. Check long branch names, revision controls, links, deletion paths, menus, comment controls and the wrapping Start/Continue button for overflow. Retain phone light/dark screenshots. Electron bridge and macOS behavior require desktop-verify; this web run does not prove them.

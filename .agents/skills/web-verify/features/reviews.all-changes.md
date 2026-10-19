@@ -23,14 +23,14 @@ All changes opens one scrollable document of every current changed file, also wi
 
 ## How a user reaches it
 
-- Review (sheet at phone width, dialog "Worktree review") → tab "Review" → nav "Walkthrough" → button "All changes · N files".
+- Review (sheet at phone width, dialog "Worktree review") → tab "Review" → nav "Walkthrough" → button "All changes". The file count appears in the opened document's toolbar.
 - With no review published, the handoff tab "Changes" is the same document.
 
 ## Driving it
 
 `$C start --review-sample`; pair your browser. The sample has 55 changed files, six of them already reviewed by the first decision.
 
-1. Open Review → tab "Review" → button "All changes · 55 files".
+1. Open Review → tab "Review" → button "All changes".
    Look for: the All changes document with "55 files"; the first files are the first decision's, each with "1. Invite a teammate" beside it; button "Mark all 49 files reviewed".
 2. Click "Collapse all", scroll to the end and expand an individual file.
    Look for: scripts/migrate-workspaces.ts marked "Not explained", the removed packages/workspace/src/legacy-write.ts, and the specs, as well as the decision files.
@@ -46,7 +46,7 @@ All changes opens one scrollable document of every current changed file, also wi
 ## What proves it works
 
 - Steps 3 and 4 read the server marks after each bulk action.
-- `apps/web/spec/integration/reviews-all-changes.test.tsx`: with the sample, "All changes · 55 files" opens "55 files"; "Mark all 49 files reviewed" leaves 55 marks on the server, including scripts/migrate-workspaces.ts, packages/workspace/src/legacy-write.ts and tests/invite-member.spec.ts; "Unmark all" leaves none and offers "Mark all 55 files reviewed".
+- `apps/web/spec/integration/reviews-all-changes.test.tsx`: with five current changes after publication, "All changes" opens "5 files"; "Mark all 5 files reviewed" leaves all five marks on the server, including the unexplained scripts/migrate-workspaces.ts, deleted packages/workspace/src/actor.ts and tests/publish-note.spec.ts; "Unmark all" leaves none and offers "Mark all 5 files reviewed".
 - The Spec files E2E journey checks that marking a Specs document excludes ordinary source files.
 
 ## Gotchas

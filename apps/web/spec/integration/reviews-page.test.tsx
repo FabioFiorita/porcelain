@@ -199,7 +199,11 @@ test('review-owned marks and comments persist, closing keeps the review readable
     .getByRole('menuitem', { name: 'Delete review', exact: true })
     .click();
   await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
-  await expect.poll(() => app.location()).toBe('/');
+  await expect
+    .element(
+      app.page.getByRole('region', { name: 'Review content', exact: true }),
+    )
+    .toBeVisible();
   await expect.poll(() => server.reviewStatus(fixture.reviewId)).toBe(404);
 });
 
