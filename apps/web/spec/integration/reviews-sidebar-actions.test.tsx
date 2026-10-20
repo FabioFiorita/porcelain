@@ -33,27 +33,25 @@ test('a sidebar decision menu marks its files and decision, unmarks only the dec
     .getByRole('menuitem', { name: 'Mark as reviewed', exact: true })
     .click();
   await expect
-    .poll(async () =>
-      (await server.reviewedFiles()).marks.map((mark) => mark.path),
-    )
-    .toEqual([repo.readme.path]);
+    .poll(() => server.branchReviewMarks())
+    .toMatchObject({ files: [{ path: repo.readme.path }] });
   await expect
-    .poll(async () =>
-      (await server.reviewedLayers()).marks.map((mark) => mark.stale),
-    )
-    .toEqual([false]);
+    .poll(() => server.branchReviewMarks())
+    .toMatchObject({
+      decisions: [
+        { layerId: (await server.publishedReview()).review?.layers[0]?.id },
+      ],
+    });
   await row.click({ button: 'right' });
   await workspace
     .getByRole('menuitem', { name: 'Unmark as reviewed', exact: true })
     .click();
   await expect
-    .poll(async () => (await server.reviewedLayers()).marks)
-    .toEqual([]);
+    .poll(() => server.branchReviewMarks())
+    .toMatchObject({ decisions: [] });
   await expect
-    .poll(async () =>
-      (await server.reviewedFiles()).marks.map((mark) => mark.path),
-    )
-    .toEqual([repo.readme.path]);
+    .poll(() => server.branchReviewMarks())
+    .toMatchObject({ files: [{ path: repo.readme.path }] });
   const actions = sidebar.getByRole('button', {
     name: 'More actions for decision 1',
     exact: true,
@@ -85,10 +83,12 @@ test('a sidebar decision menu marks its files and decision, unmarks only the dec
     .toHaveFocus();
   await userEvent.keyboard('{Enter}');
   await expect
-    .poll(async () =>
-      (await server.reviewedLayers()).marks.map((mark) => mark.stale),
-    )
-    .toEqual([false]);
+    .poll(() => server.branchReviewMarks())
+    .toMatchObject({
+      decisions: [
+        { layerId: (await server.publishedReview()).review?.layers[0]?.id },
+      ],
+    });
 });
 
 test('review groups collapse and expand all from their context menu and keyboard menu button', async ({

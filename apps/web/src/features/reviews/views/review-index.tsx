@@ -1,13 +1,7 @@
+import { ReviewNavigation } from './review-navigation';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import {
-  CheckIcon,
-  CompassIcon,
-  FileDiffIcon,
-  FileQuestionIcon,
-  FlaskConicalIcon,
-  MessageSquarePlusIcon,
-} from 'lucide-react';
+import { MessageSquarePlusIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,14 +21,7 @@ import { cn } from '@/shared/lib/utils';
 import { type ChangeScope, isChangeScope } from '@/shared/workspace/search';
 import { useBranchChanges, useChanges } from '@/features/changes/index';
 import { useVisibleComments } from '../commands/comments';
-import { useAtom } from '@effect/atom-react';
-import {
-  completeDecision,
-  decisionCompletionBinding,
-} from '@porcelain/client/reviews';
-import { SidebarActionMenu } from './sidebar-action-menu';
 import { SidebarGroup, SidebarDocumentRow } from './sidebar-section';
-import { reviewSidebarActions } from '@porcelain/client/reviews/rules';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useComments, usePrefetchComments } from '../queries/comments';
 import { usePublishedReview } from '../queries/published-review';
@@ -47,8 +34,6 @@ import {
   type FileCommentAnchor,
 } from '@porcelain/client/reviews/rules';
 import {
-  ALL_CHANGES,
-  publishedReviewTitle,
   SPECS,
   BRANCH,
   type DocumentRef,
@@ -56,23 +41,16 @@ import {
   PROOF,
   type OpenDocument,
 } from '../rules/documents';
-import { proofLabel, proofStatus } from '@porcelain/client/reviews/rules';
 import type { ReadinessKey } from '@porcelain/client/reviews/rules';
 import {
   type ChangeList,
-  filesReviewed,
-  stopName,
-  type WalkthroughKey,
-  type WalkthroughStop,
-  notExplainedLabel,
   type ReviewChangeItem,
   type ReviewResponse,
   type ReviewScope,
 } from '@porcelain/client/reviews/rules';
 import { useWalkthroughPlace } from '../store';
 import { BranchIndex } from './branch-index';
-import { ChangeRow, ROW } from './change-row';
-import { DeleteReview } from './delete-review';
+import { ChangeRow } from './change-row';
 import { DeleteResolved } from './delete-resolved';
 import { InlineComposer } from './inline-composer';
 import { BranchReadiness, ChangeReadiness } from './readiness-panel';
@@ -80,7 +58,6 @@ import { ThreadCard } from './thread-card';
 import { isSpecPath } from '@porcelain/client/reviews/rules';
 import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
-import { useWalkthrough } from '../queries/walkthrough';
 
 type Props = {
   scope: ReviewScope;
@@ -109,12 +86,14 @@ export function ReviewIndex({
 }: Props & ScopeProps) {
   const { connection } = context;
   const [view, setView] = useState<'layers' | 'comments'>('layers');
-  const { setPlace } = useWalkthroughPlace(scope.worktreeId);
   usePrefetchReviewed(scope, context);
   usePrefetchComments(scope, context);
   const list = useChanges(scope, connection);
   const published = usePublishedReview(scope, context);
   const review = published.review ?? null;
+  const { setPlace } = useWalkthroughPlace(
+    `${review?.reviewId ?? scope.worktreeId}:${review?.revision ?? ''}`,
+  );
   const { threads } = useComments(scope, context);
   const changes = useReviewChangeItems(scope, context, list);
   const openComments = threads.filter((thread) => !thread.resolved).length;
@@ -144,7 +123,6 @@ export function ReviewIndex({
   };
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {published.review && <DeleteReview scope={scope} context={context} />}
       <div className="shrink-0 px-2">
         <Tabs
           value={changeScope}
@@ -322,13 +300,11 @@ function LayersView({
     <ScrollArea className="h-0 min-h-0 flex-1">
       <div className="p-2 pr-3">
         {review ? (
-          <WalkthroughRows
-            scope={scope}
+          <ReviewNavigation
             context={context}
             review={review}
             activeEntry={activeEntry}
             onOpen={onOpen}
-            files={paths.length}
           />
         ) : (
           <SidebarDocumentRow
@@ -390,214 +366,6 @@ function LayersView({
         )}
       </div>
     </ScrollArea>
-  );
-}
-
-function WalkthroughRows({
-  scope,
-  context,
-  review,
-  activeEntry,
-  onOpen,
-  files,
-}: {
-  scope: ReviewScope;
-  context: ConnectionContext;
-  review: ReviewResponse;
-  activeEntry: string | undefined;
-  onOpen: OpenDocument;
-  files: number;
-}) {
-  const walk = useWalkthrough(scope, context, review);
-  const completion = decisionCompletionBinding(
-    useAtom(completeDecision({ scope, connection: context.connection }), {
-      mode: 'promiseExit',
-    }),
-    (notice) => toast.add(notice),
-  );
-  const open = (key: WalkthroughKey) => {
-    walk.go(key);
-    onOpen({ kind: 'handoff' });
-  };
-  const here = (key: WalkthroughKey) =>
-    activeEntry === 'handoff' && walk.stop.key === key;
-  return (
-    <nav aria-label="Walkthrough" className="flex flex-col">
-      {!review.active && (
-        <SidebarDocumentRow
-          label="Saved review"
-          active={here('briefing')}
-          onOpen={() => open('briefing')}
-        >
-          {publishedReviewTitle(review)}
-        </SidebarDocumentRow>
-      )}
-      {walk.stops.map((stop) => {
-        const files = walk.items.filter((item) =>
-          stop.paths.includes(item.path),
-        );
-        const progress = filesReviewed(stop.paths, walk.items);
-        const done = walk.done(stop);
-        const state =
-          stop.kind === 'decision'
-            ? walk.decisions.states.get(stop.layer.id)
-            : undefined;
-        return (
-          <SidebarActionMenu
-            key={stop.key}
-            label={
-              stop.kind === 'decision'
-                ? `More actions for decision ${stop.number}`
-                : `More actions for ${stopName(stop)}`
-            }
-            {...(stop.kind === 'decision'
-              ? { description: stop.layer.title }
-              : {})}
-            actions={reviewSidebarActions(
-              stop.kind === 'decision'
-                ? {
-                    kind: 'decision',
-                    reviewed: done,
-                    stale: state?.stale === true,
-                    settled: walk.decisions.settled,
-                    pending: completion.pending,
-                    files,
-                  }
-                : { kind: 'section' },
-            )}
-            onAction={(id) => {
-              if (id === 'open') open(stop.key);
-              if (id === 'review' && stop.kind === 'decision') {
-                const decision = {
-                  layerId: stop.layer.id,
-                  fingerprint: stop.layer.fingerprint,
-                };
-                if (done) completion.reopen(decision);
-                else
-                  completion.complete({
-                    files,
-                    decision: {
-                      ...decision,
-                      reviewed: state?.reviewed === true,
-                    },
-                  });
-              }
-            }}
-          >
-            {(menu) => (
-              <div className="flex min-w-0 items-center">
-                <button
-                  type="button"
-                  className={ROW}
-                  aria-pressed={here(stop.key)}
-                  onClick={() => open(stop.key)}
-                >
-                  <StopIcon stop={stop} done={done} />
-                  <span className="min-w-0 flex-1 truncate">
-                    {stopName(stop)}
-                    {stop.kind === 'unexplained' &&
-                      ` · ${notExplainedLabel(review.notExplained) ?? `${stop.paths.length} files`}`}
-                  </span>
-                  {state?.stale && (
-                    <span
-                      className="size-1.5 shrink-0 rounded-full bg-graph-4"
-                      aria-label="Code moved"
-                    />
-                  )}
-                  {stop.kind !== 'briefing' && progress.total > 0 && (
-                    <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
-                      {progress.reviewed}/{progress.total}
-                    </span>
-                  )}
-                </button>
-                {menu}
-              </div>
-            )}
-          </SidebarActionMenu>
-        );
-      })}
-      <ProofRow
-        review={review}
-        active={activeEntry === entryKey(PROOF)}
-        onOpen={onOpen}
-      />
-      <SidebarDocumentRow
-        label="All changes"
-        active={activeEntry === 'all-changes'}
-        onOpen={() => onOpen(ALL_CHANGES)}
-      >
-        <FileDiffIcon className="size-3.5 shrink-0 text-muted-foreground" />
-        <span className="min-w-0 flex-1 truncate">
-          All changes · {files} files
-        </span>
-      </SidebarDocumentRow>
-    </nav>
-  );
-}
-
-function StopIcon({ stop, done }: { stop: WalkthroughStop; done: boolean }) {
-  if (stop.kind === 'briefing') {
-    return <CompassIcon className="size-3.5 shrink-0 text-muted-foreground" />;
-  }
-  if (stop.kind === 'decision') {
-    return (
-      <span
-        className={cn(
-          'grid size-4 shrink-0 place-items-center rounded-full text-2xs text-muted-foreground tabular-nums',
-          done && 'bg-graph-2 text-background',
-        )}
-      >
-        {done ? (
-          <CheckIcon className="size-3" aria-label="Reviewed" />
-        ) : (
-          stop.number
-        )}
-      </span>
-    );
-  }
-  if (stop.kind === 'unexplained') {
-    return <FileQuestionIcon className="size-3.5 shrink-0 text-graph-4" />;
-  }
-  return (
-    <FlaskConicalIcon className="size-3.5 shrink-0 text-muted-foreground" />
-  );
-}
-
-function ProofRow({
-  review,
-  active,
-  onOpen,
-}: {
-  review: ReviewResponse;
-  active: boolean;
-  onOpen: OpenDocument;
-}) {
-  const status = proofStatus(review.proof);
-  return (
-    <SidebarDocumentRow
-      label="Proof"
-      active={active}
-      onOpen={() => onOpen(PROOF)}
-    >
-      <FlaskConicalIcon
-        className={cn(
-          'size-3.5 shrink-0 text-muted-foreground',
-          status.failing > 0 && 'text-destructive',
-        )}
-      />
-      <span className="min-w-0 truncate">
-        Proof
-        <span
-          className={cn(
-            'text-muted-foreground',
-            status.failing > 0 && 'font-medium text-destructive',
-          )}
-        >
-          {' · '}
-          {proofLabel(status)}
-        </span>
-      </span>
-    </SidebarDocumentRow>
   );
 }
 

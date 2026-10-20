@@ -1,4 +1,5 @@
 import { expect, test } from './fixtures.ts';
+import { desktopSummaryHost } from '../kit/desktop-summaries.ts';
 
 test('the desktop app opens another computer’s worktree and HTML review, marks a change reviewed there and shows what changes on it live', async ({
   pairedPage,
@@ -6,6 +7,7 @@ test('the desktop app opens another computer’s worktree and HTML review, marks
   server,
   remote,
 }) => {
+  await desktopSummaryHost(pairedPage);
   const local = await server.project();
   const other = await remote.server.inventory();
   const otherProject = await remote.server.project();

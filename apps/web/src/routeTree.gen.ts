@@ -10,9 +10,12 @@ import { Route as PairedSplatRouteImport } from './routes/_paired/$';
 import { Route as PairedProjectIdWorktreeIdRouteImport } from './routes/_paired/$projectId/$worktreeId';
 import { Route as PairedSettingsIndexRouteImport } from './routes/_paired/settings/index';
 import { Route as PairedSettingsSectionRouteImport } from './routes/_paired/settings/$section';
+import { Route as PairedReviewsReviewIdIndexRouteImport } from './routes/_paired/reviews/$reviewId/index';
 import { Route as PairedSettingsSectionIndexRouteImport } from './routes/_paired/settings/$section/index';
 import { Route as PairedSettingsSectionEnvironmentIdRouteImport } from './routes/_paired/settings/$section/$environmentId';
 import { Route as PairedRemotesEnvironmentIdProjectIdWorktreeIdRouteImport } from './routes/_paired/remotes/$environmentId/$projectId/$worktreeId';
+import { Route as PairedReviewsReviewIdRevisionIndexRouteImport } from './routes/_paired/reviews/$reviewId/$revision/index';
+import { Route as PairedReviewsReviewIdRevisionDecisionsLayerIdRouteImport } from './routes/_paired/reviews/$reviewId/$revision/decisions/$layerId';
 
 const PairedRoute = PairedRouteImport.update({
   id: '/_paired',
@@ -49,6 +52,12 @@ const PairedSettingsSectionRoute = PairedSettingsSectionRouteImport.update({
   path: '/settings/$section',
   getParentRoute: () => PairedRoute,
 } as any);
+const PairedReviewsReviewIdIndexRoute =
+  PairedReviewsReviewIdIndexRouteImport.update({
+    id: '/reviews/$reviewId/',
+    path: '/reviews/$reviewId/',
+    getParentRoute: () => PairedRoute,
+  } as any);
 const PairedSettingsSectionIndexRoute =
   PairedSettingsSectionIndexRouteImport.update({
     id: '/',
@@ -67,6 +76,18 @@ const PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute =
     path: '/remotes/$environmentId/$projectId/$worktreeId',
     getParentRoute: () => PairedRoute,
   } as any);
+const PairedReviewsReviewIdRevisionIndexRoute =
+  PairedReviewsReviewIdRevisionIndexRouteImport.update({
+    id: '/reviews/$reviewId/$revision/',
+    path: '/reviews/$reviewId/$revision/',
+    getParentRoute: () => PairedRoute,
+  } as any);
+const PairedReviewsReviewIdRevisionDecisionsLayerIdRoute =
+  PairedReviewsReviewIdRevisionDecisionsLayerIdRouteImport.update({
+    id: '/reviews/$reviewId/$revision/decisions/$layerId',
+    path: '/reviews/$reviewId/$revision/decisions/$layerId',
+    getParentRoute: () => PairedRoute,
+  } as any);
 
 export interface FileRoutesByFullPath {
   '/': typeof PairedIndexRoute;
@@ -76,8 +97,11 @@ export interface FileRoutesByFullPath {
   '/settings/$section': typeof PairedSettingsSectionRouteWithChildren;
   '/settings/': typeof PairedSettingsIndexRoute;
   '/settings/$section/$environmentId': typeof PairedSettingsSectionEnvironmentIdRoute;
+  '/reviews/$reviewId/': typeof PairedReviewsReviewIdIndexRoute;
   '/settings/$section/': typeof PairedSettingsSectionIndexRoute;
   '/remotes/$environmentId/$projectId/$worktreeId': typeof PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute;
+  '/reviews/$reviewId/$revision/': typeof PairedReviewsReviewIdRevisionIndexRoute;
+  '/reviews/$reviewId/$revision/decisions/$layerId': typeof PairedReviewsReviewIdRevisionDecisionsLayerIdRoute;
 }
 export interface FileRoutesByTo {
   '/pair': typeof PairRoute;
@@ -86,8 +110,11 @@ export interface FileRoutesByTo {
   '/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRoute;
   '/settings': typeof PairedSettingsIndexRoute;
   '/settings/$section/$environmentId': typeof PairedSettingsSectionEnvironmentIdRoute;
+  '/reviews/$reviewId': typeof PairedReviewsReviewIdIndexRoute;
   '/settings/$section': typeof PairedSettingsSectionIndexRoute;
   '/remotes/$environmentId/$projectId/$worktreeId': typeof PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute;
+  '/reviews/$reviewId/$revision': typeof PairedReviewsReviewIdRevisionIndexRoute;
+  '/reviews/$reviewId/$revision/decisions/$layerId': typeof PairedReviewsReviewIdRevisionDecisionsLayerIdRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
@@ -99,8 +126,11 @@ export interface FileRoutesById {
   '/_paired/settings/$section': typeof PairedSettingsSectionRouteWithChildren;
   '/_paired/settings/': typeof PairedSettingsIndexRoute;
   '/_paired/settings/$section/$environmentId': typeof PairedSettingsSectionEnvironmentIdRoute;
+  '/_paired/reviews/$reviewId/': typeof PairedReviewsReviewIdIndexRoute;
   '/_paired/settings/$section/': typeof PairedSettingsSectionIndexRoute;
   '/_paired/remotes/$environmentId/$projectId/$worktreeId': typeof PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute;
+  '/_paired/reviews/$reviewId/$revision/': typeof PairedReviewsReviewIdRevisionIndexRoute;
+  '/_paired/reviews/$reviewId/$revision/decisions/$layerId': typeof PairedReviewsReviewIdRevisionDecisionsLayerIdRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
@@ -112,8 +142,11 @@ export interface FileRouteTypes {
     | '/settings/$section'
     | '/settings/'
     | '/settings/$section/$environmentId'
+    | '/reviews/$reviewId/'
     | '/settings/$section/'
-    | '/remotes/$environmentId/$projectId/$worktreeId';
+    | '/remotes/$environmentId/$projectId/$worktreeId'
+    | '/reviews/$reviewId/$revision/'
+    | '/reviews/$reviewId/$revision/decisions/$layerId';
   fileRoutesByTo: FileRoutesByTo;
   to:
     | '/pair'
@@ -122,8 +155,11 @@ export interface FileRouteTypes {
     | '/$projectId/$worktreeId'
     | '/settings'
     | '/settings/$section/$environmentId'
+    | '/reviews/$reviewId'
     | '/settings/$section'
-    | '/remotes/$environmentId/$projectId/$worktreeId';
+    | '/remotes/$environmentId/$projectId/$worktreeId'
+    | '/reviews/$reviewId/$revision'
+    | '/reviews/$reviewId/$revision/decisions/$layerId';
   id:
     | '__root__'
     | '/_paired'
@@ -134,8 +170,11 @@ export interface FileRouteTypes {
     | '/_paired/settings/$section'
     | '/_paired/settings/'
     | '/_paired/settings/$section/$environmentId'
+    | '/_paired/reviews/$reviewId/'
     | '/_paired/settings/$section/'
-    | '/_paired/remotes/$environmentId/$projectId/$worktreeId';
+    | '/_paired/remotes/$environmentId/$projectId/$worktreeId'
+    | '/_paired/reviews/$reviewId/$revision/'
+    | '/_paired/reviews/$reviewId/$revision/decisions/$layerId';
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
@@ -194,6 +233,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PairedSettingsSectionRouteImport;
       parentRoute: typeof PairedRoute;
     };
+    '/_paired/reviews/$reviewId/': {
+      id: '/_paired/reviews/$reviewId/';
+      path: '/reviews/$reviewId';
+      fullPath: '/reviews/$reviewId/';
+      preLoaderRoute: typeof PairedReviewsReviewIdIndexRouteImport;
+      parentRoute: typeof PairedRoute;
+    };
     '/_paired/settings/$section/': {
       id: '/_paired/settings/$section/';
       path: '/';
@@ -213,6 +259,20 @@ declare module '@tanstack/react-router' {
       path: '/remotes/$environmentId/$projectId/$worktreeId';
       fullPath: '/remotes/$environmentId/$projectId/$worktreeId';
       preLoaderRoute: typeof PairedRemotesEnvironmentIdProjectIdWorktreeIdRouteImport;
+      parentRoute: typeof PairedRoute;
+    };
+    '/_paired/reviews/$reviewId/$revision/': {
+      id: '/_paired/reviews/$reviewId/$revision/';
+      path: '/reviews/$reviewId/$revision';
+      fullPath: '/reviews/$reviewId/$revision/';
+      preLoaderRoute: typeof PairedReviewsReviewIdRevisionIndexRouteImport;
+      parentRoute: typeof PairedRoute;
+    };
+    '/_paired/reviews/$reviewId/$revision/decisions/$layerId': {
+      id: '/_paired/reviews/$reviewId/$revision/decisions/$layerId';
+      path: '/reviews/$reviewId/$revision/decisions/$layerId';
+      fullPath: '/reviews/$reviewId/$revision/decisions/$layerId';
+      preLoaderRoute: typeof PairedReviewsReviewIdRevisionDecisionsLayerIdRouteImport;
       parentRoute: typeof PairedRoute;
     };
   }
@@ -240,7 +300,10 @@ interface PairedRouteChildren {
   PairedProjectIdWorktreeIdRoute: typeof PairedProjectIdWorktreeIdRoute;
   PairedSettingsSectionRoute: typeof PairedSettingsSectionRouteWithChildren;
   PairedSettingsIndexRoute: typeof PairedSettingsIndexRoute;
+  PairedReviewsReviewIdIndexRoute: typeof PairedReviewsReviewIdIndexRoute;
   PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute: typeof PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute;
+  PairedReviewsReviewIdRevisionIndexRoute: typeof PairedReviewsReviewIdRevisionIndexRoute;
+  PairedReviewsReviewIdRevisionDecisionsLayerIdRoute: typeof PairedReviewsReviewIdRevisionDecisionsLayerIdRoute;
 }
 
 const PairedRouteChildren: PairedRouteChildren = {
@@ -249,8 +312,13 @@ const PairedRouteChildren: PairedRouteChildren = {
   PairedProjectIdWorktreeIdRoute: PairedProjectIdWorktreeIdRoute,
   PairedSettingsSectionRoute: PairedSettingsSectionRouteWithChildren,
   PairedSettingsIndexRoute: PairedSettingsIndexRoute,
+  PairedReviewsReviewIdIndexRoute: PairedReviewsReviewIdIndexRoute,
   PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute:
     PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute,
+  PairedReviewsReviewIdRevisionIndexRoute:
+    PairedReviewsReviewIdRevisionIndexRoute,
+  PairedReviewsReviewIdRevisionDecisionsLayerIdRoute:
+    PairedReviewsReviewIdRevisionDecisionsLayerIdRoute,
 };
 
 const PairedRouteWithChildren =

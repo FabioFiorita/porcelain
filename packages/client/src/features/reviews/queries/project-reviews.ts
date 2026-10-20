@@ -40,17 +40,28 @@ export const readReview = Atom.family(
     query(
       input.connection,
       (api) =>
-        input.revision === undefined
+        (input.revision === undefined
           ? api.reviews.readReview({ params: { reviewId: input.reviewId } })
           : api.reviews.readReviewRevision({
               params: { reviewId: input.reviewId, revision: input.revision },
+            })
+        ).pipe(
+          Effect.catchTag('ReviewNotFoundError', () =>
+            Effect.succeed({
+              review: undefined,
+              revisions: [],
+              revision: undefined,
             }),
+          ),
+        ),
       (answer) =>
-        answer.review?.reviewId === input.reviewId &&
-        (input.revision === undefined ||
-          answer.revision?.revision === input.revision) &&
-        answer.revision?.content.environmentId ===
-          input.connection.environmentId,
+        (answer.review === undefined ||
+          answer.review.reviewId === input.reviewId) &&
+        (answer.revision === undefined ||
+          ((input.revision === undefined ||
+            answer.revision.revision === input.revision) &&
+            answer.revision.content.environmentId ===
+              input.connection.environmentId)),
     ).pipe(reactive(input)),
 );
 export const readProjectReviews = Atom.family(
@@ -171,4 +182,14 @@ export const readProjectGitHubAccount = Atom.family(
         params: { projectId: input.projectId },
       }),
     ),
+);
+export const observeReviewSeen = Atom.family((input: RevisionInput) =>
+  clientRuntime(input.connection).atom(
+    requestApi(input.connection, (api) =>
+      api.reviews.setReviewSeen({
+        params: { reviewId: input.reviewId },
+        payload: { revision: input.revision },
+      }),
+    ),
+  ),
 );

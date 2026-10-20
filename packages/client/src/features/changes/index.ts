@@ -4,7 +4,6 @@ export {
   readChangeDiffs,
   readBranchDiffs,
   readCommitDiffs,
-  readChangeLines,
   readDiffBatches,
 } from './queries/diffs.ts';
 export {

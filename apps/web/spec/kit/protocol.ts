@@ -1,3 +1,4 @@
+import { Schema } from 'effect';
 import type { AgentAction } from '@porcelain/server/kit/session';
 
 export type {
@@ -16,6 +17,15 @@ export type ServerRead = {
 };
 
 export type RepoStep =
+  | {
+      kind: 'review-fixture';
+      operation:
+        | 'publish'
+        | 'remove-worktree'
+        | 'advance'
+        | 'remove-repository';
+      title: string;
+    }
   | { kind: 'write'; path: string; text: string }
   | { kind: 'remove'; path: string }
   | { kind: 'read'; path: string }
@@ -53,3 +63,11 @@ export type BrowserFailure = {
   kind: 'console error' | 'uncaught error' | 'unhandled rejection';
   message: string;
 };
+
+export const reviewFixtureSchema = Schema.Struct({
+  reviewId: Schema.String,
+  revision: Schema.Number,
+  headOid: Schema.String,
+  layerId: Schema.String,
+  worktree: Schema.String,
+});

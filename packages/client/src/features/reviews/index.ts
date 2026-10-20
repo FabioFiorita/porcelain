@@ -1,4 +1,3 @@
-export { deleteReview } from './commands/publication.ts';
 export {
   completeDecision,
   decisionCompletionBinding,
@@ -42,3 +41,4 @@ export {
   readProjectGitHubAccount,
 } from './queries/project-reviews.ts';
 export { setProjectGitHubAccount } from './commands/github-account.ts';
+export { observeReviewSeen } from './queries/project-reviews.ts';

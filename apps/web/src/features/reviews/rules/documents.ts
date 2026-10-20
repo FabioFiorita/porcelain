@@ -106,13 +106,13 @@ export type DocumentInteraction = {
   reveal?: RevealComment | undefined;
 };
 
-export type ReviewTitle = 'Review' | 'Saved review';
+export type ReviewTitle = 'Review';
 
 export function publishedReviewTitle(
   review: Pick<ReviewResponse, 'active'> | null | undefined,
 ): ReviewTitle | undefined {
   if (!review) return undefined;
-  return review.active ? 'Review' : 'Saved review';
+  return 'Review';
 }
 
 type Surface = 'changes' | 'files' | 'history';

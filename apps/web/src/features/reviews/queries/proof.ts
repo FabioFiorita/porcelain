@@ -1,4 +1,7 @@
-import { readProofFile } from '@porcelain/client/reviews';
+import {
+  readProofFile,
+  readReviewRevisionProof,
+} from '@porcelain/client/reviews';
 import { useAtomValue } from '@effect/atom-react';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
@@ -9,6 +12,12 @@ export function useProofFile(
   proofId: string,
 ) {
   return useAtomValue(
-    readProofFile({ scope, connection: context.connection, proofId }),
+    scope.review
+      ? readReviewRevisionProof({
+          ...scope.review,
+          connection: context.connection,
+          proofId,
+        })
+      : readProofFile({ scope, connection: context.connection, proofId }),
   );
 }

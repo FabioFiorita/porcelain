@@ -52,7 +52,13 @@ export function InlineComposer({
     );
     setPending(intent);
     mutation.send(
-      { anchor, body, threadId: intent.threadId, messageId: intent.messageId },
+      {
+        anchor,
+        body,
+        threadId: intent.threadId,
+        messageId: intent.messageId,
+        ...(scope.review ? { reviewRevision: scope.review.revision } : {}),
+      },
       () => {
         setPending(undefined);
         onClose();

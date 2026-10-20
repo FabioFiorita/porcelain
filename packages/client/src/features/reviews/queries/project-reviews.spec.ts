@@ -1,12 +1,22 @@
 import { expect, it } from 'vitest';
 import { Effect } from 'effect';
-import { AtomRegistry } from 'effect/reactivity';
-import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
+import { AtomRegistry, Reactivity } from 'effect/reactivity';
+import {
+  clientFixtures,
+  readClientAtom,
+} from '../../../../spec/kit/client-fixture.ts';
+import {
+  readReview,
+  readProjectReviews,
+  observeReviewSeen,
+} from './project-reviews.ts';
+import { queryKeys } from '../../../shared/api/query-keys.ts';
 import {
   readReviewComparison,
   readReviewInterdiff,
 } from '@porcelain/client/reviews';
 
+const create = clientFixtures();
 const reviewId = '10000000-0000-4000-8000-000000000001';
 const answer = {
   reviewId,
@@ -136,4 +146,69 @@ it.each([
     message:
       'The connected context changed. Reopen Porcelain to continue safely.',
   });
+});
+
+it.each([
+  { revision: undefined, path: `/api/reviews/${reviewId}` },
+  { revision: 7, path: `/api/reviews/${reviewId}/revisions/7` },
+])(
+  'preserves an absent review from $path as a successful empty read',
+  async ({ revision, path }) => {
+    const paths: string[] = [];
+    const subject = fixture((sent) => {
+      paths.push(sent);
+      return Promise.resolve(
+        Response.json({ review: null, revisions: [], revision: null }),
+      );
+    });
+    expect(
+      await readClientAtom(
+        subject.registry,
+        readReview({
+          connection: subject.connection,
+          reviewId,
+          ...(revision === undefined ? {} : { revision }),
+        }),
+      ),
+    ).toEqual({ review: undefined, revisions: [], revision: undefined });
+    expect(paths).toEqual([path]);
+  },
+);
+
+it('records seeing a revision once without writing again when inventory reads refresh', async () => {
+  const sent: string[] = [];
+  const subject = create((path) => {
+    sent.push(path);
+    return Promise.resolve(
+      Response.json(path.endsWith('/seen') ? { updated: true } : []),
+    );
+  });
+  const seen = observeReviewSeen({
+    connection: subject.connection,
+    reviewId,
+    revision: 1,
+  });
+  const inventory = readProjectReviews({
+    connection: subject.connection,
+    projectId: 'project',
+  });
+  const stopSeen = subject.registry.mount(seen);
+  const stopInventory = subject.registry.mount(inventory);
+  try {
+    await readClientAtom(subject.registry, seen);
+    await readClientAtom(subject.registry, inventory);
+    await subject.connection.runtime.runPromise(
+      Reactivity.invalidate([queryKeys.inventory('environment')]),
+    );
+    await expect
+      .poll(() => sent.filter((path) => path.endsWith('/reviews')))
+      .toHaveLength(2);
+    await readClientAtom(subject.registry, seen);
+    expect(sent.filter((path) => path.endsWith('/seen'))).toEqual([
+      `/api/reviews/${reviewId}/seen`,
+    ]);
+  } finally {
+    stopSeen();
+    stopInventory();
+  }
 });

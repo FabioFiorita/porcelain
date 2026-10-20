@@ -42,7 +42,7 @@ export function WalkthroughBriefing({
   onOpen,
 }: WalkthroughProps & {
   stops: readonly WalkthroughStop[];
-  items: readonly ReviewChangeItem[];
+  items: readonly Pick<ReviewChangeItem, 'path' | 'reviewStatus'>[];
   decisions: ReadonlyMap<string, DecisionState>;
   done: (stop: WalkthroughStop) => boolean;
   onGo: (key: WalkthroughKey) => void;
@@ -73,11 +73,7 @@ export function WalkthroughBriefing({
   const hasParts =
     parts.added.length + parts.changed.length + parts.removed.length > 0;
   return (
-    <div
-      className="min-h-0 flex-1 overflow-auto"
-      aria-label="Briefing"
-      role="region"
-    >
+    <div className="shrink-0" aria-label="Briefing" role="region">
       <div className="mx-auto flex max-w-3xl flex-col gap-9 px-6 pt-8 pb-16">
         <header className="flex flex-col gap-4">
           <p className="text-2xs font-medium tracking-wide text-muted-foreground uppercase">
@@ -118,7 +114,10 @@ export function WalkthroughBriefing({
           </dl>
           <div className="flex flex-wrap items-center gap-2">
             {next ? (
-              <Button onClick={() => onGo(next.key)}>
+              <Button
+                className="h-auto max-w-full min-w-0 text-left whitespace-normal"
+                onClick={() => onGo(next.key)}
+              >
                 {done === 0 && total.reviewed === 0
                   ? 'Start with'
                   : 'Continue with'}{' '}

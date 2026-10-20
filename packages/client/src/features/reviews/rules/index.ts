@@ -51,6 +51,9 @@ export {
   type ReviewChangeItem,
   type ReviewLayer,
   type ReviewResponse,
+  type DurableReviewRead,
+  type ReviewRecord,
+  type ReviewMarks,
   type ReviewScope,
   type ReviewStatus,
   type ReviewStep,
@@ -102,3 +105,7 @@ export {
   reviewSidebarActions,
   type ReviewSidebarAction,
 } from './sidebar-actions.ts';
+
+export { verdictSections, type ReviewRevision } from './verdict.ts';
+
+export { revisionReviewItems, revisionDecisionStates } from './revision.ts';

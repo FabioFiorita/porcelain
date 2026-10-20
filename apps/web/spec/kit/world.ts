@@ -1,3 +1,4 @@
+import { durableReviewFixture } from './review-fixture.ts';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { agentActs } from '@porcelain/server/kit/agent';
@@ -105,6 +106,8 @@ export class World {
 
   async repo(step: RepoStep, server: ServerName): Promise<string> {
     const repository = await this.session(server);
+    if (step.kind === 'review-fixture')
+      return durableReviewFixture(repository, step.operation, step.title);
     if (step.kind === 'agent') {
       await agentActs(repository, step.action);
       return '';

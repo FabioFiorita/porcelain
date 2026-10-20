@@ -72,7 +72,9 @@ export function ConnectedWorkspace({
   remote,
   unavailable,
   notice,
+  children,
 }: {
+  children?: ReactNode;
   review?: Review;
   remote?: RemoteConnection;
   unavailable?: RemoteStatus;
@@ -178,64 +180,65 @@ export function ConnectedWorkspace({
         isMobile={isMobile}
         open={open}
       >
-        {review ? (
-          <ReviewWorkspace
-            key={`${shownOn ?? ''}:${review.selection.worktree.id}`}
-            navigationTrigger={navigationTrigger}
-            worktree={review.selection.worktree}
-            projectId={review.selection.projectId}
-            search={review.search}
-            onSearch={onSearch}
-            context={context}
-          />
-        ) : (
-          <EmptyWorkspace
-            navigationTrigger={navigationTrigger}
-            isMobile={isMobile}
-            open={open}
-            openMobile={openMobile}
-          >
-            {remote && unavailable ? (
-              <RemoteUnavailable
-                name={remote.remote.name}
-                status={unavailable}
-                onOpenRemotes={() =>
-                  navigator.onOpenRemotes(remote.remote.environmentId)
-                }
-              />
-            ) : (
-              <Empty>
-                <EmptyHeader>
-                  <EmptyTitle>
-                    <h1>{message.title}</h1>
-                  </EmptyTitle>
-                  <EmptyDescription>{message.description}</EmptyDescription>
-                </EmptyHeader>
-                {notice === 'missing-worktree' && recovery && (
-                  <Link
-                    className={cn(buttonVariants())}
-                    to="/$projectId/$worktreeId"
-                    params={{
-                      projectId: recovery.projectId,
-                      worktreeId: recovery.worktree.id,
-                    }}
-                  >
-                    Open available worktree
-                  </Link>
-                )}
-                {notice && (
-                  <Link
-                    className={cn(buttonVariants({ variant: 'outline' }))}
-                    to="/"
-                    search={{}}
-                  >
-                    Back to workspace
-                  </Link>
-                )}
-              </Empty>
-            )}
-          </EmptyWorkspace>
-        )}
+        {children ??
+          (review ? (
+            <ReviewWorkspace
+              key={`${shownOn ?? ''}:${review.selection.worktree.id}`}
+              navigationTrigger={navigationTrigger}
+              worktree={review.selection.worktree}
+              projectId={review.selection.projectId}
+              search={review.search}
+              onSearch={onSearch}
+              context={context}
+            />
+          ) : (
+            <EmptyWorkspace
+              navigationTrigger={navigationTrigger}
+              isMobile={isMobile}
+              open={open}
+              openMobile={openMobile}
+            >
+              {remote && unavailable ? (
+                <RemoteUnavailable
+                  name={remote.remote.name}
+                  status={unavailable}
+                  onOpenRemotes={() =>
+                    navigator.onOpenRemotes(remote.remote.environmentId)
+                  }
+                />
+              ) : (
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyTitle>
+                      <h1>{message.title}</h1>
+                    </EmptyTitle>
+                    <EmptyDescription>{message.description}</EmptyDescription>
+                  </EmptyHeader>
+                  {notice === 'missing-worktree' && recovery && (
+                    <Link
+                      className={cn(buttonVariants())}
+                      to="/$projectId/$worktreeId"
+                      params={{
+                        projectId: recovery.projectId,
+                        worktreeId: recovery.worktree.id,
+                      }}
+                    >
+                      Open available worktree
+                    </Link>
+                  )}
+                  {notice && (
+                    <Link
+                      className={cn(buttonVariants({ variant: 'outline' }))}
+                      to="/"
+                      search={{}}
+                    >
+                      Back to workspace
+                    </Link>
+                  )}
+                </Empty>
+              )}
+            </EmptyWorkspace>
+          ))}
       </ProjectWorkspace>
 
       <ShortcutsDialog open={shortcuts} onOpenChange={setShortcuts} />

@@ -1,3 +1,11 @@
+import {
+  createMemoryHistory,
+  createRouter,
+  RouterContextProvider,
+  RouterProvider,
+} from '@tanstack/react-router';
+import { routeTree } from '@/routeTree.gen';
+import { pairingLink } from '@porcelain/contracts/access';
 import { useElement } from '../../src/shared/hooks/use-element';
 import { getHotkeyManager } from '@tanstack/react-hotkeys';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
@@ -40,6 +48,7 @@ import {
 } from '../kit/shapes.ts';
 import { createPierreCodeView } from './pierre-code-view.ts';
 import { refChips } from './ref-chips.ts';
+import { reviewLayout } from './review-layout.ts';
 import { host } from './commands.ts';
 import { createFetchGate, live } from './network.ts';
 
@@ -51,6 +60,16 @@ export type Repo = SampleRepository;
 export type { Agent } from '../kit/shapes.ts';
 export type Render = {
   workspace: () => Promise<typeof page>;
+  route: (
+    path: string,
+    options?: { unpaired?: boolean },
+  ) => Promise<{
+    page: typeof page;
+    navigate: (path: string) => Promise<void>;
+    pair: () => Promise<void>;
+    location: () => string;
+    pendingDestination: () => string | null;
+  }>;
   navigator: (options?: {
     remotes: readonly RemoteConnection[];
   }) => Promise<typeof page>;
@@ -191,21 +210,52 @@ async function pairedConnection(
   return connection;
 }
 
-async function mount(view: (connection: Connection) => ReactNode) {
+async function mount(
+  view: (connection: Connection) => ReactNode,
+  route?: { path: string; unpaired: boolean },
+) {
   const registry = AtomRegistry.make();
-  const connection = await pairedConnection(registry);
+  const connection = route?.unpaired
+    ? undefined
+    : await pairedConnection(registry);
+  const router = createRouter({
+    routeTree,
+    context: { registry },
+    history: createMemoryHistory({ initialEntries: [route?.path ?? '/'] }),
+    defaultPreload: false,
+  });
   const element = document.createElement('div');
   document.body.append(element);
   const root = createRoot(element);
-  root.render(<Providers registry={registry}>{view(connection)}</Providers>);
-  return async () => {
-    watching = false;
-    root.unmount();
-    element.remove();
-    await applicationRuntime.runPromise(accessSession.clear());
-    registry.dispose();
-    localStorage.clear();
-    sessionStorage.clear();
+  root.render(
+    route ? (
+      <AppProviders registry={registry}>
+        <RouterProvider router={router} />
+      </AppProviders>
+    ) : (
+      <RouterContextProvider router={router}>
+        <Providers registry={registry}>
+          {connection && view(connection)}
+        </Providers>
+      </RouterContextProvider>
+    ),
+  );
+  return {
+    router,
+    unmount: async () => {
+      watching = false;
+      root.unmount();
+      element.remove();
+      await applicationRuntime.runPromise(accessSession.clear());
+      registry.dispose();
+      localStorage.clear();
+      sessionStorage.clear();
+      window.history.replaceState(
+        window.history.state,
+        '',
+        window.location.pathname + window.location.search,
+      );
+    },
   };
 }
 
@@ -273,7 +323,53 @@ export const test = base
       },
     };
   })
-  .extend('server', ({ world: _world }) => readersOf('this'))
+  .extend('server', ({ world: _world }) => ({
+    ...readersOf('this'),
+    branchReviewMarks: async () => {
+      const published = await readersOf('this').publishedReview();
+      const reviewId = published.review?.reviewId;
+      if (!reviewId) throw new Error('The fixture has no branch review.');
+      return (
+        await host.porcelainRead({
+          server: 'this',
+          target: 'network',
+          path: `/api/reviews/${reviewId}/marks`,
+        })
+      ).body;
+    },
+    review: async (reviewId: string) =>
+      (
+        await host.porcelainRead({
+          server: 'this',
+          target: 'network',
+          path: `/api/reviews/${reviewId}`,
+        })
+      ).body,
+    reviewStatus: async (reviewId: string) =>
+      (
+        await host.porcelainRead({
+          server: 'this',
+          target: 'network',
+          path: `/api/reviews/${reviewId}`,
+        })
+      ).status,
+    reviewMarks: async (reviewId: string) =>
+      (
+        await host.porcelainRead({
+          server: 'this',
+          target: 'network',
+          path: `/api/reviews/${reviewId}/marks`,
+        })
+      ).body,
+    reviewComments: async (reviewId: string) =>
+      (
+        await host.porcelainRead({
+          server: 'this',
+          target: 'network',
+          path: `/api/reviews/${reviewId}/comments`,
+        })
+      ).body,
+  }))
   .extend('repo', async ({ world: _world }) =>
     sampleRepository(
       (step) => host.porcelainRepo(step, 'this'),
@@ -295,9 +391,50 @@ export const test = base
     const show = async (view: (connection: Connection) => ReactNode) => {
       if (unmount !== undefined)
         throw new Error('A test renders one feature once.');
-      unmount = await mount(view);
+      const mounted = await mount(view);
+      unmount = mounted.unmount;
     };
     const render: Render = {
+      async route(path, options) {
+        if (unmount !== undefined)
+          throw new Error('A test renders one feature once.');
+        const mounted = await mount(() => null, {
+          path,
+          unpaired: options?.unpaired === true,
+        });
+        unmount = mounted.unmount;
+        await mounted.router.load();
+        return {
+          page,
+          navigate: async (path) => {
+            mounted.router.history.push(path);
+            await mounted.router.load();
+          },
+          pair: async () => {
+            const grant = await host.porcelainPairingLink(
+              'Durable review reader',
+              'this',
+            );
+            const fragment = new URL(
+              pairingLink({
+                addresses: [''],
+                code: grant.code,
+                environmentId: grant.environmentId,
+              }),
+              window.location.origin,
+            ).hash;
+            window.history.replaceState(
+              window.history.state,
+              '',
+              window.location.pathname + window.location.search + fragment,
+            );
+            await mounted.router.invalidate({ sync: true });
+          },
+          location: () => mounted.router.state.location.href,
+          pendingDestination: () =>
+            sessionStorage.getItem('porcelain.pairing.destination'),
+        };
+      },
       async workspace() {
         await show((connection) => <Workspace connection={connection} />);
         await expect
@@ -343,6 +480,7 @@ export const test = base
     return viewer;
   })
   .extend('refChips', () => refChips)
+  .extend('reviewLayout', () => reviewLayout)
   .extend('fetchGate', ({ repo }, { onCleanup }) => {
     const gate = createFetchGate(repo.readme.path);
     onCleanup(() => gate.restore());

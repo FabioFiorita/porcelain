@@ -323,7 +323,7 @@ test('forgetting from detail protects an unsavable remote draft and succeeds aft
   ).toBeVisible();
   await page
     .getByRole('button', { name: 'Forget on this app', exact: true })
-    .click();
+    .press('Enter');
   await expect(page.getByRole('alert')).toHaveText(
     'Save or discard unsaved file drafts before disconnecting.',
   );
@@ -359,7 +359,7 @@ test('forgetting from detail protects an unsavable remote draft and succeeds aft
     .click();
   await page
     .getByRole('button', { name: 'Forget on this app', exact: true })
-    .click();
+    .press('Enter');
   await expect(page).toHaveURL(/\/settings\/remotes$/);
   await expect(
     page.getByText('No remote computers yet', { exact: true }),

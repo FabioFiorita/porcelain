@@ -9,8 +9,8 @@ import { porcelainClient } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { worktreeRead } from '../../../shared/api/worktree-read.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
+import { readSummaryHtml, type SummaryDelivery } from '../api.ts';
 import { worktreeResource } from '../../../shared/api/worktree-read.ts';
-import { clientWorktreeRead } from '../../../shared/api/worktree-read.ts';
 import type { ReviewResponse } from '../rules/review.ts';
 import { LayerMarksState, layerMarksRuntime } from '../store/layer-marks.ts';
 
@@ -19,19 +19,25 @@ export const readReviewSummary = Atom.family(
     connection,
     scope,
     summary,
+    delivery,
   }: {
     connection: RuntimeConnection;
     scope: WorktreeScope;
     summary: ReviewResponse['summary'];
+    delivery?: SummaryDelivery;
   }) =>
-    clientWorktreeRead(
-      { connection, scope },
-      ['review-summary', summary.token, summary.expires, summary.signature],
-      (api) =>
-        api.reviewSummary.readReviewSummary({
-          params: { token: summary.token },
-          query: { expires: summary.expires, signature: summary.signature },
-        }),
+    worktreeRead(
+      connection,
+      scope,
+      [
+        'review-summary',
+        summary.token,
+        summary.expires,
+        summary.signature,
+        delivery?.url,
+      ],
+      readSummaryHtml(connection, summary, delivery),
+      clientRuntime(connection),
     ),
 );
 

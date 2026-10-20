@@ -1,86 +1,60 @@
-import { expect, test as base } from './fixtures.tsx';
+import { expect, test } from './fixtures.tsx';
 
-const test = base.extend(
-  'openDecision',
-  ({ workspace, repo, server, agent }) =>
-    async (title: string) => {
-      const readme = repo.readme.path;
-      const files = async () =>
-        (await server.reviewedFiles()).marks.map((mark) => mark.path);
-      await agent.publishReview(title);
-      await repo.write(readme, `${repo.readme.changed}A follow-up edit.\n`);
-      await workspace
-        .getByRole('button', { name: 'Review', exact: true })
-        .click();
-      await workspace.getByRole('tab', { name: 'Review', exact: true }).click();
-      await workspace.getByRole('button', { name: new RegExp(title) }).click();
-      const decision = workspace.getByRole('region', {
-        name: `1. ${title}`,
-        exact: true,
-      });
-      return { decision, readme, files };
-    },
-);
-
-test('marking a decision reviews its unreviewed files and records the decision, a live edit keeps the committed decision reviewed, and unmarking keeps the files', async ({
+test('marking a retained decision marks its files, live edits preserve them, and unmarking keeps the files', async ({
+  agent,
   repo,
+  render,
   server,
-  openDecision,
 }) => {
-  const { decision, readme, files } = await openDecision('Readme layer');
-  const decisions = async () =>
-    (await server.reviewedLayers()).marks.map((mark) =>
-      mark.stale ? 'stale' : 'reviewed',
-    );
-  await expect.poll(files).toEqual([]);
-  const mark = decision.getByRole('button', {
-    name: 'Mark decision reviewed',
+  await agent.publishReview('Readme layer');
+  const published = (await server.publishedReview()).review;
+  const layerId = published?.layers[0]?.id;
+  const workspace = await render.workspace();
+  const review = workspace.getByRole('region', {
+    name: 'Review walkthrough',
     exact: true,
   });
-  const reviewed = decision.getByRole('button', {
-    name: 'Decision reviewed',
-    exact: true,
-  });
-  await mark.click();
-  await expect.element(reviewed).toHaveAttribute('aria-pressed', 'true');
-  await expect.poll(files).toEqual([readme]);
-  await expect.poll(decisions).toEqual(['reviewed']);
-
-  await repo.write(readme, `${repo.readme.committed}\nA revised change.\n`);
-  await expect.poll(decisions).toEqual(['reviewed']);
-  await expect.element(reviewed).toHaveAttribute('aria-pressed', 'true');
-  await expect.poll(files).toEqual([readme]);
-
-  await reviewed.click();
-  await expect.element(mark).toBeEnabled();
-  await expect.poll(decisions).toEqual([]);
-  await expect.poll(files).toEqual([readme]);
-});
-
-test('marking a decision whose files are already reviewed keeps their marks', async ({
-  server,
-  openDecision,
-}) => {
-  const { decision, readme, files } = await openDecision('Readme layer');
-  await decision
-    .getByRole('button', {
-      name: `Mark ${readme} as reviewed`,
-      exact: true,
-    })
+  await review
+    .getByRole('button', { name: '1. Readme layer', exact: true })
     .click();
-  await expect.poll(files).toEqual([readme]);
-  await decision
+  const stop = review.getByRole('region', {
+    name: '1. Readme layer',
+    exact: true,
+  });
+  await stop
     .getByRole('button', { name: 'Mark decision reviewed', exact: true })
     .click();
   await expect
-    .poll(async () =>
-      (await server.reviewedLayers()).marks.map((mark) => mark.stale),
-    )
-    .toEqual([false]);
-  await expect.poll(files).toEqual([readme]);
-  await expect
     .element(
-      decision.getByRole('button', { name: 'Decision reviewed', exact: true }),
+      stop.getByRole('button', { name: 'Decision reviewed', exact: true }),
     )
     .toHaveAttribute('aria-pressed', 'true');
+  await expect
+    .poll(() => server.branchReviewMarks())
+    .toMatchObject({
+      files: [{ path: repo.readme.path }],
+      decisions: [{ layerId }],
+    });
+  await repo.write(repo.readme.path, 'A different live version.\n');
+  await expect
+    .poll(() => server.branchReviewMarks())
+    .toMatchObject({
+      files: [{ path: repo.readme.path }],
+      decisions: [{ layerId }],
+    });
+  await expect
+    .element(stop.getByText('A change to review.', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(stop.getByText('A different live version.', { exact: true }))
+    .not.toBeInTheDocument();
+  await stop
+    .getByRole('button', { name: 'Decision reviewed', exact: true })
+    .click();
+  await expect
+    .poll(() => server.branchReviewMarks())
+    .toMatchObject({ files: [{ path: repo.readme.path }], decisions: [] });
+  await expect
+    .poll(async () => (await server.reviewedFiles()).marks)
+    .toEqual([]);
 });

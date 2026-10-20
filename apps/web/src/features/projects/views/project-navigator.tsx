@@ -1,3 +1,4 @@
+import { useConnectedContext } from '@/features/access/index';
 import { Fragment, useState } from 'react';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
 import { KeyboardIcon, MonitorIcon, SettingsIcon, XIcon } from 'lucide-react';
@@ -49,6 +50,7 @@ export function ProjectNavigator({
   onOpenRemotes: openRemotes,
   onOpenShortcuts: openShortcuts,
 }: Props) {
+  const { connection } = useConnectedContext();
   const [query, setQuery] = useState('');
   const searching = query.trim().length > 0;
   const { element: searchInput, attach: attachSearchInput } =
@@ -75,6 +77,7 @@ export function ProjectNavigator({
   const section = (project: Inventory['projects'][number]) => (
     <ProjectSection
       environmentId={null}
+      connection={connection}
       project={project}
       onRetry={onRetry}
       selected={selectedOn(null)}

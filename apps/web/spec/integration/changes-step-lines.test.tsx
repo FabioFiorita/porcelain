@@ -8,7 +8,9 @@ async function openStep(agent: Agent, render: Render) {
   const opened = await render.workspace();
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
   await opened.getByRole('tab', { name: 'Review', exact: true }).click();
-  await opened.getByRole('button', { name: `1 ${layer}`, exact: true }).click();
+  await opened
+    .getByRole('button', { name: `1 ${layer} 0/0`, exact: true })
+    .click();
   return opened;
 }
 

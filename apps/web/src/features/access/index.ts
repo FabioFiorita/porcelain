@@ -35,3 +35,8 @@ export {
   RemoteComputerSettings,
   RemoteComputerName,
 } from './views/remote-computer-settings';
+export {
+  rememberPairingDestination,
+  pairingDestination,
+  clearPairingDestination,
+} from './adapters/pairing-destination';
