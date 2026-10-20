@@ -1,0 +1,22 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.fabiofiorita.porcelain.preview",
+      "sha256_cert_fingerprints": [
+        "REPLACE_WITH_ANDROID_PREVIEW_SHA256_CERT_FINGERPRINT"
+      ]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.fabiofiorita.porcelain",
+      "sha256_cert_fingerprints": [
+        "REPLACE_WITH_ANDROID_PRODUCTION_SHA256_CERT_FINGERPRINT"
+      ]
+    }
+  }
+]

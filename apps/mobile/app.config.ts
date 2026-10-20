@@ -19,6 +19,7 @@ const config: ExpoConfig = {
     icon: './assets/porcelain.icon',
     bundleIdentifier: identity.bundleIdentifier,
     supportsTablet: true,
+    associatedDomains: ['applinks:porcelain.fabiofiorita.com'],
     infoPlist: {
       NSAppTransportSecurity: { NSAllowsLocalNetworking: true },
       NSLocalNetworkUsageDescription:
@@ -27,6 +28,20 @@ const config: ExpoConfig = {
   },
   android: {
     package: identity.bundleIdentifier,
+    intentFilters: [
+      {
+        action: 'VIEW',
+        autoVerify: true,
+        data: [
+          {
+            scheme: 'https',
+            host: 'porcelain.fabiofiorita.com',
+            pathPrefix: '/open',
+          },
+        ],
+        category: ['BROWSABLE', 'DEFAULT'],
+      },
+    ],
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-foreground.png',
       monochromeImage: './assets/adaptive-foreground.png',

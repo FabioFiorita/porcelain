@@ -18,6 +18,9 @@ export class ProjectSelectionStore extends Context.Service<
   {
     readonly state: AtomRef.ReadonlyRef<ProjectSelectionState>;
     readonly load: () => Effect.Effect<void, WriteFailure>;
+    readonly selectEnvironment: (
+      environmentId: string,
+    ) => Effect.Effect<void, WriteFailure>;
     readonly selectWorkspace: (
       environmentId: string,
       projectId: string,
@@ -49,6 +52,15 @@ export class ProjectSelectionStore extends Context.Service<
       return {
         state: owner.state,
         load: owner.load,
+        selectEnvironment: Effect.fn('ProjectSelectionStore.selectEnvironment')(
+          (environmentId: string) =>
+            write(({ selections }) =>
+              Effect.succeed({
+                currentEnvironmentId: environmentId,
+                selections,
+              }),
+            ),
+        ),
         selectWorkspace: Effect.fn('ProjectSelectionStore.selectWorkspace')(
           (environmentId: string, projectId: string, worktreeId: string) =>
             write(({ selections }) =>

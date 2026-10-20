@@ -1,0 +1,26 @@
+---
+import Site from '../../../layouts/site.astro';
+---
+<Site title="Open review · Porcelain" description="Open a Porcelain review on its computer.">
+  <main class="mx-auto w-full max-w-2xl px-5 py-16">
+    <h1 class="text-3xl font-medium">Open this review</h1>
+    <p class="mt-4 text-muted-foreground" id="review-message">Open this link in Porcelain, or enable JavaScript to continue in your browser.</p>
+    <a id="review-open" hidden class="mt-6 inline-flex rounded-full bg-foreground px-5 py-3 text-background no-underline" rel="noreferrer">Open review</a>
+    <p class="mt-6 text-sm text-muted-foreground">Your computer may ask you to pair this browser before showing the review.</p>
+    <a class="mt-6 inline-block" href="/">Back to Porcelain</a>
+  </main>
+</Site>
+<script>
+  import { parseReviewAppLink } from '@porcelain/client/reviews/rules';
+  const link = parseReviewAppLink(window.location.pathname + window.location.search + window.location.hash);
+  const message = document.getElementById('review-message');
+  const button = document.getElementById('review-open');
+  if (link && button instanceof HTMLAnchorElement) {
+    if (message) message.textContent = 'Continue in your browser on the computer that published this review.';
+    button.textContent = `Open this review on ${link.host}`;
+    button.href = link.webUrl;
+    button.hidden = false;
+  } else if (message) {
+    message.textContent = 'This review link is invalid. Ask the agent for a new link.';
+  }
+</script>

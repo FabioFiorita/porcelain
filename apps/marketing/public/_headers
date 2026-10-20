@@ -1,0 +1,9 @@
+/.well-known/apple-app-site-association
+  Content-Type: application/json
+
+/.well-known/assetlinks.json
+  Content-Type: application/json
+
+/open/*
+  Referrer-Policy: no-referrer
+  X-Robots-Tag: noindex

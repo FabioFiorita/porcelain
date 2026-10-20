@@ -19,3 +19,5 @@ export {
   savedFileCommentTarget,
   commitCommentTarget,
 } from './rules/document-comment';
+
+export { LinkedReviewScreen } from './views/linked-review-screen';

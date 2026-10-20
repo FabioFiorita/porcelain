@@ -1,0 +1,18 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": [
+          "9QH8M89WF9.com.fabiofiorita.porcelain.preview",
+          "9QH8M89WF9.com.fabiofiorita.porcelain"
+        ],
+        "components": [
+          {
+            "/": "/open/*"
+          }
+        ]
+      }
+    ]
+  }
+}

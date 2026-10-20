@@ -1,4 +1,6 @@
-import { useAtom } from '@effect/atom-react';
+import { useId, type ComponentRef } from 'react';
+import type { ScrollView, View } from 'react-native';
+import { useAtom, useAtomValue } from '@effect/atom-react';
 import { Atom } from 'effect/reactivity';
 import type { WalkthroughKey } from '@porcelain/client/reviews/rules';
 
@@ -26,4 +28,49 @@ export const reviewContinuation = Atom.family((_owner: string) =>
 
 export function useReviewPlace(review: string) {
   return useAtom(places(review));
+}
+
+const linkedNavigation = Atom.family((_owner: string) =>
+  Atom.make((get) => {
+    let scroll: ComponentRef<typeof ScrollView> | null = null;
+    let content: ComponentRef<typeof View> | null = null;
+    let decision: ComponentRef<typeof View> | null = null;
+    const scrollToDecision = () =>
+      decision?.measureInWindow((_x, targetY) =>
+        content?.measureInWindow((_contentX, contentY) =>
+          scroll?.scrollTo({ y: targetY - contentY, animated: false }),
+        ),
+      );
+    get.addFinalizer(() => {
+      scroll = null;
+      content = null;
+      decision = null;
+    });
+    return {
+      scroll: (view: ComponentRef<typeof ScrollView> | null) => {
+        scroll = view;
+        return () => {
+          if (scroll === view) scroll = null;
+        };
+      },
+      content: (view: ComponentRef<typeof View> | null) => {
+        content = view;
+        return () => {
+          if (content === view) content = null;
+        };
+      },
+      decision: (view: ComponentRef<typeof View> | null) => {
+        decision = view;
+        scrollToDecision();
+        return () => {
+          if (decision === view) decision = null;
+        };
+      },
+      scrollToDecision,
+    };
+  }),
+);
+
+export function useLinkedReviewNavigation() {
+  return useAtomValue(linkedNavigation(useId()));
 }

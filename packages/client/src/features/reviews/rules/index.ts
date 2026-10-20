@@ -109,3 +109,5 @@ export {
 export { verdictSections, type ReviewRevision } from './verdict.ts';
 
 export { revisionReviewItems, revisionDecisionStates } from './revision.ts';
+
+export { parseReviewAppLink, type ReviewAppLink } from './app-link.ts';
