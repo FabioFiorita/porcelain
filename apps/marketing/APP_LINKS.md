@@ -12,6 +12,8 @@ Pages reads `public/_headers` and `public/_redirects` from the built output.
 The former sets both association files to `application/json`; the latter serves
 the static browser fallback for arbitrary `/open/reviews/<reviewId>` URLs with a
 200 rewrite, retaining the original path and query for validation in the browser.
+Its target is `/open/reviews/`, without `index.html`: Pages redirects explicit
+`index.html` paths to their directory URL, which causes it to reject that rewrite.
 The button only appears after validation and only navigates when pressed.
 
 The AASA file uses the supplied Apple Team ID `9QH8M89WF9` for Preview and
