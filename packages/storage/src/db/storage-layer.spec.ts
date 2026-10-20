@@ -177,6 +177,7 @@ describe('Native storage adoption', () => {
       ).toEqual([
         { migration_id: 1, name: 'adopt_legacy_schema' },
         { migration_id: 2, name: 'project_review_revisions' },
+        { migration_id: 3, name: 'project_github_accounts' },
       ]);
     } finally {
       database.close();
@@ -553,6 +554,7 @@ describe('Native storage adoption', () => {
       ).toEqual([
         { migration_id: 1, name: 'adopt_legacy_schema' },
         { migration_id: 2, name: 'project_review_revisions' },
+        { migration_id: 3, name: 'project_github_accounts' },
       ]);
       expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
     } finally {
@@ -604,6 +606,7 @@ describe('Native storage adoption', () => {
         ).toEqual([
           { migration_id: 1, name: 'adopt_legacy_schema' },
           { migration_id: 2, name: 'project_review_revisions' },
+          { migration_id: 3, name: 'project_github_accounts' },
         ]);
         expect(
           stored

@@ -53,6 +53,21 @@ describe('status policy', () => {
     expect(unexpected).toEqual([]);
   });
 
+  it('keeps a leaked GitHub read error unavailable and excludes external diagnostics', () => {
+    expect(
+      toStatusResponse(
+        new reviewsErrors.GitHubReadError({ reason: 'offline' }),
+      ),
+    ).toEqual({
+      statusCode: 503,
+      body: {
+        statusCode: 503,
+        error: 'Service Unavailable',
+        message: 'GitHub is unavailable',
+      },
+    });
+  });
+
   it('answers an unknown failure as an unexpected failure', () => {
     expect(toStatusResponse(new Error('boom')).statusCode).toBe(500);
   });

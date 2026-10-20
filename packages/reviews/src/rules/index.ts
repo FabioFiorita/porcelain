@@ -11,3 +11,8 @@ export {
   revisionMetadata,
   openReviewForKey,
 } from './review-record.ts';
+
+export { githubRepository } from './github-account.ts';
+export { mapPullRequestSummary } from './pull-request.ts';
+
+export { recentPullRequestCutoff } from './pull-request.ts';

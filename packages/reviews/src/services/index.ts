@@ -44,3 +44,15 @@ export { ValidateReviewPublicationService } from './validate-review-publication-
 export { ReadReviewTextsService } from './read-review-texts-service.ts';
 export { SelectReviewComparisonService } from './select-review-comparison-service.ts';
 export { CompareReviewService } from './compare-review-service.ts';
+
+export { SelectGitHubAccountService } from './select-github-account-service.ts';
+
+export { ObserveReviewPullRequestService } from './observe-review-pull-request-service.ts';
+
+export { GitHubAccountPreferenceService } from './github-account-preference-service.ts';
+
+export { ReadGitHubPullRequestService } from './read-github-pull-request-service.ts';
+
+export { ListGitHubPullRequestsService } from './list-github-pull-requests-service.ts';
+
+export { ReadReviewRecordService } from './read-review-record-service.ts';

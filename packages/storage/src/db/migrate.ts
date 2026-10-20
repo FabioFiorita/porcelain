@@ -154,6 +154,13 @@ export const nativeMigrations = Migrator.fromRecord({
     yield* sql`CREATE INDEX comment_messages_id ON comment_messages(id)`;
     yield* sql`CREATE INDEX comment_messages_thread ON comment_messages(thread_id, sequence)`;
   }),
+  '003_project_github_accounts': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE project_github_accounts (
+      project_id TEXT PRIMARY KEY NOT NULL REFERENCES inventory_projects(id) ON DELETE CASCADE,
+      repository TEXT NOT NULL, detected TEXT, override TEXT
+    )`;
+  }),
 });
 
 export const readLegacyMigrations = Effect.fn('Storage.readLegacyMigrations')(

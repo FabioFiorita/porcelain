@@ -1,3 +1,4 @@
+import { sqliteGitHubAccountStoreLayer } from '../repositories/reviews/sqlite-github-account-store.ts';
 import { Layer } from 'effect';
 import { databaseLayer } from './connection.ts';
 import { sqliteDeviceStoreLayer } from '../repositories/access/sqlite-device-store.ts';
@@ -20,6 +21,7 @@ export function storageLayer(
   options: { worktreeIdLength: number; busyTimeoutMs: number },
 ) {
   return Layer.mergeAll(
+    sqliteGitHubAccountStoreLayer,
     sqliteDeviceStoreLayer,
     sqliteEnvironmentIdentityReaderLayer,
     sqliteEnvironmentNameStoreLayer,

@@ -17,3 +17,6 @@ export { BranchReviewReader } from './branch-review-reader.ts';
 export { ReviewCommitPinner } from './review-commit-pinner.ts';
 
 export { ReviewCodeReader } from './review-code-reader.ts';
+
+export { GitHubReader } from './github-reader.ts';
+export { GitHubAccountStore } from './github-account-store.ts';

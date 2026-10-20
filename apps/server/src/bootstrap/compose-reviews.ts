@@ -5,6 +5,25 @@ import {
 import { CompareReviewUseCase } from '../use-cases/reviews/compare-review.ts';
 import { ReadReviewInterdiffUseCase } from '../use-cases/reviews/read-review-interdiff.ts';
 import {
+  GitHubAccountPreferenceService,
+  ReadGitHubPullRequestService,
+  ListGitHubPullRequestsService,
+  ReadReviewRecordService,
+} from '@porcelain/reviews/services';
+import { ResolveProjectGitHubUseCasePort } from '../ports/resolve-project-github-use-case-port.ts';
+import { ghPullRequestReaderLayer } from '../adapters/reviews/gh-pull-request-reader.ts';
+import { GitHubAccountStore } from '@porcelain/reviews/ports';
+import {
+  ObserveReviewPullRequestService,
+  SelectGitHubAccountService,
+} from '@porcelain/reviews/services';
+import { CheckProjectService } from '@porcelain/projects/services';
+import { InventoryStore } from '@porcelain/projects/ports';
+import { ResolveProjectGitHubUseCase } from '../use-cases/reviews/resolve-project-github.ts';
+import { ReadProjectGitHubAccountUseCase } from '../use-cases/reviews/read-project-github-account.ts';
+import { ReadReviewPullRequestUseCase } from '../use-cases/reviews/read-review-pull-request.ts';
+import { ListProjectPullRequestsUseCase } from '../use-cases/reviews/list-project-pull-requests.ts';
+import {
   ReadReviewService,
   ReadReviewRevisionService,
   ListProjectReviewsService,
@@ -164,6 +183,9 @@ export function composeReviews(
     Layer.provide(gitProjectRepositoryReaderLayer(context.settings.limits.git)),
   );
   const ports = Layer.mergeAll(
+    ghPullRequestReaderLayer(context.settings.limits.git),
+    Layer.succeed(GitHubAccountStore, stores.githubAccounts),
+    Layer.succeed(InventoryStore, stores.inventory),
     gitReviewCodeReaderLayer(context.settings.limits),
     originLayer,
     gitReviewCommitPinnerLayer(context.settings.limits.git),
@@ -221,6 +243,12 @@ export function composeReviews(
   );
   const services = Layer.mergeAll(
     CompareReviewService.layer,
+    SelectGitHubAccountService.layer,
+    GitHubAccountPreferenceService.layer,
+    ReadGitHubPullRequestService.layer,
+    ListGitHubPullRequestsService.layer,
+    ReadReviewRecordService.layer,
+    CheckProjectService.layer,
     AtReviewScopeUseCase.layer,
     ReadRetainedBranchDiffsService.layer,
     ReadReviewService.layer,
@@ -259,9 +287,22 @@ export function composeReviews(
     SetReviewedLayerService.layer,
     RemoveReviewedLayerService.layer,
   ).pipe(Layer.provideMerge(comparisonPorts));
+  const githubServices = ObserveReviewPullRequestService.layer.pipe(
+    Layer.provideMerge(services),
+  );
+  const githubResolution = ResolveProjectGitHubUseCase.layer.pipe(
+    Layer.provideMerge(githubServices),
+  );
+  const githubContext = Layer.effect(
+    ResolveProjectGitHubUseCasePort,
+    ResolveProjectGitHubUseCase,
+  ).pipe(Layer.provideMerge(githubResolution));
   const operations = Layer.mergeAll(
     CompareReviewUseCase.layer,
     ReadReviewInterdiffUseCase.layer,
+    ReadProjectGitHubAccountUseCase.layer,
+    ReadReviewPullRequestUseCase.layer,
+    ListProjectPullRequestsUseCase.layer,
     RemoveReviewMarkUseCase.layer,
     SetReviewMarkUseCase.layer,
     ListReviewMarksUseCase.layer,
@@ -292,7 +333,7 @@ export function composeReviews(
     ListReviewedLayersUseCase.layer,
     SetReviewedLayerUseCase.layer,
     RemoveReviewedLayerUseCase.layer,
-  ).pipe(Layer.provideMerge(services));
+  ).pipe(Layer.provideMerge(githubContext));
   const admission = Layer.mergeAll(
     Layer.effect(
       RefreshWorktreeReviewUseCasePort,
@@ -308,6 +349,9 @@ export function composeReviews(
       const useCases = {
         compareReview: yield* CompareReviewUseCase,
         readReviewInterdiff: yield* ReadReviewInterdiffUseCase,
+        readProjectGitHubAccount: yield* ReadProjectGitHubAccountUseCase,
+        readReviewPullRequest: yield* ReadReviewPullRequestUseCase,
+        listProjectPullRequests: yield* ListProjectPullRequestsUseCase,
         atReviewScope: yield* AtReviewScopeUseCase,
         removeReviewMark: yield* RemoveReviewMarkUseCase,
         setReviewMark: yield* SetReviewMarkUseCase,

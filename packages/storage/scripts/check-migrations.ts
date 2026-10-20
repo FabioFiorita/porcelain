@@ -1,3 +1,4 @@
+import { GitHubAccountRow } from '../src/db/models/github-accounts.ts';
 import { fileURLToPath } from 'node:url';
 import { Data, Effect, FileSystem, Schema, Stream, String } from 'effect';
 import { ChildProcess } from 'effect/process';
@@ -35,6 +36,7 @@ class MigrationCheckError extends Data.TaggedError('MigrationCheckError')<{
 
 const directory = fileURLToPath(new URL('../drizzle/', import.meta.url));
 const models = [
+  GitHubAccountRow,
   CommentSeenRow,
   CommentRevisionRow,
   CommentThreadRow,

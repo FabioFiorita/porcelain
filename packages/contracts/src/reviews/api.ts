@@ -4,6 +4,13 @@ import {
   readReviewInterdiffQuerySchema,
   readReviewInterdiffResponseSchema,
 } from './review-comparison.ts';
+import {
+  readPullRequestResponseSchema,
+  listPullRequestsResponseSchema,
+  githubAccountResultSchema,
+  setGitHubAccountRequestSchema,
+} from './pull-requests.ts';
+import { ProjectNotFoundError } from '@porcelain/projects/errors';
 import { Schema } from 'effect';
 import {
   readBranchDiffsRequestSchema,
@@ -145,6 +152,52 @@ export class ReviewsApi extends porcelainApi.add(
           ],
         },
       ),
+      HttpApiEndpoint.get(
+        'readReviewPullRequest',
+        '/api/reviews/:reviewId/pull-request',
+        {
+          disableCodecs: true,
+          params: reviewParamsSchema,
+          success: readPullRequestResponseSchema,
+          error: [
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+            httpFailure(ProjectNotFoundError, 'NotFound'),
+          ],
+        },
+      ),
+      HttpApiEndpoint.get(
+        'listProjectPullRequests',
+        '/api/projects/:projectId/pull-requests',
+        {
+          disableCodecs: true,
+          params: Schema.Struct({ projectId: Schema.String }),
+          success: listPullRequestsResponseSchema,
+          error: [httpFailure(ProjectNotFoundError, 'NotFound')],
+        },
+      ),
+      HttpApiEndpoint.get(
+        'readProjectGitHubAccount',
+        '/api/projects/:projectId/github-account',
+        {
+          disableCodecs: true,
+          params: Schema.Struct({ projectId: Schema.String }),
+          success: githubAccountResultSchema,
+          error: [httpFailure(ProjectNotFoundError, 'NotFound')],
+        },
+      ),
+      HttpApiEndpoint.put(
+        'setProjectGitHubAccount',
+        '/api/projects/:projectId/github-account',
+        {
+          disableCodecs: true,
+          params: Schema.Struct({ projectId: Schema.String }),
+          payload: setGitHubAccountRequestSchema,
+          success: githubAccountResultSchema,
+          error: [httpFailure(ProjectNotFoundError, 'NotFound')],
+        },
+      ),
+    )
+    .add(
       HttpApiEndpoint.delete(
         'deleteReviewCommentMessage',
         '/api/reviews/:reviewId/comments/:threadId/messages',
