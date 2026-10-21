@@ -86,6 +86,7 @@ export function SettingsUpdateRow({
   return (
     <div
       className="flex min-w-0 flex-col gap-2"
+      role="group"
       aria-label={`${target.name} update`}
     >
       <div className="flex flex-wrap items-center justify-between gap-3">

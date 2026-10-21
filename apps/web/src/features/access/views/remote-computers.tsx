@@ -31,8 +31,10 @@ import { ComputerUpdate } from './share-settings';
 function RemoteRow({
   remote,
   onOpen,
+  showUpdates,
 }: {
   remote: Remote;
+  showUpdates: boolean;
   onOpen: (environmentId: string) => void;
 }) {
   const status = useRemoteStatus(remote);
@@ -61,7 +63,7 @@ function RemoteRow({
           <ChevronRightIcon className="shrink-0" />
         </Button>
       </ItemContent>
-      {update && (
+      {showUpdates && update && (
         <ItemFooter>
           <div className="w-full">
             <SettingsUpdateRow row={update} />
@@ -122,8 +124,10 @@ function AddRemote() {
 export function RemoteComputers({
   environment,
   onOpen,
+  showUpdates,
 }: {
   environment: Environment;
+  showUpdates: boolean;
   onOpen: (environmentId: string) => void;
 }) {
   const { remotes, error: unreadable } = useSavedEnvironments();
@@ -182,11 +186,13 @@ export function RemoteComputers({
                 <ChevronRightIcon className="shrink-0" />
               </Button>
             </ItemContent>
-            <ItemFooter>
-              <div className="w-full">
-                <ComputerUpdate />
-              </div>
-            </ItemFooter>
+            {showUpdates && (
+              <ItemFooter>
+                <div className="w-full">
+                  <ComputerUpdate />
+                </div>
+              </ItemFooter>
+            )}
           </Item>
           {[...remotes]
             .sort(
@@ -198,6 +204,7 @@ export function RemoteComputers({
               <RemoteRow
                 key={remote.environmentId}
                 remote={remote}
+                showUpdates={showUpdates}
                 onOpen={onOpen}
               />
             ))}

@@ -370,12 +370,15 @@ export function SettingsPage({
   environmentId?: string | undefined;
 }) {
   const navigate = useNavigate();
+  const router = useRouter();
+  const [entryIndex] = useState(
+    () => router.history.location.state.__TSR_index,
+  );
   const remote = useRemoteConnection(environmentId ?? '')?.remote;
   const { element: list, attach: setList } = useElement<HTMLDivElement>();
   const { element: page, attach: setPage } = useElement<HTMLElement>();
   const [listReturn, setListReturn] = useState<{
     scroll: number;
-    historyIndex: number;
     focus: HTMLElement | null;
   } | null>(null);
   const returnToList = () => {
@@ -390,7 +393,6 @@ export function SettingsPage({
   const openRemote = (id: string) => {
     setListReturn({
       scroll: list?.scrollTop ?? 0,
-      historyIndex: router.history.location.state.__TSR_index,
       focus:
         document.activeElement instanceof HTMLElement
           ? document.activeElement
@@ -414,7 +416,6 @@ export function SettingsPage({
       else element.focus({ preventScroll: true });
     }
   };
-  const router = useRouter();
   const canGoBack = useCanGoBack();
   const { connection } = useConnectedContext();
   const { environment } = useInventory(connection);
@@ -428,15 +429,13 @@ export function SettingsPage({
   else if (remote) detailName = <RemoteComputerName remote={remote} />;
   const leave = () => {
     if (environmentId !== undefined) returnToList();
-    else if (canGoBack && listReturn)
+    else if (canGoBack)
       router.history.go(
-        -(
-          router.history.location.state.__TSR_index -
-          listReturn.historyIndex +
-          1
+        -Math.max(
+          1,
+          router.history.location.state.__TSR_index - entryIndex + 1,
         ),
       );
-    else if (canGoBack) router.history.back();
     else void navigate({ to: '/' });
   };
   useHotkey('Escape', leave, { target: page, ignoreInputs: true });
@@ -544,6 +543,7 @@ export function SettingsPage({
               >
                 <div className="settings-content mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-6 sm:px-6">
                   <RemoteComputers
+                    showUpdates={environmentId === undefined}
                     environment={environment}
                     onOpen={openRemote}
                   />

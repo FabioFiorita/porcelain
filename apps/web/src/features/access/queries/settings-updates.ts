@@ -100,6 +100,10 @@ const updateRows = Atom.make((get): readonly SettingsUpdateRow[] => {
     }
   }
   for (const { remote, connection } of remoteConnectionState.value) {
+    if (connection.activeRoute)
+      get.addFinalizer(
+        connection.activeRoute.subscribe(() => get.refreshSelf()),
+      );
     const status = remoteStatusResult(
       remote,
       get(readRemoteStatus(pairingPlatform, remote)),
@@ -117,7 +121,7 @@ const updateRows = Atom.make((get): readonly SettingsUpdateRow[] => {
           name: status.name,
           connection,
           state,
-          deviceId: remote.deviceId,
+          deviceId: connection.activeRoute?.value?.deviceId ?? remote.deviceId,
         },
       });
   }
