@@ -4241,6 +4241,9 @@ export const guardrailCases = [
   },
   {
     rule: 'ci-required-checks',
+    webE2eShards: [1, 2, 3, 4],
+    webE2eCommand:
+      'pnpm --filter @porcelain/web test:e2e --shard=${{ matrix.shard }}/4',
     needs: {
       affected: {
         result: 'success',
