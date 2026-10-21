@@ -15,6 +15,8 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { remoteConnectionState } from '../../../shared/application/store';
 import { headerIcon } from '../../../shared/icons/header-icon';
+import { usePreferences } from '../../preferences/index';
+import { ButtonSurface } from '../../../components/ui/button-surface';
 import { Box } from '../../../components/ui/box';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
@@ -46,6 +48,7 @@ export function WorktreeNavigator({
   const [closed, setClosed] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const router = useRouter();
+  const { preferences, setPreferences } = usePreferences();
   const { rows, filters } = reviewListView(entries, query, filter, closed);
   const open = (entry: ReviewListEntry) => {
     if (entry.worktreeId && !closed) {
@@ -128,7 +131,7 @@ export function WorktreeNavigator({
         <Input
           leading={<Icon name="search" tone="muted" />}
           accessibilityLabel="Search reviews and worktrees"
-          placeholder="Search reviews, branches or worktrees"
+          placeholder="Search"
           autoCapitalize="none"
           autoCorrect={false}
           returnKeyType="search"
@@ -188,71 +191,91 @@ export function WorktreeNavigator({
               ? rows
               : rows.filter((entry) => entry.group === group);
           if (grouped.length === 0) return null;
+          const expanded = preferences.reviewListGroupOpen[group] ?? true;
           return (
             <Box key={group} gap={2}>
-              <Text variant="subheading" tone="muted">
-                {group} · {grouped.length}
-              </Text>
-              {grouped.map((entry) => {
-                const selected = picker.choices.some(
-                  (choice) =>
-                    choice.environmentId === entry.environmentId &&
-                    choice.project.id === entry.projectId &&
-                    choice.worktrees.some(
-                      (row) =>
-                        row.selected && row.worktree.id === entry.worktreeId,
-                    ),
-                );
-                return (
-                  <Item
-                    key={entry.key}
-                    title={entry.title}
-                    titleNumberOfLines={entry.group === 'Projects' ? 1 : 2}
-                    variant={entry.group === 'Projects' ? 'default' : 'outline'}
-                    size="sm"
-                    selected={selected}
-                    disabled={picker.disabled || (!closed && entry.disabled)}
-                    accessibilityLabel={`${entry.title}, ${reviewListMeta(entry, Date.now())}${entry.reviewId ? `, ${entry.reviewed}/${entry.total} decisions reviewed, ${entry.badges.map((badge) => badge.label).join(', ')}` : ''}${selected ? ', current' : ''}${entry.disabled ? ', unavailable' : ''}`}
-                    leading={
-                      <Box className="w-10 shrink-0 self-start">
-                        {entry.reviewId ? (
-                          <Badge
-                            label={`${entry.reviewed}/${entry.total}`}
-                            variant="outline"
-                          />
-                        ) : null}
-                      </Box>
-                    }
-                    trailing={<Icon name="chevron" tone="muted" />}
-                    action={
-                      entry.archivable ? (
-                        <ArchiveAction entry={entry} projects={projects} />
-                      ) : undefined
-                    }
-                    onPress={() => open(entry)}
-                  >
-                    {entry.badges.length > 0 ? (
-                      <Box className="flex-row flex-wrap" gap={1}>
-                        {entry.badges.map((badge) => (
-                          <Badge
-                            key={badge.label}
-                            label={badge.label}
-                            variant={badge.variant}
-                          />
-                        ))}
-                      </Box>
-                    ) : null}
-                    <Text variant="caption" tone="muted" numberOfLines={1}>
-                      {reviewListMeta(entry, Date.now())}
-                    </Text>
-                    {entry.disabled ? (
-                      <Text variant="caption" tone="muted">
-                        Unavailable
+              <ButtonSurface
+                variant="ghost"
+                expanded={expanded}
+                className="justify-start"
+                accessibilityLabel={`${group} · ${grouped.length}, ${expanded ? 'expanded' : 'collapsed'}`}
+                onPress={() =>
+                  setPreferences({
+                    reviewListGroupOpen: {
+                      ...preferences.reviewListGroupOpen,
+                      [group]: !expanded,
+                    },
+                  })
+                }
+              >
+                <Icon name={expanded ? 'down' : 'chevron'} tone="muted" />
+                <Text variant="subheading" tone="muted">
+                  {group} · {grouped.length}
+                </Text>
+              </ButtonSurface>
+              {expanded &&
+                grouped.map((entry) => {
+                  const selected = picker.choices.some(
+                    (choice) =>
+                      choice.environmentId === entry.environmentId &&
+                      choice.project.id === entry.projectId &&
+                      choice.worktrees.some(
+                        (row) =>
+                          row.selected && row.worktree.id === entry.worktreeId,
+                      ),
+                  );
+                  return (
+                    <Item
+                      key={entry.key}
+                      title={entry.title}
+                      titleNumberOfLines={entry.group === 'Projects' ? 1 : 2}
+                      variant={
+                        entry.group === 'Projects' ? 'default' : 'outline'
+                      }
+                      size="sm"
+                      selected={selected}
+                      disabled={picker.disabled || (!closed && entry.disabled)}
+                      accessibilityLabel={`${entry.title}, ${reviewListMeta(entry, Date.now())}${entry.reviewId ? `, ${entry.reviewed}/${entry.total} decisions reviewed, ${entry.badges.map((badge) => badge.label).join(', ')}` : ''}${selected ? ', current' : ''}${entry.disabled ? ', unavailable' : ''}`}
+                      leading={
+                        <Box className="w-10 shrink-0 self-start">
+                          {entry.reviewId ? (
+                            <Badge
+                              label={`${entry.reviewed}/${entry.total}`}
+                              variant="outline"
+                            />
+                          ) : null}
+                        </Box>
+                      }
+                      trailing={<Icon name="chevron" tone="muted" />}
+                      action={
+                        entry.archivable ? (
+                          <ArchiveAction entry={entry} projects={projects} />
+                        ) : undefined
+                      }
+                      onPress={() => open(entry)}
+                    >
+                      {entry.badges.length > 0 ? (
+                        <Box className="flex-row flex-wrap" gap={1}>
+                          {entry.badges.map((badge) => (
+                            <Badge
+                              key={badge.label}
+                              label={badge.label}
+                              variant={badge.variant}
+                            />
+                          ))}
+                        </Box>
+                      ) : null}
+                      <Text variant="caption" tone="muted" numberOfLines={1}>
+                        {reviewListMeta(entry, Date.now())}
                       </Text>
-                    ) : null}
-                  </Item>
-                );
-              })}
+                      {entry.disabled ? (
+                        <Text variant="caption" tone="muted">
+                          Unavailable
+                        </Text>
+                      ) : null}
+                    </Item>
+                  );
+                })}
             </Box>
           );
         })}

@@ -18,7 +18,10 @@ test('the flat worktree menu searches checkouts without reviews and selects the 
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await pairedPage
-    .getByRole('button', { name: 'Worktrees', exact: true })
+    .getByRole('button', { name: 'Filter reviews', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('menuitem', { name: 'Worktrees', exact: true })
     .click();
   const search = pairedPage.getByRole('searchbox', {
     name: 'Search worktrees',
@@ -86,7 +89,10 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await pairedPage
-    .getByRole('button', { name: 'Worktrees', exact: true })
+    .getByRole('button', { name: 'Filter reviews', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('menuitem', { name: 'Worktrees', exact: true })
     .click();
   const search = pairedPage.getByRole('searchbox', {
     name: 'Search worktrees',
@@ -104,7 +110,10 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await pairedPage
-    .getByRole('button', { name: 'Worktrees', exact: true })
+    .getByRole('button', { name: 'Filter reviews', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('menuitem', { name: 'Worktrees', exact: true })
     .click();
   await search.fill(current?.branch?.replace('refs/heads/', '') ?? 'missing');
   await pairedPage
@@ -207,10 +216,13 @@ test('the checkout menu has a temporary search independent of sidebar search and
   });
   await sidebarSearch.fill('NO-SIDEBAR-MATCH');
   await pairedPage.getByRole('button', { name: 'Closed', exact: true }).click();
-  const menu = pairedPage.getByRole('button', {
+  const menu = pairedPage.getByRole('menuitem', {
     name: 'Worktrees',
     exact: true,
   });
+  await pairedPage
+    .getByRole('button', { name: 'Filter reviews', exact: true })
+    .click();
   await menu.click();
   const search = pairedPage.getByRole('searchbox', {
     name: 'Search worktrees',
@@ -230,6 +242,7 @@ test('the checkout menu has a temporary search independent of sidebar search and
   await menu.click();
   await expect(search).toHaveValue('');
   await pairedPage.keyboard.press('Escape');
+  await pairedPage.keyboard.press('Escape');
   await pairedPage
     .getByRole('button', { name: 'Back to reviews', exact: true })
     .click();
@@ -237,4 +250,69 @@ test('the checkout menu has a temporary search independent of sidebar search and
   await expect(
     pairedPage.getByText('No matching worktrees', { exact: true }),
   ).toBeVisible();
+});
+
+test('sidebar groups remember independent choices across search, Settings and reload with no duplicate footer navigation', async ({
+  pairedPage,
+  repo,
+  app,
+}) => {
+  await repo.worktree('collapsed-topic');
+  await app.reload();
+  await pairedPage.setViewportSize({ width: 1280, height: 800 });
+  const sidebar = pairedPage.getByRole('navigation', {
+    name: 'Projects and worktrees',
+    exact: true,
+  });
+  await expect(
+    sidebar.getByRole('heading', { name: 'Worktrees', exact: true }),
+  ).not.toBeAttached();
+  await expect(
+    sidebar.getByRole('button', { name: 'Projects', exact: true }),
+  ).not.toBeAttached();
+  await expect(
+    sidebar.getByRole('button', { name: 'Worktrees', exact: true }),
+  ).not.toBeAttached();
+  const projects = sidebar.getByRole('button', {
+    name: 'Projects · 1',
+    exact: true,
+  });
+  const noReview = sidebar.getByRole('button', {
+    name: 'No review · 1',
+    exact: true,
+  });
+  const topic = sidebar.getByRole('button', { name: /^collapsed-topic/ });
+  await expect(projects).toHaveAttribute('aria-expanded', 'true');
+  await expect(sidebar).toHaveCSS('background-color', 'oklch(1 0 0)');
+  await expect(noReview).toHaveAttribute('aria-expanded', 'true');
+  await projects.click();
+  await expect(projects).toHaveAttribute('aria-expanded', 'false');
+  await expect(topic).toBeVisible();
+  await noReview.press('Enter');
+  await expect(topic).not.toBeVisible();
+  const search = sidebar.getByRole('searchbox', {
+    name: 'Search reviews and worktrees',
+    exact: true,
+  });
+  await expect(search).toHaveAttribute('placeholder', 'Search');
+  await search.fill('NO-MATCH');
+  await search.fill('');
+  await expect(projects).toHaveAttribute('aria-expanded', 'false');
+  await sidebar.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(
+    pairedPage.getByRole('heading', { name: 'Appearance', exact: true }),
+  ).toBeVisible();
+  const settingsSidebar = pairedPage.getByRole('navigation', {
+    name: 'Settings sections',
+    exact: true,
+  });
+  await expect(settingsSidebar).toHaveCSS('background-color', 'oklch(1 0 0)');
+  await expect(settingsSidebar).toHaveCSS('border-top-left-radius', '14px');
+  await pairedPage.getByRole('button', { name: 'Back', exact: true }).click();
+  await app.reload();
+  await expect(projects).toHaveAttribute('aria-expanded', 'false');
+  await expect(noReview).toHaveAttribute('aria-expanded', 'false');
+  await noReview.click();
+  await expect(topic).toBeVisible();
+  await expect(projects).toHaveAttribute('aria-expanded', 'false');
 });

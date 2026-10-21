@@ -20,6 +20,7 @@ it.each([null, '{}', 'not-json', 'null', '[]', '42', '"text"'])(
       markdownDefault: 'reader',
       htmlDefault: 'preview',
       collapseSpecs: false,
+      reviewListGroupOpen: {},
       archiveDeleteWorktree: true,
       archiveDeleteLocalBranch: true,
       archiveDeleteRemoteBranch: true,
@@ -47,6 +48,7 @@ it.each([true, false])(
       markdownDefault: 'source',
       htmlDefault: 'source',
       collapseSpecs: false,
+      reviewListGroupOpen: {},
       archiveDeleteWorktree: true,
       archiveDeleteLocalBranch: true,
       archiveDeleteRemoteBranch: true,
@@ -78,6 +80,7 @@ it.each([
   ['markdownDefault', 'preview'],
   ['htmlDefault', 'reader'],
   ['collapseSpecs', 'true'],
+  ['reviewListGroupOpen', { Projects: 'false' }],
 ] as const)(
   'repairs invalid %s without losing another valid field',
   (key, value) => {
@@ -107,6 +110,7 @@ it.each([
   'markdownDefault',
   'htmlDefault',
   'collapseSpecs',
+  'reviewListGroupOpen',
 ] as const)('repairs missing %s without losing another field', (key) => {
   const saved: Record<string, unknown> = {
     ...defaultPreferences,
@@ -170,4 +174,34 @@ it('reads web records through the browser key-value path, keeping an old record 
     rewritten: JSON.stringify(old),
     damaged: Option.some({ ...old, diffStyle: 'unified' }),
   });
+});
+
+it('round-trips independent review group choices without losing other preferences', () => {
+  const saved = readPreferences(
+    JSON.stringify({
+      appearance: 'dark',
+      reviewListGroupOpen: {
+        Projects: false,
+        'Needs you': true,
+        'Waiting on agent': false,
+        'Ready to merge': true,
+        'No review': false,
+        Closed: true,
+      },
+    }),
+  );
+  expect(saved.reviewListGroupOpen).toEqual({
+    Projects: false,
+    'Needs you': true,
+    'Waiting on agent': false,
+    'Ready to merge': true,
+    'No review': false,
+    Closed: true,
+  });
+  expect(
+    readPreferences(
+      JSON.stringify(Schema.encodeSync(preferencesSchema)(saved)),
+    ),
+  ).toEqual(saved);
+  expect(saved.appearance).toBe('dark');
 });

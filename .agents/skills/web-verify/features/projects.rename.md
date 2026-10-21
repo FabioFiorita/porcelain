@@ -17,11 +17,11 @@ api:
 
 ## What it is
 
-Renaming a project from the navigator's context menu changes only its label: the navigator and the tab title show the new name and the server keeps it; nothing on disk changes, and a blank name is refused.
+Renaming a project from the navigator's project action submenu changes only its label: the navigator and the tab title show the new name and the server keeps it; nothing on disk changes, and a blank name is refused.
 
 ## How a user reaches it
 
-- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → Projects → right-click the project button (e.g. "repository") → `Rename project` → dialog "Rename project" → textbox `Name` → `Rename` (or `Enter`; `Cancel` closes).
+- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → Filter reviews → Projects → project menuitem (e.g. "repository") → `Rename project` → dialog "Rename project" → textbox `Name` → `Rename` (or `Enter`; `Cancel` closes).
 - Desktop shell: a remote computer's project (under Projects, in the group named for that computer) has the same `Rename project` item; the dialog sends the rename to that computer. If the computer stops answering or accepting this app while the dialog is open, the dialog shows its status and reason (e.g. "Needs pairing. It no longer accepts this app. …") and `Rename` is disabled; an unavailable computer can retain its last known projects; the existing action guards still refuse changes until it reconnects.
 
 ## Driving it
@@ -37,9 +37,9 @@ None.
 1. Navigate to `/` on the card’s web URL (full page load)
    Look for: Page Title "Changes — repository".
 2. Click button named `Toggle Sidebar`
-   Look for: dialog "Sidebar" with project button "repository".
-3. Right-click button named `repository`
-   Look for: context menu with menuitems "Copy path", "Rename project", "Remove from Porcelain".
+   Look for: dialog "Sidebar" with Filter reviews.
+3. Open Filter reviews → Projects → menuitem `repository`
+   Look for: project action submenu with menuitems "Copy path", "Rename project", "Remove from Porcelain".
 4. Click menuitem named `Rename project`
    Look for: dialog "Rename project"; textbox "Name" focused with value "repository"; buttons "Cancel" and "Rename".
 5. Replace the contents of textbox named `Name` with ' '
@@ -47,17 +47,17 @@ None.
 6. Replace the contents of textbox named `Name` with 'Browser renamed project'
    Look for: the alert is gone; button "Rename" enabled.
 7. Click button named `Rename`
-   Look for: dialog "Rename project" is gone; project button "Browser renamed project" in the sheet and no button "repository"; Page Title "Changes — Browser renamed project".
+   Look for: dialog "Rename project" is gone; project menuitem "Browser renamed project" after reopening Filter reviews → Projects in the sheet and no project menuitem "repository"; Page Title "Changes — Browser renamed project".
 8. Inspect HTTP requests and responses
    Look for: `PATCH /api/projects/<projectId>` with status 200.
 9. Navigate to `/` on the card’s web URL (full page load), then click button named `Toggle Sidebar`
-   Look for: after the reload the project button is still "Browser renamed project".
+   Look for: after reopening Filter reviews → Projects the project menuitem is still "Browser renamed project".
 
 ## What proves it works
 
 - End state: the new name survives a full reload (step 9), so the server kept it; the PATCH answered 200; `ls "$REPO/.."` still shows the folder `repository` (only the label changed).
 - `apps/web/spec/e2e/projects-open-remote.desktop.e2e.ts`: in the desktop shell, renaming a remote computer's project changes only that computer's inventory, the same dialog still renames this computer's project here, and an open remote dialog disables `Rename` with "Needs pairing. …" after the device is revoked.
-- `apps/web/spec/integration/projects-rename.test.tsx`: a blank name disables `Rename` and shows an alert; renaming shows button "Browser renamed project" and the server's project name becomes it (read through `server.project()`).
+- `apps/web/spec/integration/projects-rename.test.tsx`: a blank name disables `Rename` and shows an alert; arrow keys reach the project and Rename project; renaming shows menuitem "Browser renamed project" and the server's project name becomes it (read through `server.project()`).
 
 ## Gotchas
 

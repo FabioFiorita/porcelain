@@ -6,7 +6,10 @@ test('worktrees without reviews remain reachable in the flat checkout menu', asy
 }) => {
   const project = await server.project();
   await navigator
-    .getByRole('button', { name: 'Worktrees', exact: true })
+    .getByRole('button', { name: 'Filter reviews', exact: true })
+    .click();
+  await navigator
+    .getByRole('menuitem', { name: 'Worktrees', exact: true })
     .click();
   await expect
     .element(

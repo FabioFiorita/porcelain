@@ -87,11 +87,14 @@ test('Settings still opens once the last project is removed', async ({
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await pairedPage
-    .getByRole('button', { name: 'Projects', exact: true })
+    .getByRole('button', { name: 'Filter reviews', exact: true })
     .click();
   await pairedPage
-    .getByRole('button', { name: project.name, exact: true })
-    .click({ button: 'right' });
+    .getByRole('menuitem', { name: 'Projects', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('menuitem', { name: project.name, exact: true })
+    .click();
   await pairedPage
     .getByRole('menuitem', { name: 'Remove from Porcelain', exact: true })
     .click();

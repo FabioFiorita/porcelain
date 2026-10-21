@@ -43,7 +43,10 @@ test('the desktop app opens another computer’s worktree and HTML review, marks
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await pairedPage
-    .getByRole('button', { name: 'Worktrees', exact: true })
+    .getByRole('button', { name: 'Filter reviews', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('menuitem', { name: 'Worktrees', exact: true })
     .click();
   await expect(
     pairedPage.getByRole('menuitem', { name: new RegExp(local.name) }),

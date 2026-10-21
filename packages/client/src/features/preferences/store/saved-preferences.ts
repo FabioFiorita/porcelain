@@ -15,6 +15,7 @@ const fields = Schema.Struct({
   archiveDeleteLocalBranch: Schema.Boolean,
   archiveDeleteRemoteBranch: Schema.Boolean,
   collapseSpecs: Schema.Boolean,
+  reviewListGroupOpen: Schema.Record(Schema.String, Schema.Boolean),
 });
 export type Preferences = typeof fields.Type;
 export const defaultPreferences: Preferences = {
@@ -29,6 +30,7 @@ export const defaultPreferences: Preferences = {
   archiveDeleteLocalBranch: true,
   archiveDeleteRemoteBranch: true,
   collapseSpecs: false,
+  reviewListGroupOpen: {},
 };
 function savedField<S extends Schema.ConstraintDecoder<unknown>>(
   schema: S,
@@ -107,6 +109,11 @@ export const preferencesSchema = Schema.Unknown.pipe(
             fields.fields.archiveDeleteRemoteBranch,
             saved.archiveDeleteRemoteBranch,
             defaultPreferences.archiveDeleteRemoteBranch,
+          ),
+          reviewListGroupOpen: savedField(
+            fields.fields.reviewListGroupOpen,
+            saved.reviewListGroupOpen,
+            defaultPreferences.reviewListGroupOpen,
           ),
           collapseSpecs: savedField(
             fields.fields.collapseSpecs,
