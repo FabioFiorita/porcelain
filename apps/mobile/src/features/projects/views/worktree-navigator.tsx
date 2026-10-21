@@ -11,6 +11,7 @@ import {
   reviewListGroups,
   reviewListMeta,
   reviewListSignal,
+  reviewListRowContext,
   reviewListView,
   type ReviewListEntry,
 } from '@porcelain/client/reviews/rules';
@@ -51,7 +52,12 @@ export function WorktreeNavigator({
   const [showFilters, setShowFilters] = useState(false);
   const router = useRouter();
   const { preferences, setPreferences } = usePreferences();
-  const { rows, filters } = reviewListView(entries, query, filter, closed);
+  const { rows, filters, multipleProjects } = reviewListView(
+    entries,
+    query,
+    filter,
+    closed,
+  );
   const open = (entry: ReviewListEntry) => {
     if (entry.worktreeId && !closed) {
       picker.onWorktree(entry.environmentId, entry.projectId, entry.worktreeId);
@@ -149,7 +155,6 @@ export function WorktreeNavigator({
             onPress={() => setQuery('')}
           />
         ) : null}
-        {closed ? <Text variant="subheading">Closed reviews</Text> : null}
       </Box>
       <ScrollView
         className="flex-1"
@@ -228,6 +233,7 @@ export function WorktreeNavigator({
                       ),
                   );
                   const signal = reviewListSignal(entry);
+                  const context = reviewListRowContext(entry, multipleProjects);
                   const signalIcon = {
                     destructive: 'warning',
                     primary: 'check',
@@ -264,14 +270,35 @@ export function WorktreeNavigator({
                             size="small"
                           />
                         ) : null}
-                        <Text
-                          variant="caption"
-                          tone="muted"
-                          numberOfLines={1}
-                          className="min-w-0 flex-1"
+                        <Box
+                          className="min-w-0 flex-1 flex-row items-center"
+                          gap={1}
                         >
-                          {entry.branch}
-                        </Text>
+                          {context.project ? (
+                            <Text
+                              variant="caption"
+                              tone="muted"
+                              numberOfLines={1}
+                              className={
+                                context.branch
+                                  ? 'min-w-0 max-w-1/2 shrink'
+                                  : 'min-w-0 flex-1'
+                              }
+                            >
+                              {context.project}
+                            </Text>
+                          ) : null}
+                          {context.branch ? (
+                            <Text
+                              variant="caption"
+                              tone="muted"
+                              numberOfLines={1}
+                              className="min-w-0 flex-1"
+                            >
+                              {context.branch}
+                            </Text>
+                          ) : null}
+                        </Box>
                         <Badge
                           label={entry.environmentName}
                           labelNumberOfLines={1}

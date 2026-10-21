@@ -153,6 +153,20 @@ export function reviewListSignal(entry: ReviewListEntry) {
   };
 }
 
+export function reviewListRowContext(
+  entry: ReviewListEntry,
+  multipleProjects: boolean,
+) {
+  const noReview = entry.group === 'No review';
+  return {
+    project:
+      noReview || (multipleProjects && entry.group !== 'Projects')
+        ? entry.projectName
+        : undefined,
+    branch: noReview ? undefined : entry.branch,
+  };
+}
+
 export function reviewListMeta(entry: ReviewListEntry, now: number) {
   if (entry.group === 'Projects') return entry.branch;
   const seconds = entry.publishedAt
@@ -221,8 +235,12 @@ export function reviewListView(
   closed: boolean,
 ) {
   const options = reviewListOptions(entries);
+  const rows = filterReviewList(entries, query, filter, closed);
   return {
-    rows: filterReviewList(entries, query, filter, closed),
+    rows,
+    multipleProjects:
+      new Set(rows.map((entry) => `${entry.environmentId}/${entry.projectId}`))
+        .size > 1,
     filters: [
       {
         key: 'projects' as const,

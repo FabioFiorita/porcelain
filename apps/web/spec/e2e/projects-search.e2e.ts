@@ -57,6 +57,83 @@ test('the flat worktree menu searches checkouts without reviews and selects the 
     .toBe(`/${project.id}/${target?.id ?? ''}`);
 });
 
+for (const width of [1280, 414]) {
+  test(`worktree selection closes both menus at ${width}px, including reselection and navigation`, async ({
+    pairedPage,
+    repo,
+    server,
+    app,
+  }) => {
+    await repo.worktree('menu-dismissal');
+    await app.reload();
+    await pairedPage.setViewportSize({ width, height: 896 });
+    const project = await server.project();
+    const target = project.worktrees.find(
+      (row) => row.branch === 'refs/heads/menu-dismissal',
+    );
+    if (width === 414)
+      await pairedPage
+        .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+        .click();
+    const filter = pairedPage.getByRole('button', {
+      name: 'Filter reviews',
+      exact: true,
+    });
+    await filter.click();
+    await pairedPage
+      .getByRole('menuitem', { name: 'Worktrees', exact: true })
+      .click();
+    await pairedPage
+      .getByRole('menuitemradio', { name: /menu-dismissal/ })
+      .click();
+    await expect
+      .poll(() => app.address().path)
+      .toBe(`/${project.id}/${target?.id ?? ''}`);
+    await expect(pairedPage.getByRole('menu')).toHaveCount(0);
+    if (width === 414)
+      await pairedPage
+        .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+        .click();
+    await filter.click();
+    await pairedPage
+      .getByRole('menuitem', { name: 'Worktrees', exact: true })
+      .click();
+    await pairedPage
+      .getByRole('menuitemradio', { name: /menu-dismissal/, checked: true })
+      .click();
+    await expect(pairedPage.getByRole('menu')).toHaveCount(0);
+    if (width === 414)
+      await pairedPage
+        .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+        .click();
+    await filter.click();
+    await pairedPage
+      .getByRole('menuitem', { name: 'Worktrees', exact: true })
+      .click();
+    await pairedPage
+      .getByRole('searchbox', { name: 'Search worktrees', exact: true })
+      .fill('menu-dismissal');
+    const beforeBack = app.address();
+    await pairedPage.goBack();
+    await expect.poll(() => app.address()).not.toEqual(beforeBack);
+    await expect(pairedPage.getByRole('menu')).toHaveCount(0);
+    if (width === 414 && !(await filter.isVisible()))
+      await pairedPage
+        .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+        .click();
+    await filter.click();
+    await pairedPage
+      .getByRole('menuitem', { name: 'Worktrees', exact: true })
+      .click();
+    await expect(
+      pairedPage.getByRole('searchbox', {
+        name: 'Search worktrees',
+        exact: true,
+      }),
+    ).toHaveValue('');
+  });
+}
+
 test('selecting a search result keeps a conflicted unsaved draft when returning to its workspace', async ({
   pairedPage,
   repo,
@@ -174,6 +251,10 @@ test('Projects pins main checkouts, No review keeps other checkouts, and search 
   const topicRow = pairedPage.getByRole('button', { name: /^status-topic/ });
   await expect(mainRow).toBeVisible();
   await expect(topicRow).toBeVisible();
+  await expect(topicRow.getByText(project.name, { exact: true })).toBeVisible();
+  await expect(topicRow.getByText('status-topic', { exact: true })).toHaveCount(
+    1,
+  );
   await expect(
     mainRow.getByText(inventory.environment.name, { exact: true }),
   ).toBeVisible();

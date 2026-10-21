@@ -1,7 +1,7 @@
 import { ArchiveReview } from './archive-review';
 import { useState } from 'react';
 import { useAtomValue, useAtomSet } from '@effect/atom-react';
-import { Link } from '@tanstack/react-router';
+import { Link, useLocation } from '@tanstack/react-router';
 import {
   ArchiveIcon,
   ArrowLeftIcon,
@@ -20,6 +20,7 @@ import {
   reviewListGroups,
   reviewListMeta,
   reviewListSignal,
+  reviewListRowContext,
   reviewListView,
   type ReviewListEntry,
 } from '@porcelain/client/reviews/rules';
@@ -118,7 +119,16 @@ export function ProjectNavigator({
     closed: false,
   });
   const { query, filter, closed } = view;
-  const [menuQuery, setMenuQuery] = useState('');
+  const location = useLocation();
+  const [menu, setMenu] = useState({
+    href: location.href,
+    open: false,
+    query: '',
+  });
+  const menuOpen = menu.href === location.href && menu.open;
+  const menuQuery = menuOpen ? menu.query : '';
+  const setMenuQuery = (query: string) =>
+    setMenu((current) => ({ ...current, query }));
   const checkouts = [
     ...new Map(
       reviewListView(entries, menuQuery, emptyReviewListFilter, false)
@@ -142,7 +152,12 @@ export function ProjectNavigator({
     : 'No matching worktrees';
   const emptyLabel =
     projects.length === 0 ? 'No projects registered' : emptyReviewsLabel;
-  const { rows, filters } = reviewListView(entries, query, filter, closed);
+  const { rows, filters, multipleProjects } = reviewListView(
+    entries,
+    query,
+    filter,
+    closed,
+  );
   const { setOpenMobile } = useSidebar();
   const openWorktree = (entry: ReviewListEntry) => {
     if (!entry.worktreeId) return;
@@ -183,23 +198,36 @@ export function ProjectNavigator({
               <SearchIcon />
             </InputGroupAddon>
           </InputGroup>
-          <DropdownMenu highlightItemOnHover={false}>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant={
-                    filter.projects !== undefined ||
-                    filter.environments !== undefined
-                      ? 'secondary'
-                      : 'outline'
-                  }
-                  size="icon"
-                  aria-label="Filter reviews"
-                />
-              }
-            >
-              <FilterIcon />
-            </DropdownMenuTrigger>
+          <DropdownMenu
+            highlightItemOnHover={false}
+            open={menuOpen}
+            onOpenChange={(open) =>
+              setMenu({ href: location.href, open, query: '' })
+            }
+          >
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant={
+                          filter.projects !== undefined ||
+                          filter.environments !== undefined
+                            ? 'secondary'
+                            : 'outline'
+                        }
+                        size="icon"
+                        aria-label="Filter reviews"
+                      />
+                    }
+                  />
+                }
+              >
+                <FilterIcon />
+              </TooltipTrigger>
+              <TooltipContent>Filter and open</TooltipContent>
+            </Tooltip>
             <DropdownMenuContent
               align="end"
               className="max-h-96 w-80 min-w-72 max-w-[calc(100vw-2rem)] overflow-y-auto"
@@ -299,6 +327,7 @@ export function ProjectNavigator({
                         <DropdownMenuRadioItem
                           key={entry.key}
                           value={entry.key}
+                          closeOnClick
                           disabled={entry.disabled}
                           onClick={() => openWorktree(entry)}
                         >
@@ -393,6 +422,10 @@ export function ProjectNavigator({
                     <SidebarMenu>
                       {grouped.map((entry) => {
                         const signal = reviewListSignal(entry);
+                        const context = reviewListRowContext(
+                          entry,
+                          multipleProjects,
+                        );
                         const indicator = {
                           destructive: {
                             Icon: CircleAlertIcon,
@@ -503,12 +536,28 @@ export function ProjectNavigator({
                                       </TooltipContent>
                                     </Tooltip>
                                   ) : null}
-                                  <span
-                                    className="min-w-0 flex-1 truncate"
-                                    title={entry.branch}
-                                  >
-                                    {entry.branch}
-                                  </span>
+                                  <div className="flex min-w-0 flex-1 items-center gap-1">
+                                    {context.project ? (
+                                      <span
+                                        className={
+                                          context.branch
+                                            ? 'min-w-0 max-w-1/2 truncate'
+                                            : 'min-w-0 flex-1 truncate'
+                                        }
+                                        title={context.project}
+                                      >
+                                        {context.project}
+                                      </span>
+                                    ) : null}
+                                    {context.branch ? (
+                                      <span
+                                        className="min-w-0 flex-1 truncate"
+                                        title={context.branch}
+                                      >
+                                        {context.branch}
+                                      </span>
+                                    ) : null}
+                                  </div>
                                   <Badge
                                     variant="secondary"
                                     className="max-w-1/2"

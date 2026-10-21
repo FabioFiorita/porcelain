@@ -115,6 +115,7 @@ export {
   reviewListGroups,
   reviewListMeta,
   reviewListSignal,
+  reviewListRowContext,
   emptyReviewListFilter,
   type ReviewListEntry,
 } from './review-list.ts';

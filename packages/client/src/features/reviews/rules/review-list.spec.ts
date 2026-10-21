@@ -7,6 +7,7 @@ import {
   reviewListTitle,
   reviewListMeta,
   reviewListSignal,
+  reviewListRowContext,
   reviewListView,
   reviewListOptions,
   reviewListFilterItems,
@@ -364,4 +365,57 @@ it('uses one status indicator, prioritizing failed proof while keeping secondary
   expect(
     reviewListSignal({ ...entry, reviewId: undefined, badges: [] }),
   ).toBeUndefined();
+});
+
+it('adds project context only for multiple visible projects and avoids repeating unreviewed branches', () => {
+  expect(reviewListRowContext(entry, false)).toEqual({
+    project: undefined,
+    branch: 'feature',
+  });
+  expect(reviewListRowContext(entry, true)).toEqual({
+    project: 'Porcelain',
+    branch: 'feature',
+  });
+  expect(reviewListRowContext({ ...entry, group: 'Projects' }, true)).toEqual({
+    project: undefined,
+    branch: 'feature',
+  });
+  expect(
+    reviewListRowContext(
+      { ...entry, group: 'No review', reviewId: undefined },
+      false,
+    ),
+  ).toEqual({ project: 'Porcelain', branch: undefined });
+  expect(
+    reviewListView([entry, other], '', emptyReviewListFilter, false)
+      .multipleProjects,
+  ).toBe(true);
+  expect(
+    reviewListView([entry, other], 'porcelain', emptyReviewListFilter, false)
+      .multipleProjects,
+  ).toBe(false);
+  expect(
+    reviewListView(
+      [entry, other],
+      '',
+      { projects: ['beelink/porcelain'], environments: undefined },
+      false,
+    ).multipleProjects,
+  ).toBe(false);
+  expect(
+    reviewListView(
+      [entry, { ...entry, key: 'duplicate' }],
+      '',
+      emptyReviewListFilter,
+      false,
+    ).multipleProjects,
+  ).toBe(false);
+  expect(
+    reviewListView(
+      [entry, { ...entry, environmentId: 'mac' }],
+      '',
+      emptyReviewListFilter,
+      false,
+    ).multipleProjects,
+  ).toBe(true);
 });
