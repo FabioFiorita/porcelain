@@ -64,6 +64,9 @@ for (const width of [1280, 414]) {
     server,
     app,
   }) => {
+    await expect
+      .poll(() => new URLSearchParams(app.address().query).get('entry'))
+      .toBe('handoff');
     await repo.worktree('menu-dismissal');
     await app.reload();
     await pairedPage.setViewportSize({ width, height: 896 });
