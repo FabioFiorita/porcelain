@@ -29,27 +29,29 @@ type OperationEvent = {
 };
 
 type LaneMode = 'read' | 'write';
+type LaneOwners = string | readonly [string, ...string[]];
+type LaneRunOptions<A, E> = {
+  deadlineMs?: number;
+  settled?: ((exit: Exit.Exit<A, E>) => Effect.Effect<void>) | undefined;
+};
 
 export class Lanes extends Context.Service<
   Lanes,
   {
     readonly assertOpen: () => Effect.Effect<void>;
     readonly run: <A, E>(
-      lane: string,
+      lane: LaneOwners,
       mode: LaneMode,
       work: () => Effect.Effect<A, E>,
-      options?: {
-        deadlineMs?: number;
-        settled?: (() => Effect.Effect<void>) | undefined;
-      },
+      options?: LaneRunOptions<A, E>,
     ) => Effect.Effect<A, E>;
     readonly commit: <A, E>(
-      lane: string,
+      lane: LaneOwners,
       work: () => Effect.Effect<A, E>,
       committed: (value: A) => Effect.Effect<void>,
     ) => Effect.Effect<A, E>;
     readonly transaction: <Prepared, A, E, F>(
-      lane: string,
+      lane: LaneOwners,
       prepare: () => Effect.Effect<Prepared, E>,
       commit: (prepared: Prepared) => Effect.Effect<A, F>,
       committed: (value: A) => Effect.Effect<void>,
@@ -109,14 +111,29 @@ export class Lanes extends Context.Service<
         if ((yield* TxRef.get(lifecycle)).phase !== 'open')
           return yield* Effect.die(new ApplicationClosedError());
       });
+      function withOwners<A, E>(
+        owners: LaneOwners,
+        mode: LaneMode,
+        work: Effect.Effect<A, E>,
+      ): Effect.Effect<A, E> {
+        const keys = [
+          ...new Set(typeof owners === 'string' ? [owners] : owners),
+        ].sort();
+        let owned: Effect.Effect<A, E, Scope.Scope> = work;
+        for (const key of keys.toReversed()) {
+          const next = owned;
+          owned = Effect.gen(function* () {
+            const admission = yield* RcMap.get(admissions, key);
+            return yield* withLaneAdmission(admission, mode, next);
+          });
+        }
+        return owned.pipe(Effect.scoped);
+      }
       function run<A, E>(
-        lane: string,
+        lane: LaneOwners,
         mode: LaneMode,
         work: () => Effect.Effect<A, E>,
-        options: {
-          deadlineMs?: number;
-          settled?: (() => Effect.Effect<void>) | undefined;
-        } = {},
+        options: LaneRunOptions<A, E> = {},
       ): Effect.Effect<A, E> {
         return runEffect(lane, mode, work, {
           ...options,
@@ -124,14 +141,14 @@ export class Lanes extends Context.Service<
         });
       }
       function commit<A, E>(
-        lane: string,
+        lane: LaneOwners,
         work: () => Effect.Effect<A, E>,
         committed: (value: A) => Effect.Effect<void>,
       ): Effect.Effect<A, E> {
         return transaction(lane, () => Effect.void, work, committed);
       }
       function transaction<Prepared, A, E, F>(
-        lane: string,
+        lane: LaneOwners,
         prepare: () => Effect.Effect<Prepared, E>,
         commit: (prepared: Prepared) => Effect.Effect<A, F>,
         committed: (value: A) => Effect.Effect<void>,
@@ -158,12 +175,14 @@ export class Lanes extends Context.Service<
         });
       }
       function runEffect<A, E>(
-        lane: string,
+        lane: LaneOwners,
         mode: LaneMode,
         work: () => Effect.Effect<A, E>,
         options: {
           deadlineMs?: number;
-          completed?: (() => Effect.Effect<void>) | undefined;
+          completed?:
+            | ((exit: Exit.Exit<A, E>) => Effect.Effect<void>)
+            | undefined;
         },
       ): Effect.Effect<A, E> {
         return Effect.uninterruptibleMask((restore) =>
@@ -231,14 +250,7 @@ export class Lanes extends Context.Service<
                 finishing: current.finishing + 1,
               });
             }).pipe(Effect.tx);
-            const operation = Effect.gen(function* () {
-              const admission = yield* RcMap.get(admissions, lane);
-              return yield* withLaneAdmission(
-                admission,
-                'write',
-                Effect.suspend(work),
-              );
-            }).pipe(Effect.scoped);
+            const operation = withOwners(lane, 'write', Effect.suspend(work));
             return yield* operation.pipe(
               Effect.ensuring(
                 TxRef.update(lifecycle, (current) => ({
@@ -266,7 +278,7 @@ export class Lanes extends Context.Service<
       }
       function admittedEffect<A, E>(
         id: number,
-        lane: string,
+        lane: LaneOwners,
         work: () => Effect.Effect<A, E>,
         restore: <B, F, R>(
           effect: Effect.Effect<B, F, R>,
@@ -274,7 +286,9 @@ export class Lanes extends Context.Service<
         mode: LaneMode | undefined,
         options: {
           deadlineMs?: number;
-          completed?: (() => Effect.Effect<void>) | undefined;
+          completed?:
+            | ((exit: Exit.Exit<A, E>) => Effect.Effect<void>)
+            | undefined;
         },
       ): Effect.Effect<A, E> {
         return Effect.gen(function* () {
@@ -288,19 +302,14 @@ export class Lanes extends Context.Service<
             return yield* Effect.suspend(work);
           });
           const owned =
-            mode === undefined
-              ? operation
-              : Effect.gen(function* () {
-                  const admission = yield* RcMap.get(admissions, lane);
-                  return yield* withLaneAdmission(admission, mode, operation);
-                }).pipe(Effect.scoped);
+            mode === undefined ? operation : withOwners(lane, mode, operation);
           const worker = yield* Effect.forkIn(
             Effect.interruptible(owned).pipe(
               Effect.onExit((exit) =>
                 Effect.gen(function* () {
                   if (!started) return;
                   publish(id, lane, 'settled', Exit.isFailure(exit));
-                  if (options.completed) yield* options.completed();
+                  if (options.completed) yield* options.completed(exit);
                 }),
               ),
             ),
@@ -351,11 +360,13 @@ export class Lanes extends Context.Service<
       }
       function publish(
         operation: number,
-        runner: string,
+        owners: LaneOwners,
         phase: OperationEvent['phase'],
         failed?: boolean,
       ) {
         if (!operationChannel.hasSubscribers) return;
+        const runner =
+          typeof owners === 'string' ? owners : JSON.stringify(owners);
         const event: OperationEvent = { runner, operation, phase };
         if (failed !== undefined) event.failed = failed;
         operationChannel.publish(event);

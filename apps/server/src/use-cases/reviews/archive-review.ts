@@ -1,5 +1,5 @@
 import { CheckProjectService } from '@porcelain/projects/services';
-import { Context, Effect, Layer } from 'effect';
+import { Context, Effect, Exit, Layer } from 'effect';
 import type {
   ArchiveReviewRequest,
   ReviewArchivePlan,
@@ -49,30 +49,31 @@ export class ArchiveReviewUseCase extends Context.Service<
           const project = yield* lanes.run(keys.inventory(), 'read', () =>
             projects.execute({ projectId: record.projectId }),
           );
-          return yield* lanes.run(keys.project(project), 'write', () =>
-            lanes.run(
+          return yield* lanes.run(
+            [
+              keys.project(project),
               keys.reviews({ repositoryId: `review:${input.reviewId}` }),
-              'write',
-              () =>
-                archive
-                  .execute({
-                    ...input,
-                    repositoryIdentity: project.repositoryIdentity,
-                    mergedHead:
-                      pull.kind === 'available' &&
-                      pull.pullRequest.state === 'merged'
-                        ? pull.pullRequest.headSha
-                        : undefined,
-                    pullRequestClosed:
-                      pull.kind === 'available' &&
-                      pull.pullRequest.state !== 'open',
-                  })
-                  .pipe(
-                    Effect.tap((result) =>
-                      result.archived ? events.inventoryChanged() : Effect.void,
-                    ),
-                  ),
-            ),
+            ],
+            'write',
+            () =>
+              archive.execute({
+                ...input,
+                repositoryIdentity: project.repositoryIdentity,
+                mergedHead:
+                  pull.kind === 'available' &&
+                  pull.pullRequest.state === 'merged'
+                    ? pull.pullRequest.headSha
+                    : undefined,
+                pullRequestClosed:
+                  pull.kind === 'available' &&
+                  pull.pullRequest.state !== 'open',
+              }),
+            {
+              settled: (exit) =>
+                Exit.isSuccess(exit) && exit.value.archived
+                  ? events.inventoryChanged()
+                  : Effect.void,
+            },
           );
         }),
       };
