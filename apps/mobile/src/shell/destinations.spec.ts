@@ -12,7 +12,9 @@ describe('mobile destination ownership', () => {
     expect(destinationForPath('/history/commit/abc123/diff').path).toBe(
       '/history',
     );
-    expect(destinationForPath('/appearance').title).toBe('Settings');
+    expect(destinationForPath('/general').title).toBe('Settings');
+    expect(destinationForPath('/reviews-git').path).toBe('/settings');
+    expect(destinationForPath('/computers').path).toBe('/settings');
     expect(destinationForPath('/component-preview').path).toBe('/settings');
     expect(destinationForPath('/component-text').path).toBe('/settings');
   });

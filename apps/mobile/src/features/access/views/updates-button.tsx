@@ -8,16 +8,16 @@ export function UpdatesButton({ onPress }: { onPress: () => void }) {
   const { targets } = useServiceUpdates();
   const batch = useAtomValue(settingsUpdateBatch);
   const available = targets.some((target) => target.state.available);
-  if (!available && !batch.running && batch.entries.length === 0) return null;
+  if (!available && !batch.running) return null;
   return (
     <ButtonSurface
       accessibilityLabel="Updates available"
       size="sm"
-
+      shape="pill"
       onPress={onPress}
     >
       <Text variant="caption" tone="primaryForeground" weight="medium">
-        Update
+        {batch.running ? 'Updating…' : 'Update'}
       </Text>
     </ButtonSurface>
   );

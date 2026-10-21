@@ -93,7 +93,7 @@ export function WorktreeNavigator({
             {filters.map((section) => (
               <Stack.Toolbar.Menu key={section.key} inline>
                 <Stack.Toolbar.MenuAction disabled>
-                  {section.label}
+                  {section.key === 'environments' ? 'Computers' : section.label}
                 </Stack.Toolbar.MenuAction>
                 {section.items.map((option) => (
                   <Stack.Toolbar.MenuAction
@@ -116,7 +116,7 @@ export function WorktreeNavigator({
           </Stack.Toolbar.Menu>
           <Stack.Toolbar.Button
             icon={headerIcon(closed ? 'close' : 'closed')}
-            accessibilityLabel={closed ? 'Back to worktrees' : 'Closed reviews'}
+            accessibilityLabel="Closed reviews"
             onPress={() => setClosed(!closed)}
           />
         </Stack.Toolbar>
@@ -151,9 +151,7 @@ export function WorktreeNavigator({
               />
               <IconButton
                 icon={closed ? 'close' : 'closed'}
-                accessibilityLabel={
-                  closed ? 'Back to worktrees' : 'Closed reviews'
-                }
+                accessibilityLabel="Closed reviews"
                 onPress={() => setClosed(!closed)}
               />
             </>
@@ -179,7 +177,9 @@ export function WorktreeNavigator({
           <Box gap={2}>
             {filters.map((section) => (
               <Box key={section.key} gap={2}>
-                <Text variant="subheading">{section.label}</Text>
+                <Text variant="subheading">
+                  {section.key === 'environments' ? 'Computers' : section.label}
+                </Text>
                 {section.items.map((option) => (
                   <Item
                     key={option.id}

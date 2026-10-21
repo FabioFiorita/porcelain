@@ -20,7 +20,9 @@ import { PairEnvironmentForm } from './pair-environment-form';
 export function EnvironmentSettingsSection({
   presentation = 'overview',
   showHeading = true,
+  inlinePairing = false,
 }: {
+  inlinePairing?: boolean;
   presentation?: 'overview' | 'destination';
   showHeading?: boolean;
 }) {
@@ -71,7 +73,7 @@ export function EnvironmentSettingsSection({
             Manage the computers connected to Porcelain.
           </Text>
         ) : null}
-        {presentation === 'destination' && pairing ? (
+        {inlinePairing && pairing ? (
           <Card padding={4}>
             <PairEnvironmentForm onClose={() => setPairing(false)} />
           </Card>
@@ -112,7 +114,7 @@ export function EnvironmentSettingsSection({
           />
         ) : null}
       </Box>
-      {presentation === 'overview' ? (
+      {!inlinePairing ? (
         <BottomSheet
           isPresented={pairing}
           onDismiss={() => setPairing(false)}
@@ -130,8 +132,10 @@ export function EnvironmentSettingsSection({
 
 export function EnvironmentsSettings({
   showHeading = true,
+  inlinePairing = false,
 }: {
   showHeading?: boolean;
+  inlinePairing?: boolean;
 }) {
   return (
     <ScrollView
@@ -148,6 +152,7 @@ export function EnvironmentsSettings({
         <EnvironmentSettingsSection
           presentation="destination"
           showHeading={showHeading}
+          inlinePairing={inlinePairing}
         />
       </Box>
     </ScrollView>

@@ -33,7 +33,9 @@ export const destinations = [
     sidebarId: 'sidebar-settings',
     routes: [
       '/settings',
-      '/appearance',
+      '/general',
+      '/reviews-git',
+      '/computers',
       '/component-library',
       '/component-preview',
       '/component-button',

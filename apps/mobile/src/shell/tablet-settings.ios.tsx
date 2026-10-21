@@ -113,7 +113,7 @@ function SettingsContent() {
     case 'reviews-git':
       return <ReviewsGitSettings />;
     case 'computers':
-      return <EnvironmentsSettings />;
+      return <EnvironmentsSettings inlinePairing />;
     case 'development':
       return __DEV__ ? <ComponentExplorer /> : null;
   }

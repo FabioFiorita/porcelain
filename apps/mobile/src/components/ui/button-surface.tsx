@@ -28,6 +28,7 @@ const indicatorTones = {
   destructive: 'accent-destructive',
   link: 'accent-primary',
 };
+const shapes = { default: 'rounded-2xl', pill: 'rounded-full' };
 const sizes = {
   default: 'min-h-11 min-w-11 px-4 py-2',
   sm: 'min-h-9 min-w-9 px-3 py-1.5',
@@ -49,6 +50,7 @@ export type ButtonSurfaceProps = Omit<
   onPress: NonNullable<PressableProps['onPress']>;
   variant?: keyof typeof variants;
   size?: keyof typeof sizes;
+  shape?: keyof typeof shapes;
   disabled?: boolean;
   pending?: boolean;
   expanded?: boolean;
@@ -57,6 +59,7 @@ export function ButtonSurface({
   children,
   variant = 'default',
   size = 'default',
+  shape = 'default',
   disabled = false,
   pending = false,
   expanded,
@@ -74,9 +77,10 @@ export function ButtonSurface({
       disabled={unavailable}
       hitSlop={hitSlop}
       className={[
-        'flex-row items-center justify-center gap-2 rounded-2xl border active:opacity-80 disabled:opacity-50 focus:border-ring',
+        'flex-row items-center justify-center gap-2 border active:opacity-80 disabled:opacity-50 focus:border-ring',
         variants[variant],
         sizes[size],
+        shapes[shape],
         className,
       ]
         .filter(Boolean)

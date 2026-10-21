@@ -1,5 +1,5 @@
 import { PreferencesScreen } from '../../features/preferences';
 
-export default function AppearanceRoute() {
+export default function GeneralRoute() {
   return <PreferencesScreen />;
 }
