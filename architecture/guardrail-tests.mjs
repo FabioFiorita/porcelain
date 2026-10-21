@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
   globSync,
+  existsSync,
   mkdtempSync,
   readFileSync,
   realpathSync,
@@ -268,6 +269,108 @@ function ciSelectionFixture(entry) {
   }
 }
 
+function styleConfigFixture(entry) {
+  const root = fixtureRoot('porcelain-style-config-');
+  const repository = fileURLToPath(new URL('../', import.meta.url));
+  const run = (command, args) => {
+    const result = spawnSync(command, args, { cwd: root, encoding: 'utf8' });
+    if (result.error) throw result.error;
+    return result;
+  };
+  try {
+    if (!entry.missingTool)
+      symlinkSync(
+        join(repository, 'node_modules'),
+        join(root, 'node_modules'),
+        'dir',
+      );
+    const files = {
+      'package.json': '{"type":"module"}',
+      'architecture/fixture.ts': 'export {};',
+      ...Object.fromEntries(
+        [
+          'src/fixture.ts',
+          'spec/fixture.ts',
+          'vite.config.ts',
+          'dev-pair.ts',
+          'vitest.config.ts',
+          'playwright.config.ts',
+        ].map((name) => [`apps/web/${name}`, 'export {};']),
+      ),
+      'apps/marketing/astro.config.ts': 'export {};',
+    };
+    for (const name of [
+      '.oxlintrc.json',
+      '.oxfmtrc.json',
+      'tsconfig.json',
+      'apps/web/tsconfig.json',
+      'apps/server/tsconfig.json',
+      'packages/access/tsconfig.json',
+    ])
+      files[name] = readFileSync(join(repository, name), 'utf8');
+    for (const [name, replacements] of Object.entries(entry.json ?? {})) {
+      const config = JSON.parse(files[name]);
+      for (const [path, value] of Object.entries(replacements)) {
+        const keys = path.split('.');
+        const key = keys.pop();
+        const parent = keys.reduce((at, part) => at[part], config);
+        if (value === undefined) delete parent[key];
+        else parent[key] = value;
+      }
+      files[name] = JSON.stringify(config);
+    }
+    writeFiles(root, { ...files, ...entry.files });
+    symlinkSync(
+      join(repository, 'architecture/oxlint-plugin.mjs'),
+      join(root, 'architecture/oxlint-plugin.mjs'),
+    );
+    const initialized = run('git', ['init', '--quiet']);
+    strictEqual(initialized.status, 0, initialized.stderr);
+    if (entry.tracked) {
+      const added = run('git', ['add', entry.tracked]);
+      strictEqual(added.status, 0, added.stderr);
+    }
+    const checked = run(process.execPath, [
+      join(repository, 'scripts/style.ts'),
+      'lint',
+      'server',
+    ]);
+    const output = checked.stdout + checked.stderr;
+    strictEqual(checked.signal, null, `${entry.name}: ${output}`);
+    strictEqual(checked.status, entry.status, `${entry.name}: ${output}`);
+    const diagnostics = checked.stderr
+      .split('\n')
+      .filter((line) => line.startsWith('error style('));
+    deepStrictEqual(
+      [
+        ...new Set(
+          diagnostics.map((line) => /^error style\(([^)]+)\)/.exec(line)[1]),
+        ),
+      ].sort(),
+      entry.rules,
+      `${entry.name}: ${output}`,
+    );
+    for (const token of entry.tokens ?? [])
+      strictEqual(
+        diagnostics.some((line) => line.includes(token)),
+        true,
+        `${entry.name}: missing ${token}\n${output}`,
+      );
+    for (const key of entry.keys ?? [])
+      strictEqual(
+        diagnostics.some((line) => line.split(/\W+/).includes(key)),
+        true,
+        `${entry.name}: missing key ${key}\n${output}`,
+      );
+    if (entry.missingTool) strictEqual(output.includes('ENOENT'), true, output);
+    else if (entry.status === 0)
+      strictEqual(checked.stdout.includes('0 findings.'), true, output);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    strictEqual(existsSync(root), false, `Fixture leaked: ${root}`);
+  }
+}
+
 export function runGuardrailCases(named = []) {
   const cases = guardrailCases.filter(
     (entry) => named.length === 0 || named.includes(entry.rule),
@@ -328,6 +431,11 @@ export function runGuardrailCases(named = []) {
           `${fixture.name}: ${checked.stdout}${checked.stderr}`,
         );
         process.stdout.write(`PASS ci-required-checks: ${fixture.name}\n`);
+      }
+    } else if (entry.rule === 'style-config') {
+      for (const fixture of entry.cases) {
+        styleConfigFixture(fixture);
+        process.stdout.write(`PASS style-config: ${fixture.name}\n`);
       }
     } else if (entry.rule === 'server-handler-coverage') {
       strictEqual(handlerCoverage(entry.completeLogs), undefined);

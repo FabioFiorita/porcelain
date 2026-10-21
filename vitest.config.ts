@@ -118,7 +118,10 @@ export default defineConfig({
         test: {
           name: '@porcelain/web',
           root,
-          include: ['apps/web/src/features/*/rules/*.spec.ts'],
+          include: [
+            'apps/web/src/features/*/rules/*.spec.ts',
+            'apps/web/spec/kit/failures.spec.ts',
+          ],
           expect: { requireAssertions: true },
         },
       },
