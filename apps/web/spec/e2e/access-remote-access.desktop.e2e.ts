@@ -1,3 +1,4 @@
+import { openThisComputer } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
 test('turning the ways in on and off from Settings shows each one starting, then serving its address, the tailnet over HTTPS at the Tailscale name the owner saves with the one tailscale serve command to run, and the local network warns it is not encrypted and names its one network', async ({
@@ -14,10 +15,7 @@ test('turning the ways in on and off from Settings shows each one starting, then
     name: 'Settings',
     exact: true,
   });
-  await pairedPage
-    .getByRole('main', { name: 'Settings', exact: true })
-    .getByRole('button', { name: 'Ways in', exact: true })
-    .click();
+  await openThisComputer(pairedPage);
   const lan = settings.getByRole('switch', {
     name: 'Local network',
     exact: true,

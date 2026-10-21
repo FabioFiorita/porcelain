@@ -2,19 +2,19 @@
 route: /remotes/$environmentId/$projectId/$worktreeId
 shell: desktop
 selectors:
-  - "Toggle Sidebar"
-  - "Settings"
-  - "Remote computers"
-  - "Pairing link"
-  - "Add"
-  - "Back"
-  - "Online"
-  - "Open project"
-  - "Open project on"
-  - "This computer"
-  - "Browse for a repository on "
-  - "Browse for a repository on the Porcelain server."
-  - "Every worktree appears in the sidebar."
+  - 'Toggle Sidebar'
+  - 'Settings'
+  - 'Computers'
+  - 'Pairing link'
+  - 'Add'
+  - 'Back'
+  - 'Online'
+  - 'Open project'
+  - 'Open project on'
+  - 'This computer'
+  - 'Browse for a repository on '
+  - 'Browse for a repository on the Porcelain server.'
+  - 'Every worktree appears in the sidebar.'
 tests:
   - apps/web/spec/e2e/projects-open-remote.desktop.e2e.ts
 api:
@@ -34,7 +34,7 @@ In the desktop app with a remote computer added, the navigator's `Open project` 
 ## How a user reaches it
 
 - Desktop shell only. Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → `Open project` (plus button) → menu "Open project on" → `This computer` or the remote computer's name (disabled with a status badge while it is not online) → dialog "Open project" ("Browse for a repository on <name>.") → folder → `Open <folder>`.
-- A remote computer is added in Settings → `Remote computers` (route `/settings/remotes`) → textbox `Pairing link` → `Add`.
+- A remote computer is added in Settings → `Computers` (route `/settings/computers`) → textbox `Pairing link` → `Add`.
 - Without remote computers, `Open project` is a plain button (`projects.open-folder`).
 
 ## Driving it
@@ -45,8 +45,8 @@ In the desktop app with a remote computer added, the navigator's `Open project` 
 
 1. `$C remote start`
    Look for: "remote computer Remote journey computer, project remote-sample", its address and `remote repository <path>` (call it `$REMOTE_REPO`).
-2. `LINK=$($C remote pairing-link | head -1)`, Navigate to `/settings/remotes` on the card’s web URL (full page load), replace the contents of textbox named `Pairing link` with the expanded value `$LINK`, click button named `Add`, then wait for text 'Online' to be visible
-   Look for: list "Remote computers" with listitem "Remote journey computer" holding "Online".
+2. `LINK=$($C remote pairing-link | head -1)`, Navigate to `/settings/computers` on the card’s web URL (full page load), replace the contents of textbox named `Pairing link` with the expanded value `$LINK`, click button named `Add`, then wait for text 'Online' to be visible
+   Look for: list "Computers" with listitem "Remote journey computer" holding "Online".
 3. A repository on each computer's project home, one commit each:
    ```sh
    git init -q -b main "$REMOTE_REPO/../elsewhere"
@@ -62,7 +62,7 @@ In the desktop app with a remote computer added, the navigator's `Open project` 
 ### Case 1: open a project on the remote computer
 
 1. Navigate to `/` on the card’s web URL (full page load), then click button named `Toggle Sidebar`
-   Look for: group "This computer" with project button "repository"; group "Remote journey computer" with button "Remote journey computer Online" and its own project "remote-sample".
+   Look for: the navigator header names this computer. The former per-computer Settings shortcut buttons are absent; Settings → Computers owns those details. Projects remains available from its own navigator control.
 2. Click button named `Open project`
    Look for: menu "Open project" with group "Open project on" holding menuitems "This computer" and "Remote journey computer".
 3. Click menuitem named `Remote journey computer`
@@ -88,6 +88,6 @@ In the desktop app with a remote computer added, the navigator's `Open project` 
 
 ## Gotchas
 
-- Desktop shell only: start with `start --desktop` (Vite desktop mode without the Electron bridge, so `This computer` opens the in-app dialog, not the native picker). Remote computers are kept in the browser's `localStorage` without the bridge.
+- Desktop shell only: start with `start --desktop` (Vite desktop mode without the Electron bridge, so `This computer` opens the in-app dialog, not the native picker). Computers are kept in the browser's `localStorage` without the bridge.
 - `remote start` names the second computer "Remote journey computer" and its project "remote-sample", so no menuitem, group or project name collides with this computer's.
 - Phone width: the navigator is in the sidebar sheet; after `Open <folder>` the sheet stays open. The menuitem name is the remote's name only while it is online.

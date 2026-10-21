@@ -7,7 +7,7 @@ async function addRemoteComputer(page: Page, link: string, name: string) {
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const settings = page.getByRole('main', { name: 'Settings', exact: true });
   await settings
-    .getByRole('button', { name: 'Remote computers', exact: true })
+    .getByRole('button', { name: 'Computers', exact: true })
     .click();
   await settings
     .getByRole('textbox', { name: 'Pairing link', exact: true })
@@ -15,14 +15,16 @@ async function addRemoteComputer(page: Page, link: string, name: string) {
   await settings.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(
     settings
-      .getByRole('list', { name: 'Remote computers', exact: true })
+      .getByRole('list', { name: 'Computers', exact: true })
       .getByRole('listitem', { name, exact: true }),
   ).toBeVisible();
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
   await page
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name, exact: true }),
+  ).not.toBeAttached();
 }
 
 const paths = (inventory: {
@@ -52,7 +54,7 @@ test('the desktop app opens a project on another computer from the Open project 
     exact: true,
   });
   await settings
-    .getByRole('button', { name: 'Remote computers', exact: true })
+    .getByRole('button', { name: 'Computers', exact: true })
     .click();
   await settings
     .getByRole('textbox', { name: 'Pairing link', exact: true })
@@ -60,7 +62,7 @@ test('the desktop app opens a project on another computer from the Open project 
   await settings.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(
     settings
-      .getByRole('list', { name: 'Remote computers', exact: true })
+      .getByRole('list', { name: 'Computers', exact: true })
       .getByRole('listitem', { name: other.environment.name, exact: true }),
   ).toBeVisible();
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
@@ -72,7 +74,7 @@ test('the desktop app opens a project on another computer from the Open project 
       name: other.environment.name,
       exact: true,
     }),
-  ).toBeVisible();
+  ).not.toBeAttached();
 
   await pairedPage
     .getByRole('button', { name: 'Open project', exact: true })

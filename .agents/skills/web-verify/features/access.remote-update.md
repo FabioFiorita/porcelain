@@ -1,18 +1,15 @@
 ---
-route: /settings/$section/$environmentId
-shell: desktop
+route: /settings/$section
 selectors:
-  - "Toggle Sidebar"
-  - "Settings"
-  - "This computer"
-  - "Remote computers"
-  - "Pairing link"
-  - "Add"
-  - "Trust this app on "
-  - "can update Porcelain"
-  - "Update to "
+  - 'Computers'
+  - 'Update'
+  - 'Needs trust'
+  - 'Copy device ID'
+  - 'Updates available'
+  - 'Manage computers'
 tests:
   - apps/web/spec/e2e/access-remote-update.desktop.e2e.ts
+  - apps/web/spec/e2e/access-app-update.desktop.e2e.ts
 api:
   - GET /api/service/update
   - POST /api/service/update
@@ -20,21 +17,14 @@ api:
 
 # access.remote-update
 
-## What it is
-
-A desktop computer’s Settings detail shows its existing remote update controls. An app the host does not trust sees the `porcelain trust <device id>` instruction. A trusted app can start the update on that computer. The compact Remote computers list has no update controls.
+The global text-only Update Badge sits at the right end of the navigator footer, beside Settings, the keyboard button and the Computers button. It opens Updates available with service rows and a separate Mac app row. Computers and details reuse the same rows and shared batch owner. Available untrusted and unmanaged computers remain visible; only the shared eligibility helper controls Update and the Update all (N) count.
 
 ## Driving it
 
-Start `$C start --desktop`, pair the browser, then `$C remote start`. The disposable remote offers 1.0.0 → 1.1.0 through a scripted updater whose first attempt fails and second succeeds.
+Add an untrusted computer through Settings → Computers, then open its detail. Click the lock + Needs trust button. Expect the copyable active-route device ID and the exact instruction: Run porcelain trust <id> on that computer, or allow it in the Mac app → Devices. No Update <computer name> action exists until the host grants trust. Pair using a trusted link and expect that row's Update action to start the update on that computer.
 
-1. Open Settings › Remote computers. Paste the link from `$C remote pairing-link` in Pairing link and choose Add. Select the Remote journey computer row button. The URL is `/settings/remotes/<environmentId>`.
-2. On detail, wait for Online. Observe Porcelain 1.0.0, the available 1.1.0 update, and the instruction to trust this app on the host. There is no Update to 1.1.0 button.
-3. Return to the list with Back. Issue `$C remote pairing-link --trusted` and add that link; pairing again replaces this environment’s saved connection. Open its row again. The existing trusted-device controls now offer Update to 1.1.0.
-4. Click Update to 1.1.0. Observe the failure explaining that Porcelain still runs 1.0.0, then the offered update button. Its cross-origin POST /api/service/update answers 202; progress comes from that host’s GET /api/service/update.
-5. Click the offered update again. Observe Updated from 1.0.0 to 1.1.0 and This is the newest version.
-6. Open This computer. Its own update still reports 1.0.0: the action targeted the remote.
+Open the global footer Badge; its popover opens upward. Footer Manage computers opens Computers. Update all (N) uses one shared sequence; its Updating 1 of 2… text and per-row outcomes remain visible across Settings navigation, restart read failures and the batch ending. Unmanaged services explain how to update on the host and are excluded from the count. Failures remain visible and later computers continue. The Mac app runs last through its native updater and its action reads Restart to update; it never invokes the service-update API.
 
-## Proof and limits
+## What proves it works
 
-The named E2E file pairs untrusted, opens detail, asserts the trust instruction and absent update button, pairs trusted, opens detail and starts the update. It reads the remote’s update state to prove targeting. Offline computers retain saved details but offer no update controls. Native bridge and app-update behavior require desktop verification; browser fleet management remains out of scope.
+The remote E2E covers the trust expansion and trusted update. The app E2E uses the existing DesktopBridge fixture, checks literal Mac app versions in the global footer popover and zero service-update POSTs. Shared-client tests own sequencing, eligibility and progress rules; the parent owns the final combined real-surface proof.

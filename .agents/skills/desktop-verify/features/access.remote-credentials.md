@@ -1,13 +1,14 @@
 ---
+route: /settings/$section
 selectors:
   - porcelain:credentials-read
   - porcelain:credentials-write
   - porcelain:credentials-clear
   - credentials.enc
-  - 'Remote computers'
+  - 'Computers'
   - 'Pairing link'
-  - 'Saved remote computers could not be read'
-  - 'Read saved environments'
+  - 'Saved computers could not be read'
+  - 'Read saved computers'
   - 'Walkthrough'
   - 'Walkthrough of the decisions'
   - 'Agent summary'
@@ -25,12 +26,12 @@ The Mac app keeps the remote computers the owner pairs, with their bearer creden
 
 ## How a user reaches it
 
-- Settings › Remote computers › paste a pairing link › Add
+- Settings › Computers › paste a pairing link › Add
 - the sidebar group of a paired computer, then its worktree's Review → Agent summary
 
 ## Driving it
 
-Start two disposable desktop instances and read their connection files. Run the second card's exact `pairing.command` to issue a one-time link. In the first app, use renderer browser tools or Computer Use to open Settings › Remote computers, enter the link and choose Add.
+Start two disposable desktop instances and read their connection files. Run the second card's exact `pairing.command` to issue a one-time link. In the first app, use renderer browser tools or Computer Use to open Settings › Computers, enter the link and choose Add.
 
 Observe the second environment in the list. Inspect the first card's `credentialFiles.remoteEncrypted`: it must have mode 0600 and contain ciphertext. Do not retain the pairing code or decrypted credentials in screenshots or logs.
 

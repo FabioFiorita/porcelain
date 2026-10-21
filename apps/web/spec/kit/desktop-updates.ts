@@ -105,3 +105,15 @@ export async function updateFeed(
     };
   }, bridgeConfiguration);
 }
+
+export function observeServiceUpdatePosts(page: Page) {
+  let posts = 0;
+  page.on('request', (request) => {
+    if (
+      request.method() === 'POST' &&
+      new URL(request.url()).pathname === '/api/service/update'
+    )
+      posts += 1;
+  });
+  return () => posts;
+}

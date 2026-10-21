@@ -2,20 +2,20 @@
 route: /settings/$section
 shell: desktop
 selectors:
-  - "Toggle Sidebar"
-  - "Settings"
-  - "Ways in"
-  - "Local network"
-  - "Local network warning"
-  - "Not encrypted"
-  - "Tailscale"
-  - "Tailscale name"
-  - "Save name"
-  - "Copy the tailscale serve command"
-  - "Cloudflare tunnel"
-  - "Public hostname"
-  - "Save hostname"
-  - "Check again"
+  - 'Toggle Sidebar'
+  - 'Settings'
+  - 'Ways in'
+  - 'Local network'
+  - 'Local network warning'
+  - 'Not encrypted'
+  - 'Tailscale'
+  - 'Tailscale name'
+  - 'Save name'
+  - 'Copy the tailscale serve command'
+  - 'Cloudflare tunnel'
+  - 'Public hostname'
+  - 'Save hostname'
+  - 'Check again'
 tests:
   - apps/web/spec/e2e/access-remote-access.desktop.e2e.ts
 api:
@@ -27,13 +27,13 @@ api:
 
 ## What it is
 
-Settings → Ways in turns the local network, the tailnet and a Cloudflare tunnel on and off. Each way in shows that it is starting, then the address it serves, or why it failed. The tailnet serves HTTPS at the Tailscale name the owner saves, with the one `tailscale serve` command to run. The local network warns that it is not encrypted and names the one network it listens on. The tunnel turns on once its public hostname is saved.
+Settings → Computers → This computer → Ways in turns the local network, the tailnet and a Cloudflare tunnel on and off. Each way in shows that it is starting, then the address it serves, or why it failed. The tailnet serves HTTPS at the Tailscale name the owner saves, with the one `tailscale serve` command to run. The local network warns that it is not encrypted and names the one network it listens on. The tunnel turns on once its public hostname is saved.
 
 ## How a user reaches it
 
-- Workspace → `Toggle Sidebar` (phone width) → `Settings` (navigator footer) → `Ways in`.
-- Keyboard: `Alt+Shift+S` on the workspace (focus outside a text field) opens Settings, then `Ways in`.
-- Route: `/settings/ways-in` (desktop shell only).
+- Workspace → `Toggle Sidebar` (phone width) → `Settings` (navigator footer) → `Computers` → `Open This computer` → Ways in.
+- Keyboard: `Alt+Shift+S` on the workspace (focus outside a text field) opens Settings, then `Computers` → `Open This computer` → Ways in.
+- Route: `/settings/computers/this-computer#ways-in` (host-authorized browser or desktop).
 - Controls: switches "Local network", "Tailscale", "Cloudflare tunnel"; textbox "Tailscale name" + `Save name`; textbox "Public hostname" + `Save hostname`; `Check again` after a failure.
 
 ## Driving it
@@ -43,13 +43,14 @@ Start with `$C start --desktop`; pair your browser using the card’s pairing-li
 ### Setup
 
 None. The disposable server fakes the network (`apps/server/spec/kit/sandboxed-server.ts`):
+
 - `eth0` at `192.168.1.20/24` with a known router.
 - The tailnet's local listener on port `41000`.
 - A tunnel probe that answers for any hostname, except one with an `invalid` label (nothing answers) or one ending `.test` (another server answers).
 
-1. Navigate to `/settings/ways-in` on the card’s web URL (full page load)
+1. Navigate to `/settings/computers/this-computer#ways-in` on the card’s web URL (full page load)
    Look for:
-   - heading "Ways in"; switch "Local network" not checked.
+   - heading "This computer" and legend "Ways in"; switch "Local network" not checked.
    - note "Local network warning" reading "Not encrypted" and "Anyone on the same network can read what Porcelain shows and the device credentials it sends. For an encrypted connection, use Tailscale."
    - the text "Turning it on listens on 192.168.1.0/24 on eth0 only, and pauses on any other network."
    - switches "Tailscale" and "Cloudflare tunnel" disabled.
@@ -80,7 +81,7 @@ None. The disposable server fakes the network (`apps/server/spec/kit/sandboxed-s
     Look for: badge "On" and the text "https://porcelain.example.com" again; no button "Check again".
 11. Click switch named `Local network`
     Look for: switch "Local network" not checked; no text `http://192.168.1.20:<port>`; the "Turning it on listens on 192.168.1.0/24 …" note again.
-12. Navigate to `/settings/ways-in` on the card’s web URL (full page load)
+12. Navigate to `/settings/computers/this-computer#ways-in` on the card’s web URL (full page load)
     Look for: after the reload, "Local network" not checked, "Tailscale" and "Cloudflare tunnel" checked, textbox "Tailscale name" holding "porcelain.tail0000.ts.net".
 
 ## What proves it works

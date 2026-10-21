@@ -1,20 +1,19 @@
 ---
 route: /settings
 selectors:
-  - "Settings"
-  - "Settings sections"
-  - "Appearance"
-  - "This computer"
-  - "Back"
+  - 'Toggle Sidebar'
+  - 'Settings'
+  - 'Settings sections'
+  - 'General'
 tests:
-  - apps/web/spec/e2e/app-routing.e2e.ts
-  - apps/web/spec/e2e/app-routing.desktop.e2e.ts
-api:
-  - GET /api/inventory
+  - apps/web/spec/e2e/app-settings-page.desktop.e2e.ts
+api: []
 ---
 
 # app.settings-entry
 
-Direct navigation to `/settings` replaces that entry with the default Settings section: `/settings/appearance` in web mode, `/settings/computer` in desktop mode. Observe main Settings, navigation Settings sections and the corresponding section heading. Back returns to the prior page or the workspace when there is no prior entry.
+Open Settings from the workspace sidebar or Alt+Shift+S. The Mac app also dispatches Settings from its native menu. Each entry uses `/settings/general`, regardless of shell. Settings replaces the workspace and records its return history. Back or Escape leaves the top-level section; Escape in an input is ignored. Computer detail has a breadcrumb back to Computers.
 
-Start one web instance, pair and navigate to `/settings`. Repeat with `start --desktop` after stopping the first instance. The named specs cover both defaults. Unknown sections follow [app.not-found](app.not-found.md).
+## Driving it
+
+Open the sidebar (Toggle Sidebar below 768px), click Settings and verify heading General and the five sections. Switch sections and click Back: the original workspace URL and title return. Repeat with Alt+Shift+S. The native menu entry requires the parent desktop surface proof; this web map does not claim that it ran.

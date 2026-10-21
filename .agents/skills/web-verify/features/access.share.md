@@ -2,21 +2,21 @@
 route: /settings/$section
 shell: desktop
 selectors:
-  - "Toggle Sidebar"
-  - "Settings"
-  - "Devices"
-  - "Ways in"
-  - "Local network"
-  - "Device name"
-  - "Create pairing link"
-  - "Pairing QR code"
-  - "Pairing link"
-  - "Copy link"
-  - "Paired devices and links"
-  - "This browser"
-  - "Pending link"
-  - "Cancel the link for"
-  - "Revoke"
+  - 'Toggle Sidebar'
+  - 'Settings'
+  - 'Devices'
+  - 'Ways in'
+  - 'Local network'
+  - 'Device name'
+  - 'Create pairing link'
+  - 'Pairing QR code'
+  - 'Pairing link'
+  - 'Copy link'
+  - 'Paired devices and links'
+  - 'This browser'
+  - 'Pending link'
+  - 'Cancel the link for'
+  - 'Revoke'
 tests:
   - apps/web/spec/e2e/access-share.desktop.e2e.ts
 api:
@@ -38,7 +38,7 @@ On the computer that runs Porcelain, Settings → Devices creates a one-time pai
 
 - Workspace → `Toggle Sidebar` (phone width) → `Settings` (navigator footer) → `Devices`.
 - Keyboard: `Alt+Shift+S` on the workspace (focus outside a text field) opens Settings, then `Devices`.
-- Route: `/settings/devices` (desktop shell only).
+- Route: `/settings/devices` (host-authorized browser or desktop).
 - Controls: textbox "Device name" + `Create pairing link` (or `Enter` in the field); `Copy link`; `Revoke <device>`; `Cancel the link for <device>`.
 
 ## Driving it
@@ -52,10 +52,10 @@ None on disk. The default server has two paired devices, both bound to "This com
 1. Navigate to `/settings/devices` on the card’s web URL (full page load)
    Look for:
    - heading "Devices";
-   - the text "Turn on a way in under Ways in to pair a phone or another computer." (no "Device name" field yet);
+   - the text "Turn on a way in under Computers → This computer → Ways in to pair a phone or another computer." (no "Device name" field yet);
    - list "Paired devices and links" with listitems "Development setup" and "Verification browser".
-2. Click button named `Ways in`
-   Look for: Page URL ends `/settings/ways-in`; switch "Local network" not checked.
+2. Click button named `Computers`, then button named `Open This computer`
+   Look for: Page URL ends `/settings/computers/this-computer#ways-in`; switch "Local network" not checked.
 3. Click switch named `Local network`
    Look for: switch "Local network" checked and the text `http://192.168.1.20:<port>`. A badge "Starting" may show first; inspect the accessibility tree again after a second.
 4. Click button named `Devices`
@@ -88,7 +88,7 @@ None on disk. The default server has two paired devices, both bound to "This com
 
 ## Gotchas
 
-- Desktop shell only: without `--desktop`, Settings has no Devices section (the web shell shows an in-app not-found at `/settings/devices`). The desktop bridge is not needed.
+- Devices exists in both shells. Its administration controls are gated by the host permission response, not by the shell.
 - Revoking "Development setup" lasts for the life of the instance, and `access.device-trust` needs that device. Run that feature first or start a new instance. Never revoke this browser: its row has no Revoke button. Pairing it again needs a new instance.
 - Local network stays on after step 3. With more than one way in on (for example after `access.remote-access`), an "Opens through" select appears and the note names the chosen way in.
 - A link works once, for 15 minutes. Its expiry time shows as "Works once, until <time>".

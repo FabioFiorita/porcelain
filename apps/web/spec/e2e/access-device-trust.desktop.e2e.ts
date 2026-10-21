@@ -1,3 +1,4 @@
+import { openThisComputer } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
 test('on Devices the owner lets a paired device update Porcelain and creates a pairing link whose device may update it too', async ({
@@ -14,7 +15,7 @@ test('on Devices the owner lets a paired device update Porcelain and creates a p
     name: 'Settings',
     exact: true,
   });
-  await settings.getByRole('button', { name: 'Ways in', exact: true }).click();
+  await openThisComputer(pairedPage);
   await settings
     .getByRole('switch', { name: 'Local network', exact: true })
     .click();

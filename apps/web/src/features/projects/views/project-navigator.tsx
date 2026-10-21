@@ -620,7 +620,11 @@ export function ProjectNavigator({
             </Button>
           )}
         </SidebarContent>
-        <footer className="flex shrink-0 items-center gap-1 border-t p-2">
+        <footer
+          role="group"
+          aria-label="Navigator controls"
+          className="flex shrink-0 items-center gap-1 border-t p-2"
+        >
           <Button variant="ghost" size="sm" onClick={onOpenSettings}>
             <SettingsIcon />
             Settings

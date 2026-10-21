@@ -18,10 +18,12 @@ test('the desktop app adds a remote computer from the link porcelain pair prints
     exact: true,
   });
   await settings
-    .getByRole('button', { name: 'Remote computers', exact: true })
+    .getByRole('button', { name: 'Computers', exact: true })
     .click();
-  const empty = settings.getByText('No remote computers yet', { exact: true });
-  await expect(empty).toBeVisible();
+  const empty = settings
+    .getByRole('list', { name: 'Computers', exact: true })
+    .getByRole('listitem');
+  await expect(empty).toHaveCount(1);
 
   const field = settings.getByRole('textbox', {
     name: 'Pairing link',
@@ -47,16 +49,16 @@ test('the desktop app adds a remote computer from the link porcelain pair prints
   await field.fill(link);
   await add.click();
   const remotes = settings.getByRole('list', {
-    name: 'Remote computers',
+    name: 'Computers',
     exact: true,
   });
   const listed = remotes.getByRole('listitem', { name: host, exact: true });
   await expect(listed).toBeVisible();
-  await expect(listed.getByText('Online', { exact: true })).not.toBeAttached();
-  await expect(listed.getByRole('button')).toBeVisible();
-  await listed.getByRole('button').click();
+  await expect(listed).toContainText('Online');
+  await expect(listed.getByRole('button', { name: /^Open / })).toBeVisible();
+  await listed.getByRole('button', { name: /^Open / }).click();
   await expect(pairedPage).toHaveURL(
-    new RegExp(`/settings/remotes/${inventory.environmentId}$`),
+    new RegExp(`/settings/computers/${inventory.environmentId}$`),
   );
   await expect(settings.getByText('Online', { exact: true })).toBeVisible();
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
@@ -84,7 +86,7 @@ test('the desktop app adds a remote computer from the link porcelain pair prints
     kind: 'device',
   });
   await app.reload();
-  await listed.getByRole('button').click();
+  await listed.getByRole('button', { name: /^Open / }).click();
   await expect(
     settings.getByText('Needs pairing', { exact: true }),
   ).toBeVisible();
@@ -92,6 +94,6 @@ test('the desktop app adds a remote computer from the link porcelain pair prints
   await settings
     .getByRole('button', { name: 'Forget on this app', exact: true })
     .click();
-  await expect(empty).toBeVisible();
-  await expect(pairedPage).toHaveURL(/\/settings\/remotes$/);
+  await expect(empty).toHaveCount(1);
+  await expect(pairedPage).toHaveURL(/\/settings\/computers$/);
 });

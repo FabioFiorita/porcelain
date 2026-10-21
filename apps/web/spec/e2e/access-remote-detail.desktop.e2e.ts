@@ -6,15 +6,13 @@ async function openRemotes(page: Page) {
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page
-    .getByRole('button', { name: 'Remote computers', exact: true })
-    .click();
+  await page.getByRole('button', { name: 'Computers', exact: true }).click();
 }
 
 async function openComputer(page: Page, name: string) {
   const row = page.getByRole('listitem', { name, exact: true });
-  await expect(row.getByRole('button')).toBeVisible();
-  await row.getByRole('button').click();
+  await expect(row.getByRole('button', { name: /^Open / })).toBeVisible();
+  await row.getByRole('button', { name: /^Open / }).click();
 }
 
 for (const entry of ['list', 'direct']) {
@@ -33,16 +31,18 @@ for (const entry of ['list', 'direct']) {
     if (entry === 'direct') {
       await page.getByRole('button', { name: 'Back', exact: true }).click();
       await expect(page).toHaveURL(workspace);
-      await app.follow(`/settings/remotes/${inventory.environmentId}`);
+      await app.follow(`/settings/computers/${inventory.environmentId}`);
     } else await openComputer(page, inventory.environment.name);
     await page
       .getByRole('button', { name: 'Forget on this app', exact: true })
       .click();
     await expect(
-      page.getByText('No remote computers yet', { exact: true }),
-    ).toBeVisible();
+      page
+        .getByRole('list', { name: 'Computers', exact: true })
+        .getByRole('listitem'),
+    ).toHaveCount(1);
     await expect(
-      page.getByRole('region', { name: 'Remote computers list', exact: true }),
+      page.getByRole('region', { name: 'Computers list', exact: true }),
     ).toBeFocused();
     await page.keyboard.press('Escape');
     await expect
@@ -57,15 +57,15 @@ test('direct detail URLs recover a missing computer and explain both ways to cle
   remote,
 }) => {
   const inventory = await remote.server.inventory();
-  await app.follow('/settings/remotes/not-saved');
+  await app.follow('/settings/computers/not-saved');
   await expect(
     page.getByText(
-      'This computer is no longer saved on this app. Return to Remote computers to add it again.',
+      'This computer is no longer saved on this app. Return to Computers to add it again.',
       { exact: true },
     ),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Back', exact: true }).click();
-  await expect(page).toHaveURL(/\/settings\/remotes$/);
+  await expect(page).toHaveURL(/\/settings\/computers$/);
   await page
     .getByRole('textbox', { name: 'Pairing link', exact: true })
     .fill(await app.remoteLink());
@@ -89,7 +89,7 @@ test('direct detail URLs recover a missing computer and explain both ways to cle
     .toBe(true);
 });
 
-test('a computer detail uses its identity, reloads directly, and Back and the breadcrumb preserve list search, filter, scroll and focus', async ({
+test('a computer detail uses its identity, reloads directly, and Back and the breadcrumb preserve list scroll and focus', async ({
   pairedPage: page,
   app,
   remote,
@@ -108,69 +108,43 @@ test('a computer detail uses its identity, reloads directly, and Back and the br
   await expect(
     row.getByRole('button', { name: /Forget|Update/ }),
   ).not.toBeAttached();
-  const search = page.getByRole('textbox', {
-    name: 'Search remote computers',
-    exact: true,
-  });
-  await search.fill('not this computer');
-  await expect(row).not.toBeAttached();
-  await expect(
-    page.getByText('No computers match this search and filter.', {
-      exact: true,
-    }),
-  ).toBeVisible();
-  await search.fill(name);
-  await page
-    .getByRole('combobox', { name: 'Computer status', exact: true })
-    .click();
-  await page.getByRole('option', { name: 'Offline', exact: true }).click();
-  await expect(row).not.toBeAttached();
-  await page
-    .getByRole('combobox', { name: 'Computer status', exact: true })
-    .click();
-  await page.getByRole('option', { name: 'Online', exact: true }).click();
   const list = page.getByRole('region', {
-    name: 'Remote computers list',
+    name: 'Computers list',
     exact: true,
   });
-  await row.getByRole('button').focus();
+  await row.getByRole('button', { name: /^Open / }).focus();
   await list.evaluate((element) => {
     element.scrollTop = element.scrollHeight;
   });
+  await row.getByRole('button', { name: /^Open / }).scrollIntoViewIfNeeded();
   const scroll = await list.evaluate((element) => element.scrollTop);
   await expect
     .poll(() => list.evaluate((element) => element.scrollTop))
     .toBeGreaterThan(0);
   await openComputer(page, name);
-  const detail = `/settings/remotes/${inventory.environmentId}`;
+  const detail = `/settings/computers/${inventory.environmentId}`;
   await expect(page).toHaveURL(new RegExp(`${detail}$`));
   await expect(
     page.getByRole('navigation', { name: 'breadcrumb', exact: true }),
   ).toContainText(name);
   await page.getByRole('button', { name: 'Back', exact: true }).click();
-  await expect(search).toHaveValue(name);
-  await expect(row.getByRole('button')).toBeFocused();
+  await expect(row.getByRole('button', { name: /^Open / })).toBeFocused();
   await expect
     .poll(() => list.evaluate((element) => element.scrollTop))
     .toBe(scroll);
-  await expect(
-    page.getByRole('combobox', { name: 'Computer status', exact: true }),
-  ).toContainText('Online');
   await openComputer(page, name);
   await page
     .getByRole('navigation', { name: 'breadcrumb', exact: true })
-    .getByRole('button', { name: 'Remote computers', exact: true })
+    .getByRole('button', { name: 'Computers', exact: true })
     .click();
-  await expect(search).toHaveValue(name);
-  await expect(row.getByRole('button')).toBeFocused();
+  await expect(row.getByRole('button', { name: /^Open / })).toBeFocused();
   await openComputer(page, name);
   await page.goBack();
-  await expect(search).toHaveValue(name);
-  await expect(row.getByRole('button')).toBeFocused();
+  await expect(row.getByRole('button', { name: /^Open / })).toBeFocused();
   await page.goForward();
   await expect(page).toHaveURL(new RegExp(`${detail}$`));
   await page.goBack();
-  await expect(row.getByRole('button')).toBeFocused();
+  await expect(row.getByRole('button', { name: /^Open / })).toBeFocused();
   await app.follow(detail);
   await expect(page.getByText('Online', { exact: true })).toBeVisible();
   await app.reload();
@@ -179,10 +153,10 @@ test('a computer detail uses its identity, reloads directly, and Back and the br
     page.getByText(inventory.environmentId, { exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Back', exact: true }).click();
-  await expect(page).toHaveURL(/\/settings\/remotes$/);
+  await expect(page).toHaveURL(/\/settings\/computers$/);
 });
 
-test('sidebar shortcuts and outage links open the exact computer, saved offline details are stale, and settings leave the current review intact', async ({
+test('Computers and outage links open the exact computer, saved offline details are stale, and settings leave the current review intact', async ({
   pairedPage: page,
   app,
   remote,
@@ -205,17 +179,24 @@ test('sidebar shortcuts and outage links open the exact computer, saved offline 
   await page
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  const computer = page.getByRole('button', { name, exact: true });
-  await expect(computer).toBeVisible();
-  await computer.click();
-  const detail = `/settings/remotes/${inventory.environmentId}`;
+  await expect(
+    page.getByRole('button', { name, exact: true }),
+  ).not.toBeAttached();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Computers', exact: true }).click();
+  await openComputer(page, name);
+  const detail = `/settings/computers/${inventory.environmentId}`;
   await expect(page).toHaveURL(new RegExp(`${detail}$`));
+  await page.goBack();
+  await expect(page).toHaveURL(/\/settings\/computers$/);
   await page.goBack();
   await expect(page).toHaveURL(workspace);
   await page.goForward();
+  await expect(page).toHaveURL(/\/settings\/computers$/);
+  await page.goForward();
   await expect(page).toHaveURL(new RegExp(`${detail}$`));
   await page.getByRole('button', { name: 'Back', exact: true }).click();
-  await expect(page).toHaveURL(/\/settings\/remotes$/);
+  await expect(page).toHaveURL(/\/settings\/computers$/);
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page).toHaveURL(workspace);
   const restore = await app.failRemoteStatus(link);
@@ -224,17 +205,22 @@ test('sidebar shortcuts and outage links open the exact computer, saved offline 
     await page
       .getByRole('button', { name: 'Toggle Sidebar', exact: true })
       .click();
-    await expect(computer).toBeVisible();
-    await computer.click();
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByRole('button', { name: 'Computers', exact: true }).click();
+    await openComputer(page, name);
     await expect(page).toHaveURL(new RegExp(`${detail}$`));
     await expect(page.getByText('Offline', { exact: true })).toBeVisible();
     await expect(page.getByText(/Saved details · Stale/)).toBeVisible();
-    await expect(page.getByText(origin, { exact: true })).toBeVisible();
+    await expect(
+      page
+        .getByRole('group', { name: 'Overview', exact: true })
+        .getByText(origin, { exact: true }),
+    ).toBeVisible();
     await expect(
       page.getByText(inventory.environmentId, { exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole('button', { name: /^Update to/ }),
+      page.getByRole('button', { name: /^Update / }),
     ).not.toBeAttached();
     await app.reload();
     await expect(page).toHaveURL(new RegExp(`${detail}$`));
@@ -297,11 +283,12 @@ test('forgetting from detail protects an unsavable remote draft and succeeds aft
   await page
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  const computer = page.getByRole('button', {
-    name: inventory.environment.name,
-    exact: true,
-  });
-  await computer.click();
+  const openComputerFromSidebar = async () => {
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByRole('button', { name: 'Computers', exact: true }).click();
+    await openComputer(page, inventory.environment.name);
+  };
+  await openComputerFromSidebar();
   await expect(
     page.getByRole('button', { name: 'Forget on this app', exact: true }),
   ).toBeVisible();
@@ -312,7 +299,7 @@ test('forgetting from detail protects an unsavable remote draft and succeeds aft
     'Save or discard unsaved file drafts before disconnecting.',
   );
   await expect(page).toHaveURL(
-    new RegExp(`/settings/remotes/${inventory.environmentId}$`),
+    new RegExp(`/settings/computers/${inventory.environmentId}$`),
   );
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(
@@ -335,14 +322,16 @@ test('forgetting from detail protects an unsavable remote draft and succeeds aft
   await page
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  await computer.click();
+  await openComputerFromSidebar();
   await page
     .getByRole('button', { name: 'Forget on this app', exact: true })
     .press('Enter');
-  await expect(page).toHaveURL(/\/settings\/remotes$/);
+  await expect(page).toHaveURL(/\/settings\/computers$/);
   await expect(
-    page.getByText('No remote computers yet', { exact: true }),
-  ).toBeVisible();
+    page
+      .getByRole('list', { name: 'Computers', exact: true })
+      .getByRole('listitem'),
+  ).toHaveCount(1);
   await expect
     .poll(async () =>
       (await remote.server.devices()).map((device) => device.id),
@@ -354,7 +343,7 @@ test('forgetting from detail protects an unsavable remote draft and succeeds aft
 });
 
 for (const status of ['online', 'offline']) {
-  for (const activation of ['click', 'Tab+Enter']) {
+  for (const activation of ['click', 'keyboard']) {
     test(`Escape immediately returns from ${status} computer detail opened by ${activation}`, async ({
       pairedPage: page,
       app,
@@ -370,7 +359,7 @@ for (const status of ['online', 'offline']) {
       await page.getByRole('button', { name: 'Add', exact: true }).click();
       const row = page
         .getByRole('listitem', { name, exact: true })
-        .getByRole('button');
+        .getByRole('button', { name: /^Open / });
       await expect(row).toBeVisible();
       const restore =
         status === 'offline' ? await app.failRemoteStatus(link) : undefined;
@@ -379,28 +368,15 @@ for (const status of ['online', 'offline']) {
         await expect(row).toBeVisible();
         if (activation === 'click') await row.click();
         else {
-          await page
-            .getByRole('textbox', {
-              name: 'Search remote computers',
-              exact: true,
-            })
-            .focus();
-          await page.keyboard.press('Tab');
-          await expect(
-            page.getByRole('combobox', {
-              name: 'Computer status',
-              exact: true,
-            }),
-          ).toBeFocused();
-          await page.keyboard.press('Tab');
+          await row.focus();
           await expect(row).toBeFocused();
           await page.keyboard.press('Enter');
         }
         await expect(page).toHaveURL(
-          new RegExp(`/settings/remotes/${inventory.environmentId}$`),
+          new RegExp(`/settings/computers/${inventory.environmentId}$`),
         );
         await page.keyboard.press('Escape');
-        await expect(page).toHaveURL(/\/settings\/remotes$/);
+        await expect(page).toHaveURL(/\/settings\/computers$/);
         await expect(row).toBeFocused();
         await row.click();
         await expect(
