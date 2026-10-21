@@ -1,0 +1,59 @@
+import type { ServiceUpdate } from './service-update.ts';
+
+type UpdateOffer =
+  | { readonly kind: 'service'; readonly state: ServiceUpdate }
+  | {
+      readonly kind: 'mac-app';
+      readonly available: boolean;
+      readonly latest: string | undefined;
+    };
+
+export function settingsUpdateVersion(target: UpdateOffer) {
+  if (target.kind === 'mac-app')
+    return target.available ? target.latest : undefined;
+  const { state } = target;
+  return state.available && state.managed && state.canUpdate && !state.running
+    ? state.latest
+    : undefined;
+}
+
+export function settingsUpdateTrust(target: {
+  readonly state: ServiceUpdate;
+  readonly deviceId: string | undefined;
+}) {
+  if (!target.state.managed || target.state.canUpdate) return undefined;
+  return {
+    label: 'Needs trust',
+    deviceId: target.deviceId,
+    hint: target.deviceId
+      ? `Run porcelain trust ${target.deviceId} on that computer, or allow it in the Mac app → Devices`
+      : 'Find this device’s id with porcelain devices on that computer, then run porcelain trust <id>, or allow it in the Mac app → Devices',
+  };
+}
+
+export function settingsUpdateCount(
+  targets: readonly (UpdateOffer & { readonly id: string })[],
+) {
+  const eligible = new Set<string>();
+  for (const target of targets)
+    if (settingsUpdateVersion(target) !== undefined)
+      eligible.add(`${target.kind}:${target.id}`);
+  return eligible.size;
+}
+
+export function settingsUpdateBatchProgress(batch: {
+  readonly running: boolean;
+  readonly entries: readonly {
+    readonly status: 'queued' | 'updating' | 'updated' | 'failed';
+  }[];
+}) {
+  const index = batch.entries.findIndex((entry) => entry.status === 'updating');
+  return {
+    total: batch.entries.length,
+    current: index < 0 ? undefined : index + 1,
+    label:
+      index < 0
+        ? undefined
+        : `Updating ${index + 1} of ${batch.entries.length}`,
+  };
+}
