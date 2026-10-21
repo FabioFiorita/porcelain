@@ -1,6 +1,5 @@
 import { Cause, Effect, Exit, Option, Stream } from 'effect';
 import { AsyncResult, Atom, AtomRegistry } from 'effect/reactivity';
-import { SETTINGS_UPDATE_COMPLETION_TIMEOUT_MS } from '../../../config/limits.ts';
 import { SettingsUpdateError } from '../errors/settings-update-error.ts';
 import type {
   SettingsUpdateEntry,
@@ -101,10 +100,7 @@ export const runSettingsUpdates = Atom.fn(
           );
           publish(true);
           const result = yield* Effect.exit(
-            updateTarget(target, version, registry).pipe(
-              Effect.scoped,
-              Effect.timeout(SETTINGS_UPDATE_COMPLETION_TIMEOUT_MS),
-            ),
+            updateTarget(target, version, registry).pipe(Effect.scoped),
           );
           const error = Exit.isFailure(result)
             ? Cause.squash(result.cause)
