@@ -3,6 +3,7 @@ import { Option } from 'effect';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import {
   readServiceUpdate,
+  settingsUpdateBatch,
   type ServiceUpdateTarget,
 } from '@porcelain/client/access';
 import { remoteConnectionState } from '../../../shared/application/store';
@@ -38,5 +39,16 @@ export function useServiceUpdates() {
   return {
     rows,
     targets: rows.flatMap((row) => (row.target ? [row.target] : [])),
+  };
+}
+
+export function useUpdatesIndicator() {
+  const { targets } = useServiceUpdates();
+  const batch = useAtomValue(settingsUpdateBatch);
+  const available = targets.some((target) => target.state.available);
+  return {
+    available,
+    running: batch.running,
+    visible: available || batch.running,
   };
 }

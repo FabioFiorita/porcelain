@@ -1,6 +1,6 @@
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import type { Project } from '@porcelain/client/projects/rules';
-import { UpdatesButton, UpdatesSheet } from '../../access';
+import { UpdatesButton, UpdatesSheet, useUpdatesIndicator } from '../../access';
 import { ArchiveReview } from './archive-review';
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
@@ -50,6 +50,7 @@ export function WorktreeNavigator({
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState(emptyReviewListFilter);
   const [updates, setUpdates] = useState(false);
+  const updateIndicator = useUpdatesIndicator();
   const [closed, setClosed] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const router = useRouter();
@@ -82,9 +83,14 @@ export function WorktreeNavigator({
     <Box className="flex-1" surface="background" testID="worktree-navigator">
       {nativeHeader ? (
         <Stack.Toolbar placement="right">
-          <Stack.Toolbar.View>
-            <UpdatesButton onPress={() => setUpdates(true)} />
-          </Stack.Toolbar.View>
+          {updateIndicator.visible ? (
+            <Stack.Toolbar.View>
+              <UpdatesButton
+                running={updateIndicator.running}
+                onPress={() => setUpdates(true)}
+              />
+            </Stack.Toolbar.View>
+          ) : null}
           <Stack.Toolbar.Menu
             icon={headerIcon('workspace')}
             accessibilityLabel="Filter worktrees"
@@ -143,7 +149,12 @@ export function WorktreeNavigator({
           </Box>
           {!nativeHeader ? (
             <>
-              <UpdatesButton onPress={() => setUpdates(true)} />
+              {updateIndicator.visible ? (
+                <UpdatesButton
+                  running={updateIndicator.running}
+                  onPress={() => setUpdates(true)}
+                />
+              ) : null}
               <IconButton
                 icon="filter"
                 accessibilityLabel="Filter worktrees"
