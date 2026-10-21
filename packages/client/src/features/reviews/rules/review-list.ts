@@ -140,6 +140,19 @@ export function filterReviewList(
       ),
   );
 }
+export function reviewListSignal(entry: ReviewListEntry) {
+  const failure = entry.badges.find((badge) => badge.variant === 'destructive');
+  if (failure) return { reason: failure.label, tone: 'destructive' as const };
+  if (!entry.reviewId) return undefined;
+  return {
+    reason: entry.group,
+    tone:
+      entry.group === 'Ready to merge'
+        ? ('primary' as const)
+        : ('muted' as const),
+  };
+}
+
 export function reviewListMeta(entry: ReviewListEntry, now: number) {
   if (entry.group === 'Projects') return entry.branch;
   const seconds = entry.publishedAt

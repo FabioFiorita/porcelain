@@ -3,6 +3,11 @@ import { useState } from 'react';
 import { useAtomValue, useAtomSet } from '@effect/atom-react';
 import { Link } from '@tanstack/react-router';
 import {
+  ArchiveIcon,
+  ArrowLeftIcon,
+  CircleIcon,
+  CircleAlertIcon,
+  CircleCheckIcon,
   ChevronDownIcon,
   FilterIcon,
   KeyboardIcon,
@@ -14,6 +19,7 @@ import {
   emptyReviewListFilter,
   reviewListGroups,
   reviewListMeta,
+  reviewListSignal,
   reviewListView,
   type ReviewListEntry,
 } from '@porcelain/client/reviews/rules';
@@ -27,6 +33,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -149,18 +160,8 @@ export function ProjectNavigator({
         <NavigatorHeader environment={inventory.environment.name}>
           <OpenProjectMenu remotes={remotes} onOpenProject={onOpenProject} />
         </NavigatorHeader>
-        <div className="flex items-center justify-end px-3 pt-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-pressed={closed}
-            onClick={() => setClosed(!closed)}
-          >
-            {closed ? 'Back to reviews' : 'Closed'}
-          </Button>
-        </div>
         <div className="flex gap-1 p-2">
-          <InputGroup>
+          <InputGroup className="min-w-0 flex-1">
             <InputGroupInput
               type="search"
               aria-label="Search reviews and worktrees"
@@ -334,6 +335,24 @@ export function ProjectNavigator({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={closed ? 'Back to reviews' : 'Closed reviews'}
+                  aria-pressed={closed}
+                  onClick={() => setClosed(!closed)}
+                />
+              }
+            >
+              {closed ? <ArrowLeftIcon /> : <ArchiveIcon />}
+            </TooltipTrigger>
+            <TooltipContent>
+              {closed ? 'Back to reviews' : 'Closed reviews'}
+            </TooltipContent>
+          </Tooltip>
         </div>
         <SidebarContent>
           {loading && (
@@ -369,112 +388,151 @@ export function ProjectNavigator({
                   </SidebarGroupLabel>
                   <CollapsibleContent>
                     <SidebarMenu>
-                      {grouped.map((entry) => (
-                        <SidebarMenuItem
-                          key={entry.key}
-                          className="flex items-start"
-                        >
-                          <SidebarMenuButton
-                            className="h-auto min-w-0 flex-1 items-start whitespace-normal"
-                            disabled={!entry.reviewId && entry.disabled}
-                            isActive={
-                              !closed &&
-                              entry.worktreeId !== undefined &&
-                              selected?.worktreeId === entry.worktreeId &&
-                              (selected?.remote ?? connection.environmentId) ===
-                                entry.environmentId
-                            }
-                            onClick={() =>
-                              entry.reviewId
-                                ? setOpenMobile(false)
-                                : openWorktree(entry)
-                            }
-                            render={
-                              entry.reviewId ? (
-                                <Link
-                                  to="/reviews/$reviewId"
-                                  params={{ reviewId: entry.reviewId }}
-                                  search={{
-                                    environment:
-                                      entry.environmentId ===
-                                      connection.environmentId
-                                        ? undefined
-                                        : entry.environmentId,
-                                    decision: undefined,
-                                  }}
-                                />
-                              ) : undefined
-                            }
+                      {grouped.map((entry) => {
+                        const signal = reviewListSignal(entry);
+                        const indicator = {
+                          destructive: {
+                            Icon: CircleAlertIcon,
+                            className: 'text-destructive',
+                          },
+                          primary: {
+                            Icon: CircleCheckIcon,
+                            className: 'text-primary',
+                          },
+                          muted: {
+                            Icon: CircleIcon,
+                            className: 'text-muted-foreground',
+                          },
+                        }[signal?.tone ?? 'muted'];
+                        return (
+                          <SidebarMenuItem
+                            key={entry.key}
+                            className="flex items-start"
                           >
-                            <span
-                              className="w-10 shrink-0"
-                              aria-hidden={!entry.reviewId}
-                            >
-                              {entry.reviewId ? (
-                                <Badge
-                                  variant="outline"
-                                  aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
-                                >
-                                  {entry.reviewed}/{entry.total}
-                                </Badge>
-                              ) : null}
-                            </span>
-                            <div className="min-w-0 flex-1 space-y-1">
-                              <p
-                                className={
-                                  entry.group === 'Projects'
-                                    ? 'truncate text-sm font-medium'
-                                    : 'line-clamp-2 text-sm font-medium leading-snug'
-                                }
-                                title={entry.title}
-                              >
-                                {entry.title}
-                              </p>
-                              {entry.badges.length > 0 ? (
-                                <div className="flex flex-wrap gap-1">
-                                  {entry.badges.map((badge) => (
-                                    <Badge
-                                      key={badge.label}
-                                      variant={badge.variant}
-                                    >
-                                      {badge.label}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              ) : null}
-                              <div className="flex min-w-0 flex-wrap items-center gap-1">
-                                <span
-                                  className="min-w-0 max-w-full truncate text-xs text-muted-foreground"
-                                  title={reviewListMeta(entry, Date.now())}
-                                >
-                                  {reviewListMeta(entry, Date.now())}
-                                </span>
-                                <Badge
-                                  variant="secondary"
-                                  className="max-w-full"
-                                  title={entry.environmentName}
-                                >
-                                  <span className="truncate">
-                                    {entry.environmentName}
-                                  </span>
-                                </Badge>
-                              </div>
-                            </div>
-                          </SidebarMenuButton>
-                          {entry.archivable && entry.reviewId ? (
-                            <ArchiveReview
-                              connection={
-                                connections.find(
-                                  (source) =>
-                                    source.environmentId ===
-                                    entry.environmentId,
-                                ) ?? connection
+                            <SidebarMenuButton
+                              size="lg"
+                              className="min-w-0 flex-1"
+                              aria-label={
+                                entry.reviewId
+                                  ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.environmentName}, ${entry.badges.map((badge) => badge.label).join(', ')}`
+                                  : undefined
                               }
-                              reviewId={entry.reviewId}
-                            />
-                          ) : null}
-                        </SidebarMenuItem>
-                      ))}
+                              disabled={!entry.reviewId && entry.disabled}
+                              isActive={
+                                !closed &&
+                                entry.worktreeId !== undefined &&
+                                selected?.worktreeId === entry.worktreeId &&
+                                (selected?.remote ??
+                                  connection.environmentId) ===
+                                  entry.environmentId
+                              }
+                              onClick={() =>
+                                entry.reviewId
+                                  ? setOpenMobile(false)
+                                  : openWorktree(entry)
+                              }
+                              render={
+                                entry.reviewId ? (
+                                  <Link
+                                    to="/reviews/$reviewId"
+                                    params={{ reviewId: entry.reviewId }}
+                                    search={{
+                                      environment:
+                                        entry.environmentId ===
+                                        connection.environmentId
+                                          ? undefined
+                                          : entry.environmentId,
+                                      decision: undefined,
+                                    }}
+                                  />
+                                ) : undefined
+                              }
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex min-w-0 items-center gap-1">
+                                  <span
+                                    className="min-w-0 flex-1 truncate"
+                                    title={entry.title}
+                                  >
+                                    {entry.title}
+                                  </span>
+                                  {entry.reviewId ? (
+                                    <span
+                                      className="shrink-0 text-xs text-muted-foreground"
+                                      aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
+                                    >
+                                      {entry.reviewed}/{entry.total}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                                  {signal ? (
+                                    <Tooltip>
+                                      <TooltipTrigger
+                                        render={
+                                          <span
+                                            role="img"
+                                            aria-label="Review status"
+                                            className="inline-flex shrink-0"
+                                          />
+                                        }
+                                      >
+                                        <indicator.Icon
+                                          aria-hidden
+                                          className={indicator.className}
+                                        />
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <div>
+                                          <p>
+                                            {reviewListMeta(entry, Date.now())}
+                                          </p>
+                                          {entry.badges.length ? (
+                                            entry.badges.map((badge) => (
+                                              <p key={badge.label}>
+                                                {badge.label}
+                                              </p>
+                                            ))
+                                          ) : (
+                                            <p>{signal.reason}</p>
+                                          )}
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  ) : null}
+                                  <span
+                                    className="min-w-0 flex-1 truncate"
+                                    title={entry.branch}
+                                  >
+                                    {entry.branch}
+                                  </span>
+                                  <Badge
+                                    variant="secondary"
+                                    className="max-w-1/2"
+                                    title={entry.environmentName}
+                                  >
+                                    <span className="truncate">
+                                      {entry.environmentName}
+                                    </span>
+                                  </Badge>
+                                </div>
+                              </div>
+                            </SidebarMenuButton>
+                            {entry.archivable && entry.reviewId ? (
+                              <ArchiveReview
+                                connection={
+                                  connections.find(
+                                    (source) =>
+                                      source.environmentId ===
+                                      entry.environmentId,
+                                  ) ?? connection
+                                }
+                                reviewId={entry.reviewId}
+                              />
+                            ) : null}
+                          </SidebarMenuItem>
+                        );
+                      })}
                     </SidebarMenu>
                   </CollapsibleContent>
                 </Collapsible>

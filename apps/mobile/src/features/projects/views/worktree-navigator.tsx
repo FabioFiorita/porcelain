@@ -10,6 +10,7 @@ import {
   emptyReviewListFilter,
   reviewListGroups,
   reviewListMeta,
+  reviewListSignal,
   reviewListView,
   type ReviewListEntry,
 } from '@porcelain/client/reviews/rules';
@@ -24,6 +25,7 @@ import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Icon } from '../../../components/ui/icon';
 import { Input } from '../../../components/ui/input';
+import { IconButton } from '../../../components/ui/icon-button';
 import { Item } from '../../../components/ui/item';
 import { Loading } from '../../../components/ui/loading';
 import { Text } from '../../../components/ui/text';
@@ -102,43 +104,44 @@ export function WorktreeNavigator({
             </Stack.Toolbar.MenuAction>
           </Stack.Toolbar.Menu>
           <Stack.Toolbar.Button
-            icon={headerIcon('closed')}
+            icon={headerIcon(closed ? 'close' : 'closed')}
             accessibilityLabel={closed ? 'Back to worktrees' : 'Closed reviews'}
             onPress={() => setClosed(!closed)}
-          >
-            {closed ? 'Active' : 'Closed'}
-          </Stack.Toolbar.Button>
+          />
         </Stack.Toolbar>
-      ) : (
-        <Box
-          className="flex-row items-center justify-between"
-          paddingX={4}
-          paddingY={2}
-        >
-          <Button
-            label="Filter worktrees"
-            variant="ghost"
-            onPress={() => setShowFilters(!showFilters)}
-          />
-          <Button
-            label={closed ? 'Back to worktrees' : 'Closed'}
-            variant="ghost"
-            onPress={() => setClosed(!closed)}
-          />
-        </Box>
-      )}
+      ) : null}
       <Box paddingX={4} paddingY={3} gap={2}>
-        <Input
-          leading={<Icon name="search" tone="muted" />}
-          accessibilityLabel="Search reviews and worktrees"
-          placeholder="Search"
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="search"
-          clearButtonMode="while-editing"
-          value={query}
-          onChangeText={setQuery}
-        />
+        <Box className="flex-row items-center" gap={1}>
+          <Box className="min-w-0 flex-1">
+            <Input
+              leading={<Icon name="search" tone="muted" />}
+              accessibilityLabel="Search reviews and worktrees"
+              placeholder="Search"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              clearButtonMode="while-editing"
+              value={query}
+              onChangeText={setQuery}
+            />
+          </Box>
+          {!nativeHeader ? (
+            <>
+              <IconButton
+                icon="filter"
+                accessibilityLabel="Filter worktrees"
+                onPress={() => setShowFilters(!showFilters)}
+              />
+              <IconButton
+                icon={closed ? 'close' : 'closed'}
+                accessibilityLabel={
+                  closed ? 'Back to worktrees' : 'Closed reviews'
+                }
+                onPress={() => setClosed(!closed)}
+              />
+            </>
+          ) : null}
+        </Box>
         {query ? (
           <Button
             label="Clear search"
@@ -224,29 +227,28 @@ export function WorktreeNavigator({
                           row.selected && row.worktree.id === entry.worktreeId,
                       ),
                   );
+                  const signal = reviewListSignal(entry);
+                  const signalIcon = {
+                    destructive: 'warning',
+                    primary: 'check',
+                    muted: 'info',
+                  } as const;
                   return (
                     <Item
                       key={entry.key}
                       title={entry.title}
-                      titleNumberOfLines={entry.group === 'Projects' ? 1 : 2}
-                      variant={
-                        entry.group === 'Projects' ? 'default' : 'outline'
+                      titleNumberOfLines={1}
+                      titleTrailing={
+                        entry.reviewId ? (
+                          <Text variant="caption" tone="muted">
+                            {entry.reviewed}/{entry.total}
+                          </Text>
+                        ) : undefined
                       }
-                      size="sm"
+                      size="xs"
                       selected={selected}
                       disabled={picker.disabled || (!closed && entry.disabled)}
                       accessibilityLabel={`${entry.title}, ${reviewListMeta(entry, Date.now())}, ${entry.environmentName}${entry.reviewId ? `, ${entry.reviewed}/${entry.total} decisions reviewed, ${entry.badges.map((badge) => badge.label).join(', ')}` : ''}${selected ? ', current' : ''}${entry.disabled ? ', unavailable' : ''}`}
-                      leading={
-                        <Box className="w-10 shrink-0 self-start">
-                          {entry.reviewId ? (
-                            <Badge
-                              label={`${entry.reviewed}/${entry.total}`}
-                              variant="outline"
-                            />
-                          ) : null}
-                        </Box>
-                      }
-                      trailing={<Icon name="chevron" tone="muted" />}
                       action={
                         entry.archivable ? (
                           <ArchiveAction entry={entry} projects={projects} />
@@ -254,37 +256,29 @@ export function WorktreeNavigator({
                       }
                       onPress={() => open(entry)}
                     >
-                      {entry.badges.length > 0 ? (
-                        <Box className="flex-row flex-wrap" gap={1}>
-                          {entry.badges.map((badge) => (
-                            <Badge
-                              key={badge.label}
-                              label={badge.label}
-                              variant={badge.variant}
-                            />
-                          ))}
-                        </Box>
-                      ) : null}
-                      <Box className="flex-row flex-wrap items-center" gap={1}>
+                      <Box className="min-w-0 flex-row items-center" gap={1}>
+                        {signal ? (
+                          <Icon
+                            name={signalIcon[signal.tone]}
+                            tone={signal.tone}
+                            size="small"
+                          />
+                        ) : null}
                         <Text
                           variant="caption"
                           tone="muted"
                           numberOfLines={1}
-                          className="shrink"
+                          className="min-w-0 flex-1"
                         >
-                          {reviewListMeta(entry, Date.now())}
+                          {entry.branch}
                         </Text>
                         <Badge
                           label={entry.environmentName}
+                          labelNumberOfLines={1}
                           variant="secondary"
-                          className="max-w-full"
+                          className="max-w-1/2"
                         />
                       </Box>
-                      {entry.disabled ? (
-                        <Text variant="caption" tone="muted">
-                          Unavailable
-                        </Text>
-                      ) : null}
                     </Item>
                   );
                 })}

@@ -221,7 +221,9 @@ test('the checkout menu has a temporary search independent of sidebar search and
     exact: true,
   });
   await sidebarSearch.fill('NO-SIDEBAR-MATCH');
-  await pairedPage.getByRole('button', { name: 'Closed', exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Closed reviews', exact: true })
+    .click();
   const menu = pairedPage.getByRole('menuitem', {
     name: 'Worktrees',
     exact: true,
@@ -321,4 +323,66 @@ test('sidebar groups remember independent choices across search, Settings and re
   await noReview.click();
   await expect(topic).toBeVisible();
   await expect(projects).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('review rows stay two lines with trailing progress and tooltip-only reasons', async ({
+  pairedPage,
+  repo,
+  app,
+  server,
+}) => {
+  await repo.review('Compact review fixture');
+  await app.reload();
+  await pairedPage.setViewportSize({ width: 1280, height: 800 });
+  const sidebar = pairedPage.getByRole('navigation', {
+    name: 'Projects and worktrees',
+    exact: true,
+  });
+  const row = sidebar.getByRole('link', {
+    name: /Read one committed review after checkout cleanup/,
+  });
+  await expect(row).toHaveCSS('height', '48px');
+  await expect(row.getByText('0/1', { exact: true })).toBeVisible();
+  await expect(row.getByText('durable-review', { exact: true })).toBeVisible();
+  await expect(
+    row.getByText((await server.inventory()).environment.name, { exact: true }),
+  ).toBeVisible();
+  await expect(
+    row.getByText('Proof failed', { exact: true }),
+  ).not.toBeAttached();
+  await expect(
+    row.getByText('1 not explained', { exact: true }),
+  ).not.toBeAttached();
+  await expect(
+    row.getByText('Agent says hold', { exact: true }),
+  ).not.toBeAttached();
+  await row.getByRole('img', { name: 'Review status', exact: true }).hover();
+  await expect(
+    pairedPage.getByText('Proof failed', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    pairedPage.getByText('1 not explained', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    pairedPage.getByText('Agent says hold', { exact: true }),
+  ).toBeVisible();
+  await row.click();
+  await expect(
+    pairedPage.getByRole('heading', { name: 'Review', exact: true }),
+  ).toBeVisible();
+  await expect(
+    pairedPage.getByRole('heading', {
+      name: 'Recommendation Hold',
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    pairedPage.getByRole('listitem', {
+      name: 'Negative control: Failed',
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    pairedPage.getByText('Not explained', { exact: true }).first(),
+  ).toBeAttached();
 });

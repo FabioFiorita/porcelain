@@ -16,6 +16,7 @@ export type ItemProps = {
   title: string;
   description?: string;
   titleNumberOfLines?: number;
+  titleTrailing?: ReactNode;
   leading?: ReactNode;
   trailing?: ReactNode;
   action?: ReactNode;
@@ -33,6 +34,7 @@ export function Item({
   title,
   description,
   titleNumberOfLines,
+  titleTrailing,
   leading,
   trailing,
   action,
@@ -60,9 +62,23 @@ export function Item({
     <>
       {leading}
       <View className="min-w-0 flex-1 shrink gap-1">
-        <Text variant="ui" weight="medium" numberOfLines={titleNumberOfLines}>
-          {title}
-        </Text>
+        {titleTrailing ? (
+          <View className="min-w-0 flex-row items-center gap-2">
+            <Text
+              variant="ui"
+              weight="medium"
+              numberOfLines={titleNumberOfLines}
+              className="min-w-0 flex-1"
+            >
+              {title}
+            </Text>
+            {titleTrailing}
+          </View>
+        ) : (
+          <Text variant="ui" weight="medium" numberOfLines={titleNumberOfLines}>
+            {title}
+          </Text>
+        )}
         {description ? (
           <Text variant="caption" tone="muted">
             {description}
@@ -82,7 +98,9 @@ export function Item({
           title,
           description,
           accessibilityLabel,
-          hasAdditionalContent: Boolean(leading || trailing || children),
+          hasAdditionalContent: Boolean(
+            leading || trailing || titleTrailing || children,
+          ),
         })}
         accessibilityState={{ selected, disabled }}
         disabled={disabled}

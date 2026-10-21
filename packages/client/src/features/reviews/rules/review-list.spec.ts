@@ -6,6 +6,7 @@ import {
   reviewListStatus,
   reviewListTitle,
   reviewListMeta,
+  reviewListSignal,
   reviewListView,
   reviewListOptions,
   reviewListFilterItems,
@@ -337,4 +338,30 @@ it('applies search and both filters to main checkout rows and uses compact proje
     ).rows,
   ).toEqual([]);
   expect(reviewListMeta(main, 0)).toBe('main');
+});
+
+it('uses one status indicator, prioritizing failed proof while keeping secondary reasons intact', () => {
+  const reasons = [
+    { label: 'Proof failed', variant: 'destructive' as const },
+    { label: '1 not explained', variant: 'outline' as const },
+    { label: 'Agent says hold', variant: 'secondary' as const },
+  ];
+  expect(reviewListSignal({ ...entry, badges: reasons })).toEqual({
+    reason: 'Proof failed',
+    tone: 'destructive',
+  });
+  expect(reasons.map((reason) => reason.label)).toEqual([
+    'Proof failed',
+    '1 not explained',
+    'Agent says hold',
+  ]);
+  expect(
+    reviewListSignal({ ...entry, group: 'Ready to merge', badges: [] }),
+  ).toEqual({ reason: 'Ready to merge', tone: 'primary' });
+  expect(
+    reviewListSignal({ ...entry, group: 'Waiting on agent', badges: [] }),
+  ).toEqual({ reason: 'Waiting on agent', tone: 'muted' });
+  expect(
+    reviewListSignal({ ...entry, reviewId: undefined, badges: [] }),
+  ).toBeUndefined();
 });

@@ -4,6 +4,18 @@ test('worktrees without reviews remain reachable in the flat checkout menu', asy
   navigator,
   server,
 }) => {
+  const closed = navigator.getByRole('button', {
+    name: 'Closed reviews',
+    exact: true,
+  });
+  await expect.element(closed).toHaveTextContent('');
+  await closed.click();
+  await expect
+    .element(navigator.getByText('No closed reviews', { exact: true }))
+    .toBeVisible();
+  await navigator
+    .getByRole('button', { name: 'Back to reviews', exact: true })
+    .click();
   const project = await server.project();
   const computer = (await server.inventory()).environment.name;
   const main = navigator.getByRole('button', {

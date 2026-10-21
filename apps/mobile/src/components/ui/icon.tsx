@@ -3,6 +3,8 @@ import { withUniwind, useResolveClassNames } from 'uniwind';
 const StyledSymbol = withUniwind(SymbolView);
 const symbols = {
   add: { ios: 'plus', android: 'add' },
+  filter: { ios: 'line.3.horizontal.decrease', android: 'filter_list' },
+  closed: { ios: 'archivebox', android: 'archive' },
   search: { ios: 'magnifyingglass', android: 'search' },
   close: { ios: 'xmark', android: 'close' },
   copy: { ios: 'document.on.document', android: 'content_copy' },
