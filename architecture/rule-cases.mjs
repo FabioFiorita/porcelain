@@ -3658,6 +3658,47 @@ const featureMapCases = [
 
 export const guardrailCases = [
   {
+    rule: 'ci-affected-selection',
+    cases: [
+      { name: 'unchanged selects nothing', selected: [] },
+      {
+        name: 'client selects dependent surfaces',
+        path: 'packages/client/src/ci-fixture.ts',
+        source: 'export const fixture = true;',
+        selected: [
+          'server',
+          'web-integration',
+          'web-e2e',
+          'desktop',
+          'package',
+        ],
+      },
+      {
+        name: 'web feature spec stays selective',
+        path: 'apps/web/spec/integration/ci-fixture.test.tsx',
+        source: 'export const fixture = true;',
+        selected: ['web-integration', 'web-e2e', 'package'],
+      },
+      ...[
+        'package.json',
+        '.github/workflows/ci.yml',
+        'turbo.json',
+        'pnpm-workspace.yaml',
+      ].map((path) => ({
+        name: `${path} selects every runtime gate`,
+        path,
+        selected: [
+          'server',
+          'web-integration',
+          'web-e2e',
+          'desktop',
+          'storage',
+          'package',
+        ],
+      })),
+    ],
+  },
+  {
     rule: 'ci-required-checks',
     needs: {
       affected: {

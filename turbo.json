@@ -143,5 +143,9 @@
       ]
     }
   },
-  "globalDependencies": [".github/workflows/ci.yml", "pnpm-workspace.yaml"]
+  "globalDependencies": [
+    ".github/workflows/ci.yml",
+    "pnpm-workspace.yaml",
+    "package.json"
+  ]
 }

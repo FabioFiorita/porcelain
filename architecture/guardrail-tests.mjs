@@ -2,6 +2,7 @@ import { deepStrictEqual, strictEqual, throws } from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
+  globSync,
   mkdtempSync,
   readFileSync,
   realpathSync,
@@ -171,6 +172,102 @@ function duplicateFixture(entry, source) {
   }
 }
 
+function ciSelectionFixture(entry) {
+  const root = fixtureRoot('porcelain-ci-selection-');
+  const repository = fileURLToPath(new URL('../', import.meta.url));
+  const run = (command, args, env = {}) => {
+    const result = spawnSync(command, args, {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, ...env },
+    });
+    if (result.error) throw result.error;
+    strictEqual(result.status, 0, result.stdout + result.stderr);
+    return result.stdout;
+  };
+  try {
+    const manifests = globSync(
+      [
+        'apps/*/package.json',
+        'packages/*/package.json',
+        '.agents/skills/package.json',
+      ],
+      { cwd: repository },
+    );
+    for (const path of [
+      'package.json',
+      'pnpm-lock.yaml',
+      'pnpm-workspace.yaml',
+      'turbo.json',
+      '.github/workflows/ci.yml',
+      ...manifests,
+    ])
+      writeFiles(root, {
+        [path]: readFileSync(join(repository, path), 'utf8'),
+      });
+    for (const fixture of entry.cases)
+      if (fixture.source) writeFiles(root, { [fixture.path]: fixture.source });
+    run('git', ['init', '--quiet']);
+    run('git', ['add', '.']);
+    run('git', [
+      '-c',
+      'user.name=CI fixture',
+      '-c',
+      'user.email=ci-fixture@example.invalid',
+      '-c',
+      'commit.gpgsign=false',
+      'commit',
+      '--quiet',
+      '-m',
+      'Create CI selection fixture',
+    ]);
+    for (const fixture of entry.cases) {
+      const path = fixture.path && join(root, fixture.path);
+      const original = path && readFileSync(path, 'utf8');
+      if (path) writeFileSync(path, original + '\n');
+      const dry = JSON.parse(
+        run(
+          join(repository, 'node_modules/.bin/turbo'),
+          [
+            'run',
+            'test:integration',
+            'test:e2e',
+            'build',
+            'build:package',
+            'db:check',
+            '--affected',
+            '--dry=json',
+          ],
+          { TURBO_SCM_BASE: 'HEAD', TURBO_SCM_HEAD: 'HEAD' },
+        ),
+      );
+      const tasks = new Set(dry.tasks.map((task) => task.taskId));
+      const selected = [
+        [
+          'server',
+          [
+            '@porcelain/server#test:integration',
+            '@porcelain/client#test:integration',
+            '@porcelain/verification#test:integration',
+          ],
+        ],
+        ['web-integration', ['@porcelain/web#test:integration']],
+        ['web-e2e', ['@porcelain/web#test:e2e']],
+        ['desktop', ['@porcelain/desktop#test:e2e']],
+        ['storage', ['@porcelain/storage#db:check']],
+        ['package', ['//#build:package']],
+      ]
+        .filter(([, ids]) => ids.some((id) => tasks.has(id)))
+        .map(([gate]) => gate);
+      deepStrictEqual(selected, fixture.selected, fixture.name);
+      if (path) writeFileSync(path, original);
+      process.stdout.write(`PASS ci-affected-selection: ${fixture.name}\n`);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 export function runGuardrailCases(named = []) {
   const cases = guardrailCases.filter(
     (entry) => named.length === 0 || named.includes(entry.rule),
@@ -181,7 +278,9 @@ export function runGuardrailCases(named = []) {
     'Name an existing guardrail fixture rule.',
   );
   for (const entry of cases) {
-    if (entry.rule === 'ci-required-checks') {
+    if (entry.rule === 'ci-affected-selection') {
+      ciSelectionFixture(entry);
+    } else if (entry.rule === 'ci-required-checks') {
       const workflow = parse(
         readFileSync(
           new URL('../.github/workflows/ci.yml', import.meta.url),
