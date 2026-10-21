@@ -272,7 +272,7 @@ const diagnosticCases = [
 ];
 for (const entry of diagnosticCases) diagnosticFixture(entry);
 if (process.argv.includes('--diagnostics')) {
-  runGuardrailCases(
+  await runGuardrailCases(
     guardrailCases
       .filter((entry) => entry.rule.startsWith('feature-map-'))
       .map((entry) => entry.rule),
@@ -411,7 +411,7 @@ const cases = [
   },
 ];
 const started = performance.now();
-runGuardrailCases();
+await runGuardrailCases();
 
 for (const entry of cases)
   tester.run(entry.rule, checkedRule(plugin.rules[entry.rule]), {
