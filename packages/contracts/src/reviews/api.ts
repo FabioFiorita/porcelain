@@ -1,4 +1,9 @@
 import {
+  archiveReviewRequestSchema,
+  archiveReviewResponseSchema,
+} from '@porcelain/reviews/models';
+import { ReviewArchiveRefusedError } from '@porcelain/reviews/errors';
+import {
   compareReviewQuerySchema,
   compareReviewResponseSchema,
   readReviewInterdiffQuerySchema,
@@ -120,6 +125,19 @@ import {
 export class ReviewsApi extends porcelainApi.add(
   HttpApiGroup.make('reviews')
     .add(
+      HttpApiEndpoint.post('archiveReview', '/api/reviews/:reviewId/archive', {
+        disableCodecs: true,
+        params: reviewParamsSchema,
+        payload: archiveReviewRequestSchema,
+        success: archiveReviewResponseSchema,
+        error: [
+          httpFailure(ReviewNotFoundError, 'NotFound'),
+          httpFailure(ProjectNotFoundError, 'NotFound'),
+          httpFailure(ReviewArchiveRefusedError, 'Conflict', {
+            message: { fromError: true },
+          }),
+        ],
+      }),
       HttpApiEndpoint.get('compareReview', '/api/reviews/:reviewId/compare', {
         disableCodecs: true,
         params: reviewParamsSchema,

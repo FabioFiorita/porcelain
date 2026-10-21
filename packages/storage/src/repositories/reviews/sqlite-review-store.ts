@@ -145,6 +145,7 @@ export const sqliteReviewStoreLayer = Layer.effect(
             ReviewRecordRow.insert,
           )({
             ...identity,
+            archived: identity.archived ?? false,
             pullRequest: identity.pullRequest ?? null,
             pullRequestNumber:
               reviewPullRequestNumber(identity.pullRequest) ?? null,
@@ -174,6 +175,11 @@ export const sqliteReviewStoreLayer = Layer.effect(
       }),
       setState: Effect.fn('ReviewStore.setState')(function* (input) {
         yield* sql`UPDATE reviews SET state = ${input.state} WHERE review_id = ${input.reviewId}`.pipe(
+          Effect.orDie,
+        );
+      }),
+      archive: Effect.fn('ReviewStore.archive')(function* (input) {
+        yield* sql`UPDATE reviews SET archived = 1, state = 'closed' WHERE review_id = ${input.reviewId}`.pipe(
           Effect.orDie,
         );
       }),

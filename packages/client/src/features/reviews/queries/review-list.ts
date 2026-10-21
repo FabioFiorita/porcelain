@@ -69,7 +69,7 @@ export const readReviewList = Atom.family(
                 worktreeLabel(row.branch) === record.branch &&
                 (!revision || row.path === revision.worktreePath),
             );
-            if (record.state === 'open' && worktree)
+            if (worktree && !record.archived)
               reviewedWorktrees.add(worktree.id);
             if (record.state === 'open' && worktree?.main) continue;
             if (
@@ -92,7 +92,14 @@ export const readReviewList = Atom.family(
                 revision,
                 pull?.kind === 'available' ? pull.pullRequest.title : undefined,
               ),
-              closed: record.state === 'closed',
+              closed:
+                record.archived === true ||
+                (record.state === 'closed' && !record.pullRequest),
+              archived: record.archived === true,
+              archivable:
+                !record.archived &&
+                pull?.kind === 'available' &&
+                pull.pullRequest.state !== 'open',
               publishedAt: revision?.publishedAt,
               pullRequestNumber: record.pullRequest
                 ?.split('/')
@@ -104,6 +111,21 @@ export const readReviewList = Atom.family(
                 marks,
                 status: worktree?.status,
               }),
+              ...(record.archived ||
+              (pull?.kind === 'available' && pull.pullRequest.state !== 'open')
+                ? {
+                    badges: [
+                      {
+                        label: record.archived
+                          ? 'Archived'
+                          : pull?.kind === 'available'
+                            ? `PR ${pull.pullRequest.state}`
+                            : 'Closed',
+                        variant: 'secondary' as const,
+                      },
+                    ],
+                  }
+                : {}),
             });
           }
           for (const worktree of project.worktrees) {

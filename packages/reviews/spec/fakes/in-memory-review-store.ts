@@ -61,6 +61,7 @@ export class InMemoryReviewStore implements ReviewStore {
         .filter((record) => record.reviewId === input.reviewId)
         .map((record) => ({
           ...structuredClone(record),
+          archived: this.archived.has(record.reviewId),
           state: this.states.get(record.reviewId) ?? record.state,
           lastSeenRevision:
             this.seen.get(record.reviewId) ?? record.lastSeenRevision,
@@ -77,6 +78,7 @@ export class InMemoryReviewStore implements ReviewStore {
         .filter((record) => record.projectId === input.projectId)
         .map((record) => ({
           ...structuredClone(record),
+          archived: this.archived.has(record.reviewId),
           state: this.states.get(record.reviewId) ?? record.state,
           lastSeenRevision:
             this.seen.get(record.reviewId) ?? record.lastSeenRevision,
@@ -199,6 +201,12 @@ export class InMemoryReviewStore implements ReviewStore {
       );
     });
   }
+  readonly archived = new Set<string>();
+  readonly archive = (input: { reviewId: string }) =>
+    Effect.sync(() => {
+      this.archived.add(input.reviewId);
+      this.states.set(input.reviewId, 'closed');
+    });
   readonly branchReader: BranchReviewReader = {
     read: (input) =>
       Effect.sync(() =>

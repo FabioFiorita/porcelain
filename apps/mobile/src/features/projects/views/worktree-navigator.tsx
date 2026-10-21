@@ -1,3 +1,6 @@
+import type { RuntimeConnection } from '@porcelain/client/transport';
+import type { Project } from '@porcelain/client/projects/rules';
+import { ArchiveReview } from './archive-review';
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
@@ -34,7 +37,7 @@ export function WorktreeNavigator({
   const { picker, initializing, reading } = useWorkspacePickerModel(onSelect);
   const remotes = useAtomRef(remoteConnectionState);
   const connections = remotes.map((entry) => entry.connection);
-  const { entries, loading, messages } = useAtomValue(
+  const { entries, loading, messages, projects } = useAtomValue(
     readReviewList(connections),
   );
   const retry = useAtomSet(refreshReviewList(connections));
@@ -201,48 +204,52 @@ export function WorktreeNavigator({
                     ),
                 );
                 return (
-                  <Item
-                    key={entry.key}
-                    title={entry.title}
-                    titleNumberOfLines={entry.group === 'Projects' ? 1 : 2}
-                    variant={entry.group === 'Projects' ? 'default' : 'outline'}
-                    size="sm"
-                    selected={selected}
-                    disabled={picker.disabled || (!closed && entry.disabled)}
-                    accessibilityLabel={`${entry.title}, ${reviewListMeta(entry, Date.now())}${entry.reviewId ? `, ${entry.reviewed}/${entry.total} decisions reviewed, ${entry.badges.map((badge) => badge.label).join(', ')}` : ''}${selected ? ', current' : ''}${entry.disabled ? ', unavailable' : ''}`}
-                    leading={
-                      <Box className="w-10 shrink-0 self-start">
-                        {entry.reviewId ? (
-                          <Badge
-                            label={`${entry.reviewed}/${entry.total}`}
-                            variant="outline"
-                          />
-                        ) : null}
-                      </Box>
-                    }
-                    trailing={<Icon name="chevron" tone="muted" />}
-                    onPress={() => open(entry)}
-                  >
-                    {entry.badges.length > 0 ? (
-                      <Box className="flex-row flex-wrap" gap={1}>
-                        {entry.badges.map((badge) => (
-                          <Badge
-                            key={badge.label}
-                            label={badge.label}
-                            variant={badge.variant}
-                          />
-                        ))}
-                      </Box>
-                    ) : null}
-                    <Text variant="caption" tone="muted" numberOfLines={1}>
-                      {reviewListMeta(entry, Date.now())}
-                    </Text>
-                    {entry.disabled ? (
-                      <Text variant="caption" tone="muted">
-                        Unavailable
+                  <Box key={entry.key} gap={2}>
+                    <Item
+                      title={entry.title}
+                      titleNumberOfLines={entry.group === 'Projects' ? 1 : 2}
+                      variant={
+                        entry.group === 'Projects' ? 'default' : 'outline'
+                      }
+                      size="sm"
+                      selected={selected}
+                      disabled={picker.disabled || (!closed && entry.disabled)}
+                      accessibilityLabel={`${entry.title}, ${reviewListMeta(entry, Date.now())}${entry.reviewId ? `, ${entry.reviewed}/${entry.total} decisions reviewed, ${entry.badges.map((badge) => badge.label).join(', ')}` : ''}${selected ? ', current' : ''}${entry.disabled ? ', unavailable' : ''}`}
+                      leading={
+                        <Box className="w-10 shrink-0 self-start">
+                          {entry.reviewId ? (
+                            <Badge
+                              label={`${entry.reviewed}/${entry.total}`}
+                              variant="outline"
+                            />
+                          ) : null}
+                        </Box>
+                      }
+                      trailing={<Icon name="chevron" tone="muted" />}
+                      onPress={() => open(entry)}
+                    >
+                      {entry.badges.length > 0 ? (
+                        <Box className="flex-row flex-wrap" gap={1}>
+                          {entry.badges.map((badge) => (
+                            <Badge
+                              key={badge.label}
+                              label={badge.label}
+                              variant={badge.variant}
+                            />
+                          ))}
+                        </Box>
+                      ) : null}
+                      <Text variant="caption" tone="muted" numberOfLines={1}>
+                        {reviewListMeta(entry, Date.now())}
                       </Text>
-                    ) : null}
-                  </Item>
+                      {entry.disabled ? (
+                        <Text variant="caption" tone="muted">
+                          Unavailable
+                        </Text>
+                      ) : null}
+                    </Item>
+                    <ArchiveAction entry={entry} projects={projects} />
+                  </Box>
                 );
               })}
             </Box>
@@ -280,4 +287,29 @@ export function WorktreeNavigator({
       </ScrollView>
     </Box>
   );
+}
+
+function ArchiveAction({
+  entry,
+  projects,
+}: {
+  entry: ReviewListEntry;
+  projects: readonly { connection: RuntimeConnection; project: Project }[];
+}) {
+  const source = projects.find(
+    (row) =>
+      row.connection.environmentId === entry.environmentId &&
+      row.project.id === entry.projectId,
+  );
+  const main = source?.project.worktrees.find(
+    (row) => row.main && row.available,
+  );
+  return entry.archivable && entry.reviewId && source && main ? (
+    <ArchiveReview
+      connection={source.connection}
+      reviewId={entry.reviewId}
+      projectId={entry.projectId}
+      mainWorktreeId={main.id}
+    />
+  ) : null;
 }

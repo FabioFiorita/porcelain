@@ -35,6 +35,7 @@ export interface ReviewStore {
     reviewId: string;
     state: 'open' | 'closed';
   }): Effect.Effect<void>;
+  archive(input: { reviewId: string }): Effect.Effect<void>;
   markSeen(input: { reviewId: string; revision: number }): Effect.Effect<void>;
 }
 export const ReviewStore = Context.Service<

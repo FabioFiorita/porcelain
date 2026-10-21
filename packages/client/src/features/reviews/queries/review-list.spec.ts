@@ -162,9 +162,24 @@ it('gives each main checkout one Projects row even with multiple open reviews an
   ]);
 });
 
+it('keeps a retained worktree navigable after its review moves to Closed', async () => {
+  const entries = await publishedEntries(
+    inventoryAnswer(ids[0]!, 0, false),
+    ['main'],
+    true,
+  );
+  expect(
+    entries.map((entry) => [entry.group, entry.closed, entry.reviewId]),
+  ).toEqual([
+    ['No review', false, undefined],
+    ['Needs you', true, '40000000-0000-4000-8000-000000000001'],
+  ]);
+});
+
 async function publishedEntries(
   inventory: ReturnType<typeof inventoryAnswer>,
   branches: readonly string[],
+  archived = false,
 ) {
   const client = create(
     (path) =>
@@ -177,7 +192,8 @@ async function publishedEntries(
                   reviewId: `40000000-0000-4000-8000-00000000000${index + 1}`,
                   projectId: inventory.projects[0]!.id,
                   branch,
-                  state: 'open',
+                  state: archived ? 'closed' : 'open',
+                  archived,
                   latestRevision: 1,
                   lastSeenRevision: 0,
                 }))

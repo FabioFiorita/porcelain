@@ -1,3 +1,4 @@
+import { ArchiveReview } from './archive-review';
 import { useState } from 'react';
 import { useAtomValue, useAtomSet } from '@effect/atom-react';
 import { Link } from '@tanstack/react-router';
@@ -313,6 +314,17 @@ export function ProjectNavigator({
                         </p>
                       </div>
                     </SidebarMenuButton>
+                    {entry.archivable && entry.reviewId ? (
+                      <ArchiveReview
+                        connection={
+                          connections.find(
+                            (source) =>
+                              source.environmentId === entry.environmentId,
+                          ) ?? connection
+                        }
+                        reviewId={entry.reviewId}
+                      />
+                    ) : null}
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>

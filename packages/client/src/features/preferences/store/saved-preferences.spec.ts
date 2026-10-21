@@ -20,6 +20,9 @@ it.each([null, '{}', 'not-json', 'null', '[]', '42', '"text"'])(
       markdownDefault: 'reader',
       htmlDefault: 'preview',
       collapseSpecs: false,
+      archiveDeleteWorktree: true,
+      archiveDeleteLocalBranch: true,
+      archiveDeleteRemoteBranch: true,
     });
   },
 );
@@ -44,11 +47,15 @@ it.each([true, false])(
       markdownDefault: 'source',
       htmlDefault: 'source',
       collapseSpecs: false,
+      archiveDeleteWorktree: true,
+      archiveDeleteLocalBranch: true,
+      archiveDeleteRemoteBranch: true,
     });
   },
 );
 it('keeps an old web record and writes only the canonical shape', () => {
   const saved = {
+    ...defaultPreferences,
     commitModel: 'model',
     pullStrategy: 'rebase',
     appearance: 'light',
@@ -130,6 +137,7 @@ it('repairs invalid legacy fields independently', () => {
 });
 it('reads web records through the browser key-value path, keeping an old record and repairing only a bad field', async () => {
   const old = {
+    ...defaultPreferences,
     commitModel: 'model',
     pullStrategy: 'rebase',
     appearance: 'light',

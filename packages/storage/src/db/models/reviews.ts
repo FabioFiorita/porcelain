@@ -47,6 +47,7 @@ export class ReviewRecordRow extends Model.Class<ReviewRecordRow>(
   pullRequest: Schema.NullOr(Schema.String),
   pullRequestNumber: Schema.NullOr(Schema.Int),
   state: Schema.Literals(['open', 'closed']),
+  archived: Schema.BooleanFromBit,
   latestRevision: reviewRecordSchema.fields.latestRevision,
 }) {
   static readonly tableName = 'reviews';

@@ -1,3 +1,4 @@
+import type { ArchiveReviewUseCase } from '../../../use-cases/reviews/archive-review.ts';
 import type { CompareReviewUseCase } from '../../../use-cases/reviews/compare-review.ts';
 import type { ReadReviewInterdiffUseCase } from '../../../use-cases/reviews/read-review-interdiff.ts';
 import type { ReadProjectGitHubAccountUseCase } from '../../../use-cases/reviews/read-project-github-account.ts';
@@ -40,6 +41,7 @@ import { type SetReviewedLayerUseCase } from '../../../use-cases/reviews/set-rev
 import { type UpdateCommentThreadUseCase } from '../../../use-cases/reviews/update-comment-thread.ts';
 
 type ReviewsUseCases = {
+  archiveReview: Context.Service.Shape<typeof ArchiveReviewUseCase>;
   compareReview: Pick<
     Context.Service.Shape<typeof CompareReviewUseCase>,
     'execute'
@@ -292,6 +294,9 @@ export function reviewsRoutes(
       )
       .handle('markCommentsSeen', ({ params, payload }) =>
         useCases.markCommentsSeen.execute({ ...params, ...payload }),
+      )
+      .handle('archiveReview', ({ params, payload }) =>
+        useCases.archiveReview.execute({ ...params, ...payload }),
       )
       .handle('deleteReview', ({ params }) =>
         useCases.deleteReview.execute(params),

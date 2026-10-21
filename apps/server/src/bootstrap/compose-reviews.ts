@@ -1,3 +1,7 @@
+import { ArchiveReviewService } from '@porcelain/reviews/services';
+import { ReadReviewPullRequestUseCasePort } from '../ports/read-review-pull-request-use-case-port.ts';
+import { ArchiveReviewUseCase } from '../use-cases/reviews/archive-review.ts';
+import { gitReviewArchiverLayer } from '../adapters/reviews/git-review-archiver.ts';
 import {
   CompareReviewService,
   SelectReviewComparisonService,
@@ -183,6 +187,7 @@ export function composeReviews(
     Layer.provide(gitProjectRepositoryReaderLayer(context.settings.limits.git)),
   );
   const ports = Layer.mergeAll(
+    gitReviewArchiverLayer(context.settings.limits.git),
     ghPullRequestReaderLayer(context.settings.limits.git),
     Layer.succeed(GitHubAccountStore, stores.githubAccounts),
     Layer.succeed(InventoryStore, stores.inventory),
@@ -242,6 +247,7 @@ export function composeReviews(
     Layer.provideMerge(linkPorts),
   );
   const services = Layer.mergeAll(
+    ArchiveReviewService.layer,
     CompareReviewService.layer,
     SelectGitHubAccountService.layer,
     GitHubAccountPreferenceService.layer,
@@ -334,12 +340,19 @@ export function composeReviews(
     SetReviewedLayerUseCase.layer,
     RemoveReviewedLayerUseCase.layer,
   ).pipe(Layer.provideMerge(githubContext));
+  const archivePorts = Layer.effect(
+    ReadReviewPullRequestUseCasePort,
+    ReadReviewPullRequestUseCase,
+  ).pipe(Layer.provideMerge(operations));
+  const archiveOperations = ArchiveReviewUseCase.layer.pipe(
+    Layer.provideMerge(archivePorts),
+  );
   const admission = Layer.mergeAll(
     Layer.effect(
       RefreshWorktreeReviewUseCasePort,
       RefreshWorktreeReviewUseCase,
     ),
-  ).pipe(Layer.provideMerge(operations));
+  ).pipe(Layer.provideMerge(archiveOperations));
   const application = Layer.mergeAll(RefreshReviewActivityUseCase.layer).pipe(
     Layer.provideMerge(admission),
   );
@@ -347,6 +360,7 @@ export function composeReviews(
     const runtime = yield* Layer.build(application);
     return yield* Effect.gen(function* () {
       const useCases = {
+        archiveReview: yield* ArchiveReviewUseCase,
         compareReview: yield* CompareReviewUseCase,
         readReviewInterdiff: yield* ReadReviewInterdiffUseCase,
         readProjectGitHubAccount: yield* ReadProjectGitHubAccountUseCase,

@@ -2,6 +2,7 @@ import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { Effect } from 'effect';
 import { Atom, Reactivity } from 'effect/reactivity';
 import type {
+  ArchiveReviewRequest,
   SetReviewMarkRequest,
   RemoveReviewMarkRequest,
   CreateCommentThreadRequest,
@@ -23,6 +24,15 @@ export const reviewCommands = Atom.family(
       queryKeys.durableReview(input.connection.environmentId, input.reviewId),
     ]);
     return {
+      archive: runtime.fn(
+        Effect.fn('Reviews.archive')(function* (payload: ArchiveReviewRequest) {
+          const answer = yield* requestApi(input.connection, (api) =>
+            api.reviews.archiveReview({ params, payload }),
+          );
+          if (answer.archived) yield* invalidate;
+          return answer;
+        }),
+      ),
       createComment: runtime.fn(
         Effect.fn('Reviews.createComment')(function* (
           payload: CreateCommentThreadRequest,

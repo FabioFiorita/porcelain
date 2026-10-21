@@ -1,3 +1,4 @@
+import { archiveSettings } from '@porcelain/client/preferences/rules';
 import { useElement } from '@/shared/hooks/use-element';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
 import {
@@ -125,6 +126,31 @@ function Choice<K extends ChoiceName>({
   );
 }
 
+function ArchiveSettings() {
+  const { preferences, setPreference } = usePreferences();
+  return (
+    <FieldSet>
+      <FieldLegend variant="label">When archiving a review</FieldLegend>
+      <ItemGroup>
+        {archiveSettings.map(({ key, label }) => (
+          <Item key={key} variant="outline">
+            <ItemContent>
+              <ItemTitle>{label}</ItemTitle>
+            </ItemContent>
+            <ItemActions>
+              <Switch
+                aria-label={label}
+                checked={preferences[key]}
+                onCheckedChange={(checked) => setPreference(key, checked)}
+              />
+            </ItemActions>
+          </Item>
+        ))}
+      </ItemGroup>
+    </FieldSet>
+  );
+}
+
 function SpecFilesSetting() {
   const { preferences, setPreference } = usePreferences();
   return (
@@ -225,6 +251,7 @@ function SectionContent({ section }: { section: string }) {
     case 'git':
       return (
         <>
+          <ArchiveSettings />
           <FieldSet>
             <FieldLegend variant="label">Git</FieldLegend>
             <ItemGroup>

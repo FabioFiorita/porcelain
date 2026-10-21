@@ -96,3 +96,7 @@ export {
   type GitHubAccountResponse,
   type SetGitHubAccountRequest,
 } from './pull-requests.ts';
+export type {
+  ArchiveReviewRequest,
+  ReviewArchivePlan,
+} from '@porcelain/reviews/models';

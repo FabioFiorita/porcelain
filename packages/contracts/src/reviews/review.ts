@@ -304,6 +304,7 @@ const reviewRecordSchema = Schema.Struct({
   branch: Schema.String,
   pullRequest: Schema.optional(Schema.String),
   state: Schema.Literals(['open', 'closed']),
+  archived: Schema.optional(Schema.Boolean),
   latestRevision: revisionSchema,
   lastSeenRevision: Schema.Int,
 });

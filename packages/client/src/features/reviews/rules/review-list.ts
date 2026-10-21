@@ -27,6 +27,8 @@ export type ReviewListEntry = {
   title: string;
   group: ReviewListGroup;
   closed: boolean;
+  archivable?: boolean | undefined;
+  archived?: boolean | undefined;
   reviewed: number;
   total: number;
   publishedAt?: string | undefined;
