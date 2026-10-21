@@ -71,5 +71,5 @@ done
 ## Gotchas
 
 - Phone width: the navigator is in the sidebar sheet behind `Toggle Sidebar`; after `Open selected` the sheet stays open.
-- Registering leaks into later features of the same instance: `/` opens the first worktree waiting for review, and the extra project stays listed. Remove it through Projects → right-click `selected` → `Remove from Porcelain` → confirm `Remove from Porcelain` (see `projects.remove`), or start a fresh instance.
+- Registering leaks into later features of the same instance: `/` opens the first worktree waiting for review, and the extra project stays listed. Remove it through Filter reviews → Projects → `selected` → `Remove from Porcelain` → confirm `Remove from Porcelain` (see `projects.remove`), or start a fresh instance.
 - Folder names must be unique in the project home listing: the list also holds the kit's own folders (`home`, `repository`, `state`, `web` and others), so do not name a new repository after one of them.

@@ -14,7 +14,9 @@ test('Closed keeps Archive inside the review row, ignores dependencies, and expl
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  await pairedPage.getByRole('button', { name: 'Closed', exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Closed reviews', exact: true })
+    .click();
   const row = pairedPage.getByRole('listitem').filter({
     has: pairedPage.getByRole('link', { name: /Completed archive fixture/ }),
   });
@@ -45,7 +47,9 @@ test('Closed keeps Archive inside the review row, ignores dependencies, and expl
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  await pairedPage.getByRole('button', { name: 'Closed', exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Closed reviews', exact: true })
+    .click();
   fixture.unlock();
   fixture.dirty();
   await row.getByRole('button', { name: 'Archive', exact: true }).click();
@@ -67,7 +71,7 @@ test('Closed keeps Archive inside the review row, ignores dependencies, and expl
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   const closed = pairedPage.getByRole('button', {
-    name: 'Closed',
+    name: 'Closed reviews',
     exact: true,
   });
   if (await closed.isVisible()) await closed.click();

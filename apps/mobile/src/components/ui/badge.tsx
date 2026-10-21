@@ -14,11 +14,13 @@ const tones = {
 } as const;
 export function Badge({
   label,
+  labelNumberOfLines,
   variant = 'default',
   className,
   ...props
 }: Omit<ViewProps, 'style' | 'children'> & {
   label: string;
+  labelNumberOfLines?: number;
   variant?: keyof typeof variants;
 }) {
   return (
@@ -32,7 +34,12 @@ export function Badge({
         .filter(Boolean)
         .join(' ')}
     >
-      <Text variant="small" weight="medium" tone={tones[variant]}>
+      <Text
+        variant="small"
+        weight="medium"
+        tone={tones[variant]}
+        numberOfLines={labelNumberOfLines}
+      >
         {label}
       </Text>
     </View>

@@ -6,6 +6,8 @@ import {
   reviewListStatus,
   reviewListTitle,
   reviewListMeta,
+  reviewListSignal,
+  reviewListRowContext,
   reviewListView,
   reviewListOptions,
   reviewListFilterItems,
@@ -264,22 +266,22 @@ it('offers distinct scoped filters, lets the last checkbox be cleared and restor
     reviewListFilterItems(options.environments, []).map((item) => item.checked),
   ).toEqual([false, false]);
 });
-it('shows project, environment, PR or branch and a bounded relative publication time', () => {
+it('keeps computer names separate from project, PR or branch and relative publication time', () => {
   expect(reviewListMeta(entry, Date.parse('2026-10-20T12:04:00Z'))).toBe(
-    'Porcelain · Beelink · #433 · 4m',
+    'Porcelain · #433 · 4m',
   );
   expect(
     reviewListMeta(
       { ...entry, pullRequestNumber: undefined },
       Date.parse('2026-10-20T13:00:00Z'),
     ),
-  ).toBe('Porcelain · Beelink · feature · 1h');
+  ).toBe('Porcelain · feature · 1h');
   expect(
     reviewListMeta(
       { ...entry, publishedAt: undefined, pullRequestNumber: undefined },
       0,
     ),
-  ).toBe('Porcelain · Beelink · feature');
+  ).toBe('Porcelain · feature');
 });
 
 it('combines search and checkbox state without changing the source entries', () => {
@@ -336,5 +338,84 @@ it('applies search and both filters to main checkout rows and uses compact proje
       false,
     ).rows,
   ).toEqual([]);
-  expect(reviewListMeta(main, 0)).toBe('main · Beelink');
+  expect(reviewListMeta(main, 0)).toBe('main');
+});
+
+it('uses one status indicator, prioritizing failed proof while keeping secondary reasons intact', () => {
+  const reasons = [
+    { label: 'Proof failed', variant: 'destructive' as const },
+    { label: '1 not explained', variant: 'outline' as const },
+    { label: 'Agent says hold', variant: 'secondary' as const },
+  ];
+  expect(reviewListSignal({ ...entry, badges: reasons })).toEqual({
+    reason: 'Proof failed',
+    tone: 'destructive',
+  });
+  expect(reasons.map((reason) => reason.label)).toEqual([
+    'Proof failed',
+    '1 not explained',
+    'Agent says hold',
+  ]);
+  expect(
+    reviewListSignal({ ...entry, group: 'Ready to merge', badges: [] }),
+  ).toEqual({ reason: 'Ready to merge', tone: 'primary' });
+  expect(
+    reviewListSignal({ ...entry, group: 'Waiting on agent', badges: [] }),
+  ).toEqual({ reason: 'Waiting on agent', tone: 'muted' });
+  expect(
+    reviewListSignal({ ...entry, reviewId: undefined, badges: [] }),
+  ).toBeUndefined();
+});
+
+it('adds project context only for multiple visible projects and avoids repeating unreviewed branches', () => {
+  expect(reviewListRowContext(entry, false)).toEqual({
+    project: undefined,
+    branch: 'feature',
+  });
+  expect(reviewListRowContext(entry, true)).toEqual({
+    project: 'Porcelain',
+    branch: 'feature',
+  });
+  expect(reviewListRowContext({ ...entry, group: 'Projects' }, true)).toEqual({
+    project: undefined,
+    branch: 'feature',
+  });
+  expect(
+    reviewListRowContext(
+      { ...entry, group: 'No review', reviewId: undefined },
+      false,
+    ),
+  ).toEqual({ project: 'Porcelain', branch: undefined });
+  expect(
+    reviewListView([entry, other], '', emptyReviewListFilter, false)
+      .multipleProjects,
+  ).toBe(true);
+  expect(
+    reviewListView([entry, other], 'porcelain', emptyReviewListFilter, false)
+      .multipleProjects,
+  ).toBe(false);
+  expect(
+    reviewListView(
+      [entry, other],
+      '',
+      { projects: ['beelink/porcelain'], environments: undefined },
+      false,
+    ).multipleProjects,
+  ).toBe(false);
+  expect(
+    reviewListView(
+      [entry, { ...entry, key: 'duplicate' }],
+      '',
+      emptyReviewListFilter,
+      false,
+    ).multipleProjects,
+  ).toBe(false);
+  expect(
+    reviewListView(
+      [entry, { ...entry, environmentId: 'mac' }],
+      '',
+      emptyReviewListFilter,
+      false,
+    ).multipleProjects,
+  ).toBe(true);
 });

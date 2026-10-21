@@ -12,14 +12,17 @@ test('cancelling the removal of a project keeps it in the navigator and on the s
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await pairedPage
-    .getByRole('button', { name: 'Projects', exact: true })
+    .getByRole('button', { name: 'Filter reviews', exact: true })
     .click();
-  const projectButton = pairedPage.getByRole('button', {
+  await pairedPage
+    .getByRole('menuitem', { name: 'Projects', exact: true })
+    .click();
+  const projectButton = pairedPage.getByRole('menuitem', {
     name: project.name,
     exact: true,
   });
   await expect(projectButton).toBeVisible();
-  await projectButton.click({ button: 'right' });
+  await projectButton.click();
   await pairedPage
     .getByRole('menuitem', { name: 'Remove from Porcelain', exact: true })
     .click();
@@ -36,7 +39,10 @@ test('cancelling the removal of a project keeps it in the navigator and on the s
 
   await expect(confirm).not.toBeAttached();
   await pairedPage
-    .getByRole('button', { name: 'Projects', exact: true })
+    .getByRole('button', { name: 'Filter reviews', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('menuitem', { name: 'Projects', exact: true })
     .click();
   await expect(projectButton).toBeVisible();
   await expect
@@ -55,13 +61,16 @@ test('removing a project takes it out of the navigator and the server forgets it
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await pairedPage
-    .getByRole('button', { name: 'Projects', exact: true })
+    .getByRole('button', { name: 'Filter reviews', exact: true })
     .click();
-  const projectButton = pairedPage.getByRole('button', {
+  await pairedPage
+    .getByRole('menuitem', { name: 'Projects', exact: true })
+    .click();
+  const projectButton = pairedPage.getByRole('menuitem', {
     name: project.name,
     exact: true,
   });
-  await projectButton.click({ button: 'right' });
+  await projectButton.click();
   await pairedPage
     .getByRole('menuitem', { name: 'Remove from Porcelain', exact: true })
     .click();
@@ -107,11 +116,14 @@ test("a removed project's worktree address says the worktree is no longer presen
   await dialog.getByRole('button', { name: 'Open other', exact: true }).click();
   await expect(dialog).not.toBeAttached();
   await pairedPage
-    .getByRole('button', { name: 'Projects', exact: true })
+    .getByRole('button', { name: 'Filter reviews', exact: true })
     .click();
   await pairedPage
-    .getByRole('button', { name: sample.name, exact: true })
-    .click({ button: 'right' });
+    .getByRole('menuitem', { name: 'Projects', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('menuitem', { name: sample.name, exact: true })
+    .click();
   await pairedPage
     .getByRole('menuitem', { name: 'Remove from Porcelain', exact: true })
     .click();
@@ -129,7 +141,7 @@ test("a removed project's worktree address says the worktree is no longer presen
     )
     .not.toContain(sample.id);
   await expect(
-    pairedPage.getByRole('button', { name: sample.name, exact: true }),
+    pairedPage.getByRole('menuitem', { name: sample.name, exact: true }),
   ).not.toBeAttached();
 
   await app.open(`${removed.path}${removed.query}`);

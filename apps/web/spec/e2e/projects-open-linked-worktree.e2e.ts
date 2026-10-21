@@ -15,10 +15,13 @@ test('opening a repository with a linked worktree from the empty workspace after
   await opened
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  await opened.getByRole('button', { name: 'Projects', exact: true }).click();
   await opened
-    .getByRole('button', { name: sample.name, exact: true })
-    .click({ button: 'right' });
+    .getByRole('button', { name: 'Filter reviews', exact: true })
+    .click();
+  await opened.getByRole('menuitem', { name: 'Projects', exact: true }).click();
+  await opened
+    .getByRole('menuitem', { name: sample.name, exact: true })
+    .click();
   await opened
     .getByRole('menuitem', { name: 'Remove from Porcelain', exact: true })
     .click();
@@ -70,8 +73,18 @@ test('opening a repository with a linked worktree from the empty workspace after
   const project = await reopened();
   const shown = `/${project?.id ?? ''}/${project?.worktrees.find((worktree) => worktree.main)?.id ?? ''}`;
   await expect.poll(() => app.address().path).toBe(shown);
-  await opened.getByRole('button', { name: 'Worktrees', exact: true }).click();
-  await expect(opened.getByRole('menuitem', { name: /Current/ })).toBeVisible();
+  await expect
+    .poll(() => new URLSearchParams(app.address().query).get('entry'))
+    .toBe('handoff');
+  await opened
+    .getByRole('button', { name: 'Filter reviews', exact: true })
+    .click();
+  await opened
+    .getByRole('menuitem', { name: 'Worktrees', exact: true })
+    .click();
+  await expect(
+    opened.getByRole('menuitemradio', { checked: true }),
+  ).toBeVisible();
   await opened.keyboard.press('Escape');
   await expect.poll(() => app.visited()).toEqual([shown]);
 });

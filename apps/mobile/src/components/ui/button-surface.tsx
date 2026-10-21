@@ -51,6 +51,7 @@ export type ButtonSurfaceProps = Omit<
   size?: keyof typeof sizes;
   disabled?: boolean;
   pending?: boolean;
+  expanded?: boolean;
 };
 export function ButtonSurface({
   children,
@@ -58,6 +59,7 @@ export function ButtonSurface({
   size = 'default',
   disabled = false,
   pending = false,
+  expanded,
   className,
   hitSlop = 4,
   ...props
@@ -68,7 +70,7 @@ export function ButtonSurface({
       {...props}
       accessible
       accessibilityRole="button"
-      accessibilityState={{ disabled: unavailable, busy: pending }}
+      accessibilityState={{ disabled: unavailable, busy: pending, expanded }}
       disabled={unavailable}
       hitSlop={hitSlop}
       className={[

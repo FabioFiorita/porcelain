@@ -3,6 +3,7 @@ import { Badge } from '../../../components/ui/badge';
 import { ProofChecks } from './proof-checks';
 import {
   verdictSections,
+  notExplainedLabel,
   type ReviewRevision,
 } from '@porcelain/client/reviews/rules';
 import { externalLink } from '@porcelain/client/links/rules';
@@ -91,6 +92,19 @@ export function LinkedVerdict({ revision }: { revision: ReviewRevision }) {
           </Box>
         ))}
       </Box>
+      {revision.content.notExplained.length > 0 ? (
+        <Box gap={2}>
+          <Text variant="heading">Not explained</Text>
+          <Text variant="ui" tone="muted">
+            {notExplainedLabel(revision.content.notExplained)}
+          </Text>
+          {revision.content.notExplained.map((gap) => (
+            <Text key={gap.path} variant="code" selectable>
+              {gap.path}
+            </Text>
+          ))}
+        </Box>
+      ) : null}
       <Card variant="destructive" padding={4} gap={3}>
         <Text variant="heading" tone="destructive">
           Removed

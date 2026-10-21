@@ -302,7 +302,7 @@ test('a remote computer summary renders through the app from that computer, cann
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(settings).toBeHidden();
   const worktrees = page.getByRole('button', {
-    name: 'Worktrees',
+    name: 'Filter reviews',
     exact: true,
   });
   if (!(await worktrees.isVisible()))
@@ -310,9 +310,11 @@ test('a remote computer summary renders through the app from that computer, cann
       .getByRole('button', { name: 'Toggle Sidebar', exact: true })
       .click();
   await worktrees.click();
+  await page.getByRole('menuitem', { name: 'Worktrees', exact: true }).click();
   await page
-    .getByRole('menuitem')
-    .filter({ hasText: `${there.project.name} · ${remote.environment.name}` })
+    .getByRole('menuitemradio', {
+      name: new RegExp(`${there.project.name}.*${remote.environment.name}`),
+    })
     .click();
   const remoteWorktree = `/remotes/${remote.environmentId}/${there.project.id}/${there.worktree.id}`;
   await page.waitForURL((url) => url.pathname === remoteWorktree);

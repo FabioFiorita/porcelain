@@ -140,9 +140,35 @@ export function filterReviewList(
       ),
   );
 }
+export function reviewListSignal(entry: ReviewListEntry) {
+  const failure = entry.badges.find((badge) => badge.variant === 'destructive');
+  if (failure) return { reason: failure.label, tone: 'destructive' as const };
+  if (!entry.reviewId) return undefined;
+  return {
+    reason: entry.group,
+    tone:
+      entry.group === 'Ready to merge'
+        ? ('primary' as const)
+        : ('muted' as const),
+  };
+}
+
+export function reviewListRowContext(
+  entry: ReviewListEntry,
+  multipleProjects: boolean,
+) {
+  const noReview = entry.group === 'No review';
+  return {
+    project:
+      noReview || (multipleProjects && entry.group !== 'Projects')
+        ? entry.projectName
+        : undefined,
+    branch: noReview ? undefined : entry.branch,
+  };
+}
+
 export function reviewListMeta(entry: ReviewListEntry, now: number) {
-  if (entry.group === 'Projects')
-    return [entry.branch, entry.environmentName].join(' · ');
+  if (entry.group === 'Projects') return entry.branch;
   const seconds = entry.publishedAt
     ? Math.max(0, (now - Date.parse(entry.publishedAt)) / 1000)
     : undefined;
@@ -158,7 +184,6 @@ export function reviewListMeta(entry: ReviewListEntry, now: number) {
             : `${Math.floor(seconds / 86400)}d`;
   return [
     entry.projectName,
-    entry.environmentName,
     entry.pullRequestNumber ? `#${entry.pullRequestNumber}` : entry.branch,
     age,
   ]
@@ -210,8 +235,12 @@ export function reviewListView(
   closed: boolean,
 ) {
   const options = reviewListOptions(entries);
+  const rows = filterReviewList(entries, query, filter, closed);
   return {
-    rows: filterReviewList(entries, query, filter, closed),
+    rows,
+    multipleProjects:
+      new Set(rows.map((entry) => `${entry.environmentId}/${entry.projectId}`))
+        .size > 1,
     filters: [
       {
         key: 'projects' as const,

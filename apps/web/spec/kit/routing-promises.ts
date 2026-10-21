@@ -27,16 +27,27 @@ export function routingPromises() {
         exact: true,
       });
       await navigator
-        .getByRole('button', { name: 'Projects', exact: true })
+        .getByRole('button', { name: 'Filter reviews', exact: true })
+        .click();
+      await pairedPage
+        .getByRole('menuitem', { name: 'Projects', exact: true })
         .click();
       await expect(
-        pairedPage.getByRole('button', { name: project.name, exact: true }),
+        pairedPage.getByRole('menuitem', { name: project.name, exact: true }),
       ).toBeVisible();
       await pairedPage.keyboard.press('Escape');
+      await pairedPage.keyboard.press('Escape');
+      await expect(pairedPage.getByRole('menu')).toHaveCount(0);
       await expect(
         navigator.getByRole('button', { name: 'Settings', exact: true }),
       ).toBeVisible();
+      await navigator
+        .getByRole('button', { name: 'Settings', exact: true })
+        .focus();
       await pairedPage.keyboard.press('Escape');
+      await expect(
+        pairedPage.getByRole('dialog', { name: 'Sidebar', exact: true }),
+      ).not.toBeVisible();
       await pairedPage
         .getByRole('link', { name: 'Back to workspace', exact: true })
         .click();

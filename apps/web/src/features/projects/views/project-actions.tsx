@@ -1,31 +1,25 @@
 import {
-  CircleAlertIcon,
   CopyIcon,
   FolderGit2Icon,
   FolderMinusIcon,
   PencilIcon,
 } from 'lucide-react';
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuGroup,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from '@/components/ui/context-menu';
-import { Button } from '@/components/ui/button';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { copyText } from '@/shared/workspace/copy';
 import { removeProjectDialog, renameProjectDialog } from '../overlays';
 import {
   projectPath,
   projectUnavailableMessage,
+  type Project,
 } from '@porcelain/client/projects/rules';
-import { type Project } from '@porcelain/client/projects/rules';
 
 export function ProjectActions({
   environmentId,
@@ -36,77 +30,47 @@ export function ProjectActions({
   project: Project;
   onRetry: () => void;
 }) {
-  const path = projectPath(project);
   const target = { project, remote: environmentId };
   return (
-    <div>
-      <ContextMenu>
-        <ContextMenuTrigger
-          render={<div className="flex items-center rounded-md" />}
-        >
-          <Button
-            variant="ghost"
-            className="min-w-0 flex-1 justify-start"
-            aria-label={project.name}
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger>
+        <FolderGit2Icon />
+        <span className="truncate">{project.name}</span>
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent className="min-w-44">
+        {!project.available && (
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>
+              {projectUnavailableMessage(project)}
+            </DropdownMenuLabel>
+            <DropdownMenuItem onClick={onRetry}>Retry</DropdownMenuItem>
+          </DropdownMenuGroup>
+        )}
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            onClick={() => copyText(projectPath(project), 'project path')}
           >
-            <FolderGit2Icon />
-            <span className="truncate">{project.name}</span>
-          </Button>
-          {!project.available && (
-            <Popover>
-              <PopoverTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label={`Project unavailable: ${project.name}`}
-                    title={projectUnavailableMessage(project)}
-                  />
-                }
-              >
-                <CircleAlertIcon className="size-3.5 text-muted-foreground" />
-              </PopoverTrigger>
-              <PopoverContent>
-                <p>{projectUnavailableMessage(project)}</p>
-                <Button variant="outline" size="sm" onClick={onRetry}>
-                  Retry
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => removeProjectDialog.openWithPayload(target)}
-                >
-                  Remove from Porcelain
-                </Button>
-              </PopoverContent>
-            </Popover>
-          )}
-        </ContextMenuTrigger>
-        <ContextMenuContent className="min-w-44">
-          <ContextMenuGroup>
-            <ContextMenuItem onClick={() => copyText(path, 'project path')}>
-              <CopyIcon />
-              Copy path
-            </ContextMenuItem>
-          </ContextMenuGroup>
-          <ContextMenuSeparator />
-          <ContextMenuGroup>
-            <ContextMenuItem
-              onClick={() => renameProjectDialog.openWithPayload(target)}
-            >
-              <PencilIcon />
-              Rename project
-            </ContextMenuItem>
-            <ContextMenuItem
-              variant="destructive"
-              onClick={() => removeProjectDialog.openWithPayload(target)}
-            >
-              <FolderMinusIcon />
-              Remove from Porcelain
-            </ContextMenuItem>
-          </ContextMenuGroup>
-        </ContextMenuContent>
-      </ContextMenu>
-    </div>
+            <CopyIcon />
+            Copy path
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            onClick={() => renameProjectDialog.openWithPayload(target)}
+          >
+            <PencilIcon />
+            Rename project
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={() => removeProjectDialog.openWithPayload(target)}
+          >
+            <FolderMinusIcon />
+            Remove from Porcelain
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
   );
 }
