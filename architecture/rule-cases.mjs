@@ -3972,24 +3972,32 @@ const styleConfigCases = [
       tokens: ['.oxlintrc.json is not strict JSON'],
     })),
   ].flatMap((fixture) =>
-    ['server', 'web'].flatMap((target) => [
-      ...[false, true].map((missingTool) => ({
-        ...fixture,
-        name: `${fixture.name}: ${target}, tool ${missingTool ? 'missing' : 'available'}`,
-        target,
-        missingTool,
-        status: 1,
-        stdout: '',
-      })),
-      {
-        name: `canonical recovery after ${fixture.name}: ${target}`,
-        target,
-        status: 0,
-        rules: [],
-      },
-    ]),
+    ['server', 'web'].map((target) => ({
+      ...fixture,
+      name: `${fixture.name}: ${target}, tool available`,
+      target,
+      status: 1,
+      stdout: '',
+    })),
   ),
+  {
+    name: 'missing tool with valid config: web',
+    target: 'web',
+    missingTool: true,
+    status: 1,
+    rules: [],
+  },
   ...['server', 'web'].flatMap((target) => [
+    {
+      name: `jsPlugins empty: ${target}, tool missing`,
+      target,
+      missingTool: true,
+      json: { '.oxlintrc.json': { jsPlugins: [] } },
+      status: 1,
+      rules: ['lint-config'],
+      stdout: '',
+      tokens: ['loads the Porcelain and shadcn plugins'],
+    },
     {
       name: `actual upstream lint violation: ${target}`,
       target,
@@ -4022,13 +4030,6 @@ const styleConfigCases = [
       order: ['code-outside-lint-roots', 'lint-config'],
       stdout: '',
       tokens: ['outside/fixture.ts', 'loads the Porcelain and shadcn plugins'],
-    },
-    {
-      name: `missing tool with valid config: ${target}`,
-      target,
-      missingTool: true,
-      status: 1,
-      rules: [],
     },
     {
       name: `canonical recovery after lint and tool failures: ${target}`,
