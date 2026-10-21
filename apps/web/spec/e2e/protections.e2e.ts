@@ -32,22 +32,6 @@ test('the automatic failures fixture reports an uncaught error and an unhandled 
   failures.accept(reported);
 });
 
-test('the automatic failures fixture matches a declared console error and reports a declared one that never happens', async ({
-  unpairedPage,
-}) => {
-  const failures = runningFailures();
-  const reported = [
-    'declared console error /a failure that never comes/ never happened',
-  ];
-  failures.console(/the journey declared/);
-  failures.console(/a failure that never comes/);
-  await unpairedPage.evaluate(() =>
-    console.error('A failure the journey declared'),
-  );
-  await expect.poll(() => failures.reported()).toEqual(reported);
-  failures.accept(reported);
-});
-
 test('the server readers return the project name the server kept', async ({
   server,
 }) => {

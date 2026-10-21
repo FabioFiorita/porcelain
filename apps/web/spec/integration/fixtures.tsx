@@ -64,6 +64,7 @@ export type Render = {
     navigate: (path: string) => Promise<void>;
     pair: () => Promise<void>;
     location: () => string;
+    title: () => string;
     pendingDestination: () => string | null;
   }>;
   navigator: (options?: {
@@ -426,6 +427,7 @@ export const test = base
             await mounted.router.invalidate({ sync: true });
           },
           location: () => mounted.router.state.location.href,
+          title: () => document.title,
           pendingDestination: () =>
             sessionStorage.getItem('porcelain.pairing.destination'),
         };

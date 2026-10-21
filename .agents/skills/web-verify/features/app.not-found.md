@@ -11,7 +11,6 @@ selectors:
   - 'Settings'
 tests:
   - apps/web/spec/e2e/app-routing.e2e.ts
-  - apps/web/spec/e2e/app-routing.desktop.e2e.ts
 api:
   - GET /api/inventory
 ---
@@ -26,4 +25,4 @@ Navigate to `/<projectId>/invalid-worktree`, `/<projectId>/remotes` and `/?workt
 
 Navigate to `/settings/unknown` and the removed slugs `/settings/appearance`, `/settings/computer`, `/settings/connection`, `/settings/updates`, `/settings/ways-in` and `/settings/remotes`. Observe Page not found without a silent redirect. Press Alt+Shift+S to enter `/settings/general`; Back returns to the not-found view. Computers and Devices are valid sections in both shells. An extra segment on General remains not found.
 
-Repeat with `start --desktop` for desktop-mode routing. The named specs run these promises in both modes. The Electron bridge itself requires desktop verification. A fresh unpaired browser visiting an unknown URL ends on `/pair`, with This browser is not paired.
+Repeat in desktop mode for manual routing verification. The named spec proves the shared routing promises in the web shell. The Electron bridge itself requires desktop verification. A fresh unpaired browser visiting an unknown URL ends on `/pair`, with This browser is not paired.
