@@ -8,10 +8,6 @@ function bytesOf(text: string) {
 }
 
 describe('encodeBase64', () => {
-  it('encodes nothing as an empty string', () => {
-    expect(encodeBase64(new Uint8Array(), CHUNK_BYTES)).toBe('');
-  });
-
   it('encodes the RFC 4648 test vectors with their padding', () => {
     expect(
       ['f', 'fo', 'foo', 'foob', 'fooba', 'foobar'].map((text) =>

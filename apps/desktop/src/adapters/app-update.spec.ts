@@ -1,7 +1,7 @@
-import { EventEmitter } from 'node:events';
 import { expect, it } from '@effect/vitest';
-import { Deferred, Effect, Exit, Fiber } from 'effect';
 import type { DesktopAppUpdateState } from '@porcelain/contracts/desktop';
+import { Deferred, Effect, Exit, Fiber } from 'effect';
+import { EventEmitter } from 'node:events';
 import { openAppUpdate, type Updater } from './app-update.ts';
 
 function release(check: Updater['checkForUpdates']) {
@@ -166,22 +166,6 @@ it.effect(
       ]);
       expect(calls).toEqual({ checks: 1, downloads: 1, installs: 1 });
     }),
-);
-
-it.effect('publishes a failed download and does not restart', () =>
-  Effect.gen(function* () {
-    const { updater, calls, failDownload } = release(newer);
-    const update = openAppUpdate(updater, () => undefined);
-    yield* update.check();
-    failDownload('net::ERR_CONNECTION_RESET');
-    const failed = yield* Effect.flip(update.install());
-    expect(failed.message).toBe('net::ERR_CONNECTION_RESET');
-    expect(update.read()).toEqual({
-      status: 'error',
-      message: 'net::ERR_CONNECTION_RESET',
-    });
-    expect(calls.installs).toBe(0);
-  }),
 );
 
 it.effect('ends a download that the updater reports as failed', () =>

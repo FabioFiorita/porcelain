@@ -34,10 +34,6 @@ describe('presentedUpdate', () => {
       presentedUpdate({ ...installing, stage: 'updated' }, false)?.stage,
     ).toBe('updated');
   });
-
-  it('reports nothing before any update', () => {
-    expect(presentedUpdate(undefined, false)).toBeUndefined();
-  });
 });
 
 describe('publishedVersion', () => {

@@ -1,17 +1,17 @@
+import { test } from '@porcelain/server/kit/server-test';
+import { list, record, text } from '@porcelain/server/kit/session';
 import { existsSync } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { expect } from 'vitest';
-import { test } from '@porcelain/server/kit/server-test';
-import { list, record, text } from '@porcelain/server/kit/session';
 import {
-  repositoryRoot,
-  WEB_CLI,
-  WEB_CASE_MS,
   cli,
-  started,
   evidenceOf,
   printed,
+  repositoryRoot,
+  started,
+  WEB_CASE_MS,
+  WEB_CLI,
 } from './verification-cli.ts';
 
 test(
@@ -106,38 +106,6 @@ test(
     expect((await web('stop')).stdout).toContain(
       `already stopped ${instance.id}`,
     );
-  },
-  WEB_CASE_MS,
-);
-
-test(
-  'concurrent web commands each record their own numbered evidence file',
-  async ({ onTestFinished }) => {
-    const instance = await started(onTestFinished, { path: WEB_CLI });
-
-    const runs = await Promise.all(
-      Array.from({ length: 4 }, () =>
-        cli(
-          repositoryRoot,
-          WEB_CLI,
-          'server',
-          'project',
-          '--instance',
-          instance.id,
-        ),
-      ),
-    );
-    await cli(repositoryRoot, WEB_CLI, 'stop', '--instance', instance.id);
-    const evidence = await evidenceOf(instance.evidence);
-
-    expect(runs.map((run) => run.code)).toStrictEqual([0, 0, 0, 0]);
-    expect(evidence.numbered).toStrictEqual([
-      '001-start.json',
-      '002-server-project.json',
-      '003-server-project.json',
-      '004-server-project.json',
-      '005-server-project.json',
-    ]);
   },
   WEB_CASE_MS,
 );

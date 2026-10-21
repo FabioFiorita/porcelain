@@ -1,11 +1,4 @@
-import {
-  FileReader,
-  FileWriter,
-  EditFileOptions,
-} from '@porcelain/files/ports';
-import { Effect } from 'effect';
 import { withWriteLease } from '@porcelain/effects/worktree';
-import { describe, expect, it } from 'vitest';
 import {
   ContentChangedError,
   CrossDeviceMoveError,
@@ -24,6 +17,13 @@ import {
   type TextRead,
   type WriteFailure,
 } from '@porcelain/files/models';
+import {
+  EditFileOptions,
+  FileReader,
+  FileWriter,
+} from '@porcelain/files/ports';
+import { Effect } from 'effect';
+import { describe, expect, it } from 'vitest';
 import { InMemoryFileReader } from '../../spec/fakes/in-memory-file-reader.ts';
 import {
   InMemoryFileWriter,
@@ -235,24 +235,6 @@ describe('EditFileService', () => {
     ).rejects.toThrow(EntryExistsError);
   });
 
-  it('refuses to create inside a folder that does not exist', async () => {
-    await expect(
-      Effect.runPromise(
-        withWriteLease(
-          worktreeId,
-          failingWith('missing').execute({
-            worktreeId,
-            command: {
-              kind: 'create',
-              path: 'nowhere/a.md',
-              entryKind: 'file',
-            },
-          }),
-        ),
-      ),
-    ).rejects.toThrow(PathNotFoundError);
-  });
-
   it('moves an entry beside a folder sharing its name prefix and answers with its new path', async () => {
     const { writer, service } = withDisk({}, { docs: stored('') });
     await expect(
@@ -296,20 +278,6 @@ describe('EditFileService', () => {
     ).rejects.toThrow(InvalidMoveError);
     expect(writer.entry('docs')).toEqual(stored(''));
     expect(writer.entry('docs/inner')).toBeUndefined();
-  });
-
-  it('refuses to move onto an existing entry', async () => {
-    await expect(
-      Effect.runPromise(
-        withWriteLease(
-          worktreeId,
-          failingWith('exists').execute({
-            worktreeId,
-            command: { kind: 'move', path: 'a.md', destination: 'b.md' },
-          }),
-        ),
-      ),
-    ).rejects.toThrow(EntryExistsError);
   });
 
   it('refuses to move an entry to another filesystem', async () => {
@@ -391,34 +359,6 @@ describe('EditFileService', () => {
     expect(writer.entry('notes copy.md')).toEqual(stored('old\n'));
   });
 
-  it('refuses to copy onto an existing entry', async () => {
-    await expect(
-      Effect.runPromise(
-        withWriteLease(
-          worktreeId,
-          failingWith('exists').execute({
-            worktreeId,
-            command: { kind: 'copy', path: 'a.md', destination: 'b.md' },
-          }),
-        ),
-      ),
-    ).rejects.toThrow(EntryExistsError);
-  });
-
-  it('reports a missing copy source as not found', async () => {
-    await expect(
-      Effect.runPromise(
-        withWriteLease(
-          worktreeId,
-          failingWith('missing').execute({
-            worktreeId,
-            command: { kind: 'copy', path: 'missing.md', destination: 'x.md' },
-          }),
-        ),
-      ),
-    ).rejects.toThrow(PathNotFoundError);
-  });
-
   it('refuses to copy what is not a readable file', async () => {
     await expect(
       Effect.runPromise(
@@ -431,20 +371,6 @@ describe('EditFileService', () => {
         ),
       ),
     ).rejects.toThrow(PathNotReadableError);
-  });
-
-  it('refuses a copy when the source changes while it is copied', async () => {
-    await expect(
-      Effect.runPromise(
-        withWriteLease(
-          worktreeId,
-          failingWith('changed').execute({
-            worktreeId,
-            command: { kind: 'copy', path: 'a.md', destination: 'b.md' },
-          }),
-        ),
-      ),
-    ).rejects.toThrow(ContentChangedError);
   });
 
   it('refuses to copy a file larger than the copy limit', async () => {

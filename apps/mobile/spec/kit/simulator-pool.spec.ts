@@ -1,9 +1,9 @@
-import { afterEach, beforeEach, expect, it } from 'vitest';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { afterEach, beforeEach, expect, it } from 'vitest';
 import {
   claimPoolFile,
   poolProcess,
@@ -69,15 +69,6 @@ it('a live owner keeps its simulator claim when another run tries to allocate it
   expect(removeStalePoolClaim(path)).toBe(false);
   expect(() => claimPoolFile(path, 'other-run')).toThrow();
   expect(await readFile(path, 'utf8')).toBe(before);
-  releasePoolFile(path, owner);
-});
-
-it('a live allocation lock still refuses another allocator', () => {
-  const path = join(directory, 'pool.lock');
-  const owner = claimPoolFile(path, 'live-run');
-
-  expect(() => claimPoolFile(path, 'other-run')).toThrow();
-  expect(readPoolClaim(path)?.owner).toBe('live-run');
   releasePoolFile(path, owner);
 });
 

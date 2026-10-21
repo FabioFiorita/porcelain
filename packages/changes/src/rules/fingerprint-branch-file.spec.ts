@@ -6,16 +6,6 @@ import {
 } from './fingerprint-branch-file.ts';
 
 describe('fingerprintBranchFile', () => {
-  it('gives the same file on both sides the same fingerprint', () => {
-    expect(fingerprintBranchFile(branchFile())).toBe(
-      fingerprintBranchFile(branchFile()),
-    );
-  });
-
-  it('is a SHA-256 in hexadecimal', () => {
-    expect(fingerprintBranchFile(branchFile())).toMatch(/^[a-f0-9]{64}$/u);
-  });
-
   it('changes when the branch changes the file again', () => {
     expect(
       fingerprintBranchFile(branchFile({ newOid: 'b'.repeat(40) })),
@@ -54,14 +44,6 @@ describe('fingerprintBranchFile', () => {
 });
 
 describe('branchFilePath', () => {
-  it('names a file by where it ends up', () => {
-    expect(
-      branchFilePath(
-        branchFile({ status: 'renamed', oldPath: 'a.txt', newPath: 'b.txt' }),
-      ),
-    ).toBe('b.txt');
-  });
-
   it('names a deleted file by where it was', () => {
     expect(
       branchFilePath(

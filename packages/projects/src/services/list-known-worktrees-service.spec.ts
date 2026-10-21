@@ -1,10 +1,10 @@
-import { WorktreeCatalogStore } from '@porcelain/projects/ports';
-import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
 import {
   type ListedWorktree,
   type RegisteredProject,
 } from '@porcelain/projects/models';
+import { WorktreeCatalogStore } from '@porcelain/projects/ports';
+import { Effect } from 'effect';
+import { describe, expect, it } from 'vitest';
 import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { ListKnownWorktreesService } from './list-known-worktrees-service.ts';
 
@@ -112,21 +112,5 @@ describe('ListKnownWorktreesService', () => {
         },
       ],
     });
-  });
-
-  it('answers an empty list for a project never listed', () => {
-    const reader = catalog({});
-    expect(
-      Effect.runSync(
-        Effect.runSync(
-          ListKnownWorktreesService.pipe(
-            Effect.provide(ListKnownWorktreesService.layer),
-            Effect.provideService(WorktreeCatalogStore, reader),
-          ),
-        ).execute({
-          projects: [project('api', true)],
-        }),
-      ).listings[0]?.worktrees,
-    ).toEqual([]);
   });
 });

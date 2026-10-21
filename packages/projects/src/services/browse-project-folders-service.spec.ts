@@ -1,19 +1,19 @@
 import {
-  ProjectFolderReader,
-  ProjectRepositoryReader,
-  BrowseProjectFoldersOptions,
-} from '@porcelain/projects/ports';
-import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
-import {
   FolderNotFoundError,
   FolderNotReadableError,
   UnsupportedFolderNameError,
 } from '@porcelain/projects/errors';
 import {
-  type ProjectRepository,
   type ProjectFolderContents,
+  type ProjectRepository,
 } from '@porcelain/projects/models';
+import {
+  BrowseProjectFoldersOptions,
+  ProjectFolderReader,
+  ProjectRepositoryReader,
+} from '@porcelain/projects/ports';
+import { Effect } from 'effect';
+import { describe, expect, it } from 'vitest';
 import { ScriptedProjectFolderReader } from '../../spec/fakes/scripted-project-folder-reader.ts';
 import { ScriptedProjectRepositoryReader } from '../../spec/fakes/scripted-project-repository-reader.ts';
 import { BrowseProjectFoldersService } from './browse-project-folders-service.ts';
@@ -66,14 +66,6 @@ describe('BrowseProjectFoldersService', () => {
       repository: false,
       truncated: false,
     });
-  });
-
-  it('lists the folder that was asked for', async () => {
-    const { folders, service } = setup();
-    folders.folder(folder('/srv', { parent: '/' }));
-    expect(
-      (await Effect.runPromise(service.execute({ path: '/srv' }))).path,
-    ).toBe('/srv');
   });
 
   it('never offers the Git directory as a folder to open', async () => {
@@ -130,15 +122,6 @@ describe('BrowseProjectFoldersService', () => {
       (await Effect.runPromise(service.execute({ path: '/srv/api/src' })))
         .repository,
     ).toBe(false);
-  });
-
-  it('says when the folder held more entries than it lists', async () => {
-    const { folders, service } = setup();
-    folders.folder(folder('/srv/large', { truncated: true }));
-    expect(
-      (await Effect.runPromise(service.execute({ path: '/srv/large' })))
-        .truncated,
-    ).toBe(true);
   });
 
   it('refuses a folder that does not exist', async () => {

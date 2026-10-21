@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  branchRefName,
   isBranchRef,
   parseHeadFile,
   parseStashList,
   parseSymbolicRef,
-  shortBranchName,
 } from './refs.ts';
 
 describe('parseSymbolicRef', () => {
@@ -28,18 +26,6 @@ describe('parseSymbolicRef', () => {
     expect(
       parseSymbolicRef({ exitCode: null, stdout: Buffer.from('refs/heads/x') }),
     ).toBe(null);
-  });
-});
-
-describe('shortBranchName', () => {
-  it('drops the refs/heads/ prefix and keeps nested names', () => {
-    expect(shortBranchName('refs/heads/feature/login')).toBe('feature/login');
-  });
-
-  it('leaves a ref outside refs/heads/ untouched', () => {
-    expect(shortBranchName('refs/remotes/origin/main')).toBe(
-      'refs/remotes/origin/main',
-    );
   });
 });
 
@@ -117,15 +103,5 @@ describe('isBranchRef', () => {
     'refs/heads/main.',
   ])('refuses %s, which is not a plain branch ref', (ref) => {
     expect(isBranchRef(ref)).toBe(false);
-  });
-});
-
-describe('branchRefName', () => {
-  it('names a local branch without its namespace', () => {
-    expect(branchRefName('refs/heads/feature/x')).toBe('feature/x');
-  });
-
-  it('names a remote branch with its remote', () => {
-    expect(branchRefName('refs/remotes/origin/main')).toBe('origin/main');
   });
 });

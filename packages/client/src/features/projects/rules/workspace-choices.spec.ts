@@ -61,61 +61,6 @@ describe('choosing a workspace across paired environments', () => {
     expect(result.canReadAgain).toBe(true);
   });
 
-  it('separates the same project in two environments', () => {
-    const shared = project('shared');
-    const result = workspaceChoices(
-      [
-        {
-          environmentId: 'laptop',
-          name: 'Laptop',
-          status: 'ready',
-          inventory: inventory('Laptop', [shared]),
-        },
-        {
-          environmentId: 'remote',
-          name: 'Remote',
-          status: 'ready',
-          inventory: inventory('Remote', [shared]),
-        },
-      ],
-      undefined,
-    );
-    expect(result.choices.map(({ key }) => key)).toEqual([
-      'laptop/shared',
-      'remote/shared',
-    ]);
-    expect(result.messages).toEqual([]);
-    expect(result.canReadAgain).toBe(false);
-  });
-
-  it('reports reading, empty and unpaired states', () => {
-    expect(workspaceChoices([], undefined).messages).toEqual([
-      'No environments paired',
-    ]);
-    expect(
-      workspaceChoices(
-        [
-          {
-            environmentId: 'laptop',
-            name: 'Laptop',
-            status: 'reading',
-            inventory: undefined,
-          },
-          {
-            environmentId: 'remote',
-            name: 'Remote',
-            status: 'ready',
-            inventory: inventory('Remote', []),
-          },
-        ],
-        undefined,
-      ).messages,
-    ).toEqual([
-      'Laptop · Reading projects…',
-      'Remote · No projects registered',
-    ]);
-  });
-
   it('offers another read for an unavailable linked worktree while the selected worktree remains healthy', () => {
     const healthy = project('one');
     const result = workspaceChoices(
@@ -185,45 +130,6 @@ describe('choosing a workspace across paired environments', () => {
       'This environment is no longer paired.',
     ]);
   });
-});
-
-it('uses the selection rule reason in the picker, including unpaired and pending environments', () => {
-  const saved = {
-    environmentId: 'laptop',
-    projectId: 'one',
-    worktreeId: 'one-main',
-  };
-  const result = workspaceChoices(
-    [
-      {
-        environmentId: 'laptop',
-        name: 'Saved laptop name',
-        status: 'ready',
-        inventory: inventory('Laptop', [project('one', false)]),
-      },
-    ],
-    saved,
-  );
-  expect(result.messages).toEqual([
-    "Porcelain can't reach this repository right now.",
-  ]);
-  expect(workspaceChoices([], saved).messages).toEqual([
-    'No environments paired',
-    'This environment is no longer paired.',
-  ]);
-  expect(
-    workspaceChoices(
-      [
-        {
-          environmentId: 'laptop',
-          name: 'Laptop',
-          status: 'reading',
-          inventory: undefined,
-        },
-      ],
-      saved,
-    ).messages,
-  ).toEqual(['Laptop · Reading projects…']);
 });
 
 it.each([

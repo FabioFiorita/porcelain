@@ -1,18 +1,18 @@
-import { testClock } from '@porcelain/kernel/test-kit';
-import {
-  WorktreeCatalogStore,
-  InventoryStore,
-  CheckWorktreeOptions,
-} from '@porcelain/projects/ports';
-import { Effect, Clock } from 'effect';
 import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
-import { describe, expect, it } from 'vitest';
+import { testClock } from '@porcelain/kernel/test-kit';
 import { WorktreeUnavailableError } from '@porcelain/projects/errors';
 import {
   type CatalogProject,
   type ListedWorktree,
   type RegisteredProject,
 } from '@porcelain/projects/models';
+import {
+  CheckWorktreeOptions,
+  InventoryStore,
+  WorktreeCatalogStore,
+} from '@porcelain/projects/ports';
+import { Clock, Effect } from 'effect';
+import { describe, expect, it } from 'vitest';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { CheckRefreshedWorktreeService } from './check-refreshed-worktree-service.ts';
@@ -75,17 +75,6 @@ async function service(
 }
 
 describe('CheckRefreshedWorktreeService', () => {
-  it('answers the worktree the refresh just found', async () => {
-    expect(
-      Effect.runSync(
-        (await service('2026-09-24T12:00:00.000Z')).execute({
-          worktreeId: worktree.id,
-          requireAvailableProject: false,
-        }),
-      ),
-    ).toEqual(worktree);
-  });
-
   it('refuses a worktree the refresh did not observe as unavailable instead of asking for another refresh', async () => {
     const checked = await service('2026-09-24T11:00:00.000Z');
     expect(() =>

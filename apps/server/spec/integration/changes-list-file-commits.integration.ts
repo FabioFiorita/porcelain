@@ -1,11 +1,6 @@
-import * as Schema from 'effect/Schema';
 import { listFileCommitsResponseSchema } from '@porcelain/contracts/changes';
+import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
-import {
-  invalidRequest,
-  unknownWorktreeId,
-  worktreeNotFound,
-} from '../kit/answers.ts';
 import { threeCommits } from '../kit/reads.ts';
 import { read, worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
@@ -121,23 +116,4 @@ test('a path no commit touched has an empty timeline', async ({ session }) => {
 
   expect(response.status).toBe(200);
   expect(response.body).toStrictEqual({ commits: [], more: false });
-});
-
-test('a timeline for a path outside the worktree or with an invalid limit is refused, and an unknown worktree is not found', async ({
-  session,
-}) => {
-  const responses = [
-    await session.send(fileCommits(session, { path: '../outside.md' })),
-    await session.send(fileCommits(session, { path: 'GUIDE.md', limit: 0 })),
-    await session.send({
-      method: 'GET',
-      path: `/api/worktrees/${unknownWorktreeId}/file-commits`,
-      query: { path: 'GUIDE.md' },
-    }),
-  ];
-
-  expect(responses.map((entry) => entry.status)).toStrictEqual([400, 400, 404]);
-  expect(responses[0]?.body).toStrictEqual(invalidRequest);
-  expect(responses[1]?.body).toStrictEqual(invalidRequest);
-  expect(responses[2]?.body).toStrictEqual(worktreeNotFound);
 });

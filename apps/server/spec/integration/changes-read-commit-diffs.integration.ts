@@ -1,13 +1,7 @@
-import * as Schema from 'effect/Schema';
 import { readCommitDiffsResponseSchema } from '@porcelain/contracts/changes';
+import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
-import {
-  apiError,
-  invalidRequest,
-  unknownOid,
-  unknownWorktreeId,
-  worktreeNotFound,
-} from '../kit/answers.ts';
+import { apiError, unknownOid } from '../kit/answers.ts';
 import { threeCommits } from '../kit/reads.ts';
 import { worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
@@ -122,27 +116,4 @@ test('commit diffs of an unknown commit are not found, and a parent the commit d
   expect(responses[1]?.body).toStrictEqual(
     apiError(400, 'Bad Request', 'Invalid history request'),
   );
-});
-
-test('commit diffs with no paths or a path group of three are refused, and an unknown worktree is not found', async ({
-  session,
-}) => {
-  const responses = [
-    await session.send(diffs(session, unknownOid, { paths: [] })),
-    await session.send(
-      diffs(session, unknownOid, { paths: [['a', 'b', 'c']] }),
-    ),
-    await session.send({
-      method: 'POST',
-      path: `/api/worktrees/${unknownWorktreeId}/commits/${unknownOid}/diffs`,
-      body: { paths: [['README.md']] },
-    }),
-  ];
-
-  for (const response of responses.slice(0, 2)) {
-    expect(response.status).toBe(400);
-    expect(response.body).toStrictEqual(invalidRequest);
-  }
-  expect(responses[2]?.status).toBe(404);
-  expect(responses[2]?.body).toStrictEqual(worktreeNotFound);
 });

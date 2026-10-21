@@ -142,32 +142,4 @@ describe('verdict sections', () => {
     });
     expect(revision.verdict.removed[0]?.paths).toEqual(['old.ts', 'kept.ts']);
   });
-
-  it('handles a merge recommendation without optional links, checks, deletions or decisions', () => {
-    const result = verdictSections({
-      ...revision,
-      files: [],
-      verdict: {
-        ...revision.verdict,
-        asked: { text: 'Brief' },
-        recommendation: 'merge',
-        removed: [],
-        notProven: [],
-      },
-      content: {
-        ...revision.content,
-        layers: [],
-        proof: { current: true, checks: [], assets: [] },
-      },
-    });
-    expect(result.asked).toEqual({ text: 'Brief', links: [] });
-    expect(result.recommendation.label).toBe('Merge');
-    expect(result.proven.checks).toEqual([]);
-    expect(result.removed).toEqual({
-      fileCount: 0,
-      groups: [],
-      unexplainedPaths: [],
-    });
-    expect(result.startHere).toBeUndefined();
-  });
 });

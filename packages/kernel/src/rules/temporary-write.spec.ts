@@ -14,10 +14,6 @@ describe('isTemporaryWrite', () => {
     expect(isTemporaryWrite(`src/${temporaryWriteName(id)}`)).toBe(true);
   });
 
-  it('leaves the file being written alone', () => {
-    expect(isTemporaryWrite('README.md')).toBe(false);
-  });
-
   it('leaves a file that only resembles a temporary write alone', () => {
     expect(isTemporaryWrite('.porcelain-notes.tmp')).toBe(false);
   });

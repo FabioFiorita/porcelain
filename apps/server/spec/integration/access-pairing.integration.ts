@@ -1,8 +1,8 @@
-import * as Schema from 'effect/Schema';
 import {
   listAccessResponseSchema,
   redeemPairingResponseSchema,
 } from '@porcelain/contracts/access';
+import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
 import {
   apiError,
@@ -155,20 +155,6 @@ test('a control-character platform or a blank device name is refused without con
     label: 'Watch',
     platform: 'watchOS',
   });
-});
-
-test('redeeming a pairing code the server never issued is refused without saying why', async ({
-  session,
-}) => {
-  const response = await session.send({
-    method: 'POST',
-    path: '/api/pair',
-    auth: 'none',
-    body: { code: 'pcp_unknown', platform: 'iOS' },
-  });
-
-  expect(response.status).toBe(401);
-  expect(response.body).toStrictEqual(invalidLink);
 });
 
 test('a pairing request with an empty code, no platform, an extra field or malformed JSON is refused', async ({

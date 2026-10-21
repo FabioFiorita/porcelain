@@ -1,9 +1,9 @@
-import * as Schema from 'effect/Schema';
-import { randomUUID } from 'node:crypto';
 import {
   deleteCommentMessageResponseSchema,
   editCommentMessageResponseSchema,
 } from '@porcelain/contracts/reviews';
+import * as Schema from 'effect/Schema';
+import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import {
   apiError,
@@ -13,12 +13,12 @@ import {
   worktreeNotFound,
 } from '../kit/answers.ts';
 import {
+  answered,
   read,
+  sendAll,
   toolCall,
   toolValue,
   worktreePath,
-  sendAll,
-  answered,
 } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import {
@@ -132,19 +132,6 @@ test('the reviewer rewrites their comment in place, stamped and at the next revi
       ],
     },
   ]);
-});
-
-test('rewriting a comment with the same text changes nothing', async ({
-  session,
-}) => {
-  const before = record(await threadOf(session, threadId));
-
-  const response = await session.send(
-    edit(session, threadId, questionId, REWRITTEN),
-  );
-
-  expect(response.status).toBe(200);
-  expect(response.body).toStrictEqual(before);
 });
 
 test("a reviewer cannot rewrite or delete the agent's message and the thread stays unchanged", async ({

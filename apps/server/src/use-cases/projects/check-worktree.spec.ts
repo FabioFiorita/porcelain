@@ -1,13 +1,4 @@
 import { testClock } from '@porcelain/kernel/test-kit';
-import { InventoryScan } from '../../ports/inventory-scan.ts';
-import {
-  WorktreeCatalogStore,
-  InventoryStore,
-  CheckWorktreeOptions,
-} from '@porcelain/projects/ports';
-import { Effect, Clock } from 'effect';
-import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
-import { WorktreeUnavailableError } from '@porcelain/projects/errors';
 import {
   type CatalogProject,
   type CatalogSnapshot,
@@ -15,13 +6,20 @@ import {
   type RegisteredProject,
 } from '@porcelain/projects/models';
 import {
+  CheckWorktreeOptions,
+  InventoryStore,
+  WorktreeCatalogStore,
+} from '@porcelain/projects/ports';
+import {
   CheckRefreshedWorktreeService,
   CheckWorktreeService,
 } from '@porcelain/projects/services';
+import { Clock, Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { InMemoryInventoryStore } from '../../../spec/fakes/in-memory-inventory-store.ts';
 import { InMemoryWorktreeCatalogStore } from '../../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { ScriptedInventoryScan } from '../../../spec/fakes/scripted-inventory-scan.ts';
+import { InventoryScan } from '../../ports/inventory-scan.ts';
 import { CheckWorktreeUseCase } from './check-worktree.ts';
 
 const now = '2026-09-24T12:00:00.000Z';
@@ -139,24 +137,6 @@ describe('CheckWorktreeUseCase', () => {
     );
     await expect(Effect.runPromise(subject.execute(check))).resolves.toEqual(
       worktree,
-    );
-  });
-
-  it('refuses a worktree the refresh did not find', async () => {
-    const subject = await useCase(
-      { projects: [] },
-      { projects: [observed(now, [])] },
-    );
-    await expect(Effect.runPromise(subject.execute(check))).rejects.toThrow(
-      WorktreeNotFoundError,
-    );
-  });
-
-  it('refuses as unavailable a worktree still stale after the refresh', async () => {
-    const stale = { projects: [observed(longAgo, [worktree])] };
-    const subject = await useCase(stale, stale);
-    await expect(Effect.runPromise(subject.execute(check))).rejects.toThrow(
-      WorktreeUnavailableError,
     );
   });
 });

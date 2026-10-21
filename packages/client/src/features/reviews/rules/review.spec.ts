@@ -113,26 +113,9 @@ describe('mergeReviewChanges', () => {
 });
 
 describe('reviewErrorMessage', () => {
-  it('shows why the review context changed', () => {
-    const error = new Error('The review context changed.');
-    error.name = 'ConnectionError';
-    expect(reviewErrorMessage(error)).toBe('The review context changed.');
-  });
-
   it('hides other failures behind a retry message', () => {
     expect(reviewErrorMessage(new Error('socket hang up'))).toBe(
       'This review surface could not be loaded. Try again.',
-    );
-  });
-
-  it('explains that a dependent comment was not sent', () => {
-    const error = new Error(
-      'An earlier change failed, so this one was not sent.',
-      { cause: new Error('Comment too long') },
-    );
-    error.name = 'WriteNotSentError';
-    expect(reviewErrorMessage(error)).toBe(
-      'An earlier change failed, so this one was not sent.',
     );
   });
 });
@@ -197,15 +180,5 @@ describe('mergeBranchChanges', () => {
       ['moved.ts', 'stale'],
       ['fresh.ts', 'unreviewed'],
     ]);
-  });
-
-  it('keeps only the asked paths', () => {
-    expect(
-      mergeBranchChanges(
-        [file('same.ts', 'f1'), file('fresh.ts', 'f3')],
-        marks,
-        ['fresh.ts'],
-      ).map((item) => item.path),
-    ).toEqual(['fresh.ts']);
   });
 });

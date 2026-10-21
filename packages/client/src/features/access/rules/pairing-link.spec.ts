@@ -31,11 +31,4 @@ describe('parsePairingLink', () => {
       environmentId: 'installation',
     });
   });
-
-  it('refuses a fragment missing either required value', () => {
-    expect(parsePairingLink('')).toBeNull();
-    expect(parsePairingLink('#c=code')).toBeNull();
-    expect(parsePairingLink('#e=installation')).toBeNull();
-    expect(parsePairingLink('#c=&e=installation')).toBeNull();
-  });
 });

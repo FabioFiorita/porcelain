@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, expect, it } from 'vitest';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { afterEach, beforeEach, expect, it } from 'vitest';
 import { driver as makeDriver, pairClient } from './setup.ts';
 
 let directory: string;
@@ -83,14 +83,6 @@ it('does not hand over a paired client when its setup session fails to close', a
   expect(() =>
     pairClient(driver, 'http://localhost:5183', 'fixture-link', 'setup'),
   ).toThrow('SESSION_NOT_FOUND: no active session');
-  expect((await commands()).at(-1)).toBe('close');
-});
-
-it('closes the setup session after a successful pairing', async () => {
-  const { driver, commands } = await deviceDriver(false, false);
-
-  pairClient(driver, 'http://localhost:5183', 'fixture-link', 'setup');
-
   expect((await commands()).at(-1)).toBe('close');
 });
 

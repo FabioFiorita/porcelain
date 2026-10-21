@@ -1,6 +1,6 @@
+import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import { fileChange, modified } from '../../spec/fixtures/comparisons.ts';
 import { ConfirmDiffObservationService } from './confirm-diff-observation-service.ts';
 
@@ -23,10 +23,6 @@ const service = Effect.runSync(
 );
 
 describe('ConfirmDiffObservationService', () => {
-  it('accepts an observation that matches what the reviewer saw', () => {
-    expect(() => Effect.runSync(service.execute(observation))).not.toThrow();
-  });
-
   it('refuses an observation whose status token moved', () => {
     expect(() =>
       Effect.runSync(

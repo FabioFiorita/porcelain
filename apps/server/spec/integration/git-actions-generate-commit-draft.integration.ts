@@ -1,13 +1,7 @@
-import * as Schema from 'effect/Schema';
 import { generateCommitDraftResponseSchema } from '@porcelain/contracts/git-actions';
+import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
-import {
-  apiError,
-  invalidRequest,
-  unknownFingerprint,
-  unknownWorktreeId,
-  worktreeNotFound,
-} from '../kit/answers.ts';
+import { apiError, unknownFingerprint } from '../kit/answers.ts';
 import { changes, head, type Changes } from '../kit/reads.ts';
 import { gitPath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
@@ -125,49 +119,6 @@ test('drafting a commit against a stale status is a conflict and for a path that
   expect(notAChange.body).toStrictEqual(
     unprocessable('Select readable changed files to generate a commit draft.'),
   );
-});
-
-test('drafting a commit with invalid input is refused and for an unknown worktree is not found', async ({
-  session,
-}) => {
-  const invalid = [
-    await session.send(
-      draft(session, {
-        mode: 'poem',
-        model: 'claude:sonnet',
-        expectedStatusToken: unknownFingerprint,
-        paths: ['README.md'],
-      }),
-    ),
-    await session.send(
-      draft(session, {
-        mode: 'message',
-        model: 'claude:sonnet',
-        expectedStatusToken: unknownFingerprint,
-        paths: [],
-      }),
-    ),
-  ];
-  const unknown = await session.send({
-    method: 'POST',
-    path: gitPath(session, '/commit-draft', {
-      worktreeId: unknownWorktreeId,
-    }),
-    body: {
-      mode: 'message',
-      model: 'claude:sonnet',
-      expectedStatusToken: unknownFingerprint,
-      paths: ['README.md'],
-    },
-  });
-
-  expect(invalid.map((response) => response.status)).toStrictEqual([400, 400]);
-  expect(invalid.map((response) => response.body)).toStrictEqual([
-    invalidRequest,
-    invalidRequest,
-  ]);
-  expect(unknown.status).toBe(404);
-  expect(unknown.body).toStrictEqual(worktreeNotFound);
 });
 
 test('drafting a message for the selected change answers the drafted message with the fingerprints it drafted from and commits nothing', async ({

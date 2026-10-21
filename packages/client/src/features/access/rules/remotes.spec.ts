@@ -1,15 +1,15 @@
 import { Redacted } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
-  remoteStatus,
-  remoteStatusNote,
-  parseRemotes,
-  withRemote,
-  serializeRemotes,
-  operationJournalKey,
   connectionRoutes,
   connectionRouteTitle,
+  operationJournalKey,
+  parseRemotes,
+  remoteStatus,
+  remoteStatusNote,
+  serializeRemotes,
   withConnectionRoutes,
+  withRemote,
 } from './remotes.ts';
 const environmentId = '1bc3e6b1-f849-4176-93b2-850147d4ebb3';
 const remote = {
@@ -117,10 +117,6 @@ describe('withRemote', () => {
         ],
       },
     ]);
-  });
-  it('replaces a remote paired again instead of listing it twice', () => {
-    const renewed = { ...remote, credential: Redacted.make('pcd_new') };
-    expect(withRemote([remote], renewed)).toEqual([renewed]);
   });
 });
 

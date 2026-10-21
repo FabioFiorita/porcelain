@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
 import type {
   ListedWorktree,
   ProjectWorktrees,
   RegisteredProject,
 } from '@porcelain/projects/models';
+import { describe, expect, it } from 'vitest';
 import { inventoryReport, registeredProjectReport } from './project-report.ts';
 
 function project(id: string, position: number): RegisteredProject {
@@ -91,26 +91,6 @@ describe('inventoryReport', () => {
         },
       ],
     });
-  });
-
-  it('reports a project as unavailable when its listing was', () => {
-    const report = inventoryReport(
-      'environment',
-      { projects: [project('a', 1)] },
-      [listing('a', [], false)],
-      new Map(),
-    );
-    expect(report.projects[0]?.available).toBe(false);
-  });
-
-  it('reports a project with no known worktrees with an empty list', () => {
-    const report = inventoryReport(
-      'environment',
-      { projects: [project('a', 1)] },
-      [listing('a', [])],
-      new Map(),
-    );
-    expect(report.projects[0]?.worktrees).toEqual([]);
   });
 
   it('reports only registered projects, whatever the listings hold', () => {

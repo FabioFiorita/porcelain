@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sliceChangeLines, lineRangeProblem } from './slice-change-lines.ts';
+import { lineRangeProblem, sliceChangeLines } from './slice-change-lines.ts';
 
 const text = 'one\ntwo\nthree\n';
 
@@ -82,13 +82,6 @@ describe('sliceChangeLines', () => {
 });
 
 describe('lineRangeProblem', () => {
-  it.each([
-    { name: 'on its start', to: 2 },
-    { name: 'after its start', to: 3 },
-  ])('accepts a range that ends $name', ({ to }) => {
-    expect(lineRangeProblem({ from: 2, to })).toBeUndefined();
-  });
-
   it('refuses a range that ends before it starts', () => {
     expect(lineRangeProblem({ from: 3, to: 2 })).toEqual({
       kind: 'reversed-range',

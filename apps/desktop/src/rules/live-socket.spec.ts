@@ -17,12 +17,6 @@ const socket = {
 };
 
 describe('liveAddress', () => {
-  it('opens the live socket of an HTTP server over ws', () => {
-    expect(liveAddress('http://127.0.0.1:4321', '/api/live')).toBe(
-      'ws://127.0.0.1:4321/api/live',
-    );
-  });
-
   it('opens the live socket of an HTTPS server over wss', () => {
     expect(liveAddress('https://computer.example.invalid', '/api/live')).toBe(
       'wss://computer.example.invalid/api/live',

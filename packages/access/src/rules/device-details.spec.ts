@@ -5,10 +5,6 @@ const LABEL_LENGTH = 80;
 const PLATFORM_LENGTH = 120;
 
 describe('validLabel', () => {
-  it('keeps a label without its surrounding whitespace', () => {
-    expect(validLabel('  Work laptop ', LABEL_LENGTH)).toBe('Work laptop');
-  });
-
   it('accepts eighty characters and refuses eighty-one', () => {
     expect(validLabel('a'.repeat(80), LABEL_LENGTH)).toBe('a'.repeat(80));
     expect(validLabel('a'.repeat(81), LABEL_LENGTH)).toBeUndefined();

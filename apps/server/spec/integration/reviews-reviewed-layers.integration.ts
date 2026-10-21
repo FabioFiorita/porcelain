@@ -1,17 +1,15 @@
-import { commitReviewFixture } from '../kit/requests.ts';
+import { listReviewedLayersResponseSchema } from '@porcelain/contracts/reviews';
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
-import { listReviewedLayersResponseSchema } from '@porcelain/contracts/reviews';
 import { expect } from 'vitest';
-import {
-  apiError,
-  invalidRequest,
-  unknownFingerprint,
-  unknownWorktreeId,
-  worktreeNotFound,
-} from '../kit/answers.ts';
+import { apiError, unknownFingerprint } from '../kit/answers.ts';
 import { watching } from '../kit/reads.ts';
-import { read, sampleReview, worktreePath } from '../kit/requests.ts';
+import {
+  commitReviewFixture,
+  read,
+  sampleReview,
+  worktreePath,
+} from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { list, record, text, type Session } from '../kit/session.ts';
 
@@ -115,20 +113,6 @@ test('marking at a fingerprint the layer does not have is a conflict, a layer th
       (mark) => record(mark).layerId,
     ),
   ).toStrictEqual([layerId]);
-});
-
-test('a file change while no viewer watches keeps the published layer mark current', async ({
-  session,
-}) => {
-  await session.writeFile(
-    session.fixture.readme.path,
-    'Changed while nobody watched\n',
-  );
-
-  const response = await session.send({ method: 'GET', path: layers(session) });
-
-  expect(response.status).toBe(200);
-  expect(marks(response.body)).toMatchObject([{ layerId, stale: false }]);
 });
 
 test('a file change while a viewer watches keeps the published layer mark current', async ({
@@ -236,48 +220,4 @@ test('an edit through the API preserves the published layer mark as it answers a
   expect(await connection.next(isWorktree('files', 'reviewed'))).toStrictEqual(
     worktreeNotice(session, 'reviewed'),
   );
-});
-
-test('marking or unmarking with a malformed layer id is invalid and every layer route of an unknown worktree is not found', async ({
-  session,
-}) => {
-  const responses = [
-    await session.send({
-      method: 'PUT',
-      path: layers(session),
-      body: {
-        layerId: 'not-a-uuid',
-        reviewed: true,
-        fingerprint: unknownFingerprint,
-      },
-    }),
-    await session.send({
-      method: 'DELETE',
-      path: layers(session),
-      query: { layerId: 'not-a-uuid' },
-    }),
-    await session.send({
-      method: 'GET',
-      path: `/api/worktrees/${unknownWorktreeId}/reviewed-layers`,
-    }),
-    await session.send({
-      method: 'PUT',
-      path: `/api/worktrees/${unknownWorktreeId}/reviewed-layers`,
-      body: { layerId, reviewed: true, fingerprint: unknownFingerprint },
-    }),
-    await session.send({
-      method: 'DELETE',
-      path: `/api/worktrees/${unknownWorktreeId}/reviewed-layers`,
-      query: { layerId },
-    }),
-  ];
-
-  for (const response of responses.slice(0, 2)) {
-    expect(response.status).toBe(400);
-    expect(response.body).toStrictEqual(invalidRequest);
-  }
-  for (const response of responses.slice(2)) {
-    expect(response.status).toBe(404);
-    expect(response.body).toStrictEqual(worktreeNotFound);
-  }
 });

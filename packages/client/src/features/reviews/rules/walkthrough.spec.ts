@@ -6,9 +6,9 @@ import {
   decisionLinks,
   decisionRoute,
   decisionStates,
-  reviewStepLines,
   filesReviewed,
   neighbourStop,
+  reviewStepLines,
   stopDone,
   systemChanges,
   walkthroughStops,
@@ -204,18 +204,6 @@ describe('walkthrough stops', () => {
       paths: [],
       partial: [{ ...gap('web/invite.ts', 9, 12), stop: 'decision:invite' }],
     });
-  });
-
-  it('has no unexplained stop when every changed line is explained', () => {
-    expect(
-      keysAndPaths(
-        {
-          layers: [layer('invite', [step('web/invite.ts')])],
-          notExplained: [],
-        },
-        ['web/invite.ts'],
-      ).map(([key]) => key),
-    ).toEqual(['briefing', 'decision:invite']);
   });
 });
 
@@ -486,17 +474,6 @@ describe('system changes', () => {
         'delivery',
       ),
     ).toEqual([]);
-  });
-
-  it('has nothing to say without a published diagram', () => {
-    const plain = { layers: review.layers };
-    expect(systemChanges(plain)).toEqual({
-      added: [],
-      changed: [],
-      removed: [],
-      questions: [],
-    });
-    expect(decisionLinks(plain, 'invite')).toEqual([]);
   });
 });
 

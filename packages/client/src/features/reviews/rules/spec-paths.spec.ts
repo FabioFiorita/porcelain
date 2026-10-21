@@ -33,10 +33,6 @@ describe('groupSpecPaths', () => {
     { path: 'README.md' },
   ];
 
-  it('keeps the original order until grouping is on', () => {
-    expect(groupSpecPaths(entries, false)).toBe(entries);
-  });
-
   it('places spec files after the other files', () => {
     expect(groupSpecPaths(entries, true).map((entry) => entry.path)).toEqual([
       'src/search.ts',

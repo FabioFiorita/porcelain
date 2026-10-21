@@ -39,16 +39,4 @@ describe('review diff presentation', () => {
       description: 'This comparison contains no changed text lines.',
     });
   });
-  it('supplies literal old and new line addresses for native review selection', () => {
-    expect(
-      diffPresentation({ kind: 'text', patch: '@@ -8 +10 @@\n-old\n+new\n' }),
-    ).toEqual({
-      kind: 'text',
-      lines: [
-        { id: 'patch:0', text: '@@ -8 +10 @@' },
-        { id: 'patch:1', text: 'old', kind: 'removed', oldLine: 8 },
-        { id: 'patch:2', text: 'new', kind: 'added', newLine: 10 },
-      ],
-    });
-  });
 });

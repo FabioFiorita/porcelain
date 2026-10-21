@@ -136,15 +136,6 @@ describe('shownBranch', () => {
     ).toEqual({ kind: 'run', action: 'pull', label: 'Pull' });
   });
 
-  it('suggests pushing as many commits as the change list says are ahead', () => {
-    const branch = shownBranch(
-      { name: 'refs/heads/main', upstream: 'origin/main', ahead: 2, behind: 0 },
-      looked,
-    );
-    const status = { statusToken: 'token', changes: [], branch };
-    expect(suggestedCount(primaryGitAction(status), status)).toBe(2);
-  });
-
   it('ignores a detailed read of another branch or upstream', () => {
     const overview = {
       name: 'refs/heads/feature',

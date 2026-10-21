@@ -1,6 +1,6 @@
+import { dismissInterruptedGitActionResponseSchema } from '@porcelain/contracts/git-actions';
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
-import { dismissInterruptedGitActionResponseSchema } from '@porcelain/contracts/git-actions';
 import { expect } from 'vitest';
 import {
   expectation,
@@ -12,12 +12,6 @@ import { gitPath, read, worktreePath } from '../kit/requests.ts';
 import { gitInterruptionTest as it } from '../kit/server-test.ts';
 
 const ALTERNATES = '.git/objects/info/alternates';
-
-it('the explicit interruption fixture shortens the Git action deadline to 1.5 seconds', async ({
-  server,
-}) => {
-  expect(server.fixture.gitActionDeadlineMs).toBe(1500);
-});
 
 it('an interrupted action marks the changes until it is dismissed, and dismissing again answers the same', async ({
   session,

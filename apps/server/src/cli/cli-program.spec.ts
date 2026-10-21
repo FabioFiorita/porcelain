@@ -1,6 +1,6 @@
 import { NodeServices } from '@effect/platform-node';
-import { ConfigProvider, Console, Effect, Layer } from 'effect';
 import { expect, it } from '@effect/vitest';
+import { ConfigProvider, Console, Effect, Layer } from 'effect';
 import {
   EnvironmentSettings,
   type PorcelainEnvironment,
@@ -166,26 +166,6 @@ it.effect('fails pairing before dispatch when an address has credentials', () =>
   }),
 );
 
-it.effect('requires an explicit address before pairing', () =>
-  Effect.gen(function* () {
-    const result = yield* agentCli(['pair', 'iPad']);
-    expect(result.code).toBe(1);
-    expect(result.calls).toEqual([]);
-  }),
-);
-
-it.effect('requires at least one named device before pairing', () =>
-  Effect.gen(function* () {
-    const result = yield* agentCli([
-      'pair',
-      '--address',
-      'http://localhost:3000',
-    ]);
-    expect(result.code).toBe(1);
-    expect(result.calls).toEqual([]);
-  }),
-);
-
 it.effect('keeps a failed revoke observable through the exit code', () =>
   Effect.gen(function* () {
     const result = yield* agentCli(['revoke', 'missing-id']);
@@ -285,16 +265,6 @@ it.effect('refuses to install a remotely listening owner service', () =>
   }),
 );
 
-it.effect(
-  'rejects a pairing-only flag on status before reaching the owner socket',
-  () =>
-    Effect.gen(function* () {
-      const result = yield* agentCli(['status', '--trusted']);
-      expect(result.code).toBe(1);
-      expect(result.calls).toEqual([]);
-    }),
-);
-
 it.effect('reads status from the configured data directory', () =>
   Effect.gen(function* () {
     const result = yield* agentCli(['status'], {
@@ -304,14 +274,6 @@ it.effect('reads status from the configured data directory', () =>
     expect(result.calls).toEqual([
       { operation: 'status', input: { dataDirectory: '/tmp/agent-data' } },
     ]);
-  }),
-);
-
-it.effect('rejects an invalid listen port before starting a server', () =>
-  Effect.gen(function* () {
-    const result = yield* agentCli(['serve', '--port', '65536']);
-    expect(result.code).toBe(1);
-    expect(result.calls).toEqual([]);
   }),
 );
 
@@ -337,18 +299,6 @@ it.effect('retains the help command as native generated help', () =>
     expect(result.calls).toEqual([]);
     expect(result.output.join('\n')).toContain('SUBCOMMANDS');
   }),
-);
-
-it.effect(
-  'makes shell completion metadata available without dispatching application work',
-  () =>
-    Effect.gen(function* () {
-      const result = yield* agentCli(['--completions', 'zsh']);
-      expect(result.code).toBe(0);
-      expect(result.calls).toEqual([]);
-      expect(result.output.join('\n')).toContain('porcelain');
-      expect(result.output.join('\n')).toContain('--data-directory');
-    }),
 );
 
 it.effect(

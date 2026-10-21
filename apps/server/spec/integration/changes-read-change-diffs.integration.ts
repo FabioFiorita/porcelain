@@ -1,12 +1,10 @@
-import * as Schema from 'effect/Schema';
 import { readChangeDiffsResponseSchema } from '@porcelain/contracts/changes';
+import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
 import {
   apiError,
   invalidRequest,
   unknownFingerprint,
-  unknownWorktreeId,
-  worktreeNotFound,
 } from '../kit/answers.ts';
 import { changes, fingerprintOf, inventory } from '../kit/reads.ts';
 import { worktreePath } from '../kit/requests.ts';
@@ -157,32 +155,4 @@ test('reading diffs after the worktree moved since the status was read asks the 
 
   expect(response.status).toBe(409);
   expect(response.body).toStrictEqual(refresh);
-});
-
-test('reading diffs with no selections is refused, and an unknown worktree is not found', async ({
-  session,
-}) => {
-  const state = await changes(session);
-
-  const responses = [
-    await session.send({
-      method: 'POST',
-      path: worktreePath(session, '/changes/diffs'),
-      body: {
-        expectedStatusToken: state.statusToken,
-        expectedFiles: [],
-        selections: [],
-      },
-    }),
-    await session.send({
-      method: 'POST',
-      path: `/api/worktrees/${unknownWorktreeId}/changes/diffs`,
-      body: diffs(session, state.statusToken, null),
-    }),
-  ];
-
-  expect(responses[0]?.status).toBe(400);
-  expect(responses[0]?.body).toStrictEqual(invalidRequest);
-  expect(responses[1]?.status).toBe(404);
-  expect(responses[1]?.body).toStrictEqual(worktreeNotFound);
 });

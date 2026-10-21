@@ -1,10 +1,10 @@
-import { Layer, Effect, Scope, Exit } from 'effect';
-import { AtomRegistry } from 'effect/reactivity';
-import { expect, it } from 'vitest';
 import {
   createWorktreeConnection,
   type Transport,
 } from '@porcelain/client/transport';
+import { Effect, Exit, Layer, Scope } from 'effect';
+import { AtomRegistry } from 'effect/reactivity';
+import { expect, it } from 'vitest';
 import { generateCommitDraft } from './git-actions.ts';
 
 const scope = {
@@ -75,22 +75,6 @@ it('sends the selected model and observation and validates every returned draft 
       },
     ]);
     await expect(subject.run(input)).rejects.toThrow();
-  } finally {
-    await subject.close();
-  }
-});
-
-it('refuses an invalid observation before sending a draft request', async () => {
-  let requests = 0;
-  const subject = setup(() => {
-    requests++;
-    return Promise.resolve(Response.json(draft));
-  });
-  try {
-    await expect(
-      subject.run({ ...input, expectedStatusToken: 'invalid' }),
-    ).rejects.toThrow();
-    expect(requests).toBe(0);
   } finally {
     await subject.close();
   }

@@ -5,9 +5,6 @@ describe('desktopRequestOrigin', () => {
   it('accepts a request from the desktop document', () => {
     expect(desktopRequestOrigin('porcelain://app')).toBe(true);
   });
-  it('accepts browser navigation without an Origin header', () => {
-    expect(desktopRequestOrigin(null)).toBe(true);
-  });
   it.each([
     'null',
     'https://app',

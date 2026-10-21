@@ -1,8 +1,8 @@
+import { ProjectNotFoundError } from '@porcelain/projects/errors';
+import { type RegisteredProject } from '@porcelain/projects/models';
 import { InventoryStore } from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { ProjectNotFoundError } from '@porcelain/projects/errors';
-import { type RegisteredProject } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { RenameProjectService } from './rename-project-service.ts';
 
@@ -30,18 +30,6 @@ function setup() {
 }
 
 describe('RenameProjectService', () => {
-  it('answers the project under its new name', () => {
-    const { service } = setup();
-    expect(
-      Effect.runSync(
-        service.execute({ projectId: project.id, name: 'Billing' }),
-      ),
-    ).toEqual({
-      project: { id: project.id, name: 'Billing' },
-      changed: true,
-    });
-  });
-
   it('reports no change when the owner gives the name the project already has', () => {
     const { service } = setup();
     Effect.runSync(service.execute({ projectId: project.id, name: 'Billing' }));

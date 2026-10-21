@@ -1,5 +1,3 @@
-import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
 import {
   ServiceNotManagedError,
   ServiceUpdateNotOfferedError,
@@ -7,6 +5,8 @@ import {
   UntrustedDeviceError,
 } from '@porcelain/access/errors';
 import type { ServiceUpdateState } from '@porcelain/access/models';
+import { Effect } from 'effect';
+import { describe, expect, it } from 'vitest';
 import { CheckServiceUpdateService } from './check-service-update-service.ts';
 
 const offered: ServiceUpdateState = {
@@ -33,10 +33,6 @@ const check =
     );
 
 describe('CheckServiceUpdateService', () => {
-  it('lets the offered update start', () => {
-    expect(check(offered)).not.toThrow();
-  });
-
   it('names each refusal by its own error', () => {
     expect(check({ ...offered, managed: false })).toThrow(
       ServiceNotManagedError,

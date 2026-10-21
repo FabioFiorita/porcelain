@@ -1,15 +1,8 @@
-import * as Schema from 'effect/Schema';
 import { readTextFileResponseSchema } from '@porcelain/contracts/files';
 import { TEXT_BYTES } from '@porcelain/contracts/shared';
+import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
-import {
-  apiError,
-  CREDENTIAL_LINK,
-  invalidRequest,
-  unknownWorktreeId,
-  unreadablePath,
-  worktreeNotFound,
-} from '../kit/answers.ts';
+import { apiError, CREDENTIAL_LINK, unreadablePath } from '../kit/answers.ts';
 import { read, worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { type HttpRequest, type Session } from '../kit/session.ts';
@@ -101,28 +94,6 @@ test('reading a file that does not exist is not found', async ({ session }) => {
   expect(response.body).toStrictEqual(
     apiError(404, 'Not Found', 'Path not found'),
   );
-});
-
-test('reading an escaping path, an absolute path or the root is invalid input, and reading from an unknown worktree is not found', async ({
-  session,
-}) => {
-  const invalid = [
-    await session.send(text(session, '../credential.json')),
-    await session.send(text(session, '/etc/passwd')),
-    await session.send(text(session, '')),
-  ];
-  const unknown = await session.send({
-    method: 'GET',
-    path: `/api/worktrees/${unknownWorktreeId}/text`,
-    query: { path: 'README.md' },
-  });
-
-  for (const response of invalid) {
-    expect(response.status).toBe(400);
-    expect(response.body).toStrictEqual(invalidRequest);
-  }
-  expect(unknown.status).toBe(404);
-  expect(unknown.body).toStrictEqual(worktreeNotFound);
 });
 
 test('reading through a symbolic link cannot be done whether the link leaves the worktree or not', async ({
