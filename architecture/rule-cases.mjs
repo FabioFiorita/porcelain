@@ -3965,6 +3965,190 @@ const styleConfigCases = [
 export const guardrailCases = [
   { rule: 'style-config', cases: styleConfigCases },
   {
+    rule: 'ci-affected-selection',
+    cases: [
+      { name: 'unchanged selects nothing', selected: [] },
+      {
+        name: 'client selects dependent surfaces',
+        path: 'packages/client/src/ci-fixture.ts',
+        source: 'export const fixture = true;',
+        selected: [
+          'server',
+          'web-integration',
+          'web-e2e',
+          'desktop',
+          'package',
+        ],
+      },
+      {
+        name: 'web feature spec stays selective',
+        path: 'apps/web/spec/integration/ci-fixture.test.tsx',
+        source: 'export const fixture = true;',
+        selected: ['web-integration', 'web-e2e', 'package'],
+      },
+      ...[
+        'package.json',
+        '.github/workflows/ci.yml',
+        'turbo.json',
+        'pnpm-workspace.yaml',
+      ].map((path) => ({
+        name: `${path} selects every runtime gate`,
+        path,
+        selected: [
+          'server',
+          'web-integration',
+          'web-e2e',
+          'desktop',
+          'storage',
+          'package',
+        ],
+      })),
+    ],
+  },
+  {
+    rule: 'ci-required-checks',
+    needs: {
+      affected: {
+        result: 'success',
+        outputs: {
+          package: 'true',
+          server: 'true',
+          'web-integration': 'true',
+          'web-e2e': 'true',
+          storage: 'true',
+          desktop: 'true',
+        },
+      },
+      static: { result: 'success' },
+      units: { result: 'success' },
+      package: { result: 'success' },
+      'server-integration': { result: 'success' },
+      'web-integration': { result: 'success' },
+      'web-e2e': { result: 'success' },
+      migrations: { result: 'success' },
+      'desktop-e2e': { result: 'success' },
+    },
+    optional: [
+      ['package', 'package'],
+      ['server-integration', 'server'],
+      ['web-integration', 'web-integration'],
+      ['web-e2e', 'web-e2e'],
+      ['migrations', 'storage'],
+      ['desktop-e2e', 'desktop'],
+    ],
+    cases: [
+      {
+        name: 'all selected jobs succeed, including matrix aggregates',
+        status: 0,
+      },
+      ...[
+        ['package', 'package'],
+        ['server-integration', 'server'],
+        ['web-integration', 'web-integration'],
+        ['web-e2e', 'web-e2e'],
+        ['migrations', 'storage'],
+        ['desktop-e2e', 'desktop'],
+      ].flatMap(([job, output]) => [
+        {
+          name: `${job}: unselected skip`,
+          results: { [job]: 'skipped' },
+          outputs: { [output]: 'false' },
+          status: 0,
+        },
+        {
+          name: `${job}: selected skip`,
+          results: { [job]: 'skipped' },
+          status: 1,
+        },
+        {
+          name: `${job}: missing selection`,
+          missingOutputs: [output],
+          status: 1,
+        },
+        ...['', 'FALSE', 'null', 'yes', false, null, {}, []].flatMap((value) =>
+          ['success', 'skipped'].map((result) => ({
+            name: `${job}: invalid selection ${JSON.stringify(value)} with ${result}`,
+            results: { [job]: result },
+            outputs: { [output]: value },
+            status: 1,
+          })),
+        ),
+        {
+          name: `${job}: skip with missing selection`,
+          results: { [job]: 'skipped' },
+          missingOutputs: [output],
+          status: 1,
+        },
+        {
+          name: `${job}: successful unselected run`,
+          outputs: { [output]: 'false' },
+          status: 0,
+        },
+        {
+          name: `${job}: unselected failure`,
+          results: { [job]: 'failure' },
+          outputs: { [output]: 'false' },
+          status: 1,
+        },
+        {
+          name: `${job}: unselected cancellation`,
+          results: { [job]: 'cancelled' },
+          outputs: { [output]: 'false' },
+          status: 1,
+        },
+      ]),
+      ...['affected', 'static', 'units'].map((job) => ({
+        name: `${job}: unconditional skip`,
+        results: { [job]: 'skipped' },
+        status: 1,
+      })),
+      ...[
+        'affected',
+        'static',
+        'units',
+        'package',
+        'server-integration',
+        'web-integration',
+        'web-e2e',
+        'migrations',
+        'desktop-e2e',
+      ].flatMap((job) => [
+        ...['failure', 'cancelled', '', null, 'unknown'].map((result) => ({
+          name: `${job}: result ${JSON.stringify(result)}`,
+          results: { [job]: result },
+          status: 1,
+        })),
+        { name: `${job}: missing need`, missingJobs: [job], status: 1 },
+        { name: `${job}: missing result`, missingResults: [job], status: 1 },
+      ]),
+      {
+        name: 'nothing selected',
+        results: {
+          package: 'skipped',
+          'server-integration': 'skipped',
+          'web-integration': 'skipped',
+          'web-e2e': 'skipped',
+          migrations: 'skipped',
+          'desktop-e2e': 'skipped',
+        },
+        outputs: {
+          package: 'false',
+          server: 'false',
+          'web-integration': 'false',
+          'web-e2e': 'false',
+          storage: 'false',
+          desktop: 'false',
+        },
+        status: 0,
+      },
+      { name: 'empty needs object', raw: '{}', status: 1 },
+      { name: 'null needs', raw: 'null', status: 1 },
+      { name: 'array needs', raw: '[]', status: 1 },
+      { name: 'empty needs text', raw: '', status: 1 },
+      { name: 'malformed needs JSON', raw: '{', status: 1 },
+    ],
+  },
+  {
     rule: 'server-handler-coverage',
     completeLogs: [
       {

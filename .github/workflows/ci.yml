@@ -250,6 +250,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Require every selected check to succeed
-        run: test "$FAILED" = false
+        run: |
+          if ! jq -e -n --argjson needs "$NEEDS" '
+            {
+              "package": "package",
+              "server-integration": "server",
+              "web-integration": "web-integration",
+              "web-e2e": "web-e2e",
+              "migrations": "storage",
+              "desktop-e2e": "desktop"
+            } as $gates |
+            all(["affected", "static", "units"][]; $needs[.].result == "success") and
+            all($gates | to_entries[];
+              . as $gate |
+              $needs.affected.outputs[$gate.value] as $selected |
+              ($selected == "true" or $selected == "false") and
+              ($needs[$gate.key].result == "success" or
+                ($selected == "false" and $needs[$gate.key].result == "skipped"))
+            )
+          ' > /dev/null; then
+            echo 'A required job did not succeed or its selection output was invalid.' >&2
+            exit 1
+          fi
         env:
-          FAILED: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+          NEEDS: ${{ toJSON(needs) }}
