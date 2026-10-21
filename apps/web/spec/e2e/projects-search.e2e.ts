@@ -32,11 +32,16 @@ test('the flat worktree menu searches checkouts without reviews and selects the 
   ).not.toBeAttached();
   await expect.poll(() => app.address().path).toBe(original);
   await search.press('ControlOrMeta+a');
-  await pairedPage.keyboard.type('search-target');
-  await expect(search).toBeFocused();
+  await pairedPage.keyboard.type('search-');
   const result = pairedPage.getByRole('menuitem', { name: /search-target/ });
   await expect(result).toBeVisible();
-  await result.click();
+  await result.hover();
+  await pairedPage.keyboard.type('target');
+  await expect(search).toHaveValue('search-target');
+  await expect(search).toBeFocused();
+  await pairedPage.keyboard.press('ArrowDown');
+  await expect(result).toBeFocused();
+  await pairedPage.keyboard.press('Enter');
   await expect
     .poll(() => app.address().path)
     .toBe(`/${project.id}/${target?.id ?? ''}`);

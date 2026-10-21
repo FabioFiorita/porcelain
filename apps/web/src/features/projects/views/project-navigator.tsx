@@ -380,6 +380,7 @@ export function ProjectNavigator({
           </PopoverContent>
         </Popover>
         <DropdownMenu
+          highlightItemOnHover={false}
           onOpenChange={(open) => {
             if (!open) setMenuQuery('');
           }}
