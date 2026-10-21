@@ -68,7 +68,7 @@ it.effect(
       });
       let firstState: ServiceUpdateTarget['state'] = running;
       let secondState: ServiceUpdateTarget['state'] = running;
-      let secondUnavailable = false;
+      let secondUnavailable: 'restart' | 'network' | undefined;
       const first = fixture(async (_path, init) => {
         if (init?.method === 'POST') {
           writes.push('first');
@@ -83,7 +83,9 @@ it.effect(
           postedSecond?.();
           return response(running, 202);
         }
-        return secondUnavailable
+        if (secondUnavailable === 'network')
+          throw new TypeError('Network request failed');
+        return secondUnavailable === 'restart'
           ? new Response(null, { status: 503 })
           : response(secondState);
       });
@@ -151,10 +153,13 @@ it.effect(
       expect(
         settingsUpdateBatchProgress(registry.get(settingsUpdateBatch)).label,
       ).toBe('Updating 2 of 3');
-      secondUnavailable = true;
+      secondUnavailable = 'restart';
       yield* TestClock.adjust(1000);
       expect(writes).toEqual(['first', 'second']);
-      secondUnavailable = false;
+      secondUnavailable = 'network';
+      yield* TestClock.adjust(1000);
+      expect(writes).toEqual(['first', 'second']);
+      secondUnavailable = undefined;
       secondState = {
         ...running,
         running: false,
@@ -234,4 +239,103 @@ it.effect(
         ],
       });
     }),
+);
+
+it.each([
+  {
+    status: 401,
+    message:
+      'Could not confirm the update: access to this computer was denied (401). Pair or trust this device again.',
+  },
+  {
+    status: 403,
+    message:
+      'Could not confirm the update: access to this computer was denied (403). Pair or trust this device again.',
+  },
+])(
+  'continues to the next computer and Mac app when an accepted update loses authorization with $status',
+  ({ status, message }) =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const writes: string[] = [];
+        let acceptedFirst: (() => void) | undefined;
+        const firstAccepted = new Promise<void>((resolve) => {
+          acceptedFirst = resolve;
+        });
+        let denied = false;
+        const first = fixture(async (_path, init) => {
+          if (init?.method === 'POST') {
+            writes.push('first');
+            acceptedFirst?.();
+            return response(running, 202);
+          }
+          return denied ? new Response(null, { status }) : response(running);
+        });
+        let secondAccepted = false;
+        const second = fixture(async (_path, init) => {
+          if (init?.method === 'POST') {
+            writes.push('second');
+            secondAccepted = true;
+            return response(running, 202);
+          }
+          return response(
+            secondAccepted
+              ? {
+                  ...running,
+                  running: false,
+                  version: '1.1.0',
+                  available: false,
+                  last: { ...running.last, stage: 'updated' },
+                }
+              : offered,
+          );
+        });
+        for (const { connection } of [first, second])
+          connection.atoms.addGlobalLayer(
+            Layer.succeed(Clock.Clock, yield* Clock.Clock),
+          );
+        const rows: readonly ServiceUpdateTarget[] = [first, second].map(
+          ({ connection }, index) => ({
+            kind: 'service',
+            id: String(index),
+            name: index === 0 ? 'First' : 'Second',
+            deviceId: undefined,
+            connection,
+            state: offered,
+          }),
+        );
+        const mac: MacAppUpdateTarget = {
+          kind: 'mac-app',
+          id: 'mac',
+          name: 'Mac app',
+          available: true,
+          latest: '1.1.0',
+          update: () =>
+            Effect.sync(() => {
+              writes.push('mac');
+            }),
+        };
+        const registry = first.registry;
+        registry.set(runSettingsUpdates, [mac, ...rows]);
+        yield* Effect.promise(() => firstAccepted);
+        yield* TestClock.adjust(0);
+        expect(writes).toEqual(['first']);
+        denied = true;
+        yield* TestClock.adjust(1000);
+        expect(registry.get(settingsUpdateBatch).entries[0]).toMatchObject({
+          status: 'failed',
+          message,
+        });
+        yield* waitForBatch(registry, (batch) => !batch.running);
+        expect(writes).toEqual(['first', 'second', 'mac']);
+        expect(registry.get(settingsUpdateBatch)).toMatchObject({
+          running: false,
+          entries: [
+            { id: '0', status: 'failed', message },
+            { id: '1', status: 'updated' },
+            { id: 'mac', status: 'updated' },
+          ],
+        });
+      }).pipe(Effect.provide(TestClock.layer())),
+    ),
 );

@@ -2,6 +2,7 @@ import type { ReadServiceUpdateResponse } from '@porcelain/contracts/access';
 import { Cause, Effect, Exit, Option, Schema, Stream } from 'effect';
 import { AsyncResult, Atom, AtomRegistry } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
+import { RequestError } from '../../../shared/api/request-error.ts';
 import { readServiceUpdate } from '../queries/share.ts';
 import {
   settingsUpdateVersion,
@@ -59,6 +60,18 @@ const updateTarget = Effect.fn('updateSettingsTarget')(function* (
       ): Option.Option<
         { status: 'updated' } | { status: 'failed'; message: string }
       > => {
+        if (AsyncResult.isFailure(answer)) {
+          const error = Cause.squash(answer.cause);
+          if (
+            error instanceof RequestError &&
+            (error.status === 401 || error.status === 403)
+          )
+            return Option.some({
+              status: 'failed',
+              message: `Could not confirm the update: access to this computer was denied (${error.status}). Pair or trust this device again.`,
+            });
+          return Option.none();
+        }
         if (!AsyncResult.isSuccess(answer)) return Option.none();
         const state = answer.value;
         if (!state.managed)
