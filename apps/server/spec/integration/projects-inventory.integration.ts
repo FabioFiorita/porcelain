@@ -59,23 +59,28 @@ test('a project whose folder has gone away stays registered as unavailable and i
 }) => {
   const moved = `${session.repository}-moved`;
   await session.rename(session.repository, moved);
-  await eventually(session, inventory, everyProjectIs(false));
+  try {
+    await eventually(session, inventory, everyProjectIs(false));
 
-  const response = await session.send({
-    method: 'GET',
-    path: '/api/inventory',
-  });
+    const response = await session.send({
+      method: 'GET',
+      path: '/api/inventory',
+    });
 
-  expect(response.status).toBe(200);
-  expect(response.body).toEqual(
-    expect.schemaMatching(
-      Schema.toStandardSchemaV1(Schema.toEncoded(readInventoryResponseSchema)),
-    ),
-  );
-  expect(list(record(response.body).projects)).toStrictEqual([
-    { ...registered(session, false), unavailableReason: 'missing' },
-  ]);
-  await session.rename(moved, session.repository);
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(
+      expect.schemaMatching(
+        Schema.toStandardSchemaV1(
+          Schema.toEncoded(readInventoryResponseSchema),
+        ),
+      ),
+    );
+    expect(list(record(response.body).projects)).toStrictEqual([
+      { ...registered(session, false), unavailableReason: 'missing' },
+    ]);
+  } finally {
+    await session.rename(moved, session.repository);
+  }
   expect(
     list((await eventually(session, inventory, everyProjectIs(true))).projects),
   ).toStrictEqual([registered(session, true)]);
@@ -86,16 +91,19 @@ test('refreshing the inventory rechecks a missing repository and restores its or
 }) => {
   const moved = `${session.repository}-retry`;
   await session.rename(session.repository, moved);
-  const missing = await session.send({
-    method: 'POST',
-    path: '/api/inventory/refresh',
-  });
-  expect(missing.status).toBe(200);
-  expect(missing.headers['content-type']).toContain('application/json');
-  expect(list(record(missing.body).projects)).toStrictEqual([
-    { ...registered(session, false), unavailableReason: 'missing' },
-  ]);
-  await session.rename(moved, session.repository);
+  try {
+    const missing = await session.send({
+      method: 'POST',
+      path: '/api/inventory/refresh',
+    });
+    expect(missing.status).toBe(200);
+    expect(missing.headers['content-type']).toContain('application/json');
+    expect(list(record(missing.body).projects)).toStrictEqual([
+      { ...registered(session, false), unavailableReason: 'missing' },
+    ]);
+  } finally {
+    await session.rename(moved, session.repository);
+  }
   const recovered = await session.send({
     method: 'POST',
     path: '/api/inventory/refresh',
@@ -114,34 +122,46 @@ test('removing a moved project lets the replacement repository be registered', a
     `${session.repository}/.git`,
     `${session.repository}-old-git`,
   );
-  await session.git('init');
-  const moved = await session.send({
-    method: 'POST',
-    path: '/api/inventory/refresh',
-  });
-  expect(moved.status).toBe(200);
-  expect(list(record(moved.body).projects)).toStrictEqual([
-    { ...registered(session, false), unavailableReason: 'moved' },
-  ]);
+  try {
+    await session.git('init');
+    const moved = await session.send({
+      method: 'POST',
+      path: '/api/inventory/refresh',
+    });
+    expect(moved.status).toBe(200);
+    expect(list(record(moved.body).projects)).toStrictEqual([
+      { ...registered(session, false), unavailableReason: 'moved' },
+    ]);
 
-  const removed = await session.send({
-    method: 'DELETE',
-    path: `/api/projects/${session.projectId}`,
-  });
-  expect(removed.status).toBe(200);
-  expect(removed.body).toStrictEqual({ deleted: true });
-  const readded = await session.send({
-    method: 'POST',
-    path: '/api/projects',
-    body: { path: session.repository },
-  });
-  expect(readded.status).toBe(200);
-  expect(readded.body).toMatchObject({
-    name: session.fixture.folders.repository,
-    available: true,
-    worktrees: [{ path: session.repository, main: true, available: true }],
-  });
-  expect(
-    list(record((await session.read(inventory)).body).projects),
-  ).toStrictEqual([readded.body]);
+    const removed = await session.send({
+      method: 'DELETE',
+      path: `/api/projects/${session.projectId}`,
+    });
+    expect(removed.status).toBe(200);
+    expect(removed.body).toStrictEqual({ deleted: true });
+    const readded = await session.send({
+      method: 'POST',
+      path: '/api/projects',
+      body: { path: session.repository },
+    });
+    expect(readded.status).toBe(200);
+    expect(readded.body).toMatchObject({
+      name: session.fixture.folders.repository,
+      available: true,
+      worktrees: [{ path: session.repository, main: true, available: true }],
+    });
+    expect(
+      list(record((await session.read(inventory)).body).projects),
+    ).toStrictEqual([readded.body]);
+  } finally {
+    if ((await session.entries(session.repository)).includes('.git'))
+      await session.rename(
+        `${session.repository}/.git`,
+        `${session.repository}-replacement-git`,
+      );
+    await session.rename(
+      `${session.repository}-old-git`,
+      `${session.repository}/.git`,
+    );
+  }
 });

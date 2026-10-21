@@ -1,4 +1,4 @@
-import { type Duration, Effect, Layer, Semaphore } from 'effect';
+import { type Duration, Effect, FileSystem, Layer, Semaphore } from 'effect';
 import { captureGitPlatform } from '@porcelain/git/discovery';
 import { listWorktrees } from '@porcelain/git/discovery';
 import { repositoryUnavailableReason } from '@porcelain/git/errors';
@@ -26,6 +26,7 @@ export const gitWorktreeListingReaderLayer = (
     WorktreeListingReader,
     Effect.gen(function* () {
       const provideGit = yield* captureGitPlatform();
+      const fs = yield* FileSystem.FileSystem;
       const logger = yield* Logger;
       const sharedReads = yield* makeSharedReads<WorktreeListing>();
       const launches = yield* Semaphore.make(options.launches);
@@ -40,8 +41,17 @@ export const gitWorktreeListingReaderLayer = (
           Effect.timeout(options.timeout),
           Effect.map((repository) => ({ kind: 'listed' as const, repository })),
           Effect.catch((failure) =>
-            Effect.sync(() => {
-              const unavailableReason = repositoryUnavailableReason(failure);
+            Effect.gen(function* () {
+              const currentReason = yield* fs
+                .access(project.commonDirectory, { readable: true })
+                .pipe(
+                  Effect.as(undefined),
+                  Effect.catch((error) =>
+                    Effect.succeed(repositoryUnavailableReason(error)),
+                  ),
+                );
+              const unavailableReason =
+                currentReason ?? repositoryUnavailableReason(failure);
               const reason = unavailableReason ?? 'git-failed';
               if (unavailableReason === undefined)
                 logger.failure({
