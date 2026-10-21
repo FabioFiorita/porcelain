@@ -1,14 +1,42 @@
-import { Cause, Effect, Exit, Option, Stream } from 'effect';
+import type { ReadServiceUpdateResponse } from '@porcelain/contracts/access';
+import { Cause, Effect, Exit, Option, Schema, Stream } from 'effect';
 import { AsyncResult, Atom, AtomRegistry } from 'effect/reactivity';
-import { SettingsUpdateError } from '../errors/settings-update-error.ts';
-import type {
-  SettingsUpdateEntry,
-  SettingsUpdateTarget,
-} from '../models/settings-updates.ts';
+import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { readServiceUpdate } from '../queries/share.ts';
-import { settingsUpdateVersion } from '../rules/settings-updates.ts';
+import {
+  settingsUpdateVersion,
+  type SettingsUpdateEntry,
+} from '../rules/settings-updates.ts';
 import { settingsUpdateBatch } from '../store/settings-updates.ts';
 import { startServiceUpdate } from './share.ts';
+
+export class SettingsUpdateError extends Schema.TaggedError<SettingsUpdateError>()(
+  'SettingsUpdateError',
+  { message: Schema.String },
+) {}
+
+type UpdateIdentity = {
+  readonly id: string;
+  readonly name: string;
+};
+
+export type ServiceUpdateTarget = UpdateIdentity & {
+  readonly kind: 'service';
+  readonly connection: RuntimeConnection;
+  readonly state: ReadServiceUpdateResponse;
+  readonly deviceId: string | undefined;
+};
+
+export type MacAppUpdateTarget = UpdateIdentity & {
+  readonly kind: 'mac-app';
+  readonly available: boolean;
+  readonly latest: string | undefined;
+  readonly update: (
+    version: string,
+  ) => Effect.Effect<void, SettingsUpdateError>;
+};
+
+export type SettingsUpdateTarget = ServiceUpdateTarget | MacAppUpdateTarget;
 
 const updateTarget = Effect.fn('updateSettingsTarget')(function* (
   target: SettingsUpdateTarget,

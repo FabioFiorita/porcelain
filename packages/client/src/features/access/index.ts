@@ -41,19 +41,19 @@ export {
   restoreBrowserConnection,
 } from './commands/session.ts';
 export type { StatusActivity } from './ports/status-activity.ts';
-export { runSettingsUpdates } from './commands/settings-updates.ts';
-export { SettingsUpdateError } from './errors/settings-update-error.ts';
+export {
+  runSettingsUpdates,
+  SettingsUpdateError,
+  type ServiceUpdateTarget,
+  type MacAppUpdateTarget,
+  type SettingsUpdateTarget,
+} from './commands/settings-updates.ts';
 export { settingsUpdateBatch } from './store/settings-updates.ts';
 export {
   settingsUpdateVersion,
   settingsUpdateTrust,
   settingsUpdateCount,
   settingsUpdateBatchProgress,
+  type SettingsUpdateEntry,
+  type SettingsUpdateBatch,
 } from './rules/settings-updates.ts';
-export type {
-  ServiceUpdateTarget,
-  MacAppUpdateTarget,
-  SettingsUpdateTarget,
-  SettingsUpdateEntry,
-  SettingsUpdateBatch,
-} from './models/settings-updates.ts';

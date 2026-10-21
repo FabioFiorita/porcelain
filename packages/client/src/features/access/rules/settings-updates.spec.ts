@@ -4,7 +4,7 @@ import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
 import type {
   ServiceUpdateTarget,
   MacAppUpdateTarget,
-} from '../models/settings-updates.ts';
+} from '../commands/settings-updates.ts';
 import {
   settingsUpdateBatchProgress,
   settingsUpdateCount,

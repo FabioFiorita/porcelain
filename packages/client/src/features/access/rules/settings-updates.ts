@@ -1,5 +1,20 @@
 import type { ServiceUpdate } from './service-update.ts';
 
+export type SettingsUpdateEntry = {
+  readonly id: string;
+  readonly name: string;
+  readonly kind: 'service' | 'mac-app';
+  readonly version: string;
+} & (
+  | { readonly status: 'queued' | 'updating' | 'updated' }
+  | { readonly status: 'failed'; readonly message: string }
+);
+
+export type SettingsUpdateBatch = {
+  readonly running: boolean;
+  readonly entries: readonly SettingsUpdateEntry[];
+};
+
 type UpdateOffer =
   | { readonly kind: 'service'; readonly state: ServiceUpdate }
   | {
