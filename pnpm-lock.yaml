@@ -323,6 +323,9 @@ importers:
       expo-build-properties:
         specifier: 58.0.9
         version: 58.0.9(expo@58.0.0)
+      expo-constants:
+        specifier: 58.0.9
+        version: 58.0.9
       expo-crypto:
         specifier: 58.0.3
         version: 58.0.3(expo@58.0.0)
