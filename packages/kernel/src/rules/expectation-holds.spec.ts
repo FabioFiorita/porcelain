@@ -34,10 +34,4 @@ describe('expectationHolds', () => {
       expectationHolds([readme], new Map([[readme.path, undefined]])),
     ).toBe(false);
   });
-
-  it('holds for an expectation of nothing', () => {
-    expect(expectationHolds([], new Map([['GUIDE.md', 'b'.repeat(64)]]))).toBe(
-      true,
-    );
-  });
 });

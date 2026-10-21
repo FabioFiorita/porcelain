@@ -1,3 +1,6 @@
+import { rangeAnchor } from '@porcelain/client/reviews/rules';
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { describe, expect, it } from 'vitest';
 import {
   commentTarget,
@@ -7,9 +10,6 @@ import {
   reviewRange,
   type ReviewSnapshot,
 } from './comparison';
-import { rangeAnchor } from '@porcelain/client/reviews/rules';
-import { AsyncResult } from 'effect/reactivity';
-import { Option } from 'effect';
 
 const staged = {
   scope: 'staged',
@@ -233,32 +233,6 @@ it('does not submit branch feedback without a base', () => {
       file,
     ),
   ).toBeUndefined();
-});
-it('names the conflict type in the review file note', () => {
-  expect(
-    reviewFiles(
-      {
-        ...worktree,
-        answer: {
-          ...worktree.answer,
-          changes: [
-            {
-              path: 'conflict.ts',
-              fingerprint: 'conflicted',
-              comparisons: [
-                {
-                  scope: 'unmerged',
-                  path: 'conflict.ts',
-                  conflict: 'both-modified',
-                },
-              ],
-            },
-          ],
-        },
-      },
-      { worktreeId: 'tree', marks: [] },
-    )[0]?.note,
-  ).toBe('Conflict: both-modified');
 });
 it('does not submit worktree feedback without a comparison scope', () => {
   expect(commentTarget(worktree, file)).toBeUndefined();

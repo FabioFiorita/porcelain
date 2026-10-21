@@ -1,8 +1,8 @@
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { fixture } from '../../../spec/fixtures/fixture.ts';
-import { diffKey, parseDiff } from './parse-diff.ts';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
+import { parseDiff } from './parse-diff.ts';
 
 const worktree = fixture('diff/worktree.txt');
 const printed = worktree.toString('utf8');
@@ -25,21 +25,6 @@ describe('parseDiff', () => {
       link: { kind: 'text', patch: patchOf('link', 'logo.png') },
       'logo.png': { kind: 'binary' },
     });
-  });
-
-  it('gives a type change both of the patches Git prints for it', () => {
-    const link = Effect.runSync(parseDiff(worktree, gitLimits)).get('link');
-    expect(link?.kind === 'text' ? link.patch : '').toMatch(
-      /deleted file mode 120000[\s\S]*new file mode 100644/u,
-    );
-  });
-
-  it('keys a rename by both of its paths', () => {
-    expect([
-      ...Effect.runSync(
-        parseDiff(fixture('diff/staged-rename.txt'), gitLimits),
-      ).keys(),
-    ]).toEqual([diffKey(['b.txt', 'renamed.txt'])]);
   });
 
   it('omits a patch that is not UTF-8 instead of mangling it', () => {

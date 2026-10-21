@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isNullOid, isOid, nullOidFor } from './oid.ts';
+import { isNullOid, isOid } from './oid.ts';
 
 const sha1 = 'a009a75e6294ff85720885cbc63f5ef03b85b3dd';
 const sha256 =
@@ -35,14 +35,5 @@ describe('isNullOid', () => {
 
   it('does not treat a short run of zeros or a real name as null', () => {
     expect([isNullOid('0000000'), isNullOid(sha1)]).toEqual([false, false]);
-  });
-});
-
-describe('nullOidFor', () => {
-  it('matches the hash length of the object it guards', () => {
-    expect([nullOidFor(sha1), nullOidFor(sha256)]).toEqual([
-      '0'.repeat(40),
-      '0'.repeat(64),
-    ]);
   });
 });

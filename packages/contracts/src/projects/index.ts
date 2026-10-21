@@ -27,8 +27,3 @@ export {
   type FindWorktreeByPathResponse,
 } from './worktree-path.ts';
 export { ProjectsApi } from './api.ts';
-
-export {
-  FilePreferenceLimitError,
-  ProjectNotFoundError,
-} from '@porcelain/projects/errors';

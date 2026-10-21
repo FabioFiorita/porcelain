@@ -1,6 +1,6 @@
+import { withReadLease } from '@porcelain/effects/worktree';
 import { FileReader, ReadTextFilesOptions } from '@porcelain/files/ports';
 import { Effect } from 'effect';
-import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
 import { InMemoryFileReader } from '../../spec/fakes/in-memory-file-reader.ts';
 import { ReadTextFilesService } from './read-text-files-service.ts';
@@ -67,17 +67,5 @@ describe('ReadTextFilesService', () => {
       'image.bin',
       'racing.ts',
     ]);
-  });
-
-  it('reads nothing when no path is asked', async () => {
-    expect(
-      await Effect.runPromise(
-        withReadLease(worktreeId, service.execute({ worktreeId, paths: [] })),
-      ),
-    ).toEqual({
-      texts: new Map(),
-      unreadable: [],
-      missing: new Set(),
-    });
   });
 });

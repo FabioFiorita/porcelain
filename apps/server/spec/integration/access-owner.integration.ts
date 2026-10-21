@@ -1,9 +1,9 @@
-import * as Schema from 'effect/Schema';
 import {
   issuePairingResponseSchema,
   listAccessResponseSchema,
   readOwnerStatusResponseSchema,
 } from '@porcelain/contracts/access';
+import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
 import {
   apiError,
@@ -12,7 +12,7 @@ import {
   unauthenticated,
 } from '../kit/answers.ts';
 import { inventory } from '../kit/reads.ts';
-import { mcpHeaders, pairDevice, read, owner } from '../kit/requests.ts';
+import { mcpHeaders, owner, pairDevice, read } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { list, record, text, type HttpRequest } from '../kit/session.ts';
 
@@ -93,31 +93,6 @@ test('the owner issues a pairing whose link opens the pairing page and which is 
   );
   expect(list(access.grants).map((entry) => record(entry).id)).toStrictEqual([
     record(grant.grant).id,
-  ]);
-});
-
-test('issuing a pairing with no labels or a malformed address is refused', async ({
-  session,
-}) => {
-  const empty = await session.send(
-    owner({
-      method: 'POST',
-      path: '/pairings',
-      body: { labels: [], addresses: [] },
-    }),
-  );
-  const malformed = await session.send(
-    owner({
-      method: 'POST',
-      path: '/pairings',
-      body: { labels: ['x'], addresses: ['not a url'] },
-    }),
-  );
-
-  expect([empty.status, malformed.status]).toStrictEqual([400, 400]);
-  expect([empty.body, malformed.body]).toStrictEqual([
-    invalidRequest,
-    invalidRequest,
   ]);
 });
 

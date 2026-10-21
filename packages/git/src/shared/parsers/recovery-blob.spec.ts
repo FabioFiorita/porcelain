@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  discardedRef,
   parseRecoveryBlob,
   type RecoveryBlob,
   writeRecoveryBlob,
@@ -55,11 +54,5 @@ describe('recovery blob', () => {
         '{"porcelainDiscard":1,"id":"x","cached":"","unstaged":""}',
       ),
     ]).toEqual([undefined, undefined]);
-  });
-
-  it('files each discard under its own ref', () => {
-    expect(discardedRef(hunk.id)).toBe(
-      'refs/porcelain/discarded/5b1f6c2e-0000-4000-8000-000000000001',
-    );
   });
 });

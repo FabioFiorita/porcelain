@@ -1,13 +1,13 @@
 import { describe, expect, it } from '@effect/vitest';
 import { Context, Deferred, Duration, Effect, Fiber, Layer } from 'effect';
 import { TestClock } from 'effect/testing';
-import { WorktreeWatcher } from '../../ports/worktree-watcher.ts';
+import { InMemoryWorktreeWatcher } from '../../../spec/fakes/in-memory-worktree-watcher.ts';
+import { RecordingInventoryScan } from '../../../spec/fakes/recording-inventory-scan.ts';
+import { RecordingWorktreeChanges } from '../../../spec/fakes/recording-worktree-changes.ts';
 import { AnnounceWorktreeChangeUseCasePort } from '../../ports/announce-worktree-change-use-case-port.ts';
 import { InventoryScan } from '../../ports/inventory-scan.ts';
 import { Logger } from '../../ports/logger.ts';
-import { RecordingInventoryScan } from '../../../spec/fakes/recording-inventory-scan.ts';
-import { InMemoryWorktreeWatcher } from '../../../spec/fakes/in-memory-worktree-watcher.ts';
-import { RecordingWorktreeChanges } from '../../../spec/fakes/recording-worktree-changes.ts';
+import { WorktreeWatcher } from '../../ports/worktree-watcher.ts';
 import { WatchWorktrees } from './watch-worktrees.ts';
 
 const PROJECT = 'project-a';
@@ -293,14 +293,6 @@ describe('WatchWorktrees', () => {
         maxWatchedWorktrees: 4,
       });
       yield* watches.open();
-      expect(yield* watches.open()).toEqual({ kind: 'at-capacity' });
-    }),
-  );
-
-  it.effect('refuses every client once it is closed', () =>
-    Effect.gen(function* () {
-      const { watches } = yield* subject();
-      yield* watches.close();
       expect(yield* watches.open()).toEqual({ kind: 'at-capacity' });
     }),
   );

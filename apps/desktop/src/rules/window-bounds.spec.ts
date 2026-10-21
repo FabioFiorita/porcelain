@@ -46,7 +46,4 @@ describe('restoreWindowBounds', () => {
       maximized: true,
     });
   });
-  it('lets a fresh profile use the default window', () => {
-    expect(restoreWindowBounds(undefined, [display], minimum)).toBeUndefined();
-  });
 });

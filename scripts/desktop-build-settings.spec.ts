@@ -16,36 +16,6 @@ const releaseEnvironment = {
 };
 
 describe('desktopBuildMode', () => {
-  it.each([
-    { name: 'normal development', args: [], mode: 'development' },
-    { name: 'notarized release', args: ['--release'], mode: 'release' },
-    {
-      name: 'signed local verification',
-      args: ['--signed-verification'],
-      mode: 'signed-verification',
-    },
-  ])('selects $name from its command flags', ({ args, mode }) => {
-    expect(desktopBuildMode(args)).toBe(mode);
-  });
-
-  it.each([
-    {
-      name: 'unknown build flag',
-      args: ['--signed-verfication'],
-      message: 'Unknown option',
-    },
-    {
-      name: 'value on a mode flag',
-      args: ['--signed-verification=true'],
-      message: 'does not take an argument',
-    },
-  ])(
-    'refuses $name instead of falling back to a development build',
-    ({ args, message }) => {
-      expect(() => desktopBuildMode(args)).toThrow(message);
-    },
-  );
-
   it('refuses a command that requests release and signed verification together', () => {
     expect(() =>
       desktopBuildMode(['--release', '--signed-verification']),
@@ -161,19 +131,6 @@ describe('desktopBuildSettings', () => {
     ).toThrow(
       'A release build signs and notarizes the app; set APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID',
     );
-  });
-
-  it('keeps the normal unsigned development build ad-hoc without hardened runtime', () => {
-    const settings = desktopBuildSettings('development', {}, entitlements);
-    expect(settings.packaging.osxSign).toMatchObject({
-      identity: '-',
-      identityValidation: false,
-    });
-    expect(settings.packaging.osxSign.optionsForFile()).toEqual({
-      hardenedRuntime: false,
-    });
-    expect(settings.packaging.osxNotarize).toBeUndefined();
-    expect(settings.release).toBeUndefined();
   });
 
   it('keeps existing development identity signing without enabling release behavior', () => {

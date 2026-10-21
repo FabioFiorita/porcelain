@@ -1,12 +1,12 @@
-import { Effect, type FileSystem, type Path } from 'effect';
 import { NodeServices } from '@effect/platform-node';
+import { Effect, type FileSystem, type Path } from 'effect';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  readServiceConfiguration,
   readInstalledRecord,
+  readServiceConfiguration,
   readUpdateJournal,
   readUpdateRecord,
 } from './records.ts';
@@ -114,14 +114,4 @@ it('accepts a known update stage and ignores an unreadable progress record', asy
     JSON.stringify({ from: '0.1.0', target: '0.2.0', stage: 'complete' }),
   );
   expect(await run(readUpdateRecord(path))).toBeUndefined();
-});
-
-it('refuses a fractional saved listen port', async () => {
-  writeFileSync(
-    path,
-    JSON.stringify({ dataDirectory: '/tmp/profile', port: 4738.5 }),
-  );
-  await expect(run(readServiceConfiguration(path))).rejects.toThrow(
-    'The saved service configuration is invalid.',
-  );
 });

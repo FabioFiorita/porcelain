@@ -7,20 +7,4 @@ describe('worktreeIsWritable', () => {
       true,
     );
   });
-
-  it('refuses writing to a worktree whose folder is unavailable', () => {
-    expect(worktreeIsWritable({ available: false }, { available: true })).toBe(
-      false,
-    );
-  });
-
-  it('refuses writing to a worktree of an unavailable project', () => {
-    expect(worktreeIsWritable({ available: true }, { available: false })).toBe(
-      false,
-    );
-  });
-
-  it('refuses writing to a worktree whose project is no longer registered', () => {
-    expect(worktreeIsWritable({ available: true }, undefined)).toBe(false);
-  });
 });

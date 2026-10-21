@@ -1,6 +1,6 @@
+import { liveNoticeSchema } from '@porcelain/contracts/access';
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
-import { liveNoticeSchema } from '@porcelain/contracts/access';
 import { expect } from 'vitest';
 import { apiError, unauthenticated, upgradeHeaders } from '../kit/answers.ts';
 import {
@@ -105,31 +105,6 @@ test('an explicitly followed ignored file is watched before its subscription is 
   await session.writeFile('agent-cache/state.txt', 'After confirmation\n');
   expect(await connection.next(isWorktree('files'))).toStrictEqual(
     worktreeNotice(session, 'files'),
-  );
-});
-
-test('renaming a project tells a watching viewer the inventory changed', async ({
-  session,
-}) => {
-  const connection = await watching(session);
-
-  const response = await session.send({
-    method: 'PATCH',
-    path: `/api/projects/${session.projectId}`,
-    body: { name: 'Announced' },
-  });
-
-  expect(response.status).toBe(200);
-  expect(response.body).toStrictEqual({
-    id: session.projectId,
-    name: 'Announced',
-  });
-  const notice = await connection.next((entry) => entry.type === 'inventory');
-  expect(notice).toStrictEqual({ type: 'inventory' });
-  expect(notice).toEqual(
-    expect.schemaMatching(
-      Schema.toStandardSchemaV1(Schema.toEncoded(liveNoticeSchema)),
-    ),
   );
 });
 

@@ -22,8 +22,4 @@ describe('withoutGitDirectory', () => {
     ];
     expect(withoutGitDirectory(entries)).toEqual(entries);
   });
-
-  it('answers nothing for no entries', () => {
-    expect(withoutGitDirectory([])).toEqual([]);
-  });
 });

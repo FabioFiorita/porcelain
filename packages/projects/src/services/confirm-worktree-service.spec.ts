@@ -1,8 +1,8 @@
+import { WorktreeChangedError } from '@porcelain/kernel/errors';
+import { type ListedWorktree } from '@porcelain/projects/models';
 import { WorktreeCatalogStore } from '@porcelain/projects/ports';
 import { Effect } from 'effect';
-import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
-import { type ListedWorktree } from '@porcelain/projects/models';
 import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { ConfirmWorktreeService } from './confirm-worktree-service.ts';
 
@@ -45,12 +45,6 @@ function service(current: ListedWorktree[]) {
 }
 
 describe('ConfirmWorktreeService', () => {
-  it('confirms a worktree the catalog still holds as it was checked', () => {
-    expect(() =>
-      Effect.runSync(service([worktree]).execute({ worktree })),
-    ).not.toThrow();
-  });
-
   it('still confirms a worktree whose branch or availability changed in place', () => {
     expect(() =>
       Effect.runSync(

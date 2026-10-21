@@ -3890,6 +3890,14 @@ const configRequiredRules = [
   'porcelain/no-node-globals',
 ];
 const styleConfigCases = [
+  ...['not JSON', '{}'].map((toolOutput) => ({
+    name: `tool output fails closed: ${toolOutput}`,
+    missingTool: true,
+    toolOutput,
+    status: 1,
+    rules: [],
+    details: [toolOutput === '{}' ? '{}' : 'SyntaxError'],
+  })),
   { name: 'canonical configs and empty source', status: 0, rules: [] },
   {
     name: 'required rule accepts array error level',
@@ -4349,6 +4357,26 @@ export const guardrailCases = [
   {
     rule: 'ci-affected-selection',
     cases: [
+      {
+        name: 'new architecture file selects rules',
+        path: 'architecture/ci-fixture.mjs',
+        source: 'export const fixture = true;',
+        selected: [],
+        rules: true,
+      },
+      {
+        name: 'web view leaves rules cached',
+        rules: false,
+        path: 'apps/web/src/features/files/views/ci-fixture.tsx',
+        source: 'export const fixture = true;',
+        selected: [
+          'server',
+          'web-integration',
+          'web-e2e',
+          'desktop',
+          'package',
+        ],
+      },
       { name: 'unchanged selects nothing', selected: [] },
       {
         name: 'client selects dependent surfaces',
@@ -4375,6 +4403,7 @@ export const guardrailCases = [
         'pnpm-workspace.yaml',
       ].map((path) => ({
         name: `${path} selects every runtime gate`,
+        rules: true,
         path,
         selected: [
           'server',
@@ -4389,6 +4418,9 @@ export const guardrailCases = [
   },
   {
     rule: 'ci-required-checks',
+    webE2eShards: [1, 2, 3, 4],
+    webE2eCommand:
+      'pnpm --filter @porcelain/web test:e2e --shard=${{ matrix.shard }}/4',
     needs: {
       affected: {
         result: 'success',

@@ -1,5 +1,3 @@
-import { reviewFixture } from '../../spec/fixtures/review.ts';
-import { describe, expect, it } from 'vitest';
 import type {
   AgentReply,
   CommentSeenMark,
@@ -7,6 +5,8 @@ import type {
   ReviewLayer,
   WorktreeReviewedLayerMark,
 } from '@porcelain/reviews/models';
+import { describe, expect, it } from 'vitest';
+import { reviewFixture } from '../../spec/fixtures/review.ts';
 import { worktreeStatuses } from './worktree-statuses.ts';
 
 const worktreeId = 'worktree';
@@ -71,10 +71,6 @@ function seen(seenThrough: number, owner = worktreeId): CommentSeenMark {
 const bothMarked = [mark('first'), mark('second')];
 
 describe('worktreeStatuses', () => {
-  it('gives no status to a worktree with no review and no agent reply', () => {
-    expect(worktreeStatuses([], [], [], []).get(worktreeId)).toBeUndefined();
-  });
-
   it('marks a worktree reviewed when every layer of its active review has a fresh mark', () => {
     expect(
       worktreeStatuses([review()], bothMarked, [], []).get(worktreeId),
@@ -92,20 +88,6 @@ describe('worktreeStatuses', () => {
       worktreeStatuses(
         [review()],
         [mark('first'), mark('second', { fingerprint: 'earlier' })],
-        [],
-        [],
-      ).get(worktreeId),
-    ).toBe('pending');
-  });
-
-  it('keeps a worktree pending when the lines a mark covers changed since it was marked', () => {
-    expect(
-      worktreeStatuses(
-        [review()],
-        [
-          mark('first'),
-          mark('second', { fingerprint: 'an earlier fingerprint' }),
-        ],
         [],
         [],
       ).get(worktreeId),

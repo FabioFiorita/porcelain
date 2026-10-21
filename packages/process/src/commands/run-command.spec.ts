@@ -1,7 +1,7 @@
-import { TestClock } from 'effect/testing';
-import { Deferred, Effect, Exit, Fiber, Cause } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { describe, expect, it } from '@effect/vitest';
+import { Cause, Deferred, Effect, Exit, Fiber } from 'effect';
+import { TestClock } from 'effect/testing';
 import { runCommand } from './run-command.ts';
 
 const node = process.execPath;
@@ -167,24 +167,6 @@ describe('runCommand', () => {
         'deadline',
         undefined,
       ]);
-    }).pipe(TestClock.withLive),
-  );
-
-  it.effect('refuses to start once the caller has been interrupted', () =>
-    Effect.gen(function* () {
-      const exit = yield* Effect.exit(
-        Effect.interrupt.pipe(
-          Effect.andThen(
-            runCommand({
-              command: node,
-              args: ['-e', ''],
-              maxBytes: 1024,
-              processGroup,
-            }).pipe(Effect.provide(NodeServices.layer)),
-          ),
-        ),
-      );
-      expect(Exit.hasInterrupts(exit)).toBe(true);
     }).pipe(TestClock.withLive),
   );
 

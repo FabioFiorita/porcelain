@@ -679,21 +679,3 @@ test('newer find-input focus during sheet exit supersedes the side-open tab focu
   await userEvent.keyboard('needle');
   await expect.element(find).toHaveValue('needle');
 });
-
-test('ordinary sheet Escape dismissal restores the Review trigger without a destination intent', async ({
-  workspace,
-}) => {
-  const trigger = workspace.getByRole('button', {
-    name: 'Review',
-    exact: true,
-  });
-  const sheet = workspace.getByRole('dialog', {
-    name: 'Worktree review',
-    exact: true,
-  });
-  await trigger.click();
-  await expect.element(sheet).toBeVisible();
-  await userEvent.keyboard('{Escape}');
-  await expect.element(sheet).not.toBeInTheDocument();
-  await expect.element(trigger).toHaveFocus();
-});

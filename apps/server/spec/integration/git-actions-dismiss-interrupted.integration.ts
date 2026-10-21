@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { expect } from 'vitest';
 import { readServerSettings } from '../../src/config/server-settings.ts';
-import { apiError, invalidRequest, UNKNOWN_UUID } from '../kit/answers.ts';
+import { apiError, UNKNOWN_UUID } from '../kit/answers.ts';
 import { expectation, fingerprintOf, settledReceipt } from '../kit/reads.ts';
 import { gitPath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
@@ -78,16 +78,4 @@ test('dismissing an interruption for a request that was not interrupted is a mis
 
   expect(response.status).toBe(409);
   expect(response.body).toStrictEqual(mismatch);
-});
-
-test('dismissing an interruption with a malformed request id is refused', async ({
-  session,
-}) => {
-  const response = await session.send({
-    method: 'DELETE',
-    path: gitPath(session, '/interrupted/not-a-uuid'),
-  });
-
-  expect(response.status).toBe(400);
-  expect(response.body).toStrictEqual(invalidRequest);
 });

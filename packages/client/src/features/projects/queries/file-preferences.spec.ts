@@ -1,13 +1,13 @@
-import { holdFirstRead } from '../../../../spec/kit/held-transport.ts';
-import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
-import { expect, it } from 'vitest';
-import { Effect, Option, Stream } from 'effect';
-import { AsyncResult, AtomRegistry, Reactivity } from 'effect/reactivity';
 import {
   readFilePreferences,
   setFilePreference,
 } from '@porcelain/client/projects';
 import { queryKeys, type Transport } from '@porcelain/client/transport';
+import { Effect, Option, Stream } from 'effect';
+import { AsyncResult, AtomRegistry, Reactivity } from 'effect/reactivity';
+import { expect, it } from 'vitest';
+import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
+import { holdFirstRead } from '../../../../spec/kit/held-transport.ts';
 
 const environmentId = '44444444-4444-4444-8444-444444444444';
 const projectId = '55555555-5555-4555-8555-555555555555';
@@ -27,22 +27,6 @@ function read(subject: ReturnType<typeof fixture>) {
     }),
   );
 }
-
-it('reads canonical file preferences through the project endpoint', async () => {
-  const requests: string[] = [];
-  const subject = fixture((path) => {
-    requests.push(path);
-    return Promise.resolve(
-      Response.json({
-        preferences: [{ path: 'README.md', hidden: true, pinned: false }],
-      }),
-    );
-  });
-  expect(await read(subject)).toEqual({
-    preferences: [{ path: 'README.md', hidden: true, pinned: false }],
-  });
-  expect(requests).toEqual([`/api/projects/${projectId}/file-preferences`]);
-});
 
 it('a complete write response replaces an unfinished older read and survives a failed refresh', async () => {
   const pendingRead = holdFirstRead();

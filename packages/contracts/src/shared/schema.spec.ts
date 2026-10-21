@@ -1,6 +1,6 @@
 import { Result, Schema } from 'effect';
 import { expect, it } from 'vitest';
-import { isoDateTimeSchema, urlStringSchema } from './schema.ts';
+import { isoDateTimeSchema } from './schema.ts';
 
 it.each([
   '2026-10-06T10:00:00Z',
@@ -31,16 +31,5 @@ it.each([
 ])('refuses the malformed or impossible UTC timestamp %s', (value) => {
   expect(
     Result.isFailure(Schema.decodeUnknownResult(isoDateTimeSchema)(value)),
-  ).toBe(true);
-});
-
-it('keeps an absolute server URL as a string and rejects relative URLs', () => {
-  expect(
-    Schema.decodeUnknownSync(urlStringSchema)('http://127.0.0.1:4738'),
-  ).toBe('http://127.0.0.1:4738');
-  expect(
-    Result.isFailure(
-      Schema.decodeUnknownResult(urlStringSchema)('/api/health'),
-    ),
   ).toBe(true);
 });

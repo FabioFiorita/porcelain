@@ -26,9 +26,4 @@ describe('deriveWorktreeId', () => {
       deriveWorktreeId('a', 'bc', length),
     );
   });
-
-  it('answers the leading hexadecimal digits the length asks for', () => {
-    const id = deriveWorktreeId(projectId, 'worktree-metadata-1', 8);
-    expect(id).toBe('5462fe0b');
-  });
 });

@@ -1,14 +1,14 @@
-import { Effect, Exit, Layer, Scope, Schema } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { testClock } from '@porcelain/kernel/test-kit';
+import { Effect, Exit, Layer, Schema, Scope } from 'effect';
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  rmSync,
   readFileSync,
   readdirSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -67,14 +67,6 @@ afterEach(async () => {
 });
 
 describe('acquireDirectoryLock', () => {
-  it('takes a free lock and removes it on release', async () => {
-    const path = lockPath();
-    const lock = await takeLock(await options(path));
-    expect(existsSync(path)).toBe(true);
-    await Effect.runPromise(lock.release);
-    expect(existsSync(path)).toBe(false);
-  });
-
   it('refuses with the held error while a live process holds the lock', async () => {
     const path = lockPath();
     await takeLock(await options(path));

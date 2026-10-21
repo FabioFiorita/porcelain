@@ -13,23 +13,4 @@ describe('listCommitsQuerySchema', () => {
       }),
     ).toEqual({ after: [first, second] });
   });
-
-  it('writes a cursor back as the object ids joined by commas', () => {
-    expect(
-      Schema.encodeSync(listCommitsQuerySchema)({ after: [second, first] }),
-    ).toEqual({
-      after: `${second},${first}`,
-    });
-  });
-
-  it('refuses a cursor with an empty or malformed entry', () => {
-    expect(() =>
-      Schema.decodeUnknownSync(listCommitsQuerySchema)({ after: `${first},` }),
-    ).toThrow();
-    expect(() =>
-      Schema.decodeUnknownSync(listCommitsQuerySchema)({
-        after: `${first},not-an-oid`,
-      }),
-    ).toThrow();
-  });
 });

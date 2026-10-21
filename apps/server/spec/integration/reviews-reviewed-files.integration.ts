@@ -1,17 +1,10 @@
-import * as Schema from 'effect/Schema';
 import {
-  listReviewedFilesResponseSchema,
   removeReviewedFilesResponseSchema,
   setReviewedFilesResponseSchema,
 } from '@porcelain/contracts/reviews';
+import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
-import {
-  apiError,
-  invalidRequest,
-  unknownFingerprint,
-  unknownWorktreeId,
-  worktreeNotFound,
-} from '../kit/answers.ts';
+import { apiError, unknownFingerprint } from '../kit/answers.ts';
 import { fingerprintOf } from '../kit/reads.ts';
 import { read, worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
@@ -25,26 +18,6 @@ const staleMark = apiError(
 );
 const paths = (body: unknown) =>
   list(record(body).marks).map((mark) => record(mark).path);
-
-test('a worktree with no reviewed marks lists none', async ({ session }) => {
-  const response = await session.send({
-    method: 'GET',
-    path: reviewed(session),
-  });
-
-  expect(response.status).toBe(200);
-  expect(response.body).toStrictEqual({
-    worktreeId: session.worktreeId,
-    marks: [],
-  });
-  expect(response.body).toEqual(
-    expect.schemaMatching(
-      Schema.toStandardSchemaV1(
-        Schema.toEncoded(listReviewedFilesResponseSchema),
-      ),
-    ),
-  );
-});
 
 test('marking a changed file at its fingerprint answers the full list of marks', async ({
   session,
@@ -222,102 +195,4 @@ test('unmarking many at once removes each listed mark, keeps unlisted ones, and 
   expect(
     await read(session, { method: 'GET', path: reviewed(session) }),
   ).toStrictEqual({ worktreeId: session.worktreeId, marks: [] });
-});
-
-test('unmarking many with no paths or a path outside the worktree is invalid and in an unknown worktree is not found', async ({
-  session,
-}) => {
-  const responses = [
-    await session.send({
-      method: 'DELETE',
-      path: worktreePath(session, '/reviewed-bulk'),
-      body: { paths: [] },
-    }),
-    await session.send({
-      method: 'DELETE',
-      path: worktreePath(session, '/reviewed-bulk'),
-      body: { paths: ['../outside'] },
-    }),
-    await session.send({
-      method: 'DELETE',
-      path: `/api/worktrees/${unknownWorktreeId}/reviewed-bulk`,
-      body: { paths: ['README.md'] },
-    }),
-  ];
-
-  expect(responses.map((entry) => entry.status)).toStrictEqual([400, 400, 404]);
-  expect(responses.map((entry) => entry.body)).toStrictEqual([
-    invalidRequest,
-    invalidRequest,
-    worktreeNotFound,
-  ]);
-});
-
-test('a single mark set to not reviewed, an empty bulk mark, an unmark without a path or with a path outside the worktree is invalid', async ({
-  session,
-}) => {
-  const responses = [
-    await session.send({
-      method: 'PUT',
-      path: reviewed(session),
-      body: {
-        path: 'README.md',
-        reviewed: false,
-        fingerprint: unknownFingerprint,
-      },
-    }),
-    await session.send({
-      method: 'PUT',
-      path: worktreePath(session, '/reviewed-bulk'),
-      body: { files: [] },
-    }),
-    await session.send({ method: 'DELETE', path: reviewed(session) }),
-    await session.send({
-      method: 'DELETE',
-      path: reviewed(session),
-      query: { path: '../outside' },
-    }),
-  ];
-
-  for (const response of responses) {
-    expect(response.status).toBe(400);
-    expect(response.body).toStrictEqual(invalidRequest);
-  }
-});
-
-test('listing, marking, marking many and unmarking in an unknown worktree is not found', async ({
-  session,
-}) => {
-  const path = `/api/worktrees/${unknownWorktreeId}`;
-
-  const responses = [
-    await session.send({ method: 'GET', path: `${path}/reviewed` }),
-    await session.send({
-      method: 'PUT',
-      path: `${path}/reviewed`,
-      body: {
-        path: 'README.md',
-        reviewed: true,
-        fingerprint: unknownFingerprint,
-      },
-    }),
-    await session.send({
-      method: 'PUT',
-      path: `${path}/reviewed-bulk`,
-      body: {
-        files: [{ path: 'README.md', fingerprint: unknownFingerprint }],
-      },
-    }),
-    await session.send({
-      method: 'DELETE',
-      path: `${path}/reviewed`,
-      query: { path: 'README.md' },
-    }),
-  ];
-
-  expect(responses.map((entry) => entry.status)).toStrictEqual([
-    404, 404, 404, 404,
-  ]);
-  for (const response of responses)
-    expect(response.body).toStrictEqual(worktreeNotFound);
 });

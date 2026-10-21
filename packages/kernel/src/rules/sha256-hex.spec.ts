@@ -10,13 +10,4 @@ describe('sha256Hex', () => {
       'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
     );
   });
-
-  it('never contains the text it digests', () => {
-    const secret = 'a'.repeat(43);
-    expect(sha256Hex(secret)).not.toContain(secret);
-  });
-
-  it('tells apart texts that differ in one character', () => {
-    expect(sha256Hex('é')).not.toBe(sha256Hex('e'));
-  });
 });

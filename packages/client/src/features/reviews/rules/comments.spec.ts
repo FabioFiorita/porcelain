@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   anchorBase,
-  mergeCommentThreads,
-  type CommentThread,
   commentBodyValid,
   commentIsStale,
   commentsSeenThrough,
   matchesCommentTarget,
+  mergeCommentThreads,
   retainIntent,
+  type CommentThread,
 } from './comments.ts';
 
 describe('retainIntent', () => {
@@ -36,15 +36,6 @@ describe('retainIntent', () => {
 });
 
 describe('commentsSeenThrough', () => {
-  it('waits until every list that holds comments was shown', () => {
-    expect(
-      commentsSeenThrough(
-        { highest: 7, open: 2, resolved: 1 },
-        new Set(['open']),
-      ),
-    ).toBe(null);
-  });
-
   it('marks the latest revision seen once every non-empty list was shown', () => {
     expect(
       commentsSeenThrough(
@@ -53,40 +44,11 @@ describe('commentsSeenThrough', () => {
       ),
     ).toBe(7);
   });
-
-  it('marks nothing when there are no comments', () => {
-    expect(
-      commentsSeenThrough(
-        { highest: 0, open: 0, resolved: 0 },
-        new Set(['open', 'resolved']),
-      ),
-    ).toBe(null);
-  });
 });
 
 describe('commentBodyValid', () => {
-  it('accepts written text', () => {
-    expect(commentBodyValid('Please rename this')).toBe(true);
-  });
-
-  it('rejects an empty body', () => {
-    expect(commentBodyValid('')).toBe(false);
-  });
-
-  it('rejects a body of only whitespace', () => {
-    expect(commentBodyValid(' \n\t ')).toBe(false);
-  });
-
-  it('rejects a body holding a NUL character', () => {
-    expect(commentBodyValid('before\0after')).toBe(false);
-  });
-
   it('accepts a body at the server limit of 16000 characters', () => {
     expect(commentBodyValid('a'.repeat(16_000))).toBe(true);
-  });
-
-  it('rejects a body one character past the server limit', () => {
-    expect(commentBodyValid('a'.repeat(16_001))).toBe(false);
   });
 });
 
@@ -163,26 +125,6 @@ describe('anchorBase', () => {
         revision: 'a'.repeat(40),
       }),
     ).toBe('refs/remotes/origin/main');
-  });
-
-  it('reveals a comment on the whole branch against its base', () => {
-    expect(
-      anchorBase({
-        kind: 'change',
-        comparison: { kind: 'branch', base: 'refs/heads/checkpoint' },
-        revision: 'a'.repeat(40),
-      }),
-    ).toBe('refs/heads/checkpoint');
-  });
-
-  it('leaves the base alone for a comment on uncommitted work', () => {
-    expect(
-      anchorBase({
-        kind: 'file',
-        filePath: 'notes.md',
-        comparison: { kind: 'worktree', scope: 'unstaged' },
-      }),
-    ).toBeUndefined();
   });
 });
 

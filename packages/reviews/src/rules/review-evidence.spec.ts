@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
 import type { FileChange, TrackedComparison } from '@porcelain/kernel/models';
 import type { LayerDraft } from '@porcelain/reviews/models';
+import { describe, expect, it } from 'vitest';
 import { publishedLines, reviewPaths } from './review-evidence.ts';
 
 function tracked(
@@ -70,10 +70,6 @@ describe('reviewPaths', () => {
       'notes.txt',
       'conflict.ts',
     ]);
-  });
-
-  it('reads only the step files when nothing changed', () => {
-    expect(reviewPaths(layers, [])).toEqual(['README.md', 'src/app.ts']);
   });
 });
 

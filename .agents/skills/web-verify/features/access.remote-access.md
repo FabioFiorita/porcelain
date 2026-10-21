@@ -17,7 +17,7 @@ selectors:
   - 'Save hostname'
   - 'Check again'
 tests:
-  - apps/web/spec/e2e/access-remote-access.desktop.e2e.ts
+  - apps/web/spec/integration/access-remote-access.test.tsx
 api:
   - GET /api/remote-access
   - PATCH /api/remote-access
@@ -87,7 +87,7 @@ None. The disposable server fakes the network (`apps/server/spec/kit/sandboxed-s
 ## What proves it works
 
 - Step 12's reload reads `GET /api/remote-access` back: the server kept each switch and hostname. Inspect HTTP requests and responses lists `PATCH /api/remote-access` with status 200 for every switch and Save.
-- `apps/web/spec/e2e/access-remote-access.desktop.e2e.ts` covers steps 1–6 and 11:
+- `apps/web/spec/integration/access-remote-access.test.tsx` covers steps 1–6 and 11:
   - the unchecked switch, the warning text and the "Turning it on listens on …" note;
   - after turning on, the `192.168.1.20` address, "Listening on …", and server state `lan: { enabled: true, status: on }` with `lanNetwork` `eth0` / `192.168.1.0/24`;
   - Tailscale disabled until a name is saved, then on at `https://porcelain.tail0000.ts.net` with the serve command;

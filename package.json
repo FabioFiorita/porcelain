@@ -12,7 +12,6 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "typecheck:server": "tsc --noEmit && pnpm --filter '@porcelain/server...' -r typecheck",
     "lint:server": "node scripts/style.ts lint server",
     "lint:web": "node scripts/style.ts lint web",
     "format:server:check": "node scripts/style.ts format server",
@@ -25,10 +24,7 @@
     "db:check": "pnpm --filter @porcelain/storage db:check",
     "dev": "node scripts/dev.ts",
     "dev:review": "node .agents/skills/web-verify/scripts/cli.ts start --review-sample",
-    "dev:server": "node apps/server/spec/kit/sandbox.ts",
-    "dev:web": "pnpm --filter @porcelain/web dev",
     "dev:marketing": "pnpm --filter @porcelain/marketing dev",
-    "serve": "node scripts/serve.ts",
     "build:package": "node scripts/build-package.ts",
     "build:marketing": "pnpm --filter @porcelain/marketing build",
     "prepare": "lefthook install --reset-hooks-path && effect-tsgo patch --typescript",

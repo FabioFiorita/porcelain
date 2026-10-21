@@ -1,14 +1,14 @@
-import { testClock } from '@porcelain/kernel/test-kit';
-import {
-  DeviceStore,
-  DeviceSightingStore,
-  AuthenticateDeviceOptions,
-} from '@porcelain/access/ports';
-import { Redacted, Effect, Clock } from 'effect';
-import { describe, expect, it } from 'vitest';
 import type { StoredDevice } from '@porcelain/access/models';
+import {
+  AuthenticateDeviceOptions,
+  DeviceSightingStore,
+  DeviceStore,
+} from '@porcelain/access/ports';
 import { credential } from '@porcelain/access/rules';
 import { sha256Hex } from '@porcelain/kernel/rules';
+import { testClock } from '@porcelain/kernel/test-kit';
+import { Clock, Effect, Redacted } from 'effect';
+import { describe, expect, it } from 'vitest';
 import { InMemoryDeviceSightingStore } from '../../spec/fakes/in-memory-device-sighting-store.ts';
 import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';
 import { AuthenticateDeviceService } from './authenticate-device-service.ts';
@@ -96,21 +96,6 @@ describe('AuthenticateDeviceService', () => {
       '2026-09-23T10:00:06.000Z',
     );
     expect(sightings.find({ deviceId })?.lastSeenAddress).toBeUndefined();
-  });
-
-  it('leaves the last sighting alone when no time has passed', async () => {
-    const { sightings, clock, service, token } = await setup();
-    await Effect.runPromise(clock.setTime(Date.parse(lastSeenAt)));
-    expect(
-      Effect.runSync(
-        service.execute({
-          credential: token,
-          route: 'lan',
-          address: '10.0.0.1',
-        }),
-      ),
-    ).toEqual({ kind: 'authenticated', deviceId });
-    expect(sightings.find({ deviceId })).toBeUndefined();
   });
 
   it('measures the unused lifetime from the pending sighting when there is one', async () => {

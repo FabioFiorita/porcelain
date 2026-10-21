@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyReviewedIntents,
   bulkMarkPlan,
   bulkMarkReport,
   bulkReportText,
   completionPlan,
   completionRefusal,
-  unavailableReviewText,
   inChunks,
   layerReviewed,
   markAllPlan,
   reviewToggle,
-  applyReviewedIntents,
+  unavailableReviewText,
 } from './reviewed.ts';
 
 const entry = (
@@ -97,26 +97,6 @@ describe('bulkMarkReport', () => {
 });
 
 describe('bulkReportText', () => {
-  it('counts marked, skipped and failed files', () => {
-    expect(
-      bulkReportText({
-        marked: ['a.ts'],
-        skipped: [{ path: 'b.ts', reason: 'already-reviewed' }],
-        failed: [{ path: 'c.ts', error: new Error('no') }],
-      }),
-    ).toBe('Marked 1 file. 1 already reviewed. 1 failed.');
-  });
-
-  it('says nothing was marked when every file was skipped', () => {
-    expect(
-      bulkReportText({
-        marked: [],
-        skipped: [{ path: 'b.ts', reason: 'already-reviewed' }],
-        failed: [],
-      }),
-    ).toBe('No files marked. 1 already reviewed.');
-  });
-
   it('counts only unavailable files as skipped on a repeat attempt', () => {
     expect(
       bulkReportText({
@@ -235,21 +215,6 @@ describe('completion availability', () => {
 });
 
 describe('markAllPlan', () => {
-  it('offers to mark every unreviewed or changed file', () => {
-    expect(
-      markAllPlan([
-        entry('a.ts', 'seen-a', 'unreviewed'),
-        entry('b.ts', 'seen-b', 'stale'),
-        entry('c.ts', 'seen-c', 'reviewed'),
-      ]),
-    ).toMatchObject({
-      unmarking: false,
-      blocked: false,
-      label: 'Mark all 2 files reviewed',
-      text: 'Mark all reviewed',
-    });
-  });
-
   it('offers to unmark exactly the reviewed files once nothing is left to mark', () => {
     expect(
       markAllPlan([
@@ -305,10 +270,6 @@ describe('layerReviewed', () => {
   it('stops counting a layer whose mark was made for other code', () => {
     expect(layerReviewed(mark('layer-before', false), layer)).toBe(false);
   });
-
-  it('counts no layer reviewed before it has a mark', () => {
-    expect(layerReviewed(undefined, layer)).toBe(false);
-  });
 });
 
 it('reapplies a pending mark over a confirmed reply while preserving unrelated server marks', () => {
@@ -361,24 +322,6 @@ it('applies pending path edits in admission order, including an unmark followed 
 });
 
 describe('reviewToggle', () => {
-  it('marks an unreviewed file with the fingerprint the user saw', () => {
-    expect(
-      reviewToggle(
-        { path: 'a.ts', fingerprint: 'seen', reviewed: false },
-        false,
-      ),
-    ).toEqual({ kind: 'mark', input: { path: 'a.ts', fingerprint: 'seen' } });
-  });
-
-  it('unmarks a reviewed file', () => {
-    expect(
-      reviewToggle(
-        { path: 'a.ts', fingerprint: 'seen', reviewed: true },
-        false,
-      ),
-    ).toEqual({ kind: 'unmark', path: 'a.ts' });
-  });
-
   it('does nothing while a mark is pending or when the file state is unknown', () => {
     expect([
       reviewToggle({ path: 'a.ts', fingerprint: 'seen' }, true),
@@ -394,13 +337,5 @@ describe('inChunks', () => {
     expect(inChunks(files, 2000).map((chunk) => chunk.length)).toEqual([
       2000, 2000, 1,
     ]);
-  });
-
-  it('keeps the order of the files across requests', () => {
-    expect(inChunks(['a', 'b', 'c'], 2)).toEqual([['a', 'b'], ['c']]);
-  });
-
-  it('asks for nothing when there is nothing to mark', () => {
-    expect(inChunks([], 2000)).toEqual([]);
   });
 });

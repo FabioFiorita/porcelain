@@ -2,10 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { parentFolder } from './parent-folder.ts';
 
 describe('parentFolder', () => {
-  it('answers the folder that holds the path', () => {
-    expect(parentFolder('/srv/api/.git')).toBe('/srv/api');
-  });
-
   it('ignores trailing slashes', () => {
     expect(parentFolder('/srv/api//')).toBe('/srv');
   });

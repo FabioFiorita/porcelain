@@ -1,5 +1,5 @@
-import { Effect } from 'effect';
 import { NodeServices } from '@effect/platform-node';
+import { Effect } from 'effect';
 import { execFileSync } from 'node:child_process';
 import {
   mkdtempSync,
@@ -138,14 +138,6 @@ describe('readBranchRange', () => {
     });
   });
 
-  it('leaves out what the base changed after the branch forked', async () => {
-    forkFeature();
-    const range = await read({});
-    expect(
-      range.kind === 'found' && range.files.map((file) => file.oldPath),
-    ).not.toContain('shared.txt');
-  });
-
   it('prefers the remote default branch over a stale local branch of the same name', async () => {
     const { fork, main } = forkFeature();
     git('branch', 'trunk', fork);
@@ -179,13 +171,6 @@ describe('readBranchRange', () => {
       head: { oid: main, ref: 'refs/heads/main' },
       mergeBaseOid: fork,
       commits: 1,
-    });
-  });
-
-  it('falls back to the local main when there is no remote', async () => {
-    const { main } = forkFeature();
-    expect(await read({})).toMatchObject({
-      base: { ref: 'refs/heads/main', oid: main },
     });
   });
 

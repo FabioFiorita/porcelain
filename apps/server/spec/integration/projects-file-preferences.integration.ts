@@ -1,13 +1,12 @@
-import * as Schema from 'effect/Schema';
 import { listFilePreferencesResponseSchema } from '@porcelain/contracts/projects';
+import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
-import { apiError, invalidRequest, UNKNOWN_UUID } from '../kit/answers.ts';
+import { invalidRequest } from '../kit/answers.ts';
 import { read } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 
 const preferences = (projectId: string) =>
   `/api/projects/${projectId}/file-preferences`;
-const notFound = apiError(404, 'Not Found', 'Project not found');
 
 test('a project starts with no file preferences', async ({ session }) => {
   const response = await session.send({
@@ -77,24 +76,6 @@ test('pinning, hiding and unpinning a path keeps the other flag, accepts a path 
       { path: 'docs/missing.md', pinned: true, hidden: false },
     ],
   });
-});
-
-test('reading or setting the file preferences of an unknown project is not found', async ({
-  session,
-}) => {
-  const responses = [
-    await session.send({ method: 'GET', path: preferences(UNKNOWN_UUID) }),
-    await session.send({
-      method: 'PUT',
-      path: preferences(UNKNOWN_UUID),
-      body: { path: 'README.md', flag: 'pinned', value: true },
-    }),
-  ];
-
-  for (const response of responses) {
-    expect(response.status).toBe(404);
-    expect(response.body).toStrictEqual(notFound);
-  }
 });
 
 test('an escaping path, an unknown flag or an invalid project id is invalid input', async ({

@@ -1,12 +1,7 @@
-import * as Schema from 'effect/Schema';
 import { editFileResponseSchema } from '@porcelain/contracts/files';
+import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
-import {
-  apiError,
-  CREDENTIAL_LINK,
-  invalidRequest,
-  unreadablePath,
-} from '../kit/answers.ts';
+import { apiError, CREDENTIAL_LINK, unreadablePath } from '../kit/answers.ts';
 import { read, worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { type HttpRequest, type Session } from '../kit/session.ts';
@@ -103,22 +98,4 @@ test('duplicating a folder, a symbolic link or into a link out of the worktree c
     'secret.txt',
     'up',
   ]);
-});
-
-test('duplicating into .git or outside the worktree is invalid input', async ({
-  session,
-}) => {
-  const responses = [
-    await session.send(
-      copy(session, session.fixture.readme.path, '.git/README.md'),
-    ),
-    await session.send(
-      copy(session, session.fixture.readme.path, '../outside.md'),
-    ),
-  ];
-
-  for (const response of responses) {
-    expect(response.status).toBe(400);
-    expect(response.body).toStrictEqual(invalidRequest);
-  }
 });

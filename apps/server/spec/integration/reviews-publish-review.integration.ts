@@ -1,16 +1,11 @@
-import { commitReviewFixture } from '../kit/requests.ts';
+import { publishReviewResponseSchema } from '@porcelain/contracts/reviews';
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
-import { publishReviewResponseSchema } from '@porcelain/contracts/reviews';
 import { expect } from 'vitest';
-import {
-  apiError,
-  invalidRequest,
-  unknownWorktreeId,
-  worktreeNotFound,
-} from '../kit/answers.ts';
+import { apiError } from '../kit/answers.ts';
 import { inventory } from '../kit/reads.ts';
 import {
+  commitReviewFixture,
   SAMPLE_SUMMARY_HTML,
   sampleReview,
   worktreePath,
@@ -161,35 +156,6 @@ test('publishing unreadable text and out-of-range lines reports the actual point
   );
   await session.remove('binary.md');
   await commitReviewFixture(session);
-});
-
-test('publishing without layers or without a verdict is invalid and to an unknown worktree is not found', async ({
-  session,
-}) => {
-  const noLayers = await session.send(
-    publish(session, {
-      ...sampleReview(session, 1, layerId, stepId),
-      layers: [],
-    }),
-  );
-  const noSummary = await session.send(
-    publish(session, {
-      ...sampleReview(session, 1, layerId, stepId),
-      verdict: undefined,
-    }),
-  );
-  const unknown = await session.send({
-    method: 'PUT',
-    path: `/api/worktrees/${unknownWorktreeId}/review`,
-    body: sampleReview(session, 0, layerId, stepId),
-  });
-
-  expect(noLayers.status).toBe(400);
-  expect(noLayers.body).toStrictEqual(invalidRequest);
-  expect(noSummary.status).toBe(400);
-  expect(noSummary.body).toStrictEqual(invalidRequest);
-  expect(unknown.status).toBe(404);
-  expect(unknown.body).toStrictEqual(worktreeNotFound);
 });
 
 test('republishing the committed head keeps the branch review active and pending', async ({

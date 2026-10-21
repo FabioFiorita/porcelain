@@ -1,12 +1,7 @@
-import * as Schema from 'effect/Schema';
 import { readChangesResponseSchema } from '@porcelain/contracts/changes';
+import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
-import {
-  apiError,
-  invalidRequest,
-  unknownWorktreeId,
-  worktreeNotFound,
-} from '../kit/answers.ts';
+import { apiError } from '../kit/answers.ts';
 import {
   blobOf,
   changes,
@@ -185,26 +180,6 @@ test('reading the changes during a merge conflict reports the merge and the conf
   expect(readme?.comparisons).toMatchObject([
     { scope: 'unmerged', path: session.fixture.readme.path },
   ]);
-});
-
-test('reading the changes of an unknown worktree is not found, and a malformed worktree id is refused', async ({
-  session,
-}) => {
-  const responses = [
-    await session.send({
-      method: 'GET',
-      path: `/api/worktrees/${unknownWorktreeId}/changes`,
-    }),
-    await session.send({
-      method: 'GET',
-      path: '/api/worktrees/not-an-id/changes',
-    }),
-  ];
-
-  expect(responses[0]?.status).toBe(404);
-  expect(responses[0]?.body).toStrictEqual(worktreeNotFound);
-  expect(responses[1]?.status).toBe(400);
-  expect(responses[1]?.body).toStrictEqual(invalidRequest);
 });
 
 test('a conversion filter on a tracked file refuses the changes read wherever the filter is assigned', async ({

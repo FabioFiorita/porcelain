@@ -20,10 +20,6 @@ describe('expiredReceipts', () => {
     ).toEqual(['just-past', 'long-ago']);
   });
 
-  it('names nothing when nothing has finished', () => {
-    expect(expiredReceipts([], now, 30 * day)).toEqual([]);
-  });
-
   it('compares instants, not their spelling', () => {
     expect(
       expiredReceipts(

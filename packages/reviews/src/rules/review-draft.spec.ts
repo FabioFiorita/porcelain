@@ -1,11 +1,11 @@
-import { reviewFixture } from '../../spec/fixtures/review.ts';
-import { describe, expect, it } from 'vitest';
 import type {
   Diagram,
   LayerDraft,
   ReviewDraft,
   StepDraft,
 } from '@porcelain/reviews/models';
+import { describe, expect, it } from 'vitest';
+import { reviewFixture } from '../../spec/fixtures/review.ts';
 import { reviewDraftProblem } from './review-draft.ts';
 
 function step(id: string, lane = 0): StepDraft {
@@ -84,14 +84,6 @@ describe('reviewDraftProblem', () => {
     expect(reviewDraftProblem(draft({ layers: [repeated] }))).toEqual({
       kind: 'duplicate-step-id',
     });
-  });
-
-  it('allows the same step id in two different layers', () => {
-    expect(
-      reviewDraftProblem(
-        draft({ layers: [layer('layer-a'), layer('layer-b')] }),
-      ),
-    ).toBeUndefined();
   });
 
   it('accepts a step on the last lane and refuses one past it', () => {

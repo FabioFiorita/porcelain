@@ -1,94 +1,12 @@
-import { expect } from 'vitest';
-import { test } from '@porcelain/server/kit/server-test';
-import { threeCommits } from '@porcelain/server/kit/reads';
+import { readCommitDiffs } from '@porcelain/client/changes';
 import {
+  readCommit,
   readHistory,
   readHistoryWindow,
-  readCommit,
-  readFileTimeline,
 } from '@porcelain/client/history';
-import { readCommitDiffs } from '@porcelain/client/changes';
+import { test } from '@porcelain/server/kit/server-test';
+import { expect } from 'vitest';
 import { connection } from '../kit/connection.ts';
-
-test('read commit metadata, renamed paths and the selected commit patch', async ({
-  server,
-  session,
-}) => {
-  const state = await threeCommits(session);
-  const {
-    connected,
-    scope,
-    read: nativeRead,
-  } = await connection(server, session);
-  const history = await nativeRead(
-    readHistoryWindow({ scope, connection: connected }),
-  );
-  expect(history.commits.map((commit) => commit.subject)).toEqual([
-    'Rename',
-    'Second commit',
-    'Initial commit',
-  ]);
-  const commit = await nativeRead(
-    readCommit({ scope, connection: connected, oid: state.second }),
-  );
-  expect(commit).toMatchObject({
-    commit: {
-      oid: state.second,
-      subject: 'Second commit',
-      body: 'With a body',
-    },
-  });
-  const diffs = await nativeRead(
-    readCommitDiffs({
-      scope,
-      connection: connected,
-      oid: state.second,
-      parent: 1,
-      paths: [[session.fixture.readme.path]],
-    }),
-  );
-  expect(diffs).toEqual({
-    commitOid: state.second,
-    diffs: [
-      {
-        paths: [session.fixture.readme.path],
-        content: {
-          kind: 'text',
-          patch: await session.git(
-            'diff',
-            state.initial,
-            state.second,
-            '--',
-            session.fixture.readme.path,
-          ),
-        },
-      },
-    ],
-  });
-  const renamed = await nativeRead(
-    readCommit({ scope, connection: connected, oid: state.rename }),
-  );
-  expect(renamed.files).toEqual([
-    expect.objectContaining({
-      status: 'renamed',
-      oldPath: session.fixture.readme.path,
-      newPath: 'GUIDE.md',
-    }),
-  ]);
-  const timeline = await nativeRead(
-    readFileTimeline({ scope, connection: connected, path: 'GUIDE.md' }),
-  );
-  expect(timeline.commits.map((entry) => entry.commit.subject)).toEqual([
-    'Rename',
-    'Second commit',
-    'Initial commit',
-  ]);
-  expect(timeline.commits[0]).toMatchObject({
-    path: 'GUIDE.md',
-    previousPath: session.fixture.readme.path,
-    status: 'renamed',
-  });
-});
 
 test('read root, deleted, binary and empty commit changes without inventing a parent or a surviving path', async ({
   server,

@@ -6,7 +6,7 @@ selectors:
   - "Files"
   - "Duplicate"
 tests:
-  - apps/web/spec/e2e/files-duplicate.e2e.ts
+  - apps/web/spec/integration/files-duplicate.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/directory
   - POST /api/worktrees/:worktreeId/files
@@ -61,7 +61,7 @@ printf 'Notes to copy\n' > "$REPO/notes.md"
 
 - On disk: `notes copy.md` and `notes copy copy.md` hold the original's text, and `notes.md` is unchanged.
 - The Page Title names the copy after each duplicate, which shows the copy opened.
-- `apps/web/spec/e2e/files-duplicate.e2e.ts` duplicates `notes.md` from its menu. It asserts that the server lists `notes copy.md` with the same text, that the original keeps its text, and that the title becomes `notes copy.md — <project>`. It then presses `ControlOrMeta+d` with the Files tab showing and asserts `notes copy copy.md` exists and its title shows.
+- `apps/web/spec/integration/files-duplicate.test.tsx` duplicates `notes.md` from its menu. It asserts that the server lists `notes copy.md` with the same text, that the original keeps its text, and that the title becomes `notes copy.md — <project>`. It then presses `ControlOrMeta+d` with the Files tab showing and asserts `notes copy copy.md` exists and its title shows.
 
 ## Gotchas
 

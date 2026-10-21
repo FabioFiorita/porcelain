@@ -19,3 +19,6 @@ test-results/
 .mobile-device-host.json
 
 .playwright-mcp/
+
+.claude/settings.local.json
+.claude/worktrees/

@@ -7,7 +7,7 @@ selectors:
   - 'Open This computer'
   - 'Disconnect this browser'
 tests:
-  - apps/web/spec/e2e/app-shell.e2e.ts
+  - apps/web/spec/e2e/app-routing.e2e.ts
 api:
   - GET /api/inventory
 ---
@@ -40,7 +40,7 @@ None.
 ## What proves it works
 
 - The not-paired heading and the `porcelain pair` command at `/pair` after loading `/`, with inventory answering 401.
-- `apps/web/spec/e2e/app-shell.e2e.ts`: a fresh browser context opening `/` sees the heading "This browser is not paired".
+- `apps/web/spec/e2e/app-routing.e2e.ts`: the case "unknown URLs still require pairing" opens an unknown URL in a fresh browser context, redirects to `/pair` and sees the heading "This browser is not paired".
 
 ## Gotchas
 

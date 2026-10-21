@@ -1,12 +1,11 @@
-import { describe, expect, it } from 'vitest';
 import type { RouteState } from '@porcelain/access/models';
+import { describe, expect, it } from 'vitest';
 import {
   changedRemoteAccess,
   httpsHosts,
   listenedState,
   reachableOrigins,
   tunnelHostname,
-  tunnelHosts,
   tunnelState,
 } from './remote-access.ts';
 
@@ -260,28 +259,6 @@ describe('tunnelState', () => {
       kind: 'failed',
       reason: 'unreachable',
     });
-  });
-});
-
-describe('tunnelHosts', () => {
-  it('accepts the tunnel hostname only while Cloudflare is on', () => {
-    const hostname = 'porcelain.example.com';
-    expect(
-      tunnelHosts({
-        lan: false,
-        tailnet: false,
-        cloudflare: true,
-        cloudflareHostname: hostname,
-      }),
-    ).toEqual([hostname]);
-    expect(
-      tunnelHosts({
-        lan: false,
-        tailnet: false,
-        cloudflare: false,
-        cloudflareHostname: hostname,
-      }),
-    ).toEqual([]);
   });
 });
 

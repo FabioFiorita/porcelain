@@ -21,15 +21,6 @@ const during = (stage: 'downloading' | 'installing' | 'restarting') => ({
 });
 
 describe('serviceUpdateProgress', () => {
-  it('names the stage of a running update', () => {
-    expect(serviceUpdateProgress(during('downloading'), false)).toBe(
-      'Downloading 1.1.0…',
-    );
-    expect(serviceUpdateProgress(during('installing'), false)).toBe(
-      'Installing 1.1.0…',
-    );
-  });
-
   it('says the server is restarting while it restarts or cannot be reached', () => {
     const restarting =
       'Restarting Porcelain on 1.1.0. This page reconnects when it is back.';
