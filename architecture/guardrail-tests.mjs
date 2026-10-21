@@ -521,6 +521,16 @@ export async function runGuardrailCases(named = []) {
           'utf8',
         ),
       );
+      deepStrictEqual(
+        workflow.jobs['web-e2e'].strategy.matrix.shard,
+        entry.webE2eShards,
+      );
+      strictEqual(
+        workflow.jobs['web-e2e'].steps.find((step) =>
+          step.run?.includes('test:e2e --shard='),
+        )?.run,
+        entry.webE2eCommand,
+      );
       const gate = workflow.jobs.checks;
       deepStrictEqual(
         gate.needs.toSorted(),

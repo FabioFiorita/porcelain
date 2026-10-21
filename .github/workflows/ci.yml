@@ -165,7 +165,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -182,7 +182,7 @@ jobs:
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: pnpm exec playwright install --with-deps --only-shell chromium
-      - run: pnpm --filter @porcelain/web test:e2e --shard=${{ matrix.shard }}/3
+      - run: pnpm --filter @porcelain/web test:e2e --shard=${{ matrix.shard }}/4
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: failure()
         with:
