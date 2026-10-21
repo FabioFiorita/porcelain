@@ -1,4 +1,4 @@
 [mcp_servers.playwright]
 command = "npx"
-args = ["-y", "@playwright/mcp@latest", "--isolated", "--headless", "--browser", "chromium"]
+args = ["-y", "@playwright/mcp@0.0.83", "--isolated", "--headless", "--browser", "chromium"]
 default_tools_approval_mode = "approve"
