@@ -134,7 +134,7 @@ function ComputerName({
   );
 }
 
-export function WaysInSettings() {
+function WaysInSettings() {
   const { connection } = useConnectedContext();
   return (
     <FieldSet id="ways-in">

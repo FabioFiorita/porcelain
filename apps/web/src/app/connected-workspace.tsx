@@ -131,6 +131,7 @@ export function ConnectedWorkspace({
           })
         : openHere(),
     onOpenSettings: () => openSettings(),
+    onOpenComputers: () => openSettings('computers'),
     onOpenRemotes: (environmentId: string) => {
       setOpenMobile(false);
       void navigate({

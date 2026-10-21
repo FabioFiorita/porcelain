@@ -5,6 +5,8 @@ import {
   type SettingsUpdateEntry,
 } from '@porcelain/client/access';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { useSidebar } from '@/components/ui/sidebar';
 import {
   Popover,
   PopoverContent,
@@ -17,21 +19,31 @@ import { SettingsUpdateRow } from './settings-update-row';
 export function UpdatesMenu() {
   const { rows, targets, count, batch, run } = useSettingsUpdates();
   const navigate = useNavigate();
+  const { setOpenMobile } = useSidebar();
   const [open, setOpen] = useState(false);
-  const offered = rows.filter(({ target }) =>
-    target.kind === 'mac-app'
-      ? target.available
-      : target.state.available || !target.state.managed || target.state.running,
-  );
+  const offered = rows.filter(({ target }) => {
+    if (target.kind === 'mac-app') return target.available;
+    const { state } = target;
+    return (
+      state.available ||
+      state.running ||
+      (state.latest !== undefined &&
+        state.latest !== null &&
+        state.latest !== state.version)
+    );
+  });
   const progress = settingsUpdateBatchProgress(batch);
-  if (offered.length === 0 && !batch.running && batch.entries.length === 0)
-    return null;
+  if (offered.length === 0 && !batch.running && !open) return null;
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={<Button size="sm" className="rounded-full" />}>
+      <PopoverTrigger render={<Badge render={<button type="button" />} />}>
         Update
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-88 max-w-[calc(100vw-1rem)]">
+      <PopoverContent
+        side="top"
+        align="end"
+        className="w-88 max-w-[calc(100vw-1rem)]"
+      >
         <PopoverTitle>Updates available</PopoverTitle>
         {batch.running && (
           <p role="status" className="text-xs text-muted-foreground">
@@ -70,6 +82,7 @@ export function UpdatesMenu() {
             variant="ghost"
             onClick={() => {
               setOpen(false);
+              setOpenMobile(false);
               void navigate({
                 to: '/settings/$section',
                 params: { section: 'computers' },

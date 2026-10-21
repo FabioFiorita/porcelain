@@ -12,7 +12,7 @@ import {
   type SettingsUpdateTarget,
 } from '@porcelain/client/access';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
-import { noUpdateMessage } from '../rules/app-update';
+import { noUpdateMessage, type AppUpdateState } from '../rules/app-update';
 import { readInventory } from '@porcelain/client/projects';
 import { DesktopHost } from '@/shared/adapters/desktop';
 import {
@@ -21,7 +21,12 @@ import {
   pairingPlatform,
   remoteConnectionState,
 } from '../store';
-import { appUpdate, appUpdateState, desktopCapabilities } from './app-update';
+import {
+  appUpdate,
+  appUpdateState,
+  desktopCapabilities,
+  type useAppUpdate,
+} from './app-update';
 
 export type SettingsUpdateRow = {
   target: SettingsUpdateTarget;
@@ -144,10 +149,8 @@ export function useSettingsUpdates() {
 }
 
 function appCheckError(
-  state:
-    | ReturnType<typeof import('./app-update').useAppUpdateState>
-    | undefined,
-  check: ReturnType<typeof import('./app-update').useAppUpdate>['result'],
+  state: AppUpdateState | undefined,
+  check: ReturnType<typeof useAppUpdate>['result'],
 ) {
   if (state?.status === 'error') return state.message;
   if (!check.waiting && AsyncResult.isFailure(check))

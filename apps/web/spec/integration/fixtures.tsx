@@ -183,6 +183,7 @@ function Navigator({
       onSelect={() => {}}
       onOpenProject={() => {}}
       onOpenSettings={() => {}}
+      onOpenComputers={() => {}}
       onOpenShortcuts={() => {}}
     />
   );

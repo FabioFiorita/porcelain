@@ -15,16 +15,10 @@ export {
   useRemoteConnection,
   useRemoteConnections,
 } from './store';
-export { DisconnectBrowser } from './views/disconnect-browser';
 export { DisconnectedPage } from './views/disconnected-page';
 export { NotPaired } from './views/not-paired';
 export { PairingView } from './views/pairing-view';
-export { ServiceUpdateSettings } from './views/service-update';
-export {
-  ComputerSettings,
-  DevicesSettings,
-  WaysInSettings,
-} from './views/share-settings';
+export { ComputerSettings, DevicesSettings } from './views/share-settings';
 export { RemoteComputers } from './views/remote-computers';
 export { RemoteUnavailable } from './views/remote-unavailable';
 export { useMcpConfiguration } from './queries/mcp-configuration';

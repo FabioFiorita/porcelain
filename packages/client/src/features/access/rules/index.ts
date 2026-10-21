@@ -29,6 +29,5 @@ export {
 export {
   serviceUpdateOutcome,
   serviceUpdateProgress,
-  type ServiceUpdate,
 } from './service-update.ts';
 export type { BrowserSession } from './browser-session.ts';

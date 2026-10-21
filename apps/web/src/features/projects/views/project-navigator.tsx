@@ -11,6 +11,7 @@ import {
   ChevronDownIcon,
   FilterIcon,
   KeyboardIcon,
+  MonitorIcon,
   SearchIcon,
   SettingsIcon,
 } from 'lucide-react';
@@ -24,7 +25,7 @@ import {
   reviewListView,
   type ReviewListEntry,
 } from '@porcelain/client/reviews/rules';
-import { useConnectedContext } from '@/features/access/index';
+import { UpdatesMenu, useConnectedContext } from '@/features/access/index';
 import type { RemoteConnection } from '@porcelain/client/access';
 import type { Inventory } from '@porcelain/client/projects/rules';
 import type { WorktreeTarget } from '../rules/worktree-target';
@@ -89,6 +90,7 @@ type Props = {
   onSelect: (target: WorktreeTarget) => void;
   onOpenProject: (remote: RemoteConnection | null) => void;
   onOpenSettings: () => void;
+  onOpenComputers: () => void;
   onOpenShortcuts: () => void;
 };
 
@@ -99,6 +101,7 @@ export function ProjectNavigator({
   onSelect,
   onOpenProject,
   onOpenSettings,
+  onOpenComputers,
   onOpenShortcuts,
 }: Props) {
   const { connection } = useConnectedContext();
@@ -617,12 +620,21 @@ export function ProjectNavigator({
             </Button>
           )}
         </SidebarContent>
-        <footer className="flex shrink-0 flex-wrap items-center gap-1 border-t p-2">
+        <footer className="flex shrink-0 items-center gap-1 border-t p-2">
           <Button variant="ghost" size="sm" onClick={onOpenSettings}>
             <SettingsIcon />
             Settings
           </Button>
-          <div className="ml-auto">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Computers"
+            onClick={onOpenComputers}
+          >
+            <MonitorIcon />
+          </Button>
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            <UpdatesMenu />
             <Button
               variant="ghost"
               size="icon-sm"
