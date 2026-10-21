@@ -10,7 +10,7 @@ import {
   settledReceipt,
 } from '../kit/reads.ts';
 import { gitPath, read, worktreePath } from '../kit/requests.ts';
-import { test } from '../kit/server-test.ts';
+import { gitInterruptionTest as it, test } from '../kit/server-test.ts';
 
 const ALTERNATES = '.git/objects/info/alternates';
 
@@ -70,7 +70,7 @@ test('dismissing an interruption for a request that was not interrupted is a mis
   expect(response.body).toStrictEqual(mismatch);
 });
 
-test('an interrupted action marks the changes until it is dismissed, and dismissing again answers the same', async ({
+it('an interrupted action marks the changes until it is dismissed, and dismissing again answers the same', async ({
   session,
 }) => {
   const path = session.fixture.readme.path;

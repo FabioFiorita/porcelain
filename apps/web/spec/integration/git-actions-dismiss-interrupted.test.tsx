@@ -1,5 +1,5 @@
 import { userEvent } from 'vitest/browser';
-import { expect, test } from './fixtures.tsx';
+import { expect, gitInterruptionTest as test } from './fixtures.tsx';
 
 test('a commit that Git never finishes ends interrupted, and its notice stays until Got it dismisses it', async ({
   workspace,

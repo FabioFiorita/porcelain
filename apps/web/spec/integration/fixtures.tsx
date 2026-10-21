@@ -254,8 +254,9 @@ async function mount(
 }
 
 export const test = base
-  .extend('world', async ({ task }, { onCleanup }) => {
-    await host.porcelainStart();
+  .extend('sample', (): 'git-interruption' | undefined => undefined)
+  .extend('world', async ({ task, sample }, { onCleanup }) => {
+    await host.porcelainStart(sample);
     onCleanup(async () => {
       const stopped = await host.porcelainStop(task.name);
       if (stopped.length > 0)
@@ -484,3 +485,6 @@ export const test = base
     onCleanup(() => live.restore());
     return live;
   });
+
+export const gitInterruptionTest = test.extend('sample', () =>
+  'git-interruption' as const);

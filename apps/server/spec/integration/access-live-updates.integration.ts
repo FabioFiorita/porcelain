@@ -15,7 +15,7 @@ import {
   sampleReview,
   worktreePath,
 } from '../kit/requests.ts';
-import { test } from '../kit/server-test.ts';
+import { gitInterruptionTest as it, test } from '../kit/server-test.ts';
 import { list, record, type Session } from '../kit/session.ts';
 
 const HEAD_REFLOG = '.git/logs/HEAD';
@@ -314,7 +314,7 @@ test("marking a file reviewed tells a watching viewer the worktree's reviewed ma
   );
 });
 
-test('watching never opens a reflog, so a commit whose reflog is a named pipe ends interrupted and later Git changes are still announced', async ({
+it('watching never opens a reflog, so a commit whose reflog is a named pipe ends interrupted and later Git changes are still announced', async ({
   session,
 }) => {
   const connection = await watching(session);

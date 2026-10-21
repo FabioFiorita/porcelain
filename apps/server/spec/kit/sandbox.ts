@@ -490,7 +490,8 @@ async function main() {
           ...(process.platform === 'darwin' ? { TRASH_FALLBACK: '1' } : {}),
           ...(process.env.PORCELAIN_DEV_SAMPLE === 'review' ||
           process.env.PORCELAIN_DEV_SAMPLE === 'perf' ||
-          process.env.PORCELAIN_DEV_SAMPLE === 'service-ahead'
+          process.env.PORCELAIN_DEV_SAMPLE === 'service-ahead' ||
+          process.env.PORCELAIN_DEV_SAMPLE === 'git-interruption'
             ? { PORCELAIN_DEV_SAMPLE: process.env.PORCELAIN_DEV_SAMPLE }
             : {}),
         },

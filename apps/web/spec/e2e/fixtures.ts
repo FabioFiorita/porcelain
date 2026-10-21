@@ -249,6 +249,7 @@ export type Repo = Awaited<ReturnType<typeof repositoryOf>>;
 
 type TestFixtures = {
   serviceUpdateProfile: 'available' | 'ahead';
+  gitInterruption: boolean;
   world: World;
   observed: BrowserFailure[];
   live: LiveFixture;
@@ -276,6 +277,7 @@ type TestFixtures = {
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
   serviceUpdateProfile: ['available', { option: true }],
+  gitInterruption: [false, { option: true }],
   shell: ['web', { scope: 'worker', option: true }],
   vite: [
     async ({ shell }, use) => {
@@ -299,11 +301,19 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   baseURL: async ({ vite }, use) => {
     await use(vite.url);
   },
-  world: async ({ vite, serviceUpdateProfile }, use, testInfo) => {
+  world: async (
+    { vite, serviceUpdateProfile, gitInterruption },
+    use,
+    testInfo,
+  ) => {
     const world = await World.start(
       repositoryRoot,
       serverBuild(),
-      serviceUpdateProfile === 'ahead' ? 'service-ahead' : undefined,
+      gitInterruption
+        ? 'git-interruption'
+        : serviceUpdateProfile === 'ahead'
+          ? 'service-ahead'
+          : undefined,
     );
     vite.target(world.server.address);
     await use(world);
@@ -446,3 +456,5 @@ export async function keptEvidence(world: World): Promise<string> {
 }
 
 export const serviceAheadTest = test.extend({ serviceUpdateProfile: 'ahead' });
+
+export const gitInterruptionTest = test.extend({ gitInterruption: true });

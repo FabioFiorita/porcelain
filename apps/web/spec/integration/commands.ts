@@ -17,7 +17,7 @@ declare module 'vitest/browser' {
       selector: string,
       text: string,
     ) => Promise<void>;
-    porcelainStart: () => Promise<void>;
+    porcelainStart: (sample?: 'git-interruption') => Promise<void>;
     porcelainStop: (name: string) => Promise<string[]>;
     porcelainRead: (request: ServerRead) => Promise<ServerAnswer>;
     porcelainRepo: (step: RepoStep, server: ServerName) => Promise<string>;

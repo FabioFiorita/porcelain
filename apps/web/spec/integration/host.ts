@@ -103,7 +103,10 @@ export const serverProxy = {
   },
 };
 
-const porcelainStart: BrowserCommand<[], void> = async (context) => {
+const porcelainStart: BrowserCommand<['git-interruption'?], void> = async (
+  context,
+  sample,
+) => {
   const failures = await worlds.get(context.sessionId)?.stop();
   if (failures?.length)
     throw new AggregateError(
@@ -115,6 +118,7 @@ const porcelainStart: BrowserCommand<[], void> = async (context) => {
     await World.start(
       repositoryRoot,
       context.project.getProvidedContext().serverBuild,
+      sample,
     ),
   );
   await context.context.addCookies([

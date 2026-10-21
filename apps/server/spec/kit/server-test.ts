@@ -73,19 +73,11 @@ export const test = base
   )
   .extend('server', { scope: 'file' }, async ({ routeLog }, { onCleanup }) => {
     const sample = inject('serverSample');
-    const server = await IsolatedServer.start(
-      repositoryRoot,
-      inject('serverBuild'),
+    return startServer(
       sample === 'perf' ? sample : undefined,
+      routeLog,
+      onCleanup,
     );
-    onCleanup(async () => {
-      try {
-        await recordHandlers(server, routeLog);
-      } finally {
-        await server.stop();
-      }
-    });
-    return server;
   })
   .extend('ids', { scope: 'file' }, ({ server }) => server.sampleIds())
   .extend('recorder', async ({ server, onTestFailed }, { onCleanup }) => {
@@ -111,3 +103,29 @@ export const test = base
   .extend('session', ({ server, ids, recorder }): Session =>
     server.session(recorder, ids),
   );
+
+async function startServer(
+  sample: Parameters<typeof IsolatedServer.start>[2],
+  routeLog: RouteLog,
+  onCleanup: (cleanup: () => Promise<void>) => void,
+) {
+  const server = await IsolatedServer.start(
+    repositoryRoot,
+    inject('serverBuild'),
+    sample,
+  );
+  onCleanup(async () => {
+    try {
+      await recordHandlers(server, routeLog);
+    } finally {
+      await server.stop();
+    }
+  });
+  return server;
+}
+
+export const gitInterruptionTest = test
+  .extend('server', { scope: 'file' }, ({ routeLog }, { onCleanup }) =>
+    startServer('git-interruption', routeLog, onCleanup),
+  )
+  .extend('ids', { scope: 'file' }, ({ server }) => server.sampleIds());

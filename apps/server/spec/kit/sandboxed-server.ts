@@ -240,7 +240,6 @@ const fixture = {
   },
   summaryLinkLifetimeMs: 2000,
   liveTicketLifetimeMs: 1000,
-  gitActionDeadlineMs: 1500,
   inventoryStaleAfterMs: sample === 'perf' ? QUIET_INVENTORY_MS : 200,
   codingTool,
   serviceUpdate: {
@@ -502,6 +501,10 @@ try {
     ),
     webRoot: web,
   });
+  const gitActions =
+    sample === 'git-interruption'
+      ? { ...settings.limits.gitActions, deadlineMs: 1500 }
+      : settings.limits.gitActions;
   server = await runtime.runPromise(
     startServer(
       {
@@ -525,10 +528,7 @@ try {
             ...settings.limits.inventory,
             staleAfterMs: fixture.inventoryStaleAfterMs,
           },
-          gitActions: {
-            ...settings.limits.gitActions,
-            deadlineMs: fixture.gitActionDeadlineMs,
-          },
+          gitActions,
           reviews: {
             ...settings.limits.reviews,
             summaryLink: {
@@ -616,7 +616,7 @@ try {
   fixtureReady = true;
   await writeFile(
     manifest,
-    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, hitsFile, gitTrace, bin, installation, codingTool: codingToolExecutable, fixture: { ...fixture, perf: perf && { files: perfSample.files, commits: perfSample.commits, ...perf } }, routes: registeredRoutes(), tools: [...tools].sort() }, null, 2)}\n`,
+    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, hitsFile, gitTrace, bin, installation, codingTool: codingToolExecutable, fixture: { ...fixture, gitActionDeadlineMs: gitActions.deadlineMs, perf: perf && { files: perfSample.files, commits: perfSample.commits, ...perf } }, routes: registeredRoutes(), tools: [...tools].sort() }, null, 2)}\n`,
     { mode: 0o600 },
   );
   process.stdout.write(

@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures.ts';
+import { expect, gitInterruptionTest as test } from './fixtures.ts';
 
 test('a commit still running when the page reloads is still followed: the commit form waits for its outcome, then shows it ended interrupted', async ({
   app,
