@@ -73,6 +73,9 @@ test('opening a repository with a linked worktree from the empty workspace after
   const project = await reopened();
   const shown = `/${project?.id ?? ''}/${project?.worktrees.find((worktree) => worktree.main)?.id ?? ''}`;
   await expect.poll(() => app.address().path).toBe(shown);
+  await expect
+    .poll(() => new URLSearchParams(app.address().query).get('entry'))
+    .toBe('handoff');
   await opened
     .getByRole('button', { name: 'Filter reviews', exact: true })
     .click();
