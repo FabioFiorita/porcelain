@@ -68,10 +68,12 @@ test('the Open project button opens the chosen Git repository through the native
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
   await app.answerPicker({ canceled: false, filePaths: [desktop.repository] });
-  const project = page.getByRole('button', {
-    name: 'desktop-smoke',
+  const worktrees = page.getByRole('button', {
+    name: 'Worktrees',
     exact: true,
   });
+  await worktrees.click();
+  const project = page.getByRole('menuitem', { name: /desktop-smoke/ });
   await expect(project).toBeVisible();
   expect(await registered(page)).toEqual([desktop.repository]);
   expect(browsing).toEqual([]);
@@ -79,7 +81,10 @@ test('the Open project button opens the chosen Git repository through the native
   await project.click();
   await page.waitForURL((url) => url.pathname !== '/');
   await page.reload();
+  await worktrees.click();
   await expect(project).toBeVisible();
+  await expect(project).toContainText('Current');
+  await page.keyboard.press('Escape');
   const reviewToggle = page.getByRole('button', {
     name: 'Review',
     exact: true,
