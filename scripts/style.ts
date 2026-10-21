@@ -77,7 +77,9 @@ const strayLintConfig =
 type Problem = { rule: StyleRule; message: string };
 function problem(rule: StyleRule, message: string): Problem {
   if (!/\b(?:because|so)\b\s+\S/.test(message))
-    throw new Error(`A lint message explains why: ${message}`);
+    throw new Error(
+      `A lint message explains why: ${message}; add the expected owner or action and its cause, because a rule without a reason cannot guide a fix`,
+    );
   return { rule, message };
 }
 const skippedDirectories = new Set([
@@ -532,7 +534,7 @@ async function lint(): Promise<number> {
   process.stdout.write(`${reported.length} findings.\n`);
   if (parsed.success.number_of_files !== files.length) {
     process.stdout.write(
-      `lint skipped files: oxlint read ${parsed.success.number_of_files} of the ${files.length} files under the lint roots; nothing may hide a file from lint.\n`,
+      `lint skipped files: oxlint read ${parsed.success.number_of_files} of the ${files.length} files under the lint roots; restore the lint inputs or configuration so every source is checked, because omitted files bypass the shared lint policy.\n`,
     );
     return 1;
   }

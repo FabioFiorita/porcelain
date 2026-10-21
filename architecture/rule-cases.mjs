@@ -3396,8 +3396,8 @@ const featureMapCases = [
       ),
     },
     [
-      'its frontmatter holds',
-      'the web feature map is empty',
+      'its frontmatter holds at least one test, because web and desktop features have automated journeys.',
+      'the web feature map is empty; add a valid feature map, because verification needs at least one executable journey for this surface',
       'which no web map file names',
     ],
     {
@@ -3441,8 +3441,10 @@ const featureMapCases = [
         [`${featureFolders.web}/app.fixture.md`]: content,
       },
       [
-        'its frontmatter holds',
-        'the web feature map is empty',
+        name === 'tests'
+          ? 'its frontmatter holds at least one test, because web and desktop features have automated journeys.'
+          : 'its frontmatter holds route or screen, optional shell, selectors, tests and api; correct the metadata because verification reads these fields to reach and exercise the feature:',
+        'the web feature map is empty; add a valid feature map, because verification needs at least one executable journey for this surface',
         'which no web map file names',
       ],
     ),
@@ -3452,7 +3454,9 @@ const featureMapCases = [
     {
       [`${featureFolders.web}/misc.md`]: featureMap('route: /'),
     },
-    ['misc.md: a map file is <domain>.<capability>.md'],
+    [
+      'misc.md: a map file is <domain>.<capability>.md with <domain> one of access, projects, changes, files, git-actions, history, reviews, preferences, live, app, because the filename identifies the feature owner for verification',
+    ],
   ),
   featureMapCase(
     'file-domain',
@@ -3460,14 +3464,30 @@ const featureMapCases = [
       [`${featureFolders.desktop}/reviews.fixture.md`]:
         featureMap('shell: desktop'),
     },
-    ['reviews.fixture.md: a map file is <domain>.<capability>.md'],
+    [
+      'reviews.fixture.md: a map file is <domain>.<capability>.md with <domain> one of app, projects, access, because the filename identifies the feature owner for verification',
+    ],
   ),
-  featureMapCase('folder', {}, ['the desktop feature map folder is missing'], {
-    remove: [featureFolders.desktop],
-  }),
-  featureMapCase('empty', {}, ['the desktop feature map is empty'], {
-    remove: [`${featureFolders.desktop}/app.fixture.md`],
-  }),
+  featureMapCase(
+    'folder',
+    {},
+    [
+      "the desktop feature map folder is missing; create it with the surface's feature maps, because verification needs a discoverable path into each feature",
+    ],
+    {
+      remove: [featureFolders.desktop],
+    },
+  ),
+  featureMapCase(
+    'empty',
+    {},
+    [
+      'the desktop feature map is empty; add a valid feature map, because verification needs at least one executable journey for this surface',
+    ],
+    {
+      remove: [`${featureFolders.desktop}/app.fixture.md`],
+    },
+  ),
   ...['web', 'mobile'].flatMap((surface) => {
     const page = surface === 'web' ? 'route' : 'screen';
     const wrong = surface === 'web' ? 'screen' : 'route';
@@ -3479,7 +3499,7 @@ const featureMapCases = [
           [path]: featureMap(`${page}: /missing`),
         },
         [
-          `${page} /missing is no page under the routes folder`,
+          `${page} /missing is no page under the routes folder (/); name an existing page because verification must navigate to a rendered route`,
           `which no ${surface} map file names`,
         ],
       ),
@@ -3489,7 +3509,7 @@ const featureMapCases = [
           [path]: featureMap(''),
         },
         [
-          `${page} names the page this feature lives on`,
+          `${page} names the page this feature lives on; set it because verification needs an entry point in the surface's router`,
           `which no ${surface} map file names`,
         ],
       ),
@@ -3499,7 +3519,7 @@ const featureMapCases = [
           [path]: featureMap(`${wrong}: /`),
         },
         [
-          `a ${surface} map file names its page as ${page}`,
+          `a ${surface} map file names its page as ${page}; use that field because the surface's router determines how verification reaches the page`,
           `which no ${surface} map file names`,
         ],
       ),
@@ -3510,7 +3530,9 @@ const featureMapCases = [
             ? 'apps/web/src/routes/new.tsx'
             : 'apps/mobile/src/app/new.ios.tsx']: 'export default NewPage;',
         },
-        [`page at /new, which no ${surface} map file names as its ${page}`],
+        [
+          `page at /new, which no ${surface} map file names as its ${page}; write the map file of a feature on that page, because every rendered page needs a verification entry point.`,
+        ],
       ),
     ];
   }),
@@ -3554,7 +3576,9 @@ const featureMapCases = [
         'spec/missing.test.ts',
       ),
     },
-    ['test spec/missing.test.ts does not exist'],
+    [
+      'test spec/missing.test.ts does not exist; name an existing test because verification must point to runnable evidence',
+    ],
   ),
   ...[
     'GET /api/missing',
@@ -3568,7 +3592,9 @@ const featureMapCases = [
           'route: /',
         ).replace('GET /api/session', api),
       },
-      [`api ${api} is no endpoint declared in packages/contracts`],
+      [
+        `api ${api} is no endpoint declared in packages/contracts; use its exact method and parameter names because the server contract owns the callable API`,
+      ],
       {
         valid: {
           [`${featureFolders.web}/app.fixture.md`]: featureMap(
@@ -3589,7 +3615,9 @@ const featureMapCases = [
       {
         [`${featureFolders[surface]}/README.md`]: 'No links.',
       },
-      ['the index links every map file, and app.fixture.md is missing from it'],
+      [
+        'the index links every map file, and app.fixture.md is missing from it; add its link because the index is the discovery path for verification',
+      ],
     ),
   ),
   featureMapCase('index-exists', {}, ['the index links every map file'], {
@@ -3601,7 +3629,7 @@ const featureMapCases = [
       'apps/desktop/spec/e2e/window.e2e.ts': 'export {};',
     },
     [
-      'window.e2e.ts: it tests a native desktop feature that no desktop map file names',
+      'window.e2e.ts: it tests a native desktop feature that no desktop map file names in its tests; add it to the tests of the map file of the feature it proves, or write that map file, because native journeys must be discoverable beside their feature instructions.',
     ],
     {
       valid: {

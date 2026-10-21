@@ -28,7 +28,7 @@ const entrySchema = Schema.Struct({
     Schema.String.check(
       Schema.isPattern(/^(?:GET|POST|PUT|PATCH|DELETE) \/api\/\S*$/, {
         expected:
-          'an api entry is METHOD /api/<path> with the route parameters the contract names',
+          'an api entry is METHOD /api/<path> with the route parameters the contract names, because the map must call the declared contract',
       }),
     ),
   ),
@@ -154,7 +154,7 @@ function entries(root: string, surface: Surface, problems: string[]): Entry[] {
   const folder = join(root, surface.features);
   if (!existsSync(folder)) {
     problems.push(
-      `${surface.features}: the ${surface.name} feature map folder is missing`,
+      `${surface.features}: the ${surface.name} feature map folder is missing; create it with the surface's feature maps, because verification needs a discoverable path into each feature`,
     );
     return [];
   }
@@ -167,7 +167,7 @@ function entries(root: string, surface: Surface, problems: string[]): Entry[] {
     const at = `${surface.features}/${file}`;
     if (!name.test(file)) {
       problems.push(
-        `${at}: a map file is <domain>.<capability>.md with <domain> one of ${surface.domains.join(', ')}`,
+        `${at}: a map file is <domain>.<capability>.md with <domain> one of ${surface.domains.join(', ')}, because the filename identifies the feature owner for verification`,
       );
       continue;
     }
@@ -178,7 +178,7 @@ function entries(root: string, surface: Surface, problems: string[]): Entry[] {
     })(data);
     if (!Result.isSuccess(parsed)) {
       problems.push(
-        `${at}: its frontmatter holds route, shell, selectors, tests and api: ${parsed.failure.message}`,
+        `${at}: its frontmatter holds route or screen, optional shell, selectors, tests and api; correct the metadata because verification reads these fields to reach and exercise the feature: ${parsed.failure.message}`,
       );
       continue;
     }
@@ -195,7 +195,7 @@ function entries(root: string, surface: Surface, problems: string[]): Entry[] {
   }
   if (found.length === 0)
     problems.push(
-      `${surface.features}: the ${surface.name} feature map is empty`,
+      `${surface.features}: the ${surface.name} feature map is empty; add a valid feature map, because verification needs at least one executable journey for this surface`,
     );
   const readme = join(folder, 'README.md');
   const index = existsSync(readme) ? readFileSync(readme, 'utf8') : '';
@@ -203,7 +203,7 @@ function entries(root: string, surface: Surface, problems: string[]): Entry[] {
     const file = entry.file.slice(surface.features.length + 1);
     if (!index.includes(`(${file})`))
       problems.push(
-        `${surface.features}/README.md: the index links every map file, and ${file} is missing from it`,
+        `${surface.features}/README.md: the index links every map file, and ${file} is missing from it; add its link because the index is the discovery path for verification`,
       );
   }
   return found;
@@ -225,21 +225,21 @@ function surfaceProblems(
         (surface.page === 'screen' ? entry.route : entry.screen) !== undefined
       )
         problems.push(
-          `${entry.file}: a ${surface.name} map file names its page as ${surface.page}`,
+          `${entry.file}: a ${surface.name} map file names its page as ${surface.page}; use that field because the surface's router determines how verification reaches the page`,
         );
       else if (pageOf(entry) === undefined)
         problems.push(
-          `${entry.file}: ${surface.page} names the page this feature lives on`,
+          `${entry.file}: ${surface.page} names the page this feature lives on; set it because verification needs an entry point in the surface's router`,
         );
       else if (!paths.has(pageOf(entry) ?? ''))
         problems.push(
-          `${entry.file}: ${surface.page} ${pageOf(entry) ?? ''} is no page under the routes folder (${[...paths].join(', ')})`,
+          `${entry.file}: ${surface.page} ${pageOf(entry) ?? ''} is no page under the routes folder (${[...paths].join(', ')}); name an existing page because verification must navigate to a rendered route`,
         );
     const named = new Set(mapped.map(pageOf));
     for (const page of pages)
       if (!named.has(page.path))
         problems.push(
-          `${page.file}: it renders the page at ${page.path}, which no ${surface.name} map file names as its ${surface.page}; write the map file of a feature on that page. ${surface.page === 'screen' ? 'A _layout file needs none.' : '__root and a layout route, whose folder holds child routes and whose page is its index, need none.'}`,
+          `${page.file}: it renders the page at ${page.path}, which no ${surface.name} map file names as its ${surface.page}; write the map file of a feature on that page, because every rendered page needs a verification entry point. ${surface.page === 'screen' ? 'A _layout file needs none.' : '__root and a layout route, whose folder holds child routes and whose page is its index, need none.'}`,
         );
   }
   if (surface.flows !== undefined) {
@@ -247,7 +247,7 @@ function surfaceProblems(
     for (const flow of filesUnder(root, surface.flows))
       if (flow.endsWith('.e2e.ts') && !named.has(flow))
         problems.push(
-          `${flow}: it tests a native ${surface.name} feature that no ${surface.name} map file names in its tests; add it to the tests of the map file of the feature it proves, or write that map file.`,
+          `${flow}: it tests a native ${surface.name} feature that no ${surface.name} map file names in its tests; add it to the tests of the map file of the feature it proves, or write that map file, because native journeys must be discoverable beside their feature instructions.`,
         );
   }
   const sources = surface.sources
@@ -262,11 +262,13 @@ function surfaceProblems(
         );
     for (const test of entry.tests)
       if (!existsSync(join(root, test)))
-        problems.push(`${entry.file}: test ${test} does not exist`);
+        problems.push(
+          `${entry.file}: test ${test} does not exist; name an existing test because verification must point to runnable evidence`,
+        );
     for (const api of entry.api)
       if (!routes.includes(api))
         problems.push(
-          `${entry.file}: api ${api} is no endpoint declared in packages/contracts`,
+          `${entry.file}: api ${api} is no endpoint declared in packages/contracts; use its exact method and parameter names because the server contract owns the callable API`,
         );
   }
   return problems;

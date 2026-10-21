@@ -24,10 +24,12 @@ const config = Schema.decodeUnknownSync(
 )(createRequire(import.meta.url)('../architecture/dependency-cruiser.cjs'));
 function report(result: IReporterOutput): ICruiseResult {
   if (typeof result.output === 'string')
-    throw new Error('Dependency scan must return its native graph.');
+    throw new Error(
+      'Configure dependency-cruiser to return its native graph, because architecture checks need modules and violations rather than formatted output.',
+    );
   return result.output;
 }
-type Finding = { rule: string; from: string; to: string };
+type Finding = { rule: string; from: string; to: string; reason?: string };
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const packageNames = readdirSync(join(repositoryRoot, 'packages'), {
   withFileTypes: true,
@@ -112,6 +114,8 @@ function themeImportFindings(): Finding[] {
       )
         findings.push({
           rule: 'theme-imports-stylesheets-only',
+          reason:
+            'Import @porcelain/theme/tokens.css only from a top-level web or mobile src stylesheet, because one app stylesheet owns the shared theme tokens.',
           from: path,
           to: specifier,
         });
@@ -161,7 +165,7 @@ async function scan(sources: readonly string[]): Promise<ICruiseResult[]> {
   const missing = sources.filter((file) => !scanned.has(file));
   if (scanned.size === 0 || missing.length > 0)
     throw new Error(
-      `Dependency scan omitted source files: ${missing.join(', ')}`,
+      `Dependency scan omitted source files: ${missing.join(', ')}; restore these files to the dependency-cruiser scan inputs and resolution, because an unscanned source can bypass architecture checks.`,
     );
   return reports;
 }
@@ -197,9 +201,9 @@ try {
     (a, b) => b[1].length - a[1].length,
   )) {
     process.stdout.write(`${rule}: ${entries.length}\n`);
-    const reason = config.forbidden.find(
-      (entry) => entry.name === rule,
-    )?.comment;
+    const reason =
+      config.forbidden.find((entry) => entry.name === rule)?.comment ??
+      entries[0]?.reason;
     if (reason) process.stdout.write(`  why: ${reason}\n`);
     for (const entry of all ? entries : entries.slice(0, 3))
       process.stdout.write(`  ${entry.from} -> ${entry.to}\n`);
