@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { Schema } from 'effect';
 import { fileURLToPath } from 'node:url';
 import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
@@ -5,7 +7,14 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { devPair } from './dev-pair.ts';
-import packageInfo from '../../package.json' with { type: 'json' };
+
+const packageInfo = Schema.decodeUnknownSync(
+  Schema.Struct({ version: Schema.String }),
+)(
+  JSON.parse(
+    readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+  ),
+);
 
 const target = process.env.PORCELAIN_API_TARGET;
 const proxy = target

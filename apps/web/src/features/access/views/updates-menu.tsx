@@ -32,12 +32,22 @@ export function UpdatesMenu() {
         state.latest !== state.version)
     );
   });
+  const shown = rows.filter(
+    (row) =>
+      offered.includes(row) ||
+      batch.entries.some(
+        (entry) => entry.id === row.target.id && entry.kind === row.target.kind,
+      ),
+  );
   const progress = settingsUpdateBatchProgress(batch);
+  const progressLabel = progress.label
+    ? `${progress.label}…`
+    : 'Preparing updates…';
   if (offered.length === 0 && !batch.running && !open) return null;
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger render={<Badge render={<button type="button" />} />}>
-        Update
+        {batch.running ? 'Updating…' : 'Update'}
       </PopoverTrigger>
       <PopoverContent
         side="top"
@@ -45,13 +55,8 @@ export function UpdatesMenu() {
         className="w-88 max-w-[calc(100vw-1rem)]"
       >
         <PopoverTitle>Updates available</PopoverTitle>
-        {batch.running && (
-          <p role="status" className="text-xs text-muted-foreground">
-            {progress.label ? `${progress.label}…` : 'Preparing updates…'}
-          </p>
-        )}
         <div className="flex max-h-[60svh] flex-col divide-y overflow-y-auto">
-          {rows.map((row) => (
+          {shown.map((row) => (
             <div key={`${row.target.kind}:${row.target.id}`} className="py-3">
               <SettingsUpdateRow row={row} showName />
             </div>
@@ -94,9 +99,10 @@ export function UpdatesMenu() {
           <Button
             size="sm"
             disabled={batch.running || count === 0}
+            aria-live="polite"
             onClick={() => run(targets)}
           >
-            Update all ({count})
+            {batch.running ? progressLabel : `Update all (${count})`}
           </Button>
         </footer>
       </PopoverContent>
