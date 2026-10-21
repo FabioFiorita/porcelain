@@ -79,7 +79,10 @@ test('browsing to a Git repository opens it as a project in the navigator and th
     .getByRole('menuitem', { name: 'Worktrees', exact: true })
     .click();
   await expect(
-    pairedPage.getByRole('menuitem', { name: / · browsed · / }),
-  ).toContainText('Current');
+    pairedPage.getByRole('menuitemradio', {
+      name: /\bbrowsed\b/,
+      checked: true,
+    }),
+  ).toBeVisible();
   await expect.poll(registered).toContain(browsed);
 });

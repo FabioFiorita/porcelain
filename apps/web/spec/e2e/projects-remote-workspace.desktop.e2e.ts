@@ -49,10 +49,10 @@ test('the desktop app opens another computer’s worktree and HTML review, marks
     .getByRole('menuitem', { name: 'Worktrees', exact: true })
     .click();
   await expect(
-    pairedPage.getByRole('menuitem', { name: new RegExp(local.name) }),
+    pairedPage.getByRole('menuitemradio', { name: new RegExp(local.name) }),
   ).toBeVisible();
   await pairedPage
-    .getByRole('menuitem', {
+    .getByRole('menuitemradio', {
       name: new RegExp(`${otherProject.name}.*${other.environment.name}`),
     })
     .click();

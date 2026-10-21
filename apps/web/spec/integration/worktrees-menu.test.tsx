@@ -30,13 +30,13 @@ test('worktrees without reviews remain reachable in the flat checkout menu', asy
     .click();
   await expect
     .element(
-      navigator.getByRole('menuitem', { name: new RegExp(project.name) }),
+      navigator.getByRole('menuitemradio', { name: new RegExp(project.name) }),
     )
     .toBeVisible();
   await expect
     .element(
       navigator
-        .getByRole('menuitem', { name: new RegExp(project.name) })
+        .getByRole('menuitemradio', { name: new RegExp(project.name) })
         .getByText(computer, { exact: true }),
     )
     .toBeVisible();
@@ -45,7 +45,7 @@ test('worktrees without reviews remain reachable in the flat checkout menu', asy
     .fill('NO-MATCH');
   await expect
     .element(
-      navigator.getByRole('menuitem', { name: new RegExp(project.name) }),
+      navigator.getByRole('menuitemradio', { name: new RegExp(project.name) }),
     )
     .not.toBeInTheDocument();
 });

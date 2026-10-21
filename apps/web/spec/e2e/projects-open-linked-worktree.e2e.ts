@@ -79,7 +79,9 @@ test('opening a repository with a linked worktree from the empty workspace after
   await opened
     .getByRole('menuitem', { name: 'Worktrees', exact: true })
     .click();
-  await expect(opened.getByRole('menuitem', { name: /Current/ })).toBeVisible();
+  await expect(
+    opened.getByRole('menuitemradio', { checked: true }),
+  ).toBeVisible();
   await opened.keyboard.press('Escape');
   await expect.poll(() => app.visited()).toEqual([shown]);
 });

@@ -8,11 +8,12 @@ test('the flat worktree menu searches checkouts without reviews and selects the 
   app,
 }) => {
   const original = app.address().path;
-  await repo.worktree('search-target');
+  const branch = 'search-target-with-a-long-branch-name-that-must-not-wrap';
+  await repo.worktree(branch);
   await app.reload();
   const project = await server.project();
   const target = project.worktrees.find(
-    (row) => row.branch === 'refs/heads/search-target',
+    (row) => row.branch === `refs/heads/${branch}`,
   );
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
@@ -23,6 +24,9 @@ test('the flat worktree menu searches checkouts without reviews and selects the 
   await pairedPage
     .getByRole('menuitem', { name: 'Worktrees', exact: true })
     .click();
+  const selected = pairedPage.getByRole('menuitemradio', { checked: true });
+  await expect(selected).toBeVisible();
+  await expect(selected).not.toContainText('Current');
   const search = pairedPage.getByRole('searchbox', {
     name: 'Search worktrees',
     exact: true,
@@ -31,13 +35,16 @@ test('the flat worktree menu searches checkouts without reviews and selects the 
   await pairedPage.keyboard.type('NOT-A-WORKSPACE');
   await expect(search).toHaveValue('NOT-A-WORKSPACE');
   await expect(
-    pairedPage.getByRole('menuitem', { name: /search-target/ }),
+    pairedPage.getByRole('menuitemradio', { name: /search-target/ }),
   ).not.toBeAttached();
   await expect.poll(() => app.address().path).toBe(original);
   await search.press('ControlOrMeta+a');
   await pairedPage.keyboard.type('search-');
-  const result = pairedPage.getByRole('menuitem', { name: /search-target/ });
+  const result = pairedPage.getByRole('menuitemradio', {
+    name: /search-target/,
+  });
   await expect(result).toBeVisible();
+  await expect(result).toHaveCSS('height', '32px');
   await result.hover();
   await pairedPage.keyboard.type('target');
   await expect(search).toHaveValue('search-target');
@@ -99,7 +106,9 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
     exact: true,
   });
   await search.fill('other-workspace');
-  await pairedPage.getByRole('menuitem', { name: /other-workspace/ }).click();
+  await pairedPage
+    .getByRole('menuitemradio', { name: /other-workspace/ })
+    .click();
   const other = project.worktrees.find(
     (row) => row.branch === 'refs/heads/other-workspace',
   );
@@ -117,7 +126,7 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
     .click();
   await search.fill(current?.branch?.replace('refs/heads/', '') ?? 'missing');
   await pairedPage
-    .getByRole('menuitem', {
+    .getByRole('menuitemradio', {
       name: new RegExp(
         current?.branch?.replace('refs/heads/', '') ?? 'missing',
       ),
@@ -238,7 +247,7 @@ test('the checkout menu has a temporary search independent of sidebar search and
   });
   await expect(search).toHaveValue('');
   await expect(
-    pairedPage.getByRole('menuitem', { name: /independent-search/ }),
+    pairedPage.getByRole('menuitemradio', { name: /independent-search/ }),
   ).toBeVisible();
   await search.click();
   await pairedPage.keyboard.type('independent-search');

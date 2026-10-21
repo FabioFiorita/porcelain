@@ -69,6 +69,8 @@ import {
   DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuCheckboxItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
@@ -124,6 +126,11 @@ export function ProjectNavigator({
         .map((entry) => [`${entry.environmentId}/${entry.worktreeId}`, entry]),
     ).values(),
   ];
+  const currentCheckout = checkouts.find(
+    (entry) =>
+      selected?.worktreeId === entry.worktreeId &&
+      (selected?.remote ?? connection.environmentId) === entry.environmentId,
+  );
   const setQuery = (query: string) =>
     setView((current) => ({ ...current, query }));
   const setFilter = (filter: typeof emptyReviewListFilter) =>
@@ -287,36 +294,32 @@ export function ProjectNavigator({
                         <SearchIcon />
                       </InputGroupAddon>
                     </InputGroup>
-                    {checkouts.map((entry) => (
-                      <DropdownMenuItem
-                        key={entry.key}
-                        disabled={entry.disabled}
-                        onClick={() => openWorktree(entry)}
-                      >
-                        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                    <DropdownMenuRadioGroup value={currentCheckout?.key ?? ''}>
+                      {checkouts.map((entry) => (
+                        <DropdownMenuRadioItem
+                          key={entry.key}
+                          value={entry.key}
+                          disabled={entry.disabled}
+                          onClick={() => openWorktree(entry)}
+                        >
                           <span
-                            className="min-w-0 max-w-full truncate"
+                            className="min-w-0 flex-1 truncate"
                             title={`${entry.branch} · ${entry.projectName}`}
                           >
                             {entry.branch} · {entry.projectName}
                           </span>
                           <Badge
                             variant="secondary"
-                            className="max-w-full"
+                            className="max-w-1/2"
                             title={entry.environmentName}
                           >
                             <span className="truncate">
                               {entry.environmentName}
                             </span>
                           </Badge>
-                          {selected?.worktreeId === entry.worktreeId &&
-                          (selected?.remote ?? connection.environmentId) ===
-                            entry.environmentId ? (
-                            <Badge variant="outline">Current</Badge>
-                          ) : null}
-                        </div>
-                      </DropdownMenuItem>
-                    ))}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
                     {!loading && checkouts.length === 0 ? (
                       <Empty>
                         <EmptyHeader>
