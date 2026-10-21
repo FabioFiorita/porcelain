@@ -14,7 +14,8 @@ import { ownerClient, ownerRequest } from '../../src/cli/owner-client.ts';
 import { execFile } from 'node:child_process';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { subscribe } from 'node:diagnostics_channel';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync } from 'node:fs';
+import { readServiceUpdateResponseSchema } from '@porcelain/contracts/access';
 import { mkdir, symlink, unlink, writeFile } from 'node:fs/promises';
 import { connect, createServer } from 'node:net';
 import { dirname, join } from 'node:path';
@@ -302,6 +303,20 @@ const serviceUpdateRunner = new ScriptedServiceUpdateRunner(
     ],
   ],
   fixture.serviceUpdate.stepMs,
+  () => {
+    const path = join(
+      root,
+      fixture.folders.state,
+      'service-update-fixture.json',
+    );
+    if (!existsSync(path)) return undefined;
+    const value = Schema.decodeUnknownSync(
+      Schema.Union([readServiceUpdateResponseSchema, Schema.Literal('error')]),
+    )(JSON.parse(readFileSync(path, 'utf8')));
+    if (value === 'error')
+      throw new Error('Service update fixture read failed');
+    return value;
+  },
 );
 async function seedReviewSample(repository: string) {
   const write = async (path: string, text: string) => {

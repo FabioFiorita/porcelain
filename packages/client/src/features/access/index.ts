@@ -31,6 +31,7 @@ export {
   readPairedAccess,
   readRemoteAccess,
   readServiceUpdate,
+  serviceUpdateSnapshot,
 } from './queries/share.ts';
 export { readBrowserSession } from './queries/session.ts';
 export { disconnectBrowserSession } from './commands/session.ts';

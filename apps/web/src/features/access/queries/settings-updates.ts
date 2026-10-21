@@ -4,6 +4,7 @@ import { Atom, AsyncResult } from 'effect/reactivity';
 import {
   readRemoteStatus,
   readServiceUpdate,
+  serviceUpdateSnapshot,
   remoteStatusResult,
   runSettingsUpdates,
   settingsUpdateBatch,
@@ -84,9 +85,7 @@ const updateRows = Atom.make((get): readonly SettingsUpdateRow[] => {
           },
         });
     } else {
-      const state = Option.getOrUndefined(
-        AsyncResult.value(get(readServiceUpdate(local))),
-      );
+      const state = serviceUpdateSnapshot(get(readServiceUpdate(local)));
       const inventory = Option.getOrUndefined(
         AsyncResult.value(get(readInventory(local))),
       );
@@ -114,9 +113,7 @@ const updateRows = Atom.make((get): readonly SettingsUpdateRow[] => {
       get(readRemoteStatus(pairingPlatform, remote)),
     );
     if (status.kind !== 'online') continue;
-    const state = Option.getOrUndefined(
-      AsyncResult.value(get(readServiceUpdate(connection))),
-    );
+    const state = serviceUpdateSnapshot(get(readServiceUpdate(connection)));
     if (state)
       rows.push({
         current: state.version,

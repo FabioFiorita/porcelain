@@ -1,8 +1,8 @@
 import { useAtomValue } from '@effect/atom-react';
-import { Option } from 'effect';
-import { AsyncResult, Atom } from 'effect/reactivity';
+import { Atom } from 'effect/reactivity';
 import {
   readServiceUpdate,
+  serviceUpdateSnapshot,
   settingsUpdatesVisible,
   settingsUpdateBatch,
   type ServiceUpdateTarget,
@@ -18,19 +18,17 @@ const serviceUpdates = Atom.make((get) => {
       );
     }
     const result = get(readServiceUpdate(connection));
-    const state = Option.getOrUndefined(AsyncResult.value(result));
-    const target: ServiceUpdateTarget | undefined =
-      state && AsyncResult.isSuccess(result)
-        ? {
-            kind: 'service',
-            id: remote.environmentId,
-            name: remote.name,
-            connection,
-            state,
-            deviceId:
-              connection.activeRoute?.value?.deviceId ?? remote.deviceId,
-          }
-        : undefined;
+    const state = serviceUpdateSnapshot(result);
+    const target: ServiceUpdateTarget | undefined = state
+      ? {
+          kind: 'service',
+          id: remote.environmentId,
+          name: remote.name,
+          connection,
+          state,
+          deviceId: connection.activeRoute?.value?.deviceId ?? remote.deviceId,
+        }
+      : undefined;
     return { remote, connection, result, target };
   });
 });
