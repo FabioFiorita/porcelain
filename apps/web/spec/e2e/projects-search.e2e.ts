@@ -119,3 +119,65 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
     .poll(async () => (await server.text(repo.readme.path)).text)
     .toBe('Independent disk change\n');
 });
+
+test('Projects pins main checkouts, No review keeps other checkouts, and search and filters cover both', async ({
+  pairedPage,
+  repo,
+  server,
+  app,
+}) => {
+  await repo.worktree('status-topic');
+  await app.reload();
+  const project = await server.project();
+  const inventory = await server.inventory();
+  const main = project.worktrees.find((row) => row.main);
+  const topic = project.worktrees.find((row) => !row.main);
+  if (!main || !topic) throw new Error('Missing main or topic checkout');
+  const meta = `${project.name} · ${main.branch?.replace('refs/heads/', '')} · ${inventory.environment.name}`;
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
+  await expect(
+    pairedPage.getByText('Projects · 1', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    pairedPage.getByText('No review · 1', { exact: true }),
+  ).toBeVisible();
+  const mainRow = pairedPage.getByRole('button', { name: meta, exact: true });
+  const topicRow = pairedPage.getByRole('button', { name: /^status-topic/ });
+  await expect(mainRow).toBeVisible();
+  await expect(topicRow).toBeVisible();
+  const search = pairedPage.getByRole('searchbox', {
+    name: 'Search reviews and worktrees',
+    exact: true,
+  });
+  await search.fill(
+    `${project.name} ${inventory.environment.name} ${main.branch?.replace('refs/heads/', '')}`,
+  );
+  await expect(mainRow).toBeVisible();
+  await expect(topicRow).not.toBeAttached();
+  await search.fill('');
+  await pairedPage
+    .getByRole('button', { name: 'Filter reviews', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('menuitemcheckbox', {
+      name: inventory.environment.name,
+      exact: true,
+    })
+    .click();
+  await expect(mainRow).not.toBeAttached();
+  await expect(topicRow).not.toBeAttached();
+  await pairedPage
+    .getByRole('menuitem', { name: 'Clear filters', exact: true })
+    .click();
+  await topicRow.click();
+  await expect
+    .poll(() => app.address().path)
+    .toBe(`/${project.id}/${topic.id}`);
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
+  await mainRow.click();
+  await expect.poll(() => app.address().path).toBe(`/${project.id}/${main.id}`);
+});

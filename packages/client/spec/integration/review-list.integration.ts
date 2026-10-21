@@ -8,6 +8,7 @@ import {
 } from '@porcelain/server/kit/requests';
 import {
   readReviewList,
+  readProjectReviews,
   readReviewMarks,
   readReview,
   reviewCommands,
@@ -15,7 +16,7 @@ import {
 import { refreshInventory } from '@porcelain/client/projects';
 import { connection } from '../kit/connection.ts';
 
-test('a durable review appears once, follows current decision marks and closure, and leaves its checkout reachable', async ({
+test('a main checkout stays in Projects when reviewed and its retained closed review remains readable', async ({
   server,
   session,
 }) => {
@@ -42,33 +43,40 @@ test('a durable review appears once, follows current decision marks and closure,
     await expect.poll(() => registry.get(list).loading).toBe(false);
     const row = registry
       .get(list)
-      .entries.find((entry) => entry.reviewId !== undefined);
+      .entries.find((entry) => entry.group === 'Projects');
     expect(row).toMatchObject({
-      title: 'Verify the disposable README review',
-      group: 'Needs you',
+      group: 'Projects',
       reviewed: 0,
-      total: 1,
+      total: 0,
       closed: false,
       worktreeId: session.worktreeId,
     });
-    if (!row?.reviewId) throw new Error('Missing published review');
+    expect(row?.reviewId).toBeUndefined();
+    const records = await nativeRead(
+      readProjectReviews({
+        connection: connected,
+        projectId: session.projectId,
+      }),
+    );
+    const reviewId = records[0]?.reviewId;
+    if (!reviewId) throw new Error('Missing published review');
     expect(
       registry
         .get(list)
         .entries.filter((entry) => entry.worktreeId === session.worktreeId),
     ).toHaveLength(1);
     const review = await nativeRead(
-      readReview({ connection: connected, reviewId: row.reviewId }),
+      readReview({ connection: connected, reviewId }),
     );
     const result = await nativeRead(
-      readReviewMarks({ connection: connected, reviewId: row.reviewId }),
+      readReviewMarks({ connection: connected, reviewId }),
     );
     expect(result.decisions).toEqual([]);
     const layer = review.revision?.content.layers[0];
     if (!layer) throw new Error('Publication omitted layers');
     const commands = reviewCommands({
       connection: connected,
-      reviewId: row.reviewId,
+      reviewId,
     });
     await execute(commands.mark, {
       kind: 'decision',
@@ -82,14 +90,17 @@ test('a durable review appears once, follows current decision marks and closure,
         () =>
           registry
             .get(list)
-            .entries.find((entry) => entry.reviewId === row.reviewId)?.group,
+            .entries.find((entry) => entry.worktreeId === session.worktreeId)
+            ?.group,
       )
-      .toBe('Ready to merge');
+      .toBe('Projects');
     expect(
       registry
         .get(list)
-        .entries.find((entry) => entry.reviewId === row.reviewId)?.reviewed,
-    ).toBe(1);
+        .entries.filter(
+          (entry) => !entry.closed && entry.worktreeId === session.worktreeId,
+        ),
+    ).toHaveLength(1);
     await execute(commands.close, undefined);
     await execute(refreshInventory(connected), undefined);
     await expect
@@ -97,11 +108,11 @@ test('a durable review appears once, follows current decision marks and closure,
         () =>
           registry
             .get(list)
-            .entries.find((entry) => entry.reviewId === row.reviewId)?.closed,
+            .entries.find((entry) => entry.reviewId === reviewId)?.closed,
       )
       .toBe(true);
     expect(
-      registry.get(list).entries.find((entry) => entry.group === 'No review'),
+      registry.get(list).entries.find((entry) => entry.group === 'Projects'),
     ).toMatchObject({ worktreeId: session.worktreeId, disabled: false });
     expect(review).toHaveProperty('review');
   } finally {

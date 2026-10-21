@@ -3,6 +3,7 @@ import type { ReviewRevision } from './verdict.ts';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 
 export const reviewListGroups = [
+  'Projects',
   'Needs you',
   'Waiting on agent',
   'Ready to merge',
@@ -138,6 +139,8 @@ export function filterReviewList(
   );
 }
 export function reviewListMeta(entry: ReviewListEntry, now: number) {
+  if (entry.group === 'Projects')
+    return [entry.projectName, entry.branch, entry.environmentName].join(' · ');
   const seconds = entry.publishedAt
     ? Math.max(0, (now - Date.parse(entry.publishedAt)) / 1000)
     : undefined;

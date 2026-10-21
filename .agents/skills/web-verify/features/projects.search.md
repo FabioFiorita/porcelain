@@ -12,12 +12,12 @@ api:
 
 # projects.search
 
-The sidebar shows one review list across projects and environments, grouped by Needs you, Waiting on agent and Ready to merge. The search and optional project/environment checkbox filters intersect without changing the open workspace. Closed opens the separate closed-review view. The flat Worktrees menu keeps checkouts without reviews reachable; Projects preserves project management actions.
+The sidebar shows one review list across projects and environments, with a compact Projects section first (one main checkout per project), followed by Needs you, Waiting on agent, Ready to merge and No review. Main checkouts stay out of the status groups even with an active review. The search and optional project/environment checkbox filters intersect without changing the open workspace. Closed opens the separate closed-review view. No review contains non-main checkouts without an open review; the flat Worktrees menu also keeps all checkouts reachable; Projects preserves project management actions.
 
 ## Drive it
 
 1. Start a disposable instance with reviews in every status plus one closed review. At desktop width, check title fallback, current decision progress and status badges in words.
-2. Search a review title, project, environment, PR number and branch; clear search and check that selection is unchanged.
+2. Check Projects is above the status groups and No review is last. Select a main checkout and an unreviewed non-main checkout and verify the exact workspace. Search a review title, project, environment, PR number and branch; the Projects rows use the same search. Clear search and check that selection is unchanged.
 3. Open Filter reviews and toggle project/environment checkboxes. Deselecting the last item gives no matches; Clear filters restores all rows. Retain a filter-open screenshot.
 4. Open Closed, read a retained review and return with Back to reviews. Git History keeps its own name and destination.
 5. Open Worktrees and select a checkout, including one without a published review. Existing workspace selection and unsaved-draft protection still apply. Projects opens project context menus for rename, copy and removal.

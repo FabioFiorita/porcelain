@@ -90,7 +90,7 @@ export function ProjectNavigator({
     setView((current) => ({ ...current, closed }));
   const emptyReviewsLabel = closed
     ? 'No closed reviews'
-    : 'No matching reviews';
+    : 'No matching worktrees';
   const emptyLabel =
     projects.length === 0 ? 'No projects registered' : emptyReviewsLabel;
   const { rows, projectFilters, environmentFilters } = reviewListView(
@@ -124,7 +124,7 @@ export function ProjectNavigator({
       </NavigatorHeader>
       <div className="flex items-center justify-between px-3 pt-3">
         <h2 className="text-sm font-semibold">
-          {closed ? 'Closed reviews' : 'Reviews'}
+          {closed ? 'Closed reviews' : 'Worktrees'}
         </h2>
         <Button
           variant="ghost"
@@ -143,7 +143,7 @@ export function ProjectNavigator({
             onKeyDown={(event) => {
               if (event.key === 'Escape') setQuery('');
             }}
-            placeholder="Search reviews…"
+            placeholder="Search reviews or worktrees…"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -210,10 +210,7 @@ export function ProjectNavigator({
             Reading reviews…
           </p>
         )}
-        {(closed
-          ? (['Closed'] as const)
-          : reviewListGroups.filter((group) => group !== 'No review')
-        ).map((group) => {
+        {(closed ? (['Closed'] as const) : reviewListGroups).map((group) => {
           const grouped =
             group === 'Closed'
               ? rows
@@ -229,41 +226,60 @@ export function ProjectNavigator({
                   <SidebarMenuItem key={entry.key}>
                     <Item
                       size="xs"
-                      className="min-w-0 flex-nowrap items-start"
+                      className="min-w-0 flex-nowrap items-start text-left"
                       render={
-                        <Link
-                          to="/reviews/$reviewId"
-                          params={{ reviewId: entry.reviewId ?? '' }}
-                          search={{
-                            environment:
-                              entry.environmentId === connection.environmentId
-                                ? undefined
-                                : entry.environmentId,
-                            decision: undefined,
-                          }}
-                          onClick={() => setOpenMobile(false)}
-                        />
+                        entry.reviewId ? (
+                          <Link
+                            to="/reviews/$reviewId"
+                            params={{ reviewId: entry.reviewId ?? '' }}
+                            search={{
+                              environment:
+                                entry.environmentId === connection.environmentId
+                                  ? undefined
+                                  : entry.environmentId,
+                              decision: undefined,
+                            }}
+                            onClick={() => setOpenMobile(false)}
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={entry.disabled}
+                            aria-current={
+                              selected?.worktreeId === entry.worktreeId
+                                ? 'page'
+                                : undefined
+                            }
+                            onClick={() => openWorktree(entry)}
+                          />
+                        )
                       }
                     >
-                      <ItemMedia>
-                        <Badge
-                          variant="outline"
-                          aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
-                        >
-                          {entry.reviewed}/{entry.total}
-                        </Badge>
-                      </ItemMedia>
+                      {entry.reviewId ? (
+                        <ItemMedia>
+                          <Badge
+                            variant="outline"
+                            aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
+                          >
+                            {entry.reviewed}/{entry.total}
+                          </Badge>
+                        </ItemMedia>
+                      ) : null}
                       <ItemContent className="min-w-0">
-                        <p className="line-clamp-2 text-sm font-medium leading-snug">
-                          {entry.title}
-                        </p>
-                        <div className="flex flex-wrap gap-1">
-                          {entry.badges.map((badge) => (
-                            <Badge key={badge.label} variant={badge.variant}>
-                              {badge.label}
-                            </Badge>
-                          ))}
-                        </div>
+                        {group !== 'Projects' ? (
+                          <p className="line-clamp-2 text-sm font-medium leading-snug">
+                            {entry.title}
+                          </p>
+                        ) : null}
+                        {entry.badges.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {entry.badges.map((badge) => (
+                              <Badge key={badge.label} variant={badge.variant}>
+                                {badge.label}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : null}
                         <p
                           className="truncate text-xs text-muted-foreground"
                           title={reviewListMeta(entry, Date.now())}
@@ -278,7 +294,7 @@ export function ProjectNavigator({
             </SidebarGroup>
           );
         })}
-        {!loading && rows.filter((row) => row.reviewId).length === 0 && (
+        {!loading && rows.length === 0 && (
           <p role="status" className="px-3 py-4 text-xs text-muted-foreground">
             {emptyLabel}
           </p>

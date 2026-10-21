@@ -226,34 +226,35 @@ export function WorktreeNavigator({
                 return (
                   <Item
                     key={entry.key}
-                    title={entry.title}
+                    title={entry.group === 'Projects' ? undefined : entry.title}
                     titleNumberOfLines={2}
-                    variant="outline"
+                    variant={entry.group === 'Projects' ? 'default' : 'outline'}
+                    size={entry.group === 'Projects' ? 'xs' : 'default'}
                     selected={selected}
                     disabled={picker.disabled || (!closed && entry.disabled)}
-                    accessibilityLabel={`${entry.title}, ${entry.reviewed}/${entry.total} decisions reviewed, ${entry.badges.map((badge) => badge.label).join(', ')}, ${reviewListMeta(entry, Date.now())}${selected ? ', current' : ''}${entry.disabled ? ', unavailable' : ''}`}
+                    accessibilityLabel={`${reviewListMeta(entry, Date.now())}${entry.reviewId ? `, ${entry.title}, ${entry.reviewed}/${entry.total} decisions reviewed, ${entry.badges.map((badge) => badge.label).join(', ')}` : ''}${selected ? ', current' : ''}${entry.disabled ? ', unavailable' : ''}`}
                     leading={
                       entry.reviewId ? (
                         <Badge
                           label={`${entry.reviewed}/${entry.total}`}
                           variant="outline"
                         />
-                      ) : (
-                        <Icon name="code" tone="muted" />
-                      )
+                      ) : undefined
                     }
                     trailing={<Icon name="chevron" tone="muted" />}
                     onPress={() => open(entry)}
                   >
-                    <Box className="flex-row flex-wrap" gap={1}>
-                      {entry.badges.map((badge) => (
-                        <Badge
-                          key={badge.label}
-                          label={badge.label}
-                          variant={badge.variant}
-                        />
-                      ))}
-                    </Box>
+                    {entry.badges.length > 0 ? (
+                      <Box className="flex-row flex-wrap" gap={1}>
+                        {entry.badges.map((badge) => (
+                          <Badge
+                            key={badge.label}
+                            label={badge.label}
+                            variant={badge.variant}
+                          />
+                        ))}
+                      </Box>
+                    ) : null}
                     <Text variant="caption" tone="muted" numberOfLines={1}>
                       {reviewListMeta(entry, Date.now())}
                     </Text>

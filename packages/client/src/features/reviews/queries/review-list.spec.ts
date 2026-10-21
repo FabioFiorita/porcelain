@@ -41,8 +41,8 @@ it('combines identical project and checkout IDs from different connections witho
           entry.disabled,
         ]),
     ).toEqual([
-      ['Beelink', 'main', 'No review', false],
-      ['MacBook', 'main', 'No review', true],
+      ['Beelink', 'Porcelain', 'Projects', false],
+      ['MacBook', 'Porcelain', 'Projects', true],
     ]);
     expect(
       new Set(registry.get(list).entries.map((entry) => entry.key)).size,
@@ -52,7 +52,7 @@ it('combines identical project and checkout IDs from different connections witho
   }
 });
 
-function inventoryAnswer(environmentId: string, index: number) {
+function inventoryAnswer(environmentId: string, index: number, main = true) {
   return {
     environmentId,
     environment: {
@@ -68,7 +68,7 @@ function inventoryAnswer(environmentId: string, index: number) {
           {
             id: 'a'.repeat(32),
             path: '/code/main',
-            main: true,
+            main,
             branch: 'refs/heads/main',
             available: index === 0,
             status: null,
@@ -108,30 +108,79 @@ it('retry recovers a failed project review read through the same connection', as
     client.registry.set(refreshReviewList(connections), undefined);
     await expect.poll(() => client.registry.get(list).messages).toEqual([]);
     expect(reviewReads).toBe(2);
-    expect(client.registry.get(list).entries[0]?.title).toBe('main');
+    expect(client.registry.get(list).entries[0]?.title).toBe('Porcelain');
   } finally {
     stop();
   }
 });
 it('keeps a published review readable without enabling selection of its unavailable checkout', async () => {
-  const reviewId = '40000000-0000-4000-8000-000000000001';
+  const entries = await publishedEntries(inventoryAnswer(ids[0]!, 1, false), [
+    'main',
+  ]);
+  expect(entries).toHaveLength(1);
+  expect(entries[0]).toMatchObject({
+    reviewId: '40000000-0000-4000-8000-000000000001',
+    worktreeId: 'a'.repeat(32),
+    title: 'main',
+    disabled: true,
+  });
+});
+
+it('gives each main checkout one Projects row even with multiple open reviews and keeps non-main unreviewed checkouts at the bottom', async () => {
+  const inventory = inventoryAnswer(ids[0]!, 0);
+  inventory.projects[0]!.worktrees.push({
+    ...inventory.projects[0]!.worktrees[0]!,
+    id: 'b'.repeat(32),
+    path: '/code/topic',
+    main: false,
+    branch: 'refs/heads/topic',
+  });
+  const entries = await publishedEntries(inventory, ['main', 'main']);
+  expect(
+    entries.map((entry) => ({
+      group: entry.group,
+      title: entry.title,
+      branch: entry.branch,
+      worktreeId: entry.worktreeId,
+      reviewId: entry.reviewId,
+    })),
+  ).toEqual([
+    {
+      group: 'Projects',
+      title: 'Porcelain',
+      branch: 'main',
+      worktreeId: 'a'.repeat(32),
+      reviewId: undefined,
+    },
+    {
+      group: 'No review',
+      title: 'topic',
+      branch: 'topic',
+      worktreeId: 'b'.repeat(32),
+      reviewId: undefined,
+    },
+  ]);
+});
+
+async function publishedEntries(
+  inventory: ReturnType<typeof inventoryAnswer>,
+  branches: readonly string[],
+) {
   const client = create(
     (path) =>
       Promise.resolve(
         Response.json(
           path.startsWith('/api/inventory')
-            ? inventoryAnswer(ids[0]!, 1)
+            ? inventory
             : path.endsWith('/reviews')
-              ? [
-                  {
-                    reviewId,
-                    projectId: '30000000-0000-4000-8000-000000000001',
-                    branch: 'main',
-                    state: 'open',
-                    latestRevision: 1,
-                    lastSeenRevision: 0,
-                  },
-                ]
+              ? branches.map((branch, index) => ({
+                  reviewId: `40000000-0000-4000-8000-00000000000${index + 1}`,
+                  projectId: inventory.projects[0]!.id,
+                  branch,
+                  state: 'open',
+                  latestRevision: 1,
+                  lastSeenRevision: 0,
+                }))
               : path.endsWith('/marks')
                 ? { files: [], decisions: [] }
                 : { review: null, revision: null, revisions: [] },
@@ -139,21 +188,15 @@ it('keeps a published review readable without enabling selection of its unavaila
       ),
     undefined,
     1000,
-    ids[0],
+    inventory.environmentId,
   );
   const list = readReviewList([client.connection]);
   const stop = client.registry.mount(list);
   try {
     await expect.poll(() => client.registry.get(list).loading).toBe(false);
     expect(client.registry.get(list).messages).toEqual([]);
-    expect(client.registry.get(list).entries).toHaveLength(1);
-    expect(client.registry.get(list).entries[0]).toMatchObject({
-      reviewId,
-      worktreeId: 'a'.repeat(32),
-      title: 'main',
-      disabled: true,
-    });
+    return client.registry.get(list).entries;
   } finally {
     stop();
   }
-});
+}

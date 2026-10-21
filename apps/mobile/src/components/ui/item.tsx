@@ -13,7 +13,7 @@ const sizes = {
   xs: 'gap-2 px-2.5 py-2',
 };
 export type ItemProps = {
-  title: string;
+  title?: string | undefined;
   description?: string;
   titleNumberOfLines?: number;
   leading?: ReactNode;
@@ -58,9 +58,11 @@ export function Item({
     <>
       {leading}
       <View className="min-w-0 flex-1 shrink gap-1">
-        <Text variant="ui" weight="medium" numberOfLines={titleNumberOfLines}>
-          {title}
-        </Text>
+        {title ? (
+          <Text variant="ui" weight="medium" numberOfLines={titleNumberOfLines}>
+            {title}
+          </Text>
+        ) : null}
         {description ? (
           <Text variant="caption" tone="muted">
             {description}
@@ -76,7 +78,7 @@ export function Item({
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={itemAccessibilityLabel({
-        title,
+        title: title ?? '',
         description,
         accessibilityLabel,
         hasAdditionalContent: Boolean(leading || trailing || children),

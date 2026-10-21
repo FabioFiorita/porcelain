@@ -71,6 +71,7 @@ export const readReviewList = Atom.family(
             );
             if (record.state === 'open' && worktree)
               reviewedWorktrees.add(worktree.id);
+            if (record.state === 'open' && worktree?.main) continue;
             if (
               AsyncResult.isInitial(reviewResult) ||
               AsyncResult.isInitial(markResult)
@@ -106,7 +107,7 @@ export const readReviewList = Atom.family(
             });
           }
           for (const worktree of project.worktrees) {
-            if (reviewedWorktrees.has(worktree.id)) continue;
+            if (!worktree.main && reviewedWorktrees.has(worktree.id)) continue;
             entries.push({
               key: `${connection.environmentId}/${project.id}/${worktree.id}`,
               environmentId: connection.environmentId,
@@ -116,8 +117,10 @@ export const readReviewList = Atom.family(
               worktreeId: worktree.id,
               path: worktree.path,
               branch: worktreeLabel(worktree.branch),
-              title: worktreeLabel(worktree.branch),
-              group: 'No review',
+              title: worktree.main
+                ? project.name
+                : worktreeLabel(worktree.branch),
+              group: worktree.main ? 'Projects' : 'No review',
               closed: false,
               reviewed: 0,
               total: 0,

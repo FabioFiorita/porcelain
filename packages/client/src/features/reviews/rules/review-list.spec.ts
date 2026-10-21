@@ -57,8 +57,9 @@ const allMarks = {
   decisions: [mark, { ...mark, layerId: 'consumer' }],
 };
 
-it('orders only by the four review statuses', () => {
+it('pins Projects above the four review statuses', () => {
   expect(reviewListGroups).toEqual([
+    'Projects',
     'Needs you',
     'Waiting on agent',
     'Ready to merge',
@@ -294,4 +295,43 @@ it('combines search and checkbox state without changing the source entries', () 
     true,
     true,
   ]);
+});
+
+it('applies search and both filters to main checkout rows and uses compact project metadata', () => {
+  const main: ReviewListEntry = {
+    ...entry,
+    group: 'Projects',
+    title: 'Porcelain',
+    branch: 'main',
+    reviewId: undefined,
+  };
+  const entries = [
+    main,
+    { ...other, group: 'Projects' as const, branch: 'develop' },
+  ];
+  expect(
+    reviewListView(
+      entries,
+      'porcelain main beelink',
+      emptyReviewListFilter,
+      false,
+    ).rows,
+  ).toEqual([main]);
+  expect(
+    reviewListView(
+      entries,
+      '',
+      { projects: ['beelink/porcelain'], environments: ['beelink'] },
+      false,
+    ).rows,
+  ).toEqual([main]);
+  expect(
+    reviewListView(
+      entries,
+      '',
+      { projects: ['beelink/porcelain'], environments: ['mac'] },
+      false,
+    ).rows,
+  ).toEqual([]);
+  expect(reviewListMeta(main, 0)).toBe('Porcelain · main · Beelink');
 });
