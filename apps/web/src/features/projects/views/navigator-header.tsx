@@ -1,3 +1,4 @@
+import { UpdatesMenu } from '@/features/access/index';
 import type { ReactNode } from 'react';
 
 export function NavigatorHeader({
@@ -18,7 +19,10 @@ export function NavigatorHeader({
           {environment}
         </span>
       </div>
-      {children}
+      <div className="ml-auto flex shrink-0 items-center gap-2">
+        {children && <UpdatesMenu />}
+        {children}
+      </div>
     </header>
   );
 }

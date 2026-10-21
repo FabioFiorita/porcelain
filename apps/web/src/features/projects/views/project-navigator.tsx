@@ -89,7 +89,6 @@ type Props = {
   onSelect: (target: WorktreeTarget) => void;
   onOpenProject: (remote: RemoteConnection | null) => void;
   onOpenSettings: () => void;
-  onOpenRemotes: (environmentId: string) => void;
   onOpenShortcuts: () => void;
 };
 
@@ -100,7 +99,6 @@ export function ProjectNavigator({
   onSelect,
   onOpenProject,
   onOpenSettings,
-  onOpenRemotes,
   onOpenShortcuts,
 }: Props) {
   const { connection } = useConnectedContext();
@@ -624,16 +622,6 @@ export function ProjectNavigator({
             <SettingsIcon />
             Settings
           </Button>
-          {remotes?.map(({ remote }) => (
-            <Button
-              key={remote.environmentId}
-              variant="ghost"
-              size="sm"
-              onClick={() => onOpenRemotes(remote.environmentId)}
-            >
-              {remote.name}
-            </Button>
-          ))}
           <div className="ml-auto">
             <Button
               variant="ghost"

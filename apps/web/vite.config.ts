@@ -5,6 +5,7 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { devPair } from './dev-pair.ts';
+import { version } from '../../package.json' with { type: 'json' };
 
 const target = process.env.PORCELAIN_API_TARGET;
 const proxy = target
@@ -22,7 +23,10 @@ const desktop = desktopPort
   : undefined;
 
 export default defineConfig({
-  define: { 'import.meta.env.PORCELAIN_DEV_PAIR': JSON.stringify(!!pairing) },
+  define: {
+    'import.meta.env.PORCELAIN_DEV_PAIR': JSON.stringify(!!pairing),
+    'import.meta.env.PORCELAIN_VERSION': JSON.stringify(version),
+  },
   plugins: [
     ...(pairing ? [pairing] : []),
     tanstackRouter({

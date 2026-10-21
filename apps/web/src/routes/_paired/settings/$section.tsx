@@ -14,7 +14,7 @@ function SettingsRoute() {
   });
   if (
     !settingsSections.some((item) => item.id === section) ||
-    (detail !== undefined && section !== 'remotes')
+    (detail !== undefined && section !== 'computers')
   )
     return <ConnectedWorkspace notice="not-found" />;
   return (

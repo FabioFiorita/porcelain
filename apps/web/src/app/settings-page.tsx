@@ -5,13 +5,10 @@ import {
   ArrowLeftIcon,
   CopyIcon,
   GitBranchIcon,
-  MonitorIcon,
-  PaletteIcon,
-  RadioTowerIcon,
-  RefreshCwIcon,
+  SlidersHorizontalIcon,
+  BlocksIcon,
   ServerIcon,
   SmartphoneIcon,
-  UnplugIcon,
   type LucideIcon,
 } from 'lucide-react';
 import { useHotkey } from '@tanstack/react-hotkeys';
@@ -41,15 +38,12 @@ import { CommitModelSetting } from '@/app/commit-model-setting';
 import {
   ComputerSettings,
   DevicesSettings,
-  DisconnectBrowser,
   RemoteComputers,
   RemoteComputerSettings,
   RemoteComputerName,
   useRemoteConnection,
-  ServiceUpdateSettings,
   useConnectedContext,
   useMcpConfiguration,
-  WaysInSettings,
 } from '@/features/access/index';
 import { usePreferences } from '@/features/preferences/index';
 import type { Preferences } from '@porcelain/client/preferences';
@@ -58,6 +52,13 @@ import { useDocumentTitle } from '@/shared/hooks/use-document-title';
 import { desktopShell } from '@/shared/shell';
 import { copyText } from '@/shared/workspace/copy';
 
+const archiveDescriptions = {
+  archiveDeleteWorktree:
+    'Removes the review’s folder. The main checkout is never deleted.',
+  archiveDeleteLocalBranch: 'Deletes the review branch from this clone.',
+  archiveDeleteRemoteBranch: 'Deletes the branch on origin if it still exists.',
+};
+
 const mcpCommand = 'claude mcp add porcelain -- porcelain mcp';
 
 type SettingsSection = { id: string; label: string; icon: LucideIcon };
@@ -65,21 +66,13 @@ type SettingsSection = { id: string; label: string; icon: LucideIcon };
 export const settingsSections: readonly [
   SettingsSection,
   ...SettingsSection[],
-] = desktopShell
-  ? [
-      { id: 'computer', label: 'This computer', icon: MonitorIcon },
-      { id: 'ways-in', label: 'Ways in', icon: RadioTowerIcon },
-      { id: 'remotes', label: 'Remote computers', icon: ServerIcon },
-      { id: 'devices', label: 'Devices', icon: SmartphoneIcon },
-      { id: 'git', label: 'Git and agents', icon: GitBranchIcon },
-      { id: 'appearance', label: 'Appearance', icon: PaletteIcon },
-    ]
-  : [
-      { id: 'appearance', label: 'Appearance', icon: PaletteIcon },
-      { id: 'git', label: 'Git and agents', icon: GitBranchIcon },
-      { id: 'connection', label: 'Connection', icon: UnplugIcon },
-      { id: 'updates', label: 'Updates', icon: RefreshCwIcon },
-    ];
+] = [
+  { id: 'general', label: 'General', icon: SlidersHorizontalIcon },
+  { id: 'git', label: 'Reviews & Git', icon: GitBranchIcon },
+  { id: 'computers', label: 'Computers', icon: ServerIcon },
+  { id: 'devices', label: 'Devices', icon: SmartphoneIcon },
+  { id: 'integrations', label: 'Integrations', icon: BlocksIcon },
+];
 
 export const defaultSettingsSection = settingsSections[0].id;
 
@@ -136,6 +129,7 @@ function ArchiveSettings() {
           <Item key={key} variant="outline">
             <ItemContent>
               <ItemTitle>{label}</ItemTitle>
+              <ItemDescription>{archiveDescriptions[key]}</ItemDescription>
             </ItemContent>
             <ItemActions>
               <Switch
@@ -271,55 +265,41 @@ function SectionContent({ section }: { section: string }) {
               </Item>
             </ItemGroup>
           </FieldSet>
-          <FieldSet>
-            <FieldLegend variant="label">Agents</FieldLegend>
-            <ItemGroup>
-              <AgentsSetting />
-            </ItemGroup>
-          </FieldSet>
+          <p className="text-xs text-muted-foreground">
+            These preferences are saved on this device. Archive and pull actions
+            run on the computer hosting the review.
+          </p>
         </>
       );
-    case 'connection':
+    case 'integrations':
       return (
-        <ItemGroup>
-          <Item variant="outline">
-            <ItemContent>
-              <DisconnectBrowser />
-            </ItemContent>
-          </Item>
-        </ItemGroup>
+        <FieldSet>
+          <FieldLegend variant="label">Agents</FieldLegend>
+          <ItemGroup>
+            <AgentsSetting />
+          </ItemGroup>
+        </FieldSet>
       );
-    case 'computer':
-      return <ComputerSection />;
-    case 'ways-in':
-      return <WaysInSettings />;
     case 'devices':
       return <DevicesSection />;
-    case 'updates':
-      return (
-        <ItemGroup>
-          <Item variant="outline">
-            <ItemContent>
-              <ServiceUpdateSettings />
-            </ItemContent>
-          </Item>
-        </ItemGroup>
-      );
     default:
       return (
         <>
-          <ItemGroup>
-            <Choice
-              label="Theme"
-              description="System follows your operating system."
-              name="appearance"
-              options={[
-                { value: 'system', label: 'System' },
-                { value: 'light', label: 'Light' },
-                { value: 'dark', label: 'Dark' },
-              ]}
-            />
-          </ItemGroup>
+          <FieldSet>
+            <FieldLegend variant="label">Appearance</FieldLegend>
+            <ItemGroup>
+              <Choice
+                label="Theme"
+                description="System follows your operating system."
+                name="appearance"
+                options={[
+                  { value: 'system', label: 'System' },
+                  { value: 'light', label: 'Light' },
+                  { value: 'dark', label: 'Dark' },
+                ]}
+              />
+            </ItemGroup>
+          </FieldSet>
           <FieldSet>
             <FieldLegend variant="label">Code</FieldLegend>
             <ItemGroup>
@@ -375,7 +355,7 @@ function SectionContent({ section }: { section: string }) {
 function SectionFrame({ children }: { children: ReactNode }) {
   return (
     <ScrollArea className="min-h-0 flex-1">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-6">
+      <div className="settings-content mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-6 sm:px-6">
         {children}
       </div>
     </ScrollArea>
@@ -395,6 +375,7 @@ export function SettingsPage({
   const { element: page, attach: setPage } = useElement<HTMLElement>();
   const [listReturn, setListReturn] = useState<{
     scroll: number;
+    historyIndex: number;
     focus: HTMLElement | null;
   } | null>(null);
   const returnToList = () => {
@@ -402,13 +383,14 @@ export function SettingsPage({
     else
       void navigate({
         to: '/settings/$section',
-        params: { section: 'remotes' },
+        params: { section: 'computers' },
         replace: true,
       });
   };
   const openRemote = (id: string) => {
     setListReturn({
       scroll: list?.scrollTop ?? 0,
+      historyIndex: router.history.location.state.__TSR_index,
       focus:
         document.activeElement instanceof HTMLElement
           ? document.activeElement
@@ -416,7 +398,7 @@ export function SettingsPage({
     });
     void navigate({
       to: '/settings/$section/$environmentId',
-      params: { section: 'remotes', environmentId: id },
+      params: { section: 'computers', environmentId: id },
     });
   };
   const attachPage = (element: HTMLElement | null) => {
@@ -441,8 +423,19 @@ export function SettingsPage({
   );
   const current =
     settingsSections.find((item) => item.id === section) ?? settingsSections[0];
+  let detailName: ReactNode = 'Computer unavailable';
+  if (environmentId === 'this-computer') detailName = 'This computer';
+  else if (remote) detailName = <RemoteComputerName remote={remote} />;
   const leave = () => {
     if (environmentId !== undefined) returnToList();
+    else if (canGoBack && listReturn)
+      router.history.go(
+        -(
+          router.history.location.state.__TSR_index -
+          listReturn.historyIndex +
+          1
+        ),
+      );
     else if (canGoBack) router.history.back();
     else void navigate({ to: '/' });
   };
@@ -472,7 +465,10 @@ export function SettingsPage({
                   className="shrink-0 justify-start md:w-full"
                   aria-current={selected ? 'page' : undefined}
                   onClick={() => {
-                    if (environmentId !== undefined && item.id === 'remotes') {
+                    if (
+                      environmentId !== undefined &&
+                      item.id === 'computers'
+                    ) {
                       returnToList();
                       return;
                     }
@@ -489,7 +485,7 @@ export function SettingsPage({
               );
             })}
           </div>
-          <footer className="flex shrink-0 items-center border-t p-2">
+          <footer className="flex shrink-0 flex-col items-start gap-2 p-2">
             <Button
               variant="ghost"
               className="h-8 min-w-0 flex-1 justify-start"
@@ -498,6 +494,9 @@ export function SettingsPage({
               <ArrowLeftIcon className="size-3.5" />
               Back
             </Button>
+            <p className="px-2 pb-1 text-xs text-muted-foreground">
+              Porcelain {import.meta.env.PORCELAIN_VERSION} · Esc to close
+            </p>
           </footer>
         </nav>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card">
@@ -514,7 +513,7 @@ export function SettingsPage({
                       <BreadcrumbLink
                         render={<button type="button" onClick={returnToList} />}
                       >
-                        Remote computers
+                        Computers
                       </BreadcrumbLink>
                     )}
                   </h2>
@@ -523,20 +522,14 @@ export function SettingsPage({
                   <>
                     <BreadcrumbSeparator />
                     <BreadcrumbItem>
-                      <BreadcrumbPage>
-                        {remote ? (
-                          <RemoteComputerName remote={remote} />
-                        ) : (
-                          'Computer unavailable'
-                        )}
-                      </BreadcrumbPage>
+                      <BreadcrumbPage>{detailName}</BreadcrumbPage>
                     </BreadcrumbItem>
                   </>
                 )}
               </BreadcrumbList>
             </Breadcrumb>
           </header>
-          {current.id === 'remotes' ? (
+          {current.id === 'computers' ? (
             <>
               <div
                 ref={attachList}
@@ -546,20 +539,27 @@ export function SettingsPage({
                     : 'hidden'
                 }
                 role="region"
-                aria-label="Remote computers list"
+                aria-label="Computers list"
                 tabIndex={-1}
               >
-                <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-6">
-                  <RemoteComputers onOpen={openRemote} />
+                <div className="settings-content mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-6 sm:px-6">
+                  <RemoteComputers
+                    environment={environment}
+                    onOpen={openRemote}
+                  />
                 </div>
               </div>
               {environmentId !== undefined && (
                 <SectionFrame>
-                  <RemoteComputerSettings
-                    key={environmentId}
-                    environmentId={environmentId}
-                    onForgotten={returnToList}
-                  />
+                  {environmentId === 'this-computer' ? (
+                    <ComputerSection />
+                  ) : (
+                    <RemoteComputerSettings
+                      key={environmentId}
+                      environmentId={environmentId}
+                      onForgotten={returnToList}
+                    />
+                  )}
                 </SectionFrame>
               )}
             </>

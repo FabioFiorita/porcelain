@@ -4,7 +4,7 @@ import { Atom, AsyncResult } from 'effect/reactivity';
 import { DesktopHost } from '@/shared/adapters/desktop';
 
 const runtime = Atom.runtime(DesktopHost.layer);
-const desktopCapabilities = runtime.atom(
+export const desktopCapabilities = runtime.atom(
   Effect.gen(function* () {
     const desktop = yield* DesktopHost;
     return {
@@ -13,7 +13,7 @@ const desktopCapabilities = runtime.atom(
     };
   }),
 );
-const appUpdate = runtime
+export const appUpdate = runtime
   .atom(
     Effect.gen(function* () {
       const desktop = yield* DesktopHost;
@@ -21,7 +21,7 @@ const appUpdate = runtime
     }),
   )
   .pipe(Atom.keepAlive);
-const appUpdateState = runtime
+export const appUpdateState = runtime
   .atom(
     Stream.unwrap(
       Effect.gen(function* () {

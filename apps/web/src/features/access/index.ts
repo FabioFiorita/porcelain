@@ -40,3 +40,5 @@ export {
   pairingDestination,
   clearPairingDestination,
 } from './adapters/pairing-destination';
+
+export { UpdatesMenu } from './views/updates-menu';

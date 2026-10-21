@@ -1,0 +1,99 @@
+import { useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+import {
+  settingsUpdateBatchProgress,
+  type SettingsUpdateEntry,
+} from '@porcelain/client/access';
+import { Button } from '@/components/ui/button';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTitle,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { useSettingsUpdates } from '../queries/settings-updates';
+import { SettingsUpdateRow } from './settings-update-row';
+
+export function UpdatesMenu() {
+  const { rows, targets, count, batch, run } = useSettingsUpdates();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const offered = rows.filter(({ target }) =>
+    target.kind === 'mac-app'
+      ? target.available
+      : target.state.available || !target.state.managed || target.state.running,
+  );
+  const progress = settingsUpdateBatchProgress(batch);
+  if (offered.length === 0 && !batch.running && batch.entries.length === 0)
+    return null;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger render={<Button size="sm" className="rounded-full" />}>
+        Update
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-88 max-w-[calc(100vw-1rem)]">
+        <PopoverTitle>Updates available</PopoverTitle>
+        {batch.running && (
+          <p role="status" className="text-xs text-muted-foreground">
+            {progress.label ? `${progress.label}…` : 'Preparing updates…'}
+          </p>
+        )}
+        <div className="flex max-h-[60svh] flex-col divide-y overflow-y-auto">
+          {rows.map((row) => (
+            <div key={`${row.target.kind}:${row.target.id}`} className="py-3">
+              <SettingsUpdateRow row={row} showName />
+            </div>
+          ))}
+          {batch.entries
+            .filter(
+              (entry) =>
+                !rows.some(
+                  ({ target }) =>
+                    target.id === entry.id && target.kind === entry.kind,
+                ),
+            )
+            .map((entry) => (
+              <div key={`${entry.kind}:${entry.id}`} className="py-3">
+                <p className="text-sm font-medium">{entry.name}</p>
+                <p
+                  role={entry.status === 'failed' ? 'alert' : 'status'}
+                  className="text-xs text-muted-foreground"
+                >
+                  {batchEntryText(entry)}
+                </p>
+              </div>
+            ))}
+        </div>
+        <footer className="flex items-center justify-between gap-2 border-t pt-3">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setOpen(false);
+              void navigate({
+                to: '/settings/$section',
+                params: { section: 'computers' },
+              });
+            }}
+          >
+            Manage computers
+          </Button>
+          <Button
+            size="sm"
+            disabled={batch.running || count === 0}
+            onClick={() => run(targets)}
+          >
+            Update all ({count})
+          </Button>
+        </footer>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function batchEntryText(entry: SettingsUpdateEntry) {
+  if (entry.status === 'failed') return entry.message;
+  if (entry.status === 'updated') return `Updated to ${entry.version}.`;
+  if (entry.status === 'queued') return 'Queued';
+  return `Updating to ${entry.version}…`;
+}

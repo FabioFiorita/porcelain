@@ -17,7 +17,7 @@ import {
   type AccessPlatformValue,
 } from '@porcelain/client/access';
 import { Effect, Layer, ManagedRuntime, Option } from 'effect';
-import { Atom } from 'effect/reactivity';
+import { Atom, AtomRef } from 'effect/reactivity';
 import { useAtomRef, useAtomValue } from '@effect/atom-react';
 import { statusActivity } from './adapters/status-activity';
 import { environmentStorage } from './adapters/environment-storage';
@@ -80,7 +80,12 @@ function createConnection(environmentId: string, server: Server): Connection {
   );
 }
 
+export const localDeviceId = AtomRef.make<string | undefined>(undefined);
+
 function localConnection({ inventory, principal }: BrowserSession): Connection {
+  localDeviceId.set(
+    principal.kind === 'device' ? principal.deviceId : undefined,
+  );
   const writer = principal.kind === 'owner' ? 'owner' : principal.deviceId;
   const connection = createConnection(inventory.environmentId, {
     address: window.location.href,
@@ -162,6 +167,7 @@ export const environmentRuntime = Atom.context({
 const accessStore = applicationRuntime.runSync(AccessStore);
 export const accessSession = applicationRuntime.runSync(AccessSession);
 const remoteConnections = applicationRuntime.runSync(RemoteConnections);
+export const remoteConnectionState = remoteConnections.state;
 const restoreSavedEnvironments = environmentRuntime.atom(
   Effect.gen(function* () {
     const commands = yield* EnvironmentCommands;

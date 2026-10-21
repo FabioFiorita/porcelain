@@ -4,7 +4,6 @@ import {
   revokeAccess,
   setDeviceTrust,
   setRemoteAccess,
-  startServiceUpdate,
   renameEnvironment,
 } from '@porcelain/client/access';
 import type { Connection } from '@/shared/workspace/connection';
@@ -20,9 +19,6 @@ export function useSetDeviceTrust(connection: Connection, id: string) {
 }
 export function useSetRemoteAccess(connection: Connection) {
   return useAtom(setRemoteAccess(connection));
-}
-export function useStartServiceUpdate(connection: Connection) {
-  return useAtom(startServiceUpdate(connection));
 }
 export function useRenameEnvironment(connection: Connection) {
   return useAtom(renameEnvironment(connection), { mode: 'promise' });
