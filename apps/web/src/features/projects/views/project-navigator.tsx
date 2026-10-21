@@ -624,14 +624,6 @@ export function ProjectNavigator({
             <SettingsIcon />
             Settings
           </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Keyboard shortcuts"
-            onClick={onOpenShortcuts}
-          >
-            <KeyboardIcon />
-          </Button>
           {remotes?.map(({ remote }) => (
             <Button
               key={remote.environmentId}
@@ -642,6 +634,16 @@ export function ProjectNavigator({
               {remote.name}
             </Button>
           ))}
+          <div className="ml-auto">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Keyboard shortcuts"
+              onClick={onOpenShortcuts}
+            >
+              <KeyboardIcon />
+            </Button>
+          </div>
         </footer>
       </Sidebar>
     </div>
