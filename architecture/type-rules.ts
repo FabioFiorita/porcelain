@@ -489,7 +489,7 @@ function laneFindings(
       result.push({
         rule: 'lane-mode-matches-service',
         from: where(root, node),
-        to: `${field} writes; call it inside a 'write' lane, lanes.background or the shutdown context lanes.finish, never in ${[...new Set(wrong)].join(' or ')} lane`,
+        to: `${field} writes; call it inside a 'write' lane, lanes.background or the shutdown context lanes.finish, never in ${[...new Set(wrong)].join(' or ')} lane, because a read lane cannot serialize a service that writes`,
       });
   }
   return result;
@@ -553,7 +553,7 @@ function worktreeCheckFindings(
       {
         rule: 'worktree-use-case-checks',
         from: where(root, execute),
-        to: `${name} takes a worktreeId; resolve it with this.checkWorktree.execute before using it, or hand it to a use case that does`,
+        to: `${name} takes a worktreeId; resolve it with this.checkWorktree.execute before using it, or hand it to a use case that does, because the catalog must resolve the worktree before its files are accessed`,
       },
     ];
   });

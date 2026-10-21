@@ -21,6 +21,265 @@ process.stdout.write(
   'PASS spec-gap fixtures: runtime references, callbacks, namespaces, missing specs, types and barrels\n',
 );
 import { runBoundaryCases } from './boundary-tests.mjs';
+const root = new URL('../', import.meta.url);
+import { spawnSync } from 'node:child_process';
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { domainPackages } from './policy.ts';
+import boundaryCases from './boundary-cases.mjs';
+import { guardrailCases } from './rule-cases.mjs';
+
+function diagnosticFixture(entry) {
+  const directory = mkdtempSync(join(tmpdir(), 'porcelain-diagnostic-'));
+  const write = (file, source) => {
+    mkdirSync(dirname(join(directory, file)), { recursive: true });
+    writeFileSync(join(directory, file), source);
+  };
+  try {
+    symlinkSync(
+      fileURLToPath(new URL('node_modules', root)),
+      join(directory, 'node_modules'),
+      'dir',
+    );
+    for (const path of [
+      'scripts/architecture.ts',
+      'architecture/type-rules.ts',
+      'architecture/policy.ts',
+      'architecture/dependency-cruiser.cjs',
+      'scripts/style.ts',
+      'architecture/duplicate-policy.ts',
+      'architecture/shadcn-pins.ts',
+    ]) {
+      mkdirSync(dirname(join(directory, path)), { recursive: true });
+      cpSync(new URL(path, root), join(directory, path));
+    }
+    mkdirSync(join(directory, 'apps/web/spec'), { recursive: true });
+    write('package.json', '{"type":"module"}');
+    write('tsconfig.json', '{}');
+    for (const owner of [
+      ...domainPackages.map((name) => `packages/${name}`),
+      'packages/kernel',
+      'apps/server',
+    ])
+      write(
+        `${owner}/tsconfig.json`,
+        JSON.stringify({
+          compilerOptions: {
+            target: 'esnext',
+            module: 'nodenext',
+            noEmit: true,
+          },
+          include: ['src/**/*.ts'],
+        }),
+      );
+    for (const file of [
+      'apps/web/vitest.config.ts',
+      'apps/web/playwright.config.ts',
+      'apps/mobile/app.config.ts',
+    ])
+      write(file, 'export {};');
+    write('apps/mobile/metro.config.cjs', 'module.exports = {};');
+    write(
+      'apps/web/vite.config.ts',
+      'export default { resolve: { alias: {} } };',
+    );
+    write('apps/web/src/main.tsx', 'export const value = 1;');
+    write('apps/mobile/src/app/index.tsx', 'export const value = 1;');
+    for (const [file, source] of Object.entries(entry.files ?? {}))
+      write(file, source);
+    const imports = [];
+    if (entry.lint) {
+      write('apps/web/dev-pair.ts', 'export {};');
+      write('apps/marketing/astro.config.ts', 'export {};');
+      cpSync(new URL('architecture', root), join(directory, 'architecture'), {
+        recursive: true,
+      });
+      for (const path of [
+        '.oxlintrc.json',
+        '.oxfmtrc.json',
+        'tsconfig.json',
+        'apps/web/tsconfig.json',
+        'apps/server/tsconfig.json',
+        ...[...domainPackages, 'kernel'].map(
+          (name) => `packages/${name}/tsconfig.json`,
+        ),
+      ]) {
+        mkdirSync(dirname(join(directory, path)), { recursive: true });
+        cpSync(new URL(path, root), join(directory, path));
+      }
+      write(
+        'lint.mjs',
+        `import { registerHooks } from 'node:module';
+registerHooks({ load(url, context, next) {
+  if (url === 'node:child_process') return { format: 'module', shortCircuit: true, source: 'export function spawnSync() { return { stdout: JSON.stringify({ number_of_files: 0, diagnostics: [] }), stderr: String(), status: 0 }; }' };
+  return next(url, context);
+} });`,
+      );
+      imports.push('--import', join(directory, 'lint.mjs'));
+    }
+    if (entry.scan) {
+      write(
+        'scanner.mjs',
+        `import { registerHooks } from 'node:module';
+registerHooks({ load(url, context, next) {
+  if (url.endsWith('/dependency-cruiser/src/main/index.mjs')) return { format: 'module', shortCircuit: true, source: ${JSON.stringify(`export async function cruise() { ${entry.scan} }`)} };
+  return next(url, context);
+} });`,
+      );
+      imports.push('--import', join(directory, 'scanner.mjs'));
+    }
+    const result = spawnSync(
+      process.execPath,
+      [
+        ...imports,
+        join(
+          directory,
+          entry.lint ? 'scripts/style.ts' : 'scripts/architecture.ts',
+        ),
+        ...(entry.lint ? ['lint', 'server'] : ['check', '--all']),
+      ],
+      { cwd: directory, encoding: 'utf8' },
+    );
+    if (result.error) throw result.error;
+    const output = result.stdout + result.stderr;
+    deepStrictEqual(
+      result.status,
+      entry.status ?? 1,
+      `${entry.name}: ${output}`,
+    );
+    for (const expected of entry.expected)
+      ok(
+        output.includes(expected),
+        `${entry.name}: expected ${expected}\n${output}`,
+      );
+    for (const absent of [
+      'ENOENT',
+      'ERR_MODULE_NOT_FOUND',
+      'SyntaxError',
+      ...(entry.absent ?? []),
+    ])
+      ok(!output.includes(absent), `${entry.name}: ${output}`);
+    process.stdout.write(`PASS diagnostic ${entry.name}: ${output}`);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+const folderReason =
+  'Move source into its runtime and responsibility folder (apps/<app>/src or packages/<owner>/src with the role this rule permits), because unowned folders hide which layer may import it, even when it has no imports.';
+const diagnosticCases = [
+  { name: 'valid-source', status: 0, expected: ['0 violations;'] },
+  ...[
+    'source-folder-isolated',
+    'source-folder-connected',
+    'portable-imports-no-node',
+  ].map((rule) => ({
+    name: rule,
+    files: boundaryCases.find((entry) => entry.rule === rule).invalid,
+    expected: [
+      `${rule}: 1`,
+      rule === 'portable-imports-no-node'
+        ? 'Use a platform port for Node capabilities, because domain decisions and shared clients run outside Node; only node:crypto in domain/kernel rules retains the existing hashing exception.'
+        : folderReason,
+    ],
+  })),
+  {
+    name: 'theme-imports-stylesheets-only',
+    files: {
+      'apps/web/src/features/files/views/theme.css':
+        '@import "@porcelain/theme/tokens.css";',
+    },
+    expected: [
+      'theme-imports-stylesheets-only: 1',
+      'apps/web/src/features/files/views/theme.css -> @porcelain/theme/tokens.css',
+      'why: Import @porcelain/theme/tokens.css only from a top-level web or mobile src stylesheet, because one app stylesheet owns the shared theme tokens.',
+    ],
+  },
+  {
+    name: 'theme-long-path',
+    files: {
+      'apps/web/src/features/files/views/long-review-walkthrough-with-remote-environment-and-worktree-context.css':
+        '@import "@porcelain/theme/private.css";',
+    },
+    expected: [
+      'theme-imports-stylesheets-only: 1',
+      'apps/web/src/features/files/views/long-review-walkthrough-with-remote-environment-and-worktree-context.css -> @porcelain/theme/private.css',
+      'because one app stylesheet owns the shared theme tokens.',
+    ],
+  },
+  ...['worktree-use-case-checks', 'lane-mode-matches-service'].map((rule) => {
+    const entry = guardrailCases.find((entry) => entry.rule === rule);
+    return {
+      name: rule,
+      files: { ...entry.files, ...entry.invalid },
+      expected: [
+        `${rule}: 1`,
+        rule === 'worktree-use-case-checks'
+          ? 'resolve it with this.checkWorktree.execute before using it, or hand it to a use case that does, because the catalog must resolve the worktree before its files are accessed'
+          : "call it inside a 'write' lane, lanes.background or the shutdown context lanes.finish, never in read lane, because a read lane cannot serialize a service that writes",
+      ],
+    };
+  }),
+  {
+    name: 'scanner-formatted-output',
+    scan: 'return { output: "formatted" };',
+    expected: [
+      'Configure dependency-cruiser to return its native graph, because architecture checks need modules and violations rather than formatted output.',
+    ],
+    absent: ['0 violations;'],
+  },
+  {
+    name: 'scanner-omitted-source',
+    scan: 'return { output: { modules: [], summary: { violations: [] } } };',
+    expected: [
+      'Dependency scan omitted source files:',
+      'apps/web/src/main.tsx',
+      'restore these files to the dependency-cruiser scan inputs and resolution, because an unscanned source can bypass architecture checks.',
+    ],
+    absent: ['0 violations;'],
+  },
+  {
+    name: 'scanner-partial-source',
+    scan: 'return { output: { modules: [{ source: "apps/web/src/main.tsx" }], summary: { violations: [] } } };',
+    expected: [
+      'Dependency scan omitted source files: apps/mobile/src/app/index.tsx',
+      'because an unscanned source can bypass architecture checks.',
+    ],
+    absent: ['0 violations;'],
+  },
+  {
+    name: 'lint-omitted-source',
+    lint: true,
+    expected: [
+      'lint skipped files: oxlint read 0 of the',
+      'restore the lint inputs or configuration so every source is checked, because omitted files bypass the shared lint policy.',
+    ],
+    absent: ['error style('],
+  },
+  {
+    name: 'scanner-tool-failure',
+    scan: 'throw new Error("fixture dependency scanner unavailable");',
+    expected: ['fixture dependency scanner unavailable'],
+    absent: ['Dependency scan omitted source files:', '0 violations;'],
+  },
+];
+for (const entry of diagnosticCases) diagnosticFixture(entry);
+if (process.argv.includes('--diagnostics')) {
+  runGuardrailCases(
+    guardrailCases
+      .filter((entry) => entry.rule.startsWith('feature-map-'))
+      .map((entry) => entry.rule),
+  );
+  process.exit(0);
+}
+
 for (const fixture of specGapRatchetCases)
   deepStrictEqual(
     specGapProblems(fixture.current, fixture.baseline, fixture.allowed),
@@ -29,7 +288,6 @@ for (const fixture of specGapRatchetCases)
 await runBoundaryCases();
 if (process.argv.includes('--boundaries')) process.exit(0);
 import { readFileSync } from 'node:fs';
-const root = new URL('../', import.meta.url);
 function requireReason(message) {
   ok(
     /\b(?:because|so)\b\s+\S/.test(message),

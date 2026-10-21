@@ -28,7 +28,7 @@ module.exports = {
     {
       name: 'source-folder-isolated',
       comment:
-        'Keep code in folders that identify its runtime and responsibility, including modules without imports.',
+        'Move source into its runtime and responsibility folder (apps/<app>/src or packages/<owner>/src with the role this rule permits), because unowned folders hide which layer may import it, even when it has no imports.',
       severity: 'error',
       from: {
         path: '^(?:apps/(?:server|web|desktop|mobile)|packages/[^/]+)/src/.+\\.[cm]?[jt]sx?$',
@@ -40,7 +40,7 @@ module.exports = {
     {
       name: 'source-folder-connected',
       comment:
-        'Keep code in folders that identify its runtime and responsibility, including modules without imports.',
+        'Move source into its runtime and responsibility folder (apps/<app>/src or packages/<owner>/src with the role this rule permits), because unowned folders hide which layer may import it, even when it has no imports.',
       severity: 'error',
       from: {
         path: '^(?:apps/(?:server|web|desktop|mobile)|packages/[^/]+)/src/.+\\.[cm]?[jt]sx?$',
@@ -176,7 +176,7 @@ module.exports = {
     {
       name: 'portable-imports-no-node',
       comment:
-        'Domain decisions and shared clients run independently of Node; only node:crypto in domain/kernel rules retains the existing hashing exception.',
+        'Use a platform port for Node capabilities, because domain decisions and shared clients run outside Node; only node:crypto in domain/kernel rules retains the existing hashing exception.',
       severity: 'error',
       from: {
         path: '^packages/(?:(?:access|changes|files|git-actions|projects|reviews)|kernel|contracts|client)/src/',
