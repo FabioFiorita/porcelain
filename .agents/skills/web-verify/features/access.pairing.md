@@ -6,6 +6,7 @@ selectors:
   - "This pairing link is not usable. Ask for a new one."
 tests:
   - apps/web/spec/e2e/access-pairing.e2e.ts
+  - apps/web/spec/e2e/access-pair-open-page.e2e.ts
 api:
   - GET /api/health
   - GET /api/session
@@ -53,7 +54,7 @@ None.
 
 - The workspace opened from a link, the address carrying no `#c=` fragment, and a reload staying in the workspace.
 - Server side, `$C server devices` lists "Verification browser".
-- `apps/web/spec/e2e/access-pairing.e2e.ts`: proves initial pairing, `/pair` session restore, repeated used-link reopening and reloads without adding devices, clean unpaired used-link refusal and recovery through a fresh link, and refusal of revoked browser credentials, revoked links and expired links against a real server.
+- `apps/web/spec/e2e/access-pairing.e2e.ts`: proves `/pair` session restore, repeated used-link reopening and reloads without adding devices, clean unpaired used-link refusal and recovery through a fresh link, and refusal of revoked browser credentials, revoked links and expired links against a real server.
 
 ## Gotchas
 
@@ -61,3 +62,5 @@ None.
 - Startup never pairs a browser. Open the card’s web URL in a fresh context to watch the unpaired state, then redeem a link from `$C pairing-link`. Each invocation issues a fresh link; a used code cannot be replayed. An existing valid session can still open the workspace after the code is refused.
 - `start` prints no code; `pairing-link` prints the one-time code locally and redacts it in recorded evidence. Sanitize browser artifacts before sharing them.
 - Inspect HTTP requests and responses may no longer include the pairing requests after an a full page load; read it first.
+
+- `apps/web/spec/e2e/access-pair-open-page.e2e.ts`: a link entered in a tab already showing the not-paired page pairs the browser, opens Review content, clears the fragment and registers Journey browser.

@@ -64,6 +64,9 @@ for (const width of [1280, 414]) {
     server,
     app,
   }) => {
+    await expect
+      .poll(() => new URLSearchParams(app.address().query).get('entry'))
+      .toBe('handoff');
     await repo.worktree('menu-dismissal');
     await app.reload();
     await pairedPage.setViewportSize({ width, height: 896 });
@@ -294,60 +297,6 @@ test('Projects pins main checkouts, No review keeps other checkouts, and search 
     .click();
   await mainRow.click();
   await expect.poll(() => app.address().path).toBe(`/${project.id}/${main.id}`);
-});
-
-test('the checkout menu has a temporary search independent of sidebar search and Closed', async ({
-  pairedPage,
-  repo,
-  app,
-}) => {
-  await repo.worktree('independent-search');
-  await app.reload();
-  await pairedPage
-    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
-    .click();
-  const sidebarSearch = pairedPage.getByRole('searchbox', {
-    name: 'Search reviews and worktrees',
-    exact: true,
-  });
-  await sidebarSearch.fill('NO-SIDEBAR-MATCH');
-  await pairedPage
-    .getByRole('button', { name: 'Closed reviews', exact: true })
-    .click();
-  const menu = pairedPage.getByRole('menuitem', {
-    name: 'Worktrees',
-    exact: true,
-  });
-  await pairedPage
-    .getByRole('button', { name: 'Filter reviews', exact: true })
-    .click();
-  await menu.click();
-  const search = pairedPage.getByRole('searchbox', {
-    name: 'Search worktrees',
-    exact: true,
-  });
-  await expect(search).toHaveValue('');
-  await expect(
-    pairedPage.getByRole('menuitemradio', { name: /independent-search/ }),
-  ).toBeVisible();
-  await search.click();
-  await pairedPage.keyboard.type('independent-search');
-  await expect(search).toHaveValue('independent-search');
-  await expect(search).toBeFocused();
-  await pairedPage.keyboard.press('Escape');
-  await expect(search).not.toBeAttached();
-  await expect(sidebarSearch).toHaveValue('NO-SIDEBAR-MATCH');
-  await menu.click();
-  await expect(search).toHaveValue('');
-  await pairedPage.keyboard.press('Escape');
-  await pairedPage.keyboard.press('Escape');
-  await pairedPage
-    .getByRole('button', { name: 'Back to reviews', exact: true })
-    .click();
-  await expect(sidebarSearch).toHaveValue('NO-SIDEBAR-MATCH');
-  await expect(
-    pairedPage.getByText('No matching worktrees', { exact: true }),
-  ).toBeVisible();
 });
 
 test('sidebar groups remember independent choices across search, Settings and reload with no duplicate footer navigation', async ({

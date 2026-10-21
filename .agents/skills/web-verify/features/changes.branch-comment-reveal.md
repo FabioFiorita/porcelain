@@ -11,7 +11,7 @@ selectors:
   - "Comments"
   - "Whole file"
 tests:
-  - apps/web/spec/e2e/changes-branch-comment-reveal.e2e.ts
+  - apps/web/spec/integration/changes-branch-comment-reveal.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/branch-bases
   - GET /api/worktrees/:worktreeId/branch-changes
@@ -79,7 +79,7 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 - Step 14's Page URL: the base comes back as `refs/heads/checkpoint` although step 12 had cleared it. Reopening Review then shows button "Compare against checkpoint".
 - The comment persisted on the server: Navigate to `<the` on the card’s web URL (full page load) still shows the thread "Against the checkpoint". Inspect HTTP requests and responses shows `POST /api/worktrees/<worktreeId>/comments` with 200 and later `GET /api/worktrees/<worktreeId>/comments` with 200.
 - The anchor's stored comparison: `$C server comment-threads` after step 9 shows `"comparison": { "kind": "branch", "base": "refs/heads/checkpoint" }`, which the reveal in step 14 brings back.
-- `apps/web/spec/e2e/changes-branch-comment-reveal.e2e.ts`: asserts the saved thread's anchor comparison is the checkpoint base, that switching to main clears `base`, and that the reveal sets `base=refs/heads/checkpoint` and `entry=branch:notes.md`.
+- `apps/web/spec/integration/changes-branch-comment-reveal.test.tsx`: asserts the saved thread's anchor comparison is the checkpoint base, that switching to main clears `base`, and that the reveal sets `base=refs/heads/checkpoint` and `entry=branch:notes.md`.
 
 ## Gotchas
 

@@ -12,7 +12,8 @@ selectors:
   - "Comment"
   - "Waiting for the agent"
 tests:
-  - apps/web/spec/e2e/changes-review-branch.e2e.ts
+  - apps/web/spec/integration/changes-review-branch.test.tsx
+  - apps/web/spec/integration/changes-branch-marks.test.tsx
 api:
   - DELETE /api/worktrees/:worktreeId/reviewed
   - DELETE /api/worktrees/:worktreeId/reviewed-bulk
@@ -83,7 +84,8 @@ git -C "$REPO" diff --name-only main feature   # prints README.md and notes.md
 - Reload with Navigate to `<the` on the card’s web URL (full page load): the document is still "notes.md · on the branch", the toolbar still reads "Reviewed", and the thread "Why a second line?" with "Waiting for the agent" is still there.
 - Inspect HTTP requests and responses shows `GET /api/worktrees/<worktreeId>/branch-changes` and `POST …/branch-changes/diffs` (200) for part 1, `PUT /api/worktrees/<worktreeId>/reviewed` (200) for part 2 and `GET …/reviewed?scope=branch&…` reads, and `POST /api/worktrees/<worktreeId>/comments` (200) for part 3.
 - The uncommitted review stayed empty and the comment is anchored to the branch: `$C server reviewed-files` lists no mark while `$C server reviewed-files refs/heads/feature` lists notes.md, and `$C server comment-threads` shows the branch comparison against `refs/heads/main` at the branch tip. In the UI, after part 3, Review → tab "Uncommitted" shows "No changed files" and "No changes", and its readiness counts the thread ("1 comment waiting on the agent", tab "Comments 1") because the comment list is the worktree's.
-- `apps/web/spec/e2e/changes-review-branch.e2e.ts`: asserts the server's branch files are README.md and notes.md, the count line, `scope=branch` and `entry=branch:notes.md`; that the branch marks hold `notes.md` while the worktree marks stay `[]`; and the saved thread's anchor and body.
+- `apps/web/spec/integration/changes-review-branch.test.tsx`: asserts the server's branch files are README.md and notes.md, the count line, `scope=branch` and `entry=branch:notes.md`; the saved thread's anchor and body.
+- `apps/web/spec/integration/changes-branch-marks.test.tsx`: the branch marks hold `notes.md`, the unmark action is enabled, and the worktree marks stay `[]`.
 
 ## Gotchas
 

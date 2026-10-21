@@ -12,6 +12,7 @@ selectors:
 tests:
   - apps/web/spec/e2e/projects-open-remote.desktop.e2e.ts
   - apps/web/spec/e2e/projects-remove.e2e.ts
+  - apps/web/spec/integration/projects-remove.test.tsx
 api:
   - POST /api/inventory/refresh
   - DELETE /api/projects/:projectId
@@ -70,7 +71,8 @@ None.
 ## What proves it works
 
 - End state: Case 1 leaves "repository" in the navigator with no DELETE request; Case 2 shows "Worktree not found" at the removed worktree's address and "No projects registered" both before and after a reload, the DELETE answered 200, and the repository still on disk.
-- `apps/web/spec/e2e/projects-remove.e2e.ts`: the alertdialog shows "Removes this project and its reviews and comments from Porcelain; files and Git history stay on disk." and the project path; `Cancel` closes it, keeps the project menuitem and the server's inventory still contains the project id; confirming closes the alertdialog, shows "No projects registered" and the server's inventory no longer contains it (read through `server.inventory()`); with a second project registered, opening the removed project's worktree address shows "Worktree not found" at `/`, with no region "Review content".
+- `apps/web/spec/integration/projects-remove.test.tsx`: the alertdialog shows "Removes this project and its reviews and comments from Porcelain; files and Git history stay on disk." and the project path; `Cancel` closes it, keeps the project menuitem and the server's inventory still contains the project id; confirming closes the alertdialog, shows "No projects registered" and the server's inventory no longer contains it (read through `server.inventory()`).
+- `apps/web/spec/e2e/projects-remove.e2e.ts`: with a second project registered, opening the removed project's worktree address shows "Worktree not found" at `/`, with no region "Review content".
 - `apps/web/spec/e2e/projects-open-remote.desktop.e2e.ts`: in the desktop shell, cancelling a remote computer's removal keeps its project; confirming shows "No projects registered." in that computer's group, empties that computer's inventory and leaves this server's project in place.
 
 ## Gotchas

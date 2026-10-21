@@ -6,6 +6,7 @@ selectors:
   - 'Clear search'
 tests:
   - apps/web/spec/e2e/projects-search.e2e.ts
+  - apps/web/spec/integration/worktrees-menu.test.tsx
   - apps/web/spec/e2e/review-archive.e2e.ts
 api:
   - GET /api/inventory
@@ -31,3 +32,5 @@ The sidebar shows one review list across projects and environments, with a compa
 With a review linked to a merged or closed PR, use Archive in its list row. In Settings, When archiving a review controls local worktree, local branch and remote branch deletion; all default on. The confirmation names the actual deletion targets. Keeping a worktree while deleting its branch detaches that checkout and says so in the confirmation. The main checkout and its branches stay protected.
 
 Cancel and verify no deletion. With uncommitted files or unpushed commits, verify the explicit warning and confirm the data-loss risk separately. Ignored files never count as dirty. Confirm a branch with no upstream reports skipped remote deletion; an auto-deleted remote branch reports already deleted without an unpushed warning when its head matches the merged PR. A failed preview clears its checking text and shows a plain reason. Archive while that worktree is selected: selection leaves it before deletion. Verify the review stays under Closed with Archived in its status tooltip and accessible label and remains readable. On Android, the data-loss acknowledgement switch starts off and Archive stays disabled until it is enabled. A retained worktree stays accessible under No review (or Projects for the main checkout). Capture before, confirmation, Closed, settings and a short journey recording.
+
+The temporary checkout query, focus, Escape reset and independence from sidebar search and Closed are proven by `apps/web/spec/integration/worktrees-menu.test.tsx`. The conflicted unsaved draft round trip stays in `apps/web/spec/e2e/projects-search.e2e.ts` because it navigates between workspaces.
