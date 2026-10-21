@@ -1,5 +1,6 @@
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import type { Project } from '@porcelain/client/projects/rules';
+import { UpdatesButton, UpdatesSheet } from '../../access';
 import { ArchiveReview } from './archive-review';
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
@@ -48,6 +49,7 @@ export function WorktreeNavigator({
   const retry = useAtomSet(refreshReviewList(connections));
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState(emptyReviewListFilter);
+  const [updates, setUpdates] = useState(false);
   const [closed, setClosed] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const router = useRouter();
@@ -80,6 +82,9 @@ export function WorktreeNavigator({
     <Box className="flex-1" surface="background" testID="worktree-navigator">
       {nativeHeader ? (
         <Stack.Toolbar placement="right">
+          <Stack.Toolbar.View>
+            <UpdatesButton onPress={() => setUpdates(true)} />
+          </Stack.Toolbar.View>
           <Stack.Toolbar.Menu
             icon={headerIcon('workspace')}
             accessibilityLabel="Filter worktrees"
@@ -116,6 +121,11 @@ export function WorktreeNavigator({
           />
         </Stack.Toolbar>
       ) : null}
+      <UpdatesSheet
+        presented={updates}
+        onClose={() => setUpdates(false)}
+        onManageComputers={() => router.push('/computers')}
+      />
       <Box paddingX={4} paddingY={3} gap={2}>
         <Box className="flex-row items-center" gap={1}>
           <Box className="min-w-0 flex-1">
@@ -133,6 +143,7 @@ export function WorktreeNavigator({
           </Box>
           {!nativeHeader ? (
             <>
+              <UpdatesButton onPress={() => setUpdates(true)} />
               <IconButton
                 icon="filter"
                 accessibilityLabel="Filter worktrees"

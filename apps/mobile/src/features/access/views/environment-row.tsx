@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '../../../components/ui/button';
+import { ComputerUpdate } from './computer-update';
 import { EnvironmentConnections } from './environment-connections';
 import { Text } from '../../../components/ui/text';
 import { Box } from '../../../components/ui/box';
@@ -43,7 +44,7 @@ export function EnvironmentRow({
             <IconButton
               icon="trash"
               variant="destructive"
-              accessibilityLabel="Forget environment"
+              accessibilityLabel="Forget computer"
               disabled={disabled || adding}
               pending={command.result.waiting}
               onPress={() => command.forget()}
@@ -69,6 +70,7 @@ export function EnvironmentRow({
         ) : null}
       </Item>
       <Box paddingX={4} paddingY={3} gap={3}>
+        <ComputerUpdate environmentId={remote.environmentId} />
         <Button
           variant="ghost"
           label={managing ? 'Hide connections' : 'Manage connections'}

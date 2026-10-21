@@ -7,22 +7,36 @@ import { Item } from '../components/ui/item';
 import { Icon } from '../components/ui/icon';
 import { Separator } from '../components/ui/separator';
 import { Text } from '../components/ui/text';
-import { EnvironmentsSettings, useSettingsCategory } from '../features/access';
-import { PreferencesScreen, useAppSidebar } from '../features/preferences';
+import {
+  EnvironmentsSettings,
+  useSettingsCategory,
+  SettingsAbout,
+} from '../features/access';
+import {
+  PreferencesScreen,
+  ReviewsGitSettings,
+  useAppSidebar,
+} from '../features/preferences';
 import { ComponentExplorer } from '../features/catalog';
 
 const categories = [
   {
-    id: 'appearance',
-    title: 'Appearance',
+    id: 'general',
+    title: 'General',
     icon: 'appearance',
-    testID: 'settings-appearance',
+    testID: 'settings-general',
   },
   {
-    id: 'environments',
-    title: 'Environments',
+    id: 'reviews-git',
+    title: 'Reviews & Git',
+    icon: 'review',
+    testID: 'settings-reviews-git',
+  },
+  {
+    id: 'computers',
+    title: 'Computers',
     icon: 'environments',
-    testID: 'settings-environments',
+    testID: 'settings-computers',
   },
   {
     id: 'development',
@@ -80,6 +94,7 @@ export function TabletSettings() {
                 ))}
             </Box>
           </ScrollView>
+          <SettingsAbout />
         </Box>
         <Separator orientation={wide ? 'vertical' : 'horizontal'} />
         <Box className="min-w-0 flex-1">
@@ -93,9 +108,11 @@ export function TabletSettings() {
 function SettingsContent() {
   const { category } = useSettingsCategory();
   switch (category) {
-    case 'appearance':
+    case 'general':
       return <PreferencesScreen />;
-    case 'environments':
+    case 'reviews-git':
+      return <ReviewsGitSettings />;
+    case 'computers':
       return <EnvironmentsSettings />;
     case 'development':
       return __DEV__ ? <ComponentExplorer /> : null;

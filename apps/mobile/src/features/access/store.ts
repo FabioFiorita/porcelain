@@ -2,8 +2,8 @@ import { useAtomRef } from '@effect/atom-react';
 import { AtomRef } from 'effect/reactivity';
 import { accessState } from '../../shared/application/store';
 
-type SettingsCategory = 'appearance' | 'environments' | 'development';
-const settingsCategory = AtomRef.make<SettingsCategory>('appearance');
+type SettingsCategory = 'general' | 'reviews-git' | 'computers' | 'development';
+const settingsCategory = AtomRef.make<SettingsCategory>('general');
 const selectSettingsCategory = (category: SettingsCategory) =>
   settingsCategory.set(category);
 

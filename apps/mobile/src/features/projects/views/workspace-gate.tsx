@@ -83,7 +83,7 @@ export function WorkspaceGate({
           {changed ??
             (environments.length === 0 ? (
               <Empty
-                title="Pair an environment"
+                title="Pair a computer"
                 description="Connect to a computer in Settings, then select a project and worktree."
                 action={{
                   label: 'Open Settings',

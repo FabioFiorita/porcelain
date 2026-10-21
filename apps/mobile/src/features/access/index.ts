@@ -5,3 +5,7 @@ export { useEnvironments, useEnvironmentStorageStatus } from './store';
 export { useSettingsCategory } from './store';
 
 export { PairEnvironmentForm } from './views/pair-environment-form';
+
+export { SettingsAbout } from './views/settings-about';
+export { UpdatesButton } from './views/updates-button';
+export { UpdatesSheet } from './views/updates-sheet';

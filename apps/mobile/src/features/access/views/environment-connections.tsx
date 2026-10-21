@@ -96,7 +96,7 @@ export function EnvironmentConnections({
       ))}
       {routes.length === 1 ? (
         <Text variant="caption" tone="muted">
-          Use Forget environment to remove the last connection.
+          Use Forget computer to remove the last connection.
         </Text>
       ) : null}
       {AsyncResult.isFailure(command.result) ? (

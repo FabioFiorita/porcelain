@@ -1,48 +1,11 @@
-import { archiveSettings } from '@porcelain/client/preferences/rules';
-import { Switch } from '../../../components/ui/switch';
 import { Box } from '../../../components/ui/box';
 import { ScrollView } from 'react-native';
-import { Button } from '../../../components/ui/button';
 import { ErrorState } from '../../../components/ui/error-state';
-import { Item } from '../../../components/ui/item';
 import { Loading } from '../../../components/ui/loading';
 import { Text } from '../../../components/ui/text';
 import type { Preferences } from '@porcelain/client/preferences';
 import { usePreferences } from '../store';
-
-function Choice<T extends string | boolean>({
-  label,
-  description,
-  value,
-  options,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  description: string;
-  value: T;
-  options: readonly { value: T; label: string; id: string }[];
-  disabled: boolean;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <Item title={label} description={description} variant="outline">
-      <Box className="flex-row flex-wrap" gap={2} paddingTop={2}>
-        {options.map((option) => (
-          <Button
-            key={option.id}
-            testID={option.id}
-            label={option.label}
-            accessibilityLabel={`${label}: ${option.label}${value === option.value ? ', selected' : ''}`}
-            variant={value === option.value ? 'secondary' : 'ghost'}
-            disabled={disabled}
-            onPress={() => onChange(option.value)}
-          />
-        ))}
-      </Box>
-    </Item>
-  );
-}
+import { PreferenceChoice } from './preference-choice';
 
 export function PreferencesScreen() {
   const { preferences, status, error, read, setPreferences } = usePreferences();
@@ -70,7 +33,7 @@ export function PreferencesScreen() {
             }}
           />
         ) : null}
-        <Choice<Preferences['appearance']>
+        <PreferenceChoice<Preferences['appearance']>
           label="Theme"
           description="System follows your device’s appearance."
           value={preferences.appearance}
@@ -83,28 +46,10 @@ export function PreferencesScreen() {
           onChange={(theme) => setPreferences({ appearance: theme })}
         />
         <Box gap={3}>
-          <Text variant="subheading">When archiving a review</Text>
-          {archiveSettings.map(({ key, label }) => (
-            <Item
-              key={key}
-              title={label}
-              variant="outline"
-              trailing={
-                <Switch
-                  label={label}
-                  checked={preferences[key]}
-                  disabled={disabled}
-                  onCheckedChange={(value) => setPreferences({ [key]: value })}
-                />
-              }
-            />
-          ))}
-        </Box>
-        <Box gap={3}>
           <Text variant="subheading" tone="muted">
             Code
           </Text>
-          <Choice<boolean>
+          <PreferenceChoice<boolean>
             label="Long lines"
             description="Wrap keeps every line visible without scrolling."
             value={preferences.lineOverflow === 'wrap'}
@@ -124,7 +69,7 @@ export function PreferencesScreen() {
           <Text variant="subheading" tone="muted">
             Documents
           </Text>
-          <Choice<Preferences['markdownDefault']>
+          <PreferenceChoice<Preferences['markdownDefault']>
             label="Markdown opens as"
             description="You can switch per file."
             value={preferences.markdownDefault}
@@ -135,7 +80,7 @@ export function PreferencesScreen() {
             disabled={disabled}
             onChange={(markdownDefault) => setPreferences({ markdownDefault })}
           />
-          <Choice<Preferences['htmlDefault']>
+          <PreferenceChoice<Preferences['htmlDefault']>
             label="HTML opens as"
             description="Previews run in a sandbox with no access to Porcelain."
             value={preferences.htmlDefault}

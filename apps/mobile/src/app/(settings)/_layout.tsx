@@ -6,7 +6,9 @@ export const unstable_settings = { anchor: 'settings' };
 function SettingsLayout() {
   return (
     <DestinationLayout name="settings" title="Settings">
-      <Stack.Screen name="appearance" options={{ title: 'Appearance' }} />
+      <Stack.Screen name="general" options={{ title: 'General' }} />
+      <Stack.Screen name="reviews-git" options={{ title: 'Reviews & Git' }} />
+      <Stack.Screen name="computers" options={{ title: 'Computers' }} />
       <Stack.Protected guard={__DEV__}>
         <Stack.Screen
           name="component-library"
