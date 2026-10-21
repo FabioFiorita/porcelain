@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   realpathSync,
   rmSync,
   symlinkSync,
@@ -11,6 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parse } from 'yaml';
 import { domainPackages } from './policy.ts';
 import { typeRuleFindings } from './type-rules.ts';
 import { duplicateScope, scanDuplicates } from './duplicate-policy.ts';
@@ -179,7 +181,56 @@ export function runGuardrailCases(named = []) {
     'Name an existing guardrail fixture rule.',
   );
   for (const entry of cases) {
-    if (entry.rule === 'server-handler-coverage') {
+    if (entry.rule === 'ci-required-checks') {
+      const workflow = parse(
+        readFileSync(
+          new URL('../.github/workflows/ci.yml', import.meta.url),
+          'utf8',
+        ),
+      );
+      const gate = workflow.jobs.checks;
+      deepStrictEqual(
+        gate.needs.toSorted(),
+        Object.keys(entry.needs).toSorted(),
+      );
+      strictEqual(gate.if, '${{ always() }}');
+      strictEqual(gate.steps[0].env.NEEDS, '${{ toJSON(needs) }}');
+      for (const [job, output] of entry.optional)
+        strictEqual(
+          workflow.jobs[job].if,
+          `\${{ needs.affected.outputs.${output} == 'true' }}`,
+          job,
+        );
+      for (const fixture of entry.cases) {
+        const needs = structuredClone(entry.needs);
+        for (const [job, result] of Object.entries(fixture.results ?? {}))
+          needs[job].result = result;
+        Object.assign(needs.affected.outputs, fixture.outputs);
+        for (const job of fixture.missingJobs ?? []) delete needs[job];
+        for (const job of fixture.missingResults ?? [])
+          delete needs[job].result;
+        for (const output of fixture.missingOutputs ?? [])
+          delete needs.affected.outputs[output];
+        const checked = spawnSync(
+          'bash',
+          ['-e', '-o', 'pipefail', '-c', gate.steps[0].run],
+          {
+            encoding: 'utf8',
+            env: {
+              ...process.env,
+              NEEDS: fixture.raw ?? JSON.stringify(needs),
+            },
+          },
+        );
+        if (checked.error) throw checked.error;
+        strictEqual(
+          checked.status,
+          fixture.status,
+          `${fixture.name}: ${checked.stdout}${checked.stderr}`,
+        );
+        process.stdout.write(`PASS ci-required-checks: ${fixture.name}\n`);
+      }
+    } else if (entry.rule === 'server-handler-coverage') {
       strictEqual(handlerCoverage(entry.completeLogs), undefined);
       throws(
         () => handlerCoverage(entry.missingToolLogs),
