@@ -46,7 +46,7 @@ git -C "$REPO/../browsed" -c user.name=Verify -c user.email=verify@example.inval
 ### A plain folder cannot be opened
 
 1. Navigate to `/` on the card’s web URL (full page load), then click button named `Toggle Sidebar`
-   Look for: dialog "Sidebar" with button "Open project" and project button "repository".
+   Look for: dialog "Sidebar" with button "Open project" and Projects and Worktrees menus. Open Projects: "repository" is registered. Press Escape.
 2. Click button named `Open project`
    Look for: dialog "Open project", text "Browse for a repository on the Porcelain server."; folder buttons "plain", "browsed", "repository"; the project home is no repository, so text "Pick a folder that is a Git repository." and a disabled `Open porcelain-dev-…` button.
 3. Click button named `plain`
@@ -59,11 +59,11 @@ git -C "$REPO/../browsed" -c user.name=Verify -c user.email=verify@example.inval
 5. Click button named `browsed`
    Look for: text "Every worktree appears in the sidebar."; button "Open browsed" enabled.
 6. Click button named `Open browsed`
-   Look for: dialog "Open project" is gone; Page URL `/<new projectId>/<worktreeId>`; Page Title "Changes — browsed"; the still-open sidebar sheet shows project buttons "browsed" and "repository", with the "browsed" worktree row pressed.
+   Look for: dialog "Open project" is gone; Page URL `/<new projectId>/<worktreeId>`; Page Title "Changes — browsed"; open Worktrees in the still-open sidebar sheet: "browsed" is marked "Current" and "repository" is also listed. Press Escape.
 7. Inspect HTTP requests and responses
    Look for: `GET /api/projects/folders` (no query), `GET /api/projects/folders?path=…plain`, and one `POST /api/projects` with status 200; no POST while "plain" was shown.
-8. Navigate to `/` on the card’s web URL (full page load), then click button named `Toggle Sidebar`
-   Look for: after the reload the navigator still lists "browsed" and "repository" and no "plain".
+8. Navigate to `/` on the card’s web URL (full page load), then click button named `Toggle Sidebar` and open Projects
+   Look for: after the reload Projects still lists "browsed" and "repository" and no "plain".
 
 ## What proves it works
 
@@ -75,4 +75,4 @@ git -C "$REPO/../browsed" -c user.name=Verify -c user.email=verify@example.inval
 - Phone width: the navigator is in the sidebar sheet behind `Toggle Sidebar`; the sheet stays open after the dialog closes.
 - The folder list also holds the kit's folders (`home`, `repository`, `state`, `web` and others): do not name test folders after them. Clicking the "repository" folder while the sample project is registered may collide with the sidebar's "repository" project button (the dialog is modal over the sheet, which should hide the sheet from the accessibility tree; if the click reports two matches, that is why). This map never clicks it.
 - Closing the dialog resets the browser to the project home; reopening starts there again.
-- Registering leaks into later features of the same instance (`/` opens the first worktree waiting for review). Remove `browsed` with right-click `browsed` → `Remove from Porcelain` → confirm (see `projects.remove`), or start a fresh instance.
+- Registering leaks into later features of the same instance (`/` opens the first worktree waiting for review). Remove `browsed` through Projects → right-click `browsed` → `Remove from Porcelain` → confirm (see `projects.remove`), or start a fresh instance.
