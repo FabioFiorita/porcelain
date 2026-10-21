@@ -1,5 +1,6 @@
 import { NodeServices } from '@effect/platform-node';
-import { Cause, Duration, Effect, Exit, Fiber, Layer } from 'effect';
+import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer } from 'effect';
+import { ChildProcessSpawner } from 'effect/process';
 import type { ListableProject } from '@porcelain/projects/models';
 import { WorktreeListingReader } from '@porcelain/projects/ports';
 import { execFileSync } from 'node:child_process';
@@ -12,6 +13,7 @@ import {
   rmSync,
   statSync,
   chmodSync,
+  renameSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -66,9 +68,29 @@ function pipeHasReader(pipe: string, hold = false): boolean {
 
 function listing(
   project: ListableProject,
-  options: { outputBytes?: number; timeout?: Duration.Duration } = {},
+  options: {
+    outputBytes?: number;
+    timeout?: Duration.Duration;
+    beforeWorktreeList?: () => Effect.Effect<void>;
+  } = {},
 ) {
   const reports: FailureReport[] = [];
+  const spawner = Layer.effect(
+    ChildProcessSpawner.ChildProcessSpawner,
+    Effect.gen(function* () {
+      const actual = yield* ChildProcessSpawner.ChildProcessSpawner;
+      return ChildProcessSpawner.make((command) =>
+        Effect.gen(function* () {
+          if (
+            command._tag === 'StandardCommand' &&
+            command.args.includes('worktree')
+          )
+            yield* options.beforeWorktreeList?.() ?? Effect.void;
+          return yield* actual.spawn(command);
+        }),
+      );
+    }),
+  ).pipe(Layer.provide(NodeServices.layer));
   const reader = gitWorktreeListingReaderLayer({
     git: {
       ...gitLimits,
@@ -83,14 +105,116 @@ function listing(
       Layer.mergeAll(
         Layer.succeed(Logger, { failure: (report) => reports.push(report) }),
         NodeServices.layer,
+        spawner,
       ),
     ),
   );
   const list = Effect.gen(function* () {
     return yield* (yield* WorktreeListingReader).list(project);
   }).pipe(Effect.provide(reader));
-  return { list, reports };
+  return { list, reports, reader };
 }
+
+it.each([
+  { state: 'present and healthy', change: 'none', expected: 'listed' },
+  { state: 'present but corrupt', change: 'corrupt', expected: 'git-failed' },
+  { state: 'gone before the check', change: 'before', expected: 'missing' },
+  { state: 'gone during Git', change: 'during', expected: 'missing' },
+  { state: 'back after missing', change: 'restore', expected: 'listed' },
+  { state: 'replaced', change: 'replace', expected: 'listed' },
+  { state: 'access denied', change: 'denied', expected: 'permission' },
+] as const)(
+  'classifies a repository $state as $expected',
+  async ({ change, expected }) => {
+    const project = repository();
+    const checkout = join(root, 'api');
+    const moved = join(root, 'moved');
+    if (change === 'corrupt') rmSync(join(project.commonDirectory, 'HEAD'));
+    if (change === 'before' || change === 'restore')
+      renameSync(checkout, moved);
+    if (change === 'replace') {
+      renameSync(project.commonDirectory, join(root, 'old-git'));
+      execFileSync('git', ['init', '-q', '-b', 'main', checkout]);
+    }
+    if (change === 'denied') chmodSync(project.commonDirectory, 0);
+    const { list, reports } = listing(project, {
+      beforeWorktreeList: () =>
+        Effect.sync(() => {
+          if (change === 'during') renameSync(checkout, moved);
+        }),
+    });
+    if (change === 'restore') {
+      expect(await Effect.runPromise(list)).toEqual({
+        kind: 'unavailable',
+        projectId: 'project-1',
+        reason: 'missing',
+      });
+      renameSync(moved, checkout);
+    }
+    const result = await Effect.runPromise(list).finally(() => {
+      if (change === 'denied') chmodSync(project.commonDirectory, 0o755);
+    });
+    if (expected === 'listed') {
+      expect(result).toMatchObject({
+        kind: 'listed',
+        projectId: 'project-1',
+        worktrees: [{ available: true }],
+      });
+      if (change === 'replace' && result.kind === 'listed')
+        expect(result.repositoryIdentity).not.toBe(project.repositoryIdentity);
+    } else {
+      expect(result).toEqual({
+        kind: 'unavailable',
+        projectId: 'project-1',
+        reason: expected,
+      });
+    }
+    expect(reports).toEqual([]);
+  },
+);
+
+it('shares the missing result with a refresh that overlaps an in-flight Git listing and recovers afterwards', async () => {
+  const project = repository();
+  const entered = Deferred.makeUnsafe<void>();
+  const release = Deferred.makeUnsafe<void>();
+  let calls = 0;
+  const { reader } = listing(project, {
+    beforeWorktreeList: () =>
+      Effect.gen(function* () {
+        calls += 1;
+        if (calls === 1) {
+          yield* Deferred.succeed(entered, undefined);
+          yield* Deferred.await(release);
+        }
+      }),
+  });
+  const results = await Effect.runPromise(
+    Effect.gen(function* () {
+      const service = yield* WorktreeListingReader;
+      const first = yield* Effect.forkChild(service.list(project));
+      yield* Deferred.await(entered);
+      const second = yield* Effect.forkChild(service.list(project), {
+        startImmediately: true,
+      });
+      renameSync(join(root, 'api'), join(root, 'moved'));
+      yield* Deferred.succeed(release, undefined);
+      const unavailable = [yield* Fiber.join(first), yield* Fiber.join(second)];
+      renameSync(join(root, 'moved'), join(root, 'api'));
+      const recovered = yield* service.list(project);
+      return { unavailable, recovered };
+    }).pipe(Effect.provide(reader)),
+  );
+  expect(results.unavailable).toEqual([
+    { kind: 'unavailable', projectId: 'project-1', reason: 'missing' },
+    { kind: 'unavailable', projectId: 'project-1', reason: 'missing' },
+  ]);
+  expect(results.unavailable[0]).toBe(results.unavailable[1]);
+  expect(results.recovered).toMatchObject({
+    kind: 'listed',
+    worktrees: [{ available: true }],
+  });
+  expect(calls).toBe(2);
+});
 
 describe('gitWorktreeListingReaderLayer', () => {
   it('lists the worktrees of a project with ids derived from their metadata', async () => {
