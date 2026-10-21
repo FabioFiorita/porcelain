@@ -1,12 +1,7 @@
 import { BottomSheet, RNHostView } from '@expo/ui';
 import { ScrollView } from 'react-native';
-import { useAtom, useAtomValue } from '@effect/atom-react';
-import {
-  settingsUpdateBatch,
-  runSettingsUpdates,
-  settingsUpdateCount,
-  settingsUpdateBatchProgress,
-} from '@porcelain/client/access';
+import { useAtomValue } from '@effect/atom-react';
+import { settingsUpdateBatch } from '@porcelain/client/access';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
 import { Card } from '../../../components/ui/card';
@@ -14,6 +9,7 @@ import { Item } from '../../../components/ui/item';
 import { Text } from '../../../components/ui/text';
 import { useServiceUpdates } from '../queries/service-updates';
 import { ComputerUpdate } from './computer-update';
+import { UpdateAllButton } from './update-all-button';
 
 export function UpdatesSheet({
   presented,
@@ -48,12 +44,8 @@ function UpdatesContent({
   onManageComputers: () => void;
   onClose: () => void;
 }) {
-  const { rows, targets } = useServiceUpdates();
+  const { rows } = useServiceUpdates();
   const batch = useAtomValue(settingsUpdateBatch);
-  const [, run] = useAtom(runSettingsUpdates);
-  const count = settingsUpdateCount(targets);
-  const progress = settingsUpdateBatchProgress(batch);
-  const progressLabel = progress.label ? `${progress.label}…` : 'Updating…';
   const offers = rows.filter(
     (row) =>
       (row.target &&
@@ -99,11 +91,7 @@ function UpdatesContent({
                 {entry.status === 'failed' ? entry.message : entry.status}
               </Text>
             ))}
-          <Button
-            label={batch.running ? progressLabel : `Update all (${count})`}
-            disabled={batch.running || count === 0}
-            onPress={() => run(targets)}
-          />
+          <UpdateAllButton />
           <Button
             label="Manage computers"
             variant="ghost"

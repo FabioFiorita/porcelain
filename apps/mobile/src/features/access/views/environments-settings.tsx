@@ -17,7 +17,7 @@ import { EnvironmentRow } from './environment-row';
 import { PairEnvironment } from './pair-environment';
 import { PairEnvironmentForm } from './pair-environment-form';
 
-export function EnvironmentSettingsSection({
+function EnvironmentSettingsSection({
   presentation = 'overview',
   showHeading = true,
   inlinePairing = false,

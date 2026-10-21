@@ -40,5 +40,5 @@ Mobile has no E2E suite; drive each platform on demand with the mobile-verify sk
 - [reviews.linked-review](reviews.linked-review.md): HTTPS review destinations, verdict and published decision excerpts.
 
 - [access.computers](access.computers.md): Connection management, update offers, trust and shared bulk updates.
-- [access.updates](access.updates.md): Worktrees Update pill and native Updates available sheet.
+- [access.updates](access.updates.md): Worktrees Update badge and native Updates available sheet.
 - [preferences.reviews-git](preferences.reviews-git.md): Archive deletion, pull strategy and installed commit models.

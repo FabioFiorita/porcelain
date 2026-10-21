@@ -1,4 +1,4 @@
-import { View, type ViewProps } from 'react-native';
+import { Pressable, View, type ViewProps } from 'react-native';
 import { Text } from './text';
 const variants = {
   default: 'border-transparent bg-primary',
@@ -17,31 +17,50 @@ export function Badge({
   labelNumberOfLines,
   variant = 'default',
   className,
+  onPress,
   ...props
 }: Omit<ViewProps, 'style' | 'children'> & {
   label: string;
   labelNumberOfLines?: number;
   variant?: keyof typeof variants;
+  onPress?: () => void;
 }) {
-  return (
-    <View
-      {...props}
-      className={[
-        'self-start rounded-2xl border px-2 py-0.5',
-        variants[variant],
-        className,
-      ]
-        .filter(Boolean)
-        .join(' ')}
+  const classes = [
+    'self-start rounded-2xl border px-2 py-0.5',
+    variants[variant],
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const content = (
+    <Text
+      {...(onPress ? { accessible: false } : {})}
+      numberOfLines={labelNumberOfLines}
+      variant="small"
+      weight="medium"
+      tone={tones[variant]}
     >
-      <Text
-        variant="small"
-        weight="medium"
-        tone={tones[variant]}
-        numberOfLines={labelNumberOfLines}
+      {label}
+    </Text>
+  );
+  if (onPress) {
+    return (
+      <Pressable
+        {...props}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={props.accessibilityLabel ?? label}
+        onPress={onPress}
+        hitSlop={10}
+        className={classes}
       >
-        {label}
-      </Text>
+        {content}
+      </Pressable>
+    );
+  }
+  return (
+    <View {...props} className={classes}>
+      {content}
     </View>
   );
 }

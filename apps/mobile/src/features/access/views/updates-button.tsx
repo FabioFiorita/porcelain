@@ -1,5 +1,4 @@
-import { ButtonSurface } from '../../../components/ui/button-surface';
-import { Text } from '../../../components/ui/text';
+import { Badge } from '../../../components/ui/badge';
 
 export function UpdatesButton({
   onPress,
@@ -9,15 +8,10 @@ export function UpdatesButton({
   running: boolean;
 }) {
   return (
-    <ButtonSurface
+    <Badge
+      label={running ? 'Updating…' : 'Update'}
       accessibilityLabel="Updates available"
-      size="sm"
-      shape="pill"
       onPress={onPress}
-    >
-      <Text variant="caption" tone="primaryForeground" weight="medium">
-        {running ? 'Updating…' : 'Update'}
-      </Text>
-    </ButtonSurface>
+    />
   );
 }
