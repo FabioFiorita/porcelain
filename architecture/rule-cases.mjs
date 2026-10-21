@@ -3656,7 +3656,286 @@ const featureMapCases = [
   ),
 ];
 
+const configStrictness = [
+  'strict',
+  'noUncheckedIndexedAccess',
+  'exactOptionalPropertyTypes',
+  'noImplicitOverride',
+  'noFallthroughCasesInSwitch',
+  'verbatimModuleSyntax',
+  'erasableSyntaxOnly',
+];
+const configRequiredRules = [
+  'no-unused-vars',
+  'typescript/consistent-type-imports',
+  'typescript/no-deprecated',
+  'typescript/no-explicit-any',
+  'typescript/no-floating-promises',
+  'typescript/no-misused-promises',
+  'typescript/no-unnecessary-type-assertion',
+  'typescript/no-unsafe-argument',
+  'typescript/no-unsafe-assignment',
+  'typescript/no-unsafe-call',
+  'typescript/no-unsafe-member-access',
+  'typescript/no-unsafe-return',
+  'typescript/no-unsafe-type-assertion',
+  'typescript/only-throw-error',
+  'shadcn/no-raw-colors',
+  'shadcn/no-restyle',
+  'porcelain/no-node-globals',
+];
+const styleConfigCases = [
+  { name: 'canonical configs and empty source', status: 0, rules: [] },
+  {
+    name: 'required rule accepts array error level',
+    status: 0,
+    rules: [],
+    json: {
+      '.oxlintrc.json': { 'rules.typescript/no-explicit-any': ['error'] },
+    },
+  },
+  ...[false, undefined].map((value) => ({
+    name: `typeAware ${String(value)}`,
+    status: 1,
+    rules: ['lint-config'],
+    json: { '.oxlintrc.json': { 'options.typeAware': value } },
+  })),
+  ...[
+    ['plugins empty', { plugins: [] }],
+    ['plugins missing', { plugins: undefined }],
+    ['plugins wrong', { plugins: ['react'] }],
+    ['unsupported lint field', { ignorePatterns: [] }],
+  ].map(([name, json]) => ({
+    name,
+    json: { '.oxlintrc.json': json },
+    status: 1,
+    rules: ['lint-config'],
+  })),
+  ...['off', undefined].map((value) => ({
+    name: `required rules ${String(value)}`,
+    status: 1,
+    rules: ['lint-config'],
+    json: {
+      '.oxlintrc.json': Object.fromEntries(
+        configRequiredRules.map((name) => [`rules.${name}`, value]),
+      ),
+    },
+    tokens: configRequiredRules,
+  })),
+  ...['{/*comment*/}', '{"plugins":[],}'].map((text) => ({
+    name: `strict JSON rejects ${JSON.stringify(text)}`,
+    status: 1,
+    files: { '.oxlintrc.json': text },
+    rules: ['strict-json'],
+    tokens: ['.oxlintrc.json'],
+  })),
+  {
+    name: 'empty lint object',
+    files: { '.oxlintrc.json': '{}' },
+    status: 1,
+    rules: ['lint-config'],
+  },
+  {
+    name: 'empty formatter JSON',
+    files: { '.oxfmtrc.json': '' },
+    status: 1,
+    rules: ['strict-json'],
+    tokens: ['.oxfmtrc.json'],
+  },
+  ...['.oxfmtrc.json', 'tsconfig.json', 'apps/web/tsconfig.json'].map(
+    (path) => ({
+      name: `malformed ${path}`,
+      files: { [path]: '{' },
+      status: 1,
+      rules: ['strict-json'],
+      tokens: [path],
+    }),
+  ),
+  ...[[], ['**']].map((patterns) => ({
+    name: `formatter ignores ${JSON.stringify(patterns)}`,
+    status: 1,
+    rules: ['format-config'],
+    json: { '.oxfmtrc.json': { ignorePatterns: patterns } },
+  })),
+  {
+    name: 'nested lint configs and ignores',
+    status: 1,
+    rules: ['one-lint-config'],
+    files: {
+      'apps/web/.eslintrc.json': '{}',
+      'apps/web/.oxlintignore': '**',
+      'packages/.eslintignore': '**',
+    },
+    tokens: [
+      'apps/web/.eslintrc.json',
+      'apps/web/.oxlintignore',
+      'packages/.eslintignore',
+    ],
+  },
+  {
+    name: 'nested format configs and ignores',
+    status: 1,
+    rules: ['format-config'],
+    files: {
+      'apps/web/.prettierrc': '{}',
+      'apps/web/.oxfmtrc.json': '{}',
+      'packages/.prettierignore': '**',
+    },
+    tokens: [
+      'apps/web/.prettierrc',
+      'apps/web/.oxfmtrc.json',
+      'packages/.prettierignore',
+    ],
+  },
+  {
+    name: 'disable and enable directives across roots',
+    status: 1,
+    rules: ['disable-directives'],
+    files: {
+      'apps/web/src/directives.ts': [
+        '//',
+        ' eslint-disable\n',
+        '/*',
+        ' oxlint-enable */\nexport {};',
+      ].join(''),
+      'architecture/fixture.ts': [
+        '//',
+        ' oxlint-disable\n',
+        '/*',
+        ' eslint-enable */\nexport {};',
+      ].join(''),
+    },
+    tokens: [
+      'apps/web/src/directives.ts:1',
+      'apps/web/src/directives.ts:2',
+      'architecture/fixture.ts:1',
+      'architecture/fixture.ts:2',
+    ],
+  },
+  {
+    name: 'tracked and untracked source outside roots',
+    status: 1,
+    rules: ['code-outside-lint-roots'],
+    files: {
+      'outside/tracked.ts': 'export {};',
+      'outside/untracked.tsx': 'export {};',
+    },
+    tracked: 'outside/tracked.ts',
+    tokens: ['outside/tracked.ts', 'outside/untracked.tsx'],
+  },
+  {
+    name: 'native renderer owns Swift and Kotlin',
+    status: 0,
+    rules: [],
+    files: {
+      'apps/mobile/modules/porcelain-renderer/ios/Renderer.swift': '',
+      'apps/mobile/modules/porcelain-renderer/android/src/main/java/expo/modules/porcelainrenderer/Renderer.kt':
+        '',
+    },
+  },
+  {
+    name: 'native source outside renderer owner',
+    status: 1,
+    rules: ['mobile-native-source-owner'],
+    files: {
+      'apps/mobile/ios/Feature.swift': '',
+      'apps/mobile/android/Feature.kt': '',
+    },
+    tokens: ['apps/mobile/ios/Feature.swift', 'apps/mobile/android/Feature.kt'],
+  },
+  ...[false, undefined].map((value) => ({
+    name: `root strictness ${String(value)}`,
+    status: 1,
+    rules: ['tsconfig'],
+    json: {
+      'tsconfig.json': Object.fromEntries(
+        configStrictness.map((flag) => [`compilerOptions.${flag}`, value]),
+      ),
+    },
+    keys: configStrictness,
+  })),
+  ...[false, true].map((value) => ({
+    name: `child cannot override strictness ${value}`,
+    status: 1,
+    rules: ['tsconfig'],
+    json: {
+      'packages/access/tsconfig.json': Object.fromEntries(
+        configStrictness.map((flag) => [`compilerOptions.${flag}`, value]),
+      ),
+    },
+    keys: configStrictness,
+  })),
+  ...['wrong.json', undefined].map((value) => ({
+    name: `child extends ${String(value)}`,
+    status: 1,
+    rules: ['tsconfig'],
+    json: { 'packages/access/tsconfig.json': { extends: value } },
+    tokens: ['packages/access/tsconfig.json'],
+  })),
+  ...[[], undefined].map((value) => ({
+    name: `child includes ${JSON.stringify(value)}`,
+    status: 1,
+    rules: ['tsconfig'],
+    json: { 'packages/access/tsconfig.json': { include: value } },
+    tokens: ['src/**/*.ts', 'spec/**/*.ts'],
+  })),
+  {
+    name: 'child cannot add compiler options',
+    status: 1,
+    rules: ['tsconfig'],
+    json: {
+      'apps/server/tsconfig.json': {
+        'compilerOptions.noEmit': false,
+      },
+    },
+    tokens: ['apps/server/tsconfig.json'],
+  },
+  {
+    name: 'domain cannot gain ambient DOM library',
+    status: 1,
+    rules: ['tsconfig'],
+    json: {
+      'packages/access/tsconfig.json': { 'compilerOptions.lib': ['DOM'] },
+    },
+    tokens: ['packages/access/tsconfig.json', '"types": []'],
+  },
+  {
+    name: 'domain cannot gain ambient Node types',
+    status: 1,
+    rules: ['tsconfig'],
+    json: {
+      'packages/access/tsconfig.json': { 'compilerOptions.types': ['node'] },
+    },
+    tokens: ['packages/access/tsconfig.json'],
+  },
+  {
+    name: 'browser cannot gain ambient Node types',
+    status: 1,
+    rules: ['tsconfig'],
+    json: { 'apps/web/tsconfig.json': { 'compilerOptions.types': ['node'] } },
+    tokens: ['apps/web/tsconfig.json'],
+  },
+  {
+    name: 'domain and browser require explicit ambient types',
+    status: 1,
+    rules: ['tsconfig'],
+    json: {
+      'packages/access/tsconfig.json': { 'compilerOptions.types': undefined },
+      'apps/web/tsconfig.json': { 'compilerOptions.types': undefined },
+    },
+    tokens: ['packages/access/tsconfig.json', 'apps/web/tsconfig.json'],
+  },
+  {
+    name: 'missing tool is operational failure',
+    missingTool: true,
+    status: 1,
+    rules: [],
+  },
+  { name: 'canonical recovery in a separate root', status: 0, rules: [] },
+];
+
 export const guardrailCases = [
+  { rule: 'style-config', cases: styleConfigCases },
   {
     rule: 'server-handler-coverage',
     completeLogs: [
