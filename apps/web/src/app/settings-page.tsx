@@ -182,7 +182,7 @@ function AgentsSetting() {
         </ItemDescription>
         <p className="text-sm text-muted-foreground">
           {desktopShell
-            ? "This command connects to this app's local server while the app is running, including when you are viewing a remote computer."
+            ? "This command connects to this app's local server while the app is running, including when you are viewing another computer."
             : 'Run this on the computer hosting your Porcelain server.'}
         </p>
         {desktopShell && configuration && (

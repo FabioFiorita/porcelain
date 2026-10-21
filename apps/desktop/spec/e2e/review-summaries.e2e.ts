@@ -288,7 +288,7 @@ test('a remote computer summary renders through the app from that computer, cann
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const settings = page.getByRole('main', { name: 'Settings', exact: true });
   await settings
-    .getByRole('button', { name: 'Remote computers', exact: true })
+    .getByRole('button', { name: 'Computers', exact: true })
     .click();
   await settings
     .getByRole('textbox', { name: 'Pairing link', exact: true })
@@ -296,7 +296,7 @@ test('a remote computer summary renders through the app from that computer, cann
   await settings.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(
     settings
-      .getByRole('list', { name: 'Remote computers', exact: true })
+      .getByRole('list', { name: 'Computers', exact: true })
       .getByRole('listitem', { name: remote.environment.name, exact: true }),
   ).toBeVisible();
   await settings.getByRole('button', { name: 'Back', exact: true }).click();

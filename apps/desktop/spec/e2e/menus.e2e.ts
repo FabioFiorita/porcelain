@@ -13,11 +13,14 @@ test('the Settings menu opens Settings, which shows the app version and that the
   const settings = page.getByRole('main', { name: 'Settings', exact: true });
   await expect(settings).toBeVisible();
   await settings
-    .getByRole('button', { name: 'This computer', exact: true })
+    .getByRole('button', { name: 'Computers', exact: true })
+    .click();
+  await settings
+    .getByRole('button', { name: 'Open This computer', exact: true })
     .click();
   const version = await app.electron.evaluate(({ app }) => app.getVersion());
   await expect(
-    settings.getByText(`Porcelain app ${version}`, { exact: true }),
+    settings.getByText(`Mac app ${version}`, { exact: true }),
   ).toBeVisible();
   await expect(
     settings.getByText(
@@ -28,6 +31,7 @@ test('the Settings menu opens Settings, which shows the app version and that the
   await expect(
     settings.getByRole('button', { name: 'Check for updates', exact: true }),
   ).not.toBeAttached();
+  await settings.getByRole('button', { name: 'Back', exact: true }).click();
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(settings).toBeHidden();
   expect(app.errors).toEqual([]);

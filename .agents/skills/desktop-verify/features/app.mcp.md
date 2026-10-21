@@ -22,7 +22,7 @@ root; MCP mode requires the explicit server data directory.
 
 ## How a user reaches it
 
-- Settings > Git and agents > Porcelain MCP server > Copy MCP configuration.
+- Settings > Integrations > Porcelain MCP server > Copy MCP configuration.
 - The copied command registers this local app server with Claude Code. The app
   must be running, including when the renderer is viewing a remote computer.
 
