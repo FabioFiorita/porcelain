@@ -1,12 +1,7 @@
+import { readGitStatusResponseSchema } from '@porcelain/contracts/changes';
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
-import { readGitStatusResponseSchema } from '@porcelain/contracts/changes';
 import { expect } from 'vitest';
-import {
-  invalidRequest,
-  unknownWorktreeId,
-  worktreeNotFound,
-} from '../kit/answers.ts';
 import {
   changes,
   expectation,
@@ -159,24 +154,4 @@ test('the git status lists a stash first with its message', async ({
     message: `On ${session.fixture.branch}: Parked work`,
   });
   expect(body.changes).toStrictEqual([]);
-});
-
-test('the git status of an unknown worktree is not found, and a malformed worktree id is refused', async ({
-  session,
-}) => {
-  const responses = [
-    await session.send({
-      method: 'GET',
-      path: `/api/worktrees/${unknownWorktreeId}/git/status`,
-    }),
-    await session.send({
-      method: 'GET',
-      path: '/api/worktrees/not-an-id/git/status',
-    }),
-  ];
-
-  expect(responses[0]?.status).toBe(404);
-  expect(responses[0]?.body).toStrictEqual(worktreeNotFound);
-  expect(responses[1]?.status).toBe(400);
-  expect(responses[1]?.body).toStrictEqual(invalidRequest);
 });

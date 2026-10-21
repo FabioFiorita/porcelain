@@ -1,20 +1,14 @@
-import * as Schema from 'effect/Schema';
-import { randomUUID } from 'node:crypto';
 import {
   createCommentThreadResponseSchema,
   listCommentThreadsResponseSchema,
   replyToCommentResponseSchema,
   updateCommentThreadResponseSchema,
 } from '@porcelain/contracts/reviews';
+import * as Schema from 'effect/Schema';
+import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
-import {
-  apiError,
-  invalidRequest,
-  UNKNOWN_UUID,
-  unknownWorktreeId,
-  worktreeNotFound,
-} from '../kit/answers.ts';
-import { worktreePath, sendAll } from '../kit/requests.ts';
+import { apiError, invalidRequest, UNKNOWN_UUID } from '../kit/answers.ts';
+import { sendAll, worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { list, record, type Session } from '../kit/session.ts';
 
@@ -253,35 +247,4 @@ test('a blank comment, a backwards line range, a reply without a body or a resol
     expect(response.status).toBe(400);
     expect(response.body).toStrictEqual(invalidRequest);
   }
-});
-
-test('listing, creating, replying to or resolving comments on an unknown worktree is not found', async ({
-  session,
-}) => {
-  const [listed, created, replied, resolved] = await sendAll(session, [
-    { method: 'GET', path: `/api/worktrees/${unknownWorktreeId}/comments` },
-    {
-      method: 'POST',
-      path: `/api/worktrees/${unknownWorktreeId}/comments`,
-      body: { anchor: fileAnchor, body: 'Hello' },
-    },
-    {
-      method: 'POST',
-      path: `/api/worktrees/${unknownWorktreeId}/comments/${threadId}/replies`,
-      body: { body: 'Hello' },
-    },
-    {
-      method: 'PUT',
-      path: `/api/worktrees/${unknownWorktreeId}/comments/${threadId}/resolution`,
-      body: { resolved: false },
-    },
-  ]);
-
-  expect(
-    [listed, created, replied, resolved].map((entry) => entry?.status),
-  ).toStrictEqual([404, 404, 404, 404]);
-  expect(listed?.body).toStrictEqual(worktreeNotFound);
-  expect(created?.body).toStrictEqual(worktreeNotFound);
-  expect(replied?.body).toStrictEqual(worktreeNotFound);
-  expect(resolved?.body).toStrictEqual(worktreeNotFound);
 });

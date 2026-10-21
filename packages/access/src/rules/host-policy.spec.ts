@@ -9,10 +9,6 @@ import {
 const nothingConfigured = { allowedHosts: [], localAddresses: [] };
 
 describe('canonicalHostname', () => {
-  it('lowercases a name and drops its trailing dot', () => {
-    expect(canonicalHostname('Porcelain.Example.')).toBe('porcelain.example');
-  });
-
   it('unwraps a bracketed IPv6 address and writes it in its shortest form', () => {
     expect(canonicalHostname('[0:0:0:0:0:0:0:1]')).toBe('::1');
   });

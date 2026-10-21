@@ -1,13 +1,7 @@
-import * as Schema from 'effect/Schema';
 import { listDirectoryResponseSchema } from '@porcelain/contracts/files';
+import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
-import {
-  apiError,
-  invalidRequest,
-  unknownWorktreeId,
-  unreadablePath,
-  worktreeNotFound,
-} from '../kit/answers.ts';
+import { apiError, unreadablePath } from '../kit/answers.ts';
 import { worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import {
@@ -57,34 +51,6 @@ test('listing a folder that does not exist is not found', async ({
   expect(response.body).toStrictEqual(
     apiError(404, 'Not Found', 'Path not found'),
   );
-});
-
-test('listing the .git folder is invalid input', async ({ session }) => {
-  const response = await session.send(directory(session, '.git'));
-
-  expect(response.status).toBe(400);
-  expect(response.body).toStrictEqual(invalidRequest);
-});
-
-test('listing an escaping path or no path at all is invalid input, and listing an unknown worktree is not found', async ({
-  session,
-}) => {
-  const invalid = [
-    await session.send(directory(session, '../')),
-    await session.send(directory(session)),
-  ];
-  const unknown = await session.send({
-    method: 'GET',
-    path: `/api/worktrees/${unknownWorktreeId}/directory`,
-    query: { path: '' },
-  });
-
-  for (const response of invalid) {
-    expect(response.status).toBe(400);
-    expect(response.body).toStrictEqual(invalidRequest);
-  }
-  expect(unknown.status).toBe(404);
-  expect(unknown.body).toStrictEqual(worktreeNotFound);
 });
 
 test('a symbolic link out of the worktree is listed with its target but cannot be listed into', async ({

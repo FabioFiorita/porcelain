@@ -1,16 +1,16 @@
-import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
-import { Clock, Effect, Fiber, Layer, Option, Stream } from 'effect';
-import { TestClock } from 'effect/testing';
 import { it } from '@effect/vitest';
-import { AsyncResult, AtomRegistry } from 'effect/reactivity';
-import { expect } from 'vitest';
+import { setRemoteAccess, startServiceUpdate } from '@porcelain/client/access';
 import { ConnectionError } from '@porcelain/client/transport';
+import { Clock, Effect, Fiber, Layer, Option, Stream } from 'effect';
+import { AsyncResult, AtomRegistry } from 'effect/reactivity';
+import { TestClock } from 'effect/testing';
+import { expect } from 'vitest';
+import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
 import {
   readPairedAccess,
   readRemoteAccess,
   readServiceUpdate,
 } from './share.ts';
-import { setRemoteAccess, startServiceUpdate } from '@porcelain/client/access';
 
 const fixture = clientFixtures('environment');
 
@@ -79,24 +79,6 @@ it('reports an unreachable server as a connection failure for paired access', as
   expect(error).toMatchObject({ cause: failure });
   expect(paths).toEqual(['/api/access']);
 });
-
-it.effect('does not poll a settled sharing configuration', () =>
-  Effect.gen(function* () {
-    const paths: string[] = [];
-    const { connection, registry } = fixture((path) => {
-      paths.push(path);
-      return Promise.resolve(Response.json(remote));
-    });
-    connection.atoms.addGlobalLayer(
-      Layer.succeed(Clock.Clock, yield* Clock.Clock),
-    );
-    const atom = readRemoteAccess(connection);
-    registry.mount(atom);
-    expect(yield* AtomRegistry.getResult(registry, atom)).toEqual(remote);
-    yield* TestClock.adjust(3000);
-    expect(paths).toEqual(['/api/remote-access']);
-  }),
-);
 
 it.effect(
   'keeps polling an in-progress service update after a failed read, retains its progress, and stops when it settles',

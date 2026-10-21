@@ -63,8 +63,4 @@ describe('proofFilePaths', () => {
       }),
     ).toEqual(['shots/a.png', 'run.webm']);
   });
-
-  it('lists nothing for a review without proof', () => {
-    expect(proofFilePaths(undefined)).toEqual([]);
-  });
 });

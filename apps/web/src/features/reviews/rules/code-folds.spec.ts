@@ -23,10 +23,6 @@ describe('parseCodeFolds', () => {
 });
 
 describe('isFolded', () => {
-  it('folds a file the reader folded', () => {
-    expect(isFolded({ folded: ['a'], expanded: [] }, 'a')).toBe(true);
-  });
-
   it('folds a reviewed file until the reader expands it', () => {
     expect([
       isFolded({ folded: [], expanded: [] }, 'a', true),

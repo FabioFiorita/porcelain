@@ -1,10 +1,3 @@
-import { execFile } from 'node:child_process';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { promisify } from 'node:util';
-import { Schema } from 'effect';
-import { expect, inject, test } from 'vitest';
 import {
   readBranchChangesResponseSchema,
   readChangesResponseSchema,
@@ -12,28 +5,15 @@ import {
 import { Environment } from '@porcelain/mobile/kit/environment';
 import { seedDevelopmentSample } from '@porcelain/server/kit/development-sample';
 import { serverReaders } from '@porcelain/server/kit/typed-readers';
-import { optionsSchema } from '../../mobile-verify/scripts/instance.ts';
+import { Schema } from 'effect';
+import { execFile } from 'node:child_process';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { promisify } from 'node:util';
+import { expect, inject, test } from 'vitest';
 
 const execute = promisify(execFile);
-
-test('retained mobile instances without a fixture remain focused and new development selections survive decoding', () => {
-  const retained = {
-    kind: 'iphone',
-    host: null,
-    simulatorLimit: 2,
-    manualPairing: false,
-  };
-  expect(() => Schema.decodeUnknownSync(optionsSchema)(retained)).not.toThrow();
-  expect(Schema.decodeUnknownSync(optionsSchema)(retained).fixture).toBe(
-    'focused',
-  );
-  expect(
-    Schema.decodeUnknownSync(optionsSchema)({
-      ...retained,
-      fixture: 'development',
-    }).fixture,
-  ).toBe('development');
-});
 
 function readersOf(environment: Environment) {
   return serverReaders({

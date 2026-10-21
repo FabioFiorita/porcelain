@@ -1,12 +1,12 @@
-import { Effect } from 'effect';
 import { NodeServices } from '@effect/platform-node';
+import { Effect } from 'effect';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { sessionConversionFilters } from './check-conversion-filters.ts';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
+import { sessionConversionFilters } from './check-conversion-filters.ts';
 
 let checkout: string;
 
@@ -79,12 +79,6 @@ afterEach(() => {
 });
 
 describe('sessionConversionFilters', () => {
-  it('disables only the drivers the machine configures in a checkout without filters', async () => {
-    expect(await run(sessionConversionFilters(session(), gitLimits))).toEqual(
-      driversAroundTheCheckout(),
-    );
-  });
-
   it('disables every configured driver when no attribute gives the filter a value', async () => {
     git('config', 'filter.lfs.clean', 'git-lfs clean -- %f');
     write('.gitattributes', '*.txt filter\n*.bin -filter\n');

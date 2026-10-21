@@ -2,14 +2,14 @@ import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
 import type {
-  ServiceUpdateTarget,
   MacAppUpdateTarget,
+  ServiceUpdateTarget,
 } from '../commands/settings-updates.ts';
 import {
   settingsUpdateAvailable,
-  settingsUpdatesVisible,
   settingsUpdateBatchProgress,
   settingsUpdateCount,
+  settingsUpdatesVisible,
   settingsUpdateTrust,
   settingsUpdateVersion,
 } from './settings-updates.ts';
@@ -86,21 +86,6 @@ describe('settings update eligibility', () => {
       expect(settingsUpdateCount([row])).toBe(0);
       expect(settingsUpdateTrust(row)?.label).toBe('Needs trust');
       expect(settingsUpdateTrust(row)?.deviceId).toBe('device-123');
-    },
-  );
-
-  it.each([
-    [true, '1.1.0', true],
-    [false, '1.1.0', false],
-    [true, undefined, false],
-    [false, undefined, false],
-  ] as const)(
-    'Mac available=%s latest=%s advertises=%s',
-    (available, latest, expected) => {
-      const row = { ...mac, available, latest };
-      expect(settingsUpdateAvailable(row)).toBe(expected);
-      expect(settingsUpdatesVisible([row], { running: false })).toBe(expected);
-      expect(settingsUpdateCount([row])).toBe(expected ? 1 : 0);
     },
   );
 

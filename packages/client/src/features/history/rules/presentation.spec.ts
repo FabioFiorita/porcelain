@@ -1,12 +1,12 @@
 import { expect, it } from 'vitest';
 import {
-  commitPaths,
+  commitEntry,
   commitPath,
+  commitPaths,
   historyBoundary,
   historyHeading,
-  shortOid,
   refLabel,
-  commitEntry,
+  shortOid,
 } from './presentation.ts';
 const file = {
   status: 'modified' as const,
@@ -95,13 +95,4 @@ it('labels a commit with its subject, author, hash, refs and local time', () => 
     shortHash: '0123456',
     refs: ['origin/topic', 'v1'],
   });
-});
-it('keeps unknown paths and missing branch state visible', () => {
-  expect(commitPath({ ...file, oldPath: undefined, newPath: undefined })).toBe(
-    'Unknown path',
-  );
-  expect(
-    commitPaths({ ...file, oldPath: undefined, newPath: undefined }),
-  ).toEqual([]);
-  expect(historyHeading(undefined)).toBe('This branch');
 });

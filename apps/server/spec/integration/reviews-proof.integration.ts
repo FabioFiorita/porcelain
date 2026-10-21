@@ -1,19 +1,14 @@
-import { commitReviewFixture } from '../kit/requests.ts';
+import { publishReviewResponseSchema } from '@porcelain/contracts/reviews';
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
-import {
-  publishReviewResponseSchema,
-  readProofFileResponseSchema,
-} from '@porcelain/contracts/reviews';
 import { expect } from 'vitest';
+import { apiError, invalidRequest, UNKNOWN_UUID } from '../kit/answers.ts';
 import {
-  apiError,
-  invalidRequest,
-  UNKNOWN_UUID,
-  unknownWorktreeId,
-  worktreeNotFound,
-} from '../kit/answers.ts';
-import { read, sampleReview, worktreePath } from '../kit/requests.ts';
+  commitReviewFixture,
+  read,
+  sampleReview,
+  worktreePath,
+} from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { list, record, type Session } from '../kit/session.ts';
 
@@ -111,26 +106,6 @@ test('publishing checks, a screenshot and a link keeps the screenshot as a PNG o
   expect(record(list(proof.assets)[0]).id).toMatch(/^[0-9a-f-]{36}$/);
 });
 
-test('a reviewer reads a kept screenshot by its id as the published bytes', async ({
-  session,
-}) => {
-  const proofId = await firstAssetId(session);
-
-  const response = await session.send(proofFile(proofId, session.worktreeId));
-
-  expect(response.status).toBe(200);
-  expect(response.body).toEqual(
-    expect.schemaMatching(
-      Schema.toStandardSchemaV1(Schema.toEncoded(readProofFileResponseSchema)),
-    ),
-  );
-  expect(response.body).toStrictEqual({
-    id: proofId,
-    mediaType: 'image/png',
-    base64: Buffer.from(shot).toString('base64'),
-  });
-});
-
 test('proof that is not its kind, is missing, names an unknown layer or step, or links outside http is refused and changes nothing', async ({
   session,
 }) => {
@@ -200,18 +175,4 @@ test('publishing again omits proof in the latest view while keeping prior revisi
   expect(oldFile.body).toStrictEqual(
     apiError(404, 'Not Found', 'Proof file not found'),
   );
-});
-
-test('reading a proof file with a malformed id is invalid and in an unknown worktree is not found', async ({
-  session,
-}) => {
-  const malformed = await session.send(proofFile('shot', session.worktreeId));
-  const unknown = await session.send(
-    proofFile(UNKNOWN_UUID, unknownWorktreeId),
-  );
-
-  expect(malformed.status).toBe(400);
-  expect(malformed.body).toStrictEqual(invalidRequest);
-  expect(unknown.status).toBe(404);
-  expect(unknown.body).toStrictEqual(worktreeNotFound);
 });

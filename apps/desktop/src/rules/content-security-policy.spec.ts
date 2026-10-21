@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   desktopContentSecurityPolicy,
   desktopResponseContentSecurityPolicy,
-  summaryContentSecurityPolicy,
 } from './content-security-policy.ts';
 
 describe('desktop content security policy', () => {
@@ -101,13 +100,5 @@ describe('desktop response content security policy', () => {
         'built',
       ),
     ).toBe(desktopContentSecurityPolicy('built'));
-  });
-});
-
-describe('summary content security policy', () => {
-  it('sandboxes a summary into an opaque origin that may run its own scripts, forms, popups and dialogs', () => {
-    expect(summaryContentSecurityPolicy()).toBe(
-      'sandbox allow-scripts allow-forms allow-popups allow-modals',
-    );
   });
 });

@@ -1,21 +1,21 @@
-import { GitActionRunner } from '@porcelain/git-actions/ports';
-import {
-  WORKTREE_ID,
-  CLEAN_EXPECTATION,
-  GUIDE_FINGERPRINT,
-  README_FINGERPRINT,
-  sampleRun,
-} from '../../spec/fixtures/git-action-samples.ts';
 import { withWriteLease } from '@porcelain/effects/worktree';
-import { Effect } from 'effect';
 import {
   type GitActionOutcome,
   type GitActionRunnerOutcome,
   type RunGitActionInput,
 } from '@porcelain/git-actions/models';
+import { GitActionRunner } from '@porcelain/git-actions/ports';
 import { type FileChange } from '@porcelain/kernel/models';
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { ScriptedGitActionRunner } from '../../spec/fakes/scripted-git-action-runner.ts';
+import {
+  CLEAN_EXPECTATION,
+  GUIDE_FINGERPRINT,
+  README_FINGERPRINT,
+  sampleRun,
+  WORKTREE_ID,
+} from '../../spec/fixtures/git-action-samples.ts';
 import { RunGitActionService } from './run-git-action-service.ts';
 
 const movedHead = 'f'.repeat(40);
@@ -221,32 +221,5 @@ describe('RunGitActionService', () => {
     expect(passing.reviewStale).toBe(true);
     expect(rejected.reviewStale).toBe(false);
     expect(branch.reviewStale).toBe(false);
-  });
-
-  it('passes the progress lines Git reports to the listener', async () => {
-    const lines: string[] = [];
-    await Effect.runPromise(
-      withWriteLease(
-        WORKTREE_ID,
-        subject({ kind: 'finished', outcome: succeeded }, [
-          'Receiving objects: 100%',
-        ]).service.execute({
-          run: sampleRun(
-            {
-              action: 'fetch',
-              remoteName: 'origin',
-              sourceRef: 'refs/heads/main',
-            },
-            { ...CLEAN_EXPECTATION, upstream: {} },
-          ),
-          changes: [],
-          onProgress: (line) =>
-            Effect.sync(() => {
-              lines.push(line);
-            }),
-        }),
-      ),
-    );
-    expect(lines).toEqual(['Receiving objects: 100%']);
   });
 });

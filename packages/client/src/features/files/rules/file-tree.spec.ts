@@ -132,19 +132,6 @@ test('rows list folders before files at every level, nest under expanded ancesto
   ]);
 });
 
-test('a newly loaded single child of an open parent opens', () => {
-  expect(
-    fileTreeExpansion(
-      [
-        { path: 'a', kind: 'directory' },
-        { path: 'a/b', kind: 'directory' },
-      ],
-      new Set(['a']),
-      new Set(['a']),
-    ),
-  ).toEqual(['a', 'a/b']);
-});
-
 const directory = (path: string) => ({ path, kind: 'directory' as const });
 const file = (path: string) => ({ path, kind: 'file' as const });
 

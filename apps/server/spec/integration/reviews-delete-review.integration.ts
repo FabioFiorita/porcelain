@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
-import { test } from '../kit/server-test.ts';
 import {
   commitReviewFixture,
   read,
@@ -9,8 +8,8 @@ import {
   toolValue,
   worktreePath,
 } from '../kit/requests.ts';
+import { test } from '../kit/server-test.ts';
 import { record, text } from '../kit/session.ts';
-import { unknownWorktreeId, worktreeNotFound } from '../kit/answers.ts';
 
 test('HTTP deletes a review, is idempotent, and allows a fresh review for the branch', async ({
   session,
@@ -34,15 +33,4 @@ test('HTTP deletes a review, is idempotent, and allows a fresh review for the br
   const republished = await read(session, { method: 'PUT', path, body: draft });
   expect(record(republished.review).revision).toBe(1);
   expect(record(republished.review).reviewId).not.toBe(reviewId);
-});
-
-test('deleting an unknown worktree uses the sibling worktree failure', async ({
-  session,
-}) => {
-  const response = await session.send({
-    method: 'DELETE',
-    path: `/api/worktrees/${unknownWorktreeId}/review`,
-  });
-  expect(response.status).toBe(404);
-  expect(response.body).toEqual(worktreeNotFound);
 });

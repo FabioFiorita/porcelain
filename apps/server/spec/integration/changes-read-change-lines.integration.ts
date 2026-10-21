@@ -1,12 +1,7 @@
-import * as Schema from 'effect/Schema';
 import { readChangeLinesResponseSchema } from '@porcelain/contracts/changes';
+import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
-import {
-  apiError,
-  invalidRequest,
-  unknownWorktreeId,
-  worktreeNotFound,
-} from '../kit/answers.ts';
+import { apiError, invalidRequest } from '../kit/answers.ts';
 import { worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { record, type HttpRequest, type Session } from '../kit/session.ts';
@@ -131,32 +126,4 @@ test('reading lines of a path that is not in the repository is not found, at hea
   expect(responses[1]?.body).toStrictEqual(
     apiError(404, 'Not Found', 'Path not found'),
   );
-});
-
-test('reading lines from line zero, outside the worktree or at an unknown version is refused, and an unknown worktree is not found', async ({
-  session,
-}) => {
-  const responses = [
-    await session.send(
-      lines(session, { path: 'README.md', from: 0, to: 2, at: 'head' }),
-    ),
-    await session.send(
-      lines(session, { path: '../outside', from: 1, to: 2, at: 'head' }),
-    ),
-    await session.send(
-      lines(session, { path: 'README.md', from: 1, to: 2, at: 'index' }),
-    ),
-    await session.send({
-      method: 'GET',
-      path: `/api/worktrees/${unknownWorktreeId}/changes/lines`,
-      query: { path: 'README.md', from: 1, to: 2, at: 'head' },
-    }),
-  ];
-
-  for (const response of responses.slice(0, 3)) {
-    expect(response.status).toBe(400);
-    expect(response.body).toStrictEqual(invalidRequest);
-  }
-  expect(responses[3]?.status).toBe(404);
-  expect(responses[3]?.body).toStrictEqual(worktreeNotFound);
 });

@@ -8,7 +8,7 @@ selectors:
   - "Commit selected files"
   - "succeeded"
 tests:
-  - apps/web/spec/integration/git-actions-commit.test.tsx
+  - apps/web/spec/integration/git-actions-commit-draft.test.tsx
 api:
   - POST /api/worktrees/:worktreeId/git/actions
 ---
@@ -48,7 +48,7 @@ None: a fresh instance has README.md modified and unstaged, which is what the di
 ## What proves it works
 
 - The status "succeeded" in the dialog, and on disk `git -C "$REPO" log -1 --format=%s` = `Browser commit` with a clean working tree. Inspect HTTP requests and responses shows `POST /api/worktrees/<worktreeId>/git/actions` with status 202 (Accepted); the terminal outcome arrives through its receipt.
-- `apps/web/spec/integration/git-actions-commit.test.tsx`: fills Message, clicks "Commit selected files", sees "succeeded", and polls the server until the newest commit's subject is the typed message.
+- `apps/web/spec/integration/git-actions-commit-draft.test.tsx`: fills Message, clicks "Commit selected files", sees "succeeded", and polls the server until the newest commit's subject is the typed message.
 
 ## Gotchas
 

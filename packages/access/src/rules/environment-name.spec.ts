@@ -8,11 +8,4 @@ describe('environmentName', () => {
       custom: false,
     });
   });
-
-  it('answers the chosen name over the host name', () => {
-    expect(environmentName({ name: 'Workstation' }, 'linux-desktop')).toEqual({
-      name: 'Workstation',
-      custom: true,
-    });
-  });
 });

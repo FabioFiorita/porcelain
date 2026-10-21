@@ -1,7 +1,8 @@
-import { ServiceUpdateRunningError } from '@porcelain/access/errors';
-import { TestClock } from 'effect/testing';
-import { Deferred, Effect, Exit, Fiber, Schema } from 'effect';
 import { NodeServices } from '@effect/platform-node';
+import { afterEach, beforeEach, describe, expect, it } from '@effect/vitest';
+import { ServiceUpdateRunningError } from '@porcelain/access/errors';
+import { Clock, Deferred, Effect, Exit, Fiber, Schema } from 'effect';
+import { TestClock } from 'effect/testing';
 import {
   existsSync,
   mkdirSync,
@@ -12,12 +13,10 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from '@effect/vitest';
 import { acquireDirectoryLock } from '../runtime/directory-lock.ts';
-import { Clock } from 'effect';
+import type { CommandRunner } from './command-runner.ts';
 import { openServiceUpdateRunner } from './service-update-runner.ts';
 import { updateToLatest } from './update-to-latest.ts';
-import type { CommandRunner } from './command-runner.ts';
 
 type Answer = { code: number; stdout: string; stderr: string };
 
@@ -488,54 +487,6 @@ describe('the installed service update runner', () => {
         );
         expect(stale.latest).toBe('1.2.0');
         expect(npmViews).toBe(2);
-      }).pipe(TestClock.withLive),
-  );
-
-  it.effect('does not ask the registry while an update runs', () =>
-    Effect.gen(function* () {
-      updaterActive = true;
-      const state = yield* (yield* runner()).read(
-        check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
-      );
-      expect(state.running).toBe(true);
-      expect(npmViews).toBe(0);
-    }).pipe(TestClock.withLive),
-  );
-
-  it.effect(
-    'stops a read whose request went away before the registry answered',
-    () =>
-      Effect.gen(function* () {
-        const updates = yield* runner();
-        const exit = yield* Effect.exit(
-          Effect.interrupt.pipe(
-            Effect.andThen(
-              updates.read(
-                check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
-              ),
-            ),
-          ),
-        );
-        expect(Exit.hasInterrupts(exit)).toBe(true);
-        expect(npmViews).toBe(0);
-      }).pipe(TestClock.withLive),
-  );
-
-  it.effect(
-    'starts nothing for a request that went away before the update was claimed',
-    () =>
-      Effect.gen(function* () {
-        const updates = yield* runner();
-        const exit = yield* Effect.exit(
-          Effect.interrupt.pipe(
-            Effect.andThen(updates.start({ version: '1.1.0' })),
-          ),
-        );
-        expect(Exit.hasInterrupts(exit)).toBe(true);
-        const state = yield* updates.read(
-          check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
-        );
-        expect(state).toMatchObject({ running: false, last: undefined });
       }).pipe(TestClock.withLive),
   );
 

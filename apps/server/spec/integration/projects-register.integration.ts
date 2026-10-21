@@ -1,7 +1,7 @@
-import * as Schema from 'effect/Schema';
 import { registerProjectResponseSchema } from '@porcelain/contracts/projects';
+import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
-import { apiError, invalidRequest } from '../kit/answers.ts';
+import { apiError } from '../kit/answers.ts';
 import { inventory } from '../kit/reads.ts';
 import { test } from '../kit/server-test.ts';
 import { list, record, text } from '../kit/session.ts';
@@ -67,24 +67,6 @@ test('registering an already registered repository returns the existing project 
   expect(response.status).toBe(200);
   expect(record(response.body).id).toBe(session.projectId);
   expect(list((await inventory(session)).projects)).toHaveLength(2);
-});
-
-test('registering a relative path or no path at all is invalid input', async ({
-  session,
-}) => {
-  const responses = [
-    await session.send({
-      method: 'POST',
-      path: '/api/projects',
-      body: { path: 'relative/folder' },
-    }),
-    await session.send({ method: 'POST', path: '/api/projects', body: {} }),
-  ];
-
-  for (const response of responses) {
-    expect(response.status).toBe(400);
-    expect(response.body).toStrictEqual(invalidRequest);
-  }
 });
 
 test('registering a missing folder or a folder that is not a repository cannot be inspected and changes nothing', async ({

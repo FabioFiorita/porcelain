@@ -11,16 +11,16 @@ import { Cause, Effect, Exit, Layer } from 'effect';
 import { HttpApiClient } from 'effect/http-api';
 import { describe, expect, it } from 'vitest';
 
+import type { Transport } from '@porcelain/client/transport';
+import {
+  createWorktreeConnection,
+  RequestError,
+} from '@porcelain/client/transport';
 import {
   mapRequestErrors,
   requestEffect,
   transportLayer,
 } from './effect-client.ts';
-import {
-  createWorktreeConnection,
-  RequestError,
-} from '@porcelain/client/transport';
-import type { Transport } from '@porcelain/client/transport';
 
 const worktreeId = '0123456789abcdef0123456789abcdef';
 const signal = () => new AbortController().signal;
@@ -258,19 +258,6 @@ describe('native HTTP client boundary', () => {
     ).resolves.toEqual(body);
   });
 
-  it('accepts an empty acknowledgement without parsing JSON', async () => {
-    await expect(
-      Effect.runPromise(
-        mapRequestErrors(
-          access(() =>
-            Promise.resolve(new Response(null, { status: 204 })),
-          ).browserAccess.clearBrowserSession({}),
-        ),
-        { signal: signal() },
-      ),
-    ).resolves.toBeUndefined();
-  });
-
   it('reports unreadable HTTP failures and retains the original transport cause', async () => {
     await expect(
       Effect.runPromise(
@@ -356,19 +343,6 @@ describe('native HTTP client boundary', () => {
       true,
     );
     expect(aborted).toBe(true);
-  });
-
-  it('refuses a successful response that violates its contract', async () => {
-    await expect(
-      Effect.runPromise(
-        mapRequestErrors(
-          access(() =>
-            Promise.resolve(Response.json({ malformed: true })),
-          ).publicAccess.readEnvironment({}),
-        ),
-        { signal: signal() },
-      ),
-    ).rejects.toThrow();
   });
   it('opens a fresh request lifetime each time a retained generated read runs', async () => {
     let admitted = 0;

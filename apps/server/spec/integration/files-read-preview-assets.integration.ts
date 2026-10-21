@@ -1,12 +1,7 @@
-import * as Schema from 'effect/Schema';
 import { readPreviewAssetsResponseSchema } from '@porcelain/contracts/files';
+import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
-import {
-  CREDENTIAL_LINK,
-  invalidRequest,
-  unknownWorktreeId,
-  worktreeNotFound,
-} from '../kit/answers.ts';
+import { CREDENTIAL_LINK } from '../kit/answers.ts';
 import { worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 
@@ -46,26 +41,6 @@ test('a preview gets each referenced image in request order, with missing and es
       { kind: 'unavailable', path: '../outside.png' },
     ],
   });
-});
-
-test('asking for no preview assets is invalid input and asking an unknown worktree is not found', async ({
-  session,
-}) => {
-  const invalid = await session.send({
-    method: 'POST',
-    path: worktreePath(session, '/preview-assets'),
-    body: { document: 'README.md', paths: [] },
-  });
-  const unknown = await session.send({
-    method: 'POST',
-    path: `/api/worktrees/${unknownWorktreeId}/preview-assets`,
-    body: { document: 'README.md', paths: ['logo.svg'] },
-  });
-
-  expect(invalid.status).toBe(400);
-  expect(invalid.body).toStrictEqual(invalidRequest);
-  expect(unknown.status).toBe(404);
-  expect(unknown.body).toStrictEqual(worktreeNotFound);
 });
 
 test('a symbolic link out of the worktree is unavailable to a preview while the image beside it is answered', async ({

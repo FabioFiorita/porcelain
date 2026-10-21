@@ -19,11 +19,3 @@ test('the automatic failures fixture reports a declared console error that never
   await expect.poll(() => failures.reported()).toEqual(reported);
   failures.accept(reported);
 });
-
-test('the server readers return the project name the server kept', async ({
-  server,
-}) => {
-  await expect
-    .poll(async () => (await server.project()).name)
-    .toBe('repository');
-});

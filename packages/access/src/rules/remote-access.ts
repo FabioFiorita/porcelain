@@ -66,7 +66,7 @@ export function tunnelOrigin(hostname: string): string {
   return `https://${hostname}`;
 }
 
-export function tunnelHosts(settings: RemoteAccessSettings): string[] {
+function tunnelHosts(settings: RemoteAccessSettings): string[] {
   return settings.cloudflare && settings.cloudflareHostname !== undefined
     ? [settings.cloudflareHostname]
     : [];

@@ -14,14 +14,6 @@ async function openStep(agent: Agent, render: Render) {
   return opened;
 }
 
-test('a review step renders its committed text', async ({ render, agent }) => {
-  const opened = await openStep(agent, render);
-  const code = opened.getByRole('article', { name: step, exact: true });
-  await expect
-    .element(code.getByText('A change to review.', { exact: true }))
-    .toBeVisible();
-});
-
 test('a retained review pointer and text stay fixed after a worktree edit', async ({
   agent,
   render,

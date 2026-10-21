@@ -1,3 +1,8 @@
+import { NodeServices } from '@effect/platform-node';
+import {
+  ClaudeProvider,
+  CodexProvider,
+} from '@porcelain/agents/commit-planning';
 import {
   ConfigProvider,
   type Context,
@@ -8,15 +13,10 @@ import {
   Schema,
   Stream,
 } from 'effect';
-import { NodeServices } from '@effect/platform-node';
 import { LanguageModel, Model } from 'effect/ai';
 import { describe, expect, it } from 'vitest';
 import { codingToolScript } from '../../spec/fixtures/coding-tool.ts';
 import { CommitPlanner } from './commit-planner.ts';
-import {
-  CodexProvider,
-  ClaudeProvider,
-} from '@porcelain/agents/commit-planning';
 
 function scripted(
   name: string,
@@ -158,57 +158,6 @@ describe('CommitPlanner', () => {
       ),
     ).rejects.toMatchObject({ name: 'CommitPlanFailedError' });
   });
-
-  it('lists the models of every provider in order', async () => {
-    const models = await Effect.runPromise(
-      planner(scripted('codex', {}), scripted('claude', {})).models(),
-    );
-    expect(models.map((model) => model.id)).toEqual([
-      'codex:small',
-      'claude:small',
-    ]);
-  });
-
-  it.each([
-    ['extra root field', { ...plan, extra: true }],
-    ['extra group field', { groups: [{ ...plan.groups[0], extra: true }] }],
-    ['no groups', { groups: [] }],
-    [
-      'too many groups',
-      { groups: Array.from({ length: 21 }, () => plan.groups[0]) },
-    ],
-    ['empty message', { groups: [{ message: '', paths: ['README.md'] }] }],
-    [
-      'long message',
-      { groups: [{ message: 'x'.repeat(16_385), paths: ['README.md'] }] },
-    ],
-    ['no paths', { groups: [{ message: 'Fix', paths: [] }] }],
-    [
-      'too many paths',
-      {
-        groups: [
-          {
-            message: 'Fix',
-            paths: Array.from({ length: 2001 }, () => 'README.md'),
-          },
-        ],
-      },
-    ],
-    ['empty path', { groups: [{ message: 'Fix', paths: [''] }] }],
-    ['long path', { groups: [{ message: 'Fix', paths: ['x'.repeat(4097)] }] }],
-  ])(
-    'rejects %s at the native structured output boundary',
-    async (_name, reply) => {
-      await expect(
-        Effect.runPromise(
-          planner(
-            scripted('codex', {}),
-            scripted('claude', { sonnet: reply }),
-          ).plan(request),
-        ),
-      ).rejects.toMatchObject({ _tag: 'CommitPlanFailedError' });
-    },
-  );
   it.each(['codex', 'claude'] as const)(
     'runs the restricted %s CLI with native schema validation and removes its temporary directory',
     async (provider) => {

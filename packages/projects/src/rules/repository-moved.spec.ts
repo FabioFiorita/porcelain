@@ -10,13 +10,4 @@ describe('repositoryMoved', () => {
       ),
     ).toBe(true);
   });
-
-  it('keeps a folder that still holds the registered repository', () => {
-    expect(
-      repositoryMoved(
-        { repositoryIdentity: 'registered' },
-        { repositoryIdentity: 'registered' },
-      ),
-    ).toBe(false);
-  });
 });

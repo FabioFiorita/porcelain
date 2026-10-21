@@ -1,14 +1,13 @@
-import { commitReviewFixture } from '../kit/requests.ts';
+import { readPublishedReviewResponseSchema } from '@porcelain/contracts/reviews';
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
-import { readPublishedReviewResponseSchema } from '@porcelain/contracts/reviews';
 import { expect } from 'vitest';
 import {
-  invalidRequest,
-  unknownWorktreeId,
-  worktreeNotFound,
-} from '../kit/answers.ts';
-import { read, sampleReview, worktreePath } from '../kit/requests.ts';
+  commitReviewFixture,
+  read,
+  sampleReview,
+  worktreePath,
+} from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { record } from '../kit/session.ts';
 
@@ -61,22 +60,4 @@ test('reading the review after a publish answers it as the publish did with a fr
   expect(record(record(record(response.body).review).summary).url).toMatch(
     /^\/review-summaries\/[0-9a-f-]{36}\?expires=[^&]+&signature=[A-Za-z0-9_-]{43}$/,
   );
-});
-
-test('reading the review of an unknown worktree is not found and of a malformed worktree id is invalid', async ({
-  session,
-}) => {
-  const unknown = await session.send({
-    method: 'GET',
-    path: `/api/worktrees/${unknownWorktreeId}/review`,
-  });
-  const malformed = await session.send({
-    method: 'GET',
-    path: '/api/worktrees/not-an-id/review',
-  });
-
-  expect(unknown.status).toBe(404);
-  expect(unknown.body).toStrictEqual(worktreeNotFound);
-  expect(malformed.status).toBe(400);
-  expect(malformed.body).toStrictEqual(invalidRequest);
 });

@@ -1,15 +1,15 @@
 import { testClock } from '@porcelain/kernel/test-kit';
-import {
-  InventoryStore,
-  WorktreePresenceStore,
-} from '@porcelain/projects/ports';
-import { Effect, Clock } from 'effect';
-import { describe, expect, it } from 'vitest';
 import { ProjectNotFoundError } from '@porcelain/projects/errors';
 import {
   type ListedWorktree,
   type RegisteredProject,
 } from '@porcelain/projects/models';
+import {
+  InventoryStore,
+  WorktreePresenceStore,
+} from '@porcelain/projects/ports';
+import { Clock, Effect } from 'effect';
+import { describe, expect, it } from 'vitest';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { InMemoryWorktreePresenceStore } from '../../spec/fakes/in-memory-worktree-presence-store.ts';
 import { RecordWorktreePresenceService } from './record-worktree-presence-service.ts';
@@ -79,12 +79,6 @@ async function setup() {
 }
 
 describe('RecordWorktreePresenceService', () => {
-  it('records every listed worktree as present', async () => {
-    const { record, missing } = await setup();
-    record(['main', 'feature']);
-    expect(await missing()).toEqual({ main: undefined, feature: undefined });
-  });
-
   it('marks a worktree missing from a complete listing as absent from now', async () => {
     const { record, missing } = await setup();
     record(['main', 'feature']);

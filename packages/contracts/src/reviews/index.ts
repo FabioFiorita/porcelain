@@ -33,7 +33,6 @@ export {
   type ReadPublishedReviewResponse,
 } from './review.ts';
 export {
-  readProofFileResponseSchema,
   type ReadProofFileQuery,
   type ReadProofFileResponse,
 } from './review-proof.ts';

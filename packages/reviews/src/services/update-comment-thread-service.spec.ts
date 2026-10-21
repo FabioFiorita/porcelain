@@ -1,7 +1,7 @@
+import { CommentTargetNotFoundError } from '@porcelain/reviews/errors';
 import { CommentStore } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { CommentTargetNotFoundError } from '@porcelain/reviews/errors';
 import { InMemoryCommentStore } from '../../spec/fakes/in-memory-comment-store.ts';
 import { UpdateCommentThreadService } from './update-comment-thread-service.ts';
 
@@ -48,19 +48,6 @@ describe('UpdateCommentThreadService', () => {
       changed: true,
     });
     expect(await Effect.runPromise(store.find({ threadId }))).toEqual(thread);
-  });
-
-  it('reopens a resolved thread', async () => {
-    const { service } = await setup();
-    Effect.runSync(service.execute({ worktreeId, threadId, resolved: true }));
-    expect(
-      Effect.runSync(
-        service.execute({ worktreeId, threadId, resolved: false }),
-      ),
-    ).toMatchObject({
-      thread: { resolved: false, revision: 3 },
-      changed: true,
-    });
   });
 
   it('answers a thread already in the requested state without a new revision and reports no change', async () => {

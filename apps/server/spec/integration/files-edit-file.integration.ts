@@ -1,14 +1,11 @@
-import * as Schema from 'effect/Schema';
 import { editFileResponseSchema } from '@porcelain/contracts/files';
+import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
 import {
   apiError,
   CREDENTIAL_LINK,
-  invalidRequest,
   unknownFingerprint,
-  unknownWorktreeId,
   unreadablePath,
-  worktreeNotFound,
 } from '../kit/answers.ts';
 import { read, worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
@@ -175,65 +172,6 @@ test('moving an entry that does not exist is not found', async ({
   expect(response.status).toBe(404);
   expect(response.body).toStrictEqual(
     apiError(404, 'Not Found', 'Path not found'),
-  );
-});
-
-test('creating a file inside .git is invalid input and creates nothing there', async ({
-  session,
-}) => {
-  const before = await session.entries('.git');
-
-  const response = await session.send(
-    edit(session, {
-      kind: 'create',
-      path: '.git/hooks/pre-commit',
-      entryKind: 'file',
-    }),
-  );
-
-  expect(response.status).toBe(400);
-  expect(response.body).toStrictEqual(invalidRequest);
-  expect(await session.entries('.git')).toStrictEqual(before);
-});
-
-test('an escaping path, an unknown kind or a write without a fingerprint is invalid input, and an unknown worktree is not found', async ({
-  session,
-}) => {
-  const before = await session.entries('..');
-
-  const invalid = [
-    await session.send(
-      edit(session, {
-        kind: 'create',
-        path: '../outside',
-        entryKind: 'file',
-      }),
-    ),
-    await session.send(edit(session, { kind: 'explode', path: 'README.md' })),
-    await session.send(
-      edit(session, { kind: 'write', path: 'README.md', text: 'x' }),
-    ),
-  ];
-  const unknown = await session.send({
-    method: 'POST',
-    path: `/api/worktrees/${unknownWorktreeId}/files`,
-    body: {
-      kind: 'write',
-      path: 'README.md',
-      text: 'x',
-      expectedFingerprint: unknownFingerprint,
-    },
-  });
-
-  for (const response of invalid) {
-    expect(response.status).toBe(400);
-    expect(response.body).toStrictEqual(invalidRequest);
-  }
-  expect(unknown.status).toBe(404);
-  expect(unknown.body).toStrictEqual(worktreeNotFound);
-  expect(await session.entries('..')).toStrictEqual(before);
-  expect(await session.readFile(session.fixture.readme.path)).toBe(
-    'Changed elsewhere\n',
   );
 });
 

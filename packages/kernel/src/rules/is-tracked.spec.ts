@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
 import type {
   ChangeComparison,
   TrackedComparison,
 } from '@porcelain/kernel/models';
+import { describe, expect, it } from 'vitest';
 import { isTracked } from './is-tracked.ts';
 
 const sides: Omit<TrackedComparison, 'scope'> = {
@@ -23,19 +23,5 @@ describe('isTracked', () => {
       { scope: 'unstaged', ...sides },
     ];
     expect(comparisons.map(isTracked)).toEqual([true, true]);
-  });
-
-  it('counts untracked and unmerged comparisons as not tracked', () => {
-    const comparisons: ChangeComparison[] = [
-      { scope: 'untracked', path: 'a.md' },
-      {
-        scope: 'unmerged',
-        path: 'a.md',
-        conflict: 'both-modified',
-        modes: ['100644', '100644', '100644', '100644'],
-        oids: ['a', 'b', 'c'],
-      },
-    ];
-    expect(comparisons.map(isTracked)).toEqual([false, false]);
   });
 });

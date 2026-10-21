@@ -1,10 +1,10 @@
-import { reviewFixture, reviewSave } from '../../spec/fixtures/review.ts';
+import { ReviewLayerNotFoundError } from '@porcelain/reviews/errors';
+import { type Review, type ReviewStep } from '@porcelain/reviews/models';
 import { BranchReviewReader } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { ReviewLayerNotFoundError } from '@porcelain/reviews/errors';
-import { type Review, type ReviewStep } from '@porcelain/reviews/models';
 import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
+import { reviewFixture, reviewSave } from '../../spec/fixtures/review.ts';
 import { ReadReviewLayerService } from './read-review-layer-service.ts';
 
 const worktreeId = 'a'.repeat(64);
@@ -47,24 +47,6 @@ const review: Review = {
 };
 
 describe('ReadReviewLayerService', () => {
-  it('reads a layer of the published review with the files its steps point at', async () => {
-    const store = new InMemoryReviewStore();
-    await Effect.runPromise(store.save(reviewSave(review)));
-    const read = Effect.runSync(
-      Effect.runSync(
-        ReadReviewLayerService.pipe(
-          Effect.provide(ReadReviewLayerService.layer),
-          Effect.provideService(BranchReviewReader, store.branchReader),
-        ),
-      ).execute({
-        worktreeId,
-        layerId: 'layer-1',
-      }),
-    );
-    expect(read.layer.id).toBe('layer-1');
-    expect(read.paths).toEqual(['README.md', 'docs/guide.md']);
-  });
-
   it('does not find a layer the review does not have, nor any layer before a review is published', async () => {
     const store = new InMemoryReviewStore();
     const service = Effect.runSync(

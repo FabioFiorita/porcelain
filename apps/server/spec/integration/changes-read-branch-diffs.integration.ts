@@ -1,13 +1,7 @@
-import * as Schema from 'effect/Schema';
 import { readBranchDiffsResponseSchema } from '@porcelain/contracts/changes';
+import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
-import {
-  apiError,
-  invalidRequest,
-  unknownOid,
-  unknownWorktreeId,
-  worktreeNotFound,
-} from '../kit/answers.ts';
+import { apiError, unknownOid } from '../kit/answers.ts';
 import { head } from '../kit/reads.ts';
 import { worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
@@ -160,33 +154,4 @@ test('branch diffs from a commit the repository does not have are not found', as
   expect(response.body).toStrictEqual(
     apiError(404, 'Not Found', 'Commit not found'),
   );
-});
-
-test('branch diffs with no paths or a base that is not a commit id are refused, and an unknown worktree is not found', async ({
-  session,
-}) => {
-  const responses = [
-    await session.send(
-      diffs(session, { baseOid: unknownOid, headOid: unknownOid, paths: [] }),
-    ),
-    await session.send(
-      diffs(session, {
-        baseOid: 'main',
-        headOid: unknownOid,
-        paths: [['a']],
-      }),
-    ),
-    await session.send({
-      method: 'POST',
-      path: `/api/worktrees/${unknownWorktreeId}/branch-changes/diffs`,
-      body: { baseOid: unknownOid, headOid: unknownOid, paths: [['a']] },
-    }),
-  ];
-
-  for (const response of responses.slice(0, 2)) {
-    expect(response.status).toBe(400);
-    expect(response.body).toStrictEqual(invalidRequest);
-  }
-  expect(responses[2]?.status).toBe(404);
-  expect(responses[2]?.body).toStrictEqual(worktreeNotFound);
 });

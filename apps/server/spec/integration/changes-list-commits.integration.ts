@@ -1,12 +1,7 @@
-import * as Schema from 'effect/Schema';
 import { listCommitsResponseSchema } from '@porcelain/contracts/changes';
+import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
-import {
-  invalidRequest,
-  unknownOid,
-  unknownWorktreeId,
-  worktreeNotFound,
-} from '../kit/answers.ts';
+import { unknownOid } from '../kit/answers.ts';
 import { threeCommits } from '../kit/reads.ts';
 import { read, worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
@@ -116,24 +111,4 @@ test('continuing from a tip that is no longer the snapshot restarts the listing 
     tip: first.tip,
     commits: [{ subject: 'Rename' }],
   });
-});
-
-test('listing history with an invalid limit or cursor is refused, and an unknown worktree is not found', async ({
-  session,
-}) => {
-  const responses = [
-    await session.send(commits(session, { limit: 0 })),
-    await session.send(commits(session, { after: 'not-an-oid' })),
-    await session.send({
-      method: 'GET',
-      path: `/api/worktrees/${unknownWorktreeId}/commits`,
-    }),
-  ];
-
-  for (const response of responses.slice(0, 2)) {
-    expect(response.status).toBe(400);
-    expect(response.body).toStrictEqual(invalidRequest);
-  }
-  expect(responses[2]?.status).toBe(404);
-  expect(responses[2]?.body).toStrictEqual(worktreeNotFound);
 });

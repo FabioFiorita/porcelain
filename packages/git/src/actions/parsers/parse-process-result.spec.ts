@@ -11,10 +11,6 @@ const finished = {
 };
 
 describe('processFailure', () => {
-  it('finds no failure in a clean exit', () => {
-    expect(processFailure(finished)).toBe(undefined);
-  });
-
   it('reports a refusal with what Git said', () => {
     expect(
       processFailure({

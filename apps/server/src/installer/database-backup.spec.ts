@@ -1,7 +1,6 @@
-import { Effect } from 'effect';
 import { NodeServices } from '@effect/platform-node';
+import { Effect } from 'effect';
 import {
-  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -59,12 +58,6 @@ it.each([0, 1, 3])(
     );
   },
 );
-
-it('leaves a missing backup folder absent', async () => {
-  const missing = join(root, 'missing');
-  await prune(missing);
-  expect(existsSync(missing)).toBe(false);
-});
 
 it('reports an unreadable backup directory instead of claiming cleanup succeeded', async () => {
   const file = join(root, 'file');

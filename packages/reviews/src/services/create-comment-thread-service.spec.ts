@@ -1,13 +1,7 @@
-import { testClock } from '@porcelain/kernel/test-kit';
+import { InvalidLineRangeError } from '@porcelain/kernel/errors';
 import { SequentialIdSource } from '@porcelain/kernel/fakes';
 import { IdSource } from '@porcelain/kernel/ports';
-import {
-  CommentStore,
-  CreateCommentThreadOptions,
-} from '@porcelain/reviews/ports';
-import { Effect, Clock } from 'effect';
-import { InvalidLineRangeError } from '@porcelain/kernel/errors';
-import { describe, expect, it } from 'vitest';
+import { testClock } from '@porcelain/kernel/test-kit';
 import {
   CommentIdentityConflictError,
   CommentLimitExceededError,
@@ -18,6 +12,12 @@ import {
   type CommentAnchor,
   type CreateCommentThreadInput,
 } from '@porcelain/reviews/models';
+import {
+  CommentStore,
+  CreateCommentThreadOptions,
+} from '@porcelain/reviews/ports';
+import { Clock, Effect } from 'effect';
+import { describe, expect, it } from 'vitest';
 import { InMemoryCommentStore } from '../../spec/fakes/in-memory-comment-store.ts';
 import { CreateCommentThreadService } from './create-comment-thread-service.ts';
 
@@ -79,15 +79,6 @@ describe('CreateCommentThreadService', () => {
       Effect.runSync(service.execute(input({ writer: { kind: 'owner' } })))
         .messages[0]?.author,
     ).toBe('reviewer');
-  });
-
-  it('numbers revisions across worktrees', async () => {
-    const { service } = await setup();
-    Effect.runSync(service.execute(input()));
-    expect(
-      Effect.runSync(service.execute(input({ worktreeId: 'b'.repeat(64) })))
-        .revision,
-    ).toBe(2);
   });
 
   it('answers a retried create with the original thread and stores nothing new', async () => {

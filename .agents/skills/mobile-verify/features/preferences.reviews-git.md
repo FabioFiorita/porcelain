@@ -10,7 +10,7 @@ selectors:
   - 'Read models again'
 tests:
   - packages/client/src/features/preferences/store.spec.ts
-  - packages/client/src/features/git-actions/queries/git-actions.spec.ts
+  - packages/client/src/features/projects/queries/folders.spec.ts
 api:
   - GET /api/git/commit-models
 ---

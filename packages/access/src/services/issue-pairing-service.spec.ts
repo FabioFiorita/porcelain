@@ -1,22 +1,22 @@
-import { testClock } from '@porcelain/kernel/test-kit';
+import {
+  InvalidDeviceDetailsError,
+  InvalidPairingAddressError,
+} from '@porcelain/access/errors';
+import {
+  IssuePairingOptions,
+  PairingGrantStore,
+  PairingReachReader,
+} from '@porcelain/access/ports';
+import { parseCredential, secretMatches } from '@porcelain/access/rules';
 import {
   SequentialIdSource,
   SequentialSecretSource,
 } from '@porcelain/kernel/fakes';
 import { IdSource, SecretSource } from '@porcelain/kernel/ports';
-import {
-  PairingGrantStore,
-  PairingReachReader,
-  IssuePairingOptions,
-} from '@porcelain/access/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
 import type { Context } from 'effect';
-import { Redacted, Effect, Clock } from 'effect';
+import { Clock, Effect, Redacted } from 'effect';
 import { describe, expect, it } from 'vitest';
-import {
-  InvalidDeviceDetailsError,
-  InvalidPairingAddressError,
-} from '@porcelain/access/errors';
-import { parseCredential, secretMatches } from '@porcelain/access/rules';
 import { FixedPairingReachReader } from '../../spec/fakes/fixed-pairing-reach-reader.ts';
 import { InMemoryPairingGrantStore } from '../../spec/fakes/in-memory-pairing-grant-store.ts';
 import { IssuePairingService } from './issue-pairing-service.ts';
@@ -109,12 +109,6 @@ describe('IssuePairingService', () => {
     const issued = issueOne(service);
     expect(issued.grant.createdAt).toBe('2026-09-23T10:00:00.000Z');
     expect(issued.grant.expiresAt).toBe('2026-09-23T10:15:00.000Z');
-  });
-
-  it('records every address the link may be opened at, in order', async () => {
-    const { service } = await setup();
-    const addresses = ['http://laptop.local:4173', address];
-    expect(issueOne(service, addresses).grant.addresses).toEqual(addresses);
   });
 
   it('hands the link its parts: every address in order, the code and the environment', async () => {

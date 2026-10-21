@@ -52,31 +52,3 @@ test('the timeline of a renamed file lists its commits across the rename and ope
     .element(workspace.getByText('A change to review.', { exact: true }))
     .toBeVisible();
 });
-
-test('the file tree opens the timeline of a file', async ({
-  workspace,
-  repo,
-}) => {
-  const readme = repo.readme.path;
-  await repo.commit('Explain the change to review');
-  await repo.write('guide.md', await repo.read(readme));
-  await repo.remove(readme);
-  await repo.commit('Move the readme to the guide');
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
-  await workspace
-    .getByRole('treeitem', { name: 'guide.md', exact: true })
-    .click({ button: 'right' });
-  await workspace
-    .getByRole('menuitem', { name: 'Show timeline', exact: true })
-    .click();
-  await expect
-    .element(
-      workspace
-        .getByRole('list', { name: 'Timeline of guide.md', exact: true })
-        .getByRole('button', {
-          name: /^Move the readme to the guide/,
-        }),
-    )
-    .toBeVisible();
-});

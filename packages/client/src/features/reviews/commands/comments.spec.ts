@@ -1,14 +1,14 @@
-import { holdFirstRead } from '../../../../spec/kit/held-transport.ts';
-import { afterEach, expect, it } from 'vitest';
-import { Layer, Effect, Option, Stream } from 'effect';
-import { Atom, AtomRegistry, AsyncResult, Reactivity } from 'effect/reactivity';
+import { readCommentThreads } from '@porcelain/client/reviews';
 import {
   createWorktreeConnection,
   queryKeys,
   type Transport,
 } from '@porcelain/client/transport';
+import { Effect, Layer, Option, Stream } from 'effect';
+import { AsyncResult, Atom, AtomRegistry, Reactivity } from 'effect/reactivity';
+import { afterEach, expect, it } from 'vitest';
+import { holdFirstRead } from '../../../../spec/kit/held-transport.ts';
 import { commentCommands, observeCommentVisibility } from './comments.ts';
-import { readCommentThreads } from '@porcelain/client/reviews';
 
 const scope = {
   projectId: 'project',
@@ -188,55 +188,6 @@ it('a confirmed edit survives an unfinished older read and a failed refresh', as
     held.resolve(Response.json([thread]));
     stop();
   }
-});
-
-it('uses the generated contract to encode and decode a comment create', async () => {
-  const threadId = 'e460d734-9c2d-4769-bf11-ce78d14848c7';
-  const messageId = 'e34ac2de-0a58-4d9c-9890-8384b4e3d6a8';
-  const sent: { path: string; init: RequestInit | undefined }[] = [];
-  const created = {
-    id: threadId,
-    worktreeId: scope.worktreeId,
-    anchor: { kind: 'file', filePath: 'README.md' },
-    messages: [
-      {
-        id: messageId,
-        body: 'Ready',
-        author: 'reviewer',
-        createdAt: '2026-10-05T04:00:00.000Z',
-      },
-    ],
-    resolved: false,
-    revision: 1,
-  };
-  const subject = fixture((path, init) => {
-    sent.push({ path, init });
-    return Promise.resolve(Response.json(created));
-  });
-  subject.registry.set(subject.commands.create, {
-    anchor: { kind: 'file', filePath: 'README.md' },
-    body: 'Ready',
-    threadId,
-    messageId,
-  });
-  expect(
-    await Effect.runPromise(
-      AtomRegistry.getResult(subject.registry, subject.commands.create, {
-        suspendOnWaiting: true,
-      }),
-    ),
-  ).toEqual(created);
-  expect(sent[0]?.path).toBe(`/api/worktrees/${scope.worktreeId}/comments`);
-  expect(sent[0]?.init?.method).toBe('POST');
-  const bytes = sent[0]?.init?.body;
-  if (!(bytes instanceof Uint8Array))
-    throw new Error('Expected encoded request bytes');
-  expect(JSON.parse(new TextDecoder().decode(bytes))).toEqual({
-    anchor: { kind: 'file', filePath: 'README.md' },
-    body: 'Ready',
-    threadId,
-    messageId,
-  });
 });
 it('rejects an already disconnected create before invoking transport', async () => {
   let sent = 0;

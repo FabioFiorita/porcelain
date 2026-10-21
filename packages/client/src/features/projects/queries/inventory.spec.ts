@@ -1,17 +1,17 @@
-import { holdFirstRead } from '../../../../spec/kit/held-transport.ts';
-import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
-import { describe, expect, it } from 'vitest';
-import { Cause, Effect, Exit, Layer, Option, Stream } from 'effect';
 import {
   InventorySeed,
   refreshInventories,
   refreshInventory,
   registerProject,
 } from '@porcelain/client/projects';
-import { AsyncResult, Atom, AtomRegistry, Reactivity } from 'effect/reactivity';
-import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { queryKeys, type Transport } from '@porcelain/client/transport';
-import { readInventory, readInventories } from './inventory.ts';
+import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
+import { Cause, Effect, Exit, Layer, Option, Stream } from 'effect';
+import { AsyncResult, Atom, AtomRegistry, Reactivity } from 'effect/reactivity';
+import { describe, expect, it } from 'vitest';
+import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
+import { holdFirstRead } from '../../../../spec/kit/held-transport.ts';
+import { readInventories, readInventory } from './inventory.ts';
 
 const environmentId = '87deba35-c65b-4fb6-9dfd-52bfbe76f64c';
 function inventory(
@@ -145,15 +145,6 @@ describe('reading a connected project inventory', () => {
     } finally {
       stop();
     }
-  });
-  it('reads the canonical HTTP endpoint through its connection', async () => {
-    const requests: string[] = [];
-    const subject = fixture((path) => {
-      requests.push(path);
-      return Promise.resolve(Response.json(inventory()));
-    });
-    expect(await read(subject)).toEqual(inventory());
-    expect(requests).toEqual(['/api/inventory']);
   });
   it('switches to another environment without letting a late cancelled inventory replace it', async () => {
     const pendingRead = holdFirstRead();

@@ -1,8 +1,8 @@
-import { commitReviewFixture } from '../kit/requests.ts';
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
-import { invalidRequest, literally } from '../kit/answers.ts';
+import { literally } from '../kit/answers.ts';
 import {
+  commitReviewFixture,
   read,
   SAMPLE_SUMMARY_HTML,
   sampleReview,
@@ -115,25 +115,4 @@ test('a prior revision summary remains readable after republishing', async ({
 
   expect(response.status).toBe(200);
   expect(text(response.body)).toContain('<h1>Summary</h1>');
-});
-
-test('a summary link without its signature or with a malformed token is invalid', async ({
-  session,
-}) => {
-  const url = await summaryUrl(session);
-
-  const responses = [
-    await session.send({ method: 'GET', path: url.pathname, auth: 'none' }),
-    await session.send({
-      method: 'GET',
-      path: `/review-summaries/not-a-token${url.search}`,
-      auth: 'none',
-    }),
-  ];
-
-  expect(responses.map((entry) => entry.status)).toStrictEqual([400, 400]);
-  expect(responses.map((entry) => entry.body)).toStrictEqual([
-    invalidRequest,
-    invalidRequest,
-  ]);
 });

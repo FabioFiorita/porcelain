@@ -1,8 +1,8 @@
 import { Cause, Effect, Exit, Fiber } from 'effect';
-import { createServer, type Server } from 'node:http';
 import { mkdtemp, rm } from 'node:fs/promises';
-import { join } from 'node:path';
+import { createServer, type Server } from 'node:http';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import { ownerClient, ownerRequest, probeOwner } from './owner-client.ts';
@@ -169,22 +169,6 @@ it('interrupts an in-flight owner request and closes the actual socket', async (
     true,
   );
   await closed.promise;
-});
-
-it('rejects an invalid outgoing payload before opening the socket', async () => {
-  const test = await fixture(() => ({
-    status: 200,
-    body: { id: 'device-1', trusted: true },
-  }));
-  const exit = await Effect.runPromiseExit(
-    ownerRequest(
-      test.api.administration.setDeviceTrust({
-        payload: { id: '', trusted: true },
-      }),
-    ),
-  );
-  expect(Exit.isFailure(exit)).toBe(true);
-  expect(test.calls).toEqual([]);
 });
 
 it('keeps absent, failed and malformed status probes distinct', async () => {

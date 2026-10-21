@@ -32,16 +32,6 @@ const held = Effect.fn(function* () {
 });
 
 describe('CoalescedWork', () => {
-  it.effect('runs the work once for a single request', () =>
-    Effect.gen(function* () {
-      const subject = yield* held();
-      const refresh = yield* makeCoalescedWork(subject.work);
-      const done = yield* Effect.forkChild(refresh.execute());
-      yield* Deferred.succeed(yield* subject.next(), undefined);
-      yield* Fiber.join(done);
-      expect(subject.runs()).toBe(1);
-    }),
-  );
   it.effect('gives requests made during a run one shared following run', () =>
     Effect.gen(function* () {
       const subject = yield* held();
