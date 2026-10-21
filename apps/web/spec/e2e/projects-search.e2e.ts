@@ -151,7 +151,7 @@ test('Projects pins main checkouts, No review keeps other checkouts, and search 
   const main = project.worktrees.find((row) => row.main);
   const topic = project.worktrees.find((row) => !row.main);
   if (!main || !topic) throw new Error('Missing main or topic checkout');
-  const meta = `${project.name} ${main.branch?.replace('refs/heads/', '')} · ${inventory.environment.name}`;
+  const meta = `${project.name} ${main.branch?.replace('refs/heads/', '')} ${inventory.environment.name}`;
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
@@ -165,6 +165,12 @@ test('Projects pins main checkouts, No review keeps other checkouts, and search 
   const topicRow = pairedPage.getByRole('button', { name: /^status-topic/ });
   await expect(mainRow).toBeVisible();
   await expect(topicRow).toBeVisible();
+  await expect(
+    mainRow.getByText(inventory.environment.name, { exact: true }),
+  ).toBeVisible();
+  await expect(
+    topicRow.getByText(inventory.environment.name, { exact: true }),
+  ).toBeVisible();
   const search = pairedPage.getByRole('searchbox', {
     name: 'Search reviews and worktrees',
     exact: true,

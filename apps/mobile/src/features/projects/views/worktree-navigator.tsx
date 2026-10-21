@@ -235,7 +235,7 @@ export function WorktreeNavigator({
                       size="sm"
                       selected={selected}
                       disabled={picker.disabled || (!closed && entry.disabled)}
-                      accessibilityLabel={`${entry.title}, ${reviewListMeta(entry, Date.now())}${entry.reviewId ? `, ${entry.reviewed}/${entry.total} decisions reviewed, ${entry.badges.map((badge) => badge.label).join(', ')}` : ''}${selected ? ', current' : ''}${entry.disabled ? ', unavailable' : ''}`}
+                      accessibilityLabel={`${entry.title}, ${reviewListMeta(entry, Date.now())}, ${entry.environmentName}${entry.reviewId ? `, ${entry.reviewed}/${entry.total} decisions reviewed, ${entry.badges.map((badge) => badge.label).join(', ')}` : ''}${selected ? ', current' : ''}${entry.disabled ? ', unavailable' : ''}`}
                       leading={
                         <Box className="w-10 shrink-0 self-start">
                           {entry.reviewId ? (
@@ -265,9 +265,21 @@ export function WorktreeNavigator({
                           ))}
                         </Box>
                       ) : null}
-                      <Text variant="caption" tone="muted" numberOfLines={1}>
-                        {reviewListMeta(entry, Date.now())}
-                      </Text>
+                      <Box className="flex-row flex-wrap items-center" gap={1}>
+                        <Text
+                          variant="caption"
+                          tone="muted"
+                          numberOfLines={1}
+                          className="shrink"
+                        >
+                          {reviewListMeta(entry, Date.now())}
+                        </Text>
+                        <Badge
+                          label={entry.environmentName}
+                          variant="secondary"
+                          className="max-w-full"
+                        />
+                      </Box>
                       {entry.disabled ? (
                         <Text variant="caption" tone="muted">
                           Unavailable

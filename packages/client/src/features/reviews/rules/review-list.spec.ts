@@ -264,22 +264,22 @@ it('offers distinct scoped filters, lets the last checkbox be cleared and restor
     reviewListFilterItems(options.environments, []).map((item) => item.checked),
   ).toEqual([false, false]);
 });
-it('shows project, environment, PR or branch and a bounded relative publication time', () => {
+it('keeps computer names separate from project, PR or branch and relative publication time', () => {
   expect(reviewListMeta(entry, Date.parse('2026-10-20T12:04:00Z'))).toBe(
-    'Porcelain · Beelink · #433 · 4m',
+    'Porcelain · #433 · 4m',
   );
   expect(
     reviewListMeta(
       { ...entry, pullRequestNumber: undefined },
       Date.parse('2026-10-20T13:00:00Z'),
     ),
-  ).toBe('Porcelain · Beelink · feature · 1h');
+  ).toBe('Porcelain · feature · 1h');
   expect(
     reviewListMeta(
       { ...entry, publishedAt: undefined, pullRequestNumber: undefined },
       0,
     ),
-  ).toBe('Porcelain · Beelink · feature');
+  ).toBe('Porcelain · feature');
 });
 
 it('combines search and checkbox state without changing the source entries', () => {
@@ -336,5 +336,5 @@ it('applies search and both filters to main checkout rows and uses compact proje
       false,
     ).rows,
   ).toEqual([]);
-  expect(reviewListMeta(main, 0)).toBe('main · Beelink');
+  expect(reviewListMeta(main, 0)).toBe('main');
 });

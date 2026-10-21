@@ -292,18 +292,28 @@ export function ProjectNavigator({
                         disabled={entry.disabled}
                         onClick={() => openWorktree(entry)}
                       >
-                        <span
-                          className="min-w-0 flex-1 truncate"
-                          title={`${entry.branch} · ${entry.projectName} · ${entry.environmentName}`}
-                        >
-                          {entry.branch} · {entry.projectName} ·{' '}
-                          {entry.environmentName}
+                        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                          <span
+                            className="min-w-0 max-w-full truncate"
+                            title={`${entry.branch} · ${entry.projectName}`}
+                          >
+                            {entry.branch} · {entry.projectName}
+                          </span>
+                          <Badge
+                            variant="secondary"
+                            className="max-w-full"
+                            title={entry.environmentName}
+                          >
+                            <span className="truncate">
+                              {entry.environmentName}
+                            </span>
+                          </Badge>
                           {selected?.worktreeId === entry.worktreeId &&
                           (selected?.remote ?? connection.environmentId) ===
-                            entry.environmentId
-                            ? ' · Current'
-                            : ''}
-                        </span>
+                            entry.environmentId ? (
+                            <Badge variant="outline">Current</Badge>
+                          ) : null}
+                        </div>
                       </DropdownMenuItem>
                     ))}
                     {!loading && checkouts.length === 0 ? (
@@ -432,12 +442,23 @@ export function ProjectNavigator({
                                   ))}
                                 </div>
                               ) : null}
-                              <p
-                                className="truncate text-xs text-muted-foreground"
-                                title={reviewListMeta(entry, Date.now())}
-                              >
-                                {reviewListMeta(entry, Date.now())}
-                              </p>
+                              <div className="flex min-w-0 flex-wrap items-center gap-1">
+                                <span
+                                  className="min-w-0 max-w-full truncate text-xs text-muted-foreground"
+                                  title={reviewListMeta(entry, Date.now())}
+                                >
+                                  {reviewListMeta(entry, Date.now())}
+                                </span>
+                                <Badge
+                                  variant="secondary"
+                                  className="max-w-full"
+                                  title={entry.environmentName}
+                                >
+                                  <span className="truncate">
+                                    {entry.environmentName}
+                                  </span>
+                                </Badge>
+                              </div>
                             </div>
                           </SidebarMenuButton>
                           {entry.archivable && entry.reviewId ? (

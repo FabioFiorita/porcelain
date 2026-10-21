@@ -141,8 +141,7 @@ export function filterReviewList(
   );
 }
 export function reviewListMeta(entry: ReviewListEntry, now: number) {
-  if (entry.group === 'Projects')
-    return [entry.branch, entry.environmentName].join(' · ');
+  if (entry.group === 'Projects') return entry.branch;
   const seconds = entry.publishedAt
     ? Math.max(0, (now - Date.parse(entry.publishedAt)) / 1000)
     : undefined;
@@ -158,7 +157,6 @@ export function reviewListMeta(entry: ReviewListEntry, now: number) {
             : `${Math.floor(seconds / 86400)}d`;
   return [
     entry.projectName,
-    entry.environmentName,
     entry.pullRequestNumber ? `#${entry.pullRequestNumber}` : entry.branch,
     age,
   ]

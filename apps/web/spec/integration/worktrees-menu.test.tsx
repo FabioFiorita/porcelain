@@ -5,6 +5,11 @@ test('worktrees without reviews remain reachable in the flat checkout menu', asy
   server,
 }) => {
   const project = await server.project();
+  const computer = (await server.inventory()).environment.name;
+  const main = navigator.getByRole('button', {
+    name: new RegExp(project.name),
+  });
+  await expect.element(main.getByText(computer, { exact: true })).toBeVisible();
   await navigator
     .getByRole('button', { name: 'Filter reviews', exact: true })
     .click();
@@ -14,6 +19,13 @@ test('worktrees without reviews remain reachable in the flat checkout menu', asy
   await expect
     .element(
       navigator.getByRole('menuitem', { name: new RegExp(project.name) }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      navigator
+        .getByRole('menuitem', { name: new RegExp(project.name) })
+        .getByText(computer, { exact: true }),
     )
     .toBeVisible();
   await navigator
