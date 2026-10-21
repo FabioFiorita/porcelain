@@ -44,6 +44,7 @@ const startOptions = Schema.Struct({
   desktop: Schema.Boolean,
   codingTool: Schema.Boolean,
   reviewSample: Schema.Boolean,
+  gitInterruption: Schema.optional(Schema.Boolean),
 });
 
 async function reachable(url: string, deadline: number): Promise<void> {
@@ -114,14 +115,16 @@ function serveRemote(
 }
 export function serve(folder: string): Promise<void> {
   return registry.serve(folder, async (life) => {
-    const { desktop, codingTool, reviewSample } = Schema.decodeUnknownSync(
-      startOptions,
-    )(life.options);
+    const { desktop, codingTool, reviewSample, gitInterruption } =
+      Schema.decodeUnknownSync(startOptions)(life.options);
     const evidence = registry.evidenceFolder(life.id);
     const build = join(folder, 'build');
     await buildIsolatedServer(build);
-    const server = await IsolatedServer.start(root, build, undefined, (text) =>
-      appendFileSync(join(evidence, 'server.log'), text),
+    const server = await IsolatedServer.start(
+      root,
+      build,
+      gitInterruption ? 'git-interruption' : undefined,
+      (text) => appendFileSync(join(evidence, 'server.log'), text),
     );
     server.exited.then(
       () => life.stop('the server exited'),
@@ -189,6 +192,7 @@ export function serve(folder: string): Promise<void> {
     await life.evidence().json('start', {
       web: origin,
       mode: desktop ? 'desktop' : 'web',
+      gitActionDeadlineMs: server.fixture.gitActionDeadlineMs,
       codingTool: codingTool ? server.fixture.codingTool.command : null,
     });
     return {

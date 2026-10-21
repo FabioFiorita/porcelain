@@ -27,7 +27,7 @@ A Git action still running when the page reloads is still followed after the rel
 
 ## Driving it
 
-Start with `$C start`; pair your browser using the card’s pairing-link command; `REPO` is `connection.json` → `fixtures.repositoryPath`. The CLI's server ends a blocked Git action after 1.5 seconds (`gitActionDeadlineMs: 1500`); holding incoming live frames before the commit keeps the page from hearing that outcome, so the reload happens while the page still follows a running action, as the test's held live notices do.
+Start with `$C start --git-interruption`; pair your browser using the card’s pairing-link command; `REPO` is `connection.json` → `fixtures.repositoryPath`. This explicit fault fixture ends a blocked Git action after 1.5 seconds (`gitActionDeadlineMs: 1500`); ordinary startup inherits the production Git-action policy; holding incoming live frames before the commit keeps the page from hearing that outcome, so the reload happens while the page still follows a running action, as the test's held live notices do.
 
 ### Setup
 

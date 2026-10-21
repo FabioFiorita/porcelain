@@ -28,7 +28,7 @@ A Git action that outlives its deadline ends interrupted ("outcome unknown"); th
 
 ## Driving it
 
-Start with `$C start`; pair your browser using the card’s pairing-link command (phone width is fine). The CLI's server sets the Git action deadline to 1.5 seconds (`gitActionDeadlineMs: 1500` in `apps/server/spec/kit/sandboxed-server.ts`), so a Git that blocks ends interrupted on its own.
+Start with `$C start --git-interruption`; pair your browser using the card’s pairing-link command (phone width is fine). This explicit fault fixture sets the Git action deadline to 1.5 seconds (`gitActionDeadlineMs: 1500`); ordinary startup inherits the production Git-action policy, so a Git that blocks ends interrupted on its own.
 
 ### Setup
 

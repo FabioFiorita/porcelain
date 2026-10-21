@@ -41,7 +41,7 @@ export class World {
   static async start(
     root: string,
     build: string,
-    sample?: 'service-ahead',
+    sample?: 'service-ahead' | 'git-interruption',
   ): Promise<World> {
     return new World(
       await IsolatedServer.start(root, build, sample),

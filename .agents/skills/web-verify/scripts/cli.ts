@@ -27,7 +27,7 @@ import { start, serve, vite, remoteRequest, remoteFailed } from './start.ts';
 const remoteReadyMs = 90 * 1000;
 const remotePollMs = 200;
 const usage = `Usage: .agents/skills/web-verify/scripts/cli <command> [--instance <id>]
-  start [--desktop] [--coding-tool] [--review-sample]
+  start [--desktop] [--coding-tool] [--review-sample] [--git-interruption]
                           start a disposable server and Vite; print the connection card
   doctor                  check startup dependencies; list optional browser drivers
   status                  inspect captured ownership, build staleness and connection metadata
@@ -185,6 +185,7 @@ async function command(args: readonly string[]): Promise<string> {
       desktop: { type: 'boolean', default: false },
       'coding-tool': { type: 'boolean', default: false },
       'review-sample': { type: 'boolean', default: false },
+      'git-interruption': { type: 'boolean', default: false },
     },
     allowPositionals: true,
     strict: true,
@@ -199,6 +200,7 @@ async function command(args: readonly string[]): Promise<string> {
       desktop: values.desktop,
       codingTool: values['coding-tool'],
       reviewSample: values['review-sample'],
+      gitInterruption: values['git-interruption'],
     });
   if (name === 'doctor') return doctor();
   if (name === undefined) throw new Usage(usage);
