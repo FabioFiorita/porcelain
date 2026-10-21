@@ -406,6 +406,28 @@ function styleConfigFixture(entry) {
   }
 }
 
+function ciActionPinProblems(workflow) {
+  const problems = [];
+  for (const job of Object.values(workflow.jobs ?? {})) {
+    for (const owner of [job, ...(job.steps ?? [])]) {
+      if (!Object.hasOwn(owner, 'uses')) continue;
+      const action = owner.uses;
+      if (
+        typeof action === 'string' &&
+        (action.startsWith('./') ||
+          /^[^/@\s]+\/[^@\s]+@[a-f0-9]{40}$/i.test(action))
+      )
+        continue;
+      problems.push({
+        action,
+        cause:
+          'Third-party CI actions and reusable workflows require a full 40-character commit SHA.',
+      });
+    }
+  }
+  return problems;
+}
+
 export function runGuardrailCases(named = []) {
   const cases = guardrailCases.filter(
     (entry) => named.length === 0 || named.includes(entry.rule),
@@ -416,7 +438,29 @@ export function runGuardrailCases(named = []) {
     'Name an existing guardrail fixture rule.',
   );
   for (const entry of cases) {
-    if (entry.rule === 'ci-affected-selection') {
+    if (entry.rule === 'ci-action-pins') {
+      for (const fixture of entry.cases) {
+        deepStrictEqual(
+          ciActionPinProblems(fixture.workflow),
+          fixture.problems,
+          fixture.name,
+        );
+        process.stdout.write(`PASS ci-action-pins: ${fixture.name}\n`);
+      }
+      deepStrictEqual(
+        ciActionPinProblems(
+          parse(
+            readFileSync(
+              new URL('../.github/workflows/ci.yml', import.meta.url),
+              'utf8',
+            ),
+          ),
+        ),
+        [],
+        'ci.yml must pin every third-party action and reusable workflow to a full commit SHA.',
+      );
+      process.stdout.write('PASS ci-action-pins: actual ci.yml\n');
+    } else if (entry.rule === 'ci-affected-selection') {
       ciSelectionFixture(entry);
     } else if (entry.rule === 'ci-required-checks') {
       const workflow = parse(
