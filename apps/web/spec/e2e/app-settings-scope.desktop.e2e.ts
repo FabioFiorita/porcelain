@@ -32,7 +32,9 @@ test('desktop Settings uses the shared five sections and nests this computer and
   await openThisComputer(pairedPage);
   await expect(pairedPage).toHaveURL(/\/settings\/computers\/this-computer$/);
   await expect(
-    settings.getByRole('heading', { name: 'This computer', exact: true }),
+    settings
+      .getByRole('navigation', { name: 'breadcrumb', exact: true })
+      .getByText('This computer', { exact: true }),
   ).toBeVisible();
   await expect(
     settings.getByRole('switch', { name: 'Local network', exact: true }),

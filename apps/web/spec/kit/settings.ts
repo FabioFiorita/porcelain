@@ -11,3 +11,9 @@ export async function openThisComputer(page: Page) {
     .click();
   return settings;
 }
+
+export async function openSettingsAtFirstEntry(pairedPage: Page) {
+  const page = await pairedPage.context().newPage();
+  await page.goto('/settings/general');
+  return page;
+}

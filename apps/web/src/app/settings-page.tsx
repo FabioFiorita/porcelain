@@ -371,9 +371,11 @@ export function SettingsPage({
 }) {
   const navigate = useNavigate();
   const router = useRouter();
-  const [entryIndex] = useState(
-    () => router.history.location.state.__TSR_index,
-  );
+  const canGoBack = useCanGoBack();
+  const [entry] = useState(() => ({
+    historyIndex: router.history.location.state.__TSR_index,
+    hasPredecessor: canGoBack,
+  }));
   const remote = useRemoteConnection(environmentId ?? '')?.remote;
   const { element: list, attach: setList } = useElement<HTMLDivElement>();
   const { element: page, attach: setPage } = useElement<HTMLElement>();
@@ -416,7 +418,6 @@ export function SettingsPage({
       else element.focus({ preventScroll: true });
     }
   };
-  const canGoBack = useCanGoBack();
   const { connection } = useConnectedContext();
   const { environment } = useInventory(connection);
   useDocumentTitle(
@@ -429,11 +430,11 @@ export function SettingsPage({
   else if (remote) detailName = <RemoteComputerName remote={remote} />;
   const leave = () => {
     if (environmentId !== undefined) returnToList();
-    else if (canGoBack)
+    else if (entry.hasPredecessor)
       router.history.go(
         -Math.max(
           1,
-          router.history.location.state.__TSR_index - entryIndex + 1,
+          router.history.location.state.__TSR_index - entry.historyIndex + 1,
         ),
       );
     else void navigate({ to: '/' });

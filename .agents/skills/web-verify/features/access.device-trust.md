@@ -46,7 +46,7 @@ Start with `$C start --desktop`; pair your browser using the card’s pairing-li
 None on disk. The default server has two paired devices: "Development setup" (the server kit's own) and "Verification browser" (this browser). Neither can update Porcelain yet.
 
 1. Navigate to `/settings/computers/this-computer#ways-in` on the card’s web URL (full page load)
-   Look for: Page Title "Settings"; heading "This computer" and legend "Ways in"; switch "Local network" not checked.
+   Look for: Page Title "Settings"; breadcrumb "This computer" and legend "Ways in"; switch "Local network" not checked.
 2. Click switch named `Local network`
    Look for: switch "Local network" checked and the text `http://192.168.1.20:<port>` (the server's fake LAN address). A badge "Starting" may show first; inspect the accessibility tree again after a second.
 3. Click button named `Devices`

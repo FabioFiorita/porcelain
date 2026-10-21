@@ -50,7 +50,7 @@ None. The disposable server fakes the network (`apps/server/spec/kit/sandboxed-s
 
 1. Navigate to `/settings/computers/this-computer#ways-in` on the card’s web URL (full page load)
    Look for:
-   - heading "This computer" and legend "Ways in"; switch "Local network" not checked.
+   - breadcrumb "This computer" and legend "Ways in"; switch "Local network" not checked.
    - note "Local network warning" reading "Not encrypted" and "Anyone on the same network can read what Porcelain shows and the device credentials it sends. For an encrypted connection, use Tailscale."
    - the text "Turning it on listens on 192.168.1.0/24 on eth0 only, and pauses on any other network."
    - switches "Tailscale" and "Cloudflare tunnel" disabled.
