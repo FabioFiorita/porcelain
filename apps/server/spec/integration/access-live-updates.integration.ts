@@ -16,6 +16,7 @@ import {
   worktreePath,
 } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
+import { liveNotices } from '../kit/live-notices.ts';
 import { list, record, type Session } from '../kit/session.ts';
 
 const worktreeNotice = (session: Session, change: string) => ({
@@ -183,10 +184,11 @@ test("creating a file tells a watching viewer the worktree's files changed", asy
   );
 });
 
-test('a Git action is announced to a watching viewer with its receipt and then its Git change', async ({
+test('a Git action is announced to a watching viewer with its receipt and its Git change in either order', async ({
   session,
 }) => {
-  const path = 'announced.md';
+  const path = 'git-announced.md';
+  await session.writeFile(path, 'A change to commit.\n');
   const connection = await watching(session);
   const requestId = randomUUID();
   const expected = {
@@ -210,11 +212,13 @@ test('a Git action is announced to a watching viewer with its receipt and then i
 
   expect(response.status).toBe(202);
   expect(response.body).toMatchObject({ requestId, state: 'running' });
-  const settled = await connection.next(
+  const [settled, changed] = await liveNotices(connection, [
     (entry) =>
       entry.type === 'git-action' &&
+      record(entry.receipt).requestId === requestId &&
       record(entry.receipt).state === 'succeeded',
-  );
+    isWorktree('git'),
+  ]);
   expect(settled).toEqual(
     expect.schemaMatching(
       Schema.toStandardSchemaV1(Schema.toEncoded(liveNoticeSchema)),
@@ -230,9 +234,7 @@ test('a Git action is announced to a watching viewer with its receipt and then i
       state: 'succeeded',
     },
   });
-  expect(await connection.next(isWorktree('git'))).toStrictEqual(
-    worktreeNotice(session, 'git'),
-  );
+  expect(changed).toStrictEqual(worktreeNotice(session, 'git'));
 });
 
 test("publishing a review tells a watching viewer the worktree's review changed", async ({
