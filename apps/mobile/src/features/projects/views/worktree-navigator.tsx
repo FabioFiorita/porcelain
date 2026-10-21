@@ -82,15 +82,22 @@ export function WorktreeNavigator({
   return (
     <Box className="flex-1" surface="background" testID="worktree-navigator">
       {nativeHeader ? (
-        <Stack.Toolbar placement="right">
-          {updateIndicator.visible ? (
-            <Stack.Toolbar.View>
+        <Stack.Title asChild>
+          <Box className="flex-row items-center" gap={3}>
+            <Text variant="heading" numberOfLines={1}>
+              Worktrees
+            </Text>
+            {updateIndicator.visible ? (
               <UpdatesButton
                 running={updateIndicator.running}
                 onPress={() => setUpdates(true)}
               />
-            </Stack.Toolbar.View>
-          ) : null}
+            ) : null}
+          </Box>
+        </Stack.Title>
+      ) : null}
+      {nativeHeader ? (
+        <Stack.Toolbar placement="right">
           <Stack.Toolbar.Menu
             icon={headerIcon('workspace')}
             accessibilityLabel="Filter worktrees"
