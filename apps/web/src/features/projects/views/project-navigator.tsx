@@ -393,204 +393,211 @@ export function ProjectNavigator({
               Reading worktrees…
             </div>
           )}
-          {(closed ? (['Closed'] as const) : reviewListGroups).map((group) => {
-            const grouped =
-              group === 'Closed'
-                ? rows
-                : rows.filter((row) => row.group === group);
-            if (grouped.length === 0) return null;
-            return (
-              <SidebarGroup key={group}>
-                <Collapsible
-                  open={preferences.reviewListGroupOpen[group] ?? true}
-                  onOpenChange={(open) =>
-                    setPreference('reviewListGroupOpen', {
-                      ...preferences.reviewListGroupOpen,
-                      [group]: open,
-                    })
-                  }
-                  className="group/review-list"
-                >
-                  <SidebarGroupLabel
-                    render={<CollapsibleTrigger />}
-                    className="w-full cursor-pointer"
-                  >
-                    {group} · {grouped.length}
-                    <ChevronDownIcon className="ml-auto group-data-closed/review-list:-rotate-90" />
-                  </SidebarGroupLabel>
-                  <CollapsibleContent>
-                    <SidebarMenu>
-                      {grouped.map((entry) => {
-                        const signal = reviewListSignal(entry);
-                        const context = reviewListRowContext(
-                          entry,
-                          multipleProjects,
-                        );
-                        const indicator = {
-                          destructive: {
-                            Icon: CircleAlertIcon,
-                            className: 'text-destructive',
-                          },
-                          primary: {
-                            Icon: CircleCheckIcon,
-                            className: 'text-primary',
-                          },
-                          muted: {
-                            Icon: CircleIcon,
-                            className: 'text-muted-foreground',
-                          },
-                        }[signal?.tone ?? 'muted'];
-                        return (
-                          <SidebarMenuItem
-                            key={entry.key}
-                            className="flex items-start"
-                          >
-                            <SidebarMenuButton
-                              size="lg"
-                              className="min-w-0 flex-1"
-                              aria-label={
-                                entry.reviewId
-                                  ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.environmentName}, ${entry.badges.map((badge) => badge.label).join(', ')}`
-                                  : undefined
-                              }
-                              disabled={!entry.reviewId && entry.disabled}
-                              isActive={
-                                !closed &&
-                                entry.worktreeId !== undefined &&
-                                selected?.worktreeId === entry.worktreeId &&
-                                (selected?.remote ??
-                                  connection.environmentId) ===
-                                  entry.environmentId
-                              }
-                              onClick={() =>
-                                entry.reviewId
-                                  ? setOpenMobile(false)
-                                  : openWorktree(entry)
-                              }
-                              render={
-                                entry.reviewId ? (
-                                  <Link
-                                    to="/reviews/$reviewId"
-                                    params={{ reviewId: entry.reviewId }}
-                                    search={{
-                                      environment:
-                                        entry.environmentId ===
-                                        connection.environmentId
-                                          ? undefined
-                                          : entry.environmentId,
-                                      decision: undefined,
-                                    }}
-                                  />
-                                ) : undefined
-                              }
-                            >
-                              <div className="min-w-0 flex-1">
-                                <div className="flex min-w-0 items-center gap-1">
-                                  <span
-                                    className="min-w-0 flex-1 truncate"
-                                    title={entry.title}
-                                  >
-                                    {entry.title}
-                                  </span>
-                                  {entry.reviewId ? (
-                                    <span
-                                      className="shrink-0 text-xs text-muted-foreground"
-                                      aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
-                                    >
-                                      {entry.reviewed}/{entry.total}
-                                    </span>
-                                  ) : null}
-                                </div>
-                                <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-                                  {signal ? (
-                                    <Tooltip>
-                                      <TooltipTrigger
-                                        render={
-                                          <span
-                                            role="img"
-                                            aria-label="Review status"
-                                            className="inline-flex shrink-0"
-                                          />
-                                        }
-                                      >
-                                        <indicator.Icon
-                                          aria-hidden
-                                          className={indicator.className}
-                                        />
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <div>
-                                          <p>
-                                            {reviewListMeta(entry, Date.now())}
-                                          </p>
-                                          {entry.badges.length ? (
-                                            entry.badges.map((badge) => (
-                                              <p key={badge.label}>
-                                                {badge.label}
-                                              </p>
-                                            ))
-                                          ) : (
-                                            <p>{signal.reason}</p>
-                                          )}
-                                        </div>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  ) : null}
-                                  <div className="flex min-w-0 flex-1 items-center gap-1">
-                                    {context.project ? (
-                                      <span
-                                        className={
-                                          context.branch
-                                            ? 'min-w-0 max-w-1/2 truncate'
-                                            : 'min-w-0 flex-1 truncate'
-                                        }
-                                        title={context.project}
-                                      >
-                                        {context.project}
-                                      </span>
-                                    ) : null}
-                                    {context.branch ? (
+          <div className="flex flex-col -space-y-1">
+            {(closed ? (['Closed'] as const) : reviewListGroups).map(
+              (group) => {
+                const grouped =
+                  group === 'Closed'
+                    ? rows
+                    : rows.filter((row) => row.group === group);
+                if (grouped.length === 0) return null;
+                return (
+                  <SidebarGroup key={group}>
+                    <Collapsible
+                      open={preferences.reviewListGroupOpen[group] ?? true}
+                      onOpenChange={(open) =>
+                        setPreference('reviewListGroupOpen', {
+                          ...preferences.reviewListGroupOpen,
+                          [group]: open,
+                        })
+                      }
+                      className="group/review-list"
+                    >
+                      <SidebarGroupLabel
+                        render={<CollapsibleTrigger />}
+                        className="h-7 w-full cursor-pointer"
+                      >
+                        {group} · {grouped.length}
+                        <ChevronDownIcon className="ml-auto group-data-closed/review-list:-rotate-90" />
+                      </SidebarGroupLabel>
+                      <CollapsibleContent>
+                        <SidebarMenu>
+                          {grouped.map((entry) => {
+                            const signal = reviewListSignal(entry);
+                            const context = reviewListRowContext(
+                              entry,
+                              multipleProjects,
+                            );
+                            const indicator = {
+                              destructive: {
+                                Icon: CircleAlertIcon,
+                                className: 'text-destructive',
+                              },
+                              primary: {
+                                Icon: CircleCheckIcon,
+                                className: 'text-primary',
+                              },
+                              muted: {
+                                Icon: CircleIcon,
+                                className: 'text-muted-foreground',
+                              },
+                            }[signal?.tone ?? 'muted'];
+                            return (
+                              <SidebarMenuItem
+                                key={entry.key}
+                                className="flex items-start"
+                              >
+                                <SidebarMenuButton
+                                  size="lg"
+                                  className="min-w-0 flex-1"
+                                  aria-label={
+                                    entry.reviewId
+                                      ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.environmentName}, ${entry.badges.map((badge) => badge.label).join(', ')}`
+                                      : undefined
+                                  }
+                                  disabled={!entry.reviewId && entry.disabled}
+                                  isActive={
+                                    !closed &&
+                                    entry.worktreeId !== undefined &&
+                                    selected?.worktreeId === entry.worktreeId &&
+                                    (selected?.remote ??
+                                      connection.environmentId) ===
+                                      entry.environmentId
+                                  }
+                                  onClick={() =>
+                                    entry.reviewId
+                                      ? setOpenMobile(false)
+                                      : openWorktree(entry)
+                                  }
+                                  render={
+                                    entry.reviewId ? (
+                                      <Link
+                                        to="/reviews/$reviewId"
+                                        params={{ reviewId: entry.reviewId }}
+                                        search={{
+                                          environment:
+                                            entry.environmentId ===
+                                            connection.environmentId
+                                              ? undefined
+                                              : entry.environmentId,
+                                          decision: undefined,
+                                        }}
+                                      />
+                                    ) : undefined
+                                  }
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex min-w-0 items-center gap-1">
                                       <span
                                         className="min-w-0 flex-1 truncate"
-                                        title={context.branch}
+                                        title={entry.title}
                                       >
-                                        {context.branch}
+                                        {entry.title}
                                       </span>
-                                    ) : null}
+                                      {entry.reviewId ? (
+                                        <span
+                                          className="shrink-0 text-xs text-muted-foreground"
+                                          aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
+                                        >
+                                          {entry.reviewed}/{entry.total}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                                      {signal ? (
+                                        <Tooltip>
+                                          <TooltipTrigger
+                                            render={
+                                              <span
+                                                role="img"
+                                                aria-label="Review status"
+                                                className="inline-flex shrink-0"
+                                              />
+                                            }
+                                          >
+                                            <indicator.Icon
+                                              aria-hidden
+                                              className={indicator.className}
+                                            />
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <div>
+                                              <p>
+                                                {reviewListMeta(
+                                                  entry,
+                                                  Date.now(),
+                                                )}
+                                              </p>
+                                              {entry.badges.length ? (
+                                                entry.badges.map((badge) => (
+                                                  <p key={badge.label}>
+                                                    {badge.label}
+                                                  </p>
+                                                ))
+                                              ) : (
+                                                <p>{signal.reason}</p>
+                                              )}
+                                            </div>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      ) : null}
+                                      <div className="flex min-w-0 flex-1 items-center gap-1">
+                                        {context.project ? (
+                                          <span
+                                            className={
+                                              context.branch
+                                                ? 'min-w-0 max-w-1/2 truncate'
+                                                : 'min-w-0 flex-1 truncate'
+                                            }
+                                            title={context.project}
+                                          >
+                                            {context.project}
+                                          </span>
+                                        ) : null}
+                                        {context.branch ? (
+                                          <span
+                                            className="min-w-0 flex-1 truncate"
+                                            title={context.branch}
+                                          >
+                                            {context.branch}
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                      <Badge
+                                        variant="secondary"
+                                        className="max-w-1/2"
+                                        title={entry.environmentName}
+                                      >
+                                        <span className="truncate">
+                                          {entry.environmentName}
+                                        </span>
+                                      </Badge>
+                                    </div>
                                   </div>
-                                  <Badge
-                                    variant="secondary"
-                                    className="max-w-1/2"
-                                    title={entry.environmentName}
-                                  >
-                                    <span className="truncate">
-                                      {entry.environmentName}
-                                    </span>
-                                  </Badge>
-                                </div>
-                              </div>
-                            </SidebarMenuButton>
-                            {entry.archivable && entry.reviewId ? (
-                              <ArchiveReview
-                                connection={
-                                  connections.find(
-                                    (source) =>
-                                      source.environmentId ===
-                                      entry.environmentId,
-                                  ) ?? connection
-                                }
-                                reviewId={entry.reviewId}
-                              />
-                            ) : null}
-                          </SidebarMenuItem>
-                        );
-                      })}
-                    </SidebarMenu>
-                  </CollapsibleContent>
-                </Collapsible>
-              </SidebarGroup>
-            );
-          })}
+                                </SidebarMenuButton>
+                                {entry.archivable && entry.reviewId ? (
+                                  <ArchiveReview
+                                    connection={
+                                      connections.find(
+                                        (source) =>
+                                          source.environmentId ===
+                                          entry.environmentId,
+                                      ) ?? connection
+                                    }
+                                    reviewId={entry.reviewId}
+                                  />
+                                ) : null}
+                              </SidebarMenuItem>
+                            );
+                          })}
+                        </SidebarMenu>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </SidebarGroup>
+                );
+              },
+            )}
+          </div>
           {!loading && rows.length === 0 && (
             <Empty>
               <EmptyHeader>

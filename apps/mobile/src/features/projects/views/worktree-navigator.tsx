@@ -162,7 +162,7 @@ export function WorktreeNavigator({
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         accessibilityLabel="Worktrees by review status"
-        contentContainerClassName="gap-4 px-4 pb-6"
+        contentContainerClassName="gap-2 px-4 pb-6"
       >
         {showFilters ? (
           <Box gap={2}>
@@ -201,9 +201,10 @@ export function WorktreeNavigator({
           if (grouped.length === 0) return null;
           const expanded = preferences.reviewListGroupOpen[group] ?? true;
           return (
-            <Box key={group} gap={2}>
+            <Box key={group}>
               <ButtonSurface
                 variant="ghost"
+                size="sm"
                 expanded={expanded}
                 className="justify-start"
                 accessibilityLabel={`${group} · ${grouped.length}, ${expanded ? 'expanded' : 'collapsed'}`}
