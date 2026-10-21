@@ -2,6 +2,7 @@ import { deepStrictEqual, strictEqual, throws } from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
+  chmodSync,
   globSync,
   existsSync,
   mkdtempSync,
@@ -20,6 +21,7 @@ import { typeRuleFindings } from './type-rules.ts';
 import { duplicateScope, scanDuplicates } from './duplicate-policy.ts';
 import { selectorAppears } from './feature-selectors.ts';
 import { guardrailCases } from './rule-cases.mjs';
+import { checkStyle } from '../scripts/style.ts';
 import { handlerCoverage } from '../apps/server/spec/kit/route-coverage.ts';
 import { featureMapProblems } from '../scripts/feature-maps.ts';
 import knip from './knip.ts';
@@ -222,6 +224,15 @@ function ciSelectionFixture(entry) {
       '-m',
       'Create CI selection fixture',
     ]);
+    const ruleHash = () =>
+      JSON.parse(
+        run(join(repository, 'node_modules/.bin/turbo'), [
+          'run',
+          'test:rules',
+          '--dry=json',
+        ]),
+      ).tasks.find((task) => task.taskId === '//#test:rules').hash;
+    const originalHash = ruleHash();
     for (const fixture of entry.cases) {
       const path = fixture.path && join(root, fixture.path);
       const original = path && readFileSync(path, 'utf8');
@@ -231,6 +242,7 @@ function ciSelectionFixture(entry) {
           join(repository, 'node_modules/.bin/turbo'),
           [
             'run',
+            'test:rules',
             'test:integration',
             'test:e2e',
             'build',
@@ -242,7 +254,19 @@ function ciSelectionFixture(entry) {
           { TURBO_SCM_BASE: 'HEAD', TURBO_SCM_HEAD: 'HEAD' },
         ),
       );
+      if (fixture.source && Object.hasOwn(fixture, 'rules'))
+        strictEqual(
+          (dry.tasks.find((task) => task.taskId === '//#test:rules')?.hash ??
+            ruleHash()) !== originalHash,
+          fixture.rules,
+          `${fixture.name}: test:rules cache hash`,
+        );
       const tasks = new Set(dry.tasks.map((task) => task.taskId));
+      strictEqual(
+        tasks.has('//#test:rules'),
+        fixture.rules ?? false,
+        `${fixture.name}: test:rules affected selection`,
+      );
       const selected = [
         [
           'server',
@@ -269,7 +293,7 @@ function ciSelectionFixture(entry) {
   }
 }
 
-function styleConfigFixture(entry) {
+async function styleConfigFixture(entry) {
   const root = fixtureRoot('porcelain-style-config-');
   const repository = fileURLToPath(new URL('../', import.meta.url));
   const run = (command, args) => {
@@ -336,17 +360,45 @@ function styleConfigFixture(entry) {
       join(repository, 'architecture/oxlint-plugin.mjs'),
       join(root, 'architecture/oxlint-plugin.mjs'),
     );
+    if (entry.toolOutput !== undefined) {
+      writeFiles(root, {
+        'node_modules/.bin/oxlint': `#!/bin/sh\nprintf '%s' '${entry.toolOutput}'\n`,
+      });
+      chmodSync(join(root, 'node_modules/.bin/oxlint'), 0o755);
+    }
     const initialized = run('git', ['init', '--quiet']);
     strictEqual(initialized.status, 0, initialized.stderr);
     if (entry.tracked) {
       const added = run('git', ['add', entry.tracked]);
       strictEqual(added.status, 0, added.stderr);
     }
-    const checked = run(process.execPath, [
-      join(repository, 'scripts/style.ts'),
-      'lint',
-      entry.target ?? 'server',
-    ]);
+    const previous = process.cwd();
+    const streams = [
+      { stream: process.stdout, key: 'stdout' },
+      { stream: process.stderr, key: 'stderr' },
+    ].map((entry) => ({
+      ...entry,
+      descriptor: Object.getOwnPropertyDescriptor(entry.stream, 'write'),
+    }));
+    const checked = { stdout: '', stderr: '', status: 1, signal: null };
+    try {
+      process.chdir(root);
+      for (const { stream, key } of streams)
+        stream.write = (text) => {
+          checked[key] += text;
+          return true;
+        };
+      try {
+        checked.status = await checkStyle('lint', entry.target ?? 'server');
+      } catch (error) {
+        checked.stderr += `${error.stack ?? error}\n`;
+      }
+    } finally {
+      process.chdir(previous);
+      for (const { stream, descriptor } of streams)
+        if (descriptor) Object.defineProperty(stream, 'write', descriptor);
+        else Reflect.deleteProperty(stream, 'write');
+    }
     const output = checked.stdout + checked.stderr;
     strictEqual(checked.signal, null, `${entry.name}: ${output}`);
     strictEqual(checked.status, entry.status, `${entry.name}: ${output}`);
@@ -396,7 +448,7 @@ function styleConfigFixture(entry) {
         entry.findings,
         output,
       );
-    if (entry.missingTool)
+    if (entry.missingTool && entry.toolOutput === undefined)
       strictEqual(output.includes('ENOENT'), entry.rules.length === 0, output);
     else if (entry.status === 0)
       strictEqual(checked.stdout.includes('0 findings.'), true, output);
@@ -428,7 +480,7 @@ function ciActionPinProblems(workflow) {
   return problems;
 }
 
-export function runGuardrailCases(named = []) {
+export async function runGuardrailCases(named = []) {
   const cases = guardrailCases.filter(
     (entry) => named.length === 0 || named.includes(entry.rule),
   );
@@ -513,7 +565,7 @@ export function runGuardrailCases(named = []) {
       }
     } else if (entry.rule === 'style-config') {
       for (const fixture of entry.cases) {
-        styleConfigFixture(fixture);
+        await styleConfigFixture(fixture);
         process.stdout.write(`PASS style-config: ${fixture.name}\n`);
       }
     } else if (entry.rule === 'server-handler-coverage') {
@@ -651,4 +703,4 @@ export function runGuardrailCases(named = []) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url))
-  runGuardrailCases(process.argv.slice(2));
+  await runGuardrailCases(process.argv.slice(2));
