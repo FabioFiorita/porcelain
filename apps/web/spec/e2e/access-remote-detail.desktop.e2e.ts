@@ -182,7 +182,7 @@ test('a computer detail uses its identity, reloads directly, and Back and the br
   await expect(page).toHaveURL(/\/settings\/remotes$/);
 });
 
-test('sidebar menus and outage links open the exact computer, saved offline details are stale, and settings leave the current review intact', async ({
+test('sidebar shortcuts and outage links open the exact computer, saved offline details are stale, and settings leave the current review intact', async ({
   pairedPage: page,
   app,
   remote,
@@ -205,16 +205,9 @@ test('sidebar menus and outage links open the exact computer, saved offline deta
   await page
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  const machine = page.getByRole('group', { name, exact: true });
-  await machine
-    .getByRole('button', { name: new RegExp(`^${name}`) })
-    .click({ button: 'right' });
-  await expect(
-    page.getByRole('menuitem', { name: 'Computer settings', exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole('menuitem', { name: 'Computer settings', exact: true })
-    .click();
+  const computer = page.getByRole('button', { name, exact: true });
+  await expect(computer).toBeVisible();
+  await computer.click();
   const detail = `/settings/remotes/${inventory.environmentId}`;
   await expect(page).toHaveURL(new RegExp(`${detail}$`));
   await page.goBack();
@@ -231,12 +224,8 @@ test('sidebar menus and outage links open the exact computer, saved offline deta
     await page
       .getByRole('button', { name: 'Toggle Sidebar', exact: true })
       .click();
-    await expect(
-      machine.getByRole('button', { name: 'Computer settings', exact: true }),
-    ).toBeVisible();
-    await machine
-      .getByRole('button', { name: 'Computer settings', exact: true })
-      .click();
+    await expect(computer).toBeVisible();
+    await computer.click();
     await expect(page).toHaveURL(new RegExp(`${detail}$`));
     await expect(page.getByText('Offline', { exact: true })).toBeVisible();
     await expect(page.getByText(/Saved details · Stale/)).toBeVisible();
@@ -308,16 +297,11 @@ test('forgetting from detail protects an unsavable remote draft and succeeds aft
   await page
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  const machine = page.getByRole('group', {
+  const computer = page.getByRole('button', {
     name: inventory.environment.name,
     exact: true,
   });
-  await machine
-    .getByRole('button', { name: new RegExp(`^${inventory.environment.name}`) })
-    .click({ button: 'right' });
-  await page
-    .getByRole('menuitem', { name: 'Computer settings', exact: true })
-    .click();
+  await computer.click();
   await expect(
     page.getByRole('button', { name: 'Forget on this app', exact: true }),
   ).toBeVisible();
@@ -351,12 +335,7 @@ test('forgetting from detail protects an unsavable remote draft and succeeds aft
   await page
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  await machine
-    .getByRole('button', { name: new RegExp(`^${inventory.environment.name}`) })
-    .click({ button: 'right' });
-  await page
-    .getByRole('menuitem', { name: 'Computer settings', exact: true })
-    .click();
+  await computer.click();
   await page
     .getByRole('button', { name: 'Forget on this app', exact: true })
     .press('Enter');
