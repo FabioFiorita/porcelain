@@ -23,11 +23,27 @@ type UpdateOffer =
       readonly latest: string | undefined;
     };
 
+export function settingsUpdateAvailable(target: UpdateOffer) {
+  return target.kind === 'service'
+    ? target.state.available && target.state.latest !== undefined
+    : target.available && target.latest !== undefined;
+}
+
+export function settingsUpdatesVisible(
+  targets: readonly UpdateOffer[],
+  batch: Pick<SettingsUpdateBatch, 'running'>,
+) {
+  return batch.running || targets.some(settingsUpdateAvailable);
+}
+
 export function settingsUpdateVersion(target: UpdateOffer) {
   if (target.kind === 'mac-app')
-    return target.available ? target.latest : undefined;
+    return settingsUpdateAvailable(target) ? target.latest : undefined;
   const { state } = target;
-  return state.available && state.managed && state.canUpdate && !state.running
+  return settingsUpdateAvailable(target) &&
+    state.managed &&
+    state.canUpdate &&
+    !state.running
     ? state.latest
     : undefined;
 }

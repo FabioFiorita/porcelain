@@ -3,6 +3,7 @@ import { Option } from 'effect';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import {
   readServiceUpdate,
+  settingsUpdatesVisible,
   settingsUpdateBatch,
   type ServiceUpdateTarget,
 } from '@porcelain/client/access';
@@ -45,10 +46,8 @@ export function useServiceUpdates() {
 export function useUpdatesIndicator() {
   const { targets } = useServiceUpdates();
   const batch = useAtomValue(settingsUpdateBatch);
-  const available = targets.some((target) => target.state.available);
   return {
-    available,
     running: batch.running,
-    visible: available || batch.running,
+    visible: settingsUpdatesVisible(targets, batch),
   };
 }

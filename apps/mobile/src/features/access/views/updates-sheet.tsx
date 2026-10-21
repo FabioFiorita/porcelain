@@ -1,7 +1,10 @@
 import { BottomSheet, RNHostView } from '@expo/ui';
 import { ScrollView } from 'react-native';
 import { useAtomValue } from '@effect/atom-react';
-import { settingsUpdateBatch } from '@porcelain/client/access';
+import {
+  settingsUpdateAvailable,
+  settingsUpdateBatch,
+} from '@porcelain/client/access';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
 import { Card } from '../../../components/ui/card';
@@ -48,8 +51,7 @@ function UpdatesContent({
   const batch = useAtomValue(settingsUpdateBatch);
   const offers = rows.filter(
     (row) =>
-      (row.target &&
-        (row.target.state.available || !row.target.state.managed)) ||
+      (row.target && settingsUpdateAvailable(row.target)) ||
       batch.entries.some((entry) => entry.id === row.remote.environmentId),
   );
   return (

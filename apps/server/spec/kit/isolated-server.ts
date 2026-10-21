@@ -1135,7 +1135,7 @@ export class IsolatedServer extends ServerHandle {
   static async start(
     repositoryRoot: string,
     build: string,
-    sample?: 'perf',
+    sample?: 'perf' | 'service-ahead',
     onOutput?: (text: string) => void,
     port?: number,
     allowedHosts: readonly string[] = [],

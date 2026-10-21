@@ -8,6 +8,7 @@ import {
   settingsUpdateBatch,
   settingsUpdateTrust,
   settingsUpdateVersion,
+  settingsUpdateAvailable,
   type ServiceUpdateTarget,
   type SettingsUpdateEntry,
 } from '@porcelain/client/access';
@@ -58,7 +59,7 @@ function ConnectedComputerUpdate({
       {target ? (
         <Text variant="caption" tone="muted">
           Porcelain {target.state.version ?? 'Unknown version'}
-          {target.state.available && target.state.latest
+          {settingsUpdateAvailable(target) && target.state.latest
             ? ` → ${target.state.latest}`
             : ''}
         </Text>

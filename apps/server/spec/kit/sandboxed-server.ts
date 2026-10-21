@@ -243,7 +243,7 @@ const fixture = {
   inventoryStaleAfterMs: sample === 'perf' ? QUIET_INVENTORY_MS : 200,
   codingTool,
   serviceUpdate: {
-    version: '1.0.0',
+    version: sample === 'service-ahead' ? '2.0.0' : '1.0.0',
     latest: '1.1.0',
     failure:
       'Could not install the persistent runtime: npm could not reach the registry',
@@ -254,7 +254,7 @@ const offered = {
   managed: true,
   version: fixture.serviceUpdate.version,
   latest: fixture.serviceUpdate.latest,
-  available: true,
+  available: sample !== 'service-ahead',
   running: false,
   last: undefined,
 };

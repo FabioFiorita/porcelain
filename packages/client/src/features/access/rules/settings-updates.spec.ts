@@ -6,6 +6,8 @@ import type {
   MacAppUpdateTarget,
 } from '../commands/settings-updates.ts';
 import {
+  settingsUpdateAvailable,
+  settingsUpdatesVisible,
   settingsUpdateBatchProgress,
   settingsUpdateCount,
   settingsUpdateTrust,
@@ -42,6 +44,67 @@ const mac: MacAppUpdateTarget = {
 
 describe('settings update eligibility', () => {
   it.each([
+    [true, '1.0.0', '1.1.0', true],
+    [false, '1.0.0', '1.1.0', false],
+    [false, '1.1.0', '1.1.0', false],
+    [false, '2.0.0', '1.1.0', false],
+    [false, '1.0.0', undefined, false],
+    [true, '1.0.0', undefined, false],
+    [true, undefined, '1.1.0', true],
+  ] as const)(
+    'server available=%s installed=%s latest=%s advertises=%s',
+    (available, version, latest, expected) => {
+      const target = service();
+      const row = {
+        ...target,
+        state: { ...target.state, available, version, latest },
+      };
+      expect(settingsUpdateAvailable(row)).toBe(expected);
+      expect(settingsUpdatesVisible([row], { running: false })).toBe(expected);
+      expect(settingsUpdateVersion(row)).toBe(expected ? '1.1.0' : undefined);
+      expect(settingsUpdateCount([row])).toBe(expected ? 1 : 0);
+    },
+  );
+
+  it.each([
+    [false, false, false],
+    [false, true, true],
+    [true, false, true],
+    [true, true, true],
+  ] as const)(
+    'untrusted available=%s batch running=%s keeps the badge visible=%s without becoming eligible',
+    (available, running, expected) => {
+      const target = service();
+      const row = {
+        ...target,
+        state: { ...target.state, available, canUpdate: false },
+      };
+      expect(settingsUpdateAvailable(row)).toBe(available);
+      expect(settingsUpdatesVisible([row], { running })).toBe(expected);
+      expect(settingsUpdatesVisible([], { running })).toBe(running);
+      expect(settingsUpdateVersion(row)).toBeUndefined();
+      expect(settingsUpdateCount([row])).toBe(0);
+      expect(settingsUpdateTrust(row)?.label).toBe('Needs trust');
+      expect(settingsUpdateTrust(row)?.deviceId).toBe('device-123');
+    },
+  );
+
+  it.each([
+    [true, '1.1.0', true],
+    [false, '1.1.0', false],
+    [true, undefined, false],
+    [false, undefined, false],
+  ] as const)(
+    'Mac available=%s latest=%s advertises=%s',
+    (available, latest, expected) => {
+      const row = { ...mac, available, latest };
+      expect(settingsUpdateAvailable(row)).toBe(expected);
+      expect(settingsUpdatesVisible([row], { running: false })).toBe(expected);
+      expect(settingsUpdateCount([row])).toBe(expected ? 1 : 0);
+    },
+  );
+
+  it.each([
     [false, false, false, undefined],
     [false, false, true, undefined],
     [false, true, false, undefined],
@@ -54,12 +117,12 @@ describe('settings update eligibility', () => {
     'available=%s managed=%s canUpdate=%s offers %s',
     (available, managed, canUpdate, expected) => {
       const target = service();
-      expect(
-        settingsUpdateVersion({
-          ...target,
-          state: { ...target.state, available, managed, canUpdate },
-        }),
-      ).toBe(expected);
+      const row = {
+        ...target,
+        state: { ...target.state, available, managed, canUpdate },
+      };
+      expect(settingsUpdateAvailable(row)).toBe(available);
+      expect(settingsUpdateVersion(row)).toBe(expected);
     },
   );
 

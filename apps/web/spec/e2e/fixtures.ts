@@ -248,6 +248,7 @@ export function runningFailures(): WatchedFailures {
 export type Repo = Awaited<ReturnType<typeof repositoryOf>>;
 
 type TestFixtures = {
+  serviceUpdateProfile: 'available' | 'ahead';
   world: World;
   observed: BrowserFailure[];
   live: LiveFixture;
@@ -274,6 +275,7 @@ type TestFixtures = {
 };
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
+  serviceUpdateProfile: ['available', { option: true }],
   shell: ['web', { scope: 'worker', option: true }],
   vite: [
     async ({ shell }, use) => {
@@ -297,8 +299,12 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   baseURL: async ({ vite }, use) => {
     await use(vite.url);
   },
-  world: async ({ vite }, use, testInfo) => {
-    const world = await World.start(repositoryRoot, serverBuild());
+  world: async ({ vite, serviceUpdateProfile }, use, testInfo) => {
+    const world = await World.start(
+      repositoryRoot,
+      serverBuild(),
+      serviceUpdateProfile === 'ahead' ? 'service-ahead' : undefined,
+    );
     vite.target(world.server.address);
     await use(world);
     await world.keepEvidence(testInfo.outputPath('server'));
@@ -438,3 +444,5 @@ export async function keptEvidence(world: World): Promise<string> {
   await rm(folder, { recursive: true, force: true });
   return saved;
 }
+
+export const serviceAheadTest = test.extend({ serviceUpdateProfile: 'ahead' });

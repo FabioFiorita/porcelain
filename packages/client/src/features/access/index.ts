@@ -50,6 +50,8 @@ export {
 } from './commands/settings-updates.ts';
 export { settingsUpdateBatch } from './store/settings-updates.ts';
 export {
+  settingsUpdateAvailable,
+  settingsUpdatesVisible,
   settingsUpdateVersion,
   settingsUpdateTrust,
   settingsUpdateCount,

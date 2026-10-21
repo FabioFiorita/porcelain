@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import {
+  settingsUpdateAvailable,
+  settingsUpdatesVisible,
   settingsUpdateBatchProgress,
   type SettingsUpdateEntry,
 } from '@porcelain/client/access';
@@ -21,17 +23,7 @@ export function UpdatesMenu() {
   const navigate = useNavigate();
   const { setOpenMobile } = useSidebar();
   const [open, setOpen] = useState(false);
-  const offered = rows.filter(({ target }) => {
-    if (target.kind === 'mac-app') return target.available;
-    const { state } = target;
-    return (
-      state.available ||
-      state.running ||
-      (state.latest !== undefined &&
-        state.latest !== null &&
-        state.latest !== state.version)
-    );
-  });
+  const offered = rows.filter(({ target }) => settingsUpdateAvailable(target));
   const shown = rows.filter(
     (row) =>
       offered.includes(row) ||
@@ -43,7 +35,7 @@ export function UpdatesMenu() {
   const progressLabel = progress.label
     ? `${progress.label}…`
     : 'Preparing updates…';
-  if (offered.length === 0 && !batch.running && !open) return null;
+  if (!settingsUpdatesVisible(targets, batch) && !open) return null;
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger render={<Badge render={<button type="button" />} />}>

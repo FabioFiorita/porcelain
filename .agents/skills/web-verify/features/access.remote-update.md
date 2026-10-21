@@ -8,6 +8,7 @@ selectors:
   - 'Updates available'
   - 'Manage computers'
 tests:
+  - apps/web/spec/e2e/access-service-ahead.e2e.ts
   - apps/web/spec/e2e/access-remote-update.desktop.e2e.ts
   - apps/web/spec/e2e/access-app-update.desktop.e2e.ts
 api:
@@ -18,6 +19,8 @@ api:
 # access.remote-update
 
 The navigator footer keeps Settings and Computers on the left, with the global text-only Update Badge followed by the Keyboard shortcuts icon together at the far right on one unwrapped row. Hovering the keyboard button shows the Keyboard shortcuts tooltip. It opens Updates available with one row per offered service update and a Mac app row when it has an update. Retained batch entries keep their outcomes visible. Computers and details reuse the same rows and shared batch owner. Available untrusted and unmanaged computers remain visible; only the shared eligibility helper controls Update and the Update all (N) count.
+
+The shared offer rule requires the server's available flag and a known latest version. A version difference alone never creates an offer. Check an installation ahead of npm latest at desktop and 414 px: no global badge or downgrade arrow, while Computers shows its installed version and Up to date. An active batch keeps the badge visible even after the last offer disappears.
 
 ## Driving it
 

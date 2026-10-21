@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import {
+  settingsUpdateAvailable,
   settingsUpdateTrust,
   settingsUpdateVersion,
 } from '@porcelain/client/access';
@@ -107,7 +108,7 @@ export function SettingsUpdateRow({
                 {target.kind === 'mac-app' ? 'Mac app' : 'Porcelain'}{' '}
                 {current ?? 'development build'}
               </span>
-              {latest && latest !== current && <> → {latest}</>}
+              {settingsUpdateAvailable(target) && latest && <> → {latest}</>}
             </p>
           </div>
           {action}
