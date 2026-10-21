@@ -31,6 +31,7 @@ import { IconButton } from '../../../components/ui/icon-button';
 import { Item } from '../../../components/ui/item';
 import { Loading } from '../../../components/ui/loading';
 import { Text } from '../../../components/ui/text';
+import { HeaderTitle } from '../../../components/ui/header-title';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 
 export function WorktreeNavigator({
@@ -84,9 +85,7 @@ export function WorktreeNavigator({
       {nativeHeader ? (
         <Stack.Title asChild>
           <Box className="flex-row items-center" gap={3}>
-            <Text variant="heading" numberOfLines={1}>
-              Worktrees
-            </Text>
+            <HeaderTitle>Worktrees</HeaderTitle>
             {updateIndicator.visible ? (
               <UpdatesButton
                 running={updateIndicator.running}
