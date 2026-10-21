@@ -15,6 +15,7 @@ test('opening a repository with a linked worktree from the empty workspace after
   await opened
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
+  await opened.getByRole('button', { name: 'Projects', exact: true }).click();
   await opened
     .getByRole('button', { name: sample.name, exact: true })
     .click({ button: 'right' });
@@ -69,8 +70,8 @@ test('opening a repository with a linked worktree from the empty workspace after
   const project = await reopened();
   const shown = `/${project?.id ?? ''}/${project?.worktrees.find((worktree) => worktree.main)?.id ?? ''}`;
   await expect.poll(() => app.address().path).toBe(shown);
-  await expect(
-    opened.getByRole('button', { name: /Main worktree/, pressed: true }),
-  ).toBeVisible();
+  await opened.getByRole('button', { name: 'Worktrees', exact: true }).click();
+  await expect(opened.getByRole('menuitem', { name: /Current/ })).toBeVisible();
+  await opened.keyboard.press('Escape');
   await expect.poll(() => app.visited()).toEqual([shown]);
 });

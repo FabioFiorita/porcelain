@@ -5,6 +5,7 @@ export type HeaderIconName =
   | 'refresh'
   | 'done'
   | 'close'
+  | 'closed'
   | 'compareParent'
   | 'sidebar'
   | 'inspector'

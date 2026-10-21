@@ -26,9 +26,13 @@ export function routingPromises() {
         name: 'Projects and worktrees',
         exact: true,
       });
+      await navigator
+        .getByRole('button', { name: 'Projects', exact: true })
+        .click();
       await expect(
-        navigator.getByRole('button', { name: project.name, exact: true }),
+        pairedPage.getByRole('button', { name: project.name, exact: true }),
       ).toBeVisible();
+      await pairedPage.keyboard.press('Escape');
       await expect(
         navigator.getByRole('button', { name: 'Settings', exact: true }),
       ).toBeVisible();

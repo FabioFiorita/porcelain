@@ -10,7 +10,7 @@ selectors:
   - "Back"
   - "Online"
   - "This computer"
-  - "Main worktree"
+  - "Open a worktree"
   - "Mark "
   - "Unmark "
   - "Review"
@@ -65,7 +65,7 @@ The desktop app lists a remote computer as its own group in the sidebar, by name
 
 1. Click button named `Back`, then click button named `Toggle Sidebar`
    Look for: group "This computer" holding project "repository" only; group "Remote journey computer" with button "Remote journey computer Online" holding project "remote-sample" only (its worktree row's path is `$REMOTE_REPO`).
-2. Click button named `/remote-sample.*Main worktree/`
+2. Click button named `/remote-sample.*Open a worktree/`
    Look for: the sheet closes; Page URL `/remotes/<remote environmentId>/<projectId>/<worktreeId>?entry=handoff` (call its path and query `$REMOTE_PAGE`); Page Title "Changes — remote-sample · Remote journey computer"; button "Mark README.md as reviewed".
 
 ### A reviewed mark lands on the remote only
@@ -107,6 +107,6 @@ The desktop app lists a remote computer as its own group in the sidebar, by name
 
 - The disposable servers sign a summary link for 2 seconds (`summaryLinkLifetimeMs`), counted from the review read: a summary frame mounted later stays blank. Step 9 makes the summary tab the active one and reloads, so the frame loads with the review read; selecting "Agent summary" refreshes the signed link.
 - Desktop shell only: start with `start --desktop`; the app keeps remotes in browser `localStorage` (no Electron bridge).
-- The worktree row's accessible name concatenates branch label, path, project name, status and hidden "Main worktree"; both groups have a main worktree, so use the regex `/remote-sample.*Main worktree/`, which only the remote's row matches.
+- The worktree row's accessible name concatenates branch label, path, project name, status and hidden "Open a worktree"; both groups have a main worktree, so use the regex `/remote-sample.*Open a worktree/`, which only the remote's row matches.
 - `agent publish-review` publishes once per worktree; a second publish on the same instance is refused ("The review changed; reload before retrying").
 - Phone width: the review sidebar is the `Review` sheet; the tree and the "Review" surface tab live there.

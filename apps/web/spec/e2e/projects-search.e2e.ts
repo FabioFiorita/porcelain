@@ -1,7 +1,7 @@
 import { expect, test } from './fixtures.ts';
 import { replaceEditorContent } from '../kit/editor.ts';
 
-test('search selects the exact linked workspace by keyboard and clearing preserves selection and collapsed projects', async ({
+test('the flat worktree menu searches checkouts without reviews and selects the exact workspace', async ({
   pairedPage,
   repo,
   server,
@@ -17,52 +17,22 @@ test('search selects the exact linked workspace by keyboard and clearing preserv
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  const projectButton = pairedPage.getByRole('button', {
-    name: project.name,
-    exact: true,
-  });
-  await projectButton.click();
+  await pairedPage
+    .getByRole('button', { name: 'Worktrees', exact: true })
+    .click();
   const search = pairedPage.getByRole('searchbox', {
-    name: 'Search projects and worktrees',
+    name: 'Search worktrees',
     exact: true,
   });
   await search.fill('NOT-A-WORKSPACE');
   await expect(
-    pairedPage
-      .getByRole('status')
-      .filter({ hasText: 'No matching workspaces on' }),
-  ).toBeVisible();
+    pairedPage.getByRole('menuitem', { name: /search-target/ }),
+  ).not.toBeAttached();
   await expect.poll(() => app.address().path).toBe(original);
-  await search.press('Escape');
-  await expect(search).toBeFocused();
-  await expect(projectButton).toHaveAttribute('aria-expanded', 'false');
   await search.fill('search-target');
-  const results = pairedPage.getByRole('region', {
-    name: 'Workspace search results',
-    exact: true,
-  });
-  const result = results.getByRole('button', { name: /search-target/ });
-  await expect(result).toContainText(target?.path ?? 'missing');
-  await search.press('ArrowDown');
-  await expect(result).toBeFocused();
-  await result.press('ArrowUp');
-  await expect(search).toBeFocused();
-  await search.press('ArrowDown');
-  await result.press('Enter');
-  await expect
-    .poll(() => app.address().path)
-    .toBe(`/${project.id}/${target?.id ?? ''}`);
-  await pairedPage
-    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
-    .click();
-  await search.fill('search-target');
-  await expect(
-    results.getByRole('button', { name: /Current/ }),
-  ).toHaveAttribute('aria-current', 'page');
-  await pairedPage
-    .getByRole('button', { name: 'Clear search', exact: true })
-    .click();
-  await expect(projectButton).toHaveAttribute('aria-expanded', 'false');
+  const result = pairedPage.getByRole('menuitem', { name: /search-target/ });
+  await expect(result).toBeVisible();
+  await result.click();
   await expect
     .poll(() => app.address().path)
     .toBe(`/${project.id}/${target?.id ?? ''}`);
@@ -106,12 +76,15 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
+  await pairedPage
+    .getByRole('button', { name: 'Worktrees', exact: true })
+    .click();
   const search = pairedPage.getByRole('searchbox', {
-    name: 'Search projects and worktrees',
+    name: 'Search worktrees',
     exact: true,
   });
   await search.fill('other-workspace');
-  await search.press('Enter');
+  await pairedPage.getByRole('menuitem', { name: /other-workspace/ }).click();
   const other = project.worktrees.find(
     (row) => row.branch === 'refs/heads/other-workspace',
   );
@@ -121,8 +94,17 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  await search.fill(current?.path ?? 'missing');
-  await search.press('Enter');
+  await pairedPage
+    .getByRole('button', { name: 'Worktrees', exact: true })
+    .click();
+  await search.fill(current?.branch?.replace('refs/heads/', '') ?? 'missing');
+  await pairedPage
+    .getByRole('menuitem', {
+      name: new RegExp(
+        current?.branch?.replace('refs/heads/', '') ?? 'missing',
+      ),
+    })
+    .click();
   await expect.poll(() => app.address().path).toBe(original);
   const resume = pairedPage.getByRole('button', {
     name: 'Resume edit',

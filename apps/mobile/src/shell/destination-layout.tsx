@@ -49,9 +49,9 @@ export function DestinationLayout({
         <Stack.Screen
           name="workspaces"
           options={{
-            title: 'Choose workspace',
-            presentation: 'fullScreenModal',
-            headerBackVisible: false,
+            title: 'Worktrees',
+            presentation: 'card',
+            headerBackVisible: true,
           }}
         />
       ) : null}

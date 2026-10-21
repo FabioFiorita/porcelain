@@ -1,18 +1,10 @@
-import { ProjectReviews } from './project-reviews';
-import type { Connection } from '@/shared/workspace/connection';
 import {
-  ChevronRightIcon,
   CircleAlertIcon,
   CopyIcon,
   FolderGit2Icon,
   FolderMinusIcon,
   PencilIcon,
 } from 'lucide-react';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -34,55 +26,32 @@ import {
   projectUnavailableMessage,
 } from '@porcelain/client/projects/rules';
 import { type Project } from '@porcelain/client/projects/rules';
-import { useGroupOpen } from '../store';
-import { WorktreeRow } from './worktree-row';
 
-export function ProjectSection({
+export function ProjectActions({
   environmentId,
-  connection,
   project,
   onRetry,
-  selected,
-  onSelect,
 }: {
   environmentId: string | null;
-  connection: Connection;
   project: Project;
   onRetry: () => void;
-  selected: string | null | undefined;
-  onSelect: (id: string) => void;
 }) {
   const path = projectPath(project);
   const target = { project, remote: environmentId };
-  const { open, setOpen } = useGroupOpen(
-    `project:${environmentId ?? 'local'}:${project.id}`,
-  );
   return (
-    <Collapsible
-      open={open}
-      onOpenChange={setOpen}
-      className="group/project mb-2"
-    >
+    <div>
       <ContextMenu>
         <ContextMenuTrigger
           render={<div className="flex items-center rounded-md" />}
         >
-          <CollapsibleTrigger
-            render={
-              <button
-                type="button"
-                title={project.name}
-                aria-label={project.name}
-                className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:bg-accent"
-              />
-            }
+          <Button
+            variant="ghost"
+            className="min-w-0 flex-1 justify-start"
+            aria-label={project.name}
           >
-            <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none group-data-open/project:rotate-90" />
-            <FolderGit2Icon className="size-3.5 shrink-0 text-muted-foreground" />
-            <h3 className="min-w-0 flex-1 truncate text-left text-caption font-medium">
-              {project.name}
-            </h3>
-          </CollapsibleTrigger>
+            <FolderGit2Icon />
+            <span className="truncate">{project.name}</span>
+          </Button>
           {!project.available && (
             <Popover>
               <PopoverTrigger
@@ -138,37 +107,6 @@ export function ProjectSection({
           </ContextMenuGroup>
         </ContextMenuContent>
       </ContextMenu>
-
-      <CollapsibleContent>
-        <ProjectReviews
-          connection={connection}
-          projectId={project.id}
-          environmentId={environmentId}
-        />
-        {path && (
-          <p
-            className="truncate pb-1 pl-8 font-mono text-2xs text-muted-foreground"
-            title={path}
-          >
-            {path}
-          </p>
-        )}
-        {project.worktrees.length === 0 ? (
-          <p className="px-2 py-2 text-2xs text-muted-foreground">
-            No worktrees found.
-          </p>
-        ) : (
-          project.worktrees.map((worktree) => (
-            <WorktreeRow
-              key={worktree.id}
-              worktree={worktree}
-              projectName={project.name}
-              selected={selected === worktree.id}
-              onSelect={onSelect}
-            />
-          ))
-        )}
-      </CollapsibleContent>
-    </Collapsible>
+    </div>
   );
 }

@@ -42,28 +42,17 @@ test('the desktop app opens another computer’s worktree and HTML review, marks
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  const here = pairedPage.getByRole('group', {
-    name: 'This computer',
-    exact: true,
-  });
-  const there = pairedPage.getByRole('group', {
-    name: other.environment.name,
-    exact: true,
-  });
-  await expect(there.getByText('Online', { exact: true })).toBeVisible();
+  await pairedPage
+    .getByRole('button', { name: 'Worktrees', exact: true })
+    .click();
   await expect(
-    there.getByRole('button', { name: otherProject.name, exact: true }),
+    pairedPage.getByRole('menuitem', { name: new RegExp(local.name) }),
   ).toBeVisible();
-  await expect(
-    there.getByRole('button', { name: local.name, exact: true }),
-  ).not.toBeAttached();
-  await expect(
-    here.getByRole('button', { name: local.name, exact: true }),
-  ).toBeVisible();
-  await expect(
-    here.getByRole('button', { name: otherProject.name, exact: true }),
-  ).not.toBeAttached();
-  await there.getByRole('button', { name: /Main worktree/ }).click();
+  await pairedPage
+    .getByRole('menuitem', {
+      name: new RegExp(`${otherProject.name}.*${other.environment.name}`),
+    })
+    .click();
   await expect
     .poll(() => app.address().path)
     .toBe(

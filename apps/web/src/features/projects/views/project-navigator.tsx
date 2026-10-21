@@ -1,37 +1,55 @@
+import { useState } from 'react';
+import { useAtomValue, useAtomSet } from '@effect/atom-react';
+import { Link } from '@tanstack/react-router';
+import { FilterIcon, KeyboardIcon, SettingsIcon } from 'lucide-react';
+import { readReviewList, refreshReviewList } from '@porcelain/client/reviews';
+import {
+  emptyReviewListFilter,
+  reviewListGroups,
+  reviewListMeta,
+  reviewListView,
+  type ReviewListEntry,
+} from '@porcelain/client/reviews/rules';
 import { useConnectedContext } from '@/features/access/index';
-import { Fragment, useState } from 'react';
-import { formatForDisplay } from '@tanstack/react-hotkeys';
-import { KeyboardIcon, MonitorIcon, SettingsIcon, XIcon } from 'lucide-react';
-import { useElement } from '@/shared/hooks/use-element';
-import { Input } from '@/components/ui/input';
-import {
-  WorkspaceSearchResults,
-  RemoteWorkspaceSearch,
-} from './workspace-search-results';
-import { Button } from '@/components/ui/button';
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from '@/components/ui/empty';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { SidebarMenuSubItem } from '@/components/ui/sidebar';
 import type { RemoteConnection } from '@porcelain/client/access';
-import type { WorktreeTarget } from '../rules/worktree-target';
 import type { Inventory } from '@porcelain/client/projects/rules';
-import { MachineSection } from './machine-section';
+import type { WorktreeTarget } from '../rules/worktree-target';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { InputGroup, InputGroupInput } from '@/components/ui/input-group';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuItem,
+  useSidebar,
+} from '@/components/ui/sidebar';
+import { Item, ItemContent, ItemMedia } from '@/components/ui/item';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuCheckboxItem,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from '@/components/ui/popover';
+import { ProjectActions } from './project-actions';
 import { NavigatorHeader } from './navigator-header';
 import { OpenProjectMenu } from './open-project-menu';
-import { RemoteMachine } from './remote-machine';
-import { SHORTCUTS } from '@/shared/workspace/shortcuts';
-import { ProjectSection } from './project-section';
 
 type Props = {
   inventory: Inventory;
   remotes: readonly RemoteConnection[] | undefined;
   selected: Pick<WorktreeTarget, 'remote' | 'worktreeId'> | undefined;
-  onRetry: () => void;
   onSelect: (target: WorktreeTarget) => void;
   onOpenProject: (remote: RemoteConnection | null) => void;
   onOpenSettings: () => void;
@@ -41,215 +59,339 @@ type Props = {
 
 export function ProjectNavigator({
   inventory,
-  onRetry,
   remotes,
   selected,
-  onSelect: select,
+  onSelect,
   onOpenProject,
-  onOpenSettings: openSettings,
-  onOpenRemotes: openRemotes,
-  onOpenShortcuts: openShortcuts,
+  onOpenSettings,
+  onOpenRemotes,
+  onOpenShortcuts,
 }: Props) {
   const { connection } = useConnectedContext();
-  const [query, setQuery] = useState('');
-  const searching = query.trim().length > 0;
-  const { element: searchInput, attach: attachSearchInput } =
-    useElement<HTMLInputElement>();
-  const { element: results, attach: attachResults } =
-    useElement<HTMLDivElement>();
-  const clearSearch = () => {
-    setQuery('');
-    searchInput?.focus();
+  const connections = [
+    connection,
+    ...(remotes ?? []).map((entry) => entry.connection),
+  ];
+  const { entries, loading, messages, projects } = useAtomValue(
+    readReviewList(connections),
+  );
+  const retry = useAtomSet(refreshReviewList(connections));
+  const [view, setView] = useState({
+    query: '',
+    filter: emptyReviewListFilter,
+    closed: false,
+  });
+  const { query, filter, closed } = view;
+  const setQuery = (query: string) =>
+    setView((current) => ({ ...current, query }));
+  const setFilter = (filter: typeof emptyReviewListFilter) =>
+    setView((current) => ({ ...current, filter }));
+  const setClosed = (closed: boolean) =>
+    setView((current) => ({ ...current, closed }));
+  const emptyReviewsLabel = closed
+    ? 'No closed reviews'
+    : 'No matching reviews';
+  const emptyLabel =
+    projects.length === 0 ? 'No projects registered' : emptyReviewsLabel;
+  const { rows, projectFilters, environmentFilters } = reviewListView(
+    entries,
+    query,
+    filter,
+    closed,
+  );
+  const { setOpenMobile } = useSidebar();
+  const openWorktree = (entry: ReviewListEntry) => {
+    if (!entry.worktreeId) return;
+    onSelect({
+      remote:
+        entry.environmentId === connection.environmentId
+          ? null
+          : entry.environmentId,
+      projectId: entry.projectId,
+      worktreeId: entry.worktreeId,
+    });
+    setOpenMobile(false);
   };
-  const projects = inventory.projects;
-  const selectedOn = (remote: string | null) =>
-    selected?.remote === remote ? selected.worktreeId : undefined;
-  const empty = (
-    <Empty>
-      <EmptyHeader>
-        <EmptyTitle>No projects registered</EmptyTitle>
-        <EmptyDescription>
-          This environment has no projects yet.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  );
-  const section = (project: Inventory['projects'][number]) => (
-    <ProjectSection
-      environmentId={null}
-      connection={connection}
-      project={project}
-      onRetry={onRetry}
-      selected={selectedOn(null)}
-      onSelect={(worktreeId) =>
-        select({ remote: null, projectId: project.id, worktreeId })
-      }
-    />
-  );
-  const localProjects =
-    projects.length === 0
-      ? empty
-      : projects.map((project) => (
-          <Fragment key={project.id}>{section(project)}</Fragment>
-        ));
-
   return (
-    <nav
+    <Sidebar
+      role="navigation"
+      collapsible="none"
+      className="h-full w-full min-h-0 overflow-hidden"
       aria-label="Projects and worktrees"
-      className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card text-ui"
     >
       <NavigatorHeader environment={inventory.environment.name}>
         <OpenProjectMenu remotes={remotes} onOpenProject={onOpenProject} />
       </NavigatorHeader>
-
-      <div className="flex items-center gap-1 border-b p-2">
-        <Input
-          ref={attachSearchInput}
-          type="search"
-          aria-label="Search projects and worktrees"
-          placeholder="Search workspaces…"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape' && query) {
-              event.preventDefault();
-              event.stopPropagation();
-              clearSearch();
-            }
-            if (
-              searching &&
-              (event.key === 'ArrowDown' ||
-                event.key === 'ArrowUp' ||
-                event.key === 'Enter')
-            ) {
-              event.preventDefault();
-              const rows = results?.querySelectorAll<HTMLButtonElement>(
-                'button[data-workspace-result]:not(:disabled)',
-              );
-              const row =
-                event.key === 'ArrowUp' ? rows?.[rows.length - 1] : rows?.[0];
-              if (event.key === 'Enter') row?.click();
-              else row?.focus();
-            }
-          }}
-        />
-        {query && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Clear search"
-            title="Clear search"
-            onClick={clearSearch}
-          >
-            <XIcon />
-          </Button>
-        )}
-      </div>
-      <ScrollArea className="h-0 min-h-0 flex-1">
-        {searching && (
-          <div
-            ref={attachResults}
-            role="region"
-            aria-label="Workspace search results"
-            className="p-2"
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                event.preventDefault();
-                event.stopPropagation();
-                clearSearch();
-              }
-              if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-              const rows = Array.from(
-                event.currentTarget.querySelectorAll<HTMLButtonElement>(
-                  'button[data-workspace-result]:not(:disabled)',
-                ),
-              );
-              const index = rows.findIndex((row) => row === event.target);
-              if (index < 0) return;
-              event.preventDefault();
-              const next = index + (event.key === 'ArrowDown' ? 1 : -1);
-              if (next < 0) searchInput?.focus();
-              else rows[next]?.focus();
-            }}
-          >
-            <h2 className="px-2 py-1 text-caption text-muted-foreground">
-              {inventory.environment.name} · This computer
-            </h2>
-            <WorkspaceSearchResults
-              inventory={inventory}
-              remote={null}
-              query={query}
-              selected={selected}
-              onSelect={select}
-            />
-            {remotes?.map((entry) => (
-              <RemoteWorkspaceSearch
-                key={entry.remote.environmentId}
-                entry={entry}
-                query={query}
-                selected={selected}
-                onSelect={select}
-                onOpenRemotes={() => openRemotes(entry.remote.environmentId)}
-              />
-            ))}
-          </div>
-        )}
-        <div hidden={searching} className={remotes ? 'py-2 pr-2' : 'p-2'}>
-          {remotes ? (
-            <>
-              <MachineSection
-                environmentId={null}
-                name="This computer"
-                icon={MonitorIcon}
-              >
-                {projects.length === 0 ? (
-                  <SidebarMenuSubItem>{empty}</SidebarMenuSubItem>
-                ) : (
-                  projects.map((project) => (
-                    <SidebarMenuSubItem key={project.id}>
-                      {section(project)}
-                    </SidebarMenuSubItem>
-                  ))
-                )}
-              </MachineSection>
-              {remotes.map((entry) => (
-                <RemoteMachine
-                  key={entry.remote.environmentId}
-                  entry={entry}
-                  selected={selectedOn(entry.remote.environmentId)}
-                  onSelect={select}
-                  onOpenRemotes={() => openRemotes(entry.remote.environmentId)}
-                />
-              ))}
-            </>
-          ) : (
-            localProjects
-          )}
-        </div>
-      </ScrollArea>
-
-      <footer className="flex shrink-0 items-center gap-1 border-t p-2">
+      <div className="flex items-center justify-between px-3 pt-3">
+        <h2 className="text-sm font-semibold">
+          {closed ? 'Closed reviews' : 'Reviews'}
+        </h2>
         <Button
           variant="ghost"
-          className="h-8 min-w-0 flex-1 justify-start"
-          aria-keyshortcuts={SHORTCUTS.openSettings}
-          title={`Settings (${formatForDisplay(SHORTCUTS.openSettings)})`}
-          onClick={openSettings}
+          size="sm"
+          aria-pressed={closed}
+          onClick={() => setClosed(!closed)}
         >
-          <SettingsIcon className="size-3.5" />
+          {closed ? 'Back to reviews' : 'Closed'}
+        </Button>
+      </div>
+      <div className="flex gap-1 p-2">
+        <InputGroup>
+          <InputGroupInput
+            type="search"
+            aria-label="Search reviews and worktrees"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') setQuery('');
+            }}
+            placeholder="Search reviews…"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </InputGroup>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant={
+                  filter.projects !== undefined ||
+                  filter.environments !== undefined
+                    ? 'secondary'
+                    : 'outline'
+                }
+                size="icon"
+                aria-label="Filter reviews"
+              />
+            }
+          >
+            <FilterIcon />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="max-h-96 overflow-y-auto">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Projects</DropdownMenuLabel>
+              {projectFilters.map((option) => (
+                <DropdownMenuCheckboxItem
+                  key={option.id}
+                  checked={option.checked}
+                  closeOnClick={false}
+                  onCheckedChange={() =>
+                    setFilter({ ...filter, projects: option.next })
+                  }
+                >
+                  {option.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Environments</DropdownMenuLabel>
+              {environmentFilters.map((option) => (
+                <DropdownMenuCheckboxItem
+                  key={option.id}
+                  checked={option.checked}
+                  closeOnClick={false}
+                  onCheckedChange={() =>
+                    setFilter({ ...filter, environments: option.next })
+                  }
+                >
+                  {option.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setFilter(emptyReviewListFilter)}>
+              Clear filters
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      <SidebarContent>
+        {loading && (
+          <p role="status" className="px-3 text-xs">
+            Reading reviews…
+          </p>
+        )}
+        {(closed
+          ? (['Closed'] as const)
+          : reviewListGroups.filter((group) => group !== 'No review')
+        ).map((group) => {
+          const grouped =
+            group === 'Closed'
+              ? rows
+              : rows.filter((row) => row.group === group);
+          if (grouped.length === 0) return null;
+          return (
+            <SidebarGroup key={group}>
+              <SidebarGroupLabel>
+                {group} · {grouped.length}
+              </SidebarGroupLabel>
+              <SidebarMenu>
+                {grouped.map((entry) => (
+                  <SidebarMenuItem key={entry.key}>
+                    <Item
+                      size="xs"
+                      className="min-w-0 flex-nowrap items-start"
+                      render={
+                        <Link
+                          to="/reviews/$reviewId"
+                          params={{ reviewId: entry.reviewId ?? '' }}
+                          search={{
+                            environment:
+                              entry.environmentId === connection.environmentId
+                                ? undefined
+                                : entry.environmentId,
+                            decision: undefined,
+                          }}
+                          onClick={() => setOpenMobile(false)}
+                        />
+                      }
+                    >
+                      <ItemMedia>
+                        <Badge
+                          variant="outline"
+                          aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
+                        >
+                          {entry.reviewed}/{entry.total}
+                        </Badge>
+                      </ItemMedia>
+                      <ItemContent className="min-w-0">
+                        <p className="line-clamp-2 text-sm font-medium leading-snug">
+                          {entry.title}
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {entry.badges.map((badge) => (
+                            <Badge key={badge.label} variant={badge.variant}>
+                              {badge.label}
+                            </Badge>
+                          ))}
+                        </div>
+                        <p
+                          className="truncate text-xs text-muted-foreground"
+                          title={reviewListMeta(entry, Date.now())}
+                        >
+                          {reviewListMeta(entry, Date.now())}
+                        </p>
+                      </ItemContent>
+                    </Item>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroup>
+          );
+        })}
+        {!loading && rows.filter((row) => row.reviewId).length === 0 && (
+          <p role="status" className="px-3 py-4 text-xs text-muted-foreground">
+            {emptyLabel}
+          </p>
+        )}
+        {messages.map((message) => (
+          <p key={message} role="status" className="px-3 text-xs">
+            {message}
+          </p>
+        ))}
+        {messages.length > 0 && (
+          <Button variant="ghost" onClick={() => retry(undefined)}>
+            Read again
+          </Button>
+        )}
+      </SidebarContent>
+      <footer className="flex shrink-0 flex-wrap items-center gap-1 border-t p-2">
+        <Popover>
+          <PopoverTrigger render={<Button size="sm" variant="ghost" />}>
+            Projects
+          </PopoverTrigger>
+          <PopoverContent className="max-h-96 overflow-y-auto">
+            {projects.length === 0 ? (
+              <p>No projects registered</p>
+            ) : (
+              projects.map((source) => (
+                <div
+                  role="group"
+                  aria-label={
+                    source.connection.environmentId === connection.environmentId
+                      ? 'This computer'
+                      : source.environmentName
+                  }
+                  key={`${source.connection.environmentId}/${source.project.id}`}
+                >
+                  <ProjectActions
+                    key={`${source.connection.environmentId}/${source.project.id}`}
+                    environmentId={
+                      source.connection.environmentId ===
+                      connection.environmentId
+                        ? null
+                        : source.connection.environmentId
+                    }
+                    project={source.project}
+                    onRetry={() => retry(undefined)}
+                  />
+                </div>
+              ))
+            )}
+          </PopoverContent>
+        </Popover>
+        <DropdownMenu>
+          <DropdownMenuTrigger render={<Button size="sm" variant="ghost" />}>
+            Worktrees
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="max-h-96 overflow-y-auto">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Open a worktree</DropdownMenuLabel>
+              <InputGroup>
+                <InputGroupInput
+                  type="search"
+                  aria-label="Search worktrees"
+                  placeholder="Search worktrees…"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+              </InputGroup>
+              {[
+                ...new Map(
+                  rows
+                    .filter((entry) => entry.worktreeId)
+                    .map((entry) => [
+                      `${entry.environmentId}/${entry.worktreeId}`,
+                      entry,
+                    ]),
+                ).values(),
+              ].map((entry) => (
+                <DropdownMenuItem
+                  key={entry.key}
+                  disabled={entry.disabled}
+                  onClick={() => openWorktree(entry)}
+                >
+                  {entry.branch} · {entry.projectName} · {entry.environmentName}
+                  {selected?.worktreeId === entry.worktreeId
+                    ? ' · Current'
+                    : ''}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button variant="ghost" size="sm" onClick={onOpenSettings}>
+          <SettingsIcon />
           Settings
         </Button>
         <Button
           variant="ghost"
           size="icon-sm"
           aria-label="Keyboard shortcuts"
-          aria-keyshortcuts={SHORTCUTS.openShortcuts}
-          title={`Keyboard shortcuts (${formatForDisplay(SHORTCUTS.openShortcuts)})`}
-          onClick={openShortcuts}
+          onClick={onOpenShortcuts}
         >
           <KeyboardIcon />
         </Button>
+        {remotes?.map(({ remote }) => (
+          <Button
+            key={remote.environmentId}
+            variant="ghost"
+            size="sm"
+            onClick={() => onOpenRemotes(remote.environmentId)}
+          >
+            {remote.name}
+          </Button>
+        ))}
       </footer>
-    </nav>
+    </Sidebar>
   );
 }

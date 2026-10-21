@@ -10,7 +10,7 @@ export function WorkspacePicker() {
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.Button
         icon={headerIcon('workspace')}
-        accessibilityLabel={picker.label}
+        accessibilityLabel={`Worktrees: ${picker.label}`}
         onPress={() => {
           switch (group) {
             case '(review)':

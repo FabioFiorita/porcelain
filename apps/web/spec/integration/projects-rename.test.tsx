@@ -6,6 +6,9 @@ test('renaming a project in the navigator shows the new name and the server keep
 }) => {
   const project = await server.project();
   const name = 'Browser renamed project';
+  await navigator
+    .getByRole('button', { name: 'Projects', exact: true })
+    .click();
   const projectButton = navigator.getByRole('button', {
     name: project.name,
     exact: true,
