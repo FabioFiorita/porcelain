@@ -3965,6 +3965,105 @@ const styleConfigCases = [
 export const guardrailCases = [
   { rule: 'style-config', cases: styleConfigCases },
   {
+    rule: 'ci-action-pins',
+    cases: [
+      ...[
+        ['full SHA', 'vendor/action@0123456789abcdef0123456789abcdef01234567'],
+        [
+          'uppercase SHA',
+          'vendor/action@0123456789ABCDEF0123456789ABCDEF01234567',
+        ],
+        ['local action', './.github/actions/setup'],
+      ].map(([name, action]) => ({
+        name,
+        workflow: { jobs: { check: { steps: [{ uses: action }] } } },
+        problems: [],
+      })),
+      ...[
+        ['release tag', 'vendor/action@v1'],
+        ['branch', 'vendor/action@main'],
+        ['short SHA', 'vendor/action@0123456'],
+        ['missing ref', 'vendor/action'],
+        ['empty reference', ''],
+        [
+          'invalid SHA',
+          'vendor/action@0123456789abcdef0123456789abcdef0123456z',
+        ],
+        [
+          'overlong SHA',
+          'vendor/action@0123456789abcdef0123456789abcdef012345678',
+        ],
+        ['new mutable action', 'new-vendor/new-action@v99'],
+      ].map(([name, action]) => ({
+        name,
+        workflow: { jobs: { check: { steps: [{ uses: action }] } } },
+        problems: [
+          {
+            action,
+            cause:
+              'Third-party CI actions and reusable workflows require a full 40-character commit SHA.',
+          },
+        ],
+      })),
+      ...[
+        ['local workflow', './.github/workflows/check.yml'],
+        [
+          'pinned reusable workflow',
+          'vendor/repo/.github/workflows/check.yml@0123456789abcdef0123456789abcdef01234567',
+        ],
+      ].map(([name, action]) => ({
+        name,
+        workflow: { jobs: { check: { uses: action } } },
+        problems: [],
+      })),
+      {
+        name: 'mutable reusable workflow',
+        workflow: {
+          jobs: {
+            check: { uses: 'vendor/repo/.github/workflows/check.yml@main' },
+          },
+        },
+        problems: [
+          {
+            action: 'vendor/repo/.github/workflows/check.yml@main',
+            cause:
+              'Third-party CI actions and reusable workflows require a full 40-character commit SHA.',
+          },
+        ],
+      },
+      {
+        name: 'mixed references',
+        workflow: {
+          jobs: {
+            check: {
+              steps: [
+                { uses: './.github/actions/setup' },
+                {
+                  uses: 'vendor/action@0123456789abcdef0123456789abcdef01234567',
+                },
+                { run: 'true' },
+                { uses: 'other/action@v1' },
+              ],
+            },
+          },
+        },
+        problems: [
+          {
+            action: 'other/action@v1',
+            cause:
+              'Third-party CI actions and reusable workflows require a full 40-character commit SHA.',
+          },
+        ],
+      },
+      {
+        name: 'no actions',
+        workflow: { jobs: { check: { steps: [{ run: 'true' }] } } },
+        problems: [],
+      },
+      { name: 'no jobs', workflow: {}, problems: [] },
+    ],
+  },
+  {
     rule: 'ci-affected-selection',
     cases: [
       { name: 'unchanged selects nothing', selected: [] },
