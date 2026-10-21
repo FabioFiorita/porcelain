@@ -1,3 +1,4 @@
+import archive from '@expo/material-symbols/archive.xml';
 import close from '@expo/material-symbols/close.xml';
 import check from '@expo/material-symbols/check.xml';
 import add from '@expo/material-symbols/add.xml';
@@ -16,6 +17,7 @@ const symbols = {
   refresh,
   done: check,
   close,
+  closed: archive,
   compareParent: merge,
 } satisfies Record<HeaderIconName, ImageSourcePropType>;
 

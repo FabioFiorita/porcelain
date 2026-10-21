@@ -24,11 +24,7 @@ import {
   applicationRuntime,
 } from '@/features/access/index';
 import { ThemeProvider } from '@/features/preferences/index';
-import {
-  ProjectNavigator,
-  useInventory,
-  useRefreshInventory,
-} from '@/features/projects/index';
+import { ProjectNavigator, useInventory } from '@/features/projects/index';
 import { ReviewWorkspace } from '@/features/reviews/index';
 import type { RemoteConnection } from '@porcelain/client/access';
 import type { Connection } from '@/shared/workspace/connection';
@@ -179,11 +175,9 @@ function Navigator({
   remotes: readonly RemoteConnection[] | undefined;
 }) {
   const inventory = useInventory(connection);
-  const retry = useRefreshInventory(connection);
   return (
     <ProjectNavigator
       inventory={inventory}
-      onRetry={retry}
       remotes={remotes}
       selected={undefined}
       onSelect={() => {}}

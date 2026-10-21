@@ -2,7 +2,7 @@
 screen: /
 selectors:
   - 'Porcelain'
-  - 'Projects and worktrees'
+  - 'Worktrees by review status'
   - 'Select a worktree'
   - 'Choose a document'
   - 'Open documents'

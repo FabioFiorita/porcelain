@@ -26,7 +26,6 @@ import {
   ProjectNavigator,
   ProjectWorkspace,
   useInventory,
-  useRefreshInventory,
   type WorktreeTarget,
 } from '@/features/projects/index';
 import { type Inventory } from '@porcelain/client/projects/rules';
@@ -91,7 +90,6 @@ export function ConnectedWorkspace({
     localInventory,
     firstWaitingWorktree(localInventory)?.id,
   );
-  const refreshInventory = useRefreshInventory(local.connection);
   const remotes = useRemoteConnections();
   const context = useConnectedContext(remote?.connection);
   const shownOn = remote?.remote.environmentId ?? null;
@@ -124,7 +122,6 @@ export function ConnectedWorkspace({
   };
   const navigator = {
     inventory: localInventory,
-    onRetry: refreshInventory,
     remotes: desktopShell ? remotes : undefined,
     selected: shown,
     onOpenProject: (entry: RemoteConnection | null) =>

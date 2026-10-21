@@ -9,6 +9,7 @@ const symbols = {
   refresh: 'arrow.clockwise',
   done: 'checkmark',
   close: 'xmark',
+  closed: 'archivebox',
   compareParent: 'arrow.triangle.merge',
 } satisfies Record<HeaderIconName, NonNullable<SFSymbolIcon['sf']>>;
 

@@ -15,6 +15,7 @@ const sizes = {
 export type ItemProps = {
   title: string;
   description?: string;
+  titleNumberOfLines?: number;
   leading?: ReactNode;
   trailing?: ReactNode;
   children?: ReactNode;
@@ -30,6 +31,7 @@ export type ItemProps = {
 export function Item({
   title,
   description,
+  titleNumberOfLines,
   leading,
   trailing,
   children,
@@ -56,7 +58,7 @@ export function Item({
     <>
       {leading}
       <View className="min-w-0 flex-1 shrink gap-1">
-        <Text variant="ui" weight="medium">
+        <Text variant="ui" weight="medium" numberOfLines={titleNumberOfLines}>
           {title}
         </Text>
         {description ? (

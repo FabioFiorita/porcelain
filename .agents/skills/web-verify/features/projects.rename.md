@@ -21,8 +21,8 @@ Renaming a project from the navigator's context menu changes only its label: the
 
 ## How a user reaches it
 
-- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → right-click the project button (e.g. "repository") → `Rename project` → dialog "Rename project" → textbox `Name` → `Rename` (or `Enter`; `Cancel` closes).
-- Desktop shell: a remote computer's project (in the sidebar group named for that computer) has the same `Rename project` item; the dialog sends the rename to that computer. If the computer stops answering or accepting this app while the dialog is open, the dialog shows its status and reason (e.g. "Needs pairing. It no longer accepts this app. …") and `Rename` is disabled; an offline computer lists no projects, so there is nothing to rename.
+- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → Projects → right-click the project button (e.g. "repository") → `Rename project` → dialog "Rename project" → textbox `Name` → `Rename` (or `Enter`; `Cancel` closes).
+- Desktop shell: a remote computer's project (under Projects, in the group named for that computer) has the same `Rename project` item; the dialog sends the rename to that computer. If the computer stops answering or accepting this app while the dialog is open, the dialog shows its status and reason (e.g. "Needs pairing. It no longer accepts this app. …") and `Rename` is disabled; an unavailable computer can retain its last known projects; the existing action guards still refuse changes until it reconnects.
 
 ## Driving it
 

@@ -38,12 +38,13 @@ declare function addEventListener(
 async function openSmokeProject(page: Page, repository: string) {
   await appRequest(page, 'POST', '/api/projects', { path: repository });
   await page.reload();
+  await page.getByRole('button', { name: 'Projects', exact: true }).click();
   const project = page.getByRole('button', {
     name: 'desktop-smoke',
     exact: true,
   });
   await expect(project).toBeVisible();
-  return project;
+  await page.keyboard.press('Escape');
 }
 
 async function quitDuringRequestSetup(app: DesktopApp, path: string) {
@@ -376,8 +377,12 @@ test('closing the last window keeps the same server, the Dock reopens the window
   await app.electron.evaluate(({ app: electronApp }) => {
     electronApp.emit('activate');
   });
+  const reopenedPage = await reopened;
+  await reopenedPage
+    .getByRole('button', { name: 'Projects', exact: true })
+    .click();
   await expect(
-    (await reopened).getByRole('button', {
+    reopenedPage.getByRole('button', {
       name: 'desktop-smoke',
       exact: true,
     }),
@@ -531,9 +536,11 @@ test('restarting restores the saved window bounds, the maximized window, the dar
 
   const restarted = await desktop.launch();
   const restored = await restarted.window();
+  await restored.getByRole('button', { name: 'Projects', exact: true }).click();
   await expect(
     restored.getByRole('button', { name: 'desktop-smoke', exact: true }),
   ).toBeVisible();
+  await restored.keyboard.press('Escape');
   await expect
     .poll(() =>
       restarted.electron.evaluate(({ BrowserWindow }) => {

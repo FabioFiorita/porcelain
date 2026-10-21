@@ -10,7 +10,7 @@ selectors:
   - "Open project"
   - "Folder path"
   - "Every worktree appears in the sidebar."
-  - "Main worktree"
+  - "Open a worktree"
 tests:
   - apps/web/spec/e2e/projects-open-linked-worktree.e2e.ts
 api:
@@ -61,7 +61,7 @@ Check: `git -C "$REPO" worktree list` prints two lines, `$REPO … [main]` and `
 6. Click button named `repository`
    Look for: text "Every worktree appears in the sidebar."; button "Open repository" enabled.
 7. Click button named `Open repository`
-   Look for: dialog "Open project" is gone; Page URL `/<new projectId>/<main worktreeId>` (not `/`); Page Title "Changes — repository"; in the sheet, project button "repository" with two worktree rows: one whose name contains "Main worktree" and is pressed, one labelled "linked".
+   Look for: dialog "Open project" is gone; Page URL `/<new projectId>/<main worktreeId>` (not `/`); Page Title "Changes — repository"; in the sheet, project button "repository" with two worktree rows: one whose name contains "Open a worktree" and is pressed, one labelled "linked".
 8. Inspect HTTP requests and responses
    Look for: `DELETE /api/projects/<old projectId>` 200 and `POST /api/projects` 200.
 9. Go back in browser history
@@ -71,12 +71,12 @@ Check: `git -C "$REPO" worktree list` prints two lines, `$REPO … [main]` and `
 
 - End state: the URL is the new project's main worktree and the main row is pressed; the registration holds both worktrees (two rows under "repository").
 - The history: step 9's `back` skips straight past the empty workspace of step 4 to the removed worktree's page.
-- `apps/web/spec/e2e/projects-open-linked-worktree.e2e.ts`: after removal the URL is `/` and a reload shows "Worktree not found"; opening the main repository path closes the dialog, the server registers one project with 2 worktrees, the URL is that project's main worktree, the button matching /Main worktree/ is pressed, and the navigation history holds exactly that one entry (read through `server.inventory()` and `navigation.entries()`).
+- `apps/web/spec/e2e/projects-open-linked-worktree.e2e.ts`: after removal the URL is `/` and a reload shows "Worktree not found"; opening the main repository path closes the dialog, the server registers one project with 2 worktrees, the URL is that project's main worktree, the button matching /Open a worktree/ is pressed, and the navigation history holds exactly that one entry (read through `server.inventory()` and `navigation.entries()`).
 
 ## Gotchas
 
 - The test reloads where step 4 uses a full reload of `/`; both leave one `/` entry, which opening the repository replaces. A `back` that lands on `/` means the empty workspace was pushed, not replaced.
 - Phone width: the navigator is in the sidebar sheet; after removing the project and after opening the repository the sheet stays open.
-- The worktree row's accessible name is built from its branch label, path, project name, status and the hidden "Main worktree" text, so address it by name `/Main worktree/` and never by an exact name.
+- The worktree row's accessible name is built from its branch label, path, project name, status and the hidden "Open a worktree" text, so address it by name `/Open a worktree/` and never by an exact name.
 - The project gets a new id: a URL saved from before step 3 names a worktree the server no longer has, so it says "Worktree not found". File preferences, reviewed marks and comments of the old project are gone.
 - Remove the linked worktree afterwards if the instance continues: `git -C "$REPO" worktree remove "$REPO/../linked" && git -C "$REPO" branch -D linked`.

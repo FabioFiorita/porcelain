@@ -301,15 +301,19 @@ test('a remote computer summary renders through the app from that computer, cann
   ).toBeVisible();
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(settings).toBeHidden();
-  const computer = page.getByRole('group', {
-    name: remote.environment.name,
+  const worktrees = page.getByRole('button', {
+    name: 'Worktrees',
     exact: true,
   });
-  if (!(await computer.isVisible()))
+  if (!(await worktrees.isVisible()))
     await page
       .getByRole('button', { name: 'Toggle Sidebar', exact: true })
       .click();
-  await computer.getByRole('button', { name: /Main worktree/ }).click();
+  await worktrees.click();
+  await page
+    .getByRole('menuitem')
+    .filter({ hasText: `${there.project.name} · ${remote.environment.name}` })
+    .click();
   const remoteWorktree = `/remotes/${remote.environmentId}/${there.project.id}/${there.worktree.id}`;
   await page.waitForURL((url) => url.pathname === remoteWorktree);
   await expect(

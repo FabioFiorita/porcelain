@@ -32,7 +32,7 @@ api:
 
 # reviews.page
 
-One page owns the latest durable route, numbered revisions, decision links and the worktree's branch Review tab. Each project in the navigator has a Reviews list: open before closed, with PR or branch, latest revision, recommendation and state. The verdict comes before the briefing, decisions, Not explained and proof. Deleted files come from Git's revision inventory and have a red frame.
+One page owns the latest durable route, numbered revisions, decision links and the worktree's branch Review tab. The navigator has one status-grouped Reviews list across projects and environments; closed reviews are behind Closed. The verdict comes before the briefing, decisions, Not explained and proof. Deleted files come from Git's revision inventory and have a red frame.
 
 ## Drive it
 
@@ -40,7 +40,7 @@ Check `free -g` before startup. Start one disposable instance and retain the con
 
 1. In a fresh unpaired browser, open `/reviews/<reviewId>?decision=<layerId>`. Expect `/pair` and "This browser is not paired". Redeem the card's fresh pairing link in the same tab. Expect the original route and its latest decision, with the pairing fragment consumed.
 2. Open `/reviews/<reviewId>`. Check the verdict order: identity and revisions, Asked, Recommendation, Proven at the short head SHA, Not proven, Removed and Start here. The removal frame names `retired.ts` and its behavior and reason. The proof keeps its failing check first. Not proven names Desktop app and Mac is off.
-3. Open the project navigator and its Reviews list. Its entry opens this same page. The worktree's Review tab opens its current branch review using this same component; run `$C agent advance-review-branch` and expect "The branch tip differs from this review. Publish a revision to include it." Exact newer-commit counts need a contract that accepts the retained revision SHA as the comparison base; the current branch-changes base accepts branch refs only.
+3. Open the project navigator and its unified Reviews list. Its entry opens this same page. The worktree's Review tab opens its current branch review using this same component; run `$C agent advance-review-branch` and expect "The branch tip differs from this review. Publish a revision to include it." Exact newer-commit counts need a contract that accepts the retained revision SHA as the comparison base; the current branch-changes base accepts branch refs only.
 4. Select r1, r2 and latest. The SHA and committed code follow the selected revision. Open the first decision with Start here. Its code uses the revision file/diffs endpoints, and each pointer opens the retained full file.
 5. Use `$C agent remove-review-worktree`, reload each route, and check that verdict, explanations, code and proof remain readable. This removes only the fixture worktree created by publish-revision.
 6. Mark a decision reviewed. Inspect PUT `/api/reviews/<id>/marks` and GET of the same endpoint: its files and decision are review-owned. Unmarking a decision keeps file marks. A file toggle changes the completion indicator without removing the decision mark.

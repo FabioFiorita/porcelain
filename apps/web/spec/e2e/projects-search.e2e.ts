@@ -1,7 +1,7 @@
 import { expect, test } from './fixtures.ts';
 import { replaceEditorContent } from '../kit/editor.ts';
 
-test('search selects the exact linked workspace by keyboard and clearing preserves selection and collapsed projects', async ({
+test('the flat worktree menu searches checkouts without reviews and selects the exact workspace', async ({
   pairedPage,
   repo,
   server,
@@ -17,52 +17,31 @@ test('search selects the exact linked workspace by keyboard and clearing preserv
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  const projectButton = pairedPage.getByRole('button', {
-    name: project.name,
-    exact: true,
-  });
-  await projectButton.click();
+  await pairedPage
+    .getByRole('button', { name: 'Worktrees', exact: true })
+    .click();
   const search = pairedPage.getByRole('searchbox', {
-    name: 'Search projects and worktrees',
+    name: 'Search worktrees',
     exact: true,
   });
-  await search.fill('NOT-A-WORKSPACE');
+  await search.click();
+  await pairedPage.keyboard.type('NOT-A-WORKSPACE');
+  await expect(search).toHaveValue('NOT-A-WORKSPACE');
   await expect(
-    pairedPage
-      .getByRole('status')
-      .filter({ hasText: 'No matching workspaces on' }),
-  ).toBeVisible();
+    pairedPage.getByRole('menuitem', { name: /search-target/ }),
+  ).not.toBeAttached();
   await expect.poll(() => app.address().path).toBe(original);
-  await search.press('Escape');
+  await search.press('ControlOrMeta+a');
+  await pairedPage.keyboard.type('search-');
+  const result = pairedPage.getByRole('menuitem', { name: /search-target/ });
+  await expect(result).toBeVisible();
+  await result.hover();
+  await pairedPage.keyboard.type('target');
+  await expect(search).toHaveValue('search-target');
   await expect(search).toBeFocused();
-  await expect(projectButton).toHaveAttribute('aria-expanded', 'false');
-  await search.fill('search-target');
-  const results = pairedPage.getByRole('region', {
-    name: 'Workspace search results',
-    exact: true,
-  });
-  const result = results.getByRole('button', { name: /search-target/ });
-  await expect(result).toContainText(target?.path ?? 'missing');
-  await search.press('ArrowDown');
+  await pairedPage.keyboard.press('ArrowDown');
   await expect(result).toBeFocused();
-  await result.press('ArrowUp');
-  await expect(search).toBeFocused();
-  await search.press('ArrowDown');
-  await result.press('Enter');
-  await expect
-    .poll(() => app.address().path)
-    .toBe(`/${project.id}/${target?.id ?? ''}`);
-  await pairedPage
-    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
-    .click();
-  await search.fill('search-target');
-  await expect(
-    results.getByRole('button', { name: /Current/ }),
-  ).toHaveAttribute('aria-current', 'page');
-  await pairedPage
-    .getByRole('button', { name: 'Clear search', exact: true })
-    .click();
-  await expect(projectButton).toHaveAttribute('aria-expanded', 'false');
+  await pairedPage.keyboard.press('Enter');
   await expect
     .poll(() => app.address().path)
     .toBe(`/${project.id}/${target?.id ?? ''}`);
@@ -106,12 +85,15 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
+  await pairedPage
+    .getByRole('button', { name: 'Worktrees', exact: true })
+    .click();
   const search = pairedPage.getByRole('searchbox', {
-    name: 'Search projects and worktrees',
+    name: 'Search worktrees',
     exact: true,
   });
   await search.fill('other-workspace');
-  await search.press('Enter');
+  await pairedPage.getByRole('menuitem', { name: /other-workspace/ }).click();
   const other = project.worktrees.find(
     (row) => row.branch === 'refs/heads/other-workspace',
   );
@@ -121,8 +103,17 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  await search.fill(current?.path ?? 'missing');
-  await search.press('Enter');
+  await pairedPage
+    .getByRole('button', { name: 'Worktrees', exact: true })
+    .click();
+  await search.fill(current?.branch?.replace('refs/heads/', '') ?? 'missing');
+  await pairedPage
+    .getByRole('menuitem', {
+      name: new RegExp(
+        current?.branch?.replace('refs/heads/', '') ?? 'missing',
+      ),
+    })
+    .click();
   await expect.poll(() => app.address().path).toBe(original);
   const resume = pairedPage.getByRole('button', {
     name: 'Resume edit',
@@ -136,4 +127,114 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
   await expect
     .poll(async () => (await server.text(repo.readme.path)).text)
     .toBe('Independent disk change\n');
+});
+
+test('Projects pins main checkouts, No review keeps other checkouts, and search and filters cover both', async ({
+  pairedPage,
+  repo,
+  server,
+  app,
+}) => {
+  await repo.worktree('status-topic');
+  await app.reload();
+  const project = await server.project();
+  const inventory = await server.inventory();
+  const main = project.worktrees.find((row) => row.main);
+  const topic = project.worktrees.find((row) => !row.main);
+  if (!main || !topic) throw new Error('Missing main or topic checkout');
+  const meta = `${project.name} ${main.branch?.replace('refs/heads/', '')} · ${inventory.environment.name}`;
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
+  await expect(
+    pairedPage.getByText('Projects · 1', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    pairedPage.getByText('No review · 1', { exact: true }),
+  ).toBeVisible();
+  const mainRow = pairedPage.getByRole('button', { name: meta, exact: true });
+  const topicRow = pairedPage.getByRole('button', { name: /^status-topic/ });
+  await expect(mainRow).toBeVisible();
+  await expect(topicRow).toBeVisible();
+  const search = pairedPage.getByRole('searchbox', {
+    name: 'Search reviews and worktrees',
+    exact: true,
+  });
+  await search.fill(
+    `${project.name} ${inventory.environment.name} ${main.branch?.replace('refs/heads/', '')}`,
+  );
+  await expect(mainRow).toBeVisible();
+  await expect(topicRow).not.toBeAttached();
+  await search.fill('');
+  await pairedPage
+    .getByRole('button', { name: 'Filter reviews', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('menuitemcheckbox', {
+      name: inventory.environment.name,
+      exact: true,
+    })
+    .click();
+  await expect(mainRow).not.toBeAttached();
+  await expect(topicRow).not.toBeAttached();
+  await pairedPage
+    .getByRole('menuitem', { name: 'Clear filters', exact: true })
+    .click();
+  await topicRow.click();
+  await expect
+    .poll(() => app.address().path)
+    .toBe(`/${project.id}/${topic.id}`);
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
+  await mainRow.click();
+  await expect.poll(() => app.address().path).toBe(`/${project.id}/${main.id}`);
+});
+
+test('the checkout menu has a temporary search independent of sidebar search and Closed', async ({
+  pairedPage,
+  repo,
+  app,
+}) => {
+  await repo.worktree('independent-search');
+  await app.reload();
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
+  const sidebarSearch = pairedPage.getByRole('searchbox', {
+    name: 'Search reviews and worktrees',
+    exact: true,
+  });
+  await sidebarSearch.fill('NO-SIDEBAR-MATCH');
+  await pairedPage.getByRole('button', { name: 'Closed', exact: true }).click();
+  const menu = pairedPage.getByRole('button', {
+    name: 'Worktrees',
+    exact: true,
+  });
+  await menu.click();
+  const search = pairedPage.getByRole('searchbox', {
+    name: 'Search worktrees',
+    exact: true,
+  });
+  await expect(search).toHaveValue('');
+  await expect(
+    pairedPage.getByRole('menuitem', { name: /independent-search/ }),
+  ).toBeVisible();
+  await search.click();
+  await pairedPage.keyboard.type('independent-search');
+  await expect(search).toHaveValue('independent-search');
+  await expect(search).toBeFocused();
+  await pairedPage.keyboard.press('Escape');
+  await expect(search).not.toBeAttached();
+  await expect(sidebarSearch).toHaveValue('NO-SIDEBAR-MATCH');
+  await menu.click();
+  await expect(search).toHaveValue('');
+  await pairedPage.keyboard.press('Escape');
+  await pairedPage
+    .getByRole('button', { name: 'Back to reviews', exact: true })
+    .click();
+  await expect(sidebarSearch).toHaveValue('NO-SIDEBAR-MATCH');
+  await expect(
+    pairedPage.getByText('No matching worktrees', { exact: true }),
+  ).toBeVisible();
 });

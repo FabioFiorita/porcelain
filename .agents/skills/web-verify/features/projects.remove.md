@@ -25,9 +25,9 @@ Removing a project from the navigator's context menu, after confirming, takes it
 
 ## How a user reaches it
 
-- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → right-click the project button (its name, e.g. "repository") → `Remove from Porcelain` → alertdialog "Remove <name> from Porcelain?" → `Remove from Porcelain` or `Cancel`.
+- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → Projects → right-click the project button (its name, e.g. "repository") → `Remove from Porcelain` → alertdialog "Remove <name> from Porcelain?" → `Remove from Porcelain` or `Cancel`.
 - Unavailable project alert → popover showing the reason, `Retry`, and `Remove from Porcelain` → the same removal confirmation. `Retry` sends `POST /api/inventory/refresh` and publishes its returned inventory.
-- Desktop shell: a remote computer's project (in the sidebar group named for that computer) has the same `Remove from Porcelain` item and unavailable-project popover; the confirmation removes it from that computer only. If the computer stops answering or accepting this app while the confirmation is open, it shows the computer's status and reason and the confirm button is disabled; an offline computer lists no projects.
+- Desktop shell: a remote computer's project (under Projects, in the group named for that computer) has the same `Remove from Porcelain` item and unavailable-project popover; the confirmation removes it from that computer only. If the computer stops answering or accepting this app while the confirmation is open, it shows the computer's status and reason and the confirm button is disabled; an offline computer lists no projects.
 
 ## Driving it
 

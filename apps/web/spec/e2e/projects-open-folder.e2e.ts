@@ -72,8 +72,11 @@ test('browsing to a Git repository opens it as a project in the navigator and th
     .click();
 
   await expect(dialog).not.toBeAttached();
+  await pairedPage
+    .getByRole('button', { name: 'Worktrees', exact: true })
+    .click();
   await expect(
-    pairedPage.getByRole('button', { name: 'browsed', exact: true }),
-  ).toBeVisible();
+    pairedPage.getByRole('menuitem', { name: / · browsed · / }),
+  ).toContainText('Current');
   await expect.poll(registered).toContain(browsed);
 });

@@ -46,7 +46,7 @@ done
 1. Navigate to `/` on the card’s web URL (full page load)
    Look for: Page Title "Changes — repository".
 2. Click button named `Toggle Sidebar`
-   Look for: dialog "Sidebar" holding navigation "Projects and worktrees" with exactly one project button, "repository"; no button "selected" or "unselected".
+   Look for: dialog "Sidebar" holding navigation "Projects and worktrees" with Projects and Worktrees menus. Open Projects: only "repository" is registered; no button "selected" or "unselected". Press Escape.
 
 ### Only the browsed repository is registered
 
@@ -55,11 +55,11 @@ done
 4. Click button named `selected`
    Look for: text "Every worktree appears in the sidebar."; button "Open selected" enabled; the breadcrumb (navigation "Folder path") ends in "selected".
 5. Click button named `Open selected`
-   Look for: dialog "Open project" is gone; Page URL `/<new projectId>/<worktreeId>`; Page Title "Changes — selected"; the sidebar sheet shows buttons "repository" and "selected" and still no "unselected".
+   Look for: dialog "Open project" is gone; Page URL `/<new projectId>/<worktreeId>`; Page Title "Changes — selected"; open Worktrees: the "selected" checkout is marked "Current"; "repository" is also listed and "unselected" is absent. Press Escape.
 6. Inspect HTTP requests and responses
    Look for: one `POST /api/projects` with status 200.
-7. Navigate to `/` on the card’s web URL (full page load), then click button named `Toggle Sidebar`
-   Look for: after the reload the navigator still lists exactly "repository" and "selected" (the server kept the one registration and added nothing on its own).
+7. Navigate to `/` on the card’s web URL (full page load), then click button named `Toggle Sidebar` and open Projects
+   Look for: after the reload Projects still lists exactly "repository" and "selected" (the server kept the one registration and added nothing on its own).
 
 ## What proves it works
 
@@ -71,5 +71,5 @@ done
 ## Gotchas
 
 - Phone width: the navigator is in the sidebar sheet behind `Toggle Sidebar`; after `Open selected` the sheet stays open.
-- Registering leaks into later features of the same instance: `/` opens the first worktree waiting for review, and the extra project stays listed. Remove it with right-click `selected` → `Remove from Porcelain` → confirm `Remove from Porcelain` (see `projects.remove`), or start a fresh instance.
+- Registering leaks into later features of the same instance: `/` opens the first worktree waiting for review, and the extra project stays listed. Remove it through Projects → right-click `selected` → `Remove from Porcelain` → confirm `Remove from Porcelain` (see `projects.remove`), or start a fresh instance.
 - Folder names must be unique in the project home listing: the list also holds the kit's own folders (`home`, `repository`, `state`, `web` and others), so do not name a new repository after one of them.

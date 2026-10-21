@@ -11,6 +11,9 @@ test('cancelling the removal of a project keeps it in the navigator and on the s
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
+  await pairedPage
+    .getByRole('button', { name: 'Projects', exact: true })
+    .click();
   const projectButton = pairedPage.getByRole('button', {
     name: project.name,
     exact: true,
@@ -32,6 +35,9 @@ test('cancelling the removal of a project keeps it in the navigator and on the s
   await confirm.getByRole('button', { name: 'Cancel', exact: true }).click();
 
   await expect(confirm).not.toBeAttached();
+  await pairedPage
+    .getByRole('button', { name: 'Projects', exact: true })
+    .click();
   await expect(projectButton).toBeVisible();
   await expect
     .poll(async () =>
@@ -47,6 +53,9 @@ test('removing a project takes it out of the navigator and the server forgets it
   const project = await server.project();
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('button', { name: 'Projects', exact: true })
     .click();
   const projectButton = pairedPage.getByRole('button', {
     name: project.name,
@@ -97,6 +106,9 @@ test("a removed project's worktree address says the worktree is no longer presen
   await dialog.getByRole('button', { name: 'other', exact: true }).click();
   await dialog.getByRole('button', { name: 'Open other', exact: true }).click();
   await expect(dialog).not.toBeAttached();
+  await pairedPage
+    .getByRole('button', { name: 'Projects', exact: true })
+    .click();
   await pairedPage
     .getByRole('button', { name: sample.name, exact: true })
     .click({ button: 'right' });
