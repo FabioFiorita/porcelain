@@ -549,7 +549,11 @@ if (mode === 'format') {
   if (result.error) throw result.error;
   process.exitCode = result.status ?? 1;
 } else {
-  process.exitCode = await lint();
+  const config = await configProblems().catch((error: unknown) => {
+    if (error instanceof StyleProblem) return [error.problem];
+    throw error;
+  });
+  process.exitCode = config.length > 0 ? 1 : await lint();
   const files = repositoryFiles();
   const problems = [
     ...disableDirectives(),
@@ -557,10 +561,7 @@ if (mode === 'format') {
     ...strayFormatConfigs(),
     ...codeOutsideLintRoots(files),
     ...mobileNativeSourceOwnership(files),
-    ...(await configProblems().catch((error: unknown) => {
-      if (error instanceof StyleProblem) return [error.problem];
-      throw error;
-    })),
+    ...config,
     ...(target === 'web'
       ? pinProblems('.').map((found) => problem('shadcn-ui-pinned', found))
       : []),

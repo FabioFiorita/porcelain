@@ -189,6 +189,7 @@ function styleConfigFixture(entry) {
     const files = {
       'package.json': '{"type":"module"}',
       'architecture/fixture.ts': 'export {};',
+      'architecture/shadcn-pins.json': '{}',
       ...Object.fromEntries(
         [
           'src/fixture.ts',
@@ -208,6 +209,7 @@ function styleConfigFixture(entry) {
       'apps/web/tsconfig.json',
       'apps/server/tsconfig.json',
       'packages/access/tsconfig.json',
+      ...(entry.target === 'web' ? ['apps/web/tsconfig.node.json'] : []),
     ])
       files[name] = readFileSync(join(repository, name), 'utf8');
     for (const [name, replacements] of Object.entries(entry.json ?? {})) {
@@ -222,6 +224,16 @@ function styleConfigFixture(entry) {
       files[name] = JSON.stringify(config);
     }
     writeFiles(root, { ...files, ...entry.files });
+    if (entry.target === 'web') {
+      for (const source of ['apps/mobile/src', 'packages/client/src'])
+        mkdirSync(join(root, source), { recursive: true });
+      if (!entry.missingTool)
+        symlinkSync(
+          join(repository, 'apps/web/node_modules'),
+          join(root, 'apps/web/node_modules'),
+          'dir',
+        );
+    }
     symlinkSync(
       join(repository, 'architecture/oxlint-plugin.mjs'),
       join(root, 'architecture/oxlint-plugin.mjs'),
@@ -235,7 +247,7 @@ function styleConfigFixture(entry) {
     const checked = run(process.execPath, [
       join(repository, 'scripts/style.ts'),
       'lint',
-      'server',
+      entry.target ?? 'server',
     ]);
     const output = checked.stdout + checked.stderr;
     strictEqual(checked.signal, null, `${entry.name}: ${output}`);
@@ -264,7 +276,30 @@ function styleConfigFixture(entry) {
         true,
         `${entry.name}: missing key ${key}\n${output}`,
       );
-    if (entry.missingTool) strictEqual(output.includes('ENOENT'), true, output);
+    for (const detail of entry.details ?? [])
+      strictEqual(
+        checked.stderr.includes(detail),
+        true,
+        `${entry.name}: ${output}`,
+      );
+    if (entry.order)
+      deepStrictEqual(
+        diagnostics.map((line) => /^error style\(([^)]+)\)/.exec(line)[1]),
+        entry.order,
+        output,
+      );
+    if (entry.stdout !== undefined)
+      strictEqual(checked.stdout, entry.stdout, output);
+    if (entry.findings)
+      deepStrictEqual(
+        [...checked.stdout.matchAll(/:\d+:\d+: error ([^:]+):/g)].map(
+          (match) => match[1],
+        ),
+        entry.findings,
+        output,
+      );
+    if (entry.missingTool)
+      strictEqual(output.includes('ENOENT'), entry.rules.length === 0, output);
     else if (entry.status === 0)
       strictEqual(checked.stdout.includes('0 findings.'), true, output);
   } finally {

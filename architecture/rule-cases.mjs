@@ -3932,6 +3932,111 @@ const styleConfigCases = [
     rules: [],
   },
   { name: 'canonical recovery in a separate root', status: 0, rules: [] },
+  ...[
+    {
+      name: 'jsPlugins empty',
+      json: { '.oxlintrc.json': { jsPlugins: [] } },
+      rules: ['lint-config'],
+      tokens: ['loads the Porcelain and shadcn plugins'],
+    },
+    {
+      name: 'jsPlugins absent',
+      json: { '.oxlintrc.json': { jsPlugins: undefined } },
+      rules: ['lint-config'],
+      details: ['Missing key\n  at ["jsPlugins"]'],
+    },
+    {
+      name: 'jsPlugins missing shadcn',
+      json: {
+        '.oxlintrc.json': { jsPlugins: ['./architecture/oxlint-plugin.mjs'] },
+      },
+      rules: ['lint-config'],
+      tokens: ['loads the Porcelain and shadcn plugins'],
+    },
+    {
+      name: 'unknown custom rule',
+      json: { '.oxlintrc.json': { 'rules.porcelain/not-a-rule': 'error' } },
+      rules: ['lint-config'],
+      tokens: ['names porcelain/not-a-rule, which the plugin does not define'],
+    },
+    {
+      name: 'lint ignores every file',
+      json: { '.oxlintrc.json': { ignorePatterns: ['**'] } },
+      rules: ['lint-config'],
+      details: ['Expected no excess property\n  at ["ignorePatterns"]'],
+    },
+    ...['', '{'].map((text) => ({
+      name: `lint JSON ${text === '' ? 'empty' : 'truncated'}`,
+      files: { '.oxlintrc.json': text },
+      rules: ['strict-json'],
+      tokens: ['.oxlintrc.json is not strict JSON'],
+    })),
+  ].flatMap((fixture) =>
+    ['server', 'web'].flatMap((target) => [
+      ...[false, true].map((missingTool) => ({
+        ...fixture,
+        name: `${fixture.name}: ${target}, tool ${missingTool ? 'missing' : 'available'}`,
+        target,
+        missingTool,
+        status: 1,
+        stdout: '',
+      })),
+      {
+        name: `canonical recovery after ${fixture.name}: ${target}`,
+        target,
+        status: 0,
+        rules: [],
+      },
+    ]),
+  ),
+  ...['server', 'web'].flatMap((target) => [
+    {
+      name: `actual upstream lint violation: ${target}`,
+      target,
+      files: {
+        [`${target === 'web' ? 'apps/web/src' : 'architecture'}/fixture.ts`]:
+          'const unused = 1; export {};',
+      },
+      status: 1,
+      rules: [],
+      findings: ['eslint(no-unused-vars)'],
+    },
+    {
+      name: `actual custom lint violation: ${target}`,
+      target,
+      files: {
+        [`${target === 'web' ? 'apps/web/src' : 'architecture'}/fixture.ts`]:
+          '// fixture comment\nexport {};',
+      },
+      status: 1,
+      rules: [],
+      findings: ['porcelain(no-comments)'],
+    },
+    {
+      name: `config failure retains other policy order: ${target}`,
+      target,
+      json: { '.oxlintrc.json': { jsPlugins: [] } },
+      files: { 'outside/fixture.ts': 'export {};' },
+      status: 1,
+      rules: ['code-outside-lint-roots', 'lint-config'],
+      order: ['code-outside-lint-roots', 'lint-config'],
+      stdout: '',
+      tokens: ['outside/fixture.ts', 'loads the Porcelain and shadcn plugins'],
+    },
+    {
+      name: `missing tool with valid config: ${target}`,
+      target,
+      missingTool: true,
+      status: 1,
+      rules: [],
+    },
+    {
+      name: `canonical recovery after lint and tool failures: ${target}`,
+      target,
+      status: 0,
+      rules: [],
+    },
+  ]),
 ];
 
 export const guardrailCases = [
