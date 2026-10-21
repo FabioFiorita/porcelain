@@ -11,6 +11,7 @@ selectors:
   - "Every worktree appears in the sidebar."
 tests:
   - apps/web/spec/e2e/projects-open-folder.e2e.ts
+  - apps/web/spec/integration/projects-open-folder.test.tsx
 api:
   - GET /api/projects/folders
   - POST /api/projects
@@ -68,7 +69,8 @@ git -C "$REPO/../browsed" -c user.name=Verify -c user.email=verify@example.inval
 ## What proves it works
 
 - End state: the plain folder never produces a request to register (step 7 shows the single POST came after choosing "browsed"), and after a reload the server's inventory, as the navigator shows it, still holds `browsed`.
-- `apps/web/spec/e2e/projects-open-folder.e2e.ts`: inside "plain" the dialog shows "No subfolders.", "Pick a folder that is a Git repository." and a disabled "Open plain", and the server never registers it; going `Up` and choosing "browsed" shows "Every worktree appears in the sidebar.", `Open browsed` closes the dialog, the navigator shows "browsed" and the server's inventory contains its path (read through `server.inventory()`).
+- `apps/web/spec/integration/projects-open-folder.test.tsx`: inside "plain" the dialog shows "No subfolders.", "Pick a folder that is a Git repository." and a disabled "Open plain", and the server never registers it.
+- `apps/web/spec/e2e/projects-open-folder.e2e.ts`: going `Up` and choosing "browsed" shows "Every worktree appears in the sidebar.", `Open browsed` closes the dialog, the navigator shows "browsed" and the server's inventory contains its path (read through `server.inventory()`).
 
 ## Gotchas
 

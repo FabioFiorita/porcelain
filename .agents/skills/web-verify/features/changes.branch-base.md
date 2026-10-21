@@ -8,6 +8,7 @@ selectors:
   - "Find a base branch"
 tests:
   - apps/web/spec/e2e/changes-branch-base.e2e.ts
+  - apps/web/spec/integration/changes-branch-base.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/branch-bases
   - GET /api/worktrees/:worktreeId/branch-changes
@@ -61,7 +62,7 @@ git -C "$REPO" log --oneline main..feature | wc -l   # prints 2
 - The heading line of the list switches between "2 commits on feature since main" and "1 commit on feature since checkpoint", the file rows follow it, and the Page URL gains `base=refs%2Fheads%2Fcheckpoint` then loses it.
 - Persistence is in the address: after step 5, Navigate to `<the` on the card’s web URL (full page load) and reopen Review → still "1 commit on feature since checkpoint".
 - Inspect HTTP requests and responses shows `GET /api/worktrees/<worktreeId>/branch-bases` (sent when the picker first opens) and `GET /api/worktrees/<worktreeId>/branch-changes` once with the default base and once with `base=refs/heads/checkpoint`, all 200.
-- `apps/web/spec/e2e/changes-branch-base.e2e.ts`: asserts both count lines, that "second.md · added" shows and "first.md · added" is detached against checkpoint, and that the `base` search param is `refs/heads/checkpoint` then null.
+- `apps/web/spec/integration/changes-branch-base.test.tsx`: asserts both count lines, that "second.md · added" shows and "first.md · added" is detached against checkpoint, and that the `base` search param is `refs/heads/checkpoint` then null.
 
 ## Gotchas
 
@@ -69,3 +70,5 @@ git -C "$REPO" log --oneline main..feature | wc -l   # prints 2
 - The options load only when the picker opens ("Reading branches…" first); the click waits for the option, so no extra step is needed.
 - The main option's name is "main" plus its "default" tag, so address it by the pattern `/^main/`, never by the exact name "main".
 - The setup leaves the repository on `feature` with branch `checkpoint`; other features assume the start state on `main`, so `$C stop` and `$C start`; pair your browser using the card’s pairing-link command before driving another feature.
+
+- `apps/web/spec/e2e/changes-branch-base.e2e.ts`: retains the fresh branch deep link with malformed optional search values.

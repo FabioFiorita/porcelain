@@ -7,7 +7,7 @@ selectors:
   - 'Up to date'
   - 'Reload'
 tests:
-  - apps/web/spec/e2e/access-service-update.e2e.ts
+  - apps/web/spec/integration/access-service-update.test.tsx
   - packages/client/src/features/access/queries/settings-update-matrix.spec.ts
 api:
   - GET /api/service/update
