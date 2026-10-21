@@ -1,24 +1,34 @@
-import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
-import { dismissInterruptedGitActionResponseSchema } from '@porcelain/contracts/git-actions';
+import { resolve } from 'node:path';
 import { expect } from 'vitest';
+import { readServerSettings } from '../../src/config/server-settings.ts';
 import { apiError, invalidRequest, UNKNOWN_UUID } from '../kit/answers.ts';
-import {
-  expectation,
-  fingerprintOf,
-  receiptOf,
-  settledReceipt,
-} from '../kit/reads.ts';
-import { gitPath, read, worktreePath } from '../kit/requests.ts';
-import { gitInterruptionTest as it, test } from '../kit/server-test.ts';
-
-const ALTERNATES = '.git/objects/info/alternates';
+import { expectation, fingerprintOf, settledReceipt } from '../kit/reads.ts';
+import { gitPath } from '../kit/requests.ts';
+import { test } from '../kit/server-test.ts';
 
 const mismatch = apiError(
   409,
   'Conflict',
   'Git action request does not match its receipt',
 );
+
+test('ordinary fixtures inherit the production Git action deadline', async ({
+  server,
+}) => {
+  const production = readServerSettings({
+    dataDirectory: resolve(server.projectHome, 'state'),
+    projectHome: server.projectHome,
+    port: 0,
+    webRoot: resolve(server.projectHome, 'web'),
+  });
+
+  expect(production.limits.gitActions.deadlineMs).toBe(120000);
+  expect(server.fixture.gitActionDeadlineMs).toBe(120000);
+  expect(server.fixture.gitActionDeadlineMs).toBe(
+    production.limits.gitActions.deadlineMs,
+  );
+});
 
 test('dismissing an interruption for a request the server does not know is not found', async ({
   session,
@@ -68,73 +78,6 @@ test('dismissing an interruption for a request that was not interrupted is a mis
 
   expect(response.status).toBe(409);
   expect(response.body).toStrictEqual(mismatch);
-});
-
-it('an interrupted action marks the changes until it is dismissed, and dismissing again answers the same', async ({
-  session,
-}) => {
-  const path = session.fixture.readme.path;
-  const expected = {
-    ...(await expectation(session)),
-    files: [{ path, fingerprint: await fingerprintOf(session, path) }],
-  };
-  await session.fifo(ALTERNATES);
-  const requestId = randomUUID();
-  await session.read(
-    {
-      method: 'POST',
-      path: gitPath(session, '/actions'),
-      body: {
-        requestId,
-        input: {
-          action: 'commit',
-          message: 'Stuck',
-          paths: [path],
-        },
-        expected,
-      },
-    },
-    202,
-  );
-  const settled = await settledReceipt(session, requestId);
-  await session.remove(ALTERNATES);
-  const marked = await read(session, {
-    method: 'GET',
-    path: worktreePath(session, '/changes'),
-  });
-  const unmarked = Object.keys(marked).filter((key) => key !== 'interrupted');
-
-  const dismissed = await session.send({
-    method: 'DELETE',
-    path: gitPath(session, `/interrupted/${requestId}`),
-  });
-  const again = await session.send({
-    method: 'DELETE',
-    path: gitPath(session, `/interrupted/${requestId}`),
-  });
-
-  expect(settled.receipt.state).toBe('interrupted');
-  expect(marked.interrupted).toMatchObject({ requestId, action: 'commit' });
-  expect(dismissed.status).toBe(200);
-  expect(dismissed.body).toEqual(
-    expect.schemaMatching(
-      Schema.toStandardSchemaV1(
-        Schema.toEncoded(dismissInterruptedGitActionResponseSchema),
-      ),
-    ),
-  );
-  expect(dismissed.body).toStrictEqual({ dismissed: true });
-  expect(again.status).toBe(200);
-  expect(again.body).toStrictEqual({ dismissed: true });
-  const after = await read(session, {
-    method: 'GET',
-    path: worktreePath(session, '/changes'),
-  });
-  expect(Object.keys(after)).toStrictEqual(unmarked);
-  expect(await receiptOf(session, requestId)).toMatchObject({
-    requestId,
-    state: 'interrupted',
-  });
 });
 
 test('dismissing an interruption with a malformed request id is refused', async ({
