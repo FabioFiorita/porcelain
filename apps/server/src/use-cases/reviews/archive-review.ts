@@ -58,6 +58,11 @@ export class ArchiveReviewUseCase extends Context.Service<
                   .execute({
                     ...input,
                     repositoryIdentity: project.repositoryIdentity,
+                    mergedHead:
+                      pull.kind === 'available' &&
+                      pull.pullRequest.state === 'merged'
+                        ? pull.pullRequest.headSha
+                        : undefined,
                     pullRequestClosed:
                       pull.kind === 'available' &&
                       pull.pullRequest.state !== 'open',

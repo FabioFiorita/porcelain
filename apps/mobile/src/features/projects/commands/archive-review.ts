@@ -4,11 +4,12 @@ import { Effect } from 'effect';
 import { Atom } from 'effect/reactivity';
 import { reviewCommands } from '@porcelain/client/reviews';
 import { ProjectSelectionCommands } from '@porcelain/client/projects';
-import type { ArchiveReviewRequest } from '@porcelain/contracts/reviews';
+import type {
+  ArchiveReviewRequest,
+  ReviewArchivePlan,
+} from '@porcelain/contracts/reviews';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { clientRuntime } from '../../../shared/application/store';
-import { showAlertDialog } from '../../../components/ui/alert-dialog';
-import { archiveDescription } from '@porcelain/client/reviews/rules';
 const command = Atom.family(
   (input: {
     connection: RuntimeConnection;
@@ -31,6 +32,8 @@ const command = Atom.family(
       }),
     ),
 );
+export type ArchiveOptions = ArchiveReviewRequest['options'];
+export type ArchivePlan = ReviewArchivePlan;
 export function useArchiveReview(input: {
   connection: RuntimeConnection;
   reviewId: string;
@@ -38,37 +41,32 @@ export function useArchiveReview(input: {
   mainWorktreeId: string;
 }) {
   const [result, run] = useAtom(command(input), { mode: 'promise' });
-  const submit = async (payload: ArchiveReviewRequest) => {
+  const submit = async (
+    payload: ArchiveReviewRequest,
+    onArchived?: () => void,
+  ) => {
+    let answer;
     try {
-      return await run(payload);
+      answer = await run(payload);
     } catch {
       return undefined;
     }
+    if (answer.archived && onArchived) onArchived();
+    return answer;
   };
-  async function prepare(options: ArchiveReviewRequest['options']) {
-    const answer = await submit({ options });
-    if (!answer) return;
-    const { plan } = answer;
-    showAlertDialog({
-      title: 'Archive review?',
-      description: archiveDescription(plan),
-      action:
-        plan.dirty || plan.unpushed
-          ? 'Archive and accept data loss'
-          : 'Archive review',
-      onConfirm: () => {
-        void submit({
-          options,
-          confirmation: { plan, discardChanges: true },
-        });
-      },
-    });
-  }
   return {
     result,
-    prepare: (options: ArchiveReviewRequest['options']) =>
+    submit,
+    prepare: (
+      options: ArchiveReviewRequest['options'],
+      onPrepared: (
+        answer: NonNullable<Awaited<ReturnType<typeof submit>>>,
+      ) => void,
+    ) =>
       requestDocumentLeave(() => {
-        void prepare(options);
+        void submit({ options }).then((answer) => {
+          if (answer) onPrepared(answer);
+        });
       }),
   };
 }

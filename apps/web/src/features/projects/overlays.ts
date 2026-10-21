@@ -1,5 +1,7 @@
 import { AlertDialog } from '@base-ui/react/alert-dialog';
 import { Dialog } from '@base-ui/react/dialog';
+import type { Connection } from '@/shared/workspace/connection';
+import type { ArchiveReviewRequest } from '@porcelain/contracts/reviews';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 
 type Project = ReadInventoryResponse['projects'][number];
@@ -10,3 +12,11 @@ export const openProjectDialog = Dialog.createHandle<{
 }>();
 export const renameProjectDialog = Dialog.createHandle<ProjectTarget>();
 export const removeProjectDialog = AlertDialog.createHandle<ProjectTarget>();
+
+export const archiveReviewDialog = AlertDialog.createHandle<{
+  connection: Connection;
+  reviewId: string;
+  options: ArchiveReviewRequest['options'];
+  requestId: string;
+  beforeLeave: () => void;
+}>();

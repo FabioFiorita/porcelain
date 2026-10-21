@@ -172,7 +172,7 @@ it('keeps a retained worktree navigable after its review moves to Closed', async
     entries.map((entry) => [entry.group, entry.closed, entry.reviewId]),
   ).toEqual([
     ['No review', false, undefined],
-    ['Needs you', true, '40000000-0000-4000-8000-000000000001'],
+    ['Closed', true, '40000000-0000-4000-8000-000000000001'],
   ]);
 });
 

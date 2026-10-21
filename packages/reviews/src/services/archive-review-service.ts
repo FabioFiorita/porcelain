@@ -14,6 +14,7 @@ export class ArchiveReviewService extends Context.Service<
       input: ArchiveReviewRequest & {
         reviewId: string;
         pullRequestClosed: boolean;
+        mergedHead?: string | undefined;
         repositoryIdentity: string;
       },
     ) => Effect.Effect<

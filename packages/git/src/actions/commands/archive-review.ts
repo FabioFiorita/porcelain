@@ -19,6 +19,7 @@ type Plan = {
   detachWorktreePath?: string | undefined;
   localBranch?: string | undefined;
   remoteBranch?: string | undefined;
+  remoteBranchNote?: string | undefined;
   mainCheckout: boolean;
   dirty: boolean;
   unpushed: boolean;
@@ -31,6 +32,7 @@ export const archiveReview = Effect.fn('Git.archiveReview')(function* (
     repositoryIdentity?: string | undefined;
     worktreePath: string;
     branch: string;
+    mergedHead?: string | undefined;
     options: Options;
     confirmation?: { plan: Plan; discardChanges: boolean } | undefined;
   },
@@ -50,7 +52,10 @@ export const archiveReview = Effect.fn('Git.archiveReview')(function* (
     );
   const write = (args: readonly string[]) =>
     gitRead(input.commonDirectory, args, limits, {
-      timeoutMs: limits.followUpTimeoutMs,
+      timeoutMs:
+        args[0] === 'worktree' && args[1] === 'remove'
+          ? Math.max(limits.followUpTimeoutMs, 120_000)
+          : limits.followUpTimeoutMs,
     });
   const ref = `refs/heads/${input.branch}`;
   yield* read(['check-ref-format', ref]);
@@ -69,19 +74,14 @@ export const archiveReview = Effect.fn('Git.archiveReview')(function* (
       error.exitCode === 1 ? Effect.succeed('') : Effect.fail(error),
     ),
   );
-  const status = worktree?.available
-    ? yield* gitRead(
-        worktree.path,
-        [
-          'status',
-          '--porcelain=v1',
-          '-z',
-          '--untracked-files=all',
-          '--ignored=matching',
-        ],
-        limits,
-      ).pipe(Effect.map((bytes) => bytes.toString('utf8')))
-    : '';
+  const status =
+    worktree?.available && input.options.deleteWorktree && !mainCheckout
+      ? yield* gitRead(
+          worktree.path,
+          ['status', '--porcelain=v1', '-z', '--untracked-files=all'],
+          limits,
+        ).pipe(Effect.map((bytes) => bytes.toString('utf8')))
+      : '';
   if (worktree && !worktree.available)
     return yield* new GitArchiveRefusedError({
       message: 'The worktree is unavailable. Reconnect it before archiving.',
@@ -104,7 +104,7 @@ export const archiveReview = Effect.fn('Git.archiveReview')(function* (
     );
     const files = yield* gitRead(
       worktree.path,
-      ['ls-files', '--others', '-z'],
+      ['ls-files', '--others', '--exclude-standard', '-z'],
       limits,
     );
     const fs = yield* FileSystem.FileSystem;
@@ -134,14 +134,22 @@ export const archiveReview = Effect.fn('Git.archiveReview')(function* (
     }
   }
   const contentFingerprint = content.digest('hex');
-  const tracking = head
-    ? yield* read([
-        'for-each-ref',
-        '--format=%(upstream:remotename)%00%(upstream:remoteref)',
-        ref,
-      ])
-    : '';
-  const [remoteName, remoteRef] = tracking.split('\0');
+  const tracking = yield* read([
+    'for-each-ref',
+    '--format=%(upstream:remotename)%00%(upstream:remoteref)',
+    ref,
+  ]);
+  const [trackedRemote, trackedRef] = tracking.split('\0');
+  const configuration = (key: string) =>
+    read(['config', '--get', key]).pipe(
+      Effect.catchTag('GitCommandError', (error) =>
+        error.exitCode === 1 ? Effect.succeed('') : Effect.fail(error),
+      ),
+    );
+  const remoteName =
+    trackedRemote || (yield* configuration(`branch.${input.branch}.remote`));
+  const remoteRef =
+    trackedRef || (yield* configuration(`branch.${input.branch}.merge`));
   if (
     !mainCheckout &&
     input.options.deleteRemoteBranch &&
@@ -160,13 +168,16 @@ export const archiveReview = Effect.fn('Git.archiveReview')(function* (
     const remote = yield* read(['ls-remote', '--heads', remoteUrl, remoteRef]);
     remoteOid = remote.split(/\s+/)[0] ?? '';
   }
+  const confirmedHead = remoteOid || input.mergedHead;
   const unpushed =
     !mainCheckout &&
     Boolean(head) &&
-    (!remoteOid ||
-      (yield* read(['rev-list', '--count', `${remoteOid}..${ref}`]).pipe(
-        Effect.catchTag('GitCommandError', () => Effect.succeed('unknown')),
-      )) !== '0');
+    (confirmedHead
+      ? (yield* read(['rev-list', '--count', `${confirmedHead}..${ref}`]).pipe(
+          Effect.catchTag('GitCommandError', () => Effect.succeed('unknown')),
+        )) !== '0'
+      : (yield* read(['rev-list', '--count', ref, '--not', '--remotes'])) !==
+        '0');
   const otherCheckout = repository.worktrees.some(
     (row) => row.path !== input.worktreePath && row.branch === ref,
   );
@@ -174,16 +185,6 @@ export const archiveReview = Effect.fn('Git.archiveReview')(function* (
     return yield* new GitArchiveRefusedError({
       message:
         'The local branch is checked out in another worktree. Turn off local branch deletion.',
-    });
-  if (
-    !mainCheckout &&
-    input.options.deleteRemoteBranch &&
-    head &&
-    (!remoteName || !remoteRef)
-  )
-    return yield* new GitArchiveRefusedError({
-      message:
-        'This branch has no configured remote branch. Turn off remote branch deletion to archive it.',
     });
   const plan: Plan = {
     detachWorktreePath:
@@ -204,6 +205,14 @@ export const archiveReview = Effect.fn('Git.archiveReview')(function* (
     remoteBranch:
       !mainCheckout && input.options.deleteRemoteBranch && remoteOid
         ? `${remoteName}/${remoteRef?.slice('refs/heads/'.length)}`
+        : undefined,
+    remoteBranchNote:
+      !mainCheckout && input.options.deleteRemoteBranch
+        ? !remoteName || !remoteRef
+          ? 'Remote branch deletion skipped: this branch has no upstream.'
+          : !remoteOid
+            ? `${remoteName}/${remoteRef.slice('refs/heads/'.length)}: already deleted on remote.`
+            : undefined
         : undefined,
     mainCheckout,
     dirty: Boolean(status),
@@ -239,27 +248,60 @@ export const archiveReview = Effect.fn('Git.archiveReview')(function* (
       message:
         'Explicitly confirm the uncommitted changes and unpushed commits before archiving.',
     });
-  if (plan.remoteBranch)
-    yield* write([
-      'push',
-      `--force-with-lease=${remoteRef}:${remoteOid}`,
-      remoteUrl,
-      `:${remoteRef}`,
-    ]);
+  const targets = [
+    ...(plan.worktreePath ? [`worktree ${plan.worktreePath}`] : []),
+    ...(plan.localBranch ? [`local branch ${plan.localBranch}`] : []),
+    ...(plan.remoteBranch ? [`remote branch ${plan.remoteBranch}`] : []),
+  ];
+  const deleted: string[] = [];
+  const remove = (target: string, args: readonly string[]) =>
+    write(args).pipe(
+      Effect.mapError(
+        () =>
+          new GitArchiveRefusedError({
+            message: `Could not delete ${target}. Deleted: ${deleted.join(', ') || 'nothing'}. Not deleted: ${targets.filter((entry) => !deleted.includes(entry)).join(', ')}. Reopen Archive to review the remaining targets.`,
+          }),
+      ),
+      Effect.tap(() =>
+        Effect.sync(() => {
+          deleted.push(target);
+        }),
+      ),
+    );
   if (plan.detachWorktreePath)
     yield* gitRead(
       plan.detachWorktreePath,
       ['switch', '--detach', head],
       limits,
+    ).pipe(
+      Effect.mapError(
+        () =>
+          new GitArchiveRefusedError({
+            message: `Could not detach worktree ${plan.detachWorktreePath}. Nothing was deleted.`,
+          }),
+      ),
     );
   if (plan.worktreePath)
-    yield* write([
+    yield* remove(`worktree ${plan.worktreePath}`, [
       'worktree',
       'remove',
       ...(plan.dirty ? ['--force'] : []),
       '--',
       plan.worktreePath,
     ]);
-  if (plan.localBranch) yield* write(['update-ref', '-d', ref, head]);
+  if (plan.localBranch)
+    yield* remove(`local branch ${plan.localBranch}`, [
+      'update-ref',
+      '-d',
+      ref,
+      head,
+    ]);
+  if (plan.remoteBranch)
+    yield* remove(`remote branch ${plan.remoteBranch}`, [
+      'push',
+      `--force-with-lease=${remoteRef}:${remoteOid}`,
+      remoteUrl,
+      `:${remoteRef}`,
+    ]);
   return plan;
 });

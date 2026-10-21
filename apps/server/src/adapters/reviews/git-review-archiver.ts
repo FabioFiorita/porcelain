@@ -19,7 +19,7 @@ export const gitReviewArchiverLayer = (limits: Limits['git']) =>
                   message:
                     error._tag === 'GitArchiveRefusedError'
                       ? error.message
-                      : 'Git could not finish archiving. Some earlier deletions may have completed. Check repository access and reopen Archive to retry.',
+                      : 'Could not inspect the worktree and branches. Nothing was deleted. Check repository access and try again.',
                 }),
             ),
           );

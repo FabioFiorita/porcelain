@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { archiveDescription } from './archive-review.ts';
+import { archiveDescription, archiveFailureMessage } from './archive-review.ts';
 it('names the exact deletion targets and warns separately about files and commits', () => {
   expect(
     archiveDescription({
@@ -12,7 +12,7 @@ it('names the exact deletion targets and warns separately about files and commit
       fingerprint: 'snapshot',
     }),
   ).toBe(
-    'The review and its saved revisions will remain under Closed.\n\nDelete worktree: /code/feature\n\nDelete local branch: feature\n\nDelete remote branch: origin/feature\n\nWarning: this worktree has uncommitted or ignored files. Deleting the worktree permanently discards them.\n\nWarning: this branch has commits not confirmed on its remote. Deleting branches may lose those commits.',
+    'The review and its saved revisions will remain under Closed.\n\nDelete worktree: /code/feature\n\nDelete local branch: feature\n\nDelete remote branch: origin/feature\n\nWarning: this worktree has uncommitted changes. Deleting the worktree permanently discards them.\n\nWarning: this branch has commits not confirmed on its remote. Deleting branches may lose those commits.',
   );
 });
 it('explains when the main checkout is protected', () => {
@@ -28,5 +28,18 @@ it('explains when the main checkout is protected', () => {
     }),
   ).toBe(
     'The review and its saved revisions will remain under Closed.\n\nThe project’s main checkout and its branches are protected. Nothing will be deleted.',
+  );
+});
+
+it('shows the plain refusal reason and a readable fallback', () => {
+  const error = new Error(
+    'Could not inspect the worktree. Nothing was deleted.',
+  );
+  error.name = 'ReviewArchiveRefusedError';
+  expect(archiveFailureMessage(error)).toBe(
+    'Could not inspect the worktree. Nothing was deleted.',
+  );
+  expect(archiveFailureMessage(null)).toBe(
+    'Archiving failed. Try preparing the archive again.',
   );
 });

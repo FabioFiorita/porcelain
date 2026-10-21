@@ -117,4 +117,4 @@ export {
   emptyReviewListFilter,
   type ReviewListEntry,
 } from './review-list.ts';
-export { archiveDescription } from './archive-review.ts';
+export { archiveDescription, archiveFailureMessage } from './archive-review.ts';

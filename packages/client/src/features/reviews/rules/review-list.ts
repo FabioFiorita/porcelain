@@ -9,7 +9,7 @@ export const reviewListGroups = [
   'Ready to merge',
   'No review',
 ] as const;
-type ReviewListGroup = (typeof reviewListGroups)[number];
+type ReviewListGroup = (typeof reviewListGroups)[number] | 'Closed';
 type ReviewListBadge = {
   label: string;
   variant: 'default' | 'secondary' | 'outline' | 'destructive';

@@ -2,7 +2,13 @@ import { NodeServices } from '@effect/platform-node';
 import { Effect, type FileSystem, type Path } from 'effect';
 import type { ChildProcessSpawner } from 'effect/process';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+  mkdirSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -236,4 +242,144 @@ it('refuses a project repository replaced at the same path', async () => {
   ).rejects.toThrow('project repository changed');
   expect(existsSync(tree)).toBe(true);
   expect(git(remote, 'show-ref', '--heads')).toContain('refs/heads/feature');
+});
+
+it('ignores a large node_modules in fast previews and confirmation', async () => {
+  writeFileSync(join(main, '.git/info/exclude'), 'node_modules/\n');
+  const modules = join(tree, 'node_modules');
+  mkdirSync(modules);
+  for (let i = 0; i < 91_000; i++)
+    writeFileSync(
+      join(modules, `${'dependency-'.repeat(7)}${i}.js`),
+      'ignored',
+    );
+  const plan = await run(archiveReview(input(), gitLimits));
+  expect(plan.dirty).toBe(false);
+  const keep = await run(
+    archiveReview(
+      {
+        ...input(),
+        options: {
+          deleteWorktree: false,
+          deleteLocalBranch: false,
+          deleteRemoteBranch: false,
+        },
+      },
+      gitLimits,
+    ),
+  );
+  expect(keep.dirty).toBe(false);
+  writeFileSync(join(modules, 'changed-after-preview.js'), 'ignored too');
+  await run(
+    archiveReview(
+      { ...input(), confirmation: { plan, discardChanges: false } },
+      gitLimits,
+    ),
+  );
+  expect(existsSync(tree)).toBe(false);
+}, 30_000);
+it('uses the merged PR head when GitHub already deleted the remote branch', async () => {
+  const mergedHead = git(tree, 'rev-parse', 'HEAD');
+  git(tree, 'push', 'origin', '--delete', 'feature');
+  const request = { ...input(), mergedHead };
+  const plan = await run(archiveReview(request, gitLimits));
+  expect(plan).toMatchObject({
+    unpushed: false,
+    remoteBranch: undefined,
+    remoteBranchNote: 'origin/feature: already deleted on remote.',
+  });
+  await run(
+    archiveReview(
+      { ...request, confirmation: { plan, discardChanges: false } },
+      gitLimits,
+    ),
+  );
+  expect(existsSync(tree)).toBe(false);
+});
+it('still warns for commits newer than the merged PR head after remote deletion', async () => {
+  const mergedHead = git(tree, 'rev-parse', 'HEAD');
+  git(tree, 'push', 'origin', '--delete', 'feature');
+  writeFileSync(join(tree, 'file.txt'), 'after merge');
+  git(tree, 'commit', '-qam', 'After merge');
+  const plan = await run(archiveReview({ ...input(), mergedHead }, gitLimits));
+  expect(plan.unpushed).toBe(true);
+});
+it('skips remote deletion without an upstream and distinguishes published commits', async () => {
+  git(tree, 'branch', '--unset-upstream');
+  const plan = await run(archiveReview(input(), gitLimits));
+  expect(plan).toMatchObject({
+    unpushed: false,
+    remoteBranch: undefined,
+    remoteBranchNote:
+      'Remote branch deletion skipped: this branch has no upstream.',
+  });
+  await run(
+    archiveReview(
+      { ...input(), confirmation: { plan, discardChanges: false } },
+      gitLimits,
+    ),
+  );
+  expect(existsSync(tree)).toBe(false);
+  expect(git(remote, 'show-ref', '--heads')).toContain('refs/heads/feature');
+});
+it('warns about genuinely unpublished commits without an upstream', async () => {
+  git(tree, 'branch', '--unset-upstream');
+  writeFileSync(join(tree, 'file.txt'), 'not published');
+  git(tree, 'commit', '-qam', 'Local only');
+  const plan = await run(archiveReview(input(), gitLimits));
+  expect(plan.unpushed).toBe(true);
+});
+it('leaves both branches intact when removing a locked worktree fails', async () => {
+  git(main, 'worktree', 'lock', tree);
+  const plan = await run(archiveReview(input(), gitLimits));
+  await expect(
+    run(
+      archiveReview(
+        { ...input(), confirmation: { plan, discardChanges: false } },
+        gitLimits,
+      ),
+    ),
+  ).rejects.toThrow(
+    `Deleted: nothing. Not deleted: worktree ${tree}, local branch feature, remote branch origin/feature`,
+  );
+  expect(existsSync(tree)).toBe(true);
+  expect(git(main, 'show-ref', '--verify', 'refs/heads/feature')).toBeTruthy();
+  expect(
+    git(remote, 'show-ref', '--verify', 'refs/heads/feature'),
+  ).toBeTruthy();
+});
+it('reports completed local cleanup when the remote rejects deletion and can retry', async () => {
+  writeFileSync(join(remote, 'hooks/pre-receive'), '#!/bin/sh\nexit 1\n', {
+    mode: 0o755,
+  });
+  const plan = await run(archiveReview(input(), gitLimits));
+  await expect(
+    run(
+      archiveReview(
+        { ...input(), confirmation: { plan, discardChanges: false } },
+        gitLimits,
+      ),
+    ),
+  ).rejects.toThrow(
+    `Deleted: worktree ${tree}, local branch feature. Not deleted: remote branch origin/feature`,
+  );
+  expect(existsSync(tree)).toBe(false);
+  expect(
+    git(main, 'for-each-ref', '--format=%(refname)', 'refs/heads/feature'),
+  ).toBe('');
+  expect(
+    git(remote, 'show-ref', '--verify', 'refs/heads/feature'),
+  ).toBeTruthy();
+  rmSync(join(remote, 'hooks/pre-receive'));
+  const remaining = await run(archiveReview(input(), gitLimits));
+  expect(remaining.remoteBranch).toBe('origin/feature');
+  await run(
+    archiveReview(
+      { ...input(), confirmation: { plan: remaining, discardChanges: false } },
+      gitLimits,
+    ),
+  );
+  expect(
+    git(remote, 'for-each-ref', '--format=%(refname)', 'refs/heads/feature'),
+  ).toBe('');
 });

@@ -241,9 +241,9 @@ export function ProjectNavigator({
               </SidebarGroupLabel>
               <SidebarMenu>
                 {grouped.map((entry) => (
-                  <SidebarMenuItem key={entry.key}>
+                  <SidebarMenuItem key={entry.key} className="flex items-start">
                     <SidebarMenuButton
-                      className="h-auto items-start whitespace-normal"
+                      className="h-auto min-w-0 flex-1 items-start whitespace-normal"
                       disabled={!entry.reviewId && entry.disabled}
                       isActive={
                         !closed &&

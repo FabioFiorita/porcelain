@@ -204,52 +204,53 @@ export function WorktreeNavigator({
                     ),
                 );
                 return (
-                  <Box key={entry.key} gap={2}>
-                    <Item
-                      title={entry.title}
-                      titleNumberOfLines={entry.group === 'Projects' ? 1 : 2}
-                      variant={
-                        entry.group === 'Projects' ? 'default' : 'outline'
-                      }
-                      size="sm"
-                      selected={selected}
-                      disabled={picker.disabled || (!closed && entry.disabled)}
-                      accessibilityLabel={`${entry.title}, ${reviewListMeta(entry, Date.now())}${entry.reviewId ? `, ${entry.reviewed}/${entry.total} decisions reviewed, ${entry.badges.map((badge) => badge.label).join(', ')}` : ''}${selected ? ', current' : ''}${entry.disabled ? ', unavailable' : ''}`}
-                      leading={
-                        <Box className="w-10 shrink-0 self-start">
-                          {entry.reviewId ? (
-                            <Badge
-                              label={`${entry.reviewed}/${entry.total}`}
-                              variant="outline"
-                            />
-                          ) : null}
-                        </Box>
-                      }
-                      trailing={<Icon name="chevron" tone="muted" />}
-                      onPress={() => open(entry)}
-                    >
-                      {entry.badges.length > 0 ? (
-                        <Box className="flex-row flex-wrap" gap={1}>
-                          {entry.badges.map((badge) => (
-                            <Badge
-                              key={badge.label}
-                              label={badge.label}
-                              variant={badge.variant}
-                            />
-                          ))}
-                        </Box>
-                      ) : null}
-                      <Text variant="caption" tone="muted" numberOfLines={1}>
-                        {reviewListMeta(entry, Date.now())}
+                  <Item
+                    key={entry.key}
+                    title={entry.title}
+                    titleNumberOfLines={entry.group === 'Projects' ? 1 : 2}
+                    variant={entry.group === 'Projects' ? 'default' : 'outline'}
+                    size="sm"
+                    selected={selected}
+                    disabled={picker.disabled || (!closed && entry.disabled)}
+                    accessibilityLabel={`${entry.title}, ${reviewListMeta(entry, Date.now())}${entry.reviewId ? `, ${entry.reviewed}/${entry.total} decisions reviewed, ${entry.badges.map((badge) => badge.label).join(', ')}` : ''}${selected ? ', current' : ''}${entry.disabled ? ', unavailable' : ''}`}
+                    leading={
+                      <Box className="w-10 shrink-0 self-start">
+                        {entry.reviewId ? (
+                          <Badge
+                            label={`${entry.reviewed}/${entry.total}`}
+                            variant="outline"
+                          />
+                        ) : null}
+                      </Box>
+                    }
+                    trailing={<Icon name="chevron" tone="muted" />}
+                    action={
+                      entry.archivable ? (
+                        <ArchiveAction entry={entry} projects={projects} />
+                      ) : undefined
+                    }
+                    onPress={() => open(entry)}
+                  >
+                    {entry.badges.length > 0 ? (
+                      <Box className="flex-row flex-wrap" gap={1}>
+                        {entry.badges.map((badge) => (
+                          <Badge
+                            key={badge.label}
+                            label={badge.label}
+                            variant={badge.variant}
+                          />
+                        ))}
+                      </Box>
+                    ) : null}
+                    <Text variant="caption" tone="muted" numberOfLines={1}>
+                      {reviewListMeta(entry, Date.now())}
+                    </Text>
+                    {entry.disabled ? (
+                      <Text variant="caption" tone="muted">
+                        Unavailable
                       </Text>
-                      {entry.disabled ? (
-                        <Text variant="caption" tone="muted">
-                          Unavailable
-                        </Text>
-                      ) : null}
-                    </Item>
-                    <ArchiveAction entry={entry} projects={projects} />
-                  </Box>
+                    ) : null}
+                  </Item>
                 );
               })}
             </Box>

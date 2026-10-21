@@ -13,6 +13,7 @@ export function archiveDescription(plan: ReviewArchivePlan) {
     plan.remoteBranch
       ? `Delete remote branch: ${plan.remoteBranch}`
       : undefined,
+    plan.remoteBranchNote,
     !plan.mainCheckout &&
     !plan.worktreePath &&
     !plan.localBranch &&
@@ -20,7 +21,7 @@ export function archiveDescription(plan: ReviewArchivePlan) {
       ? 'Nothing will be deleted with the current settings.'
       : undefined,
     plan.dirty
-      ? 'Warning: this worktree has uncommitted or ignored files. Deleting the worktree permanently discards them.'
+      ? 'Warning: this worktree has uncommitted changes. Deleting the worktree permanently discards them.'
       : undefined,
     plan.unpushed
       ? 'Warning: this branch has commits not confirmed on its remote. Deleting branches may lose those commits.'
@@ -28,4 +29,10 @@ export function archiveDescription(plan: ReviewArchivePlan) {
   ]
     .filter(Boolean)
     .join('\n\n');
+}
+
+export function archiveFailureMessage(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : 'Archiving failed. Try preparing the archive again.';
 }

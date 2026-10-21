@@ -9,6 +9,7 @@ const reviewArchivePlanSchema = Schema.Struct({
   detachWorktreePath: Schema.optional(Schema.String),
   localBranch: Schema.optional(Schema.String),
   remoteBranch: Schema.optional(Schema.String),
+  remoteBranchNote: Schema.optional(Schema.String),
   mainCheckout: Schema.Boolean,
   dirty: Schema.Boolean,
   unpushed: Schema.Boolean,
@@ -34,4 +35,5 @@ export type ReviewArchiveTarget = ArchiveReviewRequest & {
   repositoryIdentity: string;
   worktreePath: string;
   branch: string;
+  mergedHead?: string | undefined;
 };
