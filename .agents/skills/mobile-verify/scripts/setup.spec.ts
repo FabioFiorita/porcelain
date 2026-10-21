@@ -108,6 +108,7 @@ it('pairs Android without invoking the Apple runner or iOS alerts and releases s
     'wait',
     'open',
     'press',
+    'press',
     'fill',
     'wait',
     'press',
