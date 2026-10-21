@@ -7,7 +7,7 @@ import {
   serviceUpdateOutcome,
   serviceUpdateProgress,
 } from '@porcelain/client/access/rules';
-import { CopyIcon } from 'lucide-react';
+import { CopyIcon, LockKeyholeIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Collapsible,
@@ -76,11 +76,16 @@ export function SettingsUpdateRow({
         {target.kind === 'mac-app' ? 'Restart to update' : 'Update'}
       </Button>
     );
+  else if (trust && target.kind === 'service' && target.state.available)
+    action = (
+      <CollapsibleTrigger render={<Button size="sm" variant="ghost" />}>
+        <LockKeyholeIcon />
+        Needs trust
+      </CollapsibleTrigger>
+    );
   else {
     let label =
       row.note ?? (latest ? 'Up to date' : 'Latest version unavailable');
-    if (trust && target.kind === 'service' && target.state.available)
-      label = 'Needs trust';
     if (target.kind === 'service' && !target.state.managed)
       label = 'Managed on that computer';
     action = !row.error && (
@@ -88,29 +93,26 @@ export function SettingsUpdateRow({
     );
   }
   return (
-    <div
-      className="flex min-w-0 flex-col gap-2"
-      role="group"
-      aria-label={`${target.name} update`}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          {showName && <p className="text-sm font-medium">{target.name}</p>}
-          <p className="text-xs text-muted-foreground">
-            <span>
-              {target.kind === 'mac-app' ? 'Mac app' : 'Porcelain'}{' '}
-              {current ?? 'development build'}
-            </span>
-            {latest && latest !== current && <> → {latest}</>}
-          </p>
+    <Collapsible>
+      <div
+        className="flex min-w-0 flex-col gap-2"
+        role="group"
+        aria-label={`${target.name} update`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            {showName && <p className="text-sm font-medium">{target.name}</p>}
+            <p className="text-xs text-muted-foreground">
+              <span>
+                {target.kind === 'mac-app' ? 'Mac app' : 'Porcelain'}{' '}
+                {current ?? 'development build'}
+              </span>
+              {latest && latest !== current && <> → {latest}</>}
+            </p>
+          </div>
+          {action}
         </div>
-        {action}
-      </div>
-      {trust && target.kind === 'service' && target.state.available && (
-        <Collapsible>
-          <CollapsibleTrigger render={<Button size="sm" variant="ghost" />}>
-            How to trust this device
-          </CollapsibleTrigger>
+        {trust && target.kind === 'service' && target.state.available && (
           <CollapsibleContent>
             <div className="flex flex-col gap-2 pt-2 text-xs text-muted-foreground">
               <p>{trust.hint}</p>
@@ -129,46 +131,48 @@ export function SettingsUpdateRow({
               )}
             </div>
           </CollapsibleContent>
-        </Collapsible>
-      )}
-      {row.error && (
-        <p role="alert" className="text-xs text-destructive">
-          {row.error}
-        </p>
-      )}
-      {entry?.status === 'failed' && (
-        <p role="alert" className="text-xs text-destructive">
-          {entry.message}
-        </p>
-      )}
-      {!pending && outcome?.kind === 'failed' && entry?.status !== 'failed' && (
-        <p role="alert" className="text-xs text-destructive">
-          {outcome.reason}
-        </p>
-      )}
-      {entry?.status === 'updated' && (
-        <p role="status" className="text-xs text-muted-foreground">
-          Updated to {entry.version}.
-        </p>
-      )}
-      {entry?.status === 'updated' &&
-        target.kind === 'service' &&
-        local?.environmentId === target.id && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="self-start"
-            onClick={() => window.location.reload()}
-          >
-            Reload
-          </Button>
         )}
-      {target.kind === 'service' && !target.state.managed && (
-        <p className="text-xs text-muted-foreground">
-          This computer runs outside the installed service. Update it with npm,
-          then run porcelain service update.
-        </p>
-      )}
-    </div>
+        {row.error && (
+          <p role="alert" className="text-xs text-destructive">
+            {row.error}
+          </p>
+        )}
+        {entry?.status === 'failed' && (
+          <p role="alert" className="text-xs text-destructive">
+            {entry.message}
+          </p>
+        )}
+        {!pending &&
+          outcome?.kind === 'failed' &&
+          entry?.status !== 'failed' && (
+            <p role="alert" className="text-xs text-destructive">
+              {outcome.reason}
+            </p>
+          )}
+        {entry?.status === 'updated' && (
+          <p role="status" className="text-xs text-muted-foreground">
+            Updated to {entry.version}.
+          </p>
+        )}
+        {entry?.status === 'updated' &&
+          target.kind === 'service' &&
+          local?.environmentId === target.id && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="self-start"
+              onClick={() => window.location.reload()}
+            >
+              Reload
+            </Button>
+          )}
+        {target.kind === 'service' && !target.state.managed && (
+          <p className="text-xs text-muted-foreground">
+            This computer runs outside the installed service. Update it with
+            npm, then run porcelain service update.
+          </p>
+        )}
+      </div>
+    </Collapsible>
   );
 }
