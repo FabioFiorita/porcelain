@@ -42,6 +42,29 @@ function response(state: ServiceUpdateTarget['state'], status = 200) {
   );
 }
 
+const serviceUpdateFixture = Effect.fnUntraced(function* (
+  id: string,
+  name: string,
+  start: () => Response,
+  read: () => Response,
+) {
+  const subject = fixture(async (_path, init) =>
+    init?.method === 'POST' ? start() : read(),
+  );
+  subject.connection.atoms.addGlobalLayer(
+    Layer.succeed(Clock.Clock, yield* Clock.Clock),
+  );
+  const target: ServiceUpdateTarget = {
+    kind: 'service',
+    id,
+    name,
+    deviceId: undefined,
+    connection: subject.connection,
+    state: offered,
+  };
+  return { ...subject, target };
+});
+
 function waitForBatch(
   registry: AtomRegistry.AtomRegistry,
   predicate: (batch: SettingsUpdateBatch) => boolean,
@@ -69,41 +92,34 @@ it.effect(
       let firstState: ServiceUpdateTarget['state'] = running;
       let secondState: ServiceUpdateTarget['state'] = running;
       let secondUnavailable: 'restart' | 'network' | undefined;
-      const first = fixture(async (_path, init) => {
-        if (init?.method === 'POST') {
+      const first = yield* serviceUpdateFixture(
+        '0',
+        'First',
+        () => {
           writes.push('first');
           postedFirst?.();
           return response(running, 202);
-        }
-        return response(firstState);
-      });
-      const second = fixture(async (_path, init) => {
-        if (init?.method === 'POST') {
+        },
+        () => response(firstState),
+      );
+      const second = yield* serviceUpdateFixture(
+        '1',
+        'Second',
+        () => {
           writes.push('second');
           postedSecond?.();
           return response(running, 202);
-        }
-        if (secondUnavailable === 'network')
-          throw new TypeError('Network request failed');
-        return secondUnavailable === 'restart'
-          ? new Response(null, { status: 503 })
-          : response(secondState);
-      });
-      for (const { connection } of [first, second])
-        connection.atoms.addGlobalLayer(
-          Layer.succeed(Clock.Clock, yield* Clock.Clock),
-        );
-      const registry = first.registry;
-      const rows: readonly ServiceUpdateTarget[] = [first, second].map(
-        ({ connection }, index) => ({
-          kind: 'service',
-          id: String(index),
-          name: index === 0 ? 'First' : 'Second',
-          deviceId: undefined,
-          connection,
-          state: offered,
-        }),
+        },
+        () => {
+          if (secondUnavailable === 'network')
+            throw new TypeError('Network request failed');
+          return secondUnavailable === 'restart'
+            ? new Response(null, { status: 503 })
+            : response(secondState);
+        },
       );
+      const registry = first.registry;
+      const rows = [first.target, second.target];
       let finishMac: (() => void) | undefined;
       const mac: MacAppUpdateTarget = {
         kind: 'mac-app',
@@ -190,21 +206,16 @@ it.effect(
   () =>
     Effect.gen(function* () {
       const writes: string[] = [];
-      const subject = fixture(async (_path, init) => {
-        if (init?.method === 'POST') {
+      const subject = yield* serviceUpdateFixture(
+        'a',
+        'A',
+        () => {
           writes.push('service');
           return new Response(null, { status: 403 });
-        }
-        return response(offered);
-      });
-      const target: ServiceUpdateTarget = {
-        kind: 'service',
-        id: 'a',
-        name: 'A',
-        connection: subject.connection,
-        deviceId: undefined,
-        state: offered,
-      };
+        },
+        () => response(offered),
+      );
+      const target = subject.target;
       const mac: MacAppUpdateTarget = {
         kind: 'mac-app',
         id: 'mac',
@@ -263,47 +274,39 @@ it.each([
           acceptedFirst = resolve;
         });
         let denied = false;
-        const first = fixture(async (_path, init) => {
-          if (init?.method === 'POST') {
+        const first = yield* serviceUpdateFixture(
+          '0',
+          'First',
+          () => {
             writes.push('first');
             acceptedFirst?.();
             return response(running, 202);
-          }
-          return denied ? new Response(null, { status }) : response(running);
-        });
+          },
+          () => (denied ? new Response(null, { status }) : response(running)),
+        );
         let secondAccepted = false;
-        const second = fixture(async (_path, init) => {
-          if (init?.method === 'POST') {
+        const second = yield* serviceUpdateFixture(
+          '1',
+          'Second',
+          () => {
             writes.push('second');
             secondAccepted = true;
             return response(running, 202);
-          }
-          return response(
-            secondAccepted
-              ? {
-                  ...running,
-                  running: false,
-                  version: '1.1.0',
-                  available: false,
-                  last: { ...running.last, stage: 'updated' },
-                }
-              : offered,
-          );
-        });
-        for (const { connection } of [first, second])
-          connection.atoms.addGlobalLayer(
-            Layer.succeed(Clock.Clock, yield* Clock.Clock),
-          );
-        const rows: readonly ServiceUpdateTarget[] = [first, second].map(
-          ({ connection }, index) => ({
-            kind: 'service',
-            id: String(index),
-            name: index === 0 ? 'First' : 'Second',
-            deviceId: undefined,
-            connection,
-            state: offered,
-          }),
+          },
+          () =>
+            response(
+              secondAccepted
+                ? {
+                    ...running,
+                    running: false,
+                    version: '1.1.0',
+                    available: false,
+                    last: { ...running.last, stage: 'updated' },
+                  }
+                : offered,
+            ),
         );
+        const rows = [first.target, second.target];
         const mac: MacAppUpdateTarget = {
           kind: 'mac-app',
           id: 'mac',
