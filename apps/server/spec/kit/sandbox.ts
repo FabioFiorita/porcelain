@@ -239,11 +239,17 @@ function bubblewrapArguments(sandbox: Sandbox): string[] {
     '/tmp',
     ...readOnly(node),
     ...readOnly(git),
+    ...readOnly(realpathSync('/bin/sh'), '/bin/sh'),
     ...readOnly(execPath),
     ...(existsSync(templates) ? readOnly(templates) : []),
     ...(existsSync('/etc/ld.so.cache') ? readOnly('/etc/ld.so.cache') : []),
     ...libraryMounts(
-      sharedLibraries([node, git, ...addons(installation.server)]),
+      sharedLibraries([
+        node,
+        git,
+        realpathSync('/bin/sh'),
+        ...addons(installation.server),
+      ]),
     ),
     ...readOnly(installation.server, installation.serverAt),
     ...readOnly(installation.bin, installation.binAt),

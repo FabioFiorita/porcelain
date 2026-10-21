@@ -1,11 +1,12 @@
 ---
 route: /
 selectors:
-  - "Search reviews and worktrees"
-  - "Projects and worktrees"
-  - "Clear search"
+  - 'Search reviews and worktrees'
+  - 'Projects and worktrees'
+  - 'Clear search'
 tests:
   - apps/web/spec/e2e/projects-search.e2e.ts
+  - apps/web/spec/e2e/review-archive.e2e.ts
 api:
   - GET /api/inventory
 ---
@@ -22,3 +23,9 @@ The sidebar shows one review list across projects and environments, with a compa
 4. Open Closed, read a retained review and return with Back to reviews. Git History keeps its own name and destination.
 5. Open the footer Worktrees menu, including while Closed is displayed. It lists active checkouts with its own temporary search. Click its input and type through real keyboard events; verify the text and focus stay in the input as results change from no matches to matches, including with the pointer over a result. ArrowDown then Enter selects the matching checkout; Escape closes the menu. Reopening starts with an empty query and never changes sidebar search or filters. Check long menu labels remain on one line with full text in their title. Select a checkout, including one without a published review. Existing workspace selection and unsaved-draft protection still apply. Projects opens project context menus for rename, copy and removal.
 6. Check row title/badge indentation is aligned with and without progress, search inputs have icons, and loading/empty states use the installed primitives. Retain default, filter-open, Worktrees-menu and Closed screenshots at desktop width. Check the web phone sidebar separately; Electron bridge and remote-environment behavior need their own proof.
+
+## Archive a completed review
+
+With a review linked to a merged or closed PR, use Archive in its list row. In Settings, When archiving a review controls local worktree, local branch and remote branch deletion; all default on. The confirmation names the actual deletion targets. Keeping a worktree while deleting its branch detaches that checkout and says so in the confirmation. The main checkout and its branches stay protected.
+
+Cancel and verify no deletion. With uncommitted files or unpushed commits, verify the explicit warning and confirm the data-loss risk separately. Ignored files never count as dirty. Confirm a branch with no upstream reports skipped remote deletion; an auto-deleted remote branch reports already deleted without an unpushed warning when its head matches the merged PR. A failed preview clears its checking text and shows a plain reason. Archive while that worktree is selected: selection leaves it before deletion. Verify the review stays under Closed with the Archived badge and remains readable. On Android, the data-loss acknowledgement switch starts off and Archive stays disabled until it is enabled. A retained worktree stays accessible under No review (or Projects for the main checkout). Capture before, confirmation, Closed, settings and a short journey recording.

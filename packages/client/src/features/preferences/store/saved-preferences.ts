@@ -11,6 +11,9 @@ const fields = Schema.Struct({
   lineOverflow: Schema.Literals(['scroll', 'wrap']),
   markdownDefault: Schema.Literals(['reader', 'source']),
   htmlDefault: Schema.Literals(['preview', 'source']),
+  archiveDeleteWorktree: Schema.Boolean,
+  archiveDeleteLocalBranch: Schema.Boolean,
+  archiveDeleteRemoteBranch: Schema.Boolean,
   collapseSpecs: Schema.Boolean,
 });
 export type Preferences = typeof fields.Type;
@@ -22,6 +25,9 @@ export const defaultPreferences: Preferences = {
   lineOverflow: 'scroll',
   markdownDefault: 'reader',
   htmlDefault: 'preview',
+  archiveDeleteWorktree: true,
+  archiveDeleteLocalBranch: true,
+  archiveDeleteRemoteBranch: true,
   collapseSpecs: false,
 };
 function savedField<S extends Schema.ConstraintDecoder<unknown>>(
@@ -86,6 +92,21 @@ export const preferencesSchema = Schema.Unknown.pipe(
             fields.fields.htmlDefault,
             saved.htmlDefault,
             defaultPreferences.htmlDefault,
+          ),
+          archiveDeleteWorktree: savedField(
+            fields.fields.archiveDeleteWorktree,
+            saved.archiveDeleteWorktree,
+            defaultPreferences.archiveDeleteWorktree,
+          ),
+          archiveDeleteLocalBranch: savedField(
+            fields.fields.archiveDeleteLocalBranch,
+            saved.archiveDeleteLocalBranch,
+            defaultPreferences.archiveDeleteLocalBranch,
+          ),
+          archiveDeleteRemoteBranch: savedField(
+            fields.fields.archiveDeleteRemoteBranch,
+            saved.archiveDeleteRemoteBranch,
+            defaultPreferences.archiveDeleteRemoteBranch,
           ),
           collapseSpecs: savedField(
             fields.fields.collapseSpecs,

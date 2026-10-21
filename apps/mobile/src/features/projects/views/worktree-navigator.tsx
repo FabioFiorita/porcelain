@@ -1,3 +1,6 @@
+import type { RuntimeConnection } from '@porcelain/client/transport';
+import type { Project } from '@porcelain/client/projects/rules';
+import { ArchiveReview } from './archive-review';
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
@@ -34,7 +37,7 @@ export function WorktreeNavigator({
   const { picker, initializing, reading } = useWorkspacePickerModel(onSelect);
   const remotes = useAtomRef(remoteConnectionState);
   const connections = remotes.map((entry) => entry.connection);
-  const { entries, loading, messages } = useAtomValue(
+  const { entries, loading, messages, projects } = useAtomValue(
     readReviewList(connections),
   );
   const retry = useAtomSet(refreshReviewList(connections));
@@ -221,6 +224,11 @@ export function WorktreeNavigator({
                       </Box>
                     }
                     trailing={<Icon name="chevron" tone="muted" />}
+                    action={
+                      entry.archivable ? (
+                        <ArchiveAction entry={entry} projects={projects} />
+                      ) : undefined
+                    }
                     onPress={() => open(entry)}
                   >
                     {entry.badges.length > 0 ? (
@@ -280,4 +288,29 @@ export function WorktreeNavigator({
       </ScrollView>
     </Box>
   );
+}
+
+function ArchiveAction({
+  entry,
+  projects,
+}: {
+  entry: ReviewListEntry;
+  projects: readonly { connection: RuntimeConnection; project: Project }[];
+}) {
+  const source = projects.find(
+    (row) =>
+      row.connection.environmentId === entry.environmentId &&
+      row.project.id === entry.projectId,
+  );
+  const main = source?.project.worktrees.find(
+    (row) => row.main && row.available,
+  );
+  return entry.archivable && entry.reviewId && source && main ? (
+    <ArchiveReview
+      connection={source.connection}
+      reviewId={entry.reviewId}
+      projectId={entry.projectId}
+      mainWorktreeId={main.id}
+    />
+  ) : null;
 }

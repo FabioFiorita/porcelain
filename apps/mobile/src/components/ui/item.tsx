@@ -18,6 +18,7 @@ export type ItemProps = {
   titleNumberOfLines?: number;
   leading?: ReactNode;
   trailing?: ReactNode;
+  action?: ReactNode;
   children?: ReactNode;
   variant?: keyof typeof variants;
   size?: keyof typeof sizes;
@@ -34,6 +35,7 @@ export function Item({
   titleNumberOfLines,
   leading,
   trailing,
+  action,
   children,
   variant = 'default',
   size = 'default',
@@ -71,27 +73,38 @@ export function Item({
       {trailing}
     </>
   );
-  return onPress || onLongPress ? (
-    <Pressable
-      testID={testID}
-      accessibilityRole="button"
-      accessibilityLabel={itemAccessibilityLabel({
-        title,
-        description,
-        accessibilityLabel,
-        hasAdditionalContent: Boolean(leading || trailing || children),
-      })}
-      accessibilityState={{ selected, disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      onLongPress={onLongPress}
-      className={className}
-    >
-      {content}
-    </Pressable>
-  ) : (
-    <View testID={testID} className={className}>
-      {content}
+  const row =
+    onPress || onLongPress ? (
+      <Pressable
+        testID={testID}
+        accessibilityRole="button"
+        accessibilityLabel={itemAccessibilityLabel({
+          title,
+          description,
+          accessibilityLabel,
+          hasAdditionalContent: Boolean(leading || trailing || children),
+        })}
+        accessibilityState={{ selected, disabled }}
+        disabled={disabled}
+        onPress={onPress}
+        onLongPress={onLongPress}
+        className={
+          action ? 'min-w-0 flex-1 flex-row items-center gap-3' : className
+        }
+      >
+        {content}
+      </Pressable>
+    ) : (
+      <View testID={testID} className={className}>
+        {content}
+      </View>
+    );
+  return action ? (
+    <View className={className}>
+      {row}
+      {action}
     </View>
+  ) : (
+    row
   );
 }

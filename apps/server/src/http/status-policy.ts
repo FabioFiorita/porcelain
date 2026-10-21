@@ -116,6 +116,7 @@ import {
   ProofTooLargeError,
   InvalidReviewComparisonError,
   ReviewConflictError,
+  ReviewArchiveRefusedError,
   ReviewPublishRefusedError,
   ReviewNotFoundError,
   ReviewedMarkConflictError,
@@ -159,7 +160,10 @@ const rules: readonly StatusRule[] = [
     statusCode: 503,
     message: 'GitHub is unavailable',
   },
-  { errors: [ReviewPublishRefusedError], statusCode: 409 },
+  {
+    errors: [ReviewPublishRefusedError, ReviewArchiveRefusedError],
+    statusCode: 409,
+  },
   { errors: [ReviewNotFoundError], statusCode: 404 },
   {
     errors: [

@@ -117,6 +117,7 @@ export const reviewRecordSchema = Schema.Struct({
   branch: Schema.String,
   pullRequest: Schema.optional(Schema.String),
   state: Schema.Literals(['open', 'closed']),
+  archived: Schema.optional(Schema.Boolean),
   latestRevision: Schema.Int,
   lastSeenRevision: Schema.Int,
 });

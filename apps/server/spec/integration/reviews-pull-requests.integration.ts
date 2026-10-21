@@ -77,7 +77,7 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
     const responses: unknown[] = [];
     const request = async (
       path: string,
-      method: 'GET' | 'PUT' = 'GET',
+      method: 'GET' | 'PUT' | 'POST' = 'GET',
       body?: object,
     ) => {
       const answer = await read(session, {
@@ -90,6 +90,20 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
       return record(answer);
     };
     const project = `/api/projects/${session.projectId}`;
+    const archiveOptions = {
+      deleteWorktree: true,
+      deleteLocalBranch: true,
+      deleteRemoteBranch: true,
+    };
+    await read(
+      session,
+      {
+        method: 'POST',
+        path: `/api/reviews/${reviewId}/archive`,
+        body: { options: archiveOptions },
+      },
+      409,
+    );
     const review = `/api/reviews/${reviewId}`;
     expect(await request(`${project}/github-account`)).toMatchObject({
       accounts: ['personal', 'work'],
@@ -179,6 +193,31 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
       review: { state: 'closed' },
       revision: { revision: 1 },
     });
+    const preview = await request(`${review}/archive`, 'POST', {
+      options: archiveOptions,
+    });
+    expect(preview).toMatchObject({
+      archived: false,
+      plan: {
+        mainCheckout: true,
+      },
+    });
+    expect(record(preview.plan)).not.toHaveProperty('worktreePath');
+    expect(record(preview.plan)).not.toHaveProperty('localBranch');
+    expect(record(preview.plan)).not.toHaveProperty('remoteBranch');
+    expect(
+      await request(`${review}/archive`, 'POST', {
+        options: archiveOptions,
+        confirmation: { plan: preview.plan, discardChanges: true },
+      }),
+    ).toMatchObject({ archived: true });
+    expect(await request(review)).toMatchObject({
+      review: { state: 'closed', archived: true },
+      revision: { revision: 1 },
+    });
+    expect((await session.git('rev-parse', '--show-toplevel')).trim()).toBe(
+      session.repository,
+    );
     await session.git(
       'remote',
       'set-url',

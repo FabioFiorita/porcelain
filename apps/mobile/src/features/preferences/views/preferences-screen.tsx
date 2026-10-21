@@ -1,3 +1,5 @@
+import { archiveSettings } from '@porcelain/client/preferences/rules';
+import { Switch } from '../../../components/ui/switch';
 import { Box } from '../../../components/ui/box';
 import { ScrollView } from 'react-native';
 import { Button } from '../../../components/ui/button';
@@ -80,6 +82,24 @@ export function PreferencesScreen() {
           disabled={disabled}
           onChange={(theme) => setPreferences({ appearance: theme })}
         />
+        <Box gap={3}>
+          <Text variant="subheading">When archiving a review</Text>
+          {archiveSettings.map(({ key, label }) => (
+            <Item
+              key={key}
+              title={label}
+              variant="outline"
+              trailing={
+                <Switch
+                  label={label}
+                  checked={preferences[key]}
+                  disabled={disabled}
+                  onCheckedChange={(value) => setPreferences({ [key]: value })}
+                />
+              }
+            />
+          ))}
+        </Box>
         <Box gap={3}>
           <Text variant="subheading" tone="muted">
             Code

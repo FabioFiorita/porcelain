@@ -1,5 +1,6 @@
 import type { AtomRegistry } from 'effect/reactivity';
 import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
+import { ArchiveReviewDialog } from '@/features/projects/index';
 import { ThemeProvider } from '@/features/preferences/index';
 
 export const Route = createRootRouteWithContext<{
@@ -12,6 +13,7 @@ function RootLayout() {
   return (
     <ThemeProvider>
       <Outlet />
+      <ArchiveReviewDialog />
     </ThemeProvider>
   );
 }

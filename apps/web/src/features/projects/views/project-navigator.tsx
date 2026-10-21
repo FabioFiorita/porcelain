@@ -1,3 +1,4 @@
+import { ArchiveReview } from './archive-review';
 import { useState } from 'react';
 import { useAtomValue, useAtomSet } from '@effect/atom-react';
 import { Link } from '@tanstack/react-router';
@@ -240,9 +241,9 @@ export function ProjectNavigator({
               </SidebarGroupLabel>
               <SidebarMenu>
                 {grouped.map((entry) => (
-                  <SidebarMenuItem key={entry.key}>
+                  <SidebarMenuItem key={entry.key} className="flex items-start">
                     <SidebarMenuButton
-                      className="h-auto items-start whitespace-normal"
+                      className="h-auto min-w-0 flex-1 items-start whitespace-normal"
                       disabled={!entry.reviewId && entry.disabled}
                       isActive={
                         !closed &&
@@ -313,6 +314,17 @@ export function ProjectNavigator({
                         </p>
                       </div>
                     </SidebarMenuButton>
+                    {entry.archivable && entry.reviewId ? (
+                      <ArchiveReview
+                        connection={
+                          connections.find(
+                            (source) =>
+                              source.environmentId === entry.environmentId,
+                          ) ?? connection
+                        }
+                        reviewId={entry.reviewId}
+                      />
+                    ) : null}
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>

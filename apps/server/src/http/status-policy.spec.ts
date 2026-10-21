@@ -72,6 +72,23 @@ describe('status policy', () => {
     expect(toStatusResponse(new Error('boom')).statusCode).toBe(500);
   });
 
+  it('answers an archive refusal as a conflict with the safety reason', () => {
+    expect(
+      toStatusResponse(
+        new reviewsErrors.ReviewArchiveRefusedError({
+          message: 'The archive plan changed; review it again',
+        }),
+      ),
+    ).toEqual({
+      statusCode: 409,
+      body: {
+        statusCode: 409,
+        error: 'Conflict',
+        message: 'The archive plan changed; review it again',
+      },
+    });
+  });
+
   it('identifies a changed file without relying on its message', () => {
     expect(toStatusResponse(new filesErrors.ContentChangedError())).toEqual({
       statusCode: 409,

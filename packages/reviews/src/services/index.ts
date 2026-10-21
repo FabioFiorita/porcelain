@@ -56,3 +56,4 @@ export { ReadGitHubPullRequestService } from './read-github-pull-request-service
 export { ListGitHubPullRequestsService } from './list-github-pull-requests-service.ts';
 
 export { ReadReviewRecordService } from './read-review-record-service.ts';
+export { ArchiveReviewService } from './archive-review-service.ts';

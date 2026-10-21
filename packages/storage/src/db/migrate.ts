@@ -154,6 +154,10 @@ export const nativeMigrations = Migrator.fromRecord({
     yield* sql`CREATE INDEX comment_messages_id ON comment_messages(id)`;
     yield* sql`CREATE INDEX comment_messages_thread ON comment_messages(thread_id, sequence)`;
   }),
+  '004_archive_reviews': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE reviews ADD COLUMN archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0, 1))`;
+  }),
   '003_project_github_accounts': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE project_github_accounts (

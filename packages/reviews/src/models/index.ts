@@ -60,3 +60,4 @@ export {
   type GitHubRepository,
   type GitHubAccountResult,
 } from './pull-request.ts';
+export * from './review-archive.ts';
