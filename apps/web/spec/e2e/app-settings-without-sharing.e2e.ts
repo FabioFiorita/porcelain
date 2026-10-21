@@ -14,7 +14,9 @@ test('the web the server serves lists Appearance, Git and agents, Connection and
     name: 'Projects and worktrees',
     exact: true,
   });
-  await expect(navigator.getByText(host, { exact: true })).toBeVisible();
+  await expect(
+    navigator.getByText(`Porcelain${host}`, { exact: true }),
+  ).toBeVisible();
 
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })

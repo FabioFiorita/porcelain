@@ -14,7 +14,9 @@ test('the owner names this computer in Settings, and the tab title, pairing and 
     name: 'Projects and worktrees',
     exact: true,
   });
-  await expect(navigator.getByText(host, { exact: true })).toBeVisible();
+  await expect(
+    navigator.getByText(`Porcelain${host}`, { exact: true }),
+  ).toBeVisible();
 
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
@@ -56,7 +58,7 @@ test('the owner names this computer in Settings, and the tab title, pairing and 
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await expect(
-    navigator.getByText('Workstation', { exact: true }),
+    navigator.getByText('PorcelainWorkstation', { exact: true }),
   ).toBeVisible();
   await navigator
     .getByRole('button', { name: 'Settings', exact: true })

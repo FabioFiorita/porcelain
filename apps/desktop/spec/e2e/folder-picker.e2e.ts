@@ -70,21 +70,25 @@ test('the Open project button opens the chosen Git repository through the native
   await app.answerPicker({ canceled: false, filePaths: [desktop.repository] });
   await page.waitForURL((url) => url.pathname !== '/');
   const worktrees = page.getByRole('button', {
-    name: 'Worktrees',
+    name: 'Filter reviews',
     exact: true,
   });
   await worktrees.click();
-  const project = page.getByRole('menuitem', { name: /desktop-smoke/ });
+  await page.getByRole('menuitem', { name: 'Worktrees', exact: true }).click();
+  const project = page.getByRole('menuitemradio', { name: /desktop-smoke/ });
   await expect(project).toBeVisible();
-  await expect(project).toContainText('Current');
+  await expect(project).toHaveAttribute('aria-checked', 'true');
   expect(await registered(page)).toEqual([desktop.repository]);
   expect(browsing).toEqual([]);
 
   await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
   await page.reload();
   await worktrees.click();
+  await page.getByRole('menuitem', { name: 'Worktrees', exact: true }).click();
   await expect(project).toBeVisible();
-  await expect(project).toContainText('Current');
+  await expect(project).toHaveAttribute('aria-checked', 'true');
+  await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   const reviewToggle = page.getByRole('button', {
     name: 'Review',
