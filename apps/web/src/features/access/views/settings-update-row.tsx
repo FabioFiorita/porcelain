@@ -65,11 +65,15 @@ export function SettingsUpdateRow({
     action = (
       <Button
         size="sm"
-        aria-label={`Update ${target.name}`}
+        aria-label={
+          target.kind === 'mac-app'
+            ? 'Restart to update'
+            : `Update ${target.name}`
+        }
         disabled={batch.running}
         onClick={() => run([target])}
       >
-        Update
+        {target.kind === 'mac-app' ? 'Restart to update' : 'Update'}
       </Button>
     );
   else {
