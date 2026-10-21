@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { useAtomValue, useAtomSet } from '@effect/atom-react';
 import { Link } from '@tanstack/react-router';
-import { FilterIcon, KeyboardIcon, SettingsIcon } from 'lucide-react';
+import {
+  FilterIcon,
+  KeyboardIcon,
+  SearchIcon,
+  SettingsIcon,
+} from 'lucide-react';
 import { readReviewList, refreshReviewList } from '@porcelain/client/reviews';
 import {
   emptyReviewListFilter,
@@ -16,7 +21,11 @@ import type { Inventory } from '@porcelain/client/projects/rules';
 import type { WorktreeTarget } from '../rules/worktree-target';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { InputGroup, InputGroupInput } from '@/components/ui/input-group';
+import {
+  InputGroup,
+  InputGroupInput,
+  InputGroupAddon,
+} from '@/components/ui/input-group';
 import {
   Sidebar,
   SidebarContent,
@@ -24,9 +33,16 @@ import {
   SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuItem,
+  SidebarMenuButton,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { Item, ItemContent, ItemMedia } from '@/components/ui/item';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty';
+import { Spinner } from '@/components/ui/spinner';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -82,6 +98,14 @@ export function ProjectNavigator({
     closed: false,
   });
   const { query, filter, closed } = view;
+  const [menuQuery, setMenuQuery] = useState('');
+  const checkouts = [
+    ...new Map(
+      reviewListView(entries, menuQuery, emptyReviewListFilter, false)
+        .rows.filter((entry) => entry.worktreeId)
+        .map((entry) => [`${entry.environmentId}/${entry.worktreeId}`, entry]),
+    ).values(),
+  ];
   const setQuery = (query: string) =>
     setView((current) => ({ ...current, query }));
   const setFilter = (filter: typeof emptyReviewListFilter) =>
@@ -93,12 +117,7 @@ export function ProjectNavigator({
     : 'No matching worktrees';
   const emptyLabel =
     projects.length === 0 ? 'No projects registered' : emptyReviewsLabel;
-  const { rows, projectFilters, environmentFilters } = reviewListView(
-    entries,
-    query,
-    filter,
-    closed,
-  );
+  const { rows, filters } = reviewListView(entries, query, filter, closed);
   const { setOpenMobile } = useSidebar();
   const openWorktree = (entry: ReviewListEntry) => {
     if (!entry.worktreeId) return;
@@ -147,6 +166,9 @@ export function ProjectNavigator({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
+          <InputGroupAddon>
+            <SearchIcon />
+          </InputGroupAddon>
         </InputGroup>
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -165,39 +187,33 @@ export function ProjectNavigator({
           >
             <FilterIcon />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="max-h-96 overflow-y-auto">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Projects</DropdownMenuLabel>
-              {projectFilters.map((option) => (
-                <DropdownMenuCheckboxItem
-                  key={option.id}
-                  checked={option.checked}
-                  closeOnClick={false}
-                  onCheckedChange={() =>
-                    setFilter({ ...filter, projects: option.next })
-                  }
-                >
-                  {option.label}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Environments</DropdownMenuLabel>
-              {environmentFilters.map((option) => (
-                <DropdownMenuCheckboxItem
-                  key={option.id}
-                  checked={option.checked}
-                  closeOnClick={false}
-                  onCheckedChange={() =>
-                    setFilter({ ...filter, environments: option.next })
-                  }
-                >
-                  {option.label}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
+          <DropdownMenuContent
+            align="end"
+            className="max-h-96 w-80 min-w-72 max-w-[calc(100vw-2rem)] overflow-y-auto"
+          >
+            {filters.map((section) => (
+              <DropdownMenuGroup key={section.key}>
+                <DropdownMenuLabel>{section.label}</DropdownMenuLabel>
+                {section.items.map((option) => (
+                  <DropdownMenuCheckboxItem
+                    key={option.id}
+                    checked={option.checked}
+                    closeOnClick={false}
+                    onCheckedChange={() =>
+                      setFilter({ ...filter, [section.key]: option.next })
+                    }
+                  >
+                    <span
+                      className="min-w-0 flex-1 truncate"
+                      title={option.label}
+                    >
+                      {option.label}
+                    </span>
+                  </DropdownMenuCheckboxItem>
+                ))}
+                <DropdownMenuSeparator />
+              </DropdownMenuGroup>
+            ))}
             <DropdownMenuItem onClick={() => setFilter(emptyReviewListFilter)}>
               Clear filters
             </DropdownMenuItem>
@@ -206,9 +222,10 @@ export function ProjectNavigator({
       </div>
       <SidebarContent>
         {loading && (
-          <p role="status" className="px-3 text-xs">
-            Reading reviews…
-          </p>
+          <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+            <Spinner aria-label="Reading worktrees" />
+            Reading worktrees…
+          </div>
         )}
         {(closed ? (['Closed'] as const) : reviewListGroups).map((group) => {
           const grouped =
@@ -224,14 +241,26 @@ export function ProjectNavigator({
               <SidebarMenu>
                 {grouped.map((entry) => (
                   <SidebarMenuItem key={entry.key}>
-                    <Item
-                      size="xs"
-                      className="min-w-0 flex-nowrap items-start text-left"
+                    <SidebarMenuButton
+                      className="h-auto items-start whitespace-normal"
+                      disabled={!entry.reviewId && entry.disabled}
+                      isActive={
+                        !closed &&
+                        entry.worktreeId !== undefined &&
+                        selected?.worktreeId === entry.worktreeId &&
+                        (selected?.remote ?? connection.environmentId) ===
+                          entry.environmentId
+                      }
+                      onClick={() =>
+                        entry.reviewId
+                          ? setOpenMobile(false)
+                          : openWorktree(entry)
+                      }
                       render={
                         entry.reviewId ? (
                           <Link
                             to="/reviews/$reviewId"
-                            params={{ reviewId: entry.reviewId ?? '' }}
+                            params={{ reviewId: entry.reviewId }}
                             search={{
                               environment:
                                 entry.environmentId === connection.environmentId
@@ -239,38 +268,34 @@ export function ProjectNavigator({
                                   : entry.environmentId,
                               decision: undefined,
                             }}
-                            onClick={() => setOpenMobile(false)}
                           />
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={entry.disabled}
-                            aria-current={
-                              selected?.worktreeId === entry.worktreeId
-                                ? 'page'
-                                : undefined
-                            }
-                            onClick={() => openWorktree(entry)}
-                          />
-                        )
+                        ) : undefined
                       }
                     >
-                      {entry.reviewId ? (
-                        <ItemMedia>
+                      <span
+                        className="w-10 shrink-0"
+                        aria-hidden={!entry.reviewId}
+                      >
+                        {entry.reviewId ? (
                           <Badge
                             variant="outline"
                             aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
                           >
                             {entry.reviewed}/{entry.total}
                           </Badge>
-                        </ItemMedia>
-                      ) : null}
-                      <ItemContent className="min-w-0">
-                        {group !== 'Projects' ? (
-                          <p className="line-clamp-2 text-sm font-medium leading-snug">
-                            {entry.title}
-                          </p>
                         ) : null}
+                      </span>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p
+                          className={
+                            entry.group === 'Projects'
+                              ? 'truncate text-sm font-medium'
+                              : 'line-clamp-2 text-sm font-medium leading-snug'
+                          }
+                          title={entry.title}
+                        >
+                          {entry.title}
+                        </p>
                         {entry.badges.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {entry.badges.map((badge) => (
@@ -286,8 +311,8 @@ export function ProjectNavigator({
                         >
                           {reviewListMeta(entry, Date.now())}
                         </p>
-                      </ItemContent>
-                    </Item>
+                      </div>
+                    </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
@@ -295,9 +320,14 @@ export function ProjectNavigator({
           );
         })}
         {!loading && rows.length === 0 && (
-          <p role="status" className="px-3 py-4 text-xs text-muted-foreground">
-            {emptyLabel}
-          </p>
+          <Empty>
+            <EmptyHeader>
+              <EmptyTitle>{emptyLabel}</EmptyTitle>
+              <EmptyDescription>
+                Try another search or clear the filters.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         )}
         {messages.map((message) => (
           <p key={message} role="status" className="px-3 text-xs">
@@ -315,9 +345,13 @@ export function ProjectNavigator({
           <PopoverTrigger render={<Button size="sm" variant="ghost" />}>
             Projects
           </PopoverTrigger>
-          <PopoverContent className="max-h-96 overflow-y-auto">
+          <PopoverContent className="max-h-96 w-80 min-w-72 max-w-[calc(100vw-2rem)] overflow-y-auto">
             {projects.length === 0 ? (
-              <p>No projects registered</p>
+              <Empty>
+                <EmptyHeader>
+                  <EmptyTitle>No projects registered</EmptyTitle>
+                </EmptyHeader>
+              </Empty>
             ) : (
               projects.map((source) => (
                 <div
@@ -345,11 +379,15 @@ export function ProjectNavigator({
             )}
           </PopoverContent>
         </Popover>
-        <DropdownMenu>
+        <DropdownMenu
+          onOpenChange={(open) => {
+            if (!open) setMenuQuery('');
+          }}
+        >
           <DropdownMenuTrigger render={<Button size="sm" variant="ghost" />}>
             Worktrees
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="max-h-96 overflow-y-auto">
+          <DropdownMenuContent className="max-h-96 w-80 min-w-72 max-w-[calc(100vw-2rem)] overflow-y-auto">
             <DropdownMenuGroup>
               <DropdownMenuLabel>Open a worktree</DropdownMenuLabel>
               <InputGroup>
@@ -357,31 +395,48 @@ export function ProjectNavigator({
                   type="search"
                   aria-label="Search worktrees"
                   placeholder="Search worktrees…"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  value={menuQuery}
+                  onChange={(event) => setMenuQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (
+                      !['Escape', 'ArrowDown', 'ArrowUp', 'Tab'].includes(
+                        event.key,
+                      )
+                    )
+                      event.stopPropagation();
+                  }}
                 />
+                <InputGroupAddon>
+                  <SearchIcon />
+                </InputGroupAddon>
               </InputGroup>
-              {[
-                ...new Map(
-                  rows
-                    .filter((entry) => entry.worktreeId)
-                    .map((entry) => [
-                      `${entry.environmentId}/${entry.worktreeId}`,
-                      entry,
-                    ]),
-                ).values(),
-              ].map((entry) => (
+              {checkouts.map((entry) => (
                 <DropdownMenuItem
                   key={entry.key}
                   disabled={entry.disabled}
                   onClick={() => openWorktree(entry)}
                 >
-                  {entry.branch} · {entry.projectName} · {entry.environmentName}
-                  {selected?.worktreeId === entry.worktreeId
-                    ? ' · Current'
-                    : ''}
+                  <span
+                    className="min-w-0 flex-1 truncate"
+                    title={`${entry.branch} · ${entry.projectName} · ${entry.environmentName}`}
+                  >
+                    {entry.branch} · {entry.projectName} ·{' '}
+                    {entry.environmentName}
+                    {selected?.worktreeId === entry.worktreeId &&
+                    (selected?.remote ?? connection.environmentId) ===
+                      entry.environmentId
+                      ? ' · Current'
+                      : ''}
+                  </span>
                 </DropdownMenuItem>
               ))}
+              {!loading && checkouts.length === 0 ? (
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyTitle>No matching worktrees</EmptyTitle>
+                  </EmptyHeader>
+                </Empty>
+              ) : null}
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>

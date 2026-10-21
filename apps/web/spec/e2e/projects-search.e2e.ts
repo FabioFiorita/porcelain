@@ -24,12 +24,16 @@ test('the flat worktree menu searches checkouts without reviews and selects the 
     name: 'Search worktrees',
     exact: true,
   });
-  await search.fill('NOT-A-WORKSPACE');
+  await search.click();
+  await pairedPage.keyboard.type('NOT-A-WORKSPACE');
+  await expect(search).toHaveValue('NOT-A-WORKSPACE');
   await expect(
     pairedPage.getByRole('menuitem', { name: /search-target/ }),
   ).not.toBeAttached();
   await expect.poll(() => app.address().path).toBe(original);
-  await search.fill('search-target');
+  await search.press('ControlOrMeta+a');
+  await pairedPage.keyboard.type('search-target');
+  await expect(search).toBeFocused();
   const result = pairedPage.getByRole('menuitem', { name: /search-target/ });
   await expect(result).toBeVisible();
   await result.click();
@@ -133,7 +137,7 @@ test('Projects pins main checkouts, No review keeps other checkouts, and search 
   const main = project.worktrees.find((row) => row.main);
   const topic = project.worktrees.find((row) => !row.main);
   if (!main || !topic) throw new Error('Missing main or topic checkout');
-  const meta = `${project.name} · ${main.branch?.replace('refs/heads/', '')} · ${inventory.environment.name}`;
+  const meta = `${project.name} ${main.branch?.replace('refs/heads/', '')} · ${inventory.environment.name}`;
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
@@ -180,4 +184,52 @@ test('Projects pins main checkouts, No review keeps other checkouts, and search 
     .click();
   await mainRow.click();
   await expect.poll(() => app.address().path).toBe(`/${project.id}/${main.id}`);
+});
+
+test('the checkout menu has a temporary search independent of sidebar search and Closed', async ({
+  pairedPage,
+  repo,
+  app,
+}) => {
+  await repo.worktree('independent-search');
+  await app.reload();
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
+  const sidebarSearch = pairedPage.getByRole('searchbox', {
+    name: 'Search reviews and worktrees',
+    exact: true,
+  });
+  await sidebarSearch.fill('NO-SIDEBAR-MATCH');
+  await pairedPage.getByRole('button', { name: 'Closed', exact: true }).click();
+  const menu = pairedPage.getByRole('button', {
+    name: 'Worktrees',
+    exact: true,
+  });
+  await menu.click();
+  const search = pairedPage.getByRole('searchbox', {
+    name: 'Search worktrees',
+    exact: true,
+  });
+  await expect(search).toHaveValue('');
+  await expect(
+    pairedPage.getByRole('menuitem', { name: /independent-search/ }),
+  ).toBeVisible();
+  await search.click();
+  await pairedPage.keyboard.type('independent-search');
+  await expect(search).toHaveValue('independent-search');
+  await expect(search).toBeFocused();
+  await pairedPage.keyboard.press('Escape');
+  await expect(search).not.toBeAttached();
+  await expect(sidebarSearch).toHaveValue('NO-SIDEBAR-MATCH');
+  await menu.click();
+  await expect(search).toHaveValue('');
+  await pairedPage.keyboard.press('Escape');
+  await pairedPage
+    .getByRole('button', { name: 'Back to reviews', exact: true })
+    .click();
+  await expect(sidebarSearch).toHaveValue('NO-SIDEBAR-MATCH');
+  await expect(
+    pairedPage.getByText('No matching worktrees', { exact: true }),
+  ).toBeVisible();
 });

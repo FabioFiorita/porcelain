@@ -290,11 +290,14 @@ it('combines search and checkbox state without changing the source entries', () 
     false,
   );
   expect(view.rows.map((row) => row.key)).toEqual(['b']);
-  expect(view.projectFilters).toHaveLength(2);
-  expect(view.environmentFilters.map((item) => item.checked)).toEqual([
-    true,
-    true,
-  ]);
+  expect(
+    view.filters.find((section) => section.label === 'Projects')?.items,
+  ).toHaveLength(2);
+  expect(
+    view.filters
+      .find((section) => section.label === 'Environments')
+      ?.items.map((item) => item.checked),
+  ).toEqual([true, true]);
 });
 
 it('applies search and both filters to main checkout rows and uses compact project metadata', () => {
@@ -333,5 +336,5 @@ it('applies search and both filters to main checkout rows and uses compact proje
       false,
     ).rows,
   ).toEqual([]);
-  expect(reviewListMeta(main, 0)).toBe('Porcelain · main · Beelink');
+  expect(reviewListMeta(main, 0)).toBe('main · Beelink');
 });

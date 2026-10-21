@@ -140,7 +140,7 @@ export function filterReviewList(
 }
 export function reviewListMeta(entry: ReviewListEntry, now: number) {
   if (entry.group === 'Projects')
-    return [entry.projectName, entry.branch, entry.environmentName].join(' · ');
+    return [entry.branch, entry.environmentName].join(' · ');
   const seconds = entry.publishedAt
     ? Math.max(0, (now - Date.parse(entry.publishedAt)) / 1000)
     : undefined;
@@ -210,10 +210,17 @@ export function reviewListView(
   const options = reviewListOptions(entries);
   return {
     rows: filterReviewList(entries, query, filter, closed),
-    projectFilters: reviewListFilterItems(options.projects, filter.projects),
-    environmentFilters: reviewListFilterItems(
-      options.environments,
-      filter.environments,
-    ),
+    filters: [
+      {
+        key: 'projects' as const,
+        label: 'Projects',
+        items: reviewListFilterItems(options.projects, filter.projects),
+      },
+      {
+        key: 'environments' as const,
+        label: 'Environments',
+        items: reviewListFilterItems(options.environments, filter.environments),
+      },
+    ],
   };
 }

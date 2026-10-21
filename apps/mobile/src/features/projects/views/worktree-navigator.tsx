@@ -43,12 +43,7 @@ export function WorktreeNavigator({
   const [closed, setClosed] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const router = useRouter();
-  const { rows, projectFilters, environmentFilters } = reviewListView(
-    entries,
-    query,
-    filter,
-    closed,
-  );
+  const { rows, filters } = reviewListView(entries, query, filter, closed);
   const open = (entry: ReviewListEntry) => {
     if (entry.worktreeId && !closed) {
       picker.onWorktree(entry.environmentId, entry.projectId, entry.worktreeId);
@@ -76,32 +71,24 @@ export function WorktreeNavigator({
             accessibilityLabel="Filter worktrees"
             title="Filter worktrees"
           >
-            <Stack.Toolbar.Menu title="Projects">
-              {projectFilters.map((option) => (
-                <Stack.Toolbar.MenuAction
-                  key={option.id}
-                  isOn={option.checked}
-                  onPress={() =>
-                    setFilter({ ...filter, projects: option.next })
-                  }
-                >
-                  {option.label}
+            {filters.map((section) => (
+              <Stack.Toolbar.Menu key={section.key} inline>
+                <Stack.Toolbar.MenuAction disabled>
+                  {section.label}
                 </Stack.Toolbar.MenuAction>
-              ))}
-            </Stack.Toolbar.Menu>
-            <Stack.Toolbar.Menu title="Environments">
-              {environmentFilters.map((option) => (
-                <Stack.Toolbar.MenuAction
-                  key={option.id}
-                  isOn={option.checked}
-                  onPress={() =>
-                    setFilter({ ...filter, environments: option.next })
-                  }
-                >
-                  {option.label}
-                </Stack.Toolbar.MenuAction>
-              ))}
-            </Stack.Toolbar.Menu>
+                {section.items.map((option) => (
+                  <Stack.Toolbar.MenuAction
+                    key={option.id}
+                    isOn={option.checked}
+                    onPress={() =>
+                      setFilter({ ...filter, [section.key]: option.next })
+                    }
+                  >
+                    {option.label}
+                  </Stack.Toolbar.MenuAction>
+                ))}
+              </Stack.Toolbar.Menu>
+            ))}
             <Stack.Toolbar.MenuAction
               onPress={() => setFilter(emptyReviewListFilter)}
             >
@@ -136,6 +123,7 @@ export function WorktreeNavigator({
       )}
       <Box paddingX={4} paddingY={3} gap={2}>
         <Input
+          leading={<Icon name="search" tone="muted" />}
           accessibilityLabel="Search reviews and worktrees"
           placeholder="Search reviews, branches or worktrees"
           autoCapitalize="none"
@@ -164,18 +152,7 @@ export function WorktreeNavigator({
       >
         {showFilters ? (
           <Box gap={2}>
-            {[
-              {
-                label: 'Projects',
-                key: 'projects' as const,
-                items: projectFilters,
-              },
-              {
-                label: 'Environments',
-                key: 'environments' as const,
-                items: environmentFilters,
-              },
-            ].map((section) => (
+            {filters.map((section) => (
               <Box key={section.key} gap={2}>
                 <Text variant="subheading">{section.label}</Text>
                 {section.items.map((option) => (
@@ -226,20 +203,22 @@ export function WorktreeNavigator({
                 return (
                   <Item
                     key={entry.key}
-                    title={entry.group === 'Projects' ? undefined : entry.title}
-                    titleNumberOfLines={2}
+                    title={entry.title}
+                    titleNumberOfLines={entry.group === 'Projects' ? 1 : 2}
                     variant={entry.group === 'Projects' ? 'default' : 'outline'}
-                    size={entry.group === 'Projects' ? 'xs' : 'default'}
+                    size="sm"
                     selected={selected}
                     disabled={picker.disabled || (!closed && entry.disabled)}
-                    accessibilityLabel={`${reviewListMeta(entry, Date.now())}${entry.reviewId ? `, ${entry.title}, ${entry.reviewed}/${entry.total} decisions reviewed, ${entry.badges.map((badge) => badge.label).join(', ')}` : ''}${selected ? ', current' : ''}${entry.disabled ? ', unavailable' : ''}`}
+                    accessibilityLabel={`${entry.title}, ${reviewListMeta(entry, Date.now())}${entry.reviewId ? `, ${entry.reviewed}/${entry.total} decisions reviewed, ${entry.badges.map((badge) => badge.label).join(', ')}` : ''}${selected ? ', current' : ''}${entry.disabled ? ', unavailable' : ''}`}
                     leading={
-                      entry.reviewId ? (
-                        <Badge
-                          label={`${entry.reviewed}/${entry.total}`}
-                          variant="outline"
-                        />
-                      ) : undefined
+                      <Box className="w-10 shrink-0 self-start">
+                        {entry.reviewId ? (
+                          <Badge
+                            label={`${entry.reviewed}/${entry.total}`}
+                            variant="outline"
+                          />
+                        ) : null}
+                      </Box>
                     }
                     trailing={<Icon name="chevron" tone="muted" />}
                     onPress={() => open(entry)}
