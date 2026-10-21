@@ -37,10 +37,17 @@ export function routingPromises() {
       ).toBeVisible();
       await pairedPage.keyboard.press('Escape');
       await pairedPage.keyboard.press('Escape');
+      await expect(pairedPage.getByRole('menu')).toHaveCount(0);
       await expect(
         navigator.getByRole('button', { name: 'Settings', exact: true }),
       ).toBeVisible();
+      await navigator
+        .getByRole('button', { name: 'Settings', exact: true })
+        .focus();
       await pairedPage.keyboard.press('Escape');
+      await expect(
+        pairedPage.getByRole('dialog', { name: 'Sidebar', exact: true }),
+      ).not.toBeVisible();
       await pairedPage
         .getByRole('link', { name: 'Back to workspace', exact: true })
         .click();
