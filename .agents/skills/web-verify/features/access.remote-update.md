@@ -17,7 +17,7 @@ api:
 
 # access.remote-update
 
-The global text-only Update Badge sits at the right end of the navigator footer, beside Settings, the keyboard button and the Computers button. It opens Updates available with one row per offered service update and a Mac app row when it has an update. Retained batch entries keep their outcomes visible. Computers and details reuse the same rows and shared batch owner. Available untrusted and unmanaged computers remain visible; only the shared eligibility helper controls Update and the Update all (N) count.
+The navigator footer keeps Settings and Computers on the left, with the global text-only Update Badge followed by the Keyboard shortcuts icon together at the far right on one unwrapped row. Hovering the keyboard button shows the Keyboard shortcuts tooltip. It opens Updates available with one row per offered service update and a Mac app row when it has an update. Retained batch entries keep their outcomes visible. Computers and details reuse the same rows and shared batch owner. Available untrusted and unmanaged computers remain visible; only the shared eligibility helper controls Update and the Update all (N) count.
 
 ## Driving it
 

@@ -639,14 +639,21 @@ export function ProjectNavigator({
           </Button>
           <div className="ml-auto flex shrink-0 items-center gap-1">
             <UpdatesMenu />
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Keyboard shortcuts"
-              onClick={onOpenShortcuts}
-            >
-              <KeyboardIcon />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Keyboard shortcuts"
+                    onClick={onOpenShortcuts}
+                  />
+                }
+              >
+                <KeyboardIcon />
+              </TooltipTrigger>
+              <TooltipContent>Keyboard shortcuts</TooltipContent>
+            </Tooltip>
           </div>
         </footer>
       </Sidebar>

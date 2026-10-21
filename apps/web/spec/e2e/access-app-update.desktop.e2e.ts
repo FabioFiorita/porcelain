@@ -183,6 +183,37 @@ test('the footer Update badge offers the Mac app through its bridge without post
   ).toBeVisible();
   await expect(pill).toBeVisible();
   await expect(pill).toHaveText('Update');
+  const shortcuts = footer.getByRole('button', {
+    name: 'Keyboard shortcuts',
+    exact: true,
+  });
+  const controls = [
+    footer.getByRole('button', { name: 'Settings', exact: true }),
+    footer.getByRole('button', { name: 'Computers', exact: true }),
+    pill,
+    shortcuts,
+  ];
+  await expect
+    .poll(async () => {
+      const bounds = await Promise.all(
+        controls.map((control) => control.boundingBox()),
+      );
+      const first = bounds[0];
+      if (!first) return false;
+      return bounds.every((box, index) => {
+        if (!box) return false;
+        const previous = bounds[index - 1];
+        return (
+          Math.abs(box.y + box.height / 2 - first.y - first.height / 2) < 1 &&
+          (!previous || box.x >= previous.x + previous.width)
+        );
+      });
+    })
+    .toBe(true);
+  await shortcuts.hover();
+  await expect(
+    page.getByText('Keyboard shortcuts', { exact: true }),
+  ).toBeVisible();
   await pill.click();
   const updates = page.getByRole('dialog', {
     name: 'Updates available',

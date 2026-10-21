@@ -26,7 +26,6 @@ const symbols = {
   warning: { ios: 'exclamationmark.triangle', android: 'warning' },
   comment: { ios: 'bubble', android: 'chat_bubble' },
   lock: { ios: 'lock', android: 'lock' },
-  closed: { ios: 'archivebox', android: 'archive' },
   history: { ios: 'clock.arrow.circlepath', android: 'history' },
   refresh: { ios: 'arrow.clockwise', android: 'refresh' },
   trash: { ios: 'trash', android: 'delete' },
