@@ -2,25 +2,25 @@
 route: /remotes/$environmentId/$projectId/$worktreeId
 shell: desktop
 selectors:
-  - "Toggle Sidebar"
-  - "Settings"
-  - "Remote computers"
-  - "Pairing link"
-  - "Add"
-  - "Back"
-  - "Online"
-  - "This computer"
-  - "Open a worktree"
-  - "Mark "
-  - "Unmark "
-  - "Review"
-  - "Files"
-  - "Open file"
-  - "Source"
-  - "Briefing"
-  - "Agent summary"
-  - "Review summary"
-  - "Review walkthrough"
+  - 'Toggle Sidebar'
+  - 'Settings'
+  - 'Computers'
+  - 'Pairing link'
+  - 'Add'
+  - 'Back'
+  - 'Online'
+  - 'This computer'
+  - 'Open a worktree'
+  - 'Mark '
+  - 'Unmark '
+  - 'Review'
+  - 'Files'
+  - 'Open file'
+  - 'Source'
+  - 'Briefing'
+  - 'Agent summary'
+  - 'Review summary'
+  - 'Review walkthrough'
 tests:
   - apps/web/spec/e2e/projects-remote-workspace.desktop.e2e.ts
 api:
@@ -46,9 +46,9 @@ The desktop app lists a remote computer as its own group in the sidebar, by name
 
 ## How a user reaches it
 
-- Desktop shell only. Settings → `Remote computers` (`/settings/remotes`) → `Pairing link` → `Add`; then the sidebar (phone width: `Toggle Sidebar`, or `ControlOrMeta+b`) → group "<computer name>" → a worktree row of its project.
+- Desktop shell only. Settings → `Computers` (`/settings/computers`) → `Pairing link` → `Add`; then the sidebar (phone width: `Toggle Sidebar`, or `ControlOrMeta+b`) → group "<computer name>" → a worktree row of its project.
 - Route `/remotes/<environmentId>/<projectId>/<worktreeId>` (full page load works once the remote is saved; it redirects to `/` when the remote is unknown or the shell is not desktop).
-- An offline remote shows its status badge and `Open Remote computers` instead of projects.
+- An offline remote shows its status badge and `Open Computers` instead of projects.
 
 ## Driving it
 
@@ -58,8 +58,8 @@ The desktop app lists a remote computer as its own group in the sidebar, by name
 
 1. `$C remote start`
    Look for: "remote computer Remote journey computer, project remote-sample", its `remote address http://127.0.0.1:<port>` and `remote repository <path>` (call it `$REMOTE_REPO`). It is a second disposable server with the sample project, renamed so no name collides with this computer's.
-2. `LINK=$($C remote pairing-link | head -1)`, then navigate to `/settings/remotes` on the card’s web URL (full page load), replace the contents of textbox named `Pairing link` with the expanded value `$LINK` and click button named `Add`
-   Look for: Text 'Online' is visible; list "Remote computers" with listitem "Remote journey computer" holding "http://127.0.0.1:<remote port> · Porcelain 1.0.0" and "Online".
+2. `LINK=$($C remote pairing-link | head -1)`, then navigate to `/settings/computers` on the card’s web URL (full page load), replace the contents of textbox named `Pairing link` with the expanded value `$LINK` and click button named `Add`
+   Look for: Text 'Online' is visible; list "Computers" with listitem "Remote journey computer" holding "http://127.0.0.1:<remote port> · Porcelain 1.0.0" and "Online".
 
 ### Open the remote worktree
 

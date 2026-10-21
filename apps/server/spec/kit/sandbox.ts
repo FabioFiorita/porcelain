@@ -489,7 +489,8 @@ async function main() {
           PORCELAIN_DEV_ALLOWED_HOSTS: option('--allowed-hosts') ?? '[]',
           ...(process.platform === 'darwin' ? { TRASH_FALLBACK: '1' } : {}),
           ...(process.env.PORCELAIN_DEV_SAMPLE === 'review' ||
-          process.env.PORCELAIN_DEV_SAMPLE === 'perf'
+          process.env.PORCELAIN_DEV_SAMPLE === 'perf' ||
+          process.env.PORCELAIN_DEV_SAMPLE === 'service-ahead'
             ? { PORCELAIN_DEV_SAMPLE: process.env.PORCELAIN_DEV_SAMPLE }
             : {}),
         },

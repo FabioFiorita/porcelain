@@ -1,6 +1,7 @@
 import { expect, test } from './fixtures.ts';
+import { openThisComputer } from '../kit/settings.ts';
 
-test('desktop Settings opens on This computer, lists This computer, Ways in, Remote computers, Devices, Git and agents and Appearance with no Connection, and shows each as its own page', async ({
+test('desktop Settings uses the shared five sections and nests this computer and Ways in under Computers', async ({
   pairedPage,
 }) => {
   await pairedPage
@@ -18,25 +19,38 @@ test('desktop Settings opens on This computer, lists This computer, Ways in, Rem
     exact: true,
   });
   await expect(sections.getByRole('button')).toHaveText([
-    'This computer',
-    'Ways in',
-    'Remote computers',
+    'General',
+    'Reviews & Git',
+    'Computers',
     'Devices',
-    'Git and agents',
-    'Appearance',
+    'Integrations',
     'Back',
   ]);
   await expect(
-    settings.getByRole('heading', { name: 'This computer', exact: true }),
+    settings.getByRole('heading', { name: 'General', exact: true }),
   ).toBeVisible();
-
-  await sections.getByRole('button', { name: 'Ways in', exact: true }).click();
+  await openThisComputer(pairedPage);
+  await expect(pairedPage).toHaveURL(/\/settings\/computers\/this-computer$/);
   await expect(
-    settings.getByRole('heading', { name: 'Ways in', exact: true }),
+    settings
+      .getByRole('navigation', { name: 'breadcrumb', exact: true })
+      .getByText('This computer', { exact: true }),
   ).toBeVisible();
   await expect(
     settings.getByRole('switch', { name: 'Local network', exact: true }),
   ).toBeVisible();
+  await expect(
+    settings.getByRole('textbox', {
+      name: 'Name of this computer',
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    settings.getByRole('button', {
+      name: 'Disconnect this browser',
+      exact: true,
+    }),
+  ).not.toBeAttached();
   await sections.getByRole('button', { name: 'Devices', exact: true }).click();
   await expect(
     settings.getByRole('switch', { name: 'Local network', exact: true }),
@@ -45,9 +59,20 @@ test('desktop Settings opens on This computer, lists This computer, Ways in, Rem
     settings.getByText('Paired devices', { exact: true }),
   ).toBeVisible();
   await sections
-    .getByRole('button', { name: 'Remote computers', exact: true })
+    .getByRole('button', { name: 'Computers', exact: true })
     .click();
   await expect(
-    settings.getByText('No remote computers yet', { exact: true }),
+    settings
+      .getByRole('list', { name: 'Computers', exact: true })
+      .getByRole('listitem'),
+  ).toHaveCount(1);
+  await expect(
+    settings.getByRole('button', { name: 'Open This computer', exact: true }),
+  ).toBeVisible();
+  await sections
+    .getByRole('button', { name: 'Integrations', exact: true })
+    .click();
+  await expect(
+    settings.getByText('Porcelain MCP server', { exact: true }),
   ).toBeVisible();
 });

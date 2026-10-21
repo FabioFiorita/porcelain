@@ -1,3 +1,4 @@
+import { openThisComputer } from '../kit/settings.ts';
 import { expect, test, type Page, type Repo } from './fixtures.ts';
 import { replaceEditorContent } from '../kit/editor.ts';
 
@@ -23,9 +24,7 @@ async function refuseDisconnectWithDraft(page: Page, repo: Repo) {
     .click();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const settings = page.getByRole('main', { name: 'Settings', exact: true });
-  await settings
-    .getByRole('button', { name: 'Connection', exact: true })
-    .click();
+  await openThisComputer(page);
   await settings
     .getByRole('button', { name: 'Disconnect this browser', exact: true })
     .click();
@@ -70,10 +69,7 @@ test('disconnecting is refused while a file draft cannot be saved, and the file 
     name: 'Settings',
     exact: true,
   });
-  await pairedPage
-    .getByRole('main', { name: 'Settings', exact: true })
-    .getByRole('button', { name: 'Connection', exact: true })
-    .click();
+  await openThisComputer(pairedPage);
   await settings
     .getByRole('button', { name: 'Disconnect this browser', exact: true })
     .click();
@@ -96,6 +92,7 @@ test('disconnecting this browser ends its session and shows how to pair it again
     exact: true,
   });
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
+  await settings.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(settings).not.toBeAttached();
   await pairedPage
     .getByRole('button', { name: 'Resume edit', exact: true })
@@ -114,10 +111,7 @@ test('disconnecting this browser ends its session and shows how to pair it again
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
-  await pairedPage
-    .getByRole('main', { name: 'Settings', exact: true })
-    .getByRole('button', { name: 'Connection', exact: true })
-    .click();
+  await openThisComputer(pairedPage);
   await settings
     .getByRole('button', { name: 'Disconnect this browser', exact: true })
     .click();

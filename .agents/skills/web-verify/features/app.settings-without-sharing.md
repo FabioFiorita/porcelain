@@ -1,65 +1,35 @@
 ---
 route: /settings/$section
 selectors:
-  - "Toggle Sidebar"
-  - "Projects and worktrees"
-  - "Settings"
-  - "Settings sections"
-  - "Appearance"
-  - "Git and agents"
-  - "Connection"
-  - "Updates"
-  - "Sharing"
+  - 'Settings'
+  - 'Settings sections'
+  - 'General'
+  - 'Reviews & Git'
+  - 'Computers'
+  - 'Devices'
+  - 'Integrations'
+  - 'Open This computer'
+  - 'Disconnect this browser'
 tests:
   - apps/web/spec/e2e/app-settings-without-sharing.e2e.ts
 api:
   - GET /api/inventory
+  - GET /api/remote-access
   - GET /api/service/update
-  - POST /api/service/update
 ---
 
 # app.settings-without-sharing
 
-## What it is
-
-The web the server serves (web mode) leaves sharing and remote computers to the desktop app: Settings lists only Appearance, Git and agents, Connection and Updates, with no Sharing, This computer, Ways in, Devices or Remote computers section, and the project navigator still names this computer.
-
-## How a user reaches it
-
-- Sidebar (phone width: `Toggle Sidebar` first) → `Settings` → section buttons in navigation "Settings sections".
-- `Alt+Shift+S` opens Settings on Appearance (ignored while focus is in a text field).
-- Routes `/settings/appearance`, `/settings/git`, `/settings/connection`, `/settings/updates`; a desktop-only slug such as `/settings/devices` shows an in-app not-found with Back to workspace.
+Browser Settings has the same five sections as desktop. Computers starts with This computer and includes saved computers, versions, update offers and the existing paste-pairing-link form. Devices is visible in browser mode too.
 
 ## Driving it
 
-`$C start`; pair your browser using the card’s pairing-link command (web mode; `--desktop` shows the other section list).
+Start a web verification instance and pair the browser. Open the sidebar, note the host name beneath Porcelain, then click Settings. Expect `/settings/general` and buttons General, Reviews & Git, Computers, Devices, Integrations and Back.
 
-### Setup
+Click Computers, then Open This computer. Expect `/settings/computers/this-computer`, its current version and update state, Ways in, and Disconnect this browser. Click Devices. A local authorized browser shows Pair a device and Paired devices. A remote browser whose `GET /api/remote-access` is denied sees the one-line reason: Sharing is managed from a browser on the computer that runs Porcelain. No administration controls are mounted in that case.
 
-None. Note the computer's name with `hostname` on the machine running the instance: the server names the environment after it (it is not renamed in a fresh instance).
-
-### Steps
-
-1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: button "Toggle Sidebar"; wait for Page Title "Changes — repository".
-2. Click button named `Toggle Sidebar`
-   Look for: navigation "Projects and worktrees" whose header reads "Porcelain" and, under it, the `hostname` output; button "repository"; no group "This computer" (that group is desktop-only).
-3. Click button named `Settings`
-   Look for: Page URL `/settings/appearance`; Page Title "Settings"; main "Settings"; heading "Appearance"; navigation "Settings sections" holding exactly the buttons "Appearance", "Git and agents", "Connection", "Updates" and "Back"; no button "Sharing", "This computer", "Ways in", "Devices" or "Remote computers".
-4. Click button named `Updates`
-   Look for: Page URL `/settings/updates`; heading "Updates"; the fixture's server offers a scripted update, so the list reads "Porcelain 1.0.0", "Porcelain 1.1.0 is available." and button "Update to 1.1.0". (A server that runs outside the installed service shows "This server runs outside the installed service. Update it with npm, then run porcelain service update." instead.)
-5. Inspect HTTP requests and responses
-   Look for: `GET /api/service/update` with status 200.
-6. Navigate to `/settings/devices` on the card’s web URL (full page load)
-   Look for: Page URL `/settings/devices` (unchanged); text "Page not found" and link "Back to workspace". Follow that link to return to the workspace.
+Open `/settings/computers/a-saved-computer` directly. It keeps the Computers section and explains the missing saved computer; it does not redirect to another section. Obsolete section slugs show the app's recoverable not-found view.
 
 ## What proves it works
 
-- The section list in step 3 and the not-found in step 6 prove the web mode has no sharing pages; step 2 proves the navigator still shows this computer's name.
-- `apps/web/spec/e2e/app-settings-without-sharing.e2e.ts` (web project, 414x896): the navigator shows `server.inventory().environment.name`; the four section buttons Appearance, Git and agents, Connection and Updates are visible and no Sharing button exists; Updates shows heading "Updates" and the text `Porcelain <version from GET /api/service/update>`.
-
-## Gotchas
-
-- Do not click "Update to <version>" if an update is offered: it sends `POST /api/service/update` and starts a real update attempt on the disposable server.
-- The text after "Porcelain " depends on the server build's version, so compare it with the version the server reports, not with a fixed string.
-- Phone width: the navigator is in a sheet; click `Toggle Sidebar` before step 2's checks and before `Settings`.
+The same section list in both shells, browser Disconnect in This computer, visible Devices with host permission gating, and direct missing-computer recovery. The listed E2E covers the host-authorized browser; final remote-browser authorization proof belongs to the combined parent verification.

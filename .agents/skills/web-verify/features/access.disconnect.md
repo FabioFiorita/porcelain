@@ -1,20 +1,21 @@
 ---
 route: /
 selectors:
-  - "Review"
-  - "Files"
-  - "Open file"
-  - "Edit"
-  - "Not saving: changed on disk"
-  - "Toggle Sidebar"
-  - "Settings"
-  - "Connection"
-  - "Disconnect this browser"
-  - "Save or discard unsaved file drafts before disconnecting."
-  - "Back"
-  - "Resume edit"
-  - "Reload"
-  - "This browser is not paired"
+  - 'Review'
+  - 'Files'
+  - 'Open file'
+  - 'Edit'
+  - 'Not saving: changed on disk'
+  - 'Toggle Sidebar'
+  - 'Settings'
+  - 'Computers'
+  - 'Open This computer'
+  - 'Disconnect this browser'
+  - 'Save or discard unsaved file drafts before disconnecting.'
+  - 'Back'
+  - 'Resume edit'
+  - 'Reload'
+  - 'This browser is not paired'
 tests:
   - apps/web/spec/e2e/access-disconnect.e2e.ts
 api:
@@ -27,14 +28,14 @@ api:
 
 ## What it is
 
-Settings → Connection → "Disconnect this browser" ends this browser's session and shows how to pair it again, while the device stays on the server's paired list. It is refused, with the file on disk left alone, while a file draft cannot be saved.
+Settings → Computers → This computer → "Disconnect this browser" ends this browser's session and shows how to pair it again, while the device stays on the server's paired list. It is refused, with the file on disk left alone, while a file draft cannot be saved.
 
 ## How a user reaches it
 
-- Sidebar (phone width: `Toggle Sidebar` first) → `Settings` → `Connection` section → `Disconnect this browser`.
-- `Alt+Shift+S` opens Settings (ignored while focus is in a text field or the file editor); then the `Connection` section.
-- Route `/settings/connection` opens the section directly (a full page load: it drops unsaved drafts, so do not use it for the refusal case).
-- Settings section `Connection` exists only in web mode: the desktop app is not a browser and has no This browser section.
+- Sidebar (phone width: `Toggle Sidebar` first) → `Settings` → `Computers` → `Open This computer` → `Disconnect this browser`.
+- `Alt+Shift+S` opens Settings (ignored while focus is in a text field or the file editor); then the `Computers` → `Open This computer`.
+- Route `/settings/computers/this-computer` opens the section directly (a full page load: it drops unsaved drafts, so do not use it for the refusal case).
+- Disconnect this browser is nested in This computer in web mode. The desktop app omits that browser-only action.
 
 ## Driving it
 
@@ -60,11 +61,11 @@ None before step 1. Step 5 writes README.md on disk in the middle of the flow (a
 6. Replace the contents of textbox named `README.md` with 'A draft the browser cannot save', then wait for text 'Not saving: changed on disk' to be visible
    Look for (within about 3 s, the autosave wait): status text "Not saving: changed on disk" and an alert "The file changed on disk since you opened it. Reload it before saving. Your draft is kept here." with buttons "Copy draft" and "Reload".
 7. Click button named `Toggle Sidebar`, then click button named `Settings`
-   Look for: main "Settings", Page URL `/settings/appearance`, Page Title "Settings".
-8. Click button named `Connection`
-   Look for: Page URL `/settings/connection`; text "This browser"; button "Disconnect this browser".
+   Look for: main "Settings", Page URL `/settings/general`, Page Title "Settings".
+8. Click button named `Computers`, then button named `Open This computer`
+   Look for: Page URL `/settings/computers/this-computer`; text "This browser"; button "Disconnect this browser".
 9. Click button named `Disconnect this browser`
-   Look for: an alert inside main "Settings" reading "Save or discard unsaved file drafts before disconnecting."; Page URL stays `/settings/connection`.
+   Look for: an alert inside main "Settings" reading "Save or discard unsaved file drafts before disconnecting."; Page URL stays `/settings/computers/this-computer`.
    Disk: `cat "$REPO/README.md"` prints `Changed on disk before the browser disconnects`.
    Inspect HTTP requests and responses: exactly one `POST /api/worktrees/<worktreeId>/files` answered 409, and no `DELETE /api/session`.
 
@@ -74,7 +75,7 @@ None before step 1. Step 5 writes README.md on disk in the middle of the flow (a
     Look for: main "Settings" is gone; the README.md document shows button "Resume edit" (the draft still differs from the saved text).
 11. Click button named `Resume edit`, then click button named `Reload`
     Look for: "Not saving: changed on disk" is gone; the editor closes (textbox "README.md" gone), the document shows the disk text "Changed on disk before the browser disconnects" and its button reads "Edit" again.
-12. Click button named `Toggle Sidebar`, click button named `Settings`, click button named `Connection`
+12. Click button named `Toggle Sidebar`, click button named `Settings`, click button named `Computers`, then button named `Open This computer`
     Look for: button "Disconnect this browser".
 13. Click button named `Disconnect this browser`, then wait for text 'This browser is not paired' to be visible
     Look for: heading "This browser is not paired", the text `porcelain pair "This browser" --address http://127.0.0.1:<port>`, Page URL `/pair`.
@@ -95,6 +96,6 @@ None before step 1. Step 5 writes README.md on disk in the middle of the flow (a
 
 - To go on driving after step 15, Run `$C pairing-link` and navigate this same tab to its fresh one-time link and wait for region named `Review content` to be visible; the server then lists a second "Verification browser" device, since each pairing link pairs a new one.
 - The disk write must come after `Edit` has opened the editor and before replacing the field contents; written earlier, the editor opens on the new text and the draft saves fine.
-- Navigate to Settings in-app (sidebar or `Alt+Shift+S`), never with Navigate to `/settings/connection` on the card’s web URL (full page load) in case 1: a full page load discards the in-memory draft, so nothing blocks the disconnect.
+- Navigate to Settings in-app (sidebar or `Alt+Shift+S`), never with Navigate to `/settings/computers/this-computer` on the card’s web URL (full page load) in case 1: a full page load discards the in-memory draft, so nothing blocks the disconnect.
 - `Alt+Shift+S` is ignored while focus is in the file editor; use the sidebar's `Settings` button.
 - Phone width: the sidebar is a sheet behind `Toggle Sidebar`; the review panel is a sheet behind `Review`. The `Edit`/`Resume edit` labels are visually hidden below 720 px but keep their accessible names.

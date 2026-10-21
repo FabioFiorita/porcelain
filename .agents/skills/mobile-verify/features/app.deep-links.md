@@ -8,7 +8,7 @@ selectors:
   - 'Pair this computer'
   - 'All decisions'
   - 'Select a worktree to continue.'
-  - 'No environments paired.'
+  - 'No computers paired.'
 tests:
   - packages/client/src/features/reviews/rules/app-link.spec.ts
   - packages/client/src/features/projects/commands/selection.spec.ts
@@ -30,7 +30,7 @@ Expo Router opens each screen from the app's scheme, `porcelain.dev://` for the 
 ## Driving it
 
 1. Open porcelain.dev://history in the development client. Expect History and the matching selected tab or sidebar row.
-2. Open porcelain.dev://settings. Expect Settings and the paired environment.
+2. Open porcelain.dev://settings. Expect Settings with General, Reviews & Git and Computers; open Computers to see the paired computer.
 3. Repeat with porcelain.dev:// and porcelain.dev://review. Expect Files and Review respectively.
 4. Cold-launch using the History link. Expect History directly, with the matching native selection.
 5. Accept an iOS open-link confirmation when it appears. Keep the development-menu flags from references/driving.md on links.

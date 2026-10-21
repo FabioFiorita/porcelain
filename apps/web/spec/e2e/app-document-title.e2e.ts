@@ -1,3 +1,4 @@
+import { openThisComputer } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
 test('leaving the workspace and settings restores the application title', async ({
@@ -19,9 +20,7 @@ test('leaving the workspace and settings restores the application title', async 
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
-  await pairedPage
-    .getByRole('button', { name: 'Connection', exact: true })
-    .click();
+  await openThisComputer(pairedPage);
   await pairedPage
     .getByRole('button', { name: 'Disconnect this browser', exact: true })
     .click();

@@ -103,9 +103,7 @@ function ReviewEnvironment({
   )?.connection;
   const selection = useAtomRef(selectionState);
   if (storage.status !== 'ready')
-    return (
-      <ErrorState message={storage.error ?? 'Reading saved environments…'} />
-    );
+    return <ErrorState message={storage.error ?? 'Reading saved computers…'} />;
   if (!remote)
     return (
       <Box gap={4}>

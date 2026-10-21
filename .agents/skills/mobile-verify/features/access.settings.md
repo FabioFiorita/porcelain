@@ -2,52 +2,35 @@
 screen: /settings
 selectors:
   - 'Settings'
-  - 'Environments'
-  - 'Appearance'
-  - 'Theme, code and documents'
-  - 'add-environment'
-  - 'cancel-pairing'
-  - 'No environments paired.'
-  - 'Add environment'
-  - 'Reading saved environments…'
-  - 'Read saved environments again'
-  - 'settings-appearance'
-  - 'settings-environments'
+  - 'General'
+  - 'Reviews & Git'
+  - 'Computers'
+  - 'settings-general'
+  - 'settings-reviews-git'
+  - 'settings-computers'
   - 'settings-development'
-  - 'Forget environment'
-tests: []
-api:
-  - GET /api/environment
-  - GET /api/session
+  - 'Touch and hold a device ID to copy.'
+tests:
+  - apps/mobile/src/shell/destinations.spec.ts
+api: []
 ---
 
 # access.settings
 
 ## What it is
 
-On its first iPad visit, Settings has Appearance already visible beside a category pane containing Appearance, Environments and, in development builds, Development. Selecting a category replaces the detail without another navigation step. The app sidebar keeps its current state; its glass control sits in the native Settings toolbar, as on the workspace. In a narrow iPad window, the categories sit above the detail. One native toolbar is titled Settings above both category and content panes; the bounded category pane has a full-height divider and no duplicated category heading in the detail. Returning to Settings retains the selected category. In Environments, its native Add environment button opens the pairing form inline; Cancel closes it without changing the environment list. Development shows the component selector and selected preview directly.
+On iPhone and Android, Settings has General (theme, code and documents), Reviews & Git (archive deletion, pull and commit model), and Computers. Each row opens a native stack destination; Back returns to Settings. Development builds also offer Component library. The bottom shows this app's actual Expo version and selectable device IDs labelled by computer and, with multiple routes, address. IDs are registration-specific, not one global phone identifier.
 
-On iPhone and Android, Settings groups Appearance and Environments in a bounded, scrollable content column below its native header. The Appearance item opens a native stack destination for this app's theme, code and document defaults. Development builds group the Component library item under Development. Each paired environment shows its status. Add environment sits beside the Environments heading and wraps below it when needed; it is disabled until saved environments are ready. With none paired, a card says “No environments paired.” and explains how to connect with a pairing link. While reading saved environments it says “Reading saved environments…”, and when they cannot be read it offers “Read saved environments again”.
+On iPad, General starts visible beside categories General, Reviews & Git, Computers and Development in development builds. Selecting a category replaces the detail; returning retains it. The sidebar stays in its current state. A wide window has a 224-point category pane and full-height divider; a narrow window places categories above the detail. About and device IDs sit below the categories and remain bounded by the pane.
 
-## How a user reaches it
+## Drive it
 
-- phone: the Settings tab; iPad: Settings in the sidebar
-- the deep link `porcelain.dev://settings`
+1. Open the Settings tab/sidebar or porcelain.dev://settings. On phone expect the three root rows; on iPad expect the categories and General controls. Confirm the sidebar state is preserved.
+2. Open General and follow preferences.appearance. Back on phone returns to root. Open Reviews & Git and follow preferences.reviews-git; archive switches must be absent from General.
+3. Open Computers and follow access.computers, access.pairing, access.connections and access.forget-environment. Back returns to Settings on phone. Revisit and confirm pairing is retained.
+4. Read the footer app version against the installed Expo configuration. Touch and hold an ID, select Copy and independently compare the pasted ID with that computer's registered device. With two computers/routes, confirm every ID is labelled; no secret credential appears.
+5. On iPad resize landscape to a narrow window, switch categories and show/hide the app sidebar. Every control remains reachable without drawing under the sidebar. Reopen Settings and confirm the selected category.
 
-## Driving it
+## Evidence and limits
 
-1. Select the Settings tab or sidebar row, or open porcelain.dev://settings. On the first iPad visit, expect Settings categories and Appearance controls immediately; subsequent visits retain the category. Confirm the app sidebar did not change state, then select Environments. On iPhone and Android, expect the overview. Expect the card's paired environment marked Online and Add environment.
-2. On iPad select Appearance; on a phone select Theme, code and documents under Appearance. Follow preferences.appearance, then return to Environments on iPad or through native Back on a phone. Expect the same environments and Add environment.
-3. Select Add environment. On iPad expect an inline pairing card in Environments; on a phone expect the pairing sheet. Select Cancel and expect the same environment state. On a phone also reopen and dismiss the sheet; expect the same result.
-4. Expect each environment to show its status and a visible Forget environment (trash) button. Follow access.environment-status for automatic recovery and access.forget-environment for the only paired fixture. Expect No environments paired, the pairing-link guidance and Add environment.
-5. On iPad, show the app sidebar and return to the worktree and its Review, Files and History inspector modes; on a phone use the tabs. Reopen Settings and expect the same environment state. On iPad, the Settings content stays in a readable column and does not draw underneath the sidebar; in a narrow window its categories sit above the detail. On a phone, the section action and text fit or wrap without clipping.
-6. Reading saved environments… is transient. Read saved environments again requires a storage-error fixture; do not claim it from normal startup.
-
-## What proves it works
-
-Drive this feature with the mobile-verify skill on demand.
-
-## Gotchas
-
-- The unreadable-storage state needs a broken Keychain entry; no test reaches it yet.
-- Each environment row reads `GET /api/environment` and authenticated `GET /api/session` from its own server to show its status; `access.environment-status` covers the statuses.
+Retain native screenshots and device/storage readbacks with mobile-verify. Android does not prove iPhone/iPad. Storage failure requires a broken disposable credential fixture; normal startup does not prove it. These settings do not alter the native release version.

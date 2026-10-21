@@ -160,3 +160,36 @@
     inset 0 0 0 1px var(--workspace-edge),
     0 1px 2px var(--workspace-edge);
 }
+
+/* Settings composes the installed Item primitives into divided cards. */
+.settings-content [data-slot='field-legend'] {
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+}
+
+.settings-content [data-slot='item-group'] {
+  gap: 0;
+  overflow: hidden;
+  border-width: 1px;
+  border-radius: var(--radius-2xl);
+}
+
+.settings-content [data-slot='item-group'] > [data-slot='item'] {
+  border-width: 0;
+  border-radius: 0;
+}
+
+.settings-content
+  [data-slot='item-group']
+  > [data-slot='item']:not(:last-child) {
+  border-bottom-width: 1px;
+}
+
+.settings-content [data-slot='item-content'] {
+  min-width: 0;
+}
+
+.settings-content [data-slot='item-description'] {
+  display: block;
+  overflow: visible;
+}

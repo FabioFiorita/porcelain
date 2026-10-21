@@ -1,14 +1,14 @@
 ---
 route: /$
 selectors:
-  - "Page not found"
-  - "Worktree not found"
-  - "This URL has an invalid or unavailable worktree ID."
-  - "Open available worktree"
-  - "Back to workspace"
-  - "Toggle Sidebar"
-  - "Projects and worktrees"
-  - "Settings"
+  - 'Page not found'
+  - 'Worktree not found'
+  - 'This URL has an invalid or unavailable worktree ID.'
+  - 'Open available worktree'
+  - 'Back to workspace'
+  - 'Toggle Sidebar'
+  - 'Projects and worktrees'
+  - 'Settings'
 tests:
   - apps/web/spec/e2e/app-routing.e2e.ts
   - apps/web/spec/e2e/app-routing.desktop.e2e.ts
@@ -24,6 +24,6 @@ Start one web instance and pair. At desktop width (1024 × 640), navigate to `/n
 
 Navigate to `/<projectId>/invalid-worktree`, `/<projectId>/remotes` and `/?worktree=invalid-worktree`. Observe Worktree not found and the explanation that the URL has an invalid or unavailable worktree ID. Open available worktree links directly to an available workspace; it is absent when none exists. Back to workspace remains available. The app never claims another worktree is the invalid ID.
 
-Navigate to `/settings/unknown` and, in web mode, `/settings/remotes` or `/settings/devices`. Observe Page not found without a silent redirect. Press `Alt+Shift+S` to enter Settings; Back returns to the not-found view, whose Back to workspace link recovers. Desktop `/settings/remotes` remains the existing Remote computers page. Browser fleet management is not part of this feature.
+Navigate to `/settings/unknown` and the removed slugs `/settings/appearance`, `/settings/computer`, `/settings/connection`, `/settings/updates`, `/settings/ways-in` and `/settings/remotes`. Observe Page not found without a silent redirect. Press Alt+Shift+S to enter `/settings/general`; Back returns to the not-found view. Computers and Devices are valid sections in both shells. An extra segment on General remains not found.
 
 Repeat with `start --desktop` for desktop-mode routing. The named specs run these promises in both modes. The Electron bridge itself requires desktop verification. A fresh unpaired browser visiting an unknown URL ends on `/pair`, with This browser is not paired.

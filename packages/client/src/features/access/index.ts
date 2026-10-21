@@ -31,6 +31,7 @@ export {
   readPairedAccess,
   readRemoteAccess,
   readServiceUpdate,
+  serviceUpdateSnapshot,
 } from './queries/share.ts';
 export { readBrowserSession } from './queries/session.ts';
 export { disconnectBrowserSession } from './commands/session.ts';
@@ -41,3 +42,21 @@ export {
   restoreBrowserConnection,
 } from './commands/session.ts';
 export type { StatusActivity } from './ports/status-activity.ts';
+export {
+  runSettingsUpdates,
+  SettingsUpdateError,
+  type ServiceUpdateTarget,
+  type MacAppUpdateTarget,
+  type SettingsUpdateTarget,
+} from './commands/settings-updates.ts';
+export { settingsUpdateBatch } from './store/settings-updates.ts';
+export {
+  settingsUpdateAvailable,
+  settingsUpdatesVisible,
+  settingsUpdateVersion,
+  settingsUpdateTrust,
+  settingsUpdateCount,
+  settingsUpdateBatchProgress,
+  type SettingsUpdateEntry,
+  type SettingsUpdateBatch,
+} from './rules/settings-updates.ts';

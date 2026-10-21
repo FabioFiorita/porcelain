@@ -372,8 +372,6 @@ export function RemoteRoutes({
             onTurnOn={() => setRemote({ lan: true })}
           />
         </RouteRow>
-      </ItemGroup>
-      <ItemGroup>
         <RouteRow
           name="tailnet"
           route={remote.routes.tailnet}
@@ -394,8 +392,6 @@ export function RemoteRoutes({
             onCheck={() => setRemote({ tailnet: true })}
           />
         </RouteRow>
-      </ItemGroup>
-      <ItemGroup>
         <RouteRow
           name="cloudflare"
           route={remote.routes.cloudflare}

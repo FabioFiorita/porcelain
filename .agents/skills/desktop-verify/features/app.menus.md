@@ -23,7 +23,7 @@ The Mac app's application menu: Porcelain (About, Settings… with ⌘,, Service
 
 ## Driving it
 
-Start a disposable instance with `.agents/skills/desktop-verify/scripts/cli start`. For the real menu bar, use Computer Use and open Porcelain Dev › Settings…; the renderer should show Settings, the app version and the reinstall message under This computer. Repeat with ⌘,.
+Start a disposable instance with `.agents/skills/desktop-verify/scripts/cli start`. For the real menu bar, use Computer Use and open Porcelain Dev › Settings…; the renderer should show Settings, the app version and the reinstall message under Computers → This computer. Repeat with ⌘,.
 
 For a main-process journey, import `startDesktop` as the skill describes. Use the raw `electron.evaluate(({ Menu }) => ...)` to inspect the application menu: View has resetZoom, zoomIn, zoomOut and togglefullscreen, with no reload, forceReload or toggleDevTools. Invoke the `open-settings` menu item's click through the raw handle, then observe Settings through `electron.firstWindow()`. There is no menu RPC or CLI UI command.
 

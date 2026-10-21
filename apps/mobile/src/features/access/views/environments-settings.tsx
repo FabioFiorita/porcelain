@@ -12,14 +12,17 @@ import { Text } from '../../../components/ui/text';
 import { headerIcon } from '../../../shared/icons/header-icon';
 import { useReadEnvironments } from '../commands/pairing';
 import { useEnvironments, useEnvironmentStorageStatus } from '../store';
+import { ComputerUpdatesSummary } from './computer-updates-summary';
 import { EnvironmentRow } from './environment-row';
 import { PairEnvironment } from './pair-environment';
 import { PairEnvironmentForm } from './pair-environment-form';
 
-export function EnvironmentSettingsSection({
+function EnvironmentSettingsSection({
   presentation = 'overview',
   showHeading = true,
+  inlinePairing = false,
 }: {
+  inlinePairing?: boolean;
   presentation?: 'overview' | 'destination';
   showHeading?: boolean;
 }) {
@@ -34,13 +37,14 @@ export function EnvironmentSettingsSection({
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Button
             icon={headerIcon('add')}
-            accessibilityLabel="Add environment"
+            accessibilityLabel="Add computer"
             disabled={storage.status !== 'ready'}
             onPress={() => setPairing(true)}
           />
         </Stack.Toolbar>
       ) : null}
       <Box gap={3}>
+        <ComputerUpdatesSummary />
         {!nativeAdd ? (
           <Box
             className="flex-row flex-wrap items-center justify-between"
@@ -52,13 +56,13 @@ export function EnvironmentSettingsSection({
               }
               tone={presentation === 'destination' ? 'default' : 'muted'}
             >
-              Environments
+              Computers
             </Text>
             <Button
               testID="add-environment"
               className="max-w-full"
               variant="outline"
-              label="Add environment"
+              label="Add computer"
               disabled={storage.status !== 'ready'}
               onPress={() => setPairing(true)}
             />
@@ -69,22 +73,22 @@ export function EnvironmentSettingsSection({
             Manage the computers connected to Porcelain.
           </Text>
         ) : null}
-        {presentation === 'destination' && pairing ? (
+        {inlinePairing && pairing ? (
           <Card padding={4}>
             <PairEnvironmentForm onClose={() => setPairing(false)} />
           </Card>
         ) : null}
         {storage.status === 'loading' ? (
-          <Loading label="Reading saved environments…" />
+          <Loading label="Reading saved computers…" />
         ) : null}
         {storage.error ? <ErrorState message={storage.error} /> : null}
         {storage.status === 'ready' && remotes.length === 0 ? (
           <Card gap={2} padding={4}>
             <Text variant="ui" weight="medium">
-              No environments paired.
+              No computers paired.
             </Text>
             <Text variant="caption" tone="muted">
-              Select Add environment to connect to a computer running Porcelain
+              Select Add computer to connect to a computer running Porcelain
               with its pairing link.
             </Text>
           </Card>
@@ -105,12 +109,12 @@ export function EnvironmentSettingsSection({
         {storage.status === 'unreadable' ? (
           <Button
             variant="outline"
-            label="Read saved environments again"
+            label="Read saved computers again"
             onPress={() => read(undefined)}
           />
         ) : null}
       </Box>
-      {presentation === 'overview' ? (
+      {!inlinePairing ? (
         <BottomSheet
           isPresented={pairing}
           onDismiss={() => setPairing(false)}
@@ -128,8 +132,10 @@ export function EnvironmentSettingsSection({
 
 export function EnvironmentsSettings({
   showHeading = true,
+  inlinePairing = false,
 }: {
   showHeading?: boolean;
+  inlinePairing?: boolean;
 }) {
   return (
     <ScrollView
@@ -146,6 +152,7 @@ export function EnvironmentsSettings({
         <EnvironmentSettingsSection
           presentation="destination"
           showHeading={showHeading}
+          inlinePairing={inlinePairing}
         />
       </Box>
     </ScrollView>

@@ -2,15 +2,15 @@ import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { KeyRoundIcon, MonitorIcon, ChevronRightIcon } from 'lucide-react';
 import { useState } from 'react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty';
+  connectionErrorMessage,
+  remoteStatusText,
+  type Environment,
+  type Remote,
+} from '@porcelain/client/access/rules';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
@@ -18,68 +18,58 @@ import {
   ItemContent,
   ItemDescription,
   ItemGroup,
+  ItemFooter,
 } from '@/components/ui/item';
 import { submitForm } from '@/shared/lib/submit-form';
 import { useAddRemote, useReadSavedEnvironments } from '../commands/remotes';
 import { useRemoteStatus } from '../queries/remotes';
-import { connectionErrorMessage } from '@porcelain/client/access/rules';
-import { type Remote } from '@porcelain/client/access/rules';
 import { useSavedEnvironments } from '../store';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-
-const statusFilters = [
-  { value: 'all', label: 'All computers' },
-  { value: 'online', label: 'Online' },
-  { value: 'offline', label: 'Offline' },
-  { value: 'attention', label: 'Needs attention' },
-];
+import { useSettingsUpdates } from '../queries/settings-updates';
+import { SettingsUpdateRow } from './settings-update-row';
+import { ComputerUpdate } from './share-settings';
 
 function RemoteRow({
   remote,
-  search,
-  filter,
   onOpen,
+  showUpdates,
 }: {
   remote: Remote;
-  search: string;
-  filter: string;
+  showUpdates: boolean;
   onOpen: (environmentId: string) => void;
 }) {
   const status = useRemoteStatus(remote);
   const name = status.kind === 'online' ? status.name : remote.name;
-  if (
-    !`${name} ${remote.address} ${remote.environmentId}`
-      .toLowerCase()
-      .includes(search.trim().toLowerCase()) ||
-    (filter === 'online' && status.kind !== 'online') ||
-    (filter === 'offline' && status.kind !== 'offline') ||
-    (filter === 'attention' &&
-      (status.kind === 'online' || status.kind === 'checking'))
-  )
-    return null;
+  const { rows } = useSettingsUpdates();
+  const update = rows.find(
+    ({ target }) =>
+      target.kind === 'service' && target.id === remote.environmentId,
+  );
   return (
-    <Item variant="outline" size="sm" role="listitem" aria-label={name}>
+    <Item size="sm" role="listitem" aria-label={name}>
       <ItemContent>
         <Button
           variant="ghost"
-          className="h-auto w-full justify-between text-left"
+          className="h-auto w-full justify-between whitespace-normal text-left"
+          aria-label={`Open ${name}`}
           onClick={() => onOpen(remote.environmentId)}
         >
           <span className="min-w-0">
             <span className="block truncate font-medium">{name}</span>
-            <span className="block truncate text-xs text-muted-foreground">
-              {remote.address} · {remote.environmentId.slice(0, 8)}
+            <span className="block break-all text-xs font-normal text-muted-foreground">
+              {remoteStatusText(status)} · {remote.address} ·{' '}
+              {remote.environmentId.slice(0, 8)}
             </span>
           </span>
-          <ChevronRightIcon />
+          <ChevronRightIcon className="shrink-0" />
         </Button>
       </ItemContent>
+      {showUpdates && update && (
+        <ItemFooter>
+          <div className="w-full">
+            <SettingsUpdateRow row={update} />
+          </div>
+        </ItemFooter>
+      )}
     </Item>
   );
 }
@@ -89,11 +79,11 @@ function AddRemote() {
   const add = useAddRemote(() => setLink(''));
   const { status } = useSavedEnvironments();
   return (
-    <Item variant="outline">
+    <Item>
       <ItemContent>
         <ItemDescription>
           On the other computer, run porcelain pair and paste the link it
-          prints. This app keeps its own credential for that computer.
+          prints. This device keeps its own credential for that computer.
         </ItemDescription>
         <form
           className="flex flex-col gap-2 sm:flex-row"
@@ -132,20 +122,23 @@ function AddRemote() {
 }
 
 export function RemoteComputers({
+  environment,
   onOpen,
+  showUpdates,
 }: {
+  environment: Environment;
+  showUpdates: boolean;
   onOpen: (environmentId: string) => void;
 }) {
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
   const { remotes, error: unreadable } = useSavedEnvironments();
   const restore = useReadSavedEnvironments();
+  const { targets, count, batch, run } = useSettingsUpdates();
   return (
     <>
       {unreadable !== undefined && (
         <Alert variant="destructive">
           <KeyRoundIcon />
-          <AlertTitle>Saved remote computers could not be read</AlertTitle>
+          <AlertTitle>Saved computers could not be read</AlertTitle>
           <AlertDescription>
             Porcelain keeps them as they are and saves no change over them.
             Allow Porcelain to read its saved credentials, then try again.{' '}
@@ -155,85 +148,76 @@ export function RemoteComputers({
               disabled={restore.result.waiting}
               onClick={() => restore.read()}
             >
-              Read saved environments
+              Read saved computers
             </Button>
           </AlertDescription>
         </Alert>
       )}
       <FieldSet>
-        <FieldLegend variant="label">Add a remote computer</FieldLegend>
+        <FieldLegend variant="label">Computers</FieldLegend>
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            disabled={batch.running || count === 0}
+            onClick={() => run(targets)}
+          >
+            Update all ({count})
+          </Button>
+        </div>
+        <ItemGroup aria-label="Computers">
+          <Item size="sm" role="listitem" aria-label="This computer">
+            <ItemContent>
+              <Button
+                variant="ghost"
+                className="h-auto w-full justify-between whitespace-normal text-left"
+                aria-label="Open This computer"
+                onClick={() => onOpen('this-computer')}
+              >
+                <span className="min-w-0">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <MonitorIcon className="size-4" />
+                    {environment.name}
+                    <Badge variant="secondary">This computer</Badge>
+                  </span>
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    Online · Connected computer
+                  </span>
+                </span>
+                <ChevronRightIcon className="shrink-0" />
+              </Button>
+            </ItemContent>
+            {showUpdates && (
+              <ItemFooter>
+                <div className="w-full">
+                  <ComputerUpdate />
+                </div>
+              </ItemFooter>
+            )}
+          </Item>
+          {[...remotes]
+            .sort(
+              (a, b) =>
+                a.name.localeCompare(b.name) ||
+                a.environmentId.localeCompare(b.environmentId),
+            )
+            .map((remote) => (
+              <RemoteRow
+                key={remote.environmentId}
+                remote={remote}
+                showUpdates={showUpdates}
+                onOpen={onOpen}
+              />
+            ))}
+        </ItemGroup>
+        <p className="text-xs text-muted-foreground">
+          Services update from npm and restart. The Mac app updates itself.
+        </p>
+      </FieldSet>
+      <FieldSet>
+        <FieldLegend variant="label">Add computer</FieldLegend>
         <ItemGroup>
           <AddRemote />
         </ItemGroup>
-      </FieldSet>
-      <FieldSet>
-        <FieldLegend variant="label">Remote computers</FieldLegend>
-        <div className="flex gap-2">
-          <Input
-            aria-label="Search remote computers"
-            placeholder="Search name or address"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-          <Select
-            items={statusFilters}
-            value={filter}
-            onValueChange={(value) => {
-              if (value) setFilter(value);
-            }}
-          >
-            <SelectTrigger aria-label="Computer status">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {statusFilters.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {remotes.length === 0 ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <MonitorIcon />
-              </EmptyMedia>
-              <EmptyTitle>No remote computers yet</EmptyTitle>
-              <EmptyDescription>
-                Add one to review its projects from this app, next to the
-                projects on this computer.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        ) : (
-          <ItemGroup aria-label="Remote computers" className="peer">
-            {[...remotes]
-              .sort(
-                (a, b) =>
-                  a.name.localeCompare(b.name) ||
-                  a.environmentId.localeCompare(b.environmentId),
-              )
-              .map((remote) => (
-                <RemoteRow
-                  key={remote.environmentId}
-                  remote={remote}
-                  search={search}
-                  filter={filter}
-                  onOpen={onOpen}
-                />
-              ))}
-          </ItemGroup>
-        )}
-        {remotes.length > 0 && (
-          <p
-            className="text-sm text-muted-foreground peer-has-[[role=listitem]]:hidden"
-            role="status"
-          >
-            No computers match this search and filter.
-          </p>
-        )}
       </FieldSet>
     </>
   );

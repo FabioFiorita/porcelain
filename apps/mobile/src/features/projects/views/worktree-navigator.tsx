@@ -1,5 +1,6 @@
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import type { Project } from '@porcelain/client/projects/rules';
+import { UpdatesButton, UpdatesSheet, useUpdatesIndicator } from '../../access';
 import { ArchiveReview } from './archive-review';
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
@@ -30,6 +31,7 @@ import { IconButton } from '../../../components/ui/icon-button';
 import { Item } from '../../../components/ui/item';
 import { Loading } from '../../../components/ui/loading';
 import { Text } from '../../../components/ui/text';
+import { HeaderTitle } from '../../../components/ui/header-title';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 
 export function WorktreeNavigator({
@@ -48,6 +50,8 @@ export function WorktreeNavigator({
   const retry = useAtomSet(refreshReviewList(connections));
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState(emptyReviewListFilter);
+  const [updates, setUpdates] = useState(false);
+  const updateIndicator = useUpdatesIndicator();
   const [closed, setClosed] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const router = useRouter();
@@ -79,6 +83,19 @@ export function WorktreeNavigator({
   return (
     <Box className="flex-1" surface="background" testID="worktree-navigator">
       {nativeHeader ? (
+        <Stack.Title asChild>
+          <Box className="flex-row items-center" gap={3}>
+            <HeaderTitle>Worktrees</HeaderTitle>
+            {updateIndicator.visible ? (
+              <UpdatesButton
+                running={updateIndicator.running}
+                onPress={() => setUpdates(true)}
+              />
+            ) : null}
+          </Box>
+        </Stack.Title>
+      ) : null}
+      {nativeHeader ? (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Menu
             icon={headerIcon('workspace')}
@@ -88,7 +105,7 @@ export function WorktreeNavigator({
             {filters.map((section) => (
               <Stack.Toolbar.Menu key={section.key} inline>
                 <Stack.Toolbar.MenuAction disabled>
-                  {section.label}
+                  {section.key === 'environments' ? 'Computers' : section.label}
                 </Stack.Toolbar.MenuAction>
                 {section.items.map((option) => (
                   <Stack.Toolbar.MenuAction
@@ -111,11 +128,16 @@ export function WorktreeNavigator({
           </Stack.Toolbar.Menu>
           <Stack.Toolbar.Button
             icon={headerIcon(closed ? 'close' : 'closed')}
-            accessibilityLabel={closed ? 'Back to worktrees' : 'Closed reviews'}
+            accessibilityLabel="Closed reviews"
             onPress={() => setClosed(!closed)}
           />
         </Stack.Toolbar>
       ) : null}
+      <UpdatesSheet
+        presented={updates}
+        onClose={() => setUpdates(false)}
+        onManageComputers={() => router.push('/computers')}
+      />
       <Box paddingX={4} paddingY={3} gap={2}>
         <Box className="flex-row items-center" gap={1}>
           <Box className="min-w-0 flex-1">
@@ -133,6 +155,12 @@ export function WorktreeNavigator({
           </Box>
           {!nativeHeader ? (
             <>
+              {updateIndicator.visible ? (
+                <UpdatesButton
+                  running={updateIndicator.running}
+                  onPress={() => setUpdates(true)}
+                />
+              ) : null}
               <IconButton
                 icon="filter"
                 accessibilityLabel="Filter worktrees"
@@ -140,9 +168,7 @@ export function WorktreeNavigator({
               />
               <IconButton
                 icon={closed ? 'close' : 'closed'}
-                accessibilityLabel={
-                  closed ? 'Back to worktrees' : 'Closed reviews'
-                }
+                accessibilityLabel="Closed reviews"
                 onPress={() => setClosed(!closed)}
               />
             </>
@@ -168,7 +194,9 @@ export function WorktreeNavigator({
           <Box gap={2}>
             {filters.map((section) => (
               <Box key={section.key} gap={2}>
-                <Text variant="subheading">{section.label}</Text>
+                <Text variant="subheading">
+                  {section.key === 'environments' ? 'Computers' : section.label}
+                </Text>
                 {section.items.map((option) => (
                   <Item
                     key={option.id}

@@ -5,7 +5,9 @@ export default function SettingsRoute() {
   const router = useRouter();
   return (
     <SettingsPresentation
-      onOpenAppearance={() => router.push('/appearance')}
+      onOpenGeneral={() => router.push('/general')}
+      onOpenReviewsGit={() => router.push('/reviews-git')}
+      onOpenComputers={() => router.push('/computers')}
       onOpenComponentLibrary={() => router.push('/component-library')}
     />
   );

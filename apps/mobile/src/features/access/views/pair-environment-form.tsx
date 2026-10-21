@@ -32,7 +32,7 @@ export function PairEnvironmentForm({
   return (
     <Box gap={4}>
       <Text variant="heading">
-        {environmentId ? 'Add a connection' : 'Pair an environment'}
+        {environmentId ? 'Add a connection' : 'Pair a computer'}
       </Text>
       <Field
         label="Pairing link"
@@ -87,7 +87,7 @@ export function PairEnvironmentForm({
           {...(storage.status === 'unreadable'
             ? {
                 retry: {
-                  label: 'Read saved environments again',
+                  label: 'Read saved computers again',
                   onPress: () => read(undefined),
                 },
               }

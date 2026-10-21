@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { CopyIcon, LinkIcon } from 'lucide-react';
@@ -47,7 +48,16 @@ export function PairDevice({
   if (target === undefined)
     return (
       <p className="text-xs text-muted-foreground">
-        Turn on a way in under Ways in to pair a phone or another computer.
+        Turn on a way in under{' '}
+        <Link
+          to="/settings/$section/$environmentId"
+          params={{ section: 'computers', environmentId: 'this-computer' }}
+          hash="ways-in"
+          className="underline underline-offset-4"
+        >
+          Computers → This computer → Ways in
+        </Link>{' '}
+        to pair a phone or another computer.
       </p>
     );
   return (

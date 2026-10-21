@@ -131,11 +131,12 @@ export function ConnectedWorkspace({
           })
         : openHere(),
     onOpenSettings: () => openSettings(),
+    onOpenComputers: () => openSettings('computers'),
     onOpenRemotes: (environmentId: string) => {
       setOpenMobile(false);
       void navigate({
         to: '/settings/$section/$environmentId',
-        params: { section: 'remotes', environmentId },
+        params: { section: 'computers', environmentId },
       });
     },
     onOpenShortcuts: () => setShortcuts(true),

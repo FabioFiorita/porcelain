@@ -11,7 +11,7 @@ export function routingPromises() {
     for (const path of [
       '/nonexistent-route',
       `${workspace}/remotes`,
-      '/settings/appearance/extra',
+      '/settings/general/extra',
       '/settings/unknown/extra',
     ]) {
       await app.open(path);
@@ -61,30 +61,27 @@ export function routingPromises() {
   test('Settings without a section opens the default', async ({
     app,
     pairedPage,
-    shell,
   }) => {
     await app.open('/settings');
-    await expect
-      .poll(() => app.address().path)
-      .toBe(
-        shell === 'desktop' ? '/settings/computer' : '/settings/appearance',
-      );
+    await expect.poll(() => app.address().path).toBe('/settings/general');
     await expect(
-      pairedPage.getByRole('heading', {
-        name: shell === 'desktop' ? 'This computer' : 'Appearance',
-        exact: true,
-      }),
+      pairedPage.getByRole('heading', { name: 'General', exact: true }),
     ).toBeVisible();
   });
 
   test('unknown Settings sections show a recoverable not-found without silently redirecting', async ({
     app,
     pairedPage,
-    shell,
   }) => {
-    for (const path of shell === 'desktop'
-      ? ['/settings/unknown']
-      : ['/settings/unknown', '/settings/remotes', '/settings/devices']) {
+    for (const path of [
+      '/settings/unknown',
+      '/settings/computer',
+      '/settings/appearance',
+      '/settings/connection',
+      '/settings/updates',
+      '/settings/ways-in',
+      '/settings/remotes',
+    ]) {
       await app.open(path);
       await expect(
         pairedPage.getByText('Page not found', { exact: true }),

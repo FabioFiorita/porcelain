@@ -1,3 +1,4 @@
+import { openThisComputer } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
 test('Settings opens as its own page with one section at a time, and Back returns to the review', async ({
@@ -21,20 +22,18 @@ test('Settings opens as its own page with one section at a time, and Back return
   await expect(settings).toBeVisible();
   await expect(review).not.toBeAttached();
   await expect(
-    settings.getByRole('heading', { name: 'This computer', exact: true }),
+    settings.getByRole('heading', { name: 'General', exact: true }),
   ).toBeVisible();
-  await settings
-    .getByRole('button', { name: 'Appearance', exact: true })
-    .click();
+  await settings.getByRole('button', { name: 'General', exact: true }).click();
   await expect(
     settings.getByText('Diff layout', { exact: true }),
   ).toBeVisible();
 
   await settings
-    .getByRole('button', { name: 'Git and agents', exact: true })
+    .getByRole('button', { name: 'Reviews & Git', exact: true })
     .click();
   await expect(
-    settings.getByRole('heading', { name: 'Git and agents', exact: true }),
+    settings.getByRole('heading', { name: 'Reviews & Git', exact: true }),
   ).toBeVisible();
   await expect(
     settings.getByText('Diff layout', { exact: true }),
@@ -59,9 +58,7 @@ test('Escape leaves Settings, except while typing in one of its fields', async (
     name: 'Settings',
     exact: true,
   });
-  await settings
-    .getByRole('button', { name: 'This computer', exact: true })
-    .click();
+  await openThisComputer(pairedPage);
   const name = settings.getByRole('textbox', {
     name: 'Name of this computer',
     exact: true,
@@ -117,7 +114,7 @@ test('Settings still opens once the last project is removed', async ({
     exact: true,
   });
   await expect(
-    settings.getByRole('heading', { name: 'This computer', exact: true }),
+    settings.getByRole('heading', { name: 'General', exact: true }),
   ).toBeVisible();
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(

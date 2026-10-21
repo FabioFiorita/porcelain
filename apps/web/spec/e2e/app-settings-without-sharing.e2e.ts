@@ -1,6 +1,7 @@
 import { expect, test } from './fixtures.ts';
+import { openThisComputer } from '../kit/settings.ts';
 
-test('the web the server serves lists Appearance, Git and agents, Connection and Updates in Settings and no Sharing, and the navigator still names this computer', async ({
+test('browser Settings uses the same five sections and exposes host-gated Devices and computer details', async ({
   pairedPage,
   server,
   app,
@@ -29,30 +30,36 @@ test('the web the server serves lists Appearance, Git and agents, Connection and
     name: 'Settings sections',
     exact: true,
   });
+  await expect(sections.getByRole('button')).toHaveText([
+    'General',
+    'Reviews & Git',
+    'Computers',
+    'Devices',
+    'Integrations',
+    'Back',
+  ]);
   await expect(
-    settings.getByRole('heading', { name: 'Appearance', exact: true }),
+    settings.getByRole('heading', { name: 'General', exact: true }),
   ).toBeVisible();
-  for (const name of ['Appearance', 'Git and agents', 'Connection', 'Updates'])
-    await expect(
-      sections.getByRole('button', { name, exact: true }),
-    ).toBeVisible();
-  await expect(
-    sections.getByRole('button', { name: 'Sharing', exact: true }),
-  ).not.toBeAttached();
-
-  await sections.getByRole('button', { name: 'Updates', exact: true }).click();
-  await expect(
-    settings.getByRole('heading', { name: 'Updates', exact: true }),
-  ).toBeVisible();
+  await openThisComputer(pairedPage);
   await expect(
     settings.getByText(`Porcelain ${offered.version ?? ''}`, { exact: true }),
   ).toBeVisible();
-  await app.follow('/settings/remotes/a-saved-computer');
-  await expect(pairedPage).toHaveURL(/\/settings\/appearance$/);
   await expect(
-    sections.getByRole('button', { name: 'Remote computers', exact: true }),
-  ).not.toBeAttached();
+    settings.getByRole('button', {
+      name: 'Disconnect this browser',
+      exact: true,
+    }),
+  ).toBeVisible();
+  await sections.getByRole('button', { name: 'Devices', exact: true }).click();
   await expect(
-    settings.getByRole('button', { name: 'Forget on this app', exact: true }),
-  ).not.toBeAttached();
+    settings.getByText('Paired devices', { exact: true }),
+  ).toBeVisible();
+  await app.follow('/settings/computers/a-saved-computer');
+  await expect(
+    settings.getByText(
+      'This computer is no longer saved on this app. Return to Computers to add it again.',
+      { exact: true },
+    ),
+  ).toBeVisible();
 });

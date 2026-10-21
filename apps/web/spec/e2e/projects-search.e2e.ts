@@ -398,7 +398,7 @@ test('sidebar groups remember independent choices across search, Settings and re
   await expect(projects).toHaveAttribute('aria-expanded', 'false');
   await sidebar.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(
-    pairedPage.getByRole('heading', { name: 'Appearance', exact: true }),
+    pairedPage.getByRole('heading', { name: 'General', exact: true }),
   ).toBeVisible();
   const settingsSidebar = pairedPage.getByRole('navigation', {
     name: 'Settings sections',

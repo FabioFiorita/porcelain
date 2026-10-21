@@ -41,7 +41,7 @@ $C start --device android --serial <returned-serial> \
   --agent-device-session <returned-session> --fixture development
 ```
 
-The launcher exclusively claims that emulator, compares the installed APK digest with the matching build and installs when it differs or the app is missing, clears development app storage, starts a disposable server and Metro, and uses Android’s built-in `10.0.2.2` host-loopback alias for the allocated server and Metro ports. Host-side fixture reads stay on `127.0.0.1`. No adb reverse mappings or Mac tunnels are created; the emulator connects directly to this disposable instance. Setup pairs through the real Settings form, independently checks the server's registered device, then closes its setup session. `--manual-pairing` instead leaves the client for the developer: Settings → Add environment → Use development server → Pair. The development pairing endpoint is local to that Metro instance.
+The launcher exclusively claims that emulator, compares the installed APK digest with the matching build and installs when it differs or the app is missing, clears development app storage, starts a disposable server and Metro, and uses Android’s built-in `10.0.2.2` host-loopback alias for the allocated server and Metro ports. Host-side fixture reads stay on `127.0.0.1`. No adb reverse mappings or Mac tunnels are created; the emulator connects directly to this disposable instance. Setup pairs through the real Settings form, independently checks the server's registered device, then closes its setup session. `--manual-pairing` instead leaves the client for the developer: Settings → Computers → Add computer → Use development server → Pair. The development pairing endpoint is local to that Metro instance.
 
 ## Drive and retain proof
 

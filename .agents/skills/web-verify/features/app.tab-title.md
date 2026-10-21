@@ -1,13 +1,13 @@
 ---
 route: /
 selectors:
-  - "Review"
-  - "Files"
-  - "Open file"
-  - "History"
-  - "Toggle Sidebar"
-  - "Settings"
-  - "Back"
+  - 'Review'
+  - 'Files'
+  - 'Open file'
+  - 'History'
+  - 'Toggle Sidebar'
+  - 'Settings'
+  - 'Back'
 tests:
   - apps/web/spec/e2e/app-tab-title.e2e.ts
 api:
@@ -64,7 +64,7 @@ None before step 1. Step 5 commits on disk; do it only after step 4, because "Op
 7. Click button named `/^Name the tab after the commit/`
    Look for: Page Title "`OID` — repository".
 8. Click button named `Toggle Sidebar`, then click button named `Settings`
-   Look for: Page URL `/settings/appearance`; Page Title "Settings".
+   Look for: Page URL `/settings/general`; Page Title "Settings".
 9. Click button named `Back`
    Look for: Page Title "`OID` — repository" again.
 
@@ -76,7 +76,7 @@ None before step 1. Step 5 commits on disk; do it only after step 4, because "Op
 ## Gotchas
 
 - Order matters: after the commit README.md has no changes, so its tree menu offers "Open" instead of "Open file".
-- The separator is an em dash with spaces (` — `), and the computer-name suffix uses ` · `.
+- The separator is an em dash with spaces (`—`), and the computer-name suffix uses `·`.
 - Switching the sidebar surface does not change the title while a file or commit document is selected (step 6 keeps "README.md — repository"); with the Changes document selected the title stays `Changes — P`. With no document open the title follows the surface, defaulting to `Files — P`.
 - Phone width: the review sidebar is a sheet behind the "Review" button; opening a document closes it, so click "Review" again before the next sidebar step.
 - In an instance where another feature committed, renamed the project or gave this computer a custom name, the strings change accordingly (`Settings · <name>`, ` · <name>` suffix).

@@ -17,17 +17,18 @@ api: []
 
 ## What it is
 
-The release Mac app checks its own update feed from Settings and installs an offered release. Check for updates shows checking, the newest-version result, an available release with Update to its version, or the updater's error. A later check that the bridge rejects shows Could not check for an app update until the next check starts. Checking is disabled while checking, downloading, ready or installing. The offered release appears as soon as the main process publishes it; Install stays disabled until the check finishes, and the main process refuses installation unless a release is currently available, including after a failed download. Reloading the renderer or asking to install twice preserves the original download and results in one restart.
+The release Mac app checks its own update feed from Settings and installs an offered release. Check for updates shows checking, the newest-version result, an available release with Restart to update, or the updater's error. A later check that the bridge rejects shows Could not check for an app update until the next check starts. Checking is disabled while checking, downloading, ready or installing. The offered release appears as soon as the main process publishes it; Install stays disabled until the check finishes, and the main process refuses installation unless a release is currently available, including after a failed download. Reloading the renderer or asking to install twice preserves the original download and results in one restart.
 
 ## How a user reaches it
 
-- Sidebar › Settings › This computer › Updates.
+- Sidebar › Settings › Computers › This computer.
 - Porcelain › Settings… or ⌘, opens the same Settings page.
-- Back or Escape leaves Settings; there is no update context-menu item or separate update shortcut.
+- The sidebar footer Update badge appears when an update exists and opens an upward Updates available popover with the Mac app and eligible computers. Manage computers opens Settings → Computers.
+- Back returns through computer details; Escape leaves Settings. There is no separate update shortcut.
 
 ## Driving it
 
-Start a disposable Porcelain Dev instance with the desktop-verify skill. Open Settings with the native open-settings menu item, choose This computer and observe the app version and reinstall message. Check for updates must be absent: this unpackaged app has no release feed. Back returns to the app.
+Start a disposable Porcelain Dev instance with the desktop-verify skill. Open Settings with the native open-settings menu item, choose Computers, then Open This computer and observe the app version and reinstall message. Check for updates must be absent: this unpackaged app has no release feed. Back returns to Computers; another Back or Escape returns to the app.
 
 For the enabled control, run the named web desktop-shell regression file. Its typed desktop bridge fixture is the updater port: hold a manual check, observe checking and the disabled button, then answer with idle, error or available, or reject the check. Observe the result, check again after an error, and install the offered release. During the download the Install control disappears and Check for updates is disabled. The desktop file also verifies disabled builds; the named rule spec proves release-feed and desktop-shell visibility decisions.
 

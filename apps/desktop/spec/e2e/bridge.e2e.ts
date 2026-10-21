@@ -28,9 +28,7 @@ test('Settings obtains the local app executable and server directory through its
   expect(configuration.command).toContain('--porcelain-mcp');
   expect(configuration.command).toContain(app.serverData);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page
-    .getByRole('button', { name: 'Git and agents', exact: true })
-    .click();
+  await page.getByRole('button', { name: 'Integrations', exact: true }).click();
   await expect(
     page.getByText(configuration.command, { exact: true }),
   ).toBeVisible();
@@ -38,7 +36,7 @@ test('Settings obtains the local app executable and server directory through its
     page.getByRole('button', { name: 'Copy MCP configuration' }),
   ).toBeEnabled();
   await expect(
-    page.getByText(/including when you are viewing a remote computer/),
+    page.getByText(/including when you are viewing another computer/),
   ).toBeVisible();
 });
 
@@ -90,10 +88,10 @@ test('credentials the app cannot decrypt read as unreadable, are never saved ove
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const settings = page.getByRole('main', { name: 'Settings', exact: true });
   await settings
-    .getByRole('button', { name: 'Remote computers', exact: true })
+    .getByRole('button', { name: 'Computers', exact: true })
     .click();
   await expect(
-    settings.getByText('Saved remote computers could not be read', {
+    settings.getByText('Saved computers could not be read', {
       exact: true,
     }),
   ).toBeVisible();

@@ -1,4 +1,6 @@
 export type SettingsPresentationProps = {
-  onOpenAppearance: () => void;
+  onOpenGeneral: () => void;
+  onOpenReviewsGit: () => void;
+  onOpenComputers: () => void;
   onOpenComponentLibrary: () => void;
 };

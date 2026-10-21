@@ -1,3 +1,4 @@
+import { openThisComputer } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
 test('Settings → Devices creates a one-time pairing link for one way in with its QR code, lists the paired devices with the way in each works through and revokes one', async ({
@@ -20,12 +21,12 @@ test('Settings → Devices creates a one-time pairing link for one way in with i
     .click();
   await expect(
     settings.getByText(
-      'Turn on a way in under Ways in to pair a phone or another computer.',
+      'Turn on a way in under Computers → This computer → Ways in to pair a phone or another computer.',
       { exact: true },
     ),
   ).toBeVisible();
 
-  await settings.getByRole('button', { name: 'Ways in', exact: true }).click();
+  await openThisComputer(pairedPage);
   await settings
     .getByRole('switch', { name: 'Local network', exact: true })
     .click();

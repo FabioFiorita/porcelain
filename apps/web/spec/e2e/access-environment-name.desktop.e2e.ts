@@ -1,3 +1,4 @@
+import { openThisComputer } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
 test('the owner names this computer in Settings, and the tab title, pairing and the navigator header show the name', async ({
@@ -25,10 +26,7 @@ test('the owner names this computer in Settings, and the tab title, pairing and 
     name: 'Settings',
     exact: true,
   });
-  await pairedPage
-    .getByRole('main', { name: 'Settings', exact: true })
-    .getByRole('button', { name: 'This computer', exact: true })
-    .click();
+  await openThisComputer(pairedPage);
   const name = settings.getByRole('textbox', {
     name: 'Name of this computer',
     exact: true,
@@ -45,11 +43,10 @@ test('the owner names this computer in Settings, and the tab title, pairing and 
   await expect(
     settings.getByText(/to connect it to Workstation\./),
   ).toBeVisible();
-  await settings
-    .getByRole('button', { name: 'This computer', exact: true })
-    .click();
+  await openThisComputer(pairedPage);
   await expect(save).toBeDisabled();
   await expect.poll(() => app.title()).toBe('Settings · Workstation');
+  await settings.getByRole('button', { name: 'Back', exact: true }).click();
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
   await expect
     .poll(() => app.title())
@@ -63,9 +60,7 @@ test('the owner names this computer in Settings, and the tab title, pairing and 
   await navigator
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
-  await settings
-    .getByRole('button', { name: 'This computer', exact: true })
-    .click();
+  await openThisComputer(pairedPage);
 
   await name.fill('');
   await save.click();
@@ -73,6 +68,7 @@ test('the owner names this computer in Settings, and the tab title, pairing and 
     .poll(async () => (await server.inventory()).environment)
     .toEqual({ name: host, custom: false });
   await expect.poll(() => app.title()).toBe('Settings');
+  await settings.getByRole('button', { name: 'Back', exact: true }).click();
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
   await expect.poll(() => app.title()).toBe(`Changes — ${project}`);
 });

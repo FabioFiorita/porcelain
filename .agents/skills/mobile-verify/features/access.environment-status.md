@@ -1,5 +1,5 @@
 ---
-screen: /settings
+screen: /computers
 selectors:
   - 'Online'
   - 'Offline'
@@ -22,15 +22,15 @@ api:
 
 Each environment row shows its saved address, its current server name and version when online, and the shared status explanation when unavailable. Status refreshes when Settings gains focus, when the app returns to the foreground, and through the shared polling read.
 
-Each environment row in Settings says what its server answered: “Checking” until it answers, “Online”, “Reconnecting” while retrying an offline host, “Offline” when it cannot be reached, “Needs pairing” when the server no longer accepts this device, “Another server” when a different environment answers at that address, and “Update needed” when the server speaks another protocol.
+Each computer row in Settings → Computers says what its server answered: “Checking” until it answers, “Online”, “Reconnecting” while retrying an offline host, “Offline” when it cannot be reached, “Needs pairing” when the server no longer accepts this device, “Another server” when a different environment answers at that address, and “Update needed” when the server speaks another protocol.
 
 ## How a user reaches it
 
-- Settings, or the deep link `porcelain.dev://settings`, with environments paired
+- Settings → Computers, or the deep link `porcelain.dev://computers`, with computers paired
 
 ## Driving it
 
-1. Select Settings. Expect the environment named on the card to show Online.
+1. Select Settings → Computers. Expect the computer named on the card to show Online.
 2. Suspend only the captured HTTP listener PID of this disposable server; verify HTTP becomes unresponsive. Do not suspend only its launcher.
 3. Wait up to 45 seconds. Expect Offline without reloading the app.
 4. Resume that exact listener in a finally block. Verify JSON health 200 returns, then expect Online within 45 seconds without reloading.

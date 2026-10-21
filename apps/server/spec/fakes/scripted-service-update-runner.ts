@@ -9,20 +9,23 @@ export class ScriptedServiceUpdateRunner implements ServiceUpdateRunner {
   private state: ServiceUpdateState;
   private readonly attempts: (readonly ServiceUpdateState[])[];
   private readonly stepMs: number;
+  private readonly snapshot: (() => ServiceUpdateState | undefined) | undefined;
   private readonly scope = Scope.makeUnsafe();
 
   constructor(
     initial: ServiceUpdateState,
     attempts: (readonly ServiceUpdateState[])[],
     stepMs: number,
+    snapshot?: () => ServiceUpdateState | undefined,
   ) {
     this.state = initial;
     this.attempts = attempts;
     this.stepMs = stepMs;
+    this.snapshot = snapshot;
   }
 
   read(): Effect.Effect<ServiceUpdateState> {
-    return Effect.sync(() => structuredClone(this.state));
+    return Effect.sync(() => structuredClone(this.snapshot?.() ?? this.state));
   }
 
   start(_input: ServiceUpdateTarget): Effect.Effect<void> {

@@ -1,7 +1,7 @@
 ---
-screen: /appearance
+screen: /general
 selectors:
-  - "Appearance"
+  - "General"
   - "Theme"
   - "theme-system"
   - "theme-light"
@@ -27,19 +27,19 @@ api: []
 
 ## What it is
 
-Appearance stores this app's Theme, Long lines, Markdown default and HTML default in SQLite. The defaults remain System, Wrap, Reader and Preview. Theme applies to Porcelain content and native navigation. The public usePreferences API exposes the content preferences for destination owners to consume; their integration and proof belong to each destination.
+General stores this app's Theme, Long lines, Markdown default and HTML default in SQLite. The defaults are defined by the shared saved-preferences owner; changing these controls persists only their corresponding preference. Theme applies to Porcelain content and native navigation. The public usePreferences API exposes the content preferences for destination owners to consume; their integration and proof belong to each destination.
 
 ## How a user reaches it
 
-- Settings → Appearance; on iPad its controls are visible immediately. On a phone, the native Back button returns to Settings.
-- The deep link porcelain.dev://appearance.
+- Settings → General; on iPad its controls are visible immediately. On a phone, the native Back button returns to Settings.
+- The deep link porcelain.dev://general.
 
 ## Driving it
 
-1. Open Settings. On iPad expect Appearance immediately; on a phone select Theme, code and documents under Appearance. Expect Theme, Code and Documents; the selected choices announce that they are selected. On iPad show and hide the app sidebar and expect every control to stay within the detail area.
+1. Open Settings. On iPad expect General immediately; on a phone select General. Expect Theme, Code and Documents; the selected choices announce that they are selected. On iPad show and hide the app sidebar and expect every control to stay within the detail area.
 2. Choose Dark, then Light. Inspect both Porcelain content and native navigation. Choose System to follow the device's appearance.
-3. Choose Scroll, Markdown Source and HTML Source. Cold-launch, reopen Appearance, and expect every selected choice to persist. Read porcelain-preferences.db independently from the owned simulator's app data.
-4. On a phone return through the native Back button; on iPad select Environments. Expect the same environment state and Add environment. Leave through the native tabs or iPad sidebar and return.
+3. Choose Scroll, Markdown Source and HTML Source. Cold-launch, reopen General, and expect every selected choice to persist. Read porcelain-preferences.db independently from the owned simulator's app data.
+4. On a phone return through the native Back button; on iPad select Computers. Expect the same environment state and Add computer. Leave through the native tabs or iPad sidebar and return.
 5. Corrupt one field of this disposable app's preference record, then cold-launch. Expect that field at its default and every other saved choice kept.
 
 ## What proves it works
@@ -53,3 +53,5 @@ Appearance stores this app's Theme, Long lines, Markdown default and HTML defaul
 - A refused write keeps the last successful preferences in use, shows an error and disables the choices until Read saved preferences again succeeds.
 - Preference consumption in each destination requires that destination's native proof. This Settings map alone does not prove Files, History or Review.
 - Each platform needs its own native proof; iPhone does not prove iPad or Android.
+
+- Diff layout and Spec files are omitted because the native renderer has no consumers for those preferences. Archive switches live in Reviews & Git.

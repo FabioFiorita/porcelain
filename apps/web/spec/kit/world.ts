@@ -38,8 +38,16 @@ export class World {
     this.recorder.secret(server.desktopCredential);
   }
 
-  static async start(root: string, build: string): Promise<World> {
-    return new World(await IsolatedServer.start(root, build), root, build);
+  static async start(
+    root: string,
+    build: string,
+    sample?: 'service-ahead',
+  ): Promise<World> {
+    return new World(
+      await IsolatedServer.start(root, build, sample),
+      root,
+      build,
+    );
   }
 
   private remoteServer(): Promise<IsolatedServer> {

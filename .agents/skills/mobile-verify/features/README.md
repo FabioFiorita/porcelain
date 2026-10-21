@@ -8,11 +8,11 @@ One file per screen and flow the mobile app offers, named `<domain>.<capability>
 | [app.catalog-text](app.catalog-text.md)         | /component-text    | Development-only type, tone, weight and selection samples.                                                                                                       |
 | [app.catalog-preview](app.catalog-preview.md)   | /component-preview | Development-only file, review, history and native rendering samples.                                                                                             |
 | [app.catalog-button](app.catalog-button.md)     | /component-button  | Development-only button variants, sizes and interaction states.                                                                                                  |
-| [access.environment-status](access.environment-status.md) | /settings          | Each environment row says Checking, Online, Offline, Needs pairing, Another server or Update needed from what its server answered.                               |
-| [access.forget-environment](access.forget-environment.md) | /settings          | Holding an environment row offers Forget environment, which removes it, its credential and its remembered workspace from this device, through a cold launch.     |
-| [access.lan-pairing](access.lan-pairing.md)               | /settings          | Pairing with a Porcelain on another computer over the local network and reconnecting after a cold launch; a checkpoint against a separate disposable LAN server. |
-| [access.pairing](access.pairing.md)                       | /settings          | Add environment pairs through a pasted link, refuses an invalid one, pairs several and restores them after a cold launch.                                        |
-| [access.settings](access.settings.md)                     | /settings          | Settings lists the paired environments with their status and offers Add environment, or says none is paired.                                                     |
+| [access.environment-status](access.environment-status.md) | /computers          | Each computer row says Checking, Online, Offline, Needs pairing, Another server or Update needed from what its server answered.                               |
+| [access.forget-environment](access.forget-environment.md) | /computers          | A computer row has Forget computer, which removes it, its credential and its remembered workspace from this device, through a cold launch.     |
+| [access.lan-pairing](access.lan-pairing.md)               | /computers          | Pairing with a Porcelain on another computer over the local network and reconnecting after a cold launch; a checkpoint against a separate disposable LAN server. |
+| [access.pairing](access.pairing.md)                       | /computers          | Add computer pairs through a pasted link, refuses an invalid one, pairs several and restores them after a cold launch.                                        |
+| [access.settings](access.settings.md)                     | /settings          | General, Reviews & Git and Computers, with app version and copyable per-computer device IDs.                                                     |
 | [app.deep-links](app.deep-links.md)                       | /                  | The app's scheme opens Review, Files, History and Settings directly, warm or after a cold launch.                                                                |
 | [app.phone-shell](app.phone-shell.md)                     | /                  | On a phone, four native tabs, ready on Files within 30 seconds of a cold launch.                                                                                 |
 | [app.tablet-shell](app.tablet-shell.md)                   | /                  | On iPad, a worktree sidebar, shared central documents and right inspector with native toolbar controls.                                                    |
@@ -20,7 +20,7 @@ One file per screen and flow the mobile app offers, named `<domain>.<capability>
 | [files.preview](files.preview.md) | /file | Read source, Markdown, self-contained HTML and images; unsupported entries show notices. |
 | [history.history](history.history.md)                     | /history           | History lists live commits for the selected worktree and loads older pages.                                                                                                          |
 | [projects.workspace-picker](projects.workspace-picker.md) | /workspaces        | The pushed Worktrees screen and iPad sidebar show statuses across paired projects and environments, with search, checkbox filters, Closed and checkout selection.       |
-| [preferences.appearance](preferences.appearance.md) | /appearance | Appearance preserves Theme, Long lines and document defaults across cold launches and offers recovery when saved preferences cannot be read. |
+| [preferences.appearance](preferences.appearance.md) | /general | General preserves Theme, Long lines and document defaults across cold launches and offers recovery when saved preferences cannot be read. |
 | [reviews.review](reviews.review.md)                       | /review            | Live changed files, reviewed markers, agent explanations and comments for the selected worktree.                                                                       |
 
 | [history.commit](history.commit.md) | /history/commit/[oid] | Commit message, comparison parents and changed files. |
@@ -38,3 +38,7 @@ Mobile has no E2E suite; drive each platform on demand with the mobile-verify sk
 - [Multiple connections](access.connections.md) — pairing, preference, fallback and removal for one environment.
 
 - [reviews.linked-review](reviews.linked-review.md): HTTPS review destinations, verdict and published decision excerpts.
+
+- [access.computers](access.computers.md): Connection management, update offers, trust and shared bulk updates.
+- [access.updates](access.updates.md): Worktrees Update badge and native Updates available sheet.
+- [preferences.reviews-git](preferences.reviews-git.md): Archive deletion, pull strategy and installed commit models.

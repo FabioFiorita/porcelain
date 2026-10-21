@@ -1,9 +1,11 @@
+import { openThisComputer } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
 test('the owner updates Porcelain from Settings, sees a failed update keep the running version and why, then updates to the new version', async ({
   pairedPage,
   server,
 }) => {
+  const name = (await server.inventory()).environment.name;
   const offered = await server.serviceUpdate();
   const from = offered.version ?? '';
   const to = offered.latest ?? '';
@@ -17,19 +19,16 @@ test('the owner updates Porcelain from Settings, sees a failed update keep the r
     name: 'Settings',
     exact: true,
   });
-  await pairedPage
-    .getByRole('main', { name: 'Settings', exact: true })
-    .getByRole('button', { name: 'Updates', exact: true })
-    .click();
+  await openThisComputer(pairedPage);
   await expect(
     settings.getByText(`Porcelain ${from}`, { exact: true }),
   ).toBeVisible();
   await expect(
-    settings.getByText(`Porcelain ${to} is available.`, { exact: true }),
+    settings.getByText(`Porcelain ${from} → ${to}`, { exact: true }),
   ).toBeVisible();
 
   const update = settings.getByRole('button', {
-    name: `Update to ${to}`,
+    name: `Update ${name}`,
     exact: true,
   });
   await update.click();
@@ -38,13 +37,12 @@ test('the owner updates Porcelain from Settings, sees a failed update keep the r
   ).toBeVisible();
   await expect(
     settings.getByText(
-      `The update to ${to} failed, so Porcelain still runs ${from}.`,
+      'Could not install the persistent runtime: npm could not reach the registry',
       { exact: true },
     ),
   ).toBeVisible();
-  const failed = await server.serviceUpdate();
   await expect(
-    settings.getByText(failed.last?.reason ?? '', { exact: true }),
+    settings.getByText(`Porcelain ${from}`, { exact: true }),
   ).toBeVisible();
 
   await update.click();
@@ -54,17 +52,12 @@ test('the owner updates Porcelain from Settings, sees a failed update keep the r
     ),
   ).toBeVisible();
   await expect(
-    settings.getByText(
-      `Updated from ${from} to ${to}. Reload to use the new version here.`,
-      { exact: true },
-    ),
+    settings.getByText(`Updated to ${to}.`, { exact: true }),
   ).toBeVisible();
   await expect(
     settings.getByText(`Porcelain ${to}`, { exact: true }),
   ).toBeVisible();
-  await expect(
-    settings.getByText('This is the newest version.', { exact: true }),
-  ).toBeVisible();
+  await expect(settings.getByText('Up to date', { exact: true })).toBeVisible();
   await expect(
     settings.getByRole('button', { name: 'Reload', exact: true }),
   ).toBeVisible();

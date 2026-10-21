@@ -21,6 +21,7 @@ import { useForgetRemote } from '../commands/remotes';
 import { useRemoteStatus } from '../queries/remotes';
 import { remoteStatusVariant } from '../rules/remotes';
 import { useRemoteConnection, useSavedEnvironments } from '../store';
+import { SavedWaysIn } from './saved-ways-in';
 import { RemoteServiceUpdate } from './service-update';
 
 export function RemoteComputerName({ remote }: { remote: Remote }) {
@@ -43,7 +44,7 @@ export function RemoteComputerSettings({
         <AlertDescription>
           {status !== 'ready'
             ? (error ?? 'Reading saved remote computers…')
-            : 'This computer is no longer saved on this app. Return to Remote computers to add it again.'}
+            : 'This computer is no longer saved on this app. Return to Computers to add it again.'}
         </AlertDescription>
       </Alert>
     );
@@ -89,7 +90,7 @@ function RemoteDetails({
                   <dd className="break-all font-mono">{remote.address}</dd>
                 </div>
                 <div>
-                  <dt className="text-muted-foreground">Environment ID</dt>
+                  <dt className="text-muted-foreground">Computer ID</dt>
                   <dd className="break-all font-mono">
                     {remote.environmentId}
                   </dd>
@@ -116,54 +117,58 @@ function RemoteDetails({
           {online && entry && (
             <Item variant="outline">
               <ItemContent>
-                <RemoteServiceUpdate
-                  connection={entry.connection}
-                  name={name}
-                  deviceId={remote.deviceId}
-                />
+                <RemoteServiceUpdate connection={entry.connection} />
               </ItemContent>
             </Item>
           )}
         </ItemGroup>
       </FieldSet>
+      <SavedWaysIn remote={remote} />
       {!online && (
         <Item variant="outline">
           <ItemContent>
             <ItemTitle>Pair again</ItemTitle>
             <p className="text-sm text-muted-foreground">
-              On this computer, run porcelain pair. Return to Remote computers
-              and add the new link to replace this app’s saved connection.
+              On this computer, run porcelain pair. Return to Computers and add
+              the new link to replace this app’s saved connection.
             </p>
           </ItemContent>
         </Item>
       )}
       <FieldSet>
-        <FieldLegend variant="label">Forget on this app</FieldLegend>
-        <Item variant="outline">
-          <ItemContent>
-            <p className="text-sm text-muted-foreground">
-              Removes this computer and its saved credential from this app. It
-              does not revoke host credentials or stop sharing on that computer.
-              Save or discard unsaved file drafts before forgetting this
-              computer.
-            </p>
-            <Button
-              variant="destructive"
-              className="w-fit"
-              disabled={forget.result.waiting}
-              onClick={() => void forget.submit()}
-            >
-              {forget.result.waiting ? 'Forgetting…' : 'Forget on this app'}
-            </Button>
-            {AsyncResult.isFailure(forget.result) && (
-              <Alert variant="destructive">
-                <AlertDescription>
-                  {connectionErrorMessage(Cause.squash(forget.result.cause))}
-                </AlertDescription>
-              </Alert>
-            )}
-          </ItemContent>
-        </Item>
+        <FieldLegend variant="label">Danger zone</FieldLegend>
+        <div className="rounded-2xl border border-destructive/30">
+          <ItemGroup>
+            <Item variant="outline">
+              <ItemContent>
+                <ItemTitle>Forget {name}</ItemTitle>
+                <p className="text-sm text-muted-foreground">
+                  Removes this computer and its saved credential from this app.
+                  It does not revoke host credentials or stop sharing on that
+                  computer. Save or discard unsaved file drafts before
+                  forgetting this computer.
+                </p>
+                <Button
+                  variant="destructive"
+                  className="w-fit"
+                  disabled={forget.result.waiting}
+                  onClick={() => void forget.submit()}
+                >
+                  {forget.result.waiting ? 'Forgetting…' : 'Forget on this app'}
+                </Button>
+                {AsyncResult.isFailure(forget.result) && (
+                  <Alert variant="destructive">
+                    <AlertDescription>
+                      {connectionErrorMessage(
+                        Cause.squash(forget.result.cause),
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </ItemContent>
+            </Item>
+          </ItemGroup>
+        </div>
       </FieldSet>
     </>
   );

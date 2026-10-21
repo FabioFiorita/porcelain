@@ -22,6 +22,12 @@ import { RequestError } from '../../../shared/api/request-error.ts';
 import { routesSettling } from '../rules/share.ts';
 import { accessRuntime, AccessSnapshots } from '../store/share.ts';
 
+export function serviceUpdateSnapshot<E>(
+  result: AsyncResult.AsyncResult<ReadServiceUpdateResponse, E>,
+) {
+  return AsyncResult.isSuccess(result) ? result.value : undefined;
+}
+
 function observe<A, E, R>(
   connection: RuntimeConnection,
   snapshot: Ref.Ref<Option.Option<A>>,

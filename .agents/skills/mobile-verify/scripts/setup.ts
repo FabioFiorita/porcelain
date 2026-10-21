@@ -215,7 +215,8 @@ export function pairClient(
     run(['wait', 'text', 'Files', '60000']);
     run(['open', identity.bundleIdentifier, screenLink('/settings')]);
     if (ios) run(['alert', 'accept', '5000'], true);
-    run(['press', 'label="Add environment"', '--settle']);
+    run(['press', 'id="settings-computers"', '--settle']);
+    run(['press', 'label="Add computer"', '--settle']);
     run(['fill', 'id="pairing-link"', link, '--settle']);
     run(['wait', '1500']);
     run(['press', 'id="pair-environment"', '--settle']);
