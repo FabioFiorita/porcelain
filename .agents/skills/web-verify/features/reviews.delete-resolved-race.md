@@ -18,46 +18,47 @@ api:
 
 # reviews.delete-resolved-race
 
-## What it is
-
 A resolved thread the agent answers after the reviewer opened the "Delete resolved" confirmation is not deleted: the server skips it because its revision changed, and the dialog turns into "Kept 1 thread that changed" with a Close button.
 
-## How a user reaches it
+## Sub-features
+
+- `reviews.delete-resolved-race` — Concurrent changes during deletion.
+
+## How to get to it (user POV)
 
 - Review (phone; the right sidebar on desktop) → tab "Comments" → filter button "resolved N" → "Delete resolved" → (the agent replies now) → "Delete".
 
-## Driving it
+## Driving it with browser
 
-Start with `$C start`; pair your browser using the card’s pairing-link command.
+Preconditions: [surface baseline](README.md).
 
 ### Setup
 
 None before step 1. Step 6 has the agent reply while the confirmation is open.
 
-1. Navigate to `/` on the card’s web URL (full page load) then click button named `Review` then click tab named `/^Comments/`
-   Look for: dialog "Worktree review"; button "Comment on the whole change".
-2. Click button named `Comment on the whole change` then replace the contents of textbox named `Comment` with 'Split this into two commits' then click button named `Comment`
-   Look for: article "Comment thread" with "Split this into two commits".
-3. Click button named `Resolve`
-   Look for: text "No open comments yet."; button "resolved 1".
-4. Click button named `/^resolved/i`
-   Look for: article "Resolved comment thread"; button "Delete resolved".
-5. Click button named `Delete resolved`
-   Look for: alertdialog with heading "Delete 1 resolved thread?"; buttons "Cancel" and "Delete".
+1. Navigate to `/` then click button `Review` then click tab `/^Comments/`
+   Expect: dialog "Worktree review"; button "Comment on the whole change".
+2. Click button `Comment on the whole change` then replace the contents of textbox named `Comment` with 'Split this into two commits' then click button `Comment`
+   Expect: article "Comment thread" with "Split this into two commits".
+3. Click button `Resolve`
+   Expect: text "No open comments yet."; button "resolved 1".
+4. Click button `/^resolved/i`
+   Expect: article "Resolved comment thread"; button "Delete resolved".
+5. Click button `Delete resolved`
+   Expect: alertdialog with heading "Delete 1 resolved thread?"; buttons "Cancel" and "Delete".
 6. With the alertdialog still open: `$C agent reply latest "Done, split into two commits"` (`latest` is the thread with the newest message; `$C server comment-threads` prints every thread id).
-   Look for: "the agent's reply reached the server" with the thread now holding both messages; the alertdialog still reads "Delete 1 resolved thread?".
-7. Click button named `Delete`
-   Look for: the alertdialog stays, now with heading "Kept 1 thread that changed", the text "The agent answered or someone reopened them after you confirmed, so they stay for you to read first." and button "Close" (no "Cancel" or "Delete").
-8. Click button named `Close`
-   Look for: the alertdialog is gone; the resolved thread "Split this into two commits" is still listed. `$C server comment-threads` shows the thread `"resolved": true` with both messages.
+   Expect: "the agent's reply reached the server" with the thread now holding both messages; the alertdialog still reads "Delete 1 resolved thread?".
+7. Click button `Delete`
+   Expect: the alertdialog stays, now with heading "Kept 1 thread that changed", the text "The agent answered or someone reopened them after you confirmed, so they stay for you to read first." and button "Close" (no "Cancel" or "Delete").
+8. Click button `Close`
+   Expect: the alertdialog is gone; the resolved thread "Split this into two commits" is still listed. `$C server comment-threads` shows the thread `"resolved": true` with both messages.
 
-## What proves it works
+### Observable proof
 
-- Step 7's "Kept 1 thread that changed" and step 8's thread still listed; Inspect HTTP requests and responses shows `POST /api/worktrees/<id>/comments/resolved/deletion` answered 200 (the server reports the skipped thread in its answer instead of failing).
-- Persistence: after a full reload of `/`, Review → Comments → resolved still lists the thread, now with the agent's reply in it.
-- `apps/web/spec/integration/reviews-delete-resolved-race.test.tsx`: the reviewer resolves their own whole-change comment, opens "Delete resolved", the agent replies while "Delete 1 resolved thread?" is shown, Delete shows "Kept 1 thread that changed", Close removes the alertdialog, and `server.commentThreads()` still holds both messages.
+Reload resolved filter: changed thread/reply stays after Kept 1 thread that changed. Deletion POST/200 reports skipped thread.
+
+Automated coverage: `reviews-delete-resolved-race.test.tsx`.
 
 ## Gotchas
 
-- Without step 6, "Delete" simply deletes the thread and the alertdialog closes (the promise of `reviews.delete-resolved`), so a drive that skips the agent reply proves nothing about the race.
-- Threads left by other features make "Resolve" ambiguous; `stop` and `start` for a clean instance.
+- Add the agent reply while confirmation is open; otherwise this proves ordinary deletion only. Use a clean thread fixture to avoid ambiguous Resolve controls.

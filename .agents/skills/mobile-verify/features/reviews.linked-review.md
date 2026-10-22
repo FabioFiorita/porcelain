@@ -23,23 +23,29 @@ app link in the Review stack, on phone or iPad, with the native header back to R
 The `/reviews/[reviewId]` destination accepts the same environment, host,
 revision and decision query as the public `/open/reviews/[reviewId]` entry.
 
-Follow [app.deep-links](app.deep-links.md) for cold, warm and unpaired entry.
+## Sub-features
 
-1. Open a published review. Read Asked, the toned Recommendation card (Merge in
-   success, Hold in warning) with reasons, Proven at the short head SHA once,
-   Not proven, and Removed. Every deleted path must appear under
-   a red frame. Inspect light, dark and large system text.
-2. Open each decision. Read its summary, step text and stored Published excerpt.
-   No current worktree file is fetched for the excerpt. All decisions returns to
-   the list. A direct decision link opens that decision.
-3. Independently read the server review record and confirm lastSeenRevision after
-   opening the review. Open an older revision and confirm that exact revision's
-   content is rendered.
-4. Open an unknown decision: the review remains readable with a clear note and
-   All decisions. Unknown review/revision and offline states retain the native header back;
-   recover connectivity with Read again.
-5. On a cold app-link launch, use the native header back and confirm it returns
-   to Review. Exercise the existing workspace review. Comments, full
-   diffs and marking are outside this linked screen's scope.
+- `reviews.linked-review` — Published verdicts, decisions and retained excerpts.
 
-Android proof does not establish iOS, iPad layout or physical network permissions.
+## How to get to it (user POV)
+
+- HTTPS review app link; `/reviews/[reviewId]` or public `/open/reviews/[reviewId]`, with environment, host, revision and decision query.
+
+## Driving it with agent-device
+
+Preconditions: [surface baseline](README.md).
+
+Preconditions: [deep-link setup](app.deep-links.md) for warm, cold and unpaired entry; publish a committed review.
+
+1. Open the review. Verify Asked, Recommendation (Merge success/Hold warning) and reasons, Proven at the short SHA once, Not proven and Removed (every deleted path in a red frame). Repeat light/dark/larger text.
+2. Open each decision and direct decision links: summary, step text and stored Published excerpt match that revision, with no current worktree file fetch. All decisions returns to the list.
+3. Read the server review independently: lastSeenRevision updates on opening. Open an older revision: exact content renders.
+4. Unknown decision leaves a readable review/note/All decisions. Unknown review/revision and offline states retain native header Back; Read again recovers connectivity.
+5. Cold app-link launch → native Back returns to Review; existing workspace review still opens.
+
+Automated coverage: `app-link.spec.ts`, `selection.spec.ts`.
+
+## Gotchas
+
+- This screen has no comments, full diffs or marking. Published reviews remain independent of the worktree.
+- Android routing proof does not establish iOS/iPad or physical domain/network permissions.

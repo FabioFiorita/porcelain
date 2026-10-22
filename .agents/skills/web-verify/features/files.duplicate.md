@@ -14,19 +14,21 @@ api:
 
 # files.duplicate
 
-## What it is
-
 Duplicating a file writes a copy beside it, named `<stem> copy<extension>` (then `<stem> copy 2<extension>` and so on), and opens the copy. It runs from the file's menu, or with Mod+D on the open file.
 
-## How a user reaches it
+## Sub-features
+
+- `files.duplicate` — Duplicate files and folders.
+
+## How to get to it (user POV)
 
 - Review (phone width) → tab Files → right-click a file row → menuitem "Duplicate".
 - Review → tab Files → right-click a row under "Pinned" → menuitem "Duplicate".
 - `Mod+D` (`ControlOrMeta+d` with the browser driver) duplicates the file open as a file document while the Files tree is mounted.
 
-## Driving it
+## Driving it with browser
 
-Start with `$C start`; pair your browser using the card’s pairing-link command. Set `REPO` to `fixtures.repositoryPath` in the card’s `connection.json`.
+Preconditions: [surface baseline](README.md).
 
 ### Setup
 
@@ -36,36 +38,32 @@ Before a full page load:
 printf 'Notes to copy\n' > "$REPO/notes.md"
 ```
 
-### Steps
-
-1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: Page Title "Changes — repository".
-2. Click button named `Review`
-   Look for: dialog "Worktree review".
-3. Click tab named `Files`
-   Look for: tab "Files" [selected], with treeitem "notes.md" and treeitem "README.md" in the tree of region "All files".
-4. Right-click treeitem named `notes.md`
-   Look for: a menu with menuitems "Rename", "Duplicate", "Open diff", "Open file", "Show timeline", "Pin file", "Hide file", "Copy relative path", "Copy full path", "Move to trash".
-5. Click menuitem named `Duplicate`
-   Look for: dialog "Worktree review" is gone; heading "notes copy.md" [level=1]; Page Title "notes copy.md — repository".
+1. Navigate to `/`
+   Expect: title "Changes — repository".
+2. Click button `Review`
+   Expect: dialog "Worktree review".
+3. Click tab `Files`
+   Expect: tab "Files" [selected], with treeitem "notes.md" and treeitem "README.md" in the tree of region "All files".
+4. Right-click treeitem `notes.md`
+   Expect: a menu with menuitems "Rename", "Duplicate", "Open diff", "Open file", "Show timeline", "Pin file", "Hide file", "Copy relative path", "Copy full path", "Move to trash".
+5. Click menuitem `Duplicate`
+   Expect: dialog "Worktree review" is gone; heading "notes copy.md" [level=1]; title "notes copy.md — repository".
    Disk: `cat "$REPO/notes copy.md"` prints `Notes to copy`, and `cat "$REPO/notes.md"` still prints `Notes to copy`.
-6. Click button named `Review`
-   Look for: dialog "Worktree review" with tab "Files" selected and treeitem "notes copy.md" (selected) in the tree.
+6. Click button `Review`
+   Expect: dialog "Worktree review" with tab "Files" selected and treeitem "notes copy.md" (selected) in the tree.
 7. Press `ControlOrMeta+d`
-   Look for: the dialog is gone; Page Title "notes copy copy.md — repository"; heading "notes copy copy.md" [level=1].
+   Expect: the dialog is gone; title "notes copy copy.md — repository"; heading "notes copy copy.md" [level=1].
    Disk: `ls "$REPO"` lists `notes copy copy.md`.
-8. Inspect HTTP requests and responses
-   Look for: two `POST /api/worktrees/<worktreeId>/files` requests with a 2xx status.
+8. Inspect HTTP traffic
+   Expect: two `POST /api/worktrees/<worktreeId>/files` requests with a 2xx status.
 
-## What proves it works
+### Observable proof
 
-- On disk: `notes copy.md` and `notes copy copy.md` hold the original's text, and `notes.md` is unchanged.
-- The Page Title names the copy after each duplicate, which shows the copy opened.
-- `apps/web/spec/integration/files-duplicate.test.tsx` duplicates `notes.md` from its menu. It asserts that the server lists `notes copy.md` with the same text, that the original keeps its text, and that the title becomes `notes copy.md — <project>`. It then presses `ControlOrMeta+d` with the Files tab showing and asserts `notes copy copy.md` exists and its title shows.
+Read all copies and original independently: copies retain original text and each newly opened copy sets the title.
+
+Automated coverage: `files-duplicate.test.tsx`.
 
 ## Gotchas
 
-- Mod+D is registered by the Files tree itself. At phone width it works only while the sheet "Worktree review" is open on tab Files (step 6). With the sheet closed nothing happens.
-- Mod+D duplicates only a file open as a **file** document (the Page URL's `entry` starts with `file:`). Clicking an untracked or changed file in the tree opens its diff instead (`entry` starts with `change:`), and Mod+D then does nothing. A file opened by Duplicate, by quick open or by the menu's "Open file" counts as a file document.
-- Mod+D is ignored while focus is in a text field such as "Search files".
-- Running the steps again on the same instance makes `notes copy 2.md`, because `notes copy.md` already exists. Reset with `rm -f "$REPO"/notes\ copy*.md`.
+- Mod+D requires focus outside editable fields, an open Files tree (phone sheet), and a file document (`entry=file:`), not a changed-file diff (`entry=change:`). Duplicate, quick-open and Open file produce file documents.
+- Repeated runs choose notes copy 2.md. Reset with `rm -f "$REPO"/notes\ copy*.md`.

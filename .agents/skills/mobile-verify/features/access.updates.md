@@ -17,16 +17,32 @@ api:
 
 # access.updates
 
-The Worktrees header has a small text-only default Update badge beside filter and the icon-only Closed reviews button. A running shared batch changes its text to Updating…. The badge appears for available offers, including untrusted and unmanaged computers even when eligible N is zero, and disappears with no offers and no running batch. The open native Updates available sheet retains outcomes after completion.
+Worktrees offers Update for available computer updates and retains batch progress and outcomes in a native sheet.
 
-Web and mobile use the same offer/visibility rules: available plus a known latest version, or a running batch for visibility. Equal or newer installed versions reported as unavailable never create an offer. The native title retains Android's medium weight and the existing iOS style, with or without the badge.
+## Sub-features
 
-Exercise the API-state matrix through the disposable server's `state/service-update-fixture.json` updater-port control described in web access.service-update. A failed first read or refresh must not advertise an offer; a running batch must remain visible through read errors and recover on a confirmed outcome. With no saved computers, Worktrees has no Update badge. The Mac app self-updater is desktop-only and is never a mobile offer.
+- `access.updates` — Update visibility, sheet navigation and batch outcomes.
 
-1. With a disposable update offer, open Worktrees from Review, Files and History. Expect the small Update badge beside the title, filter and icon-only Closed reviews (the accessible name stays Closed reviews when toggled). Open and close the sheet, toggle Closed reviews twice, then open it again; repeat after changing filters and leaving/revisiting Worktrees. Every badge tap must open the sheet. On iPad the embedded navigator has the same badge and icon action beside search.
-2. Tap Update. Expect native BottomSheet Updates available, named computer rows and current → offered version. Each eligible row offers Update; an untrusted row has an expandable lock/Needs trust hint and selectable correct connection ID. An unmanaged row shows the existing outside-installed-service explanation and contributes nothing to Update all (N).
-3. With only an untrusted offer, N is zero but Update still opens the sheet. With only an unmanaged offer, repeat; never call its updater. Verify N against the shared eligibility rule, not the displayed offer count.
-4. Start Update all with two eligible computers. Expect Updating… in the header and Updating 1 of 2… progress in the sheet. Shared batch state owns ordering, completion, errors and disabled actions. Close/reopen the sheet or leave/revisit Worktrees while running; progress remains. Follow access.computers for real updater request/readback proof and failure continuation.
-5. Keep the sheet open through completion: retain success/failure outcomes through service restart/read errors. With no offers after completion, close it and expect the header badge gone. Manage computers closes the sheet and opens Computers; native Back returns through navigation without changing worktree selection.
+## How to get to it (user POV)
 
-Capture native screenshots/recording and independent service update request logs. Each platform and connection kind needs explicit evidence.
+- Worktrees from Review, Files or History → Update badge. iPad uses the embedded navigator.
+- Updates available → Manage computers; native Back returns.
+
+## Driving it with agent-device
+
+Preconditions: [surface baseline](README.md).
+
+Precondition: use the disposable `state/service-update-fixture.json` control in [service updates](../../web-verify/features/access.service-update.md) to seed offers.
+
+1. From Review, Files and History open Worktrees. With an offer expect text-only Update beside Filter and icon-only Closed reviews. Tap repeatedly after closing/reopening, toggling Closed, filtering and leaving/returning: Updates available always opens. Repeat in iPad's navigator.
+2. Inspect computer rows and current → offered version. Eligible rows have Update; untrusted rows have expandable Needs trust and the correct selectable connection ID; unmanaged rows show their explanation. With only untrusted/unmanaged offers the badge stays, eligible N is zero and no updater is called.
+3. Start Update all for two eligible computers. Expect Updating… in the header and Updating 1 of 2… in the sheet. Close/reopen or leave Worktrees: progress stays. Follow [Computers](access.computers.md) for request order, readbacks and failure continuation.
+4. Hold the sheet through completion/read failures: success/failure outcomes stay. With no remaining offers, close it: the badge disappears. Manage computers closes it and opens Computers; native Back preserves workspace selection.
+5. With no saved computers, no available/known-latest offers, or installed equal/newer than latest, show no badge unless a batch runs. A failed initial/refresh read cannot invent an offer; running progress remains through errors and recovers on confirmed outcome.
+
+Automated coverage: `settings-updates.spec.ts`, `settings-updates.spec.ts`, `settings-update-matrix.spec.ts`.
+
+## Gotchas
+
+- Offer count differs from eligible Update all (N). Mac app self-updates are desktop-only.
+- Retain native screenshots/recording and independent updater request logs; the badge must not alter native title weight or crowd the filter/Closed controls.

@@ -15,18 +15,22 @@ api:
 
 # projects.manual-selection
 
-## What it is
-
 A repository is registered only when the owner browses to it and opens it; opening the app never discovers or registers other repositories, and the Open project dialog offers no "found on this machine" list.
 
-## How a user reaches it
+## Sub-features
+
+- `projects.manual-selection` — Workspace selection and draft protection.
+
+## How to get to it (user POV)
 
 - Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → `Open project` (the plus button in the navigator header) → dialog "Open project" → click folders in "Browse for a folder" → `Open <folder>`.
 - In the desktop shell with remote computers added, `Open project` is a menu: choose `This computer`.
 
-## Driving it
+## Driving it with browser
 
-`$C start`; pair your browser using the card’s pairing-link command (web mode), then `REPO=<connection.json fixtures.repositoryPath>`. The dialog starts in the project home `$REPO/..` (the server's `projectHome`).
+Preconditions: [surface baseline](README.md).
+
+The folder dialog opens at project home (`$REPO/..`).
 
 ### Setup
 
@@ -43,33 +47,31 @@ done
 
 ### Nothing is registered by opening the app
 
-1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: Page Title "Changes — repository".
-2. Click button named `Toggle Sidebar`
-   Look for: dialog "Sidebar" holding navigation "Projects and worktrees" with Projects and Worktrees menus. Open Projects: only "repository" is registered; no button "selected" or "unselected". Press Escape.
+1. Navigate to `/`
+   Expect: title "Changes — repository".
+2. Click button `Toggle Sidebar`
+   Expect: dialog "Sidebar" holding navigation "Projects and worktrees" with Projects and Worktrees menus. Open Projects: only "repository" is registered; no button "selected" or "unselected". Press Escape.
 
 ### Only the browsed repository is registered
 
-3. Click button named `Open project`
-   Look for: dialog "Open project" with text "Browse for a repository on the Porcelain server."; region "Browse for a folder" listing folder buttons including "selected", "unselected" and "repository"; no region "Found on this machine" anywhere in the dialog.
-4. Click button named `selected`
-   Look for: text "Every worktree appears in the sidebar."; button "Open selected" enabled; the breadcrumb (navigation "Folder path") ends in "selected".
-5. Click button named `Open selected`
-   Look for: dialog "Open project" is gone; Page URL `/<new projectId>/<worktreeId>`; Page Title "Changes — selected"; open Worktrees: the "selected" checkout is marked "Current"; "repository" is also listed and "unselected" is absent. Press Escape.
-6. Inspect HTTP requests and responses
-   Look for: one `POST /api/projects` with status 200.
-7. Navigate to `/` on the card’s web URL (full page load), then click button named `Toggle Sidebar` and open Projects
-   Look for: after the reload Projects still lists exactly "repository" and "selected" (the server kept the one registration and added nothing on its own).
+3. Click button `Open project`
+   Expect: dialog "Open project" with text "Browse for a repository on the Porcelain server."; region "Browse for a folder" listing folder buttons including "selected", "unselected" and "repository"; no region "Found on this machine" anywhere in the dialog.
+4. Click button `selected`
+   Expect: text "Every worktree appears in the sidebar."; button "Open selected" enabled; the breadcrumb (navigation "Folder path") ends in "selected".
+5. Click button `Open selected`
+   Expect: dialog "Open project" is gone; URL `/<new projectId>/<worktreeId>`; title "Changes — selected"; open Worktrees: the "selected" checkout is marked "Current"; "repository" is also listed and "unselected" is absent. Press Escape.
+6. Inspect HTTP traffic
+   Expect: one `POST /api/projects` with status 200.
+7. Navigate to `/`, then click button `Toggle Sidebar` and open Projects
+   Expect: after the reload Projects still lists exactly "repository" and "selected" (the server kept the one registration and added nothing on its own).
 
-## What proves it works
+### Observable proof
 
-- End state: after step 7 the server's inventory, as the navigator shows it after a reload, holds two projects: the sample and `selected`; `unselected` never appears although it is a repository in the same folder.
-- `apps/web/spec/e2e/projects-manual-selection.e2e.ts`: the dialog lists both folders and has no "Found on this machine" region, the server inventory holds one project before opening, and after `Open selected` it holds exactly two, including `selected` (read through `server.inventory()`).
+Reload inventory: sample and selected are registered; unselected stays absent despite its disk repository.
 
-- `packages/client/src/features/projects/queries/inventory.spec.ts` proves a late pre-write read cannot remove a confirmed registration, even when the next read fails; native connection scopes also isolate device refreshes and cancel unmounted HTTP reads.
+Automated coverage: `projects-manual-selection.e2e.ts`.
 
 ## Gotchas
 
-- Phone width: the navigator is in the sidebar sheet behind `Toggle Sidebar`; after `Open selected` the sheet stays open.
-- Registering leaks into later features of the same instance: `/` opens the first worktree waiting for review, and the extra project stays listed. Remove it through Filter reviews → Projects → `selected` → `Remove from Porcelain` → confirm `Remove from Porcelain` (see `projects.remove`), or start a fresh instance.
-- Folder names must be unique in the project home listing: the list also holds the kit's own folders (`home`, `repository`, `state`, `web` and others), so do not name a new repository after one of them.
+- Open selected leaves the navigator sheet open. Registration persists and changes default workspace selection; remove selected through Filter reviews → Projects → Remove from Porcelain, or reset.
+- Use unique folder names: home/repository/state/web already exist in the fixture home.

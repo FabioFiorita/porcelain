@@ -17,20 +17,28 @@ api: []
 
 # access.settings
 
-## What it is
+Settings offers General, Reviews & Git and Computers, with app version and selectable per-computer device IDs.
 
-On iPhone and Android, Settings has General (theme, code and documents), Reviews & Git (archive deletion, pull and commit model), and Computers. Each row opens a native stack destination; Back returns to Settings. Development builds also offer Component library. The bottom shows this app's actual Expo version and selectable device IDs labelled by computer and, with multiple routes, address. IDs are registration-specific, not one global phone identifier.
+## Sub-features
 
-On iPad, General starts visible beside categories General, Reviews & Git, Computers and Development in development builds. Selecting a category replaces the detail; returning retains it. The sidebar stays in its current state. A wide window has a 224-point category pane and full-height divider; a narrow window places categories above the detail. About and device IDs sit below the categories and remain bounded by the pane.
+- `access.settings` — Settings categories, version and per-computer IDs.
 
-## Drive it
+## How to get to it (user POV)
 
-1. Open the Settings tab/sidebar or porcelain.dev://settings. On phone expect the three root rows; on iPad expect the categories and General controls. Confirm the sidebar state is preserved.
-2. Open General and follow preferences.appearance. Back on phone returns to root. Open Reviews & Git and follow preferences.reviews-git; archive switches must be absent from General.
-3. Open Computers and follow access.computers, access.pairing, access.connections and access.forget-environment. Back returns to Settings on phone. Revisit and confirm pairing is retained.
-4. Read the footer app version against the installed Expo configuration. Touch and hold an ID, select Copy and independently compare the pasted ID with that computer's registered device. With two computers/routes, confirm every ID is labelled; no secret credential appears.
-5. On iPad resize landscape to a narrow window, switch categories and show/hide the app sidebar. Every control remains reachable without drawing under the sidebar. Reopen Settings and confirm the selected category.
+- Settings tab/sidebar or `porcelain.dev://settings` → General, Reviews & Git or Computers.
 
-## Evidence and limits
+## Driving it with agent-device
 
-Retain native screenshots and device/storage readbacks with mobile-verify. Android does not prove iPhone/iPad. Storage failure requires a broken disposable credential fixture; normal startup does not prove it. These settings do not alter the native release version.
+Preconditions: [surface baseline](README.md).
+
+1. Open Settings tab/sidebar or `porcelain.dev://settings`. Phones show three root rows; each pushes a native destination and Back returns. iPad shows categories with General immediately, retains the selected category on return and preserves sidebar state.
+2. Open General and [appearance](preferences.appearance.md); Reviews & Git and [its preferences](preferences.reviews-git.md); Computers and [computer management](access.computers.md). Pairing remains on return. Development builds also expose the component catalog.
+3. Compare footer version with the installed Expo configuration. Hold an ID → Copy; paste and compare independently with that computer's device registration. With multiple computers/routes every ID is labelled by computer/address; no credential is shown.
+4. iPad landscape: 224-point category pane and full-height divider, About/IDs bounded below categories. Narrow: categories above detail. Resize/show-hide sidebar/switch categories; controls remain reachable without overlap. Reopen: category stays.
+
+Automated coverage: `destinations.spec.ts`.
+
+## Gotchas
+
+- IDs are route registrations, not one global phone ID. Broken disposable credential storage is needed to prove storage failure; normal startup cannot.
+- Settings does not change the native release version.

@@ -15,33 +15,31 @@ api: []
 
 # app.update
 
-## What it is
+The release Mac app checks its own update feed from Settings and installs an offered release.
 
-The release Mac app checks its own update feed from Settings and installs an offered release. Check for updates shows checking, the newest-version result, an available release with Restart to update, or the updater's error. A later check that the bridge rejects shows Could not check for an app update until the next check starts. Checking is disabled while checking, downloading, ready or installing. The offered release appears as soon as the main process publishes it; Install stays disabled until the check finishes, and the main process refuses installation unless a release is currently available, including after a failed download. Reloading the renderer or asking to install twice preserves the original download and results in one restart.
+## Sub-features
 
-## How a user reaches it
+- `app.update` — App update checks, download, installation and refusal.
+
+## How to get to it (user POV)
 
 - Sidebar › Settings › Computers › This computer.
 - Porcelain › Settings… or ⌘, opens the same Settings page.
 - The sidebar footer Update badge appears when an update exists and opens an upward Updates available popover with the Mac app and eligible computers. Manage computers opens Settings → Computers.
 - Back returns through computer details; Escape leaves Settings. There is no separate update shortcut.
 
-## Driving it
+## Driving it with Electron
 
-Start a disposable Porcelain Dev instance with the desktop-verify skill. Open Settings with the native open-settings menu item, choose Computers, then Open This computer and observe the app version and reinstall message. Check for updates must be absent: this unpackaged app has no release feed. Back returns to Computers; another Back or Escape returns to the app.
+Preconditions: [surface baseline](README.md).
 
-For the enabled control, run the named web desktop-shell regression file. Its typed desktop bridge fixture is the updater port: hold a manual check, observe checking and the disabled button, then answer with idle, error or available, or reject the check. Observe the result, check again after an error, and install the offered release. During the download the Install control disappears and Check for updates is disabled. The desktop file also verifies disabled builds; the named rule spec proves release-feed and desktop-shell visibility decisions.
+1. In Porcelain Dev use native `open-settings` → Computers → Open This computer. Expect the app version and reinstall message, with no Check for updates control. Back returns to Computers, then Back/Escape to the workspace.
+2. For enabled controls use `access-app-update.desktop.e2e.ts`'s typed updater-port fixture: hold Check for updates, then answer with idle, error or available, and separately reject the check. Expect checking/disabled, newest-version, release plus Restart to update, or error. Recheck after an error to recover.
+3. Offer a release while the check is pending: Install remains disabled until it finishes. Install once; during download Install disappears and Check for updates is disabled. Reload and submit twice; observe one download/restart. A failed check clears the offer; a failed download cannot be installed.
+4. For a signed candidate in release verification, confirm `app-update.yml`, feed capability and Check for updates. Observe a check before download/signature/restart proof.
 
-## What proves it works
-
-- `apps/desktop/src/adapters/app-update.spec.ts`: available and current-version checks, null as unavailable, failed checks clear the offered release, check/download errors, local-build refusal, installation refused during a check and after a failed download, checking during download/ready/installing and repeated installs preserve one download and one installation.
-- `apps/web/src/features/access/rules/app-update.spec.ts`: progress and no-update wording for the supported states, and check-button visibility for release, development and web capabilities.
-- `apps/web/spec/e2e/access-app-update.desktop.e2e.ts`: manual check results, a rejected check and recovery, Install, busy controls, release capability gating and Back through the desktop-shell renderer with an updater-port fixture.
-- `apps/desktop/spec/e2e/menus.e2e.ts`: native Settings entry, app version, disabled update feed and no manual check in disposable Porcelain Dev.
+Automated coverage: `app-update.spec.ts`, `app-update.spec.ts`, `access-app-update.desktop.e2e.ts`, `menus.e2e.ts`.
 
 ## Gotchas
 
-- The preload capability comes from the same packaged release-feed decision that creates the main-process updater; desktop-shell presence alone does not enable the control.
-- The update flow belongs to the Mac app, regardless of which local, LAN or remote server the renderer connects to; it does not update a connected server.
-- Do not enable a real update feed in Porcelain Dev or use the installed app for verification. Signed release download/restart assurance remains a release check; the fixture journey does not prove it.
-- At release verification, confirm a signed packaged Mac build includes `app-update.yml`, exposes the feed capability and shows Check for updates in Settings. Run a check and observe its result before testing download/signature/restart. Unpackaged desktop tests cannot prove this packaging path; do not launch the installed app during development verification.
+- The disposable app has no release feed. Never enable one or use the installed app for this journey; fixture proof does not establish signed download/restart.
+- Updates belong to the Mac app even while viewing a LAN/remote server; they must not POST a server update. Desktop mode alone does not grant the release capability.

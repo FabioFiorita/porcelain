@@ -15,18 +15,20 @@ api:
 
 # files.quick-open
 
-## What it is
-
 Quick open searches every worktree file name and opens the one chosen. Files an ignore rule hides are never offered.
 
-## How a user reaches it
+## Sub-features
+
+- `files.quick-open` — Keyboard file search and opening.
+
+## How to get to it (user POV)
 
 - `Mod+P` (`ControlOrMeta+p` with the browser driver) while the Files tree is mounted: at phone width, Review → tab Files first. It opens the command dialog "Find a file" with combobox "Find a file by name".
 - Pressing `Mod+P` again closes it.
 
-## Driving it
+## Driving it with browser
 
-Start with `$C start`; pair your browser using the card’s pairing-link command. Set `REPO` to `fixtures.repositoryPath` in the card’s `connection.json`.
+Preconditions: [surface baseline](README.md).
 
 ### Setup
 
@@ -40,36 +42,37 @@ printf 'ignored output\n' > "$REPO/build.log"
 
 ### 1. Find a file by name and open it
 
-1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: Page Title "Changes — repository".
-2. Click button named `Review`
-   Look for: dialog "Worktree review".
-3. Click tab named `Files`
-   Look for: treeitem "README.md" in the tree of region "All files".
+1. Navigate to `/`
+   Expect: title "Changes — repository".
+2. Click button `Review`
+   Expect: dialog "Worktree review".
+3. Click tab `Files`
+   Expect: treeitem "README.md" in the tree of region "All files".
 4. Press `ControlOrMeta+p`
-   Look for: dialog "Find a file" with combobox "Find a file by name" and options listing the worktree files (`.gitignore`, `README.md`, `quick-target.md`).
+   Expect: dialog "Find a file" with combobox "Find a file by name" and options listing the worktree files (`.gitignore`, `README.md`, `quick-target.md`).
 5. Replace the contents of combobox named `Find a file by name` with 'quick'
-   Look for: exactly one option, "quick-target.md".
+   Expect: exactly one option, "quick-target.md".
 6. Click option named `quick-target.md`
-   Look for: both dialogs are gone; heading "Quick target" (the rendered Markdown) and heading "quick-target.md" [level=1]; Page Title "quick-target.md — repository".
+   Expect: both dialogs are gone; heading "Quick target" (the rendered Markdown) and heading "quick-target.md" [level=1]; title "quick-target.md — repository".
 
 ### 2. An ignored file is not offered
 
-7. Click button named `Review`
-   Look for: dialog "Worktree review" on tab "Files".
+7. Click button `Review`
+   Expect: dialog "Worktree review" on tab "Files".
 8. Press `ControlOrMeta+p`
-   Look for: combobox "Find a file by name", empty.
+   Expect: combobox "Find a file by name", empty.
 9. Replace the contents of combobox named `Find a file by name` with 'build.log'
-   Look for: the text "No file matches that name." and no option. The tree behind still lists `build.log` (marked ignored); only quick open leaves it out.
+   Expect: the text "No file matches that name." and no option. The tree behind still lists `build.log` (marked ignored); only quick open leaves it out.
 10. Press `Escape`
-    Look for: dialog "Find a file" is gone.
-11. Inspect HTTP requests and responses
-    Look for: `GET /api/worktrees/<worktreeId>/paths` and `GET /api/worktrees/<worktreeId>/text?path=quick-target.md`, both 200.
+    Expect: dialog "Find a file" is gone.
+11. Inspect HTTP traffic
+    Expect: `GET /api/worktrees/<worktreeId>/paths` and `GET /api/worktrees/<worktreeId>/text?path=quick-target.md`, both 200.
 
-## What proves it works
+### Observable proof
 
-- Step 6 opens the file's content, which the server reads through `GET .../text`. Step 9 shows the server's path list leaves out the ignored `build.log`.
-- `apps/web/spec/integration/files-quick-open.test.tsx` opens Review → Files and presses `ControlOrMeta+p`. It asserts that choosing "quick-target.md" shows heading "Quick target" and that the server's paths include it. For `build.log` it asserts "No file matches that name." and that the server's paths exclude it.
+Open result content through text GET; server path list excludes ignored build.log.
+
+Automated coverage: `files-quick-open.test.tsx`.
 
 ## Gotchas
 

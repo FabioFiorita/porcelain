@@ -19,12 +19,24 @@ api:
 
 Settings → Computers lists This computer first, then saved computers. The list has no search. Each row shows name and status, current/latest version and an eligible update offer. Add computer keeps the paste-link flow: run porcelain pair on the other computer, paste the full link and click Add.
 
-## Driving it
+## Sub-features
+
+- `access.remote-computers` — Pair, list and forget remote computers.
+
+## How to get to it (user POV)
+
+- Settings → Computers → Add computer; saved computer → Open <name> or Forget.
+
+## Driving it with browser
+
+Preconditions: [surface baseline](README.md).
 
 In a disposable desktop instance open Computers. There is one listitem, This computer. Add a malformed link and expect its validation message. A link for this same computer is refused. Add a real remote link; the named row appears online. Open <name> shows detail at `/settings/computers/<environmentId>`.
 
 Return to the list and retry the consumed link: it is refused. Revoke the remote credential at its host and reload; detail now says Needs pairing. Forget on this app removes the saved row, leaving only This computer. Host credentials are not revoked by Forget.
 
-## What proves it works
+Automated coverage: `access-remote-computers.desktop.e2e.ts`.
 
-The named E2E covers invalid, same-computer, consumed, accepted and revoked links, then forgetting the saved connection. The browser uses the same view; parent owns final browser coverage.
+## Gotchas
+
+- Consumed/same-computer links must not add a saved connection. Use fresh links and independent device readbacks.

@@ -17,10 +17,28 @@ api:
 
 # reviews.file
 
-Open a changed file from Review. On iPad, selection opens or activates a workspace tab. The right inspector stays beside the central document when wide; the native inspector control switches between them in narrow panes. Only phones push the native file route. Both presentations use the same file content view, and embedded content keeps the project/worktree navigation title. The existing FileHeader and DiffView show its comparison; untracked files use CodeView. If staged and unstaged comparisons both exist, use the native item menu to select one. Branch reads retain the merge-base and tip OIDs and both rename paths.
+Review diffs support file marking and feedback on whole files or selected source lines.
 
-Mark reviewed, verify the independent server fingerprint, then unmark it. Mutate the file through the fixture and confirm the previous mark becomes Changed since review. Fingerprint failures disable marking. Stale diff reads use shared-client recovery, and errors offer Read again.
+## Sub-features
 
-Tap added or deleted source lines in the native renderer to start selection. A second tap on the same side extends from the first line; a tap on the opposite side starts a new selection. Shared context follows the active side and uses that side's source line number. Scrolling must not select a line, and tapping any wrapped segment must select its source line. Comment on selected lines presents the native sheet; Clear selection restores whole-file feedback. Verify side, start/end, comparison and fingerprint through comment-threads. A content refresh clears selection. Use Done or sheet dismissal to return to the exact file underneath; an unsent draft retains the existing discard confirmation. On phone file routes, use native Back to return to the list; on iPad, select Overview or another file tab. Closing the active file selects a remaining tab; closing an inactive tab keeps the current selection. An open tab for a file removed from the comparison displays No longer changed without silently selecting another tab.
+- `reviews.file` — Review diffs, source selection and feedback.
 
-Binary, metadata-only, omitted, malformed and empty diffs are separate states. Metadata retains the patch without selectable text-line feedback. Conflicts and unsupported comparisons explain why no diff is shown. A file removed from the comparison reads No longer changed. A changed workspace invalidates the old route; iPad restores the selected worktree's own session. Changing inspector comparison or base preserves existing tabs, each with its captured comparison.
+## How to get to it (user POV)
+
+- Review → changed file; iPad document tab. Comments and line-selection controls are in the diff toolbar.
+
+## Driving it with agent-device
+
+Preconditions: [surface baseline](README.md).
+
+1. Open a changed file. Phone pushes its file route; iPad opens/activates a central tab and retains project/worktree title. For staged plus unstaged use the native item menu. Branch comparison retains merge-base/tip OIDs and both rename paths; untracked files show source.
+2. Mark reviewed, independently verify fingerprint, unmark. Change the file through the fixture: Changed since review. Fingerprint failures disable marking; read errors offer Read again.
+3. Tap added/deleted lines: same-side second tap extends from the first; opposite-side tap starts a new range. Context uses the active side's number. Wrapped segments select their source line; scrolling selects nothing. Comment on selected lines opens the sheet; Clear selection restores whole-file feedback. Read side/range/comparison/fingerprint through comment-threads; content refresh clears selection.
+4. Done/dismiss returns to the exact underlying file; unsent drafts keep discard confirmation. Phone Back returns to list; iPad Overview/another tab changes document. Close inactive/active tabs and confirm remaining selection. Removing the file shows No longer changed in its tab without selecting another.
+5. Drive binary, metadata-only, omitted, malformed, empty, conflicted and unsupported comparisons: explicit notices; metadata patch has no selectable text-line feedback. Change workspace: old phone route invalidates, iPad restores its own session. Changing inspector comparison/base preserves existing captured tabs.
+
+Automated coverage: none named; retain the live action and readback evidence.
+
+## Gotchas
+
+- Wide/narrow iPad inspector changes retain the same central tab; only phones push file routes. Code and comparison must remain from the displayed document when composing.

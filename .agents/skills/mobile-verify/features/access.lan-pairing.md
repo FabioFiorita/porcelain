@@ -14,27 +14,27 @@ api:
 
 # access.lan-pairing
 
-## What it is
+Pair a disposable computer through its LAN address, then reconnect to it after a cold launch.
 
-Pairing with a Porcelain that runs on another computer on the local network, through the link `porcelain pair` prints for its LAN address, and reconnecting to it after a cold launch. It is the same flow as `access.pairing` over a LAN address instead of loopback.
+## Sub-features
 
-## How a user reaches it
+- `access.lan-pairing` — Local-network pairing and reconnection.
+
+## How to get to it (user POV)
 
 - on the other computer: `porcelain pair` for its LAN address; on the device: Settings → Computers → Add computer → paste the link → Pair
 
-## Driving it
+## Driving it with agent-device
 
-1. Prepare a separate disposable server reachable through its LAN address. Issue a pairing link for that address; never use the installed service or its data.
-2. In Settings → Computers select Add computer (the + toolbar icon on iOS; test id add-environment where it is a content button), paste the link into pairing-link and select Pair (test id pair-environment).
-3. Expect the LAN environment to show Online. Independently read its native device registration and successful app requests from that disposable server.
-4. Cold-launch and expect the same environment to reconnect over the LAN address.
-5. On a physical iOS device, separately check Local Network permission, denial and retry. A simulator does not prove those permission paths.
+Preconditions: [surface baseline](README.md).
 
-## What proves it works
+1. Prepare a separate disposable server reachable by LAN and mint its LAN pairing link.
+2. Computers → Add computer (iOS + toolbar; `add-environment` where a content button). Fill `pairing-link` and press `pair-environment`.
+3. Expect Online. Independently confirm the native device registration and successful requests on that LAN server.
+4. Cold-launch; confirm the same environment reconnects over its LAN address. On physical iOS separately drive Local Network permission, denial and retry.
 
-Drive this feature with the mobile-verify skill on demand.
+Automated coverage: none named; retain the live action and readback evidence.
 
 ## Gotchas
 
-- A simulator proves LAN transport, not the iOS Local Network permission prompt; permission, denial and retry need a physical device.
-- Prove iPhone and iPad separately (`start --device ipad`).
+- Simulator LAN transport does not prove physical iOS permissions. Use only a separate disposable server, never the installed service.

@@ -25,33 +25,29 @@ api: []
 
 # preferences.appearance
 
-## What it is
+General saves Theme, Long lines and Markdown/HTML defaults for this app across cold launches.
 
-General stores this app's Theme, Long lines, Markdown default and HTML default in SQLite. The defaults are defined by the shared saved-preferences owner; changing these controls persists only their corresponding preference. Theme applies to Porcelain content and native navigation. The public usePreferences API exposes the content preferences for destination owners to consume; their integration and proof belong to each destination.
+## Sub-features
 
-## How a user reaches it
+- `preferences.appearance` — Theme, long lines, document defaults and persistence.
+
+## How to get to it (user POV)
 
 - Settings → General; on iPad its controls are visible immediately. On a phone, the native Back button returns to Settings.
 - The deep link porcelain.dev://general.
 
-## Driving it
+## Driving it with agent-device
 
-1. Open Settings. On iPad expect General immediately; on a phone select General. Expect Theme, Code and Documents; the selected choices announce that they are selected. On iPad show and hide the app sidebar and expect every control to stay within the detail area.
-2. Choose Dark, then Light. Inspect both Porcelain content and native navigation. Choose System to follow the device's appearance.
-3. Choose Scroll, Markdown Source and HTML Source. Cold-launch, reopen General, and expect every selected choice to persist. Read porcelain-preferences.db independently from the owned simulator's app data.
-4. On a phone return through the native Back button; on iPad select Computers. Expect the same environment state and Add computer. Leave through the native tabs or iPad sidebar and return.
-5. Corrupt one field of this disposable app's preference record, then cold-launch. Expect that field at its default and every other saved choice kept.
+Preconditions: [surface baseline](README.md).
 
-## What proves it works
+1. Open General. Expect Theme, Code and Documents, with selected choices announced. On iPad toggle sidebar: controls stay bounded.
+2. Select Dark, Light, then System; inspect content and native navigation. Choose Scroll, Markdown Source and HTML Source. Cold-launch/reopen: choices persist; independently read the owned app's porcelain-preferences.db.
+3. Back on phone or Computers on iPad preserves paired state/Add computer. Leave through tabs/sidebar and return.
+4. Corrupt one field of the disposable preference record, cold-launch: only that field resets to default; other choices stay. Exercise refused read/write: old record remains, choices disable, and Read saved preferences again recovers.
 
-- store.spec.ts checks that a change keeps the other saved choices across a restart, that two quick changes both persist, and that a failed read or save disables changes until the next read. saved-preferences.spec.ts checks defaults, old mobile and web records and per-field repair of malformed values. Neither proves native rendering or SQLite persistence.
-- Native screenshots, interactive snapshots and SQLite readback from mobile-verify prove the iPhone journey when recorded.
+Automated coverage: `store.spec.ts`, `saved-preferences.spec.ts`.
 
 ## Gotchas
 
-- A refused read preserves the saved record; it never writes defaults over it.
-- A refused write keeps the last successful preferences in use, shows an error and disables the choices until Read saved preferences again succeeds.
-- Preference consumption in each destination requires that destination's native proof. This Settings map alone does not prove Files, History or Review.
-- Each platform needs its own native proof; iPhone does not prove iPad or Android.
-
-- Diff layout and Spec files are omitted because the native renderer has no consumers for those preferences. Archive switches live in Reviews & Git.
+- A failed read must not write defaults over saved data; a failed write keeps the last successful choices.
+- Destination-specific consumption needs Files/History/Review proof. Diff layout/Spec files are absent; archive switches are under Reviews & Git.

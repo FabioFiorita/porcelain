@@ -15,19 +15,21 @@ api:
 
 # history.list
 
-## What it is
-
 The History list gives each commit one row with its message, 7-character id, author, relative age and ref chips, without a graph beside it (the graph is a separate document behind "Open graph"), and marks a merge commit with a merge icon.
 
-## How a user reaches it
+## Sub-features
+
+- `history.list` — Commit list, pagination and empty states.
+
+## How to get to it (user POV)
 
 - Phone width: button "Review" → sheet "Worktree review" → tab "History".
 - Desktop width (1280 px and wider): tab "History" in the review sidebar ("Review sidebar").
 - Shortcut `Alt+3` selects the History surface (the sheet still needs "Review" at phone width); URL `?surface=history`.
 
-## Driving it
+## Driving it with browser
 
-Start with `$C start`; pair your browser using the card’s pairing-link command. `REPO` is `connection.json`’s `fixtures.repositoryPath`.
+Preconditions: [surface baseline](README.md).
 
 ### Setup
 
@@ -48,21 +50,21 @@ git -C "$REPO" log -1 --format='%s %p'
 
 The last line prints `Merge branch 'topic'` and two parent ids.
 
-1. Click button named `Review`
-   Look for: dialog "Worktree review" with tabs "Files", "Changes", "History".
-2. Click tab named `History`
+1. Click button `Review`
+   Expect: dialog "Worktree review" with tabs "Files", "Changes", "History".
+2. Click tab `History`
    Look for, in the snapshot of the sheet:
    - four row buttons, the merge first (the two commits made in the same second may come in either order, a live run showed "Add the topic notes" above "Describe every step…"): one starting "Merge commit Merge branch 'topic'" that holds img "Merge commit" and the chip "main"; one starting "Describe every step the reviewer takes before approving the change" with that whole subject as text and no img "Merge commit"; one starting "Add the topic notes" with the chip "topic"; one starting "Initial commit";
    - each row's name goes on with the 7-character id, "Porcelain Development" and the age;
    - button "Open graph" in the header beside the branch name; no list "Commit graph"; text "Start of history." after the last row.
 
-## What proves it works
+### Observable proof
 
-- The snapshot after step 2 matches `git -C "$REPO" log --format='%h %s %D' --decorate-refs='refs/*'`: the same four subjects in the same order, the same short ids and chips.
-- `apps/web/spec/integration/history-list.test.tsx`: in the review sidebar the merge row holds img "Merge commit"; the long subject is shown whole and its row has no merge icon; the "Add the topic notes" row shows the chip "topic"; no list "Commit graph" is rendered and button "Open graph" is.
+Compare four subjects/order/short IDs/ref chips with `git -C "$REPO" log --format="%h %s %D" --decorate-refs="refs/*"`.
+
+Automated coverage: `history-list.test.tsx`.
 
 ## Gotchas
 
-- Rows are buttons named by their whole text; address one with a regex anchored at the start, such as name `/^Add the topic notes/`. The merge row's name begins with the img label "Merge commit".
-- A long subject is truncated visually but its full text is in the accessibility tree; compare names in the snapshot, not the screenshot.
-- The setup leaves the branch, merge and files in place for the rest of the instance.
+- Match row names by anchored regex; merge starts with Merge commit. Full long subjects remain accessible despite visual truncation.
+- Setup leaves branch/merge/files; reset before another map.

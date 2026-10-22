@@ -20,8 +20,26 @@ api:
 
 # reviews.comments
 
-Open Comments from Review for all worktree threads, or Comment on file/selected lines from a diff. The native form sheet uses ReviewComposer and ReviewAnnotation. Existing threads retain their original anchor and include agent replies and resolved state.
+The native comments sheet supports feedback, replies, resolution and reopening without losing the underlying document.
 
-Post literal feedback and verify the server thread anchor and message. An invalid or failed submission retains the draft; identical retries retain message/thread IDs. Cancel leaves no write. Add an agent reply through the fixture and expect it live, then Reply, Resolve and Reopen from the sheet. Global comments mark the displayed revision seen; a file-filtered sheet does not mark unseen comments elsewhere as read.
+## Sub-features
 
-Change the underlying file while composing. Expect the earlier-comparison notice; the draft keeps the fingerprint of the displayed code. Change the workspace and expect Review unavailable. Done (the checkmark icon) or the native sheet gesture returns to the exact file/list underneath.
+- `reviews.comments` — Post, reply, resolve, reopen and retain drafts.
+
+## How to get to it (user POV)
+
+- Review → Comments; diff → Comment on file / Comment on selected lines. Done or sheet dismissal returns.
+
+## Driving it with agent-device
+
+Preconditions: [surface baseline](README.md).
+
+1. Open all worktree Comments or file/selected-lines feedback. Post literal text; independently read thread anchor/message. Invalid/failed submit retains draft; identical retry retains IDs. Cancel writes nothing.
+2. Add an agent reply through the fixture: it appears live. Reply, Resolve and Reopen. Global comments marks the displayed revision seen; file-filtered comments must not mark unseen threads elsewhere.
+3. Change the underlying file while composing: earlier-comparison notice appears and the draft retains the displayed fingerprint. Change workspace: Review unavailable. Done/checkmark or sheet gesture returns to the exact file/list underneath.
+
+Automated coverage: none named; retain the live action and readback evidence.
+
+## Gotchas
+
+- Existing threads keep their original anchor, replies and resolved state. Preserve unsent-draft confirmation on return; compare saved IDs/anchors rather than a success message alone.

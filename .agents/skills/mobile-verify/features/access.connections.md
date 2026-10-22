@@ -23,31 +23,31 @@ api:
 
 # access.connections
 
-## What it is
+A computer can retain several independently paired addresses, choose a preferred route and fall back without losing the selected workspace.
 
-One saved environment can keep multiple independently paired connections. Adding another address for the same environment retains the existing address and credential. Metadata stays in SQLite and each route credential stays in secure storage. Existing single-address environments remain readable.
+## Sub-features
 
-Manage connections expands the environment row. It lists connections in preference order, shows the preferred connection and the active workspace connection, and offers Add connection, Prefer and Remove connection. The last connection cannot be removed here; Forget computer removes the whole environment with the existing draft guard.
+- `access.connections` — Connection preference, fallback and removal.
 
-Each connection attempt checks the public health installation ID without a credential, then reads the descriptor and authorizes that route with its own credential. The environment name and version remain unavailable to anonymous cross-origin pages. An unavailable or unauthorized preferred route can fall back. Each route probe has a 2.5-second deadline. A healthy route stays selected until reconnect or foreground. Foreground replaces the live session and reconsiders preference. A failed read can retry once on an authorized fallback. A failed write is returned to its caller without replay on another route. HTTP and live failures advance past the failed route before trying it again; an exhausted cycle can retry all routes. Cancelling a read keeps its healthy active route. A revoked connection plus an unreachable alternative remains retryable; only confirmed rejection of every saved route ends live recovery. Route preference and removal preserve the environment’s existing pending Git journal.
-
-## How a user reaches it
+## How to get to it (user POV)
 
 Settings → Computers → Manage connections → Add connection. The same controls render in the phone settings and iPad Computers destination.
 
-## Driving it
+## Driving it with agent-device
 
-1. Start with one independently paired LAN connection to a disposable server. Record its device ID through the owner readback.
-2. Open Manage connections and Add connection. Paste a fresh Tailscale pairing link issued by the same server, then Pair. Expect one environment and two connections. Independently confirm the original device still exists and a different device was created for Tailscale.
-3. For a partial outage, keep the preferred route’s health/session HTTP working but reject its WebSocket upgrade or close its established socket. Expect live updates to use the other route. Keep an open file visible, change it independently, and confirm the new content arrives without navigating or foregrounding. Also inject a failed read with healthy probes; it must try the alternate once.
-4. Open a project and its review. With LAN unavailable, expect the usable Tailscale connection to load that same project and review. Return to Settings and expect Tailscale to show Active while LAN remains Preferred.
-5. Restore LAN while the current connection is healthy. Expect it to stay in use. Background and foreground, then expect preference to be reconsidered without losing the selected environment or review.
-6. Prefer Tailscale. Cold-launch the app and confirm both connections and that preference survive. Open a review and read a file.
-7. Remove the active connection. Expect the remaining connection to load the same environment. Expect removal disabled for the last connection and Forget computer still available.
-8. Add connection with a pairing link from another disposable server. Expect a different-computer explanation and no change to either saved connection. Invalid, expired and unreachable links keep the form open with its error and a working Cancel.
-9. Exercise a lost write acknowledgement through the shared-client regression: no automatic replay occurs. Real Tailscale requires an authorized endpoint for the disposable server; a loopback proxy proves fallback mechanics only.
-10. Revoke the disposable active LAN device while the saved Tailscale route is unreachable. Restore Tailscale without foregrounding or changing selection, then independently change an open file. Expect live updates to recover, with no permanent lost-access state.
+Preconditions: [surface baseline](README.md).
 
-## What proves it works
+1. Start with a paired disposable LAN connection and record its device ID. Manage connections → Add connection; paste a fresh Tailscale link from the same server and Pair. Expect one computer/two routes; independent server reads show the original device plus a distinct new device.
+2. Keep preferred HTTP healthy but reject/close its WebSocket. An independently changed open file must update through the alternate route without navigation/foreground. Separately fail a read with healthy probes: it retries once on an authorized fallback.
+3. Make LAN unavailable and open the same project/review through Tailscale. Computers shows Tailscale Active, LAN Preferred. Restore LAN: the healthy active route stays until reconnect/foreground, then preference is reconsidered without losing selection.
+4. Prefer Tailscale; cold-launch and confirm routes/preference survive. Open a review/file. Remove the active route: the remaining route loads that computer. Last-route removal is disabled; Forget computer remains available with draft protection.
+5. Try another server's link: different-computer explanation, no saved-route change. Invalid, expired and unreachable links leave the form open with error and Cancel.
+6. Revoke active LAN while Tailscale is unreachable. Restore Tailscale without foreground/navigation, independently change the open file, and confirm recovery. Only confirmed rejection of every route ends recovery; an unreachable alternative stays retryable.
+7. Exercise a lost write acknowledgement with the named regression: no write replay on another route. Preference/removal must retain pending Git operations.
 
-Retain native screenshots, independent device readbacks, a cold-launch journey, and actual route request/readback evidence. Report Android separately from iPhone and iPad. Emulator reachability does not prove physical-device LAN permission or Preview delivery.
+Automated coverage: `remotes.spec.ts`, `store.spec.ts`, `route-transport.spec.ts`, `live-updates.spec.ts`.
+
+## Gotchas
+
+- Route probes have a 2.5-second deadline. Cancelling a read must keep a healthy active route; failed HTTP/live routes advance before retrying, and an exhausted cycle may retry all.
+- Real Tailscale needs an authorized disposable endpoint. A loopback proxy proves fallback mechanics only. Save route requests, device readbacks and cold-launch evidence.

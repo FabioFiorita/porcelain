@@ -20,18 +20,20 @@ api:
 
 # projects.open-linked-worktree
 
-## What it is
-
 Opening a repository that has a linked worktree from the empty workspace (no project registered) registers it with both worktrees, shows the worktree the dialog opened (its main worktree), and replaces the empty workspace in the browser history so Back does not return to it.
 
-## How a user reaches it
+## Sub-features
+
+- `projects.open-linked-worktree` — Linked worktree entry and selection.
+
+## How to get to it (user POV)
 
 - Empty workspace `/` ("Select a worktree") → `Toggle Sidebar` (or `ControlOrMeta+b`) → `Open project` → browse to the repository → `Open <folder>`.
 - The empty workspace exists only when no project is registered; with this fixture that means removing the sample project first (`projects.remove`).
 
-## Driving it
+## Driving it with browser
 
-`$C start`; pair your browser using the card’s pairing-link command (web mode), then `REPO=<connection.json fixtures.repositoryPath>`. Drive it last in an instance or on a fresh one: it removes and re-registers the sample project.
+Preconditions: [surface baseline](README.md).
 
 ### Setup
 
@@ -45,38 +47,36 @@ Check: `git -C "$REPO" worktree list` prints two lines, `$REPO … [main]` and `
 
 ### Reach the empty workspace
 
-1. Navigate to `/` on the card’s web URL (full page load), then click button named `Toggle Sidebar`
-   Look for: dialog "Sidebar" with project button "repository" and two worktree rows under it ("main", and "linked" once the server's inventory refresh picks the worktree up).
-2. Right-click button named `repository`, then click menuitem named `Remove from Porcelain`
-   Look for: alertdialog "Remove repository from Porcelain?" with buttons "Cancel" and "Remove from Porcelain".
-3. Click button named `Remove from Porcelain`
-   Look for: the alertdialog is gone; text "No projects registered" in the sheet; Page URL `/?worktree=<old worktreeId>`; text "Worktree not found"; Page Title "Porcelain".
-4. Navigate to `/` on the card’s web URL (full page load)
-   Look for: after the full reload, Page URL stays `/`; text "Select a worktree"; button "Toggle Sidebar".
+1. Navigate to `/`, then click button `Toggle Sidebar`
+   Expect: dialog "Sidebar" with project button "repository" and two worktree rows under it ("main", and "linked" once the server's inventory refresh picks the worktree up).
+2. Right-click button `repository`, then click menuitem `Remove from Porcelain`
+   Expect: alertdialog "Remove repository from Porcelain?" with buttons "Cancel" and "Remove from Porcelain".
+3. Click button `Remove from Porcelain`
+   Expect: the alertdialog is gone; text "No projects registered" in the sheet; URL `/?worktree=<old worktreeId>`; text "Worktree not found"; title "Porcelain".
+4. Navigate to `/`
+   Expect: after the full reload, URL stays `/`; text "Select a worktree"; button "Toggle Sidebar".
 
 ### Open the repository again
 
-5. Click button named `Toggle Sidebar`, then click button named `Open project`
-   Look for: dialog "Open project"; navigation "Folder path"; folder buttons "repository" and "linked" (both are worktrees of one repository).
-6. Click button named `repository`
-   Look for: text "Every worktree appears in the sidebar."; button "Open repository" enabled.
-7. Click button named `Open repository`
-   Look for: dialog "Open project" is gone; Page URL `/<new projectId>/<main worktreeId>` (not `/`); Page Title "Changes — repository"; in the sheet, project button "repository" with two worktree rows: one whose name contains "Open a worktree" and is pressed, one labelled "linked".
-8. Inspect HTTP requests and responses
-   Look for: `DELETE /api/projects/<old projectId>` 200 and `POST /api/projects` 200.
+5. Click button `Toggle Sidebar`, then click button `Open project`
+   Expect: dialog "Open project"; navigation "Folder path"; folder buttons "repository" and "linked" (both are worktrees of one repository).
+6. Click button `repository`
+   Expect: text "Every worktree appears in the sidebar."; button "Open repository" enabled.
+7. Click button `Open repository`
+   Expect: dialog "Open project" is gone; URL `/<new projectId>/<main worktreeId>` (not `/`); title "Changes — repository"; in the sheet, project button "repository" with two worktree rows: one whose name contains "Open a worktree" and is pressed, one labelled "linked".
+8. Inspect HTTP traffic
+   Expect: `DELETE /api/projects/<old projectId>` 200 and `POST /api/projects` 200.
 9. Go back in browser history
-   Look for: Page URL `/?worktree=<old worktreeId>`, the page step 3 left, saying "Worktree not found" (that project is gone) without opening the new worktree in its place; not `/`: the empty `/` of step 4 was replaced, not left in the history.
+   Expect: URL `/?worktree=<old worktreeId>`, the page step 3 left, saying "Worktree not found" (that project is gone) without opening the new worktree in its place; not `/`: the empty `/` of step 4 was replaced, not left in the history.
 
-## What proves it works
+### Observable proof
 
-- End state: the URL is the new project's main worktree and the main row is pressed; the registration holds both worktrees (two rows under "repository").
-- The history: step 9's `back` skips straight past the empty workspace of step 4 to the removed worktree's page.
-- `apps/web/spec/e2e/projects-open-linked-worktree.e2e.ts`: after removal the URL is `/` and a reload shows "Worktree not found"; opening the main repository path closes the dialog, the server registers one project with 2 worktrees, the URL is that project's main worktree, the button matching /Open a worktree/ is pressed, and the navigation history holds exactly that one entry (read through `server.inventory()` and `navigation.entries()`).
+New project main worktree is pressed and both checkouts appear. Browser Back skips the empty workspace and reaches the removed-worktree page.
+
+Automated coverage: `projects-open-linked-worktree.e2e.ts`.
 
 ## Gotchas
 
-- The test reloads where step 4 uses a full reload of `/`; both leave one `/` entry, which opening the repository replaces. A `back` that lands on `/` means the empty workspace was pushed, not replaced.
-- Phone width: the navigator is in the sidebar sheet; after removing the project and after opening the repository the sheet stays open.
-- The worktree row's accessible name is built from its branch label, path, project name, status and the hidden "Open a worktree" text, so address it by name `/Open a worktree/` and never by an exact name.
-- The project gets a new id: a URL saved from before step 3 names a worktree the server no longer has, so it says "Worktree not found". File preferences, reviewed marks and comments of the old project are gone.
-- Remove the linked worktree afterwards if the instance continues: `git -C "$REPO" worktree remove "$REPO/../linked" && git -C "$REPO" branch -D linked`.
+- Browser Back must skip the empty `/` workspace; landing there indicates push instead of replacement. Navigator sheet stays open after remove/open.
+- Match `/Open a worktree/`, not an exact row name. Reregistering creates new IDs; old URLs/marks/comments/preferences are gone.
+- Cleanup: `git -C "$REPO" worktree remove "$REPO/../linked" && git -C "$REPO" branch -D linked`.

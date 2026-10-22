@@ -27,8 +27,29 @@ api:
 
 # reviews.mark-decision
 
-## What it is
+Mark decision reviewed records its retained files and then the decision; unmarking a decision keeps its file marks.
 
-Mark decision reviewed records each file at its retained blob, then the decision fingerprint. A failed file write leaves the decision unmarked. Unmarking a decision leaves file marks; toggling a file changes the completion indicator without erasing the decision mark. Live worktree edits never replace the code or fingerprint in a published revision.
+## Sub-features
 
-Open a decision from the branch Review tab, project Reviews list or durable decision link. Use its toolbar control, the sidebar decision context menu or the file R shortcut. Check GET `/api/reviews/<id>/marks` independently and verify worktree-owned marks did not change. Follow [reviews.page](reviews.page.md) for revision and cleanup fixtures.
+- `reviews.mark-decision` — Decision and file marks, failure and unmarking.
+
+## How to get to it (user POV)
+
+- Branch Review tab, project Reviews list or durable decision link → decision toolbar.
+- Sidebar decision context menu; file R shortcut.
+
+## Driving it with browser
+
+Preconditions: [surface baseline](README.md).
+
+Preconditions: [revision fixture](reviews.page.md).
+
+1. Open a decision through each listed entry. Mark decision reviewed, then independently GET `/api/reviews/<id>/marks`: its retained files and decision are marked, while worktree-owned marks stay unchanged.
+2. Fail a file write: the decision stays unmarked. Unmark the decision: file marks stay. Toggle a file: completion changes without erasing the decision mark.
+3. Edit the live worktree: published code/fingerprint stay at their revision.
+
+Automated coverage: `reviews-mark-decision.test.tsx`, `reviews-mark-decision-refresh.test.tsx`, `reviews-unavailable-completion.test.tsx`.
+
+## Gotchas
+
+- Marking a decision must not treat failed/unavailable files as reviewed or replace retained code with live worktree text.

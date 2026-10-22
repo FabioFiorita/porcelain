@@ -17,55 +17,55 @@ api:
 
 # files.edit-conflict
 
-## What it is
-
 Saving an edit to a file that changed on disk since the editor opened is refused by the server (409 `content_changed`): the editor says so, keeps the draft, disables Done, and the disk keeps the other writer's text.
 
-## How a user reaches it
+## Sub-features
+
+- `files.edit-conflict` — Concurrent changes and conflict recovery.
+
+## How to get to it (user POV)
 
 - Review → Files → right-click a changed file → Open file → Edit, while another writer (an agent, a shell) changes the file on disk, then any save: Done, `Mod+S`, the 3 second autosave, closing the tab, or leaving the editor.
 
-## Driving it
+## Driving it with browser
 
-`$C start`; pair your browser using the card’s pairing-link command. `$REPO` is `fixtures.repositoryPath` in the card’s `connection.json`.
+Preconditions: [surface baseline](README.md).
 
 ### Setup
 
 None before driving; the disk write happens between steps 6 and 7.
 
-1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: Page Title "Changes — repository".
-2. Click button named `Review`
-   Look for: dialog "Worktree review" with tab "Files".
-3. Click tab named `Files`
-   Look for: treeitem "README.md".
-4. Right-click treeitem named `README.md`
-   Look for: menuitem "Open file".
-5. Click menuitem named `Open file`
-   Look for: tab "README.md Close README.md" selected; button "Edit".
-6. Click button named `Edit`
-   Look for: textbox "README.md"; status "Saves as you pause".
+1. Navigate to `/`
+   Expect: title "Changes — repository".
+2. Click button `Review`
+   Expect: dialog "Worktree review" with tab "Files".
+3. Click tab `Files`
+   Expect: treeitem "README.md".
+4. Right-click treeitem `README.md`
+   Expect: menuitem "Open file".
+5. Click menuitem `Open file`
+   Expect: tab "README.md Close README.md" selected; button "Edit".
+6. Click button `Edit`
+   Expect: textbox "README.md"; status "Saves as you pause".
 7. On disk: `printf 'Changed on disk while the browser edits\n' > "$REPO/README.md"`
-   Look for: nothing changes in the editor (an open editor never takes the disk text).
-8. Replace the contents of textbox named `README.md` with 'Browser edit made before the disk changed'
-   Look for: status "Unsaved changes".
-9. Click button named `Done`
-   Look for: alert "The file changed on disk since you opened it. Reload it before saving. Your draft is kept here." with buttons "Copy draft" and "Reload" (no "Retry save"); status "Not saving: changed on disk"; button "Done" disabled; textbox "README.md" still holds "Browser edit made before the disk changed".
+   Expect: nothing changes in the editor (an open editor never takes the disk text).
+8. Fill textbox `README.md` with 'Browser edit made before the disk changed'
+   Expect: status "Unsaved changes".
+9. Click button `Done`
+   Expect: alert "The file changed on disk since you opened it. Reload it before saving. Your draft is kept here." with buttons "Copy draft" and "Reload" (no "Retry save"); status "Not saving: changed on disk"; button "Done" disabled; textbox "README.md" still holds "Browser edit made before the disk changed".
    Disk: `cat "$REPO/README.md"` prints `Changed on disk while the browser edits`.
-10. Inspect HTTP requests and responses
-    Look for: exactly one `POST /api/worktrees/<id>/files` and it answered 409.
-11. Click button named `Reload`
-    Look for: the editor closes; button "Edit" is back; the Reader shows the paragraph "Changed on disk while the browser edits".
+10. Inspect HTTP traffic
+    Expect: exactly one `POST /api/worktrees/<id>/files` and it answered 409.
+11. Click button `Reload`
+    Expect: the editor closes; button "Edit" is back; the Reader shows the paragraph "Changed on disk while the browser edits".
 
-## What proves it works
+### Observable proof
 
-- Step 9's alert, disabled Done and status, together with the disk still holding the shell's text, and step 10's single 409 write: the server refused the stale write and nothing was overwritten.
-- `apps/web/spec/integration/files-edit-conflict.test.tsx`: after the disk changes under an open editor, Done shows the alert text "The file changed on disk since you opened it.", the status "Not saving: changed on disk" and a disabled Done; `server.fileWriteCount()` is 1 and `server.text()` is still the disk text.
+Record the alert/disabled Done, one 409 write and disk retaining the outside text.
+
+Automated coverage: `files-edit-conflict.test.tsx`.
 
 ## Gotchas
 
-- The disk write must land after Edit (step 6) and before the save; written before Edit, the editor starts from the new text and the save succeeds.
-- Once refused, no later save sends a request (Done stays disabled, `Mod+S` and autosave do nothing) until Reload; only one POST appears in the network log.
-- The browser at the map viewport is 414 px wide: the tree lives in the sheet behind "Review", which closes when the file opens.
-- The tab strip persists per worktree in localStorage across a full reload of `/`; leftovers from an earlier feature can make "Edit" or the tab names ambiguous. `$C stop` and `$C start`; pair your browser using the card’s pairing-link command for a clean instance.
-- The step 7 write replaces the sample `README.md` for later features; restore it with `printf '# Sample repository\n\nA change to review.\n' > "$REPO/README.md"`.
+- Write disk after Edit and before save; earlier writes become the editor baseline. After refusal, Done/Mod+S/autosave send no more requests until Reload; record exactly one POST.
+- Persisted tabs can make controls ambiguous. Reset the layout/instance, and restore README after the run.

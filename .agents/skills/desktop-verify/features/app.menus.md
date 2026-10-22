@@ -13,28 +13,27 @@ api: []
 
 # app.menus
 
-## What it is
+The Mac app's application menu: Porcelain (About, Settings… with ⌘,, Services, Hide, Quit), File (Open Project… with ⌘O, Close Window), Edit, View and Window.
 
-The Mac app's application menu: Porcelain (About, Settings… with ⌘,, Services, Hide, Quit), File (Open Project… with ⌘O, Close Window), Edit, View and Window. Settings and Open Project send an action to the web, which opens Settings or the native folder sheet; an action sent before the page is ready waits for it. View offers zoom and full screen; Reload and Developer Tools appear only in an unpackaged app given a Vite server, the one `pnpm dev --desktop` runs, never in the verified or installed app.
+## Sub-features
 
-## How a user reaches it
+- `app.menus` — Settings, project, zoom and full-screen menus.
+
+## How to get to it (user POV)
 
 - the menu bar, or ⌘, for Settings and ⌘O for Open Project
 
-## Driving it
+## Driving it with Electron
 
-Start a disposable instance with `.agents/skills/desktop-verify/scripts/cli start`. For the real menu bar, use Computer Use and open Porcelain Dev › Settings…; the renderer should show Settings, the app version and the reinstall message under Computers → This computer. Repeat with ⌘,.
+Preconditions: [surface baseline](README.md).
 
-For a main-process journey, import `startDesktop` as the skill describes. Use the raw `electron.evaluate(({ Menu }) => ...)` to inspect the application menu: View has resetZoom, zoomIn, zoomOut and togglefullscreen, with no reload, forceReload or toggleDevTools. Invoke the `open-settings` menu item's click through the raw handle, then observe Settings through `electron.firstWindow()`. There is no menu RPC or CLI UI command.
+1. Through Computer Use, choose Porcelain Dev → Settings…, then repeat with ⌘,. Expect Settings, app version and the reinstall message under Computers → This computer.
+2. In an in-process Electron journey, inspect `Menu.getApplicationMenu()` through `electron.evaluate`. View contains `resetZoom`, `zoomIn`, `zoomOut`, `togglefullscreen`; no `reload`, `forceReload` or `toggleDevTools`. Invoke `open-settings` and confirm Settings in `electron.firstWindow()`.
+3. Drive File → Open Project… and ⌘O through [folder picker](projects.folder-picker.md). An action sent before the renderer is ready must still open its destination.
 
-File › Open Project… and ⌘O are covered by [projects.folder-picker](projects.folder-picker.md).
-
-## What proves it works
-
-- `apps/desktop/spec/e2e/menus.e2e.ts` (Playwright Electron): the Settings menu opens Settings with the app version and the reinstall line; the View menu is exactly zoom and full screen, with no Reload or Developer Tools item.
-- `apps/desktop/spec/e2e/folder-picker.e2e.ts` (Playwright Electron): the Open Project menu opens the native sheet directly.
+Automated coverage: `menus.e2e.ts`, `folder-picker.e2e.ts`.
 
 ## Gotchas
 
-- Use the card's Porcelain Dev identity to select the development app; never select the installed app.
-- Native menu roles and keyboard dispatch remain macOS checks. Linux launch proof covers renderer startup and shutdown.
+- Reload/Developer Tools are available only in an unpackaged Vite development run (`pnpm dev --desktop`); the verification app has neither.
+- Native menu roles and keyboard dispatch require macOS.

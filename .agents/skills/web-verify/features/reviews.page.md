@@ -32,9 +32,22 @@ api:
 
 # reviews.page
 
-One page owns the latest durable route, numbered revisions, decision links and the worktree's branch Review tab. The navigator has one status-grouped Reviews list across projects and environments; closed reviews are behind Closed. The verdict comes before the briefing, decisions, Not explained and proof. Deleted files come from Git's revision inventory and have a red frame.
+One page owns the latest durable route, numbered revisions, decision links and the worktree's branch Review tab.
 
-## Drive it
+## Sub-features
+
+- `reviews.page` — Durable revisions, verdict, comments and lifecycle.
+
+## How to get to it (user POV)
+
+- Navigator Reviews list; worktree branch Review tab.
+- `/reviews/<reviewId>`, numbered revision routes and `?decision=<layerId>` links.
+
+## Driving it with browser
+
+Preconditions: [surface baseline](README.md).
+
+The navigator has one status-grouped Reviews list across projects and environments; closed reviews are behind Closed. The verdict comes before the briefing, decisions, Not explained and proof. Deleted files come from Git's revision inventory and have a red frame.
 
 Check `free -g` before startup. Start one disposable instance and retain the connection card. Run `$C agent publish-revision 'Retain the committed revision after removing the publishing checkout'` twice. Each command commits on an owned fixture worktree and publishes through MCP, returning reviewId, revision, headOid, layerId and worktree. Keep both responses. The fixture has a deletion, a long decision title, passing and failing checks, and an explicit desktop gap.
 
@@ -48,6 +61,12 @@ Check `free -g` before startup. Start one disposable instance and retain the con
 8. Review actions → Close review. The closed review stays readable. Its menu has Delete review and no Reopen. Delete review opens a confirmation covering every revision and its owned proof, comments and marks. Cancel keeps it; Delete removes it and returns to the workspace.
 9. Open an unknown review, revision and decision. A missing review/revision has a clear state and Back to workspace. An absent decision shows the briefing and a note explaining that the decision is not in this revision.
 10. The publish-revision fixture omits summary HTML: expect no Agent summary tab, including after checkout removal. With `$C agent publish-review 'Optional summary' --summary-html '   '`, expect no tab either. Publish authored HTML with `--summary-html '<h1>Extra context</h1>'`: expect Agent summary to open its sandboxed page. The endpoint's injected theme/link bridge does not count as agent content.
-11. Through desktop-verify's native app, repeat with another paired computer's authored summary. Both visibility detection and the iframe use the same app summary proxy; the visibility read must not send an authenticated CORS request to the remote signed-summary endpoint. The browser desktop-mode regression supplies that host port through its kit; `start --desktop` alone supplies views without the native proxy. The regression journeys are `apps/web/spec/e2e/projects-remote-workspace.desktop.e2e.ts` and `apps/desktop/spec/e2e/review-summaries.e2e.ts`.
+11. In the disposable native app, repeat with a paired computer’s authored summary: it renders and opens its decision without an authenticated cross-origin summary request. `start --desktop` supplies views only; native summary proxy proof requires desktop verification.
 
 Drive at 390 × 844 and 1280 × 800, light and dark. Check long branch names, revision controls, links, deletion paths, menus, comment controls and the wrapping Start/Continue button for overflow. Publish a decision containing a long unbroken filename as well as prose: Start here must keep its label inside the viewport and retain the full decision title in its accessible name. Scroll the complete button into view before retaining phone light/dark screenshots. Electron bridge and macOS behavior require desktop-verify; this web run does not prove them.
+
+Automated coverage: `reviews-page.test.tsx`, `reviews-summary.test.tsx`.
+
+## Gotchas
+
+- Summary links expire shortly after reading; a late frame needs a full reload. Native remote summary proof is separate from desktop-mode web views.

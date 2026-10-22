@@ -10,11 +10,27 @@ api: []
 
 # app.catalog-text
 
-Development-only Text samples reached through Settings, Component library, Explore Text. All catalog routes are protected by `__DEV__` and unavailable in release builds.
+Development Text samples show type styles, wrapping and native selection.
 
-1. Inspect heading, subheading, body, UI, caption, small and code samples.
-2. Inspect default, muted, destructive and card tones, plus medium and semibold weights.
-3. Scroll to Wrapping and selection. Long press the paragraph and confirm native selection actions appear.
-4. Return with the native back button to Component library and then Settings.
+## Sub-features
 
-The component-library spec opens Explore Text and checks its type scale and tones before returning to the catalog. Native selection and larger accessibility text are also driven on the live development simulator.
+- `app.catalog-text` — Text styles, wrapping and native selection.
+
+## How to get to it (user POV)
+
+- Phone: Settings → Component library → Explore Text.
+- iPad: Settings → Development → Explore Text.
+
+## Driving it with agent-device
+
+Preconditions: [surface baseline](README.md).
+
+1. Inspect heading, subheading, body, UI, caption, small and code; default/muted/destructive/card tones and medium/semibold weights.
+2. Scroll to Wrapping and selection; long-press the paragraph: native selection actions appear. Repeat at larger accessibility text size and check wrapping.
+3. Phone Back returns to Component library then Settings; iPad component/category selection leaves the inline sample.
+
+Automated coverage: none named; retain the live action and readback evidence.
+
+## Gotchas
+
+- Development-only. Native selection needs a live gesture; reading the samples does not prove selection.

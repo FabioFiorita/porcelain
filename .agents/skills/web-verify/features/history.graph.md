@@ -16,18 +16,20 @@ api:
 
 # history.graph
 
-## What it is
-
 Open graph opens the commit graph of the checked-out branch as a document tab ("Graph") with its lanes, merges and ref chips; the tab comes back after a reload, and clicking a commit in it opens that commit's document.
 
-## How a user reaches it
+## Sub-features
+
+- `history.graph` — Branch graph and commit selection.
+
+## How to get to it (user POV)
 
 - Review → History → button "Open graph" (in the History header, beside the branch name; shown once the branch has commits).
 - The tab "Graph" in the "Open documents" tablist once opened; URL `entry=graph` on the workspace route.
 
-## Driving it
+## Driving it with browser
 
-Start with `$C start`; pair your browser using the card’s pairing-link command. `REPO` is `connection.json`’s `fixtures.repositoryPath`.
+Preconditions: [surface baseline](README.md).
 
 ### Setup
 
@@ -48,24 +50,24 @@ git -C "$REPO" log -1 --format='%s %p'
 
 The last line prints `Merge branch 'topic'` and two parent ids. ("Add the topic notes" also carries the README change, which the switch took along.)
 
-1. Click button named `Review`
-   Look for: dialog "Worktree review".
-2. Click tab named `History`
-   Look for: four rows, the first starting "Merge commit Merge branch 'topic'", and button "Open graph".
-3. Click button named `Open graph`
-   Look for: the sheet closes; tab starting "Graph" selected in tablist "Open documents"; Page Title "Commit graph — repository"; Page URL has `entry=graph`; list "Commit graph" whose first button starts "Merge commit Merge branch 'topic'" and holds img "Merge commit"; the row starting "Add the topic notes" carries the chip "topic". The lanes are an `aria-hidden` SVG (test id `history-graph`): check them in a screenshot, two lanes joining at the merge dot.
-4. Navigate to `<path and query of the Page URL from step 3>` on the card’s web URL (full page load)
-   Look for: after the reload, tab "Graph" is still selected and list "Commit graph" shows again.
-5. Click button named `/^Merge commit ?Merge branch 'topic'/`
-   Look for: heading starting "Merge branch 'topic'"; tab "Graph" no longer selected (a commit tab named by the 7-character id is); Page Title "<7-character id> — repository"; the toolbar shows tabs "1st parent · <id>" and "2nd parent · <id>".
+1. Click button `Review`
+   Expect: dialog "Worktree review".
+2. Click tab `History`
+   Expect: four rows, the first starting "Merge commit Merge branch 'topic'", and button "Open graph".
+3. Click button `Open graph`
+   Expect: the sheet closes; tab starting "Graph" selected in tablist "Open documents"; title "Commit graph — repository"; URL has `entry=graph`; list "Commit graph" whose first button starts "Merge commit Merge branch 'topic'" and holds img "Merge commit"; the row starting "Add the topic notes" carries the chip "topic". The lanes are an `aria-hidden` SVG (test id `history-graph`): check them in a screenshot, two lanes joining at the merge dot.
+4. Navigate to `<path and query of the URL from step 3>`
+   Expect: after the reload, tab "Graph" is still selected and list "Commit graph" shows again.
+5. Click button `/^Merge commit ?Merge branch 'topic'/`
+   Expect: heading starting "Merge branch 'topic'"; tab "Graph" no longer selected (a commit tab named by the 7-character id is); title "<7-character id> — repository"; the toolbar shows tabs "1st parent · <id>" and "2nd parent · <id>".
 
-## What proves it works
+### Observable proof
 
-- The Graph tab surviving the reload in step 4, and the merge commit opening from it in step 5; the browser network log shows `GET /api/worktrees/<id>/commits/<oid>/files` answered 200 for the merge commit.
-- `apps/web/spec/e2e/history-graph.e2e.ts`: Open graph selects the tab "Graph"; list "Commit graph" shows img "Merge commit" and the chip "topic"; after a reload the Graph tab is still selected; clicking the merge commit row in the graph shows heading "Merge branch 'topic'…" and deselects the Graph tab.
+Reload full URL: Graph remains selected; opening merge records files GET/200.
+
+Automated coverage: `history-graph.e2e.ts`.
 
 ## Gotchas
 
-- Reload with the full Page URL, as the test's `page.reload()` does, not a full reload of `/`: the bare route carries no `entry`, so it is not the same reload and need not land on the Graph tab.
-- Commit row names are the whole row text; address them with a regex anchored at the start. The merge row's name begins with the img label "Merge commit".
-- The setup leaves topic, the merge and two new files in the repository for the rest of the instance; start a fresh instance for features that expect the sample's single commit.
+- Reload the complete URL, including entry; bare `/` need not restore Graph. Match whole-row names by anchored regex; merge starts with Merge commit.
+- Setup leaves topic, merge and files; reset before maps expecting the initial fixture.

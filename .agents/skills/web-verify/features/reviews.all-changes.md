@@ -16,35 +16,41 @@ api:
 
 # reviews.all-changes
 
-## What it is
+All changes opens one scrollable document of every current changed file, also with a published review.
 
-All changes opens one scrollable document of every current changed file, also with a published review. It includes unexplained files, deleted files and specs. With a review published, the files come in walkthrough order, each with the name of its stop beside it ("<n>. <decision title>", "Not explained" or "Specs"), and the agent's notes carry decision-numbered markers such as "1.2". Each file can be collapsed and marked reviewed; the bulk mark covers the same complete file set. Unsupported content is listed, not silently removed.
+## Sub-features
 
-## How a user reaches it
+- `reviews.all-changes` — Review-wide changes and file selection.
+
+## How to get to it (user POV)
 
 - Review (sheet at phone width, dialog "Worktree review") → tab "Review" → nav "Walkthrough" → button "All changes". The file count appears in the opened document's toolbar.
 - With no review published, the handoff tab "Changes" is the same document.
 
-## Driving it
+## Driving it with browser
 
-`$C start --review-sample`; pair your browser. The architecture is committed in its published revision. In the card's fixture repository, remove `packages/workspace/src/actor.ts` and append a line to `tests/publish-note.spec.ts`. There are now five current changes: the deleted actor, policy, revoke-access, the unexplained migration script and the spec. These are current worktree changes; the retained review's committed file count is a separate inventory.
+Preconditions: [surface baseline](README.md).
+
+Required instance mode: `$C start --review-sample`. Before loading, remove `"$REPO/packages/workspace/src/actor.ts"` and append a line to `"$REPO/tests/publish-note.spec.ts"`. Expect five current changes: deleted actor, policy, revoke-access, unexplained migration and spec. The retained revision inventory is separate.
+
+It includes unexplained files, deleted files and specs. With a review published, the files come in walkthrough order, each with the name of its stop beside it ("<n>. <decision title>", "Not explained" or "Specs"), and the agent's notes carry decision-numbered markers such as "1.2". Each file can be collapsed and marked reviewed; the bulk mark covers the same complete file set. Unsupported content is listed, not silently removed.
 
 1. Open Review → tab "Review" → button "All changes".
-   Look for: the All changes document with "5 files" and button "Mark all 5 files reviewed". The revoke-access change retains its decision's agent notes.
+   Expect: the All changes document with "5 files" and button "Mark all 5 files reviewed". The revoke-access change retains its decision's agent notes.
 2. Click "Collapse all", scroll to the end and expand an individual file.
-   Look for: all five paths, including the removed packages/workspace/src/actor.ts, scripts/migrate-workspaces.ts and tests/publish-note.spec.ts. Expanding a file restores its content.
+   Expect: all five paths, including the removed packages/workspace/src/actor.ts, scripts/migrate-workspaces.ts and tests/publish-note.spec.ts. Expanding a file restores its content.
 3. Click "Mark all 5 files reviewed" and wait for "Unmark all" to become enabled.
-   Look for: `$C server reviewed-files` holds exactly those five marks. The bulk action records current-file marks, not a reviewed decision on the retained revision.
+   Expect: `$C server reviewed-files` holds exactly those five marks. The bulk action records current-file marks, not a reviewed decision on the retained revision.
 4. Click "Unmark all" and wait for "Mark all 5 files reviewed" to become enabled.
-   Look for: `$C server reviewed-files` holds no marks.
+   Expect: `$C server reviewed-files` holds no marks.
 5. Reload the All changes document. Repeat at 414 × 896.
-   Look for: its complete file count, bulk actions and file folding stay reachable. The separate Specs document is covered by [reviews.spec-files](reviews.spec-files.md).
+   Expect: its complete file count, bulk actions and file folding stay reachable. The separate Specs document is covered by [reviews.spec-files](reviews.spec-files.md).
 
-## What proves it works
+### Observable proof
 
-- Steps 3 and 4 read the server marks after each bulk action.
-- `apps/web/spec/integration/reviews-all-changes.test.tsx`: with five current changes after publication, "All changes" opens "5 files"; "Mark all 5 files reviewed" leaves all five marks on the server, including the unexplained scripts/migrate-workspaces.ts, deleted packages/workspace/src/actor.ts and tests/publish-note.spec.ts; "Unmark all" leaves none and offers "Mark all 5 files reviewed".
-- The Spec files E2E journey checks that marking a Specs document excludes ordinary source files.
+Read independent server marks after each bulk action; Specs-document marking must exclude ordinary files.
+
+Automated coverage: `reviews-all-changes.test.tsx`.
 
 ## Gotchas
 

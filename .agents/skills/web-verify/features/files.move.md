@@ -14,18 +14,20 @@ api:
 
 # files.move
 
-## What it is
-
 Dragging a file onto a folder in the tree moves it into that folder on disk without opening it. Dragging a file onto a folder that already holds that name is refused, says so, and keeps both files.
 
-## How a user reaches it
+## Sub-features
+
+- `files.move` — Move entries and verify their destinations.
+
+## How to get to it (user POV)
 
 - Review (phone width) → tab Files → drag a tree row onto a folder row (a mouse drag, or on touch a 400 ms long-press then drag).
 - There is no other path: no menu item, no keyboard move. Rename cannot move an entry either, because the tree refuses a name holding `/` (`Name cannot include "/".`).
 
-## Driving it
+## Driving it with browser
 
-Start with `$C start`; pair your browser using the card’s pairing-link command. Set `REPO` to `fixtures.repositoryPath` in the card’s `connection.json`.
+Preconditions: [surface baseline](README.md).
 
 ### Setup
 
@@ -40,26 +42,24 @@ printf 'Notes that clash\n' > "$REPO/clash.md"
 
 For the move, press on the source row, moves onto the target row and releases there, as a mouse would.
 
-### Steps
-
-1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: Page Title "Changes — repository".
-2. Click button named `Review`
-   Look for: dialog "Worktree review".
-3. Click tab named `Files`
-   Look for: the tree in region "All files" with treeitems "archive" (a collapsed folder), "clash.md", "move-me.md" and "README.md".
+1. Navigate to `/`
+   Expect: title "Changes — repository".
+2. Click button `Review`
+   Expect: dialog "Worktree review".
+3. Click tab `Files`
+   Expect: the tree in region "All files" with treeitems "archive" (a collapsed folder), "clash.md", "move-me.md" and "README.md".
 4. Drag treeitem named `move-me.md` onto treeitem named `archive`
-   Look for: treeitem "move-me.md" is gone from the root, dialog "Worktree review" stays open, and no text "Change no longer present" appears.
+   Expect: treeitem "move-me.md" is gone from the root, dialog "Worktree review" stays open, and no text "Change no longer present" appears.
    Disk: `ls "$REPO/archive"` prints `clash.md` and `move-me.md`; `test -e "$REPO/move-me.md" || echo moved` prints `moved`.
 5. Drag treeitem named `clash.md` onto treeitem named `archive`
-   Look for: alert "An entry already exists at that path" under the tree, and treeitem "clash.md" still at the root.
+   Expect: alert "An entry already exists at that path" under the tree, and treeitem "clash.md" still at the root.
    Disk: `cat "$REPO/clash.md"` prints `Notes that clash`, and `cat "$REPO/archive/clash.md"` prints `Already in the folder`.
 
-## What proves it works
+### Observable proof
 
-- On disk: the moved file is under `archive/` and gone from the root. After the refused drag, both `clash.md` files keep their text.
-- Inspect HTTP requests and responses shows `POST /api/worktrees/<worktreeId>/files` answered 200 for the move and 409 for the clash.
-- `apps/web/spec/integration/files-move.test.tsx` drags with Vitest's `userEvent.dragAndDrop`. It asserts that the server lists `move-me.md` under `archive` and no longer at the root, that the row is gone, and that "Change no longer present" never shows. For the clash it asserts the alert "An entry already exists at that path", that the row stays, and that both files keep their text.
+Disk shows moved file only in archive; refused clash preserves both texts. File POSTs answer 200 and 409 respectively.
+
+Automated coverage: `files-move.test.tsx`.
 
 ## Gotchas
 
