@@ -53,14 +53,6 @@ export type Fixture = {
     message: DraftedCommit;
     groups: DraftedCommit[];
   };
-  perf: PerfSample | null;
-};
-
-export type PerfSample = {
-  files: number;
-  commits: number;
-  worktrees: string[];
-  projects: string[];
 };
 
 export type DraftedCommit = { message: string; paths: string[] };

@@ -8,7 +8,6 @@ export default async function setup(project: TestProject) {
   const build = await temporaryServerBuild();
   const routes = await mkdtemp(join(tmpdir(), 'porcelain-client-routes-'));
   project.provide('serverBuild', build.folder);
-  project.provide('serverSample', 'none');
   project.provide('serverRoutes', routes);
   return async () => {
     await build.remove();

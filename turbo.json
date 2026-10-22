@@ -12,8 +12,8 @@
       "dependsOn": ["^transit"],
       "inputs": [
         "$TURBO_DEFAULT$",
-        "!**/*.{spec,test,e2e,integration,perf}.{ts,tsx}",
-        "!spec/{integration,e2e,perf}/**"
+        "!**/*.{spec,test,e2e,integration}.{ts,tsx}",
+        "!spec/{integration,e2e}/**"
       ]
     },
     "typecheck": {
