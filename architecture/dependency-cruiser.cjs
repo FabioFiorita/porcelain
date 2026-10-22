@@ -1,3 +1,11 @@
+const gitCapabilities = [
+  'shared',
+  'discovery',
+  'inspection',
+  'history',
+  'actions',
+];
+
 const sourceFolders = [
   '^apps/server/src/http/.+\\.ts$',
   '^apps/server/src/use-cases/[^/]+/[^/]+\\.ts$',
@@ -109,54 +117,16 @@ module.exports = {
         path: '(?:^(?:node:)?child_process$|^packages/process/src/|(?:^|/)node_modules/(?:@porcelain/process|effect/(?:dist|src)/process)(?:/|$)|^@porcelain/process(?:/|$)|^effect/process(?:/|$))',
       },
     },
-    {
-      name: 'git-shared-dependency-order',
+    ...gitCapabilities.slice(0, -1).map((capability, index) => ({
+      name: `git-${capability}-dependency-order`,
       comment:
         'Git capabilities build from discovery through inspection and history to actions so lower capabilities cannot depend on higher ones.',
       severity: 'error',
-      from: {
-        path: '^packages/git/src/shared/',
-      },
+      from: { path: `^packages/git/src/${capability}/` },
       to: {
-        path: '^packages/git/src/(?:discovery|inspection|history|actions)/',
+        path: `^packages/git/src/(?:${gitCapabilities.slice(index + 1).join('|')})/`,
       },
-    },
-    {
-      name: 'git-discovery-dependency-order',
-      comment:
-        'Git capabilities build from discovery through inspection and history to actions so lower capabilities cannot depend on higher ones.',
-      severity: 'error',
-      from: {
-        path: '^packages/git/src/discovery/',
-      },
-      to: {
-        path: '^packages/git/src/(?:inspection|history|actions)/',
-      },
-    },
-    {
-      name: 'git-inspection-dependency-order',
-      comment:
-        'Git capabilities build from discovery through inspection and history to actions so lower capabilities cannot depend on higher ones.',
-      severity: 'error',
-      from: {
-        path: '^packages/git/src/inspection/',
-      },
-      to: {
-        path: '^packages/git/src/(?:history|actions)/',
-      },
-    },
-    {
-      name: 'git-history-dependency-order',
-      comment:
-        'Git capabilities build from discovery through inspection and history to actions so lower capabilities cannot depend on higher ones.',
-      severity: 'error',
-      from: {
-        path: '^packages/git/src/history/',
-      },
-      to: {
-        path: '^packages/git/src/(?:actions)/',
-      },
-    },
+    })),
     {
       name: 'git-capability-public-api-only',
       comment:
@@ -296,6 +266,7 @@ module.exports = {
         pathNot: '^(?:apps/[^/]+|packages/[^/]+)/src/',
       },
     },
+
     {
       name: 'unresolved-workspace-import',
       comment:
@@ -340,38 +311,42 @@ module.exports = {
       },
       to: { circular: true },
     },
+
     {
-      name: 'web-routes-import-feature-index',
+      name: 'routes-import-feature-index',
       comment:
-        'Routes use feature entry points so navigation cannot couple to private views.',
+        'Routes use feature entry points, because navigation cannot couple to private views on web or mobile.',
       severity: 'error',
-      from: { path: '^apps/web/src/routes/' },
+      from: { path: '^apps/(web(?=/src/routes/)|mobile(?=/src/app/))/src/' },
       to: {
-        path: '^apps/web/src/features/',
-        pathNot: '^apps/web/src/features/[^/]+/index\\.ts$',
+        path: '^apps/$1/src/features/',
+        pathNot: '^apps/$1/src/features/[^/]+/index\\.ts$',
       },
     },
     {
-      name: 'web-features-import-feature-index',
+      name: 'features-import-feature-index',
       comment:
-        'Features use another feature through its entry point so its internals can change independently.',
+        'Features use another feature through its entry point, because its internals must be able to change independently on web or mobile.',
       severity: 'error',
-      from: { path: '^apps/web/src/features/([^/]+)/' },
+      from: { path: '^apps/(web|mobile)/src/features/([^/]+)/' },
       to: {
-        path: '^apps/web/src/features/',
+        path: '^apps/$1/src/features/',
         pathNot: [
-          '^apps/web/src/features/$1/',
-          '^apps/web/src/features/[^/]+/index\\.ts$',
+          '^apps/$1/src/features/$2/',
+          '^apps/$1/src/features/[^/]+/index\\.ts$',
         ],
       },
     },
     {
-      name: 'web-shared-imports-no-owner',
+      name: 'shared-imports-no-owner',
       comment:
-        'Shared web pieces serve all features so they cannot depend on a feature or app owner.',
+        'Shared pieces serve all features, because they cannot depend on a feature, navigation, app or native shell owner.',
       severity: 'error',
-      from: { path: '^apps/web/src/(?:shared|components/ui)/' },
-      to: { path: '^apps/web/src/(?:features|app|routes)/' },
+      from: { path: '^apps/(web|mobile)/src/(?:shared|components/ui)/' },
+      to: {
+        path: '^apps/$1/src/(?:features|app|routes|shell)/',
+        pathNot: ['^apps/web/src/shell/', '^apps/mobile/src/routes/'],
+      },
     },
     {
       name: 'web-nothing-imports-routes',
@@ -381,39 +356,7 @@ module.exports = {
       from: { pathNot: '^apps/web/src/(?:routes/|routeTree\\.gen\\.ts$)' },
       to: { path: '^apps/web/src/routes/' },
     },
-    {
-      name: 'mobile-routes-import-feature-index',
-      comment:
-        'Native routes use feature entry points so navigation cannot couple to private views.',
-      severity: 'error',
-      from: { path: '^apps/mobile/src/app/' },
-      to: {
-        path: '^apps/mobile/src/features/',
-        pathNot: '^apps/mobile/src/features/[^/]+/index\\.ts$',
-      },
-    },
-    {
-      name: 'mobile-features-import-feature-index',
-      comment:
-        'Native features use another feature through its entry point so internals stay private.',
-      severity: 'error',
-      from: { path: '^apps/mobile/src/features/([^/]+)/' },
-      to: {
-        path: '^apps/mobile/src/features/',
-        pathNot: [
-          '^apps/mobile/src/features/$1/',
-          '^apps/mobile/src/features/[^/]+/index\\.ts$',
-        ],
-      },
-    },
-    {
-      name: 'mobile-shared-imports-no-owner',
-      comment:
-        'Shared native pieces serve all features so they cannot depend on a feature or shell owner.',
-      severity: 'error',
-      from: { path: '^apps/mobile/src/(?:shared|components/ui)/' },
-      to: { path: '^apps/mobile/src/(?:features|shell|app)/' },
-    },
+
     {
       name: 'mobile-ui-imports-no-state',
       comment:

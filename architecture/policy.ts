@@ -85,102 +85,19 @@ export const shadcnRegistry: ReadonlySet<string> = new Set([
   'tooltip',
 ]);
 
-export const archRules = [
-  'theme-data-only',
-  'theme-imports-stylesheets-only',
-  'mobile-style-config',
-  'mobile-imports-mobile-client-and-contracts-only',
-  'mobile-routes-import-feature-index',
-  'mobile-features-import-feature-index',
-  'mobile-shared-imports-no-owner',
-  'mobile-nothing-imports-routes',
-  'client-imports-client-and-contracts-only',
-  'client-public-api-only',
-  'code-outside-roots',
-  'missing-server-structure',
-  'no-helpers-folder',
-  'flat-http-route',
-  'use-case-file-name',
-  'service-file-name',
-  'role-folder-is-flat',
-  'unclassified-source',
-  'cross-package-import-must-use-package-name',
-  'unclassified-import-target',
-  'import-outside-source-roots',
-  'runtime-node-allow-list',
-  'no-circular-source-imports',
-  'git-capability-dependency-order',
-  'git-capability-public-api-only',
-  'infrastructure-layout',
-  'test-imports-own-package-support-only',
-  'store-contract-runs-against-its-fake-storage-and-server-adapters-only',
-  'package-cannot-import-server',
-  'fake-imports-own-package-only',
-  'fixture-imports-own-package-models-only',
-  'git-cannot-import-domain',
-  'domain-cannot-import-another-domain',
-  'domain-cannot-import-transport-contract',
-  'contract-imports-kernel-rules-only',
-  'git-public-api-only',
-  'domain-public-api-only',
-  'kernel-public-api-only',
-  'storage-public-api-only',
-  'agents-public-api-only',
-  'process-public-api-only',
-  'process-importable-by-git-agents-installer',
-  'lane-per-table',
-  'lane-mode-matches-service',
-  'worktree-use-case-checks',
-  'unused-export',
-  'unused-dependency',
-  'web-shadcn-ui-owner',
-  'web-shadcn-primitive-owner',
-  'web-no-runtime-fixture',
-  'web-routes-import-feature-index',
-  'web-features-import-feature-index',
-  'web-shared-imports-no-owner',
-  'web-nothing-imports-routes',
-] as const;
-
 export type ArchRule = string;
-export const archRuleFamilies = [
-  '<role>-cannot-import-<role>',
-  '<role>-cannot-import-external',
-] as const;
-export function archRuleFamily(name: string): string | undefined {
-  if (archRules.some((rule) => rule === name)) return;
-  return /^.+-cannot-import-external$/.test(name)
-    ? '<role>-cannot-import-external'
-    : /^.+-cannot-import-.+$/.test(name)
-      ? '<role>-cannot-import-<role>'
-      : undefined;
-}
-export const styleRules = [
-  'mobile-native-source-owner',
-  'architecture-budget',
-  'disable-directives',
-  'one-lint-config',
-  'strict-json',
-  'lint-config',
-  'tsconfig',
-  'package-scripts',
-  'vitest-config',
-  'cruiser-config',
-  'ci-steps',
-  'manual-audits',
-  'pre-push-hook',
-  'code-outside-lint-roots',
-  'prose-outside-skills',
-  'format-config',
-  'vite-config',
-  'route-tree',
-  'react-compiler',
-  'shadcn-ui-pinned',
-  'playwright-config',
-  'duplicate-code',
-] as const;
 
-export type StyleRule = (typeof styleRules)[number];
+export type StyleRule =
+  | 'mobile-native-source-owner'
+  | 'disable-directives'
+  | 'one-lint-config'
+  | 'strict-json'
+  | 'lint-config'
+  | 'tsconfig'
+  | 'code-outside-lint-roots'
+  | 'format-config'
+  | 'shadcn-ui-pinned'
+  | 'duplicate-code';
 
 export const generatedRouteTree = 'apps/web/src/routeTree.gen.ts';
 
