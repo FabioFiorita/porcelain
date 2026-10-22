@@ -1,10 +1,10 @@
 # Inject browser failures
 
-The seven maps below need routing in the **browser context**, not a fake server response. Use a dedicated context; install HTTP/WebSocket routes before navigation (WebSocket routes affect only new sockets). Keep the HTTP interceptor installed until the context closes and switch it back to pass-through: removing it while module workers load can strand dependency requests. These recipes use native [context routing](https://playwright.dev/docs/api/class-browsercontext#browser-context-route) and [WebSocket routing](https://playwright.dev/docs/api/class-websocketroute).
+Use a dedicated browser context; install HTTP/WebSocket routes before navigation. WebSocket routes affect new sockets only. Keep HTTP interception until context close, restoring pass-through to avoid stranding module-worker requests. Use native [context routing](https://playwright.dev/docs/api/class-browsercontext#browser-context-route) and [WebSocket routing](https://playwright.dev/docs/api/class-websocketroute).
 
 ### HTTP refusal and hold
 
-The CLI code runner does not expose Node globals such as `URL`; this recipe extracts the pathname from the request string. Inside one `async page => { ... }` run-code operation, install this gate, drive the map in the `try` and restore in `finally`. `path` is a regexp for the pathname, so IDs match one segment, not a literal `:worktreeId`.
+In one `async page => { ... }` operation, install the gate, drive inside `try` and restore in `finally`. The pathname regexp matches IDs as segments. String extraction works without Node globals in the CLI runner.
 
 ```js
 const context = page.context();
@@ -24,24 +24,13 @@ await context.route('**/api/**', async route => {
   if (hold) { requested(); await gate; }
   return route.continue();
 });
-try {
-  // Pair/navigate first for a held refresh; arm before navigation for an initial refusal.
-  // Set fail = true or hold = true at the map's specified point.
-  // After triggering a hold, await arrived before inspecting pending state or writing the file.
-  // Restore with fail = false or hold = false; release().
-} finally {
-  fail = false;
-  hold = false;
-  release();
-  await context.close(); // Removes routes and drains this dedicated browser session.
-}
 ```
 
-For a second hold create a new gate and arrival promise, or use a fresh context. Release each held request within the web request's 15-second timeout. Record the route arrival and actual response; an aborted request is not a recovered 409/200 sequence.
+Set `fail` or `hold` at the mapped point; await `arrived` before inspecting pending state. Restore pass-through and `release()` within the 15-second request timeout. A second hold needs new promises. Record arrival and actual response; an abort does not prove recovery. In `finally`, reset flags, release and close the context.
 
 ### Live outage or held notices
 
-Install this before pairing/navigation in a dedicated context. It forwards the real protocol and lets you either close sockets/reject reconnects or hold incoming frames while preserving the underlying connection. A WebSocket route has no `unrouteWebSocket`; restore its mode and close the dedicated context in `finally`.
+Install before pairing/navigation. Close/reject sockets or hold incoming frames while forwarding the real protocol. WebSocket routes have no unroute operation; restore the mode and close the context in `finally`.
 
 ```js
 const context = page.context();
@@ -59,7 +48,6 @@ await context.routeWebSocket(/\/api\/live(?:\?|$)/, socket => {
   });
   socket.onClose(() => sockets.delete(socket));
   upstream.onClose(() => sockets.delete(socket));
-  // Page -> server traffic still forwards automatically, including RPC acknowledgements.
 });
 const drop = async () => {
   offline = true;
@@ -71,13 +59,6 @@ const restore = () => {
   holdNotices = false;
   for (const send of queued.splice(0)) send();
 };
-try {
-  // Pair/navigate, then await drop() for an outage or set holdNotices = true for reload-running.
-  // Drive the map, restore(), then wait for its receipt/readback and visible outcome.
-} finally {
-  restore();
-  await context.close();
-}
 ```
 
 | Map | Injection and restoration |
@@ -90,5 +71,4 @@ try {
 | [git-actions.follow-receipt](../features/git-actions.follow-receipt.md) | Drop live before Commit/Pop stash submission, verify the action settled on the server while its UI waits, allow at least one refused reconnect, restore and observe the receipt GET and success/refusal. Reconnect backoff reaches ten seconds. |
 | [git-actions.reload-running](../features/git-actions.reload-running.md) | Hold incoming live frames before submitting the blocked commit; leave the real socket open. Reload in the same context while the UI follows the action, inspect `Outcome not yet confirmed`, await the blocked action’s terminal receipt while frames stay held, then release queued frames and observe `interrupted`. Restore the FIFO/lock files or stop the disposable instance. |
 
-Match the path column with anchored regexps, for example `/^\/api\/worktrees\/[^/]+\/review$/`. Run failure journeys in one bounded code operation so a held request does not time out between tool calls. For reload-running, use the accepted POST’s request ID to poll its receipt (or `$C server receipt <id>`) until `interrupted` before releasing. A fast reload can read a still-running receipt; releasing before the terminal notice is queued does not establish that the held outcome was delivered. Restore gates and sockets in `finally`, including on assertion failure; then close your browser session.
-
+Use anchored pathname regexps and one bounded operation per failure journey. For reload-running, poll the accepted POST’s receipt (`$C server receipt <id>`) until `interrupted` before releasing; an early reload can still read running state. In `finally`, restore gates/sockets and close the context.

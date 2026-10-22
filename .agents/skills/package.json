@@ -1,10 +1,8 @@
 {
   "name": "@porcelain/verification",
+  "description": "Workspace package so verification CLIs can import the app packages.",
   "private": true,
   "type": "module",
-  "exports": {
-    "./processes": "./verify-core/processes.ts"
-  },
   "scripts": {
     "test": "vitest run --config ../../vitest.config.ts --project @porcelain/verification",
     "test:integration": "vitest run --config ../../vitest.integration.config.ts --project @porcelain/verification-integration"

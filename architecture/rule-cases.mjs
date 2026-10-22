@@ -3549,7 +3549,7 @@ const featureMapFiles = {
   ...Object.fromEntries(
     Object.values(featureFolders).map((folder) => [
       `${folder}/README.md`,
-      '[Fixture](app.fixture.md)',
+      `[Fixture](app.fixture.md)${folder === featureFolders.desktop ? ' (desktop)' : ''}`,
     ]),
   ),
 };
@@ -3564,6 +3564,127 @@ function featureMapCase(rule, invalid, errors, options = {}) {
   };
 }
 const featureMapCases = [
+  ...[
+    [
+      'relative-file',
+      '[Read](../../../../spec/feature.test.ts)',
+      '[Read](missing.md)',
+      'targets a missing file',
+    ],
+    [
+      'relative-anchor',
+      '[Read](#hello-world)',
+      '[Read](#missing)',
+      'targets a missing heading anchor "#missing"',
+    ],
+    [
+      'github-slugs',
+      '[Read](#hello-world) [Again](#hello-world-1)',
+      '[Read](#Hello-World!)',
+      'targets a missing heading anchor "#Hello-World!"',
+    ],
+    [
+      'fragment-with-hash',
+      '[Read](#hello-world)',
+      '[Read](#hello-world#missing)',
+      'targets a missing heading anchor "#hello-world#missing"',
+    ],
+    [
+      'encoded-path',
+      '[Read](../../../../spec/fixture%20notes.md#caf%C3%A9)',
+      '[Read](../../../../spec/fixture%20notes.md#missing)',
+      'targets a missing heading anchor "#missing"',
+    ],
+    [
+      'reference-link',
+      '[Read][target]\n\n[target]: #hello-world',
+      '[Read][target]\n\n[target]: missing.md',
+      'targets a missing file',
+    ],
+    [
+      'first-reference-definition',
+      '[Read][target]\n\n[target]: #hello-world\n[target]: missing.md',
+      '[Read][target]\n\n[target]: missing.md\n[target]: #hello-world',
+      'targets a missing file',
+    ],
+    [
+      'external-url',
+      '[External](https://example.invalid/#missing)',
+      '[Read](missing.md)',
+      'targets a missing file',
+    ],
+    [
+      'inline-code',
+      '`[Code](missing.md)`',
+      '[Read](missing.md)',
+      'targets a missing file',
+    ],
+    [
+      'fenced-code',
+      '```md\n[Example](missing.md)\n```',
+      '[Read](missing.md)',
+      'targets a missing file',
+    ],
+    [
+      'same-file-and-empty',
+      '[Top]() [Top](#) [Heading](#hello-world)',
+      '[Read](%ZZ.md)',
+      'has invalid URL encoding',
+    ],
+    [
+      'index-relative-link',
+      '[Fixture](app.fixture.md)\n[Source](../../../../spec/feature.test.ts)',
+      '[Fixture](app.fixture.md)\n[Read](missing.md)',
+      'link "missing.md" targets a missing file',
+    ],
+    [
+      'index-heading-link',
+      '[Fixture](app.fixture.md)\n[Heading](app.fixture.md#hello-world)',
+      '[Fixture](app.fixture.md)\n[Heading](app.fixture.md#missing)',
+      'targets a missing heading anchor "#missing"',
+    ],
+  ].map(([name, valid, invalid, error]) => {
+    const file = `${featureFolders.web}/${name.startsWith('index-') ? 'README.md' : 'app.fixture.md'}`;
+    const instructions = (links) =>
+      `${featureMap('route: /')}\n# Hello, World!\n\n## Hello, World!\n\n${links}\n`;
+    return featureMapCase(
+      `markdown-${name}`,
+      {
+        [file]: name.startsWith('index-') ? invalid : instructions(invalid),
+      },
+      [error],
+      {
+        files: {
+          ...featureMapFiles,
+          [`${featureFolders.web}/app.fixture.md`]: instructions(''),
+          'spec/fixture notes.md': '# Café\n',
+        },
+        valid: {
+          [file]: name.startsWith('index-') ? valid : instructions(valid),
+          'spec/fixture notes.md': '# Café\n',
+        },
+      },
+    );
+  }),
+  ...[
+    [
+      'desktop',
+      '[Fixture](app.fixture.md) (desktop)',
+      '[Fixture](app.fixture.md)',
+    ],
+    ['web', '[Fixture](app.fixture.md)', '[Fixture](app.fixture.md) (desktop)'],
+  ].map(([surface, valid, invalid]) =>
+    featureMapCase(
+      `index-shell-${surface}`,
+      {
+        [`${featureFolders[surface]}/README.md`]: invalid,
+      },
+      ['desktop tag that disagrees with shell:'],
+      {
+        valid: { [`${featureFolders[surface]}/README.md`]: valid },
+      },
+    ),
+  ),
   featureMapCase(
     'mobile-on-demand',
     {
@@ -3660,6 +3781,7 @@ const featureMapCases = [
     {},
     [
       'the desktop feature map is empty; add a valid feature map, because verification needs at least one executable journey for this surface',
+      'README.md: link "app.fixture.md" targets a missing file',
     ],
     {
       remove: [`${featureFolders.desktop}/app.fixture.md`],

@@ -1,23 +1,14 @@
 # Android development on Linux
 
-The mobile launcher builds and runs Porcelain Dev locally on Linux or macOS. No Mac, Apple tools, Expo login or EAS build is needed. It uses the same disposable server, fixture, pairing, Metro, evidence and cleanup owners as iOS.
+The mobile launcher builds and runs Porcelain Dev locally on Linux or macOS. It uses the same disposable server, fixture, pairing, Metro, evidence and cleanup owners as iOS.
 
 ## Prepare your machine
 
-Install the repository's Node and pnpm versions and run `pnpm install`. Install Android Studio with its SDK, platform-tools, emulator and a system image; set `ANDROID_HOME` to your SDK directory and add `$ANDROID_HOME/platform-tools` to `PATH`. Install JDK 17 or newer (the Linux proof used JDK 21), compatible with the generated Android Gradle plugin and set `JAVA_HOME` when Java is not already on your path. SDK Manager supplies missing SDK platforms, build-tools, NDK and CMake versions reported by the build; accept SDK licenses there. The first build downloads Gradle and native dependencies and can take several minutes. The launcher limits Gradle to two workers and a 2 GiB heap, and builds x86_64 and arm64-v8a development APKs.
+Install the repository's Node and pnpm versions and run `pnpm install`. Install Android Studio with its SDK, platform-tools, emulator and a system image; set `ANDROID_HOME` to your SDK directory and add `$ANDROID_HOME/platform-tools` to `PATH`. Install JDK 17 or newer, compatible with the generated Android Gradle plugin and set `JAVA_HOME` when Java is not already on your path. SDK Manager supplies missing SDK platforms, build-tools, NDK and CMake versions reported by the build; accept SDK licenses there. The first build downloads Gradle/native dependencies; subsequent builds reuse matching APKs.
 
-Create an emulator once in Android Studio's Device Manager. Boot it there or open it with T3 `device_list` → `device_open`, then use `adb devices -l` to read its serial. Verification never creates, deletes or silently chooses a device. Only an explicit, booted local emulator is accepted; physical devices are refused because each start clears Porcelain Dev's app data. Preview and production package identities remain separate.
+Create an emulator once in Android Studio's Device Manager. Boot it and use `adb devices -l` to read its serial. Select a booted local emulator explicitly; physical devices are refused because starts clear development app data.
 
-Developer-specific tools and selections belong in the ignored `.mobile-device-host.json` in the main checkout, shared by worktrees:
-
-```json
-{
-  "agentDevice": "/absolute/path/to/agent-device",
-  "androidSerial": "emulator-PORT"
-}
-```
-
-Replace the placeholders with your own executable and the numeric emulator serial from `adb devices -l`. Install agent-device with `npm install --global agent-device`, or use T3's exact returned launcher and config. Existing Mac hub fields may coexist; `--device android` always uses the local Android host.
+Configure `agentDevice` and optionally `androidSerial` in the [machine-local host file](remote.md).
 
 ## Build, start and develop
 
@@ -32,16 +23,7 @@ $C start --device android --serial <owned-emulator-serial> --fixture development
 
 `build` runs Expo prebuild for Android and the generated Gradle wrapper. The fingerprint includes Android configuration and native modules; a matching APK can be reused across worktrees. Native changes require another build. JavaScript and TypeScript changes reload through Metro; keep the instance running while iterating. `doctor` reports missing SDK/Java/driver, unavailable emulator and missing native build separately, with the command needed to fix them.
 
-With T3, pass the exact values returned by `device_open` to `start`:
-
-```sh
-$C start --device android --serial <returned-serial> \
-  --agent-device-command <returned-launcher> \
-  --agent-device-config <returned-host-config> \
-  --agent-device-session <returned-session> --fixture development
-```
-
-The launcher exclusively claims that emulator, compares the installed APK digest with the matching build and installs when it differs or the app is missing, clears development app storage, starts a disposable server and Metro, and uses Android’s built-in `10.0.2.2` host-loopback alias for the allocated server and Metro ports. Host-side fixture reads stay on `127.0.0.1`. No adb reverse mappings or Mac tunnels are created; the emulator connects directly to this disposable instance. Setup pairs through the real Settings form, independently checks the server's registered device, then closes its setup session. `--manual-pairing` instead leaves the client for the developer: Settings → Computers → Add computer → Use development server → Pair. The development pairing endpoint is local to that Metro instance.
+The launcher exclusively claims that emulator, compares the installed APK digest with the matching build and installs when it differs or the app is missing, clears development app storage, starts a disposable server and Metro, and uses Android’s built-in `10.0.2.2` host-loopback alias for the allocated server and Metro ports. Host-side fixture reads stay on `127.0.0.1`. The emulator connects directly without adb reverse mappings. Setup pairs through the real Settings form, independently checks the server's registered device, then closes its setup session. `--manual-pairing` instead leaves the client for the developer: Settings → Computers → Add computer → Use development server → Pair.
 
 ## Drive and retain proof
 
@@ -53,9 +35,9 @@ Run the card's `logsCommand` for bounded Android logcat, Metro and server output
 
 ## Stop and recover
 
-Run the card's `stopCommand`. It closes this run's driver session, force-stops Porcelain Dev, stops captured Metro/server processes, removes disposable runtime data and releases the emulator claim. Evidence remains. A borrowed emulator stays booted; close or shut down the T3 panel only after stopping the instance. Never run `adb reverse --remove-all`, kill processes by name or reset another run's device.
+Run the card's `stopCommand`. It closes this run's driver session, force-stops Porcelain Dev, stops captured Metro/server processes, removes disposable runtime data and releases the emulator claim. Evidence remains. A borrowed emulator stays booted.
 
-A missing/busy emulator or another live claim is a refusal: stop the owning run or choose an independently owned emulator. The existing claim owner includes process identity so a later run can reclaim a dead owner's claim. Cleanup failures retain protected runtime state and explain what remains; inspect the evidence before retrying stop by instance id. No external port-forward state needs recovery. Keep screenshots containing pairing links private.
+A missing/busy emulator or another live claim is a refusal: stop the owning run or choose an independently owned emulator. Cleanup failures retain protected runtime state and explain what remains; inspect the evidence before retrying stop by instance id. Keep screenshots containing pairing links private.
 
 This localhost/emulator proof does not establish physical-device LAN permissions, remote-environment routing, iOS behavior or Android store delivery. EAS delivery remains iOS-only.
 

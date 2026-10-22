@@ -24,7 +24,7 @@ Open the native History tab or porcelain.dev://history. Select a worktree throug
 
 The destinations spec protects the unpaired deep link. The named History spec protects paired browsing and native back navigation. Pagination, live update and error recovery need native verification against the disposable server. iPad and Android are not proved by an iPhone run.
 
-See [selected workspace states](projects.workspace-picker.md#selected-workspace-states) for shared loading, failure, availability and recovery behavior.
+See [selected workspace states](projects.workspace-picker.md#drive-it) for shared loading, failure, availability and recovery behavior.
 
 On iPad, History is a right inspector mode, and commits and diffs share the central closable document tabs with Files and Review. Wide panes show the inspector on the right; narrow panes switch inspector/content in place. Opening a row or changed file must not push a native route. An empty central area asks Choose a document.
 

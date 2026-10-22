@@ -3,6 +3,9 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseDocument } from 'yaml';
+import { fromMarkdown } from 'mdast-util-from-markdown';
+import type { Nodes } from 'mdast';
+import GithubSlugger from 'github-slugger';
 import { webDomains } from '../architecture/policy.ts';
 import { selectorAppears } from '../architecture/feature-selectors.ts';
 import { featureApiRoutes } from './feature-api-routes.ts';
@@ -150,6 +153,99 @@ function frontmatter(text: string): unknown {
   const document = parseDocument(match[1] ?? '');
   return document.errors.length > 0 ? undefined : document.toJS();
 }
+function markdownNodes(node: Nodes): Nodes[] {
+  return [
+    node,
+    ...('children' in node ? node.children.flatMap(markdownNodes) : []),
+  ];
+}
+function headingText(node: Nodes): string {
+  if (node.type === 'text' || node.type === 'inlineCode') return node.value;
+  if (node.type === 'image' || node.type === 'imageReference')
+    return node.alt ?? '';
+  return 'children' in node ? node.children.map(headingText).join('') : '';
+}
+function markdown(root: string, file: string) {
+  const source = readFileSync(resolve(root, file), 'utf8');
+  const body = source.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, (match) =>
+    match.replace(/[^\r\n]/g, ' '),
+  );
+  const nodes = markdownNodes(fromMarkdown(body));
+  const definitions = new Map<string, string>();
+  for (const node of nodes)
+    if (node.type === 'definition' && !definitions.has(node.identifier))
+      definitions.set(node.identifier, node.url);
+  const links = nodes.flatMap((node) => {
+    const url =
+      node.type === 'link' || node.type === 'image'
+        ? node.url
+        : node.type === 'linkReference' || node.type === 'imageReference'
+          ? definitions.get(node.identifier)
+          : undefined;
+    return url === undefined
+      ? []
+      : [
+          {
+            url,
+            line:
+              source.split('\n')[(node.position?.start.line ?? 1) - 1] ?? '',
+          },
+        ];
+  });
+  const slugger = new GithubSlugger();
+  const headings = new Set(
+    nodes.flatMap((node) =>
+      node.type === 'heading' ? [slugger.slug(headingText(node))] : [],
+    ),
+  );
+  return { links, headings };
+}
+function markdownLinkProblems(
+  root: string,
+  files: readonly string[],
+): string[] {
+  const documents = new Map<string, ReturnType<typeof markdown>>();
+  const document = (file: string) => {
+    const found = documents.get(file) ?? markdown(root, file);
+    documents.set(file, found);
+    return found;
+  };
+  const problems: string[] = [];
+  for (const file of files) {
+    for (const { url } of document(file).links) {
+      if (/^(?:[a-z][a-z\d+.-]*:|\/)/i.test(url)) continue;
+      const hash = url.indexOf('#');
+      const path = hash < 0 ? url : url.slice(0, hash);
+      const fragment = hash < 0 ? undefined : url.slice(hash + 1);
+      let target: string;
+      let anchor: string | undefined;
+      try {
+        const decodedPath = decodeURIComponent(path.split('?')[0] ?? '');
+        target =
+          decodedPath === ''
+            ? resolve(root, file)
+            : resolve(root, dirname(file), decodedPath);
+        anchor =
+          fragment === undefined ? undefined : decodeURIComponent(fragment);
+      } catch {
+        problems.push(
+          `${file}: link "${url}" has invalid URL encoding; encode its path and anchor correctly because verification must resolve the destination`,
+        );
+        continue;
+      }
+      if (!existsSync(target) || !statSync(target).isFile()) {
+        problems.push(
+          `${file}: link "${url}" targets a missing file; use an existing file because verification must reach its instructions`,
+        );
+      } else if (anchor && !document(target).headings.has(anchor)) {
+        problems.push(
+          `${file}: link "${url}" targets a missing heading anchor "#${anchor}"; use the heading's GitHub slug because verification must reach the named section`,
+        );
+      }
+    }
+  }
+  return problems;
+}
 function entries(root: string, surface: Surface, problems: string[]): Entry[] {
   const folder = join(root, surface.features);
   if (!existsSync(folder)) {
@@ -198,13 +294,21 @@ function entries(root: string, surface: Surface, problems: string[]): Entry[] {
       `${surface.features}: the ${surface.name} feature map is empty; add a valid feature map, because verification needs at least one executable journey for this surface`,
     );
   const readme = join(folder, 'README.md');
-  const index = existsSync(readme) ? readFileSync(readme, 'utf8') : '';
+  const indexLinks = existsSync(readme)
+    ? markdown(root, `${surface.features}/README.md`).links
+    : [];
   for (const entry of found) {
     const file = entry.file.slice(surface.features.length + 1);
-    if (!index.includes(`(${file})`))
+    const links = indexLinks.filter((link) => link.url === file);
+    if (links.length === 0)
       problems.push(
         `${surface.features}/README.md: the index links every map file, and ${file} is missing from it; add its link because the index is the discovery path for verification`,
       );
+    for (const link of links)
+      if (/\(desktop\)/.test(link.line) !== (entry.shell === 'desktop'))
+        problems.push(
+          `${surface.features}/README.md: link "${file}" has a desktop tag that disagrees with shell: ${entry.shell ?? 'absent'} in ${entry.file}; match the map's shell because the index must identify the surface to drive`,
+        );
   }
   return found;
 }
@@ -275,7 +379,16 @@ function surfaceProblems(
 }
 export function featureMapProblems(root: string): string[] {
   const routes = featureApiRoutes();
-  return surfaces.flatMap((surface) => surfaceProblems(root, surface, routes));
+  const files = [
+    ...surfaces.map((surface) => surface.features),
+    '.agents/skills/server-verify/features',
+  ]
+    .flatMap((folder) => filesUnder(root, folder))
+    .filter((file) => file.endsWith('.md'));
+  return [
+    ...surfaces.flatMap((surface) => surfaceProblems(root, surface, routes)),
+    ...markdownLinkProblems(root, files),
+  ];
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const started = performance.now();
