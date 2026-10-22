@@ -6,7 +6,7 @@ selectors:
   - 'Toggle Sidebar'
   - 'Settings'
   - 'Spec files'
-  - 'Back'
+  - 'Close Settings'
 tests:
   - apps/web/spec/e2e/reviews-spec-files.e2e.ts
 api:

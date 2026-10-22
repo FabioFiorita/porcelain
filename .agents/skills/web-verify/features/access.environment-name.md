@@ -10,7 +10,7 @@ selectors:
   - 'Save'
   - 'Open This computer'
   - 'connect it to'
-  - 'Back'
+  - 'Close Settings'
 tests:
   - apps/web/spec/e2e/access-environment-name.desktop.e2e.ts
 api:
@@ -56,7 +56,7 @@ Required instance mode: `--desktop`.
    Expect: the text "Open the link or scan the code on the other device to connect it to Workstation. Each link works once, for a few minutes."
 7. Click button `Computers`, then button named `Open This computer`
    Expect: textbox "Name of this computer" holds "Workstation"; button "Save" disabled.
-8. Click button `Back` twice
+8. Click button `Close Settings` twice
    Expect: URL `/<projectId>/<worktreeId>`; title "Changes — repository · Workstation".
 9. Click button `Toggle Sidebar`
    Expect: navigation "Projects and worktrees" header shows "Workstation" (no longer `$HOST`).
@@ -68,7 +68,7 @@ Required instance mode: `--desktop`.
     Expect: textbox empty; button "Save" enabled.
 13. Click button `Save`
     Expect: title "Settings"; the Settings header shows `$HOST` again.
-14. Click button `Back` twice
+14. Click button `Close Settings` twice
     Expect: title "Changes — repository".
 
 Automated coverage: `access-environment-name.desktop.e2e.ts`.
