@@ -1,9 +1,23 @@
+import {
+  detectPlatform,
+  formatHotkey,
+  parseHotkey,
+} from '@tanstack/react-hotkeys';
+
+export function formatShortcutForAria(
+  shortcut: string,
+  platform = detectPlatform(),
+): string {
+  return formatHotkey(parseHotkey(shortcut, platform));
+}
+
 export const SHORTCUTS = {
   saveFile: 'Mod+S',
   toggleNavigator: 'Mod+B',
   toggleSidebar: 'Alt+Shift+R',
   cycleAppearance: 'Alt+Shift+D',
   openSettings: 'Alt+Shift+S',
+  closeSettings: 'Escape',
   openShortcuts: 'Mod+/',
   surfaceFiles: 'Alt+1',
   surfaceReview: 'Alt+2',
@@ -38,6 +52,7 @@ export const SHORTCUT_GROUPS: {
       { keys: SHORTCUTS.surfaceReview, label: 'Go to Changes / Review' },
       { keys: SHORTCUTS.surfaceHistory, label: 'Go to History' },
       { keys: SHORTCUTS.openSettings, label: 'Settings' },
+      { keys: SHORTCUTS.closeSettings, label: 'Close Settings' },
       { keys: SHORTCUTS.cycleAppearance, label: 'Cycle appearance' },
       { keys: SHORTCUTS.openShortcuts, label: 'Keyboard shortcuts' },
     ],

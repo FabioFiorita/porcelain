@@ -4,7 +4,7 @@ import {
   firstWaitingWorktree,
   selectedWorktreeInProject,
 } from '@porcelain/client/projects/rules';
-import { detectPlatform, useHotkey } from '@tanstack/react-hotkeys';
+import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import {
@@ -15,6 +15,12 @@ import {
 } from '@/components/ui/empty';
 import { Sidebar, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { buttonVariants } from '@/components/ui/button';
+import { Kbd } from '@/components/ui/kbd';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   RemoteUnavailable,
   useConnectedContext,
@@ -41,7 +47,7 @@ import type {
   SetWorkspaceSearch,
   WorkspaceSearch,
 } from '@/shared/workspace/search';
-import { SHORTCUTS } from '@/shared/workspace/shortcuts';
+import { formatShortcutForAria, SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { desktopShell } from '@/shared/shell';
 import { cn } from '@/shared/lib/utils';
 
@@ -259,14 +265,25 @@ function EmptyWorkspace({
 }) {
   return (
     <div className="relative grid h-full min-h-0 place-items-center rounded-xl border bg-card p-8">
-      <SidebarTrigger
-        ref={(element) => navigationTrigger.attach(element)}
-        className="absolute top-3 left-3"
-        aria-label="Toggle Sidebar"
-        aria-expanded={isMobile ? openMobile : open}
-        aria-keyshortcuts={detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'}
-        title={`Toggle projects (${SHORTCUTS.toggleNavigator})`}
-      />
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <SidebarTrigger
+              ref={(element) => navigationTrigger.attach(element)}
+              className="absolute top-3 left-3"
+              aria-label="Toggle projects"
+              aria-expanded={isMobile ? openMobile : open}
+              aria-keyshortcuts={formatShortcutForAria(
+                SHORTCUTS.toggleNavigator,
+              )}
+            />
+          }
+        />
+        <TooltipContent side="right">
+          Toggle projects
+          <Kbd>{formatForDisplay(SHORTCUTS.toggleNavigator)}</Kbd>
+        </TooltipContent>
+      </Tooltip>
       {children}
     </div>
   );
