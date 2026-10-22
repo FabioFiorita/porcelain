@@ -74,8 +74,8 @@ export function ComputerSettings({
 
   return (
     <>
-      <div className="space-y-2">
-        <h1 className="break-words text-3xl font-semibold tracking-tight">
+      <div className="space-y-3">
+        <h1 className="break-words text-4xl font-semibold tracking-tight">
           <span className="text-muted-foreground">Computers.</span>{' '}
           {environment.name}
         </h1>
@@ -84,44 +84,49 @@ export function ComputerSettings({
           through it.
         </p>
       </div>
-      <FieldSet>
-        <FieldLegend variant="label">Overview</FieldLegend>
-        <ItemGroup>
-          <Item variant="outline">
-            <ItemContent>
-              <ComputerName connection={connection} environment={environment} />
-            </ItemContent>
-          </Item>
-          <Item>
-            <ItemContent>
-              <ItemTitle>Connection</ItemTitle>
-              <ItemDescription className="break-all">
-                Connected · {new URL(connection.address).origin}
-              </ItemDescription>
-            </ItemContent>
-          </Item>
-          <Item variant="outline">
-            <ItemContent>
-              <ComputerUpdate />
-            </ItemContent>
-          </Item>
-        </ItemGroup>
-      </FieldSet>
-      <WaysInSettings />
-      <DevicesSettings environment={environment} />
-      <AgentsSetting />
-      {!desktopShell && (
+      <div className="settings-computer grid min-w-0 items-start gap-7 lg:grid-cols-3">
         <FieldSet>
-          <FieldLegend variant="label">This browser</FieldLegend>
+          <FieldLegend variant="label">Overview</FieldLegend>
           <ItemGroup>
+            <Item variant="outline">
+              <ItemContent>
+                <ComputerName
+                  connection={connection}
+                  environment={environment}
+                />
+              </ItemContent>
+            </Item>
             <Item>
               <ItemContent>
-                <DisconnectBrowser />
+                <ItemTitle>Connection</ItemTitle>
+                <ItemDescription className="break-all">
+                  Connected · {new URL(connection.address).origin}
+                </ItemDescription>
+              </ItemContent>
+            </Item>
+            <Item variant="outline">
+              <ItemContent>
+                <ComputerUpdate />
               </ItemContent>
             </Item>
           </ItemGroup>
         </FieldSet>
-      )}
+        <WaysInSettings />
+        <DevicesSettings environment={environment} />
+        <AgentsSetting />
+        {!desktopShell && (
+          <FieldSet>
+            <FieldLegend variant="label">This browser</FieldLegend>
+            <ItemGroup>
+              <Item>
+                <ItemContent>
+                  <DisconnectBrowser />
+                </ItemContent>
+              </Item>
+            </ItemGroup>
+          </FieldSet>
+        )}
+      </div>
     </>
   );
 }
@@ -164,27 +169,29 @@ function DevicesSettings({ environment }: { environment: Environment }) {
   return (
     <RemoteAccessGate connection={connection}>
       {(remote) => (
-        <div className="grid items-start gap-6 xl:grid-cols-2">
+        <>
           <FieldSet className="min-w-0">
             <FieldLegend variant="label">Paired devices</FieldLegend>
             <PairedDevices connection={connection} />
           </FieldSet>
-          <FieldSet className="min-w-0">
-            <FieldLegend variant="label">Pair a device</FieldLegend>
-            <ItemGroup>
-              <Item variant="outline">
-                <ItemContent>
-                  <ItemDescription>
-                    Open the link or scan the code on the other device to
-                    connect it to {environment.name}. Each link works once, for
-                    a few minutes.
-                  </ItemDescription>
-                  <PairDevice connection={connection} remote={remote} />
-                </ItemContent>
-              </Item>
-            </ItemGroup>
-          </FieldSet>
-        </div>
+          <aside className="min-w-0 rounded-xl border bg-card p-3 lg:col-start-3 lg:row-start-3 lg:row-span-2">
+            <FieldSet className="min-w-0">
+              <FieldLegend variant="label">Pair a device</FieldLegend>
+              <ItemGroup>
+                <Item variant="outline">
+                  <ItemContent>
+                    <ItemDescription>
+                      Open the link or scan the code on the other device to
+                      connect it to {environment.name}. Each link works once,
+                      for a few minutes.
+                    </ItemDescription>
+                    <PairDevice connection={connection} remote={remote} />
+                  </ItemContent>
+                </Item>
+              </ItemGroup>
+            </FieldSet>
+          </aside>
+        </>
       )}
     </RemoteAccessGate>
   );

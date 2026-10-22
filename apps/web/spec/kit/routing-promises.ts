@@ -92,7 +92,7 @@ export function routingPromises() {
         pairedPage.getByRole('main', { name: 'Settings', exact: true }),
       ).toBeVisible();
       await pairedPage
-        .getByRole('button', { name: 'Back', exact: true })
+        .getByRole('button', { name: 'Close Settings', exact: true })
         .click();
       await expect(
         pairedPage.getByText('Page not found', { exact: true }),

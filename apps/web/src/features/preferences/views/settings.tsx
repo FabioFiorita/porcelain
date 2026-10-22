@@ -9,6 +9,8 @@ import {
   ItemGroup,
   ItemTitle,
 } from '@/components/ui/item';
+import { Separator } from '@/components/ui/separator';
+import { Fragment } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePreferences } from '../store';
@@ -70,19 +72,22 @@ function ArchiveSettings() {
       <FieldLegend variant="label">When archiving a review</FieldLegend>
       <ItemGroup>
         {archiveSettings.map(({ key, label }) => (
-          <Item key={key} variant="outline">
-            <ItemContent className="min-w-0">
-              <ItemTitle>{label}</ItemTitle>
-              <ItemDescription>{archiveDescriptions[key]}</ItemDescription>
-            </ItemContent>
-            <ItemActions>
-              <Switch
-                aria-label={label}
-                checked={preferences[key]}
-                onCheckedChange={(checked) => setPreference(key, checked)}
-              />
-            </ItemActions>
-          </Item>
+          <Fragment key={key}>
+            <Item variant="outline">
+              <ItemContent className="min-w-0">
+                <ItemTitle>{label}</ItemTitle>
+                <ItemDescription>{archiveDescriptions[key]}</ItemDescription>
+              </ItemContent>
+              <ItemActions>
+                <Switch
+                  aria-label={label}
+                  checked={preferences[key]}
+                  onCheckedChange={(checked) => setPreference(key, checked)}
+                />
+              </ItemActions>
+            </Item>
+            {key !== archiveSettings.at(-1)?.key && <Separator />}
+          </Fragment>
         ))}
       </ItemGroup>
     </FieldSet>
@@ -114,11 +119,13 @@ function SpecFilesSetting() {
 export function GeneralSettings() {
   return (
     <>
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">
+      <div className="space-y-3">
+        <h1 className="text-4xl font-semibold tracking-tight">
           <span className="text-muted-foreground">Settings.</span> General
         </h1>
-        <p>How Porcelain looks, and how code and documents open.</p>
+        <p className="text-base">
+          How Porcelain looks, and how code and documents open.
+        </p>
       </div>
       <FieldSet>
         <FieldLegend variant="label">Appearance</FieldLegend>
@@ -147,6 +154,7 @@ export function GeneralSettings() {
               { value: 'split', label: 'Split' },
             ]}
           />
+          <Separator />
           <Choice
             label="Long lines"
             description="Wrap keeps every line visible without scrolling."
@@ -182,12 +190,14 @@ export function GeneralSettings() {
 export function ReviewsGitSettings() {
   return (
     <>
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">
+      <div className="space-y-3">
+        <h1 className="text-4xl font-semibold tracking-tight">
           <span className="text-muted-foreground">Settings.</span> Reviews &amp;
           Git
         </h1>
-        <p>How reviews read, and what Git does when you pull and archive.</p>
+        <p className="text-base">
+          How reviews read, and what Git does when you pull and archive.
+        </p>
       </div>
       <FieldSet>
         <FieldLegend variant="label">Reviews</FieldLegend>

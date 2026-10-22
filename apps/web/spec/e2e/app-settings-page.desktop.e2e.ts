@@ -1,7 +1,7 @@
 import { openThisComputer } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
-test('Settings opens as its own page with one section at a time, and Back returns to the review', async ({
+test('Settings opens as its own page with one section at a time, and Close returns to the review', async ({
   pairedPage,
 }) => {
   const review = pairedPage.getByRole('region', {
@@ -39,7 +39,9 @@ test('Settings opens as its own page with one section at a time, and Back return
     settings.getByText('Diff layout', { exact: true }),
   ).not.toBeAttached();
 
-  await settings.getByRole('button', { name: 'Back', exact: true }).click();
+  await settings
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
   await expect(settings).not.toBeAttached();
   await expect(review).toBeVisible();
 });
@@ -116,8 +118,53 @@ test('Settings still opens once the last project is removed', async ({
   await expect(
     settings.getByRole('heading', { name: 'General', exact: true }),
   ).toBeVisible();
-  await settings.getByRole('button', { name: 'Back', exact: true }).click();
+  await settings
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
   await expect(
     pairedPage.getByText('Worktree not found', { exact: true }),
   ).toBeVisible();
+});
+
+test('Settings keeps worktrees beside its own section navigation and top bar controls', async ({
+  pairedPage,
+}) => {
+  await pairedPage.setViewportSize({ width: 1440, height: 960 });
+  await pairedPage
+    .getByRole('button', { name: 'Settings', exact: true })
+    .click();
+  const settings = pairedPage.getByRole('main', {
+    name: 'Settings',
+    exact: true,
+  });
+  const worktrees = pairedPage.getByRole('navigation', {
+    name: 'Projects and worktrees',
+    exact: true,
+  });
+  await expect(worktrees).toBeVisible();
+  await expect(pairedPage).toHaveTitle('Settings');
+  await expect(
+    settings.getByRole('navigation', {
+      name: 'Settings sections',
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    settings.getByRole('button', { name: 'Close Settings', exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(async () => {
+      const worktreeBox = await worktrees.boundingBox();
+      const pageBox = await settings.boundingBox();
+      return worktreeBox && pageBox ? worktreeBox.x - pageBox.x : 0;
+    })
+    .toBeLessThan(0);
+  await settings
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
+  await expect(worktrees).not.toBeVisible();
+  await settings
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
+  await expect(settings).not.toBeAttached();
 });

@@ -353,9 +353,13 @@ test('sidebar groups remember independent choices across search, Settings and re
     name: 'Settings sections',
     exact: true,
   });
-  await expect(settingsSidebar).toHaveCSS('background-color', 'oklch(1 0 0)');
-  await expect(settingsSidebar).toHaveCSS('border-top-left-radius', '14px');
-  await pairedPage.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(settingsSidebar).toBeVisible();
+  await expect(sidebar).toBeVisible();
+  await expect(projects).toHaveAttribute('aria-expanded', 'false');
+  await expect(noReview).toHaveAttribute('aria-expanded', 'false');
+  await pairedPage
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
   await app.reload();
   await expect(projects).toHaveAttribute('aria-expanded', 'false');
   await expect(noReview).toHaveAttribute('aria-expanded', 'false');

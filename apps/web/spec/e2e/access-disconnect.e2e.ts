@@ -91,8 +91,12 @@ test('disconnecting this browser ends its session and shows how to pair it again
     name: 'Settings',
     exact: true,
   });
-  await settings.getByRole('button', { name: 'Back', exact: true }).click();
-  await settings.getByRole('button', { name: 'Back', exact: true }).click();
+  await settings
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
+  await settings
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
   await expect(settings).not.toBeAttached();
   await pairedPage
     .getByRole('button', { name: 'Resume edit', exact: true })

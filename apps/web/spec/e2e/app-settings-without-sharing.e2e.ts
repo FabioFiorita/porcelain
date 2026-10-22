@@ -34,7 +34,6 @@ test('browser Settings uses the same three sections and exposes host-gated Devic
     'General',
     'Reviews & Git',
     'Computers',
-    'Back',
   ]);
   await expect(
     settings.getByRole('heading', { name: 'General', exact: true }),

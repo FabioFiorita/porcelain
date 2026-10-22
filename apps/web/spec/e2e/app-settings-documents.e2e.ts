@@ -74,7 +74,9 @@ for (const section of ['devices', 'integrations']) {
     await expect(settings.getByRole('status')).toHaveText(
       'claude mcp add porcelain -- porcelain mcp',
     );
-    await settings.getByRole('button', { name: 'Back', exact: true }).click();
+    await settings
+      .getByRole('button', { name: 'Close Settings', exact: true })
+      .click();
     await expect(pairedPage).toHaveURL(/\/settings\/computers$/);
   });
 }

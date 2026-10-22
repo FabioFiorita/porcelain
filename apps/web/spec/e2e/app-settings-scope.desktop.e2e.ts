@@ -22,7 +22,6 @@ test('desktop Settings uses the shared three sections and nests this computer an
     'General',
     'Reviews & Git',
     'Computers',
-    'Back',
   ]);
   await expect(
     settings.getByRole('heading', { name: 'General', exact: true }),

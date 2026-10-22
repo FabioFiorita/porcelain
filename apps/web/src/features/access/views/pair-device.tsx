@@ -22,6 +22,7 @@ import { PAIRING_LABEL_MAX_LENGTH } from '@/config/limits';
 import { copyText } from '@/shared/workspace/copy';
 import { submitForm } from '@/shared/lib/submit-form';
 import { useIssuePairing } from '../commands/share';
+import { usePairedAccess } from '../queries/share';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import {
   pairingAddresses,
@@ -43,7 +44,13 @@ export function PairDevice({
   const [chosen, setChosen] = useState<string | null>(null);
   const [trusted, setTrusted] = useState(false);
   const [issue, createPairing] = useIssuePairing(connection);
-  const issued = AsyncResult.isSuccess(issue) ? issue.value : null;
+  const access = usePairedAccess(connection);
+  const issued =
+    AsyncResult.isSuccess(issue) &&
+    AsyncResult.isSuccess(access) &&
+    access.value.grants.some((grant) => grant.id === issue.value?.id)
+      ? issue.value
+      : null;
   const target = addresses.find(({ url }) => url === chosen) ?? addresses[0];
   if (target === undefined)
     return (

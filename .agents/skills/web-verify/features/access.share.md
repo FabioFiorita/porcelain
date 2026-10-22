@@ -78,7 +78,7 @@ None on disk. The default server has two paired devices, both bound to "This com
    Proof before continuing: read `GET /api/access` now: revoked Development setup is absent and My phone remains pending. `$C server pending-links` lists My phone; pairing/revoke POSTs answer 200. After step 9, read again and require My phone absent.
 
 9. Click button `Cancel the link for My phone`
-   Expect: no listitem "My phone".
+   Expect: no listitem "My phone"; the cancelled QR, link, Copy link and expiry disappear, and the Pair a device form can issue another link. Other pending links remain.
 
 Automated coverage: `access-share.desktop.e2e.ts`.
 

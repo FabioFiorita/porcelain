@@ -22,7 +22,7 @@ Open Settings from the workspace sidebar or Alt+Shift+S.
 
 Preconditions: [surface baseline](README.md).
 
-The Mac app also dispatches Settings from its native menu. Each entry uses `/settings/general`, regardless of shell. Settings replaces the workspace and records its return history. Back or Escape leaves the top-level section; Escape in an input is ignored. Computer detail has a breadcrumb back to Computers.
+The Mac app also dispatches Settings from its native menu. Each entry uses `/settings/general`, regardless of shell. Settings replaces the workspace and records its return history. Close or Escape leaves the top-level section; Escape in an input is ignored. Computer detail has a breadcrumb back to Computers.
 
 Open the sidebar (Toggle Sidebar below 768px), click Settings and verify heading General and the three sections. Switch sections and click Back: the original workspace URL and title return. Repeat with Alt+Shift+S. The native menu entry requires the parent desktop surface proof; this web map does not claim that it ran.
 

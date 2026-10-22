@@ -299,7 +299,9 @@ test('a remote computer summary renders through the app from that computer, cann
       .getByRole('list', { name: 'Computers', exact: true })
       .getByRole('listitem', { name: remote.environment.name, exact: true }),
   ).toBeVisible();
-  await settings.getByRole('button', { name: 'Back', exact: true }).click();
+  await settings
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
   await expect(settings).toBeHidden();
   const worktrees = page.getByRole('button', {
     name: 'Filter reviews',
