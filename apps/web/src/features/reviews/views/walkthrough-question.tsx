@@ -19,7 +19,7 @@ export function DecisionQuestion({
           <p className="text-sm font-medium">
             Needs your decision · {part.label}
           </p>
-          <p className="text-sm whitespace-pre-wrap wrap-anywhere text-muted-foreground">
+          <p className="text-sm whitespace-pre-wrap wrap-anywhere">
             {part.problem}
           </p>
         </div>

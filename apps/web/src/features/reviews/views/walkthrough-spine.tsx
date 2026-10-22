@@ -54,7 +54,7 @@ export function WalkthroughSpine({
             <span
               className={cn(
                 'grid size-6 place-items-center rounded-full border bg-card',
-                stop.key === current && 'border-graph-1 text-graph-1',
+                stop.key === current && 'border-graph-1',
                 done(stop) && 'border-graph-1 bg-graph-1 text-background',
               )}
             >

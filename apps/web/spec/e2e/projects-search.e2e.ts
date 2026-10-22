@@ -407,11 +407,14 @@ test('review rows stay two lines with trailing progress and tooltip-only reasons
   ).toBeVisible();
   await row.click();
   await expect(
-    pairedPage.getByRole('heading', { name: 'Review', exact: true }),
+    pairedPage.getByRole('heading', {
+      name: 'Read one committed review after checkout cleanup 1 decision shapes this change.',
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
     pairedPage.getByRole('heading', {
-      name: 'Recommendation Hold',
+      name: 'Recommendation: Hold',
       exact: true,
     }),
   ).toBeVisible();
