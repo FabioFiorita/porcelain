@@ -771,7 +771,13 @@ it('refuses a designated updater if its parent never releases preparation owners
   });
 });
 
-it.each(['missing', 'corrupt', 'copy-failure'] as const)(
+it.each([
+  'missing',
+  'corrupt',
+  'zero-byte',
+  'copy-failure',
+  'promotion-failure',
+] as const)(
   'retains both runtimes, current data, journal and backup after %s restore failure and allows retry',
   async (failure) => {
     await install();
@@ -786,6 +792,8 @@ it.each(['missing', 'corrupt', 'copy-failure'] as const)(
       if (failure === 'corrupt')
         writeFileSync(join(backup, 'inventory.sqlite'), 'corrupt');
       else writeDatabase(join(backup, 'inventory.sqlite'), 'saved database');
+      if (failure === 'zero-byte')
+        writeFileSync(join(backup, 'inventory.sqlite'), '');
     }
     const journal = JSON.stringify({
       installed: { version: '1.0.0' },
@@ -797,6 +805,7 @@ it.each(['missing', 'corrupt', 'copy-failure'] as const)(
       failure === 'missing'
         ? undefined
         : readFileSync(join(backup, 'inventory.sqlite'));
+    let failRename = true;
     const files = await Effect.runPromise(
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
@@ -806,15 +815,30 @@ it.each(['missing', 'corrupt', 'copy-failure'] as const)(
             failure === 'copy-failure' && from.startsWith(backup)
               ? fs.copyFile(join(root, 'missing-copy-source'), to)
               : fs.copyFile(from, to),
+          rename: (from: string, to: string) => {
+            if (
+              failure === 'promotion-failure' &&
+              failRename &&
+              to === database()
+            ) {
+              failRename = false;
+              return fs.rename(join(root, 'missing-rename-source'), to);
+            }
+            return fs.rename(from, to);
+          },
         };
       }).pipe(Effect.provide(NodeServices.layer)),
     );
-    await expect(
-      execute({ action: 'recover' }, '2.0.0', source, files),
-    ).rejects.toThrow('Could not prepare database backup');
-    await expect(
-      execute({ action: 'recover' }, '2.0.0', source, files),
-    ).rejects.toThrow('Could not prepare database backup');
+    for (let attempt = 0; attempt < 2; attempt++) {
+      failRename = true;
+      await expect(
+        execute({ action: 'recover' }, '2.0.0', source, files),
+      ).rejects.toThrow(
+        failure === 'promotion-failure'
+          ? 'Could not promote database backup'
+          : 'Could not prepare database backup',
+      );
+    }
     expect(existsSync(database())).toBe(true);
     expect(readDatabase(database())).toBe('newer surviving data');
     expect(JSON.parse(readFileSync(manifest(runtime()), 'utf8'))).toMatchObject(

@@ -181,6 +181,17 @@ function sqliteSnapshot(directory: string, value: string) {
   }
 }
 
+function checkpointedSnapshot(directory: string, value: string) {
+  mkdirSync(directory);
+  const db = new DatabaseSync(join(directory, 'inventory.sqlite'));
+  try {
+    db.exec('CREATE TABLE saved(value TEXT)');
+    db.prepare('INSERT INTO saved VALUES (?)').run(value);
+  } finally {
+    db.close();
+  }
+}
+
 function savedValue(directory: string) {
   const db = new DatabaseSync(join(directory, 'inventory.sqlite'), {
     readOnly: true,
@@ -205,10 +216,16 @@ function snapshotBytes(directory: string) {
   );
 }
 
-const restore = (data: string, source: string, copyFailure = false) =>
+const restore = (
+  data: string,
+  source: string,
+  copyFailure = false,
+  renameFailure?: { direction: 'from' | 'to'; file: string },
+) =>
   Effect.runPromise(
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
+      let failed = false;
       return yield* restoreDatabase(data, source).pipe(
         Effect.provideService(FileSystem.FileSystem, {
           ...fs,
@@ -216,6 +233,18 @@ const restore = (data: string, source: string, copyFailure = false) =>
             copyFailure && from.endsWith('-wal')
               ? fs.copyFile(join(root, 'missing-copy-source'), to)
               : fs.copyFile(from, to),
+          rename: (from, to) => {
+            if (
+              !failed &&
+              renameFailure !== undefined &&
+              (renameFailure.direction === 'from' ? from : to) ===
+                join(data, renameFailure.file)
+            ) {
+              failed = true;
+              return fs.rename(join(root, 'missing-rename-source'), to);
+            }
+            return fs.rename(from, to);
+          },
         }),
       );
     }).pipe(Effect.provide(NodeServices.layer)),
@@ -227,6 +256,7 @@ it.each([
   'unreadable-directory',
   'unreadable',
   'corrupt',
+  'zero-byte',
   'copy-failure',
   'orphan-sidecar',
 ] as const)(
@@ -245,6 +275,11 @@ it.each([
         writeFileSync(join(source, 'inventory.sqlite'), 'corrupt database');
         rmSync(join(source, 'inventory.sqlite-wal'));
         rmSync(join(source, 'inventory.sqlite-shm'));
+      }
+      if (failure === 'zero-byte') {
+        rmSync(source, { recursive: true });
+        checkpointedSnapshot(source, 'backup before truncation');
+        writeFileSync(join(source, 'inventory.sqlite'), '');
       }
       if (failure === 'orphan-sidecar')
         rmSync(join(source, 'inventory.sqlite'));
@@ -269,6 +304,82 @@ it.each([
     }
   },
 );
+
+it.each([
+  ...['inventory.sqlite', 'inventory.sqlite-wal', 'inventory.sqlite-shm'].map(
+    (file) => ({ direction: 'from' as const, file, current: 'wal' as const }),
+  ),
+  ...(['wal', 'checkpointed', 'empty'] as const).flatMap((current) =>
+    ['inventory.sqlite', 'inventory.sqlite-wal', 'inventory.sqlite-shm'].map(
+      (file) => ({ direction: 'to' as const, file, current }),
+    ),
+  ),
+])(
+  'failed $direction rename of $file with $current current data preserves every byte and permits retry',
+  async ({ direction, file, current: state }) => {
+    const data = join(root, 'current');
+    const source = join(root, 'saved');
+    if (state === 'wal') sqliteSnapshot(data, 'keep me');
+    else if (state === 'checkpointed') checkpointedSnapshot(data, 'keep me');
+    else mkdirSync(data);
+    sqliteSnapshot(source, 'restore me');
+    const current = snapshotBytes(data);
+    const original = snapshotBytes(source);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await expect(
+        restore(data, source, false, { direction, file }),
+      ).rejects.toThrow();
+      expect(snapshotBytes(data)).toEqual(current);
+      expect(snapshotBytes(source)).toEqual(original);
+    }
+    if (state !== 'empty') expect(savedValue(data)).toBe('keep me');
+    await restore(data, source);
+    expect(savedValue(data)).toBe('restore me');
+    expect(snapshotBytes(source)).toEqual(original);
+  },
+);
+
+it('failed rename rollback retains displaced originals after a second filesystem error', async () => {
+  const data = join(root, 'current');
+  const source = join(root, 'saved');
+  sqliteSnapshot(data, 'keep me');
+  sqliteSnapshot(source, 'restore me');
+  const current = snapshotBytes(data);
+  const original = snapshotBytes(source);
+  let displacedMain: string | undefined;
+  let promotionFailed = false;
+  await expect(
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        yield* restoreDatabase(data, source).pipe(
+          Effect.provideService(FileSystem.FileSystem, {
+            ...fs,
+            rename: (from, to) => {
+              if (from === join(data, 'inventory.sqlite')) displacedMain = to;
+              if (
+                from === displacedMain ||
+                (!promotionFailed && to === join(data, 'inventory.sqlite-wal'))
+              ) {
+                promotionFailed = true;
+                return fs.rename(join(root, 'missing-rename-source'), to);
+              }
+              return fs.rename(from, to);
+            },
+          }),
+        );
+      }).pipe(Effect.provide(NodeServices.layer)),
+    ),
+  ).rejects.toThrow('Original database files remain');
+  const retained = readdirSync(data).find((file) =>
+    file.startsWith('.restore-previous-'),
+  );
+  expect(retained).toBeDefined();
+  expect(snapshotBytes(join(data, retained ?? 'missing-originals'))).toEqual(
+    current,
+  );
+  expect(snapshotBytes(source)).toEqual(original);
+});
 
 it('restores committed WAL data repeatedly without changing the backup', async () => {
   const data = join(root, 'current');
