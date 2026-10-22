@@ -3,7 +3,7 @@ import { mkdir, readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { identity } from './development-client.ts';
+import { androidDevelopmentAbi, identity } from './development-client.ts';
 import { claimPoolFile, releasePoolFile } from './simulator-pool.ts';
 
 const execute = promisify(execFile);
@@ -28,6 +28,12 @@ export async function claimAndroid(serial: string | undefined, owner: string) {
   )
     throw new Error(
       `Android emulator ${serial} is not ready. Boot it in Android Studio or T3, then retry with its adb serial.`,
+    );
+  const abi = await adb(serial, 'shell', 'getprop', 'ro.product.cpu.abi');
+  const expected = androidDevelopmentAbi();
+  if (abi !== expected)
+    throw new Error(
+      `Android emulator ${serial} uses ${abi || 'an unknown ABI'}; this host builds ${expected} development APKs. Use an emulator matching the host architecture; refusing to reuse or install an APK for another ABI.`,
     );
   await mkdir(poolDirectory, { recursive: true, mode: 0o700 });
   const path = join(poolDirectory, `${serial}.claim`);

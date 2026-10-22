@@ -144,7 +144,6 @@ jobs:
           cache: true
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @porcelain/web build
       - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
       - name: Allow the disposable server's user namespace
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
@@ -176,7 +175,6 @@ jobs:
           cache: true
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @porcelain/web build
       - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
       - name: Allow the disposable server's user namespace
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
@@ -218,7 +216,7 @@ jobs:
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
           runtime: node@24.20.0
-          cache: true
+          cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - name: Cache Electron build headers
