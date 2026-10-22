@@ -32,6 +32,9 @@ test('touch opens the sidebar without holding a tooltip', async ({
       }),
     ).toBeVisible();
     await expect(tooltip).not.toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Open project', exact: true }),
+    ).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await page
@@ -97,11 +100,17 @@ for (const width of [1280, 414]) {
     await expect(
       workspace.getByRole('definition').filter({ hasText: /^Esc$/ }),
     ).toBeVisible();
+    await expect(
+      dialog.getByRole('button', { name: 'Close', exact: true }),
+    ).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(dialog).not.toBeVisible();
     await expect(footer).toBeFocused();
     await page.keyboard.press('Control+/');
     await expect(dialog).toBeVisible();
+    await expect(
+      dialog.getByRole('button', { name: 'Close', exact: true }),
+    ).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(dialog).not.toBeVisible();
     await expect(footer).toBeFocused();
@@ -145,6 +154,9 @@ for (const width of [1280, 414]) {
           exact: true,
         }),
       ).toBeVisible();
+      await expect(
+        page.getByRole('button', { name: 'Open project', exact: true }),
+      ).toBeFocused();
       await page.keyboard.press('Escape');
       await expect(toggle).toHaveAttribute('aria-expanded', 'false');
       await expect(toggle).toBeFocused();
