@@ -1,4 +1,4 @@
-import { Effect, FileSystem, Path } from 'effect';
+import { ByteSize, Effect, FileSystem, Path } from 'effect';
 import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { UpdateRecoveryError } from './errors/update-recovery-error.ts';
@@ -62,11 +62,15 @@ export const restoreDatabase = Effect.fn('Installer.restoreDatabase')(
           pathApi.join(staging, file),
         );
       if (files.includes('inventory.sqlite')) {
-        yield* Effect.try(() => {
-          const database = new DatabaseSync(
-            pathApi.join(staging, 'inventory.sqlite'),
-            { readOnly: true },
+        const databasePath = pathApi.join(staging, 'inventory.sqlite');
+        if (ByteSize.isZero((yield* fs.stat(databasePath)).size))
+          return yield* Effect.fail(
+            new UpdateRecoveryError({
+              detail: 'The backup database file is empty.',
+            }),
           );
+        yield* Effect.try(() => {
+          const database = new DatabaseSync(databasePath, { readOnly: true });
           try {
             const result = database.prepare('PRAGMA quick_check').all();
             if (result.length !== 1 || result[0]?.quick_check !== 'ok')
@@ -87,12 +91,59 @@ export const restoreDatabase = Effect.fn('Installer.restoreDatabase')(
           }),
       ),
     );
-    for (const file of databaseFiles) {
-      const destination = pathApi.join(dataDirectory, file);
-      if (prepared.files.includes(file))
-        yield* fs.rename(pathApi.join(prepared.staging, file), destination);
-      else yield* fs.remove(destination, { force: true });
-    }
+    yield* Effect.gen(function* () {
+      const previous = yield* fs.makeTempDirectory({
+        directory: dataDirectory,
+        prefix: '.restore-previous-',
+      });
+      const displaced: string[] = [];
+      const promoted: string[] = [];
+      yield* Effect.gen(function* () {
+        for (const file of databaseFiles) {
+          const current = pathApi.join(dataDirectory, file);
+          if (yield* exists(current)) {
+            yield* fs.rename(current, pathApi.join(previous, file));
+            displaced.push(file);
+          }
+        }
+        for (const file of prepared.files) {
+          yield* fs.rename(
+            pathApi.join(prepared.staging, file),
+            pathApi.join(dataDirectory, file),
+          );
+          promoted.push(file);
+        }
+      }).pipe(
+        Effect.catch((error) =>
+          Effect.gen(function* () {
+            yield* Effect.gen(function* () {
+              for (const file of promoted)
+                if (!displaced.includes(file))
+                  yield* fs.remove(pathApi.join(dataDirectory, file));
+              for (const file of displaced)
+                yield* fs.rename(
+                  pathApi.join(previous, file),
+                  pathApi.join(dataDirectory, file),
+                );
+            }).pipe(
+              Effect.mapError(
+                (rollbackError) =>
+                  new UpdateRecoveryError({
+                    detail: `Could not promote database backup "${backup}" or restore the displaced files. Original database files remain in "${previous}"; retain that directory and the backup for recovery. ${failureDetail(error)} ${failureDetail(rollbackError)}`,
+                  }),
+              ),
+            );
+            yield* fs.remove(previous, { recursive: true });
+            return yield* Effect.fail(
+              new UpdateRecoveryError({
+                detail: `Could not promote database backup "${backup}". The current database files were restored; retry recovery after resolving the filesystem error. ${failureDetail(error)}`,
+              }),
+            );
+          }),
+        ),
+      );
+      yield* fs.remove(previous, { recursive: true });
+    }).pipe(Effect.uninterruptible);
   },
   Effect.scoped,
 );
