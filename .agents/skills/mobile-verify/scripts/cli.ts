@@ -17,6 +17,7 @@ import {
   refuseMissing,
   stopOutput,
   Usage,
+  androidBuildMemoryProblem,
 } from '../../verify-core/cli.ts';
 import {
   agentCommand,
@@ -175,6 +176,8 @@ async function command(args: readonly string[]): Promise<string> {
       values['agent-device-command'] !== undefined,
     );
   if (name === 'build') {
+    if (values.device === 'android')
+      refuseMissing([androidBuildMemoryProblem()]);
     refuseMissing(
       missingTools([values.device === 'android' ? 'android' : 'simulator']),
     );
