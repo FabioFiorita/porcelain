@@ -1,12 +1,12 @@
 ---
 route: /
 selectors:
-  - "Review"
-  - "Changes"
-  - "Toggle Sidebar"
-  - "Settings"
-  - "Spec files"
-  - "Back"
+  - 'Review'
+  - 'Changes'
+  - 'Toggle Sidebar'
+  - 'Settings'
+  - 'Spec files'
+  - 'Back'
 tests:
   - apps/web/spec/e2e/reviews-spec-files.e2e.ts
 api:
@@ -30,7 +30,7 @@ Create untracked `search.ts` and `search.spec.ts` in `REPO` before loading. Keep
 Open all specs opens a continuous document containing just those files, with individual and bulk reviewed controls. All changes still includes specs. The Settings switch "Spec files" enables this grouping and starts the section and its files collapsed. Off keeps specs in the ordinary file list and its original order. It does not remove them from progress or coverage.
 
 1. With the setting off, open Review → Changes. Expect README.md, search.spec.ts and search.ts in their original order, with no Specs section.
-2. Close the phone review sheet with Escape, then Toggle Sidebar → Settings. Switch Spec files on and Back.
+2. Close the phone review sheet with Escape, then Toggle Sidebar → Settings → Reviews & Git. Switch Spec files on and Back.
 3. Open Review and expand Specs · 1 files. Open all specs shows Specs with "1 files", its file diff and reviewed control. Mark it and verify `$C server reviewed-files` contains search.spec.ts only.
 4. Open Review again. Specs remains a visible counted section but its contents start collapsed. Expand its summary to see Open all specs and search.spec.ts. Expand the file in its document to read code.
 5. Reload: the collapse preference remains. Turn it off through Settings and remove the two setup files when finished.

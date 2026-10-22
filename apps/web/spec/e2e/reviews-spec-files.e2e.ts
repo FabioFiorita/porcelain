@@ -35,6 +35,9 @@ test('Spec files creates a separate collapsed section only while the setting is 
     exact: true,
   });
   await settings
+    .getByRole('button', { name: 'Reviews & Git', exact: true })
+    .click();
+  await settings
     .getByRole('switch', { name: 'Spec files', exact: true })
     .click();
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
