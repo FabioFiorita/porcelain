@@ -13,6 +13,7 @@ export function bearerCredential(
   context: RequestContext['Service'],
 ): string | undefined {
   const header = context.request.headers.authorization;
+  if (header === 'Bearer') return '';
   return header?.startsWith('Bearer ')
     ? header.slice('Bearer '.length)
     : undefined;

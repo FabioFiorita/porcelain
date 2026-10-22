@@ -62,12 +62,15 @@ export function crossOriginHeaders(
 ) {
   return Effect.gen(function* () {
     const context = yield* RequestContext;
+    const { route } = yield* HttpRouter.RouteContext;
     const path = context.request.originalUrl.split('?', 1)[0] ?? '';
     return path.startsWith('/api/') &&
       ((path === HEALTH_PATH && HEALTH_METHODS.has(context.request.method)) ||
         (path === PAIRING_PATH &&
           PAIRING_METHODS.has(context.request.method)) ||
-        bearerCredential(context) !== undefined)
+        (bearerCredential(context) !== undefined &&
+          (route.path !== '/api/environment' ||
+            context.principal?.kind === 'device')))
       ? HttpServerResponse.setHeader(
           response,
           'Access-Control-Allow-Origin',
