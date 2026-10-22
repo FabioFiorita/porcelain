@@ -110,6 +110,7 @@ Automated coverage: `git-actions-draft-commit.test.tsx`.
 
 ## Gotchas
 
+- If the coding CLI offers models without an automatic default, "Choose a model to generate a message" keeps Generate disabled until a model is selected. Model loading or a failed catalogue read still allows a typed manual commit.
 - Requires --coding-tool. Commit model is a combobox with labelled options/provider groups; both fixture models draft the same text.
 - Case 2 needs README and NOTES changed because the fixture proposes NOTES. Wait for watcher updates before opening: the dialog captures that file set.
 - Generating… must finish and Message fill before submit. Each case commits; use fresh setup for each.

@@ -387,8 +387,10 @@ function CommitGeneration({ form }: { form: CommitFormState }) {
 function generationReason({ models, model, paths }: CommitFormState) {
   if (AsyncResult.isFailure(models))
     return 'Could not load coding CLI models. You can still commit manually.';
-  if (!Option.getOrUndefined(AsyncResult.value(models)))
-    return 'Loading coding CLI models…';
+  const choices = Option.getOrUndefined(AsyncResult.value(models));
+  if (!choices) return 'Loading coding CLI models…';
+  if (!model && choices.some((entry) => !entry.id.endsWith(':default')))
+    return 'Choose a model to generate a message.';
   if (!model)
     return 'No coding CLI available. Write a message to commit manually.';
   if (!paths.length) return 'Select files to generate a message.';
