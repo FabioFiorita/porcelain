@@ -39,7 +39,8 @@ export function UpdatesMenu() {
     ? `${progress.label}…`
     : 'Preparing updates…';
   const visible = settingsUpdatesVisible(targets, batch);
-  let title = visible ? 'Updates available' : 'No updates available';
+  let title = 'Updates available';
+  if (!visible && batch.entries.length === 0) title = 'No updates available';
   if (failures.length > 0) title = 'Could not check for updates';
   if (!visible && !open) return null;
   return (

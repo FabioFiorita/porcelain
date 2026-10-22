@@ -162,8 +162,6 @@ const refreshSettingsUpdates = Atom.fnSync((_: void, get) => {
   const capabilities = Option.getOrUndefined(
     AsyncResult.value(get(desktopCapabilities)),
   );
-  if (capabilities?.isDesktopShell && !get(appUpdate).waiting)
-    get.refresh(appUpdate);
   const connections = new Set([
     ...(local && !capabilities?.isDesktopShell ? [local] : []),
     ...remoteConnectionState.value.map(({ connection }) => connection),
