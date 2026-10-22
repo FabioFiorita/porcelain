@@ -23,6 +23,20 @@ test('with a coding CLI the chosen model drafts the message, and the drafted com
     .element(models.getByText('Haiku', { exact: true }))
     .toBeVisible();
 
+  await userEvent.keyboard('{Escape}');
+  await workspace.getByRole('button', { name: 'Commit', exact: true }).click();
+  await expect
+    .element(models.getByText('Haiku', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      dialog.getByText(
+        'Sends the selected changes to Haiku through Claude Code.',
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+
   await dialog
     .getByRole('button', { name: 'Generate with AI', exact: true })
     .click();
@@ -78,6 +92,18 @@ test('Use groups drafts one commit per group, and committing lands them in order
     await expect.element(dialog.getByText(path, { exact: true })).toBeVisible();
 
   await dialog.getByRole('tab', { name: 'Use groups', exact: true }).click();
+  await expect
+    .element(
+      dialog.getByRole('button', {
+        name: 'Commit selected files',
+        exact: true,
+      }),
+    )
+    .toBeDisabled();
+  const before = (await server.commits()).commits[0]?.oid;
+  await dialog
+    .getByRole('button', { name: 'Generate with AI', exact: true })
+    .click();
   for (const [index, group] of groups.entries())
     await expect
       .element(
@@ -87,6 +113,9 @@ test('Use groups drafts one commit per group, and committing lands them in order
         }),
       )
       .toHaveValue(group.message);
+  await expect
+    .poll(async () => (await server.commits()).commits[0]?.oid)
+    .toBe(before);
   await dialog
     .getByRole('button', { name: 'Commit groups in order', exact: true })
     .click();
@@ -178,10 +207,13 @@ test('a commit the worktree has moved past since the draft is refused, and a new
 
   await generate.click();
   await expect.element(uncovered).toBeVisible();
+  await expect
+    .element(dialog.getByRole('button', { name: 'Try again', exact: true }))
+    .toBeVisible();
 
   await dialog.getByRole('button', { name: 'Edit', exact: true }).click();
   await dialog.getByRole('checkbox', { name: later, exact: true }).click();
-  await generate.click();
+  await dialog.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect.element(uncovered).not.toBeInTheDocument();
   await commit.click();
   await expect
@@ -196,3 +228,116 @@ test('a commit the worktree has moved past since the draft is refused, and a new
     )
     .toEqual([later]);
 });
+
+for (const message of ['', '   ']) {
+  test(`an empty ordinary commit never generates or writes Git (${JSON.stringify(message)})`, async ({
+    codingTool,
+    workspace,
+    server,
+  }) => {
+    await codingTool.install();
+    const before = (await server.commits()).commits;
+    await workspace
+      .getByRole('button', { name: 'Commit', exact: true })
+      .click();
+    const dialog = workspace.getByRole('dialog', {
+      name: 'Commit changes',
+      exact: true,
+    });
+    const input = dialog.getByRole('textbox', { name: 'Message', exact: true });
+    await input.fill(message);
+    await expect
+      .element(
+        dialog.getByRole('button', {
+          name: 'Commit selected files',
+          exact: true,
+        }),
+      )
+      .toBeDisabled();
+    await expect
+      .element(
+        dialog.getByText('Write or generate a message before committing.', {
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await input.click();
+    await userEvent.keyboard('{Meta>}{Enter}{/Meta}');
+    await userEvent.keyboard('{Control>}{Enter}{/Control}');
+    await expect.element(input).toHaveValue(message);
+    await expect
+      .poll(async () => (await server.commits()).commits)
+      .toEqual(before);
+  });
+}
+
+for (const submit of ['button', 'keyboard']) {
+  test(`an edited generated message commits exactly as reviewed using ${submit}`, async ({
+    codingTool,
+    workspace,
+    server,
+    repo,
+  }) => {
+    const drafted = (await codingTool.install()).message.message;
+    const before = (await server.commits()).commits;
+    await repo.write('PRIVATE.md', 'This excluded content must stay local');
+    await expect
+      .element(
+        workspace.getByRole('button', {
+          name: 'Mark PRIVATE.md as reviewed',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await workspace
+      .getByRole('button', { name: 'Commit', exact: true })
+      .click();
+    const dialog = workspace.getByRole('dialog', {
+      name: 'Commit changes',
+      exact: true,
+    });
+    await dialog.getByRole('button', { name: 'Edit', exact: true }).click();
+    await dialog
+      .getByRole('checkbox', { name: 'PRIVATE.md', exact: true })
+      .click();
+    await dialog
+      .getByRole('button', { name: 'Generate with AI', exact: true })
+      .click();
+    const input = dialog.getByRole('textbox', { name: 'Message', exact: true });
+    await expect.element(input).toHaveValue(drafted);
+    await expect
+      .poll(async () => (await server.commits()).commits)
+      .toEqual(before);
+    await expect
+      .element(
+        dialog.getByText('Generated by Sonnet from 1 selected file', {
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    const edited = 'Reviewed subject\n\nA body written after generation.';
+    await input.fill(edited);
+    if (submit === 'button')
+      await dialog
+        .getByRole('button', { name: 'Commit selected files', exact: true })
+        .click();
+    else {
+      await input.click();
+      await userEvent.keyboard('{Meta>}{Enter}{/Meta}');
+    }
+    await expect
+      .element(dialog.getByText('succeeded', { exact: true }))
+      .toBeVisible();
+    await expect
+      .poll(async () => (await server.commits()).commits[0]?.subject)
+      .toBe('Reviewed subject');
+    await expect
+      .poll(async () => (await server.commits()).commits[0]?.body)
+      .toBe('A body written after generation.');
+    await expect
+      .poll(async () =>
+        (await server.changes()).changes.map((change) => change.path),
+      )
+      .toEqual(['PRIVATE.md']);
+  });
+}

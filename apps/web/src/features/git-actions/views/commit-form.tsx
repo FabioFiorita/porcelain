@@ -70,12 +70,12 @@ export function CommitForm(
       className="flex min-w-0 flex-col gap-4"
       onSubmit={(event) => {
         event.preventDefault();
-        form.commit();
+        if (!blocker && !working && !uncertain) form.commit();
       }}
       onKeyDown={(event) => {
         if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
           event.preventDefault();
-          if (!blocker) form.commit();
+          if (!blocker && !working && !uncertain) form.commit();
         }
       }}
     >
@@ -150,6 +150,12 @@ export function CommitForm(
           <CommitFiles form={form} />
         )}
       </fieldset>
+      {commitAction === 'commit' && <CommitGeneration form={form} />}
+      {mode !== 'groups' && !form.currentMessage.trim() && (
+        <p className="text-xs text-muted-foreground" role="status">
+          Write or generate a message before committing.
+        </p>
+      )}
       {staleDraft && (
         <p role="alert" className="text-sm text-graph-4">
           The worktree changed since this draft was proposed. Generate it again
@@ -212,8 +218,6 @@ type CommitFormState = ReturnType<typeof useCommitForm>;
 function CommitFiles({ form }: { form: CommitFormState }) {
   const {
     commitAction,
-    models,
-    model,
     editingFiles,
     excluded,
     added,
@@ -222,7 +226,6 @@ function CommitFiles({ form }: { form: CommitFormState }) {
     currentMessage,
     working,
   } = form;
-  const choices = Option.getOrUndefined(AsyncResult.value(models));
   return (
     <>
       <div className="flex items-center gap-1.5 text-caption">
@@ -288,6 +291,11 @@ function CommitFiles({ form }: { form: CommitFormState }) {
       </div>
       <Field>
         <FieldLabel htmlFor="commit-message">Message</FieldLabel>
+        {commitAction === 'commit' && form.draftedBy.message && (
+          <p className="text-xs text-muted-foreground">
+            {form.draftedBy.message}
+          </p>
+        )}
         <Textarea
           id="commit-message"
           value={currentMessage}
@@ -297,62 +305,100 @@ function CommitFiles({ form }: { form: CommitFormState }) {
           placeholder="Describe what changed and why"
         />
       </Field>
-      {commitAction === 'commit' && (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!model || !paths.length}
-            onClick={() => form.generate()}
-          >
-            <SparklesIcon />
-            Generate with AI
-          </Button>
-          <Select
-            items={
-              choices?.map((entry) => ({
-                value: entry.id,
-                label: entry.label,
-              })) ?? []
-            }
-            value={model ?? null}
-            disabled={!choices?.length}
-            onValueChange={(value) => {
-              if (value) form.setModel(value);
-            }}
-          >
-            <SelectTrigger
-              aria-label="Commit model"
-              className="w-auto max-w-48"
-              size="sm"
-            >
-              <SelectValue
-                placeholder={
-                  choices?.length ? 'Choose a model' : 'No coding CLI available'
-                }
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {groupedCommitModels(
-                choices?.filter((entry) => !entry.id.endsWith(':default')) ??
-                  [],
-              ).map(([provider, entries]) => (
-                <SelectGroup key={provider}>
-                  <SelectLabel>{provider}</SelectLabel>
-                  {entries.map((entry) => (
-                    <SelectItem key={entry.id} value={entry.id}>
-                      {entry.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
     </>
   );
+}
+
+function CommitGeneration({ form }: { form: CommitFormState }) {
+  const { models, model } = form;
+  const choices = Option.getOrUndefined(AsyncResult.value(models));
+  const chosen = choices?.find((entry) => entry.id === model);
+  const reason = generationReason(form);
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={Boolean(reason) || form.working || form.uncertain}
+        onClick={() => form.generate()}
+      >
+        <SparklesIcon />
+        {form.generator.result.waiting ? 'Generating…' : 'Generate with AI'}
+      </Button>
+      <Select
+        items={
+          choices?.map((entry) => ({
+            value: entry.id,
+            label: entry.label,
+          })) ?? []
+        }
+        value={model ?? null}
+        disabled={!choices?.length || form.working || form.uncertain}
+        onValueChange={(value) => {
+          if (value) form.setModel(value);
+        }}
+      >
+        <SelectTrigger
+          aria-label="Commit model"
+          className="w-auto max-w-48"
+          size="sm"
+        >
+          <SelectValue
+            placeholder={
+              choices?.length ? 'Choose a model' : 'No coding CLI available'
+            }
+          />
+        </SelectTrigger>
+        <SelectContent>
+          {groupedCommitModels(
+            choices?.filter((entry) => !entry.id.endsWith(':default')) ?? [],
+          ).map(([provider, entries]) => (
+            <SelectGroup key={provider}>
+              <SelectLabel>{provider}</SelectLabel>
+              {entries.map((entry) => (
+                <SelectItem key={entry.id} value={entry.id}>
+                  {entry.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="w-full text-xs text-muted-foreground" role="status">
+        {reason ??
+          `Sends the selected changes to ${chosen?.label} through ${model?.split(':')[0] === 'claude' ? 'Claude Code' : 'Codex'}.`}
+      </p>
+      {AsyncResult.isFailure(form.generator.result) && !form.working && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={Boolean(reason) || form.uncertain}
+          onClick={form.generate}
+        >
+          Try again
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function generationReason({ models, model, paths }: CommitFormState) {
+  if (AsyncResult.isFailure(models))
+    return 'Could not load coding CLI models. You can still commit manually.';
+  if (!Option.getOrUndefined(AsyncResult.value(models)))
+    return 'Loading coding CLI models…';
+  if (!model)
+    return 'No coding CLI available. Write a message to commit manually.';
+  if (!paths.length) return 'Select files to generate a message.';
+  return null;
+}
+
+function groupProposalStatus(error: unknown, working: boolean) {
+  if (error) return 'Groups were not proposed.';
+  if (working) return 'Proposing commits…';
+  return 'Generate groups with AI, then review each message and file before committing.';
 }
 
 function CommitGroups({ form }: { form: CommitFormState }) {
@@ -360,7 +406,7 @@ function CommitGroups({ form }: { form: CommitFormState }) {
   if (groups === null) {
     return (
       <p role="status" className="text-sm text-muted-foreground">
-        {error ? 'Groups were not proposed.' : 'Proposing commits…'}
+        {groupProposalStatus(error, form.working)}
       </p>
     );
   }
@@ -373,6 +419,9 @@ function CommitGroups({ form }: { form: CommitFormState }) {
   ];
   return (
     <>
+      {form.draftedBy.groups && (
+        <p className="text-xs text-muted-foreground">{form.draftedBy.groups}</p>
+      )}
       {groups.map((group, index) => (
         <section
           key={group.id}
