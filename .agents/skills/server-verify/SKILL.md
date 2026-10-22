@@ -5,7 +5,7 @@ description: Prepare a disposable, sandboxed Porcelain server, publish its conne
 
 # Server verification
 
-Run `.agents/skills/server-verify/scripts/cli` from the checkout root. The CLI prepares and records deterministic fixtures; the agent drives the server. Run it alone for command help.
+From the checkout root, run `.agents/skills/server-verify/scripts/cli` for command help. It prepares deterministic fixtures; drive the server through HTTP and WebSocket.
 
 ## Prepare
 
@@ -19,7 +19,7 @@ $C start
 
 `start` prints a short connection card: instance id, server/web/WebSocket URLs, private `connection.json` path, exact pairing-link and MCP commands, evidence folder and stop command. The server's web URL serves the kit's minimal SPA shell, not the built web client; use web-verify for UI behavior.
 
-Read `connection.json` for build commit/dirty state, the existing source fingerprint and start time; fixture environment/project/worktree IDs and repository/project-home paths; required Origins; owner socket and data directory; credential file paths; routes by owner/network scope; live RPC examples; status/log/stop commands. A checkout without Git metadata reports null commit and dirty state. The file is private (0600 inside a 0700 instance directory), contains credential paths rather than values, and is removed on successful stop. Keep secrets out of shared evidence.
+Read private `connection.json` for build identity/freshness, fixture IDs and paths, required Origins, owner socket, data directory, credential-file paths, scoped routes, RPC examples and lifecycle commands. Commit/dirty fields are null without Git metadata. Connection metadata is removed after successful stop; keep credentials out of shared evidence.
 
 ## Find the contract
 
@@ -27,29 +27,9 @@ Schemas and endpoints in `packages/contracts/src/<area>/` are the map. For examp
 
 ## Drive HTTP: Node, then curl
 
-Use Node fetch first. Replace the path below with the card's connection path; save this script outside the repository if needed.
+Use Node fetch with the fixture bearer read privately from `credentialFiles.fixture` and Origin from `requiredOrigin.http`. Construct the request from its contract, then independently read back the resulting state.
 
-```js
-import { readFile } from 'node:fs/promises';
-const card = JSON.parse(await readFile('/path/from/card/connection.json', 'utf8'));
-const { credential } = JSON.parse(await readFile(card.credentialFiles.fixture, 'utf8'));
-const headers = { authorization: `Bearer ${credential}`, origin: card.requiredOrigin.http };
-const renamed = await fetch(`${card.serverUrl}/api/projects/${encodeURIComponent(card.fixtures.projectId)}`, {
-  method: 'PATCH',
-  headers: { ...headers, 'content-type': 'application/json' },
-  body: JSON.stringify({ name: 'Renamed project' }),
-});
-if (renamed.status !== 200 || !renamed.headers.get('content-type')?.includes('application/json'))
-  throw new Error(`Rename answered ${renamed.status} ${renamed.headers.get('content-type')}`);
-const response = await fetch(`${card.serverUrl}/api/inventory`, { headers });
-if (response.status !== 200 || !response.headers.get('content-type')?.includes('application/json'))
-  throw new Error(`Inventory answered ${response.status} ${response.headers.get('content-type')}`);
-const inventory = await response.json();
-if (inventory.projects.find((project) => project.id === card.fixtures.projectId)?.name !== 'Renamed project')
-  throw new Error('The renamed project did not persist');
-```
-
-Fallback: curl with `--include`, the card's Origin and a bearer read privately from the credential file. Never print the bearer or save a verbose request trace containing it. Check status **and content type**: a 200 with HTML can be the SPA fallback rather than an API response. The contracts in `packages/contracts` say which network routes need a paired caller. Public routes need no bearer. Paired routes accept the fixture bearer; browser sessions use their paired cookie. Browser pairing uses the exact printed `pairing-link` command, which mints a fresh one-time link. Treat its code as a secret.
+Fallback: curl with `--include`, the card's Origin and fixture bearer. Keep bearer values out of output/traces. Check status **and content type**: a 200 with HTML can be the SPA fallback rather than an API response. The contracts in `packages/contracts` say which network routes need a paired caller. Public routes need no bearer. Paired routes accept the fixture bearer; browser sessions use their paired cookie. Browser pairing uses the exact printed `pairing-link` command, which mints a fresh one-time link. Treat its code as a secret.
 
 Owner routes (`/pairings`, `/access`, `/mcp`) use `ownerSocketPath`, never the TCP server URL. Node's `http.request({ socketPath, path, method, headers })` or `curl --unix-socket "$OWNER_SOCKET" --include http://localhost/access` reaches them; they need no paired bearer. Do not assume a TCP 200 proves owner access.
 
@@ -78,14 +58,12 @@ The card's MCP command runs the checkout's stdio bridge against the disposable d
 
 The CLI records numbered, redacted fixture operations plus server and supervisor logs. Save your own sanitized HTTP status/content-type/body readbacks and WebSocket frames in `evidenceDirectory`. Direct driver calls do not automatically produce CLI records. Report the evidence path and observable result, not only a driver's success.
 
-`status` passively reports captured supervisor ownership, stale build metadata and connection path; it does not prove HTTP health. `logs` reads redacted server logs even after source edits. Fixture actions refuse a stale build; stop and start again after edits.
+`status` passively reports captured supervisor ownership, stale build metadata and connection path; it does not prove HTTP health. `logs` reads redacted server logs even after source edits. Keep one instance per surface while iterating. Fixture actions refuse a stale build; stop/start after server, contract or CLI edits. A map-only edit needs no restart.
 
-Run the affected test files, then execute the exact stop command printed on the card. Confirm owned processes are gone and retained evidence is readable. Stop has no idle expiry and keeps evidence; a repeated `stop --instance <id>` confirms an already completed stop without signaling processes. Failed cleanup exits nonzero and retains private runtime metadata for recovery. Inspect its report before retrying. Never kill by pattern.
+Run changed tests by name plus the map's named test for the changed feature, then execute the exact stop command printed on the card. Confirm retained evidence is readable. Stop has no idle expiry and keeps evidence; a repeated `stop --instance <id>` confirms an already completed stop without signaling processes. Failed cleanup exits nonzero and retains private runtime metadata for recovery. Inspect its report before retrying.
 
-With several instances, name one using `--instance <id>`. After stop, evidence also requires the explicit id. The skill's disposable loopback setup does not prove LAN or remote behavior; run those journeys when the changed feature needs them. CI owns whole suites and the registered-route coverage check.
+With several instances, name one using `--instance <id>`. After stop, evidence also requires the explicit id. The skill's disposable loopback setup does not prove LAN or remote behavior; run those journeys when the changed feature needs them.
 
-## GitHub pull request reads
+## Live GitHub reads
 
-`github-read --instance <id>` sets the disposable project's origin to `git@github.com:FabioFiorita/porcelain.git`, publishes a fixture review linked to PR #423, and reads the GitHub account, PR and project PR-list endpoints. Use it once on a fresh instance with both machine accounts logged in. It installs a temporary `gh` shim in that instance's PATH; a local Unix socket bridges only the fixture's read commands to the host's real `gh`, because the server sandbox has no external network or machine credentials. Tokens remain in memory and per-call child environments; the shim and socket are removed in `finally`. No GitHub writes are permitted. The CLI retains sanitized JSON readbacks. This proves the server's account and PR read path against live GitHub, with the sandbox transport adaptation stated explicitly.
-
-The contracts in `packages/contracts/src/reviews/pull-requests.ts` define unavailable results. `PUT /api/projects/:projectId/github-account` takes `{ "account": "login" }`; `{ "account": null }` clears the override. An inaccessible override stays selected until cleared and reports `no-access`. Lists bound open and recently closed/merged reads separately to 50 entries each; recent means updated in the last 30 days, and `truncated` reports omitted pages. Detail reads bound labels, comments and reviews to 50 each, review comments to 50 per review, checks to 100, and process output to at most 4 MiB; pagination flags contribute to `truncated`. A PR read observing closed or merged uses the existing review-close transition. GitHub unavailability never participates in ordinary review reads.
+On a fresh instance, run `$C github-read <owner/repository> <pr-number> <account>... --instance <id>` with authenticated host accounts that can read that repository. It publishes a fixture review linked to that PR and records account, PR and project-list readbacks. A temporary Unix-socket bridge permits only these reads through the host's `gh`, since the sandbox has no network or machine credentials. Tokens remain in memory/per-call environments; cleanup removes the shim and socket. This proves live reads with that transport adaptation, not sandbox network access.

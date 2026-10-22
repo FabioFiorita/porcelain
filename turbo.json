@@ -39,7 +39,10 @@
     },
     "@porcelain/desktop#test:e2e": {
       "dependsOn": ["transit", "@porcelain/web#transit"],
-      "inputs": ["$TURBO_DEFAULT$"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/scripts/collect-desktop-crashes.sh"
+      ],
       "cache": false
     },
     "//#typecheck": {

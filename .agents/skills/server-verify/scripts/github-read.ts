@@ -14,13 +14,41 @@ import {
   toolValue,
 } from '@porcelain/server/kit/requests';
 import { record, text } from '@porcelain/server/kit/session';
+import { Usage } from '../../verify-core/cli.ts';
 
 const execute = promisify(execFile);
 const requestSchema = Schema.Struct({
   args: Schema.Array(Schema.String),
   token: Schema.optional(Schema.String),
 });
-function permitted(args: readonly string[]): boolean {
+type GitHubRead = {
+  repository: string;
+  owner: string;
+  repo: string;
+  number: number;
+  accounts: readonly string[];
+};
+export function githubReadArguments(args: readonly string[]): GitHubRead {
+  const [repository = '', number = '', ...accounts] = args;
+  if (
+    !/^[A-Za-z0-9-]+\/[A-Za-z0-9_.-]+$/.test(repository) ||
+    !/^[1-9]\d*$/.test(number) ||
+    !Number.isSafeInteger(Number(number)) ||
+    accounts.length === 0 ||
+    accounts.some(
+      (account) => !/^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(account),
+    )
+  )
+    throw new Usage(
+      'Usage: github-read <owner/repository> <positive-pr-number> <account>... --instance <id>',
+    );
+  const [owner = '', repo = ''] = repository.split('/');
+  return { repository, owner, repo, number: Number(number), accounts };
+}
+export function permittedGitHubRead(
+  args: readonly string[],
+  input: GitHubRead,
+): boolean {
   if (args[0] === 'auth' && args[1] === 'status')
     return (
       JSON.stringify(args) ===
@@ -41,11 +69,11 @@ function permitted(args: readonly string[]): boolean {
       args[2] === '--hostname' &&
       args[3] === 'github.com' &&
       args[4] === '--user' &&
-      ['FabioFiorita', 'fpontes-soap'].includes(args[5] ?? '')
+      input.accounts.includes(args[5] ?? '')
     );
   if (args[0] !== 'api' || args[1] !== '--hostname' || args[2] !== 'github.com')
     return false;
-  if (args[3] === 'repos/FabioFiorita/porcelain')
+  if (args[3] === `repos/${input.repository}`)
     return args.length === 6 && args[4] === '--method' && args[5] === 'GET';
   return (
     args[3] === 'graphql' &&
@@ -54,15 +82,21 @@ function permitted(args: readonly string[]): boolean {
     args[6] === '-f' &&
     /^query=query PullRequest(?:Read|List)\(/.test(args[7] ?? '') &&
     args[8] === '-f' &&
-    args[9] === 'owner=FabioFiorita' &&
+    args[9] === `owner=${input.owner}` &&
     args[10] === '-f' &&
-    args[11] === 'repo=porcelain' &&
+    args[11] === `repo=${input.repo}` &&
     (args.length === 12 ||
-      (args.length === 14 && args[12] === '-F' && args[13] === 'number=423'))
+      (args.length === 14 &&
+        args[12] === '-F' &&
+        args[13] === `number=${input.number}`))
   );
 }
 
-export async function liveGitHubRead(manifestPath: string, logFile: string) {
+export async function liveGitHubRead(
+  manifestPath: string,
+  logFile: string,
+  input: GitHubRead,
+) {
   const handle = await ServerHandle.attach(manifestPath);
   const recorder = new Recorder();
   const session = handle.session(recorder, await handle.sampleIds());
@@ -83,7 +117,7 @@ export async function liveGitHubRead(manifestPath: string, logFile: string) {
         const { args, token } = Schema.decodeUnknownSync(
           Schema.fromJsonString(requestSchema),
         )(pending);
-        if (!permitted(args))
+        if (!permittedGitHubRead(args, input))
           throw new Error('The live fixture only permits its GitHub reads');
         const env = { ...process.env };
         for (const name of [
@@ -141,7 +175,7 @@ socket.on('error', () => { process.stderr.write('GitHub fixture bridge unavailab
       'remote',
       'add',
       'origin',
-      'git@github.com:FabioFiorita/porcelain.git',
+      `git@github.com:${input.repository}.git`,
     );
     await session.git('branch', 'porcelain-fixture-base');
     await commitReviewFixture(session);
@@ -151,7 +185,7 @@ socket.on('error', () => { process.stderr.write('GitHub fixture bridge unavailab
           session,
           toolCall(session, 1, 'publish_review', {
             ...sampleReview(session, 0, randomUUID(), randomUUID()),
-            pullRequest: 'https://github.com/FabioFiorita/porcelain/pull/423',
+            pullRequest: `https://github.com/${input.repository}/pull/${input.number}`,
           }),
         ),
       ),
@@ -170,7 +204,7 @@ socket.on('error', () => { process.stderr.write('GitHub fixture bridge unavailab
       path: `/api/projects/${session.projectId}/pull-requests`,
     });
     const result = {
-      origin: 'git@github.com:FabioFiorita/porcelain.git',
+      origin: `git@github.com:${input.repository}.git`,
       accounts,
       pullRequest,
       pullRequests,
@@ -183,7 +217,7 @@ socket.on('error', () => { process.stderr.write('GitHub fixture bridge unavailab
       if (token && (serialized.includes(token) || logs.includes(token)))
         throw new Error('A token appeared in the live result');
     if (
-      record(record(accounts).choice).account !== 'FabioFiorita' ||
+      !input.accounts.includes(text(record(record(accounts).choice).account)) ||
       record(pullRequest).kind !== 'available' ||
       record(pullRequests).kind !== 'available'
     )

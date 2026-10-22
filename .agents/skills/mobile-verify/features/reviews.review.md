@@ -43,57 +43,44 @@ api:
 
 # reviews.review
 
-## What it is
+Review shows the selected worktree’s changes, reviewed status, published decisions and comments, with independent Uncommitted and Branch comparisons.
 
-Review uses the selected worktree and shared live subscriptions to show uncommitted or branch changes, fingerprint-aware reviewed markers, an agent's published explanation and comments. It uses native comparison menus, stack navigation and a comments sheet with Porcelain content primitives. On iPad, Review is a right inspector mode. Overview and changed files open the single central document tabs shared with Files and History, without pushing native file routes. Wide panes show the inspector on the right; narrow panes switch inspector/content in place. Each review tab captures its comparison and can be closed. Phones retain the list and native file routes.
+## How to get to it (user POV)
 
-## How a user reaches it
+- Phone Review tab; iPad Review inspector → Overview or changed file.
+- `porcelain.dev://review`; Files remains the default launch destination.
 
-- the app opens on Files after a cold launch
-- phone: the Review tab; iPad: Review in the right inspector
-- the deep link `porcelain.dev://`
+## Driving it with agent-device
 
-## Driving it
+Preconditions: [surface baseline](README.md).
 
-1. Open Review without a worktree. Expect Select a worktree to continue.
-2. Pair the disposable server and choose its sample worktree from the phone Workspace toolbar or iPad left navigator. Expect Review README.md. On a phone, open it and use native Back to return to the list. On iPad, open Overview and two changed files in the central tabs; reopening a file activates its existing comparison tab. Switch the inspector to Files and History and expect the active review document and all tabs to remain. The native title identifies the project/worktree. Opening Comments and using Done returns to the same central selection.
-3. Choose Branch from the Uncommitted menu and choose a base. Newly opened tabs capture that comparison; changing the inspector comparison leaves existing review tabs and their anchors intact. Switch worktrees and return: each restores its own tabs, comparison and inspector mode. Marks and comments retain their comparison scope.
-4. Change the sample through fixture operations. Expect the list and reviewed status to update without leaving Review. A previous fingerprint reads Changed since review; a clean worktree reads No changes.
-5. Revoke or stop the disposable environment. Expect an error or unavailable-workspace state; no old workspace's writes remain available. Read again through the phone workspace toolbar or iPad worktree navigator after reconnecting.
-6. Select Files and return; cold-launch against the card's Metro URL and return to Review. The selected workspace remains the shell's responsibility.
+1. With no worktree expect Select a worktree to continue. Pair/select the focused sample; expect Review README.md. Open it, then phone Back or iPad Overview returns. On iPad open Overview/two files; inspector switches and Comments → Done retain central tabs/selection.
+2. Choose Branch and a base from Uncommitted. Newly opened tabs capture that comparison; old tabs/anchors stay. Switch worktrees/back: each restores tabs/comparison/mode. Independently change content: live list/marks update, prior fingerprint becomes Changed since review, clean worktree says No changes.
+3. Stop/revoke the fixture: error/unavailable state permits no old-workspace writes. Recover through Read again in the phone toolbar/iPad navigator. Switch Files/back and cold-launch through Metro: selected workspace stays.
 
-## What proves it works
+### Overview and walkthrough
 
-Drive this feature with the mobile-verify skill on demand.
+Precondition: `--fixture development`. Expect decisions in publication order: Keep document holds visible; Filter completed deliveries; Explain the dispatch handoff.
+
+1. Open each decision; Next/Previous move stops. Read a pointer: path/range/source numbers, Show whole file/Show relevant range. Open its diff then Back/iPad Review tab returns to that decision/pointer. Read agent summary shows supplied HTML without scripts/remote assets; Return to walkthrough restores the stop.
+2. Switch worktrees/back: same review restores its stop without leaks. A new revision starts its briefing; Branch/Uncommitted remain independent. No publication says No agent review; no decisions says No walkthrough decisions. Loading/failure shows state/Read again; Refresh review retries publication and expired summary links.
+3. On iPad fail/hold changed-file reads: saved decisions remain usable, with separate loading/error and Read again. Unknown coverage cannot look empty. Retry restores Not explained/diff links. Missing worktree shows saved-review diagnostics and disables code pointers.
+
+### Completion and progress
+
+Precondition: publish multiple decisions, one shared file, a fileless decision and an unexplained file.
+
+1. Shared files appear once under their owning stop; Open owning stop returns there. A completed decision requires all owned files and its decision mark. Mark, then read reviewed-files/reviewed-layers independently. Unmark a file: badge/count clears but decision mark stays. Mark decision reviewed fills missing file marks; Unmark decision reviewed removes only its decision mark.
+2. Mark remaining files and continue writes files before the decision and advances (overview at end). Opening code/diffs writes no marks; individual file controls remain available.
+3. Refuse one bulk write with a stale fingerprint: successful file marks remain, refusal displays, same stop stays and no new decision mark appears. Pending/failed marks hide completion and disable controls; Read again recovers.
+4. Use an unavailable fingerprint (e.g. 66 MiB file): name/explanation keeps stop open. Mark available files reviewed keeps readable marks without advancing/marking the decision. With none available, Review unavailable is disabled. Make the file readable: ordinary completion returns.
+5. Commit/republish to change a published decision fingerprint; dirty edits change only worktree marks/proof freshness. Reconnect and switch worktrees/comparisons; compare literal marks/counts with an authorized web client. Check overview, summary, range and navigation labels at larger text sizes, Android light/dark, and iPad landscape/portrait.
+
+Automated coverage: `workspace-selection.spec.ts`, `pointer-source.spec.ts`, `publication.spec.ts`, `decisions.spec.ts`, `walkthrough.spec.ts`.
 
 ## Gotchas
 
-- Walkthrough code pointers open the current source at their resolved range, including context and committed files outside the comparison. Broken pointers explain that code is unavailable and disable reading. Changed pointers warn that the original snippet moved and do not highlight it as current. Changed-file diffs remain a separate destination.
-- Pane width is measured after the app sidebar consumes its space. A wide phone still uses native file routes; Android keeps its existing compact presentation. Resize the iPad pane across the threshold and verify the same tabs and active content remain, with no native file-route push.
-- Native acceptance requires driving the changed iPad presentation and existing compact flow; source inspection does not establish either.
-
-See [selected workspace states](projects.workspace-picker.md#selected-workspace-states) for shared loading, failure, availability and recovery behavior.
-
-## Agent overview and walkthrough
-
-Use `--fixture development`. On the phone open Review; on iPad open Review in the inspector, then Overview. Verify the briefing's three decisions match the published response and web walkthrough in order: Keep document holds visible, Filter completed deliveries, Explain the dispatch handoff. Decision completion is available in the walkthrough; Files/sidebar indicators are a separate feature.
-
-Open each numbered decision, read its supplied explanation, and move with Next and Previous. Read a code pointer: expect the path, source range and source line numbers, Show whole file and Show relevant range. Return to the named decision; open its changed-file diff and use phone Back or the iPad Review tab to return to the same decision/pointer. Open Read agent summary and expect the supplied HTML; Return to walkthrough restores the stop. The existing isolated HTML renderer displays self-contained content without executing scripts or loading remote assets.
-
-Switch worktrees and return: no review leaks into the other workspace; the same review restores its stop. A newly published revision starts with its own briefing. Choose Branch and return to Uncommitted; branch comparison remains independent. Verify No agent review when none was supplied; No walkthrough decisions when a saved response has no decisions; loading and read failures must show a state and Read again. Refresh review retries publication, including expired summary links. On iPad Overview, a failed or loading changed-file read shows its own state and Read again while saved decisions remain available; unknown coverage must not look like an empty comparison. Its retry restores Not explained and changed-file diff links. A missing worktree displays the saved-review diagnostics and disables code pointers.
-
-Capture Android, iPhone and iPad evidence separately. iPad landscape first, then portrait, plus larger Dynamic Type. Check unique accessible labels for overview, summary, decision entry, range reading and previous/next controls.
-
-Agent summaries read the existing signed `/review-summaries/:token` HTML endpoint through the selected connection. The feature-map API frontmatter currently accepts only `/api/` routes.
-
-## Decision completion and progress
-
-Use a multi-decision publication with one file shared by several decisions, a decision with no files of its own, and an unexplained file. The aggregate count, decision heading and overview entry use the same completed state as web: every file owned by the stop and its separate decision mark must be reviewed. Shared files appear once under their owning stop; Open owning stop returns there.
-
-Mark a decision and independently read reviewed-files and reviewed-layers. Unmark one owned file: the decision loses its Reviewed badge/count even though its decision mark remains. Mark decision reviewed fills the missing file mark. Unmark decision reviewed removes only the decision mark. Mark remaining files and continue uses the shared bulk command, records the decision only after successful file writes, and advances to the next stop (or overview at the end). Opening code or a changed-file diff alone writes no marks. Individual file controls remain available in the stop and its diff.
-
-Drive a partial bulk refusal with a stale fingerprint: retain successful file marks, show the refusal, stay on the same stop and record no new decision mark. Failed/unreadable or loading marks hide completed badges/counts and disable completion; Read again retries failures. Commit and republish code changes before expecting a new decision fingerprint; dirty worktree edits only affect worktree file marks and proof freshness. Reconnect, switch worktrees and comparisons, and compare literal server marks and visible counts with a connected web client. Check the controls at larger Dynamic Type on iPhone and iPad separately.
-
-For an unavailable fingerprint (for example a 66 MiB file), the controls name the file and explain that the stop stays open. Mark available files reviewed preserves successful readable marks without recording the decision or advancing. When no available files remain, Review unavailable is disabled. Making the file readable restores ordinary completion; unavailable files are never silently treated as reviewed.
-
-The development fixture commits its reviewed work first and publishes a verdict; its optional proof checks accept pass/fail only. Its Review tab reads the current branch's latest revision through the compatibility worktree endpoint. Verify the decision titles and summary in both light and dark themes on Android.
+- Pointer code can differ from retained excerpts: broken pointers explain unavailability; moved snippets warn and are not highlighted as current. Changed-file diffs are separate.
+- A wide phone/Android retains compact routes; iPad pane width excludes its sidebar. Resize across the threshold without changing central tabs.
+- The development fixture commits before publication and requires a verdict; optional proof uses pass/fail. Signed summary HTML is outside the `/api/` frontmatter format.
+- Shared inventory recovery is in [Worktrees](projects.workspace-picker.md#driving-it-with-agent-device).

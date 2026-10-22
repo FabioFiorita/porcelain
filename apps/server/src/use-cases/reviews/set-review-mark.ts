@@ -7,13 +7,16 @@ import type {
 } from '@porcelain/reviews/errors';
 import { Lanes } from '../../runtime/lanes.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { SetReviewMarkRequest } from '@porcelain/contracts/reviews';
+import type {
+  ReviewParams,
+  SetReviewMarkRequest,
+} from '@porcelain/contracts/reviews';
 
 export class SetReviewMarkUseCase extends Context.Service<
   SetReviewMarkUseCase,
   {
     readonly execute: (
-      input: { reviewId: string } & SetReviewMarkRequest,
+      input: ReviewParams & SetReviewMarkRequest,
     ) => Effect.Effect<
       { updated: boolean },
       ReviewNotFoundError | ReviewedMarkConflictError
@@ -32,12 +35,10 @@ export class SetReviewMarkUseCase extends Context.Service<
           return yield* lanes.run(
             keys.reviews({ repositoryId: `review:${input.reviewId}` }),
             'write',
-            () =>
-              Effect.gen(function* () {
-                return yield* operation
-                  .execute(input)
-                  .pipe(Effect.tap(() => events.inventoryChanged()));
-              }),
+            () => operation.execute(input),
+            {
+              succeeded: () => events.inventoryChanged(),
+            },
           );
         }),
       };

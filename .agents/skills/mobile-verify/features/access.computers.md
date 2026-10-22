@@ -22,18 +22,26 @@ api:
 
 # access.computers
 
-Settings → Computers opens paired computers, status/version, Add computer, Forget computer and expandable Manage connections. On iPad choose the Computers category. Add computer uses a native toolbar button on phone destinations and opens a native pairing sheet; on iPad it opens the inline pairing form; Cancel leaves saved computers unchanged. The phone root only navigates here; it no longer lists computers inline.
+Computers manages saved connections and shows status, trust and update offers, with shared progress retained across navigation.
 
-Each computer reads the existing shared service-update atom. Eligible offers have Update to <version>; the shared owner supplies Update all (N), eligibility and sequencing. Untrusted computers show a lock and expandable Needs trust, the connection's device ID and the hint “Run porcelain trust <id> on that computer, or allow it in the Mac app → Devices”. Touch and hold to copy the ID/command; after granting trust on the host, Check updates again refreshes it. This device cannot grant itself trust.
+## How to get to it (user POV)
 
-Unmanaged computers show “This server runs outside the installed service. Update it with npm, then run porcelain service update.” They are never submitted to the service updater; the bundled Mac server updates through the Mac app. Untrusted and unmanaged computers remain visible but do not contribute to Update all (N).
+- Settings → Computers; Worktrees update sheet → Manage computers.
 
-## Drive it
+## Driving it with agent-device
 
-1. Pair two disposable computers, one trusted managed service and one untrusted managed service. Independently confirm identities, credentials and offered versions. Expect name/address, Online, current version and both offers, with Needs trust only on the untrusted row. Expand its lock button and compare the displayed/pasted ID with the active route registration. Pair an alternate route with a distinct device ID and repeat after failover.
-2. Add an unmanaged fixture with an available version. Expect its explanation, no Update action, and unchanged eligible N. Never POST its update endpoint.
-3. Select a single eligible Update; expect shared queued/updating/progress, then confirmed completion. During the batch, queued/updating rows replace their Update action. Other update actions and Update all are disabled.
-4. Run Update all with two eligible services. Independently record request order and confirmed completion before the next starts. Inject a failed update; expect its error retained and the next computer attempted. During server restart/read failure, keep queued/updating/outcome rows visible. Returning from another tab retains the batch.
-5. Exercise pairing, connection management, Forget and storage-error recovery using their maps. With none paired, expect No computers paired and Add computer; unreadable storage disables mutation and offers Read saved computers again.
+Preconditions: [surface baseline](README.md).
 
-Drive and retain native evidence per platform; source/type checks do not prove layout, clipboard selection or network updates.
+1. Pair two disposable computers: trusted managed and untrusted managed, with known version offers. Compare identities/versions with independent reads. Both show Online and their offers; only the untrusted row has expandable Needs trust.
+2. Expand its lock; copy the selectable connection ID/`porcelain trust <id>` command and compare with the active registration. Fail over to an alternate route with another device ID and repeat. Grant trust on that host, then Check updates again; this device cannot trust itself.
+3. Add an unmanaged offered version. Expect “This server runs outside the installed service. Update it with npm, then run porcelain service update.” No Update action or updater POST; it contributes zero to Update all (N).
+4. Update one eligible service. Observe queued/updating/progress and confirmed completion. During a batch, other update actions and Update all are disabled.
+5. Update all with two eligible services. Independently record completion before the next request. Fail one: retain its error and attempt the next. Server restart/read errors and tab navigation retain rows/progress/outcomes.
+6. Follow [pairing](access.pairing.md), [connections](access.connections.md) and [Forget](access.forget-environment.md). With no computers show No computers paired and Add computer. Unreadable storage disables mutation and offers Read saved computers again.
+
+Automated coverage: `settings-updates.spec.ts`, `settings-updates.spec.ts`.
+
+## Gotchas
+
+- Phone Add computer opens a sheet; iPad opens the inline form. Cancel leaves saved computers unchanged.
+- Untrusted/unmanaged offers remain visible but are ineligible for Update all. The bundled Mac server updates through the Mac app.

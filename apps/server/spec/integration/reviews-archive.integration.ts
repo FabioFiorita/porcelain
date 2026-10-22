@@ -260,6 +260,7 @@ async function withArchive<E>(
             projectChanged: () => Effect.void,
             worktreeChanged: () => Effect.void,
             filesChanged: () => Effect.void,
+            gitActionProgressed: () => Effect.void,
             gitActionChanged: () => Effect.void,
           };
           const services = Layer.mergeAll(

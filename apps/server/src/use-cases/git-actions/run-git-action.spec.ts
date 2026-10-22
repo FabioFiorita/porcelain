@@ -132,6 +132,7 @@ async function fixture(onAccepted?: () => void) {
       projectChanged: () => Effect.void,
       worktreeChanged: () => Effect.void,
       filesChanged: () => Effect.void,
+      gitActionProgressed: () => Effect.void,
       gitActionChanged: (receipt) =>
         Effect.sync(() => {
           published.push(receipt);

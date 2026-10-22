@@ -4,13 +4,16 @@ import { RemoveReviewMarkService } from '@porcelain/reviews/services';
 import type { ReviewNotFoundError } from '@porcelain/reviews/errors';
 import { Lanes } from '../../runtime/lanes.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { RemoveReviewMarkRequest } from '@porcelain/contracts/reviews';
+import type {
+  ReviewParams,
+  RemoveReviewMarkRequest,
+} from '@porcelain/contracts/reviews';
 
 export class RemoveReviewMarkUseCase extends Context.Service<
   RemoveReviewMarkUseCase,
   {
     readonly execute: (
-      input: { reviewId: string } & RemoveReviewMarkRequest,
+      input: ReviewParams & RemoveReviewMarkRequest,
     ) => Effect.Effect<{ updated: boolean }, ReviewNotFoundError>;
   }
 >()('@porcelain/server/RemoveReviewMarkUseCase') {
@@ -27,12 +30,10 @@ export class RemoveReviewMarkUseCase extends Context.Service<
             return yield* lanes.run(
               keys.reviews({ repositoryId: `review:${input.reviewId}` }),
               'write',
-              () =>
-                Effect.gen(function* () {
-                  return yield* operation
-                    .execute(input)
-                    .pipe(Effect.tap(() => events.inventoryChanged()));
-                }),
+              () => operation.execute(input),
+              {
+                succeeded: () => events.inventoryChanged(),
+              },
             );
           },
         ),

@@ -9,6 +9,7 @@ import { reviewRecordView, revisionMetadata } from '@porcelain/reviews/rules';
 import { ReadEnvironmentService } from '@porcelain/access/services';
 import type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';
 import type {
+  ReadReviewQuery,
   ReadReviewResponse,
   ReviewScope,
 } from '@porcelain/contracts/reviews';
@@ -22,7 +23,7 @@ export class ReadReviewUseCase extends Context.Service<
   ReadReviewUseCase,
   {
     readonly execute: (
-      input: ReviewScope & { revision?: number | undefined },
+      input: ReviewScope & ReadReviewQuery,
     ) => Effect.Effect<
       ReadReviewResponse,
       | ReviewNotFoundError

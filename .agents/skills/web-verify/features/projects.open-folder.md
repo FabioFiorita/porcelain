@@ -19,18 +19,18 @@ api:
 
 # projects.open-folder
 
-## What it is
-
 The Open project dialog browses the server's folders, starting in its project home; a folder that is a Git repository opens as a registered project and its worktree is shown, while a folder that is not a repository cannot be opened.
 
-## How a user reaches it
+## How to get to it (user POV)
 
 - Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → `Open project` (plus button in the navigator header) → dialog "Open project" → region "Browse for a folder": click a folder to enter it, `Up` to go to the parent, a breadcrumb button (navigation "Folder path") to jump to an ancestor → `Open <folder>`.
 - Desktop shell with remote computers added: `Open project` is a menu → `This computer` (see `projects.open-remote`). The desktop app with its bridge opens the native folder picker instead of this dialog.
 
-## Driving it
+## Driving it with browser
 
-`$C start`; pair your browser using the card’s pairing-link command (web mode), then `REPO=<connection.json fixtures.repositoryPath>`. The dialog opens in the project home `$REPO/..`.
+Preconditions: [surface baseline](README.md).
+
+The folder dialog opens at project home (`$REPO/..`).
 
 ### Setup
 
@@ -46,35 +46,33 @@ git -C "$REPO/../browsed" -c user.name=Verify -c user.email=verify@example.inval
 
 ### A plain folder cannot be opened
 
-1. Navigate to `/` on the card’s web URL (full page load), then click button named `Toggle Sidebar`
-   Look for: dialog "Sidebar" with button "Open project" and Projects and Worktrees menus. Open Projects: "repository" is registered. Press Escape.
-2. Click button named `Open project`
-   Look for: dialog "Open project", text "Browse for a repository on the Porcelain server."; folder buttons "plain", "browsed", "repository"; the project home is no repository, so text "Pick a folder that is a Git repository." and a disabled `Open porcelain-dev-…` button.
-3. Click button named `plain`
-   Look for: text "No subfolders."; text "Pick a folder that is a Git repository."; button "Open plain" disabled; button "Up" present.
+1. Navigate to `/`, then click button `Toggle Sidebar`
+   Expect: dialog "Sidebar" with button "Open project" and Projects and Worktrees menus. Open Projects: "repository" is registered. Press Escape.
+2. Click button `Open project`
+   Expect: dialog "Open project", text "Browse for a repository on the Porcelain server."; folder buttons "plain", "browsed", "repository"; the project home is no repository, so text "Pick a folder that is a Git repository." and a disabled `Open porcelain-dev-…` button.
+3. Click button `plain`
+   Expect: text "No subfolders."; text "Pick a folder that is a Git repository."; button "Open plain" disabled; button "Up" present.
 
 ### A repository opens as a project
 
-4. Click button named `Up`
-   Look for: back in the project home (folder buttons "plain", "browsed" again).
-5. Click button named `browsed`
-   Look for: text "Every worktree appears in the sidebar."; button "Open browsed" enabled.
-6. Click button named `Open browsed`
-   Look for: dialog "Open project" is gone; Page URL `/<new projectId>/<worktreeId>`; Page Title "Changes — browsed"; open Worktrees in the still-open sidebar sheet: "browsed" is marked "Current" and "repository" is also listed. Press Escape.
-7. Inspect HTTP requests and responses
-   Look for: `GET /api/projects/folders` (no query), `GET /api/projects/folders?path=…plain`, and one `POST /api/projects` with status 200; no POST while "plain" was shown.
-8. Navigate to `/` on the card’s web URL (full page load), then click button named `Toggle Sidebar` and open Projects
-   Look for: after the reload Projects still lists "browsed" and "repository" and no "plain".
+4. Click button `Up`
+   Expect: back in the project home (folder buttons "plain", "browsed" again).
+5. Click button `browsed`
+   Expect: text "Every worktree appears in the sidebar."; button "Open browsed" enabled.
+6. Click button `Open browsed`
+   Expect: dialog "Open project" is gone; URL `/<new projectId>/<worktreeId>`; title "Changes — browsed"; open Worktrees in the still-open sidebar sheet: "browsed" is marked "Current" and "repository" is also listed. Press Escape.
+7. Inspect HTTP traffic
+   Expect: `GET /api/projects/folders` (no query), `GET /api/projects/folders?path=…plain`, and one `POST /api/projects` with status 200; no POST while "plain" was shown.
+8. Navigate to `/`, then click button `Toggle Sidebar` and open Projects
+   Expect: after the reload Projects still lists "browsed" and "repository" and no "plain".
 
-## What proves it works
+### Observable proof
 
-- End state: the plain folder never produces a request to register (step 7 shows the single POST came after choosing "browsed"), and after a reload the server's inventory, as the navigator shows it, still holds `browsed`.
-- `apps/web/spec/integration/projects-open-folder.test.tsx`: inside "plain" the dialog shows "No subfolders.", "Pick a folder that is a Git repository." and a disabled "Open plain", and the server never registers it.
-- `apps/web/spec/e2e/projects-open-folder.e2e.ts`: going `Up` and choosing "browsed" shows "Every worktree appears in the sidebar.", `Open browsed` closes the dialog, the navigator shows "browsed" and the server's inventory contains its path (read through `server.inventory()`).
+No registration POST for the plain folder; exactly one after choosing browsed. Reload inventory retains browsed.
+
+Automated coverage: `projects-open-folder.e2e.ts`, `projects-open-folder.test.tsx`.
 
 ## Gotchas
 
-- Phone width: the navigator is in the sidebar sheet behind `Toggle Sidebar`; the sheet stays open after the dialog closes.
-- The folder list also holds the kit's folders (`home`, `repository`, `state`, `web` and others): do not name test folders after them. Clicking the "repository" folder while the sample project is registered may collide with the sidebar's "repository" project button (the dialog is modal over the sheet, which should hide the sheet from the accessibility tree; if the click reports two matches, that is why). This map never clicks it.
-- Closing the dialog resets the browser to the project home; reopening starts there again.
-- Registering leaks into later features of the same instance (`/` opens the first worktree waiting for review). Remove `browsed` through Filter reviews → Projects → `browsed` → `Remove from Porcelain` → confirm (see `projects.remove`), or start a fresh instance.
+- The navigator sheet stays open after dialog close. Reopening the folder browser starts at project home.
+- Fixture names home/repository/state/web already exist; avoid collisions with directory/sidebar controls. Remove browsed or reset before another map.

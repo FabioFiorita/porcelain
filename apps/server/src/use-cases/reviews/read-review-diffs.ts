@@ -1,3 +1,7 @@
+import type {
+  ReviewRevisionParams,
+  ReadReviewDiffsRequest,
+} from '@porcelain/contracts/reviews';
 import { Context, Effect, Layer } from 'effect';
 import { ReadReviewRevisionService } from '@porcelain/reviews/services';
 import { ReadRetainedBranchDiffsService } from '@porcelain/changes/services';
@@ -14,11 +18,9 @@ import { LaneKeys } from '../../runtime/lane-keys.ts';
 export class ReadReviewDiffsUseCase extends Context.Service<
   ReadReviewDiffsUseCase,
   {
-    readonly execute: (input: {
-      reviewId: string;
-      revision: number;
-      paths: readonly (readonly string[])[];
-    }) => Effect.Effect<
+    readonly execute: (
+      input: ReviewRevisionParams & ReadReviewDiffsRequest,
+    ) => Effect.Effect<
       ReadBranchDiffsResponse,
       | ReviewNotFoundError
       | GitIoFailure

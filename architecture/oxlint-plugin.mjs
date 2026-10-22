@@ -4,7 +4,11 @@ import { builtinModules } from 'node:module';
 import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { classify, nodeGlobalRoles } from './policy.ts';
-import { webRules } from './web-rules.mjs';
+import {
+  webRules,
+  browserSpecNoMocks,
+  browserSpecNoSkips,
+} from './web-rules.mjs';
 import { mobileRules } from './mobile-rules.mjs';
 import { nativeHttpRules } from './native-http-rules.mjs';
 import { hollowTests, testSource } from './hollow-tests.mjs';
@@ -443,80 +447,159 @@ const laneCallbackIndexes = {
   ]),
 };
 
-function laneOwner(node, context) {
-  const path = memberPath(node.callee);
-  if (path?.length !== 3 || path[0] !== 'this') return undefined;
-  let owner = node.parent;
-  while (
-    owner &&
-    owner.type !== 'ClassDeclaration' &&
-    owner.type !== 'ClassExpression'
-  )
-    owner = owner.parent;
-  const field = owner?.body.body.find(
-    (member) =>
-      member.type === 'PropertyDefinition' && member.key.name === path[1],
-  );
-  const type = field?.typeAnnotation?.typeAnnotation;
-  const name =
-    type?.type === 'TSTypeReference' && type.typeName.type === 'Identifier'
-      ? type.typeName.name
+function importedBinding(node, context, seen = new Set()) {
+  if (!node) return undefined;
+  if (node.type === 'MemberExpression' || node.type === 'TSQualifiedName') {
+    const owner = importedBinding(node.object ?? node.left, context, seen);
+    return owner?.name === '*'
+      ? { source: owner.source, name: node.right?.name ?? memberName(node) }
       : undefined;
-  const binding =
-    name && findVariable(context.sourceCode.getScope(type), name)?.defs[0];
-  if (binding?.type === 'ImportBinding') {
-    const imported = binding.node.imported?.name;
-    const source = binding.parent.source.value;
-    if (
-      imported === 'WorktreeAccess' &&
-      /(?:^|\/)runtime\/worktree-access\.ts$/.test(source)
-    )
-      return 'WorktreeAccess';
-    if (imported === 'Lanes' && /(?:^|\/)runtime\/lanes\.ts$/.test(source))
-      return 'Lanes';
-    return undefined;
   }
-  return name === 'WorktreeAccess'
-    ? 'WorktreeAccess'
-    : name === 'Lanes' || path[1] === 'lanes'
-      ? 'Lanes'
-      : undefined;
+  if (node.type !== 'Identifier') return undefined;
+  const variable = findVariable(context.sourceCode.getScope(node), node.name);
+  if (!variable || seen.has(variable)) return undefined;
+  const definition = variable.defs[0];
+  if (definition?.type === 'ImportBinding')
+    return {
+      source: definition.parent.source.value,
+      name:
+        definition.node.type === 'ImportNamespaceSpecifier'
+          ? '*'
+          : definition.node.imported?.name,
+    };
+  return definition?.type === 'Variable' &&
+    definition.parent.kind === 'const' &&
+    definition.node.id.type === 'Identifier'
+    ? importedBinding(
+        definition.node.init,
+        context,
+        new Set([...seen, variable]),
+      )
+    : undefined;
+}
+
+function yieldedCapability(node, context, seen = new Set()) {
+  if (node?.type !== 'Identifier') return undefined;
+  const variable = findVariable(context.sourceCode.getScope(node), node.name);
+  if (!variable || seen.has(variable)) return undefined;
+  const definition = variable.defs[0];
+  if (
+    definition?.type !== 'Variable' ||
+    definition.parent.kind !== 'const' ||
+    definition.node.id.type !== 'Identifier'
+  )
+    return undefined;
+  const value = definition.node.init;
+  return value?.type === 'YieldExpression' && value.delegate
+    ? importedBinding(value.argument, context)
+    : yieldedCapability(value, context, new Set([...seen, variable]));
+}
+
+function laneOwner(node, context) {
+  if (node.callee?.type !== 'MemberExpression') return undefined;
+  const owner = yieldedCapability(node.callee.object, context);
+  if (
+    owner?.name === 'WorktreeAccess' &&
+    /(?:^|\/)runtime\/worktree-access\.ts$/.test(owner.source)
+  )
+    return 'WorktreeAccess';
+  return owner?.name === 'Lanes' &&
+    /(?:^|\/)runtime\/lanes\.ts$/.test(owner.source)
+    ? 'Lanes'
+    : undefined;
+}
+
+function localFunction(node, context, seen = new Set()) {
+  if (isFunction(node) || node?.type === 'FunctionDeclaration') return node;
+  if (node?.type === 'Identifier') {
+    const variable = findVariable(context.sourceCode.getScope(node), node.name);
+    if (!variable || seen.has(variable)) return undefined;
+    const definition = variable.defs[0];
+    if (definition?.type === 'FunctionName') return definition.node;
+    if (definition?.type === 'Variable' && definition.parent.kind === 'const')
+      return localFunction(
+        definition.node.init,
+        context,
+        new Set([...seen, variable]),
+      );
+  }
+  if (node?.type !== 'CallExpression') return undefined;
+  const factory =
+    node.callee.type === 'CallExpression' ? node.callee.callee : node.callee;
+  if (factory.type !== 'MemberExpression') return undefined;
+  const owner = importedBinding(factory.object, context);
+  return owner?.source === 'effect' &&
+    owner.name === 'Effect' &&
+    ['fn', 'fnUntraced'].includes(memberName(factory))
+    ? node
+    : undefined;
+}
+
+function takesLane(node, context) {
+  return (
+    node?.type === 'CallExpression' &&
+    laneCallbackIndexes[laneOwner(node, context)]?.has(memberName(node.callee))
+  );
 }
 
 function laneCallbacks(node, context) {
   if (node?.type !== 'CallExpression') return [];
   const owner = laneOwner(node, context);
-  const path = memberPath(node.callee);
-  return (laneCallbackIndexes[owner]?.get(path.at(-1)) ?? [])
-    .map((index) => node.arguments[index])
-    .filter(isFunction);
+  if (!owner) return [];
+  return (laneCallbackIndexes[owner]?.get(memberName(node.callee)) ?? [])
+    .map((index) => localFunction(node.arguments[index], context))
+    .filter(Boolean);
 }
 
 function independentlyScheduled(node, context) {
   if (node?.type !== 'CallExpression' || !laneOwner(node, context))
     return false;
-  return ['background', 'start'].includes(memberPath(node.callee).at(-1));
+  return ['background', 'start'].includes(memberName(node.callee));
 }
 
-function insideScheduledWork(node, callback, context) {
-  for (
-    let current = node.parent;
-    current && current !== callback;
-    current = current.parent
-  ) {
-    if (
-      isFunction(current) &&
-      independentlyScheduled(current.parent, context) &&
-      current.parent.arguments.includes(current)
-    )
-      return true;
+function callsInWork(node, context, seen = new Set(), invoked = false) {
+  if (!node || seen.has(node)) return [];
+  if (isFunction(node) || node.type === 'FunctionDeclaration')
+    return invoked ? callsInWork(node.body, context, seen) : [];
+  if (invoked) {
+    const callback = localFunction(node, context);
+    if (callback && callback !== node)
+      return callsInWork(callback, context, seen, true);
   }
-  return false;
+  seen.add(node);
+  if (node.type === 'VariableDeclarator' && localFunction(node.init, context))
+    return [];
+  const calls = node.type === 'CallExpression' ? [node] : [];
+  if (independentlyScheduled(node, context)) return calls;
+  if (node.type === 'CallExpression') {
+    const helper = localFunction(node.callee, context);
+    if (helper) calls.push(...callsInWork(helper, context, seen, true));
+    for (const argument of node.arguments) {
+      const callback = localFunction(argument, context);
+      if (callback || argument.type === 'ObjectExpression')
+        calls.push(...callsInWork(callback ?? argument, context, seen, true));
+    }
+  }
+  for (const key of context.sourceCode.visitorKeys[node.type] ?? []) {
+    const child = node[key];
+    for (const entry of Array.isArray(child) ? child : [child])
+      if (
+        entry?.type !== 'FunctionDeclaration' &&
+        entry?.type !== 'ClassDeclaration'
+      )
+        calls.push(
+          ...callsInWork(
+            entry,
+            context,
+            seen,
+            invoked &&
+              (['ObjectExpression', 'ArrayExpression'].includes(node.type) ||
+                (node.type === 'Property' && key === 'value')),
+          ),
+        );
+  }
+  return calls;
 }
-
-const liveProgressPublishers = new Map([
-  ['RunGitActionUseCase', new Set(['settle', 'progressed', 'abandon'])],
-]);
 
 const laneHolderType =
   /(?:Store|Reader|Runner|Writer|Source|Service|UseCasePort)$/;
@@ -833,9 +916,16 @@ function nativePortKey(node, context) {
 
 function nativeOperation(node, context) {
   const base = node.superClass;
+  const factory = base?.callee?.callee;
+  const owner =
+    factory?.type === 'MemberExpression'
+      ? importedBinding(factory.object, context)
+      : undefined;
   return base?.type === 'CallExpression' &&
     base.callee.type === 'CallExpression' &&
-    nativeMember(base.callee, context, 'Context', new Set(['Service']))
+    owner?.source === 'effect' &&
+    owner.name === 'Context' &&
+    memberName(factory) === 'Service'
     ? base
     : undefined;
 }
@@ -998,33 +1088,6 @@ function primitiveValue(node) {
 export default {
   meta: { name: 'porcelain' },
   rules: {
-    'mobile-ui-imports-no-state': {
-      create(context) {
-        if (
-          !/\/apps\/mobile\/src\/components\/ui\//.test(
-            normalizedFilename(context.filename),
-          )
-        )
-          return {};
-        return {
-          ImportDeclaration(node) {
-            const source = node.source.value;
-            if (
-              !/^@porcelain\/(?:client|contracts)(?:\/|$)/.test(source) ||
-              typeOnlyImport(node) ||
-              /^@porcelain\/client\/[^/]+\/rules$/.test(source)
-            )
-              return;
-            context.report({
-              node,
-              message:
-                'Import client and contract types or pure client rules only, because native primitives decide presentation while views own client effects, queries, commands, stores and atoms.',
-            });
-          },
-        };
-      },
-    },
-
     'hermes-array-methods': {
       create(context) {
         if (
@@ -1621,54 +1684,33 @@ export default {
       create(context) {
         if (!useCaseFile.test(repositoryPath(context)) || isSpec(context))
           return {};
-        const visitorKeys = context.sourceCode.visitorKeys;
+        const reported = new Set();
         return {
-          ClassDeclaration(node) {
-            const methods = new Map(
-              node.body.body
-                .filter(
-                  (member) =>
-                    member.type === 'MethodDefinition' &&
-                    member.key.type === 'Identifier',
-                )
-                .map((member) => [member.key.name, member]),
-            );
-            const exempt =
-              liveProgressPublishers.get(node.id?.name ?? '') ?? new Set();
-            const reported = new Set();
-            const visit = (scope, seen, publishesProgress) => {
-              for (const call of nodesOf(
-                scope,
-                visitorKeys,
-                (entry) => entry.type === 'CallExpression',
+          CallExpression(node) {
+            for (const callback of laneCallbacks(node, context))
+              for (const call of callsInWork(
+                callback,
+                context,
+                new Set(),
+                true,
               )) {
-                const path = memberPath(call.callee);
-                if (path?.[0] !== 'this') continue;
+                if (call.callee.type !== 'MemberExpression') continue;
+                const owner = yieldedCapability(call.callee.object, context);
                 if (
-                  path[1] === 'events' &&
-                  !publishesProgress &&
-                  !reported.has(call)
-                ) {
-                  reported.add(call);
-                  context.report({
-                    node: call,
-                    message:
-                      'Publish after the lane settles: return whether anything changed from lanes.run, runConsistent, background or finish and publish outside it; only a running Git action publishes its progress from inside its lane, because subscribers must observe committed state rather than an in-progress write.',
-                  });
-                }
-                const method = path.length === 2 && methods.get(path[1]);
-                if (!method || seen.has(method)) continue;
-                seen.add(method);
-                visit(method.value, seen, exempt.has(path[1]));
+                  owner?.name !== 'EventPublisher' ||
+                  !/(?:^|\/)ports\/event-publisher\.ts$/.test(owner.source) ||
+                  propertyName(call.callee, context) ===
+                    'gitActionProgressed' ||
+                  reported.has(call)
+                )
+                  continue;
+                reported.add(call);
+                context.report({
+                  node: call,
+                  message:
+                    'Publish after the lane settles: return whether anything changed and publish after the operation returns, or from its succeeded/settled/committed hook, because subscribers must observe committed state rather than an in-progress write.',
+                });
               }
-            };
-            for (const call of nodesOf(
-              node,
-              visitorKeys,
-              (entry) => laneCallbacks(entry, context).length > 0,
-            ))
-              for (const callback of laneCallbacks(call, context))
-                visit(callback, new Set(), false);
           },
         };
       },
@@ -1823,7 +1865,6 @@ export default {
           ),
         );
         if (behindPort) return {};
-        const contractTypes = new Set();
         const references = (annotation) => {
           if (
             annotation?.type === 'TSIntersectionType' ||
@@ -1835,34 +1876,33 @@ export default {
           return [annotation];
         };
         return {
-          ImportDeclaration(node) {
+          ClassDeclaration(node) {
+            const shape = nativeOperation(node, context)?.callee.typeArguments
+              ?.params[1];
+            if (shape?.type !== 'TSTypeLiteral') return;
+            const execute = shape.members.find(
+              (member) =>
+                member.type === 'TSPropertySignature' &&
+                member.key.name === 'execute',
+            )?.typeAnnotation?.typeAnnotation;
             if (
-              typeof node.source.value === 'string' &&
-              node.source.value.startsWith('@porcelain/contracts/')
-            )
-              for (const specifier of node.specifiers)
-                contractTypes.add(specifier.local.name);
-          },
-          MethodDefinition(node) {
-            if (
-              node.key.type !== 'Identifier' ||
-              node.key.name !== 'execute' ||
-              node.value.params.length === 0
+              execute?.type !== 'TSFunctionType' ||
+              execute.params.length === 0
             )
               return;
-            const annotation =
-              node.value.params[0]?.typeAnnotation?.typeAnnotation;
-            for (const reference of references(annotation))
-              if (
-                reference?.type !== 'TSTypeReference' ||
-                reference.typeName.type !== 'Identifier' ||
-                !contractTypes.has(reference.typeName.name)
-              )
+            const annotation = execute.params[0].typeAnnotation?.typeAnnotation;
+            for (const reference of references(annotation)) {
+              const binding =
+                reference?.type === 'TSTypeReference'
+                  ? importedBinding(reference.typeName, context)
+                  : undefined;
+              if (!binding?.source.startsWith('@porcelain/contracts/'))
                 context.report({
                   node: reference ?? node,
                   message:
                     'A use case reached from a route takes the contract types its route validated (params, query, body), intersected as the route passes them; one reached only from another use case, a hook or the runtime stands behind ports/<name>-use-case-port.ts and may take a domain model, because copying the validated input lets the transport and use case drift.',
                 });
+            }
           },
         };
       },
@@ -1902,30 +1942,45 @@ export default {
       create(context) {
         if (!useCaseFile.test(repositoryPath(context)) || isSpec(context))
           return {};
-        const visitorKeys = context.sourceCode.visitorKeys;
-        const nested = (entry) => {
-          if (laneCallbacks(entry, context).length > 0)
-            return !independentlyScheduled(entry, context);
-          if (entry.type !== 'CallExpression') return false;
-          const path = memberPath(entry.callee);
-          return (
-            path?.length === 3 &&
-            path[0] === 'this' &&
-            (path[1] === 'checkWorktree' || /^refresh[A-Z]/.test(path[1])) &&
-            path[2] === 'execute'
-          );
-        };
+        const reported = new Set();
         return {
           CallExpression(node) {
             for (const callback of laneCallbacks(node, context))
-              for (const inner of nodesOf(callback, visitorKeys, nested).filter(
-                (inner) => !insideScheduledWork(inner, callback, context),
-              ))
+              for (const inner of callsInWork(
+                callback,
+                context,
+                new Set(),
+                true,
+              )) {
+                const owner =
+                  inner.callee.type === 'MemberExpression'
+                    ? yieldedCapability(inner.callee.object, context)
+                    : undefined;
+                const entersLane =
+                  takesLane(inner, context) ||
+                  (owner?.name === 'CheckWorktreeUseCasePort' &&
+                    /(?:^|\/)ports\/check-worktree-use-case-port\.ts$/.test(
+                      owner.source,
+                    ) &&
+                    memberName(inner.callee) === 'execute') ||
+                  (/^Refresh[A-Z].*UseCasePort$/.test(owner?.name ?? '') &&
+                    /(?:^|\/)ports\/refresh-[^/]+-use-case-port\.ts$/.test(
+                      owner.source,
+                    ) &&
+                    memberName(inner.callee) === 'execute');
+                if (
+                  !entersLane ||
+                  independentlyScheduled(inner, context) ||
+                  reported.has(inner)
+                )
+                  continue;
+                reported.add(inner);
                 context.report({
                   node: inner,
                   message:
-                    'A lane never runs inside another lane: resolve the worktree, refresh the inventory and take any other lane before or after this one, never inside its callback, because nested serial queues can wait on each other indefinitely.',
+                    'A lane never runs inside another lane: resolve the worktree, refresh the inventory and take any other lane before or after this one, or acquire multiple owner keys in one operation, because nested serial queues can wait on each other indefinitely.',
                 });
+              }
           },
         };
       },
@@ -1937,78 +1992,34 @@ export default {
         const visitorKeys = context.sourceCode.visitorKeys;
         return {
           ClassDeclaration(node) {
-            const holds = node.body.body.some((member) => {
-              const annotation = member.typeAnnotation?.typeAnnotation;
-              const shape = annotation?.typeName;
-              const capability = annotation?.typeArguments?.params[0];
+            const holds = nodesOf(
+              node,
+              visitorKeys,
+              (entry) => entry.type === 'YieldExpression' && entry.delegate,
+            ).some((entry) => {
+              const capability = importedBinding(entry.argument, context);
               return (
-                member.type === 'PropertyDefinition' &&
-                annotation?.type === 'TSTypeReference' &&
-                ((shape.type === 'Identifier' &&
-                  laneHolderType.test(shape.name)) ||
-                  (shape.type === 'TSQualifiedName' &&
-                    shape.right.name === 'Shape' &&
-                    shape.left.type === 'TSQualifiedName' &&
-                    shape.left.left.name === 'Context' &&
-                    shape.left.right.name === 'Service' &&
-                    capability?.type === 'TSTypeQuery' &&
-                    capability.exprName.type === 'Identifier' &&
-                    laneHolderType.test(capability.exprName.name)))
+                capability &&
+                ((laneHolderType.test(capability.name) &&
+                  (/^@porcelain\/[^/]+\/(?:services|ports)$/.test(
+                    capability.source,
+                  ) ||
+                    /(?:^|\/)ports\/[^/]+\.ts$/.test(capability.source))) ||
+                  (capability.name === 'WorktreeAccess' &&
+                    /(?:^|\/)runtime\/worktree-access\.ts$/.test(
+                      capability.source,
+                    )))
               );
             });
             if (holds) return;
-            for (const call of nodesOf(
-              node,
-              visitorKeys,
-              (entry) => laneCallbacks(entry, context).length > 0,
+            for (const call of nodesOf(node, visitorKeys, (entry) =>
+              takesLane(entry, context),
             ))
               context.report({
                 node: call,
                 message:
-                  'A lane serializes access to something: a use case that holds no store, reader, runner, writer, source, service, worktree check or refresh computes without a lane (lanes.unqueued at most), because serializing pure computation needlessly blocks other work.',
+                  'A lane serializes access to something: a use case that yields no store, reader, runner, writer, source, service, worktree access or use-case port computes without a lane (lanes.unqueued at most), because serializing pure computation needlessly blocks other work.',
               });
-          },
-        };
-      },
-    },
-    'lane-after-check': {
-      create(context) {
-        if (!useCaseFile.test(repositoryPath(context)) || isSpec(context))
-          return {};
-        const methods = [];
-        const calls = (node, owner, method) => {
-          const path = memberPath(node.callee);
-          return (
-            path?.length === 3 &&
-            path[0] === 'this' &&
-            path[1] === owner &&
-            (method === undefined || path[2] === method)
-          );
-        };
-        return {
-          MethodDefinition() {
-            methods.push({ checks: [], keys: [] });
-          },
-          CallExpression(node) {
-            const method = methods.at(-1);
-            if (!method) return;
-            if (calls(node, 'checkWorktree', 'execute'))
-              method.checks.push(node);
-            else if (calls(node, 'laneKeys')) method.keys.push(node);
-          },
-          'MethodDefinition:exit'() {
-            const method = methods.pop();
-            if (!method || method.checks.length === 0) return;
-            const first = Math.min(
-              ...method.checks.map((check) => check.range[0]),
-            );
-            for (const key of method.keys)
-              if (key.range[0] < first)
-                context.report({
-                  node: key,
-                  message:
-                    'Resolve the worktree with checkWorktree before choosing its lane; the lane is a property of the resolved worktree, because the resolved worktree determines the correct serialization key.',
-                });
           },
         };
       },
@@ -2457,7 +2468,7 @@ export default {
     },
     'spec-no-mocking': {
       create(context) {
-        if (!isSpec(context)) return {};
+        if (!isSpec(context)) return browserSpecNoMocks(context);
         return {
           AssignmentExpression(node) {
             if (replacesGlobal(node))
@@ -2525,11 +2536,11 @@ export default {
     'spec-no-skips': {
       create(context) {
         if (
-          !antiFlakeSpec(context) ||
-          (browserSpec(context) &&
-            !normalizedFilename(context.filename).includes('/apps/desktop/'))
+          browserSpec(context) &&
+          !normalizedFilename(context.filename).includes('/apps/desktop/')
         )
-          return {};
+          return browserSpecNoSkips(context);
+        if (!antiFlakeSpec(context)) return {};
         const message =
           'Every spec runs every time; remove the skip, only, todo, fails, fixme or fail, because a skipped or exclusive case leaves regressions unchecked.';
         return {
@@ -2634,7 +2645,6 @@ export default {
               context.report(report);
           },
         };
-        if (!spec) return hollow;
         const suiteFunctions = new Set(['describe', 'suite']);
         const inSuiteBody = (statement) => {
           const block = statement.parent;
@@ -2650,6 +2660,18 @@ export default {
         return {
           ...hollow,
           CallExpression(node) {
+            if (
+              node.callee.type === 'Identifier' &&
+              node.callee.name === 'expect' &&
+              node.arguments[0]?.type === 'Literal' &&
+              typeof node.arguments[0].value === 'boolean'
+            )
+              context.report({
+                node,
+                message:
+                  'Assert on an observable result instead of a boolean literal, because a fixed literal cannot detect a product regression.',
+              });
+            if (!spec) return;
             if (
               caseCall(node, context) &&
               node.parent?.type !== 'MemberExpression' &&
@@ -2720,30 +2742,6 @@ export default {
       },
     },
 
-    'spec-behaviour-names': {
-      create(context) {
-        if (
-          !isSpec(context) &&
-          !testSource.test(normalizedFilename(context.filename))
-        )
-          return {};
-        return {
-          CallExpression(node) {
-            if (
-              node.callee.type === 'Identifier' &&
-              node.callee.name === 'expect' &&
-              node.arguments[0]?.type === 'Literal' &&
-              typeof node.arguments[0].value === 'boolean'
-            )
-              context.report({
-                node,
-                message:
-                  'Assert on an observable result instead of a boolean literal, because a fixed literal cannot detect a product regression.',
-              });
-          },
-        };
-      },
-    },
     'spec-imports': {
       create(context) {
         if (!isSpec(context)) return {};
@@ -3099,14 +3097,11 @@ export default {
     'interfaces-only-in-ports': {
       create(context) {
         const path = repositoryPath(context);
-        if (
-          !serverCode.test(path) ||
-          anyPortFile.test(path) ||
-          infrastructureInterfaceFile.test(path)
-        )
+        if (anyPortFile.test(path) || infrastructureInterfaceFile.test(path))
           return {};
         return {
           TSInterfaceDeclaration(node) {
+            if (!serverCode.test(path)) return;
             if (
               context.sourceCode
                 .getAncestors(node)
@@ -3123,21 +3118,8 @@ export default {
                 'Write a type alias; an interface is a port and lives in ports/, because reserving interfaces for dependency contracts gives agents one place to declare and find ports.',
             });
           },
-        };
-      },
-    },
-    'no-port-shaped-alias': {
-      create(context) {
-        const path = repositoryPath(context);
-        if (
-          !portShapedScope.test(path) ||
-          anyPortFile.test(path) ||
-          infrastructureInterfaceFile.test(path) ||
-          isSpec(context)
-        )
-          return {};
-        return {
           TSMethodSignature(node) {
+            if (!portShapedScope.test(path) || isSpec(context)) return;
             if (node.parent?.type !== 'TSTypeLiteral') return;
             context.report({
               node,

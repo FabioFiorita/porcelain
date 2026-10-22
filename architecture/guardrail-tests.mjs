@@ -451,7 +451,11 @@ async function styleConfigFixture(entry) {
     if (entry.missingTool && entry.toolOutput === undefined)
       strictEqual(output.includes('ENOENT'), entry.rules.length === 0, output);
     else if (entry.status === 0)
-      strictEqual(checked.stdout.includes('0 findings.'), true, output);
+      strictEqual(
+        checked.stdout.includes(`${entry.findingCount ?? 0} findings.`),
+        true,
+        output,
+      );
   } finally {
     rmSync(root, { recursive: true, force: true });
     strictEqual(existsSync(root), false, `Fixture leaked: ${root}`);

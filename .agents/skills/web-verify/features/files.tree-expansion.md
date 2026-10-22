@@ -15,19 +15,17 @@ api:
 
 # files.tree-expansion
 
-## What it is
-
 Opening a folder loads its children lazily. A single-child folder chain becomes one row and opens with one click. A close while a read is pending keeps the resulting flattened row closed and does not load the next directory.
 
-## How a user reaches it
+## How to get to it (user POV)
 
 - Review (phone width) → Files → a folder in the tree under region "All files". At desktop width Files is in the review sidebar.
 - A focused folder opens with ArrowRight and closes with ArrowLeft.
 - [Quick open](files.quick-open.md) and opening a [pinned file](files.pin.md) reveal the selected file's ancestor folders. "Search files" filters the loaded tree.
 
-## Driving it
+## Driving it with browser
 
-Start with `$C start` and pair the browser. Use `fixtures.repositoryPath` from `connection.json` as `REPO`. Before a full page load:
+Preconditions: [surface baseline](README.md).
 
 ```sh
 mkdir -p "$REPO/a/b" "$REPO/c/d/e" "$REPO/x/nested" "$REPO/w" "$REPO/closed/b/x" "$REPO/closed/b/y"
@@ -44,15 +42,17 @@ printf 'Stay closed\n' > "$REPO/closed/b/x/closed.txt"
 3. Click "a / b" once: its files disappear. With that row still focused, ArrowRight shows them and ArrowLeft hides them again.
 4. Click "c" once. After the reads for `c`, `c/d` and `c/d/e`, "c / d / e" is expanded and "deep.txt" is visible.
 5. To check a close during loading, start from a full page load with cold reads. Hold `GET .../directory?path=a` and arm a separate hold for `path=a/b` before page initialization using browser-context routing. Click "a" to open, wait for the held read to arrive, click again to close, then release the response. Open "w" and wait for "loaded.txt" before checking that "a / b" stays collapsed, the separate `a/b` hold was never requested and its files stay absent. Restore routing in `finally`.
-6. As a separate observational check, click "x" once to load and open "x / nested". Observe the tree's shadow root for childList, subtree and attributes. On every callback look up rows by name again: "visible.txt" must exist and "x / nested" must retain `aria-expanded="true"`. Click "w" (which sorts before "x"): "loaded.txt" appears without a recorded disappearance or collapse. A held sibling read can also check the pending state. The named spec does not cover sibling blinking.
+6. As a separate observational check, click "x" once to load and open "x / nested". Observe the tree's shadow root for childList, subtree and attributes. On every callback look up rows by name again: "visible.txt" must exist and "x / nested" must retain `aria-expanded="true"`. Click "w" (which sorts before "x"): "loaded.txt" appears without a recorded disappearance or collapse. A held sibling read can also check the pending state.
 7. Enter `visible` in textbox "Search files", check its row, then clear the filter. Expanded folders remain open.
-8. Repeat the first-click screenshot in dark mode. Repeat at desktop width; the Electron app uses this same web adapter. Native Electron bridge behavior is outside this map.
+8. Repeat the first-click screenshot in dark mode. Repeat at desktop width; repeat native bridge behavior separately in desktop verification. Native Electron bridge behavior is outside this map.
 9. Open "closed" and then its child "x" until "closed.txt" is visible. Collapse "closed / b", then remove the empty fixture directory `closed/b/y` on disk. After the live rebuild, "closed / b / x" stays collapsed and "closed.txt" stays absent.
 
-## What proves it works
+### Observable proof
 
-- `files-tree-expansion.test.tsx` asserts the cold single-child chain opens with one click, closes with one click, and responds to ArrowRight/ArrowLeft.
-- The three-level case checks the final file, expanded row and reads for every directory in the chain.
-- The late-close case holds the first read, closes before completion and waits for a sibling read to settle, then checks the collapsed row and that a separately held child-directory read was never requested.
-- The client unit specs cover new children, closed parents, sibling counts, three-level continuation and a closed ancestor after sibling deletion.
-- Directory reads return 200 JSON. The adapter rebuilds with `resetPaths`, preserving folders whose ancestors are still open and continuing a newly discovered single-child chain only while its parent is open. A folder that remains in the paths stays closed after the user closes it, even if deletion makes it part of a flattened chain. If it leaves the paths and later returns, it is treated as newly discovered.
+Directory reads answer 200. Closing an ancestor before a held read settles must not open/read its child; remaining paths stay closed even if sibling deletion flattens the chain. A removed/reintroduced path is newly discovered.
+
+Automated coverage: `files-tree-expansion.test.tsx`, `file-tree.spec.ts`.
+
+## Gotchas
+
+- A pending directory read is not an empty folder. Close before release to prove cancellation rather than ordinary expansion.

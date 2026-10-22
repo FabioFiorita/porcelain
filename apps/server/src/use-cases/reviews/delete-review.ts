@@ -1,3 +1,4 @@
+import type { ReviewParams } from '@porcelain/contracts/reviews';
 import { ReadPublishedReviewService } from '@porcelain/reviews/services';
 import { Lanes } from '../../runtime/lanes.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
@@ -13,7 +14,7 @@ export class DeleteReviewUseCase extends Context.Service<
   DeleteReviewUseCase,
   {
     readonly execute: (
-      input: WorktreeParams | { reviewId: string },
+      input: WorktreeParams | ReviewParams,
     ) => Effect.Effect<DeleteReviewResponse, WorktreeAccessFailure>;
   }
 >()('@porcelain/server/DeleteReviewUseCase') {
@@ -28,16 +29,16 @@ export class DeleteReviewUseCase extends Context.Service<
       const events = yield* EventPublisher;
       return {
         execute: Effect.fn('DeleteReviewUseCase.execute')(function* (
-          input: WorktreeParams | { reviewId: string },
+          input: WorktreeParams | ReviewParams,
         ) {
           if ('reviewId' in input)
             return yield* lanes.run(
               keys.reviews({ repositoryId: `review:${input.reviewId}` }),
               'write',
-              () =>
-                remove
-                  .execute(input)
-                  .pipe(Effect.tap(() => events.inventoryChanged())),
+              () => remove.execute(input),
+              {
+                succeeded: () => events.inventoryChanged(),
+              },
             );
           const worktreeId = input.worktreeId;
           return yield* access.transaction(

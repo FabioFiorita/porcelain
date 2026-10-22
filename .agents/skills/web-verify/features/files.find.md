@@ -19,18 +19,16 @@ api:
 
 # files.find
 
-## What it is
-
 Find in file counts the matches of a case-insensitive query and scrolls a match far below the fold into view, in the read-only file view (Porcelain's find bar) and in the editor (the editor's own search panel).
 
-## How a user reaches it
+## How to get to it (user POV)
 
-- With a file open as source (code files, or Markdown/HTML switched to "Source"), not editing: `Mod+F` (`SHORTCUTS.findInFile`) opens the find bar, a search region with textbox "Find in file", a status "N of M", and buttons "Previous match", "Next match", "Close find". `Enter` goes to the next match, `Shift+Enter` the previous one, `Escape` closes.
+- With a file open as source (code files, or Markdown/HTML switched to "Source"), not editing: `Mod+F` (find shortcut) opens the find bar, a search region with textbox "Find in file", a status "N of M", and buttons "Previous match", "Next match", "Close find". `Enter` goes to the next match, `Shift+Enter` the previous one, `Escape` closes.
 - In the editor (after Edit): `Mod+F` opens the editor's search panel, textbox "Search"; `Enter` goes to the next match.
 
-## Driving it
+## Driving it with browser
 
-`$C start`; pair your browser using the card’s pairing-link command. `$REPO` is `fixtures.repositoryPath` in the card’s `connection.json`.
+Preconditions: [surface baseline](README.md).
 
 ### Setup
 
@@ -40,39 +38,36 @@ A 4002-line file with one match near the top and one near the end:
 awk 'BEGIN{for(i=0;i<4000;i++){if(i==20)print "an early NEEDLE"; if(i==3900)print "the needle line near the end"; print "filler " i}}' > "$REPO/long.txt"
 ```
 
-1. Navigate to `/` on the card’s web URL (full page load), click button named `Review`, click tab named `Files`
-   Look for: treeitem "long.txt".
-2. Right-click treeitem named `long.txt`, then click menuitem named `Open file`
-   Look for: tab "long.txt Close long.txt" selected; the code shows "filler 0"; the snapshot does not contain "the needle line near the end" (the view renders only the lines near the viewport).
+1. Navigate to `/`, click button `Review`, click tab `Files`
+   Expect: treeitem "long.txt".
+2. Right-click treeitem `long.txt`, then click menuitem `Open file`
+   Expect: tab "long.txt Close long.txt" selected; the code shows "filler 0"; the snapshot does not contain "the needle line near the end" (the view renders only the lines near the viewport).
 3. Press `ControlOrMeta+f`
-   Look for: search region with textbox "Find in file", focused.
-4. Replace the contents of textbox named `Find in file` with 'needle'
-   Look for: status "1 of 2"; the code shows "an early NEEDLE".
+   Expect: search region with textbox "Find in file", focused.
+4. Fill textbox `Find in file` with 'needle'
+   Expect: status "1 of 2"; the code shows "an early NEEDLE".
 5. Press `Enter`
-   Look for: status "2 of 2"; the code shows "the needle line near the end".
-6. Click button named `Previous match`
-   Look for: status "1 of 2"; "an early NEEDLE" in view again.
+   Expect: status "2 of 2"; the code shows "the needle line near the end".
+6. Click button `Previous match`
+   Expect: status "1 of 2"; "an early NEEDLE" in view again.
 7. Press `Escape`
-   Look for: textbox "Find in file" is gone.
-8. Click button named `Edit`
-   Look for: textbox "long.txt" (the editor).
-9. Click textbox named `long.txt`, then press `ControlOrMeta+f`
-   Look for: textbox "Search" (the editor's search panel, with buttons "Match Case", "Whole Word", "Regexp").
-10. Replace the contents of textbox named `Search` with 'the needle line near the end', then press `Enter`
-    Look for: the aria snapshot does not print the editor's lines, so capture a screenshot: the search panel reads "1 of 1" and line 3902 "the needle line near the end" is highlighted in view.
+   Expect: textbox "Find in file" is gone.
+8. Click button `Edit`
+   Expect: textbox "long.txt" (the editor).
+9. Click textbox `long.txt`, then press `ControlOrMeta+f`
+   Expect: textbox "Search" (the editor's search panel, with buttons "Match Case", "Whole Word", "Regexp").
+10. Fill textbox `Search` with 'the needle line near the end', then press `Enter`
+    Expect: the aria snapshot does not print the editor's lines, so capture a screenshot: the search panel reads "1 of 1" and line 3902 "the needle line near the end" is highlighted in view.
 
-## What proves it works
+### Observable proof
 
-- Steps 4 to 6: the count follows the query and the step buttons, and step 5 brings line 3902 into a view that did not render it before.
-- Step 10: the editor scrolls to the same far match.
-- Nothing is written: Inspect HTTP requests and responses shows only `GET /api/worktrees/<id>/text?path=long.txt` for the file, no `POST .../files`.
-- `apps/web/spec/integration/files-find.test.tsx`: `Mod+F` focuses "Find in file"; "needle" reads "1 of 2" with the early line visible; `Enter` reads "2 of 2" with the far line visible; "Previous match" reads "1 of 2"; `Escape` removes the field; in the editor `Mod+F` shows "Search" and `Enter` brings the far line into view.
-- `apps/web/spec/integration/reviews-sheet-focus.test.tsx`: after the file's text has loaded, reopening it from the review sheet and immediately pressing `Mod+F` focuses "Find in file". The input keeps focus as the sheet closes and accepts typed text.
+Verify navigation to far line 3902 in reader/editor. Only the text GET occurs; zero file-write POSTs.
+
+Automated coverage: `files-find.test.tsx`, `reviews-sheet-focus.test.tsx`.
 
 ## Gotchas
 
 - `Mod+F` opens the find bar only while the file shows as source and is not being edited; on a Markdown file in Reader or an HTML file in Preview it does nothing until you click tab "Source". It works with focus anywhere in the page (it is not ignored in inputs).
 - In the editor, the editor itself must hold focus for `Mod+F` to open its panel (step 9's click); otherwise nothing opens.
-- Matching is case-insensitive ("needle" matches "NEEDLE"); the count caps at `FILE_FIND_MAX_MATCHES` = 10000 and then reads "N of 10000+". An empty result reads "No results".
+- Matching is case-insensitive ("needle" matches "NEEDLE"); the count caps at 10,000 and then reads "N of 10000+". An empty result reads "No results".
 - A single click on `long.txt` (untracked, so a change) opens its diff, not the file; use the tree menu's "Open file".
-- The browser at the map viewport is 414 px wide: the tree lives in the sheet behind "Review", which closes when the file opens.

@@ -1,6 +1,7 @@
 import { CheckProjectService } from '@porcelain/projects/services';
-import { Context, Effect, Exit, Layer } from 'effect';
+import { Context, Effect, Layer } from 'effect';
 import type {
+  ReviewParams,
   ArchiveReviewRequest,
   ReviewArchivePlan,
 } from '@porcelain/contracts/reviews';
@@ -21,7 +22,7 @@ export class ArchiveReviewUseCase extends Context.Service<
   ArchiveReviewUseCase,
   {
     readonly execute: (
-      input: ArchiveReviewRequest & { reviewId: string },
+      input: ArchiveReviewRequest & ReviewParams,
     ) => Effect.Effect<
       { archived: boolean; plan: ReviewArchivePlan },
       ReviewNotFoundError | ProjectNotFoundError | ReviewArchiveRefusedError
@@ -69,10 +70,8 @@ export class ArchiveReviewUseCase extends Context.Service<
                   pull.pullRequest.state !== 'open',
               }),
             {
-              settled: (exit) =>
-                Exit.isSuccess(exit) && exit.value.archived
-                  ? events.inventoryChanged()
-                  : Effect.void,
+              succeeded: (value) =>
+                value.archived ? events.inventoryChanged() : Effect.void,
             },
           );
         }),

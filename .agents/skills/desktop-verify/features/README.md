@@ -1,13 +1,36 @@
 # Desktop feature map
 
-One file per native feature of the Mac app, named `<domain>.<capability>.md`: what only the Electron shell does, not the web inside it, which `web-verify` maps (its `shell: desktop` entries and `start --desktop`). Each says what the feature is, how a user reaches it, tool-neutral interactions through the renderer, raw Playwright Electron or Computer Use, with the end state to look for, the tests that guard it and its gotchas. `pnpm check` runs `node scripts/feature-maps.ts`, which checks frontmatter and file names, that declared tests exist, that selectors appear in desktop, web or shared client source, that API entries match endpoints declared in packages/contracts, that this index links every map, and that every e2e file in `apps/desktop/spec/e2e/` is referenced by a desktop map. It does not scan client call reachability or enforce prose or section order.
+Read [desktop verification](../SKILL.md) for lifecycle and raw Electron access. These maps cover the native shell; shared renderer behavior is in [the web index](../../web-verify/features/README.md).
 
-| Feature                                                   | What it does                                                                                                                                                                                                         |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [projects.folder-picker](projects.folder-picker.md)       | File › Open Project… and the Open project button open the native folder sheet directly; a chosen Git repository becomes a project, a cancel registers nothing, and the web never browses folders.                    |
-| [access.remote-credentials](access.remote-credentials.md) | Paired remote computers are kept encrypted through the Keychain in the profile, unreadable ones are never saved over, only the app's window may call the bridge, and their summaries load sandboxed through the app. |
-| [app.window](app.window.md)                               | The hidden-inset window keeps its sidebar clear of the traffic lights, restores its bounds and appearance, and closing it keeps the private loopback server that Quit stops.                                         |
-| [app.menus](app.menus.md)                                 | The application menu opens Settings and the folder sheet and offers zoom and full screen, with no Reload or Developer Tools outside a Vite development app.                                                          |
-| [app.installed-lock](app.installed-lock.md)               | The packaged launch-refusal rule rejects debugging before profile creation; fuse and signing assurance belongs to release verification.                                                                              |
-| [app.update](app.update.md)                               | Settings checks the release Mac app update feed, shows results and installs once; web and local builds hide the manual check.                                                                                        |
-| [app.mcp](app.mcp.md) | Settings supplies a quoted command for the running local app server; executable MCP mode connects before the desktop lock. |
+## Baseline preconditions
+
+- Set `C=.agents/skills/desktop-verify/scripts/cli` from the repository root; run `$C doctor`, then `$C start`. Use only the card's disposable Porcelain Dev identity and profile. Read private `connection.json`; set `REPO` to `fixtures.repositoryPath`.
+- The sample Git repository starts unregistered so the real folder sheet can register it. Project/worktree IDs are empty until opened; read `/api/inventory` through the renderer afterward.
+- Attach a browser driver to the card's renderer CDP endpoint and select `rendererUrl`, or select that exact development app through Computer Use. The renderer uses `porcelain://app` and its trusted bridge: do not pair or navigate it as an HTTP browser. Direct HTTP/WebSocket clients pair separately against the disposable server.
+
+## Driving conventions
+
+- Native menus, BrowserWindow and bridge journeys use the skill's in-process `startDesktop` lifecycle and raw Playwright Electron handle; CDP alone does not expose the main process. The caller owns `stop()` in `finally`. CLI stop/status applies only to registered CLI instances.
+- Use Computer Use for the actual macOS menu bar/folder sheet. A substituted picker answer proves bridge behavior separately. Match roles, accessible names and menu IDs; confirm the resulting renderer state and independent side effects.
+- Linux proves bounded launch, renderer inspection and shutdown only. Keychain, native macOS menus/sheets, Dock and full-screen transitions need macOS with its logged-in/unlocked session. Report unavailable surfaces explicitly.
+- Keep inherited environment/launch options, credentials and pairing codes private. `credentialFiles.remoteEncrypted` may not exist until a remote is saved. Keep evidence after stopping only this run's captured processes.
+
+## Feature entry contract
+
+Each map has one short behavior paragraph, then three sections: How to get to it (user POV), Driving it with the surface harness, and Gotchas. Keep user paths, stable handles, required state, commands and observable proof. Frontmatter keeps the route/screen, selectors, tests, API and optional desktop shell tag for `pnpm features:check`; it is not evidence that a journey passed.
+
+## Proof and skip reporting
+
+- Capture the action and result, with a fresh interactive snapshot and screenshot identifying the app and destination. Store driver actions, URL/title and diagnostics in the card's evidence directory; redact pairing fragments and credentials.
+- Verify mutations independently through the filesystem, Git, storage or the card's typed `$C server …` readbacks. A success toast alone is insufficient.
+- Report the map, entry points, platform, width and connection actually driven. Named automated tests, source review and live proof are separate results. An unmet precondition is a reported gap, never a reason to weaken the journey.
+- Restore mutated fixtures or restart the disposable instance before repeating. Stop with the card's command; retain evidence after cleanup.
+
+## Features
+
+- [access.remote-credentials](access.remote-credentials.md) — Encrypted credentials, unreadable storage and summaries.
+- [app.mcp](app.mcp.md) — Local MCP command and executable entry.
+- [app.menus](app.menus.md) — Settings, project, zoom and full-screen menus.
+- [app.update](app.update.md) — App update checks, download, installation and refusal.
+- [app.window](app.window.md) — Window restoration, appearance, close and quit.
+- [projects.folder-picker](projects.folder-picker.md) — Folder sheet, cancellation and project registration.

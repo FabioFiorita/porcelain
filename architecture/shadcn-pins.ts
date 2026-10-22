@@ -16,7 +16,7 @@ const pinsSchema = Schema.Record(
     }),
   ),
 );
-export type Pins = typeof pinsSchema.Type;
+type Pins = typeof pinsSchema.Type;
 export function digest(text: string): string {
   return createHash('sha256').update(text).digest('hex');
 }
@@ -28,7 +28,7 @@ export function uiFiles(root: string): string[] {
         .toSorted()
     : [];
 }
-export function readPins(root: string): { pins: Pins; problems: string[] } {
+function readPins(root: string): { pins: Pins; problems: string[] } {
   const path = join(root, pinsFile);
   if (!existsSync(path))
     return {

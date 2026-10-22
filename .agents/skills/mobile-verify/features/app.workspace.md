@@ -19,18 +19,26 @@ api:
 
 # app.workspace
 
-On iPad, a selected worktree owns one central document area and a right inspector with Files, Review and History modes. The left sidebar selects worktrees. The document tab strip is the top workspace header, with a native glass worktree-sidebar control before the first tab and an inspector control at the end. These controls and tabs remain visible regardless of inspector mode, active document or narrow-pane visibility. Worktree identity remains in the selected left navigator row. Phones retain their destination tabs and detail routes.
+Each iPad worktree retains its central document tabs and inspector selection when the user leaves and returns.
 
-Open a file through Files, a changed file through Review, and a commit and its file diff through History. Expect all documents in the same central tab strip. Opening an existing document activates its tab; closing inactive and active tabs selects the expected remaining document. Changing the inspector mode keeps both open tabs and the active central document. Search and folder expansion remain alive while switching inspector modes. No document selection pushes a native detail route on iPad.
+## How to get to it (user POV)
 
-Verify the header in landscape first: zero tabs shows No open tabs without a scroller; one and several fitting tabs have no scrolling or scroll indicator. Open enough documents, including a long filename, to overflow. The activated tab scrolls into view and a horizontal swipe reaches the other tabs. The focus underline belongs to the selected tab, not the whole strip. Close tabs below the overflow threshold and expect scrolling to stop. Toggle the sidebar, rotate, and resize: the strip measures its new width and keeps the selected tab visible. Repeat with a larger Dynamic Type size, then check portrait for reachable tabs and sidebar/inspector controls. Closing the last tab returns to No open tabs and Choose a document.
+- iPad workspace sidebar → worktree; Files, Review and History inspector modes → central document tabs.
 
-Each review tab retains its original Uncommitted or Branch/base comparison; changing the inspector comparison affects newly opened review documents and preserves the existing tabs. A commit tab retains its selected parent when reopened; each commit diff tab is identified by commit, parent and path. Live file changes still produce stale reviewed marks or No longer changed, using the existing shared readers.
+## Driving it with agent-device
 
-Open Settings, return to the worktree, and confirm its central tabs, active document, inspector mode, comparison and inspector visibility return. Switch to another worktree, open different documents, then return to the first: each worktree restores its own session. No contents or writes from the other worktree are offered. Tabs, selected documents and workspace layout are saved locally for relaunch; confirm both pane selections after a full reload.
+Preconditions: [surface baseline](README.md).
 
-Hide and show the inspector with the native right control. At wide widths it appears on the right beside the central document; at narrow widths it replaces the visible center in place. Selecting a file, review or commit from the narrow inspector shows its document again. Selecting an existing tab also reveals its content without hiding the persistent tab header. Resizing preserves the tabs and selection. Files remain read-only. Open and cancel comments with the code visible; unsent or pending comments guard tab changes, tab closes, Settings and worktree changes. Retain independent server readbacks for marks and comment anchors.
+1. In iPad landscape open a Files document, Review changed file, History commit and commit diff. All use one central tab strip; reopening activates the existing tab. Close active/inactive tabs; selection follows the remaining document. Inspector mode switches preserve tabs, active document, search and expanded folders without pushing native routes.
+2. Zero tabs shows No open tabs/Choose a document without a scroller. One/fitting tabs do not scroll. Open enough, including a long filename, to overflow: active tab scrolls into view, horizontal swipe reaches others and only its tab has the focus underline. Close below the threshold: scrolling stops. Toggle sidebar, rotate/resize and enlarge Dynamic Type: remeasured tabs keep selection visible and both pane controls reachable.
+3. Open Uncommitted and Branch/base reviews: each tab retains its captured comparison when the inspector changes. Commit tabs retain parent; diffs distinguish commit, parent and path. Independently change files: stale marks/No longer changed appear without leaking another worktree's content.
+4. Settings and back retain tabs, active document, inspector mode/comparison/visibility. Switch worktrees with different documents and back, then fully reload: each worktree restores its own saved session and pane selections.
+5. Hide/show inspector. Wide shows it beside the document; narrow replaces center in place. Selecting a document or existing tab reveals content under the persistent header. Open/cancel comments with code visible; unsent/pending drafts guard tab changes/close, Settings and worktree switches. Read marks/anchors independently.
+6. Files inspector's single-tap plus menu opens New file/New folder sheets; Cancel returns unchanged. Healthy iPad workspace/navigator has no routine refresh buttons; live updates work and errors retain recovery. Phones retain refresh controls.
 
-This map describes the implementation; native acceptance requires a fresh iPad walkthrough. Follow the feature maps for server fixtures, unsupported files, stale comments, merge parents, errors and reconnection.
+Automated coverage: `workspace-documents.spec.ts`, `document-tabs.spec.ts`, `document-tab-layout.spec.ts`, `workspace-session.spec.ts`.
 
-The Files inspector has a native plus menu opened by a single tap; New file and New folder keep the existing sheet and Cancel paths. Routine refresh buttons are absent from the iPad workspace and healthy worktree navigator. Live readers update them; actual errors and unavailable inventories keep their recovery actions. Phones retain native refresh controls. Git controls remain a separate follow-up, with no placeholder in this header.
+## Gotchas
+
+- Files is read-only. This iPad map needs landscape, portrait/narrow and larger-type proof; phone navigation does not establish it.
+- Use destination maps for fixtures, unsupported files, stale comments, merge parents and recovery. The header has no placeholder Git controls.

@@ -1,3 +1,7 @@
+import type {
+  ReviewParams,
+  SetReviewStateRequest,
+} from '@porcelain/contracts/reviews';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import { Context, Effect, Layer } from 'effect';
 import { SetReviewStateService } from '@porcelain/reviews/services';
@@ -8,10 +12,9 @@ import { LaneKeys } from '../../runtime/lane-keys.ts';
 export class SetReviewStateUseCase extends Context.Service<
   SetReviewStateUseCase,
   {
-    readonly execute: (input: {
-      reviewId: string;
-      state: 'closed';
-    }) => Effect.Effect<{ updated: boolean }, ReviewNotFoundError>;
+    readonly execute: (
+      input: ReviewParams & SetReviewStateRequest,
+    ) => Effect.Effect<{ updated: boolean }, ReviewNotFoundError>;
   }
 >()('@porcelain/server/SetReviewStateUseCase') {
   static readonly layer = Layer.effect(
@@ -26,12 +29,10 @@ export class SetReviewStateUseCase extends Context.Service<
           return yield* lanes.run(
             keys.reviews({ repositoryId: `review:${input.reviewId}` }),
             'write',
-            () =>
-              Effect.gen(function* () {
-                return yield* operation
-                  .execute(input)
-                  .pipe(Effect.tap(() => events.inventoryChanged()));
-              }),
+            () => operation.execute(input),
+            {
+              succeeded: () => events.inventoryChanged(),
+            },
           );
         }),
       };

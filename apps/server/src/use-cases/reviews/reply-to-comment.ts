@@ -6,6 +6,7 @@ import type {
   CommentLimitExceededError,
 } from '@porcelain/reviews/errors';
 import type {
+  CommentThreadTargetParams,
   ReviewScope,
   ReplyToCommentRequest,
   ReplyToCommentResponse,
@@ -27,7 +28,8 @@ export class ReplyToCommentUseCase extends Context.Service<
     readonly execute: (
       input: ReviewScope &
         ReplyToCommentRequest &
-        CommentAuthor & { threadId: string },
+        CommentAuthor &
+        CommentThreadTargetParams,
     ) => Effect.Effect<
       ReplyToCommentResponse,
       | WorktreeAccessFailure
@@ -64,14 +66,20 @@ export class ReplyToCommentUseCase extends Context.Service<
                       ...input,
                       worktreeId: review.worktreeId,
                     });
-                    yield* events.worktreeChanged({
-                      worktreeId: review.worktreeId,
-                      change: 'comments',
-                    });
-                    return result;
+                    return { result, worktreeId: review.worktreeId };
                   }),
+                {
+                  succeeded: (value) =>
+                    events.worktreeChanged({
+                      worktreeId: value.worktreeId,
+                      change: 'comments',
+                    }),
+                },
               )
-              .pipe(Effect.tap(() => events.inventoryChanged()));
+              .pipe(
+                Effect.tap(() => events.inventoryChanged()),
+                Effect.map(({ result }) => result),
+              );
           const worktreeId = input.worktreeId ?? '';
           const result = yield* access.transaction(
             worktreeId,

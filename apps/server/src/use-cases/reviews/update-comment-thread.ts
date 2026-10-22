@@ -4,6 +4,7 @@ import type {
   CommentTargetNotFoundError,
 } from '@porcelain/reviews/errors';
 import type {
+  CommentThreadTargetParams,
   ReviewScope,
   UpdateCommentThreadRequest,
   UpdateCommentThreadResponse,
@@ -22,7 +23,9 @@ export class UpdateCommentThreadUseCase extends Context.Service<
   UpdateCommentThreadUseCase,
   {
     readonly execute: (
-      input: ReviewScope & UpdateCommentThreadRequest & { threadId: string },
+      input: ReviewScope &
+        UpdateCommentThreadRequest &
+        CommentThreadTargetParams,
     ) => Effect.Effect<
       UpdateCommentThreadResponse,
       WorktreeAccessFailure | ReviewNotFoundError | CommentTargetNotFoundError
@@ -56,15 +59,22 @@ export class UpdateCommentThreadUseCase extends Context.Service<
                         ...input,
                         worktreeId: review.worktreeId,
                       });
-                      if (result.changed)
-                        yield* events.worktreeChanged({
-                          worktreeId: review.worktreeId,
-                          change: 'comments',
-                        });
-                      return result.thread;
+                      return { result, worktreeId: review.worktreeId };
                     }),
+                  {
+                    succeeded: (value) =>
+                      value.result.changed
+                        ? events.worktreeChanged({
+                            worktreeId: value.worktreeId,
+                            change: 'comments',
+                          })
+                        : Effect.void,
+                  },
                 )
-                .pipe(Effect.tap(() => events.inventoryChanged()));
+                .pipe(
+                  Effect.tap(() => events.inventoryChanged()),
+                  Effect.map(({ result }) => result.thread),
+                );
             const worktreeId = input.worktreeId ?? '';
             const result = yield* access.transaction(
               worktreeId,
