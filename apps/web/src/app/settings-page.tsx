@@ -51,6 +51,7 @@ import { NavigatorHeader, useInventory } from '@/features/projects/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
 import { desktopShell } from '@/shared/shell';
 import { copyText } from '@/shared/workspace/copy';
+import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 
 const archiveDescriptions = {
   archiveDeleteWorktree:
@@ -439,7 +440,10 @@ export function SettingsPage({
       );
     else void navigate({ to: '/' });
   };
-  useHotkey('Escape', leave, { target: page, ignoreInputs: true });
+  useHotkey(SHORTCUTS.closeSettings, leave, {
+    target: page,
+    ignoreInputs: true,
+  });
   return (
     <div className="h-svh min-w-0 flex-1 bg-muted p-2 text-ui text-foreground">
       <main

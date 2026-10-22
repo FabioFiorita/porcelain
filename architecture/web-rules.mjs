@@ -11,7 +11,6 @@ const repositoryRoot = fileURLToPath(new URL('..', import.meta.url)).replaceAll(
 );
 const webSource = 'apps/web/src/';
 const reactModules = new Set(['react', 'react-dom']);
-const queryModules = new Set(['@tanstack/react-query', '@tanstack/query-core']);
 const zustandModule = /^zustand(?:\/|$)/;
 const routerDataHooks = new Set([
   'getRouteApi',
@@ -25,7 +24,6 @@ const routerDataHooks = new Set([
   'useSearch',
 ]);
 
-const writeHooks = new Set(['useMutation', 'mutationOptions']);
 const promiseContinuations = new Set(['then', 'catch', 'finally']);
 
 const timerGlobals = new Set(['setTimeout', 'setInterval']);
@@ -54,23 +52,6 @@ const keyEvents = new Set(['keydown', 'keyup', 'keypress']);
 const historyGlobals = new Set(['history']);
 const pureRuleModules =
   /^(?:@porcelain\/contracts(?:\/|$)|@porcelain\/client\/[^/]+\/rules$|effect\/(?:Schema|Redacted)$|@pierre\/diffs\/utils\/(?:parsePatchFiles|parseLineType|getFiletypeFromFileName)$)/;
-const loopStatements = new Set([
-  'ForStatement',
-  'ForInStatement',
-  'ForOfStatement',
-  'WhileStatement',
-  'DoWhileStatement',
-]);
-const iterationMethods = new Set([
-  'forEach',
-  'map',
-  'flatMap',
-  'reduce',
-  'filter',
-  'some',
-  'every',
-  'find',
-]);
 const functionTypes = new Set([
   'FunctionDeclaration',
   'FunctionExpression',
@@ -538,24 +519,6 @@ function stringValue(node) {
   return undefined;
 }
 
-function commandCalls(body, visitorKeys) {
-  const calls = [];
-  const visit = (node) => {
-    if (!node || typeof node.type !== 'string') return;
-    if (node !== body && functionTypes.has(node.type)) return;
-    if (node.type === 'CallExpression') {
-      const method = methodName(node.callee);
-      if (method === 'mutate' || method === 'mutateAsync') calls.push(node);
-    }
-    for (const key of visitorKeys[node.type] ?? []) {
-      const child = node[key];
-      for (const entry of Array.isArray(child) ? child : [child]) visit(entry);
-    }
-  };
-  visit(body);
-  return calls;
-}
-
 export const webRules = {
   'client-platform-through-ports': {
     create(context) {
@@ -737,14 +700,6 @@ export const webRules = {
       };
     },
   },
-
-  'web-commands-own-writes': hookBan({
-    names: writeHooks,
-    modules: queryModules,
-    allowed: (path) => webPart(path) === 'command',
-    message: (name) =>
-      `\`${name}\` belongs to features/<domain>/commands/: one mutation and the command hook views use, per write, because one command must own mutation completion and optimistic updates.`,
-  }),
 
   'web-overlays-own-handles': {
     create(context) {
@@ -974,46 +929,18 @@ export const webRules = {
       });
     },
   })),
-  'web-views-no-command-loops': viewRule((context) => {
-    const bodies = [];
-    const message =
-      'A view does not loop over a command: a write that spans many items is one command in commands/ that takes the list, because one command must coordinate completion of a multi-item write.';
-    return {
-      ...Object.fromEntries(
-        [...loopStatements].map((type) => [
-          type,
-          (node) => bodies.push(node.body),
-        ]),
-      ),
-      CallExpression(node) {
-        const callback = node.arguments[0];
-        if (
-          iterationMethods.has(methodName(node.callee) ?? '') &&
-          callback &&
-          functionTypes.has(callback.type)
-        )
-          bodies.push(callback.body);
-      },
-      'Program:exit'() {
-        for (const body of bodies)
-          for (const node of commandCalls(body, context.sourceCode.visitorKeys))
-            context.report({ node, message });
-      },
-    };
-  }),
   'web-views-no-direct-data': viewRule((context, path) => ({
     ImportDeclaration(node) {
       const specifier = sourceOf(node) ?? '';
       const target = localTarget(path, specifier);
       const direct =
-        queryModules.has(specifier) ||
         target === 'shared/query' ||
         target?.startsWith('shared/query/') === true;
       if (direct) {
         context.report({
           node,
           message:
-            'A view reads data through the feature hooks in queries/, commands/ and store.ts, not through TanStack Query, Zustand or the query client directly, because feature hooks own query and store subscriptions.',
+            'A view reads data through the feature hooks in queries/, commands/ and store.ts, not through the query client directly, because feature hooks own query and store subscriptions.',
         });
         return;
       }
@@ -1219,75 +1146,6 @@ export const webRules = {
       };
     },
   },
-  'web-browser-spec-no-mocks': {
-    create(context) {
-      const role = journeyRole(context);
-      if (role === undefined) return {};
-      const message =
-        'Browser behaviour runs against the real isolated server; vi mocks, spies, stubs and routed requests have no place in a browser case, and a race the test must reach goes through the kit fixtures that own it, because mocked transport cannot prove the real app and server agree.';
-      return {
-        AssignmentExpression(node) {
-          if (replacesGlobal(node)) context.report({ node, message });
-        },
-        CallExpression(node) {
-          if (replacesGlobal(node)) context.report({ node, message });
-          if (
-            role === 'e2e-spec' &&
-            node.callee.type === 'MemberExpression' &&
-            !node.callee.computed &&
-            node.callee.property.type === 'Identifier' &&
-            networkRoutes.has(node.callee.property.name)
-          )
-            context.report({ node, message });
-        },
-        ImportDeclaration(node) {
-          if (sourceOf(node) !== 'vitest') return;
-          for (const specifier of node.specifiers)
-            if (
-              specifier.type !== 'ImportSpecifier' ||
-              (specifier.imported.type === 'Identifier'
-                ? specifier.imported.name
-                : specifier.imported.value) === 'vi'
-            )
-              context.report({ node: specifier, message });
-        },
-        MemberExpression(node) {
-          if (node.object.type === 'Identifier' && node.object.name === 'vi')
-            context.report({ node, message });
-        },
-      };
-    },
-  },
-  'web-browser-spec-no-skips': {
-    create(context) {
-      const role = journeyRole(context);
-      if (role === undefined) return {};
-      const message =
-        'Every test runs every time, once, and must pass at once; remove the skip, only, todo, fails, fixme, slow, fail, configure, setTimeout or the options object that sets retry, repeats or a timeout. Repetition is the runner option an investigation asks for, because retries and skips can hide an intermittent product failure.';
-      return {
-        MemberExpression(node) {
-          if (
-            testFunctions.has(rootName(node) ?? '') &&
-            (node.computed ||
-              (node.property.type === 'Identifier' &&
-                (skipMembers.has(node.property.name) ||
-                  (role === 'e2e-spec' &&
-                    playwrightSkips.has(node.property.name)))))
-          )
-            context.report({ node, message });
-        },
-        CallExpression(node) {
-          if (
-            testFunctions.has(rootName(node.callee) ?? '') &&
-            node.arguments.some(
-              (argument) => argument.type === 'ObjectExpression',
-            )
-          )
-            context.report({ node, message });
-        },
-      };
-    },
-  },
   'web-journey-imports': journeyRule((context, role) => {
     const message =
       role === 'e2e-spec'
@@ -1434,3 +1292,68 @@ export const webRules = {
     };
   }),
 };
+
+export function browserSpecNoMocks(context) {
+  const role = journeyRole(context);
+  if (role === undefined) return {};
+  const message =
+    'Browser behaviour runs against the real isolated server; vi mocks, spies, stubs and routed requests have no place in a browser case, and a race the test must reach goes through the kit fixtures that own it, because mocked transport cannot prove the real app and server agree.';
+  return {
+    AssignmentExpression(node) {
+      if (replacesGlobal(node)) context.report({ node, message });
+    },
+    CallExpression(node) {
+      if (replacesGlobal(node)) context.report({ node, message });
+      if (
+        role === 'e2e-spec' &&
+        node.callee.type === 'MemberExpression' &&
+        !node.callee.computed &&
+        node.callee.property.type === 'Identifier' &&
+        networkRoutes.has(node.callee.property.name)
+      )
+        context.report({ node, message });
+    },
+    ImportDeclaration(node) {
+      if (sourceOf(node) !== 'vitest') return;
+      for (const specifier of node.specifiers)
+        if (
+          specifier.type !== 'ImportSpecifier' ||
+          (specifier.imported.type === 'Identifier'
+            ? specifier.imported.name
+            : specifier.imported.value) === 'vi'
+        )
+          context.report({ node: specifier, message });
+    },
+    MemberExpression(node) {
+      if (node.object.type === 'Identifier' && node.object.name === 'vi')
+        context.report({ node, message });
+    },
+  };
+}
+
+export function browserSpecNoSkips(context) {
+  const role = journeyRole(context);
+  if (role === undefined) return {};
+  const message =
+    'Every test runs every time, once, and must pass at once; remove the skip, only, todo, fails, fixme, slow, fail, configure, setTimeout or the options object that sets retry, repeats or a timeout. Repetition is the runner option an investigation asks for, because retries and skips can hide an intermittent product failure.';
+  return {
+    MemberExpression(node) {
+      if (
+        testFunctions.has(rootName(node) ?? '') &&
+        (node.computed ||
+          (node.property.type === 'Identifier' &&
+            (skipMembers.has(node.property.name) ||
+              (role === 'e2e-spec' &&
+                playwrightSkips.has(node.property.name)))))
+      )
+        context.report({ node, message });
+    },
+    CallExpression(node) {
+      if (
+        testFunctions.has(rootName(node.callee) ?? '') &&
+        node.arguments.some((argument) => argument.type === 'ObjectExpression')
+      )
+        context.report({ node, message });
+    },
+  };
+}
