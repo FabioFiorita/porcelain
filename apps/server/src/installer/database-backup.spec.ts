@@ -325,13 +325,16 @@ it.each([
     sqliteSnapshot(source, 'restore me');
     const current = snapshotBytes(data);
     const original = snapshotBytes(source);
-    for (let attempt = 0; attempt < 2; attempt++) {
-      await expect(
-        restore(data, source, false, { direction, file }),
-      ).rejects.toThrow();
-      expect(snapshotBytes(data)).toEqual(current);
-      expect(snapshotBytes(source)).toEqual(original);
-    }
+    await expect(
+      restore(data, source, false, { direction, file }),
+    ).rejects.toThrow();
+    expect(snapshotBytes(data)).toEqual(current);
+    expect(snapshotBytes(source)).toEqual(original);
+    await expect(
+      restore(data, source, false, { direction, file }),
+    ).rejects.toThrow();
+    expect(snapshotBytes(data)).toEqual(current);
+    expect(snapshotBytes(source)).toEqual(original);
     if (state !== 'empty') expect(savedValue(data)).toBe('keep me');
     await restore(data, source);
     expect(savedValue(data)).toBe('restore me');

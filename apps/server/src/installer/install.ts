@@ -119,11 +119,11 @@ export const install = Effect.fn('Installer.install')(function* (
             ),
           );
         }
-        if (backupComplete)
-          yield* restoreDatabase(settings.dataDirectory, backup);
         yield* fs.remove(paths.runtime, { recursive: true, force: true });
         yield* fs.remove(paths.installed, { force: true });
         yield* fs.remove(staging, { recursive: true, force: true });
+        if (backupComplete)
+          yield* restoreDatabase(settings.dataDirectory, backup);
         return yield* Effect.fail(error);
       }),
     ),

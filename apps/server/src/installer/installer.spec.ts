@@ -298,6 +298,50 @@ afterEach(async () => {
   rmSync(home, { recursive: true, force: true });
 });
 
+it.each(['corrupt', 'zero-byte'] as const)(
+  'failed initial install with %s preinstall data remains retryable and retains the data and backup',
+  async (state) => {
+    candidate();
+    rejectCandidate = true;
+    mutateDatabase = false;
+    const original = state === 'corrupt' ? 'corrupt SQLite data' : '';
+    writeFileSync(database(), original);
+    await expect(
+      execute(
+        { action: 'install', settings: { dataDirectory: data, port: 4737 } },
+        '2.0.0',
+      ),
+    ).rejects.toThrow('Could not prepare database backup');
+    expect(existsSync(runtime())).toBe(false);
+    expect(existsSync(join(root, 'installed.json'))).toBe(false);
+    expect(
+      existsSync(join(home, '.config/systemd/user/porcelain.service')),
+    ).toBe(false);
+    expect(readFileSync(database(), 'utf8')).toBe(original);
+    const backups = readdirSync(join(root, 'database-backups'));
+    expect(backups).toHaveLength(1);
+    expect(
+      readFileSync(
+        join(
+          root,
+          'database-backups',
+          backups[0] ?? 'missing-backup',
+          'inventory.sqlite',
+        ),
+        'utf8',
+      ),
+    ).toBe(original);
+    writeDatabase(database(), 'repaired data');
+    rejectCandidate = false;
+    await execute(
+      { action: 'install', settings: { dataDirectory: data, port: 4737 } },
+      '2.0.0',
+    );
+    expect(record('installed.json')).toEqual({ version: '2.0.0' });
+    expect(readDatabase(database())).toBe('repaired data');
+  },
+);
+
 it('installs the runtime, private logs, unit and persistent records and updates only after backing up the database', async () => {
   await install();
   expect(record('installed.json')).toEqual({ version: '1.0.0' });
@@ -829,16 +873,21 @@ it.each([
         };
       }).pipe(Effect.provide(NodeServices.layer)),
     );
-    for (let attempt = 0; attempt < 2; attempt++) {
-      failRename = true;
-      await expect(
-        execute({ action: 'recover' }, '2.0.0', source, files),
-      ).rejects.toThrow(
-        failure === 'promotion-failure'
-          ? 'Could not promote database backup'
-          : 'Could not prepare database backup',
-      );
-    }
+    await expect(
+      execute({ action: 'recover' }, '2.0.0', source, files),
+    ).rejects.toThrow(
+      failure === 'promotion-failure'
+        ? 'Could not promote database backup'
+        : 'Could not prepare database backup',
+    );
+    failRename = true;
+    await expect(
+      execute({ action: 'recover' }, '2.0.0', source, files),
+    ).rejects.toThrow(
+      failure === 'promotion-failure'
+        ? 'Could not promote database backup'
+        : 'Could not prepare database backup',
+    );
     expect(existsSync(database())).toBe(true);
     expect(readDatabase(database())).toBe('newer surviving data');
     expect(JSON.parse(readFileSync(manifest(runtime()), 'utf8'))).toMatchObject(
