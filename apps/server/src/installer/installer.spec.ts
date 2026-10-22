@@ -22,6 +22,7 @@ import { tmpdir } from 'node:os';
 import { DatabaseSync } from 'node:sqlite';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
+import type { OwnerProbe } from '../ports/owner-probe.ts';
 import { acquireDirectoryLock } from '../runtime/directory-lock.ts';
 import { Installer, InstallerOptions } from './installer.ts';
 
@@ -35,6 +36,7 @@ let rejectDownload: boolean;
 let rejectCandidate: boolean;
 let mutateDatabase: boolean;
 let rejectRetention: boolean;
+let rejectStart: boolean;
 let commands: string[];
 let searchPath: string;
 
@@ -135,6 +137,8 @@ const command = Effect.fn('Test.installerCommand')(
         return ok();
       }
       if (args.includes('enable') || args.includes('start')) {
+        if (rejectStart)
+          return { code: 1, stdout: '', stderr: 'service startup failed' };
         await stopService();
         service = spawn(
           process.execPath,
@@ -172,6 +176,7 @@ const execute = (
   version = '1.0.0',
   packageRoot = source,
   fileSystem?: FileSystem.FileSystem,
+  probe?: OwnerProbe['probe'],
 ) =>
   Effect.runPromise(
     Effect.gen(function* () {
@@ -204,7 +209,7 @@ const execute = (
                           pollMs: 1,
                         },
                       },
-                      health: { attempts: 1, intervalMs: 1 },
+                      health: { attempts: 3, intervalMs: 1 },
                     },
                     locks: { startupWaitMs: 25, pollMs: 1, staleTakeovers: 1 },
                     owner: {
@@ -216,29 +221,31 @@ const execute = (
                     },
                   },
                   ownerProbe: {
-                    probe: () =>
-                      Effect.sync(() => {
-                        if (service === undefined)
-                          return { kind: 'absent' as const };
-                        if (
-                          rejectCandidate &&
-                          readFileSync(manifest(runtime()), 'utf8').includes(
-                            '2.0.0',
+                    probe:
+                      probe ??
+                      (() =>
+                        Effect.sync(() => {
+                          if (service === undefined)
+                            return { kind: 'absent' as const };
+                          if (
+                            rejectCandidate &&
+                            readFileSync(manifest(runtime()), 'utf8').includes(
+                              '2.0.0',
+                            )
                           )
-                        )
+                            return {
+                              kind: 'unreadable' as const,
+                              reason: 'candidate cannot start',
+                            };
                           return {
-                            kind: 'unreadable' as const,
-                            reason: 'candidate cannot start',
+                            kind: 'running' as const,
+                            status: {
+                              address: 'http://127.0.0.1:4737',
+                              dataDirectory: data,
+                              pid: service.pid ?? 0,
+                            },
                           };
-                        return {
-                          kind: 'running' as const,
-                          status: {
-                            address: 'http://127.0.0.1:4737',
-                            dataDirectory: data,
-                            pid: service.pid ?? 0,
-                          },
-                        };
-                      }),
+                        })),
                   },
                 };
               }),
@@ -281,6 +288,7 @@ beforeEach(() => {
   rejectCandidate = false;
   mutateDatabase = false;
   rejectRetention = false;
+  rejectStart = false;
   commands = [];
   searchPath = '/usr/bin';
 });
@@ -835,5 +843,229 @@ it.each(['missing', 'corrupt', 'copy-failure'] as const)(
       action: 'recover',
       result: { recovered: false },
     });
+  },
+);
+
+function healthyJournal() {
+  renameSync(runtime(), join(root, 'runtime.previous'));
+  writeRuntime(runtime(), '2.0.0');
+  writeRuntime(join(root, 'runtime.next'), '2.0.0');
+  writeDatabase(database(), 'newer writes after healthy update');
+  writeFileSync(join(root, 'installed.json'), '{"version":"2.0.0"}');
+  const backup = join(root, 'saved-database');
+  mkdirSync(backup);
+  writeDatabase(join(backup, 'inventory.sqlite'), 'older snapshot');
+  const journal = JSON.stringify({
+    installed: { version: '1.0.0' },
+    backup,
+    target: '2.0.0',
+    healthy: true,
+  });
+  writeFileSync(join(root, 'update.json'), journal);
+  return { backup, journal };
+}
+
+const recoveryProbe =
+  (
+    failure: 'absent' | 'unreadable' | 'wrong-pid' | 'wrong-directory',
+  ): OwnerProbe['probe'] =>
+  () =>
+    Effect.sync(() => {
+      if (failure === 'absent') return { kind: 'absent' as const };
+      if (failure === 'unreadable')
+        return {
+          kind: 'unreadable' as const,
+          reason: 'owner response unavailable',
+        };
+      return {
+        kind: 'running' as const,
+        status: {
+          address: 'http://127.0.0.1:4737',
+          pid:
+            failure === 'wrong-pid'
+              ? (service?.pid ?? 0) + 1
+              : (service?.pid ?? 0),
+          dataDirectory:
+            failure === 'wrong-directory' ? join(home, 'different-data') : data,
+        },
+      };
+    });
+
+it.each([
+  'absent',
+  'unreadable',
+  'wrong-pid',
+  'wrong-directory',
+  'startup-failure',
+] as const)(
+  'healthy journal restart must prove current readiness after %s and remain retryable',
+  async (failure) => {
+    await install();
+    await stopService();
+    const { backup, journal } = healthyJournal();
+    writeFileSync(
+      join(root, 'update-record.json'),
+      '{"from":"1.0.0","target":"2.0.0","stage":"restarting"}',
+    );
+    const probe =
+      failure === 'startup-failure' ? undefined : recoveryProbe(failure);
+    rejectStart = failure === 'startup-failure';
+    await expect(
+      execute({ action: 'recover' }, '2.0.0', source, undefined, probe),
+    ).rejects.toThrow(
+      failure === 'startup-failure'
+        ? 'service startup failed'
+        : 'did not become healthy',
+    );
+    await expect(
+      execute({ action: 'recover' }, '2.0.0', source, undefined, probe),
+    ).rejects.toThrow(
+      failure === 'startup-failure'
+        ? 'service startup failed'
+        : 'did not become healthy',
+    );
+    expect(readDatabase(database())).toBe('newer writes after healthy update');
+    expect(readDatabase(join(backup, 'inventory.sqlite'))).toBe(
+      'older snapshot',
+    );
+    expect(readFileSync(join(root, 'update.json'), 'utf8')).toBe(journal);
+    expect(existsSync(join(root, 'runtime.previous'))).toBe(true);
+    expect(existsSync(join(root, 'runtime.next'))).toBe(true);
+    expect(record('installed.json')).toEqual({ version: '2.0.0' });
+    expect(record('update-record.json')).toEqual({
+      from: '1.0.0',
+      target: '2.0.0',
+      stage: 'restarting',
+    });
+    rejectStart = false;
+    expect(await execute({ action: 'recover' })).toEqual({
+      action: 'recover',
+      result: { recovered: true },
+    });
+    expect(readDatabase(database())).toBe('newer writes after healthy update');
+    expect(existsSync(join(root, 'runtime.previous'))).toBe(false);
+    expect(existsSync(join(root, 'runtime.next'))).toBe(false);
+    expect(existsSync(join(root, 'update.json'))).toBe(false);
+    expect(record('update-record.json')).toEqual({
+      from: '1.0.0',
+      target: '2.0.0',
+      stage: 'updated',
+    });
+    expect(await execute({ action: 'recover' })).toEqual({
+      action: 'recover',
+      result: { recovered: false },
+    });
+  },
+);
+
+it('retains healthy recovery state until the expected owner eventually answers', async () => {
+  await install();
+  await stopService();
+  healthyJournal();
+  const observed: boolean[] = [];
+  const probe: OwnerProbe['probe'] = () =>
+    Effect.sync(() => {
+      observed.push(
+        existsSync(join(root, 'runtime.previous')) &&
+          existsSync(join(root, 'update.json')) &&
+          existsSync(join(root, 'runtime.next')),
+      );
+      if (observed.length < 3) return { kind: 'absent' as const };
+      return {
+        kind: 'running' as const,
+        status: {
+          address: 'http://127.0.0.1:4737',
+          pid: service?.pid ?? 0,
+          dataDirectory: data,
+        },
+      };
+    });
+  expect(
+    await execute({ action: 'recover' }, '2.0.0', source, undefined, probe),
+  ).toEqual({ action: 'recover', result: { recovered: true } });
+  expect(observed).toEqual([true, true, true]);
+  expect(readDatabase(database())).toBe('newer writes after healthy update');
+  expect(existsSync(join(root, 'update.json'))).toBe(false);
+});
+
+it.each([
+  'absent',
+  'unreadable',
+  'wrong-pid',
+  'wrong-directory',
+  'startup-failure',
+] as const)(
+  'ordinary service recovery rejects %s instead of reporting readiness',
+  async (failure) => {
+    await install();
+    await stopService();
+    rejectStart = failure === 'startup-failure';
+    const probe =
+      failure === 'startup-failure' ? undefined : recoveryProbe(failure);
+    await expect(
+      execute({ action: 'recover' }, '1.0.0', source, undefined, probe),
+    ).rejects.toThrow(
+      failure === 'startup-failure'
+        ? 'service startup failed'
+        : 'did not become healthy',
+    );
+    await expect(
+      execute({ action: 'recover' }, '1.0.0', source, undefined, probe),
+    ).rejects.toThrow(
+      failure === 'startup-failure'
+        ? 'service startup failed'
+        : 'did not become healthy',
+    );
+    expect(readDatabase(database())).toBe('database before update');
+    expect(record('installed.json')).toEqual({ version: '1.0.0' });
+    expect(existsSync(join(root, 'update.json'))).toBe(false);
+  },
+);
+
+it('reports ordinary recovery only after the restarted owner eventually answers', async () => {
+  await install();
+  await stopService();
+  let attempts = 0;
+  const probe: OwnerProbe['probe'] = () =>
+    Effect.sync(() => {
+      attempts++;
+      if (attempts < 3) return { kind: 'absent' as const };
+      return {
+        kind: 'running' as const,
+        status: {
+          address: 'http://127.0.0.1:4737',
+          pid: service?.pid ?? 0,
+          dataDirectory: data,
+        },
+      };
+    });
+  expect(
+    await execute({ action: 'recover' }, '1.0.0', source, undefined, probe),
+  ).toEqual({ action: 'recover', result: { recovered: true } });
+  expect(attempts).toBe(3);
+  expect(readDatabase(database())).toBe('database before update');
+  expect(await execute({ action: 'recover' })).toEqual({
+    action: 'recover',
+    result: { recovered: false },
+  });
+});
+
+it.each(['absent', 'unreadable', 'wrong-pid', 'wrong-directory'] as const)(
+  'already running service recovery rejects %s without restarting or changing data',
+  async (failure) => {
+    await install();
+    const pid = service?.pid;
+    await expect(
+      execute(
+        { action: 'recover' },
+        '1.0.0',
+        source,
+        undefined,
+        recoveryProbe(failure),
+      ),
+    ).rejects.toThrow('did not become healthy');
+    expect(service?.pid).toBe(pid);
+    expect(readDatabase(database())).toBe('database before update');
+    expect(record('installed.json')).toEqual({ version: '1.0.0' });
   },
 );
