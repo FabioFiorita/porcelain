@@ -16,13 +16,13 @@ Simple systems, the smallest model that makes the correct behaviour unsurprising
 
 Agents author this codebase. Prefer one enforced, typed abstraction per responsibility; dependency requirements and invalid alternatives should fail before runtime. Familiarity with the old implementation is not a reason to preserve it: when a new path replaces an old one, move every caller and delete the old path and its tests in the same change.
 
-The codebase is the example. Copy the nearest feature's shape, and extract a second copy into its owner rather than pasting it. TypeScript, Oxlint, Oxfmt and the architecture check are the rulebook, and every lint message says why its rule exists: when one blocks you, change the code. When a rule fights the task itself, say so and ask before changing the rule.
+The codebase is the example. Copy the nearest feature's shape, and extract a second copy into its owner rather than pasting it. TypeScript, Oxlint, Oxfmt and the architecture check are the rulebook, and every lint message says why its rule exists: when one blocks you, change the code. When a rule fights the task itself, say so and ask before changing the rule. Code comments, including `@ts-ignore`, are banned by `no-comments`: express rules in code or a verification skill, because comment prose can drift from the behavior enforced by executable checks.
 
 ## Ways to hurt yourself
 
 1. **Killing by pattern.** Stop only processes you started, by the PID you captured; the verification CLIs stop their own instances. Your own agent's command line contains the worktree path, and other worktrees run on the same machine.
 2. **Touching the installed app.** Never build, install or launch the installed Porcelain app or service, and never point a test at its data. Development uses disposable instances and `pnpm dev --desktop` (Porcelain Dev, with its own profile).
-3. **Running whole suites locally.** CI runs every suite on each pull request, free. A full local run has exhausted these machines before.
+3. **Running whole suites locally.** CI selects affected runtime suites with `--affected`; its `checks` gate requires the selected jobs. A full local run has exhausted these machines before.
 
 ## Hit every surface
 
@@ -77,7 +77,7 @@ Prove a new or changed test can fail: revert the change it protects, watch it fa
 
 ## Verifying
 
-Prove a change with the smallest local proof: `pnpm check:local`, the test files you changed by name, and the feature driven through its surface's skill (`server-verify`, `web-verify`, `desktop-verify`, `mobile-verify`). Each skill's CLI at `scripts/cli` prepares a disposable instance, publishes its connections, records deterministic fixture operations and owns cleanup; the agent drives the surface with its harness tools and retains evidence. Its feature map (or the server contract) says how to reach each feature. CI runs `pnpm check` and owns the full suites. A guardrail change proves its rule with a fixture in `architecture/rule-cases.mjs`.
+Prove a change with the smallest local proof: `pnpm check:local`, the test files you changed by name, and the feature driven through its surface's skill (`server-verify`, `web-verify`, `desktop-verify`, `mobile-verify`). Each skill's CLI at `scripts/cli` prepares a disposable instance, publishes its connections, records deterministic fixture operations and owns cleanup; the agent drives the surface with its harness tools and retains evidence. Its feature map (or the server contract) says how to reach each feature. CI runs `pnpm check:static --affected`, `pnpm test` and the selected runtime jobs. A guardrail change proves its rule with a fixture in `architecture/rule-cases.mjs`.
 
 While you iterate with the developer, keep one verification instance running between edits and restart it only when its skill says the edit requires it; it is their preview too. Run the changed E2E specs once, when the work is done.
 
@@ -92,11 +92,9 @@ Name its door under Risks, and prepare it for landing by it:
 - A two-way door, easy to revert, is ready when its own head commit has green required checks; it does not need the latest `main`. Never run `gh pr update-branch`.
 - A one-way door, such as data loss, a migration, a public contract, a rule change or a release, opens the body with what needs deciding and requires the owner's approval before landing.
 
-Workers open the pull request, wait for green CI, fix failures, then stop and hand off its URL and full head commit. Never enable auto-merge. The orchestrator owns landing order and explicitly squash-merges one pull request at a time. Immediately before each merge, re-read its head and confirm fresh green required checks and any required owner approval for that commit.
+Workers open the pull request, wait for green CI, fix failures, then stop and hand off its URL and full head commit. Never enable auto-merge.
 
-Use the direct GitHub merge API: `PUT repos/{repo}/pulls/{number}/merge` with `sha` set to that checked head commit and `merge_method` set to `squash`, so a changed head cannot land on stale evidence. If the API refuses the merge, stop without enqueueing, enabling auto-merge, using an admin bypass or falling back to another merge path. Require a successful response with `merged: true` and confirm the pull request is actually merged before attempting the next one. Do not update a branch merely because it is behind `main`.
-
-The worker's work is done when its head commit has green CI, not when the pull request opens. When `main` turns red after a pull request merges, fix it forward with a follow-up pull request instead of reverting.
+When `main` turns red after a pull request merges, fix it forward with a follow-up pull request instead of reverting.
 
 ## Where code lives
 
