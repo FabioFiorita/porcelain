@@ -22,7 +22,7 @@ The checks and attachments the agent published with its review open as a Proof d
 
 - Review (sheet at phone width) → tab "Review" → nav "Walkthrough"'s proof row, named `Proof · <status>` (for example "Proof · 1 failing").
 - Review → Readiness → the checks line ("1 of 2 checks failing", "2 checks passed", "Checks ran before the latest changes"...) opens the same document.
-- The walkthrough's briefing: section "Evidence" → button "Open proof".
+- The walkthrough's briefing: section "Proven at <head>" shows all checks, output and image/video/link attachments directly, including stale-proof and failed-check notices. The Proof tab also remains available.
 - Inside a decision stop, the checks attached to that decision show in list "Checks for this decision" below its steps.
 
 ## Driving it with browser

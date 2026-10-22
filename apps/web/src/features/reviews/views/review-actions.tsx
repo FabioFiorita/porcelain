@@ -12,14 +12,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { MoreHorizontalIcon } from 'lucide-react';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 
 export function ReviewActions({
@@ -40,77 +34,66 @@ export function ReviewActions({
   const removed = deletion.result;
   const pending = closed.waiting || removed.waiting;
   return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              aria-label="Review actions"
-            />
-          }
-        >
-          <MoreHorizontalIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {state === 'open' && (
-            <DropdownMenuItem disabled={pending} onClick={() => close()}>
-              Close review
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem
-            variant="destructive"
+    <AlertDialog
+      open={confirming}
+      onOpenChange={(open) => {
+        if (!removed.waiting) setConfirming(open);
+      }}
+    >
+      <div className="flex flex-col items-start gap-1">
+        {state === 'open' && (
+          <Button
+            size="xs"
+            variant="ghost"
             disabled={pending}
-            onClick={() => setConfirming(true)}
+            onClick={() => close()}
           >
-            Delete review
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            Close review
+          </Button>
+        )}
+        <AlertDialogTrigger
+          disabled={pending}
+          render={<Button size="xs" variant="destructive" />}
+        >
+          Delete review…
+        </AlertDialogTrigger>
+      </div>
       {AsyncResult.isFailure(closed) && (
-        <p role="alert" className="w-full text-sm text-destructive">
+        <p role="alert" className="text-sm text-destructive">
           The review could not be closed. Try again.
         </p>
       )}
-      <AlertDialog
-        open={confirming}
-        onOpenChange={(open) => {
-          if (!removed.waiting) setConfirming(open);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete review?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently deletes every revision, proof asset, comment and
-              mark owned by this review for everyone connected.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {AsyncResult.isFailure(removed) && (
-            <p role="alert" className="text-sm text-destructive">
-              The review could not be deleted. Try again.
-            </p>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={removed.waiting}>
-              Cancel
-            </AlertDialogCancel>
-            <Button
-              variant="destructive"
-              disabled={removed.waiting}
-              onClick={() => {
-                deletion.send(undefined, () => {
-                  setConfirming(false);
-                  onDeleted();
-                });
-              }}
-            >
-              {removed.waiting ? 'Deleting…' : 'Delete'}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete review?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This permanently deletes every revision, proof asset, comment and
+            mark owned by this review for everyone connected.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {AsyncResult.isFailure(removed) && (
+          <p role="alert" className="text-sm text-destructive">
+            The review could not be deleted. Try again.
+          </p>
+        )}
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={removed.waiting}>
+            Cancel
+          </AlertDialogCancel>
+          <Button
+            variant="destructive"
+            disabled={removed.waiting}
+            onClick={() => {
+              deletion.send(undefined, () => {
+                setConfirming(false);
+                onDeleted();
+              });
+            }}
+          >
+            {removed.waiting ? 'Deleting…' : 'Delete'}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
