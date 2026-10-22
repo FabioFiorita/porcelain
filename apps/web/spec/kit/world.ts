@@ -1,8 +1,6 @@
 import { durableReviewFixture } from './review-fixture.ts';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { Schema } from 'effect';
-import { readServiceUpdateResponseSchema } from '@porcelain/contracts/access';
 import { agentActs } from '@porcelain/server/kit/agent';
 import {
   IsolatedServer,
@@ -123,15 +121,7 @@ export class World {
         'service-update-fixture.json',
       );
       if (step.state === null) await rm(path, { force: true });
-      else
-        await writeFile(
-          path,
-          JSON.stringify(
-            step.state === 'error'
-              ? 'error'
-              : Schema.encodeSync(readServiceUpdateResponseSchema)(step.state),
-          ),
-        );
+      else await writeFile(path, JSON.stringify(step.state));
       return '';
     }
     if (step.kind === 'review-fixture')

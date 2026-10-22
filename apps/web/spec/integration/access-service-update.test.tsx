@@ -92,10 +92,11 @@ test.for([1440, 414])(
       const before = await server.serviceUpdateReads();
       await repo.serviceUpdate('error');
       await update.click();
+      await expect.poll(() => server.serviceUpdateReads()).toBe(before + 1);
       await expect
         .element(page.getByText('The update check failed', { exact: true }))
         .toBeVisible();
-      await expect.element(update).not.toBeVisible();
+      await expect.element(update).not.toBeInTheDocument();
       await expect
         .element(page.getByText('Updates available', { exact: true }))
         .not.toBeInTheDocument();
@@ -104,7 +105,6 @@ test.for([1440, 414])(
           page.getByRole('button', { name: 'Update all (0)', exact: true }),
         )
         .toBeDisabled();
-      await expect.poll(() => server.serviceUpdateReads()).toBe(before + 1);
       await repo.serviceUpdate(offered);
       await page
         .getByRole('button', { name: 'Try again', exact: true })

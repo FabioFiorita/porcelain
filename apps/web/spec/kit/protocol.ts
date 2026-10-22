@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import type { ReadServiceUpdateResponse } from '@porcelain/contracts/access';
+import type { readServiceUpdateResponseSchema } from '@porcelain/contracts/access';
 import type { AgentAction } from '@porcelain/server/kit/session';
 
 export type {
@@ -29,7 +29,7 @@ export type RepoStep =
     }
   | {
       kind: 'service-update-fixture';
-      state: ReadServiceUpdateResponse | 'error' | null;
+      state: typeof readServiceUpdateResponseSchema.Encoded | 'error' | null;
     }
   | { kind: 'write'; path: string; text: string }
   | { kind: 'remove'; path: string }
