@@ -45,7 +45,7 @@ export function PierreFileTree(props: PierreFileTreeInput) {
   if (menuOpen && !current) setMenuOpen(false);
   function attach(host: HTMLDivElement | null) {
     if (!host) return;
-    return mountTree(host, registry, input, setMenuTarget);
+    return mountTree(host, registry, input, setMenuTarget, setMenuOpen);
   }
   return (
     <ContextMenu open={menuOpen && current} onOpenChange={setMenuOpen}>
@@ -92,6 +92,7 @@ function mountTree(
   registry: AtomRegistry.AtomRegistry,
   input: Atom.Writable<Option.Option<PierreFileTreeInput>>,
   setMenuTarget: (target: MenuTarget | null) => void,
+  setMenuOpen: (open: boolean) => void,
 ) {
   const read = () => Option.getOrThrow(registry.get(input));
   let active = true;
@@ -233,6 +234,7 @@ function mountTree(
   }
 
   function reset() {
+    if (pendingCreate) return;
     const { selected } = read();
     const shown = read().paths;
     if (reveal.selected !== selected) reveal = { selected, complete: false };
@@ -249,7 +251,7 @@ function mountTree(
     syncing = true;
     {
       const revealPaths = reveal.complete ? [] : selectedDirectories(selected);
-      model.resetPaths(pendingCreate ? [...shown, pendingCreate.path] : shown, {
+      model.resetPaths(shown, {
         initialExpandedPaths: [...new Set([...expanded, ...revealPaths])],
       });
       const selectedItem = model.getItem(selected);
@@ -297,6 +299,11 @@ function mountTree(
           target instanceof HTMLInputElement &&
           target.hasAttribute('data-item-rename-input'),
       );
+    if (input?.value.trim() === '') {
+      pendingCreate = null;
+      frame(reset);
+      return;
+    }
     if (input?.value !== entryName(pending.path)) return;
     pendingCreate = null;
     void read()
@@ -330,7 +337,7 @@ function mountTree(
           : false,
       close: (restoreFocus) => {
         focus.restore = restoreFocus;
-        setMenuTarget(null);
+        setMenuOpen(false);
       },
       rename: () => {
         frame(() => {
@@ -350,7 +357,10 @@ function mountTree(
 
   function keyDown(event: KeyboardEvent) {
     if (event.key === 'Enter') acceptDefaultName(event);
-    if (event.key === 'Escape') pendingCreate = null;
+    if (event.key === 'Escape' && pendingCreate) {
+      pendingCreate = null;
+      frame(reset);
+    }
   }
   function click(event: MouseEvent) {
     if (

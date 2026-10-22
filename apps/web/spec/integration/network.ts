@@ -54,6 +54,7 @@ export function createFetchGate(filePath: string) {
     const released = Promise.withResolvers<void>();
     let armed = false;
     let held = false;
+    let responded = false;
     let open = false;
     window.fetch = async (input, init) => {
       const url = requestUrl(input);
@@ -61,6 +62,10 @@ export function createFetchGate(filePath: string) {
         held = true;
         requested.resolve();
         await released.promise;
+        const response = await original(input, init);
+        await response.clone().arrayBuffer();
+        responded = true;
+        return response;
       }
       return original(input, init);
     };
@@ -79,6 +84,7 @@ export function createFetchGate(filePath: string) {
       },
       release,
       held: () => held,
+      responded: () => responded,
     };
   }
   return {
