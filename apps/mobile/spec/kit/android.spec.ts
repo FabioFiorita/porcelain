@@ -22,7 +22,10 @@ afterEach(async () => {
   await rm(directory, { recursive: true, force: true });
 });
 
-async function device(initial = '') {
+async function device(
+  initial = '',
+  abi = process.arch === 'arm64' ? 'arm64-v8a' : 'x86_64',
+) {
   const callsFile = join(directory, 'calls.jsonl');
   const installed = join(directory, 'installed-digest');
   await writeFile(installed, initial);
@@ -36,6 +39,7 @@ const installed = ${JSON.stringify(installed)};
 appendFileSync(${JSON.stringify(callsFile)}, JSON.stringify(args) + '\\n');
 if (args.includes('get-state')) console.log('device');
 if (args.includes('sys.boot_completed')) console.log('1');
+if (args.includes('ro.product.cpu.abi')) console.log(${JSON.stringify(abi)});
 if (args.includes('avd')) console.log('Contributor emulator\\r\\nOK');
 if (args.includes('packages') && readFileSync(installed, 'utf8')) console.log('package:com.fabiofiorita.porcelain.dev');
 if (args.includes('path')) console.log('package:/data/app/dev/base.apk');
@@ -98,6 +102,36 @@ it('refuses to clear an app other than Porcelain Dev', async () => {
   await expect(
     resetAndroid('emulator-5580', '/tmp/client.apk', 'com.example.production'),
   ).rejects.toThrow('only resets the development app');
+});
+
+it.each(['armeabi-v7a', 'x86', ''])(
+  'refuses an emulator with incompatible or unknown ABI %j before installation',
+  async (abi) => {
+    const { calls } = await device('', abi);
+    await expect(
+      claimAndroid(`emulator-${process.pid}`, directory),
+    ).rejects.toThrow('refusing to reuse or install an APK for another ABI');
+    expect(
+      (await calls()).some(
+        (args) => args.includes('install') || args.includes('clear'),
+      ),
+    ).toBe(false);
+  },
+);
+
+it('refuses an emulator of the other supported host ABI', async () => {
+  const { calls } = await device(
+    '',
+    process.arch === 'arm64' ? 'x86_64' : 'arm64-v8a',
+  );
+  await expect(
+    claimAndroid(`emulator-${process.pid}`, directory),
+  ).rejects.toThrow('Use an emulator matching the host architecture');
+  expect(
+    (await calls()).some(
+      (args) => args.includes('install') || args.includes('clear'),
+    ),
+  ).toBe(false);
 });
 
 it('checks the actual installed APK when another emulator reuses the same adb serial', async () => {

@@ -48,6 +48,7 @@ export function sandboxProblems(): string[] {
 }
 
 const memoryFloorGiB = 4;
+const androidBuildMemoryFloorGiB = 8;
 
 function readMeminfo(): string | undefined {
   if (process.platform !== 'linux') return undefined;
@@ -71,6 +72,24 @@ export function memoryShortage(
 
 export function memoryProblem(): string | undefined {
   return memoryShortage(readMeminfo());
+}
+
+export function androidBuildMemoryShortage(
+  meminfo: string | undefined,
+): string | undefined {
+  const kib = /^MemAvailable:\s+(\d+) kB$/m.exec(meminfo ?? '')?.[1];
+  const available = kib === undefined ? undefined : Number(kib) / 1024 ** 2;
+  if (available === undefined || !Number.isFinite(available))
+    return 'Cannot read MemAvailable from /proc/meminfo; refusing the Android development build because its available-memory budget cannot be checked.';
+  return available < androidBuildMemoryFloorGiB
+    ? `Only ${available.toFixed(1)} GiB of memory is available; the Android development build needs ${androidBuildMemoryFloorGiB} GiB free for Gradle and bounded native compilers plus headroom. Builds under memory pressure have been killed by the kernel; stop a process you own or wait for other runs to finish.`
+    : undefined;
+}
+
+export function androidBuildMemoryProblem(): string | undefined {
+  return process.platform === 'linux'
+    ? androidBuildMemoryShortage(readMeminfo())
+    : undefined;
 }
 
 export function optionalDrivers(): string[] {
