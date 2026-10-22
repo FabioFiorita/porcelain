@@ -1,6 +1,5 @@
 import { Context, Effect, Layer } from 'effect';
 import { SelectReviewComparisonService } from '@porcelain/reviews/services';
-import type { CompareReviewInput } from '@porcelain/reviews/models';
 import { ReadRetainedBranchDiffsService } from '@porcelain/changes/services';
 import type { GitIoFailure } from '@porcelain/git/errors';
 import type {
@@ -11,7 +10,11 @@ import type {
   ReviewNotFoundError,
   InvalidReviewComparisonError,
 } from '@porcelain/reviews/errors';
-import type { ReadReviewInterdiffResponse } from '@porcelain/contracts/reviews';
+import type {
+  ReviewParams,
+  ReadReviewInterdiffQuery,
+  ReadReviewInterdiffResponse,
+} from '@porcelain/contracts/reviews';
 import { Lanes } from '../../runtime/lanes.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
 
@@ -19,7 +22,7 @@ export class ReadReviewInterdiffUseCase extends Context.Service<
   ReadReviewInterdiffUseCase,
   {
     readonly execute: (
-      input: CompareReviewInput & { path: string },
+      input: ReviewParams & ReadReviewInterdiffQuery,
     ) => Effect.Effect<
       ReadReviewInterdiffResponse,
       | ReviewNotFoundError

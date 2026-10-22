@@ -23,6 +23,7 @@ import {
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { proofDraftSchema, publishedProofSchema } from './review-proof.ts';
 import { reviewSummaryLinkSchema } from './review-summary-link.ts';
+import { readBranchDiffsRequestSchema } from '../changes/branch-changes.ts';
 import { worktreeIdSchema } from '../shared/schema.ts';
 
 const idSchema = Schema.String.check(Schema.isUUID());
@@ -291,6 +292,15 @@ export const publishReviewResponseSchema = Schema.Struct({
   baseOid: Schema.String,
   links: reviewLinksSchema,
 });
+export const projectReviewParamsSchema = Schema.Struct({
+  projectId: Schema.String,
+});
+export const readReviewQuerySchema = Schema.Struct({
+  revision: Schema.optional(revisionSchema),
+});
+export const readReviewDiffsRequestSchema = Schema.Struct({
+  paths: readBranchDiffsRequestSchema.fields.paths,
+});
 export const reviewParamsSchema = Schema.Struct({ reviewId: reviewIdSchema });
 export const reviewRevisionParamsSchema = Schema.Struct({
   ...reviewParamsSchema.fields,
@@ -431,3 +441,12 @@ const reviewScopeSchema = Schema.Union([
   }),
 ]);
 export type ReviewScope = typeof reviewScopeSchema.Type;
+
+export type ReviewParams = typeof reviewParamsSchema.Type;
+export type ReviewRevisionParams = typeof reviewRevisionParamsSchema.Type;
+export type ProjectReviewParams = typeof projectReviewParamsSchema.Type;
+export type ReadReviewQuery = typeof readReviewQuerySchema.Type;
+export type ReadReviewDiffsRequest = typeof readReviewDiffsRequestSchema.Type;
+export type ReadReviewFileQuery = typeof readReviewFileQuerySchema.Type;
+export type SetReviewSeenRequest = typeof setReviewSeenRequestSchema.Type;
+export type SetReviewStateRequest = typeof setReviewStateRequestSchema.Type;

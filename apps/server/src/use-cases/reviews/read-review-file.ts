@@ -3,16 +3,18 @@ import { ReadReviewFileService } from '@porcelain/reviews/services';
 import type { ReviewNotFoundError } from '@porcelain/reviews/errors';
 import { Lanes } from '../../runtime/lanes.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { readReviewFileResponseSchema } from '@porcelain/contracts/reviews';
+import type {
+  ReviewRevisionParams,
+  ReadReviewFileQuery,
+  readReviewFileResponseSchema,
+} from '@porcelain/contracts/reviews';
 
 export class ReadReviewFileUseCase extends Context.Service<
   ReadReviewFileUseCase,
   {
-    readonly execute: (input: {
-      reviewId: string;
-      revision: number;
-      path: string;
-    }) => Effect.Effect<
+    readonly execute: (
+      input: ReviewRevisionParams & ReadReviewFileQuery,
+    ) => Effect.Effect<
       typeof readReviewFileResponseSchema.Type,
       ReviewNotFoundError
     >;

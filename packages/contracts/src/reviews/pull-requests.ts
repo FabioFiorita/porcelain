@@ -43,3 +43,9 @@ export type ListPullRequestsResponse =
   typeof listPullRequestsResponseSchema.Type;
 export type GitHubAccountResponse = typeof githubAccountResultSchema.Type;
 export type SetGitHubAccountRequest = typeof setGitHubAccountRequestSchema.Type;
+
+const projectGitHubAccountOverrideSchema = Schema.Struct({
+  override: Schema.optionalKey(setGitHubAccountRequestSchema),
+});
+export type ProjectGitHubAccountOverride =
+  typeof projectGitHubAccountOverrideSchema.Type;

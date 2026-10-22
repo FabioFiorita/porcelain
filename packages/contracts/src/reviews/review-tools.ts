@@ -1,12 +1,14 @@
 import { Effect, Schema } from 'effect';
 import {
   commentThreadScopeSchema,
+  commentThreadTargetParamsSchema,
   createCommentThreadRequestSchema,
   replyToCommentRequestSchema,
   updateCommentThreadRequestSchema,
 } from './comments.ts';
 import {
   publishReviewRequestSchema,
+  readReviewQuerySchema,
   publishReviewResponseSchema,
 } from './review.ts';
 import { PATH_LENGTH } from '../shared/limits.ts';
@@ -32,7 +34,7 @@ export const publishReviewToolResponseSchema = Schema.Struct({
 export const readReviewToolRequestSchema = Schema.Struct({
   ...reviewToolScopeSchema.fields,
   reviewId: Schema.optional(Schema.String.check(Schema.isUUID())),
-  revision: Schema.optional(Schema.Int.check(Schema.isGreaterThan(0))),
+  ...readReviewQuerySchema.fields,
 });
 export const listCommentsToolRequestSchema = Schema.Struct({
   reviewId: Schema.optional(Schema.String.check(Schema.isUUID())),
@@ -50,14 +52,14 @@ export const createCommentToolRequestSchema = Schema.Struct({
 export const replyToCommentToolRequestSchema = Schema.Struct({
   ...reviewToolScopeSchema.fields,
   ...{
-    threadId: Schema.String.check(Schema.isUUID()),
+    ...commentThreadTargetParamsSchema.fields,
     ...replyToCommentRequestSchema.fields,
   },
 });
 export const resolveCommentToolRequestSchema = Schema.Struct({
   ...reviewToolScopeSchema.fields,
   ...{
-    threadId: Schema.String.check(Schema.isUUID()),
+    ...commentThreadTargetParamsSchema.fields,
     ...updateCommentThreadRequestSchema.fields,
   },
 });

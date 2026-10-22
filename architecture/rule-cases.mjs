@@ -4992,7 +4992,7 @@ const styleConfigCases = [
   { name: 'canonical configs and empty source', status: 0, rules: [] },
   ...[
     ['events-after-lane', 'warning', 0],
-    ['use-case-input-is-contract', 'warning', 0],
+    ['use-case-input-is-contract', 'warning', 1],
     ['events-after-lane', 'error', 1],
     ['no-nested-lane', 'warning', 1],
     ['no-nested-lane', 'error', 1],
@@ -5014,7 +5014,16 @@ const styleConfigCases = [
     findingCount: 1,
     rules: [],
   })),
-  ...['events-after-lane', 'use-case-input-is-contract'].flatMap((rule) => [
+  ...['warn', ['warn'], 'off', undefined].map((level) => ({
+    name: `use-case-input-is-contract requires error instead of ${JSON.stringify(level)}`,
+    status: 1,
+    rules: ['lint-config'],
+    json: {
+      '.oxlintrc.json': { 'rules.porcelain/use-case-input-is-contract': level },
+    },
+    tokens: ['porcelain/use-case-input-is-contract'],
+  })),
+  ...['events-after-lane'].flatMap((rule) => [
     ...['warn', ['warn'], 'error'].map((level) => ({
       name: `${rule} warning rollout accepts ${JSON.stringify(level)}`,
       status: 0,

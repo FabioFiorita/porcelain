@@ -5,6 +5,7 @@ import type {
   CommentAuthorMismatchError,
 } from '@porcelain/reviews/errors';
 import type {
+  CommentThreadTargetParams,
   ReviewScope,
   DeleteCommentMessageQuery,
   DeleteCommentMessageResponse,
@@ -26,7 +27,8 @@ export class DeleteCommentMessageUseCase extends Context.Service<
     readonly execute: (
       input: ReviewScope &
         DeleteCommentMessageQuery &
-        CommentAuthor & { threadId: string },
+        CommentAuthor &
+        CommentThreadTargetParams,
     ) => Effect.Effect<
       DeleteCommentMessageResponse,
       | WorktreeAccessFailure
