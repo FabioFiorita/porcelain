@@ -1,6 +1,8 @@
 import { durableReviewFixture } from './review-fixture.ts';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { Schema } from 'effect';
+import { readServiceUpdateResponseSchema } from '@porcelain/contracts/access';
 import { agentActs } from '@porcelain/server/kit/agent';
 import {
   IsolatedServer,
@@ -114,6 +116,24 @@ export class World {
 
   async repo(step: RepoStep, server: ServerName): Promise<string> {
     const repository = await this.session(server);
+    if (step.kind === 'service-update-fixture') {
+      const instance = await this.handle(server);
+      const path = join(
+        dirname(instance.socketPath),
+        'service-update-fixture.json',
+      );
+      if (step.state === null) await rm(path, { force: true });
+      else
+        await writeFile(
+          path,
+          JSON.stringify(
+            step.state === 'error'
+              ? 'error'
+              : Schema.encodeSync(readServiceUpdateResponseSchema)(step.state),
+          ),
+        );
+      return '';
+    }
     if (step.kind === 'review-fixture')
       return durableReviewFixture(repository, step.operation, step.title);
     if (step.kind === 'agent') {

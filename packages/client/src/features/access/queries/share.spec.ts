@@ -354,3 +354,33 @@ it.each([
     expect(proof.requests).toBe(expectedReads);
   },
 );
+
+it('marks a failed service check as waiting until its retry settles', async () => {
+  let reads = 0;
+  const retry = Promise.withResolvers<void>();
+  const arrived = Promise.withResolvers<void>();
+  const { connection, registry } = fixture(async () => {
+    reads += 1;
+    if (reads === 2) return new Response(null, { status: 503 });
+    if (reads === 3) {
+      arrived.resolve();
+      await retry.promise;
+    }
+    return Response.json(offered);
+  });
+  const atom = readServiceUpdate(connection);
+  registry.mount(atom);
+  await Effect.runPromise(AtomRegistry.getResult(registry, atom));
+  registry.refresh(atom);
+  await expect.poll(() => AsyncResult.isFailure(registry.get(atom))).toBe(true);
+  registry.refresh(atom);
+  try {
+    await arrived.promise;
+    expect(registry.get(atom).waiting).toBe(true);
+  } finally {
+    retry.resolve();
+  }
+  await expect.poll(() => AsyncResult.isSuccess(registry.get(atom))).toBe(true);
+  expect(registry.get(atom).waiting).toBe(false);
+  expect(reads).toBe(3);
+});

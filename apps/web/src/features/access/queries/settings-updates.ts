@@ -1,4 +1,9 @@
-import { useAtom, useAtomValue } from '@effect/atom-react';
+import {
+  useAtom,
+  useAtomMount,
+  useAtomSet,
+  useAtomValue,
+} from '@effect/atom-react';
 import { Cause, Effect, Option } from 'effect';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import {
@@ -49,10 +54,12 @@ const appInstaller = Atom.runtime(DesktopHost.layer).atom(
   ),
 );
 
-const updateRows = Atom.make((get): readonly SettingsUpdateRow[] => {
+const updateRows = Atom.make((get) => {
   get.addFinalizer(accessSession.state.subscribe(() => get.refreshSelf()));
   get.addFinalizer(remoteConnectionState.subscribe(() => get.refreshSelf()));
   const rows: SettingsUpdateRow[] = [];
+  const failures: { id: string; name: string; message: string }[] = [];
+  let checking = false;
   const local = accessSession.state.value.connection;
   const capabilities = Option.getOrUndefined(
     AsyncResult.value(get(desktopCapabilities)),
@@ -66,6 +73,10 @@ const updateRows = Atom.make((get): readonly SettingsUpdateRow[] => {
       const state = Option.getOrUndefined(
         AsyncResult.value(get(appUpdateState)),
       );
+      checking ||= check.waiting;
+      const error = appCheckError(state, check);
+      if (error)
+        failures.push({ id: 'mac-app', name: 'Mac app', message: error });
       const install = Option.getOrUndefined(
         AsyncResult.value(get(appInstaller)),
       );
@@ -85,7 +96,15 @@ const updateRows = Atom.make((get): readonly SettingsUpdateRow[] => {
           },
         });
     } else {
-      const state = serviceUpdateSnapshot(get(readServiceUpdate(local)));
+      const result = get(readServiceUpdate(local));
+      checking ||= result.waiting;
+      if (AsyncResult.isFailure(result))
+        failures.push({
+          id: local.environmentId,
+          name: 'This computer',
+          message: connectionErrorMessage(Cause.squash(result.cause)),
+        });
+      const state = serviceUpdateSnapshot(result);
       const inventory = Option.getOrUndefined(
         AsyncResult.value(get(readInventory(local))),
       );
@@ -113,7 +132,15 @@ const updateRows = Atom.make((get): readonly SettingsUpdateRow[] => {
       get(readRemoteStatus(pairingPlatform, remote)),
     );
     if (status.kind !== 'online') continue;
-    const state = serviceUpdateSnapshot(get(readServiceUpdate(connection)));
+    const result = get(readServiceUpdate(connection));
+    checking ||= result.waiting;
+    if (AsyncResult.isFailure(result))
+      failures.push({
+        id: remote.environmentId,
+        name: status.name,
+        message: connectionErrorMessage(Cause.squash(result.cause)),
+      });
+    const state = serviceUpdateSnapshot(result);
     if (state)
       rows.push({
         current: state.version,
@@ -127,16 +154,47 @@ const updateRows = Atom.make((get): readonly SettingsUpdateRow[] => {
         },
       });
   }
-  return rows;
+  return { rows, failures, checking };
 });
 
+const refreshSettingsUpdates = Atom.fnSync((_: void, get) => {
+  const local = accessSession.state.value.connection;
+  const capabilities = Option.getOrUndefined(
+    AsyncResult.value(get(desktopCapabilities)),
+  );
+  if (capabilities?.isDesktopShell && !get(appUpdate).waiting)
+    get.refresh(appUpdate);
+  const connections = new Set([
+    ...(local && !capabilities?.isDesktopShell ? [local] : []),
+    ...remoteConnectionState.value.map(({ connection }) => connection),
+  ]);
+  for (const connection of connections) {
+    const atom = readServiceUpdate(connection);
+    if (!get(atom).waiting) get.refresh(atom);
+  }
+});
+
+const settingsUpdatesEntry = Atom.make((get) => {
+  const capabilities = get(desktopCapabilities);
+  if (AsyncResult.isSuccess(capabilities))
+    get.set(refreshSettingsUpdates, undefined);
+}).pipe(Atom.setIdleTTL(0));
+
+export function useSettingsUpdatesEntry() {
+  useAtomMount(settingsUpdatesEntry);
+}
+
 export function useSettingsUpdates() {
-  const rows = useAtomValue(updateRows);
+  const { rows, failures, checking } = useAtomValue(updateRows);
+  const refresh = useAtomSet(refreshSettingsUpdates);
   const batch = useAtomValue(settingsUpdateBatch);
   const [result, run] = useAtom(runSettingsUpdates);
   const targets = rows.map((row) => row.target);
   return {
     rows,
+    failures,
+    checking,
+    refresh: () => refresh(),
     batch,
     result,
     run,

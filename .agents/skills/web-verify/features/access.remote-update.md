@@ -28,7 +28,7 @@ The navigator footer keeps the labelled Settings button on the left, with the gl
 
 Preconditions: [surface baseline](README.md).
 
-Hovering or focusing the keyboard button shows the Keyboard shortcuts tooltip and its shortcut hint. The Update badge opens Updates available with one row per offered service update and a Mac app row when it has an update. Retained batch entries keep their outcomes visible. Computers and details show the same rows and batch progress. Available untrusted and unmanaged computers remain visible; only eligible computers offer Update and contribute to Update all (N).
+Hovering or focusing the keyboard button shows the Keyboard shortcuts tooltip and its shortcut hint. The Update badge opens Updates available with one row per offered service update and a Mac app row when it has an update. Retained batch entries keep their outcomes visible. Computers and details show the same rows and batch progress. Available untrusted computers remain visible with Needs trust; unmanaged computers appear only in Computers and never create an offer badge. Only eligible computers offer Update and contribute to Update all (N).
 
 The shared offer rule requires the server's available flag and a known latest version. A version difference alone never creates an offer. Check an installation ahead of npm latest at desktop and 414 px: no global badge or downgrade arrow, while Computers shows its installed version and Up to date. An active batch keeps the badge visible even after the last offer disappears.
 

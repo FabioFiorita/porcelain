@@ -55,19 +55,28 @@ function pollWhile<A, E, R>(
 ) {
   return Atom.optimistic(
     runtime
-      .atom(
-        Stream.unwrap(
+      .atom((get) => {
+        const previous = Option.flatMap(
+          get.self<AsyncResult.AsyncResult<AsyncResult.AsyncResult<A, E>>>(),
+          AsyncResult.value,
+        );
+        return Stream.unwrap(
           Effect.map(settling, (inProgress) =>
-            Stream.fromEffect(read).pipe(
-              Stream.repeat(Schedule.spaced(interval)),
-              Stream.takeUntil(
-                (answer) =>
-                  !inProgress(Option.getOrUndefined(AsyncResult.value(answer))),
+            Stream.concat(
+              Stream.succeed(AsyncResult.waitingFrom(previous)),
+              Stream.fromEffect(read).pipe(
+                Stream.repeat(Schedule.spaced(interval)),
+                Stream.takeUntil(
+                  (answer) =>
+                    !inProgress(
+                      Option.getOrUndefined(AsyncResult.value(answer)),
+                    ),
+                ),
               ),
             ),
           ),
-        ),
-      )
+        );
+      })
       .pipe(
         Atom.map((result) => AsyncResult.flatMap(result, (answer) => answer)),
       ),
