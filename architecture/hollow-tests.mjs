@@ -1,4 +1,4 @@
-export const testSource = /\.(?:spec|test|integration|perf|browser|e2e)\.tsx?$/;
+export const testSource = /\.(?:spec|test|integration|browser|e2e)\.tsx?$/;
 
 const caseNames = new Set(['it', 'test']);
 const caseModifiers = new Set([

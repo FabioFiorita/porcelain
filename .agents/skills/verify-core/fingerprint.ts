@@ -17,7 +17,7 @@ const serverInputs: BuildInputs = {
   apps: ['apps/server'],
 };
 const skipped = new Set(['node_modules', 'dist', '.turbo', 'test-results']);
-const testFile = /\.(?:spec|test|e2e|integration|perf)\.tsx?$/;
+const testFile = /\.(?:spec|test|e2e|integration)\.tsx?$/;
 const manifestSchema = Schema.Struct({
   name: Schema.String,
   dependencies: Schema.optional(Schema.Record(Schema.String, Schema.String)),

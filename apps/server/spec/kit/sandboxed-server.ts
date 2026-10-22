@@ -31,11 +31,6 @@ import {
 } from '../../src/config/server-settings.ts';
 import type { Runtime } from '../../src/ports/runtime.ts';
 import { codingTool } from './coding-tool.ts';
-import {
-  changePerfSample,
-  perfSample,
-  placePerfSample,
-} from './perf-sample.ts';
 const issuedPairingSchema = Schema.Struct({
   grants: Schema.Array(
     Schema.Struct({
@@ -216,7 +211,6 @@ function registeredRoutes() {
   return [...routes].sort();
 }
 const sample = process.env.PORCELAIN_DEV_SAMPLE;
-const QUIET_INVENTORY_MS = 24 * 60 * 60 * 1000;
 const COMMITTED = '# Sample repository\n';
 const fixture = {
   folders: {
@@ -240,7 +234,7 @@ const fixture = {
   },
   summaryLinkLifetimeMs: 2000,
   liveTicketLifetimeMs: 1000,
-  inventoryStaleAfterMs: sample === 'perf' ? QUIET_INVENTORY_MS : 200,
+  inventoryStaleAfterMs: 200,
   codingTool,
   serviceUpdate: {
     version: sample === 'service-ahead' ? '2.0.0' : '1.0.0',
@@ -459,18 +453,8 @@ try {
   const git = async (...args: string[]) => {
     await execute('git', args, { cwd: repository, env: process.env });
   };
-  const sampleGit = (cwd: string, ...args: string[]) =>
-    execute('git', args, { cwd, env: process.env });
-  const gitTrace = sample === 'perf' ? join(root, 'git-trace.jsonl') : null;
-  let perf: Awaited<ReturnType<typeof changePerfSample>> | null = null;
   await mkdir(repository);
-  if (sample === 'perf')
-    await placePerfSample({
-      source: join(installation, 'server', perfSample.source),
-      repository,
-      git: sampleGit,
-    });
-  else await git('init', '-b', fixture.branch);
+  await git('init', '-b', fixture.branch);
   await git('config', 'user.name', 'Porcelain Development');
   await git('config', 'user.email', 'porcelain@example.invalid');
   const readme = join(repository, fixture.readme.path);
@@ -478,14 +462,7 @@ try {
   await git('add', fixture.readme.path);
   await git('commit', '-m', fixture.initialCommit);
   if (sample === 'review') await seedReviewSample(repository);
-  if (sample === 'perf')
-    perf = await changePerfSample({ root, repository, git: sampleGit });
   await writeFile(readme, fixture.readme.changed);
-  if (gitTrace !== null)
-    await writeFile(
-      join(home, '.gitconfig'),
-      `[trace2]\n\teventTarget = ${gitTrace}\n\teventBrief = true\n`,
-    );
   const web = join(root, fixture.folders.web);
   await mkdir(join(web, 'assets'), { recursive: true });
   await writeFile(join(web, 'index.html'), fixture.web.shell);
@@ -513,9 +490,7 @@ try {
           ...settings.limits,
           jobs: {
             ...settings.limits.jobs,
-            scanInventory: Duration.millis(
-              sample === 'perf' ? QUIET_INVENTORY_MS : 250,
-            ),
+            scanInventory: Duration.millis(250),
           },
           access: {
             ...settings.limits.access,
@@ -616,7 +591,7 @@ try {
   fixtureReady = true;
   await writeFile(
     manifest,
-    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, hitsFile, gitTrace, bin, installation, codingTool: codingToolExecutable, fixture: { ...fixture, gitActionDeadlineMs: gitActions.deadlineMs, perf: perf && { files: perfSample.files, commits: perfSample.commits, ...perf } }, routes: registeredRoutes(), tools: [...tools].sort() }, null, 2)}\n`,
+    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, hitsFile, bin, installation, codingTool: codingToolExecutable, fixture: { ...fixture, gitActionDeadlineMs: gitActions.deadlineMs }, routes: registeredRoutes(), tools: [...tools].sort() }, null, 2)}\n`,
     { mode: 0o600 },
   );
   process.stdout.write(

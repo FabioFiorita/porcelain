@@ -15,7 +15,6 @@ import { tmpdir, userInfo } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
-import { buildPerfSample } from './perf-sample.ts';
 const kit = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(kit, '../../../..');
 const CHILD_BUNDLE = 'server/src/bootstrap/dev-server-child.mjs';
@@ -77,22 +76,18 @@ async function vendor(
     if (locate(dependency, source) !== undefined)
       await vendor(dependency, source, into, copied);
 }
-export async function temporaryServerBuild(sample?: 'perf') {
+export async function temporaryServerBuild() {
   const folder = await mkdtemp(join(tmpdir(), 'porcelain-server-build-'));
   const remove = () => rm(folder, { recursive: true, force: true });
   try {
-    await buildIsolatedServer(folder, sample);
+    await buildIsolatedServer(folder);
   } catch (error) {
     await remove();
     throw error;
   }
   return { folder, remove };
 }
-export async function buildIsolatedServer(
-  output: string,
-  sample?: 'perf',
-): Promise<void> {
-  if (sample === 'perf') await buildPerfSample(output);
+export async function buildIsolatedServer(output: string): Promise<void> {
   await build({
     entryPoints: [join(kit, 'sandboxed-server.ts')],
     outfile: join(output, CHILD_BUNDLE),
@@ -369,9 +364,6 @@ function freePort(): Promise<number> {
     });
   });
 }
-function sampleOption(): 'perf' | undefined {
-  return process.env.PORCELAIN_DEV_SAMPLE === 'perf' ? 'perf' : undefined;
-}
 function option(name: string): string | undefined {
   const at = process.argv.indexOf(name);
   return at === -1 ? undefined : process.argv[at + 1];
@@ -398,7 +390,7 @@ async function install(
       given === undefined
         ? await temporary('porcelain-dev-build-', scratch)
         : undefined;
-    if (built !== undefined) await buildIsolatedServer(built, sampleOption());
+    if (built !== undefined) await buildIsolatedServer(built);
     return {
       server: realpathSync(given ?? built ?? ''),
       bin,
@@ -414,7 +406,7 @@ async function install(
   const server = join(folder, 'server');
   const bin = join(folder, 'bin');
   await mkdir(bin);
-  if (given === undefined) await buildIsolatedServer(server, sampleOption());
+  if (given === undefined) await buildIsolatedServer(server);
   else
     await cp(realpathSync(given), server, {
       recursive: true,
@@ -489,7 +481,6 @@ async function main() {
           PORCELAIN_DEV_ALLOWED_HOSTS: option('--allowed-hosts') ?? '[]',
           ...(process.platform === 'darwin' ? { TRASH_FALLBACK: '1' } : {}),
           ...(process.env.PORCELAIN_DEV_SAMPLE === 'review' ||
-          process.env.PORCELAIN_DEV_SAMPLE === 'perf' ||
           process.env.PORCELAIN_DEV_SAMPLE === 'service-ahead' ||
           process.env.PORCELAIN_DEV_SAMPLE === 'git-interruption'
             ? { PORCELAIN_DEV_SAMPLE: process.env.PORCELAIN_DEV_SAMPLE }
