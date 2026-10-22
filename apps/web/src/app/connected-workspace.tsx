@@ -4,7 +4,13 @@ import {
   firstWaitingWorktree,
   selectedWorktreeInProject,
 } from '@porcelain/client/projects/rules';
-import { detectPlatform, useHotkey } from '@tanstack/react-hotkeys';
+import {
+  detectPlatform,
+  formatForDisplay,
+  formatHotkey,
+  parseHotkey,
+  useHotkey,
+} from '@tanstack/react-hotkeys';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import {
@@ -15,6 +21,12 @@ import {
 } from '@/components/ui/empty';
 import { Sidebar, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { buttonVariants } from '@/components/ui/button';
+import { Kbd } from '@/components/ui/kbd';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   RemoteUnavailable,
   useConnectedContext,
@@ -259,14 +271,25 @@ function EmptyWorkspace({
 }) {
   return (
     <div className="relative grid h-full min-h-0 place-items-center rounded-xl border bg-card p-8">
-      <SidebarTrigger
-        ref={(element) => navigationTrigger.attach(element)}
-        className="absolute top-3 left-3"
-        aria-label="Toggle Sidebar"
-        aria-expanded={isMobile ? openMobile : open}
-        aria-keyshortcuts={detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'}
-        title={`Toggle projects (${SHORTCUTS.toggleNavigator})`}
-      />
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <SidebarTrigger
+              ref={(element) => navigationTrigger.attach(element)}
+              className="absolute top-3 left-3"
+              aria-label="Toggle Sidebar"
+              aria-expanded={isMobile ? openMobile : open}
+              aria-keyshortcuts={formatHotkey(
+                parseHotkey(SHORTCUTS.toggleNavigator, detectPlatform()),
+              )}
+            />
+          }
+        />
+        <TooltipContent side="right">
+          Toggle sidebar
+          <Kbd>{formatForDisplay(SHORTCUTS.toggleNavigator)}</Kbd>
+        </TooltipContent>
+      </Tooltip>
       {children}
     </div>
   );
