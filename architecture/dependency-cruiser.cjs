@@ -285,14 +285,14 @@ module.exports = {
     {
       name: 'runtime-imports-source-only',
       comment:
-        'Runtime imports stay in source roots so shipped code cannot depend on repository tooling, vendored references or test support.',
+        'Runtime imports stay in source roots so shipped code cannot depend on repository tooling or test support.',
       severity: 'error',
       from: {
         path: '^(?:apps/[^/]+|packages/[^/]+)/src/',
         pathNot: '\\.spec\\.tsx?$',
       },
       to: {
-        path: '^(?:apps|packages|architecture|scripts|repos|\\.agents)/',
+        path: '^(?:apps|packages|architecture|scripts|\\.agents)/',
         pathNot: '^(?:apps/[^/]+|packages/[^/]+)/src/',
       },
     },

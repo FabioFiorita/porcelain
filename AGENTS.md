@@ -43,11 +43,9 @@ Each job has one library. Rules already hold Zustand's ban, the shadcn pins, rou
 
 ## Library documentation
 
-Learn a library's API from its official documentation, never from `node_modules`: Expo from docs.expo.dev, other libraries from their own docs sites, Effect from `repos/effect`.
+Learn a library's API from its official documentation: Expo from docs.expo.dev and other libraries from their own docs sites.
 
-## Effect reference
-
-`repos/effect` vendors the Effect source as read-only reference. Before writing Effect code, read `repos/effect/LLMS.md`; the vendored source, not memory, is the truth for idiomatic Effect v4. Never edit or import from `repos/`; no tool builds, lints or installs it. Refresh it with `git subtree pull --prefix=repos/effect https://github.com/Effect-TS/effect.git main --squash`.
+Before writing Effect code, read the official guide and source shipped in `node_modules/effect` (`AGENTS.md`, `ai-docs/`, `src/`), with the same layout in `node_modules/@effect/platform-node`, `node_modules/@effect/vitest` and `apps/web/node_modules/@effect/atom-react`; these match the installed versions exactly, and the installed source, not memory, is the truth for idiomatic Effect v4.
 
 ## Native Effect CLI
 
@@ -106,4 +104,3 @@ The worker's work is done when its head commit has green CI, not when the pull r
 - `apps/mobile`: Expo and Uniwind; controls are web-styled primitives in `src/components/ui`, and Expo UI keeps system chrome (menus, navigation, tabs, sheets).
 - `packages/contracts`, `packages/client` and the domain packages.
 - `.agents/skills`: the verification skills and their feature maps, and the release skill.
-- `repos/`: vendored reference source, read-only.
