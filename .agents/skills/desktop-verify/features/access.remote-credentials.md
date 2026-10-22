@@ -20,33 +20,27 @@ api: []
 
 # access.remote-credentials
 
-## What it is
+The Mac app saves paired computers securely, preserves unreadable credentials without overwriting them, and opens remote review summaries in isolation.
 
-The Mac app keeps the remote computers the owner pairs, with their bearer credentials, as one opaque string the web hands to the desktop bridge. The main process encrypts it through Electron's `safeStorage`, backed by the login Keychain, into `credentials.enc` in the profile, readable only by the owner. Credentials it cannot decrypt read as unreadable and are never saved over; with encryption unavailable a write is refused; clear removes the file. Only the app's own window may call the bridge. A paired computer's review summaries then load through the app from that computer, sandboxed away from the app, Node and the bridge.
-
-## How a user reaches it
+## How to get to it (user POV)
 
 - Settings › Computers › paste a pairing link › Add
 - the sidebar group of a paired computer, then its worktree's Review → Agent summary
 
-## Driving it
+## Driving it with Electron
 
-Start two disposable desktop instances and read their connection files. Run the second card's exact `pairing.command` to issue a one-time link. In the first app, use renderer browser tools or Computer Use to open Settings › Computers, enter the link and choose Add.
+Preconditions: [surface baseline](README.md).
 
-Observe the second environment in the list. Inspect the first card's `credentialFiles.remoteEncrypted`: it must have mode 0600 and contain ciphertext. Do not retain the pairing code or decrypted credentials in screenshots or logs.
+1. Start two disposable app instances. Mint a fresh link with the second card’s exact pairing command. In the first, Settings → Computers → paste link → Add; confirm its row and open its workspace. Follow [web remote-computer steps](../../web-verify/features/access.remote-computers.md) for link refusal and Forget.
+2. Inspect `credentialFiles.remoteEncrypted`: no plaintext credential is present and file mode is 0600. Restart with the same disposable profile and confirm the saved computer reconnects.
+3. Using the named bridge fixture, make the encrypted store unreadable. Expect Settings to explain the failure; it must not overwrite unreadable ciphertext. Refuse encryption on write and confirm the prior ciphertext stays. Clear removes the saved store.
+4. In an in-process Electron journey, invoke credential/update IPC from an unowned window: every request is refused. Keep the owned window usable.
+5. Publish authored summaries on local and paired remote fixtures. Walkthrough is initial; Agent summary opens HTML, and its #layer-N links open decision N. Return through Walkthrough of the decisions, then Agent summary. Open both through the app: theme and decision links work, content stays sandboxed, and no remote website, Node or bridge access is available.
 
-For direct bridge proof, import the shared lifecycle and use `electron.firstWindow()` with the app's public `porcelainDesktop.credentials` bridge. Verify write/read/clear against the disposable profile; never expose that bridge through a helper RPC. Keychain writes require a macOS logged-in session.
-
-Open the paired computer's worktree, then select Agent summary in the published review. Walkthrough is the initial presentation. Inspect the theme and the summary's `#layer-N` links, which open decision N in the walkthrough, and verify the summary cannot reach Node or the app bridge. Returning from a decision uses the document tab titled Walkthrough of the decisions, then Agent summary again. The named e2e test supplies the remote review and checks network isolation.
-
-## What proves it works
-
-- `apps/desktop/spec/e2e/bridge.e2e.ts` (Playwright Electron): one opaque string kept encrypted with mode 0600 and restored after a restart; undecryptable credentials read as unreadable, are never saved over, and Settings says so; unavailable encryption refuses a write and keeps the ciphertext; clear removes it; a window the app did not open is refused every credential and app update request; the bridge reports the version and that the local build has no update feed.
-- `apps/desktop/spec/e2e/review-summaries.e2e.ts` (Playwright Electron): local and remote summaries render through the app origin in their sandbox with theme and links that open a decision in the walkthrough, cannot reach the app, Node or the bridge, and cannot show a website.
+Automated coverage: `bridge.e2e.ts`, `review-summaries.e2e.ts`.
 
 ## Gotchas
 
-- `safeStorage` needs the Keychain of the logged-in session. Over SSH every credential write fails with “User interaction is not allowed”; run the instance or the tests in a Terminal window of the logged-in session (see the skill).
-- Each `start` has a fresh profile, so persistence across a restart is proven by the e2e test, not by driving.
-- The remote-summary test closes the second app's setup window while keeping its server, establishes the primary app's focus, waits for the loaded summary and focuses the intended link. A parent observer requires its trusted activation because the transition can replace the iframe. Release Enter only after the review tab (title "Walkthrough of the decisions") takes focus or the blocked website's error document loads.
-- Require the actual decision opening (region "1. Remote summary layer"), or an enforced `frame-src` violation in the app document with zero website requests at Electron's network port. The request observer cancels any unexpected request to keep the test off the public network, and that request still fails the assertion.
+- Keychain/encryption and restart proof require macOS and the same disposable profile. Never inspect the installed profile.
+- Signed summary links expire shortly after the review read; reload for a fresh link before mounting a late frame. Focus the intended link and release Enter only after the destination takes focus; iframe replacement can otherwise send activation twice. Confirm the actual decision opens, or a frame-src violation blocks website navigation with zero website requests.
+- A remote encrypted-store file may not exist before the first save.

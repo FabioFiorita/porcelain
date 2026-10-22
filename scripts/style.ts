@@ -274,14 +274,6 @@ export async function checkStyle(
   function isError(level: unknown): boolean {
     return level === 'error' || (Array.isArray(level) && level[0] === 'error');
   }
-  const warningRolloutRules = new Set(['porcelain/use-case-input-is-contract']);
-  function isEnabled(name: string, level: unknown): boolean {
-    return (
-      isError(level) ||
-      (warningRolloutRules.has(name) &&
-        (level === 'warn' || (Array.isArray(level) && level[0] === 'warn')))
-    );
-  }
   async function configProblems(): Promise<Problem[]> {
     const problems: Problem[] = [];
     const config = Schema.decodeUnknownResult(lintConfigSchema, {
@@ -343,19 +335,19 @@ export async function checkStyle(
       await import(pluginPath),
     );
     for (const name of Object.keys(plugin.default.rules))
-      if (!isEnabled(`porcelain/${name}`, rules[`porcelain/${name}`]))
+      if (!isError(rules[`porcelain/${name}`]))
         problems.push(
           problem(
             'lint-config',
-            `.oxlintrc.json sets porcelain/${name} to "error" (or "warn" for the named warning rollout), because disabling a configured rule leaves its mistakes unchecked.`,
+            `.oxlintrc.json sets porcelain/${name} to "error", because disabling a configured rule leaves its mistakes unchecked.`,
           ),
         );
     for (const [name, level] of Object.entries(rules)) {
-      if (!isEnabled(name, level))
+      if (!isError(level))
         problems.push(
           problem(
             'lint-config',
-            `.oxlintrc.json turns ${name} on as "error" (or "warn" for the named warning rollout) or leaves it out, because disabling a configured rule leaves its mistakes unchecked.`,
+            `.oxlintrc.json turns ${name} on as "error" or leaves it out, because disabling a configured rule leaves its mistakes unchecked.`,
           ),
         );
       if (
@@ -474,7 +466,6 @@ export async function checkStyle(
     line: number;
     column: number;
     code: string;
-    severity: string;
     message: string;
   };
   function duplicateFindings(): Finding[] {
@@ -498,7 +489,6 @@ export async function checkStyle(
         line: here?.start ?? 0,
         column: 0,
         code: 'error style(duplicate-code)',
-        severity: 'error',
         message: `${clone.lines} lines here repeat ${at(there?.name ?? '')}:${there?.start ?? 0}; ${scope.name} has ${report.count} ${unit}, above its ceiling of ${scope.ceiling}. ${scope.why} Extract the copy into its owner, because duplicated fixes drift between copies.`,
       })),
     );
@@ -543,7 +533,6 @@ export async function checkStyle(
       line: diagnostic.labels?.[0]?.span.line ?? 0,
       column: diagnostic.labels?.[0]?.span.column ?? 0,
       code: `${diagnostic.severity} ${diagnostic.code ?? ''}`,
-      severity: diagnostic.severity,
       message: diagnostic.message,
     }));
     const reported = [...linted, ...duplicateFindings()];
@@ -558,13 +547,7 @@ export async function checkStyle(
       );
       return 1;
     }
-    return reported.some(
-      (finding) =>
-        finding.severity !== 'warning' ||
-        !warningRolloutRules.has(finding.rule),
-    )
-      ? 1
-      : 0;
+    return reported.length > 0 ? 1 : 0;
   }
   if (mode === 'format') {
     const result = spawnSync(

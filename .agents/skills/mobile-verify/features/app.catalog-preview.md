@@ -9,13 +9,25 @@ api: []
 
 # app.catalog-preview
 
-Development-only primitive samples reached through Settings, Component library. All catalog routes are protected by `__DEV__` and unavailable in release builds.
+Development preview samples exercise file renderers and primitive interactions.
 
-1. Open IconButton. Enabled examples increment Actions once; disabled and pending examples do not.
-2. Return and open Input. Type into Name and confirm Value updates; multiline accepts multiple lines.
-3. Inspect invalid and disabled fields. Disabled content cannot be edited.
-4. Open CodeView and DiffView. Long press a line and extend the controlled selection to a second line. Clear selection, then select a new line; its range starts at that line. DiffView also switches unified/side-by-side layout and expands unchanged gaps.
-5. Open MarkdownView. Inspect headings, nested emphasis, fenced code and links. Toggle source and return to rendered content; safe links return to the caller.
-6. Open ImagePreview. Zoom, pan and reset the image; invalid data shows the readable failure state.
-7. Open HtmlPreview. Scripts leave the disabled-script sentinel unchanged, and external images and styles do not load. Follow the safe link and confirm the caller receives it. Toggle source, then return to rendered content.
-8. Return through the native stack to Component library and Settings.
+## How to get to it (user POV)
+
+- Phone: Settings → Component library → primitive sample.
+- iPad: Settings → Development → component selector.
+
+## Driving it with agent-device
+
+Preconditions: [surface baseline](README.md).
+
+1. IconButton: enabled increments Actions once; disabled/pending do not. Input: Name updates Value, multiline accepts lines, disabled cannot edit, invalid field shows its state.
+2. CodeView/DiffView: long-press a line, extend to a second, clear/reselect: new range starts at the new line. DiffView switches unified/side-by-side and expands unchanged gaps.
+3. MarkdownView: inspect headings/emphasis/fenced code/links; source and reader toggle; safe link returns to caller.
+4. ImagePreview: zoom/pan/reset; invalid data shows readable failure. HtmlPreview: scripts leave sentinel unchanged; external images/styles do not load; safe link returns to caller; source/preview toggle.
+5. Phone Back returns to catalog/Settings; iPad selects another sample/category.
+
+Automated coverage: none named; retain the live action and readback evidence.
+
+## Gotchas
+
+- Development-only. Confirm sandbox absence through the sentinel/network observation, not only a screenshot.

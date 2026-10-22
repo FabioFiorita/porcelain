@@ -4,6 +4,7 @@ import type {
   CommentTargetNotFoundError,
 } from '@porcelain/reviews/errors';
 import type {
+  CommentThreadTargetParams,
   ReviewScope,
   UpdateCommentThreadRequest,
   UpdateCommentThreadResponse,
@@ -22,7 +23,9 @@ export class UpdateCommentThreadUseCase extends Context.Service<
   UpdateCommentThreadUseCase,
   {
     readonly execute: (
-      input: ReviewScope & UpdateCommentThreadRequest & { threadId: string },
+      input: ReviewScope &
+        UpdateCommentThreadRequest &
+        CommentThreadTargetParams,
     ) => Effect.Effect<
       UpdateCommentThreadResponse,
       WorktreeAccessFailure | ReviewNotFoundError | CommentTargetNotFoundError

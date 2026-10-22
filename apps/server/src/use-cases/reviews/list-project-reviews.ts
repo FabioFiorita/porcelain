@@ -2,15 +2,18 @@ import { Context, Effect, Layer } from 'effect';
 import { ListProjectReviewsService } from '@porcelain/reviews/services';
 import { Lanes } from '../../runtime/lanes.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { listProjectReviewsResponseSchema } from '@porcelain/contracts/reviews';
+import type {
+  ProjectReviewParams,
+  listProjectReviewsResponseSchema,
+} from '@porcelain/contracts/reviews';
 import { reviewRecordView } from '@porcelain/reviews/rules';
 
 export class ListProjectReviewsUseCase extends Context.Service<
   ListProjectReviewsUseCase,
   {
-    readonly execute: (input: {
-      projectId: string;
-    }) => Effect.Effect<typeof listProjectReviewsResponseSchema.Type, never>;
+    readonly execute: (
+      input: ProjectReviewParams,
+    ) => Effect.Effect<typeof listProjectReviewsResponseSchema.Type, never>;
   }
 >()('@porcelain/server/ListProjectReviewsUseCase') {
   static readonly layer = Layer.effect(

@@ -1,3 +1,4 @@
+import type { ReviewRevisionParams } from '@porcelain/contracts/reviews';
 import { ReadPublishedReviewService } from '@porcelain/reviews/services';
 import { Lanes } from '../../runtime/lanes.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
@@ -16,8 +17,7 @@ export class ReadProofFileUseCase extends Context.Service<
   ReadProofFileUseCase,
   {
     readonly execute: (
-      input: (WorktreeParams | { reviewId: string; revision: number }) &
-        ReadProofFileQuery,
+      input: (WorktreeParams | ReviewRevisionParams) & ReadProofFileQuery,
     ) => Effect.Effect<
       ReadProofFileResponse,
       WorktreeAccessFailure | ProofFileNotFoundError
@@ -35,8 +35,7 @@ export class ReadProofFileUseCase extends Context.Service<
 
       return {
         execute: Effect.fn('ReadProofFileUseCase.execute')(function* (
-          input: (WorktreeParams | { reviewId: string; revision: number }) &
-            ReadProofFileQuery,
+          input: (WorktreeParams | ReviewRevisionParams) & ReadProofFileQuery,
         ): Effect.fn.Return<
           ReadProofFileResponse,
           WorktreeAccessFailure | ProofFileNotFoundError

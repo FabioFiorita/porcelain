@@ -12,14 +12,24 @@ api: []
 
 # app.catalog-button
 
-Development-only Button samples reached through Settings, Component library, Explore Button. All catalog routes are protected by `__DEV__` and unavailable in release builds.
+Development Button samples show variants and sizes with enabled, disabled and pending interactions.
 
-1. Inspect default, secondary, outline, ghost, destructive and link variants.
-2. Press an enabled sample and confirm Actions increases once.
-3. Scroll to sizes, then disabled and pending samples.
-4. Tap Disabled. Confirm Actions stays unchanged.
-5. Press Start pending demo. Expect Working… with a spinner; confirm another tap does not increase Actions.
-6. Finish pending demo restores the enabled action. Reset actions returns the count to zero.
-7. Use the native back button to return to Component library, then Settings.
+## How to get to it (user POV)
 
-The catalog spec checks the enabled Button action. Remaining variants and states are verified manually on the live development simulator.
+- Phone: Settings → Development → Component library → Explore Button.
+- iPad: Settings → Development → Explore Button.
+
+## Driving it with agent-device
+
+Preconditions: [surface baseline](README.md).
+
+1. Inspect Default, Secondary, Outline, Ghost, Destructive and Link variants, then Regular/Small sizes. Press an enabled sample: Actions increases once.
+2. Tap Disabled: Actions stays unchanged. Start pending demo increments Actions once; Working… and spinner appear; another tap does not increase Actions.
+3. Finish pending demo restores the enabled action. Reset actions returns zero.
+4. Phone native Back returns through Component library to Settings. On iPad choose another sample/category to leave.
+
+Automated coverage: none named; retain the live action and readback evidence.
+
+## Gotchas
+
+- Development-only. Compare the counter before/after each press; a visible spinner alone does not prove duplicate actions are blocked.

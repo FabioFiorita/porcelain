@@ -2,7 +2,10 @@ import { Lanes } from '../../runtime/lanes.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
 import { recentPullRequestCutoff } from '@porcelain/reviews/rules';
 import { Context, Effect, Layer, Clock } from 'effect';
-import type { ListPullRequestsResponse } from '@porcelain/contracts/reviews';
+import type {
+  ProjectReviewParams,
+  ListPullRequestsResponse,
+} from '@porcelain/contracts/reviews';
 import type { ProjectNotFoundError } from '@porcelain/projects/errors';
 import {
   ListGitHubPullRequestsService,
@@ -14,9 +17,9 @@ import { ResolveProjectGitHubUseCasePort } from '../../ports/resolve-project-git
 export class ListProjectPullRequestsUseCase extends Context.Service<
   ListProjectPullRequestsUseCase,
   {
-    readonly execute: (input: {
-      projectId: string;
-    }) => Effect.Effect<ListPullRequestsResponse, ProjectNotFoundError>;
+    readonly execute: (
+      input: ProjectReviewParams,
+    ) => Effect.Effect<ListPullRequestsResponse, ProjectNotFoundError>;
   }
 >()('@porcelain/server/ListProjectPullRequestsUseCase') {
   static readonly layer = Layer.effect(

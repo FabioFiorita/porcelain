@@ -27,10 +27,21 @@ api:
 
 # reviews.walkthrough
 
-## What it is
-
 The verdict precedes the existing briefing and walkthrough. The briefing retains system owners, New/Changed/Removed groups, Needs your decision, decision order and Not explained. Each decision reads code from its immutable revision. Context files and their stored excerpts remain available after worktree removal.
+
+## How to get to it (user POV)
+
+- Worktree Review tab → decision row; review page → Start here or a decision.
+- N / P move between stops; Open the briefing returns to the overview.
+
+## Driving it with browser
+
+Preconditions: [surface baseline](README.md).
 
 Follow [reviews.page](reviews.page.md) for setup, widths, themes and lifecycle. In the worktree Review tab the sidebar decision rows open this same page. In the page, select a decision or Start here; N and P move between stops. Open the briefing returns to owners and progress. A decision records its available files before its decision mark; unmarking the decision leaves file marks. Worktree edits do not change retained code or its marks. Branch commits ahead of the latest revision are reported separately.
 
-The named Browser Mode specs drive the briefing, owners/questions, decision links, Not explained, summary presentation and keyboard navigation. Report separately which browser journeys were driven live.
+Automated coverage: `reviews-walkthrough.test.tsx`, `reviews-walkthrough-shortcuts.test.tsx`, `reviews-unavailable-completion.test.tsx`.
+
+## Gotchas
+
+- Retained published code intentionally differs from later worktree edits; compare against the selected revision.

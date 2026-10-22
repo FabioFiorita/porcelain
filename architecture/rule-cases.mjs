@@ -5010,7 +5010,7 @@ const styleConfigCases = [
   { name: 'canonical configs and empty source', status: 0, rules: [] },
   ...[
     ['events-after-lane', 'warning', 1],
-    ['use-case-input-is-contract', 'warning', 0],
+    ['use-case-input-is-contract', 'warning', 1],
     ['events-after-lane', 'error', 1],
     ['no-nested-lane', 'warning', 1],
     ['no-nested-lane', 'error', 1],
@@ -5032,28 +5032,15 @@ const styleConfigCases = [
     findingCount: 1,
     rules: [],
   })),
-  ...['use-case-input-is-contract'].flatMap((rule) => [
-    ...['warn', ['warn'], 'error'].map((level) => ({
-      name: `${rule} warning rollout accepts ${JSON.stringify(level)}`,
-      status: 0,
-      rules: [],
-      json: { '.oxlintrc.json': { [`rules.porcelain/${rule}`]: level } },
-    })),
-    ...['off', undefined].map((level) => ({
-      name: `${rule} warning rollout refuses ${String(level)}`,
+  ...['events-after-lane', 'use-case-input-is-contract'].flatMap((rule) =>
+    ['warn', ['warn'], 'off', undefined].map((level) => ({
+      name: `${rule} requires error instead of ${JSON.stringify(level)}`,
       status: 1,
       rules: ['lint-config'],
       json: { '.oxlintrc.json': { [`rules.porcelain/${rule}`]: level } },
       tokens: [`porcelain/${rule}`],
     })),
-  ]),
-  {
-    name: 'warning rollout does not downgrade other rules',
-    status: 1,
-    rules: ['lint-config'],
-    json: { '.oxlintrc.json': { 'rules.porcelain/no-nested-lane': 'warn' } },
-    tokens: ['porcelain/no-nested-lane'],
-  },
+  ),
   {
     name: 'required rule accepts array error level',
     status: 0,

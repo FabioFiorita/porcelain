@@ -9,26 +9,22 @@ api: []
 
 # access.forget-environment
 
-## What it is
+Forget computer removes this device’s saved computer, credentials and remembered workspace, keeping other computers and the server’s device registration.
 
-Each computer row in Settings → Computers has a visible trash button labelled “Forget computer”, which removes the environment, its Keychain credential and its remembered workspace from this device. Forget is disabled while saved environments cannot be read or the removal is pending. A removal error appears in the row. The server keeps the device; forgetting is local. The removal survives a cold launch, and forgetting one environment keeps the others.
-
-## How a user reaches it
+## How to get to it (user POV)
 
 - Settings → Computers → the environment's Forget computer button
 
-## Driving it
+## Driving it with agent-device
 
-1. Select Settings → Computers and locate the full environment name from the card.
-2. Expect a status badge and a trash button labelled Forget computer beside the environment.
-3. Select Forget computer. Expect the row to disappear and No computers paired. if it was the last one.
-4. Cold-launch. Expect the forgotten environment and workspace selection to remain absent.
-5. With two disposable environments, forget one and expect the other to remain. The server retains its registered device; forgetting is a local action.
+Preconditions: [surface baseline](README.md).
 
-## What proves it works
+1. In Computers locate the full card computer name, status badge and Forget computer trash button. Forget it; expect its row gone and No computers paired. when it was last.
+2. Cold-launch: that computer and workspace selection remain absent. Independently confirm its device registration still exists on the server.
+3. With two disposable computers, forget one and confirm the other reconnects. Exercise a removal error: show its row error; unreadable saved storage or a pending removal disables Forget.
 
-Drive this feature with the mobile-verify skill on demand.
+Automated coverage: none named; retain the live action and readback evidence.
 
 ## Gotchas
 
-- The visible buttons share the mobile UI primitives on iPad, iPhone and Android; each platform needs its own native walkthrough.
+- Forget is local; it does not revoke the server device. Keep the existing unsaved-draft guard when leaving a selected workspace.

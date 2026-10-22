@@ -14,33 +14,26 @@ api:
 
 # app.shell
 
-## What it is
-
 A browser with no session asks the real server for its inventory, gets 401, is sent to `/pair`, and sees the instructions to pair it instead of the workspace.
 
-## How a user reaches it
+## How to get to it (user POV)
 
 - Open Porcelain (`/` or any workspace or settings address) in a browser that was never paired, or whose session ended.
 
-## Driving it
+## Driving it with browser
 
-`$C start`; open the web URL in a fresh unpaired browser context: the browser was never paired; startup opens no browser.
+Preconditions: [surface baseline](README.md).
 
-### Setup
+Start in a fresh unpaired context without minting a pairing link. Do not apply the paired baseline.
 
-None.
+1. Navigate to `/`
+   Expect: URL `/pair`; heading "Porcelain" (level 1); heading "This browser is not paired"; the text "Run this on the machine hosting Porcelain, then open the link it prints on this device."; code `porcelain pair "This browser" --address http://127.0.0.1:<port>` naming the web origin the CLI started; no region "Review content". `$C server devices` lists only the server's own "Development setup".
+2. Navigate to `/settings/general`
+   Expect: also redirected to `/pair` with the same heading: every paired route is guarded.
+3. Inspect HTTP traffic
+   Expect: `GET /api/inventory` answered 401 for each load.
 
-1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: Page URL `/pair`; heading "Porcelain" (level 1); heading "This browser is not paired"; the text "Run this on the machine hosting Porcelain, then open the link it prints on this device."; code `porcelain pair "This browser" --address http://127.0.0.1:<port>` naming the web origin the CLI started; no region "Review content". `$C server devices` lists only the server's own "Development setup".
-2. Navigate to `/settings/general` on the card’s web URL (full page load)
-   Look for: also redirected to `/pair` with the same heading: every paired route is guarded.
-3. Inspect HTTP requests and responses
-   Look for: `GET /api/inventory` answered 401 for each load.
-
-## What proves it works
-
-- The not-paired heading and the `porcelain pair` command at `/pair` after loading `/`, with inventory answering 401.
-- `apps/web/spec/e2e/app-routing.e2e.ts`: the case "unknown URLs still require pairing" opens an unknown URL in a fresh browser context, redirects to `/pair` and sees the heading "This browser is not paired".
+Automated coverage: `app-routing.e2e.ts`.
 
 ## Gotchas
 

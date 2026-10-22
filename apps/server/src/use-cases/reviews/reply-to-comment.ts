@@ -6,6 +6,7 @@ import type {
   CommentLimitExceededError,
 } from '@porcelain/reviews/errors';
 import type {
+  CommentThreadTargetParams,
   ReviewScope,
   ReplyToCommentRequest,
   ReplyToCommentResponse,
@@ -27,7 +28,8 @@ export class ReplyToCommentUseCase extends Context.Service<
     readonly execute: (
       input: ReviewScope &
         ReplyToCommentRequest &
-        CommentAuthor & { threadId: string },
+        CommentAuthor &
+        CommentThreadTargetParams,
     ) => Effect.Effect<
       ReplyToCommentResponse,
       | WorktreeAccessFailure

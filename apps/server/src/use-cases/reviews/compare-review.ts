@@ -1,11 +1,14 @@
 import { Context, Effect, Layer } from 'effect';
 import { CompareReviewService } from '@porcelain/reviews/services';
-import type { CompareReviewInput } from '@porcelain/reviews/models';
 import type {
   ReviewNotFoundError,
   InvalidReviewComparisonError,
 } from '@porcelain/reviews/errors';
-import type { CompareReviewResponse } from '@porcelain/contracts/reviews';
+import type {
+  ReviewParams,
+  CompareReviewQuery,
+  CompareReviewResponse,
+} from '@porcelain/contracts/reviews';
 import { Lanes } from '../../runtime/lanes.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
 
@@ -13,7 +16,7 @@ export class CompareReviewUseCase extends Context.Service<
   CompareReviewUseCase,
   {
     readonly execute: (
-      input: CompareReviewInput,
+      input: ReviewParams & CompareReviewQuery,
     ) => Effect.Effect<
       CompareReviewResponse,
       ReviewNotFoundError | InvalidReviewComparisonError

@@ -15,43 +15,28 @@ api:
 
 # git-actions.commit
 
-## What it is
-
 The Commit dialog commits the selected changed files with a typed message, and that commit becomes the newest commit of the real repository.
 
-## How a user reaches it
+## How to get to it (user POV)
 
 - Workspace header, group "Git controls" → button "Commit" (the primary Git button; its name is "Commit" whenever there are changes to commit).
 - Group "Git controls" → button "Git actions" → menuitem "Commit… Commit selected files" (address it with name `/^Commit…/`).
 - Inside the dialog, `ControlOrMeta+Enter` with focus in the form submits it, like the button "Commit selected files".
 
-## Driving it
+## Driving it with browser
 
-`$C start`; pair your browser using the card’s pairing-link command, then `REPO=<connection.json fixtures.repositoryPath>`.
+Preconditions: [surface baseline](README.md).
 
-### Setup
+Preconditions: fresh README.md is modified/unstaged; no fixture commit is needed. This flow works at desktop or phone width.
 
-None: a fresh instance has README.md modified and unstaged, which is what the dialog commits.
+1. Open `/` → Git controls → Commit. Expect Commit changes, branch main, Single commit selected, Amend last and Use groups present (Use groups is disabled without a coding CLI), README.md (1 of 1), empty Message and disabled Commit selected files.
+2. Fill Message with `Browser commit`: submit enables. Click Commit selected files and wait for succeeded. Independently read `git -C "$REPO" log -1 --format=%s` → Browser commit and `git -C "$REPO" status --porcelain` → empty.
+3. Escape closes the dialog; Changes no longer lists README. Repeat with another disk change through Git actions → /^Commit…/ and submit with ControlOrMeta+Enter in the form.
+4. Record action POST/202 and terminal receipt. After both entries, compare the final subject/clean tree independently.
 
-1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: Page Title "Changes — repository"; group "Git controls" with button "Commit" enabled.
-2. Click button named `Commit`
-   Look for: dialog "Commit changes"; the branch strip reads "main"; tabs "Single commit" [selected], "Amend last", "Use groups"; text "README.md" in the Files list "(1 of 1)"; textbox "Message" empty; button "Commit selected files" disabled.
-3. Replace the contents of textbox named `Message` with 'Browser commit'
-   Look for: button "Commit selected files" becomes enabled.
-4. Click button named `Commit selected files`
-   Look for: a status in the dialog reads "succeeded".
-   Disk: `git -C "$REPO" log -1 --format=%s` prints `Browser commit`; `git -C "$REPO" status --porcelain` prints nothing.
-5. Press `Escape`
-   Look for: dialog "Commit changes" is gone; the Changes document no longer lists README.md (button "Mark README.md as reviewed" is gone).
-
-## What proves it works
-
-- The status "succeeded" in the dialog, and on disk `git -C "$REPO" log -1 --format=%s` = `Browser commit` with a clean working tree. Inspect HTTP requests and responses shows `POST /api/worktrees/<worktreeId>/git/actions` with status 202 (Accepted); the terminal outcome arrives through its receipt.
-- `apps/web/spec/integration/git-actions-commit-draft.test.tsx`: fills Message, clicks "Commit selected files", sees "succeeded", and polls the server until the newest commit's subject is the typed message.
+Automated coverage: `git-actions-commit-draft.test.tsx`.
 
 ## Gotchas
 
-- After the commit the tree is clean, so the "Commit" button stays named `Commit` but is disabled ("Nothing to commit"). To drive it again in the same instance, write a change first: `printf '# Sample repository\n\nA change to review.\n' > "$REPO/README.md"`, then inspect the accessibility tree until button "Mark README.md as reviewed" is back.
-- The dialog lists the files as they were when it opened; a file written while it is open appears only after a refusal and "Look again" (see git-actions.stale-draft).
-- Pressing Escape while the commit is running does nothing: the dialog closes only when idle.
+- After commit, Commit is disabled with Nothing to commit. Rewrite README with the fixture change before repeating.
+- New disk changes after the dialog opens need refusal/Look again. Escape closes only when idle.
