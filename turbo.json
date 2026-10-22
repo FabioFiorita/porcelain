@@ -43,22 +43,22 @@
       "cache": false
     },
     "//#typecheck": {
-      "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
+      "inputs": ["$TURBO_DEFAULT$"]
     },
     "//#lint:server": {
-      "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
+      "inputs": ["$TURBO_DEFAULT$"]
     },
     "//#lint:web": {
-      "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
+      "inputs": ["$TURBO_DEFAULT$"]
     },
     "//#format:server:check": {
-      "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
+      "inputs": ["$TURBO_DEFAULT$"]
     },
     "//#format:web:check": {
-      "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
+      "inputs": ["$TURBO_DEFAULT$"]
     },
     "//#arch:check": {
-      "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
+      "inputs": ["$TURBO_DEFAULT$"]
     },
     "//#mobile:react-compiler": {
       "inputs": [
@@ -211,10 +211,10 @@
       ]
     },
     "//#features:check": {
-      "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
+      "inputs": ["$TURBO_DEFAULT$"]
     },
     "//#knip": {
-      "inputs": ["$TURBO_DEFAULT$", "!repos/**"]
+      "inputs": ["$TURBO_DEFAULT$"]
     },
     "build": {
       "dependsOn": ["transit"]
@@ -258,7 +258,7 @@
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/vitest.integration.config.ts"]
     },
     "//#spec:gaps": {
-      "inputs": ["$TURBO_DEFAULT$", "!repos/**"],
+      "inputs": ["$TURBO_DEFAULT$"],
       "cache": false
     },
     "@porcelain/verification#transit": {
