@@ -201,76 +201,62 @@ export function WalkthroughBriefing({
                 const state = decisions.get(stop.layer.id);
                 const progress = filesReviewed(stop.paths, items);
                 return (
-                  <li key={stop.key}>
-                    <button
-                      type="button"
-                      aria-label={stopTitle(stop)}
-                      onClick={() => onGo(stop.key)}
-                      className="flex w-full items-start gap-3 px-3.5 py-3 text-left hover:bg-accent/50"
-                    >
-                      <StopMark done={isDone(stop)} label={`${stop.number}`} />
-                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <span className="text-sm font-medium wrap-anywhere">
-                          {stop.layer.title}
-                        </span>
-                        <span className="truncate text-xs text-muted-foreground">
-                          {decisionRoute(stop.layer).join(' → ') ||
-                            'No changed code'}
-                        </span>
+                  <WalkthroughRow key={stop.key} stop={stop} onGo={onGo}>
+                    <StopMark done={isDone(stop)} label={`${stop.number}`} />
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="text-sm font-medium wrap-anywhere">
+                        {stop.layer.title}
                       </span>
-                      <span className="flex shrink-0 flex-col items-end gap-1">
-                        <span className="text-xs text-muted-foreground tabular-nums">
-                          {progress.reviewed}/{progress.total} files
-                        </span>
-                        {state?.stale && (
-                          <Badge variant="outline">
-                            <TriangleAlertIcon className="text-graph-4" /> Code
-                            moved
-                          </Badge>
-                        )}
+                      <span className="truncate text-xs text-muted-foreground">
+                        {decisionRoute(stop.layer).join(' → ') ||
+                          'No changed code'}
                       </span>
-                    </button>
-                  </li>
+                    </span>
+                    <span className="flex shrink-0 flex-col items-end gap-1">
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {progress.reviewed}/{progress.total} files
+                      </span>
+                      {state?.stale && (
+                        <Badge variant="outline">
+                          <TriangleAlertIcon className="text-graph-4" /> Code
+                          moved
+                        </Badge>
+                      )}
+                    </span>
+                  </WalkthroughRow>
                 );
               })}
               {after.map((stop) => {
                 const progress = filesReviewed(stop.paths, items);
                 return (
-                  <li key={stop.key}>
-                    <button
-                      type="button"
-                      aria-label={stopTitle(stop)}
-                      onClick={() => onGo(stop.key)}
-                      className="flex w-full items-start gap-3 px-3.5 py-3 text-left hover:bg-accent/50"
+                  <WalkthroughRow key={stop.key} stop={stop} onGo={onGo}>
+                    <span
+                      className={cn(
+                        'grid size-6 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground',
+                        stop.kind === 'unexplained' &&
+                          'bg-graph-4/15 text-graph-4',
+                      )}
                     >
-                      <span
-                        className={cn(
-                          'grid size-6 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground',
-                          stop.kind === 'unexplained' &&
-                            'bg-graph-4/15 text-graph-4',
-                        )}
-                      >
-                        {stop.kind === 'unexplained' ? (
-                          <FileQuestionIcon className="size-3.5" />
-                        ) : (
-                          <FlaskConicalIcon className="size-3.5" />
-                        )}
+                      {stop.kind === 'unexplained' ? (
+                        <FileQuestionIcon className="size-3.5" />
+                      ) : (
+                        <FlaskConicalIcon className="size-3.5" />
+                      )}
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="text-sm font-medium wrap-anywhere">
+                        {stopName(stop)}
                       </span>
-                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <span className="text-sm font-medium wrap-anywhere">
-                          {stopName(stop)}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {stop.kind === 'unexplained'
-                            ? 'Changes no decision explains'
-                            : 'Set apart by your settings'}
-                        </span>
+                      <span className="text-xs text-muted-foreground">
+                        {stop.kind === 'unexplained'
+                          ? 'Changes no decision explains'
+                          : 'Set apart by your settings'}
                       </span>
-                      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                        {progress.reviewed}/{progress.total} files
-                      </span>
-                    </button>
-                  </li>
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                      {progress.reviewed}/{progress.total} files
+                    </span>
+                  </WalkthroughRow>
                 );
               })}
             </ol>
@@ -287,6 +273,29 @@ function SectionTitle({ id, children }: { id: string; children: ReactNode }) {
     <h3 id={id} className="text-sm font-semibold">
       {children}
     </h3>
+  );
+}
+
+function WalkthroughRow({
+  stop,
+  onGo,
+  children,
+}: {
+  stop: WalkthroughStop;
+  onGo: (key: WalkthroughKey) => void;
+  children: ReactNode;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        aria-label={stopTitle(stop)}
+        onClick={() => onGo(stop.key)}
+        className="flex w-full items-start gap-3 px-3.5 py-3 text-left hover:bg-accent/50"
+      >
+        {children}
+      </button>
+    </li>
   );
 }
 

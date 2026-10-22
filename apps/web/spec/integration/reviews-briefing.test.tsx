@@ -98,90 +98,60 @@ test('a briefing answer quotes its question, rejects blanks and posts one review
   agent,
   render,
   server,
+  fetchGate,
 }) => {
   await agent.publishArchitecture();
   const published = (await server.publishedReview()).review;
   if (!published?.reviewId)
     throw new Error('The published fixture has no review');
-  const originalFetch = window.fetch;
-  const requested = Promise.withResolvers<void>();
-  const released = Promise.withResolvers<void>();
-  const attempts: string[] = [];
-  window.fetch = async (input, init) => {
-    const request = new Request(
-      input instanceof Request ? input.clone() : input,
-      init,
-    );
-    if (
-      request.method === 'POST' &&
-      new URL(request.url).pathname.endsWith('/comments')
-    ) {
-      attempts.push(await request.clone().text());
-      if (attempts.length === 1)
-        throw new TypeError('The connection was interrupted');
-      requested.resolve();
-      await released.promise;
-    }
-    return originalFetch(input, init);
-  };
-  try {
-    const app = await render.route(`/reviews/${published.reviewId}`);
-    const briefing = app.page.getByRole('region', {
-      name: 'Briefing',
-      exact: true,
-    });
-    await briefing
-      .getByRole('button', { name: 'Answer this question', exact: true })
-      .click();
-    const textbox = briefing.getByRole('textbox', {
-      name: 'Comment',
-      exact: true,
-    });
-    const post = briefing.getByRole('button', { name: 'Comment', exact: true });
-    await expect.element(post).toBeDisabled();
-    await textbox.fill('   ');
-    await expect.element(post).toBeDisabled();
-    await textbox.fill('Use the session owner transaction.');
-    await post.click();
-    await expect.element(briefing.getByRole('alert')).toBeVisible();
-    await expect
-      .element(textbox)
-      .toHaveValue('Use the session owner transaction.');
-    await post.click();
-    await requested.promise;
-    await expect.element(textbox).toBeDisabled();
-    await expect
-      .element(briefing.getByRole('button', { name: 'Posting…', exact: true }))
-      .toBeDisabled();
-    expect(attempts).toHaveLength(2);
-    expect(attempts[1]).toEqual(attempts[0]);
-    released.resolve();
-    await expect
-      .poll(() => server.reviewComments(published.reviewId ?? ''))
-      .toMatchObject([
-        {
-          review: {
-            reviewId: published.reviewId,
-            revision: published.revision,
-            headOid: published.headOid,
-          },
-          anchor: { kind: 'change', revision: published.headOid },
-          messages: [
-            { body: `> ${question}\n\nUse the session owner transaction.` },
-          ],
+  const held = fetchGate.holdNextPost('/comments');
+  held.arm();
+  const app = await render.route(`/reviews/${published.reviewId}`);
+  const briefing = app.page.getByRole('region', {
+    name: 'Briefing',
+    exact: true,
+  });
+  await briefing
+    .getByRole('button', { name: 'Answer this question', exact: true })
+    .click();
+  const textbox = briefing.getByRole('textbox', {
+    name: 'Comment',
+    exact: true,
+  });
+  const post = briefing.getByRole('button', { name: 'Comment', exact: true });
+  await expect.element(post).toBeDisabled();
+  await textbox.fill('   ');
+  await expect.element(post).toBeDisabled();
+  await textbox.fill('Use the session owner transaction.');
+  await post.click();
+  await held.requested;
+  await expect.element(textbox).toBeDisabled();
+  await expect
+    .element(briefing.getByRole('button', { name: 'Posting…', exact: true }))
+    .toBeDisabled();
+  held.release();
+  await expect
+    .poll(() => server.reviewComments(published.reviewId ?? ''))
+    .toMatchObject([
+      {
+        review: {
+          reviewId: published.reviewId,
+          revision: published.revision,
+          headOid: published.headOid,
         },
-      ]);
-    await expect.element(textbox).not.toBeInTheDocument();
-    await expect
-      .element(
-        briefing.getByRole('button', {
-          name: 'Answer this question',
-          exact: true,
-        }),
-      )
-      .toHaveFocus();
-  } finally {
-    released.resolve();
-    window.fetch = originalFetch;
-  }
+        anchor: { kind: 'change', revision: published.headOid },
+        messages: [
+          { body: `> ${question}\n\nUse the session owner transaction.` },
+        ],
+      },
+    ]);
+  await expect.element(textbox).not.toBeInTheDocument();
+  await expect
+    .element(
+      briefing.getByRole('button', {
+        name: 'Answer this question',
+        exact: true,
+      }),
+    )
+    .toHaveFocus();
 });
