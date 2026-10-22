@@ -62,6 +62,7 @@ Preconditions: [surface baseline](README.md).
 6. Put reviewed and unreviewed changed files beside unchanged files/folders. Changed rows show Reviewed, Unreviewed or Changed since review in tree/search/pins; unchanged entries have no label. Accessible Open includes full path/status, distinguishing duplicate leaf names. Opening by any path writes no marks; kind/ignored badges and menus remain.
 7. Mark/unmark through Review, then update marks independently while Files stays visible. Mutate reviewed contents: Changed since review. Switch comparison/worktree, reconnect/relaunch: labels agree with independent reads. Pending/unavailable review reads keep navigation, show Reading file review status… or File review status is unavailable. plus Read file review status again, and retain no Reviewed labels.
 8. For iPad tab/inspector switching, retained search/expansion, worktree sessions and narrow panes follow [workspace](app.workspace.md). Repeat landscape, portrait and larger Dynamic Type.
+9. Search or pin a known text/image path inside a folder with more than 2,000 visible entries. Open it before expanding its parent; the reader still opens when browsing that folder is refused. Follow [Preview](files.preview.md) for content, safety and return-path controls.
 
 Automated coverage: `workspace-selection.spec.ts`, `directory-loading.spec.ts`, `directory-requests.spec.ts`, `file-preferences.spec.ts`, `comparison.spec.ts`.
 
