@@ -286,6 +286,16 @@ test('public discovery stays available on the same origin and does not share coo
     expect(anonymous.status).toBe(200);
     expect(anonymous.body).toStrictEqual(paired.body);
     expect(anonymous.headers['access-control-allow-origin']).toBeUndefined();
+
+    const unknown = await session.send({
+      method: 'GET',
+      path: '/api/environment',
+      headers,
+      auth: { bearer: 'x' },
+    });
+    expect(unknown.status).toBe(200);
+    expect(unknown.body).toStrictEqual(paired.body);
+    expect(unknown.headers['access-control-allow-origin']).toBe('*');
   }
   const cookieOnly = await session.send({
     method: 'GET',

@@ -55,6 +55,7 @@ export function publicScope(options: {
                 const context = yield* RequestContext;
                 const { route } = yield* HttpRouter.RouteContext;
                 if (
+                  context.crossOrigin &&
                   route.path === '/api/environment' &&
                   bearerCredential(context) !== undefined
                 )

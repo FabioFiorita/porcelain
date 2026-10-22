@@ -70,6 +70,7 @@ export function crossOriginHeaders(
           PAIRING_METHODS.has(context.request.method)) ||
         (bearerCredential(context) !== undefined &&
           (route.path !== '/api/environment' ||
+            !context.crossOrigin ||
             context.principal?.kind === 'device')))
       ? HttpServerResponse.setHeader(
           response,
