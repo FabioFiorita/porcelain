@@ -330,7 +330,7 @@ test('sidebar groups remember independent choices across search, Settings and re
   });
   const topic = sidebar.getByRole('button', { name: /^collapsed-topic/ });
   await expect(projects).toHaveAttribute('aria-expanded', 'true');
-  await expect(sidebar).toHaveCSS('background-color', 'oklch(1 0 0)');
+  await expect(sidebar).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   await expect(noReview).toHaveAttribute('aria-expanded', 'true');
   await projects.click();
   await expect(projects).toHaveAttribute('aria-expanded', 'false');
@@ -353,7 +353,10 @@ test('sidebar groups remember independent choices across search, Settings and re
     name: 'Settings sections',
     exact: true,
   });
-  await expect(settingsSidebar).toHaveCSS('background-color', 'oklch(1 0 0)');
+  await expect(settingsSidebar).toHaveCSS(
+    'background-color',
+    'rgb(255, 255, 255)',
+  );
   await expect(settingsSidebar).toHaveCSS('border-top-left-radius', '14px');
   await pairedPage.getByRole('button', { name: 'Back', exact: true }).click();
   await app.reload();
