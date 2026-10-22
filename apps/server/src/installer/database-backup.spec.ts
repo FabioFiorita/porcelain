@@ -1,6 +1,9 @@
 import { NodeServices } from '@effect/platform-node';
-import { Effect } from 'effect';
+import { Effect, FileSystem } from 'effect';
+import { createHash } from 'node:crypto';
 import {
+  chmodSync,
+  copyFileSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -9,9 +12,14 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { DatabaseSync } from 'node:sqlite';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
-import { backupDatabase, pruneDatabaseBackups } from './database-backup.ts';
+import {
+  backupDatabase,
+  pruneDatabaseBackups,
+  restoreDatabase,
+} from './database-backup.ts';
 
 let root: string;
 const prune = (folder = root) =>
@@ -155,4 +163,149 @@ it('never mixes files when concurrent copies try to publish the same destination
     readFileSync(join(root, 'completed/inventory.sqlite-wal'), 'utf8'),
   ).toBe(`${winner} wal`);
   expect(readdirSync(root).sort()).toEqual(['completed', 'first', 'second']);
+});
+
+function sqliteSnapshot(directory: string, value: string) {
+  const source = `${directory}-writer`;
+  mkdirSync(source);
+  mkdirSync(directory);
+  const db = new DatabaseSync(join(source, 'inventory.sqlite'));
+  try {
+    db.exec('PRAGMA journal_mode = WAL; CREATE TABLE saved(value TEXT)');
+    db.prepare('INSERT INTO saved VALUES (?)').run(value);
+    for (const file of readdirSync(source))
+      copyFileSync(join(source, file), join(directory, file));
+  } finally {
+    db.close();
+    rmSync(source, { recursive: true });
+  }
+}
+
+function savedValue(directory: string) {
+  const db = new DatabaseSync(join(directory, 'inventory.sqlite'), {
+    readOnly: true,
+  });
+  try {
+    return db.prepare('SELECT value FROM saved').get()?.value;
+  } finally {
+    db.close();
+  }
+}
+
+function snapshotBytes(directory: string) {
+  return Object.fromEntries(
+    readdirSync(directory)
+      .sort()
+      .map((file) => [
+        file,
+        createHash('sha256')
+          .update(readFileSync(join(directory, file)))
+          .digest('hex'),
+      ]),
+  );
+}
+
+const restore = (data: string, source: string, copyFailure = false) =>
+  Effect.runPromise(
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      return yield* restoreDatabase(data, source).pipe(
+        Effect.provideService(FileSystem.FileSystem, {
+          ...fs,
+          copyFile: (from, to) =>
+            copyFailure && from.endsWith('-wal')
+              ? fs.copyFile(join(root, 'missing-copy-source'), to)
+              : fs.copyFile(from, to),
+        }),
+      );
+    }).pipe(Effect.provide(NodeServices.layer)),
+  );
+
+it.each([
+  'missing',
+  'not-directory',
+  'unreadable-directory',
+  'unreadable',
+  'corrupt',
+  'copy-failure',
+  'orphan-sidecar',
+] as const)(
+  '%s backup preserves current database and sidecars on repeated restore attempts',
+  async (failure) => {
+    const data = join(root, 'current');
+    const source = join(root, 'saved');
+    sqliteSnapshot(data, 'keep me');
+    if (failure === 'not-directory') writeFileSync(source, 'not a directory');
+    else if (failure !== 'missing') {
+      sqliteSnapshot(source, 'restore me');
+      if (failure === 'unreadable-directory') chmodSync(source, 0);
+      if (failure === 'unreadable')
+        chmodSync(join(source, 'inventory.sqlite-wal'), 0);
+      if (failure === 'corrupt') {
+        writeFileSync(join(source, 'inventory.sqlite'), 'corrupt database');
+        rmSync(join(source, 'inventory.sqlite-wal'));
+        rmSync(join(source, 'inventory.sqlite-shm'));
+      }
+      if (failure === 'orphan-sidecar')
+        rmSync(join(source, 'inventory.sqlite'));
+    }
+    const current = snapshotBytes(data);
+    try {
+      await expect(
+        restore(data, source, failure === 'copy-failure'),
+      ).rejects.toThrow('Could not prepare database backup');
+      await expect(
+        restore(data, source, failure === 'copy-failure'),
+      ).rejects.toThrow('Could not prepare database backup');
+      expect(snapshotBytes(data)).toEqual(current);
+      expect(readdirSync(root).sort()).toEqual(
+        failure === 'missing' ? ['current'] : ['current', 'saved'],
+      );
+      expect(savedValue(data)).toBe('keep me');
+    } finally {
+      if (failure === 'unreadable-directory') chmodSync(source, 0o700);
+      if (failure === 'unreadable')
+        chmodSync(join(source, 'inventory.sqlite-wal'), 0o600);
+    }
+  },
+);
+
+it('restores committed WAL data repeatedly without changing the backup', async () => {
+  const data = join(root, 'current');
+  const source = join(root, 'saved');
+  sqliteSnapshot(data, 'newer');
+  sqliteSnapshot(source, 'restore me');
+  const original = snapshotBytes(source);
+  await restore(data, source);
+  expect(savedValue(data)).toBe('restore me');
+  await restore(data, source);
+  expect(savedValue(data)).toBe('restore me');
+  expect(snapshotBytes(source)).toEqual(original);
+  expect(readdirSync(root).sort()).toEqual(['current', 'saved']);
+});
+
+it('removes obsolete sidecars when restoring a checkpointed database', async () => {
+  const data = join(root, 'current');
+  const source = join(root, 'saved');
+  sqliteSnapshot(data, 'newer');
+  mkdirSync(source);
+  const db = new DatabaseSync(join(source, 'inventory.sqlite'));
+  db.exec(
+    "CREATE TABLE saved(value TEXT); INSERT INTO saved VALUES ('checkpointed')",
+  );
+  db.close();
+  await restore(data, source);
+  expect(readdirSync(data)).toEqual(['inventory.sqlite']);
+  expect(savedValue(data)).toBe('checkpointed');
+});
+
+it('restores an intentionally empty preinstall snapshot to empty repeatedly', async () => {
+  const data = join(root, 'current');
+  const source = join(root, 'saved');
+  sqliteSnapshot(data, 'newer');
+  mkdirSync(source);
+  await restore(data, source);
+  await restore(data, source);
+  expect(readdirSync(data)).toEqual([]);
+  expect(readdirSync(source)).toEqual([]);
 });

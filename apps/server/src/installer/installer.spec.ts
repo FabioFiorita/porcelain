@@ -19,6 +19,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { DatabaseSync } from 'node:sqlite';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { acquireDirectoryLock } from '../runtime/directory-lock.ts';
@@ -46,6 +47,27 @@ const database = () => join(data, 'inventory.sqlite');
 const porcelainCommand = () => join(home, '.local/bin/porcelain');
 const runPorcelain = (...args: string[]) =>
   execFileSync(porcelainCommand(), args, { encoding: 'utf8' });
+
+function writeDatabase(file: string, value: string) {
+  for (const suffix of ['', '-wal', '-shm'])
+    rmSync(`${file}${suffix}`, { force: true });
+  const db = new DatabaseSync(file);
+  try {
+    db.exec('CREATE TABLE saved(value TEXT)');
+    db.prepare('INSERT INTO saved VALUES (?)').run(value);
+  } finally {
+    db.close();
+  }
+}
+
+function readDatabase(file: string) {
+  const db = new DatabaseSync(file, { readOnly: true });
+  try {
+    return db.prepare('SELECT value FROM saved').get()?.value;
+  } finally {
+    db.close();
+  }
+}
 
 function writeRuntime(prefix: string, version: string) {
   const folder = join(prefix, 'node_modules', packageName);
@@ -125,7 +147,7 @@ const command = Effect.fn('Test.installerCommand')(
           mutateDatabase &&
           readFileSync(manifest(runtime()), 'utf8').includes('2.0.0')
         )
-          writeFileSync(database(), 'candidate changed the database');
+          writeDatabase(database(), 'candidate changed the database');
         if (
           rejectRetention &&
           readFileSync(manifest(runtime()), 'utf8').includes('2.0.0')
@@ -250,9 +272,7 @@ beforeEach(() => {
   source = join(home, 'package');
   mkdirSync(data);
   mkdirSync(source);
-  writeFileSync(database(), 'database before update');
-  writeFileSync(`${database()}-wal`, 'wal before update');
-  writeFileSync(`${database()}-shm`, 'shm before update');
+  writeDatabase(database(), 'database before update');
   writeFileSync(
     join(source, 'package.json'),
     JSON.stringify({ name: packageName, version: '1.0.0' }),
@@ -294,18 +314,10 @@ it('installs the runtime, private logs, unit and persistent records and updates 
     '2.0.0',
   );
   if (updated.action !== 'update') throw new Error('Expected update result');
-  expect(
-    readFileSync(join(updated.result.backup, 'inventory.sqlite'), 'utf8'),
-  ).toBe('database before update');
-  expect(
-    readFileSync(join(updated.result.backup, 'inventory.sqlite-wal'), 'utf8'),
-  ).toBe('wal before update');
-  expect(
-    readFileSync(join(updated.result.backup, 'inventory.sqlite-shm'), 'utf8'),
-  ).toBe('shm before update');
-  expect(readFileSync(database(), 'utf8')).toBe(
-    'candidate changed the database',
+  expect(readDatabase(join(updated.result.backup, 'inventory.sqlite'))).toBe(
+    'database before update',
   );
+  expect(readDatabase(database())).toBe('candidate changed the database');
   expect(record('installed.json')).toEqual({ version: '2.0.0' });
   expect(record('update-record.json')).toEqual({
     from: '1.0.0',
@@ -343,9 +355,9 @@ it('restores the previous runtime and all database files when the replacement is
     execute({ action: 'update', allowDowngrade: false }, '2.0.0'),
   ).rejects.toThrow('the previous runtime and database were restored');
   expect(record('installed.json')).toEqual({ version: '1.0.0' });
-  expect(readFileSync(database(), 'utf8')).toBe('database before update');
-  expect(readFileSync(`${database()}-wal`, 'utf8')).toBe('wal before update');
-  expect(readFileSync(`${database()}-shm`, 'utf8')).toBe('shm before update');
+  expect(readDatabase(database())).toBe('database before update');
+  expect(existsSync(`${database()}-wal`)).toBe(false);
+  expect(existsSync(`${database()}-shm`)).toBe(false);
   expect(record('update-record.json')).toMatchObject({ stage: 'failed' });
   expect(readFileSync(join(root, 'update-record.json'), 'utf8')).toContain(
     'did not become healthy',
@@ -363,7 +375,7 @@ it.each(['restore-previous', 'restart-current', 'finish-update'] as const)(
     await stopService();
     const backup = join(root, 'saved-database');
     mkdirSync(backup);
-    writeFileSync(join(backup, 'inventory.sqlite'), 'saved database');
+    writeDatabase(join(backup, 'inventory.sqlite'), 'saved database');
     if (plan !== 'restart-current') {
       renameSync(runtime(), join(root, 'runtime.previous'));
       writeRuntime(runtime(), '2.0.0');
@@ -372,7 +384,7 @@ it.each(['restore-previous', 'restart-current', 'finish-update'] as const)(
         JSON.stringify({ version: '2.0.0' }),
       );
     }
-    writeFileSync(database(), 'interrupted database');
+    writeDatabase(database(), 'interrupted database');
     writeFileSync(
       join(root, 'update.json'),
       JSON.stringify({
@@ -389,7 +401,7 @@ it.each(['restore-previous', 'restart-current', 'finish-update'] as const)(
     expect(record('installed.json')).toEqual({
       version: plan === 'finish-update' ? '2.0.0' : '1.0.0',
     });
-    expect(readFileSync(database(), 'utf8')).toBe(
+    expect(readDatabase(database())).toBe(
       plan === 'finish-update' ? 'interrupted database' : 'saved database',
     );
     expect(record('update-record.json')).toMatchObject({
@@ -451,7 +463,7 @@ it('discards an obsolete previous runtime and uninstalls while retaining user da
   });
   expect(service).toBeUndefined();
   expect(existsSync(join(root, 'installed.json'))).toBe(false);
-  expect(readFileSync(database(), 'utf8')).toBe('database before update');
+  expect(readDatabase(database())).toBe('database before update');
   expect(
     commands.some((entry) => entry.includes('disable --now porcelain.service')),
   ).toBe(true);
@@ -463,7 +475,7 @@ it('refuses recovery without either runtime and retains the journal and backup',
   rmSync(runtime(), { recursive: true });
   const backup = join(root, 'saved-database');
   mkdirSync(backup);
-  writeFileSync(join(backup, 'inventory.sqlite'), 'saved database');
+  writeDatabase(join(backup, 'inventory.sqlite'), 'saved database');
   writeFileSync(
     join(root, 'update.json'),
     JSON.stringify({
@@ -476,9 +488,7 @@ it('refuses recovery without either runtime and retains the journal and backup',
     'neither the installed nor previous runtime',
   );
   expect(existsSync(join(root, 'update.json'))).toBe(true);
-  expect(readFileSync(join(backup, 'inventory.sqlite'), 'utf8')).toBe(
-    'saved database',
-  );
+  expect(readDatabase(join(backup, 'inventory.sqlite'))).toBe('saved database');
   expect(service).toBeUndefined();
 });
 
@@ -554,9 +564,9 @@ it('prunes older database backups only after the updated service is healthy', as
     ...saved.slice(2),
     outcome.result.backup.split('/').at(-1),
   ]);
-  expect(
-    readFileSync(join(outcome.result.backup, 'inventory.sqlite'), 'utf8'),
-  ).toBe('database before update');
+  expect(readDatabase(join(outcome.result.backup, 'inventory.sqlite'))).toBe(
+    'database before update',
+  );
 });
 
 it('retains every backup when an update must roll back', async () => {
@@ -752,3 +762,78 @@ it('refuses a designated updater if its parent never releases preparation owners
     expect(existsSync(join(root, 'updater.lock'))).toBe(true);
   });
 });
+
+it.each(['missing', 'corrupt', 'copy-failure'] as const)(
+  'retains both runtimes, current data, journal and backup after %s restore failure and allows retry',
+  async (failure) => {
+    await install();
+    await stopService();
+    renameSync(runtime(), join(root, 'runtime.previous'));
+    writeRuntime(runtime(), '2.0.0');
+    writeDatabase(database(), 'newer surviving data');
+    writeFileSync(join(root, 'installed.json'), '{"version":"2.0.0"}');
+    const backup = join(root, 'saved-database');
+    if (failure !== 'missing') {
+      mkdirSync(backup);
+      if (failure === 'corrupt')
+        writeFileSync(join(backup, 'inventory.sqlite'), 'corrupt');
+      else writeDatabase(join(backup, 'inventory.sqlite'), 'saved database');
+    }
+    const journal = JSON.stringify({
+      installed: { version: '1.0.0' },
+      backup,
+      target: '2.0.0',
+    });
+    writeFileSync(join(root, 'update.json'), journal);
+    const backupBytes =
+      failure === 'missing'
+        ? undefined
+        : readFileSync(join(backup, 'inventory.sqlite'));
+    const files = await Effect.runPromise(
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        return {
+          ...fs,
+          copyFile: (from: string, to: string) =>
+            failure === 'copy-failure' && from.startsWith(backup)
+              ? fs.copyFile(join(root, 'missing-copy-source'), to)
+              : fs.copyFile(from, to),
+        };
+      }).pipe(Effect.provide(NodeServices.layer)),
+    );
+    await expect(
+      execute({ action: 'recover' }, '2.0.0', source, files),
+    ).rejects.toThrow('Could not prepare database backup');
+    await expect(
+      execute({ action: 'recover' }, '2.0.0', source, files),
+    ).rejects.toThrow('Could not prepare database backup');
+    expect(existsSync(database())).toBe(true);
+    expect(readDatabase(database())).toBe('newer surviving data');
+    expect(JSON.parse(readFileSync(manifest(runtime()), 'utf8'))).toMatchObject(
+      { version: '2.0.0' },
+    );
+    expect(
+      JSON.parse(
+        readFileSync(manifest(join(root, 'runtime.previous')), 'utf8'),
+      ),
+    ).toMatchObject({ version: '1.0.0' });
+    expect(record('installed.json')).toEqual({ version: '2.0.0' });
+    expect(readFileSync(join(root, 'update.json'), 'utf8')).toBe(journal);
+    if (backupBytes !== undefined)
+      expect(readFileSync(join(backup, 'inventory.sqlite'))).toEqual(
+        backupBytes,
+      );
+    mkdirSync(backup, { recursive: true });
+    writeDatabase(join(backup, 'inventory.sqlite'), 'saved database');
+    expect(await execute({ action: 'recover' })).toEqual({
+      action: 'recover',
+      result: { recovered: true },
+    });
+    expect(readDatabase(database())).toBe('saved database');
+    expect(record('installed.json')).toEqual({ version: '1.0.0' });
+    expect(await execute({ action: 'recover' })).toEqual({
+      action: 'recover',
+      result: { recovered: false },
+    });
+  },
+);

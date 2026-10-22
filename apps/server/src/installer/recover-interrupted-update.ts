@@ -54,11 +54,11 @@ export const recoverInterruptedUpdate = Effect.fn(
     return RECOVERED;
   }
   if ((yield* systemd.probe()).running) yield* systemd.stop();
+  yield* restoreDatabase(configuration.dataDirectory, journal.backup);
   if (plan === 'restore-previous') {
     yield* fs.remove(paths.runtime, { recursive: true, force: true });
     yield* fs.rename(paths.previousRuntime, paths.runtime);
   }
-  yield* restoreDatabase(configuration.dataDirectory, journal.backup);
   yield* writeJsonFile(paths.installed, journal.installed);
   yield* systemd.write(servicePlan(context, configuration));
   yield* systemd.start();
