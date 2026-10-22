@@ -81,4 +81,4 @@ Automated coverage: `changes-live-update.test.tsx`.
 ## Gotchas
 
 - Wait for changed content/tree after each write. A changed README click opens its diff; context menu Open file opens text.
-- Match the exact Changes tab, distinct from Changes Close Changes. Restore rewritten README; live-note.md is removed in the recipe.
+- Match the exact Changes tab, distinct from Changes. Restore rewritten README; live-note.md is removed in the recipe.

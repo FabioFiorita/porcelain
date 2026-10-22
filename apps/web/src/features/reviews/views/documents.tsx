@@ -1,4 +1,5 @@
-import { FileIcon, GitGraphIcon, HistoryIcon } from 'lucide-react';
+import { FileIcon, HistoryIcon } from 'lucide-react';
+import { BarAction } from '@/shared/workspace/bar-action';
 import { Button } from '@/components/ui/button';
 import { CommitGraph, FileTimeline } from '@/features/history/index';
 import { DiscardButton } from '@/features/git-actions/index';
@@ -48,10 +49,12 @@ export function DocumentView({
   active = false,
   reveal,
   base,
+  toolbarTarget,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   document: DocumentRef;
+  toolbarTarget?: HTMLElement | null | undefined;
   onOpen: OpenDocument;
   sideLabel: string;
   active?: boolean;
@@ -64,6 +67,7 @@ export function DocumentView({
     onOpen,
     sideLabel,
     interaction: {
+      toolbarTarget,
       active,
       worktreeId: scope.worktreeId,
       entry: entryKey(document),
@@ -99,15 +103,6 @@ export function DocumentView({
 function GraphDocument({ scope, context, onOpen, sideLabel }: DocumentProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <DocumentToolbar
-        title={
-          <span className="flex min-w-0 items-center gap-1.5">
-            <GitGraphIcon className="size-4 shrink-0" />
-            <span className="truncate">Commit graph</span>
-          </span>
-        }
-        subtitle="Commits on this branch with their merges and refs"
-      />
       <div className="min-h-0 flex-1 overflow-auto">
         <CommitGraph
           scope={scope}
@@ -170,7 +165,13 @@ function TimelineDocument({
 function HandoffDocument(props: DocumentProps) {
   const published = usePublishedReview(props.scope, props.context);
   if (published.review?.reviewId)
-    return <BranchReviewPage {...props} active={props.interaction.active} />;
+    return (
+      <BranchReviewPage
+        {...props}
+        toolbarTarget={props.interaction.toolbarTarget}
+        active={props.interaction.active}
+      />
+    );
   return <PlainChangesDocument {...props} />;
 }
 
@@ -229,6 +230,8 @@ function PlainChangesDocument({
           : {})}
         toolbar={(collapseControl) => (
           <DocumentToolbar
+            target={interaction.toolbarTarget}
+            barActions={null}
             title={changesTitle(specsOnly, interaction.entry)}
             subtitle={`${changes.length} files`}
           >
@@ -280,6 +283,13 @@ function ChangeDocument({
               ? { commentRequest: interaction.reveal.nonce }
               : {})}
             headerActions={
+              <BarAction
+                label="Timeline"
+                icon={HistoryIcon}
+                onClick={() => onOpen({ kind: 'timeline', path })}
+              />
+            }
+            headerLeading={
               <>
                 <Button
                   variant="ghost"

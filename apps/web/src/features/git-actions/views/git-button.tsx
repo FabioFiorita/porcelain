@@ -33,6 +33,11 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
 import { Spinner } from '@/components/ui/spinner';
 import { toast } from '@/components/ui/toast';
 import { usePreferences } from '@/features/preferences/index';
@@ -125,7 +130,6 @@ export function GitButton({
   const selected = gitActions.find((candidate) => candidate.id === action);
   const primary = primaryGitAction(status);
   const primaryTip = primaryTooltip(primary, status);
-  const suggested = primary.kind === 'run' || primary.kind === 'stash';
   const count = suggestedCount(primary, status);
   const branch = branchStatus(status);
   const running = menu.running;
@@ -142,95 +146,105 @@ export function GitButton({
   return (
     <>
       <ButtonGroup aria-label="Git controls" className="shrink-0">
-        <Popover
-          open={
-            (running !== null && running !== undefined && progressOpen) ||
-            (result !== null && result !== undefined)
-          }
-          onOpenChange={(open) => {
-            if (!open) setResult(null);
-            if (running) setProgressOpen(open);
-          }}
-        >
-          <PopoverTrigger
-            render={
-              <Button
-                variant="outline"
-                size={suggested && !running ? 'sm' : 'icon-sm'}
-                aria-label={
-                  running
-                    ? `${networkLabel(running.name)} in progress: show progress`
-                    : primary.label
-                }
-                title={
-                  running
-                    ? `${networkLabel(running.name)} in progress`
-                    : primaryTip
-                }
-                disabled={
-                  (running === null || running === undefined) &&
-                  primary.kind === 'hint'
-                }
-                focusableWhenDisabled
-                className="aria-disabled:cursor-default"
-                onClick={() => {
-                  if (running || result) return;
-                  if (primary.kind === 'commit') choose('commit');
-                  else if (primary.kind === 'stash') choose('stash-apply');
-                  else if (primary.kind === 'run')
-                    menu.runNetwork(primary.action, status.branch);
-                }}
-              />
+        <Tooltip>
+          <Popover
+            open={
+              (running !== null && running !== undefined && progressOpen) ||
+              (result !== null && result !== undefined)
             }
+            onOpenChange={(open) => {
+              if (!open) setResult(null);
+              if (running) setProgressOpen(open);
+            }}
           >
-            {running ? (
-              <Spinner className="size-3.5" />
-            ) : (
-              <GitActionIcon
-                action={primaryIcon(primary)}
-                className="size-3.5"
-              />
-            )}
-            {suggested && !running && (
+            <TooltipTrigger
+              render={
+                <PopoverTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      aria-label={
+                        running
+                          ? `${networkLabel(running.name)} in progress: show progress`
+                          : primary.label
+                      }
+                      disabled={
+                        (running === null || running === undefined) &&
+                        primary.kind === 'hint'
+                      }
+                      focusableWhenDisabled
+                      className="aria-disabled:cursor-default"
+                      onClick={() => {
+                        if (running || result) return;
+                        if (primary.kind === 'commit') choose('commit');
+                        else if (primary.kind === 'stash')
+                          choose('stash-apply');
+                        else if (primary.kind === 'run')
+                          menu.runNetwork(primary.action, status.branch);
+                      }}
+                    />
+                  }
+                />
+              }
+            >
+              {running ? (
+                <Spinner className="size-3.5" />
+              ) : (
+                <GitActionIcon
+                  action={primaryIcon(primary)}
+                  className="size-3.5"
+                />
+              )}
               <span aria-hidden="true">
-                {primary.label}
-                {count !== null && count !== undefined && ` ${count}`}
+                {running ? `${networkLabel(running.name)}…` : primary.label}
+                {!running &&
+                  count !== null &&
+                  count !== undefined &&
+                  ` ${count}`}
               </span>
-            )}
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-80">
-            {result && !running ? (
-              <PopoverHeader>
-                <PopoverTitle>{result.title}</PopoverTitle>
-                {result.description !== undefined &&
-                  (result.type === 'error' ? (
-                    <GitActionError text={result.description} />
-                  ) : (
-                    <PopoverDescription>
-                      <GitActionMessage text={result.description} />
-                    </PopoverDescription>
-                  ))}
-              </PopoverHeader>
-            ) : (
-              <>
-                <PopoverTitle>
-                  {running ? `${networkLabel(running.name)}…` : 'Git action…'}
-                </PopoverTitle>
-                <ol className="flex flex-col gap-0.5 font-mono text-2xs leading-4">
-                  {running?.operation?.receipt?.progress.length ? (
-                    running.operation.receipt.progress.slice(-4).map((line) => (
-                      <li key={line} className="truncate" title={line}>
-                        {line}
+            </TooltipTrigger>
+            <PopoverContent align="end" className="w-80">
+              {result && !running ? (
+                <PopoverHeader>
+                  <PopoverTitle>{result.title}</PopoverTitle>
+                  {result.description !== undefined &&
+                    (result.type === 'error' ? (
+                      <GitActionError text={result.description} />
+                    ) : (
+                      <PopoverDescription>
+                        <GitActionMessage text={result.description} />
+                      </PopoverDescription>
+                    ))}
+                </PopoverHeader>
+              ) : (
+                <>
+                  <PopoverTitle>
+                    {running ? `${networkLabel(running.name)}…` : 'Git action…'}
+                  </PopoverTitle>
+                  <ol className="flex flex-col gap-0.5 font-mono text-2xs leading-4">
+                    {running?.operation?.receipt?.progress.length ? (
+                      running.operation.receipt.progress
+                        .slice(-4)
+                        .map((line) => (
+                          <li key={line} className="truncate" title={line}>
+                            {line}
+                          </li>
+                        ))
+                    ) : (
+                      <li className="text-muted-foreground">
+                        Waiting for Git…
                       </li>
-                    ))
-                  ) : (
-                    <li className="text-muted-foreground">Waiting for Git…</li>
-                  )}
-                </ol>
-              </>
-            )}
-          </PopoverContent>
-        </Popover>
+                    )}
+                  </ol>
+                </>
+              )}
+            </PopoverContent>
+          </Popover>
+          <TooltipContent>
+            {running ? `${networkLabel(running.name)} in progress` : primaryTip}
+          </TooltipContent>
+        </Tooltip>
         <DropdownMenu
           open={menuOpen}
           onOpenChange={(open) => {
@@ -244,14 +258,13 @@ export function GitButton({
                 variant="outline"
                 size="icon-sm"
                 aria-label="Git actions"
-                title="Git actions menu"
                 disabled={running !== null && running !== undefined}
               />
             }
           >
             <ChevronDownIcon className="size-3.5" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-72">
+          <DropdownMenuContent align="end" className="w-76">
             <DropdownMenuGroup>
               <DropdownMenuLabel className="flex items-center">
                 <GitBranchIcon className="size-3.5 shrink-0" />
@@ -282,40 +295,30 @@ export function GitButton({
                     const reason =
                       blocker ?? gitActionReason(candidate.id, status);
                     return (
-                      <DropdownMenuItem
-                        key={candidate.id}
-                        disabled={blocker !== null && blocker !== undefined}
-                        onClick={() => choose(candidate.id)}
-                        className="items-start"
-                      >
-                        <GitActionIcon
-                          action={candidate.id}
-                          className={
-                            blocker !== null && blocker !== undefined
-                              ? 'mt-0.5 opacity-50'
-                              : 'mt-0.5'
-                          }
-                        />
-                        <span className="flex min-w-0 flex-col">
-                          <span
-                            className={
-                              blocker !== null && blocker !== undefined
-                                ? 'opacity-50'
-                                : undefined
-                            }
+                      <Tooltip key={candidate.id}>
+                        <TooltipTrigger render={<span className="block" />}>
+                          <DropdownMenuItem
+                            disabled={blocker !== null && blocker !== undefined}
+                            onClick={() => choose(candidate.id)}
                           >
-                            {candidate.label}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {candidate.description}
-                          </span>
-                          {reason && (
-                            <span className="text-xs text-muted-foreground">
-                              {reason}
+                            <GitActionIcon action={candidate.id} />
+                            <span className="flex min-w-0 flex-col">
+                              <span className="truncate">
+                                {candidate.label}
+                              </span>
+                              {blocker && (
+                                <span className="text-xs whitespace-normal text-muted-foreground">
+                                  {blocker}
+                                </span>
+                              )}
                             </span>
-                          )}
-                        </span>
-                      </DropdownMenuItem>
+                          </DropdownMenuItem>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {candidate.description}
+                          {reason && ` ${reason}`}
+                        </TooltipContent>
+                      </Tooltip>
                     );
                   })}
                 </DropdownMenuGroup>
@@ -335,21 +338,22 @@ export function GitButton({
                         ? `Restore discarded rename of ${item.path}`
                         : `Restore discarded hunk of ${item.path}`;
                     return (
-                      <DropdownMenuItem
-                        key={item.oid}
-                        onClick={() => {
-                          setMenuOpen(false);
-                          menu.restoreDiscarded(item);
-                        }}
-                      >
-                        <Undo2Icon />
-                        <span className="flex min-w-0 flex-col">
-                          <span>{label}</span>
-                          <span className="text-xs text-muted-foreground">
-                            Kept until you restore it
-                          </span>
-                        </span>
-                      </DropdownMenuItem>
+                      <Tooltip key={item.oid}>
+                        <TooltipTrigger render={<span className="block" />}>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setMenuOpen(false);
+                              menu.restoreDiscarded(item);
+                            }}
+                          >
+                            <Undo2Icon />
+                            <span className="min-w-0 truncate">{label}</span>
+                          </DropdownMenuItem>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {label} · Kept until you restore it
+                        </TooltipContent>
+                      </Tooltip>
                     );
                   })}
                 </DropdownMenuGroup>

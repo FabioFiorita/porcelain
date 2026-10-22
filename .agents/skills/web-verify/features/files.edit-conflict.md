@@ -40,7 +40,7 @@ None before driving; the disk write happens between steps 6 and 7.
 4. Right-click treeitem `README.md`
    Expect: menuitem "Open file".
 5. Click menuitem `Open file`
-   Expect: tab "README.md Close README.md" selected; button "Edit".
+   Expect: tab "README.md" selected; button "Edit".
 6. Click button `Edit`
    Expect: textbox "README.md"; status "Saves as you pause".
 7. On disk: `printf 'Changed on disk while the browser edits\n' > "$REPO/README.md"`

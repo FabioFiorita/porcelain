@@ -40,7 +40,7 @@ The sample `README.md` ("# Sample repository\n\nA change to review.\n", modified
 1. Navigate to `/`, click button `Review`, click tab `Files`
    Expect: treeitem "README.md".
 2. Right-click treeitem `README.md`, then click menuitem `Open file`
-   Expect: the sheet closes; tab "README.md Close README.md" selected; tab "Reader" selected; heading "Sample repository" (level 1) and paragraph "A change to review.".
+   Expect: the sheet closes; tab "README.md" selected; tab "Reader" selected; heading "Sample repository" (level 1) and paragraph "A change to review.".
 3. Click tab `Source`
    Expect: tab "Source" selected; the code shows "# Sample repository"; heading "Sample repository" is gone.
 4. Disk: `cat "$REPO/README.md"`
@@ -51,7 +51,7 @@ The sample `README.md` ("# Sample repository\n\nA change to review.\n", modified
 1. Click button `Review`, then right-click treeitem named `large.md`
    Expect: menuitem "Open file".
 2. Click menuitem `Open file`
-   Expect: tab "large.md Close large.md" selected; heading "large.md"; the text "Not shown" with "This file is too large to display as text." under it; no tabs "Reader"/"Source" and no button "Edit".
+   Expect: tab "large.md" selected; heading "large.md"; the text "Not shown" with "This file is too large to display as text." under it; no tabs "Reader"/"Source" and no button "Edit".
 3. Inspect HTTP traffic
    Expect: `GET /api/worktrees/<id>/text?path=large.md` answered 422.
 

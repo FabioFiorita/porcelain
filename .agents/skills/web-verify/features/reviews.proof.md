@@ -34,7 +34,7 @@ Preconditions: [surface baseline](README.md).
 - The agent publishes a review with proof: `$C agent publish-proof "Readme layer" --check "Unit tests=pass" --check "Save journey=fail" --output "Save journey=Expected the Saved notice to be visible" --screenshot "Saved notice"` (the sample review plus a one-pixel PNG attachment titled "Saved notice", checks tied to the layer).
 
 1. Navigate to `/`
-   Expect: tab "Review Close Review", region "Review walkthrough".
+   Expect: tab "Review", region "Review walkthrough".
 2. Click button `Review`, then click tab `Review`
    Expect: the review sheet with button "Proof · 1 failing" in nav "Walkthrough" (and, in Readiness, "1 of 2 checks failing").
 3. Click button `Proof · 1 failing`, then wait for img named `Saved notice`

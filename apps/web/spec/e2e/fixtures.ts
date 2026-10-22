@@ -193,6 +193,18 @@ async function appOf(page: Page, world: World, live: LiveFixture) {
       await page.goto(address);
       return page;
     },
+    async restoreEmptyTabLayout() {
+      await page.evaluate(() => {
+        const key = Object.keys(localStorage).find((candidate) =>
+          candidate.startsWith('porcelain.tabs.'),
+        );
+        if (!key) throw new Error('The worktree tab layout was not saved.');
+        localStorage.setItem(
+          key,
+          JSON.stringify({ panes: [{ tabs: [], pinned: [] }], saved: true }),
+        );
+      });
+    },
     async reload() {
       await page.reload();
     },

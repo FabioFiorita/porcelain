@@ -53,7 +53,8 @@ test('open tabs, a pinned tab and a collapsed diff come back after a reload', as
   await expect(
     opened.getByRole('tab', { name: new RegExp(notes) }),
   ).toBeVisible();
+  await opened.getByRole('tab', { name: new RegExp(notes) }).click();
   await expect(
     opened.getByRole('button', { name: `Close ${notes}`, exact: true }),
-  ).toBeAttached();
+  ).toBeVisible();
 });

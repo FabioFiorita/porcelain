@@ -5,7 +5,6 @@ import {
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
 import { SidebarProvider } from '@/components/ui/sidebar';
-import { TooltipProvider } from '@/components/ui/tooltip';
 import { ProjectNavigator } from './project-navigator';
 import { cn } from '@/shared/lib/utils';
 
@@ -19,11 +18,9 @@ export function ProjectWorkspaceProvider({
   children: ReactNode;
 }) {
   return (
-    <TooltipProvider delay={400}>
-      <SidebarProvider open={open} onOpenChange={onOpenChange}>
-        {children}
-      </SidebarProvider>
-    </TooltipProvider>
+    <SidebarProvider open={open} onOpenChange={onOpenChange}>
+      {children}
+    </SidebarProvider>
   );
 }
 

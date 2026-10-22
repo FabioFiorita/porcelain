@@ -34,9 +34,7 @@ for (const entryPoint of ['Files tree', 'Quick Open', 'Pinned']) {
       name: 'Right pane',
       exact: true,
     });
-    await left
-      .getByRole('tab', { name: 'Changes Close Changes', exact: true })
-      .click();
+    await left.getByRole('tab', { name: 'Changes', exact: true }).click();
     await review();
     await expect.element(row).toBeVisible();
     if (entryPoint === 'Files tree') await row.click();
@@ -55,7 +53,7 @@ for (const entryPoint of ['Files tree', 'Quick Open', 'Pinned']) {
         .click();
     }
     const tab = workspace.getByRole('tab', {
-      name: 'guide.txt Close guide.txt',
+      name: 'guide.txt',
       exact: true,
     });
     await expect.element(tab).toHaveAttribute('data-entry', 'file:guide.txt');
@@ -63,7 +61,7 @@ for (const entryPoint of ['Files tree', 'Quick Open', 'Pinned']) {
     await expect
       .element(
         right.getByRole('tab', {
-          name: 'guide.txt Close guide.txt',
+          name: 'guide.txt',
           exact: true,
         }),
       )
@@ -71,15 +69,13 @@ for (const entryPoint of ['Files tree', 'Quick Open', 'Pinned']) {
     await expect
       .element(
         left.getByRole('tab', {
-          name: 'guide.txt Close guide.txt',
+          name: 'guide.txt',
           exact: true,
         }),
       )
       .not.toBeInTheDocument();
     await expect
-      .element(
-        left.getByRole('tab', { name: 'Changes Close Changes', exact: true }),
-      )
+      .element(left.getByRole('tab', { name: 'Changes', exact: true }))
       .toHaveAttribute('aria-selected', 'true');
     await review();
     await row.click();
@@ -110,14 +106,14 @@ test('Show timeline is a distinct document and reopening it focuses its existing
     .getByRole('button', { name: 'Timeline', exact: true })
     .click();
   const timeline = workspace.getByRole('tab', {
-    name: 'Timeline of README.md Close Timeline of README.md',
+    name: 'Timeline of README.md',
     exact: true,
   });
   await expect
     .element(timeline)
     .toHaveAttribute('data-entry', 'timeline:README.md');
   const file = workspace.getByRole('tab', {
-    name: 'README.md Close README.md',
+    name: 'README.md',
     exact: true,
   });
   await expect.element(file).toHaveAttribute('data-entry', 'file:README.md');
@@ -160,7 +156,7 @@ test('the persistent Files tree reopens its selected file after focus moves to t
     await row.click();
     await expect.element(readme).toHaveAttribute('aria-selected', 'false');
     const file = workspace.getByRole('tab', {
-      name: 'guide.txt Close guide.txt',
+      name: 'guide.txt',
       exact: true,
     });
     await file.click({ button: 'right' });
@@ -176,18 +172,16 @@ test('the persistent Files tree reopens its selected file after focus moves to t
       exact: true,
     });
     await left
-      .getByRole('tab', { name: 'guide.txt Close guide.txt', exact: true })
+      .getByRole('tab', { name: 'guide.txt', exact: true })
       .getByRole('button', { name: 'Close guide.txt', exact: true })
       .click();
-    await left
-      .getByRole('tab', { name: 'Changes Close Changes', exact: true })
-      .click();
+    await left.getByRole('tab', { name: 'Changes', exact: true }).click();
     await row.click();
     await expect.element(file).toHaveFocus();
     await expect
       .element(
         right.getByRole('tab', {
-          name: 'guide.txt Close guide.txt',
+          name: 'guide.txt',
           exact: true,
         }),
       )
@@ -195,7 +189,7 @@ test('the persistent Files tree reopens its selected file after focus moves to t
     await expect
       .element(
         left.getByRole('tab', {
-          name: 'guide.txt Close guide.txt',
+          name: 'guide.txt',
           exact: true,
         }),
       )
@@ -230,11 +224,11 @@ test('Changes and comment links focus an already-open diff in the other pane and
     exact: true,
   });
   const original = left.getByRole('tab', {
-    name: 'Changes Close Changes',
+    name: 'Changes',
     exact: true,
   });
   const tab = workspace.getByRole('tab', {
-    name: 'README.md Close README.md',
+    name: 'README.md',
     exact: true,
   });
   await original.click();
@@ -256,9 +250,7 @@ test('Changes and comment links focus an already-open diff in the other pane and
     .element(right.getByRole('button', { name: 'Reply', exact: true }))
     .toBeVisible();
   await expect
-    .element(
-      left.getByRole('tab', { name: 'README.md Close README.md', exact: true }),
-    )
+    .element(left.getByRole('tab', { name: 'README.md', exact: true }))
     .not.toBeInTheDocument();
   await expect.element(original).toHaveAttribute('aria-selected', 'true');
 });

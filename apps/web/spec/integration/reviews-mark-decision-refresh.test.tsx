@@ -57,7 +57,9 @@ test('sidebar decisions return from an older revision or summary to the latest w
   await expect
     .element(review.getByRole('button', { name: 'r1', exact: true }))
     .toHaveAttribute('aria-pressed', 'true');
-  await review.getByRole('tab', { name: 'Agent summary', exact: true }).click();
+  await workspace
+    .getByRole('tab', { name: 'Agent summary', exact: true })
+    .click();
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
   await workspace
     .getByRole('dialog', { name: 'Worktree review', exact: true })
@@ -71,7 +73,7 @@ test('sidebar decisions return from an older revision or summary to the latest w
     .element(review.getByRole('button', { name: 'latest', exact: true }))
     .toHaveAttribute('aria-pressed', 'true');
   await expect
-    .element(review.getByRole('tab', { name: 'Walkthrough', exact: true }))
+    .element(workspace.getByRole('tab', { name: 'Walkthrough', exact: true }))
     .toHaveAttribute('aria-selected', 'true');
   await expect
     .element(

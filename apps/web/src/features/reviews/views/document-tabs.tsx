@@ -1,6 +1,5 @@
 import { ScrollArea as ScrollAreaPrimitive } from '@base-ui/react/scroll-area';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
-import type { LucideIcon } from 'lucide-react';
 import {
   Columns2Icon,
   FileDiffIcon,
@@ -8,16 +7,16 @@ import {
   FlaskConicalIcon,
   GitBranchIcon,
   GitCommitHorizontalIcon,
-  GitGraphIcon,
+  FileCodeIcon,
   HistoryIcon,
-  LayersIcon,
+  ListChecksIcon,
   ListXIcon,
   PinIcon,
   PinOffIcon,
   SquareXIcon,
   XIcon,
 } from 'lucide-react';
-import type { ComponentType, ReactNode, SVGProps } from 'react';
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
@@ -35,18 +34,11 @@ import { parseEntry, type ReviewTitle } from '../rules/documents';
 import { openToSideText } from '../rules/tab-strip';
 import { basename } from '@porcelain/client/reviews/rules';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
-import { FileTypeIcon } from '@/features/files/index';
-
-type TabIcon = LucideIcon | ComponentType<SVGProps<SVGSVGElement>>;
-
-const fileTypeIcon = (path: string): TabIcon =>
-  function TabFileIcon(props: SVGProps<SVGSVGElement>) {
-    return props.className === null || props.className === undefined ? (
-      <FileTypeIcon path={path} />
-    ) : (
-      <FileTypeIcon path={path} className={props.className} />
-    );
-  };
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 function describeTab(key: string, reviewTitle: ReviewTitle | undefined) {
   const ref = parseEntry(key);
@@ -54,7 +46,7 @@ function describeTab(key: string, reviewTitle: ReviewTitle | undefined) {
     case 'handoff':
       return reviewTitle
         ? {
-            Icon: LayersIcon,
+            Icon: ListChecksIcon,
             title: reviewTitle,
             hint: 'Walkthrough of the decisions',
           }
@@ -79,13 +71,13 @@ function describeTab(key: string, reviewTitle: ReviewTitle | undefined) {
       };
     case 'change':
       return {
-        Icon: fileTypeIcon(ref.path),
+        Icon: FileCodeIcon,
         title: basename(ref.path),
         hint: `${ref.path} · changes`,
       };
     case 'file':
       return {
-        Icon: fileTypeIcon(ref.path),
+        Icon: FileCodeIcon,
         title: basename(ref.path),
         hint: `${ref.path} · file`,
       };
@@ -103,13 +95,13 @@ function describeTab(key: string, reviewTitle: ReviewTitle | undefined) {
       };
     case 'branch-file':
       return {
-        Icon: fileTypeIcon(ref.path),
+        Icon: FileCodeIcon,
         title: basename(ref.path),
         hint: `${ref.path} · branch`,
       };
     case 'graph':
       return {
-        Icon: GitGraphIcon,
+        Icon: GitBranchIcon,
         title: 'Graph',
         hint: 'Commit graph of the checked-out branch',
       };
@@ -130,7 +122,8 @@ type TabActions = {
   onCloseOthers: (key: string) => void;
   onCloseUnpinned: () => void;
   onTogglePin: (key: string) => void;
-  onOpenToSide: (key: string) => void;
+  onOpenToSide?: ((key: string) => void) | undefined;
+  onClosePane?: (() => void) | undefined;
 };
 
 export function DocumentTabs({
@@ -142,6 +135,7 @@ export function DocumentTabs({
   focused,
   leading,
   trailing,
+  reviewCount,
   ...actions
 }: TabActions & {
   tabs: readonly string[];
@@ -152,19 +146,35 @@ export function DocumentTabs({
   focused: boolean;
   leading?: ReactNode;
   trailing?: ReactNode;
+  reviewCount?: ReactNode;
 }) {
   return (
     <div
+      data-pane-bar=""
       className={cn(
-        'flex h-10 shrink-0 items-center border-b',
+        'flex h-12 shrink-0 items-center gap-1 border-b px-1.5',
         side !== null && side !== undefined && focused && 'bg-muted/40',
       )}
     >
       {leading !== null && leading !== undefined && (
         <div className="flex shrink-0 items-center pl-1">{leading}</div>
       )}
-      <ScrollAreaPrimitive.Root className="relative h-full min-w-0 flex-1">
-        <ScrollAreaPrimitive.Viewport className="size-full overflow-y-hidden">
+      <ScrollAreaPrimitive.Root className="@container/tabs relative h-full min-w-0 flex-1">
+        <ScrollAreaPrimitive.Viewport
+          className="size-full overflow-y-hidden"
+          ref={(viewport) => {
+            if (!viewport) return;
+            const reveal = () =>
+              viewport
+                .querySelector<HTMLElement>(
+                  '[role="tab"][aria-selected="true"]',
+                )
+                ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            const observer = new ResizeObserver(reveal);
+            observer.observe(viewport);
+            return () => observer.disconnect();
+          }}
+        >
           <div
             role="tablist"
             aria-label={
@@ -174,11 +184,6 @@ export function DocumentTabs({
             }
             className="flex h-full w-max min-w-full items-center gap-1 px-1.5"
           >
-            {tabs.length === 0 && (
-              <span className="px-2 text-xs text-muted-foreground">
-                No open tabs
-              </span>
-            )}
             {tabs.map((key, index) => {
               const isPinned = pinned.includes(key);
               const endOfPinned =
@@ -189,9 +194,12 @@ export function DocumentTabs({
                 <span key={key} className="contents">
                   <DocumentTab
                     tabKey={key}
+                    reviewCount={reviewCount}
                     active={key === active}
                     pinned={isPinned}
-                    hasUnpinned={tabs.some((item) => !pinned.includes(item))}
+                    hasUnpinned={tabs.some(
+                      (item) => item !== 'handoff' && !pinned.includes(item),
+                    )}
                     reviewTitle={reviewTitle}
                     side={side}
                     {...actions}
@@ -223,6 +231,7 @@ export function DocumentTabs({
 
 function DocumentTab({
   tabKey,
+  reviewCount,
   active,
   pinned,
   hasUnpinned,
@@ -234,8 +243,10 @@ function DocumentTab({
   onCloseUnpinned,
   onTogglePin,
   onOpenToSide,
+  onClosePane,
 }: TabActions & {
   tabKey: string;
+  reviewCount?: ReactNode;
   active: boolean;
   pinned: boolean;
   hasUnpinned: boolean;
@@ -247,120 +258,139 @@ function DocumentTab({
   const openToSideLabel = openToSideText(side);
 
   return (
-    <ContextMenu
-      onOpenChange={(open) => {
-        if (open) setOpeningSide(false);
-      }}
-    >
-      <ContextMenuTrigger
-        render={
-          <div
-            ref={(tab) => {
-              if (active)
-                tab?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-            }}
-            role="tab"
-            tabIndex={0}
-            aria-selected={active}
-            title={pinned ? `${hint} · pinned` : hint}
-            data-entry={tabKey}
-            className={cn(
-              'group flex h-7 shrink-0 cursor-default items-center gap-1.5 rounded-md pr-1 pl-2 text-xs transition-colors',
-              active
-                ? 'bg-accent text-accent-foreground'
-                : 'text-muted-foreground hover:bg-accent/50',
-            )}
-            onClick={() => onActivate(tabKey)}
-            onAuxClick={(event) => {
-              if (event.button === 1 && !pinned) {
-                event.preventDefault();
-                onClose(tabKey);
-              }
-            }}
-            onKeyDown={(event) => {
-              if (event.target !== event.currentTarget) return;
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onActivate(tabKey);
-              }
-            }}
-          />
-        }
-      >
-        <Icon className="size-3.5 shrink-0" />
-        <span
-          className={cn(
-            'max-w-44 truncate pr-0.5',
-            tabKey.startsWith('file:') && 'italic',
-          )}
-        >
-          {title}
-        </span>
-        {pinned ? (
-          <button
-            type="button"
-            aria-label={`Unpin ${title}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onTogglePin(tabKey);
-            }}
-            className="grid size-4 place-items-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
-          >
-            <PinIcon className="size-3" />
-          </button>
-        ) : (
-          <button
-            type="button"
-            aria-label={`Close ${title}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onClose(tabKey);
-            }}
-            className={cn(
-              'grid size-4 place-items-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground',
-              active
-                ? 'opacity-100'
-                : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
-            )}
-          >
-            <XIcon className="size-3" />
-          </button>
-        )}
-      </ContextMenuTrigger>
-      <ContextMenuContent className="min-w-52" finalFocus={!openingSide}>
-        <ContextMenuItem onClick={() => onTogglePin(tabKey)}>
-          {pinned ? <PinOffIcon /> : <PinIcon />}
-          {pinned ? 'Unpin' : 'Pin'}
-        </ContextMenuItem>
-        <ContextMenuItem
-          onClick={() => {
-            flushSync(() => setOpeningSide(true));
-            onOpenToSide(tabKey);
+    <Tooltip>
+      <TooltipTrigger render={<span className="inline-flex" />}>
+        <ContextMenu
+          onOpenChange={(open) => {
+            if (open) setOpeningSide(false);
           }}
         >
-          <Columns2Icon />
-          {openToSideLabel}
-          <ContextMenuShortcut>
-            {formatForDisplay(SHORTCUTS.openToSide)}
-          </ContextMenuShortcut>
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onClick={() => onClose(tabKey)}>
-          <XIcon />
-          Close
-          <ContextMenuShortcut>
-            {formatForDisplay(SHORTCUTS.closeTab)}
-          </ContextMenuShortcut>
-        </ContextMenuItem>
-        <ContextMenuItem onClick={() => onCloseOthers(tabKey)}>
-          <SquareXIcon />
-          Close others
-        </ContextMenuItem>
-        <ContextMenuItem disabled={!hasUnpinned} onClick={onCloseUnpinned}>
-          <ListXIcon />
-          Close unpinned
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+          <ContextMenuTrigger
+            render={
+              <div
+                ref={(tab) => {
+                  if (active)
+                    tab?.scrollIntoView?.({
+                      block: 'nearest',
+                      inline: 'nearest',
+                    });
+                }}
+                role="tab"
+                tabIndex={0}
+                aria-selected={active}
+                aria-label={title}
+
+                data-entry={tabKey}
+                className={cn(
+                  'group flex h-7 max-w-[min(100cqw,calc(var(--spacing)*45))] shrink-0 cursor-default items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors',
+                  active
+                    ? 'bg-muted text-foreground ring-1 ring-border ring-inset'
+                    : 'text-muted-foreground hover:bg-accent/50',
+                )}
+                onClick={() => onActivate(tabKey)}
+                onAuxClick={(event) => {
+                  if (event.button === 1 && !pinned && tabKey !== 'handoff') {
+                    event.preventDefault();
+                    onClose(tabKey);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget) return;
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onActivate(tabKey);
+                  }
+                }}
+              />
+            }
+          >
+            <Icon className="size-3.5 shrink-0" />
+            <span
+              className={cn(
+                'min-w-0 truncate',
+                tabKey.startsWith('file:') && 'italic',
+              )}
+            >
+              {title}
+            </span>
+            {tabKey === 'handoff' && reviewCount}
+            {tabKey !== 'handoff' && pinned && (
+              <button
+                type="button"
+                aria-label={`Unpin ${title}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onTogglePin(tabKey);
+                }}
+                className="grid size-4 place-items-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+              >
+                <PinIcon className="size-3" />
+              </button>
+            )}
+            {tabKey !== 'handoff' && active && (
+              <button
+                type="button"
+                aria-label={`Close ${title}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onClose(tabKey);
+                }}
+                className="grid size-4 place-items-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+              >
+                <XIcon className="size-3" />
+              </button>
+            )}
+          </ContextMenuTrigger>
+          <ContextMenuContent className="min-w-52" finalFocus={!openingSide}>
+            <ContextMenuItem
+              disabled={tabKey === 'handoff'}
+              onClick={() => onTogglePin(tabKey)}
+            >
+              {pinned ? <PinOffIcon /> : <PinIcon />}
+              {pinned ? 'Unpin' : 'Pin'}
+            </ContextMenuItem>
+            <ContextMenuItem
+              disabled={onOpenToSide === undefined}
+              onClick={() => {
+                flushSync(() => setOpeningSide(true));
+                onOpenToSide?.(tabKey);
+              }}
+            >
+              <Columns2Icon />
+              {openToSideLabel}
+              <ContextMenuShortcut>
+                {formatForDisplay(SHORTCUTS.openToSide)}
+              </ContextMenuShortcut>
+            </ContextMenuItem>
+            {onClosePane && (
+              <ContextMenuItem onClick={onClosePane}>
+                <Columns2Icon />
+                Close pane
+              </ContextMenuItem>
+            )}
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              disabled={tabKey === 'handoff'}
+              onClick={() => onClose(tabKey)}
+            >
+              <XIcon />
+              Close
+              <ContextMenuShortcut>
+                {formatForDisplay(SHORTCUTS.closeTab)}
+              </ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => onCloseOthers(tabKey)}>
+              <SquareXIcon />
+              Close others
+            </ContextMenuItem>
+            <ContextMenuItem disabled={!hasUnpinned} onClick={onCloseUnpinned}>
+              <ListXIcon />
+              Close unpinned
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+      </TooltipTrigger>
+      <TooltipContent>{pinned ? `${hint} · pinned` : hint}</TooltipContent>
+    </Tooltip>
   );
 }

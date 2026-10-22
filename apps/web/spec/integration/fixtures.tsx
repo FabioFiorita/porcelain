@@ -153,7 +153,7 @@ function Workspace({ connection }: { connection: Connection }) {
   const worktree = project?.worktrees.find((entry) => entry.main);
   if (project === undefined || worktree === undefined) return null;
   return (
-    <div className="flex h-svh min-h-0 flex-col">
+    <div className="flex h-svh min-h-0 w-full flex-col">
       <ReviewWorkspace
         worktree={worktree}
         projectId={project.id}

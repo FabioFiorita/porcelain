@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   documentPane,
+  primaryPane,
+  orderedTabs,
+  closeInPane,
+  closeOthersInPane,
+  closeUnpinnedInPane,
+  togglePinInPane,
   openInPane,
   openToSideText,
   parseTabLayout,
@@ -107,5 +113,54 @@ describe('side-opening label', () => {
     expect(openToSideText(null)).toBe('Open to the side');
     expect(openToSideText('left')).toBe('Open in the right pane');
     expect(openToSideText('right')).toBe('Open in the left pane');
+  });
+});
+
+describe('permanent review tab', () => {
+  it.each([
+    { tabs: [], pinned: [] },
+    { tabs: ['file:a.ts'], pinned: ['file:a.ts'] },
+    { tabs: ['file:a.ts', 'handoff'], pinned: ['file:a.ts', 'handoff'] },
+  ])('restores the first tab without losing documents or pins: %j', (saved) => {
+    const restored = primaryPane(saved);
+    expect(orderedTabs(restored)[0]).toBe('handoff');
+    expect(restored.tabs.filter((key) => key === 'handoff')).toEqual([
+      'handoff',
+    ]);
+    expect(restored.tabs.filter((key) => key !== 'handoff')).toEqual(
+      saved.tabs.filter((key) => key !== 'handoff'),
+    );
+    expect(restored.pinned).toEqual(
+      saved.pinned.filter((key) => key !== 'handoff'),
+    );
+  });
+
+  it.each(['close', 'others', 'unpinned', 'pin'] as const)(
+    'keeps Review or Changes during %s',
+    (action) => {
+      const pane = { tabs: ['handoff', 'file:a.ts', 'graph'], pinned: [] };
+      const operations = {
+        close: () => closeInPane(pane, 'handoff'),
+        others: () => closeOthersInPane(pane, 'file:a.ts'),
+        unpinned: () => closeUnpinnedInPane(pane),
+        pin: () => togglePinInPane(pane, 'handoff'),
+      };
+      const next = operations[action]();
+      expect(orderedTabs(next)[0]).toBe('handoff');
+      expect(next.pinned).toEqual([]);
+      const expected = {
+        close: pane.tabs,
+        others: ['handoff', 'file:a.ts'],
+        unpinned: ['handoff'],
+        pin: pane.tabs,
+      };
+      expect(next.tabs).toEqual(expected[action]);
+    },
+  );
+
+  it('allows the last side document to close', () => {
+    expect(
+      closeInPane({ tabs: ['file:a.ts'], pinned: [] }, 'file:a.ts'),
+    ).toEqual({ tabs: [], pinned: [] });
   });
 });
