@@ -6,7 +6,10 @@ async function openRemotes(page: Page) {
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.getByRole('button', { name: 'Computers', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Settings sections', exact: true })
+    .getByRole('button', { name: 'Computers', exact: true })
+    .click();
 }
 
 async function openComputer(page: Page, name: string) {
@@ -195,7 +198,10 @@ test('Computers and outage links open the exact computer, saved offline details 
     page.getByRole('button', { name, exact: true }),
   ).not.toBeAttached();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.getByRole('button', { name: 'Computers', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Settings sections', exact: true })
+    .getByRole('button', { name: 'Computers', exact: true })
+    .click();
   await openComputer(page, name);
   const detail = `/settings/computers/${inventory.environmentId}`;
   await expect(page).toHaveURL(new RegExp(`${detail}$`));
@@ -222,7 +228,10 @@ test('Computers and outage links open the exact computer, saved offline details 
       .getByRole('button', { name: 'Toggle Sidebar', exact: true })
       .click();
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
-    await page.getByRole('button', { name: 'Computers', exact: true }).click();
+    await page
+      .getByRole('navigation', { name: 'Settings sections', exact: true })
+      .getByRole('button', { name: 'Computers', exact: true })
+      .click();
     await openComputer(page, name);
     await expect(page).toHaveURL(new RegExp(`${detail}$`));
     await expect(page.getByText('Offline', { exact: true })).toBeVisible();
@@ -301,7 +310,10 @@ test('forgetting from detail protects an unsavable remote draft and succeeds aft
     .click();
   const openComputerFromSidebar = async () => {
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
-    await page.getByRole('button', { name: 'Computers', exact: true }).click();
+    await page
+      .getByRole('navigation', { name: 'Settings sections', exact: true })
+      .getByRole('button', { name: 'Computers', exact: true })
+      .click();
     await openComputer(page, inventory.environment.name);
   };
   await openComputerFromSidebar();
