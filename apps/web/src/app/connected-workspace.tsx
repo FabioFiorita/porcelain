@@ -4,7 +4,13 @@ import {
   firstWaitingWorktree,
   selectedWorktreeInProject,
 } from '@porcelain/client/projects/rules';
-import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
+import {
+  detectPlatform,
+  formatForDisplay,
+  formatHotkey,
+  parseHotkey,
+  useHotkey,
+} from '@tanstack/react-hotkeys';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import {
@@ -47,7 +53,7 @@ import type {
   SetWorkspaceSearch,
   WorkspaceSearch,
 } from '@/shared/workspace/search';
-import { formatShortcutForAria, SHORTCUTS } from '@/shared/workspace/shortcuts';
+import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { desktopShell } from '@/shared/shell';
 import { cn } from '@/shared/lib/utils';
 
@@ -271,16 +277,16 @@ function EmptyWorkspace({
             <SidebarTrigger
               ref={(element) => navigationTrigger.attach(element)}
               className="absolute top-3 left-3"
-              aria-label="Toggle projects"
+              aria-label="Toggle Sidebar"
               aria-expanded={isMobile ? openMobile : open}
-              aria-keyshortcuts={formatShortcutForAria(
-                SHORTCUTS.toggleNavigator,
+              aria-keyshortcuts={formatHotkey(
+                parseHotkey(SHORTCUTS.toggleNavigator, detectPlatform()),
               )}
             />
           }
         />
         <TooltipContent side="right">
-          Toggle projects
+          Toggle sidebar
           <Kbd>{formatForDisplay(SHORTCUTS.toggleNavigator)}</Kbd>
         </TooltipContent>
       </Tooltip>

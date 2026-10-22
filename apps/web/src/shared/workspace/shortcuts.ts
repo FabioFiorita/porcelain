@@ -1,16 +1,3 @@
-import {
-  detectPlatform,
-  formatHotkey,
-  parseHotkey,
-} from '@tanstack/react-hotkeys';
-
-export function formatShortcutForAria(
-  shortcut: string,
-  platform = detectPlatform(),
-): string {
-  return formatHotkey(parseHotkey(shortcut, platform));
-}
-
 export const SHORTCUTS = {
   saveFile: 'Mod+S',
   toggleNavigator: 'Mod+B',
