@@ -57,7 +57,7 @@ The phone native plus menu and the iPad Files inspector menu are labelled Create
 
 Earlier phone evidence covers browsing and directory operations against a real server. The new phone controls and feedback need a fresh native walkthrough. Document tabs and the current combined layout need a fresh native walkthrough; iPad and Android remain unproved until driven.
 
-See [selected workspace states](projects.workspace-picker.md#selected-workspace-states) for shared loading, failure, availability and recovery behavior.
+See [selected workspace states](projects.workspace-picker.md#drive-it) for shared loading, failure, availability and recovery behavior.
 
 On both devices, long-press a file in the tree, search or Pinned files to Pin file, Unpin file or Hide file. Directories offer Hide folder. Show hidden reveals saved hidden paths; Show file/folder clears the actual hidden preference, including an inherited hidden ancestor. Pins remain reachable before their containing folders are opened. Verify preferences through the server and after leaving and reopening Files. Preference reads/writes expose pending, error and retry states. Switching environment/project must not carry preferences into a different project. Only iPad offers Open to the side.
 

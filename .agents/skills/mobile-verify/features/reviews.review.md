@@ -72,7 +72,7 @@ Drive this feature with the mobile-verify skill on demand.
 - Pane width is measured after the app sidebar consumes its space. A wide phone still uses native file routes; Android keeps its existing compact presentation. Resize the iPad pane across the threshold and verify the same tabs and active content remain, with no native file-route push.
 - Native acceptance requires driving the changed iPad presentation and existing compact flow; source inspection does not establish either.
 
-See [selected workspace states](projects.workspace-picker.md#selected-workspace-states) for shared loading, failure, availability and recovery behavior.
+See [selected workspace states](projects.workspace-picker.md#drive-it) for shared loading, failure, availability and recovery behavior.
 
 ## Agent overview and walkthrough
 

@@ -1,5 +1,4 @@
-import { compareRevisions } from './compare-revisions.ts';
-import { liveGitHubRead } from './github-read.ts';
+import { githubReadArguments, liveGitHubRead } from './github-read.ts';
 import { Schema } from 'effect';
 import { pairingLink } from '@porcelain/contracts/access';
 import { readFile } from 'node:fs/promises';
@@ -23,7 +22,8 @@ import { registry } from './instance.ts';
 import { serve, start } from './start.ts';
 
 const usage = `Usage: .agents/skills/server-verify/scripts/cli <command> [--instance <id>]
-  github-read             live read-only PR #423 and project PR list using host gh accounts
+  github-read <owner/repository> <pr-number> <account>...
+                          live read-only PR and project list using the named host gh accounts
   start                   build a disposable server and print its connection card
   doctor                  check startup dependencies and list optional drivers
   status                  inspect captured ownership, build staleness and connection metadata
@@ -31,7 +31,6 @@ const usage = `Usage: .agents/skills/server-verify/scripts/cli <command> [--inst
   stop                    stop owned processes, remove private runtime data, keep evidence
   evidence                print the evidence folder (retained sessions require --instance)
   ids                     print deterministic fixture IDs and paths
-  fixture compare-revisions  publish, rebase and compare two retained revisions
   pairing-link            print a fresh one-time browser pairing link
   agent publish-review "<title>" [--context] [--summary-html <html>]
   agent publish-proof "<title>" --check "<name>=pass|fail" [--output "<name>=<text>"] --screenshot "<title>"
@@ -121,23 +120,20 @@ async function main(argv: readonly string[]): Promise<string> {
   if (command === 'status')
     return `${JSON.stringify(await registry.status(values.instance), null, 2)}\n`;
   if (
-    ![
-      'logs',
-      'ids',
-      'agent',
-      'server',
-      'pairing-link',
-      'fixture',
-      'github-read',
-    ].includes(command ?? '')
+    !['logs', 'ids', 'agent', 'server', 'pairing-link', 'github-read'].includes(
+      command ?? '',
+    )
   )
     throw new Usage(usage);
+  const githubInput =
+    command === 'github-read' ? githubReadArguments(rest) : undefined;
   const instance = registry.chosen(values.instance);
-  if (command === 'github-read')
+  if (githubInput !== undefined)
     return registry.drive(instance, argv, async () => {
       const result = await liveGitHubRead(
         instance.detail.manifestPath,
         instance.detail.logFile,
+        githubInput,
       );
       await registry.evidence(instance).json('github-live-read', result);
       return `${JSON.stringify(result, null, 2)}\n`;
@@ -149,14 +145,7 @@ async function main(argv: readonly string[]): Promise<string> {
   return registry.drive(instance, argv, async () => {
     const recorder = registry.redactor(instance).recorder();
     let output: string;
-    if (command === 'fixture') {
-      if (
-        rest[0] !== 'compare-revisions' ||
-        instance.connectionPath === undefined
-      )
-        throw new Usage(usage);
-      output = await compareRevisions(instance.connectionPath);
-    } else if (command === 'agent')
+    if (command === 'agent')
       output = await agentCommand(
         instance.detail.manifestPath,
         rest,
