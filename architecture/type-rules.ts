@@ -7,6 +7,7 @@ import {
   type SourceFile,
 } from 'typescript/unstable/ast';
 import {
+  isArrayLiteralExpression,
   isArrowFunction,
   isCallExpression,
   isClassDeclaration,
@@ -278,6 +279,16 @@ function laneKeyOf(project: Project, node: Node | undefined): string {
   return 'unknown';
 }
 
+function laneKeysOf(
+  project: Project,
+  node: Node | undefined,
+): readonly string[] {
+  if (!node || !isArrayLiteralExpression(node))
+    return [laneKeyOf(project, node)];
+  const keys = node.elements.map((element) => laneKeyOf(project, element));
+  return keys.length === 0 || keys.includes('unknown') ? ['unknown'] : keys;
+}
+
 function laneKeyArgument(call: Node): Node | undefined {
   if (!isCallExpression(call) || !isPropertyAccessExpression(call.expression))
     return undefined;
@@ -286,7 +297,7 @@ function laneKeyArgument(call: Node): Node | undefined {
   return first;
 }
 
-type LaneSite = { lane: Lane; key: string };
+type LaneSite = { lane: Lane; keys: readonly string[] };
 
 function isFunctionNode(node: Node): boolean {
   return isArrowFunction(node) || isFunctionExpression(node);
@@ -307,7 +318,7 @@ function laneSitesAround(
   node: Node,
   seen: Set<Node>,
 ): LaneSite[] {
-  const none: LaneSite[] = [{ lane: 'none', key: 'none' }];
+  const none: LaneSite[] = [{ lane: 'none', keys: ['none'] }];
   for (let current = node; ; current = current.parent) {
     const parent = current.parent;
     if (isFunctionNode(current) && isCallExpression(parent)) {
@@ -316,13 +327,13 @@ function laneSitesAround(
         return [
           {
             lane,
-            key:
+            keys:
               isPropertyAccessExpression(parent.expression) &&
               worktreeAccess(project, parent.expression.expression)
-                ? 'repository'
+                ? ['repository']
                 : lane === 'unqueued'
-                  ? 'none'
-                  : laneKeyOf(project, laneKeyArgument(parent)),
+                  ? ['none']
+                  : laneKeysOf(project, laneKeyArgument(parent)),
           },
         ];
       if (
@@ -420,13 +431,13 @@ function tableFindings(
     sites
       .filter(
         (site) =>
-          !allowed.includes(site.key) &&
-          !(site.key === 'none' && serviceName in readsBeforeLane),
+          !site.keys.some((key) => allowed.includes(key)) &&
+          !(site.keys[0] === 'none' && serviceName in readsBeforeLane),
       )
       .map((site) => ({
         rule: 'lane-per-table',
         from: where(root, call),
-        to: `${field} calls ${store}.${method}; that table belongs to the ${allowed.join(' or ')} lane, so run it inside lanes.run(this.laneKeys.${allowed[0] ?? ''}(...)), not ${site.key === 'none' ? 'outside any lane' : `the ${site.key} lane`}`,
+        to: `${field} calls ${store}.${method}; that table belongs to the ${allowed.join(' or ')} lane, so run it inside lanes.run(this.laneKeys.${allowed[0] ?? ''}(...)), not ${site.keys[0] === 'none' ? 'outside any lane' : `the ${site.keys.join(' or ')} lane`}`,
       })),
   );
 }

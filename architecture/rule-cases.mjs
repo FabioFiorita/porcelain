@@ -4855,6 +4855,70 @@ Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => unde
     errors: ['TS2379', 'TS377004', 'TS2379', 'TS377004', 'TS2739'],
   },
   {
+    rule: 'worktree-transaction-types',
+    valid:
+      "import { Effect, type Context } from 'effect'; import type { Lanes } from '__LANES__'; declare const lanes: Context.Service.Shape<typeof Lanes>; const run = lanes.run(['P', 'R'], 'write', () => Effect.succeed('saved')); const commit = lanes.commit(['P', 'R'], () => Effect.succeed('saved'), () => Effect.void); const transaction = lanes.transaction(['P', 'R'], () => Effect.succeed('prepared'), () => Effect.succeed('saved'), () => Effect.void);",
+    invalid:
+      "import { Effect, type Context } from 'effect'; import type { Lanes } from '__LANES__'; declare const lanes: Context.Service.Shape<typeof Lanes>; const run = lanes.run([], 'write', () => Effect.succeed('saved')); const commit = lanes.commit([], () => Effect.succeed('saved'), () => Effect.void); const transaction = lanes.transaction([], () => Effect.succeed('prepared'), () => Effect.succeed('saved'), () => Effect.void);",
+    errors: ['TS2345', 'TS2345', 'TS2345'],
+  },
+  ...['run', 'commit', 'transaction'].flatMap((operation) => {
+    const call = (owners) =>
+      operation === 'run'
+        ? `return yield* lanes.run(${owners}, 'write', () => receipts.claimExecution());`
+        : operation === 'commit'
+          ? `return yield* lanes.commit(${owners}, () => receipts.claimExecution(), () => Effect.void);`
+          : `return yield* lanes.transaction(${owners}, () => Effect.void, () => receipts.claimExecution(), () => Effect.void);`;
+    const workflow = (body) =>
+      `import { Context, Effect, Layer } from 'effect'; import { GitActionReceiptStore } from '../../../../packages/git-actions/src/ports/git-action-receipt-store.ts'; import { Lanes } from './lanes.ts'; import { LaneKeys } from './lane-keys.ts'; declare const unknownKey: string; declare const owners: readonly [string, ...string[]]; export class GitActionWorkflow extends Context.Service<GitActionWorkflow, { readonly execute: () => Effect.Effect<boolean>; }>()('@porcelain/server/GitActionWorkflow') { static readonly layer = Layer.effect(GitActionWorkflow, Effect.gen(function* () { const receipts = yield* GitActionReceiptStore; const lanes = yield* Lanes; const keys = yield* LaneKeys; return { execute: Effect.fn('GitActionWorkflow.execute')(function* () { ${body} }), }; })); }`;
+    return [
+      ['single-owner control', 'keys.receipts()', 'keys.access()'],
+      [
+        'tuple lacks table owner',
+        '[keys.access(), keys.receipts()]',
+        '[keys.access(), keys.inventory()]',
+      ],
+      [
+        'tuple has unknown element',
+        '[keys.receipts(), keys.access()]',
+        '[keys.receipts(), unknownKey]',
+      ],
+      ['tuple is not literal', '[keys.receipts(), keys.access()]', 'owners'],
+      [
+        'tuple has unresolvable spread',
+        '[keys.receipts(), keys.access()]',
+        '[keys.receipts(), ...owners]',
+      ],
+      ['empty tuple', '[keys.receipts()]', '[]'],
+      ['no lane', '[keys.receipts(), keys.access()]', undefined],
+    ].map(([name, valid, invalid]) => ({
+      rule: 'lane-per-table',
+      name: `${operation}: ${name}`,
+      files: {
+        'packages/git-actions/src/ports/git-action-receipt-store.ts':
+          "import { Context, type Effect } from 'effect'; export interface GitActionReceiptStore { claimExecution(): Effect.Effect<boolean>; } export const GitActionReceiptStore = Context.Service<'@porcelain/git-actions/GitActionReceiptStore', GitActionReceiptStore>('@porcelain/git-actions/GitActionReceiptStore');",
+        'apps/server/src/runtime/lanes.ts':
+          "import { Context, type Effect } from 'effect'; type Owners = string | readonly [string, ...string[]]; export class Lanes extends Context.Service<Lanes, { readonly commit: (key: Owners, work: () => Effect.Effect<boolean>, committed: () => Effect.Effect<void>) => Effect.Effect<boolean>; readonly run: (key: Owners, mode: string, work: () => Effect.Effect<boolean>) => Effect.Effect<boolean>; readonly transaction: (key: Owners, prepare: () => Effect.Effect<void>, commit: () => Effect.Effect<boolean>, committed: () => Effect.Effect<void>) => Effect.Effect<boolean>; }>()('@porcelain/server/Lanes') {}",
+        'apps/server/src/runtime/lane-keys.ts':
+          "import { Context } from 'effect'; export class LaneKeys extends Context.Service<LaneKeys, { readonly receipts: () => string; readonly access: () => string; readonly inventory: () => string; }>()('@porcelain/server/LaneKeys') {}",
+      },
+      valid: {
+        'apps/server/src/runtime/git-action-workflow.ts': workflow(call(valid)),
+      },
+      invalid: {
+        'apps/server/src/runtime/git-action-workflow.ts': workflow(
+          invalid === undefined
+            ? 'return yield* receipts.claimExecution();'
+            : call(invalid),
+        ),
+      },
+      errors:
+        invalid === undefined
+          ? ['lane-per-table', 'lane-mode-matches-service']
+          : ['lane-per-table'],
+    }));
+  }),
+  {
     rule: 'lane-per-table',
     valid: {
       'packages/reviews/src/ports/github-account-store.ts':
