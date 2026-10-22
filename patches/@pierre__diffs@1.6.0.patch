@@ -1,0 +1,23 @@
+diff --git a/package.json b/package.json
+index e7cefd65ec752ac32a3553d94e4b51a1d7fe892c..b35b3bdf7f1a7e53c9587da7bdefc349528ab56b 100644
+--- a/package.json
++++ b/package.json
+@@ -33,6 +33,18 @@
+     }
+   },
+   "exports": {
++    "./utils/parsePatchFiles": {
++      "types": "./dist/utils/parsePatchFiles.d.ts",
++      "import": "./dist/utils/parsePatchFiles.js"
++    },
++    "./utils/parseLineType": {
++      "types": "./dist/utils/parseLineType.d.ts",
++      "import": "./dist/utils/parseLineType.js"
++    },
++    "./utils/getFiletypeFromFileName": {
++      "types": "./dist/utils/getFiletypeFromFileName.d.ts",
++      "import": "./dist/utils/getFiletypeFromFileName.js"
++    },
+     ".": {
+       "types": "./dist/index.d.ts",
+       "import": "./dist/index.js"

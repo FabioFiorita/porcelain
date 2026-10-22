@@ -455,7 +455,7 @@ function CodeSurface({
                 setFocused(entries.findIndex((entry) => entry.id === next.id));
             }
           }}
-          renderAnnotation={(annotation) => {
+          renderAnnotation={(...[annotation]) => {
             const note = annotation.metadata;
             if (note.kind === 'agent')
               return (
