@@ -4,7 +4,11 @@ import { builtinModules } from 'node:module';
 import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { classify, nodeGlobalRoles } from './policy.ts';
-import { webRules } from './web-rules.mjs';
+import {
+  webRules,
+  browserSpecNoMocks,
+  browserSpecNoSkips,
+} from './web-rules.mjs';
 import { mobileRules } from './mobile-rules.mjs';
 import { nativeHttpRules } from './native-http-rules.mjs';
 import { hollowTests, testSource } from './hollow-tests.mjs';
@@ -1084,33 +1088,6 @@ function primitiveValue(node) {
 export default {
   meta: { name: 'porcelain' },
   rules: {
-    'mobile-ui-imports-no-state': {
-      create(context) {
-        if (
-          !/\/apps\/mobile\/src\/components\/ui\//.test(
-            normalizedFilename(context.filename),
-          )
-        )
-          return {};
-        return {
-          ImportDeclaration(node) {
-            const source = node.source.value;
-            if (
-              !/^@porcelain\/(?:client|contracts)(?:\/|$)/.test(source) ||
-              typeOnlyImport(node) ||
-              /^@porcelain\/client\/[^/]+\/rules$/.test(source)
-            )
-              return;
-            context.report({
-              node,
-              message:
-                'Import client and contract types or pure client rules only, because native primitives decide presentation while views own client effects, queries, commands, stores and atoms.',
-            });
-          },
-        };
-      },
-    },
-
     'hermes-array-methods': {
       create(context) {
         if (
@@ -2489,7 +2466,7 @@ export default {
     },
     'spec-no-mocking': {
       create(context) {
-        if (!isSpec(context)) return {};
+        if (!isSpec(context)) return browserSpecNoMocks(context);
         return {
           AssignmentExpression(node) {
             if (replacesGlobal(node))
@@ -2557,11 +2534,11 @@ export default {
     'spec-no-skips': {
       create(context) {
         if (
-          !antiFlakeSpec(context) ||
-          (browserSpec(context) &&
-            !normalizedFilename(context.filename).includes('/apps/desktop/'))
+          browserSpec(context) &&
+          !normalizedFilename(context.filename).includes('/apps/desktop/')
         )
-          return {};
+          return browserSpecNoSkips(context);
+        if (!antiFlakeSpec(context)) return {};
         const message =
           'Every spec runs every time; remove the skip, only, todo, fails, fixme or fail, because a skipped or exclusive case leaves regressions unchecked.';
         return {
@@ -2666,7 +2643,6 @@ export default {
               context.report(report);
           },
         };
-        if (!spec) return hollow;
         const suiteFunctions = new Set(['describe', 'suite']);
         const inSuiteBody = (statement) => {
           const block = statement.parent;
@@ -2682,6 +2658,18 @@ export default {
         return {
           ...hollow,
           CallExpression(node) {
+            if (
+              node.callee.type === 'Identifier' &&
+              node.callee.name === 'expect' &&
+              node.arguments[0]?.type === 'Literal' &&
+              typeof node.arguments[0].value === 'boolean'
+            )
+              context.report({
+                node,
+                message:
+                  'Assert on an observable result instead of a boolean literal, because a fixed literal cannot detect a product regression.',
+              });
+            if (!spec) return;
             if (
               caseCall(node, context) &&
               node.parent?.type !== 'MemberExpression' &&
@@ -2752,30 +2740,6 @@ export default {
       },
     },
 
-    'spec-behaviour-names': {
-      create(context) {
-        if (
-          !isSpec(context) &&
-          !testSource.test(normalizedFilename(context.filename))
-        )
-          return {};
-        return {
-          CallExpression(node) {
-            if (
-              node.callee.type === 'Identifier' &&
-              node.callee.name === 'expect' &&
-              node.arguments[0]?.type === 'Literal' &&
-              typeof node.arguments[0].value === 'boolean'
-            )
-              context.report({
-                node,
-                message:
-                  'Assert on an observable result instead of a boolean literal, because a fixed literal cannot detect a product regression.',
-              });
-          },
-        };
-      },
-    },
     'spec-imports': {
       create(context) {
         if (!isSpec(context)) return {};
@@ -3131,14 +3095,11 @@ export default {
     'interfaces-only-in-ports': {
       create(context) {
         const path = repositoryPath(context);
-        if (
-          !serverCode.test(path) ||
-          anyPortFile.test(path) ||
-          infrastructureInterfaceFile.test(path)
-        )
+        if (anyPortFile.test(path) || infrastructureInterfaceFile.test(path))
           return {};
         return {
           TSInterfaceDeclaration(node) {
+            if (!serverCode.test(path)) return;
             if (
               context.sourceCode
                 .getAncestors(node)
@@ -3155,21 +3116,8 @@ export default {
                 'Write a type alias; an interface is a port and lives in ports/, because reserving interfaces for dependency contracts gives agents one place to declare and find ports.',
             });
           },
-        };
-      },
-    },
-    'no-port-shaped-alias': {
-      create(context) {
-        const path = repositoryPath(context);
-        if (
-          !portShapedScope.test(path) ||
-          anyPortFile.test(path) ||
-          infrastructureInterfaceFile.test(path) ||
-          isSpec(context)
-        )
-          return {};
-        return {
           TSMethodSignature(node) {
+            if (!portShapedScope.test(path) || isSpec(context)) return;
             if (node.parent?.type !== 'TSTypeLiteral') return;
             context.report({
               node,

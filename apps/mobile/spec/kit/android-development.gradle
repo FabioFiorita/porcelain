@@ -1,0 +1,13 @@
+// Applied only by the disposable Android development build, including native dependencies.
+// CMake's documented Ninja pools bound both compilation and linking per Gradle worker.
+allprojects { project ->
+    ["com.android.application", "com.android.library"].each { plugin ->
+        project.plugins.withId(plugin) {
+            project.android.defaultConfig.externalNativeBuild.cmake.arguments(
+                "-DCMAKE_JOB_POOLS=porcelain_native=2",
+                "-DCMAKE_JOB_POOL_COMPILE=porcelain_native",
+                "-DCMAKE_JOB_POOL_LINK=porcelain_native"
+            )
+        }
+    }
+}

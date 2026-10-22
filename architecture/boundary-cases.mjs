@@ -69,7 +69,7 @@ export default [
     ),
   ),
   pair(
-    'mobile-shared-imports-no-owner',
+    'shared-imports-no-owner',
     edge(
       'apps/mobile/src/components/ui/item.tsx',
       'apps/mobile/src/components/ui/text.tsx',
@@ -139,12 +139,12 @@ export default [
     const routes = app === 'web' ? 'routes' : 'app';
     return [
       pair(
-        `${app}-routes-import-feature-index`,
+        'routes-import-feature-index',
         feature(app, `${routes}/home.tsx`, 'features/files/index.ts'),
         feature(app, `${routes}/home.tsx`, 'features/files/views/file.tsx'),
       ),
       pair(
-        `${app}-features-import-feature-index`,
+        'features-import-feature-index',
         feature(
           app,
           'features/access/views/access.tsx',
@@ -157,7 +157,7 @@ export default [
         ),
       ),
       pair(
-        `${app}-shared-imports-no-owner`,
+        'shared-imports-no-owner',
         edge(
           `apps/${app}/src/shared/read.ts`,
           `apps/${app}/src/shared/value.ts`,
@@ -411,6 +411,15 @@ export default [
       'architecture/value.ts',
       '../../../../architecture/value.ts',
     ),
+  ),
+
+  pair(
+    'unresolved-workspace-import',
+    { 'apps/mobile/metro.config.cjs': 'module.exports = {};' },
+    {
+      'apps/mobile/metro.config.cjs':
+        "module.exports = require('@porcelain/missing');",
+    },
   ),
   pair(
     'unresolved-workspace-import',

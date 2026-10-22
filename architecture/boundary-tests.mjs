@@ -111,8 +111,9 @@ export async function runBoundaryCases() {
   for (const entry of cases) {
     deepStrictEqual(await planted(entry.valid), [], `${entry.rule}: valid`);
     const violations = await planted(entry.invalid);
-    ok(
-      violations.includes(entry.rule),
+    deepStrictEqual(
+      violations.filter((rule) => rule === entry.rule).length,
+      entry.errors ?? 1,
       `${entry.rule}: invalid produced ${violations.join(', ')}`,
     );
     process.stdout.write(
