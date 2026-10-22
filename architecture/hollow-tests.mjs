@@ -111,7 +111,7 @@ function some(node, test, intoFunctions = false) {
   return found;
 }
 
-export function caseBody(call) {
+function caseBody(call) {
   const callee = call.callee;
   const registered =
     (callee.type === 'Identifier' && caseNames.has(callee.name)) ||

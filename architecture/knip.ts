@@ -98,7 +98,6 @@ export default {
   ],
   includeEntryExports: true,
   ignoreIssues: {
-    'architecture/**': ['files', 'exports', 'types', 'nsExports', 'nsTypes'],
     '**/spec/**': ['files', 'exports', 'types', 'nsExports', 'nsTypes'],
     '**/*.{spec,d}.ts': ['exports', 'types', 'nsExports', 'nsTypes'],
     'apps/mobile/metro.config.cjs': ['exports'],
