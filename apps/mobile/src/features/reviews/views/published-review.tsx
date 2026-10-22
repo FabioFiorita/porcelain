@@ -1,4 +1,5 @@
 import { ReviewBriefing } from './review-briefing';
+import { BriefingContinue } from './briefing-continue';
 import { briefingContinuation } from '../rules/briefing';
 import { useState } from 'react';
 import { Stack } from 'expo-router';
@@ -548,15 +549,13 @@ function PublishedContinue({
   )
     return null;
   return (
-    <Box paddingX={4} paddingY={3} surface="background">
-      <Button
-        label={next.label}
-        onPress={() => {
-          setPlace({ stop: next.key, summary: false });
-          onContinue();
-        }}
-      />
-    </Box>
+    <BriefingContinue
+      label={next.label}
+      onPress={() => {
+        setPlace({ stop: next.key, summary: false });
+        onContinue();
+      }}
+    />
   );
 }
 

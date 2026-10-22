@@ -43,6 +43,7 @@ import { DiffView } from '../../../components/ui/diff-view';
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { useReviewNavigation } from '../store';
 import { BriefingVerdict } from './review-briefing';
+import { BriefingContinue } from './briefing-continue';
 import { briefingContinuation } from '../rules/briefing';
 import { ReviewReadState } from './read-state';
 
@@ -280,6 +281,7 @@ function LinkedReviewContent({
         options={{ title: stop.kind === 'briefing' ? 'Briefing' : 'Review' }}
       />
       <ScrollView
+        key={stop.key}
         ref={(view) => navigation.scroll(view)}
         onContentSizeChange={() => navigation.scrollToDecision()}
         removeClippedSubviews={false}
@@ -376,9 +378,7 @@ function LinkedReviewContent({
         </View>
       </ScrollView>
       {stop.kind === 'briefing' && next ? (
-        <Box paddingX={4} paddingY={3} surface="background">
-          <Button label={next.label} onPress={() => go(next.key)} />
-        </Box>
+        <BriefingContinue label={next.label} onPress={() => go(next.key)} />
       ) : null}
     </Box>
   );
