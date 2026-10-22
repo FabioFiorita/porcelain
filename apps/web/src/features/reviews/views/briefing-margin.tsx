@@ -82,56 +82,72 @@ export function BriefingMargin({
           onDeleted={onDeleted}
         />
       </section>
-      {(sections.removed.fileCount > 0 ||
-        sections.removed.groups.length > 0) && (
-        <section aria-label="Removed" className="flex flex-col gap-3">
-          <h3 className="border-b pb-2 font-medium text-muted-foreground">
-            Removed · {sections.removed.fileCount}{' '}
-            {sections.removed.fileCount === 1 ? 'file' : 'files'}
-          </h3>
-          {sections.removed.groups.map((group, index) => (
-            <div key={index} className="flex flex-col gap-2 wrap-anywhere">
-              <p>
-                <strong>{group.behavior}</strong> · {group.why}
-              </p>
-              <RemovedPaths paths={group.paths} />
-            </div>
-          ))}
-          {sections.removed.unexplainedPaths.length > 0 && (
-            <div>
-              <p className="text-destructive">
-                No removal explanation supplied
-              </p>
-              <RemovedPaths paths={sections.removed.unexplainedPaths} />
-            </div>
-          )}
-        </section>
-      )}
-      <section aria-label="Not proven" className="flex flex-col gap-2">
-        <h3 className="border-b pb-2 font-medium text-muted-foreground">
-          Not proven
-        </h3>
-        {sections.notProven.length === 0 ? (
-          <p className="text-muted-foreground">Nothing listed.</p>
-        ) : (
-          <ul className="flex flex-col divide-y">
-            {sections.notProven.map((item, index) => (
-              <li key={index} className="py-2 wrap-anywhere">
-                <strong>{item.what}</strong>
-                <p className="text-muted-foreground"> · {item.why}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
     </aside>
+  );
+}
+export function BriefingRemoved({ revision }: { revision: ReviewRevision }) {
+  const sections = verdictSections(revision);
+  if (sections.removed.fileCount === 0 && sections.removed.groups.length === 0)
+    return null;
+  return (
+    <section
+      aria-label="Removed"
+      className="flex min-w-0 flex-col gap-3 text-xs"
+    >
+      <h3 className="border-b pb-2 font-medium text-muted-foreground">
+        Removed · {sections.removed.fileCount}{' '}
+        {sections.removed.fileCount === 1 ? 'file' : 'files'}
+      </h3>
+      {sections.removed.groups.map((group, index) => (
+        <div key={index} className="flex flex-col gap-2 wrap-anywhere">
+          <p>
+            <strong>{group.behavior}</strong> · {group.why}
+          </p>
+          <RemovedPaths paths={group.paths} />
+        </div>
+      ))}
+      {sections.removed.unexplainedPaths.length > 0 && (
+        <div>
+          <p className="text-destructive">No removal explanation supplied</p>
+          <RemovedPaths paths={sections.removed.unexplainedPaths} />
+        </div>
+      )}
+    </section>
+  );
+}
+export function BriefingNotProven({ revision }: { revision: ReviewRevision }) {
+  const sections = verdictSections(revision);
+  return (
+    <section
+      aria-label="Not proven"
+      className="flex min-w-0 flex-col gap-2 text-xs"
+    >
+      <h3 className="border-b pb-2 font-medium text-muted-foreground">
+        Not proven
+      </h3>
+      {sections.notProven.length === 0 ? (
+        <p className="text-muted-foreground">Nothing listed.</p>
+      ) : (
+        <ul className="flex flex-col divide-y">
+          {sections.notProven.map((item, index) => (
+            <li key={index} className="py-2 wrap-anywhere">
+              <strong>{item.what}</strong>
+              <p className="text-muted-foreground"> · {item.why}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 function RemovedPaths({ paths }: { paths: readonly string[] }) {
   return (
     <ul className="space-y-1 font-mono text-xs wrap-anywhere text-destructive">
       {paths.map((path) => (
-        <li key={path}>− {path}</li>
+        <li key={path} className="flex min-w-0 gap-1">
+          <span>{'− '}</span>
+          <span className="min-w-0 wrap-anywhere">{path}</span>
+        </li>
       ))}
     </ul>
   );

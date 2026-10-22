@@ -29,6 +29,7 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { InlineComposer } from './inline-composer';
 import { ReviewVerdict } from './review-verdict';
+import { BriefingRemoved, BriefingNotProven } from './briefing-margin';
 import { ReviewProof } from './review-proof';
 import { DecisionQuestion } from './walkthrough-question';
 import type { WalkthroughProps } from './walkthrough-props';
@@ -76,117 +77,133 @@ export function WalkthroughBriefing({
     parts.added.length + parts.changed.length + parts.removed.length > 0;
   return (
     <div className="shrink-0" aria-label="Briefing" role="region">
-      <div className="mx-auto grid w-full max-w-5xl gap-8 px-4 pt-8 pb-16 @2xl/review:px-6 @5xl/review:grid-cols-4">
-        <div className="flex min-w-0 flex-col gap-8 @5xl/review:col-span-3">
-          <header className="flex min-w-0 flex-col gap-5">
-            <p className="text-xs text-muted-foreground">
-              Briefing · Revision {review.revision}
-            </p>
-            <h2 className="text-3xl leading-tight font-semibold tracking-tight wrap-anywhere">
-              <span className="block text-muted-foreground">{title}</span>
-              <span className="block">
-                {briefingTitle(decisionStops.length)}.
-              </span>
-            </h2>
-            <ReviewVerdict revision={revision} />
-            <div className="flex flex-wrap items-center gap-3">
-              {next ? (
-                <Button
-                  className="h-auto max-w-full min-w-0 text-left whitespace-normal"
-                  onClick={() => onGo(next.key)}
-                >
-                  <span className="min-w-0 wrap-anywhere">
-                    {next.kind === 'decision'
-                      ? `Continue at decision ${next.number}`
-                      : `Continue at ${stopTitle(next)}`}
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 pt-8 pb-16 @2xl/review:px-6">
+        <BriefingRow margin={margin}>
+          <div className="flex min-w-0 flex-col gap-8">
+            <header className="flex min-w-0 flex-col gap-5">
+              <p className="text-xs text-muted-foreground">
+                Briefing · Revision {review.revision}
+              </p>
+              <h2 className="text-3xl leading-tight font-semibold tracking-tight wrap-anywhere">
+                <span className="block text-muted-foreground">{title}</span>
+                <span className="block">
+                  {briefingTitle(decisionStops.length)}.
+                </span>
+              </h2>
+              <ReviewVerdict revision={revision} />
+              <div className="flex flex-wrap items-center gap-3">
+                {next ? (
+                  <Button
+                    className="h-auto min-h-8 max-w-full min-w-0 text-left whitespace-normal"
+                    onClick={() => onGo(next.key)}
+                  >
+                    <span className="min-w-0 wrap-anywhere">
+                      {next.kind === 'decision'
+                        ? `Continue at decision ${next.number}`
+                        : `Continue at ${stopTitle(next)}`}
+                    </span>
+                    <ArrowRightIcon data-icon="inline-end" />
+                  </Button>
+                ) : (
+                  <p className="flex items-center gap-1.5 text-sm font-medium text-graph-2">
+                    <CheckIcon className="size-4" />
+                    Everything in this change is reviewed
+                  </p>
+                )}
+                {stale > 0 && (
+                  <span className="text-xs text-graph-4">
+                    {stale} decisions have code moved
                   </span>
-                  <ArrowRightIcon data-icon="inline-end" />
-                </Button>
-              ) : (
-                <p className="flex items-center gap-1.5 text-sm font-medium text-graph-2">
-                  <CheckIcon className="size-4" />
-                  Everything in this change is reviewed
-                </p>
-              )}
-              {stale > 0 && (
-                <span className="text-xs text-graph-4">
-                  {stale} decisions have code moved
-                </span>
-              )}
-              {unexplained && (
-                <span className="text-xs text-muted-foreground">
-                  Changes remain not explained
-                </span>
-              )}
-            </div>
-          </header>
-          {parts.questions.length > 0 && (
-            <section
-              aria-label="Needs your decision"
-              className="flex flex-col gap-3"
-            >
-              <SectionTitle id="briefing-questions">
-                Needs your decision
-              </SectionTitle>
-              {parts.questions.map((part) => (
-                <BriefingQuestion
-                  key={part.id}
-                  part={part}
+                )}
+                {unexplained && (
+                  <span className="text-xs text-muted-foreground">
+                    Changes remain not explained
+                  </span>
+                )}
+              </div>
+            </header>
+            {parts.questions.length > 0 && (
+              <section
+                aria-label="Needs your decision"
+                className="flex flex-col gap-3"
+              >
+                <SectionTitle id="briefing-questions">
+                  Needs your decision
+                </SectionTitle>
+                {parts.questions.map((part) => (
+                  <BriefingQuestion
+                    key={part.id}
+                    part={part}
+                    review={review}
+                    revision={revision}
+                    scope={scope}
+                    context={context}
+                    onGo={onGo}
+                  />
+                ))}
+              </section>
+            )}
+          </div>
+        </BriefingRow>
+        <BriefingRow margin={<BriefingRemoved revision={revision} />}>
+          <section
+            aria-labelledby="briefing-system"
+            className="flex flex-col gap-3"
+          >
+            <SectionTitle id="briefing-system">
+              What this adds to the system
+            </SectionTitle>
+            {hasParts ? (
+              <div className="flex flex-col divide-y border-y">
+                <PartGroup
+                  title="New"
+                  icon={<PlusIcon className="size-3.5 text-graph-2" />}
+                  parts={parts.added}
                   review={review}
-                  revision={revision}
-                  scope={scope}
-                  context={context}
                   onGo={onGo}
                 />
-              ))}
-            </section>
-          )}
-
-          {hasParts && (
-            <section
-              aria-labelledby="briefing-system"
-              className="flex flex-col gap-3"
-            >
-              <SectionTitle id="briefing-system">
-                What this adds to the system
-              </SectionTitle>
-              {hasParts && (
-                <div className="flex flex-col divide-y border-y">
-                  <PartGroup
-                    title="New"
-                    icon={<PlusIcon className="size-3.5 text-graph-2" />}
-                    parts={parts.added}
-                    review={review}
-                    onGo={onGo}
-                  />
-                  <PartGroup
-                    title="Changed"
-                    icon={<PencilIcon className="size-3.5 text-graph-1" />}
-                    parts={parts.changed}
-                    review={review}
-                    onGo={onGo}
-                  />
-                  <PartGroup
-                    title="Removed"
-                    icon={<MinusIcon className="size-3.5 text-destructive" />}
-                    parts={parts.removed}
-                    review={review}
-                    onGo={onGo}
-                    struck
-                  />
-                </div>
-              )}
-            </section>
-          )}
-
+                <PartGroup
+                  title="Changed"
+                  icon={<PencilIcon className="size-3.5 text-graph-1" />}
+                  parts={parts.changed}
+                  review={review}
+                  onGo={onGo}
+                />
+                <PartGroup
+                  title="Removed"
+                  icon={<MinusIcon className="size-3.5 text-destructive" />}
+                  parts={parts.removed}
+                  review={review}
+                  onGo={onGo}
+                  struck
+                />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No system owners listed.
+              </p>
+            )}
+          </section>
+        </BriefingRow>
+        <BriefingRow margin={<BriefingNotProven revision={revision} />}>
           <ReviewProof
+            columns
             revision={revision}
             scope={scope}
             context={context}
             current={proofCurrent}
             title={`Proven at ${revision.headOid.slice(0, 7)}`}
           />
-
+        </BriefingRow>
+        <BriefingRow
+          margin={
+            <p className="text-xs text-muted-foreground">
+              Every changed file belongs to exactly one stop, and changes no
+              decision explains come last, so finishing the walkthrough means
+              nothing was left out.
+            </p>
+          }
+        >
           <section
             aria-labelledby="briefing-decisions"
             className="flex min-w-0 flex-col gap-2"
@@ -203,11 +220,11 @@ export function WalkthroughBriefing({
                 return (
                   <WalkthroughRow key={stop.key} stop={stop} onGo={onGo}>
                     <StopMark done={isDone(stop)} label={`${stop.number}`} />
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="text-sm font-medium wrap-anywhere">
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5 @2xl/review:flex-row @2xl/review:items-baseline @2xl/review:gap-3">
+                      <span className="min-w-0 text-sm font-medium wrap-anywhere @2xl/review:flex-1">
                         {stop.layer.title}
                       </span>
-                      <span className="truncate text-xs text-muted-foreground">
+                      <span className="min-w-0 truncate text-xs text-muted-foreground @2xl/review:max-w-1/2">
                         {decisionRoute(stop.layer).join(' → ') ||
                           'No changed code'}
                       </span>
@@ -243,8 +260,8 @@ export function WalkthroughBriefing({
                         <FlaskConicalIcon className="size-3.5" />
                       )}
                     </span>
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="text-sm font-medium wrap-anywhere">
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5 @2xl/review:flex-row @2xl/review:items-baseline @2xl/review:gap-3">
+                      <span className="min-w-0 text-sm font-medium wrap-anywhere @2xl/review:flex-1">
                         {stopName(stop)}
                       </span>
                       <span className="text-xs text-muted-foreground">
@@ -261,9 +278,23 @@ export function WalkthroughBriefing({
               })}
             </ol>
           </section>
-        </div>
-        {margin}
+        </BriefingRow>
       </div>
+    </div>
+  );
+}
+
+function BriefingRow({
+  children,
+  margin,
+}: {
+  children: ReactNode;
+  margin?: ReactNode;
+}) {
+  return (
+    <div className="grid min-w-0 gap-8 @5xl/review:grid-cols-4">
+      <div className="min-w-0 @5xl/review:col-span-3">{children}</div>
+      {margin}
     </div>
   );
 }
@@ -291,7 +322,7 @@ function WalkthroughRow({
         type="button"
         aria-label={stopTitle(stop)}
         onClick={() => onGo(stop.key)}
-        className="flex w-full items-start gap-3 px-3.5 py-3 text-left hover:bg-accent/50"
+        className="flex w-full items-start gap-3 px-3.5 py-2 text-left hover:bg-accent/50"
       >
         {children}
       </button>

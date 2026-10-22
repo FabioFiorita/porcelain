@@ -43,7 +43,7 @@ One page owns the latest durable route, numbered revisions, decision links and t
 
 Preconditions: [surface baseline](README.md).
 
-The navigator has one status-grouped Reviews list across projects and environments; closed reviews are behind Closed. The briefing owns the verdict, proof and review details. Decision, Not explained, summary, Proof and Comments views do not repeat the verdict. Deleted paths and their behavior and reason appear in the briefing margin; at narrow widths this margin follows the main column.
+The navigator has one status-grouped Reviews list across projects and environments; closed reviews are behind Closed. The briefing owns the verdict, proof and review details. Wide proof places checks beside media; Removed aligns with owners and Not proven with proof. Decision, Not explained, summary, Proof and Comments views do not repeat the verdict. Deleted paths and their behavior and reason appear in the briefing margin; at narrow widths each margin section follows its matching content.
 
 Check `free -g` before startup. Start one disposable instance and retain the connection card. Run `$C agent publish-revision 'Retain the committed revision after removing the publishing checkout'` twice. Each command commits on an owned fixture worktree and publishes through MCP, returning reviewId, revision, headOid, layerId and worktree. Keep both responses. The fixture has a deletion, a long decision title, passing and failing checks, and an explicit desktop gap.
 

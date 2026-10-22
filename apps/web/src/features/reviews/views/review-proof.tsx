@@ -13,14 +13,18 @@ export function ReviewProof({
   context,
   current,
   title,
+  columns = false,
 }: {
   revision: ReviewRevision;
   scope: ReviewScope;
   context: ConnectionContext;
   current: boolean;
   title: string;
+  columns?: boolean;
 }) {
   const sections = verdictSections(revision);
+  const empty =
+    sections.proven.checks.length + sections.proven.assets.length === 0;
   const failures = sections.proven.checks.filter(
     (check) => check.result === 'fail',
   ).length;
@@ -31,7 +35,7 @@ export function ReviewProof({
         Published {publishedLabel(revision.publishedAt)} · at{' '}
         {sections.proven.shortHead}
       </p>
-      {!current && (
+      {!current && !empty && (
         <p role="status" className="text-sm text-graph-4">
           These checks ran before the latest changes
         </p>
@@ -46,9 +50,10 @@ export function ReviewProof({
         scope={scope}
         context={context}
         proof={revision.content.proof}
+        layout={columns ? 'columns' : 'stacked'}
         layers={revision.content.layers}
       />
-      {sections.proven.checks.length + sections.proven.assets.length === 0 && (
+      {empty && (
         <p className="text-sm text-muted-foreground">No proof attached.</p>
       )}
     </section>

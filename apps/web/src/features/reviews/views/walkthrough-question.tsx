@@ -24,7 +24,7 @@ export function DecisionQuestion({
           </p>
         </div>
       </div>
-      {action}
+      {action && <div className="self-start">{action}</div>}
       {children}
     </div>
   );

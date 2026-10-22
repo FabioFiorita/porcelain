@@ -20,7 +20,7 @@ After confirming, the reviewer permanently deletes the published review, its pro
 
 ## How to get to it (user POV)
 
-Open the branch Review tab or any durable review link. Open the briefing and choose Delete review… in its review-details margin (below the column at phone width). Read the confirmation covering every revision, its proof, comments and marks. Cancel keeps the record; Delete removes it and returns to the workspace. Confirm with an independent read of GET `/api/reviews/<reviewId>`, which then returns 404.
+Open the branch Review tab or any durable review link. Open the briefing and choose Delete review… in its review-details margin (after the introduction and questions at phone width). Read the confirmation covering every revision, its proof, comments and marks. Cancel keeps the record; Delete removes it and returns to the workspace. Confirm with an independent read of GET `/api/reviews/<reviewId>`, which then returns 404.
 
 Follow the lifecycle journey in [reviews.page](reviews.page.md), at both widths and themes. The deleted record is the disposable fixture's review.
 
