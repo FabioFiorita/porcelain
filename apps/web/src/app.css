@@ -2,6 +2,7 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
 @import '@porcelain/theme/tokens.css';
 
 @custom-variant light (&:not(.dark));
@@ -46,6 +47,7 @@
   --container-code-wide: 40rem;
   --font-heading: var(--font-sans);
   --font-sans: 'Geist Variable', sans-serif;
+  --font-mono: 'Geist Mono Variable', monospace;
 }
 
 :root {
@@ -192,4 +194,8 @@
 .settings-content [data-slot='item-description'] {
   display: block;
   overflow: visible;
+}
+
+[data-slot='kbd'] {
+  font-family: var(--font-mono);
 }
