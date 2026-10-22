@@ -1,4 +1,8 @@
-export { EnvironmentStorage } from './ports/environment-storage.ts';
+export {
+  EnvironmentStorage,
+  type EnvironmentSnapshot,
+  type MissingCredentialRemote,
+} from './ports/environment-storage.ts';
 export {
   AccessPlatform,
   type AccessPlatformValue,

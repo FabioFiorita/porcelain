@@ -22,3 +22,7 @@ export function useEnvironmentStorageStatus() {
   const { status, error } = useAtomRef(accessState);
   return { status, error };
 }
+
+export function useMissingCredentials() {
+  return useAtomRef(accessState).missingCredentials;
+}
