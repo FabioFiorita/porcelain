@@ -1,6 +1,15 @@
-import { Clock, DateTime, Effect, FileSystem, Path, Schema } from 'effect';
+import {
+  Clock,
+  DateTime,
+  Effect,
+  FileSystem,
+  Option,
+  Path,
+  Schema,
+} from 'effect';
 import * as PlatformError from 'effect/PlatformError';
 import { randomUUID } from 'node:crypto';
+import { DatabaseSync } from 'node:sqlite';
 import type { DirectoryLock } from '../ports/directory-lock.ts';
 
 type DirectoryLockOptions = {
@@ -19,6 +28,78 @@ const lockOwnerSchema = Schema.Struct({
 });
 type LockOwner = typeof lockOwnerSchema.Type;
 const OWNER_FILE = 'owner.json';
+const EXCLUSION_FILE = 'ownership.sqlite';
+
+const withOwnershipExclusion = Effect.fn(
+  'DirectoryLock.withOwnershipExclusion',
+)(function* (
+  fs: FileSystem.FileSystem,
+  pathApi: Path.Path,
+  path: string,
+  operation: Effect.Effect<boolean, PlatformError.PlatformError>,
+) {
+  const failure = (cause: unknown) =>
+    PlatformError.systemError({
+      _tag:
+        cause instanceof Error &&
+        'errcode' in cause &&
+        (cause.errcode === 5 || cause.errcode === 6)
+          ? 'WouldBlock'
+          : 'Unknown',
+      module: 'DirectoryLock',
+      method: 'withOwnershipExclusion',
+      pathOrDescriptor: path,
+      cause,
+    });
+  return yield* Effect.gen(function* () {
+    const before = yield* fs.stat(path);
+    if (!Option.isSome(before.ino))
+      return yield* Effect.fail(
+        PlatformError.systemError({
+          _tag: 'BadResource',
+          module: 'DirectoryLock',
+          method: 'withOwnershipExclusion',
+          pathOrDescriptor: path,
+          description: 'The lock directory has no stable file identity',
+        }),
+      );
+    const inode = before.ino.value;
+    const sameDirectory = (current: FileSystem.File.Info) =>
+      before.dev === current.dev &&
+      Option.isSome(current.ino) &&
+      inode === current.ino.value;
+    return yield* Effect.acquireUseRelease(
+      Effect.try({
+        try: () => new DatabaseSync(pathApi.join(path, EXCLUSION_FILE)),
+        catch: failure,
+      }),
+      (database) =>
+        Effect.gen(function* () {
+          yield* Effect.try({
+            try: () => database.exec('BEGIN EXCLUSIVE'),
+            catch: failure,
+          });
+          if (!sameDirectory(yield* fs.stat(path))) return false;
+          return yield* operation;
+        }),
+      (database) => Effect.sync(() => database.close()),
+    ).pipe(
+      Effect.catch((error) =>
+        error.reason._tag === 'WouldBlock'
+          ? Effect.succeed(false)
+          : Effect.gen(function* () {
+              const current = yield* fs.stat(path);
+              if (!sameDirectory(current)) return false;
+              return yield* Effect.fail(error);
+            }),
+      ),
+    );
+  }).pipe(
+    Effect.catchReason('PlatformError', 'NotFound', () =>
+      Effect.succeed(false),
+    ),
+  );
+});
 function processIsAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
@@ -102,10 +183,26 @@ export const acquireDirectoryLock = Effect.fn('acquireDirectoryLock')(
     });
     const token = randomUUID();
     const candidate = `${options.path}.candidate-${token}`;
+    const retired = `${candidate}.released`;
     const release = Effect.gen(function* () {
-      const owner = yield* ownerOf(fs, pathApi, options.path);
-      if (owner?.token === token)
-        yield* fs.remove(options.path, { recursive: true, force: true });
+      for (;;) {
+        const owner = yield* ownerOf(fs, pathApi, options.path);
+        if (owner?.token !== token) return;
+        const released = yield* withOwnershipExclusion(
+          fs,
+          pathApi,
+          options.path,
+          Effect.gen(function* () {
+            const current = yield* ownerOf(fs, pathApi, options.path);
+            if (current?.token === token)
+              yield* fs.rename(options.path, retired);
+            return true;
+          }),
+        );
+        if (released) break;
+        yield* Effect.sleep(options.pollMs);
+      }
+      yield* fs.remove(retired, { recursive: true, force: true });
     }).pipe(Effect.orDie);
     const claim = Effect.gen(function* () {
       yield* fs.makeDirectory(candidate, { mode: 0o700 });
@@ -123,7 +220,6 @@ export const acquireDirectoryLock = Effect.fn('acquireDirectoryLock')(
         { mode: 0o600 },
       );
       let waited = 0;
-      let takeovers = 0;
       for (;;) {
         const renamed = yield* fs.rename(candidate, options.path).pipe(
           Effect.as(true),
@@ -137,14 +233,26 @@ export const acquireDirectoryLock = Effect.fn('acquireDirectoryLock')(
           ),
         );
         if (renamed) return { release } satisfies DirectoryLock;
-        const owner = yield* ownerOf(fs, pathApi, options.path);
+        const observed = yield* ownerOf(fs, pathApi, options.path);
         if (
-          takeovers < options.staleTakeovers &&
-          !(yield* ownerIsAlive(fs, owner))
+          options.staleTakeovers > 0 &&
+          !(yield* ownerIsAlive(fs, observed))
         ) {
-          takeovers += 1;
-          yield* fs.remove(options.path, { recursive: true, force: true });
-          continue;
+          const replaced = yield* withOwnershipExclusion(
+            fs,
+            pathApi,
+            options.path,
+            Effect.gen(function* () {
+              const owner = yield* ownerOf(fs, pathApi, options.path);
+              if (yield* ownerIsAlive(fs, owner)) return false;
+              yield* fs.rename(
+                pathApi.join(candidate, OWNER_FILE),
+                pathApi.join(options.path, OWNER_FILE),
+              );
+              return true;
+            }),
+          );
+          if (replaced) return { release } satisfies DirectoryLock;
         }
         if (waited >= options.waitMs) return yield* Effect.fail(options.held());
         yield* Effect.sleep(options.pollMs);
