@@ -16,4 +16,4 @@ packageExtensions:
 overrides:
   '@pierre/trees>@pierre/theming': 1.0.1
 patchedDependencies:
-  '@pierre/diffs@1.6.0': patches/@pierre__diffs@1.6.0.patch
+  '@pierre/diffs@1.6.1': patches/@pierre__diffs@1.6.1.patch
