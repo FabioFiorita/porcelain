@@ -310,112 +310,6 @@ export class ReadTextFileService extends Context.Service<ReadTextFileService, { 
   })),
 ];
 
-const atomicMutation = `import { Effect } from 'effect';
-import type { Lanes } from '../../runtime/lanes.ts';
-export class RenameEnvironmentUseCase {
-  private readonly lanes: Lanes;
-  execute(input: RenameEnvironmentRequest): Effect.Effect<RenameEnvironmentResponse> {
-    return this.lanes.commit(this.laneKeys.access(), () => this.renameEnvironment.execute(input), () => Effect.sync(() => this.events.inventoryChanged()));
-  }
-}`;
-const preparedMutation = `import { Effect } from 'effect';
-import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
-export class PublishReviewUseCase {
-  private readonly access: WorktreeAccess;
-  execute(input: PublishReviewInput): Effect.Effect<PublishReviewResult> {
-    return this.access.transaction(input.worktreeId, () => this.readEvidence.execute(input), (evidence) => this.publishReview.execute({ ...input, evidence }), () => Effect.sync(() => this.events.worktreeChanged(input)));
-  }
-}`;
-
-effectRuleCases.push(
-  {
-    rule: 'events-after-lane',
-    path: 'apps/server/src/use-cases/access/rename-environment.ts',
-    valid: atomicMutation,
-    invalid: atomicMutation.replace(
-      '() => this.renameEnvironment.execute(input)',
-      '() => Effect.sync(() => { this.events.inventoryChanged(); return this.renameEnvironment.execute(input); })',
-    ),
-    errors: 1,
-  },
-  ...[
-    preparedMutation.replace(
-      '() => this.readEvidence.execute(input)',
-      '() => Effect.sync(() => { this.events.worktreeChanged(input); return this.readEvidence.execute(input); })',
-    ),
-    preparedMutation.replace(
-      '(evidence) => this.publishReview.execute({ ...input, evidence })',
-      '(evidence) => Effect.sync(() => { this.events.worktreeChanged(input); return this.publishReview.execute({ ...input, evidence }); })',
-    ),
-  ].map((invalid) => ({
-    rule: 'events-after-lane',
-    path: 'apps/server/src/use-cases/reviews/publish-review.ts',
-    valid: preparedMutation,
-    invalid,
-    errors: 1,
-  })),
-  {
-    rule: 'events-after-lane',
-    path: 'apps/server/src/use-cases/git-actions/run-git-action.ts',
-    valid: `export class RunGitActionUseCase { private failed(run: GitActionRun, error: unknown): Effect.Effect<void> { return this.lanes.finish(this.laneKeys.receipts(run), () => this.abandon(run, error)); } private abandon(run: GitActionRun, error: unknown): Effect.Effect<void> { return Effect.sync(() => this.events.gitActionChanged(run)); } }`,
-    invalid: `export class RunGitActionUseCase { private failed(run: GitActionRun, error: unknown): Effect.Effect<void> { return this.lanes.finish(this.laneKeys.receipts(run), () => this.announceAbandon(run, error)); } private announceAbandon(run: GitActionRun, error: unknown): Effect.Effect<void> { return Effect.sync(() => this.events.gitActionChanged(run)); } }`,
-    errors: 1,
-  },
-  ...[
-    atomicMutation.replace(
-      '() => this.renameEnvironment.execute(input)',
-      "() => this.lanes.run(this.laneKeys.access(), 'write', () => this.renameEnvironment.execute(input))",
-    ),
-    atomicMutation.replace(
-      '() => this.renameEnvironment.execute(input)',
-      '() => this.checkWorktree.execute(input)',
-    ),
-    preparedMutation.replace(
-      '() => this.readEvidence.execute(input)',
-      '() => this.access.read(input.worktreeId, () => this.readEvidence.execute(input))',
-    ),
-    preparedMutation.replace(
-      '(evidence) => this.publishReview.execute({ ...input, evidence })',
-      "(evidence) => this.access.reviews(input.worktreeId, 'write', () => this.publishReview.execute({ ...input, evidence }))",
-    ),
-  ].map((invalid) => ({
-    rule: 'no-nested-lane',
-    path: 'apps/server/src/use-cases/reviews/publish-review.ts',
-    valid: invalid.includes('class Rename') ? atomicMutation : preparedMutation,
-    invalid,
-    errors: 1,
-  })),
-  {
-    rule: 'no-nested-lane',
-    path: 'apps/server/src/use-cases/access/rename-environment.ts',
-    valid: atomicMutation.replace(
-      '() => this.renameEnvironment.execute(input)',
-      "() => this.lanes.start(() => this.lanes.run(this.laneKeys.access(), 'write', () => this.renameEnvironment.execute(input)), () => Effect.void)",
-    ),
-    invalid: atomicMutation.replace(
-      '() => this.renameEnvironment.execute(input)',
-      "() => this.lanes.run(this.laneKeys.access(), 'write', () => this.renameEnvironment.execute(input))",
-    ),
-    errors: 1,
-  },
-);
-
-for (const original of [...effectRuleCases].filter(
-  (entry) =>
-    ['events-after-lane', 'no-nested-lane'].includes(entry.rule) &&
-    entry.valid === preparedMutation,
-)) {
-  const aliased = (source) =>
-    source
-      .replace('WorktreeAccess }', 'WorktreeAccess as Access }')
-      .replace('access: WorktreeAccess', 'access: Access');
-  effectRuleCases.push({
-    ...original,
-    valid: aliased(original.valid),
-    invalid: aliased(original.invalid),
-  });
-}
-
 for (const invalid of [
   "import { HttpApiClient as Client } from 'effect/http-api';",
   "import * as Client from 'effect/http-api';",
@@ -597,7 +491,629 @@ const observedStoreState = `describe('MarkCommentsSeenService', () => {
 });
 `;
 
+const nativeLaneUseCase = (body, helpers = '') => `
+import { Context, Effect, Layer } from 'effect';
+import { Lanes } from '../../runtime/lanes.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { EventPublisher } from '../../ports/event-publisher.ts';
+import { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import { RefreshInventoryUseCasePort } from '../../ports/refresh-inventory-use-case-port.ts';
+import { ReadReviewService } from '@porcelain/reviews/services';
+import type { WorktreeParams } from '@porcelain/contracts/shared';
+export class RuleFixtureUseCase extends Context.Service<RuleFixtureUseCase, {
+  readonly execute: (input: WorktreeParams) => Effect.Effect<void>;
+}>()('@porcelain/server/RuleFixtureUseCase') {
+  static readonly layer = Layer.effect(RuleFixtureUseCase, Effect.gen(function* () {
+    const lanes = yield* Lanes;
+    const keys = yield* LaneKeys;
+    const access = yield* WorktreeAccess;
+    const events = yield* EventPublisher;
+    const check = yield* CheckWorktreeUseCasePort;
+    const refresh = yield* RefreshInventoryUseCasePort;
+    const operation = yield* ReadReviewService;
+    ${helpers}
+    return { execute: Effect.fn('RuleFixtureUseCase.execute')(function* (input) {
+      ${body}
+    }) };
+  }));
+}`;
+
+const laneWork = '() => operation.execute(input)';
+const singleLane = `yield* lanes.run('one', 'write', ${laneWork});`;
+const eventInLane = nativeLaneUseCase(
+  `yield* lanes.run('one', 'write', () => events.inventoryChanged());`,
+);
+const aliasLaneCapabilities = (source) =>
+  source
+    .replace('{ Lanes }', '{ Lanes as Queue }')
+    .replace('yield* Lanes', 'yield* Queue')
+    .replace('{ EventPublisher }', '{ EventPublisher as Publisher }')
+    .replace('yield* EventPublisher', 'yield* Publisher')
+    .replace('{ WorktreeAccess }', '{ WorktreeAccess as Access }')
+    .replace('yield* WorktreeAccess', 'yield* Access');
+const namespaceLaneCapabilities = (source) =>
+  source
+    .replace('{ Lanes }', '* as Queue')
+    .replace('yield* Lanes', 'yield* Queue.Lanes')
+    .replace('{ EventPublisher }', '* as Publisher')
+    .replace('yield* EventPublisher', 'yield* Publisher.EventPublisher')
+    .replace('{ WorktreeAccess }', '* as Access')
+    .replace('yield* WorktreeAccess', 'yield* Access.WorktreeAccess');
+const laneFixturePath = 'apps/server/src/use-cases/reviews/rule-fixture.ts';
+const nativeLaneCases = [
+  ...[
+    [
+      'run work',
+      `lanes.run('one', 'write', () => events.inventoryChanged())`,
+      `lanes.run('one', 'write', ${laneWork}, { settled: () => events.inventoryChanged() })`,
+    ],
+    [
+      'tuple work',
+      `lanes.run(['two', 'one', 'one'], 'write', () => events.inventoryChanged())`,
+      `lanes.run(['two', 'one', 'one'], 'write', ${laneWork}, { settled: (exit) => exit.value ? events.inventoryChanged() : Effect.void })`,
+    ],
+    [
+      'consistent read',
+      `lanes.runConsistent('one', worktree, () => events.inventoryChanged())`,
+      `lanes.runConsistent('one', worktree, ${laneWork}); yield* events.inventoryChanged()`,
+    ],
+    [
+      'commit work',
+      `lanes.commit('one', () => events.inventoryChanged(), () => Effect.void)`,
+      `lanes.commit('one', ${laneWork}, () => events.inventoryChanged())`,
+    ],
+    [
+      'transaction prepare',
+      `lanes.transaction('one', () => events.inventoryChanged(), ${laneWork}, () => Effect.void)`,
+      `lanes.transaction('one', ${laneWork}, ${laneWork}, () => events.inventoryChanged())`,
+    ],
+    [
+      'transaction commit',
+      `lanes.transaction('one', ${laneWork}, () => events.inventoryChanged(), () => Effect.void)`,
+      `lanes.transaction('one', ${laneWork}, ${laneWork}, () => events.inventoryChanged())`,
+    ],
+    [
+      'background work',
+      `lanes.background('one', () => events.inventoryChanged(), () => Effect.void)`,
+      `lanes.background('one', ${laneWork}, () => Effect.void); yield* events.inventoryChanged()`,
+    ],
+    [
+      'finish work',
+      `lanes.finish('one', () => events.inventoryChanged())`,
+      `lanes.finish('one', ${laneWork}); yield* events.inventoryChanged()`,
+    ],
+    [
+      'access write',
+      `access.write(input.worktreeId, () => events.inventoryChanged())`,
+      `access.write(input.worktreeId, ${laneWork}, () => events.inventoryChanged())`,
+    ],
+    [
+      'access transaction prepare',
+      `access.transaction(input.worktreeId, () => events.inventoryChanged(), ${laneWork}, () => Effect.void)`,
+      `access.transaction(input.worktreeId, ${laneWork}, ${laneWork}, () => events.inventoryChanged())`,
+    ],
+    [
+      'access transaction commit',
+      `access.transaction(input.worktreeId, ${laneWork}, () => events.inventoryChanged(), () => Effect.void)`,
+      `access.transaction(input.worktreeId, ${laneWork}, ${laneWork}, () => events.inventoryChanged())`,
+    ],
+    [
+      'failure branch',
+      `lanes.run('one', 'write', () => operation.execute(input).pipe(Effect.catchCause(() => events.inventoryChanged())))`,
+      `lanes.run('one', 'write', ${laneWork}); yield* events.inventoryChanged()`,
+    ],
+  ].map(([state, invalid, valid]) => ({
+    state,
+    rule: 'events-after-lane',
+    path: laneFixturePath,
+    valid: nativeLaneUseCase(`yield* ${valid};`),
+    invalid: nativeLaneUseCase(`yield* ${invalid};`),
+    errors: 1,
+  })),
+  ...[
+    ['same key', `lanes.run('one', 'read', ${laneWork})`],
+    ['different key', `lanes.run('two', 'write', ${laneWork})`],
+    ['nested tuple', `lanes.run(['one', 'two'], 'write', ${laneWork})`],
+    ['commit', `lanes.commit('two', ${laneWork}, () => Effect.void)`],
+    [
+      'transaction',
+      `lanes.transaction('two', ${laneWork}, ${laneWork}, () => Effect.void)`,
+    ],
+    ['consistent read', `lanes.runConsistent('two', worktree, ${laneWork})`],
+    ['finish', `lanes.finish('two', ${laneWork})`],
+    ['opaque callback', `lanes.run('two', 'write', input.work)`],
+    ['access read', `access.read(input.worktreeId, ${laneWork})`],
+    ['access write', `access.write(input.worktreeId, ${laneWork})`],
+    [
+      'access reviews',
+      `access.reviews(input.worktreeId, 'write', ${laneWork})`,
+    ],
+    [
+      'access transaction',
+      `access.transaction(input.worktreeId, ${laneWork}, ${laneWork}, () => Effect.void)`,
+    ],
+    ['worktree check', 'check.execute(input)'],
+    ['inventory refresh', 'refresh.execute(input)'],
+  ].map(([state, nested]) => ({
+    state,
+    rule: 'no-nested-lane',
+    path: laneFixturePath,
+    valid: nativeLaneUseCase(`yield* ${nested}; ${singleLane}`),
+    invalid: nativeLaneUseCase(
+      `yield* lanes.run('one', 'write', () => ${nested});`,
+    ),
+    errors: 1,
+  })),
+  ...[
+    [
+      'helper event',
+      'events-after-lane',
+      'events.inventoryChanged()',
+      `${singleLane} yield* announce();`,
+      `yield* lanes.run('one', 'write', announce);`,
+    ],
+    [
+      'helper nesting',
+      'no-nested-lane',
+      `lanes.run('two', 'write', () => Effect.void)`,
+      `yield* announce(); ${singleLane}`,
+      `yield* lanes.run('one', 'write', () => announce());`,
+    ],
+    [
+      'helper worktree check',
+      'no-nested-lane',
+      `check.execute({ worktreeId: 'one' })`,
+      `yield* announce(); ${singleLane}`,
+      `yield* lanes.run('one', 'write', announce);`,
+    ],
+  ].map(([state, rule, effect, valid, invalid]) => ({
+    state,
+    rule,
+    path: laneFixturePath,
+    valid: nativeLaneUseCase(
+      valid,
+      `const announce = Effect.fn('announce')(function* () { return yield* ${effect}; });`,
+    ),
+    invalid: nativeLaneUseCase(
+      invalid,
+      `const announce = Effect.fn('announce')(function* () { return yield* ${effect}; });`,
+    ),
+    errors: 1,
+  })),
+  {
+    state: 'event helper through callback alias',
+    rule: 'events-after-lane',
+    path: laneFixturePath,
+    valid: nativeLaneUseCase(
+      `${singleLane} yield* announce();`,
+      `function announce() { return events.inventoryChanged(); } const work = announce;`,
+    ),
+    invalid: nativeLaneUseCase(
+      `yield* lanes.run('one', 'write', work);`,
+      `function announce() { return events.inventoryChanged(); } const work = announce;`,
+    ),
+    errors: 1,
+  },
+  {
+    state: 'uncalled helper',
+    rule: 'events-after-lane',
+    path: laneFixturePath,
+    valid: nativeLaneUseCase(
+      `yield* lanes.run('one', 'write', () => Effect.gen(function* () { function unused() { return events.inventoryChanged(); } return; }));`,
+    ),
+    invalid: eventInLane,
+    errors: 1,
+  },
+  {
+    state: 'uncalled Effect.fn helper',
+    rule: 'events-after-lane',
+    path: laneFixturePath,
+    valid: nativeLaneUseCase(
+      `yield* lanes.run('one', 'write', () => Effect.gen(function* () { const unused = Effect.fn('unused')(function* () { yield* events.inventoryChanged(); }); return; }));`,
+    ),
+    invalid: eventInLane,
+    errors: 1,
+  },
+  {
+    state: 'event in progress callback',
+    rule: 'events-after-lane',
+    path: laneFixturePath,
+    valid: nativeLaneUseCase(`${singleLane} yield* events.inventoryChanged();`),
+    invalid: nativeLaneUseCase(
+      `yield* access.write(input.worktreeId, () => operation.execute({ onProgress: () => events.inventoryChanged() }));`,
+    ),
+    errors: 1,
+  },
+  ...[
+    ['events-after-lane', 'events.inventoryChanged()'],
+    ['no-nested-lane', `lanes.run('two', 'read', () => Effect.void)`],
+  ].flatMap(([rule, effect]) => [
+    {
+      state: 'invoked Effect.fn transform',
+      rule,
+      path: laneFixturePath,
+      valid: nativeLaneUseCase(
+        singleLane,
+        `const work = Effect.fn('work')(function* () {}, Effect.tap(() => ${effect}));`,
+      ),
+      invalid: nativeLaneUseCase(
+        `yield* lanes.run('one', 'write', work);`,
+        `const work = Effect.fn('work')(function* () {}, Effect.tap(() => ${effect}));`,
+      ),
+      errors: 1,
+    },
+    {
+      state: 'named object callback',
+      rule,
+      path: laneFixturePath,
+      valid: nativeLaneUseCase(
+        `${singleLane} yield* operation.execute({ onProgress: announce });`,
+        `const announce = () => ${effect};`,
+      ),
+      invalid: nativeLaneUseCase(
+        `yield* lanes.run('one', 'write', () => operation.execute({ onProgress: announce }));`,
+        `const announce = () => ${effect};`,
+      ),
+      errors: 1,
+    },
+    {
+      state: 'uncalled object callback',
+      rule,
+      path: laneFixturePath,
+      valid: nativeLaneUseCase(
+        `yield* lanes.run('one', 'write', () => Effect.gen(function* () { const handlers = { unused: () => ${effect} }; return; }));`,
+      ),
+      invalid: nativeLaneUseCase(
+        `yield* lanes.run('one', 'write', () => ${effect});`,
+      ),
+      errors: 1,
+    },
+    {
+      state: 'property key is not a callback reference',
+      rule,
+      path: laneFixturePath,
+      valid: nativeLaneUseCase(
+        `yield* lanes.run('one', 'write', () => operation.execute({ onProgress: () => Effect.void }));`,
+        `const onProgress = () => ${effect};`,
+      ),
+      invalid: nativeLaneUseCase(
+        `yield* lanes.run('one', 'write', () => operation.execute({ onProgress }));`,
+        `const onProgress = () => ${effect};`,
+      ),
+      errors: 1,
+    },
+  ]),
+  ...['start', 'background'].map((method) => ({
+    state: `independently scheduled ${method}`,
+    rule: 'no-nested-lane',
+    path: laneFixturePath,
+    valid: nativeLaneUseCase(
+      `yield* lanes.run('one', 'write', () => lanes.${method}(${method === 'background' ? "'two', " : ''}${method === 'background' ? laneWork : `() => lanes.run('two', 'write', ${laneWork})`}, () => Effect.void));`,
+    ),
+    invalid: nativeLaneUseCase(
+      `yield* lanes.run('one', 'write', () => lanes.run('two', 'write', ${laneWork}));`,
+    ),
+    errors: 1,
+  })),
+  {
+    state: 'independent event outside a lane',
+    rule: 'events-after-lane',
+    path: laneFixturePath,
+    valid: nativeLaneUseCase(
+      `yield* lanes.run('one', 'write', () => lanes.start(() => events.inventoryChanged(), () => Effect.void));`,
+    ),
+    invalid: eventInLane,
+    errors: 1,
+  },
+  {
+    state: 'deduplicates nested event sites',
+    rule: 'events-after-lane',
+    path: laneFixturePath,
+    valid: nativeLaneUseCase(`${singleLane} yield* events.inventoryChanged();`),
+    invalid: nativeLaneUseCase(
+      `yield* lanes.run('one', 'write', () => lanes.run('two', 'write', () => events.inventoryChanged()));`,
+    ),
+    errors: 1,
+  },
+  {
+    state: 'deduplicates nested lane sites',
+    rule: 'no-nested-lane',
+    path: laneFixturePath,
+    valid: nativeLaneUseCase(
+      `yield* lanes.run(['one', 'two', 'three'], 'write', ${laneWork});`,
+    ),
+    invalid: nativeLaneUseCase(
+      `yield* lanes.run('one', 'write', () => lanes.run('two', 'write', () => lanes.run('three', 'read', ${laneWork})));`,
+    ),
+    errors: 2,
+  },
+  ...[
+    ['yielded service', (source) => source],
+    [
+      'aliased service',
+      (source) =>
+        source
+          .replace('{ ReadReviewService }', '{ ReadReviewService as Read }')
+          .replace('yield* ReadReviewService', 'yield* Read'),
+    ],
+    [
+      'namespace service',
+      (source) =>
+        source
+          .replace('{ ReadReviewService }', '* as Services')
+          .replace(
+            'yield* ReadReviewService',
+            'yield* Services.ReadReviewService',
+          ),
+    ],
+    [
+      'worktree access',
+      (source) =>
+        source.replace(
+          'const operation = yield* ReadReviewService;',
+          'const access = yield* WorktreeAccess;',
+        ),
+    ],
+  ].map(([state, transform]) => {
+    const pure = nativeLaneUseCase(singleLane).replace(
+      /    const (?:operation|access|check|refresh) = yield\* [^;]+;\n/g,
+      '',
+    );
+    return {
+      state,
+      rule: 'lane-only-with-store',
+      path: laneFixturePath,
+      valid: transform(
+        pure.replace(
+          '    const keys',
+          '    const operation = yield* ReadReviewService;\n    const keys',
+        ),
+      ),
+      invalid: pure,
+      errors: 1,
+    };
+  }),
+  ...[
+    ['pure unqueued', `yield* lanes.unqueued(() => Effect.void);`],
+    ['no lane', 'return;'],
+    [
+      'shadowed service tag',
+      `const ReadReviewService = input; const service = yield* ReadReviewService; ${singleLane}`,
+    ],
+  ].map(([state, body]) => ({
+    state,
+    rule: 'lane-only-with-store',
+    path: laneFixturePath,
+    valid: nativeLaneUseCase(body)
+      .replace(
+        /    const (?:operation|access|check|refresh) = yield\* [^;]+;\n/g,
+        '',
+      )
+      .replace(state === 'shadowed service tag' ? singleLane : 'NEVER', ''),
+    invalid: nativeLaneUseCase(singleLane).replace(
+      /    const (?:operation|access|check|refresh) = yield\* [^;]+;\n/g,
+      '',
+    ),
+    errors: 1,
+  })),
+];
+
 export default [
+  ...nativeLaneCases,
+  ...[
+    [
+      'domain input',
+      (source) =>
+        source.replace(
+          "'@porcelain/contracts/shared'",
+          "'@porcelain/projects/models'",
+        ),
+    ],
+    [
+      'inline input',
+      (source) =>
+        source.replace(
+          'input: WorktreeParams',
+          'input: { worktreeId: string }',
+        ),
+    ],
+    [
+      'mixed intersection',
+      (source) =>
+        source.replace(
+          'input: WorktreeParams',
+          'input: WorktreeParams & { extra: string }',
+        ),
+    ],
+    [
+      'mixed union',
+      (source) =>
+        source.replace(
+          'input: WorktreeParams',
+          'input: WorktreeParams | { extra: string }',
+        ),
+    ],
+    [
+      'local type alias',
+      (source) =>
+        source
+          .replace('input: WorktreeParams', 'input: LocalInput')
+          .replace(
+            'export class RuleFixtureUseCase',
+            'type LocalInput = WorktreeParams; export class RuleFixtureUseCase',
+          ),
+    ],
+    [
+      'shadowed type',
+      (source) =>
+        source.replace(
+          'export class RuleFixtureUseCase',
+          'namespace Local { type WorktreeParams = { different: string }; export class RuleFixtureUseCase',
+        ) + '}',
+    ],
+  ].map(([state, transform]) => ({
+    state,
+    rule: 'use-case-input-is-contract',
+    path: laneFixturePath,
+    valid: nativeLaneUseCase('return;'),
+    invalid: transform(nativeLaneUseCase('return;')),
+    errors: 1,
+  })),
+  ...[
+    [
+      'aliased contract',
+      (source) =>
+        source
+          .replace('{ WorktreeParams }', '{ WorktreeParams as Params }')
+          .replace('input: WorktreeParams', 'input: Params'),
+    ],
+    [
+      'namespace contract and Context',
+      (source) =>
+        source
+          .replace('{ WorktreeParams }', '* as Contracts')
+          .replace('input: WorktreeParams', 'input: Contracts.WorktreeParams')
+          .replace('{ Context, Effect, Layer }', '{ Effect, Layer }')
+          .replace(
+            "import { Effect, Layer } from 'effect';",
+            "import { Effect, Layer } from 'effect'; import * as Native from 'effect';",
+          )
+          .replace('Context.Service<', 'Native.Context.Service<'),
+    ],
+    [
+      'contract intersection',
+      (source) =>
+        source.replace(
+          'input: WorktreeParams',
+          'input: WorktreeParams & WorktreeParams',
+        ),
+    ],
+    [
+      'contract union',
+      (source) =>
+        source.replace(
+          'input: WorktreeParams',
+          'input: WorktreeParams | WorktreeParams',
+        ),
+    ],
+    ['no input', (source) => source.replace('input: WorktreeParams', '')],
+    [
+      'internal port input',
+      (source) =>
+        source.replace(
+          "'@porcelain/contracts/shared'",
+          "'@porcelain/projects/models'",
+        ),
+    ],
+  ].map(([state, transform]) => ({
+    state,
+    rule: 'use-case-input-is-contract',
+    path: laneFixturePath,
+    validPath:
+      state === 'internal port input'
+        ? 'apps/server/src/use-cases/projects/check-worktree.ts'
+        : laneFixturePath,
+    valid: transform(nativeLaneUseCase('return;')),
+    invalid: nativeLaneUseCase('return;').replace(
+      'input: WorktreeParams',
+      'input: { worktreeId: string }',
+    ),
+    errors: 1,
+  })),
+  ...nativeLaneCases
+    .filter((entry) =>
+      ['run work', 'access write', 'access read'].includes(entry.state),
+    )
+    .flatMap((entry) =>
+      [aliasLaneCapabilities, namespaceLaneCapabilities].map((transform) => ({
+        ...entry,
+        state: `${String(entry.state)} import identity`,
+        valid: transform(entry.valid),
+        invalid: transform(entry.invalid),
+      })),
+    ),
+  ...[
+    [
+      'shadowed yielded receiver',
+      (source) =>
+        source.replace(
+          'function* (input) {',
+          'function* (input) { const events = { inventoryChanged: () => Effect.void };',
+        ),
+    ],
+    [
+      'shadowed capability tag',
+      (source) =>
+        source.replace(
+          'const events = yield* EventPublisher;',
+          'const EventPublisher = input; const events = yield* EventPublisher;',
+        ),
+    ],
+    [
+      'unrelated capability import',
+      (source) =>
+        source.replace(
+          '../../ports/event-publisher.ts',
+          '../../ports/unrelated.ts',
+        ),
+    ],
+  ].map(([state, transform]) => ({
+    state,
+    rule: 'events-after-lane',
+    path: laneFixturePath,
+    valid: transform(eventInLane),
+    invalid: eventInLane,
+    errors: 1,
+  })),
+  {
+    state: 'const aliases preserve capability identity',
+    rule: 'events-after-lane',
+    path: laneFixturePath,
+    valid: nativeLaneUseCase(`${singleLane} yield* events.inventoryChanged();`),
+    invalid: eventInLane
+      .replace(
+        'const events = yield* EventPublisher;',
+        'const Publisher = EventPublisher; const original = yield* Publisher; const events = original;',
+      )
+      .replace(
+        'const lanes = yield* Lanes;',
+        'const originalLane = yield* Lanes; const lanes = originalLane;',
+      ),
+    errors: 1,
+  },
+  ...[
+    [
+      'shadowed lane receiver',
+      (source) =>
+        source.replace("() => lanes.run('two'", "(lanes) => lanes.run('two'"),
+    ],
+    [
+      'shadowed lane import',
+      (source) =>
+        source.replace(
+          'const lanes = yield* Lanes;',
+          'const Lanes = input; const lanes = yield* Lanes;',
+        ),
+    ],
+    [
+      'unrelated lane import',
+      (source) =>
+        source.replace('../../runtime/lanes.ts', '../../runtime/unrelated.ts'),
+    ],
+  ].map(([state, transform]) => {
+    const invalid = nativeLaneUseCase(
+      `yield* lanes.run('one', 'write', () => lanes.run('two', 'write', ${laneWork}));`,
+    );
+    return {
+      state,
+      rule: 'no-nested-lane',
+      path: laneFixturePath,
+      valid: transform(invalid),
+      invalid,
+      errors: 1,
+    };
+  }),
   ...[true, false].map((value) => ({
     rule: 'spec-asserts',
     path: 'packages/projects/src/rules/derive-project-name.spec.ts',
@@ -2313,47 +2829,6 @@ export { utf8ByteLength };`,
   },
 
   {
-    rule: 'lane-after-check',
-    path: 'apps/server/src/use-cases/files/list-directory.ts',
-    valid: `export class ListDirectoryUseCase {
-  async execute(
-  ): Promise<ListDirectoryResponse> {
-    const worktree = await this.checkWorktree.execute(
-    );
-  }
-}`,
-    invalid: `export class ListDirectoryUseCase {
-  async execute(
-  ): Promise<ListDirectoryResponse> {
-    const early = this.laneKeys.filesystem();
-    const worktree = await this.checkWorktree.execute(
-    );
-  }
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'lane-only-with-store',
-    path: 'apps/server/src/use-cases/access/clear-browser-session.ts',
-    valid: `export class ClearBrowserSessionUseCase {
-  constructor(lanes: Lanes) {
-    return this.lanes.unqueued(
-      async (): Promise<ClearBrowserSessionResponse> => undefined,
-    );
-  }
-}`,
-    invalid: `export class ClearBrowserSessionUseCase {
-  constructor(lanes: Lanes) {
-    return this.lanes.run(
-      'access',
-      'read',
-      async (): Promise<ClearBrowserSessionResponse> => undefined,
-    );
-  }
-}`,
-    errors: 1,
-  },
-  {
     rule: 'limits-from-settings',
     path: 'apps/server/src/http/routes/files/files-api.ts',
     valid: `import type { Limits } from '../../../config/limits.ts';
@@ -3331,15 +3806,6 @@ import type { ReadChangeLinesService } from '@porcelain/changes/services';
     errors,
   })),
 
-  {
-    rule: 'use-case-input-is-contract',
-    path: 'apps/server/src/use-cases/reviews/rule-fixture.ts',
-    valid:
-      "import { Effect } from 'effect';\nimport type {\n  CommentAuthor,\n  CreateCommentThreadRequest,\n  CreateCommentThreadResponse,\n} from '@porcelain/contracts/reviews';\nimport type { WorktreeParams } from '@porcelain/contracts/shared';\nimport type { CreateCommentThreadService } from '@porcelain/reviews/services';\nexport class CreateCommentThreadUseCase {\n  private readonly createCommentThread: CreateCommentThreadService;\n\n  constructor(createCommentThread: CreateCommentThreadService) {\n    this.createCommentThread = createCommentThread;\n  }\n\n  execute(\n    input: WorktreeParams & CreateCommentThreadRequest & CommentAuthor,\n  ): Effect.Effect<CreateCommentThreadResponse, CreateCommentThreadError> {\n    return this.createCommentThread.execute(input);\n  }\n}\n",
-    invalid:
-      "import { Effect } from 'effect';\nimport type { CreateCommentThreadResponse } from '@porcelain/contracts/reviews';\nimport type { CreateCommentThreadInput } from '@porcelain/reviews/models';\nimport type { CreateCommentThreadService } from '@porcelain/reviews/services';\nexport class CreateCommentThreadUseCase {\n  private readonly createCommentThread: CreateCommentThreadService;\n\n  constructor(createCommentThread: CreateCommentThreadService) {\n    this.createCommentThread = createCommentThread;\n  }\n\n  execute(\n    input: CreateCommentThreadInput,\n  ): Effect.Effect<CreateCommentThreadResponse, CreateCommentThreadError> {\n    return this.createCommentThread.execute(input);\n  }\n}\n",
-    errors: 1,
-  },
   {
     rule: 'web-api-owns-request',
     path: 'apps/web/src/features/access/queries/probe-query.ts',
@@ -4368,6 +4834,52 @@ const styleConfigCases = [
     details: [toolOutput === '{}' ? '{}' : 'SyntaxError'],
   })),
   { name: 'canonical configs and empty source', status: 0, rules: [] },
+  ...[
+    ['events-after-lane', 'warning', 0],
+    ['use-case-input-is-contract', 'warning', 0],
+    ['events-after-lane', 'error', 1],
+    ['no-nested-lane', 'warning', 1],
+    ['no-nested-lane', 'error', 1],
+  ].map(([rule, severity, status]) => ({
+    name: `${rule} ${severity} diagnostic has exit ${status}`,
+    missingTool: true,
+    toolOutput: JSON.stringify({
+      number_of_files: 1,
+      diagnostics: [
+        {
+          filename: 'architecture/fixture.ts',
+          severity,
+          code: `porcelain(${rule})`,
+          message: 'A diagnostic, because the fixture plants one.',
+        },
+      ],
+    }),
+    status,
+    findingCount: 1,
+    rules: [],
+  })),
+  ...['events-after-lane', 'use-case-input-is-contract'].flatMap((rule) => [
+    ...['warn', ['warn'], 'error'].map((level) => ({
+      name: `${rule} warning rollout accepts ${JSON.stringify(level)}`,
+      status: 0,
+      rules: [],
+      json: { '.oxlintrc.json': { [`rules.porcelain/${rule}`]: level } },
+    })),
+    ...['off', undefined].map((level) => ({
+      name: `${rule} warning rollout refuses ${String(level)}`,
+      status: 1,
+      rules: ['lint-config'],
+      json: { '.oxlintrc.json': { [`rules.porcelain/${rule}`]: level } },
+      tokens: [`porcelain/${rule}`],
+    })),
+  ]),
+  {
+    name: 'warning rollout does not downgrade other rules',
+    status: 1,
+    rules: ['lint-config'],
+    json: { '.oxlintrc.json': { 'rules.porcelain/no-nested-lane': 'warn' } },
+    tokens: ['porcelain/no-nested-lane'],
+  },
   {
     name: 'required rule accepts array error level',
     status: 0,
