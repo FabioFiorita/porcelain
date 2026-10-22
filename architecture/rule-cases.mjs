@@ -3572,6 +3572,18 @@ const featureMapCases = [
       'targets a missing file',
     ],
     [
+      'atx-heading-syntax',
+      '## Supported title\n\n[Read](#supported-title)',
+      'Supported title\n---------------\n\n[Read](#supported-title)',
+      'Only ATX (#) headings are recognized; Setext headings are unsupported.',
+    ],
+    [
+      'formatted-heading',
+      '## **Formatted** `Code` <em>World</em>!\n\n[Read](#formatted-code-world)',
+      '## **Formatted** `Code` <em>World</em>!\n\n[Read](#wrong)',
+      'targets a missing heading anchor "#wrong"',
+    ],
+    [
       'relative-anchor',
       '[Read](#hello-world)',
       '[Read](#missing)',
@@ -3684,6 +3696,28 @@ const featureMapCases = [
         valid: { [`${featureFolders[surface]}/README.md`]: valid },
       },
     ),
+  ),
+  featureMapCase(
+    'index-table-shell',
+    {
+      [`${featureFolders.web}/README.md`]:
+        '| Feature | Surface |\n| --- | --- |\n| [Fixture](app.fixture.md) | (desktop) |\n| [Native](app.native.md) | (desktop) |',
+    },
+    [
+      'link "app.fixture.md" has a desktop tag that disagrees with shell: absent',
+    ],
+    {
+      files: {
+        ...featureMapFiles,
+        [`${featureFolders.web}/app.native.md`]: featureMap(
+          'route: /\nshell: desktop',
+        ),
+      },
+      valid: {
+        [`${featureFolders.web}/README.md`]:
+          '| Feature | Surface |\n| --- | --- |\n| [Fixture](app.fixture.md) | web |\n| [Native](app.native.md) | (desktop) |',
+      },
+    },
   ),
   featureMapCase(
     'mobile-on-demand',

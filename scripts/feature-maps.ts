@@ -3,8 +3,8 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseDocument } from 'yaml';
-import { fromMarkdown } from 'mdast-util-from-markdown';
-import type { Nodes } from 'mdast';
+import { parseMarkdown } from '@tanstack/markdown/parser';
+import type { BlockNode, InlineNode } from '@tanstack/markdown';
 import GithubSlugger from 'github-slugger';
 import { webDomains } from '../architecture/policy.ts';
 import { selectorAppears } from '../architecture/feature-selectors.ts';
@@ -153,48 +153,51 @@ function frontmatter(text: string): unknown {
   const document = parseDocument(match[1] ?? '');
   return document.errors.length > 0 ? undefined : document.toJS();
 }
-function markdownNodes(node: Nodes): Nodes[] {
-  return [
-    node,
-    ...('children' in node ? node.children.flatMap(markdownNodes) : []),
-  ];
-}
-function headingText(node: Nodes): string {
+type MarkdownNode = BlockNode | InlineNode;
+type MarkdownEntry = { node: MarkdownNode; context: string };
+function headingText(node: MarkdownNode): string {
   if (node.type === 'text' || node.type === 'inlineCode') return node.value;
-  if (node.type === 'image' || node.type === 'imageReference')
-    return node.alt ?? '';
+  if (node.type === 'image') return node.alt;
   return 'children' in node ? node.children.map(headingText).join('') : '';
+}
+function markdownNodes(
+  node: MarkdownNode,
+  context = headingText(node),
+): MarkdownEntry[] {
+  const nested =
+    node.type === 'table'
+      ? [node.header, ...node.rows].flatMap((row) => {
+          const children = row.flatMap((cell) => cell.children);
+          const text = children.map(headingText).join(' ');
+          return children.flatMap((child) => markdownNodes(child, text));
+        })
+      : node.type === 'list' || node.type === 'footnotes'
+        ? node.items.flatMap((item) =>
+            item.children.flatMap((child) => markdownNodes(child)),
+          )
+        : 'children' in node
+          ? node.children.flatMap((child) => markdownNodes(child, context))
+          : [];
+  return [{ node, context }, ...nested];
 }
 function markdown(root: string, file: string) {
   const source = readFileSync(resolve(root, file), 'utf8');
-  const body = source.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, (match) =>
-    match.replace(/[^\r\n]/g, ' '),
+  const body = source.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, '');
+  const nodes = parseMarkdown(body, { allowHtml: true }).children.flatMap(
+    (node) => markdownNodes(node),
   );
-  const nodes = markdownNodes(fromMarkdown(body));
-  const definitions = new Map<string, string>();
-  for (const node of nodes)
-    if (node.type === 'definition' && !definitions.has(node.identifier))
-      definitions.set(node.identifier, node.url);
-  const links = nodes.flatMap((node) => {
+  const links = nodes.flatMap(({ node, context }) => {
     const url =
-      node.type === 'link' || node.type === 'image'
-        ? node.url
-        : node.type === 'linkReference' || node.type === 'imageReference'
-          ? definitions.get(node.identifier)
+      node.type === 'link'
+        ? node.href
+        : node.type === 'image'
+          ? node.src
           : undefined;
-    return url === undefined
-      ? []
-      : [
-          {
-            url,
-            line:
-              source.split('\n')[(node.position?.start.line ?? 1) - 1] ?? '',
-          },
-        ];
+    return url === undefined ? [] : [{ url, context }];
   });
   const slugger = new GithubSlugger();
   const headings = new Set(
-    nodes.flatMap((node) =>
+    nodes.flatMap(({ node }) =>
       node.type === 'heading' ? [slugger.slug(headingText(node))] : [],
     ),
   );
@@ -239,7 +242,7 @@ function markdownLinkProblems(
         );
       } else if (anchor && !document(target).headings.has(anchor)) {
         problems.push(
-          `${file}: link "${url}" targets a missing heading anchor "#${anchor}"; use the heading's GitHub slug because verification must reach the named section`,
+          `${file}: link "${url}" targets a missing heading anchor "#${anchor}"; use the heading's GitHub slug because verification must reach the named section. Only ATX (#) headings are recognized; Setext headings are unsupported.`,
         );
       }
     }
@@ -305,7 +308,7 @@ function entries(root: string, surface: Surface, problems: string[]): Entry[] {
         `${surface.features}/README.md: the index links every map file, and ${file} is missing from it; add its link because the index is the discovery path for verification`,
       );
     for (const link of links)
-      if (/\(desktop\)/.test(link.line) !== (entry.shell === 'desktop'))
+      if (/\(desktop\)/.test(link.context) !== (entry.shell === 'desktop'))
         problems.push(
           `${surface.features}/README.md: link "${file}" has a desktop tag that disagrees with shell: ${entry.shell ?? 'absent'} in ${entry.file}; match the map's shell because the index must identify the surface to drive`,
         );
