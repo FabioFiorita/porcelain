@@ -63,7 +63,7 @@ export function PairDevice({
   return (
     <div className="flex flex-col gap-3">
       <form
-        className="flex flex-col gap-2 sm:flex-row sm:items-end"
+        className="flex flex-col gap-2"
         onSubmit={(event) =>
           submitForm(event, async () =>
             createPairing({
@@ -85,7 +85,7 @@ export function PairDevice({
           />
         </Field>
         {addresses.length > 1 && (
-          <Field className="min-w-0 sm:w-56">
+          <Field className="min-w-0">
             <Label htmlFor="pairing-address">Opens through</Label>
             <Select
               items={addresses.map(({ route, url }) => ({

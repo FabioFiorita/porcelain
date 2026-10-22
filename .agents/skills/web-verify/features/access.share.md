@@ -4,7 +4,7 @@ shell: desktop
 selectors:
   - 'Toggle Sidebar'
   - 'Settings'
-  - 'Devices'
+  - 'Open This computer'
   - 'Ways in'
   - 'Local network'
   - 'Device name'
@@ -30,12 +30,12 @@ api:
 
 # access.share
 
-On the computer that runs Porcelain, Settings → Devices creates a one-time pairing link and its QR code for the one way in the device will work through.
+On the computer that runs Porcelain, Settings → Computers → This computer → Pair a device creates a one-time pairing link and its QR code for the one way in the device will work through.
 
 ## How to get to it (user POV)
 
-- Workspace → `Toggle Sidebar` (phone width) → `Settings` (navigator footer) → `Devices`.
-- Keyboard: `Alt+Shift+S` on the workspace (focus outside a text field) opens Settings, then `Devices`.
+- Workspace → `Toggle Sidebar` (phone width) → `Settings` (navigator footer) → `Computers` → `Open This computer`.
+- Keyboard: `Alt+Shift+S` on the workspace (focus outside a text field) opens Settings, then `Computers` → `Open This computer`.
 - Route: `/settings/devices` (host-authorized browser or desktop).
 - Controls: textbox "Device name" + `Create pairing link` (or `Enter` in the field); `Copy link`; `Revoke <device>`; `Cancel the link for <device>`.
 
@@ -53,14 +53,14 @@ None on disk. The default server has two paired devices, both bound to "This com
 
 1. Navigate to `/settings/devices`
    Expect:
-   - heading "Devices";
+   - breadcrumb "This computer";
    - the text "Turn on a way in under Computers → This computer → Ways in to pair a phone or another computer." (no "Device name" field yet);
    - list "Paired devices and links" with listitems "Development setup" and "Verification browser".
 2. Click button `Computers`, then button named `Open This computer`
    Expect: URL ends `/settings/computers/this-computer#ways-in`; switch "Local network" not checked.
 3. Click switch named `Local network`
    Expect: switch "Local network" checked and the text `http://192.168.1.20:<port>`. A badge "Starting" may show first; inspect the accessibility tree again after a second.
-4. Click button `Devices`
+4. Stay on This computer and scroll to Pair a device
    Expect: textbox "Device name"; the text "The link opens through Local network. The device will work only through the way in it pairs over. To use it through another way in too, pair it again through that one."
 5. Fill textbox `Device name` with 'My phone'
    Expect: button "Create pairing link" enabled.

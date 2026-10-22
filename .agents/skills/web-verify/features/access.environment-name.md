@@ -8,7 +8,7 @@ selectors:
   - 'This computer'
   - 'Name of this computer'
   - 'Save'
-  - 'Devices'
+  - 'Open This computer'
   - 'connect it to'
   - 'Back'
 tests:
@@ -50,9 +50,9 @@ Required instance mode: `--desktop`.
    Expect: button "Save" enabled.
 5. Click button `Save`
    Expect: title "Settings · Workstation"; the Settings header under "Porcelain" shows "Workstation"; button "Save" disabled again.
-   Proof before continuing: reload `/settings/computers/this-computer` now: Workstation and Settings · Workstation persist. Inventory returns `{ name, custom }`; each name PUT answers 200. Then continue to Devices.
+   Proof before continuing: reload `/settings/computers/this-computer` now: Workstation and Settings · Workstation persist. Inventory returns `{ name, custom }`; each name PUT answers 200. Then inspect Pair a device on this detail.
 
-6. Click button `Devices`
+6. Stay on This computer and scroll to Pair a device
    Expect: the text "Open the link or scan the code on the other device to connect it to Workstation. Each link works once, for a few minutes."
 7. Click button `Computers`, then button named `Open This computer`
    Expect: textbox "Name of this computer" holds "Workstation"; button "Save" disabled.

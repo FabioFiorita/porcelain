@@ -39,11 +39,9 @@ test('the owner names this computer in Settings, and the tab title, pairing and 
   await expect
     .poll(async () => (await server.inventory()).environment)
     .toEqual({ name: 'Workstation', custom: true });
-  await settings.getByRole('button', { name: 'Devices', exact: true }).click();
   await expect(
     settings.getByText(/to connect it to Workstation\./),
   ).toBeVisible();
-  await openThisComputer(pairedPage);
   await expect(save).toBeDisabled();
   await expect.poll(() => app.title()).toBe('Settings · Workstation');
   await settings.getByRole('button', { name: 'Back', exact: true }).click();

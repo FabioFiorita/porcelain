@@ -1,8 +1,17 @@
-import { createFileRoute, useMatch } from '@tanstack/react-router';
+import { createFileRoute, redirect, useMatch } from '@tanstack/react-router';
 import { SettingsPage, settingsSections } from '@/app/settings-page';
 import { ConnectedWorkspace } from '@/app/connected-workspace';
 
 export const Route = createFileRoute('/_paired/settings/$section')({
+  beforeLoad: ({ params }) => {
+    if (params.section === 'devices' || params.section === 'integrations')
+      redirect({
+        to: '/settings/$section/$environmentId',
+        params: { section: 'computers', environmentId: 'this-computer' },
+        replace: true,
+        throw: true,
+      });
+  },
   component: SettingsRoute,
 });
 

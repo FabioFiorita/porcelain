@@ -1,7 +1,7 @@
 import { expect, test } from './fixtures.ts';
 import { openThisComputer } from '../kit/settings.ts';
 
-test('desktop Settings uses the shared five sections and nests this computer and Ways in under Computers', async ({
+test('desktop Settings uses the shared three sections and nests this computer and Ways in under Computers', async ({
   pairedPage,
 }) => {
   await pairedPage
@@ -22,8 +22,6 @@ test('desktop Settings uses the shared five sections and nests this computer and
     'General',
     'Reviews & Git',
     'Computers',
-    'Devices',
-    'Integrations',
     'Back',
   ]);
   await expect(
@@ -51,10 +49,6 @@ test('desktop Settings uses the shared five sections and nests this computer and
       exact: true,
     }),
   ).not.toBeAttached();
-  await sections.getByRole('button', { name: 'Devices', exact: true }).click();
-  await expect(
-    settings.getByRole('switch', { name: 'Local network', exact: true }),
-  ).not.toBeAttached();
   await expect(
     settings.getByText('Paired devices', { exact: true }),
   ).toBeVisible();
@@ -69,9 +63,7 @@ test('desktop Settings uses the shared five sections and nests this computer and
   await expect(
     settings.getByRole('button', { name: 'Open This computer', exact: true }),
   ).toBeVisible();
-  await sections
-    .getByRole('button', { name: 'Integrations', exact: true })
-    .click();
+  await openThisComputer(pairedPage);
   await expect(
     settings.getByText('Porcelain MCP server', { exact: true }),
   ).toBeVisible();

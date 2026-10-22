@@ -23,6 +23,7 @@ import { EnvironmentName } from './environment-name';
 import { ServiceUpdateSettings } from './service-update';
 import { AppUpdateSettings } from './app-update';
 import { PairDevice } from './pair-device';
+import { AgentsSetting } from './agents-setting';
 import { PairedDevices } from './paired-devices';
 import { RemoteRoutes } from './remote-routes';
 import { type Connection } from '@/shared/workspace/connection';
@@ -73,6 +74,16 @@ export function ComputerSettings({
 
   return (
     <>
+      <div className="space-y-2">
+        <h1 className="break-words text-3xl font-semibold tracking-tight">
+          <span className="text-muted-foreground">Computers.</span>{' '}
+          {environment.name}
+        </h1>
+        <p>
+          Devices pair with this computer here, and your agents reach Porcelain
+          through it.
+        </p>
+      </div>
       <FieldSet>
         <FieldLegend variant="label">Overview</FieldLegend>
         <ItemGroup>
@@ -97,6 +108,8 @@ export function ComputerSettings({
         </ItemGroup>
       </FieldSet>
       <WaysInSettings />
+      <DevicesSettings environment={environment} />
+      <AgentsSetting />
       {!desktopShell && (
         <FieldSet>
           <FieldLegend variant="label">This browser</FieldLegend>
@@ -146,13 +159,17 @@ function WaysInSettings() {
   );
 }
 
-export function DevicesSettings({ environment }: { environment: Environment }) {
+function DevicesSettings({ environment }: { environment: Environment }) {
   const { connection } = useConnectedContext();
   return (
     <RemoteAccessGate connection={connection}>
       {(remote) => (
-        <>
-          <FieldSet>
+        <div className="grid items-start gap-6 xl:grid-cols-2">
+          <FieldSet className="min-w-0">
+            <FieldLegend variant="label">Paired devices</FieldLegend>
+            <PairedDevices connection={connection} />
+          </FieldSet>
+          <FieldSet className="min-w-0">
             <FieldLegend variant="label">Pair a device</FieldLegend>
             <ItemGroup>
               <Item variant="outline">
@@ -167,11 +184,7 @@ export function DevicesSettings({ environment }: { environment: Environment }) {
               </Item>
             </ItemGroup>
           </FieldSet>
-          <FieldSet>
-            <FieldLegend variant="label">Paired devices</FieldLegend>
-            <PairedDevices connection={connection} />
-          </FieldSet>
-        </>
+        </div>
       )}
     </RemoteAccessGate>
   );

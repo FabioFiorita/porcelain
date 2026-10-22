@@ -45,29 +45,22 @@ export function PreferencesScreen() {
             <Text variant="subheading" tone="muted">
               Documents
             </Text>
-            <PreferenceChoice<Preferences['markdownDefault']>
-              label="Markdown opens as"
-              description="You can switch per file."
-              value={preferences.markdownDefault}
+            <PreferenceChoice<Preferences['documentsDefault']>
+              label="Documents open as"
+              description="Markdown and HTML. You can switch per file; HTML previews run in a sandbox with no access to Porcelain."
+              value={preferences.documentsDefault}
               options={[
-                { value: 'reader', label: 'Reader', id: 'markdown-reader' },
-                { value: 'source', label: 'Source', id: 'markdown-source' },
+                {
+                  value: 'rendered',
+                  label: 'Rendered',
+                  id: 'documents-rendered',
+                },
+                { value: 'source', label: 'Source', id: 'documents-source' },
               ]}
               disabled={disabled}
-              onChange={(markdownDefault) =>
-                setPreferences({ markdownDefault })
+              onChange={(documentsDefault) =>
+                setPreferences({ documentsDefault })
               }
-            />
-            <PreferenceChoice<Preferences['htmlDefault']>
-              label="HTML opens as"
-              description="Previews run in a sandbox with no access to Porcelain."
-              value={preferences.htmlDefault}
-              options={[
-                { value: 'preview', label: 'Preview', id: 'html-preview' },
-                { value: 'source', label: 'Source', id: 'html-source' },
-              ]}
-              disabled={disabled}
-              onChange={(htmlDefault) => setPreferences({ htmlDefault })}
             />
           </Box>
         </>

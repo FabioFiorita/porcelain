@@ -1,7 +1,7 @@
 import { openThisComputer } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
-test('on Devices the owner lets a paired device update Porcelain and creates a pairing link whose device may update it too', async ({
+test('on This computer the owner lets a paired device update Porcelain and creates a pairing link whose device may update it too', async ({
   pairedPage,
   server,
 }) => {
@@ -22,7 +22,6 @@ test('on Devices the owner lets a paired device update Porcelain and creates a p
   await expect(
     settings.getByText(/^http:\/\/192\.168\.1\.20:\d+$/),
   ).toBeVisible();
-  await settings.getByRole('button', { name: 'Devices', exact: true }).click();
 
   const trusted = async (label: string) =>
     (await server.devices()).find((device) => device.label === label)?.trusted;

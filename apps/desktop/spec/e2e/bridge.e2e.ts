@@ -28,7 +28,10 @@ test('Settings obtains the local app executable and server directory through its
   expect(configuration.command).toContain('--porcelain-mcp');
   expect(configuration.command).toContain(app.serverData);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.getByRole('button', { name: 'Integrations', exact: true }).click();
+  await page.getByRole('button', { name: 'Computers', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Open This computer', exact: true })
+    .click();
   await expect(
     page.getByText(configuration.command, { exact: true }),
   ).toBeVisible();

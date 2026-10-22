@@ -236,7 +236,9 @@ function FileContentsPreview({
         key={path}
         source={text}
         onLink={onLink}
-        initialMode={preferences.markdownDefault}
+        initialMode={
+          preferences.documentsDefault === 'rendered' ? 'reader' : 'source'
+        }
         wrap={preferences.lineOverflow === 'wrap'}
         selection={selection}
         onSelect={onSelect}
@@ -253,7 +255,9 @@ function FileContentsPreview({
         <HtmlPreview
           html={text}
           onLink={onLink}
-          initialMode={preferences.htmlDefault}
+          initialMode={
+            preferences.documentsDefault === 'rendered' ? 'preview' : 'source'
+          }
           wrap={preferences.lineOverflow === 'wrap'}
           selection={selection}
           onSelect={onSelect}

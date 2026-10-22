@@ -1,13 +1,13 @@
 ---
 route: /$projectId/$worktreeId
 selectors:
-  - "Review"
-  - "Files"
-  - "Open file"
-  - "Reader"
-  - "Source"
-  - "Not shown"
-  - "This file is too large to display as text."
+  - 'Review'
+  - 'Files'
+  - 'Open file'
+  - 'Reader'
+  - 'Source'
+  - 'Not shown'
+  - 'This file is too large to display as text.'
 tests:
   - apps/web/spec/integration/files-markdown-preview.test.tsx
 api:
@@ -21,7 +21,7 @@ A Markdown file opened from the file tree reads as formatted text ("Reader") and
 ## How to get to it (user POV)
 
 - Review → Files → right-click a changed `.md`/`.mdx` file → Open file (a single click on a changed file opens its diff; on an unchanged file the menu item is "Open" and a single click opens the file).
-- In the file toolbar, tabs "Reader" and "Source"; Reader is the default unless Settings sets Markdown files to open as source.
+- In the file toolbar, tabs "Reader" and "Source"; Reader is the default unless Settings → General → Documents open as is Source.
 
 ## Driving it with browser
 
@@ -63,5 +63,5 @@ Automated coverage: `files-markdown-preview.test.tsx`.
 
 ## Gotchas
 
-- The display default is a per-browser preference: if an earlier feature in this instance set Markdown files to open as source in Settings, the file opens on "Source"; click "Reader".
+- The display default is a per-browser preference: if an earlier feature in this instance set Documents open as to Source in Settings, the file opens on "Source"; click "Reader".
 - The limit is the server's 1 MiB limit; a file just under it opens normally.

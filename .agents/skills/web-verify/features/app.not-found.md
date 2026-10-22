@@ -31,7 +31,7 @@ Start one web instance and pair. At desktop width (1024 × 640), navigate to `/n
 
 Navigate to `/<projectId>/invalid-worktree`, `/<projectId>/remotes` and `/?worktree=invalid-worktree`. Observe Worktree not found and the explanation that the URL has an invalid or unavailable worktree ID. Open available worktree links directly to an available workspace; it is absent when none exists. Back to workspace remains available. The app never claims another worktree is the invalid ID.
 
-Navigate to `/settings/unknown` and the removed slugs `/settings/appearance`, `/settings/computer`, `/settings/connection`, `/settings/updates`, `/settings/ways-in` and `/settings/remotes`. Observe Page not found without a silent redirect. Press Alt+Shift+S to enter `/settings/general`; Back returns to the not-found view. Computers and Devices are valid sections in both shells. An extra segment on General remains not found.
+Navigate to `/settings/unknown` and the removed slugs `/settings/appearance`, `/settings/computer`, `/settings/connection`, `/settings/updates`, `/settings/ways-in` and `/settings/remotes`. Observe Page not found without a silent redirect. Press Alt+Shift+S to enter `/settings/general`; Back returns to the not-found view. Computers is a valid section in both shells. Devices and Integrations redirect to Computers → This computer. An extra segment on General remains not found.
 
 Repeat in desktop mode for manual routing verification. The Electron bridge itself requires desktop verification. A fresh unpaired browser visiting an unknown URL ends on `/pair`, with This browser is not paired.
 

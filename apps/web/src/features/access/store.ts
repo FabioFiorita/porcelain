@@ -19,6 +19,7 @@ import {
 import { Effect, Layer, ManagedRuntime, Option } from 'effect';
 import { Atom, AtomRef } from 'effect/reactivity';
 import { useAtomRef, useAtomValue } from '@effect/atom-react';
+import { devicePlatformName } from './rules/settings';
 import { statusActivity } from './adapters/status-activity';
 import { environmentStorage } from './adapters/environment-storage';
 
@@ -26,7 +27,10 @@ export const pairingPlatform: AccessPlatformValue = {
   name: () =>
     typeof navigator === 'undefined'
       ? 'Browser'
-      : navigator.userAgent.slice(0, WEB_PLATFORM_NAME_MAX_LENGTH) || 'Browser',
+      : devicePlatformName(navigator.userAgent).slice(
+          0,
+          WEB_PLATFORM_NAME_MAX_LENGTH,
+        ) || 'Browser',
   send: fetch,
   statusActivity,
 };

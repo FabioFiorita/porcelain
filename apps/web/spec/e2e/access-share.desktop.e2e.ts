@@ -1,7 +1,7 @@
 import { openThisComputer } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
-test('Settings → Devices creates a one-time pairing link for one way in with its QR code, lists the paired devices with the way in each works through and revokes one', async ({
+test('Settings → Computers → This computer creates a one-time pairing link for one way in with its QR code, lists the paired devices with the way in each works through and revokes one', async ({
   pairedPage,
   server,
 }) => {
@@ -15,10 +15,7 @@ test('Settings → Devices creates a one-time pairing link for one way in with i
     name: 'Settings',
     exact: true,
   });
-  await pairedPage
-    .getByRole('main', { name: 'Settings', exact: true })
-    .getByRole('button', { name: 'Devices', exact: true })
-    .click();
+  await openThisComputer(pairedPage);
   await expect(
     settings.getByText(
       'Turn on a way in under Computers → This computer → Ways in to pair a phone or another computer.',
@@ -33,7 +30,6 @@ test('Settings → Devices creates a one-time pairing link for one way in with i
   await expect(
     settings.getByText(/^http:\/\/192\.168\.1\.20:\d+$/),
   ).toBeVisible();
-  await settings.getByRole('button', { name: 'Devices', exact: true }).click();
 
   await expect(
     settings.getByText(
@@ -48,9 +44,9 @@ test('Settings → Devices creates a one-time pairing link for one way in with i
   await expect(
     settings.getByRole('img', { name: 'Pairing QR code', exact: true }),
   ).toBeVisible();
-  await expect(settings.getByLabel('Pairing link', { exact: true })).toHaveText(
-    /^http:\/\/192\.168\.1\.20:\d+\/pair#c=pcp_/,
-  );
+  await expect(
+    settings.getByText(/^http:\/\/192\.168\.1\.20:\d+\/pair#c=pcp_/),
+  ).toHaveText(/^http:\/\/192\.168\.1\.20:\d+\/pair#c=pcp_/);
   await expect
     .poll(async () => (await server.pendingLinks()).map((link) => link.label))
     .toEqual(['My phone']);
