@@ -100,10 +100,15 @@ const commentThreadSchema = Schema.Struct({
   ),
 });
 
-export const commentThreadParamsSchema = Schema.Struct({
-  worktreeId: worktreeIdSchema,
+export const commentThreadTargetParamsSchema = Schema.Struct({
   threadId: Schema.String.check(Schema.isUUID()),
 });
+export const commentThreadParamsSchema = Schema.Struct({
+  worktreeId: worktreeIdSchema,
+  ...commentThreadTargetParamsSchema.fields,
+});
+export type CommentThreadTargetParams =
+  typeof commentThreadTargetParamsSchema.Type;
 
 export const commentThreadScopeSchema = Schema.Literals(['waiting', 'all']);
 const listCommentThreadsQuerySchema = Schema.Struct({

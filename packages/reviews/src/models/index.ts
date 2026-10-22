@@ -47,7 +47,6 @@ export type { ReviewPublicationInput } from './review-management.ts';
 export {
   reviewComparisonSchema,
   comparisonUnknownSchema,
-  type CompareReviewInput,
 } from './review-comparison.ts';
 
 export {

@@ -1,6 +1,7 @@
 import { CheckProjectService } from '@porcelain/projects/services';
 import { Context, Effect, Exit, Layer } from 'effect';
 import type {
+  ReviewParams,
   ArchiveReviewRequest,
   ReviewArchivePlan,
 } from '@porcelain/contracts/reviews';
@@ -21,7 +22,7 @@ export class ArchiveReviewUseCase extends Context.Service<
   ArchiveReviewUseCase,
   {
     readonly execute: (
-      input: ArchiveReviewRequest & { reviewId: string },
+      input: ArchiveReviewRequest & ReviewParams,
     ) => Effect.Effect<
       { archived: boolean; plan: ReviewArchivePlan },
       ReviewNotFoundError | ProjectNotFoundError | ReviewArchiveRefusedError

@@ -97,3 +97,20 @@ export type {
   ArchiveReviewRequest,
   ReviewArchivePlan,
 } from '@porcelain/reviews/models';
+
+export {
+  type ReviewParams,
+  type ReviewRevisionParams,
+  type ProjectReviewParams,
+  type ReadReviewQuery,
+  type ReadReviewDiffsRequest,
+  type ReadReviewFileQuery,
+  type SetReviewSeenRequest,
+  type SetReviewStateRequest,
+} from './review.ts';
+export { type CommentThreadTargetParams } from './comments.ts';
+export {
+  type CompareReviewQuery,
+  type ReadReviewInterdiffQuery,
+} from './review-comparison.ts';
+export { type ProjectGitHubAccountOverride } from './pull-requests.ts';

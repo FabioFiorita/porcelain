@@ -17,10 +17,7 @@ import {
 } from './pull-requests.ts';
 import { ProjectNotFoundError } from '@porcelain/projects/errors';
 import { Schema } from 'effect';
-import {
-  readBranchDiffsRequestSchema,
-  readBranchDiffsResponseSchema,
-} from '../changes/branch-changes.ts';
+import { readBranchDiffsResponseSchema } from '../changes/branch-changes.ts';
 import { environmentUnavailable } from '../shared/environment-failure.ts';
 import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';
 import { porcelainApi } from '../shared/http-api.ts';
@@ -66,6 +63,7 @@ import {
 } from '@porcelain/reviews/errors';
 import {
   commentThreadParamsSchema,
+  commentThreadTargetParamsSchema,
   createCommentThreadRequestSchema,
   createCommentThreadResponseSchema,
   deleteCommentMessageQuerySchema,
@@ -91,6 +89,8 @@ import {
   setReviewMarkRequestSchema,
   removeReviewMarkRequestSchema,
   reviewParamsSchema,
+  projectReviewParamsSchema,
+  readReviewDiffsRequestSchema,
   reviewRevisionParamsSchema,
   readReviewResponseSchema,
   listProjectReviewsResponseSchema,
@@ -188,7 +188,7 @@ export class ReviewsApi extends porcelainApi.add(
         '/api/projects/:projectId/pull-requests',
         {
           disableCodecs: true,
-          params: Schema.Struct({ projectId: Schema.String }),
+          params: projectReviewParamsSchema,
           success: listPullRequestsResponseSchema,
           error: [httpFailure(ProjectNotFoundError, 'NotFound')],
         },
@@ -198,7 +198,7 @@ export class ReviewsApi extends porcelainApi.add(
         '/api/projects/:projectId/github-account',
         {
           disableCodecs: true,
-          params: Schema.Struct({ projectId: Schema.String }),
+          params: projectReviewParamsSchema,
           success: githubAccountResultSchema,
           error: [httpFailure(ProjectNotFoundError, 'NotFound')],
         },
@@ -208,7 +208,7 @@ export class ReviewsApi extends porcelainApi.add(
         '/api/projects/:projectId/github-account',
         {
           disableCodecs: true,
-          params: Schema.Struct({ projectId: Schema.String }),
+          params: projectReviewParamsSchema,
           payload: setGitHubAccountRequestSchema,
           success: githubAccountResultSchema,
           error: [httpFailure(ProjectNotFoundError, 'NotFound')],
@@ -223,7 +223,7 @@ export class ReviewsApi extends porcelainApi.add(
           disableCodecs: true,
           params: Schema.Struct({
             ...reviewParamsSchema.fields,
-            threadId: Schema.String.check(Schema.isUUID()),
+            ...commentThreadTargetParamsSchema.fields,
           }),
           query: deleteCommentMessageQuerySchema.fields,
           success: deleteCommentMessageResponseSchema,
@@ -258,7 +258,7 @@ export class ReviewsApi extends porcelainApi.add(
           disableCodecs: true,
           params: Schema.Struct({
             ...reviewParamsSchema.fields,
-            threadId: Schema.String.check(Schema.isUUID()),
+            ...commentThreadTargetParamsSchema.fields,
           }),
           payload: editCommentMessageRequestSchema,
           success: editCommentMessageResponseSchema,
@@ -345,7 +345,7 @@ export class ReviewsApi extends porcelainApi.add(
           disableCodecs: true,
           params: Schema.Struct({
             ...reviewParamsSchema.fields,
-            threadId: Schema.String.check(Schema.isUUID()),
+            ...commentThreadTargetParamsSchema.fields,
           }),
           payload: replyToCommentRequestSchema,
           success: replyToCommentResponseSchema,
@@ -367,7 +367,7 @@ export class ReviewsApi extends porcelainApi.add(
           disableCodecs: true,
           params: Schema.Struct({
             ...reviewParamsSchema.fields,
-            threadId: Schema.String.check(Schema.isUUID()),
+            ...commentThreadTargetParamsSchema.fields,
           }),
           payload: updateCommentThreadRequestSchema,
           success: updateCommentThreadResponseSchema,
@@ -409,7 +409,7 @@ export class ReviewsApi extends porcelainApi.add(
         '/api/projects/:projectId/reviews',
         {
           disableCodecs: true,
-          params: Schema.Struct({ projectId: Schema.String }),
+          params: projectReviewParamsSchema,
           success: listProjectReviewsResponseSchema,
         },
       ),
@@ -467,9 +467,7 @@ export class ReviewsApi extends porcelainApi.add(
         {
           disableCodecs: true,
           params: reviewRevisionParamsSchema,
-          payload: Schema.Struct({
-            paths: readBranchDiffsRequestSchema.fields.paths,
-          }),
+          payload: readReviewDiffsRequestSchema,
           success: readBranchDiffsResponseSchema,
           error: [
             ...worktreeFailures,

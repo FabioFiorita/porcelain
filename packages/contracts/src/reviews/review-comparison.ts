@@ -45,3 +45,7 @@ export const readReviewInterdiffResponseSchema = Schema.Union([
 export type CompareReviewResponse = typeof compareReviewResponseSchema.Type;
 export type ReadReviewInterdiffResponse =
   typeof readReviewInterdiffResponseSchema.Type;
+
+export type CompareReviewQuery = typeof compareReviewQuerySchema.Type;
+export type ReadReviewInterdiffQuery =
+  typeof readReviewInterdiffQuerySchema.Type;

@@ -3,14 +3,17 @@ import { ListReviewMarksService } from '@porcelain/reviews/services';
 import type { ReviewNotFoundError } from '@porcelain/reviews/errors';
 import { Lanes } from '../../runtime/lanes.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { ReviewMarksResponse } from '@porcelain/contracts/reviews';
+import type {
+  ReviewParams,
+  ReviewMarksResponse,
+} from '@porcelain/contracts/reviews';
 
 export class ListReviewMarksUseCase extends Context.Service<
   ListReviewMarksUseCase,
   {
-    readonly execute: (input: {
-      reviewId: string;
-    }) => Effect.Effect<ReviewMarksResponse, ReviewNotFoundError>;
+    readonly execute: (
+      input: ReviewParams,
+    ) => Effect.Effect<ReviewMarksResponse, ReviewNotFoundError>;
   }
 >()('@porcelain/server/ListReviewMarksUseCase') {
   static readonly layer = Layer.effect(
