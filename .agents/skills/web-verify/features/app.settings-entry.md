@@ -14,10 +14,6 @@ api: []
 
 Open Settings from the workspace sidebar or Alt+Shift+S.
 
-## Sub-features
-
-- `app.settings-entry` — Default and unknown Settings sections.
-
 ## How to get to it (user POV)
 
 - Workspace sidebar → Settings; Alt+Shift+S; native Settings menu. `/settings` opens General.

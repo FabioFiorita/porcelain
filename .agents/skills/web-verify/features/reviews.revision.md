@@ -17,10 +17,6 @@ api:
 
 Numbered links keep each published revision readable after its publishing worktree is removed.
 
-## Sub-features
-
-- `reviews.revision` — Numbered revisions and retained content.
-
 ## How to get to it (user POV)
 
 - Review revision selector; `/reviews/<id>/1` and `/reviews/<id>/2` direct links.

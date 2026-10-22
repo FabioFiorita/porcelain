@@ -20,10 +20,6 @@ api:
 
 A resolved thread the agent answers after the reviewer opened the "Delete resolved" confirmation is not deleted: the server skips it because its revision changed, and the dialog turns into "Kept 1 thread that changed" with a Close button.
 
-## Sub-features
-
-- `reviews.delete-resolved-race` — Concurrent changes during deletion.
-
 ## How to get to it (user POV)
 
 - Review (phone; the right sidebar on desktop) → tab "Comments" → filter button "resolved N" → "Delete resolved" → (the agent replies now) → "Delete".

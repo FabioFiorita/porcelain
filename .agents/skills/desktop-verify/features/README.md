@@ -17,7 +17,7 @@ Read [desktop verification](../SKILL.md) for lifecycle and raw Electron access. 
 
 ## Feature entry contract
 
-Each map has one short behavior paragraph, then four sections: Sub-features, How to get to it (user POV), Driving it with the surface harness, and Gotchas. Keep user paths, stable handles, required state, commands and observable proof. Frontmatter keeps the route/screen, selectors, tests, API and optional desktop shell tag for `pnpm features:check`; it is not evidence that a journey passed.
+Each map has one short behavior paragraph, then three sections: How to get to it (user POV), Driving it with the surface harness, and Gotchas. Keep user paths, stable handles, required state, commands and observable proof. Frontmatter keeps the route/screen, selectors, tests, API and optional desktop shell tag for `pnpm features:check`; it is not evidence that a journey passed.
 
 ## Proof and skip reporting
 

@@ -19,10 +19,6 @@ api:
 
 Worktrees offers Update for available computer updates and retains batch progress and outcomes in a native sheet.
 
-## Sub-features
-
-- `access.updates` — Update visibility, sheet navigation and batch outcomes.
-
 ## How to get to it (user POV)
 
 - Worktrees from Review, Files or History → Update badge. iPad uses the embedded navigator.

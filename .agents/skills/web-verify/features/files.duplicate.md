@@ -16,10 +16,6 @@ api:
 
 Duplicating a file writes a copy beside it, named `<stem> copy<extension>` (then `<stem> copy 2<extension>` and so on), and opens the copy. It runs from the file's menu, or with Mod+D on the open file.
 
-## Sub-features
-
-- `files.duplicate` — Duplicate files and folders.
-
 ## How to get to it (user POV)
 
 - Review (phone width) → tab Files → right-click a file row → menuitem "Duplicate".

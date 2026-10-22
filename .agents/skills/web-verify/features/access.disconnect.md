@@ -28,10 +28,6 @@ api:
 
 Settings → Computers → This computer → "Disconnect this browser" ends this browser's session and shows how to pair it again, while the device stays on the server's paired list. It is refused, with the file on disk left alone, while a file draft cannot be saved.
 
-## Sub-features
-
-- `access.disconnect` — Disconnect, confirmation and return to pairing.
-
 ## How to get to it (user POV)
 
 - Sidebar (phone width: `Toggle Sidebar` first) → `Settings` → `Computers` → `Open This computer` → `Disconnect this browser`.

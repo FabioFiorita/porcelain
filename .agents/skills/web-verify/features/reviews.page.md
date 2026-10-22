@@ -34,10 +34,6 @@ api:
 
 One page owns the latest durable route, numbered revisions, decision links and the worktree's branch Review tab.
 
-## Sub-features
-
-- `reviews.page` — Durable revisions, verdict, comments and lifecycle.
-
 ## How to get to it (user POV)
 
 - Navigator Reviews list; worktree branch Review tab.

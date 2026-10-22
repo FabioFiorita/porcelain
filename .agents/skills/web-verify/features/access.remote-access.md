@@ -27,10 +27,6 @@ api:
 
 Settings → Computers → This computer → Ways in turns the local network, the tailnet and a Cloudflare tunnel on and off.
 
-## Sub-features
-
-- `access.remote-access` — Network routes, addresses, failures and recovery.
-
 ## How to get to it (user POV)
 
 - Workspace → `Toggle Sidebar` (phone width) → `Settings` (navigator footer) → `Computers` → `Open This computer` → Ways in.

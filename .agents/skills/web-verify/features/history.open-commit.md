@@ -18,10 +18,6 @@ api:
 
 Opening a commit from History shows its document: the message, author, full id and parent, how many files it changed, the diff of each text file, and a binary change listed under "Changes without code preview" with the reason "Binary change" instead of a code preview.
 
-## Sub-features
-
-- `history.open-commit` — Commit details and file comparisons.
-
 ## How to get to it (user POV)
 
 - Review → History → click a commit row (at phone width the sheet closes and the commit opens as a document tab named by its 7-character id).

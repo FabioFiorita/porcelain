@@ -18,10 +18,6 @@ api:
 
 A Git action still running when the page reloads is still followed after the reload: the app keeps its request in session storage, the commit form shows "Outcome not yet confirmed" and refuses another commit, then shows how the action ended once the app reads its receipt.
 
-## Sub-features
-
-- `git-actions.reload-running` — Reload during an active operation.
-
 ## How to get to it (user POV)
 
 - Commit → Commit selected files → reload (or the tab is restored) before the app hears the outcome → Commit again.

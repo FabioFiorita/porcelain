@@ -28,10 +28,6 @@ api:
 
 A drafted message or group whose files no longer match what the dialog looked at is flagged stale and blocks the commit until it is generated again, so a commit never pairs a draft with content it did not describe.
 
-## Sub-features
-
-- `git-actions.stale-draft` — Stale file selection and refresh.
-
 ## How to get to it (user POV)
 
 - Group "Git controls" → button "Commit" → button "Generate with AI" (or tab "Use groups") → a file changes on disk → button "Commit selected files" (refused) → button "Look again".

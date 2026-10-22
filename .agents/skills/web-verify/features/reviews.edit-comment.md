@@ -20,10 +20,6 @@ api:
 
 The reviewer rewrites their own comment, which then shows "edited" and is saved with the new text, and deletes it, which removes the thread; an agent message has no "Comment actions" menu, so it offers neither.
 
-## Sub-features
-
-- `reviews.edit-comment` — Comment editing and saved text.
-
 ## How to get to it (user POV)
 
 - Any of your own messages (inline under a file, or in Review → Comments): the "…" button "Comment actions" in its header → menuitem "Edit" or menuitem "Delete" (destructive, no confirmation).

@@ -22,10 +22,6 @@ api:
 
 A file's timeline lists the commits that changed it, newest first. It follows the file back across a rename and names the path it had then. Opening a commit shows that commit with the file's diff.
 
-## Sub-features
-
-- `files.timeline` — Per-file history and commit navigation.
-
 ## How to get to it (user POV)
 
 - Open a file document (Review → tab Files → click a file row), then button "Timeline" in its toolbar. Below 720 px the label is visually hidden, but the button keeps the name "Timeline".

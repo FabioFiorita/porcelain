@@ -22,10 +22,6 @@ api:
 
 The native comments sheet supports feedback, replies, resolution and reopening without losing the underlying document.
 
-## Sub-features
-
-- `reviews.comments` — Post, reply, resolve, reopen and retain drafts.
-
 ## How to get to it (user POV)
 
 - Review → Comments; diff → Comment on file / Comment on selected lines. Done or sheet dismissal returns.

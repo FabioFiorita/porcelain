@@ -16,10 +16,6 @@ api:
 
 Dragging a file onto a folder in the tree moves it into that folder on disk without opening it. Dragging a file onto a folder that already holds that name is refused, says so, and keeps both files.
 
-## Sub-features
-
-- `files.move` — Move entries and verify their destinations.
-
 ## How to get to it (user POV)
 
 - Review (phone width) → tab Files → drag a tree row onto a folder row (a mouse drag, or on touch a 400 ms long-press then drag).

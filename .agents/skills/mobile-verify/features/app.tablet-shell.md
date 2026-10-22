@@ -28,10 +28,6 @@ api: []
 
 iPad keeps worktree navigation, central document tabs and an independently controlled right inspector, with adaptive narrow panes.
 
-## Sub-features
-
-- `app.tablet-shell` — Sidebar, inspector and central documents.
-
 ## How to get to it (user POV)
 
 - launch the app on an iPad

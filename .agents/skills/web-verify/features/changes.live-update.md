@@ -19,10 +19,6 @@ api:
 
 While the page stays open, a file another writer rewrites, creates or removes on disk updates the open file's text, the Files tree and the Changes list through the live socket (`GET /api/live`), with no reload and without moving the reader off the tab they chose.
 
-## Sub-features
-
-- `changes.live-update` — External writes, additions and removals.
-
 ## How to get to it (user POV)
 
 - Nothing to click: it happens on any open workspace when the worktree changes on disk.

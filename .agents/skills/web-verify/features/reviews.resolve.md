@@ -22,10 +22,6 @@ api:
 
 Resolving a comment thread moves it from the open comments to the resolved ones and the server keeps it resolved; reopening it moves it back.
 
-## Sub-features
-
-- `reviews.resolve` — Resolve and reopen threads.
-
 ## How to get to it (user POV)
 
 - Review (phone; the right sidebar on desktop) → tab "Comments" → a thread's button "Resolve"; then filter button "resolved N" → the thread's button "Reopen"; filter button "open N" goes back.

@@ -25,10 +25,6 @@ api:
 
 Add computer pairs through a pasted one-time link, saves the computer across cold launches, and retains errors until corrected or retried.
 
-## Sub-features
-
-- `access.pairing` — Paste links, pair multiple computers and restore after launch.
-
 ## How to get to it (user POV)
 
 - Settings → Computers → Add computer → paste the link → Pair

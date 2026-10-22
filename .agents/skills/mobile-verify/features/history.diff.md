@@ -20,10 +20,6 @@ tests:
 
 A commit file opens a read-only diff with its original comparison parent and line feedback.
 
-## Sub-features
-
-- `history.diff` — Commit comparisons, unavailable patches and comments.
-
 ## How to get to it (user POV)
 
 - History → commit → changed file; direct diff route. Back returns to the same commit on phones.

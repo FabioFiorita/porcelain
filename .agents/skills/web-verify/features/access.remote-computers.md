@@ -19,10 +19,6 @@ api:
 
 Settings → Computers lists This computer first, then saved computers. The list has no search. Each row shows name and status, current/latest version and an eligible update offer. Add computer keeps the paste-link flow: run porcelain pair on the other computer, paste the full link and click Add.
 
-## Sub-features
-
-- `access.remote-computers` — Pair, list and forget remote computers.
-
 ## How to get to it (user POV)
 
 - Settings → Computers → Add computer; saved computer → Open <name> or Forget.

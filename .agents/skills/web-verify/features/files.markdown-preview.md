@@ -18,10 +18,6 @@ api:
 
 A Markdown file opened from the file tree reads as formatted text ("Reader") and switches to its source without writing anything; one larger than the server's 1 MiB text limit is not shown and says why.
 
-## Sub-features
-
-- `files.markdown-preview` — Markdown reading, links and source.
-
 ## How to get to it (user POV)
 
 - Review → Files → right-click a changed `.md`/`.mdx` file → Open file (a single click on a changed file opens its diff; on an unchanged file the menu item is "Open" and a single click opens the file).

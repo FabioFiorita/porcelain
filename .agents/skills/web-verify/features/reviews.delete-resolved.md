@@ -25,10 +25,6 @@ api:
 
 After confirming, the reviewer deletes every resolved thread they started, for them and for the agent; a resolved thread the agent started stays, and the confirmation says so beforehand.
 
-## Sub-features
-
-- `reviews.delete-resolved` — Resolved-thread deletion and cancellation.
-
 ## How to get to it (user POV)
 
 - Review (phone; the right sidebar on desktop) → tab "Comments" → filter button "resolved N" → button "Delete resolved" → alertdialog → "Delete" (or "Cancel").

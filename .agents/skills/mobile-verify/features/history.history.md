@@ -20,10 +20,6 @@ api:
 
 History follows the selected worktree, loads older commits and updates when new commits arrive.
 
-## Sub-features
-
-- `history.history` — Commit browsing, pagination and live updates.
-
 ## How to get to it (user POV)
 
 - History tab or `porcelain.dev://history`; phone toolbar or iPad navigator selects a worktree.

@@ -22,10 +22,6 @@ api:
 
 Opening a repository that has a linked worktree from the empty workspace (no project registered) registers it with both worktrees, shows the worktree the dialog opened (its main worktree), and replaces the empty workspace in the browser history so Back does not return to it.
 
-## Sub-features
-
-- `projects.open-linked-worktree` — Linked worktree entry and selection.
-
 ## How to get to it (user POV)
 
 - Empty workspace `/` ("Select a worktree") → `Toggle Sidebar` (or `ControlOrMeta+b`) → `Open project` → browse to the repository → `Open <folder>`.

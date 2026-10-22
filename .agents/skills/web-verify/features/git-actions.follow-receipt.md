@@ -20,10 +20,6 @@ api:
 
 A Git action that settles while the live connection is down stays in progress ("Committing…", "Working…") until the app reconnects; then the app reads the action's receipt and shows how it ended, whether it succeeded or Git refused it.
 
-## Sub-features
-
-- `git-actions.follow-receipt` — Receipt progress and terminal outcomes.
-
 ## How to get to it (user POV)
 
 - Commit → Commit selected files, or Git actions → Pop stash → Pop stash, while the live connection is down (network blip, phone asleep); the outcome appears once it reconnects.

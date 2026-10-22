@@ -16,10 +16,6 @@ api:
 
 When a reload's session restore fails for a reason other than "not paired" (inventory answers an error, not 401), the page keeps the workspace address and shows the retrying workspace error instead of the not-paired page, and it opens the workspace by itself once the connection returns.
 
-## Sub-features
-
-- `access.restore-outage` — Session restore failures and reconnection.
-
 ## How to get to it (user POV)
 
 - Reload (or open) a workspace address `/<projectId>/<worktreeId>`, or `/pair` without a link, while the server cannot answer.

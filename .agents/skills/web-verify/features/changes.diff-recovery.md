@@ -17,10 +17,6 @@ api:
 
 When a file changes on disk after the page read the change list but before its diff request reaches the server, the server refuses the diff with 409 (worktree changed); the page then refreshes the change list once and shows the new diff, never leaving "Loading changes…" or "The changes in this document could not be read." behind.
 
-## Sub-features
-
-- `changes.diff-recovery` — Changed-worktree recovery during diff loading.
-
 ## How to get to it (user POV)
 
 - Workspace → button "Review" → button "All changes" or a change row such as "README.md · unstaged", while another writer (an agent, an editor) rewrites the file at that moment. There is no control of its own; it is how every uncommitted diff document recovers.

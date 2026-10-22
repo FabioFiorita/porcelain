@@ -45,10 +45,6 @@ api:
 
 Files browses and searches the selected worktree, manages entries and preferences, and shows review status.
 
-## Sub-features
-
-- `files.files` — Browse, search, create, rename, trash and preferences.
-
 ## How to get to it (user POV)
 
 - Files tab or `porcelain.dev://files`; choose a worktree through [Worktrees](projects.workspace-picker.md).

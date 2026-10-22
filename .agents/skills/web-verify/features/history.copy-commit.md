@@ -17,10 +17,6 @@ api:
 
 A commit's full id or its whole message (subject plus body) is copied from its History row's context menu and from its commit document's toolbar, and a toast confirms what was copied.
 
-## Sub-features
-
-- `history.copy-commit` — Copy commit identifiers.
-
 ## How to get to it (user POV)
 
 - Review → History → right-click (long-press on touch) a commit row → menuitem "Copy commit id" or "Copy message".

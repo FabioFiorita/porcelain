@@ -11,10 +11,6 @@ api: []
 
 Development preview samples exercise file renderers and primitive interactions.
 
-## Sub-features
-
-- `app.catalog-preview` — Primitive previews, interactions and failures.
-
 ## How to get to it (user POV)
 
 - Phone: Settings → Component library → primitive sample.

@@ -15,10 +15,6 @@ api:
 
 A one-time link entered in a tab that already shows the not-paired page (`/pair`) pairs the browser without a reload of its own and opens the workspace, leaving no code in the address.
 
-## Sub-features
-
-- `access.pair-open-page` — Pairing-page entry and return destination.
-
 ## How to get to it (user POV)
 
 - The not-paired page is open at `/pair` → paste or follow the one-time link (`/pair#c=<code>&e=<installation id>`) in the same tab. Only the fragment changes, so the page's `hashchange` listener re-runs the pairing loader.

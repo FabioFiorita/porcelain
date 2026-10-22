@@ -18,10 +18,6 @@ api:
 
 A Git action that outlives its deadline ends interrupted ("outcome unknown"); the review shows a notice naming the action until Got it dismisses it, and the server keeps the receipt as interrupted.
 
-## Sub-features
-
-- `git-actions.dismiss-interrupted` — Interrupted operation dismissal.
-
 ## How to get to it (user POV)
 
 - Any Git action (Commit, Stash changes, Pop stash, Push…) that runs past the server's Git action deadline ends interrupted; the notice appears at the top of region "Review content".

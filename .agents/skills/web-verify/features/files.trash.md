@@ -17,10 +17,6 @@ api:
 
 Moving a file to the trash from the tree, after a confirmation, moves it to the system trash and removes it from the tree. Trashing a file another writer already removed is refused, and the dialog says "Path not found".
 
-## Sub-features
-
-- `files.trash` — Trash confirmation, cancellation and recovery.
-
 ## How to get to it (user POV)
 
 - Review (phone width) → tab Files → right-click a row → menuitem "Move to trash" → alertdialog "Move <name> to the trash?" → button "Move to trash".

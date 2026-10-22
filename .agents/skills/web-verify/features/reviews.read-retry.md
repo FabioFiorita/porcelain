@@ -13,10 +13,6 @@ api:
 
 An initial review read that fails without a confirmed reply shows its error and Try again. Retrying refreshes the native reads for this connection and worktree before reopening the surface. The current workspace address stays intact; another workspace or computer is not refreshed.
 
-## Sub-features
-
-- `reviews.read-retry` — Review loading, failure and retry.
-
 ## How to get to it (user POV)
 
 - Open a workspace while its review read cannot be answered, then choose Try again.

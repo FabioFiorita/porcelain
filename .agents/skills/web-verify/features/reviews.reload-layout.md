@@ -22,10 +22,6 @@ api:
 
 The document tabs (which are open, which are pinned) and each diff's collapsed state are saved per worktree in the browser, so after a reload the same tabs come back, the pinned tab still shows its pin, and a collapsed diff stays collapsed.
 
-## Sub-features
-
-- `reviews.reload-layout` — Reload and retained document layout.
-
 ## How to get to it (user POV)
 
 - Open files as tabs: Review → sidebar tab "Files" → right-click a changed file's treeitem → menuitem "Open file" (a plain click on a changed file opens its diff instead).

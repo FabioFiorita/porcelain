@@ -17,10 +17,6 @@ api:
 
 Renaming a project from the navigator's project action submenu changes only its label: the navigator and the tab title show the new name and the server keeps it; nothing on disk changes, and a blank name is refused.
 
-## Sub-features
-
-- `projects.rename` — Project naming and persistence.
-
 ## How to get to it (user POV)
 
 - Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → Filter reviews → Projects → project menuitem (e.g. "repository") → `Rename project` → dialog "Rename project" → textbox `Name` → `Rename` (or `Enter`; `Cancel` closes).

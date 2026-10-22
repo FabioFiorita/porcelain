@@ -20,10 +20,6 @@ api:
 
 A changed file's reviewed control in its diff header marks it reviewed at its current fingerprint and unmarks it again; the control's name flips and the server keeps each change.
 
-## Sub-features
-
-- `reviews.mark-file` — File marking, unmarking and changed content.
-
 ## How to get to it (user POV)
 
 - In any diff header (Changes document, a single change tab, a walkthrough stop): button "Mark README.md as reviewed" → "Unmark README.md as unreviewed"; a file changed since it was marked shows "Mark changed README.md as reviewed".

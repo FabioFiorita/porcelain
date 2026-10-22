@@ -14,10 +14,6 @@ api:
 
 The Mac app's window and the private server behind it.
 
-## Sub-features
-
-- `app.window` — Window restoration, appearance, close and quit.
-
 ## How to get to it (user POV)
 
 - resize, move, maximize or enter full screen with the traffic lights or View › Toggle Full Screen

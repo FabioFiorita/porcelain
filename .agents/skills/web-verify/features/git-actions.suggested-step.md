@@ -17,10 +17,6 @@ api:
 
 The Git button (group "Git controls", left of Git actions) suggests the next step: Commit while anything changed, then Pull, then Push, and, once nothing is left to commit, pull or push, Apply stash for a waiting stash; following it brings the stashed changes back and keeps the stash.
 
-## Sub-features
-
-- `git-actions.suggested-step` — Suggested next Git action.
-
 ## How to get to it (user POV)
 
 - The Git button in group "Git controls": its accessible name is the suggestion ("Commit", "Pull", "Push", "Apply stash"); with nothing to suggest it reads "Commit" and is disabled with the hint "Nothing to commit, pull or push."

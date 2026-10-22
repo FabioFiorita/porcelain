@@ -20,10 +20,6 @@ api:
 
 A blank reply cannot be posted, and a written reply to the agent's comment joins its thread, which then shows "Waiting for the agent".
 
-## Sub-features
-
-- `reviews.reply` — Replies and live thread updates.
-
 ## How to get to it (user POV)
 
 - An open thread, inline under its file or in Review → Comments: button "Reply" → textbox "Reply" (placeholder "Add a reply…") → button "Post reply" (or "Cancel").

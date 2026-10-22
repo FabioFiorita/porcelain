@@ -22,10 +22,6 @@ api:
 
 The Changes document's toolbar button marks every changed file reviewed in one request; a file that changes on disk afterwards becomes eligible again ("Mark all 1 files reviewed"), and once everything is reviewed the same button reads "Unmark all" and clears every mark.
 
-## Sub-features
-
-- `reviews.mark-all` — Batch file marking and completion.
-
 ## How to get to it (user POV)
 
 - The Changes (handoff) document, shown when no review is published: toolbar button "Mark all reviewed", accessible name "Mark all <n> files reviewed"; it becomes "Unmark all" when every reviewable file is reviewed.

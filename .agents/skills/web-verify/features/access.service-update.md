@@ -18,10 +18,6 @@ api:
 
 Browser Settings → Computers → Open This computer shows the current service version, latest offer and Update action.
 
-## Sub-features
-
-- `access.service-update` — Version offers, progress, failures and recovery.
-
 ## How to get to it (user POV)
 
 - Settings → Computers → This computer; Update badge → Updates available.

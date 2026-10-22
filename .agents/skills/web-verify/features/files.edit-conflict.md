@@ -19,10 +19,6 @@ api:
 
 Saving an edit to a file that changed on disk since the editor opened is refused by the server (409 `content_changed`): the editor says so, keeps the draft, disables Done, and the disk keeps the other writer's text.
 
-## Sub-features
-
-- `files.edit-conflict` — Concurrent changes and conflict recovery.
-
 ## How to get to it (user POV)
 
 - Review → Files → right-click a changed file → Open file → Edit, while another writer (an agent, a shell) changes the file on disk, then any save: Done, `Mod+S`, the 3 second autosave, closing the tab, or leaving the editor.

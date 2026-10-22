@@ -31,10 +31,6 @@ api:
 
 File tree, pinned files, changed-file rows (including Branch), and commit rows in History, Graph and file timelines offer the existing pane owner's side-opening action.
 
-## Sub-features
-
-- `reviews.open-to-side` — Open supporting code beside a review.
-
 ## How to get to it (user POV)
 
 - Right-click an openable file or commit row, then choose "Open to the side". Once split, the menu label is "Open in the right pane" or "Open in the left pane", according to the source/focused pane.

@@ -21,7 +21,7 @@ Read [web verification](../SKILL.md) for lifecycle, pairing and failure injectio
 
 ## Feature entry contract
 
-Each map has one short behavior paragraph, then four sections: Sub-features, How to get to it (user POV), Driving it with the surface harness, and Gotchas. Keep user paths, stable handles, required state, commands and observable proof. Frontmatter keeps the route/screen, selectors, tests, API and optional desktop shell tag for `pnpm features:check`; it is not evidence that a journey passed.
+Each map has one short behavior paragraph, then three sections: How to get to it (user POV), Driving it with the surface harness, and Gotchas. Keep user paths, stable handles, required state, commands and observable proof. Frontmatter keeps the route/screen, selectors, tests, API and optional desktop shell tag for `pnpm features:check`; it is not evidence that a journey passed.
 
 ## Proof and skip reporting
 
@@ -33,9 +33,9 @@ Each map has one short behavior paragraph, then four sections: Sub-features, How
 ## Features
 
 - [access.device-trust](access.device-trust.md) (desktop) — Trust grants, revocation and trusted pairing links.
-- [access.disconnect](access.disconnect.md) — Disconnect, confirmation and return to pairing.
+- [access.disconnect](access.disconnect.md) — Session disconnect, draft refusal and return to pairing.
 - [access.environment-name](access.environment-name.md) (desktop) — Computer naming and persistence.
-- [access.foreign-link](access.foreign-link.md) — Foreign-host links and pairing recovery.
+- [access.foreign-link](access.foreign-link.md) — Refuse links for another installation without pairing a device.
 - [access.pair-open-page](access.pair-open-page.md) — Pairing-page entry and return destination.
 - [access.pairing](access.pairing.md) — Pairing, invalid links and session restoration.
 - [access.remote-access](access.remote-access.md) (desktop) — Network routes, addresses, failures and recovery.
@@ -49,7 +49,7 @@ Each map has one short behavior paragraph, then four sections: Sub-features, How
 - [app.settings-entry](app.settings-entry.md) — Default and unknown Settings sections.
 - [app.settings-page](app.settings-page.md) (desktop) — Settings sections, keyboard entry and return.
 - [app.settings-scope](app.settings-scope.md) (desktop) — Settings categories in each shell.
-- [app.settings-without-sharing](app.settings-without-sharing.md) — Web preferences and updates.
+- [app.settings-without-sharing](app.settings-without-sharing.md) — Browser Settings, paired computers and permission-gated device controls.
 - [app.shell](app.shell.md) — Unpaired routes and pairing instructions.
 - [app.tab-title](app.tab-title.md) — File, commit, review and Settings titles.
 - [changes.branch-base](changes.branch-base.md) — Base selection and URL persistence.
@@ -60,14 +60,14 @@ Each map has one short behavior paragraph, then four sections: Sub-features, How
 - [changes.live-update](changes.live-update.md) — External writes, additions and removals.
 - [changes.many-diffs](changes.many-diffs.md) — Large change lists and complete diff loading.
 - [changes.review-branch](changes.review-branch.md) — Uncommitted and branch comparisons.
-- [changes.step-lines](changes.step-lines.md) — Expand and collapse unchanged lines.
+- [changes.step-lines](changes.step-lines.md) — Retained context excerpts stay unchanged after worktree edits.
 - [files.create](files.create.md) — Create files and folders, cancel and validate names.
-- [files.duplicate](files.duplicate.md) — Duplicate files and folders.
+- [files.duplicate](files.duplicate.md) — Duplicate files beside the original and open the copy.
 - [files.edit-conflict](files.edit-conflict.md) — Concurrent changes and conflict recovery.
 - [files.edit](files.edit.md) — Edit, save, autosave and return.
 - [files.editor-reopen](files.editor-reopen.md) — Editor reopening and restored state.
 - [files.find-refresh](files.find-refresh.md) — Search refresh after filesystem changes.
-- [files.find](files.find.md) — Path search, matching and empty results.
+- [files.find](files.find.md) — Find text within a file and navigate matches in reader or editor.
 - [files.html-preview](files.html-preview.md) — HTML preview, source and sandbox limits.
 - [files.image-preview](files.image-preview.md) — Image loading and unsupported content.
 - [files.markdown-preview](files.markdown-preview.md) — Markdown reading, links and source.
@@ -76,27 +76,27 @@ Each map has one short behavior paragraph, then four sections: Sub-features, How
 - [files.quick-open](files.quick-open.md) — Keyboard file search and opening.
 - [files.rename](files.rename.md) — Rename entries and preserve navigation.
 - [files.timeline](files.timeline.md) — Per-file history and commit navigation.
-- [files.trash](files.trash.md) — Trash confirmation, cancellation and recovery.
+- [files.trash](files.trash.md) — Trash confirmation, persistence and missing-path refusal.
 - [files.tree-expansion](files.tree-expansion.md) — Folder expansion, collapse and refresh.
 - [git-actions.commit-branch-moved](git-actions.commit-branch-moved.md) — Moved-branch refusal and recovery.
-- [git-actions.commit-draft](git-actions.commit-draft.md) — Coding-tool availability and commit drafting.
+- [git-actions.commit-draft](git-actions.commit-draft.md) — Commit a typed message when no coding CLI is available.
 - [git-actions.commit](git-actions.commit.md) — Commit entry, message, submission and receipt.
 - [git-actions.discard](git-actions.discard.md) — Discard confirmation and resulting files.
 - [git-actions.dismiss-interrupted](git-actions.dismiss-interrupted.md) — Interrupted operation dismissal.
 - [git-actions.draft-commit](git-actions.draft-commit.md) — Draft generation, editing and commit.
 - [git-actions.follow-receipt](git-actions.follow-receipt.md) — Receipt progress and terminal outcomes.
-- [git-actions.push](git-actions.push.md) — Push entry, progress and remote readback.
+- [git-actions.push](git-actions.push.md) — Refuse an unusable remote URL without setting an upstream.
 - [git-actions.reload-running](git-actions.reload-running.md) — Reload during an active operation.
 - [git-actions.stale-draft](git-actions.stale-draft.md) — Stale file selection and refresh.
 - [git-actions.stash](git-actions.stash.md) — Stash creation and working-tree readback.
 - [git-actions.suggested-step](git-actions.suggested-step.md) — Suggested next Git action.
 - [history.browse](history.browse.md) — History entry, loading and navigation.
-- [history.copy-commit](history.copy-commit.md) — Copy commit identifiers.
+- [history.copy-commit](history.copy-commit.md) — Copy full commit IDs and messages.
 - [history.graph](history.graph.md) — Branch graph and commit selection.
-- [history.list](history.list.md) — Commit list, pagination and empty states.
+- [history.list](history.list.md) — Commit rows with metadata, ref labels and merge markers.
 - [history.open-commit](history.open-commit.md) — Commit details and file comparisons.
 - [projects.hide-file](projects.hide-file.md) — Hide, show and restore file preferences.
-- [projects.manual-selection](projects.manual-selection.md) — Workspace selection and draft protection.
+- [projects.manual-selection](projects.manual-selection.md) — Register only explicitly opened repositories, without automatic discovery.
 - [projects.open-folder](projects.open-folder.md) — Open project and folder selection.
 - [projects.open-linked-worktree](projects.open-linked-worktree.md) — Linked worktree entry and selection.
 - [projects.open-remote](projects.open-remote.md) (desktop) — Remote computer and workspace selection.
@@ -105,8 +105,8 @@ Each map has one short behavior paragraph, then four sections: Sub-features, How
 - [projects.rename](projects.rename.md) — Project naming and persistence.
 - [projects.search](projects.search.md) — Search, status filters, checkout selection and archive.
 - [reviews.all-changes](reviews.all-changes.md) — Review-wide changes and file selection.
-- [reviews.change-comment-draft](reviews.change-comment-draft.md) — Draft persistence and cancellation.
-- [reviews.change-comment](reviews.change-comment.md) — Line and whole-file comments.
+- [reviews.change-comment-draft](reviews.change-comment-draft.md) — Preserve whole-branch comment drafts across new commits.
+- [reviews.change-comment](reviews.change-comment.md) — Comment on the whole uncommitted change or the whole branch.
 - [reviews.changed-file-menu](reviews.changed-file-menu.md) — File menus, marking, comments and timeline.
 - [reviews.comment](reviews.comment.md) — Comment entry, validation and persistence.
 - [reviews.comments-seen](reviews.comments-seen.md) — Seen state and unread comments.
@@ -115,13 +115,13 @@ Each map has one short behavior paragraph, then four sections: Sub-features, How
 - [reviews.delete-resolved](reviews.delete-resolved.md) — Resolved-thread deletion and cancellation.
 - [reviews.delete-review](reviews.delete-review.md) — Review deletion, cancellation and retained worktree data.
 - [reviews.edit-comment](reviews.edit-comment.md) — Comment editing and saved text.
-- [reviews.empty-document](reviews.empty-document.md) — Empty review and document states.
+- [reviews.empty-document](reviews.empty-document.md) — Empty document panes before and after review publication.
 - [reviews.mark-all](reviews.mark-all.md) — Batch file marking and completion.
 - [reviews.mark-decision](reviews.mark-decision.md) — Decision and file marks, failure and unmarking.
 - [reviews.mark-file](reviews.mark-file.md) — File marking, unmarking and changed content.
-- [reviews.open-to-side](reviews.open-to-side.md) — Open supporting code beside a review.
+- [reviews.open-to-side](reviews.open-to-side.md) — Open files and commits in the other document pane.
 - [reviews.page](reviews.page.md) — Durable revisions, verdict, comments and lifecycle.
-- [reviews.proof](reviews.proof.md) — Proof results and unavailable evidence.
+- [reviews.proof](reviews.proof.md) — Published check results and image attachments.
 - [reviews.read-retry](reviews.read-retry.md) — Review loading, failure and retry.
 - [reviews.readiness-outdated](reviews.readiness-outdated.md) — Outdated proof and current readiness.
 - [reviews.readiness](reviews.readiness.md) — Review readiness and reasons.
@@ -130,6 +130,6 @@ Each map has one short behavior paragraph, then four sections: Sub-features, How
 - [reviews.resolve](reviews.resolve.md) — Resolve and reopen threads.
 - [reviews.revision](reviews.revision.md) — Numbered revisions and retained content.
 - [reviews.sidebar-actions](reviews.sidebar-actions.md) — Review actions from the sidebar.
-- [reviews.spec-files](reviews.spec-files.md) — Specification files and supporting context.
+- [reviews.spec-files](reviews.spec-files.md) — Group specs and tests apart from other changed files.
 - [reviews.split-shortcuts](reviews.split-shortcuts.md) — Split views and keyboard controls.
 - [reviews.walkthrough](reviews.walkthrough.md) — Briefing, decision navigation and completion.

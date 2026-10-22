@@ -18,10 +18,6 @@ api:
 
 Open graph opens the commit graph of the checked-out branch as a document tab ("Graph") with its lanes, merges and ref chips; the tab comes back after a reload, and clicking a commit in it opens that commit's document.
 
-## Sub-features
-
-- `history.graph` — Branch graph and commit selection.
-
 ## How to get to it (user POV)
 
 - Review → History → button "Open graph" (in the History header, beside the branch name; shown once the branch has commits).

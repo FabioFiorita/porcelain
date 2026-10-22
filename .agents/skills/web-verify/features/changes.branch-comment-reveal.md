@@ -25,10 +25,6 @@ api:
 
 A comment written in the branch review remembers the base it was compared against; showing it from the Comments list opens its file in the branch review against that base again (`base=` and `entry=branch:<path>` in the address), even after the reviewer switched back to the default base.
 
-## Sub-features
-
-- `changes.branch-comment-reveal` — Branch comment navigation.
-
 ## How to get to it (user POV)
 
 - Workspace → button "Review" → tab "Changes" → tab "Branch" → tab "Comments" (named `Comments` plus the open-comment count) → the thread's location button (file name, "Whole file" or the line label, "in <short sha>"; title "Show in the code").

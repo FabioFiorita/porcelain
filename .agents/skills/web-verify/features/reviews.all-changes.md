@@ -18,10 +18,6 @@ api:
 
 All changes opens one scrollable document of every current changed file, also with a published review.
 
-## Sub-features
-
-- `reviews.all-changes` — Review-wide changes and file selection.
-
 ## How to get to it (user POV)
 
 - Review (sheet at phone width, dialog "Worktree review") → tab "Review" → nav "Walkthrough" → button "All changes". The file count appears in the opened document's toolbar.

@@ -14,10 +14,6 @@ api: []
 
 Development Button samples show variants and sizes with enabled, disabled and pending interactions.
 
-## Sub-features
-
-- `app.catalog-button` — Button variants, actions, disabled and pending states.
-
 ## How to get to it (user POV)
 
 - Phone: Settings → Development → Component library → Explore Button.

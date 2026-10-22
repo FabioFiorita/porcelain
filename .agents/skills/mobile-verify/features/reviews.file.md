@@ -19,10 +19,6 @@ api:
 
 Review diffs support file marking and feedback on whole files or selected source lines.
 
-## Sub-features
-
-- `reviews.file` — Review diffs, source selection and feedback.
-
 ## How to get to it (user POV)
 
 - Review → changed file; iPad document tab. Comments and line-selection controls are in the diff toolbar.

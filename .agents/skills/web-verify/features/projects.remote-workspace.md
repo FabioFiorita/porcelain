@@ -42,10 +42,6 @@ api:
 
 The desktop app lists a remote computer as its own group in the sidebar, by name and status, apart from This computer's projects, and opens its worktree in the full review workspace over that computer's own credential, with the computer's name in the tab title: a reviewed mark lands on that computer only, a change on its disk shows live (through a live ticket) without a reload, and its HTML review summary loads from it with links that open its decisions in the walkthrough.
 
-## Sub-features
-
-- `projects.remote-workspace` — Remote routes, reviews and recovery.
-
 ## How to get to it (user POV)
 
 - Desktop shell only. Settings → `Computers` (`/settings/computers`) → `Pairing link` → `Add`; then the sidebar (phone width: `Toggle Sidebar`, or `ControlOrMeta+b`) → group "<computer name>" → a worktree row of its project.

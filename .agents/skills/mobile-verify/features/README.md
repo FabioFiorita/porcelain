@@ -19,7 +19,7 @@ Read [mobile verification](../SKILL.md) for lifecycle and device setup, then cho
 
 ## Feature entry contract
 
-Each map has one short behavior paragraph, then four sections: Sub-features, How to get to it (user POV), Driving it with the surface harness, and Gotchas. Keep user paths, stable handles, required state, commands and observable proof. Frontmatter keeps the route/screen, selectors, tests, API and optional desktop shell tag for `pnpm features:check`; it is not evidence that a journey passed.
+Each map has one short behavior paragraph, then three sections: How to get to it (user POV), Driving it with the surface harness, and Gotchas. Keep user paths, stable handles, required state, commands and observable proof. Frontmatter keeps the route/screen, selectors, tests, API and optional desktop shell tag for `pnpm features:check`; it is not evidence that a journey passed.
 
 ## Proof and skip reporting
 
@@ -33,7 +33,7 @@ Each map has one short behavior paragraph, then four sections: Sub-features, How
 - [access.computers](access.computers.md) — Computer management, trust and batch updates.
 - [access.connections](access.connections.md) — Connection preference, fallback and removal.
 - [access.environment-status](access.environment-status.md) — Connection status, revoked devices and recovery.
-- [access.forget-environment](access.forget-environment.md) — Forget confirmation and cold-launch persistence.
+- [access.forget-environment](access.forget-environment.md) — Forget a saved computer locally and retain the others.
 - [access.lan-pairing](access.lan-pairing.md) — Local-network pairing and reconnection.
 - [access.pairing](access.pairing.md) — Paste links, pair multiple computers and restore after launch.
 - [access.settings](access.settings.md) — Settings categories, version and per-computer IDs.

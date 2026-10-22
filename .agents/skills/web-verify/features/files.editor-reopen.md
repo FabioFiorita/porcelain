@@ -19,10 +19,6 @@ api:
 
 Closing a file's tab while editing saves the draft, and opening the file again starts a fresh editor on the saved text. While one pane edits a file, the same file opened in the other pane cannot start a second editor.
 
-## Sub-features
-
-- `files.editor-reopen` — Editor reopening and restored state.
-
 ## How to get to it (user POV)
 
 - Review → Files → right-click a changed file → Open file → Edit → close the tab (`Close <name>` on the tab, the tab's context menu Close, or `Alt+W`) → open the file again the same way.

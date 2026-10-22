@@ -21,10 +21,6 @@ api: []
 
 Settings replaces the workspace with a section sidebar and breadcrumb.
 
-## Sub-features
-
-- `app.settings-page` — Settings sections, keyboard entry and return.
-
 ## How to get to it (user POV)
 
 - Workspace sidebar → Settings; Alt+Shift+S; desktop native Settings menu. Back / Escape returns.

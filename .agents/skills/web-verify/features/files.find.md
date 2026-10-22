@@ -21,10 +21,6 @@ api:
 
 Find in file counts the matches of a case-insensitive query and scrolls a match far below the fold into view, in the read-only file view (Porcelain's find bar) and in the editor (the editor's own search panel).
 
-## Sub-features
-
-- `files.find` — Path search, matching and empty results.
-
 ## How to get to it (user POV)
 
 - With a file open as source (code files, or Markdown/HTML switched to "Source"), not editing: `Mod+F` (find shortcut) opens the find bar, a search region with textbox "Find in file", a status "N of M", and buttons "Previous match", "Next match", "Close find". `Enter` goes to the next match, `Shift+Enter` the previous one, `Escape` closes.

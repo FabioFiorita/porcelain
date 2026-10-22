@@ -28,10 +28,6 @@ api:
 
 On Settings → Devices the owner lets a paired device update Porcelain and takes that back with the device's "can update Porcelain" switch, and can create a pairing link whose device may update Porcelain from the moment it pairs.
 
-## Sub-features
-
-- `access.device-trust` — Trust grants, revocation and trusted pairing links.
-
 ## How to get to it (user POV)
 
 - Workspace → `Toggle Sidebar` (phone width) → `Settings` (navigator footer) → `Devices` → the switch "<device> can update Porcelain" in the device's row.

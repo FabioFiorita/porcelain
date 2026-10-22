@@ -20,10 +20,6 @@ api:
 
 New file and New folder create an entry through an inline tree field; a created file opens immediately, while a folder leaves the tree open.
 
-## Sub-features
-
-- `files.create` — Create files and folders, cancel and validate names.
-
 ## How to get to it (user POV)
 
 - Review (phone width; opens the sheet "Worktree review") → tab Files → button "Create file or folder" (+) beside "Search files" → menuitem "New file" or "New folder". These create at the worktree root.

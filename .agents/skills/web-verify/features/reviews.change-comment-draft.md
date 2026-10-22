@@ -19,10 +19,6 @@ api:
 
 A whole-branch comment being written keeps its text when a new commit lands on the branch, its label moves to the new tip, and it is saved against the tip the branch has when it is posted.
 
-## Sub-features
-
-- `reviews.change-comment-draft` — Draft persistence and cancellation.
-
 ## How to get to it (user POV)
 
 - Review (phone; the right sidebar on desktop) → tab "Branch" (tablist "Changes to review") → tab "Comments" → button "Comment on the whole branch", while the agent (or anyone) commits on the branch.

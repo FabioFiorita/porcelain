@@ -18,10 +18,6 @@ api:
 
 With every tab closed, the document pane says "Nothing open" and offers one button: "Open all changes" while there is no published review, "Open review" once the agent has published one.
 
-## Sub-features
-
-- `reviews.empty-document` — Empty review and document states.
-
 ## How to get to it (user POV)
 
 - Close the last tab with its close button ("Close Changes", or "Close Review" once a review is published), the tab context menu's Close, or `Alt+W` while the pane has focus.

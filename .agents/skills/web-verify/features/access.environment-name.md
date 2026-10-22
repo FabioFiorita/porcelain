@@ -22,10 +22,6 @@ api:
 
 The navigator header names the computer Porcelain runs on.
 
-## Sub-features
-
-- `access.environment-name` — Computer naming and persistence.
-
 ## How to get to it (user POV)
 
 - Workspace → `Toggle Sidebar` (phone width) → the navigator header shows "Porcelain" and the computer's name.

@@ -22,10 +22,6 @@ api:
 
 Browser Settings has the same five sections as desktop. Computers starts with This computer and includes saved computers, versions, update offers and the existing paste-pairing-link form. Devices is visible in browser mode too.
 
-## Sub-features
-
-- `app.settings-without-sharing` — Web preferences and updates.
-
 ## How to get to it (user POV)
 
 - Web workspace sidebar → Settings; Computers and Updates controls.

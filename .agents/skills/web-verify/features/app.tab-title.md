@@ -20,10 +20,6 @@ api:
 
 The browser tab (document title) names what is shown: the open document, or the surface when no document is open, followed by ` — <project name>`; Files is the default surface when none is selected; Settings and the empty workspace have their own titles.
 
-## Sub-features
-
-- `app.tab-title` — File, commit, review and Settings titles.
-
 ## How to get to it (user POV)
 
 - It follows every navigation in the workspace: opening a document tab (Changes list, Files tree, History list), switching tabs, switching surface with the sidebar tabs or `Alt+1` / `Alt+2` / `Alt+3`, opening Settings.

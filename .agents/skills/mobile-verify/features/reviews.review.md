@@ -45,10 +45,6 @@ api:
 
 Review shows the selected worktree’s changes, reviewed status, published decisions and comments, with independent Uncommitted and Branch comparisons.
 
-## Sub-features
-
-- `reviews.review` — Changed files, agent decisions and completion.
-
 ## How to get to it (user POV)
 
 - Phone Review tab; iPad Review inspector → Overview or changed file.

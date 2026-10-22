@@ -23,10 +23,6 @@ api:
 
 A file marked reviewed in the branch review is reviewed only for the checked-out branch: switching the worktree to another branch shows the file unreviewed there, and switching back shows the mark again, live and without a reload.
 
-## Sub-features
-
-- `changes.branch-marks` — Branch-scoped reviewed marks.
-
 ## How to get to it (user POV)
 
 - Workspace → button "Review" → tab "Changes" → tab "Branch" → button "<file> · <status>" → in the document toolbar the button "Mark <file> as reviewed" (visible text "Mark reviewed"); the same control, icon-only, sits in the file's diff header.

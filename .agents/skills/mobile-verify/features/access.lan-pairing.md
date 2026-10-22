@@ -16,10 +16,6 @@ api:
 
 Pair a disposable computer through its LAN address, then reconnect to it after a cold launch.
 
-## Sub-features
-
-- `access.lan-pairing` — Local-network pairing and reconnection.
-
 ## How to get to it (user POV)
 
 - on the other computer: `porcelain pair` for its LAN address; on the device: Settings → Computers → Add computer → paste the link → Pair

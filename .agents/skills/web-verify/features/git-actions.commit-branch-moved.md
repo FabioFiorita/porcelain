@@ -16,10 +16,6 @@ api:
 
 A commit expects the branch the dialog looked at when it opened: if the worktree switches to another branch afterwards, even one on the same commit, the server refuses the commit as "changed since looked" and nothing is committed.
 
-## Sub-features
-
-- `git-actions.commit-branch-moved` — Moved-branch refusal and recovery.
-
 ## How to get to it (user POV)
 
 - Group "Git controls" → button "Commit" → dialog "Commit changes" → textbox "Message" → button "Commit selected files", with the branch switched on disk while the dialog is open.

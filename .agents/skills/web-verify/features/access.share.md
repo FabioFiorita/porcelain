@@ -32,10 +32,6 @@ api:
 
 On the computer that runs Porcelain, Settings → Devices creates a one-time pairing link and its QR code for the one way in the device will work through.
 
-## Sub-features
-
-- `access.share` — Pairing links, devices and revocation.
-
 ## How to get to it (user POV)
 
 - Workspace → `Toggle Sidebar` (phone width) → `Settings` (navigator footer) → `Devices`.

@@ -16,10 +16,6 @@ api:
 
 All changes shows the diffs of more tracked changes than one diff request may carry (200 files) by splitting them over several requests, with no failure notice.
 
-## Sub-features
-
-- `changes.many-diffs` — Large change lists and complete diff loading.
-
 ## How to get to it (user POV)
 
 - Workspace → button "Review" → button "All changes" (the first row of the Changes list; once an agent has published a review it moves under tab "Review" → nav "Walkthrough" as "All changes · N files"), in a worktree with more than 200 tracked, modified files.

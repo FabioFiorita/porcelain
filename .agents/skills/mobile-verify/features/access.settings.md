@@ -19,10 +19,6 @@ api: []
 
 Settings offers General, Reviews & Git and Computers, with app version and selectable per-computer device IDs.
 
-## Sub-features
-
-- `access.settings` — Settings categories, version and per-computer IDs.
-
 ## How to get to it (user POV)
 
 - Settings tab/sidebar or `porcelain.dev://settings` → General, Reviews & Git or Computers.

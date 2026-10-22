@@ -21,10 +21,6 @@ api:
 
 Without a coding CLI on the server, the Commit dialog says no model is available, keeps drafting and groups disabled, and a message typed by hand still commits.
 
-## Sub-features
-
-- `git-actions.commit-draft` — Coding-tool availability and commit drafting.
-
 ## How to get to it (user POV)
 
 - Group "Git controls" → button "Commit" → dialog "Commit changes": the select "Commit model", button "Generate with AI", tab "Use groups".

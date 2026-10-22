@@ -27,10 +27,6 @@ api: []
 
 General saves Theme, Long lines and Markdown/HTML defaults for this app across cold launches.
 
-## Sub-features
-
-- `preferences.appearance` — Theme, long lines, document defaults and persistence.
-
 ## How to get to it (user POV)
 
 - Settings → General; on iPad its controls are visible immediately. On a phone, the native Back button returns to Settings.

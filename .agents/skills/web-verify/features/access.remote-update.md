@@ -20,10 +20,6 @@ api:
 
 The navigator footer keeps Settings and Computers on the left, with the global text-only Update Badge followed by the Keyboard shortcuts icon together at the far right on one unwrapped row.
 
-## Sub-features
-
-- `access.remote-update` — Remote update offers, trust and execution.
-
 ## How to get to it (user POV)
 
 - Navigator footer → Update; Settings → Computers → computer update row.

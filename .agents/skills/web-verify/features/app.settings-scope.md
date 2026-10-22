@@ -23,10 +23,6 @@ api:
 
 Desktop and browser show the same five sections in this order: General, Reviews & Git, Computers, Devices, Integrations. General is the default. No About or search section exists. The muted sidebar footer shows the app version and Esc to close.
 
-## Sub-features
-
-- `app.settings-scope` — Settings categories in each shell.
-
 ## How to get to it (user POV)
 
 - Workspace sidebar → Settings; choose General, Reviews & Git, Computers, Devices or Integrations.

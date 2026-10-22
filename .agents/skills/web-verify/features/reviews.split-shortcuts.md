@@ -21,10 +21,6 @@ api:
 
 With the document area split into two panes, the tab shortcuts act on the focused pane only: `Alt+W` closes the focused pane's active tab, and closing the last tab of the right pane folds the split back into one pane.
 
-## Sub-features
-
-- `reviews.split-shortcuts` — Split views and keyboard controls.
-
 ## How to get to it (user POV)
 
 - Split: right-click a tab → menuitem "Open to the side" (its name also carries the shortcut text), or `Alt+\` on the focused pane's active tab. Once split, the menu item reads "Open in the right pane" / "Open in the left pane".

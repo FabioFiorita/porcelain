@@ -21,10 +21,6 @@ api:
 
 Discarding a changed file returns it to the last commit and the toast's Restore brings the change back; a file that changed on disk after the discard dialog opened is refused and keeps its newer text.
 
-## Sub-features
-
-- `git-actions.discard` — Discard confirmation and resulting files.
-
 ## How to get to it (user POV)
 
 - Button "Review" (phone width; `Alt+Shift+R` toggles it) → Changes → button "README.md · unstaged" opens the change document → its header button "Discard changes to README.md" → alertdialog "Discard README.md?" → button "Discard".

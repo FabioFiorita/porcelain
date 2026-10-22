@@ -36,10 +36,6 @@ api:
 
 The readiness panel at the top of the review sidebar counts reviewed files, marks that went stale, changes the review does not explain, comments waiting on the agent and failing checks; its header sums the open items ("<n> things to check") and each line opens what it counts (the checks line opens the Proof document).
 
-## Sub-features
-
-- `reviews.readiness` — Review readiness and reasons.
-
 ## How to get to it (user POV)
 
 - Review (sheet at phone width; sidebar at 1280px and wider) → tab "Changes" ("Review" once the agent publishes a review) → region "Readiness" (expanded by default; header button "Readiness <summary>" collapses it).

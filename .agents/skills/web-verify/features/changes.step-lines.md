@@ -15,10 +15,6 @@ api:
 
 A published context step shows the text retained at its committed revision. Worktree edits leave its pointer and excerpt unchanged. The separate live file view continues to read the worktree.
 
-## Sub-features
-
-- `changes.step-lines` — Expand and collapse unchanged lines.
-
 ## How to get to it (user POV)
 
 Review → tab "Review" → decision row "1 Readme walkthrough" → region "1. Readme walkthrough" → article "Step New line".

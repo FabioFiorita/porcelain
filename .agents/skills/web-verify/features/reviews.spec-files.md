@@ -17,10 +17,6 @@ api:
 
 When the Spec files setting is on, specs and tests have a separate section in the review sidebar and follow other files in code documents.
 
-## Sub-features
-
-- `reviews.spec-files` — Specification files and supporting context.
-
 ## How to get to it (user POV)
 
 - Settings → Reviews & Git → Spec files; review sidebar → Open all specs.

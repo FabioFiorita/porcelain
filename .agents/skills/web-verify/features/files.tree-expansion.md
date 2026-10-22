@@ -17,10 +17,6 @@ api:
 
 Opening a folder loads its children lazily. A single-child folder chain becomes one row and opens with one click. A close while a read is pending keeps the resulting flattened row closed and does not load the next directory.
 
-## Sub-features
-
-- `files.tree-expansion` — Folder expansion, collapse and refresh.
-
 ## How to get to it (user POV)
 
 - Review (phone width) → Files → a folder in the tree under region "All files". At desktop width Files is in the review sidebar.

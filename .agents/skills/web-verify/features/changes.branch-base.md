@@ -18,10 +18,6 @@ api:
 
 In the branch review, choosing another base branch compares the checked-out branch against it and keeps the choice in the address (`base=`); choosing the default branch again drops `base` and brings back the default comparison.
 
-## Sub-features
-
-- `changes.branch-base` — Base selection and URL persistence.
-
 ## How to get to it (user POV)
 
 - Workspace → button "Review" (phone width; at desktop width the review sidebar stands beside the document, toggled by `Alt+Shift+R`) → tab "Branch" → button "Compare against the default branch" (shows "Against the default branch") → option of a branch in listbox "Suggestions". The button is renamed `Compare against <branch>` once a base is chosen.

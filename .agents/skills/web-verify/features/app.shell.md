@@ -16,10 +16,6 @@ api:
 
 A browser with no session asks the real server for its inventory, gets 401, is sent to `/pair`, and sees the instructions to pair it instead of the workspace.
 
-## Sub-features
-
-- `app.shell` — Unpaired routes and pairing instructions.
-
 ## How to get to it (user POV)
 
 - Open Porcelain (`/` or any workspace or settings address) in a browser that was never paired, or whose session ended.

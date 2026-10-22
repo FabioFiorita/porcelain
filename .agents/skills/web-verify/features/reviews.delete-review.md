@@ -19,10 +19,6 @@ api:
 
 After confirming, the reviewer permanently deletes the published review, its proof and its reviewed decisions for everyone connected. Worktree-owned comments and file marks stay; review-owned comments and marks are deleted with their review.
 
-## Sub-features
-
-- `reviews.delete-review` — Review deletion, cancellation and retained worktree data.
-
 ## How to get to it (user POV)
 
 Open the branch Review tab or any durable review link. In the page header choose Review actions → Delete review. Read the confirmation covering every revision, its proof, comments and marks. Cancel keeps the record; Delete removes it and returns to the workspace. Confirm with an independent read of GET `/api/reviews/<reviewId>`, which then returns 404.

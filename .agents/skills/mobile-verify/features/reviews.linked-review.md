@@ -23,10 +23,6 @@ app link in the Review stack, on phone or iPad, with the native header back to R
 The `/reviews/[reviewId]` destination accepts the same environment, host,
 revision and decision query as the public `/open/reviews/[reviewId]` entry.
 
-## Sub-features
-
-- `reviews.linked-review` — Published verdicts, decisions and retained excerpts.
-
 ## How to get to it (user POV)
 
 - HTTPS review app link; `/reviews/[reviewId]` or public `/open/reviews/[reviewId]`, with environment, host, revision and decision query.

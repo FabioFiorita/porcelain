@@ -18,10 +18,6 @@ api:
 
 The checks and attachments the agent published with its review open as a Proof document: a failing check raises a destructive alert, failing checks are listed first with their output, and an image attachment renders from the server.
 
-## Sub-features
-
-- `reviews.proof` — Proof results and unavailable evidence.
-
 ## How to get to it (user POV)
 
 - Review (sheet at phone width) → tab "Review" → nav "Walkthrough"'s proof row, named `Proof · <status>` (for example "Proof · 1 failing").

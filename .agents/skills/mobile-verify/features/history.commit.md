@@ -14,10 +14,6 @@ api:
 
 Commit details show metadata, comparison parents and changed files, with navigation back to History.
 
-## Sub-features
-
-- `history.commit` — Commit metadata, merge parents and file navigation.
-
 ## How to get to it (user POV)
 
 - History → commit row; direct commit route. Native Back returns to History.

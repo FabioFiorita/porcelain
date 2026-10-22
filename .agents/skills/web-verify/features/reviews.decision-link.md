@@ -15,10 +15,6 @@ api:
 
 A direct link opens the requested decision and revision, preserving the destination through pairing.
 
-## Sub-features
-
-- `reviews.decision-link` — Direct decisions, pairing and unknown targets.
-
 ## How to get to it (user POV)
 
 - `/reviews/<reviewId>/<revision>?decision=<layerId>` or the latest review route with `?decision=<layerId>`.

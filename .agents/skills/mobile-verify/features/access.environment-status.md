@@ -20,10 +20,6 @@ api:
 
 Each saved computer reports its connection state and refreshes when Computers gains focus or the app returns to the foreground.
 
-## Sub-features
-
-- `access.environment-status` — Connection status, revoked devices and recovery.
-
 ## How to get to it (user POV)
 
 - Settings → Computers, or the deep link `porcelain.dev://computers`, with computers paired

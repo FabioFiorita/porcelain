@@ -22,10 +22,6 @@ api:
 
 Removing a project from the navigator's project action submenu, after confirming, takes it and all its worktrees out of the navigator and the server forgets it (its reviews, marks, comments and preferences in Porcelain); files on disk stay.
 
-## Sub-features
-
-- `projects.remove` — Project removal and cancellation.
-
 ## How to get to it (user POV)
 
 - Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → Filter reviews → Projects → project menuitem (its name, e.g. "repository") → `Remove from Porcelain` → alertdialog "Remove <name> from Porcelain?" → `Remove from Porcelain` or `Cancel`.

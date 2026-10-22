@@ -22,10 +22,6 @@ api: []
 
 The Mac app saves paired computers securely, preserves unreadable credentials without overwriting them, and opens remote review summaries in isolation.
 
-## Sub-features
-
-- `access.remote-credentials` — Encrypted credentials, unreadable storage and summaries.
-
 ## How to get to it (user POV)
 
 - Settings › Computers › paste a pairing link › Add

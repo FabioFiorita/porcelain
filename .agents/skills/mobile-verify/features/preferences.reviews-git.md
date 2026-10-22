@@ -19,10 +19,6 @@ api:
 
 Reviews & Git saves archive deletion choices, pull strategy and a commit model for this app.
 
-## Sub-features
-
-- `preferences.reviews-git` — Archive defaults, pull strategy and commit models.
-
 ## How to get to it (user POV)
 
 - Settings → Reviews & Git. Phone Back returns to Settings; iPad General changes category.

@@ -14,10 +14,6 @@ api: []
 
 On a phone the app is four native tabs, Files, Review, History and Settings, each a stack with its own title and the workspace picker in its toolbar. The development client is ready on Files within 30 seconds of a cold launch.
 
-## Sub-features
-
-- `app.phone-shell` — Native tabs and startup navigation.
-
 ## How to get to it (user POV)
 
 - Launch on an iPhone or Android phone; use Files, Review, History and Settings tabs.

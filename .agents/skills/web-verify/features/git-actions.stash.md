@@ -18,10 +18,6 @@ api:
 
 Stashing sets the changes aside and popping the stash brings them back and drops it; popping over a file changed since is refused with what Git said, and the stash is kept. A stash dialog opened again starts fresh, without the previous run's outcome.
 
-## Sub-features
-
-- `git-actions.stash` — Stash creation and working-tree readback.
-
 ## How to get to it (user POV)
 
 - Git actions → menuitem "Stash changes" (description "Set aside local changes") → dialog "Stash changes": textbox "Message" (prefilled "Porcelain review"), checkbox "Include untracked files" (checked) → button "Stash changes".

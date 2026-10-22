@@ -15,10 +15,6 @@ api:
 
 History lists the checked-out branch's commits down to "Start of history.", shows a commit made on disk as soon as it lands, and drops it when the worktree switches to a branch without it.
 
-## Sub-features
-
-- `history.browse` — History entry, loading and navigation.
-
 ## How to get to it (user POV)
 
 - Phone width: button "Review" (top right of the document tabs) opens the sheet "Worktree review" → tab "History".

@@ -21,10 +21,6 @@ api:
 
 Each iPad worktree retains its central document tabs and inspector selection when the user leaves and returns.
 
-## Sub-features
-
-- `app.workspace` — Per-worktree document tabs and inspector state.
-
 ## How to get to it (user POV)
 
 - iPad workspace sidebar → worktree; Files, Review and History inspector modes → central document tabs.

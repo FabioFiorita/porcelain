@@ -18,10 +18,6 @@ owner socket before desktop startup or the single-instance lock. It never starts
 a second server. Normal desktop `--data-directory` continues to mean a profile
 root; MCP mode requires the explicit server data directory.
 
-## Sub-features
-
-- `app.mcp` — Local MCP command and executable entry.
-
 ## How to get to it (user POV)
 
 - Settings > Integrations > Porcelain MCP server > Copy MCP configuration.

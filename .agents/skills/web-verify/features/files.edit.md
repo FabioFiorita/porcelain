@@ -20,10 +20,6 @@ api:
 
 Editing a file in the browser writes it to disk: after a 3 second pause in typing, on `Mod+S`, on Done, and when its tab closes while still editing.
 
-## Sub-features
-
-- `files.edit` — Edit, save, autosave and return.
-
 ## How to get to it (user POV)
 
 - Review (phone) or the review sidebar (desktop) → Files tab → right-click a changed file → Open file → Edit (pencil button in the file toolbar; its label is "Resume edit" when an unsaved draft is kept).

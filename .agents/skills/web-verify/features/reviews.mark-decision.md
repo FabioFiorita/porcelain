@@ -29,10 +29,6 @@ api:
 
 Mark decision reviewed records its retained files and then the decision; unmarking a decision keeps its file marks.
 
-## Sub-features
-
-- `reviews.mark-decision` — Decision and file marks, failure and unmarking.
-
 ## How to get to it (user POV)
 
 - Branch Review tab, project Reviews list or durable decision link → decision toolbar.

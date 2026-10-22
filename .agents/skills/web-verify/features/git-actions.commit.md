@@ -17,10 +17,6 @@ api:
 
 The Commit dialog commits the selected changed files with a typed message, and that commit becomes the newest commit of the real repository.
 
-## Sub-features
-
-- `git-actions.commit` — Commit entry, message, submission and receipt.
-
 ## How to get to it (user POV)
 
 - Workspace header, group "Git controls" → button "Commit" (the primary Git button; its name is "Commit" whenever there are changes to commit).

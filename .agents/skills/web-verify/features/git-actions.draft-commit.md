@@ -28,10 +28,6 @@ api:
 
 With a coding CLI on the server, the Commit dialog drafts the message (Generate with AI) or a sequence of commits (Use groups) with the chosen model and commits what was drafted; the server refuses a commit the worktree moved past since the draft, and refuses a draft that leaves a selected file out.
 
-## Sub-features
-
-- `git-actions.draft-commit` — Draft generation, editing and commit.
-
 ## How to get to it (user POV)
 
 - Group "Git controls" → button "Commit" → dialog "Commit changes" → select "Commit model" (options grouped by provider; with the fake `claude`: "Sonnet", "Haiku") → button "Generate with AI" → button "Commit selected files".

@@ -21,10 +21,6 @@ api:
 
 Development scheme and public HTTPS links open the requested destination through warm launch, cold launch and pairing.
 
-## Sub-features
-
-- `app.deep-links` — Warm, cold and unpaired destinations.
-
 ## How to get to it (user POV)
 
 - `porcelain.dev://` (Files), `://files`, `://review`, `://history`, `://settings`; use the full scheme for each.

@@ -19,10 +19,6 @@ api:
 
 Unknown URLs show Page not found inside the paired app shell. The project navigator, Settings button and Settings shortcut still work. Back to workspace opens `/`, which selects an available worktree or shows the empty workspace. Unpaired browsers follow the normal pairing flow.
 
-## Sub-features
-
-- `app.not-found` — Unknown routes, invalid worktrees and recovery.
-
 ## How to get to it (user POV)
 
 - Any unknown URL or invalid worktree address; Back to workspace and Settings remain available.

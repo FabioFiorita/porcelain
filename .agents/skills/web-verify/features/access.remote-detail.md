@@ -23,10 +23,6 @@ api:
 
 Computers is a unified list.
 
-## Sub-features
-
-- `access.remote-detail` — Computer details, stale state and safe return.
-
 ## How to get to it (user POV)
 
 - Settings → Computers → Open <name>; `/settings/computers/<environmentId>`.

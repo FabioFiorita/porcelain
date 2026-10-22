@@ -16,10 +16,6 @@ api:
 
 The sidebar shows one review list across projects and environments, with a compact Projects section first (one main checkout per project, with project name primary and branch text and a secondary computer badge), followed by Needs you, Waiting on agent, Ready to merge and No review.
 
-## Sub-features
-
-- `projects.search` — Search, status filters, checkout selection and archive.
-
 ## How to get to it (user POV)
 
 - Toggle Sidebar at phone width → Search, Filter reviews or Closed reviews.

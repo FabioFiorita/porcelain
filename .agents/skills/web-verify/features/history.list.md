@@ -17,10 +17,6 @@ api:
 
 The History list gives each commit one row with its message, 7-character id, author, relative age and ref chips, without a graph beside it (the graph is a separate document behind "Open graph"), and marks a merge commit with a merge icon.
 
-## Sub-features
-
-- `history.list` — Commit list, pagination and empty states.
-
 ## How to get to it (user POV)
 
 - Phone width: button "Review" → sheet "Worktree review" → tab "History".

@@ -17,10 +17,6 @@ api:
 
 Showing the comment list marks the agent's comments as seen and clears the worktree's "Agent replied" flag; an agent comment seen only inline in the code keeps the flag until the list shows it.
 
-## Sub-features
-
-- `reviews.comments-seen` — Seen state and unread comments.
-
 ## How to get to it (user POV)
 
 - Review (phone; the right sidebar on desktop) → tab "Changes" → tab "Comments". The list marks comments seen once every filter that has threads ("open", and "resolved" when it has any) has been shown since the threads last changed.

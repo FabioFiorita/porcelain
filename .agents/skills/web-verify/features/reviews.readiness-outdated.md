@@ -18,10 +18,6 @@ api:
 
 A comment the agent left for you and checks that ran before the latest code change keep the readiness panel from clearing: it lists "1 comment waiting on you", and once the code changes its checks line turns from "2 checks passed" into "Checks ran before the latest changes", which opens the Proof document saying when it was published and that its checks are out of date.
 
-## Sub-features
-
-- `reviews.readiness-outdated` — Outdated proof and current readiness.
-
 ## How to get to it (user POV)
 
 - Review (sheet at phone width) → region "Readiness" at the top of the Changes/Review sidebar tab (expanded by default; its header button "Readiness <n> things to check" collapses it) → the checks line.

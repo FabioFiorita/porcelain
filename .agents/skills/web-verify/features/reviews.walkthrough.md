@@ -29,10 +29,6 @@ api:
 
 The verdict precedes the existing briefing and walkthrough. The briefing retains system owners, New/Changed/Removed groups, Needs your decision, decision order and Not explained. Each decision reads code from its immutable revision. Context files and their stored excerpts remain available after worktree removal.
 
-## Sub-features
-
-- `reviews.walkthrough` — Briefing, decision navigation and completion.
-
 ## How to get to it (user POV)
 
 - Worktree Review tab → decision row; review page → Start here or a decision.

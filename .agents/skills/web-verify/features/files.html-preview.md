@@ -18,10 +18,6 @@ api:
 
 An HTML page opened from the file tree renders in a sandboxed frame with its local images inlined as `data:` URLs, names every reference it could not load, and switches to its source.
 
-## Sub-features
-
-- `files.html-preview` — HTML preview, source and sandbox limits.
-
 ## How to get to it (user POV)
 
 - Review → Files → click an `.html`/`.htm` file: a single click opens the page itself, even when it is a change (the tree menu's "Open file" or "Open" does the same).

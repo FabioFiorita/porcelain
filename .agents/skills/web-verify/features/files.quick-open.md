@@ -17,10 +17,6 @@ api:
 
 Quick open searches every worktree file name and opens the one chosen. Files an ignore rule hides are never offered.
 
-## Sub-features
-
-- `files.quick-open` — Keyboard file search and opening.
-
 ## How to get to it (user POV)
 
 - `Mod+P` (`ControlOrMeta+p` with the browser driver) while the Files tree is mounted: at phone width, Review → tab Files first. It opens the command dialog "Find a file" with combobox "Find a file by name".

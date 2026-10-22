@@ -17,10 +17,6 @@ api:
 
 A repository is registered only when the owner browses to it and opens it; opening the app never discovers or registers other repositories, and the Open project dialog offers no "found on this machine" list.
 
-## Sub-features
-
-- `projects.manual-selection` — Workspace selection and draft protection.
-
 ## How to get to it (user POV)
 
 - Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → `Open project` (the plus button in the navigator header) → dialog "Open project" → click folders in "Browse for a folder" → `Open <folder>`.

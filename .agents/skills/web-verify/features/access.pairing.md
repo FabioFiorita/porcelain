@@ -18,10 +18,6 @@ api:
 
 Opening a one-time pairing link checks the server's health, redeems the code as a new device, opens the connected workspace, and leaves no code in the address bar.
 
-## Sub-features
-
-- `access.pairing` — Pairing, invalid links and session restoration.
-
 ## How to get to it (user POV)
 
 - Open the link `porcelain pair "<label>"` prints: `<address>/pair#c=<code>&e=<installation id>` (a full page load).

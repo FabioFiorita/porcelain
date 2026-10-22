@@ -34,10 +34,6 @@ api:
 
 Review sidebar files, walkthrough decisions, document sections, file groups and comment threads offer context menus and matching menu buttons. Actions use existing review and comment commands. Open comment cards wrap their action row within the card, including long file names and the narrowest resizable sidebar.
 
-## Sub-features
-
-- `reviews.sidebar-actions` — Review actions from the sidebar.
-
 ## How to get to it (user POV)
 
 - Right-click a review file, decision, section, group or comment; use its matching menu button.

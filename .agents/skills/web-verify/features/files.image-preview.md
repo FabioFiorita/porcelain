@@ -19,10 +19,6 @@ api:
 
 An image opened from the file tree shows as a picture (read through the asset route), and a binary file opened as a file is not shown as text and says why.
 
-## Sub-features
-
-- `files.image-preview` — Image loading and unsupported content.
-
 ## How to get to it (user POV)
 
 - Review → Files → click an image (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif`, `.svg`, `.ico`): a single click opens the image itself, even when it is a change.

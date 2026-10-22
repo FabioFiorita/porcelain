@@ -11,10 +11,6 @@ api: []
 
 Forget computer removes this device’s saved computer, credentials and remembered workspace, keeping other computers and the server’s device registration.
 
-## Sub-features
-
-- `access.forget-environment` — Forget confirmation and cold-launch persistence.
-
 ## How to get to it (user POV)
 
 - Settings → Computers → the environment's Forget computer button

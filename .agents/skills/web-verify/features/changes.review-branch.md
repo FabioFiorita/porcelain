@@ -33,10 +33,6 @@ api:
 
 The branch review lists every file committed on the checked-out branch since it forked from the default branch, opens one file's diff, marks it reviewed for the branch without touching the uncommitted review, and saves a comment on it anchored to the branch comparison.
 
-## Sub-features
-
-- `changes.review-branch` — Uncommitted and branch comparisons.
-
 ## How to get to it (user POV)
 
 - Workspace → button "Review" → tab "Changes" → tab "Branch" (next to "Uncommitted"; the address gains `scope=branch`) → button "<file> · <status>" opens that file's branch diff (`entry=branch:<path>`); button "All branch changes" opens every file.

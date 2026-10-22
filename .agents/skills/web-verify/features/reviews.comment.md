@@ -19,10 +19,6 @@ api:
 
 A blank comment cannot be posted, and a written comment on a changed file is saved on that file (a whole-file anchor) and shown inline, waiting for the agent.
 
-## Sub-features
-
-- `reviews.comment` — Comment entry, validation and persistence.
-
 ## How to get to it (user POV)
 
 - The file header of a changed file in any code document (the "Changes" document the workspace opens on): button `Comment on <path> (<note>)`, for the sample `Comment on README.md (unstaged · modified)`. Below 720 px its visible text "Comment" is screen-reader only, so the accessible name is the full label.

@@ -20,10 +20,6 @@ api:
 
 The Branch document ("All branch changes") reads diffs for the first 25 files ; "Read N more of M" reads the next window only, keeping the diffs already on screen while it loads.
 
-## Sub-features
-
-- `changes.branch-read-more` — Diff pagination and retained content.
-
 ## How to get to it (user POV)
 
 - Workspace → button "Review" → tab "Changes" → tab "Branch" → button "All branch changes" (its name ends with the file count) → at the bottom of the document, button "Read <n> more of <m>" (while further files remain, shows "Reading…", disabled, during a read).

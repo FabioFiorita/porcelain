@@ -12,10 +12,6 @@ api: []
 
 Development Text samples show type styles, wrapping and native selection.
 
-## Sub-features
-
-- `app.catalog-text` — Text styles, wrapping and native selection.
-
 ## How to get to it (user POV)
 
 - Phone: Settings → Component library → Explore Text.

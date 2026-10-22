@@ -18,10 +18,6 @@ api:
 
 Renaming a tree entry moves it on disk and shows the new name without opening it. Renaming onto a name already in that folder is refused before any request is sent, and both files keep their content.
 
-## Sub-features
-
-- `files.rename` — Rename entries and preserve navigation.
-
 ## How to get to it (user POV)
 
 - Review (phone width) → tab Files → right-click a row → menuitem "Rename" (it is the first item for a file, so `ArrowDown` then `Enter` reaches it too).

@@ -20,10 +20,6 @@ api:
 
 A comment on the whole uncommitted change is saved with no file (anchor `{ kind: 'change' }`) and waits for the agent; one on the whole branch is saved against the branch base and the tip the branch had when it was read.
 
-## Sub-features
-
-- `reviews.change-comment` — Line and whole-file comments.
-
 ## How to get to it (user POV)
 
 - Review (phone; the right sidebar on desktop) → tab "Comments" → button "Comment on the whole change" while the "Uncommitted" tab is selected.

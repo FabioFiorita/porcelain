@@ -13,10 +13,6 @@ api:
 
 A pairing link whose installation id is not this server's is refused after the web reads the real server's health: the not-paired page says the link was made for a different installation, and no device is paired.
 
-## Sub-features
-
-- `access.foreign-link` — Foreign-host links and pairing recovery.
-
 ## How to get to it (user POV)
 
 - Open a pairing link (`/pair#c=<code>&e=<installation id>`) made by another Porcelain installation.

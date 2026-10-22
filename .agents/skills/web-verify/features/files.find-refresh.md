@@ -15,10 +15,6 @@ api:
 
 When the open file changes on disk while the find bar is open, the file view shows the new text and the match count is recomputed on it, never naming a match past the new last one.
 
-## Sub-features
-
-- `files.find-refresh` — Search refresh after filesystem changes.
-
 ## How to get to it (user POV)
 
 - Review → Files → right-click a changed file → Open file → `Mod+F` (find shortcut), while another writer changes the file on disk.

@@ -16,10 +16,6 @@ api:
 
 Pushing a branch without an upstream to a remote whose URL Porcelain cannot use is refused with how to change it, in the Git button's box, which keeps the reason until closed instead of a passing toast; Pull stays unavailable and the branch gains no upstream.
 
-## Sub-features
-
-- `git-actions.push` — Push entry, progress and remote readback.
-
 ## How to get to it (user POV)
 
 - Git actions → menuitem "Push" (label "Push", description "Send committed changes").

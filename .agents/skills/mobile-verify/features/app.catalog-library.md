@@ -11,10 +11,6 @@ api: []
 
 The development catalog lets a user explore mobile controls and return to Settings.
 
-## Sub-features
-
-- `app.catalog-library` — Catalog entry, sample selection and return.
-
 ## How to get to it (user POV)
 
 - Phone: Settings → Development → Component library.

@@ -19,10 +19,6 @@ api:
 
 Files opens read-only source, document and image previews for the selected worktree.
 
-## Sub-features
-
-- `files.preview` — Source, document and image previews.
-
 ## How to get to it (user POV)
 
 - Files tree or search → file. Native Back returns on phones; iPad uses document tabs.

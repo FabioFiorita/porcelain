@@ -24,10 +24,6 @@ api:
 
 Computers manages saved connections and shows status, trust and update offers, with shared progress retained across navigation.
 
-## Sub-features
-
-- `access.computers` — Computer management, trust and batch updates.
-
 ## How to get to it (user POV)
 
 - Settings → Computers; Worktrees update sheet → Manage computers.

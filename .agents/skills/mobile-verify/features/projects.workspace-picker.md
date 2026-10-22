@@ -30,10 +30,6 @@ api:
 
 Worktrees lists projects and reviews across paired computers, with search, status filters, retained closed reviews and guarded archive.
 
-## Sub-features
-
-- `projects.workspace-picker` — Worktree selection, filters, status and archive.
-
 ## How to get to it (user POV)
 
 - Workspace header in Review, Files or History → Worktrees; iPad sidebar selects worktrees.

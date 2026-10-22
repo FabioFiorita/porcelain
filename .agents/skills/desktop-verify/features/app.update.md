@@ -17,10 +17,6 @@ api: []
 
 The release Mac app checks its own update feed from Settings and installs an offered release.
 
-## Sub-features
-
-- `app.update` — App update checks, download, installation and refusal.
-
 ## How to get to it (user POV)
 
 - Sidebar › Settings › Computers › This computer.

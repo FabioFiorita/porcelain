@@ -18,10 +18,6 @@ api:
 
 Hiding a file from the Files tree's context menu takes it out of the tree and the server keeps it hidden for the whole project; an eye button (`Hidden (N)`) reveals hidden entries, and `Show file` returns the file for good.
 
-## Sub-features
-
-- `projects.hide-file` — Hide, show and restore file preferences.
-
 ## How to get to it (user POV)
 
 - Workspace → `Review` (phone width; at desktop width the review sidebar stands beside the document) → tab `Files` → right-click a file → `Hide file`. A folder gets `Hide folder`.

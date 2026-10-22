@@ -24,10 +24,6 @@ api:
 
 Right-clicking a changed file in the review sidebar marks it reviewed (and then offers "Unmark as reviewed"), starts a whole-file comment on it, and opens its timeline.
 
-## Sub-features
-
-- `reviews.changed-file-menu` — File menus, marking, comments and timeline.
-
 ## How to get to it (user POV)
 
 - Review (phone; the right sidebar on desktop) → surface tab "Changes" (`Alt+2`) → tab "Changed files" (selected by default) → right-click a file row. The row's name is `<file name> · <scopes>`, for the sample `README.md · unstaged`.

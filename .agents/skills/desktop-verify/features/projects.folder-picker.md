@@ -13,10 +13,6 @@ api: []
 
 The Mac app opens a project through the native folder sheet instead of the web's folder browser.
 
-## Sub-features
-
-- `projects.folder-picker` — Folder sheet, cancellation and project registration.
-
 ## How to get to it (user POV)
 
 - File › Open Project… (⌘O)

@@ -15,10 +15,6 @@ api: []
 
 The Mac app's application menu: Porcelain (About, Settings… with ⌘,, Services, Hide, Quit), File (Open Project… with ⌘O, Close Window), Edit, View and Window.
 
-## Sub-features
-
-- `app.menus` — Settings, project, zoom and full-screen menus.
-
 ## How to get to it (user POV)
 
 - the menu bar, or ⌘, for Settings and ⌘O for Open Project
