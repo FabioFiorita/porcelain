@@ -30,6 +30,10 @@ export class RecordingEventPublisher implements EventPublisher {
     });
   }
 
+  gitActionProgressed(_input: GitActionReceiptView): Effect.Effect<void> {
+    return Effect.void;
+  }
+
   gitActionChanged(_input: GitActionReceiptView): Effect.Effect<void> {
     return Effect.void;
   }

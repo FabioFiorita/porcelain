@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from 'effect';
+import { Context, Effect, Exit, Layer } from 'effect';
 import type {
   ReviewNotFoundError,
   CommentTargetNotFoundError,
@@ -63,14 +63,22 @@ export class DeleteCommentMessageUseCase extends Context.Service<
                         ...input,
                         worktreeId: review.worktreeId,
                       });
-                      yield* events.worktreeChanged({
-                        worktreeId: review.worktreeId,
-                        change: 'comments',
-                      });
-                      return result;
+                      return { result, worktreeId: review.worktreeId };
                     }),
+                  {
+                    settled: (exit) =>
+                      Exit.isSuccess(exit)
+                        ? events.worktreeChanged({
+                            worktreeId: exit.value.worktreeId,
+                            change: 'comments',
+                          })
+                        : Effect.void,
+                  },
                 )
-                .pipe(Effect.tap(() => events.inventoryChanged()));
+                .pipe(
+                  Effect.tap(() => events.inventoryChanged()),
+                  Effect.map(({ result }) => result),
+                );
             const worktreeId = input.worktreeId ?? '';
             const result = yield* access.transaction(
               worktreeId,

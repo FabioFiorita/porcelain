@@ -1699,6 +1699,8 @@ export default {
                 if (
                   owner?.name !== 'EventPublisher' ||
                   !/(?:^|\/)ports\/event-publisher\.ts$/.test(owner.source) ||
+                  propertyName(call.callee, context) ===
+                    'gitActionProgressed' ||
                   reported.has(call)
                 )
                   continue;

@@ -274,10 +274,7 @@ export async function checkStyle(
   function isError(level: unknown): boolean {
     return level === 'error' || (Array.isArray(level) && level[0] === 'error');
   }
-  const warningRolloutRules = new Set([
-    'porcelain/events-after-lane',
-    'porcelain/use-case-input-is-contract',
-  ]);
+  const warningRolloutRules = new Set(['porcelain/use-case-input-is-contract']);
   function isEnabled(name: string, level: unknown): boolean {
     return (
       isError(level) ||

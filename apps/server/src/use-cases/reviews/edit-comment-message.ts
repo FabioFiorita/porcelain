@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from 'effect';
+import { Context, Effect, Exit, Layer } from 'effect';
 import type {
   ReviewNotFoundError,
   CommentTargetNotFoundError,
@@ -65,15 +65,22 @@ export class EditCommentMessageUseCase extends Context.Service<
                         ...input,
                         worktreeId: review.worktreeId,
                       });
-                      if (result.changed)
-                        yield* events.worktreeChanged({
-                          worktreeId: review.worktreeId,
-                          change: 'comments',
-                        });
-                      return result.thread;
+                      return { result, worktreeId: review.worktreeId };
                     }),
+                  {
+                    settled: (exit) =>
+                      Exit.isSuccess(exit) && exit.value.result.changed
+                        ? events.worktreeChanged({
+                            worktreeId: exit.value.worktreeId,
+                            change: 'comments',
+                          })
+                        : Effect.void,
+                  },
                 )
-                .pipe(Effect.tap(() => events.inventoryChanged()));
+                .pipe(
+                  Effect.tap(() => events.inventoryChanged()),
+                  Effect.map(({ result }) => result.thread),
+                );
             const worktreeId = input.worktreeId ?? '';
             const result = yield* access.transaction(
               worktreeId,

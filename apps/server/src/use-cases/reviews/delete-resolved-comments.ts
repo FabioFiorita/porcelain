@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from 'effect';
+import { Context, Effect, Exit, Layer } from 'effect';
 import type { ReviewNotFoundError } from '@porcelain/reviews/errors';
 import type {
   ReviewScope,
@@ -54,15 +54,23 @@ export class DeleteResolvedCommentsUseCase extends Context.Service<
                         ...input,
                         worktreeId: review.worktreeId,
                       });
-                      if (result.deleted.length > 0)
-                        yield* events.worktreeChanged({
-                          worktreeId: review.worktreeId,
-                          change: 'comments',
-                        });
-                      return result;
+                      return { result, worktreeId: review.worktreeId };
                     }),
+                  {
+                    settled: (exit) =>
+                      Exit.isSuccess(exit) &&
+                      exit.value.result.deleted.length > 0
+                        ? events.worktreeChanged({
+                            worktreeId: exit.value.worktreeId,
+                            change: 'comments',
+                          })
+                        : Effect.void,
+                  },
                 )
-                .pipe(Effect.tap(() => events.inventoryChanged()));
+                .pipe(
+                  Effect.tap(() => events.inventoryChanged()),
+                  Effect.map(({ result }) => result),
+                );
             const worktreeId = input.worktreeId ?? '';
             const result = yield* access.transaction(
               worktreeId,

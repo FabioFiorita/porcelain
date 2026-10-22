@@ -1,3 +1,4 @@
+import type { GitActionReceiptView } from '@porcelain/git-actions/models';
 import { Effect, Layer } from 'effect';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import { LiveConnections } from '../../runtime/live-updates/live-connections.ts';
@@ -6,6 +7,17 @@ export const webSocketEventPublisherLayer = Layer.effect(
   EventPublisher,
   Effect.gen(function* () {
     const connectionsCapability = yield* LiveConnections;
+    const gitActionChanged = (input: GitActionReceiptView) =>
+      connectionsCapability.toProjectOrWorktree(
+        input.projectId,
+        input.worktreeId,
+        {
+          type: 'git-action',
+          projectId: input.projectId,
+          worktreeId: input.worktreeId,
+          receipt: input,
+        },
+      );
     return {
       inventoryChanged: Effect.fn('EventPublisher.inventoryChanged')(() =>
         connectionsCapability.toEveryone({ type: 'inventory' }),
@@ -33,17 +45,11 @@ export const webSocketEventPublisherLayer = Layer.effect(
           change: 'files',
         })),
       ),
-      gitActionChanged: Effect.fn('EventPublisher.gitActionChanged')((input) =>
-        connectionsCapability.toProjectOrWorktree(
-          input.projectId,
-          input.worktreeId,
-          {
-            type: 'git-action',
-            projectId: input.projectId,
-            worktreeId: input.worktreeId,
-            receipt: input,
-          },
-        ),
+      gitActionProgressed: Effect.fn('EventPublisher.gitActionProgressed')(
+        gitActionChanged,
+      ),
+      gitActionChanged: Effect.fn('EventPublisher.gitActionChanged')(
+        gitActionChanged,
       ),
     };
   }),

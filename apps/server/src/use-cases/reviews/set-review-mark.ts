@@ -1,5 +1,5 @@
 import { EventPublisher } from '../../ports/event-publisher.ts';
-import { Context, Effect, Layer } from 'effect';
+import { Context, Effect, Exit, Layer } from 'effect';
 import { SetReviewMarkService } from '@porcelain/reviews/services';
 import type {
   ReviewNotFoundError,
@@ -32,12 +32,11 @@ export class SetReviewMarkUseCase extends Context.Service<
           return yield* lanes.run(
             keys.reviews({ repositoryId: `review:${input.reviewId}` }),
             'write',
-            () =>
-              Effect.gen(function* () {
-                return yield* operation
-                  .execute(input)
-                  .pipe(Effect.tap(() => events.inventoryChanged()));
-              }),
+            () => operation.execute(input),
+            {
+              settled: (exit) =>
+                Exit.isSuccess(exit) ? events.inventoryChanged() : Effect.void,
+            },
           );
         }),
       };

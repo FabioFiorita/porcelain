@@ -611,6 +611,19 @@ const nativeLaneCases = [
     invalid: nativeLaneUseCase(`yield* ${invalid};`),
     errors: 1,
   })),
+  {
+    state:
+      'live Git progress is explicit while completion waits for settlement',
+    rule: 'events-after-lane',
+    path: laneFixturePath,
+    valid: nativeLaneUseCase(
+      `yield* lanes.run('one', 'write', () => events.gitActionProgressed(receipt));`,
+    ),
+    invalid: nativeLaneUseCase(
+      `yield* lanes.run('one', 'write', () => events.gitActionChanged(receipt));`,
+    ),
+    errors: 1,
+  },
   ...[
     ['same key', `lanes.run('one', 'read', ${laneWork})`],
     ['different key', `lanes.run('two', 'write', ${laneWork})`],
@@ -4991,7 +5004,7 @@ const styleConfigCases = [
   })),
   { name: 'canonical configs and empty source', status: 0, rules: [] },
   ...[
-    ['events-after-lane', 'warning', 0],
+    ['events-after-lane', 'warning', 1],
     ['use-case-input-is-contract', 'warning', 0],
     ['events-after-lane', 'error', 1],
     ['no-nested-lane', 'warning', 1],
@@ -5014,7 +5027,7 @@ const styleConfigCases = [
     findingCount: 1,
     rules: [],
   })),
-  ...['events-after-lane', 'use-case-input-is-contract'].flatMap((rule) => [
+  ...['use-case-input-is-contract'].flatMap((rule) => [
     ...['warn', ['warn'], 'error'].map((level) => ({
       name: `${rule} warning rollout accepts ${JSON.stringify(level)}`,
       status: 0,

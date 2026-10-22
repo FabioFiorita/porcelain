@@ -1,5 +1,5 @@
 import { EventPublisher } from '../../ports/event-publisher.ts';
-import { Context, Effect, Layer } from 'effect';
+import { Context, Effect, Exit, Layer } from 'effect';
 import type { ReadPullRequestResponse } from '@porcelain/contracts/reviews';
 import type { ReviewNotFoundError } from '@porcelain/reviews/errors';
 import type { ProjectNotFoundError } from '@porcelain/projects/errors';
@@ -67,23 +67,22 @@ export class ReadReviewPullRequestUseCase extends Context.Service<
               .pipe(Effect.result);
             if (result._tag === 'Failure')
               return { kind: 'unavailable', reason: result.failure.reason };
-            return yield* lanes.run(
+            const observed = yield* lanes.run(
               keys.reviews({ repositoryId: `review:${input.reviewId}` }),
               'write',
-              () =>
-                Effect.gen(function* () {
-                  const observed = yield* close.execute({
-                    ...input,
-                    pullRequest: result.success,
-                  });
-                  if (observed.closedReview) yield* events.inventoryChanged();
-                  return {
-                    kind: 'available' as const,
-                    account: selection.choice?.account ?? '',
-                    pullRequest: observed.pullRequest,
-                  };
-                }),
+              () => close.execute({ ...input, pullRequest: result.success }),
+              {
+                settled: (exit) =>
+                  Exit.isSuccess(exit) && exit.value.closedReview
+                    ? events.inventoryChanged()
+                    : Effect.void,
+              },
             );
+            return {
+              kind: 'available' as const,
+              account: selection.choice?.account ?? '',
+              pullRequest: observed.pullRequest,
+            };
           },
         ),
       };
