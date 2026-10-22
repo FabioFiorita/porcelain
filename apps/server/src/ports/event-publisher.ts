@@ -21,6 +21,7 @@ export interface EventPublisher {
   projectChanged(input: ProjectChangedNotice): Effect.Effect<void>;
   worktreeChanged(input: WorktreeChangedNotice): Effect.Effect<void>;
   filesChanged(input: FilesChangedNotice): Effect.Effect<void>;
+  gitActionProgressed(input: GitActionReceiptView): Effect.Effect<void>;
   gitActionChanged(input: GitActionReceiptView): Effect.Effect<void>;
 }
 

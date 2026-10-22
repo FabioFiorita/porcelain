@@ -67,15 +67,22 @@ export class EditCommentMessageUseCase extends Context.Service<
                         ...input,
                         worktreeId: review.worktreeId,
                       });
-                      if (result.changed)
-                        yield* events.worktreeChanged({
-                          worktreeId: review.worktreeId,
-                          change: 'comments',
-                        });
-                      return result.thread;
+                      return { result, worktreeId: review.worktreeId };
                     }),
+                  {
+                    succeeded: (value) =>
+                      value.result.changed
+                        ? events.worktreeChanged({
+                            worktreeId: value.worktreeId,
+                            change: 'comments',
+                          })
+                        : Effect.void,
+                  },
                 )
-                .pipe(Effect.tap(() => events.inventoryChanged()));
+                .pipe(
+                  Effect.tap(() => events.inventoryChanged()),
+                  Effect.map(({ result }) => result.thread),
+                );
             const worktreeId = input.worktreeId ?? '';
             const result = yield* access.transaction(
               worktreeId,

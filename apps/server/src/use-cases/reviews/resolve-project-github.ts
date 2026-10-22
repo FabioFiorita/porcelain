@@ -44,42 +44,49 @@ export class ResolveProjectGitHubUseCase extends Context.Service<
         execute: Effect.fn('ResolveProjectGitHubUseCase.execute')(
           function* (input) {
             const found = yield* find.execute(input);
-            return yield* lanes.run(keys.project(found), 'write', () =>
-              Effect.gen(function* () {
-                const repository = githubRepository(
-                  (yield* origin.execute({
-                    path: found.commonDirectory,
-                  })).originUrl,
-                );
-                const preference = yield* accounts.execute({
-                  projectId: input.projectId,
-                  repository:
+            return yield* lanes.run(
+              keys.project(found),
+              'write',
+              () =>
+                Effect.gen(function* () {
+                  const repository = githubRepository(
+                    (yield* origin.execute({
+                      path: found.commonDirectory,
+                    })).originUrl,
+                  );
+                  const preference = yield* accounts.execute({
+                    projectId: input.projectId,
+                    repository:
+                      repository === undefined
+                        ? ''
+                        : `${repository.owner}/${repository.repo}`.toLowerCase(),
+                    ...(input.override === undefined
+                      ? {}
+                      : { override: input.override }),
+                  });
+                  const selection: GitHubAccountResult =
                     repository === undefined
-                      ? ''
-                      : `${repository.owner}/${repository.repo}`.toLowerCase(),
-                  ...(input.override === undefined
-                    ? {}
-                    : { override: input.override }),
-                });
-                const selection: GitHubAccountResult =
-                  repository === undefined
-                    ? {
-                        accounts: [],
-                        choice: undefined,
-                        override: preference?.override,
-                        unavailable: {
-                          kind: 'unavailable',
-                          reason: 'not-github',
-                        },
-                      }
-                    : yield* select.execute({
-                        ...repository,
-                        projectId: input.projectId,
-                      });
-                if (input.override !== undefined)
-                  yield* events.inventoryChanged();
-                return { repository, selection };
-              }),
+                      ? {
+                          accounts: [],
+                          choice: undefined,
+                          override: preference?.override,
+                          unavailable: {
+                            kind: 'unavailable',
+                            reason: 'not-github',
+                          },
+                        }
+                      : yield* select.execute({
+                          ...repository,
+                          projectId: input.projectId,
+                        });
+                  return { repository, selection };
+                }),
+              {
+                succeeded: () =>
+                  input.override !== undefined
+                    ? events.inventoryChanged()
+                    : Effect.void,
+              },
             );
           },
         ),

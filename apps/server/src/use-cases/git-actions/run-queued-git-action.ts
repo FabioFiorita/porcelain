@@ -136,7 +136,7 @@ export class RunQueuedGitActionUseCase extends Context.Service<
                                 line,
                               });
                               if (recorded.kind === 'recorded')
-                                yield* events.gitActionChanged(
+                                yield* events.gitActionProgressed(
                                   recorded.receipt,
                                 );
                             }),

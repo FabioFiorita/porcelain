@@ -35,10 +35,10 @@ export class DeleteReviewUseCase extends Context.Service<
             return yield* lanes.run(
               keys.reviews({ repositoryId: `review:${input.reviewId}` }),
               'write',
-              () =>
-                remove
-                  .execute(input)
-                  .pipe(Effect.tap(() => events.inventoryChanged())),
+              () => remove.execute(input),
+              {
+                succeeded: () => events.inventoryChanged(),
+              },
             );
           const worktreeId = input.worktreeId;
           return yield* access.transaction(

@@ -549,6 +549,11 @@ const nativeLaneCases = [
       `lanes.run('one', 'write', ${laneWork}, { settled: () => events.inventoryChanged() })`,
     ],
     [
+      'success-only hook',
+      `lanes.run('one', 'write', () => events.inventoryChanged())`,
+      `lanes.run('one', 'write', ${laneWork}, { succeeded: (value) => value.changed ? events.inventoryChanged() : Effect.void })`,
+    ],
+    [
       'tuple work',
       `lanes.run(['two', 'one', 'one'], 'write', () => events.inventoryChanged())`,
       `lanes.run(['two', 'one', 'one'], 'write', ${laneWork}, { settled: (exit) => exit.value ? events.inventoryChanged() : Effect.void })`,
@@ -611,6 +616,19 @@ const nativeLaneCases = [
     invalid: nativeLaneUseCase(`yield* ${invalid};`),
     errors: 1,
   })),
+  {
+    state:
+      'live Git progress is explicit while completion waits for settlement',
+    rule: 'events-after-lane',
+    path: laneFixturePath,
+    valid: nativeLaneUseCase(
+      `yield* lanes.run('one', 'write', () => events.gitActionProgressed(receipt));`,
+    ),
+    invalid: nativeLaneUseCase(
+      `yield* lanes.run('one', 'write', () => events.gitActionChanged(receipt));`,
+    ),
+    errors: 1,
+  },
   ...[
     ['same key', `lanes.run('one', 'read', ${laneWork})`],
     ['different key', `lanes.run('two', 'write', ${laneWork})`],
@@ -4991,7 +5009,7 @@ const styleConfigCases = [
   })),
   { name: 'canonical configs and empty source', status: 0, rules: [] },
   ...[
-    ['events-after-lane', 'warning', 0],
+    ['events-after-lane', 'warning', 1],
     ['use-case-input-is-contract', 'warning', 1],
     ['events-after-lane', 'error', 1],
     ['no-nested-lane', 'warning', 1],
@@ -5014,37 +5032,15 @@ const styleConfigCases = [
     findingCount: 1,
     rules: [],
   })),
-  ...['warn', ['warn'], 'off', undefined].map((level) => ({
-    name: `use-case-input-is-contract requires error instead of ${JSON.stringify(level)}`,
-    status: 1,
-    rules: ['lint-config'],
-    json: {
-      '.oxlintrc.json': { 'rules.porcelain/use-case-input-is-contract': level },
-    },
-    tokens: ['porcelain/use-case-input-is-contract'],
-  })),
-  ...['events-after-lane'].flatMap((rule) => [
-    ...['warn', ['warn'], 'error'].map((level) => ({
-      name: `${rule} warning rollout accepts ${JSON.stringify(level)}`,
-      status: 0,
-      rules: [],
-      json: { '.oxlintrc.json': { [`rules.porcelain/${rule}`]: level } },
-    })),
-    ...['off', undefined].map((level) => ({
-      name: `${rule} warning rollout refuses ${String(level)}`,
+  ...['events-after-lane', 'use-case-input-is-contract'].flatMap((rule) =>
+    ['warn', ['warn'], 'off', undefined].map((level) => ({
+      name: `${rule} requires error instead of ${JSON.stringify(level)}`,
       status: 1,
       rules: ['lint-config'],
       json: { '.oxlintrc.json': { [`rules.porcelain/${rule}`]: level } },
       tokens: [`porcelain/${rule}`],
     })),
-  ]),
-  {
-    name: 'warning rollout does not downgrade other rules',
-    status: 1,
-    rules: ['lint-config'],
-    json: { '.oxlintrc.json': { 'rules.porcelain/no-nested-lane': 'warn' } },
-    tokens: ['porcelain/no-nested-lane'],
-  },
+  ),
   {
     name: 'required rule accepts array error level',
     status: 0,

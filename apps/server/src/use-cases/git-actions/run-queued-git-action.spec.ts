@@ -48,6 +48,7 @@ import {
 import { InventoryStore } from '@porcelain/projects/ports';
 import { FindProjectService } from '@porcelain/projects/services';
 import { expect, it } from '@effect/vitest';
+import { describe } from 'vitest';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
 import { Lanes } from '../../runtime/lanes.ts';
@@ -118,7 +119,7 @@ const input = {
   acceptedAt: '2026-10-05T05:00:00.000Z',
 };
 
-const fixture = Effect.fn(function* () {
+const fixture = Effect.fn(function* (progress?: string) {
   yield* TestClock.setTime(
     DateTime.toEpochMillis(DateTime.makeUnsafe('2026-10-05T05:00:00.000Z')),
   );
@@ -129,6 +130,7 @@ const fixture = Effect.fn(function* () {
   const finished = yield* Deferred.make<void>();
   const cleanup = yield* Deferred.make<void>();
   const notifications: GitActionReceiptView[] = [];
+  const progressReadbacks: (GitActionReceipt | undefined)[] = [];
   const failures: unknown[] = [];
   let calls = 0;
   const consistency = { execute: () => Effect.void };
@@ -159,6 +161,11 @@ const fixture = Effect.fn(function* () {
     projectChanged: () => Effect.void,
     worktreeChanged: () => Effect.void,
     filesChanged: () => Effect.void,
+    gitActionProgressed: (receipt) =>
+      Effect.gen(function* () {
+        progressReadbacks.push(yield* receipts.read({ requestId }));
+        notifications.push(receipt);
+      }),
     gitActionChanged: (receipt) =>
       Effect.sync(() => {
         notifications.push(receipt);
@@ -171,6 +178,8 @@ const fixture = Effect.fn(function* () {
       admittedWrite(request.run.worktreeId, () =>
         Effect.gen(function* () {
           calls += 1;
+          if (progress !== undefined && request.onProgress !== undefined)
+            yield* request.onProgress(progress);
           yield* Deferred.succeed(started, undefined);
           yield* Deferred.await(cleanup).pipe(
             Effect.onInterrupt(() =>
@@ -280,6 +289,7 @@ const fixture = Effect.fn(function* () {
     finished,
     cleanup,
     notifications,
+    progressReadbacks,
     failures,
     calls: () => calls,
   };
@@ -413,4 +423,41 @@ it.effect(
         yield* test.lanes.close();
       }
     }),
+);
+
+describe.each(['Receiving objects: 50%', 'Receiving objects: 100%'])(
+  '%s',
+  (line) => {
+    it.effect('keeps progress live and readable before completing once', () =>
+      Effect.gen(function* () {
+        const test = yield* fixture(line);
+        try {
+          const running = yield* Effect.forkChild(test.useCase.execute(input));
+          yield* Deferred.await(test.started);
+          expect(
+            test.notifications.map((receipt) => ({
+              state: receipt.state,
+              progress: receipt.progress,
+            })),
+          ).toEqual([{ state: 'running', progress: [line] }]);
+          expect(test.progressReadbacks).toMatchObject([
+            { state: 'running', progress: [line] },
+          ]);
+          yield* Deferred.succeed(test.cleanup, undefined);
+          yield* Fiber.join(running);
+          expect(test.notifications.map((receipt) => receipt.state)).toEqual([
+            'running',
+            'succeeded',
+          ]);
+          expect(yield* test.receipts.read({ requestId })).toMatchObject({
+            state: 'succeeded',
+            progress: [line],
+          });
+        } finally {
+          yield* Deferred.succeed(test.cleanup, undefined);
+          yield* test.lanes.close();
+        }
+      }),
+    );
+  },
 );

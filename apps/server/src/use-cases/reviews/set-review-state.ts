@@ -29,12 +29,10 @@ export class SetReviewStateUseCase extends Context.Service<
           return yield* lanes.run(
             keys.reviews({ repositoryId: `review:${input.reviewId}` }),
             'write',
-            () =>
-              Effect.gen(function* () {
-                return yield* operation
-                  .execute(input)
-                  .pipe(Effect.tap(() => events.inventoryChanged()));
-              }),
+            () => operation.execute(input),
+            {
+              succeeded: () => events.inventoryChanged(),
+            },
           );
         }),
       };

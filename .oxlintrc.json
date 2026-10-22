@@ -71,7 +71,7 @@
     "porcelain/fakes-store": "error",
     "porcelain/timers-in-runtime": "error",
     "porcelain/fixture-imports": "error",
-    "porcelain/events-after-lane": "warn",
+    "porcelain/events-after-lane": "error",
     "porcelain/limits-from-settings": "error",
     "porcelain/use-case-input-is-contract": "error",
     "porcelain/failure-in-service": "error",
