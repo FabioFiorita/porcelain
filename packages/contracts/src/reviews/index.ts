@@ -45,9 +45,7 @@ export { type PublishReviewToolResponse } from './review-tools.ts';
 export {
   listReviewedFilesResponseSchema,
   listReviewedLayersResponseSchema,
-  removeReviewedFileResponseSchema,
   removeReviewedFilesResponseSchema,
-  setReviewedFileResponseSchema,
   setReviewedFilesResponseSchema,
   type ListReviewedFilesQuery,
   type ListReviewedFilesResponse,
