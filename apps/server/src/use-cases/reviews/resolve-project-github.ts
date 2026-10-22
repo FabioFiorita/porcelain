@@ -1,7 +1,7 @@
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import { Lanes } from '../../runtime/lanes.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
-import { Context, Effect, Exit, Layer } from 'effect';
+import { Context, Effect, Layer } from 'effect';
 import {
   CheckProjectService,
   ReadRepositoryOriginService,
@@ -82,8 +82,8 @@ export class ResolveProjectGitHubUseCase extends Context.Service<
                   return { repository, selection };
                 }),
               {
-                settled: (exit) =>
-                  Exit.isSuccess(exit) && input.override !== undefined
+                succeeded: () =>
+                  input.override !== undefined
                     ? events.inventoryChanged()
                     : Effect.void,
               },

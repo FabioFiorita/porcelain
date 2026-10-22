@@ -1,7 +1,7 @@
 import { ReadPublishedReviewService } from '@porcelain/reviews/services';
 import { Lanes } from '../../runtime/lanes.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
-import { Context, Effect, Exit, Layer } from 'effect';
+import { Context, Effect, Layer } from 'effect';
 import { type DeleteReviewResponse } from '@porcelain/contracts/reviews';
 import { type WorktreeParams } from '@porcelain/contracts/shared';
 import { DeleteReviewService } from '@porcelain/reviews/services';
@@ -36,10 +36,7 @@ export class DeleteReviewUseCase extends Context.Service<
               'write',
               () => remove.execute(input),
               {
-                settled: (exit) =>
-                  Exit.isSuccess(exit)
-                    ? events.inventoryChanged()
-                    : Effect.void,
+                succeeded: () => events.inventoryChanged(),
               },
             );
           const worktreeId = input.worktreeId;

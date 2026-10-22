@@ -1,5 +1,5 @@
 import { EventPublisher } from '../../ports/event-publisher.ts';
-import { Context, Effect, Exit, Layer } from 'effect';
+import { Context, Effect, Layer } from 'effect';
 import type { ReadPullRequestResponse } from '@porcelain/contracts/reviews';
 import type { ReviewNotFoundError } from '@porcelain/reviews/errors';
 import type { ProjectNotFoundError } from '@porcelain/projects/errors';
@@ -72,10 +72,8 @@ export class ReadReviewPullRequestUseCase extends Context.Service<
               'write',
               () => close.execute({ ...input, pullRequest: result.success }),
               {
-                settled: (exit) =>
-                  Exit.isSuccess(exit) && exit.value.closedReview
-                    ? events.inventoryChanged()
-                    : Effect.void,
+                succeeded: (value) =>
+                  value.closedReview ? events.inventoryChanged() : Effect.void,
               },
             );
             return {

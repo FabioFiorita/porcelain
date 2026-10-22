@@ -1,5 +1,5 @@
 import { EventPublisher } from '../../ports/event-publisher.ts';
-import { Context, Effect, Exit, Layer } from 'effect';
+import { Context, Effect, Layer } from 'effect';
 import { SetReviewSeenService } from '@porcelain/reviews/services';
 import type { ReviewNotFoundError } from '@porcelain/reviews/errors';
 import { Lanes } from '../../runtime/lanes.ts';
@@ -28,8 +28,7 @@ export class SetReviewSeenUseCase extends Context.Service<
             'write',
             () => operation.execute(input),
             {
-              settled: (exit) =>
-                Exit.isSuccess(exit) ? events.inventoryChanged() : Effect.void,
+              succeeded: () => events.inventoryChanged(),
             },
           );
         }),

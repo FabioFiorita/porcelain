@@ -1,4 +1,4 @@
-import { Context, Effect, Exit, Layer } from 'effect';
+import { Context, Effect, Layer } from 'effect';
 import type { ReviewNotFoundError } from '@porcelain/reviews/errors';
 import type {
   ReviewScope,
@@ -57,11 +57,10 @@ export class DeleteResolvedCommentsUseCase extends Context.Service<
                       return { result, worktreeId: review.worktreeId };
                     }),
                   {
-                    settled: (exit) =>
-                      Exit.isSuccess(exit) &&
-                      exit.value.result.deleted.length > 0
+                    succeeded: (value) =>
+                      value.result.deleted.length > 0
                         ? events.worktreeChanged({
-                            worktreeId: exit.value.worktreeId,
+                            worktreeId: value.worktreeId,
                             change: 'comments',
                           })
                         : Effect.void,

@@ -324,6 +324,65 @@ it.effect('cancelling a queued read removes its admission', () =>
   }),
 );
 
+describe.each([
+  {
+    state: 'success',
+    expected: ['work', 'settled:Success', 'succeeded:saved'],
+  },
+  { state: 'failure', expected: ['work', 'settled:Failure'] },
+  { state: 'interruption', expected: ['work', 'settled:Failure'] },
+] as const)('$state success-only completion', ({ state, expected }) => {
+  it.effect('runs once after settlement only for successful work', () =>
+    Effect.gen(function* () {
+      const lanes = Context.get(
+        yield* Layer.build(Lanes.layer).pipe(
+          Effect.provideService(LaneOptions, options),
+        ),
+        Lanes,
+      );
+      const started = yield* Deferred.make<void>();
+      const order: string[] = [];
+      const caller = yield* Effect.forkChild(
+        lanes.run(
+          'mutation',
+          'write',
+          () =>
+            Effect.gen(function* () {
+              order.push('work');
+              yield* Deferred.succeed(started, undefined);
+              if (state === 'failure') return yield* Effect.fail('failed');
+              if (state === 'interruption') return yield* Effect.never;
+              return 'saved';
+            }),
+          {
+            settled: (exit) =>
+              Effect.sync(() => {
+                order.push(`settled:${exit._tag}`);
+              }),
+            succeeded: (value) =>
+              lanes.run('mutation', 'read', () =>
+                Effect.sync(() => {
+                  order.push(`succeeded:${value}`);
+                }),
+              ),
+          },
+        ),
+      );
+      yield* Deferred.await(started);
+      if (state === 'interruption') yield* Fiber.interrupt(caller);
+      const result = yield* Fiber.await(caller);
+      yield* lanes.close();
+      expect(order).toEqual(expected);
+      if (state === 'success') expect(result).toEqual(Exit.succeed('saved'));
+      else if (state === 'failure') expect(result).toEqual(Exit.fail('failed'));
+      else
+        expect(
+          Exit.isFailure(result) && Cause.hasInterruptsOnly(result.cause),
+        ).toBe(true);
+    }),
+  );
+});
+
 it.effect('runs completion after the writer releases the lane', () =>
   Effect.gen(function* () {
     const lanes = yield* Layer.build(Lanes.layer).pipe(

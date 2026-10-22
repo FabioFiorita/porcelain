@@ -32,6 +32,7 @@ type LaneMode = 'read' | 'write';
 type LaneOwners = string | readonly [string, ...string[]];
 type LaneRunOptions<A, E> = {
   deadlineMs?: number;
+  succeeded?: ((value: A) => Effect.Effect<void>) | undefined;
   settled?: ((exit: Exit.Exit<A, E>) => Effect.Effect<void>) | undefined;
 };
 
@@ -137,7 +138,12 @@ export class Lanes extends Context.Service<
       ): Effect.Effect<A, E> {
         return runEffect(lane, mode, work, {
           ...options,
-          completed: options.settled,
+          completed: (exit) =>
+            Effect.gen(function* () {
+              if (options.settled) yield* options.settled(exit);
+              if (Exit.isSuccess(exit) && options.succeeded)
+                yield* options.succeeded(exit.value);
+            }),
         });
       }
       function commit<A, E>(

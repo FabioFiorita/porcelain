@@ -1708,7 +1708,7 @@ export default {
                 context.report({
                   node: call,
                   message:
-                    'Publish after the lane settles: return whether anything changed and publish after the operation returns, or from its settled/committed hook, because subscribers must observe committed state rather than an in-progress write.',
+                    'Publish after the lane settles: return whether anything changed and publish after the operation returns, or from its succeeded/settled/committed hook, because subscribers must observe committed state rather than an in-progress write.',
                 });
               }
           },

@@ -1,4 +1,4 @@
-import { Context, Effect, Exit, Layer } from 'effect';
+import { Context, Effect, Layer } from 'effect';
 import type {
   ReviewNotFoundError,
   CommentIdentityConflictError,
@@ -67,13 +67,11 @@ export class ReplyToCommentUseCase extends Context.Service<
                     return { result, worktreeId: review.worktreeId };
                   }),
                 {
-                  settled: (exit) =>
-                    Exit.isSuccess(exit)
-                      ? events.worktreeChanged({
-                          worktreeId: exit.value.worktreeId,
-                          change: 'comments',
-                        })
-                      : Effect.void,
+                  succeeded: (value) =>
+                    events.worktreeChanged({
+                      worktreeId: value.worktreeId,
+                      change: 'comments',
+                    }),
                 },
               )
               .pipe(

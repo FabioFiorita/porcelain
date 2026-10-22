@@ -549,6 +549,11 @@ const nativeLaneCases = [
       `lanes.run('one', 'write', ${laneWork}, { settled: () => events.inventoryChanged() })`,
     ],
     [
+      'success-only hook',
+      `lanes.run('one', 'write', () => events.inventoryChanged())`,
+      `lanes.run('one', 'write', ${laneWork}, { succeeded: (value) => value.changed ? events.inventoryChanged() : Effect.void })`,
+    ],
+    [
       'tuple work',
       `lanes.run(['two', 'one', 'one'], 'write', () => events.inventoryChanged())`,
       `lanes.run(['two', 'one', 'one'], 'write', ${laneWork}, { settled: (exit) => exit.value ? events.inventoryChanged() : Effect.void })`,
