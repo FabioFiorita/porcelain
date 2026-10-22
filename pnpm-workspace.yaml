@@ -15,7 +15,5 @@ packageExtensions:
 # current Pierre packages. The compatible patch release widens that peer.
 overrides:
   '@pierre/trees>@pierre/theming': 1.0.1
-# Expose DOM-free utilities to native clients and backport CodeView cleanup.
-# Upstream: https://github.com/pierrecomputer/pierre/commit/80c8daf551f56efd73d1920cbd780b73bb704ec6
 patchedDependencies:
-  '@pierre/diffs@1.4.2': patches/@pierre__diffs@1.4.2.patch
+  '@pierre/diffs@1.6.1': patches/@pierre__diffs@1.6.1.patch

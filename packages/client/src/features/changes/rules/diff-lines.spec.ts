@@ -104,3 +104,36 @@ it('keeps the original file header when preparing a focused excerpt', () => {
     '+++ b/a',
   ]);
 });
+
+it.each([
+  [
+    'a renamed file with quoted paths',
+    'diff --git "a/old name.ts" "b/new name.ts"\nsimilarity index 50%\nrename from old name.ts\nrename to new name.ts\n--- "a/old name.ts"\n+++ "b/new name.ts"\n@@ -1 +1 @@\n-before\n+after\n',
+    [
+      { id: 'patch:6', text: '@@ -1 +1 @@' },
+      { id: 'patch:7', text: 'before', kind: 'removed', oldLine: 1 },
+      { id: 'patch:8', text: 'after', kind: 'added', newLine: 1 },
+    ],
+  ],
+  [
+    'a changed blank line',
+    '@@ -1,2 +1,2 @@\n same\n-\n+after\n',
+    [
+      { id: 'patch:0', text: '@@ -1,2 +1,2 @@' },
+      { id: 'patch:1', text: 'same', kind: 'context', oldLine: 1, newLine: 1 },
+      { id: 'patch:2', text: '', kind: 'removed', oldLine: 2 },
+      { id: 'patch:3', text: 'after', kind: 'added', newLine: 2 },
+    ],
+  ],
+  [
+    'a very long line without a known file type',
+    `diff --git a/unknown.xyz b/unknown.xyz\n--- a/unknown.xyz\n+++ b/unknown.xyz\n@@ -1 +1 @@\n-before\n+${'x'.repeat(20000)}\n`,
+    [
+      { id: 'patch:3', text: '@@ -1 +1 @@' },
+      { id: 'patch:4', text: 'before', kind: 'removed', oldLine: 1 },
+      { id: 'patch:5', text: 'x'.repeat(20000), kind: 'added', newLine: 1 },
+    ],
+  ],
+])('preserves the literal lines of %s', (_name, patch, lines) => {
+  expect(diffLines(patch)).toEqual({ kind: 'text', lines });
+});

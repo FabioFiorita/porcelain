@@ -16,7 +16,7 @@
     "@effect/atom-react": "4.0.1",
     "@expo/material-symbols": "0.1.1",
     "@expo/ui": "58.0.9",
-    "@pierre/diffs": "1.4.2",
+    "@pierre/diffs": "1.6.1",
     "@pierre/theme": "2.0.0",
     "@porcelain/client": "workspace:*",
     "@porcelain/contracts": "workspace:*",

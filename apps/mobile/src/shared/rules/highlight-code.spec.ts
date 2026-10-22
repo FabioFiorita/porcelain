@@ -108,7 +108,12 @@ it.each([
   ['scripts/check.sh', 'bash'],
   ['docs/guide.mdx', 'markdown'],
   ['src/main.py', 'python'],
+  ['tools/build.bzl', 'python'],
   ['unknown.xyz', undefined],
+  ['src/new name.ts', 'typescript'],
+  ['src/empty.ts', 'typescript'],
+  ['src/renamed', undefined],
+  ['', undefined],
 ])('selects the source grammar for %s', (path, language) => {
   expect(sourceLanguage(path)).toBe(language);
 });
