@@ -56,9 +56,11 @@ export function AgentsSetting() {
                   : 'Loading MCP configuration…')}
             </p>
             <ItemDescription>
-              Run it once on this computer. Agents publish reviews, answer
-              comments and read your reviewed marks through the Porcelain MCP
-              server. It needs no credential.
+              {desktopShell
+                ? 'Run it once on this computer.'
+                : 'Run it once on the computer hosting your Porcelain server.'}{' '}
+              Agents publish reviews, answer comments and read your reviewed
+              marks through the Porcelain MCP server. It needs no credential.
             </ItemDescription>
             {desktopShell && (
               <p className="text-xs text-muted-foreground">
