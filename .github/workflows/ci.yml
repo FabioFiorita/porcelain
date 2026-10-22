@@ -227,6 +227,12 @@ jobs:
           path: ~/.electron-gyp
           key: electron-headers-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/desktop/package.json') }}
       - run: pnpm --filter @porcelain/desktop test:e2e
+      - name: Upload desktop test results
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: failure()
+        with:
+          name: desktop-e2e
+          path: apps/desktop/test-results/
       - name: Collect desktop crash reports
         if: failure()
         shell: bash
@@ -235,13 +241,12 @@ jobs:
             "$HOME/Library/Logs/DiagnosticReports" \
             "$RUNNER_TEMP/desktop-e2e-started" \
             "$RUNNER_TEMP/desktop-e2e-crashes"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+      - name: Upload desktop crash reports
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: failure()
         with:
-          name: desktop-e2e
-          path: |
-            apps/desktop/test-results/
-            ${{ runner.temp }}/desktop-e2e-crashes/
+          name: desktop-e2e-crashes
+          path: ${{ runner.temp }}/desktop-e2e-crashes/
 
   checks:
     needs:

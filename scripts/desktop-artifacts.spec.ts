@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
+  linkSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -32,7 +33,7 @@ function step(name: string) {
 type Report = {
   name: string;
   time?: 'old' | 'same';
-  kind?: 'directory' | 'symlink';
+  kind?: 'directory' | 'symlink' | 'hardlink';
 };
 type Selection = {
   name: string;
@@ -48,83 +49,136 @@ describe('desktop crash evidence', () => {
     { name: 'a missing report directory', missingReports: true, expected: [] },
     {
       name: 'our Electron process',
-      reports: [{ name: 'Electron_2026-10-21.ips' }],
-      expected: ['Electron_2026-10-21.ips'],
+      reports: [{ name: 'Electron_2026-10-21-120000.ips' }],
+      expected: ['Electron_2026-10-21-120000.ips'],
     },
     {
       name: 'our Porcelain Dev process with spaces',
-      reports: [{ name: 'Porcelain Dev_2026-10-21 120000.crash' }],
-      expected: ['Porcelain Dev_2026-10-21 120000.crash'],
+      reports: [{ name: 'Porcelain Dev_2026-10-21-120000.crash' }],
+      expected: ['Porcelain Dev_2026-10-21-120000.crash'],
     },
     ...[
       'Electron-2026-10-21-120000.ips',
       'Porcelain Dev-2026-10-21-120000.ips',
       'Electron Helper (Renderer)-2026-10-21-120000.ips',
       'Porcelain Dev Helper (GPU)-2026-10-21-120000.ips',
-      'Electron Helper_2026-10-21.crash',
-      'Electron Helper (Renderer)_2026-10-21.ips',
-      'Electron Helper (GPU)_2026-10-21.ips',
-      'Porcelain Dev Helper_2026-10-21.ips',
-      'Porcelain Dev Helper (Renderer)_2026-10-21.crash',
-      'Porcelain Dev Helper (GPU)_2026-10-21.ips',
+      'Electron_2026-10-21-120000_runner.crash',
+      'Porcelain Dev Helper (Renderer)_2026-10-21-120000_Mac-1.crash',
+      'Electron Helper_2026-10-21-120000.crash',
+      'Electron Helper (Renderer)_2026-10-21-120000.ips',
+      'Electron Helper (GPU)_2026-10-21-120000.ips',
+      'Electron Helper (Plugin)_2026-10-21-120000.ips',
+      'Porcelain Dev Helper_2026-10-21-120000.ips',
+      'Porcelain Dev Helper (Renderer)_2026-10-21-120000.crash',
+      'Porcelain Dev Helper (GPU)_2026-10-21-120000.ips',
+      'Porcelain Dev Helper (Plugin)-2026-10-21-120000.ips',
     ].map((name) => ({ name, reports: [{ name }], expected: [name] })),
+    {
+      name: 'underscore process names',
+      reports: [
+        { name: 'Electron_Notes-2026-10-21-120000.ips' },
+        { name: 'Porcelain Dev_Backup-2026-10-21-120000.ips' },
+      ],
+      expected: [],
+    },
+    ...[
+      'Electron Helper (odd\nname)-2026-10-21-120000.ips',
+      'Electron Helper ([*?])-2026-10-21-120000.ips',
+      'Porcelain Dev Helper (odd\rname)_2026-10-21-120000.ips',
+      'Porcelain Dev Helper (host:port)_2026-10-21-120000.ips',
+      'Electron_odd\nname.ips',
+      'Electron_[*?].ips',
+      'Electron_2026-10-21-120000_*.ips',
+      'Electron_2026-10-21-120000_?.ips',
+      'Electron_2026-10-21-120000_[host].ips',
+      'Electron_2026-10-21-120000_host].ips',
+      'Electron_2026-10-21-120000_odd\nname.ips',
+      'Electron_2026-10-21-120000_odd\rname.ips',
+      'Electron_2026-10-21-120000_[*?].ips',
+      'Electron_2026-10-21-120000_host:port.ips',
+      'Electron_2026-10-21-120000_"host".ips',
+      'Electron_2026-10-21-120000_<host>.ips',
+      'Electron_2026-10-21-120000_host|other.ips',
+    ].map((name) => ({
+      name: `an unsafe upload filename ${JSON.stringify(name)}`,
+      reports: [{ name }],
+      expected: [],
+    })),
+    {
+      name: 'ambiguous filenames without a full timestamp',
+      reports: [
+        { name: 'Electron_NoTimestamp.ips' },
+        { name: 'Electron_2026-10-21.ips' },
+        { name: 'Porcelain Dev_2026-10-21-120000_extra-2026-10-21-120000.ips' },
+      ],
+      expected: [],
+    },
     {
       name: 'unrelated processes and prefix collisions',
       reports: [
-        { name: 'Safari_2026-10-21.ips' },
-        { name: 'ElectronOther_2026-10-21.ips' },
+        { name: 'Safari_2026-10-21-120000.ips' },
+        { name: 'ElectronOther_2026-10-21-120000.ips' },
         { name: 'ElectronOther-2026-10-21-120000.ips' },
         { name: 'Porcelain Dev Other-2026-10-21-120000.ips' },
-        { name: 'Porcelain_2026-10-21.ips' },
-        { name: 'Porcelain Dev Other_2026-10-21.crash' },
-        { name: 'Other Electron_2026-10-21.ips' },
+        { name: 'Porcelain_2026-10-21-120000.ips' },
+        { name: 'Porcelain Dev Other_2026-10-21-120000.crash' },
+        { name: 'Other Electron_2026-10-21-120000.ips' },
+        { name: 'Electron Helper (Unknown)-2026-10-21-120000.ips' },
+        { name: 'Porcelain Dev Helper (Unknown)_2026-10-21-120000.ips' },
       ],
       expected: [],
     },
     {
       name: 'a report older than the job',
-      reports: [{ name: 'Electron_2026-10-21.ips', time: 'old' }],
+      reports: [{ name: 'Electron_2026-10-21-120000.ips', time: 'old' }],
       expected: [],
     },
     {
       name: 'a report at the job timestamp',
-      reports: [{ name: 'Electron_2026-10-21.ips', time: 'same' }],
+      reports: [{ name: 'Electron_2026-10-21-120000.ips', time: 'same' }],
       expected: [],
     },
     {
       name: 'a missing job timestamp fails closed',
       missingStart: true,
-      reports: [{ name: 'Electron_2026-10-21.ips' }],
+      reports: [{ name: 'Electron_2026-10-21-120000.ips' }],
       expected: [],
     },
     {
       name: 'directories, nested reports and symlinks',
       reports: [
-        { name: 'Electron_2026-10-21.ips', kind: 'directory' },
-        { name: 'Electron_2026-10-21.ips/Porcelain Dev_2026-10-21.ips' },
-        { name: 'Porcelain Dev_2026-10-21.ips', kind: 'symlink' },
+        { name: 'Electron_2026-10-21-120000.ips', kind: 'directory' },
+        {
+          name: 'Electron_2026-10-21-120000.ips/Porcelain Dev_2026-10-21-120000.ips',
+        },
+        { name: 'Porcelain Dev_2026-10-21-120000.ips', kind: 'symlink' },
       ],
+      expected: [],
+    },
+    {
+      name: 'hard links to outside contents',
+      reports: [{ name: 'Electron_2026-10-21-120000.ips', kind: 'hardlink' }],
       expected: [],
     },
     {
       name: 'unrecognized extensions',
       reports: [
-        { name: 'Electron_2026-10-21.txt' },
-        { name: 'Porcelain Dev_2026-10-21.ips.backup' },
+        { name: 'Electron_2026-10-21-120000.txt' },
+        { name: 'Porcelain Dev_2026-10-21-120000.ips.backup' },
       ],
       expected: [],
     },
     {
-      name: 'mixed reports with no test-results directory',
+      name: 'mixed matching, unrelated and stale reports',
       reports: [
-        { name: 'Electron_2026-10-21.ips' },
-        { name: 'Safari_2026-10-21.ips' },
-        { name: 'Porcelain Dev_2026-10-21.crash', time: 'old' },
-        { name: 'Porcelain Dev Helper (Renderer)_2026-10-21.ips' },
+        { name: 'Electron_2026-10-21-120000.ips' },
+        { name: 'Safari_2026-10-21-120000.ips' },
+        { name: 'Porcelain Dev_2026-10-21-120000.crash', time: 'old' },
+        { name: 'Porcelain Dev Helper (Renderer)_2026-10-21-120000.ips' },
       ],
       expected: [
-        'Electron_2026-10-21.ips',
-        'Porcelain Dev Helper (Renderer)_2026-10-21.ips',
+        'Electron_2026-10-21-120000.ips',
+        'Porcelain Dev Helper (Renderer)_2026-10-21-120000.ips',
       ],
     },
   ])('selects $name', ({ reports, missingReports, missingStart, expected }) => {
@@ -145,6 +199,10 @@ describe('desktop crash evidence', () => {
           const target = join(folder, 'unrelated.ips');
           writeFileSync(target, 'Unrelated crash');
           symlinkSync(target, path);
+        } else if (report.kind === 'hardlink') {
+          const target = join(folder, 'outside.ips');
+          writeFileSync(target, 'Outside contents');
+          linkSync(target, path);
         } else writeFileSync(path, 'Owned crash');
         if (report.kind !== 'symlink') {
           const time =
@@ -184,10 +242,13 @@ it.each(['destination is a file', 'copy target is a directory'])(
       mkdirSync(source);
       writeFileSync(started, '');
       utimesSync(started, 100, 100);
-      writeFileSync(join(source, 'Electron_2026-10-21.ips'), 'Owned crash');
+      writeFileSync(
+        join(source, 'Electron_2026-10-21-120000.ips'),
+        'Owned crash',
+      );
       if (state === 'destination is a file') writeFileSync(destination, '');
       else
-        mkdirSync(join(destination, 'Electron_2026-10-21.ips'), {
+        mkdirSync(join(destination, 'Electron_2026-10-21-120000.ips'), {
           recursive: true,
         });
       const result = spawnSync('bash', [
@@ -217,22 +278,24 @@ it('records the timestamp before checkout and scopes uploads without extra permi
   ).toBeUndefined();
 });
 
-it.each(['success', 'failure'])(
-  'collects and uploads only on failure when the job is %s',
-  (status) => {
-    const upload = stepEntries.find(
-      (entry) =>
-        isMap(entry) &&
-        String(entry.get('uses')).startsWith('actions/upload-artifact@'),
-    );
-    if (!isMap(upload)) throw new Error('The desktop job needs an upload step');
-    expect(step('Collect desktop crash reports').get('if')).toBe('failure()');
-    expect(upload.get('if')).toBe('failure()');
-    const selected = upload.get('if') === 'failure()' && status === 'failure';
-    expect(selected).toBe(status === 'failure');
-    expect(upload.getIn(['with', 'path'])).toBe(
-      'apps/desktop/test-results/\n${{ runner.temp }}/desktop-e2e-crashes/\n',
-    );
-    expect(upload.getIn(['with', 'name'])).toBe('desktop-e2e');
-  },
-);
+it('uploads test evidence before collecting and separately uploading crashes', () => {
+  const tests = step('Upload desktop test results');
+  const crashes = step('Upload desktop crash reports');
+  const collection = step('Collect desktop crash reports');
+  expect(tests.get('if')).toBe('failure()');
+  expect(collection.get('if')).toBe('failure()');
+  expect(crashes.get('if')).toBe('failure()');
+  expect(tests.getIn(['with', 'path'])).toBe('apps/desktop/test-results/');
+  expect(crashes.getIn(['with', 'path'])).toBe(
+    '${{ runner.temp }}/desktop-e2e-crashes/',
+  );
+  expect(tests.getIn(['with', 'name'])).toBe('desktop-e2e');
+  expect(crashes.getIn(['with', 'name'])).toBe('desktop-e2e-crashes');
+  expect(crashes.get('uses')).toBe(tests.get('uses'));
+  expect(stepEntries.indexOf(tests)).toBeLessThan(
+    stepEntries.indexOf(collection),
+  );
+  expect(stepEntries.indexOf(collection)).toBeLessThan(
+    stepEntries.indexOf(crashes),
+  );
+});
