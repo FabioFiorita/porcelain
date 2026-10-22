@@ -1,6 +1,7 @@
 import { Schema } from 'effect';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
+import { focusWindow } from '../kit/focus-window.ts';
 import {
   issuePairingResponseSchema,
   pairingLink,
@@ -188,50 +189,65 @@ test('a local signed summary renders through the app origin in its sandbox, keep
   await expect(
     page.getByRole('tab', { name: 'Walkthrough', exact: true }),
   ).toHaveAttribute('aria-selected', 'true');
-  await page.getByRole('tab', { name: 'Agent summary', exact: true }).click();
-  const summary = page.frameLocator('iframe[title="Review summary"]');
-  await expect(
-    summary.getByRole('heading', { name: 'Local summary', exact: true }),
-  ).toBeVisible();
-  expect(await responsePolicy(page, here.summaryUrl)).toBe(
-    `sandbox ${sandbox}`,
-  );
-  await expect(
-    summary.locator('html[data-theme="dark"], html[data-theme="light"]'),
-  ).toHaveCount(1);
-  const frame = page
-    .frames()
-    .find((entry) =>
-      entry.url().startsWith('porcelain://app/review-summaries/'),
-    );
-  if (frame === undefined)
-    throw new Error('The local summary did not load through the app');
-  await frame.waitForLoadState('load');
-  await watchSummaryActivations(page, frame);
-  await app.electron.evaluate(({ app, BrowserWindow }) => {
-    app.focus({ steal: true });
-    const view = BrowserWindow.getAllWindows()[0];
-    if (view === undefined) throw new Error('The app window is missing');
-    view.focus();
-    view.webContents.focus();
-  });
-  await focusSummaryLink(frame, 'Open Local summary layer', '#layer-1');
-  await frame
-    .getByRole('link', { name: 'Open Local summary layer', exact: true })
-    .click();
-  await expect
-    .poll(() => summaryActivations(page))
-    .toContainEqual({
-      trusted: true,
-      href: '#layer-1',
-      focused: true,
+  for (const { state, theme, trusted } of [
+    { state: 'first click', theme: 'dark', trusted: true },
+    { state: 'second click after reopening', theme: 'light', trusted: true },
+    {
+      state: 'synthetic activation is not trusted evidence',
+      theme: 'light',
+      trusted: false,
+    },
+  ] as const) {
+    await test.step(`${state}, ${theme} theme`, async () => {
+      await page.emulateMedia({ colorScheme: theme });
+      await page
+        .getByRole('tab', { name: 'Agent summary', exact: true })
+        .click();
+      const summary = page.frameLocator('iframe[title="Review summary"]');
+      await expect(
+        summary.getByRole('heading', { name: 'Local summary', exact: true }),
+      ).toBeVisible();
+      expect(await responsePolicy(page, here.summaryUrl)).toBe(
+        `sandbox ${sandbox}`,
+      );
+      await expect(summary.locator('html')).toHaveAttribute(
+        'data-theme',
+        theme,
+      );
+      const frame = page
+        .frames()
+        .find((entry) =>
+          entry.url().startsWith('porcelain://app/review-summaries/'),
+        );
+      if (frame === undefined)
+        throw new Error('The local summary did not load through the app');
+      await frame.waitForLoadState('load');
+      await watchSummaryActivations(page, frame);
+      await app.electron.evaluate(focusWindow);
+      await focusSummaryLink(frame, 'Open Local summary layer', '#layer-1');
+      const link = frame.getByRole('link', {
+        name: 'Open Local summary layer',
+        exact: true,
+      });
+      if (trusted) await link.click();
+      else await link.dispatchEvent('click');
+      await expect
+        .poll(() => summaryActivations(page))
+        .toEqual([{ trusted, href: '#layer-1', focused: true }]);
+      if (!trusted)
+        expect(await summaryActivations(page)).not.toContainEqual({
+          trusted: true,
+          href: '#layer-1',
+          focused: true,
+        });
+      await expect(
+        page.getByRole('region', {
+          name: '1. Local summary layer',
+          exact: true,
+        }),
+      ).toBeVisible();
     });
-  await expect(
-    page.getByRole('region', {
-      name: '1. Local summary layer',
-      exact: true,
-    }),
-  ).toBeVisible();
+  }
   expect(app.electron.windows()).toHaveLength(1);
   expect(app.errors).toEqual([]);
 });
@@ -276,13 +292,7 @@ test('a remote computer summary renders through the app from that computer, cann
     });
   });
   expect((await other.server()).pid).toBe(status.pid);
-  await app.electron.evaluate(({ app, BrowserWindow }) => {
-    app.focus({ steal: true });
-    const view = BrowserWindow.getAllWindows()[0];
-    if (view === undefined) throw new Error('The app window is missing');
-    view.focus();
-    view.webContents.focus();
-  });
+  await app.electron.evaluate(focusWindow);
   await expect.poll(() => page.evaluate(() => document.hasFocus())).toBe(true);
 
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
@@ -400,13 +410,7 @@ test('a remote computer summary renders through the app from that computer, cann
   const reopenedSummary = await summaryNavigation;
   await reopenedSummary.waitForLoadState('load');
   await watchSummaryActivations(page, reopenedSummary);
-  await app.electron.evaluate(({ app, BrowserWindow }) => {
-    app.focus({ steal: true });
-    const view = BrowserWindow.getAllWindows()[0];
-    if (view === undefined) throw new Error('The app window is missing');
-    view.focus();
-    view.webContents.focus();
-  });
+  await app.electron.evaluate(focusWindow);
   await expect
     .poll(() =>
       app.electron.evaluate(({ BrowserWindow }) => {

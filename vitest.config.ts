@@ -97,6 +97,7 @@ export default defineConfig({
           root,
           include: [
             'apps/desktop/src/**/*.spec.ts',
+            'apps/desktop/spec/kit/*.spec.ts',
             'scripts/desktop-build-settings.spec.ts',
           ],
           expect: { requireAssertions: true },
