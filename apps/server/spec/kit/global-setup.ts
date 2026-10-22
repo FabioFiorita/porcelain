@@ -66,11 +66,9 @@ async function judgeHandlers(folder: string, project: CoverageProject) {
   handlerCoverage(records);
 }
 export default async function setup(project: TestProject) {
-  const perf = project.name === '@porcelain/server-perf';
-  const build = await temporaryServerBuild(perf ? 'perf' : undefined);
+  const build = await temporaryServerBuild();
   const routes = await mkdtemp(join(tmpdir(), 'porcelain-server-routes-'));
   project.provide('serverBuild', build.folder);
-  project.provide('serverSample', perf ? 'perf' : 'none');
   project.provide('serverRoutes', routes);
   return () => integrationTeardown(project, routes, build);
 }

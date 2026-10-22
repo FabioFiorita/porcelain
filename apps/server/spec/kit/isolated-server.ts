@@ -13,9 +13,8 @@ import { RpcClient, type RpcClientError, RpcSerialization } from 'effect/rpc';
 import { Socket } from 'effect/socket';
 import { LiveUpdatesRpc } from '@porcelain/contracts/access';
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
-import { existsSync, realpathSync, statSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import {
-  open,
   readFile,
   readdir,
   rename,
@@ -34,7 +33,6 @@ import {
   type DraftedCommit,
   type Fixture,
   type Hit,
-  type PerfSample,
   type HttpRequest,
   type HttpResponse,
   type LiveConnection,
@@ -62,12 +60,6 @@ type HttpStep = {
   };
   response?: HttpResponse;
   error?: string;
-  durationMs?: number;
-  git?: GitProcesses;
-};
-export type GitProcesses = {
-  processes: number;
-  commands: { argv: string[]; ms: number | null }[];
 };
 type GitStep = {
   phase: Phase;
@@ -125,7 +117,6 @@ type Manifest = {
   socketPath: string;
   credentialFile: string;
   hitsFile: string;
-  gitTrace: string | null;
   bin: string;
   installation: string;
   codingTool: string;
@@ -314,55 +305,6 @@ function draftedCommitOf(value: unknown): DraftedCommit {
   return { message: text(commit.message), paths: list(commit.paths).map(text) };
 }
 
-function perfSampleOf(value: unknown): PerfSample | null {
-  if (value === null || value === undefined) return null;
-  const sample = record(value);
-  return {
-    files: Number(sample.files),
-    commits: Number(sample.commits),
-    worktrees: list(sample.worktrees).map(text),
-    projects: list(sample.projects).map(text),
-  };
-}
-
-function gitProcessesOf(trace: string): GitProcesses {
-  const starts = new Map<string, string[]>();
-  const elapsed = new Map<string, number>();
-  for (const line of trace.split('\n')) {
-    if (line === '') continue;
-    const event = record(JSON.parse(line));
-    const sid = text(event.sid);
-    if (event.event === 'start') starts.set(sid, list(event.argv).map(text));
-    if (event.event === 'exit' && typeof event.t_abs === 'number')
-      elapsed.set(sid, Math.round(event.t_abs * 1000));
-  }
-  return {
-    processes: starts.size,
-    commands: [...starts].map(([sid, argv]) => ({
-      argv,
-      ms: elapsed.get(sid) ?? null,
-    })),
-  };
-}
-
-function traceSize(trace: string): number {
-  return existsSync(trace) ? statSync(trace).size : 0;
-}
-
-async function traceSince(trace: string, from: number): Promise<GitProcesses> {
-  const size = traceSize(trace);
-  if (size <= from) return gitProcessesOf('');
-  const file = await open(trace, 'r');
-  try {
-    const slice = Buffer.alloc(size - from);
-    await file.read(slice, 0, slice.length, from);
-    const written = slice.toString('utf8');
-    return gitProcessesOf(written.slice(0, written.lastIndexOf('\n') + 1));
-  } finally {
-    await file.close();
-  }
-}
-
 function fixtureOf(value: unknown): Fixture {
   const fixture = record(value);
   const codingTool = record(fixture.codingTool);
@@ -395,7 +337,6 @@ function fixtureOf(value: unknown): Fixture {
     liveTicketLifetimeMs: Number(fixture.liveTicketLifetimeMs),
     gitActionDeadlineMs: Number(fixture.gitActionDeadlineMs),
     inventoryStaleAfterMs: Number(fixture.inventoryStaleAfterMs),
-    perf: perfSampleOf(fixture.perf),
     codingTool: {
       command: text(codingTool.command),
       message: draftedCommitOf(codingTool.message),
@@ -412,7 +353,6 @@ function manifestOf(value: unknown): Manifest {
     socketPath: text(manifest.socketPath),
     credentialFile: text(manifest.credentialFile),
     hitsFile: text(manifest.hitsFile),
-    gitTrace: typeof manifest.gitTrace === 'string' ? manifest.gitTrace : null,
     bin: text(manifest.bin),
     installation: text(manifest.installation),
     codingTool: text(manifest.codingTool),
@@ -543,7 +483,6 @@ export class ServerHandle {
   readonly fixture: Fixture;
   readonly routes: readonly string[];
   readonly tools: readonly string[];
-  readonly gitTrace: string | null;
   private readonly hitsFile: string;
   private readonly bin: string;
   private readonly codingTool: string;
@@ -560,7 +499,6 @@ export class ServerHandle {
     this.fixture = manifest.fixture;
     this.routes = manifest.routes;
     this.tools = manifest.tools;
-    this.gitTrace = manifest.gitTrace;
     this.hitsFile = manifest.hitsFile;
     this.bin = manifest.bin;
     this.codingTool = manifest.codingTool;
@@ -842,9 +780,6 @@ export class ServerHandle {
       },
     };
     recorder.steps.push(step);
-    const traced =
-      this.gitTrace === null ? undefined : traceSize(this.gitTrace);
-    const startedAt = performance.now();
     try {
       const response = await this.exchange(
         target,
@@ -858,10 +793,6 @@ export class ServerHandle {
         },
         payload,
       );
-      if (this.gitTrace !== null && traced !== undefined) {
-        step.durationMs = Math.round(performance.now() - startedAt);
-        step.git = await traceSince(this.gitTrace, traced);
-      }
       recorder.harvest(response.body);
       recorder.harvest(response.headers);
       const cookie = /porcelain_device=([^;]+)/.exec(
@@ -1135,7 +1066,7 @@ export class IsolatedServer extends ServerHandle {
   static async start(
     repositoryRoot: string,
     build: string,
-    sample?: 'perf' | 'service-ahead' | 'git-interruption',
+    sample?: 'service-ahead' | 'git-interruption',
     onOutput?: (text: string) => void,
     port?: number,
     allowedHosts: readonly string[] = [],

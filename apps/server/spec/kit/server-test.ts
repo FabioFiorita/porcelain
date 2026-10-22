@@ -13,7 +13,6 @@ import type { Session } from './session.ts';
 declare module 'vitest' {
   export interface ProvidedContext {
     serverBuild: string;
-    serverSample: 'perf' | 'none';
     serverRoutes: string;
   }
 }
@@ -71,14 +70,9 @@ export const test = base
       return log;
     },
   )
-  .extend('server', { scope: 'file' }, async ({ routeLog }, { onCleanup }) => {
-    const sample = inject('serverSample');
-    return startServer(
-      sample === 'perf' ? sample : undefined,
-      routeLog,
-      onCleanup,
-    );
-  })
+  .extend('server', { scope: 'file' }, ({ routeLog }, { onCleanup }) =>
+    startServer(undefined, routeLog, onCleanup),
+  )
   .extend('ids', { scope: 'file' }, ({ server }) => server.sampleIds())
   .extend('recorder', async ({ server, onTestFailed }, { onCleanup }) => {
     const recorder = new Recorder();

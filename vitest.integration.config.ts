@@ -31,17 +31,6 @@ export default defineConfig({
       },
       {
         test: {
-          name: '@porcelain/server-perf',
-          root: import.meta.dirname,
-          include: ['apps/server/spec/perf/*.perf.ts'],
-          globalSetup: ['apps/server/spec/kit/global-setup.ts'],
-          expect: { requireAssertions: true },
-          testTimeout: 60_000,
-          hookTimeout: 120_000,
-        },
-      },
-      {
-        test: {
           name: '@porcelain/client-integration',
           root: import.meta.dirname,
           include: ['packages/client/spec/integration/*.integration.ts'],

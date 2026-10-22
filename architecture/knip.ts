@@ -139,7 +139,7 @@ export default {
       entry: [
         'src/bootstrap/main.ts',
         'src/**/*.spec.ts',
-        'spec/**/*.{spec,integration,perf}.ts',
+        'spec/**/*.{spec,integration}.ts',
       ],
       project: ['src/**/*.ts', 'spec/**/*.ts'],
     },

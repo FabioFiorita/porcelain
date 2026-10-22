@@ -103,7 +103,7 @@ export async function checkStyle(
       const child = join(path, entry.name);
       if (entry.isDirectory())
         return skippedDirectories.has(entry.name) ||
-          /^(?:apps\/mobile\/(?:ios|android|\.expo)|repos)$/.test(child)
+          /^apps\/mobile\/(?:ios|android|\.expo)$/.test(child)
           ? []
           : filesUnder(child);
       return entry.isFile() ? [child] : [];
@@ -134,12 +134,7 @@ export async function checkStyle(
     if (listed.error) throw listed.error;
     return listed.stdout
       .split('\n')
-      .filter(
-        (path) =>
-          existsSync(path) &&
-          !path.startsWith('.claude/') &&
-          !path.startsWith('repos/'),
-      );
+      .filter((path) => existsSync(path) && !path.startsWith('.claude/'));
   }
   function codeOutsideLintRoots(files: readonly string[]): Problem[] {
     return files
