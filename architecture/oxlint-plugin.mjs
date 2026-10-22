@@ -557,6 +557,120 @@ function isSpec(context) {
   );
 }
 
+function browserSpec(context) {
+  return /\/apps\/(?:web\/spec\/(?:integration\/.+\.test\.tsx|e2e\/.+\.e2e\.ts)|desktop\/spec\/e2e\/.+\.e2e\.ts)$/.test(
+    normalizedFilename(context.filename),
+  );
+}
+
+function antiFlakeSpec(context) {
+  return (
+    isSpec(context) ||
+    browserSpec(context) ||
+    /\/apps\/server\/spec\/integration\/.+\.integration\.ts$/.test(
+      normalizedFilename(context.filename),
+    )
+  );
+}
+
+function browserWaits(context) {
+  const original = webRules['web-journey-no-waits'].create(context);
+  if (!browserSpec(context)) return original;
+  const message =
+    'Await a locator assertion or a semantic event, because timers, renderer frames and animation completion race host load and do not prove the promised state.';
+  const waits = new Set([
+    'setTimeout',
+    'setInterval',
+    'requestAnimationFrame',
+    'requestIdleCallback',
+    'waitForTimeout',
+    'sleep',
+    'delay',
+  ]);
+  const transitions = new Set(['transitionend', 'animationend']);
+  const timerImports = new Set();
+  const timerNamespaces = new Set();
+  return {
+    ...original,
+    ImportDeclaration(node) {
+      if (
+        !typeOnlyImport(node) &&
+        /^(?:node:)?timers(?:\/promises)?$/.test(node.source.value)
+      ) {
+        for (const specifier of node.specifiers) {
+          if (specifier.type !== 'ImportSpecifier')
+            timerNamespaces.add(specifier.local.name);
+          else if (
+            ['setTimeout', 'setInterval', 'setImmediate'].includes(
+              specifier.imported.name,
+            )
+          )
+            timerImports.add(specifier.local.name);
+        }
+      }
+    },
+    CallExpression(node) {
+      const callee = node.callee;
+      if (
+        (callee.type === 'Identifier' && timerImports.has(callee.name)) ||
+        (callee.type === 'MemberExpression' &&
+          callee.object.type === 'Identifier' &&
+          timerNamespaces.has(callee.object.name) &&
+          ['setTimeout', 'setInterval', 'setImmediate'].includes(
+            memberName(callee),
+          ))
+      ) {
+        context.report({ node, message });
+        return;
+      }
+      const name =
+        callee.type === 'Identifier'
+          ? callee.name
+          : callee.type === 'MemberExpression'
+            ? memberName(callee)
+            : undefined;
+      if (
+        waits.has(name) ||
+        (callee.type === 'MemberExpression' &&
+          callee.computed &&
+          name === undefined &&
+          ['page', 'window', 'globalThis', 'self'].includes(
+            chainRoot(callee),
+          )) ||
+        (['addEventListener', 'once', 'on'].includes(name) &&
+          transitions.has(node.arguments[0]?.value))
+      ) {
+        if (
+          ![
+            'setTimeout',
+            'setInterval',
+            'requestAnimationFrame',
+            'requestIdleCallback',
+          ].includes(name) ||
+          callee.computed ||
+          normalizedFilename(context.filename).includes('/apps/desktop/')
+        )
+          context.report({ node, message });
+        return;
+      }
+      original.CallExpression?.(node);
+    },
+    NewExpression(node) {
+      if (!normalizedFilename(context.filename).includes('/apps/desktop/'))
+        return;
+      if (node.callee.name !== 'Promise') return;
+      const executor = node.arguments[0];
+      const name =
+        executor?.type === 'Identifier'
+          ? executor.name
+          : executor?.type === 'MemberExpression'
+            ? memberName(executor)
+            : undefined;
+      if (waits.has(name)) context.report({ node, message });
+    },
+  };
+}
+
 function chainRoot(node) {
   let current = node;
   while (
@@ -1001,6 +1115,7 @@ export default {
     },
     ...nativeHttpRules,
     ...webRules,
+    'web-journey-no-waits': { create: browserWaits },
     ...mobileRules,
     'worktree-admission-owner': {
       create(context) {
@@ -2223,27 +2338,37 @@ export default {
     },
     'spec-no-clock': {
       create(context) {
-        if (!/\.spec\.ts$/.test(context.filename)) return {};
+        if (!antiFlakeSpec(context)) return {};
         const message =
-          'Unit specs assert deterministic results; time bounds belong to the perf project, because wall clocks measure host contention as well as code.';
+          'Specs use fixed instants or an injected clock, because wall clocks make fixtures drift and elapsed-time assertions measure host contention as well as code.';
+        function clockPath(node) {
+          if (node.type === 'Identifier') return node.name;
+          if (node.type !== 'MemberExpression') return undefined;
+          const owner = clockPath(node.object);
+          const member = memberName(node);
+          return owner && member !== undefined
+            ? `${owner}.${member}`
+            : undefined;
+        }
         return {
           NewExpression(node) {
             if (
               node.arguments.length === 0 &&
-              ['Date', 'globalThis.Date'].includes(
-                memberPath(node.callee)?.join('.'),
+              ['Date', 'globalThis.Date', 'window.Date', 'self.Date'].includes(
+                clockPath(node.callee),
               )
             )
               context.report({ node, message });
           },
           MemberExpression(node) {
-            const owner = memberPath(node.object)?.join('.');
-            const path = `${owner}.${memberName(node)}`;
+            const owner = clockPath(node.object)?.replace(
+              /^(?:globalThis|window|self)\./,
+              '',
+            );
             if (
-              path === 'performance.now' ||
-              path === 'Date.now' ||
-              path === 'globalThis.performance.now' ||
-              path === 'globalThis.Date.now'
+              ['Date', 'performance'].includes(owner) &&
+              (memberName(node) === 'now' ||
+                (node.computed && memberName(node) === undefined))
             )
               context.report({ node, message });
           },
@@ -2399,12 +2524,38 @@ export default {
     },
     'spec-no-skips': {
       create(context) {
-        if (!isSpec(context)) return {};
+        if (
+          !antiFlakeSpec(context) ||
+          (browserSpec(context) &&
+            !normalizedFilename(context.filename).includes('/apps/desktop/'))
+        )
+          return {};
         const message =
-          'Every spec runs every time; remove the skip, only, todo or fails, because a skipped or exclusive case leaves regressions unchecked.';
+          'Every spec runs every time; remove the skip, only, todo, fails, fixme or fail, because a skipped or exclusive case leaves regressions unchecked.';
         return {
           MemberExpression(node) {
             const testMember = testFunctions.has(chainRoot(node) ?? '');
+            const gate =
+              node.parent?.type === 'CallExpression'
+                ? node.parent.arguments[0]
+                : undefined;
+            if (
+              !isSpec(context) &&
+              testMember &&
+              ['skipIf', 'runIf'].includes(memberName(node)) &&
+              gate?.type === 'BinaryExpression' &&
+              ['===', '!=='].includes(gate.operator) &&
+              [
+                [gate.left, gate.right],
+                [gate.right, gate.left],
+              ].some(
+                ([platform, target]) =>
+                  memberPath(platform)?.join('.') === 'process.platform' &&
+                  target.type === 'Literal' &&
+                  ['linux', 'darwin', 'win32'].includes(target.value),
+              )
+            )
+              return;
             if (testMember && node.computed && memberName(node) === undefined) {
               context.report({
                 node: node.property,
@@ -2414,7 +2565,9 @@ export default {
               return;
             }
             if (
-              (skippingModifiers.has(memberName(node) ?? '') && testMember) ||
+              ((skippingModifiers.has(memberName(node) ?? '') ||
+                ['fixme', 'fail'].includes(memberName(node))) &&
+                testMember) ||
               (!node.computed && memberName(node) === 'skip')
             )
               context.report({ node: node.property, message });

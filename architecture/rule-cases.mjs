@@ -509,6 +509,183 @@ export const saveBoth = Atom.writable(
     errors: 1,
   },
   ...effectRuleCases,
+  ...[
+    'packages/client/src/rules/sample.spec.ts',
+    'packages/client/spec/integration/sample.integration.ts',
+    'packages/reviews/spec/contracts/sample.ts',
+    'apps/server/spec/integration/sample.integration.ts',
+    'apps/web/spec/integration/sample.test.tsx',
+    'apps/web/spec/e2e/sample.e2e.ts',
+    'apps/desktop/spec/e2e/sample.e2e.ts',
+  ].flatMap((path) => [
+    ...[
+      ['Date.now();', 1],
+      ['performance.now();', 1],
+      ['new Date();', 1],
+      [
+        "globalThis['Date'].now(); window['performance'].now(); new self['Date']();",
+        3,
+      ],
+      [
+        "globalThis.Date['now'](); window.performance['now'](); new self.Date();",
+        3,
+      ],
+      ['Date[method](); performance[method]();', 2],
+    ].map(([invalid, errors]) => ({
+      rule: 'spec-no-clock',
+      path,
+      valid:
+        "expect(new Date('2026-01-01T00:00:00Z').toISOString()).toBe('2026-01-01T00:00:00.000Z'); TestClock.adjust(100); Date.parse('2026-01-01'); clock.now();",
+      invalid,
+      errors,
+    })),
+    ...[
+      'apps/web/spec/kit/sample.ts',
+      'apps/desktop/spec/kit/sample.ts',
+      'apps/server/spec/kit/sample.ts',
+      'apps/mobile/spec/kit/sample.ts',
+      'apps/web/src/features/files/commands/sample.ts',
+    ].map((validPath) => ({
+      rule: 'spec-no-clock',
+      path,
+      validPath,
+      valid: 'Date.now(); performance.now(); new Date();',
+      invalid: 'Date.now();',
+      errors: 1,
+    })),
+  ]),
+  ...[
+    'apps/server/spec/integration/sample.integration.ts',
+    'apps/desktop/spec/e2e/sample.e2e.ts',
+  ].flatMap((path) => [
+    ...[
+      'skip',
+      'only',
+      'todo',
+      'skipIf',
+      'runIf',
+      'fails',
+      'fixme',
+      'fail',
+    ].map((modifier) => ({
+      rule: 'spec-no-skips',
+      path,
+      valid:
+        "test('keeps the result', async () => { await expect(page.getByRole('status')).toBeVisible(); });",
+      invalid: `test['${modifier}']('keeps the result', () => {});`,
+      errors: 1,
+    })),
+    {
+      rule: 'spec-no-skips',
+      path,
+      valid:
+        "test.skipIf(process.platform !== 'linux')('uses Linux sockets', () => {}); test['runIf']('darwin' === process.platform)('uses macOS', () => {});",
+      invalid: "test.skipIf(disabled)('hides the case', () => {});",
+      errors: 1,
+    },
+    {
+      rule: 'spec-no-skips',
+      path,
+      valid: "test['each']([1])('keeps %s', () => {});",
+      invalid: "test[modifier]('keeps the result', () => {});",
+      errors: 1,
+    },
+    {
+      rule: 'spec-no-skips',
+      path,
+      valid: "test('keeps the result', () => {});",
+      invalid: "test.skip('first', () => {}); test.only('second', () => {});",
+      errors: 2,
+    },
+    {
+      rule: 'spec-no-skips',
+      path,
+      validPath: 'apps/desktop/spec/kit/sample.ts',
+      valid: "test.skip('kit control', () => {});",
+      invalid: "test.skip('keeps the result', () => {});",
+      errors: 1,
+    },
+  ]),
+  ...[
+    'apps/web/spec/integration/sample.test.tsx',
+    'apps/web/spec/e2e/sample.e2e.ts',
+    'apps/desktop/spec/e2e/sample.e2e.ts',
+  ].flatMap((path) => [
+    ...[
+      ['await new Promise(resolve => requestAnimationFrame(resolve));', 1],
+      [
+        "await new Promise(resolve => window['requestAnimationFrame'](resolve));",
+        1,
+      ],
+      ['await new Promise(requestAnimationFrame);', 1],
+      ['await new Promise(resolve => setTimeout(resolve, 10));', 1],
+      ['await new Promise(resolve => setInterval(resolve, 10));', 1],
+      ["await page['waitForTimeout'](10);", 1],
+      ['await page[method](10);', 1],
+      [
+        "import { setTimeout as timer } from 'node:timers'; timer(done, 10).unref();",
+        1,
+      ],
+      [
+        "import * as timers from 'node:timers'; timers.setTimeout(done, 10).unref();",
+        1,
+      ],
+      [
+        "await new Promise(resolve => element['addEventListener']('transitionend', resolve));",
+        1,
+      ],
+      [
+        "await new Promise(resolve => element.addEventListener('animationend', resolve));",
+        1,
+      ],
+      [
+        "import { setTimeout as wait } from 'node:timers/promises'; await wait(10);",
+        1,
+      ],
+      [
+        "import * as timers from 'node:timers/promises'; await timers.setTimeout(10);",
+        1,
+      ],
+      [
+        "import { setTimeout } from 'node:timers/promises'; await setTimeout(10);",
+        1,
+      ],
+      ["import { setInterval as ticks } from 'timers/promises'; ticks(10);", 1],
+      [
+        "await page.waitForTimeout(10); element.addEventListener('transitionend', done); element.addEventListener('animationend', done);",
+        3,
+      ],
+    ].map(([invalid, errors]) => ({
+      rule: 'web-journey-no-waits',
+      path,
+      valid:
+        "await expect(page.getByRole('status')).toBeVisible(); await expect.element(status).toBeVisible(); await expect.poll(() => server.saved()).toBe('kept'); await connection.next(notice => notice.type === 'changed'); TestClock.adjust(100); element.addEventListener('saved', done);",
+      invalid,
+      errors,
+    })),
+    {
+      rule: 'web-journey-no-waits',
+      path,
+      valid:
+        "import { clearTimeout as clear } from 'node:timers'; clear(timer);",
+      invalid:
+        "import { setTimeout as pause } from 'node:timers/promises'; await pause(10);",
+      errors: 1,
+    },
+    ...[
+      'apps/web/spec/kit/sample.ts',
+      'apps/desktop/spec/kit/sample.ts',
+      'apps/mobile/spec/kit/sample.ts',
+    ].map((validPath) => ({
+      rule: 'web-journey-no-waits',
+      path,
+      validPath,
+      valid:
+        "import { setTimeout as wait } from 'node:timers/promises'; await wait(10);",
+      invalid: 'await page.waitForTimeout(10);',
+      errors: 1,
+    })),
+  ]),
   {
     rule: 'spec-no-clock',
     path: 'apps/server/src/rules/sample.spec.ts',
