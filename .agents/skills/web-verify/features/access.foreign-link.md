@@ -11,38 +11,31 @@ api:
 
 # access.foreign-link
 
-## What it is
-
 A pairing link whose installation id is not this server's is refused after the web reads the real server's health: the not-paired page says the link was made for a different installation, and no device is paired.
 
-## How a user reaches it
+## How to get to it (user POV)
 
 - Open a pairing link (`/pair#c=<code>&e=<installation id>`) made by another Porcelain installation.
 
-## Driving it
+## Driving it with browser
 
-`$C start`; pair your browser using the card’s pairing-link command. The link check runs before any code is redeemed, so a hand-made link with any non-empty code and a random installation id reproduces it; no real link is needed.
+Preconditions: [surface baseline](README.md).
 
-### Setup
+1. Navigate to `/pair#c=not-for-this-server&e=00000000-0000-4000-8000-000000000000`
+   Expect: heading "This browser is not paired" and a destructive alert reading "This link was made for a different Porcelain installation."; URL `/pair` with no `#c=` fragment (the loader strips it before checking).
+2. Inspect HTTP traffic
+   Expect: `GET /api/health` answered 200 and NO `POST /api/pair` after it. `$C server devices` lists only "Development setup" and the "Verification browser" you paired with the card’s link.
+3. Navigate to `/`
+   Expect: the workspace again (region "Review content", title "Changes — repository"): the refused link did not touch this browser's existing session.
 
-None.
+### Observable proof
 
-1. Navigate to `/pair#c=not-for-this-server&e=00000000-0000-4000-8000-000000000000` on the card’s web URL (full page load)
-   Look for: heading "This browser is not paired" and a destructive alert reading "This link was made for a different Porcelain installation."; Page URL `/pair` with no `#c=` fragment (the loader strips it before checking).
-2. Inspect HTTP requests and responses
-   Look for: `GET /api/health` answered 200 and NO `POST /api/pair` after it. `$C server devices` lists only "Development setup" and the "Verification browser" you paired with the card’s link.
-3. Navigate to `/` on the card’s web URL (full page load)
-   Look for: the workspace again (region "Review content", Page Title "Changes — repository"): the refused link did not touch this browser's existing session.
+Record health plus refusal with zero pairing POSTs and no new `$C server devices` entry.
 
-## What proves it works
-
-- The alert text "This link was made for a different Porcelain installation." under the not-paired heading, and inspect HTTP requests and responses showing the health read without any `POST /api/pair`: no code was redeemed, so no device could be paired.
-- `$C server devices` gains no device from the refused link.
-- `apps/web/spec/e2e/access-foreign-link.e2e.ts`: opening a link with a random installation id shows the different-installation message and the not-paired heading, and `server.devices()` gains no device with the link's label.
+Automated coverage: `access-foreign-link.e2e.ts`.
 
 ## Gotchas
 
-- Quote the route: the shell treats `&` and `#` specially.
-- Both `c` and `e` must be non-empty; a link missing either shows "That link carried no pairing code." instead.
-- The browser at the map viewport is already paired; an invalid foreign link renders the refusal page even with an existing session, so the heading alone does not prove anything about pairing. The alert text and the network log do.
-- The real-link variant with this instance's own id (which fails on the code instead) needs the environment id from `GET /api/health` (`curl -s "<web URL>/api/health"`); not required for this promise.
+- Quote URLs containing `&`/`#`. Both c/e must be nonempty; otherwise expect “That link carried no pairing code.”
+- A paired browser also renders foreign-link refusal; use the alert/network/device readback, not just the not-paired heading.
+- Testing the right-installation/wrong-code variant needs this fixture's environment ID from health.

@@ -20,17 +20,15 @@ api:
 
 # reviews.mark-all
 
-## What it is
-
 The Changes document's toolbar button marks every changed file reviewed in one request; a file that changes on disk afterwards becomes eligible again ("Mark all 1 files reviewed"), and once everything is reviewed the same button reads "Unmark all" and clears every mark.
 
-## How a user reaches it
+## How to get to it (user POV)
 
 - The Changes (handoff) document, shown when no review is published: toolbar button "Mark all reviewed", accessible name "Mark all <n> files reviewed"; it becomes "Unmark all" when every reviewable file is reviewed.
 
-## Driving it
+## Driving it with browser
 
-`$C start`; pair your browser using the card’s pairing-link command (set `$REPO` from `connection.json` → `fixtures.repositoryPath`).
+Preconditions: [surface baseline](README.md).
 
 ### Setup
 
@@ -38,25 +36,22 @@ The Changes document's toolbar button marks every changed file reviewed in one r
 printf 'Notes to review\n' > "$REPO/NOTES.md"
 ```
 
-1. Navigate to `/` on the card’s web URL (full page load)
-   Look for: heading "Changes", text "2 files", button "Mark all 2 files reviewed" (text "Mark all reviewed"), buttons "Mark README.md as reviewed" and "Mark NOTES.md as reviewed".
-2. Click button named `Mark all 2 files reviewed`
-   Look for: button "Unmark all" enabled; status "Marked 2 files."; buttons "Unmark README.md as unreviewed" and "Unmark NOTES.md as unreviewed"; both diffs fold (buttons "Expand README.md", "Expand NOTES.md"). `$C server reviewed-files` lists NOTES.md and README.md with their fingerprints.
-3. On disk: `printf 'Notes changed after the review\n' > "$REPO/NOTES.md"`, then wait for button named `Mark all 1 files reviewed` to be visible and inspect the accessibility tree
-   Look for: button "Mark all 1 files reviewed" enabled; button "Mark changed NOTES.md as reviewed" with the badge text "Changed since reviewed"; README.md still "Unmark README.md as unreviewed".
-4. Click button named `Mark all 1 files reviewed`
-   Look for: button "Unmark all" enabled; status "Marked 1 file. Skipped 1." (README.md was already reviewed); "Unmark NOTES.md as unreviewed".
-5. Click button named `Unmark all`
-   Look for: button "Mark all 2 files reviewed" enabled; "Mark README.md as reviewed" and "Mark NOTES.md as reviewed". `$C server reviewed-files` shows `"marks": []`.
+1. Navigate to `/`
+   Expect: heading "Changes", text "2 files", button "Mark all 2 files reviewed" (text "Mark all reviewed"), buttons "Mark README.md as reviewed" and "Mark NOTES.md as reviewed".
+2. Click button `Mark all 2 files reviewed`
+   Expect: button "Unmark all" enabled; status "Marked 2 files."; buttons "Unmark README.md as unreviewed" and "Unmark NOTES.md as unreviewed"; both diffs fold (buttons "Expand README.md", "Expand NOTES.md"). `$C server reviewed-files` lists NOTES.md and README.md with their fingerprints.
+   Proof before continuing: reload now: Unmark all and both fingerprints persist. `$C server reviewed-files` after each mark holds both fingerprints; after step 5 it holds none and the reload must show Mark all 2 files reviewed. Bulk PUT/DELETE answer 200.
 
-## What proves it works
+3. On disk: `printf 'Notes changed after the review\n' > "$REPO/NOTES.md"`, then wait for button `Mark all 1 files reviewed`
+   Expect: button "Mark all 1 files reviewed" enabled; button "Mark changed NOTES.md as reviewed" with the badge text "Changed since reviewed"; README.md still "Unmark README.md as unreviewed".
+4. Click button `Mark all 1 files reviewed`
+   Expect: button "Unmark all" enabled; status "Marked 1 file. Skipped 1." (README.md was already reviewed); "Unmark NOTES.md as unreviewed".
+5. Click button `Unmark all`
+   Expect: button "Mark all 2 files reviewed" enabled; "Mark README.md as reviewed" and "Mark NOTES.md as reviewed". `$C server reviewed-files` shows `"marks": []`.
 
-- The button labels in steps 2 to 5 and inspect HTTP requests and responses: `PUT /api/worktrees/<id>/reviewed-bulk` 200 for steps 2 and 4, `DELETE /api/worktrees/<id>/reviewed-bulk` 200 for step 5.
-- Persistence: `$C server reviewed-files` reads both marks with their fingerprints after steps 2 and 4 and none after 5; Navigate to `/` on the card’s web URL (full page load) after step 2 or 4 still shows "Unmark all".
-- `apps/web/spec/integration/reviews-mark-all.test.tsx`: after marking all, both files are reviewed at their current fingerprints (`server.reviewedFiles()` against `server.changes()`); rewriting NOTES.md leaves only README.md reviewed as it is and offers "Mark all 1 files reviewed"; marking again covers both; "Unmark all" leaves no marks.
+Automated coverage: `reviews-mark-all.test.tsx`.
 
 ## Gotchas
 
-- The page follows the disk write through the server's watcher and the live connection, which the visible-image wait in step 3 follows.
-- Only shown while no review is published: with a published review the handoff tab shows the walkthrough instead and this button moves to the All changes document.
-- Marks persist on the server and NOTES.md stays on disk; end with step 5 and `rm "$REPO/NOTES.md"` before another feature that counts files.
+- Bulk counts exclude already reviewed current files; unmark first. With a published review, bulk controls live in All changes rather than walkthrough.
+- Leave marks cleared and remove NOTES.md before another file-count journey.

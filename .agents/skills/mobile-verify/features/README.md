@@ -1,44 +1,60 @@
 # Mobile feature map
 
-One file per screen and flow the mobile app offers, named `<domain>.<capability>.md`. Each says what it is, how a user reaches it, tool-neutral steps, stable roles, labels and test ids, and the expected end state, the unit and integration tests that guard its logic and its gotchas. Its frontmatter names the `screen` it lives on (as Expo Router names `apps/mobile/src/app`), the `selectors` its steps use (test ids and accessible names spelled as `apps/mobile/src` spells them), the `tests` and the `api` routes it calls. `pnpm check` runs `node scripts/feature-maps.ts`, which checks frontmatter and file names, that every screen has a map, that declared screens and tests exist, that selectors appear in app or shared client source, that API entries match endpoints declared in packages/contracts, and that this index links every map. It does not scan client call reachability or enforce prose or section order.
+Read [mobile verification](../SKILL.md) for lifecycle and device setup, then choose a feature below.
 
-| Feature                                                   | Screen             | What it does                                                                                                                                                     |
-| --------------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [app.catalog-library](app.catalog-library.md)   | /component-library | Development-only directory of implemented mobile primitives.                                                                                                     |
-| [app.catalog-text](app.catalog-text.md)         | /component-text    | Development-only type, tone, weight and selection samples.                                                                                                       |
-| [app.catalog-preview](app.catalog-preview.md)   | /component-preview | Development-only file, review, history and native rendering samples.                                                                                             |
-| [app.catalog-button](app.catalog-button.md)     | /component-button  | Development-only button variants, sizes and interaction states.                                                                                                  |
-| [access.environment-status](access.environment-status.md) | /computers          | Each computer row says Checking, Online, Offline, Needs pairing, Another server or Update needed from what its server answered.                               |
-| [access.forget-environment](access.forget-environment.md) | /computers          | A computer row has Forget computer, which removes it, its credential and its remembered workspace from this device, through a cold launch.     |
-| [access.lan-pairing](access.lan-pairing.md)               | /computers          | Pairing with a Porcelain on another computer over the local network and reconnecting after a cold launch; a checkpoint against a separate disposable LAN server. |
-| [access.pairing](access.pairing.md)                       | /computers          | Add computer pairs through a pasted link, refuses an invalid one, pairs several and restores them after a cold launch.                                        |
-| [access.settings](access.settings.md)                     | /settings          | General, Reviews & Git and Computers, with app version and copyable per-computer device IDs.                                                     |
-| [app.deep-links](app.deep-links.md)                       | /                  | The app's scheme opens Review, Files, History and Settings directly, warm or after a cold launch.                                                                |
-| [app.phone-shell](app.phone-shell.md)                     | /                  | On a phone, four native tabs, ready on Files within 30 seconds of a cold launch.                                                                                 |
-| [app.tablet-shell](app.tablet-shell.md)                   | /                  | On iPad, a worktree sidebar, shared central documents and right inspector with native toolbar controls.                                                    |
-| [files.files](files.files.md)                             | /files             | Browse and search the selected worktree; create, rename and trash entries.                                                                                                              |
-| [files.preview](files.preview.md) | /file | Read source, Markdown, self-contained HTML and images; unsupported entries show notices. |
-| [history.history](history.history.md)                     | /history           | History lists live commits for the selected worktree and loads older pages.                                                                                                          |
-| [projects.workspace-picker](projects.workspace-picker.md) | /workspaces        | The pushed Worktrees screen and iPad sidebar show statuses across paired projects and environments, with search, checkbox filters, Closed and checkout selection.       |
-| [preferences.appearance](preferences.appearance.md) | /general | General preserves Theme, Long lines and document defaults across cold launches and offers recovery when saved preferences cannot be read. |
-| [reviews.review](reviews.review.md)                       | /review            | Live changed files, reviewed markers, agent explanations and comments for the selected worktree.                                                                       |
+## Baseline preconditions
 
-| [history.commit](history.commit.md) | /history/commit/[oid] | Commit message, comparison parents and changed files. |
-| [history.diff](history.diff.md) | /history/commit/[oid]/diff | Read-only commit file diff and explicit unavailable states. |
+- From the repository root set `C=.agents/skills/mobile-verify/scripts/cli`. Run `$C doctor` and `$C start --fixture focused` with the owned device flags. Android uses `--device android --serial <serial>` on a booted emulator. A missing matching native build must be resolved before startup.
+- Read the card and private `connection.json`; set `REPO` to `fixtures.repositoryPath`. The focused fixture has a small README repository without published reviews/comments. Use the map's publication/setup commands when needed; restart to reset. The development fixture is a separate richer sample.
+- Startup pairs through Settings and closes its setup session. For a manual pairing journey use `--manual-pairing`; otherwise reuse the paired development client. Never use installed app data or a physical Android device.
 
-## Platform coverage
+## Driving conventions
 
-Mobile has no E2E suite; drive each platform on demand with the mobile-verify skill. [Android development](../references/android.md) builds, installs, pairs and drives the same disposable fixture locally on Linux. Android has its own native views (`*.android.tsx`); an iPhone or iPad journey does not prove them. Capture the platform and the specific journeys driven in each change's evidence. The iOS Local Network permission prompt needs a physical device.
+- Preserve the card's complete agent-device invocation, including config, session, platform and device flags, on every command. Open `mobile.bundleIdentifier` with `--foreground`; iOS then needs `prepare ios-runner`. Refresh `snapshot -i` before pressing refs; use a full snapshot without `-i` for static text and counters. Use screenshots to confirm native tabs whose selected trait is absent.
+- For deep links and cold launches follow [driving](../references/driving.md): keep the development flags and reconnect to `mobile.metroUrl`. Pairing links expire and work once; wait for keyboard animation before Pair.
+- Phones use tabs and native Back/swipe. iPad uses worktree navigation, central document tabs and a right inspector: drive landscape first, then portrait/narrow panes. Verify entry and return paths, retained selection and draft protection.
+- Run fixture operations through `$C agent …` and independent readbacks through `$C server …`; run shell/Git setup in `REPO`. Selected-workspace loading, unavailable and retry journeys are shared in [Worktrees](projects.workspace-picker.md#driving-it-with-agent-device).
+- Preference storage readbacks use the owned development app's `porcelain-preferences.db`. Keep tokens, pairing links and driver configuration private.
+- Mobile has no E2E suite. Android, iPhone, iPad, physical-device LAN permissions and remote routing require separate proof; a loopback emulator run establishes only that platform/connection. See [Android setup](../references/android.md).
 
-- [reviews.file](reviews.file.md): Open a current comparison, mark it reviewed and select lines for feedback.
-- [reviews.comments](reviews.comments.md): Post, reply, resolve and reopen feedback in the native sheet.
+## Feature entry contract
 
-- [app.workspace](app.workspace.md): iPad worktree sessions share one central document area and Files, Review and History in a right inspector.
+Each map has one short behavior paragraph, then three sections: How to get to it (user POV), Driving it with the surface harness, and Gotchas. Keep user paths, stable handles, required state, commands and observable proof. Frontmatter keeps the route/screen, selectors, tests, API and optional desktop shell tag for `pnpm features:check`; it is not evidence that a journey passed.
 
-- [Multiple connections](access.connections.md) — pairing, preference, fallback and removal for one environment.
+## Proof and skip reporting
 
-- [reviews.linked-review](reviews.linked-review.md): HTTPS review destinations, verdict and published decision excerpts.
+- Capture the action and result, with a fresh interactive snapshot and screenshot identifying the app and destination. Store driver actions, URL/title and diagnostics in the card's evidence directory; redact pairing fragments and credentials.
+- Verify mutations independently through the filesystem, Git, storage or the card's typed `$C server …` readbacks. A success toast alone is insufficient.
+- Report the map, entry points, platform, width and connection actually driven. Named automated tests, source review and live proof are separate results. An unmet precondition is a reported gap, never a reason to weaken the journey.
+- Restore mutated fixtures or restart the disposable instance before repeating. Stop with the card's command; retain evidence after cleanup.
 
-- [access.computers](access.computers.md): Connection management, update offers, trust and shared bulk updates.
-- [access.updates](access.updates.md): Worktrees Update badge and native Updates available sheet.
-- [preferences.reviews-git](preferences.reviews-git.md): Archive deletion, pull strategy and installed commit models.
+## Features
+
+- [access.computers](access.computers.md) — Computer management, trust and batch updates.
+- [access.connections](access.connections.md) — Connection preference, fallback and removal.
+- [access.environment-status](access.environment-status.md) — Connection status, revoked devices and recovery.
+- [access.forget-environment](access.forget-environment.md) — Forget a saved computer locally and retain the others.
+- [access.lan-pairing](access.lan-pairing.md) — Local-network pairing and reconnection.
+- [access.pairing](access.pairing.md) — Paste links, pair multiple computers and restore after launch.
+- [access.settings](access.settings.md) — Settings categories, version and per-computer IDs.
+- [access.updates](access.updates.md) — Update visibility, sheet navigation and batch outcomes.
+- [app.catalog-button](app.catalog-button.md) — Button variants, actions, disabled and pending states.
+- [app.catalog-library](app.catalog-library.md) — Catalog entry, sample selection and return.
+- [app.catalog-preview](app.catalog-preview.md) — Primitive previews, interactions and failures.
+- [app.catalog-text](app.catalog-text.md) — Text styles, wrapping and native selection.
+- [app.deep-links](app.deep-links.md) — Warm, cold and unpaired destinations.
+- [app.phone-shell](app.phone-shell.md) — Native tabs and startup navigation.
+- [app.tablet-shell](app.tablet-shell.md) — Sidebar, inspector and central documents.
+- [app.workspace](app.workspace.md) — Per-worktree document tabs and inspector state.
+- [files.files](files.files.md) — Browse, search, create, rename, trash and preferences.
+- [files.preview](files.preview.md) — Source, document and image previews.
+- [history.commit](history.commit.md) — Commit metadata, merge parents and file navigation.
+- [history.diff](history.diff.md) — Commit comparisons, unavailable patches and comments.
+- [history.history](history.history.md) — Commit browsing, pagination and live updates.
+- [preferences.appearance](preferences.appearance.md) — Theme, long lines, document defaults and persistence.
+- [preferences.reviews-git](preferences.reviews-git.md) — Archive defaults, pull strategy and commit models.
+- [projects.workspace-picker](projects.workspace-picker.md) — Worktree selection, filters, status and archive.
+- [reviews.comments](reviews.comments.md) — Post, reply, resolve, reopen and retain drafts.
+- [reviews.file](reviews.file.md) — Review diffs, source selection and feedback.
+- [reviews.linked-review](reviews.linked-review.md) — Published verdicts, decisions and retained excerpts.
+- [reviews.review](reviews.review.md) — Changed files, agent decisions and completion.

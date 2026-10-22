@@ -18,8 +18,23 @@ tests:
 
 # history.diff
 
-Open a changed file from commit detail. The native file renderer shows the path, status and the patch with old/new line numbers. Only this file's paths are requested, preserving both paths of a rename. On phones, Back and edge swipe return to the commit, then the list. On iPad, files opened from History activate diff tabs in the same workspace. The selected environment, project, worktree, commit and merge parent scope every read.
+A commit file opens a read-only diff with its original comparison parent and line feedback.
 
-Check multiple hunks and added/deleted files against an independent server patch. Binary, metadata-only, omitted and empty changes explicitly show why code is unavailable. An invalid patch shows The patch could not be parsed with Retry; a read error shows Couldn't load diff. Missing files and patches have explicit unavailable states. History diffs are read-only. On both devices, the compact Comments toolbar supports whole-file and source-line feedback scoped to the commit and comparison parent. Select added and deleted lines, post or cancel feedback, and verify its commit OID, parent, side and range through the server. Code stays visible while composing; native Back on phone retains unsent-draft confirmation.
+## How to get to it (user POV)
 
-On iPad a changed file opens a tab scoped by commit, comparison parent and path. Opening the same file comparison again activates that tab; the same path at another commit or merge parent opens a distinct tab. Select the commit tab to return and confirm its parent is retained. Switch and close tabs, then narrow and widen the workspace with the diff active. The History native title and workspace toolbar must remain intact, and list/file selections must not push native routes. Existing direct diff routes retain their navigation behavior.
+- History → commit → changed file; direct diff route. Back returns to the same commit on phones.
+
+## Driving it with agent-device
+
+Preconditions: [surface baseline](README.md).
+
+1. Open a commit file. Verify path/status and old/new line numbers against the server patch, including multiple hunks and added/deleted/renamed files. Only that file's paths are requested; renames preserve both.
+2. Exercise binary, metadata-only, omitted, empty, missing and unavailable patches. Malformed patch says The patch could not be parsed with Retry; read error says Couldn't load diff. History code remains read-only.
+3. Comments supports whole-file and source-line feedback with code visible. Select added/deleted lines; post/cancel and independently read OID, parent, side and range. Phone Back/swipe returns to commit/list with unsent-draft protection.
+4. On iPad reopen the same commit/parent/path: existing diff tab activates. Another commit/parent creates a distinct tab. Return via commit tab: parent stays. Switch/close tabs and narrow/widen: History title and pane controls stay, without a native push.
+
+Automated coverage: `document-comment.spec.ts`.
+
+## Gotchas
+
+- Every read is scoped by environment, project, worktree, commit and parent. Direct diff routes retain their navigation behavior; tab identity must distinguish the same path in different comparisons.

@@ -14,44 +14,42 @@ api:
 
 # access.restore-outage
 
-## What it is
+When a reload's session restore fails for a reason other than "not paired" (inventory answers an error, not 401), the page keeps the workspace address and shows the retrying workspace error instead of the not-paired page, and it opens the workspace by itself once the connection returns.
 
-When a reload's session restore fails for a reason other than "not paired" (inventory answers an error, not 401), the page keeps the workspace address and shows the retrying workspace error instead of the not-paired page, and it opens the workspace by itself once the connection returns. Opening `/pair` during the outage shows the same retrying error, not the not-paired page.
-
-## How a user reaches it
+## How to get to it (user POV)
 
 - Reload (or open) a workspace address `/<projectId>/<worktreeId>`, or `/pair` without a link, while the server cannot answer.
 - The error retries on the window's `online`, `focus` and `visibilitychange` events.
 
-## Driving it
+## Driving it with browser
 
-`$C start`; pair your browser using the card’s pairing-link command. The HTTP refusal answers `GET /api/inventory` with 503 from the browser's side, the outage the test makes; restoring HTTP pass-through ends it and dispatches the window `online` event, as the test does.
+Preconditions: [surface baseline](README.md).
 
-1. Navigate to `/` on the card’s web URL (full page load), click button named `Review`, click tab named `Files`
-   Look for: tab "Files" selected; Page URL `/<projectId>/<worktreeId>?…surface=files` (call its path and query `$WORKSPACE`).
-2. Answer matching `GET /api/inventory` requests with 503 in the browser (see [routing recipes and per-map instructions](../references/failure-injection.md)), then navigate to `$WORKSPACE` on the card’s web URL (full page load) and wait for text 'Could not display the workspace.' to be visible
-   Look for: alert with "Could not display the workspace." and "Porcelain will retry when the connection returns or this window becomes active again."; NO heading "This browser is not paired"; Page URL still `$WORKSPACE`. Inspect HTTP requests and responses lists `GET /api/inventory` answered 503 (not 401); Inspect browser console messages holds "ConnectionError: Could not reach Porcelain to restore this browser session.".
-3. Restore HTTP pass-through (dispatch `online` only for access.restore-outage), then wait for region named `Review content` to be visible
-   Look for: HTTP pass-through is restored and the page receives the `online` event; without another full page load, region "Review content" appears; Page URL still `$WORKSPACE`.
-4. Click button named `Review`
-   Look for: tab "Files" [selected] (the `surface=files` search survived).
+Opening `/pair` during the outage shows the same retrying error, not the not-paired page.
+
+1. Navigate to `/`, click button `Review`, click tab `Files`
+   Expect: tab "Files" selected; URL `/<projectId>/<worktreeId>?…surface=files` (call its path and query `$WORKSPACE`).
+2. Answer matching `GET /api/inventory` requests with 503 in the browser (see [routing recipes and per-map instructions](../references/failure-injection.md)), then navigate to `$WORKSPACE` and wait for text 'Could not display the workspace.'
+   Expect: alert with "Could not display the workspace." and "Porcelain will retry when the connection returns or this window becomes active again."; NO heading "This browser is not paired"; URL still `$WORKSPACE`. Inspect HTTP traffic lists `GET /api/inventory` answered 503 (not 401); Inspect console holds "ConnectionError: Could not reach Porcelain to restore this browser session.".
+3. Restore HTTP pass-through (dispatch `online` only for access.restore-outage), then wait for region named `Review content`
+   Expect: HTTP pass-through is restored and the page receives the `online` event; without another full page load, region "Review content" appears; URL still `$WORKSPACE`.
+4. Click button `Review`
+   Expect: tab "Files" [selected] (the `surface=files` search survived).
 
 ### The pairing page during the outage
 
-5. Answer matching `GET /api/inventory` requests with 503 in the browser (see [routing recipes and per-map instructions](../references/failure-injection.md)), then navigate to `/pair` on the card’s web URL (full page load) and wait for text 'Could not display the workspace.' to be visible
-   Look for: the workspace error, not the heading "This browser is not paired".
-6. Restore HTTP pass-through (dispatch `online` only for access.restore-outage), then wait for region named `Review content` to be visible
-   Look for: region "Review content": the paired browser left `/pair` for its workspace.
+5. Answer matching `GET /api/inventory` requests with 503 in the browser (see [routing recipes and per-map instructions](../references/failure-injection.md)), then navigate to `/pair` and wait for text 'Could not display the workspace.'
+   Expect: the workspace error, not the heading "This browser is not paired".
+6. Restore HTTP pass-through (dispatch `online` only for access.restore-outage), then wait for region named `Review content`
+   Expect: region "Review content": the paired browser left `/pair` for its workspace.
 
-## What proves it works
+### Observable proof
 
-- During the outage: the workspace error at the unchanged address, never the not-paired page. After it: the workspace returns at the same address with the Files surface kept.
-- Inspect HTTP requests and responses during the outage: `GET /api/inventory` answered 503 (not 401), and no navigation to `/pair`.
-- Inspect browser console messages shows the expected error "Could not reach Porcelain to restore this browser session."
-- `apps/web/spec/e2e/access-restore-outage.e2e.ts`: pairs, opens Files, makes inventory answer 503 and reloads; asserts the workspace error, no not-paired heading and the same path; ends the outage and dispatches `online`; asserts "Review content", the same path and Files still selected. A second case opens `/pair` in a paired browser during the outage, asserts the workspace error and no not-paired heading, and after the outage "Review content" away from `/pair`.
+Record unchanged workspace URL through 503/recovery, zero `/pair` navigation, and expected console error “Could not reach Porcelain to restore this browser session.”
+
+Automated coverage: `access-restore-outage.e2e.ts`.
 
 ## Gotchas
 
-- The retry fires on `online`, `focus` or `visibilitychange`; a headless page rarely gets focus or visibility events, so the `online` event restoring HTTP pass-through dispatches is what brings the workspace back. A full page load would be a new load, not the self-recovery the promise is about.
-- The console error "Could not reach Porcelain to restore this browser session." is expected during the outage.
-- Phone width: the review panel is a sheet behind `Review`.
+- Restore pass-through and dispatch `online`; headless pages may receive no focus/visibility event. Reloading would prove a different path.
+- “Could not reach Porcelain to restore this browser session.” is expected during outage.

@@ -11,36 +11,29 @@ api:
 
 # reviews.read-retry
 
-## What it is
-
 An initial review read that fails without a confirmed reply shows its error and Try again. Retrying refreshes the native reads for this connection and worktree before reopening the surface. The current workspace address stays intact; another workspace or computer is not refreshed.
 
-## How a user reaches it
+## How to get to it (user POV)
 
 - Open a workspace while its review read cannot be answered, then choose Try again.
 - The review content, Review sidebar and individual document panes use the same boundary and scoped retry command.
 
-## Driving it
+## Driving it with browser
 
-`$C start`; pair your browser using the card’s pairing-link command to open the disposable workspace.
+Preconditions: [surface baseline](README.md).
 
-1. Answer matching `GET /api/worktrees/:worktreeId/changes` requests with 503 in the browser (see [routing recipes and per-map instructions](../references/failure-injection.md)), then navigate to `/` on the card’s web URL (full page load).
-   Look for: button Try again in the review surface.
-2. Restore HTTP pass-through (dispatch `online` only for access.restore-outage), then click button named `Try again`.
-   Look for: heading Changes and the sample diff; Try again is gone, and the workspace address is unchanged.
-3. Inspect HTTP requests and responses.
-   Look for: the refused Changes read followed by a successful read after Try again.
-4. Inspect browser console messages, then `$C stop`.
-   Look for: the expected refused-read diagnostics and no later JavaScript failure.
+1. Answer matching `GET /api/worktrees/:worktreeId/changes` requests with 503 in the browser (see [routing recipes and per-map instructions](../references/failure-injection.md)), then navigate to `/`.
+   Expect: button Try again in the review surface.
+2. Restore HTTP pass-through (dispatch `online` only for access.restore-outage), then click button `Try again`.
+   Expect: heading Changes and the sample diff; Try again is gone, and the workspace address is unchanged.
+3. Inspect HTTP traffic.
+   Expect: the refused Changes read followed by a successful read after Try again.
+4. Inspect console, then `$C stop`.
+   Expect: the expected refused-read diagnostics and no later JavaScript failure.
 
-## What proves it works
-
-- `apps/web/spec/e2e/reviews-read-retry.e2e.ts` refuses the initial Changes read, restores transport, clicks Try again and observes the same workspace address and loaded Changes document.
-- The named shared text-read cases prove retrying a failed native read and isolation from another worktree and another connection.
+Automated coverage: `reviews-read-retry.e2e.ts`.
 
 ## Gotchas
 
-- A failed refresh with a previous confirmed reply keeps that reply on screen; this boundary is for a read that has no confirmed reply.
-- A source edit requires stopping and starting the disposable instance before driving it again.
-- Test outages restore by passing requests through the existing context interceptor. Removing the last interceptor while module workers load can strand their dependency requests and leave the code viewer initializing.
-- An E2E failure attaches `code-viewer.json`: page closure, worker URLs, renderer bounds and virtual window, rendered file count and optional upstream worker-pool statistics. The upstream debug handle may be absent; the snapshot never creates or mutates a viewer or worker pool. Use this with the trace to distinguish a missing read from an unfinished renderer.
+- This journey starts without a confirmed reply; failed refreshes with prior data retain it.
+- Restore failures with pass-through rather than removing the last interceptor while viewer workers load. For a renderer failure inspect trace and code-viewer.json diagnostics; absent debug data is not a reason to create/mutate a worker pool.

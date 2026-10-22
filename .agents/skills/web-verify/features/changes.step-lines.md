@@ -13,15 +13,15 @@ api:
 
 # changes.step-lines
 
-## What it is
-
 A published context step shows the text retained at its committed revision. Worktree edits leave its pointer and excerpt unchanged. The separate live file view continues to read the worktree.
 
-## How a user reaches it
+## How to get to it (user POV)
 
 Review → tab "Review" → decision row "1 Readme walkthrough" → region "1. Readme walkthrough" → article "Step New line".
 
-## Driving it
+## Driving it with browser
+
+Preconditions: [surface baseline](README.md).
 
 Start `$C start`, pair using the card, and set `$REPO` to its fixture repository path.
 
@@ -30,9 +30,7 @@ Start `$C start`, pair using the card, and set `$REPO` to its fixture repository
 3. Rewrite README.md on disk with `printf '# Sample repository\n\nRewritten.\n' > "$REPO/README.md"`.
 4. The step still shows "A change to review." and does not substitute "Rewritten.". `$C server published-review` still reports the pointer as current at the stored revision.
 
-## What proves it works
-
-`apps/web/spec/integration/changes-step-lines.test.tsx` checks the original excerpt and its retention after a live edit. Server retained-review integration separately reads the stored text after worktree removal.
+Automated coverage: `changes-step-lines.test.tsx`.
 
 ## Gotchas
 

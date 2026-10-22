@@ -16,19 +16,17 @@ api:
 
 # history.open-commit
 
-## What it is
-
 Opening a commit from History shows its document: the message, author, full id and parent, how many files it changed, the diff of each text file, and a binary change listed under "Changes without code preview" with the reason "Binary change" instead of a code preview.
 
-## How a user reaches it
+## How to get to it (user POV)
 
 - Review → History → click a commit row (at phone width the sheet closes and the commit opens as a document tab named by its 7-character id).
 - A row of the Commit graph document (see history.graph).
 - URL `entry=commit:<full id>` on the workspace route.
 
-## Driving it
+## Driving it with browser
 
-Start with `$C start`; pair your browser using the card’s pairing-link command. `REPO` is `connection.json`’s `fixtures.repositoryPath`.
+Preconditions: [surface baseline](README.md).
 
 ### 1. A commit shows its message, its file and the diff of the line it added
 
@@ -38,12 +36,12 @@ Setup:
 git -C "$REPO" commit -am "Explain the change to review"
 ```
 
-1. Click button named `Review`
-   Look for: dialog "Worktree review".
-2. Click tab named `History`
-   Look for: a row starting "Explain the change to review" above the "Initial commit" row.
-3. Click button named `/^Explain the change to review/`
-   Look for: the sheet closes; heading "Explain the change to review"; text "1 file changed" in the toolbar; "Porcelain Development", the full 40-character id and "against <7-character id>" under the heading; README.md's diff with the added line "A change to review."; Page Title "<7-character id> — repository"; buttons "Copy id" and "Copy message".
+1. Click button `Review`
+   Expect: dialog "Worktree review".
+2. Click tab `History`
+   Expect: a row starting "Explain the change to review" above the "Initial commit" row.
+3. Click button `/^Explain the change to review/`
+   Expect: the sheet closes; heading "Explain the change to review"; text "1 file changed" in the toolbar; "Porcelain Development", the full 40-character id and "against <7-character id>" under the heading; README.md's diff with the added line "A change to review."; title "<7-character id> — repository"; buttons "Copy id" and "Copy message".
 
 ### 2. A binary file is listed without a code preview and says it is a binary change
 
@@ -58,21 +56,20 @@ git -C "$REPO" show --stat --format=%s HEAD
 
 The last line shows `logo.bin | Bin 0 -> 12 bytes`.
 
-1. Click button named `Review`
-   Look for: dialog "Worktree review"; tab "History" is still the selected surface.
-2. Click tab named `History`
-   Look for: a row starting "Add a binary logo" at the top.
-3. Click button named `/^Add a binary logo/`
-   Look for: heading "Add a binary logo"; list "Changes without code preview" with an item reading "logo.bin" and "added · Binary change" (it reads "added · Reading the patch" for a moment first); no code view for logo.bin.
+1. Click button `Review`
+   Expect: dialog "Worktree review"; tab "History" is still the selected surface.
+2. Click tab `History`
+   Expect: a row starting "Add a binary logo" at the top.
+3. Click button `/^Add a binary logo/`
+   Expect: heading "Add a binary logo"; list "Changes without code preview" with an item reading "logo.bin" and "added · Binary change" (it reads "added · Reading the patch" for a moment first); no code view for logo.bin.
 
-## What proves it works
+### Observable proof
 
-- The commit document's content matches `git -C "$REPO" show --stat HEAD`: subject, file count, and the binary file named but not previewed.
-- the browser network log shows `GET /api/worktrees/<id>/commits/<oid>/files` and `POST /api/worktrees/<id>/commits/<oid>/diffs` answered 200 for the opened commit.
-- `apps/web/spec/integration/history-open-commit.test.tsx`: the opened commit shows heading "Explain the change to review", "1 file changed" and the added line "A change to review."; the binary commit shows heading "Add a binary logo" and, in list "Changes without code preview", "logo.bin" with "added · Binary change".
+Compare subject/count/binary path with `git -C "$REPO" show --stat HEAD`; files GET/diffs POST answer 200.
+
+Automated coverage: `history-open-commit.test.tsx`.
 
 ## Gotchas
 
-- Opening a commit closes the sheet; to open another commit, click "Review" again (the History surface stays selected).
-- Row names are the whole row text; address rows with a regex anchored at the start.
-- Both commits stay in the repository for the rest of the instance; start a fresh instance for features that expect the sample's single commit and its unstaged README change.
+- Row names include all metadata; use anchored regex. Reopen the phone Review sheet to select another commit.
+- Both fixture commits remain; reset before maps expecting one commit/unstaged README.
