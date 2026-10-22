@@ -20,7 +20,12 @@ export function runFileTreeAction(
     onDuplicate: (path: string) => void;
   },
 ) {
-  input.close(id !== 'rename' && id !== 'open-to-side');
+  input.close(
+    id !== 'rename' &&
+      id !== 'new-file' &&
+      id !== 'new-folder' &&
+      id !== 'open-to-side',
+  );
   if (id === 'rename') {
     queueMicrotask(input.rename);
     return;
