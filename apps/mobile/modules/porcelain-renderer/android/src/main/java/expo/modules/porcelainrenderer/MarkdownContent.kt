@@ -31,16 +31,16 @@ private fun text(block: MarkdownBlock, codeFamily: FontFamily, onLink: (String) 
 internal fun MarkdownContent(blocks: List<MarkdownBlock>, tokens: RenderTokens, onLink: (String) -> Unit) {
   val codeFamily = rememberRendererFontFamily("Geist Mono")
   val sansFamily = rememberRendererFontFamily("Geist")
-  LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(tokens.pagePadding.dp), verticalArrangement = Arrangement.spacedBy(tokens.pagePadding.dp)) {
+  LazyColumn(Modifier.fillMaxSize().background(tokens.background), contentPadding = PaddingValues(tokens.pagePadding.dp), verticalArrangement = Arrangement.spacedBy(tokens.pagePadding.dp)) {
     items(blocks, key = { it.id }) { block ->
       SelectionContainer {
-        if (block.kind == "code") Text(text(block, codeFamily) {}, Modifier.clip(RoundedCornerShape(tokens.radius.dp)).background(MaterialTheme.colorScheme.surfaceVariant).horizontalScroll(rememberScrollState()).padding(tokens.blockPadding.dp), fontFamily = codeFamily, fontSize = tokens.codeSize.sp)
+        if (block.kind == "code") Text(text(block, codeFamily) {}, Modifier.clip(RoundedCornerShape(tokens.radius.dp)).background(tokens.codeBackground).horizontalScroll(rememberScrollState()).padding(tokens.blockPadding.dp), fontFamily = codeFamily, color = tokens.foreground, fontSize = tokens.codeSize.sp)
         else Text(text(block, codeFamily) { url -> onLink(url) },
           modifier = if (block.kind == "heading") Modifier.semantics { heading() } else Modifier,
           fontSize = (if (block.kind == "heading") if (block.level == 1) tokens.headingSize else if (block.level == 2) tokens.subheadingSize else tokens.bodySize else tokens.bodySize).sp,
           fontFamily = sansFamily,
           fontWeight = if (block.kind == "heading") FontWeight.SemiBold else FontWeight.Normal,
-          color = if (block.kind == "quote") MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface)
+          color = if (block.kind == "quote") tokens.muted else tokens.foreground)
       }
     }
   }
