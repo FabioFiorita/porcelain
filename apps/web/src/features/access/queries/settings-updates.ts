@@ -90,7 +90,10 @@ const updateRows = Atom.make((get) => {
             kind: 'mac-app',
             id: 'mac-app',
             name: 'Mac app',
-            available: state?.status === 'available' && !check.waiting,
+            available:
+              AsyncResult.isSuccess(check) &&
+              state?.status === 'available' &&
+              !check.waiting,
             latest: state && 'version' in state ? state.version : undefined,
             update: install,
           },

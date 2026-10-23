@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type RefObject } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import {
   settingsUpdateAvailable,
@@ -20,7 +20,11 @@ import {
 import { useSettingsUpdates } from '../queries/settings-updates';
 import { SettingsUpdateRow } from './settings-update-row';
 
-export function UpdatesMenu() {
+export function UpdatesMenu({
+  fallbackFocus,
+}: {
+  fallbackFocus: RefObject<HTMLButtonElement | null>;
+}) {
   const {
     rows,
     targets,
@@ -69,7 +73,8 @@ export function UpdatesMenu() {
       <PopoverContent
         side="top"
         align="end"
-        className="w-88 max-w-[calc(100vw-1rem)]"
+        className="max-h-(--available-height) w-88 max-w-[calc(100vw-1rem)] overflow-y-auto"
+        finalFocus={visible ? true : fallbackFocus}
       >
         <PopoverTitle>{title}</PopoverTitle>
         {failures.length > 0 && (
@@ -77,7 +82,7 @@ export function UpdatesMenu() {
             <AlertTitle>The update check failed</AlertTitle>
             <AlertDescription>
               {failures.map((failure) => (
-                <p key={failure.id}>
+                <p key={failure.id} className="wrap-anywhere">
                   {failure.name}: {failure.message}
                 </p>
               ))}
