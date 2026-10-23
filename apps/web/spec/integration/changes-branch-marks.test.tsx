@@ -15,15 +15,18 @@ test('a branch mark belongs to its branch: another branch starts fresh and switc
     .toBe('refs/heads/feature');
 
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Branch', exact: true }).click();
   await workspace
     .getByRole('button', { name: 'notes.md · added', exact: true })
     .click();
-  await workspace
-    .getByRole('button', { name: 'Mark notes.md as reviewed', exact: true })
-    .first()
-    .click();
+  const reviewed = workspace
+    .getByRole('toolbar', { name: 'Document controls', exact: true })
+    .getByRole('button', { name: 'Reviewed', exact: true });
+  await reviewed.click();
   await expect
     .poll(async () =>
       (await server.reviewedFiles('refs/heads/feature')).marks.map(
@@ -34,25 +37,10 @@ test('a branch mark belongs to its branch: another branch starts fresh and switc
 
   await repo.branch('copy');
   await repo.switch('copy');
-  await expect
-    .element(
-      workspace
-        .getByRole('button', { name: 'Mark notes.md as reviewed', exact: true })
-        .first(),
-    )
-    .toBeVisible();
+  await expect.element(reviewed).toHaveAttribute('aria-pressed', 'false');
 
   await repo.switch('feature');
-  await expect
-    .element(
-      workspace
-        .getByRole('button', {
-          name: 'Unmark notes.md as unreviewed',
-          exact: true,
-        })
-        .first(),
-    )
-    .toBeVisible();
+  await expect.element(reviewed).toHaveAttribute('aria-pressed', 'true');
 });
 
 test.for([1280, 414])(
@@ -68,7 +56,10 @@ test.for([1280, 414])(
       const page = app.page;
       if (width === 414)
         await page.getByRole('button', { name: 'Review', exact: true }).click();
-      await page.getByRole('tab', { name: 'Changes', exact: true }).click();
+      await page
+        .getByRole('complementary', { name: 'Review sidebar', exact: true })
+        .getByRole('tab', { name: 'Changes', exact: true })
+        .click();
       await page.getByRole('tab', { name: 'Branch', exact: true }).click();
       await page
         .getByRole('button', { name: 'notes.md · added', exact: true })
@@ -80,21 +71,13 @@ test.for([1280, 414])(
         (await server.reviewedFiles('refs/heads/feature')).marks.map(
           (mark) => mark.path,
         );
-      await page
-        .getByRole('button', { name: 'Mark notes.md as reviewed', exact: true })
-        .first()
-        .click();
+      const reviewed = page
+        .getByRole('toolbar', { name: 'Document controls', exact: true })
+        .getByRole('button', { name: 'Reviewed', exact: true });
+      await reviewed.click();
       await expect.poll(branchMarks).toEqual(['notes.md']);
-      await expect
-        .element(
-          page
-            .getByRole('button', {
-              name: 'Unmark notes.md as unreviewed',
-              exact: true,
-            })
-            .first(),
-        )
-        .toBeEnabled();
+      await expect.element(reviewed).toHaveAttribute('aria-pressed', 'true');
+      await expect.element(reviewed).toBeEnabled();
       await expect
         .poll(async () => (await server.reviewedFiles()).marks)
         .toEqual([]);

@@ -41,7 +41,7 @@ awk 'BEGIN{for(i=0;i<4000;i++){if(i==20)print "an early NEEDLE"; if(i==3900)prin
 1. Navigate to `/`, click button `Review`, click tab `Files`
    Expect: treeitem "long.txt".
 2. Right-click treeitem `long.txt`, then click menuitem `Open file`
-   Expect: tab "long.txt Close long.txt" selected; the code shows "filler 0"; the snapshot does not contain "the needle line near the end" (the view renders only the lines near the viewport).
+   Expect: tab "long.txt" selected; the code shows "filler 0"; the snapshot does not contain "the needle line near the end" (the view renders only the lines near the viewport).
 3. Press `ControlOrMeta+f`
    Expect: search region with textbox "Find in file", focused.
 4. Fill textbox `Find in file` with 'needle'

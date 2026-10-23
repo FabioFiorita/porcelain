@@ -21,7 +21,7 @@ test('the find count follows a file that changes on disk and stays within its ma
   await expect
     .element(
       workspace.getByRole('tab', {
-        name: 'notes.txt Close notes.txt',
+        name: 'notes.txt',
         exact: true,
       }),
     )

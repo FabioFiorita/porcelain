@@ -13,7 +13,10 @@ test('a sidebar decision menu marks its files and decision, unmarks only the dec
     `${repo.readme.changed}A follow-up edit.\n`,
   );
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Review', exact: true })
+    .click();
   const sidebar = workspace.getByRole('complementary', {
     name: 'Review sidebar',
     exact: true,
@@ -97,7 +100,10 @@ test('review groups collapse and expand all from their context menu and keyboard
 }) => {
   await repo.write('phone-otp.spec.ts', 'test fixture\n');
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   const sidebar = workspace.getByRole('complementary', {
     name: 'Review sidebar',
     exact: true,
@@ -140,7 +146,10 @@ test('comment context menus resolve and reopen the thread and their keyboard men
 }) => {
   await agent.comment(repo.readme.path, 'should be 5');
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: /^Comments/ }).click();
   const sidebar = workspace.getByRole('complementary', {
     name: 'Review sidebar',
@@ -197,7 +206,10 @@ test('file menu buttons share the context review action and section menus open t
   server,
 }) => {
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   const sidebar = workspace.getByRole('complementary', {
     name: 'Review sidebar',
     exact: true,

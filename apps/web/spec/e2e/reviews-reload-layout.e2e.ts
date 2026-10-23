@@ -31,7 +31,10 @@ test('open tabs, a pinned tab and a collapsed diff come back after a reload', as
     opened.getByRole('button', { name: `Unpin ${readme}`, exact: true }),
   ).toBeVisible();
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
-  await opened.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await opened
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   await opened
     .getByRole('button', { name: 'All changes', exact: true })
     .click();
@@ -53,7 +56,8 @@ test('open tabs, a pinned tab and a collapsed diff come back after a reload', as
   await expect(
     opened.getByRole('tab', { name: new RegExp(notes) }),
   ).toBeVisible();
+  await opened.getByRole('tab', { name: new RegExp(notes) }).click();
   await expect(
     opened.getByRole('button', { name: `Close ${notes}`, exact: true }),
-  ).toBeAttached();
+  ).toBeVisible();
 });

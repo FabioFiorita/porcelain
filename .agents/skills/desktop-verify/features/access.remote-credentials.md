@@ -10,7 +10,7 @@ selectors:
   - 'Saved computers could not be read'
   - 'Read saved computers'
   - 'Walkthrough'
-  - 'Walkthrough of the decisions'
+  - 'Review'
   - 'Agent summary'
 tests:
   - apps/desktop/spec/e2e/bridge.e2e.ts
@@ -35,7 +35,7 @@ Preconditions: [surface baseline](README.md).
 2. Inspect `credentialFiles.remoteEncrypted`: no plaintext credential is present and file mode is 0600. Restart with the same disposable profile and confirm the saved computer reconnects.
 3. Using the named bridge fixture, make the encrypted store unreadable. Expect Settings to explain the failure; it must not overwrite unreadable ciphertext. Refuse encryption on write and confirm the prior ciphertext stays. Clear removes the saved store.
 4. In an in-process Electron journey, invoke credential/update IPC from an unowned window: every request is refused. Keep the owned window usable.
-5. Publish authored summaries on local and paired remote fixtures. Walkthrough is initial; Agent summary opens HTML, and its #layer-N links open decision N. Return through Walkthrough of the decisions, then Agent summary. Open both through the app: theme and decision links work, content stays sandboxed, and no remote website, Node or bridge access is available.
+5. Publish authored summaries on local and paired remote fixtures. Walkthrough is initial; Agent summary opens HTML, and its #layer-N links open decision N. Return through the Review document tab, then Agent summary. Open both through the app: theme and decision links work, content stays sandboxed, and no remote website, Node or bridge access is available.
 
 Automated coverage: `bridge.e2e.ts`, `review-summaries.e2e.ts`.
 

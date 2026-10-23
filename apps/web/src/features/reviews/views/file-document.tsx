@@ -1,6 +1,13 @@
 import type { FileDraftHandle } from '@porcelain/client/files';
 import { CopyIcon, FileDiffIcon, HistoryIcon, PencilIcon } from 'lucide-react';
 import { useHotkey } from '@tanstack/react-hotkeys';
+import { createPortal } from 'react-dom';
+import { CheckIcon, SquareIcon, MessageSquarePlusIcon } from 'lucide-react';
+import { BarAction } from '@/shared/workspace/bar-action';
+import { useReviewChangeItems } from '../queries/reviewed';
+import { fileReviewControl } from './reviewed-control';
+import { useToggleReviewed } from '../commands/reviewed';
+import { toast } from '@/components/ui/toast';
 import { type ReactNode, useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
@@ -42,6 +49,7 @@ type FileDocumentProps = {
 export function FileDocument(props: FileDocumentProps) {
   return isImagePath(props.path) ? (
     <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+      <PreviewFileControls {...props} />
       <FileToolbar path={props.path} copy={false}>
         <ButtonGroup className="max-w-full flex-wrap justify-end">
           <TimelineButton path={props.path} onOpen={props.onOpen} />
@@ -68,19 +76,23 @@ function LinkedFileDocument(props: FileDocumentProps) {
   if (link?.kind === 'symlink')
     return (
       <NotShownFile
-        path={props.path}
+        {...props}
         message={`Not followed: symlink to ${link.target ?? 'an unknown target'}`}
       />
     );
   if (link?.kind === 'submodule')
-    return <NotShownFile path={props.path} message="Not followed: submodule" />;
+    return <NotShownFile {...props} message="Not followed: submodule" />;
   return <TextFileDocument {...props} />;
 }
 
-function NotShownFile({ path, message }: { path: string; message: string }) {
+function NotShownFile({
+  message,
+  ...props
+}: FileDocumentProps & { message: string }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <FileToolbar path={path} />
+      <PreviewFileControls {...props} />
+      <FileToolbar path={props.path} />
       <div className="grid min-h-48 flex-1 place-items-center p-6">
         <ReviewEmpty title="Not shown" description={message} />
       </div>
@@ -106,7 +118,16 @@ function TextFileDocument({
     unreadable ? '' : (file.contentFingerprint ?? ''),
   );
   if (unreadable && state.owner === null && state.text === state.savedText)
-    return <NotShownFile path={path} message={file.reason} />;
+    return (
+      <NotShownFile
+        scope={scope}
+        context={context}
+        interaction={interaction}
+        onOpen={onOpen}
+        path={path}
+        message={file.reason}
+      />
+    );
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {unreadable && (
@@ -161,6 +182,10 @@ function ReadableFileDocument({
   const { connection } = context;
   const changes = useChanges(scope, connection);
   const kind = fileKind(path);
+  const reviewItem = useReviewChangeItems(scope, context, changes, [path])[0];
+  const toggle = useToggleReviewed(scope, context, (notice) =>
+    toast.add(notice),
+  );
   const changed = changes.changes.some((entry) => entry.path === path);
   const [mode, setMode] = useState<FileDisplayMode>(() =>
     defaultFileDisplayMode(kind, preferences),
@@ -176,6 +201,7 @@ function ReadableFileDocument({
     setShownReveal(reveal.nonce);
     setMode('source');
   }
+  const [commentRequest, setCommentRequest] = useState<number>();
   const [editing, setEditing] = useState(false);
   const [finding, setFinding] = useState<number>();
   const [foundLine, setFoundLine] = useState<{ line: number; nonce: number }>();
@@ -245,7 +271,9 @@ function ReadableFileDocument({
           <span className="max-narrow:sr-only">Open diff</span>
         </Button>
       )}
-      <TimelineButton path={path} onOpen={onOpen} />
+      {interaction.toolbarTarget === undefined && (
+        <TimelineButton path={path} onOpen={onOpen} />
+      )}
       <CopyPath path={path} />
     </>
   );
@@ -272,6 +300,49 @@ function ReadableFileDocument({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-card">
+      {active && !showingSource && !editing && (
+        <RenderedFileShortcuts
+          onComment={() => {
+            setMode('source');
+            setCommentRequest(Date.now());
+          }}
+          onReview={() => {
+            if (reviewItem)
+              toggle.toggle(fileReviewControl(scope, context, reviewItem));
+          }}
+        />
+      )}
+      {interaction.toolbarTarget &&
+        !showingSource &&
+        createPortal(
+          <>
+            <BarAction
+              label="Reviewed"
+              variant="outline"
+              icon={
+                reviewItem?.reviewStatus === 'reviewed' ? CheckIcon : SquareIcon
+              }
+              shortcut={SHORTCUTS.toggleReviewed}
+              disabled={!reviewItem?.fingerprint}
+              pressed={reviewItem?.reviewStatus === 'reviewed'}
+              onClick={() => {
+                if (reviewItem)
+                  toggle.toggle(fileReviewControl(scope, context, reviewItem));
+              }}
+            />
+            <BarAction
+              label="Comment"
+              icon={MessageSquarePlusIcon}
+              shortcut={SHORTCUTS.commentOnFile}
+              onClick={() => {
+                setMode('source');
+                setCommentRequest(Date.now());
+              }}
+            />
+            <TimelineButton path={path} onOpen={onOpen} />
+          </>,
+          interaction.toolbarTarget,
+        )}
       {mode === 'rendered' && kind !== 'code' ? (
         <>
           <FileToolbar path={path} copy={false}>
@@ -302,12 +373,25 @@ function ReadableFileDocument({
             scope={scope}
             context={context}
             interaction={interaction}
-            headerLeading={leading}
-            headerActions={commands}
+            headerLeading={
+              <>
+                {leading}
+                {commands}
+              </>
+            }
+            headerActions={
+              interaction.toolbarTarget !== undefined ? (
+                <TimelineButton path={path} onOpen={onOpen} />
+              ) : undefined
+            }
+            {...(commentRequest !== undefined ? { commentRequest } : {})}
             {...(foundLine !== undefined ? { foundLine } : {})}
             entries={[
               {
                 ...fileEntry(`file:${path}`, path, text),
+                ...(reviewItem
+                  ? { review: fileReviewControl(scope, context, reviewItem) }
+                  : {}),
                 ...(contentFingerprint
                   ? {
                       comment: {
@@ -403,16 +487,11 @@ function TimelineButton({
   onOpen: OpenDocument;
 }) {
   return (
-    <Button
-      variant="ghost"
-      size="xs"
-      aria-label="Timeline"
-      title="Timeline"
+    <BarAction
+      label="Timeline"
+      icon={HistoryIcon}
       onClick={() => onOpen({ kind: 'timeline', path })}
-    >
-      <HistoryIcon />
-      <span className="max-narrow:sr-only">Timeline</span>
-    </Button>
+    />
   );
 }
 
@@ -445,4 +524,81 @@ function defaultFileDisplayMode(
   if (kind === 'markdown' || kind === 'html')
     return preferences.documentsDefault;
   return 'source';
+}
+
+function PreviewFileControls({
+  scope,
+  context,
+  interaction,
+  path,
+  onOpen,
+}: FileDocumentProps) {
+  const changes = useChanges(scope, context.connection);
+  const item = useReviewChangeItems(scope, context, changes, [path])[0];
+  const toggle = useToggleReviewed(scope, context, (notice) =>
+    toast.add(notice),
+  );
+  const review = () => {
+    if (item) toggle.toggle(fileReviewControl(scope, context, item));
+  };
+  const comment = () => {
+    if (item)
+      onOpen(
+        { kind: 'change', path },
+        { kind: 'file', filePath: path },
+        { compose: true },
+      );
+  };
+  if (!interaction.toolbarTarget) return null;
+  return (
+    <>
+      {interaction.active && (
+        <RenderedFileShortcuts onReview={review} onComment={comment} />
+      )}
+      {createPortal(
+        <>
+          <BarAction
+            label="Reviewed"
+            variant="outline"
+            icon={item?.reviewStatus === 'reviewed' ? CheckIcon : SquareIcon}
+            shortcut={SHORTCUTS.toggleReviewed}
+            disabled={!item?.fingerprint}
+            pressed={item?.reviewStatus === 'reviewed'}
+            description={
+              item?.fingerprint
+                ? 'Reviewed'
+                : 'There is no reviewable change for this file.'
+            }
+            onClick={review}
+          />
+          <BarAction
+            label="Comment"
+            icon={MessageSquarePlusIcon}
+            shortcut={SHORTCUTS.commentOnFile}
+            disabled={!item}
+            description={
+              item
+                ? 'Comment'
+                : 'Comments for this preview are available from its diff.'
+            }
+            onClick={comment}
+          />
+          <TimelineButton path={path} onOpen={onOpen} />
+        </>,
+        interaction.toolbarTarget,
+      )}
+    </>
+  );
+}
+
+function RenderedFileShortcuts({
+  onComment,
+  onReview,
+}: {
+  onComment: () => void;
+  onReview: () => void;
+}) {
+  useHotkey(SHORTCUTS.commentOnFile, onComment, { ignoreInputs: true });
+  useHotkey(SHORTCUTS.toggleReviewed, onReview, { ignoreInputs: true });
+  return null;
 }
