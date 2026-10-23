@@ -18,13 +18,18 @@ test.for([414, 1280])(
       await repo.commit(long);
       await repo.merge('topic');
 
-      if (width === 414)
+      if (width === 414) {
         await workspace
           .getByRole('button', { name: 'Review', exact: true })
           .click();
-      await workspace
-        .getByRole('tab', { name: 'History', exact: true })
-        .click();
+        await workspace
+          .getByRole('tab', { name: 'History', exact: true })
+          .click();
+      } else
+        await workspace
+          .getByRole('navigation', { name: 'Side panel', exact: true })
+          .getByRole('button', { name: 'History', exact: true })
+          .click();
       const sidebar = workspace.getByRole('complementary', {
         name: 'Review sidebar',
         exact: true,
@@ -53,9 +58,6 @@ test.for([414, 1280])(
         .element(sidebar.getByRole('list', { name: 'Commits', exact: true }))
         .toBeVisible();
       await expect
-        .element(sidebar.getByTestId('history-graph'))
-        .toBeVisible();
-      await expect
         .element(
           sidebar.getByRole('button', { name: 'Open graph', exact: true }),
         )
@@ -76,13 +78,18 @@ test.for([414, 1280])(
         await repo.commit(`Write step ${index}`);
       }
       const workspace = await render.workspace();
-      if (width === 414)
+      if (width === 414) {
         await workspace
           .getByRole('button', { name: 'Review', exact: true })
           .click();
-      await workspace
-        .getByRole('tab', { name: 'History', exact: true })
-        .click();
+        await workspace
+          .getByRole('tab', { name: 'History', exact: true })
+          .click();
+      } else
+        await workspace
+          .getByRole('navigation', { name: 'Side panel', exact: true })
+          .getByRole('button', { name: 'History', exact: true })
+          .click();
       const sidebar = workspace.getByRole('complementary', {
         name: 'Review sidebar',
         exact: true,

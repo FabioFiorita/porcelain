@@ -300,62 +300,66 @@ function ScopedFileNavigation({
       {actionsTarget &&
         createPortal(
           <>
-        <Tooltip>
-          <TooltipTrigger render={<span className="inline-flex" />}>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                aria-label="Create file or folder"
-                disabled={edit.result.waiting}
-              />
-            }
-          >
-            <PlusIcon className="text-muted-foreground" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={() =>
-                setCreating({ kind: 'file', folder: '', nonce: Date.now() })
-              }
-            >
-              <FilePlusIcon />
-              New file
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() =>
-                setCreating({
-                  kind: 'directory',
-                  folder: '',
-                  nonce: Date.now(),
-                })
-              }
-            >
-              <FolderPlusIcon />
-              New folder
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-          </TooltipTrigger>
-          <TooltipContent>Create file or folder</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                aria-label={collapseLabel}
-                onClick={() => collapseAll()}
-              />
-            }
-          >
-            <ListChevronsUpDownIcon className="text-muted-foreground" />
-          </TooltipTrigger>
-          <TooltipContent>{collapseLabel}</TooltipContent>
-        </Tooltip>
+            <Tooltip>
+              <TooltipTrigger render={<span className="inline-flex" />}>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label="Create file or folder"
+                        disabled={edit.result.waiting}
+                      />
+                    }
+                  >
+                    <PlusIcon className="text-muted-foreground" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() =>
+                        setCreating({
+                          kind: 'file',
+                          folder: '',
+                          nonce: Date.now(),
+                        })
+                      }
+                    >
+                      <FilePlusIcon />
+                      New file
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        setCreating({
+                          kind: 'directory',
+                          folder: '',
+                          nonce: Date.now(),
+                        })
+                      }
+                    >
+                      <FolderPlusIcon />
+                      New folder
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TooltipTrigger>
+              <TooltipContent>Create file or folder</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label={collapseLabel}
+                    onClick={() => collapseAll()}
+                  />
+                }
+              >
+                <ListChevronsUpDownIcon className="text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent>{collapseLabel}</TooltipContent>
+            </Tooltip>
           </>,
           actionsTarget,
         )}

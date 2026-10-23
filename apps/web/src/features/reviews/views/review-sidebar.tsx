@@ -61,9 +61,7 @@ export function ReviewSidebar({
     />
   );
   const names = useSurfaceNames(props.scope, props.context);
-  const surface = (
-    <SidebarSurface {...props} actionsTarget={actions.element} />
-  );
+  const surface = <SidebarSurface {...props} actionsTarget={actions.element} />;
   return (
     <aside
       aria-label="Review sidebar"
@@ -72,7 +70,7 @@ export function ReviewSidebar({
     >
       {layout === 'docked' ? (
         <>
-          <header className="flex h-12 shrink-0 items-center gap-1 border-b pr-2 pl-3.5">
+          <header className="flex h-12 shrink-0 items-center gap-1 border-b pr-2.5 pl-3.5">
             <h2 className="truncate text-ui font-semibold">
               {names[props.surface]}
             </h2>
@@ -86,7 +84,7 @@ export function ReviewSidebar({
           onValueChange={(value) => {
             if (isSurface(value)) onSurface(value);
           }}
-          className="min-h-0 flex-1 gap-0"
+          className="min-h-0 flex-1"
         >
           <div className="flex h-12 shrink-0 items-center gap-1 border-b px-1.5">
             <TabsList className="h-8 min-w-0 flex-1">

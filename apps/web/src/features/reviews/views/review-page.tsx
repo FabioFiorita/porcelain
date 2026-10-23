@@ -241,9 +241,9 @@ function ReviewRevisionPage({
     `${revision.reviewId}:${revision.revision}`,
   );
   const [chosen, setChosen] = useState<string>();
-  const [view, setView] = useState<
-    'walkthrough' | 'summary' | 'proof'
-  >(initialView ?? 'walkthrough');
+  const [view, setView] = useState<'walkthrough' | 'summary' | 'proof'>(
+    initialView ?? 'walkthrough',
+  );
   const [file, setFile] = useState<{ path: string; step?: ReviewStep }>();
   const stops = walkthroughStops(
     review,

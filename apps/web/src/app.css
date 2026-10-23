@@ -155,7 +155,7 @@
 }
 
 .workspace-choice[aria-pressed='true'],
-.workspace-choice[aria-selected='true'] {
+.workspace-choice[data-selected] {
   background: var(--workspace-selected);
   box-shadow:
     inset 0 0 0 1px var(--workspace-edge),

@@ -57,7 +57,7 @@ export function historyBoundary(
       : 'Start of history.';
 }
 
-export type BranchTracking = {
+type BranchTracking = {
   name: string;
   counts: string | null;
   upstream: string;
@@ -80,7 +80,11 @@ export function branchTracking(
       upstream: 'No branch checked out',
     };
   if (branch.upstream === null || branch.upstream === undefined)
-    return { name: refLabel(branch.name), counts: null, upstream: 'No upstream' };
+    return {
+      name: refLabel(branch.name),
+      counts: null,
+      upstream: 'No upstream',
+    };
   return {
     name: refLabel(branch.name),
     counts: `${branch.ahead} ahead · ${branch.behind} behind`,

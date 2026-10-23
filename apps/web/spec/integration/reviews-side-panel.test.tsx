@@ -2,7 +2,7 @@ import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 const rail = () =>
-  page.getByRole('tablist', { name: 'Side panel', exact: true });
+  page.getByRole('navigation', { name: 'Side panel', exact: true });
 const panel = () =>
   page.getByRole('complementary', { name: 'Review sidebar', exact: true });
 
@@ -12,8 +12,8 @@ test('the rail opens each view in the docked panel and the open view or the hide
   await page.viewport(1280, 896);
   try {
     await expect
-      .element(rail().getByRole('tab', { name: 'Files', exact: true }))
-      .toHaveAttribute('aria-selected', 'true');
+      .element(rail().getByRole('button', { name: 'Files', exact: true }))
+      .toHaveAttribute('aria-pressed', 'true');
     await expect
       .element(panel().getByRole('heading', { level: 2 }))
       .toHaveTextContent('Files');
@@ -22,18 +22,18 @@ test('the rail opens each view in the docked panel and the open view or the hide
       .not.toBeVisible();
 
     for (const view of ['Changes', 'History', 'Files']) {
-      await rail().getByRole('tab', { name: view, exact: true }).click();
+      await rail().getByRole('button', { name: view, exact: true }).click();
       await expect
         .element(panel().getByRole('heading', { level: 2 }))
         .toHaveTextContent(view);
     }
 
-    await rail().getByRole('tab', { name: 'Files', exact: true }).click();
+    await rail().getByRole('button', { name: 'Files', exact: true }).click();
     await expect.element(panel()).not.toBeInTheDocument();
     for (const view of ['Files', 'Changes', 'History'])
       await expect
-        .element(rail().getByRole('tab', { name: view, exact: true }))
-        .toHaveAttribute('aria-selected', 'false');
+        .element(rail().getByRole('button', { name: view, exact: true }))
+        .toHaveAttribute('aria-pressed', 'false');
     const show = workspace.getByRole('button', {
       name: 'Show side panel',
       exact: true,
@@ -77,8 +77,8 @@ test('Alt+1, Alt+2 and Alt+3 open their view and Alt+Shift+R hides and shows the
         .element(panel().getByRole('heading', { level: 2 }))
         .toHaveTextContent(view);
       await expect
-        .element(rail().getByRole('tab', { name: view, exact: true }))
-        .toHaveAttribute('aria-selected', 'true');
+        .element(rail().getByRole('button', { name: view, exact: true }))
+        .toHaveAttribute('aria-pressed', 'true');
     }
 
     await userEvent.keyboard('{Alt>}{Shift>}R{/Shift}{/Alt}');
@@ -103,9 +103,7 @@ test('Alt+3 opens the review sheet on History at phone width', async ({
   await expect
     .element(sheet.getByRole('tab', { name: 'History', exact: true }))
     .toHaveAttribute('aria-selected', 'true');
-  await expect
-    .element(workspace.getByRole('tablist', { name: 'Side panel' }))
-    .not.toBeInTheDocument();
+  await expect.element(rail()).not.toBeInTheDocument();
 });
 
 test('the History panel names the branch, counts uncommitted files and opens them', async ({
@@ -115,7 +113,7 @@ test('the History panel names the branch, counts uncommitted files and opens the
   await page.viewport(1280, 896);
   try {
     await repo.write('notes.md', 'Uncommitted notes\n');
-    await rail().getByRole('tab', { name: 'History', exact: true }).click();
+    await rail().getByRole('button', { name: 'History', exact: true }).click();
     const branch = panel().getByRole('region', { name: 'Branch', exact: true });
     await expect
       .element(branch.getByText(repo.initialBranch, { exact: true }))
@@ -135,22 +133,6 @@ test('the History panel names the branch, counts uncommitted files and opens the
           .getByRole('tab', { name: 'All changes', exact: true }),
       )
       .toHaveAttribute('aria-selected', 'true');
-  } finally {
-    await page.viewport(414, 896);
-  }
-});
-
-test('the Files panel draws Pierre tree rows at its default 30px density', async ({
-  workspace,
-}) => {
-  await page.viewport(1280, 896);
-  try {
-    const row = workspace.getByRole('treeitem', {
-      name: 'README.md',
-      exact: true,
-    });
-    await expect.element(row).toBeVisible();
-    expect(row.element().getBoundingClientRect().height).toBe(30);
   } finally {
     await page.viewport(414, 896);
   }

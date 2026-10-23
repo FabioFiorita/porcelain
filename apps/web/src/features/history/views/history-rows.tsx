@@ -53,7 +53,7 @@ export function GraphRows({
   );
 }
 
-export function HistoryEnd({ history }: { history: History }) {
+function HistoryEnd({ history }: { history: History }) {
   return (
     <>
       <HistoryStatus history={history} />

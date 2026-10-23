@@ -14,6 +14,5 @@ export {
   historyHeading,
   historyBoundary,
   branchTracking,
-  type BranchTracking,
 } from './presentation.ts';
 export { type HistoryScope } from './connection.ts';

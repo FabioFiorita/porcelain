@@ -106,7 +106,6 @@ function ReviewWorkspaceContent({
   const desktop = useDesktopReview();
   const [focusedPane, setFocusedPane] = useState<PaneIndex>(0);
   const railToggle = useElement<HTMLButtonElement>();
-  const panelSlot = useElement<HTMLDivElement>();
   const mobileTrigger = useElement<HTMLButtonElement>();
   const mobileSheet = useElement<HTMLDivElement>();
   const {
@@ -261,64 +260,65 @@ function ReviewWorkspaceContent({
       }}
     >
       <div className="flex min-h-0 flex-1">
-      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
-        <ResizablePanel
-          id="review-document"
-          minSize={navigatorIsMobile ? 0 : 480}
+        <ResizablePanelGroup
+          orientation="horizontal"
+          className="min-h-0 flex-1"
         >
-          <section
-            aria-label="Review content"
-            className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
+          <ResizablePanel
+            id="review-document"
+            minSize={navigatorIsMobile ? 0 : 480}
           >
-            <InterruptedActionNotice scope={scope} context={context} />
-            <ConflictGuidance scope={scope} context={context} onOpen={open} />
-            <DocumentArea
-              reveal={reveal}
-              scope={scope}
-              context={context}
-              overview={overview}
-              published={published}
-              needsDefault={needsDefault}
-              layout={layout}
-              base={search.base}
-              focused={focusedPane}
-              onOpen={open}
-              navigationTrigger={navigationTrigger}
-              navigatorIsMobile={navigatorIsMobile}
-              navigatorOpen={navigatorOpen}
-              navigatorOpenMobile={navigatorOpenMobile}
-              tabControls={tabControls}
-            />
-          </section>
-        </ResizablePanel>
-        {panelOpen && desktop && (
-          <>
-            <ResizableHandle className="w-2 bg-transparent after:w-2" />
-            <ResizablePanel
-              id="review-sidebar"
-              defaultSize={320}
-              minSize={260}
-              maxSize={520}
+            <section
+              aria-label="Review content"
+              className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
             >
-              <div ref={panelSlot.attach} className="h-full" />
-            </ResizablePanel>
-          </>
+              <InterruptedActionNotice scope={scope} context={context} />
+              <ConflictGuidance scope={scope} context={context} onOpen={open} />
+              <DocumentArea
+                reveal={reveal}
+                scope={scope}
+                context={context}
+                overview={overview}
+                published={published}
+                needsDefault={needsDefault}
+                layout={layout}
+                base={search.base}
+                focused={focusedPane}
+                onOpen={open}
+                navigationTrigger={navigationTrigger}
+                navigatorIsMobile={navigatorIsMobile}
+                navigatorOpen={navigatorOpen}
+                navigatorOpenMobile={navigatorOpenMobile}
+                tabControls={tabControls}
+              />
+            </section>
+          </ResizablePanel>
+          {panelOpen && desktop && (
+            <>
+              <ResizableHandle className="w-2 bg-transparent after:w-2" />
+              <ResizablePanel
+                id="review-sidebar"
+                defaultSize={320}
+                minSize={260}
+                maxSize={520}
+              >
+                {sidebar('docked')}
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
+        {desktop && (
+          <SideRail
+            scope={scope}
+            context={context}
+            surface={surface}
+            open={panelOpen}
+            onSelect={showSurface}
+            onHide={() => setPanelOpen(false)}
+            onToggle={toggleSidebar}
+            toggleRef={railToggle.attach}
+          />
         )}
-      </ResizablePanelGroup>
-      {desktop && (
-        <SideRail
-          scope={scope}
-          context={context}
-          surface={surface}
-          open={panelOpen}
-          onSelect={showSurface}
-          onHide={() => setPanelOpen(false)}
-          onToggle={toggleSidebar}
-          toggleRef={railToggle.attach}
-          panel={sidebar('docked')}
-          panelTarget={panelSlot.element}
-        />
-      )}
       </div>
       <SheetContent
         ref={(element) => {

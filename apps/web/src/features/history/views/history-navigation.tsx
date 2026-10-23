@@ -76,19 +76,17 @@ export function HistoryNavigation({
       <ScrollArea className="h-0 min-h-0 flex-1">
         {uncommitted > 0 && (
           <div className="px-1.5 pt-2">
-            <Button
-              variant="ghost"
-              className="h-9 w-full justify-start gap-2 px-2 font-normal"
+            <button
+              type="button"
               onClick={onOpenChanges}
+              className="flex h-9 w-full items-center gap-2 rounded-lg px-2 text-left text-caption transition-colors hover:bg-accent"
             >
-              <CircleDashedIcon className="text-muted-foreground" />
-              <span className="flex-1 truncate text-left">
-                Uncommitted changes
-              </span>
+              <CircleDashedIcon className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="flex-1 truncate">Uncommitted changes</span>
               <span className="text-2xs text-muted-foreground tabular-nums">
                 {uncommitted} {uncommitted === 1 ? 'file' : 'files'}
               </span>
-            </Button>
+            </button>
           </div>
         )}
         {history.commits.length === 0 ? (

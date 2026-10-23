@@ -20,16 +20,19 @@ test.for([1280, 414])(
       const search = () => new URL(app.location(), 'http://test').searchParams;
       if (width === 414)
         await page.getByRole('button', { name: 'Review', exact: true }).click();
-      await (
-        width === 414
-          ? page.getByRole('complementary', {
-              name: 'Review sidebar',
-              exact: true,
-            })
-          : page.getByRole('tablist', { name: 'Side panel', exact: true })
-      )
-        .getByRole('tab', { name: 'Changes', exact: true })
-        .click();
+      if (width === 414)
+        await page
+          .getByRole('complementary', {
+            name: 'Review sidebar',
+            exact: true,
+          })
+          .getByRole('tab', { name: 'Changes', exact: true })
+          .click();
+      else
+        await page
+          .getByRole('navigation', { name: 'Side panel', exact: true })
+          .getByRole('button', { name: 'Changes', exact: true })
+          .click();
       await page.getByRole('tab', { name: 'Branch', exact: true }).click();
       await page
         .getByRole('button', {

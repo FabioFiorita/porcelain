@@ -1,10 +1,8 @@
 import { formatForDisplay } from '@tanstack/react-hotkeys';
 import { PanelRightIcon } from 'lucide-react';
-import type { ReactNode, RefCallback } from 'react';
-import { createPortal } from 'react-dom';
+import type { RefCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Tooltip,
   TooltipContent,
@@ -12,7 +10,7 @@ import {
 } from '@/components/ui/tooltip';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
-import { isSurface, type Surface } from '@/shared/workspace/search';
+import type { Surface } from '@/shared/workspace/search';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { SurfaceIcon, useSurfaceNames } from './review-sidebar';
 
@@ -31,8 +29,6 @@ export function SideRail({
   onHide,
   onToggle,
   toggleRef,
-  panel,
-  panelTarget,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
@@ -42,52 +38,50 @@ export function SideRail({
   onHide: () => void;
   onToggle: () => void;
   toggleRef: RefCallback<HTMLButtonElement>;
-  panel: ReactNode;
-  panelTarget: HTMLElement | null;
 }) {
   const names = useSurfaceNames(scope, context);
   const toggleLabel = open ? 'Hide side panel' : 'Show side panel';
   return (
-    <Tabs
-      orientation="vertical"
-      value={open ? surface : null}
-      onValueChange={(value) => {
-        if (isSurface(value)) onSelect(value);
-      }}
-      className="w-11 shrink-0 flex-col items-center gap-1 py-2"
+    <nav
+      aria-label="Side panel"
+      className="flex w-11 shrink-0 flex-col items-center gap-1 pt-2.5 pb-2 pl-1 text-muted-foreground"
     >
-      <TabsList
-        aria-label="Side panel"
-        className="gap-1 rounded-none bg-transparent group-data-vertical/tabs:p-0"
-      >
-        {RAIL.map((item) => (
-          <Tooltip key={item.surface}>
-            <TooltipTrigger
-              render={
-                <TabsTrigger
-                  value={item.surface}
-                  aria-label={names[item.surface]}
-                  aria-keyshortcuts={item.keys}
-                  className="workspace-choice size-8 flex-none rounded-lg text-muted-foreground group-data-vertical/tabs:w-8 group-data-vertical/tabs:justify-center group-data-vertical/tabs:px-0 data-active:text-foreground"
-                  onClick={() => {
-                    if (open && surface === item.surface) onHide();
-                  }}
+      {RAIL.map((item) => {
+        const selected = open && surface === item.surface;
+        return (
+          <span
+            key={item.surface}
+            data-selected={selected || undefined}
+            className="workspace-choice inline-flex rounded-lg data-selected:text-foreground"
+          >
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={names[item.surface]}
+                    aria-pressed={selected}
+                    aria-keyshortcuts={item.keys}
+                    onClick={() =>
+                      selected ? onHide() : onSelect(item.surface)
+                    }
+                  />
+                }
+              >
+                <SurfaceIcon
+                  scope={scope}
+                  context={context}
+                  surface={item.surface}
                 />
-              }
-            >
-              <SurfaceIcon
-                scope={scope}
-                context={context}
-                surface={item.surface}
-              />
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              {names[item.surface]}{' '}
-              <Kbd>{formatForDisplay(item.keys)}</Kbd>
-            </TooltipContent>
-          </Tooltip>
-        ))}
-      </TabsList>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                {names[item.surface]} <Kbd>{formatForDisplay(item.keys)}</Kbd>
+              </TooltipContent>
+            </Tooltip>
+          </span>
+        );
+      })}
       <Tooltip>
         <TooltipTrigger
           render={
@@ -95,7 +89,7 @@ export function SideRail({
               ref={toggleRef}
               variant="ghost"
               size="icon"
-              className="mt-auto text-muted-foreground"
+              className="mt-auto"
               aria-label={toggleLabel}
               aria-expanded={open}
               aria-keyshortcuts={SHORTCUTS.toggleSidebar}
@@ -109,14 +103,6 @@ export function SideRail({
           {toggleLabel} <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>
         </TooltipContent>
       </Tooltip>
-      {open &&
-        panelTarget &&
-        createPortal(
-          <TabsContent value={surface} className="h-full min-h-0">
-            {panel}
-          </TabsContent>,
-          panelTarget,
-        )}
-    </Tabs>
+    </nav>
   );
 }

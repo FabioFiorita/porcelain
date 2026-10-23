@@ -152,13 +152,13 @@ for (const viewport of [
       name: 'Review sidebar',
       exact: true,
     });
-    await (
-      viewport.width < 1280
-        ? sidebar
-        : page.getByRole('tablist', { name: 'Side panel', exact: true })
-    )
-      .getByRole('tab', { name: 'Changes', exact: true })
-      .click();
+    if (viewport.width < 1280)
+      await sidebar.getByRole('tab', { name: 'Changes', exact: true }).click();
+    else
+      await page
+        .getByRole('navigation', { name: 'Side panel', exact: true })
+        .getByRole('button', { name: 'Changes', exact: true })
+        .click();
     await sidebar.getByRole('tab', { name: 'Comments', exact: true }).click();
     await sidebar
       .getByRole('button', {
