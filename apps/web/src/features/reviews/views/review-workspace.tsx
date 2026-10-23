@@ -1,3 +1,9 @@
+import { Kbd } from '@/components/ui/kbd';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
 import { publishedReviewTitle, type ReviewTitle } from '../rules/documents';
 import { useElement, type ElementTarget } from '@/shared/hooks/use-element';
 import { AsyncResult } from 'effect/reactivity';
@@ -207,38 +213,57 @@ function ReviewWorkspaceContent({
   const tabControls = (pane: PaneIndex) => (
     <div data-review-controls="" className="contents">
       <GitButton scope={scope} context={context} />
-      <Button
-        ref={(element) => desktopTrigger.attach(element)}
-        className="hidden xl:inline-flex"
-        variant="ghost"
-        size="icon-sm"
-        aria-label={sidebarOpen ? 'Hide review sidebar' : 'Show review sidebar'}
-        aria-expanded={sidebarOpen}
-        aria-keyshortcuts={SHORTCUTS.toggleSidebar}
-        title={`Toggle review sidebar (${formatForDisplay(SHORTCUTS.toggleSidebar)})`}
-        onClick={() => {
-          layout.selectPane(pane);
-          toggleSidebar();
-        }}
-      >
-        <PanelRightIcon />
-      </Button>
-      <SheetTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            ref={(element) => mobileTrigger.attach(element)}
-            className="xl:hidden"
-            aria-label="Review"
-            aria-keyshortcuts={SHORTCUTS.toggleSidebar}
-            title={`Toggle review sidebar (${formatForDisplay(SHORTCUTS.toggleSidebar)})`}
-            onClick={() => layout.selectPane(pane)}
-          />
-        }
-      >
-        <PanelRightIcon />
-      </SheetTrigger>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              ref={(element) => desktopTrigger.attach(element)}
+              className="hidden xl:inline-flex"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={
+                sidebarOpen ? 'Hide review sidebar' : 'Show review sidebar'
+              }
+              aria-expanded={sidebarOpen}
+              aria-keyshortcuts={SHORTCUTS.toggleSidebar}
+              onClick={() => {
+                layout.selectPane(pane);
+                toggleSidebar();
+              }}
+            >
+              <PanelRightIcon />
+            </Button>
+          }
+        />
+        <TooltipContent className="break-all">
+          {sidebarOpen ? 'Hide review sidebar' : 'Show review sidebar'}{' '}
+          <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>
+        </TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <SheetTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  ref={(element) => mobileTrigger.attach(element)}
+                  className="xl:hidden"
+                  aria-label="Review"
+                  aria-keyshortcuts={SHORTCUTS.toggleSidebar}
+                  onClick={() => layout.selectPane(pane)}
+                />
+              }
+            >
+              <PanelRightIcon />
+            </SheetTrigger>
+          }
+        />
+        <TooltipContent className="break-all">
+          Review <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>
+        </TooltipContent>
+      </Tooltip>
     </div>
   );
 

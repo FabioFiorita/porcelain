@@ -1,3 +1,8 @@
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
 import { useId, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import {
@@ -87,19 +92,28 @@ export function SidebarActionMenu({
                 {description}
               </span>
             )}
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  className="shrink-0"
-                  aria-label={label}
-                  aria-describedby={description ? descriptionId : undefined}
-                />
-              }
-            >
-              <EllipsisIcon />
-            </DropdownMenuTrigger>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="shrink-0"
+                        aria-label={label}
+                        aria-describedby={
+                          description ? descriptionId : undefined
+                        }
+                      />
+                    }
+                  >
+                    <EllipsisIcon />
+                  </DropdownMenuTrigger>
+                }
+              />
+              <TooltipContent className="break-all">{label}</TooltipContent>
+            </Tooltip>
             <DropdownMenuContent align="end" finalFocus={!openingSide}>
               {actions.map((action) => (
                 <DropdownMenuItem

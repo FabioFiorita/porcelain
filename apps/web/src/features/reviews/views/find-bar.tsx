@@ -1,4 +1,9 @@
 import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
+import {
   ChevronDownIcon,
   ChevronUpIcon,
   SearchIcon,
@@ -81,29 +86,52 @@ export function FindBar({
               {matchCountLabel(index, matches.length, FILE_FIND_MAX_MATCHES)}
             </InputGroupText>
           )}
-          <InputGroupButton
-            size="icon-xs"
-            aria-label="Previous match"
-            disabled={matches.length === 0}
-            onClick={() => step(-1)}
-          >
-            <ChevronUpIcon />
-          </InputGroupButton>
-          <InputGroupButton
-            size="icon-xs"
-            aria-label="Next match"
-            disabled={matches.length === 0}
-            onClick={() => step(1)}
-          >
-            <ChevronDownIcon />
-          </InputGroupButton>
-          <InputGroupButton
-            size="icon-xs"
-            aria-label="Close find"
-            onClick={onClose}
-          >
-            <XIcon />
-          </InputGroupButton>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <InputGroupButton
+                  size="icon-xs"
+                  aria-label="Previous match"
+                  disabled={matches.length === 0}
+                  onClick={() => step(-1)}
+                >
+                  <ChevronUpIcon />
+                </InputGroupButton>
+              }
+            />
+            <TooltipContent className="break-all">
+              Previous match
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <InputGroupButton
+                  size="icon-xs"
+                  aria-label="Next match"
+                  disabled={matches.length === 0}
+                  onClick={() => step(1)}
+                >
+                  <ChevronDownIcon />
+                </InputGroupButton>
+              }
+            />
+            <TooltipContent className="break-all">Next match</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <InputGroupButton
+                  size="icon-xs"
+                  aria-label="Close find"
+                  onClick={onClose}
+                >
+                  <XIcon />
+                </InputGroupButton>
+              }
+            />
+            <TooltipContent className="break-all">Close find</TooltipContent>
+          </Tooltip>
         </InputGroupAddon>
       </InputGroup>
     </div>

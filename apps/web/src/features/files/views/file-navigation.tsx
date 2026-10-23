@@ -1,3 +1,8 @@
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import type { GitStatusEntry } from '@pierre/trees';
@@ -270,36 +275,53 @@ function ScopedFileNavigation({
           className="h-7 w-auto min-w-0 flex-1"
         />
         {hidden.size > 0 && (
-          <Button
-            size="icon-sm"
-            variant={showHidden ? 'secondary' : 'ghost'}
-            aria-pressed={showHidden}
-            aria-label={
-              showHidden ? 'Showing hidden' : `Hidden (${hidden.size})`
-            }
-            onClick={() => setShowHidden((current) => !current)}
-          >
-            {showHidden ? (
-              <EyeIcon className="text-muted-foreground" />
-            ) : (
-              <EyeOffIcon className="text-muted-foreground" />
-            )}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  size="icon-sm"
+                  variant={showHidden ? 'secondary' : 'ghost'}
+                  aria-pressed={showHidden}
+                  aria-label={
+                    showHidden ? 'Showing hidden' : `Hidden (${hidden.size})`
+                  }
+                  onClick={() => setShowHidden((current) => !current)}
+                >
+                  {showHidden ? (
+                    <EyeIcon className="text-muted-foreground" />
+                  ) : (
+                    <EyeOffIcon className="text-muted-foreground" />
+                  )}
+                </Button>
+              }
+            />
+            <TooltipContent className="break-all">
+              {showHidden ? 'Showing hidden' : `Hidden (${hidden.size})`}
+            </TooltipContent>
+          </Tooltip>
         )}
         <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                aria-label="Create file or folder"
-                title="Create file or folder"
-                disabled={edit.result.waiting}
-              />
-            }
-          >
-            <PlusIcon className="text-muted-foreground" />
-          </DropdownMenuTrigger>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label="Create file or folder"
+                      disabled={edit.result.waiting}
+                    />
+                  }
+                >
+                  <PlusIcon className="text-muted-foreground" />
+                </DropdownMenuTrigger>
+              }
+            />
+            <TooltipContent className="break-all">
+              Create file or folder
+            </TooltipContent>
+          </Tooltip>
           <DropdownMenuContent align="end">
             <DropdownMenuItem
               onClick={() =>
@@ -323,15 +345,21 @@ function ScopedFileNavigation({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          aria-label={collapseLabel}
-          title={collapseLabel}
-          onClick={() => collapseAll()}
-        >
-          <ListChevronsUpDownIcon className="text-muted-foreground" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                aria-label={collapseLabel}
+                onClick={() => collapseAll()}
+              >
+                <ListChevronsUpDownIcon className="text-muted-foreground" />
+              </Button>
+            }
+          />
+          <TooltipContent className="break-all">{collapseLabel}</TooltipContent>
+        </Tooltip>
       </div>
       <PinnedFiles
         paths={pinned}

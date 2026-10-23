@@ -1,3 +1,8 @@
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import { ChevronDownIcon, GitBranchIcon, Undo2Icon } from 'lucide-react';
@@ -152,52 +157,59 @@ export function GitButton({
             if (running) setProgressOpen(open);
           }}
         >
-          <PopoverTrigger
-            render={
-              <Button
-                variant="outline"
-                size={suggested && !running ? 'sm' : 'icon-sm'}
-                aria-label={
-                  running
-                    ? `${networkLabel(running.name)} in progress: show progress`
-                    : primary.label
-                }
-                title={
-                  running
-                    ? `${networkLabel(running.name)} in progress`
-                    : primaryTip
-                }
-                disabled={
-                  (running === null || running === undefined) &&
-                  primary.kind === 'hint'
-                }
-                focusableWhenDisabled
-                className="aria-disabled:cursor-default"
-                onClick={() => {
-                  if (running || result) return;
-                  if (primary.kind === 'commit') choose('commit');
-                  else if (primary.kind === 'stash') choose('stash-apply');
-                  else if (primary.kind === 'run')
-                    menu.runNetwork(primary.action, status.branch);
-                }}
-              />
-            }
-          >
-            {running ? (
-              <Spinner className="size-3.5" />
-            ) : (
-              <GitActionIcon
-                action={primaryIcon(primary)}
-                className="size-3.5"
-              />
-            )}
-            {suggested && !running && (
-              <span aria-hidden="true">
-                {primary.label}
-                {count !== null && count !== undefined && ` ${count}`}
-              </span>
-            )}
-          </PopoverTrigger>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <PopoverTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size={suggested && !running ? 'sm' : 'icon-sm'}
+                      aria-label={
+                        running
+                          ? `${networkLabel(running.name)} in progress: show progress`
+                          : primary.label
+                      }
+                      disabled={
+                        (running === null || running === undefined) &&
+                        primary.kind === 'hint'
+                      }
+                      focusableWhenDisabled
+                      className="aria-disabled:cursor-default"
+                      onClick={() => {
+                        if (running || result) return;
+                        if (primary.kind === 'commit') choose('commit');
+                        else if (primary.kind === 'stash')
+                          choose('stash-apply');
+                        else if (primary.kind === 'run')
+                          menu.runNetwork(primary.action, status.branch);
+                      }}
+                    />
+                  }
+                >
+                  {running ? (
+                    <Spinner className="size-3.5" />
+                  ) : (
+                    <GitActionIcon
+                      action={primaryIcon(primary)}
+                      className="size-3.5"
+                    />
+                  )}
+                  {suggested && !running && (
+                    <span aria-hidden="true">
+                      {primary.label}
+                      {count !== null && count !== undefined && ` ${count}`}
+                    </span>
+                  )}
+                </PopoverTrigger>
+              }
+            />
+            <TooltipContent className="break-all">
+              {running
+                ? `${networkLabel(running.name)} in progress: show progress`
+                : primaryTip}
+            </TooltipContent>
+          </Tooltip>
           <PopoverContent align="end" className="w-80">
             {result && !running ? (
               <PopoverHeader>
@@ -238,19 +250,25 @@ export function GitButton({
             if (open) setDetailsEnabled(true);
           }}
         >
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label="Git actions"
-                title="Git actions menu"
-                disabled={running !== null && running !== undefined}
-              />
-            }
-          >
-            <ChevronDownIcon className="size-3.5" />
-          </DropdownMenuTrigger>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      aria-label="Git actions"
+                      disabled={running !== null && running !== undefined}
+                    />
+                  }
+                >
+                  <ChevronDownIcon className="size-3.5" />
+                </DropdownMenuTrigger>
+              }
+            />
+            <TooltipContent className="break-all">Git actions</TooltipContent>
+          </Tooltip>
           <DropdownMenuContent align="end" className="w-72">
             <DropdownMenuGroup>
               <DropdownMenuLabel className="flex items-center">
