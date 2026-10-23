@@ -31,7 +31,8 @@ function createMarginStack() {
     if (!frame) frame = requestAnimationFrame(layout);
   };
   const observer = new ResizeObserver(schedule);
-  return (card: HTMLElement) => {
+  return (card: HTMLElement | null) => {
+    if (!card) return;
     cards.add(card);
     observer.observe(card);
     if (card.offsetParent) observer.observe(card.offsetParent);

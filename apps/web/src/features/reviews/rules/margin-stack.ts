@@ -1,6 +1,6 @@
-export type MarginBox = { readonly top: number; readonly height: number };
+type MarginBox = { readonly top: number; readonly height: number };
 
-export const MARGIN_GAP = 12;
+const MARGIN_GAP = 12;
 
 export function stackMargin(boxes: readonly MarginBox[], gap = MARGIN_GAP) {
   const offsets = boxes.map(() => 0);
