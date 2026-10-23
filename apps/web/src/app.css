@@ -162,6 +162,7 @@
 }
 
 .settings-content [data-slot='field-set'] {
+  min-width: 0;
   gap: calc(var(--spacing) * 2);
 }
 
