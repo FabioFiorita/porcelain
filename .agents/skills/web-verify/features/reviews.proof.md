@@ -10,6 +10,7 @@ selectors:
   - "Attachments"
 tests:
   - apps/web/spec/integration/reviews-proof.test.tsx
+  - apps/desktop/src/rules/content-security-policy.spec.ts
 api:
   - GET /api/worktrees/:worktreeId/review/proof
 ---
@@ -49,3 +50,4 @@ Automated coverage: `reviews-proof.test.tsx`.
 ## Gotchas
 
 - Match status-dependent names: Proof · no checks / passed / all 2 passed / outdated. Wait beyond Loading image… for actual attachment bytes.
+- In Porcelain Dev's `porcelain://app` renderer, verify retained video bytes decode and play. The desktop media policy admits app/blob sources; a direct HTTP media URL must still produce a `media-src` refusal. HTTP-browser playback alone does not cover this policy.
