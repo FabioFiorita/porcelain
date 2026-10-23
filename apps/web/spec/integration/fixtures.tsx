@@ -421,7 +421,7 @@ export const test = base
             );
             await mounted.router.invalidate({ sync: true });
           },
-          location: () => mounted.router.state.location.href,
+          location: () => mounted.router.state.resolvedLocation?.href ?? '',
           title: () => document.title,
           pendingDestination: () =>
             sessionStorage.getItem('porcelain.pairing.destination'),
