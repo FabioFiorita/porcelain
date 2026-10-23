@@ -30,7 +30,7 @@ export function useReviewPlace(review: string) {
   return useAtom(places(review));
 }
 
-const linkedNavigation = Atom.family((_owner: string) =>
+const reviewNavigation = Atom.family((_owner: string) =>
   Atom.make((get) => {
     let scroll: ComponentRef<typeof ScrollView> | null = null;
     let content: ComponentRef<typeof View> | null = null;
@@ -67,10 +67,11 @@ const linkedNavigation = Atom.family((_owner: string) =>
         };
       },
       scrollToDecision,
+      scrollToStart: () => scroll?.scrollTo({ y: 0, animated: false }),
     };
   }),
 );
 
-export function useLinkedReviewNavigation() {
-  return useAtomValue(linkedNavigation(useId()));
+export function useReviewNavigation() {
+  return useAtomValue(reviewNavigation(useId()));
 }

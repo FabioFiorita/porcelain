@@ -40,15 +40,23 @@ export function ProofList({
   proof,
   layers,
   inLayer = false,
+  layout = 'stacked',
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   proof: ReviewProof;
   layers: readonly ReviewLayer[];
   inLayer?: boolean;
+  layout?: 'stacked' | 'columns';
 }) {
   return (
-    <div className="flex flex-col gap-5">
+    <div
+      className={cn(
+        'flex min-w-0 flex-col gap-5',
+        layout === 'columns' &&
+          '@2xl/review:grid @2xl/review:grid-cols-2 @2xl/review:items-start',
+      )}
+    >
       {proof.checks.length > 0 && (
         <section aria-label="Checks" className="flex flex-col gap-2">
           <h2 className="text-xs font-medium text-muted-foreground">Checks</h2>
@@ -68,7 +76,7 @@ export function ProofList({
           <h2 className="text-xs font-medium text-muted-foreground">
             Attachments
           </h2>
-          <ul className="grid gap-3 sm:grid-cols-2">
+          <ul className="grid gap-3 @lg/review:grid-cols-2">
             {proof.assets.map((asset) => (
               <li key={asset.id} className="min-w-0">
                 <AssetView
@@ -119,7 +127,7 @@ function CheckRow({
             failed && 'text-destructive',
           )}
         />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">
+        <span className="min-w-0 flex-1 text-sm wrap-anywhere font-medium">
           {check.name}
         </span>
         <span
@@ -132,7 +140,7 @@ function CheckRow({
         </span>
       </div>
       {target && (
-        <p className="mt-0.5 truncate pl-6 text-xs text-muted-foreground">
+        <p className="mt-0.5 pl-6 wrap-anywhere text-xs text-muted-foreground">
           {target}
         </p>
       )}
@@ -158,9 +166,11 @@ function AssetView({
 }) {
   const caption = (
     <figcaption className="flex min-w-0 flex-col px-1 pt-1.5">
-      <span className="truncate text-sm">{asset.title}</span>
+      <span className="text-sm wrap-anywhere">{asset.title}</span>
       {target && (
-        <span className="truncate text-xs text-muted-foreground">{target}</span>
+        <span className="text-xs wrap-anywhere text-muted-foreground">
+          {target}
+        </span>
       )}
     </figcaption>
   );
@@ -177,11 +187,11 @@ function AssetView({
           <span className="truncate">{asset.title}</span>
         </a>
         <figcaption className="flex min-w-0 flex-col px-1 pt-0.5">
-          <span className="truncate text-xs text-muted-foreground">
+          <span className="text-xs wrap-anywhere text-muted-foreground">
             {linkHost(asset.url)}
           </span>
           {target && (
-            <span className="truncate text-xs text-muted-foreground">
+            <span className="text-xs wrap-anywhere text-muted-foreground">
               {target}
             </span>
           )}

@@ -127,25 +127,53 @@ it('encodes reserved path characters once and preserves the transport policy', a
   });
   expect(sent[0]?.init?.signal?.aborted).toBe(false);
 });
-it('answers a file over the read limit with a readable reason instead of failing the read', async () => {
-  const subject = fixture(() =>
-    Promise.resolve(
-      Response.json(
-        {
-          statusCode: 422,
-          error: 'Unprocessable Entity',
-          message: 'File exceeds the read limit',
-          code: 'file_too_large',
-        },
-        { status: 422 },
+it.each([
+  [
+    'file_too_large',
+    'File exceeds the read limit',
+    'This file is too large to display as text.',
+  ],
+  [
+    'unsupported_text',
+    'File is not supported UTF-8 text',
+    'This file is binary or uses an unsupported text encoding.',
+  ],
+])(
+  'answers %s with a readable reason instead of failing the read',
+  async (code, message, reason) => {
+    const subject = fixture(() =>
+      Promise.resolve(
+        Response.json(
+          {
+            statusCode: 422,
+            error: 'Unprocessable Entity',
+            message,
+            code,
+          },
+          { status: 422 },
+        ),
       ),
-    ),
-  );
-  expect(await read(subject)).toEqual({
-    kind: 'unreadable',
-    reason: 'This file is too large to display as text.',
-  });
-});
+    );
+    expect(await read(subject)).toEqual({
+      kind: 'unreadable',
+      reason,
+    });
+  },
+);
+it.each([
+  [404, 'Not Found', 'Path not found'],
+  [422, 'Unprocessable Entity', 'Path could not be read'],
+] as const)(
+  'preserves a server %i refusal for a known text path',
+  async (statusCode, error, message) => {
+    const subject = fixture(() =>
+      Promise.resolve(
+        Response.json({ statusCode, error, message }, { status: statusCode }),
+      ),
+    );
+    await expect(read(subject, 'wide/target.txt')).rejects.toThrow(message);
+  },
+);
 it('rejects malformed success data', async () => {
   const subject = fixture(() =>
     Promise.resolve(Response.json({ malformed: true })),

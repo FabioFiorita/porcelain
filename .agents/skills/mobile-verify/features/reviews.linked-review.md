@@ -2,7 +2,9 @@
 screen: /reviews/[reviewId]
 selectors:
   - 'All decisions'
-  - 'Decisions'
+  - 'The walkthrough'
+  - 'Briefing'
+  - 'You asked'
   - 'Pair this computer'
   - 'Pairing link'
   - 'Pair'
@@ -33,8 +35,8 @@ Preconditions: [surface baseline](README.md).
 
 Preconditions: [deep-link setup](app.deep-links.md) for warm, cold and unpaired entry; publish a committed review.
 
-1. Open the review. Verify Asked, Recommendation (Merge success/Hold warning) and reasons, Proven at the short SHA once, Not proven and Removed (every deleted path in a red frame). Repeat light/dark/larger text.
-2. Open each decision and direct decision links: summary, step text and stored Published excerpt match that revision, with no current worktree file fetch. All decisions returns to the list.
+1. Open the review. Verify the native Briefing title, Recommendation (Merge success/Hold warning) and reasons first, You asked with links, Needs your decision, Proven at the short SHA once, owners and actual Removed paths, Not proven and The walkthrough. Image assets expand to retained images; links open externally and videos explicitly open this published revision in the browser. Continue at decision n stays fixed outside the scrolling content and resumes at the first unfinished decision. Repeat light/dark/larger text.
+2. Open each decision and direct decision links: summary, step text and stored Published excerpt match that revision, with no current worktree file fetch. All decisions returns to the briefing. The verdict appears only on the briefing. Not explained and Specs list their retained paths; partial unexplained ranges stay visible.
 3. Read the server review independently: lastSeenRevision updates on opening. Open an older revision: exact content renders.
 4. Unknown decision leaves a readable review/note/All decisions. Unknown review/revision and offline states retain native header Back; Read again recovers connectivity.
 5. Cold app-link launch → native Back returns to Review; existing workspace review still opens.

@@ -1,5 +1,5 @@
-import { useState, type ComponentRef } from 'react';
-import { useLocalSearchParams, useIsFocused } from 'expo-router';
+import { useState } from 'react';
+import { Stack, useLocalSearchParams, useIsFocused } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 import {
   useAtomMount,
@@ -10,9 +10,17 @@ import {
 import { AsyncResult } from 'effect/reactivity';
 import {
   parseReviewAppLink,
+  walkthroughStops,
+  currentStop,
+  stopTitle,
+  stopDone,
+  revisionReviewItems,
+  revisionDecisionStates,
+  type WalkthroughKey,
   type ReviewAppLink,
 } from '@porcelain/client/reviews/rules';
 import type { RuntimeConnection } from '@porcelain/client/transport';
+import { readReviewMarks } from '@porcelain/client/reviews';
 import type { LinkedRevision } from '../queries/linked-review';
 import {
   openReview,
@@ -33,17 +41,19 @@ import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
 import { DiffView } from '../../../components/ui/diff-view';
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
-import { useLinkedReviewNavigation } from '../store';
-import { LinkedVerdict } from './linked-verdict';
+import { useReviewNavigation } from '../store';
+import { BriefingVerdict } from './review-briefing';
+import { BriefingContinue } from './briefing-continue';
+import { briefingContinuation } from '../rules/briefing';
 import { ReviewReadState } from './read-state';
 
 type Revision = LinkedRevision;
 type DecisionNavigation = {
-  onDecision: (target: ComponentRef<typeof View> | null) => void | (() => void);
+  navigation: ReturnType<typeof useReviewNavigation>;
 };
 
 export function LinkedReviewScreen() {
-  const navigation = useLinkedReviewNavigation();
+  const navigation = useReviewNavigation();
   const params = useLocalSearchParams();
   const query = new URLSearchParams();
   for (const key of ['environment', 'host', 'revision', 'decision']) {
@@ -57,39 +67,23 @@ export function LinkedReviewScreen() {
     `/open/reviews/${encodeURIComponent(reviewId)}?${query}`,
   );
   return (
-    <ScrollView
-      ref={(view) => navigation.scroll(view)}
-      onContentSizeChange={() => navigation.scrollToDecision()}
-      removeClippedSubviews={false}
-      className="flex-1 bg-background"
-      contentInsetAdjustmentBehavior="automatic"
-      keyboardShouldPersistTaps="handled"
-    >
-      <View ref={(view) => navigation.content(view)} collapsable={false}>
-        <Box
-          className="w-full max-w-3xl self-center"
-          gap={4}
-          padding={4}
-          paddingBottom={8}
-        >
-          {destination ? (
-            <ReviewEnvironment
-              key={JSON.stringify(destination)}
-              destination={destination}
-              onDecision={(view) => navigation.decision(view)}
-            />
-          ) : (
-            <ErrorState message="This review link is invalid. Ask the agent for a new link." />
-          )}
-        </Box>
-      </View>
-    </ScrollView>
+    <Box className="flex-1" surface="background">
+      {destination ? (
+        <ReviewEnvironment
+          key={JSON.stringify(destination)}
+          destination={destination}
+          navigation={navigation}
+        />
+      ) : (
+        <ErrorState message="This review link is invalid. Ask the agent for a new link." />
+      )}
+    </Box>
   );
 }
 
 function ReviewEnvironment({
   destination,
-  onDecision,
+  navigation,
 }: { destination: ReviewAppLink } & DecisionNavigation) {
   const remotes = useEnvironments();
   const storage = useEnvironmentStorageStatus();
@@ -106,30 +100,39 @@ function ReviewEnvironment({
     return <ErrorState message={storage.error ?? 'Reading saved computers…'} />;
   if (!remote)
     return (
-      <Box gap={4}>
-        <Text variant="heading">Pair this computer to open the review</Text>
-        <Text>
-          This environment is not paired. Pair {destination.host}; your review
-          and decision will stay here.
-        </Text>
-        {pairing ? (
-          <PairEnvironmentForm
-            environmentId={destination.environmentId}
-            onClose={() => setPairing(false)}
-          />
-        ) : (
-          <Button label="Pair this computer" onPress={() => setPairing(true)} />
-        )}
-      </Box>
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="gap-4 p-4"
+        keyboardShouldPersistTaps="handled"
+        contentInsetAdjustmentBehavior="automatic"
+      >
+        <Box gap={4}>
+          <Text variant="heading">Pair this computer to open the review</Text>
+          <Text>
+            This environment is not paired. Pair {destination.host}; your review
+            and decision will stay here.
+          </Text>
+          {pairing ? (
+            <PairEnvironmentForm
+              environmentId={destination.environmentId}
+              onClose={() => setPairing(false)}
+            />
+          ) : (
+            <Button
+              label="Pair this computer"
+              onPress={() => setPairing(true)}
+            />
+          )}
+        </Box>
+      </ScrollView>
     );
   if (!connection) return <Loading label="Connecting to review computer…" />;
   return (
     <SelectedReviewEnvironment
       key={destination.environmentId}
       destination={destination}
-      onDecision={onDecision}
+      navigation={navigation}
       connection={connection}
-      name={remote.name}
       ready={selection.status === 'ready'}
       error={selection.error}
     />
@@ -138,15 +141,13 @@ function ReviewEnvironment({
 
 function SelectedReviewEnvironment({
   destination,
-  onDecision,
+  navigation,
   connection,
-  name,
   ready,
   error,
 }: {
   destination: ReviewAppLink;
   connection: RuntimeConnection;
-  name: string;
   ready: boolean;
   error: string | undefined;
 } & DecisionNavigation) {
@@ -154,9 +155,8 @@ function SelectedReviewEnvironment({
   return ready ? (
     <ReviewEnvironmentSelection
       destination={destination}
-      onDecision={onDecision}
+      navigation={navigation}
       connection={connection}
-      name={name}
     />
   ) : (
     <Loading label="Reading saved selection…" />
@@ -165,13 +165,11 @@ function SelectedReviewEnvironment({
 
 function ReviewEnvironmentSelection({
   destination,
-  onDecision,
+  navigation,
   connection,
-  name,
 }: {
   destination: ReviewAppLink;
   connection: RuntimeConnection;
-  name: string;
 } & DecisionNavigation) {
   const currentEnvironmentId = useAtomRef(selectionState).currentEnvironmentId;
   const focused = useIsFocused();
@@ -188,23 +186,18 @@ function ReviewEnvironmentSelection({
       <ReviewReadState result={selection} refresh={() => run(undefined)} />
     );
   return (
-    <Box gap={4}>
-      <Text variant="caption" tone="muted">
-        Review on {name}
-      </Text>
-      <LinkedReview
-        connection={connection}
-        destination={destination}
-        onDecision={onDecision}
-      />
-    </Box>
+    <LinkedReview
+      connection={connection}
+      destination={destination}
+      navigation={navigation}
+    />
   );
 }
 
 function LinkedReview({
   connection,
   destination,
-  onDecision,
+  navigation,
 }: {
   connection: RuntimeConnection;
   destination: ReviewAppLink;
@@ -231,7 +224,7 @@ function LinkedReview({
       key={`${result.value.revision.revision}:${destination.decision ?? ''}`}
       connection={connection}
       destination={destination}
-      onDecision={onDecision}
+      navigation={navigation}
       revision={result.value.revision}
     />
   );
@@ -240,7 +233,7 @@ function LinkedReview({
 function LinkedReviewContent({
   connection,
   destination,
-  onDecision,
+  navigation,
   revision,
 }: {
   connection: RuntimeConnection;
@@ -256,55 +249,147 @@ function LinkedReviewContent({
       focused,
     }),
   );
-  const [decision, setDecision] = useState(destination.decision);
-  const selected = revision.content.layers.find(
-    (layer) => layer.id === decision,
+  const [place, setPlace] = useState<WalkthroughKey>(
+    destination.decision ? `decision:${destination.decision}` : 'briefing',
   );
+  const stops = walkthroughStops(
+    revision.content,
+    revision.files.map((file) => file.path),
+    { specsApart: true },
+  );
+  const stop = currentStop(stops, place);
+  const selected = stop.kind === 'decision' ? stop.layer : undefined;
+  const marks = useAtomValue(
+    readReviewMarks({ connection, reviewId: revision.reviewId }),
+  );
+  const settled = AsyncResult.isSuccess(marks) && !marks.waiting;
+  const items = revisionReviewItems(
+    revision,
+    settled ? marks.value : undefined,
+  );
+  const states = revisionDecisionStates(
+    revision,
+    settled ? marks.value : undefined,
+  );
+  const done = (entry: (typeof stops)[number]) =>
+    settled && stopDone(entry, items, states);
+  const next = briefingContinuation(stops, done);
+  const go = (key: WalkthroughKey) => setPlace(key);
   return (
-    <Box gap={4}>
-      <Text variant="heading">
-        {revision.branch} · Revision {revision.revision}
-      </Text>
-      <LinkedVerdict revision={revision} />
-      {decision && !selected ? (
-        <ErrorState message="This decision is not in this revision." />
+    <Box className="flex-1">
+      <Stack.Screen
+        options={{ title: stop.kind === 'briefing' ? 'Briefing' : 'Review' }}
+      />
+      <ScrollView
+        key={stop.key}
+        ref={(view) => navigation.scroll(view)}
+        onContentSizeChange={() => navigation.scrollToDecision()}
+        removeClippedSubviews={false}
+        className="flex-1"
+        contentInsetAdjustmentBehavior="automatic"
+      >
+        <View ref={(view) => navigation.content(view)} collapsable={false}>
+          <Box
+            className="w-full max-w-3xl self-center"
+            gap={4}
+            padding={4}
+            paddingBottom={8}
+          >
+            <Text variant="caption" tone="muted">
+              {revision.branch} · Revision {revision.revision}
+            </Text>
+            {place !== stop.key ? (
+              <ErrorState message="This decision is not in this revision." />
+            ) : null}
+            {stop.kind === 'briefing' ? (
+              <>
+                <Text
+                  variant="heading"
+                  numberOfLines={3}
+                  accessibilityLabel={revision.verdict.asked.text}
+                >
+                  {revision.verdict.asked.text}
+                </Text>
+                <BriefingVerdict
+                  revision={revision}
+                  connection={connection}
+                  review={revision.content}
+                  go={go}
+                />
+                <Text variant="subheading" tone="muted">
+                  The walkthrough
+                </Text>
+                {revision.content.layers.length === 0 ? (
+                  <Text>No decisions were published in this revision.</Text>
+                ) : null}
+                {stops.slice(1).map((entry) => (
+                  <Item
+                    key={entry.key}
+                    title={stopTitle(entry)}
+                    description={
+                      entry.kind === 'decision'
+                        ? entry.layer.summary
+                        : `${entry.paths.length} files`
+                    }
+                    accessibilityLabel={`Open ${stopTitle(entry)}`}
+                    onPress={() => go(entry.key)}
+                  />
+                ))}
+              </>
+            ) : (
+              <>
+                <Button
+                  label="All decisions"
+                  variant="outline"
+                  onPress={() => go('briefing')}
+                />
+                {selected ? (
+                  <Decision
+                    key={selected.id}
+                    layer={selected}
+                    navigation={navigation}
+                  />
+                ) : (
+                  <Box gap={2}>
+                    <Text variant="heading">{stopTitle(stop)}</Text>
+                    {stop.paths.map((path) => (
+                      <Text key={path} variant="code" selectable>
+                        {path}
+                      </Text>
+                    ))}
+                    {stop.kind === 'unexplained'
+                      ? stop.partial.map((gap) => (
+                          <Text key={gap.path} variant="code" selectable>
+                            {gap.path} ·{' '}
+                            {gap.ranges
+                              .map(
+                                (range) =>
+                                  `${range.startLine}–${range.endLine}`,
+                              )
+                              .join(', ')}
+                          </Text>
+                        ))
+                      : null}
+                  </Box>
+                )}
+              </>
+            )}
+          </Box>
+        </View>
+      </ScrollView>
+      {stop.kind === 'briefing' && next ? (
+        <BriefingContinue label={next.label} onPress={() => go(next.key)} />
       ) : null}
-      {decision ? (
-        <Button
-          label="All decisions"
-          variant="outline"
-          onPress={() => setDecision(undefined)}
-        />
-      ) : null}
-      {selected ? (
-        <Decision key={selected.id} layer={selected} onDecision={onDecision} />
-      ) : (
-        <Box gap={3}>
-          <Text variant="heading">Decisions</Text>
-          {revision.content.layers.length === 0 ? (
-            <Text>No decisions were published in this revision.</Text>
-          ) : null}
-          {revision.content.layers.map((layer, index) => (
-            <Item
-              key={layer.id}
-              title={`${index + 1}. ${layer.title}`}
-              description={layer.summary}
-              accessibilityLabel={`Open decision ${index + 1}: ${layer.title}`}
-              onPress={() => setDecision(layer.id)}
-            />
-          ))}
-        </Box>
-      )}
     </Box>
   );
 }
 
 function Decision({
   layer,
-  onDecision,
+  navigation,
 }: { layer: Revision['content']['layers'][number] } & DecisionNavigation) {
   return (
-    <View ref={onDecision} collapsable={false}>
+    <View ref={(view) => navigation.decision(view)} collapsable={false}>
       <Box gap={4}>
         <Text variant="heading">{layer.title}</Text>
         <Text selectable>{layer.summary}</Text>

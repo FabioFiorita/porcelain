@@ -19,6 +19,7 @@ export async function durableReviewFixture(
   session: Session,
   operation: 'publish' | 'remove-worktree' | 'advance' | 'remove-repository',
   title: string,
+  asked = 'Read one committed review after checkout cleanup',
 ) {
   const worktree = join(session.projectHome, name);
   const git = (...args: string[]) => execute('git', ['-C', worktree, ...args]);
@@ -79,7 +80,7 @@ export async function durableReviewFixture(
       base: 'refs/heads/review-page-base',
       verdict: {
         asked: {
-          text: 'Read one committed review after checkout cleanup',
+          text: asked,
           links: [
             {
               title: 'Approved design',

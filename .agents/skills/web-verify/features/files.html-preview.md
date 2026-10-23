@@ -1,12 +1,12 @@
 ---
 route: /$projectId/$worktreeId
 selectors:
-  - "Review"
-  - "Files"
-  - "Preview"
-  - "Source"
-  - "HTML preview"
-  - "Some assets could not be loaded: "
+  - 'Review'
+  - 'Files'
+  - 'Preview'
+  - 'Source'
+  - 'HTML preview'
+  - 'Some assets could not be loaded: '
 tests:
   - apps/web/spec/integration/files-html-preview.test.tsx
 api:
@@ -64,4 +64,4 @@ Automated coverage: `files-html-preview.test.tsx`.
 
 - While assets are read the panel shows status "Loading preview…".
 - The frame is sandboxed (`allow-scripts` only, no same origin) with a CSP that allows only `data:` and `blob:` images; external URLs and references outside the page's folder are reported as missing, not fetched.
-- The display default is a per-browser preference: if an earlier feature in this instance set HTML files to open as source in Settings, the page opens on "Source"; click "Preview".
+- The display default is a per-browser preference: if an earlier feature in this instance set Documents open as to Source in Settings, the page opens on "Source"; click "Preview".

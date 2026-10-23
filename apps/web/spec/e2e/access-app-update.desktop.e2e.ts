@@ -130,8 +130,12 @@ test('the release app checks on demand, shows each result and installs the offer
   ).toBeVisible();
   await expect(check).toBeDisabled();
   await expect(newer).not.toBeAttached();
-  await settings.getByRole('button', { name: 'Back', exact: true }).click();
-  await settings.getByRole('button', { name: 'Back', exact: true }).click();
+  await settings
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
+  await settings
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
   await expect(settings).not.toBeAttached();
 });
 

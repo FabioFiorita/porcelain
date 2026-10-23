@@ -6,7 +6,7 @@ selectors:
   - 'Settings'
   - 'Ways in'
   - 'Local network'
-  - 'Devices'
+  - 'Open This computer'
   - 'Paired devices and links'
   - 'can update Porcelain'
   - 'Device name'
@@ -26,14 +26,14 @@ api:
 
 # access.device-trust
 
-On Settings → Devices the owner lets a paired device update Porcelain and takes that back with the device's "can update Porcelain" switch, and can create a pairing link whose device may update Porcelain from the moment it pairs.
+On Settings → Computers → This computer → Pair a device the owner lets a paired device update Porcelain and takes that back with the device's "can update Porcelain" switch, and can create a pairing link whose device may update Porcelain from the moment it pairs.
 
 ## How to get to it (user POV)
 
-- Workspace → `Toggle Sidebar` (phone width) → `Settings` (navigator footer) → `Devices` → the switch "<device> can update Porcelain" in the device's row.
-- Keyboard: `Alt+Shift+S` on the workspace (focus outside a text field) opens Settings, then `Devices`.
+- Workspace → `Toggle Sidebar` (phone width) → `Settings` (navigator footer) → `Computers` → `Open This computer` → the switch "<device> can update Porcelain" in the device's row.
+- Keyboard: `Alt+Shift+S` on the workspace (focus outside a text field) opens Settings, then `Computers` → `Open This computer`.
 - Route: `/settings/devices` (both shells; administration is host-gated).
-- For a new device: `Computers` → `Open This computer` → Ways in → turn on a way in → `Devices` → "Device name" → switch "The paired device can update Porcelain" → `Create pairing link`.
+- For a new device: `Computers` → `Open This computer` → Ways in → turn on a way in → `Computers` → `Open This computer` → "Device name" → switch "The paired device can update Porcelain" → `Create pairing link`.
 
 ## Driving it with browser
 
@@ -49,8 +49,8 @@ None on disk. The default server has two paired devices: "Development setup" (th
    Expect: title "Settings"; breadcrumb "This computer" and legend "Ways in"; switch "Local network" not checked.
 2. Click switch named `Local network`
    Expect: switch "Local network" checked and the text `http://192.168.1.20:<port>` (the server's fake LAN address). A badge "Starting" may show first; inspect the accessibility tree again after a second.
-3. Click button `Devices`
-   Expect: URL ends `/settings/devices`; list "Paired devices and links" with listitems "Development setup" and "Verification browser"; switch "Development setup can update Porcelain" not checked.
+3. Stay on This computer and scroll to Pair a device
+   Expect: URL ends `/settings/computers/this-computer`; list "Paired devices and links" with listitems "Development setup" and "Verification browser"; switch "Development setup can update Porcelain" not checked.
 4. Click switch named `Development setup can update Porcelain`
    Expect: switch "Development setup can update Porcelain" checked.
 5. Navigate to `/settings/devices`
@@ -74,5 +74,5 @@ Automated coverage: `access-device-trust.desktop.e2e.ts`.
 
 ## Gotchas
 
-- Both shells expose Devices, but only host-authorized browsers see administration. Trust switches work without a way in; link creation instead shows “Turn on a way in under Computers → This computer → Ways in to pair a phone or another computer.”
+- Both shells expose the device controls on This computer, but only host-authorized browsers see administration. Trust switches work without a way in; link creation instead shows “Turn on a way in under Computers → This computer → Ways in to pair a phone or another computer.”
 - Run before access.share, which revokes Development setup. Local network/trust changes persist; reset or restart before other maps. Wait for each switch request before toggling again.

@@ -125,7 +125,12 @@ export class World {
       return '';
     }
     if (step.kind === 'review-fixture')
-      return durableReviewFixture(repository, step.operation, step.title);
+      return durableReviewFixture(
+        repository,
+        step.operation,
+        step.title,
+        step.asked,
+      );
     if (step.kind === 'agent') {
       await agentActs(repository, step.action);
       return '';

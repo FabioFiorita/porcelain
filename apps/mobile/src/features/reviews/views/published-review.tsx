@@ -1,5 +1,8 @@
-import { ProofChecks } from './proof-checks';
+import { ReviewBriefing } from './review-briefing';
+import { BriefingContinue } from './briefing-continue';
+import { briefingContinuation } from '../rules/briefing';
 import { useState } from 'react';
+import { Stack } from 'expo-router';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
 import {
@@ -7,18 +10,15 @@ import {
   readReviewSummary,
 } from '@porcelain/client/reviews';
 import {
-  briefingTitle,
   currentStop,
   decisionRoute,
   neighbourStop,
   notExplainedLabel,
-  proofLabel,
-  proofStatus,
   reviewStepLines,
   stopTitle,
-  systemChanges,
   walkthroughStops,
   type ReviewResponse,
+  type ReviewRevision,
   type WalkthroughKey,
   type WalkthroughStop,
   type ReviewStep,
@@ -36,6 +36,7 @@ import { ReviewReadState } from './read-state';
 import { ReviewPointer } from './review-pointer';
 import { useReviewPlace } from '../store';
 import { useWalkthroughProgress } from '../queries/walkthrough';
+import { useLinkedReview } from '../queries/linked-review';
 import type { ReviewSnapshot } from '../rules/comparison';
 import {
   WalkthroughCompletion,
@@ -68,7 +69,7 @@ export function PublishedReview({
       />
     );
   return (
-    <PublishedContent
+    <Publication
       key={`${workspace.key}:${result.value.publishedAt}:${result.value.revision}`}
       workspace={workspace}
       review={result.value}
@@ -80,6 +81,41 @@ export function PublishedReview({
   );
 }
 
+type PublicationProps = {
+  workspace: Workspace;
+  review: ReviewResponse;
+  snapshot: Extract<ReviewSnapshot, { kind: 'worktree' }> | undefined;
+  onFile: (path: string) => void;
+  onRefresh: () => void;
+  publicationSettled: boolean;
+};
+
+function Publication(props: PublicationProps) {
+  return props.review.reviewId ? (
+    <PublicationRevision {...props} reviewId={props.review.reviewId} />
+  ) : (
+    <PublishedContent {...props} revision={undefined} />
+  );
+}
+
+function PublicationRevision(props: PublicationProps & { reviewId: string }) {
+  const { result, refresh } = useLinkedReview({
+    connection: props.workspace.connection,
+    reviewId: props.reviewId,
+    revision: props.review.revision,
+  });
+  if (!AsyncResult.isSuccess(result))
+    return <ReviewReadState result={result} refresh={refresh} />;
+  if (!result.value.revision)
+    return (
+      <ErrorState
+        message="This review revision could not be found."
+        retry={{ label: 'Read again', onPress: refresh }}
+      />
+    );
+  return <PublishedContent {...props} revision={result.value.revision} />;
+}
+
 function PublishedContent({
   workspace,
   review,
@@ -87,14 +123,8 @@ function PublishedContent({
   onFile,
   onRefresh,
   publicationSettled,
-}: {
-  workspace: Workspace;
-  review: ReviewResponse;
-  snapshot: Extract<ReviewSnapshot, { kind: 'worktree' }> | undefined;
-  onFile: (path: string) => void;
-  onRefresh: () => void;
-  publicationSettled: boolean;
-}) {
+  revision,
+}: PublicationProps & { revision: ReviewRevision | undefined }) {
   const [place, setPlace] = useReviewPlace(
     JSON.stringify([workspace.key, review.publishedAt, review.revision]),
   );
@@ -111,7 +141,7 @@ function PublishedContent({
     publicationSettled,
   );
   const stops = walkthroughStops(review, changedPaths ?? [], {
-    specsApart: false,
+    specsApart: true,
   });
   const stop = currentStop(stops, place.stop);
   const pointer =
@@ -123,9 +153,22 @@ function PublishedContent({
   const next = neighbourStop(stops, stop.key, 1);
   return (
     <Box gap={3}>
-      <Text variant="heading">
-        {review.active ? 'Agent review' : 'Saved review'}
-      </Text>
+      <Stack.Screen
+        options={{ title: stop.kind === 'briefing' ? 'Briefing' : 'Review' }}
+      />
+      {stop.kind === 'briefing' ? (
+        <Text
+          variant="heading"
+          numberOfLines={3}
+          accessibilityLabel={
+            review.verdict?.asked.text ??
+            workspace.worktree.branch ??
+            'Agent review'
+          }
+        >
+          {review.verdict?.asked.text ?? 'Agent review'}
+        </Text>
+      ) : null}
       <Text variant="caption" tone="muted">
         Revision {review.revision}
       </Text>
@@ -171,13 +214,16 @@ function PublishedContent({
         </>
       ) : (
         <>
-          <Text variant="heading">
-            {stopTitle(stop)}
-            {progress.done(stop) ? ' · Reviewed' : ''}
-          </Text>
+          {stop.kind !== 'briefing' ? (
+            <Text variant="heading">
+              {stopTitle(stop)}
+              {progress.done(stop) ? ' · Reviewed' : ''}
+            </Text>
+          ) : null}
           <ReviewPage
             workspace={workspace}
             review={review}
+            revision={revision}
             stop={stop}
             stops={stops}
             pointer={pointer}
@@ -202,28 +248,30 @@ function PublishedContent({
               unavailable={review.diagnostics === 'unavailable'}
             />
           ) : null}
-          <Box className="flex-row flex-wrap" gap={2}>
-            <Button
-              label="Previous"
-              accessibilityLabel={
-                previous
-                  ? `Previous stop: ${stopTitle(previous)}`
-                  : 'Previous stop'
-              }
-              variant="outline"
-              disabled={!previous}
-              onPress={() => previous && go(previous.key)}
-            />
-            <Button
-              label="Next"
-              accessibilityLabel={
-                next ? `Next stop: ${stopTitle(next)}` : 'Next stop'
-              }
-              variant="outline"
-              disabled={!next}
-              onPress={() => next && go(next.key)}
-            />
-          </Box>
+          {stop.kind !== 'briefing' ? (
+            <Box className="flex-row flex-wrap" gap={2}>
+              <Button
+                label="Previous"
+                accessibilityLabel={
+                  previous
+                    ? `Previous stop: ${stopTitle(previous)}`
+                    : 'Previous stop'
+                }
+                variant="outline"
+                disabled={!previous}
+                onPress={() => previous && go(previous.key)}
+              />
+              <Button
+                label="Next"
+                accessibilityLabel={
+                  next ? `Next stop: ${stopTitle(next)}` : 'Next stop'
+                }
+                variant="outline"
+                disabled={!next}
+                onPress={() => next && go(next.key)}
+              />
+            </Box>
+          ) : null}
         </>
       )}
     </Box>
@@ -233,6 +281,7 @@ function PublishedContent({
 function ReviewPage({
   workspace,
   review,
+  revision,
   stop,
   stops,
   pointer,
@@ -244,6 +293,7 @@ function ReviewPage({
 }: {
   workspace: Workspace;
   review: ReviewResponse;
+  revision: ReviewRevision | undefined;
   stop: WalkthroughStop;
   stops: readonly WalkthroughStop[];
   pointer: ReviewStep | undefined;
@@ -282,31 +332,39 @@ function ReviewPage({
   if (stop.kind === 'briefing')
     return (
       <>
-        <Text variant="ui">{briefingTitle(review.layers.length)}</Text>
-        <SystemBriefing review={review} />
+        <ReviewBriefing
+          review={review}
+          revision={revision}
+          connection={workspace.connection}
+          go={go}
+        />
         {review.layers.length === 0 ? (
           <Empty
             title="No walkthrough decisions"
             description="The agent supplied no decision explanations. The summary and available changes remain accessible."
           />
         ) : null}
-        {stops.slice(1).map((entry) => (
-          <Item
-            key={entry.key}
-            title={stopTitle(entry)}
-            description={
-              entry.kind === 'decision'
-                ? `${done(entry) ? 'Reviewed · ' : ''}${entry.layer.summary}`
-                : 'Changes no decision explains'
-            }
-            accessibilityLabel={`Open ${stopTitle(entry)}`}
-            onPress={() => go(entry.key)}
-          />
-        ))}
-        <Text variant="ui">
-          Proof · {proofLabel(proofStatus(review.proof))}
+        <Text variant="subheading" tone="muted">
+          The walkthrough
         </Text>
-        <ProofChecks checks={review.proof.checks} />
+        {stops.slice(1).map((entry) => {
+          let description =
+            notExplainedLabel(review.notExplained) ??
+            'Changes no decision explains';
+          if (entry.kind === 'decision')
+            description = `${done(entry) ? 'Reviewed · ' : ''}${entry.layer.summary}`;
+          if (entry.kind === 'specs')
+            description = `${entry.paths.length} spec files set apart`;
+          return (
+            <Item
+              key={entry.key}
+              title={stopTitle(entry)}
+              description={description}
+              accessibilityLabel={`Open ${stopTitle(entry)}`}
+              onPress={() => go(entry.key)}
+            />
+          );
+        })}
       </>
     );
   if (stop.kind === 'decision')
@@ -353,11 +411,15 @@ function ReviewPage({
     );
   return (
     <>
-      <Text variant="ui">
-        {notExplainedLabel(review.notExplained) ??
-          'These changed files have no agent explanation.'}
-      </Text>
-      {review.notExplained.map((gap) => (
+      {stop.kind === 'unexplained' ? (
+        <Text variant="ui">
+          {notExplainedLabel(review.notExplained) ??
+            'These changed files have no agent explanation.'}
+        </Text>
+      ) : (
+        <Text variant="ui">Spec files set apart from the decisions.</Text>
+      )}
+      {(stop.kind === 'unexplained' ? review.notExplained : []).map((gap) => (
         <Text key={gap.path} variant="caption">
           {gap.path} ·{' '}
           {gap.binary
@@ -371,7 +433,11 @@ function ReviewPage({
         <Item
           key={path}
           title={path}
-          accessibilityLabel={`Review unexplained ${path}`}
+          accessibilityLabel={
+            stop.kind === 'specs'
+              ? `Review spec ${path}`
+              : `Review unexplained ${path}`
+          }
           onPress={() => onFile(path)}
         />
       ))}
@@ -420,36 +486,76 @@ function AgentSummary({
   );
 }
 
-function SystemBriefing({ review }: { review: ReviewResponse }) {
-  const parts = systemChanges(review);
+export function PublishedReviewContinue({
+  workspace,
+  snapshot,
+  onContinue,
+}: {
+  workspace: Workspace;
+  snapshot: Extract<ReviewSnapshot, { kind: 'worktree' }> | undefined;
+  onContinue: () => void;
+}) {
+  const result = useAtomValue(
+    readPublishedReview({
+      connection: workspace.connection,
+      scope: workspace.scope,
+    }),
+  );
+  if (!AsyncResult.isSuccess(result) || !result.value) return null;
   return (
-    <Box gap={2}>
-      {parts.questions.map((part) => (
-        <Box key={part.id} gap={1}>
-          <Text variant="ui" weight="medium">
-            {part.label}
-          </Text>
-          <Text variant="ui" selectable>
-            {part.problem}
-          </Text>
-        </Box>
-      ))}
-      {(['added', 'changed', 'removed'] as const).map((kind) =>
-        parts[kind].map((part) => (
-          <Box key={part.id} gap={1}>
-            <Text variant="ui" weight="medium">
-              {{ added: 'New', changed: 'Changed', removed: 'Removed' }[kind]} ·{' '}
-              {part.label}
-            </Text>
-            {part.detail ? (
-              <Text variant="ui" selectable>
-                {part.detail}
-              </Text>
-            ) : null}
-          </Box>
-        )),
-      )}
-    </Box>
+    <PublishedContinue
+      key={`${workspace.key}:${result.value.publishedAt}:${result.value.revision}`}
+      workspace={workspace}
+      review={result.value}
+      snapshot={snapshot}
+      publicationSettled={!result.waiting}
+      onContinue={onContinue}
+    />
+  );
+}
+
+function PublishedContinue({
+  workspace,
+  review,
+  snapshot,
+  publicationSettled,
+  onContinue,
+}: {
+  workspace: Workspace;
+  review: ReviewResponse;
+  snapshot: Extract<ReviewSnapshot, { kind: 'worktree' }> | undefined;
+  publicationSettled: boolean;
+  onContinue: () => void;
+}) {
+  const [place, setPlace] = useReviewPlace(
+    JSON.stringify([workspace.key, review.publishedAt, review.revision]),
+  );
+  const progress = useWalkthroughProgress(
+    workspace,
+    review,
+    snapshot,
+    publicationSettled,
+  );
+  const stops = walkthroughStops(
+    review,
+    snapshot?.answer.changes.map((file) => file.path) ?? [],
+    { specsApart: true },
+  );
+  const next = briefingContinuation(stops, progress.done);
+  if (
+    place.summary ||
+    currentStop(stops, place.stop).kind !== 'briefing' ||
+    !next
+  )
+    return null;
+  return (
+    <BriefingContinue
+      label={next.label}
+      onPress={() => {
+        setPlace({ stop: next.key, summary: false });
+        onContinue();
+      }}
+    />
   );
 }
 

@@ -139,6 +139,20 @@ export function RemoteComputers({
   const { targets, count, batch, run } = useSettingsUpdates();
   return (
     <>
+      <div className="space-y-3">
+        <h1 className="text-4xl font-semibold tracking-tight">
+          <span className="text-muted-foreground">Settings.</span> Computers
+        </h1>
+        <p className="text-base">
+          Every computer this app is paired with. In the Mac app and on iPhone
+          and iPad, their worktrees share one sidebar, and Update updates them
+          all.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          In a browser, a tab opens one computer: its sidebar shows that
+          computer’s worktrees, and each other computer opens in its own tab.
+        </p>
+      </div>
       {unreadable !== undefined && (
         <Alert variant="destructive">
           <KeyRoundIcon />

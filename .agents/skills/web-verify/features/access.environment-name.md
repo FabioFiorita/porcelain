@@ -8,9 +8,9 @@ selectors:
   - 'This computer'
   - 'Name of this computer'
   - 'Save'
-  - 'Devices'
+  - 'Open This computer'
   - 'connect it to'
-  - 'Back'
+  - 'Close Settings'
 tests:
   - apps/web/spec/e2e/access-environment-name.desktop.e2e.ts
 api:
@@ -50,13 +50,13 @@ Required instance mode: `--desktop`.
    Expect: button "Save" enabled.
 5. Click button `Save`
    Expect: title "Settings · Workstation"; the computer name field holds "Workstation"; button "Save" disabled again.
-   Proof before continuing: reload `/settings/computers/this-computer` now: Workstation and Settings · Workstation persist. Inventory returns `{ name, custom }`; each name PUT answers 200. Then continue to Devices.
+   Proof before continuing: reload `/settings/computers/this-computer` now: Workstation and Settings · Workstation persist. Inventory returns `{ name, custom }`; each name PUT answers 200. Then inspect Pair a device on this detail.
 
-6. Click button `Devices`
+6. Stay on This computer and scroll to Pair a device
    Expect: the text "Open the link or scan the code on the other device to connect it to Workstation. Each link works once, for a few minutes."
 7. Click button `Computers`, then button named `Open This computer`
    Expect: textbox "Name of this computer" holds "Workstation"; button "Save" disabled.
-8. Click button `Back` twice
+8. Click button `Close Settings` twice
    Expect: URL `/<projectId>/<worktreeId>`; title "Changes — repository · Workstation".
 9. Click button `Toggle Sidebar`
    Expect: navigation "Projects and worktrees" header shows only "Porcelain", with neither "Workstation" nor `$HOST`.
@@ -68,7 +68,7 @@ Required instance mode: `--desktop`.
     Expect: textbox empty; button "Save" enabled.
 13. Click button `Save`
     Expect: title "Settings"; the empty computer-name field uses `$HOST` as its placeholder.
-14. Click button `Back` twice
+14. Click button `Close Settings` twice
     Expect: title "Changes — repository".
 
 Automated coverage: `access-environment-name.desktop.e2e.ts`.

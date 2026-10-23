@@ -26,6 +26,7 @@ export type RepoStep =
         | 'advance'
         | 'remove-repository';
       title: string;
+      asked?: string | undefined;
     }
   | {
       kind: 'service-update-fixture';

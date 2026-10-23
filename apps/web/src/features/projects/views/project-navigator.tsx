@@ -169,7 +169,7 @@ export function ProjectNavigator({
     setOpenMobile(false);
   };
   return (
-    <div className="h-full min-h-0 overflow-hidden bg-muted text-ui [--sidebar:var(--muted)] [--sidebar-foreground:var(--foreground)]">
+    <div className="h-full min-h-0 overflow-hidden bg-frame text-ui [--sidebar:var(--frame)] [--sidebar-foreground:var(--foreground)]">
       <Sidebar
         role="navigation"
         collapsible="none"
@@ -438,7 +438,7 @@ export function ProjectNavigator({
                                 <div
                                   className={cn(
                                     'flex min-w-0 flex-1 items-center rounded-xl',
-                                    active && 'bg-card shadow-sm',
+                                    active && 'bg-sidebar-row shadow-row',
                                   )}
                                 >
                                   <NavigatorStatus entry={entry} />
@@ -495,7 +495,7 @@ export function ProjectNavigator({
                                               className={cn(
                                                 'shrink-0 text-xs',
                                                 active
-                                                  ? 'text-primary'
+                                                  ? 'text-brand'
                                                   : 'text-muted-foreground',
                                               )}
                                               aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
