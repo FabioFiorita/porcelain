@@ -56,10 +56,62 @@ for (const width of [1440, 414]) {
         await documents
           .getByRole('tab', { name: 'Changes', exact: true })
           .click();
-        await commitTab.getByText(/^[0-9a-f]{7}$/).focus();
+        await commitTab.focus();
         await page.keyboard.press(key);
         await expect(commitTab).toHaveAttribute('aria-selected', 'true');
       }
+    });
+  }
+}
+
+for (const width of [1440, 414]) {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test(`long worktree menu labels disclose on owner keyboard focus at ${width}px in ${colorScheme}`, async ({
+      pairedPage: page,
+      repo,
+      app,
+      server,
+    }) => {
+      const branch =
+        'a-long-worktree-branch-whose-full-value-must-be-readable-from-the-keyboard';
+      await repo.worktree(branch);
+      await app.reload();
+      await page.setViewportSize({ width, height: 896 });
+      await page.emulateMedia({ colorScheme });
+      const project = await server.project();
+      const target = project.worktrees.find(
+        (row) => row.branch === `refs/heads/${branch}`,
+      );
+      if (width === 414)
+        await page
+          .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+          .click();
+      await page
+        .getByRole('button', { name: 'Filter reviews', exact: true })
+        .click();
+      await page
+        .getByRole('menuitem', { name: 'Worktrees', exact: true })
+        .click();
+      const search = page.getByRole('searchbox', {
+        name: 'Search worktrees',
+        exact: true,
+      });
+      await search.fill(branch);
+      await search.press('ArrowDown');
+      const result = page.getByRole('menuitemradio', {
+        name: new RegExp(branch),
+      });
+      await expect(result).toBeFocused();
+      const tooltip = page.getByRole('tooltip', { name: new RegExp(branch) });
+      await expect(tooltip).toBeVisible();
+      await expect(tooltip).toContainText(
+        (await server.inventory()).environment.name,
+      );
+      await page.keyboard.press('Enter');
+      await expect
+        .poll(() => app.address().path)
+        .toBe(`/${project.id}/${target?.id ?? ''}`);
+      await expect(page.getByRole('menu')).toHaveCount(0);
     });
   }
 }

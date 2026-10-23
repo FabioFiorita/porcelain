@@ -235,19 +235,22 @@ export function ProjectNavigator({
                 <DropdownMenuGroup key={section.key}>
                   <DropdownMenuLabel>{section.label}</DropdownMenuLabel>
                   {section.items.map((option) => (
-                    <DropdownMenuCheckboxItem
+                    <TruncatedText
                       key={option.id}
-                      checked={option.checked}
-                      closeOnClick={false}
-                      onCheckedChange={() =>
-                        setFilter({ ...filter, [section.key]: option.next })
-                      }
-                    >
-                      <TruncatedText
-                        className="min-w-0 flex-1"
-                        text={option.label}
-                      />
-                    </DropdownMenuCheckboxItem>
+                      text={option.label}
+                      className="min-w-0 flex-1"
+                      renderTrigger={(label) => (
+                        <DropdownMenuCheckboxItem
+                          checked={option.checked}
+                          closeOnClick={false}
+                          onCheckedChange={() =>
+                            setFilter({ ...filter, [section.key]: option.next })
+                          }
+                        >
+                          {label}
+                        </DropdownMenuCheckboxItem>
+                      )}
+                    />
                   ))}
                   <DropdownMenuSeparator />
                 </DropdownMenuGroup>
@@ -321,21 +324,26 @@ export function ProjectNavigator({
                     </InputGroup>
                     <DropdownMenuRadioGroup value={currentCheckout?.key ?? ''}>
                       {checkouts.map((entry) => (
-                        <DropdownMenuRadioItem
+                        <TruncatedText
                           key={entry.key}
-                          value={entry.key}
-                          closeOnClick
-                          disabled={entry.disabled}
-                          onClick={() => openWorktree(entry)}
+                          text={`${entry.branch} · ${entry.projectName} · ${entry.environmentName}`}
+                          className="min-w-0 flex-1"
+                          renderTrigger={(label, clip) => (
+                            <DropdownMenuRadioItem
+                              value={entry.key}
+                              closeOnClick
+                              disabled={entry.disabled}
+                              onClick={() => openWorktree(entry)}
+                            >
+                              {label}
+                              <Badge variant="secondary" className="max-w-1/2">
+                                {clip(entry.environmentName)}
+                              </Badge>
+                            </DropdownMenuRadioItem>
+                          )}
                         >
-                          <TruncatedText
-                            className="min-w-0 flex-1"
-                            text={`${entry.branch} · ${entry.projectName}`}
-                          />
-                          <Badge variant="secondary" className="max-w-1/2">
-                            <TruncatedText text={entry.environmentName} />
-                          </Badge>
-                        </DropdownMenuRadioItem>
+                          {entry.branch} · {entry.projectName}
+                        </TruncatedText>
                       ))}
                     </DropdownMenuRadioGroup>
                     {!loading && checkouts.length === 0 ? (

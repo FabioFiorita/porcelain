@@ -51,21 +51,27 @@ function RemoteRow({
   return (
     <Item size="sm" role="listitem" aria-label={name}>
       <ItemContent>
-        <Button
-          variant="ghost"
-          className="h-auto w-full justify-between whitespace-normal text-left"
-          aria-label={`Open ${name}`}
-          onClick={() => onOpen(remote.environmentId)}
-        >
-          <span className="min-w-0">
-            <TruncatedText className="block font-medium" text={name} />
-            <span className="block break-all text-xs font-normal text-muted-foreground">
-              {remoteStatusText(status)} · {remote.address} ·{' '}
-              {remote.environmentId.slice(0, 8)}
-            </span>
-          </span>
-          <ChevronRightIcon className="shrink-0" />
-        </Button>
+        <TruncatedText
+          text={name}
+          className="block font-medium"
+          renderTrigger={(label) => (
+            <Button
+              variant="ghost"
+              className="h-auto w-full justify-between whitespace-normal text-left"
+              aria-label={`Open ${name}`}
+              onClick={() => onOpen(remote.environmentId)}
+            >
+              <span className="min-w-0">
+                {label}
+                <span className="block break-all text-xs font-normal text-muted-foreground">
+                  {remoteStatusText(status)} · {remote.address} ·{' '}
+                  {remote.environmentId.slice(0, 8)}
+                </span>
+              </span>
+              <ChevronRightIcon className="shrink-0" />
+            </Button>
+          )}
+        />
       </ItemContent>
       {showUpdates && update && (
         <ItemFooter>

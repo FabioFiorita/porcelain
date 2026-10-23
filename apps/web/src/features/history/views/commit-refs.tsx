@@ -45,14 +45,21 @@ export function CommitRefs({
         </div>
       </div>
       {refs.slice(0, visibleCount).map((ref) => (
-        <Badge
+        <TruncatedText
           key={ref}
-          render={<button type="button" tabIndex={-1} onClick={onOpenCommit} />}
-          variant="secondary"
-          className={`${chipClass} pointer-events-auto shrink`}
+          text={ref}
+          renderTrigger={(label) => (
+            <Badge
+              render={<button type="button" onClick={onOpenCommit} />}
+              variant="secondary"
+              className={`${chipClass} pointer-events-auto shrink`}
+            >
+              {label}
+            </Badge>
+          )}
         >
-          <TruncatedText text={ref}>{refLabel(ref)}</TruncatedText>
-        </Badge>
+          {refLabel(ref)}
+        </TruncatedText>
       ))}
       {hidden.length > 0 && (
         <Popover>

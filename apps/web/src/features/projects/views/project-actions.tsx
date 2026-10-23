@@ -34,10 +34,15 @@ export function ProjectActions({
   const target = { project, remote: environmentId };
   return (
     <DropdownMenuSub>
-      <DropdownMenuSubTrigger>
-        <FolderGit2Icon />
-        <TruncatedText text={project.name} />
-      </DropdownMenuSubTrigger>
+      <TruncatedText
+        text={project.name}
+        renderTrigger={(label) => (
+          <DropdownMenuSubTrigger>
+            <FolderGit2Icon />
+            {label}
+          </DropdownMenuSubTrigger>
+        )}
+      />
       <DropdownMenuSubContent className="min-w-44">
         {!project.available && (
           <DropdownMenuGroup>
