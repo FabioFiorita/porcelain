@@ -17,7 +17,7 @@ api:
 
 # files.pin
 
-Pinning a file lists it under "Pinned" above the file tree. There it opens the file, and its menu offers the same commands as the tree, with "Unpin file" in place of "Pin file". The server keeps the pin for the project until the file is unpinned.
+Pinning a file lists it under "Pinned" above the file tree; the group header shows the count and folds the group. There it opens the file, and its menu offers the same commands as the tree, with "Unpin file" in place of "Pin file". The server keeps the pin for the project until the file is unpinned.
 
 ## How to get to it (user POV)
 

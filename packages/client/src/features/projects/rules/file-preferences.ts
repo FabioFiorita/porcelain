@@ -25,3 +25,16 @@ export function visibleFileTreePaths(
     ? paths
     : paths.filter((path) => hiddenPathFor(path, hidden) === null);
 }
+
+export function hiddenSummary(
+  hidden: ReadonlySet<string>,
+  kindOf: (path: string) => string | undefined,
+): string {
+  const kinds = [...hidden].map(kindOf);
+  const noun = kinds.every((kind) => kind === 'directory')
+    ? 'folder'
+    : kinds.every((kind) => kind === 'file')
+      ? 'file'
+      : 'item';
+  return `${hidden.size} hidden ${noun}${hidden.size === 1 ? '' : 's'}`;
+}

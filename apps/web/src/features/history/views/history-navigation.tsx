@@ -1,6 +1,18 @@
-import { GitBranchIcon, GitGraphIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
+import {
+  ChevronRightIcon,
+  CircleDashedIcon,
+  GitBranchIcon,
+  GitGraphIcon,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { cn } from '@/shared/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Empty,
@@ -10,8 +22,12 @@ import {
 } from '@/components/ui/empty';
 import { useHistory } from '../queries/history';
 import type { HistoryScope } from '@porcelain/client/history/rules';
-import { historyHeading } from '@porcelain/client/history/rules';
-import { HistoryRows } from './history-rows';
+import {
+  branchTracking,
+  historyHeading,
+} from '@porcelain/client/history/rules';
+import { useReviewOverview } from '@/features/changes/index';
+import { GraphRows } from './history-rows';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function HistoryNavigation({
@@ -21,6 +37,7 @@ export function HistoryNavigation({
   onSelect,
   sideLabel,
   onOpenGraph,
+  onOpenChanges,
 }: {
   scope: HistoryScope;
   connection: Connection;
@@ -28,28 +45,61 @@ export function HistoryNavigation({
   onSelect: (oid: string, toSide?: boolean) => void;
   sideLabel: string;
   onOpenGraph: () => void;
+  onOpenChanges: () => void;
 }) {
   const history = useHistory(connection, scope);
+  const overview = Option.getOrUndefined(
+    AsyncResult.value(useReviewOverview(scope, connection)),
+  );
+  const tracking = branchTracking(overview?.branch, history.snapshot);
+  const uncommitted = overview?.changes.length ?? 0;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <HistoryHeading
-        history={history}
-        action={
-          history.commits.length > 0 ? (
-            <Button size="xs" variant="ghost" onClick={onOpenGraph}>
-              <GitGraphIcon />
-              Open graph
-            </Button>
-          ) : undefined
-        }
-      />
+      <section
+        aria-label="Branch"
+        className="flex shrink-0 items-start gap-2 border-b px-3.5 py-2.5"
+      >
+        <GitBranchIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div className="flex min-w-0 items-baseline gap-2">
+            <FullText className="min-w-0 flex-1 font-mono text-caption font-medium">
+              {tracking.name}
+            </FullText>
+            {tracking.counts !== null && (
+              <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
+                {tracking.counts}
+              </span>
+            )}
+          </div>
+          <FullText className="text-2xs text-muted-foreground">
+            {tracking.upstream}
+          </FullText>
+        </div>
+      </section>
+      <HistoryRestarted history={history} />
       <ScrollArea className="h-0 min-h-0 flex-1">
+        {uncommitted > 0 && (
+          <div className="pt-2 pr-3 pl-1.5">
+            <button
+              type="button"
+              onClick={onOpenChanges}
+              className="flex h-9 w-full items-center gap-2 rounded-lg px-2 text-left text-caption transition-colors hover:bg-accent"
+            >
+              <CircleDashedIcon className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="flex-1 truncate">Uncommitted changes</span>
+              <span className="text-2xs text-muted-foreground tabular-nums">
+                {uncommitted} {uncommitted === 1 ? 'file' : 'files'}
+              </span>
+            </button>
+          </div>
+        )}
         {history.commits.length === 0 ? (
           <NoCommits />
         ) : (
-          <HistoryRows
-            commits={history.commits}
+          <GraphRows
+            label="Commits"
+            layout="stacked"
             history={history}
             selected={selected}
             onSelect={onSelect}
@@ -57,38 +107,75 @@ export function HistoryNavigation({
           />
         )}
       </ScrollArea>
+      {history.commits.length > 0 && (
+        <div className="shrink-0 border-t p-1.5">
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={onOpenGraph}
+          >
+            <GitGraphIcon />
+            Open graph
+            <ChevronRightIcon className="ml-auto text-muted-foreground" />
+          </Button>
+        </div>
+      )}
     </div>
+  );
+}
+
+function FullText({
+  className,
+  children,
+}: {
+  className: string;
+  children: string;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={<span tabIndex={0} className={cn('truncate', className)} />}
+      >
+        {children}
+      </TooltipTrigger>
+      <TooltipContent className="break-all">{children}</TooltipContent>
+    </Tooltip>
   );
 }
 
 export function HistoryHeading({
   history,
-  action,
 }: {
   history: ReturnType<typeof useHistory>;
-  action?: ReactNode;
 }) {
   return (
     <>
-      {((history.snapshot !== null && history.snapshot !== undefined) ||
-        action !== undefined) && (
+      {history.snapshot !== null && history.snapshot !== undefined && (
         <div className="flex shrink-0 items-center gap-1.5 border-b py-1.5 pr-1.5 pl-3.5 text-2xs text-muted-foreground">
           <GitBranchIcon className="size-3.5 shrink-0" />
           <span className="min-w-0 flex-1 truncate">
             {historyHeading(history.snapshot)}
           </span>
-          {action}
         </div>
       )}
-      {history.restarted && (
-        <p
-          role="status"
-          className="shrink-0 border-b bg-muted/40 px-3.5 py-2 text-2xs text-muted-foreground"
-        >
-          History changed. Showing it from the top.
-        </p>
-      )}
+      <HistoryRestarted history={history} />
     </>
+  );
+}
+
+function HistoryRestarted({
+  history,
+}: {
+  history: ReturnType<typeof useHistory>;
+}) {
+  if (!history.restarted) return null;
+  return (
+    <p
+      role="status"
+      className="shrink-0 border-b bg-muted/40 px-3.5 py-2 text-2xs text-muted-foreground"
+    >
+      History changed. Showing it from the top.
+    </p>
   );
 }
 

@@ -106,10 +106,13 @@ export const reviewCommands = Atom.family(
       ),
       deleteResolved: runtime.fn(
         Effect.fn('Reviews.deleteResolved')(function* (
-          payload: DeleteResolvedCommentsRequest,
+          threads: DeleteResolvedCommentsRequest['threads'],
         ) {
           const answer = yield* requestApi(input.connection, (api) =>
-            api.reviews.deleteResolvedReviewComments({ params, payload }),
+            api.reviews.deleteResolvedReviewComments({
+              params,
+              payload: { threads },
+            }),
           );
           yield* invalidate;
           return answer;

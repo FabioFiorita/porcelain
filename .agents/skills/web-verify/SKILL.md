@@ -32,6 +32,22 @@ $C remote pairing-link --instance <id>
 
 Save browser actions and resulting URL/title, snapshots, screenshots, console and HTTP status/content-type readbacks in the card's evidence directory. Use trace/CDP tools for performance. Distinguish setup, interactions and independent server readbacks. The CLI redacts its fixture evidence; sanitize browser artifacts separately, especially pairing fragments and credentials.
 
+## Sweep the standard states
+
+Before handing off a view, run one sweep over the routes it touches; QA reruns the same command:
+
+```sh
+$C sweep reviews.page --board <Board>.png /settings/general --instance <id>
+```
+
+- Pass routes as paths (`/settings/general`) or feature maps (`reviews.page`). A map's `$projectId`, `$worktreeId` and `$environmentId` come from the instance, `$reviewId`, `$revision` and `$layerId` from the main worktree's published review; pass a concrete path for anything else. Pass the route the app settles on: a capture that lands elsewhere is a problem. Start with `--desktop` for `shell: desktop` maps such as Settings.
+- `--board <png>` after a route compares it with that board: its first 1440 light capture (as-is, or the first seeded state when as-is has no review) beside the board, and the dark capture beside a `-D` or `-dark` sibling when one exists.
+- Each route is captured at 1440, 1080 and 414, light and dark, in three states: as-is, then after `$C agent seed long-text` (maximum-length titles, prose, file names, computer, project and device names), then after `$C agent seed many-items` (decisions, changed files, comment threads and devices). The seeds stack: many-items diffs against the fixture base, so its review also lists the sample's and long-text's files. Every sweep publishes each seed's review as a new revision on the main worktree, so a rerun shows the same seeded states; the rest applies once per instance and stays: committing any uncommitted fixture work, the comment threads and devices, and the computer and project names. Each sweep also pairs one more `Sweep browser` device.
+- As-is and a board beside it need a freshly started instance. On an instance an earlier sweep seeded, the first state is labelled `as-left` (the last seeded review, not the fixture) in the folders, the index and the JSON.
+- Each capture loads the route in a fresh browser, waits for the network and text to settle, runs the checks at the listed size, then grows the window until scrolling panels show their whole content (up to 12,000 px tall) for the image. A capture whose browser call fails with a Chromium crash or out-of-memory error is retried once; a page or console error never is. The index's Retries section and the shot's `retried` field record `retried once after: <error>`, and the first attempt's problems stay, prefixed `attempt 1:`.
+- Output goes to a numbered `NNN-sweep/` folder in the evidence directory: `index.md` (problems first, then a table per route), the PNGs, and `board-*.png` side-by-side images; `NNN-sweep.json` records the same results. Put the index in the PR body and attach the images.
+- The sweep exits 1 when any capture has a page error, a console error, a failed document response, a redirect, horizontal page overflow, text running past its own box, a scrolling area wider than itself (one-row scrollers such as tab strips are exempt), a theme that did not apply, or a board without a capture to compare, and when the sweep itself stops early. It still writes the index with everything captured so far, and stderr names the problem count, the first problem and the index.
+
 ## Inject browser failures
 
 For maps requiring browser-context failures, follow [failure injection](references/failure-injection.md).

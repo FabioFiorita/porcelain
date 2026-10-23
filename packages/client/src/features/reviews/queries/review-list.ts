@@ -9,6 +9,7 @@ import {
   reviewClosed,
   reviewListStatus,
   reviewListTitle,
+  reviewPullRequestNotice,
   type ReviewListEntry,
 } from '../rules/review-list.ts';
 import {
@@ -61,11 +62,22 @@ export const readReviewList = Atom.family(
               `Review on ${record.branch}`,
             )?.revision;
             const marks = value(markResult, `Progress on ${record.branch}`);
-            const pull = record.pullRequest
-              ? Option.getOrUndefined(
-                  AsyncResult.value(get(readReviewPullRequest(input))),
-                )
+            const pullResult = record.pullRequest
+              ? get(readReviewPullRequest(input))
               : undefined;
+            const pull = pullResult
+              ? AsyncResult.isFailure(pullResult)
+                ? { kind: 'failed' as const }
+                : (value(pullResult, `Pull request on ${record.branch}`) ?? {
+                    kind: 'loading' as const,
+                  })
+              : undefined;
+            if (pullResult?.waiting) loading = true;
+            const pullNotice = reviewPullRequestNotice(pull);
+            const pullRequestIssue =
+              pull?.kind === 'loading' ? undefined : pullNotice;
+            if (pullRequestIssue)
+              messages.push(`${record.branch}: ${pullRequestIssue}`);
             const worktree = project.worktrees.find(
               (row) =>
                 worktreeLabel(row.branch) === record.branch &&
@@ -73,7 +85,7 @@ export const readReviewList = Atom.family(
             );
             const closed = reviewClosed(record, pull);
             if (worktree && !closed) reviewedWorktrees.add(worktree.id);
-            if (!closed && worktree?.main) continue;
+            if (!closed && worktree?.main && !pullNotice) continue;
             if (
               AsyncResult.isInitial(reviewResult) ||
               AsyncResult.isInitial(markResult)
@@ -95,6 +107,7 @@ export const readReviewList = Atom.family(
                 pull?.kind === 'available' ? pull.pullRequest.title : undefined,
               ),
               closed,
+              pullRequestIssue,
               archived: record.archived === true,
               archivable: reviewArchivable(record, pull),
               publishedAt: revision?.publishedAt,
@@ -107,6 +120,7 @@ export const readReviewList = Atom.family(
                 revision,
                 marks,
                 status: worktree?.status,
+                pull,
               }),
               ...(closed ? { group: 'Closed' as const } : {}),
               ...(record.archived ||

@@ -1,3 +1,4 @@
+import { ContextMenuItem } from '@/components/ui/context-menu';
 import { useState } from 'react';
 import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog';
 import { archiveReviewDialog } from '../overlays';
@@ -26,29 +27,30 @@ export function ArchiveReview({
   connection,
   reviewId,
   beforeLeave = () => {},
+  menuItem = false,
 }: {
   connection: Connection;
   reviewId: string;
   beforeLeave?: () => void;
+  menuItem?: boolean;
 }) {
   const { preferences } = usePreferences();
   const { submit } = useArchiveReview(connection, reviewId);
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={() => {
-        const options = archiveOptions(preferences);
-        archiveReviewDialog.openWithPayload({
-          connection,
-          reviewId,
-          options,
-          requestId: crypto.randomUUID(),
-          beforeLeave,
-        });
-        void submit({ options });
-      }}
-    >
+  const open = () => {
+    const options = archiveOptions(preferences);
+    archiveReviewDialog.openWithPayload({
+      connection,
+      reviewId,
+      options,
+      requestId: crypto.randomUUID(),
+      beforeLeave,
+    });
+    void submit({ options });
+  };
+  return menuItem ? (
+    <ContextMenuItem onClick={open}>Archive</ContextMenuItem>
+  ) : (
+    <Button variant="outline" size="sm" onClick={open}>
       Archive
     </Button>
   );

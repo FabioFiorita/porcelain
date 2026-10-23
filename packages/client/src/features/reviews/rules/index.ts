@@ -118,6 +118,7 @@ export {
   reviewClosed,
   reviewListStatus,
   reviewListTitle,
+  reviewPullRequestNotice,
   reviewListView,
   reviewListGroups,
   reviewListMeta,

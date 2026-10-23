@@ -33,7 +33,7 @@ export const SHORTCUT_GROUPS: {
       { keys: SHORTCUTS.toggleNavigator, label: 'Show or hide projects' },
       {
         keys: SHORTCUTS.toggleSidebar,
-        label: 'Show or hide the right sidebar',
+        label: 'Show or hide the side panel',
       },
       { keys: SHORTCUTS.surfaceFiles, label: 'Go to Files' },
       { keys: SHORTCUTS.surfaceReview, label: 'Go to Changes / Review' },

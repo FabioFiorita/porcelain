@@ -5,7 +5,6 @@ import {
   HISTORY_GRAPH_MERGE_RADIUS,
   HISTORY_GRAPH_STROKE_WIDTH,
   HISTORY_LANE_WIDTH,
-  HISTORY_ROW_HEIGHT,
 } from '@/config/limits';
 import type { GraphRow } from '../rules/graph';
 
@@ -25,9 +24,11 @@ const laneClass = (lane: number) =>
 export function HistoryGraph({
   rows,
   width,
+  rowHeight,
 }: {
   rows: readonly GraphRow[];
   width: number;
+  rowHeight: number;
 }) {
   return (
     <svg
@@ -35,10 +36,10 @@ export function HistoryGraph({
       className="pointer-events-none absolute top-2 left-1.5"
       data-testid="history-graph"
       width={width}
-      height={rows.length * HISTORY_ROW_HEIGHT}
+      height={rows.length * rowHeight}
     >
       {rows.map((row, index) => {
-        const y = index * HISTORY_ROW_HEIGHT + HISTORY_ROW_HEIGHT * 0.5;
+        const y = index * rowHeight + rowHeight * 0.5;
         const next = rows[index + 1];
         const segments = row.lanesAfter.flatMap((waitingFor, lane) => {
           if (
@@ -64,8 +65,8 @@ export function HistoryGraph({
                 key={lane}
                 d={
                   startX === endX
-                    ? `M ${startX} ${y} L ${endX} ${y + HISTORY_ROW_HEIGHT}`
-                    : `M ${startX} ${y} C ${startX} ${y + HISTORY_ROW_HEIGHT * 0.5}, ${endX} ${y + HISTORY_ROW_HEIGHT * 0.5}, ${endX} ${y + HISTORY_ROW_HEIGHT}`
+                    ? `M ${startX} ${y} L ${endX} ${y + rowHeight}`
+                    : `M ${startX} ${y} C ${startX} ${y + rowHeight * 0.5}, ${endX} ${y + rowHeight * 0.5}, ${endX} ${y + rowHeight}`
                 }
                 fill="none"
                 stroke="currentColor"
