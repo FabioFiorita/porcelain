@@ -852,6 +852,11 @@ function ReviewRevisionPage({
                           ? `${stop.number} of ${decisionCount}`
                           : stopName(stop)
                       }
+                      compactLabel={
+                        stop.kind === 'decision'
+                          ? `${stop.number}/${decisionCount}`
+                          : `${stops.findIndex((item) => item.key === stop.key) + 1}/${stops.length}`
+                      }
                       stops={stops}
                       current={stop.key}
                       onGo={go}

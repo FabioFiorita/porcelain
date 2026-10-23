@@ -168,7 +168,7 @@ test.for([
   [1440, 'inline', 'docked'],
   [900, 'inline', 'hidden'],
 ] as const)(
-  'threads on neighbouring lines of a decision each stay readable and reachable at %i px, placed in the %s with the panel %s',
+  '13 threads on neighbouring and shared lines of a decision stay readable and reachable at %i px, placed in the %s with the panel %s',
   { timeout: 30_000 },
   async (
     [width, placement, panel],
@@ -181,7 +181,7 @@ test.for([
       if (!published?.reviewId || !published.headOid || !published.base)
         throw new Error('The published fixture has no review');
       const seeded = [
-        ...[2, 3, 4, 5, 6].map((line) => ({
+        ...[2, 2, 3, 4, 5, 6, 7, 8, 9, 11].map((line) => ({
           path: 'packages/workspace/src/outbox.ts',
           line,
         })),
@@ -189,9 +189,9 @@ test.for([
           path: 'packages/workspace/src/sessions.ts',
           line,
         })),
-      ].map((thread) => ({
+      ].map((thread, index) => ({
         ...thread,
-        body: `${thread.path.split('/').at(-1)} line ${thread.line} needs a second look.`,
+        body: `${thread.path.split('/').at(-1)} line ${thread.line} needs a second look. Thread ${index + 1}.`,
       }));
       for (const thread of seeded)
         await agent.comment(thread.path, thread.body, {
@@ -244,6 +244,60 @@ test.for([
           .toBe(placement);
         await expect.poll(() => reviewLayout.separate(stack)).toBe(true);
       }
+      const first = threads.filter({
+        hasText: 'outbox.ts line 2 needs a second look. Thread 1.',
+      });
+      const sameLine = threads.filter({
+        hasText: 'outbox.ts line 2 needs a second look. Thread 2.',
+      });
+      const sameLineAnchor = sameLine.getByRole('button', {
+        name: 'Show packages/workspace/src/outbox.ts:2 in the code',
+        exact: true,
+      });
+      const displaced = threads.filter({ hasText: 'outbox.ts line 11 needs' });
+      const anchor = displaced.getByRole('button', {
+        name: 'Show packages/workspace/src/outbox.ts:11 in the code',
+        exact: true,
+      });
+      if (placement === 'margin') {
+        await expect
+          .element(first.getByText('+2', { exact: true }))
+          .toBeVisible();
+        await expect
+          .poll(() => reviewLayout.hasAnchor(sameLineAnchor))
+          .toBe(true);
+        await expect.poll(() => reviewLayout.hasAnchor(anchor)).toBe(true);
+        await expect.element(anchor).toHaveTextContent('outbox.ts:11');
+        await anchor.click();
+        await expect
+          .poll(() => reviewLayout.highlightedCode(decision))
+          .toContain('export function attempt(id: string) {');
+        await expect
+          .poll(() => reviewLayout.highlightVisible(decision))
+          .toBe(true);
+        await app.page
+          .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+          .click();
+        await browserPage.viewport(900, 896);
+        await expect.element(anchor).not.toBeInTheDocument();
+        await expect
+          .element(displaced.getByText('+11', { exact: true }))
+          .toBeVisible();
+        await browserPage.viewport(1440, 896);
+        await expect
+          .poll(() => reviewLayout.paneWidth(decision))
+          .toBeGreaterThanOrEqual(1024);
+        await expect.element(anchor).toBeVisible();
+      } else {
+        await expect.element(sameLineAnchor).not.toBeInTheDocument();
+        await expect
+          .element(sameLine.getByText('+2', { exact: true }))
+          .toBeVisible();
+        await expect.element(anchor).not.toBeInTheDocument();
+        await expect
+          .element(displaced.getByText('+11', { exact: true }))
+          .toBeVisible();
+      }
       for (const thread of seeded)
         await expect
           .poll(() =>
@@ -277,6 +331,16 @@ test.for([414, 360])(
         name: 'Walkthrough dock',
         exact: true,
       });
+      const stop = dock.getByRole('button', {
+        name: 'Not explained, jump to a stop',
+        exact: true,
+      });
+      await expect
+        .element(stop.getByText('11/11', { exact: true }))
+        .toBeVisible();
+      await expect
+        .poll(() => reviewLayout.holds(dock, stop))
+        .toEqual({ inside: true, fits: true });
       const action = dock.getByRole('button', {
         name: 'Mark 2 files reviewed',
         exact: true,
@@ -284,6 +348,31 @@ test.for([414, 360])(
       await expect.element(action).toBeVisible();
       await expect
         .poll(() => reviewLayout.holds(dock, action))
+        .toEqual({ inside: true, fits: true });
+      await stop.click();
+      await app.page
+        .getByRole('menuitem', {
+          name: '9. Establish the shared mutation boundary',
+          exact: true,
+        })
+        .click();
+      const decisionStop = dock.getByRole('button', {
+        name: 'Decision 9 of 9, jump to a stop',
+        exact: true,
+      });
+      await expect
+        .element(decisionStop.getByText('9/9', { exact: true }))
+        .toBeVisible();
+      await expect
+        .poll(() =>
+          reviewLayout.holds(
+            dock,
+            dock.getByRole('button', {
+              name: 'Mark decision reviewed',
+              exact: true,
+            }),
+          ),
+        )
         .toEqual({ inside: true, fits: true });
     } finally {
       await browserPage.viewport(414, 896);
