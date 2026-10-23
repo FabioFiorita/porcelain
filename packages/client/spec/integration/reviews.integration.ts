@@ -208,6 +208,10 @@ for (const moved of [false, true])
     let addedWorktree = false;
     await session.git('checkout', '-b', reviewBranch);
     try {
+      await session.writeFile(
+        session.fixture.readme.path,
+        session.fixture.readme.changed,
+      );
       await commitReviewFixture(session);
       const published = await read(session, {
         method: 'PUT',
