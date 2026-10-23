@@ -6,7 +6,7 @@ const question =
 
 test.for([414, 1440])(
   'the briefing owns verdict and proof at width %s, and decisions keep their code',
-  async (width, { repo, render }) => {
+  async (width, { repo, render, tabShortcuts }) => {
     await page.viewport(width, 896);
     try {
       const fixture = await repo.review('Keep immutable decisions');
@@ -64,21 +64,35 @@ test.for([414, 1440])(
         .getByRole('button', { name: 'Continue at decision 1', exact: true })
         .click();
       await expect
+        .poll(() => app.location())
+        .toBe(`/reviews/${fixture.reviewId}/1/decisions/${fixture.layerId}`);
+      await expect
         .element(app.page.getByRole('region', { name: 'Verdict', exact: true }))
         .not.toBeInTheDocument();
+      const decision = app.page.getByRole('region', {
+        name: '1. Keep immutable decisions',
+        exact: true,
+      });
+      await expect.element(decision).toBeVisible();
       await expect
         .element(
-          app.page.getByRole('region', {
-            name: '1. Keep immutable decisions',
-            exact: true,
-          }),
+          decision.getByText('export const revision = 1;', { exact: true }),
         )
         .toBeVisible();
+      await expect
+        .poll(() => tabShortcuts.registered(['P']))
+        .toEqual([['P', 'error']]);
       await userEvent.keyboard('p');
+      await expect
+        .poll(() => app.location())
+        .toBe(`/reviews/${fixture.reviewId}/1`);
       await expect.element(briefing).toBeVisible();
       await briefing
         .getByRole('button', { name: 'latest', exact: true })
         .click();
+      await expect
+        .poll(() => app.location())
+        .toBe(`/reviews/${fixture.reviewId}`);
       await repo.review('Keep the next immutable decision');
       await expect
         .element(
