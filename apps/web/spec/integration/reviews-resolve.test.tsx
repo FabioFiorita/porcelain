@@ -12,7 +12,10 @@ test('resolving a comment moves it from open to resolved, and reopening it bring
 
   await agent.comment(repo.readme.path, question);
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: /^Comments/ }).click();
   const comments = workspace.getByRole('dialog');
   await expect

@@ -58,7 +58,10 @@ test('a file another writer creates on disk appears in the open file tree and ch
     .element(workspace.getByRole('treeitem', { name: note, exact: true }))
     .toBeVisible();
   await expect.element(files).toHaveAttribute('aria-selected', 'true');
-  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   await expect
     .element(
       workspace.getByRole('button', {
@@ -76,7 +79,10 @@ test('a file another writer removes from disk leaves the open changes list and f
 }) => {
   await repo.write(note, 'Written by another writer.\n');
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   const row = workspace.getByRole('button', {
     name: `${note} · untracked`,
     exact: true,

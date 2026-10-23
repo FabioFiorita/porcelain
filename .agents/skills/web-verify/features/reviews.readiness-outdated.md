@@ -33,7 +33,7 @@ Preconditions: [surface baseline](README.md).
 - The agent comments on README.md: `$C agent comment README.md "Should the note mention the new flag?"`.
 
 1. Navigate to `/`
-   Expect: tab "Review Close Review", region "Review walkthrough".
+   Expect: tab "Review", region "Review walkthrough".
 2. Click button `Review`
    Expect: in the dialog, region "Readiness" with header button "Readiness 2 things to check" and buttons "0 of 1 file reviewed", "No marks went stale", "Every change explained", "1 comment waiting on you" and "2 checks passed".
 3. On disk: `printf '# Sample repository\n\nA change to review.\nAnother line.\n' > "$REPO/README.md"`, then wait for button `Checks ran before the latest changes`

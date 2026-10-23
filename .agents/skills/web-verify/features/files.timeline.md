@@ -83,4 +83,4 @@ Automated coverage: `files-timeline.test.tsx`, `reviews-reopen-document.test.tsx
 - After the setup README.md no longer exists, and the working tree is clean, so the Changes tab is empty. Clicking guide.md opens it as a file document, which is the one with the "Timeline" button. A changed file opens as a diff instead.
 - A commit row's name starts with its subject and continues with the short id, author and age, so address it with `/^<subject>/`.
 Each opened document closes it.
-- The timeline is a distinct document: its tab is named `Timeline of guide.md Close Timeline of guide.md`, while the file tab is `guide.md Close guide.md`. Repeating "Timeline" or "Show timeline" focuses the existing timeline tab, including in the other pane, and adds no tab.
+- The timeline is a distinct document: its tab is named `Timeline of guide.md`, while the file tab is `guide.md`. Repeating "Timeline" or "Show timeline" focuses the existing timeline tab, including in the other pane, and adds no tab.

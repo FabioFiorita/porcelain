@@ -1,4 +1,7 @@
 import { Link } from '@tanstack/react-router';
+import { createPortal } from 'react-dom';
+import { BarAction } from '@/shared/workspace/bar-action';
+import { CheckIcon, SquareIcon } from 'lucide-react';
 import { AsyncResult } from 'effect/reactivity';
 import type {
   CodeViewItem,
@@ -368,6 +371,33 @@ function CodeSurface({
         {allCollapsed ? 'Expand all' : 'Collapse all'}
       </Button>
     ) : null;
+  const paneFile =
+    interaction.toolbarTarget !== undefined &&
+    /^(file|change|branch):/.test(interaction.entry);
+  const focusedEntry = entries[focused] ?? entries[0];
+  const paneActions = paneFile && (
+    <>
+      <BarAction
+        label="Reviewed"
+        variant="outline"
+        icon={focusedEntry?.review?.reviewed ? CheckIcon : SquareIcon}
+        shortcut={SHORTCUTS.toggleReviewed}
+        disabled={!focusedEntry?.review?.fingerprint}
+        pressed={focusedEntry?.review?.reviewed}
+        onClick={() => {
+          if (focusedEntry) onToggleReviewed(focusedEntry);
+        }}
+      />
+      <BarAction
+        label="Comment"
+        icon={MessageSquarePlusIcon}
+        shortcut={SHORTCUTS.commentOnFile}
+        disabled={!focusedEntry?.comment}
+        onClick={() => openFileComment(focusedEntry)}
+      />
+      {headerActions}
+    </>
+  );
   const selectionAnchor = selectedRangeAnchor(
     selection,
     composer !== null && composer !== undefined,
@@ -376,6 +406,9 @@ function CodeSurface({
 
   return (
     <div className="@container/code relative flex min-h-0 flex-1 flex-col">
+      {interaction.toolbarTarget &&
+        paneActions &&
+        createPortal(paneActions, interaction.toolbarTarget)}
       {interaction.active && (
         <CodeShortcuts
           next={() => focusEntry(Math.min(focused + 1, entries.length - 1))}
@@ -619,24 +652,26 @@ function CodeSurface({
           renderHeaderMetadata={(item) => {
             const entry = byId.get(item.id);
             if (disableFileHeader || !entry) return null;
-            const actions = item.id === entries[0]?.id ? headerActions : null;
+            const actions =
+              !paneFile && item.id === entries[0]?.id ? headerActions : null;
             const leading = item.id === entries[0]?.id ? headerLeading : null;
             const stale = entry.review?.stale ? (
               <span className="rounded-md bg-graph-4/15 px-1.5 py-0.5 font-sans text-2xs text-graph-4">
                 Changed since reviewed
               </span>
             ) : null;
-            const comment = entry.comment ? (
-              <Button
-                variant="ghost"
-                size="xs"
-                aria-label={`Comment on ${entry.path} (${entry.kind === 'diff' ? (entry.note ?? 'diff') : 'file'})`}
-                onClick={() => openFileComment(entry)}
-              >
-                <MessageSquarePlusIcon />
-                <span className="max-narrow:sr-only">Comment</span>
-              </Button>
-            ) : null;
+            const comment =
+              entry.comment && !paneFile ? (
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  aria-label={`Comment on ${entry.path} (${entry.kind === 'diff' ? (entry.note ?? 'diff') : 'file'})`}
+                  onClick={() => openFileComment(entry)}
+                >
+                  <MessageSquarePlusIcon />
+                  <span className="max-narrow:sr-only">Comment</span>
+                </Button>
+              ) : null;
             if (!stale && !leading && !actions && !comment) return null;
             return (
               <div className="flex max-w-full flex-wrap items-center justify-end gap-1.5">
@@ -668,7 +703,9 @@ function CodeSurface({
             const isCollapsed = collapsed.has(item.id);
             const review = entry.review;
             const control =
-              review && firstReviewEntryByPath.get(review.path) === entry.id
+              review &&
+              !paneFile &&
+              firstReviewEntryByPath.get(review.path) === entry.id
                 ? review.control
                 : null;
             return (

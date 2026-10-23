@@ -43,7 +43,7 @@ Preconditions: [surface baseline](README.md).
 4. Right-click treeitem `README.md`
    Expect: a menu with menuitems "Open diff", "Open file", "Show timeline".
 5. Click menuitem `Open file`
-   Expect: the sheet closes; tab "README.md Close README.md" is selected; heading "Sample repository" (Markdown opens in Reader); button "Edit".
+   Expect: the sheet closes; tab "README.md" is selected; heading "Sample repository" (Markdown opens in Reader); button "Edit".
 6. Click button `Edit`
    Expect: textbox "README.md" (the editor; it may first show status "Loading editor…"), status "Saves as you pause", paragraph "Saving edits the changes you are reviewing.", button "Done".
 7. Fill textbox `README.md` with 'Browser autosave marker', then wait for 'Saved'
@@ -56,7 +56,7 @@ Preconditions: [surface baseline](README.md).
 10. Click button `Edit` then replace the contents of textbox named `README.md` with 'Browser close marker'
     Expect: status "Unsaved changes".
 11. Click button `Close README.md`
-    Expect: tab "README.md Close README.md" is gone; tab "Changes Close Changes" is selected. Disk: `cat "$REPO/README.md"` prints `Browser close marker`.
+    Expect: tab "README.md" is gone; tab "Changes" is selected. Disk: `cat "$REPO/README.md"` prints `Browser close marker`.
 12. Inspect HTTP traffic
     Expect: four `POST /api/worktrees/<id>/files` answered 200, one per save (steps 7, 8, 9, 11), and `GET /api/worktrees/<id>/text?path=README.md` answered 200 when the file opened.
 

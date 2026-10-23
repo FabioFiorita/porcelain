@@ -42,7 +42,7 @@ printf '<!doctype html><html><body><h1>Preview heading</h1><img src="logo.svg" a
 1. Navigate to `/`, click button `Review`, click tab `Files`
    Expect: treeitems "page.html" and "logo.svg".
 2. Click treeitem `page.html`
-   Expect: the sheet closes; tab "page.html Close page.html" selected; tab "Preview" selected (`[selected]`) and tab "Source"; the paragraph starting "Sandboxed preview: scripts run"; status "Some assets could not be loaded: missing.png. This preview supports local static assets." (it names `missing.png` only, never `logo.svg`); an iframe titled "page.html HTML preview" (some accessibility snapshots omit its content).
+   Expect: the sheet closes; tab "page.html" selected; tab "Preview" selected (`[selected]`) and tab "Source"; the paragraph starting "Sandboxed preview: scripts run"; status "Some assets could not be loaded: missing.png. This preview supports local static assets." (it names `missing.png` only, never `logo.svg`); an iframe titled "page.html HTML preview" (some accessibility snapshots omit its content).
 3. Capture a screenshot
    Expect: the heading "Preview heading" and a teal 48 px square inside the frame.
 4. Inspect HTTP traffic

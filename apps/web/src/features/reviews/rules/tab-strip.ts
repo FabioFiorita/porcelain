@@ -7,6 +7,13 @@ export type Pane = {
 
 export const emptyPane = (): Pane => ({ tabs: [], pinned: [] });
 
+export function primaryPane(pane: Pane): Pane {
+  return {
+    tabs: ['handoff', ...pane.tabs.filter((key) => key !== 'handoff')],
+    pinned: pane.pinned.filter((key) => key !== 'handoff'),
+  };
+}
+
 export function documentPane(
   panes: readonly Pane[],
   preferred: 0 | 1,
@@ -19,8 +26,13 @@ export function documentPane(
 
 export function orderedTabs(pane: Pane): string[] {
   return [
-    ...pane.pinned.filter((key) => pane.tabs.includes(key)),
-    ...pane.tabs.filter((key) => !pane.pinned.includes(key)),
+    ...pane.tabs.filter((key) => key === 'handoff'),
+    ...pane.pinned.filter(
+      (key) => key !== 'handoff' && pane.tabs.includes(key),
+    ),
+    ...pane.tabs.filter(
+      (key) => key !== 'handoff' && !pane.pinned.includes(key),
+    ),
   ];
 }
 
@@ -34,6 +46,7 @@ export function openInPane(
 }
 
 export function closeInPane(pane: Pane, key: string): Pane {
+  if (key === 'handoff') return pane;
   return {
     tabs: pane.tabs.filter((entry) => entry !== key),
     pinned: pane.pinned.filter((entry) => entry !== key),
@@ -44,7 +57,8 @@ export function closeOthersInPane(pane: Pane, key: string): Pane {
   return {
     ...pane,
     tabs: pane.tabs.filter(
-      (entry) => entry === key || pane.pinned.includes(entry),
+      (entry) =>
+        entry === 'handoff' || entry === key || pane.pinned.includes(entry),
     ),
   };
 }
@@ -52,11 +66,14 @@ export function closeOthersInPane(pane: Pane, key: string): Pane {
 export function closeUnpinnedInPane(pane: Pane): Pane {
   return {
     ...pane,
-    tabs: pane.tabs.filter((entry) => pane.pinned.includes(entry)),
+    tabs: pane.tabs.filter(
+      (entry) => entry === 'handoff' || pane.pinned.includes(entry),
+    ),
   };
 }
 
 export function togglePinInPane(pane: Pane, key: string): Pane {
+  if (key === 'handoff') return pane;
   return pane.pinned.includes(key)
     ? { ...pane, pinned: pane.pinned.filter((entry) => entry !== key) }
     : { ...pane, pinned: [...pane.pinned, key] };
@@ -67,6 +84,7 @@ export function neighbourAfterClose(
   key: string,
   after: Pane,
 ): string | null {
+  if (after.tabs.includes(key)) return key;
   const order = orderedTabs(before);
   const remaining = new Set(orderedTabs(after));
   const index = order.indexOf(key);
