@@ -205,14 +205,14 @@ for (const width of [1440, 414]) {
       await expect(updates).not.toBeAttached();
       await expect(settings).toBeFocused();
       await expect(badge).not.toBeAttached();
+      await page.keyboard.press('Enter');
+      await expect(
+        page.getByRole('main', { name: 'Settings', exact: true }),
+      ).toBeVisible();
       if (width === 414) {
-        await page.keyboard.press('Escape');
         await expect(
           page.getByRole('dialog', { name: 'Sidebar', exact: true }),
         ).not.toBeAttached();
-        await expect(
-          page.getByRole('button', { name: 'Toggle Sidebar', exact: true }),
-        ).toBeFocused();
       }
     });
   }
