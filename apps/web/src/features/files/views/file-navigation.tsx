@@ -3,7 +3,6 @@ import { AsyncResult } from 'effect/reactivity';
 import type { GitStatusEntry } from '@pierre/trees';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import {
-  EyeIcon,
   EyeOffIcon,
   FilePlusIcon,
   FolderPlusIcon,
@@ -40,6 +39,7 @@ import { useReviewOverview } from '@/features/changes/index';
 import {
   canonicalPreferencePath,
   hiddenPathFor,
+  hiddenSummary,
   visibleFileTreePaths,
 } from '@porcelain/client/projects/rules';
 import {
@@ -279,32 +279,6 @@ function ScopedFileNavigation({
           onChange={(event) => setFileQuery(event.target.value)}
           className="h-7 w-auto min-w-0 flex-1"
         />
-        {hidden.size > 0 && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  size="icon-sm"
-                  variant={showHidden ? 'secondary' : 'ghost'}
-                  aria-pressed={showHidden}
-                  aria-label={
-                    showHidden ? 'Showing hidden' : `Hidden (${hidden.size})`
-                  }
-                  onClick={() => setShowHidden((current) => !current)}
-                />
-              }
-            >
-              {showHidden ? (
-                <EyeIcon className="text-muted-foreground" />
-              ) : (
-                <EyeOffIcon className="text-muted-foreground" />
-              )}
-            </TooltipTrigger>
-            <TooltipContent>
-              {showHidden ? 'Showing hidden' : `Hidden (${hidden.size})`}
-            </TooltipContent>
-          </Tooltip>
-        )}
       </div>
       {actionsTarget &&
         createPortal(
@@ -445,6 +419,26 @@ function ScopedFileNavigation({
           onExpand={(paths) => setRequested((current) => union(current, paths))}
           onSelect={onSelect}
         />
+        {hidden.size > 0 && (
+          <div className="flex shrink-0 items-center gap-1.5 px-3.5 py-2 text-2xs text-muted-foreground">
+            <EyeOffIcon className="size-3.5 shrink-0" />
+            <span>
+              {hiddenSummary(
+                hidden,
+                (path) => kinds.get(path) ?? kinds.get(`${path}/`),
+              )}
+            </span>
+            <span aria-hidden="true">·</span>
+            <Button
+              variant="link"
+              size="xs"
+              aria-pressed={showHidden}
+              onClick={() => setShowHidden((current) => !current)}
+            >
+              {showHidden ? 'Hide' : 'Show'}
+            </Button>
+          </div>
+        )}
       </section>
       <AlertDialog
         open={deleting !== null}

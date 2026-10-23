@@ -2,6 +2,7 @@ import { relativeTime } from '@/shared/lib/relative-time';
 import { Columns2Icon, CopyIcon, GitMergeIcon } from 'lucide-react';
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
+import { Badge } from '@/components/ui/badge';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -13,15 +14,20 @@ import { copyText } from '@/shared/workspace/copy';
 import {
   commitMessage,
   shortOid,
+  shownRefs,
   type CommitSummary,
 } from '@porcelain/client/history/rules';
 import { CommitRefs } from './commit-refs';
+
+export type CommitRowLayout = 'stacked' | 'columns';
 
 export function CommitRow({
   commit,
   selected,
   height,
   inset,
+  layout = 'stacked',
+  head = false,
   onSelect,
   openToSide,
   children,
@@ -30,6 +36,8 @@ export function CommitRow({
   selected: boolean;
   height?: number | undefined;
   inset?: number | undefined;
+  layout?: CommitRowLayout;
+  head?: boolean;
   onSelect: (toSide?: boolean) => void;
   openToSide?: { label: string; open: () => void };
   children?: ReactNode;
@@ -37,6 +45,19 @@ export function CommitRow({
   const [openingSide, setOpeningSide] = useState(false);
   const select = (event: MouseEvent<HTMLButtonElement>) =>
     onSelect(openToSide !== undefined && event.altKey);
+  const refs = shownRefs(commit.refs);
+  const subject = (
+    <span className="flex min-w-0 items-center gap-1 text-caption leading-tight">
+      {commit.parentOids.length > 1 && (
+        <GitMergeIcon
+          aria-label="Merge commit"
+          className="size-3.5 shrink-0 text-muted-foreground"
+        />
+      )}
+      <span className="truncate">{commit.subject}</span>
+    </span>
+  );
+  const age = relativeTime(commit.author.timestamp);
   return (
     <ContextMenu
       onOpenChange={(open) => {
@@ -48,41 +69,76 @@ export function CommitRow({
           <div
             style={{ height, paddingLeft: inset }}
             className={cn(
-              'relative flex w-full flex-col justify-center gap-0.5 rounded-lg px-2 text-left transition-colors hover:bg-accent',
+              'relative flex w-full rounded-lg px-2 text-left transition-colors hover:bg-accent',
+              layout === 'stacked'
+                ? 'flex-col justify-center gap-0.5'
+                : 'items-center gap-3',
               height === undefined && 'py-1.5',
               selected && 'bg-accent',
             )}
           />
         }
       >
-        <button
-          type="button"
-          aria-pressed={selected}
-          title={commit.subject}
-          onClick={select}
-          className="flex w-full min-w-0 flex-col gap-0.5 text-left before:absolute before:inset-0 before:rounded-lg"
-        >
-          <span className="flex min-w-0 items-center gap-1 text-caption leading-tight">
-            {commit.parentOids.length > 1 && (
-              <GitMergeIcon
-                aria-label="Merge commit"
-                className="size-3.5 shrink-0 text-muted-foreground"
-              />
+        {layout === 'stacked' ? (
+          <>
+            <button
+              type="button"
+              aria-pressed={selected}
+              title={commit.subject}
+              onClick={select}
+              className="flex w-full min-w-0 flex-col gap-0.5 text-left before:absolute before:inset-0 before:rounded-lg"
+            >
+              {subject}
+              <span className="flex gap-1.5 text-2xs text-muted-foreground">
+                <code className="font-mono">{shortOid(commit.oid)}</code>
+                <span className="truncate">{commit.author.name}</span>
+                <span aria-hidden="true">·</span>
+                <span className="shrink-0">{age}</span>
+              </span>
+              {children}
+            </button>
+            {refs.length > 0 && (
+              <CommitRefs refs={refs} onOpenCommit={select} />
             )}
-            <span className="truncate">{commit.subject}</span>
-          </span>
-          <span className="flex gap-1.5 text-2xs text-muted-foreground">
-            <code className="font-mono">{shortOid(commit.oid)}</code>
-            <span className="truncate">{commit.author.name}</span>
-            <span aria-hidden="true">·</span>
-            <span className="shrink-0">
-              {relativeTime(commit.author.timestamp)}
+          </>
+        ) : (
+          <>
+            <code className="hidden w-16 shrink-0 font-mono text-2xs text-muted-foreground @md/graph:block">
+              {shortOid(commit.oid)}
+            </code>
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <button
+                type="button"
+                aria-pressed={selected}
+                title={commit.subject}
+                onClick={select}
+                className="flex min-w-0 shrink-[4] items-center text-left before:absolute before:inset-0 before:rounded-lg"
+              >
+                {subject}
+                <span className="sr-only">
+                  {` ${shortOid(commit.oid)} ${commit.author.name} ${age}`}
+                </span>
+              </button>
+              {head && <Badge className="relative h-4 shrink-0">HEAD</Badge>}
+              <div className="min-w-0 flex-1">
+                {refs.length > 0 && (
+                  <CommitRefs refs={refs} onOpenCommit={select} />
+                )}
+              </div>
+            </div>
+            <span
+              aria-hidden="true"
+              className="hidden w-28 shrink-0 truncate text-2xs text-muted-foreground @2xl/graph:block"
+            >
+              {commit.author.name}
             </span>
-          </span>
-          {children}
-        </button>
-        {commit.refs.length > 0 && (
-          <CommitRefs refs={commit.refs} onOpenCommit={select} />
+            <span
+              aria-hidden="true"
+              className="shrink-0 text-right text-2xs whitespace-nowrap text-muted-foreground tabular-nums"
+            >
+              {age}
+            </span>
+          </>
         )}
       </ContextMenuTrigger>
       <ContextMenuContent finalFocus={!openingSide}>

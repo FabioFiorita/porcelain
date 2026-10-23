@@ -11,6 +11,7 @@ export {
   commitEntry,
   shortOid,
   refLabel,
+  shownRefs,
   historyHeading,
   historyBoundary,
   branchTracking,

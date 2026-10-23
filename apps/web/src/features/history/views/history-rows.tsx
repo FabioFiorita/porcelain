@@ -1,4 +1,8 @@
-import { HISTORY_GRAPH_ROW_GAP, HISTORY_ROW_HEIGHT } from '@/config/limits';
+import {
+  HISTORY_GRAPH_ROW_GAP,
+  HISTORY_GRAPH_ROW_HEIGHT,
+  HISTORY_ROW_HEIGHT,
+} from '@/config/limits';
 import { historyBoundary } from '@porcelain/client/history/rules';
 import { historyGraphWidth, layoutGraph } from '../rules/graph';
 import { AsyncResult } from 'effect/reactivity';
@@ -6,19 +10,21 @@ import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { HistorySentinel } from '../adapters/history-sentinel';
 import type { useHistory } from '../queries/history';
-import { CommitRow } from './commit-row';
+import { CommitRow, type CommitRowLayout } from './commit-row';
 import { HistoryGraph } from './history-graph';
 
 type History = ReturnType<typeof useHistory>;
 
 export function GraphRows({
   label,
+  layout,
   history,
   selected,
   onSelect,
   sideLabel,
 }: {
   label: string;
+  layout: CommitRowLayout;
   history: History;
   selected: string;
   onSelect: (oid: string, toSide?: boolean) => void;
@@ -26,17 +32,22 @@ export function GraphRows({
 }) {
   const rows = layoutGraph(history.commits);
   const width = historyGraphWidth(rows);
+  const rowHeight =
+    layout === 'columns' ? HISTORY_GRAPH_ROW_HEIGHT : HISTORY_ROW_HEIGHT;
+  const tip = history.snapshot?.tipOid;
   return (
     <div className="relative py-2 pr-3 pl-1.5">
-      <HistoryGraph rows={rows} width={width} />
+      <HistoryGraph rows={rows} width={width} rowHeight={rowHeight} />
       <ol aria-label={label} className="flex flex-col">
         {rows.map(({ commit }) => (
           <li key={commit.oid}>
             <CommitRow
               commit={commit}
               selected={selected === commit.oid}
-              height={HISTORY_ROW_HEIGHT}
+              height={rowHeight}
               inset={width + HISTORY_GRAPH_ROW_GAP}
+              layout={layout}
+              head={layout === 'columns' && commit.oid === tip}
               onSelect={(toSide) => onSelect(commit.oid, toSide)}
               openToSide={{
                 label: sideLabel,

@@ -1,3 +1,4 @@
+import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useHistory } from '../queries/history';
 import type { HistoryScope } from '@porcelain/client/history/rules';
 import { HistoryHeading, NoCommits } from './history-navigation';
@@ -16,15 +17,17 @@ export function CommitGraph({
   sideLabel: string;
 }) {
   const history = useHistory(connection, scope);
+  const phone = useIsMobile();
 
   return (
-    <div className="flex flex-col">
+    <div className="@container/graph flex flex-col">
       <HistoryHeading history={history} />
       {history.commits.length === 0 ? (
         <NoCommits />
       ) : (
         <GraphRows
           label="Commit graph"
+          layout={phone ? 'stacked' : 'columns'}
           history={history}
           selected=""
           onSelect={onSelect}

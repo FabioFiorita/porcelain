@@ -7,6 +7,12 @@ import {
   GitGraphIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { cn } from '@/shared/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Empty,
@@ -57,18 +63,18 @@ export function HistoryNavigation({
         <GitBranchIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <div className="flex min-w-0 items-baseline gap-2">
-            <span className="min-w-0 flex-1 font-mono text-caption font-medium wrap-anywhere">
+            <FullText className="min-w-0 flex-1 font-mono text-caption font-medium">
               {tracking.name}
-            </span>
+            </FullText>
             {tracking.counts !== null && (
               <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
                 {tracking.counts}
               </span>
             )}
           </div>
-          <span className="text-2xs text-muted-foreground wrap-anywhere">
+          <FullText className="text-2xs text-muted-foreground">
             {tracking.upstream}
-          </span>
+          </FullText>
         </div>
       </section>
       <HistoryRestarted history={history} />
@@ -93,6 +99,7 @@ export function HistoryNavigation({
         ) : (
           <GraphRows
             label="Commits"
+            layout="stacked"
             history={history}
             selected={selected}
             onSelect={onSelect}
@@ -114,6 +121,25 @@ export function HistoryNavigation({
         </div>
       )}
     </div>
+  );
+}
+
+function FullText({
+  className,
+  children,
+}: {
+  className: string;
+  children: string;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={<span tabIndex={0} className={cn('truncate', className)} />}
+      >
+        {children}
+      </TooltipTrigger>
+      <TooltipContent className="break-all">{children}</TooltipContent>
+    </Tooltip>
   );
 }
 

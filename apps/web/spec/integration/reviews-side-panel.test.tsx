@@ -153,3 +153,94 @@ test('the History panel names the branch, counts uncommitted files as they chang
     await page.viewport(414, 896);
   }
 });
+
+test('the Pinned group shows its count and folds away', async ({
+  workspace,
+  repo,
+}) => {
+  await repo.write('guide.md', '# Guide\n');
+  await page.viewport(1280, 896);
+  try {
+    await workspace
+      .getByRole('treeitem', { name: 'guide.md', exact: true })
+      .click({ button: 'right' });
+    await workspace
+      .getByRole('menuitem', { name: 'Pin file', exact: true })
+      .click();
+    const group = workspace.getByRole('region', {
+      name: 'Pinned files',
+      exact: true,
+    });
+    const header = group.getByRole('button', {
+      name: 'Pinned 1',
+      exact: true,
+    });
+    await expect.element(header).toHaveAttribute('aria-expanded', 'true');
+    await expect
+      .element(
+        group.getByRole('button', { name: 'Unpin guide.md', exact: true }),
+      )
+      .toBeVisible();
+    await header.click();
+    await expect.element(header).toHaveAttribute('aria-expanded', 'false');
+    await expect
+      .element(
+        group.getByRole('button', { name: 'Unpin guide.md', exact: true }),
+      )
+      .not.toBeInTheDocument();
+  } finally {
+    await page.viewport(414, 896);
+  }
+});
+
+test('the Graph tab gives each commit one row with its id, HEAD badge and age at desktop width', async ({
+  workspace,
+}) => {
+  await page.viewport(1280, 896);
+  try {
+    await rail().getByRole('button', { name: 'History', exact: true }).click();
+    await panel()
+      .getByRole('button', { name: 'Open graph', exact: true })
+      .click();
+    const graph = workspace.getByRole('list', {
+      name: 'Commit graph',
+      exact: true,
+    });
+    const row = graph.getByRole('listitem').first();
+    await expect
+      .element(
+        row.getByRole('button', { name: /^Initial commit [0-9a-f]{7} / }),
+      )
+      .toBeVisible();
+    await expect.element(row.getByText('HEAD', { exact: true })).toBeVisible();
+  } finally {
+    await page.viewport(414, 896);
+  }
+});
+
+test('the History branch row keeps a long branch name on one line and gives its full name on focus', async ({
+  workspace,
+  repo,
+  refChips,
+}) => {
+  const name =
+    'experiment/an-extremely-long-branch-name-that-cannot-fit-the-side-panel';
+  await repo.branch(name);
+  await repo.switch(name);
+  await page.viewport(1280, 896);
+  try {
+    await rail().getByRole('button', { name: 'History', exact: true }).click();
+    const branch = workspace
+      .getByRole('region', { name: 'Branch', exact: true })
+      .getByText(name, { exact: true });
+    await expect.element(branch).toBeVisible();
+    await expect.element(branch).toHaveStyle('text-overflow: ellipsis');
+    await branch.click();
+    await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+    await userEvent.keyboard('{Tab}');
+    await expect.element(branch).toHaveFocus();
+    await expect.poll(() => refChips.tooltipName()).toBe(name);
+  } finally {
+    await page.viewport(414, 896);
+  }
+});

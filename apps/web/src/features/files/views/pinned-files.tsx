@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { flushSync } from 'react-dom';
-import { PinOffIcon } from 'lucide-react';
+import { ChevronDownIcon, ChevronRightIcon, PinOffIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -35,83 +40,103 @@ export function PinnedFiles({
   };
 }) {
   const [openingSide, setOpeningSide] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   if (paths.length === 0) return null;
+  const Chevron = expanded ? ChevronDownIcon : ChevronRightIcon;
   return (
     <section aria-label="Pinned files" className="shrink-0 px-2 pt-1.5 pb-1">
-      <p className="px-1.5 pt-1 pb-0.5 text-2xs font-medium text-muted-foreground">
-        Pinned
-      </p>
-      <ul>
-        {paths.map((path) => {
-          const separator = path.lastIndexOf('/') + 1;
-          const menu = menuFor(path);
-          return (
-            <ContextMenu
-              key={path}
-              onOpenChange={(open) => {
-                if (open) setOpeningSide(false);
-              }}
-            >
-              <ContextMenuTrigger
-                render={<li className="flex items-center gap-0.5" />}
-              >
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <button
-                        type="button"
-                        aria-current={path === selected ? 'page' : undefined}
-                        className={cn(
-                          'flex h-7.5 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 text-left text-caption hover:bg-accent',
-                          path === selected && 'bg-accent',
-                        )}
-                        onClick={(event) => onOpen(path, event.altKey)}
-                      />
-                    }
-                  >
-                    <FileTypeIcon path={path} className="size-3.5 shrink-0" />
-                    <span className="min-w-0 truncate">
-                      {path.slice(separator)}
-                    </span>
-                    {separator > 0 && (
-                      <span className="min-w-0 shrink-[100] truncate text-muted-foreground">
-                        {path.slice(0, separator - 1)}
-                      </span>
-                    )}
-                  </TooltipTrigger>
-                  <TooltipContent>{path}</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        aria-label={`Unpin ${path}`}
-                        onClick={() => onUnpin(path)}
-                      />
-                    }
-                  >
-                    <PinOffIcon />
-                  </TooltipTrigger>
-                  <TooltipContent>Unpin</TooltipContent>
-                </Tooltip>
-              </ContextMenuTrigger>
-              <ContextMenuContent finalFocus={!openingSide}>
-                <FileTreeMenuList
-                  actions={menu.actions}
-                  hidden={menu.hidden}
-                  onAction={(id) => {
-                    if (id === 'open-to-side')
-                      flushSync(() => setOpeningSide(true));
-                    menu.onAction(id);
+      <Collapsible open={expanded} onOpenChange={setExpanded}>
+        <CollapsibleTrigger
+          render={
+            <button
+              type="button"
+              className="flex h-7 w-full items-center gap-1 rounded-md px-1.5 text-2xs font-medium text-muted-foreground hover:bg-accent"
+            />
+          }
+        >
+          <Chevron className="size-3 shrink-0" />
+          <span className="flex-1 text-left">Pinned</span>
+          <span className="tabular-nums">{paths.length}</span>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <ul>
+            {paths.map((path) => {
+              const separator = path.lastIndexOf('/') + 1;
+              const menu = menuFor(path);
+              return (
+                <ContextMenu
+                  key={path}
+                  onOpenChange={(open) => {
+                    if (open) setOpeningSide(false);
                   }}
-                />
-              </ContextMenuContent>
-            </ContextMenu>
-          );
-        })}
-      </ul>
+                >
+                  <ContextMenuTrigger
+                    render={<li className="flex items-center gap-0.5" />}
+                  >
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <button
+                            type="button"
+                            aria-current={
+                              path === selected ? 'page' : undefined
+                            }
+                            className={cn(
+                              'flex h-7.5 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 text-left text-caption hover:bg-accent',
+                              path === selected && 'bg-accent',
+                            )}
+                            onClick={(event) => onOpen(path, event.altKey)}
+                          />
+                        }
+                      >
+                        <FileTypeIcon
+                          path={path}
+                          className="size-3.5 shrink-0"
+                        />
+                        <span className="min-w-0 truncate">
+                          {path.slice(separator)}
+                        </span>
+                        {separator > 0 && (
+                          <span className="min-w-0 shrink-[100] truncate text-muted-foreground">
+                            {path.slice(0, separator - 1)}
+                          </span>
+                        )}
+                      </TooltipTrigger>
+                      <TooltipContent>{path}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <Button
+                            size="icon-xs"
+                            variant="ghost"
+                            aria-label={`Unpin ${path}`}
+                            onClick={() => onUnpin(path)}
+                          />
+                        }
+                      >
+                        <PinOffIcon />
+                      </TooltipTrigger>
+                      <TooltipContent>Unpin</TooltipContent>
+                    </Tooltip>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent finalFocus={!openingSide}>
+                    <FileTreeMenuList
+                      actions={menu.actions}
+                      hidden={menu.hidden}
+                      onAction={(id) => {
+                        if (id === 'open-to-side')
+                          flushSync(() => setOpeningSide(true));
+                        menu.onAction(id);
+                      }}
+                    />
+                  </ContextMenuContent>
+                </ContextMenu>
+              );
+            })}
+          </ul>
+        </CollapsibleContent>
+      </Collapsible>
     </section>
   );
 }

@@ -8,6 +8,7 @@ import {
   historyHeading,
   refLabel,
   shortOid,
+  shownRefs,
 } from './presentation.ts';
 const file = {
   status: 'modified' as const,
@@ -139,4 +140,21 @@ it('names the branch and counts ahead and behind against its upstream', () => {
     counts: null,
     upstream: 'Branch status unavailable',
   });
+});
+
+it('keeps branch, remote and tag refs and drops Porcelain internal refs', () => {
+  expect(
+    shownRefs([
+      'refs/heads/main',
+      'refs/porcelain/reviews/f3cb63e8-a489-4b2d-81e8-720b83bbabc0/1',
+      'refs/remotes/origin/main',
+      'refs/tags/v1.0.0',
+      'HEAD',
+    ]),
+  ).toEqual([
+    'refs/heads/main',
+    'refs/remotes/origin/main',
+    'refs/tags/v1.0.0',
+    'HEAD',
+  ]);
 });

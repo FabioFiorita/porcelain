@@ -23,6 +23,10 @@ export function shortOid(oid: string) {
 export function refLabel(ref: string) {
   return ref.replace(/^refs\/(?:heads|remotes|tags)\//u, '');
 }
+const INTERNAL_REF = /^refs\/porcelain\//u;
+export function shownRefs(refs: readonly string[]): string[] {
+  return refs.filter((ref) => !INTERNAL_REF.test(ref));
+}
 export function commitEntry(commit: CommitSummary) {
   return {
     id: commit.oid,
@@ -30,7 +34,7 @@ export function commitEntry(commit: CommitSummary) {
     author: commit.author.name,
     time: new Date(commit.author.timestamp).toLocaleString(),
     shortHash: shortOid(commit.oid),
-    refs: commit.refs.map(refLabel),
+    refs: shownRefs(commit.refs).map(refLabel),
   };
 }
 export function historyHeading(
