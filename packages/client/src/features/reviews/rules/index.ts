@@ -47,6 +47,7 @@ export {
   reviewErrorMessage,
   reviewSummaryUrl,
   summaryLayerNumber,
+  summaryLayerLinks,
   type BranchChangeItem,
   type Change,
   type ChangeList,
@@ -89,6 +90,7 @@ export {
   decisionKey,
   decisionLinks,
   decisionQuestions,
+  type DecisionLink,
   decisionRoute,
   decisionStates,
   reviewStepLines,
@@ -115,6 +117,9 @@ export { revisionReviewItems, revisionDecisionStates } from './revision.ts';
 
 export { parseReviewAppLink, type ReviewAppLink } from './app-link.ts';
 export {
+  reviewArchivable,
+  reviewClosed,
+  reviewListStatus,
   reviewListTitle,
   reviewListView,
   reviewListGroups,

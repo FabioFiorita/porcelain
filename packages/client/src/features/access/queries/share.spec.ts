@@ -10,6 +10,7 @@ import {
   readPairedAccess,
   readRemoteAccess,
   readServiceUpdate,
+  serviceUpdateSnapshot,
 } from './share.ts';
 
 const fixture = clientFixtures('environment');
@@ -352,5 +353,50 @@ it.each([
       last: { stage: 'updated', target: '1.1.0' },
     });
     expect(proof.requests).toBe(expectedReads);
+  },
+);
+
+it.each([
+  { history: 'successful', failedBeforeRefresh: false },
+  { history: 'failed', failedBeforeRefresh: true },
+])(
+  'marks a $history service check as waiting until its refresh settles',
+  async ({ failedBeforeRefresh }) => {
+    let reads = 0;
+    const pendingRead = failedBeforeRefresh ? 3 : 2;
+    const refresh = Promise.withResolvers<void>();
+    const arrived = Promise.withResolvers<void>();
+    const { connection, registry } = fixture(async () => {
+      reads += 1;
+      if (failedBeforeRefresh && reads === 2)
+        return new Response(null, { status: 503 });
+      if (reads === pendingRead) {
+        arrived.resolve();
+        await refresh.promise;
+      }
+      return Response.json(offered);
+    });
+    const atom = readServiceUpdate(connection);
+    registry.mount(atom);
+    await Effect.runPromise(AtomRegistry.getResult(registry, atom));
+    if (failedBeforeRefresh) {
+      registry.refresh(atom);
+      await expect
+        .poll(() => AsyncResult.isFailure(registry.get(atom)))
+        .toBe(true);
+    }
+    registry.refresh(atom);
+    try {
+      await arrived.promise;
+      expect(registry.get(atom).waiting).toBe(true);
+      expect(serviceUpdateSnapshot(registry.get(atom))).toEqual(
+        failedBeforeRefresh ? undefined : { ...offered, last: undefined },
+      );
+    } finally {
+      refresh.resolve();
+    }
+    await expect.poll(() => registry.get(atom).waiting).toBe(false);
+    expect(AsyncResult.isSuccess(registry.get(atom))).toBe(true);
+    expect(reads).toBe(pendingRead);
   },
 );

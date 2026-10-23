@@ -87,7 +87,7 @@ export function PairEnvironmentForm({
           {...(storage.status === 'unreadable'
             ? {
                 retry: {
-                  label: 'Read saved computers again',
+                  label: 'Try again',
                   onPress: () => read(undefined),
                 },
               }

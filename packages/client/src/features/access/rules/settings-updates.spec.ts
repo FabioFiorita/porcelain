@@ -106,7 +106,7 @@ describe('settings update eligibility', () => {
         ...target,
         state: { ...target.state, available, managed, canUpdate },
       };
-      expect(settingsUpdateAvailable(row)).toBe(available);
+      expect(settingsUpdateAvailable(row)).toBe(available && managed);
       expect(settingsUpdateVersion(row)).toBe(expected);
     },
   );
@@ -155,12 +155,12 @@ it('supplies a copyable device id and the exact trust hint only for untrusted ma
   expect(settingsUpdateTrust(untrusted)).toEqual({
     label: 'Needs trust',
     deviceId: 'device-123',
-    hint: 'Run porcelain trust device-123 on that computer, or allow it in the Mac app → Devices',
+    hint: 'Run porcelain trust device-123 on that computer, or allow it in the Mac app → Computers → This computer → Paired devices',
   });
   expect(settingsUpdateTrust({ ...untrusted, deviceId: undefined })).toEqual({
     label: 'Needs trust',
     deviceId: undefined,
-    hint: 'Find this device’s id with porcelain devices on that computer, then run porcelain trust <id>, or allow it in the Mac app → Devices',
+    hint: 'Find this device’s id with porcelain devices on that computer, then run porcelain trust <id>, or allow it in the Mac app → Computers → This computer → Paired devices',
   });
   expect(settingsUpdateTrust(target)).toBeUndefined();
   expect(

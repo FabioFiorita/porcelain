@@ -25,7 +25,9 @@ type UpdateOffer =
 
 export function settingsUpdateAvailable(target: UpdateOffer) {
   return target.kind === 'service'
-    ? target.state.available && target.state.latest !== undefined
+    ? target.state.managed &&
+        target.state.available &&
+        target.state.latest !== undefined
     : target.available && target.latest !== undefined;
 }
 
@@ -57,8 +59,8 @@ export function settingsUpdateTrust(target: {
     label: 'Needs trust',
     deviceId: target.deviceId,
     hint: target.deviceId
-      ? `Run porcelain trust ${target.deviceId} on that computer, or allow it in the Mac app → Devices`
-      : 'Find this device’s id with porcelain devices on that computer, then run porcelain trust <id>, or allow it in the Mac app → Devices',
+      ? `Run porcelain trust ${target.deviceId} on that computer, or allow it in the Mac app → Computers → This computer → Paired devices`
+      : 'Find this device’s id with porcelain devices on that computer, then run porcelain trust <id>, or allow it in the Mac app → Computers → This computer → Paired devices',
   };
 }
 

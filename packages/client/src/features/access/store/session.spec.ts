@@ -81,7 +81,11 @@ function fixture(
   const stores = AccessStore.layer.pipe(
     Layer.provide(
       Layer.succeed(EnvironmentStorage, {
-        read: () => Effect.succeed([...(options.saved ?? [])]),
+        read: () =>
+          Effect.succeed({
+            remotes: [...(options.saved ?? [])],
+            missingCredentials: [],
+          }),
         write: () => Effect.void,
       }),
     ),

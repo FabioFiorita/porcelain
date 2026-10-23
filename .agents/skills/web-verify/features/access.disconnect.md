@@ -12,7 +12,7 @@ selectors:
   - 'Open This computer'
   - 'Disconnect this browser'
   - 'Save or discard unsaved file drafts before disconnecting.'
-  - 'Back'
+  - 'Close Settings'
   - 'Resume edit'
   - 'Reload'
   - 'This browser is not paired'
@@ -69,7 +69,7 @@ None before step 1. Step 5 writes README.md on disk in the middle of the flow (a
 
 ### Case 2: disconnect ends the session (continues from case 1)
 
-10. Click button `Back`
+10. Click button `Close Settings`
     Expect: main "Settings" is gone; the README.md document shows button "Resume edit" (the draft still differs from the saved text).
 11. Click button `Resume edit`, then click button `Reload`
     Expect: "Not saving: changed on disk" is gone; the editor closes (textbox "README.md" gone), the document shows the disk text "Changed on disk before the browser disconnects" and its button reads "Edit" again.

@@ -1,5 +1,6 @@
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
+import { devicePlatformName } from '../rules/settings';
 import { relativeTime } from '@/shared/lib/relative-time';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -55,7 +56,8 @@ export function PairedDevices({ connection }: { connection: Connection }) {
                 </Badge>
               </ItemTitle>
               <ItemDescription>
-                Last seen {relativeTime(device.lastSeenAt)} · {device.platform}
+                Last seen {relativeTime(device.lastSeenAt)} ·{' '}
+                {devicePlatformName(device.platform)}
               </ItemDescription>
               {device.routeInferred && (
                 <ItemDescription>

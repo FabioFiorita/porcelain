@@ -91,7 +91,9 @@ async function agentRequest(
           : { summaryHtml: action.summaryHtml }),
       })
     : toolCall(agent, 1, 'create_comment', {
-        anchor: { kind: 'file', filePath: action.path },
+        ...(action.thread ?? {
+          anchor: { kind: 'file', filePath: action.path },
+        }),
         body: action.body,
       });
 }

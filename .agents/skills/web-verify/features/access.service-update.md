@@ -6,6 +6,8 @@ selectors:
   - 'Update'
   - 'Up to date'
   - 'Reload'
+  - 'Could not check for updates'
+  - 'Try again'
 tests:
   - apps/web/spec/integration/access-service-update.test.tsx
   - packages/client/src/features/access/queries/settings-update-matrix.spec.ts
@@ -30,7 +32,7 @@ These controls and global Update all retain the same update progress. A Mac app 
 
 Use the sandbox's scripted updater: 1.0.0 → 1.1.0, with the first attempt failing and the next succeeding. Open This computer, verify the installed/latest versions, and click Update <computer name>. Progress and then the literal failure reason appear while the installed version remains unchanged. Retry. Wait for Updated to 1.1.0., installed version 1.1.0, Up to date and Reload. Reload is offered for the current browser after a successful update.
 
-For the API-state matrix, write a canonical service-update response to the disposable server's `state/service-update-fixture.json`; write the JSON string `"error"` for a failed read. Remove the file to restore the scripted updater before starting an update. This controls only the test updater port; trust remains governed by the actual paired device. Check available/unavailable, older/equal/newer installed versions, missing latest, unmanaged and untrusted offers, request failures and an empty connection list. Failed reads must drop stale offers. An already-running batch must retain its badge and progress through a read failure until the updater confirms its outcome. Repeat at desktop and 414-pixel widths.
+For the API-state matrix, write a canonical service-update response to the disposable server's `state/service-update-fixture.json`; write the JSON string `"error"` for a failed read. Remove the file to restore the scripted updater before starting an update. This controls only the test updater port; trust remains governed by the actual paired device. Check available/unavailable, older/equal/newer installed versions, missing latest, unmanaged and untrusted offers, request failures and an empty connection list. Opening Update or entering Computers refreshes the existing status query. Failed reads must drop stale offers and the footer badge even while the popover stays open. The open popover says Could not check for updates, explains the failure and offers Try again. Restore the fixture, retry, and verify the fresh offer and enabled Update all count return. A service read failure in Computers also offers Try again. An unmanaged service never creates an offer badge, even if its response reports available:true. An already-running batch must retain its badge and progress through a read failure until the updater confirms its outcome. Repeat at desktop and 414-pixel widths.
 
 Automated coverage: `access-service-update.test.tsx`, `settings-update-matrix.spec.ts`.
 

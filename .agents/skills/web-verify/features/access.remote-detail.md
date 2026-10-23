@@ -10,7 +10,7 @@ selectors:
   - 'Computer ID'
   - 'Ways in'
   - 'Forget on this app'
-  - 'Back'
+  - 'Close Settings'
 tests:
   - apps/web/spec/e2e/access-remote-detail.desktop.e2e.ts
 api:
@@ -35,7 +35,7 @@ This computer comes first, followed by saved computers. A saved row has an expli
 
 Open Settings → Computers, paste a remote pairing link and click Add. Open the named row. Overview shows live name/status, address, Computer ID, version and this device's ID; Ways in lists saved addresses read-only. Update progress stays consistent with the computer list. Offline detail keeps saved identity, labels it stale and explains Pair again. Forget on this app lives in the Danger zone and protects unsaved drafts.
 
-Back, the Computers breadcrumb and browser Back restore list scroll and the Open <name> button's focus. Immediate Escape works after click or keyboard activation; input Escape is ignored. Forget removes the row and moves focus to Computers list, so the next Escape can leave Settings. Direct detail URLs reload safely. An extra segment on any other section is not found.
+Close Settings, the Computers breadcrumb and browser Back restore list scroll and the Open <name> button's focus. Immediate Escape works after click or keyboard activation; input Escape is ignored. Forget removes the row and moves focus to Computers list, so the next Escape can leave Settings. Direct detail URLs reload safely. An extra segment on any other section is not found.
 
 The former per-computer sidebar shortcut buttons were removed. Use Settings → Computers → Open <name>. An unavailable workspace's Computer settings action still opens that exact computer without changing the selected review.
 

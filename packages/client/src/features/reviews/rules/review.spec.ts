@@ -4,6 +4,7 @@ import {
   mergeReviewChanges,
   reviewErrorMessage,
   reviewSummaryUrl,
+  summaryLayerLinks,
   summaryLayerNumber,
 } from './review.ts';
 
@@ -136,6 +137,24 @@ describe('summaryLayerNumber', () => {
       summaryLayerNumber('porcelain-summary'),
       summaryLayerNumber(null),
     ]).toEqual([null, null, null, null, null, null]);
+  });
+});
+
+describe('summaryLayerLinks', () => {
+  it('lists each decision the page links to once, in reading order', () => {
+    expect(
+      summaryLayerLinks(
+        `<p><a href="#layer-3">journal</a> <A HREF='#layer-1'>owner</A> <a href = "#layer-3">again</a> <a href="#layer-12">twelve</a></p>`,
+      ),
+    ).toEqual([3, 1, 12]);
+  });
+
+  it('ignores links that do not open a decision', () => {
+    expect(
+      summaryLayerLinks(
+        `<a href="https://example.com/#layer-2">site</a><a href="#layer-">blank</a><a href="#layer-0">zero</a><a href="#layers-4">other</a><p>#layer-5 as text</p><a data-href="#layer-6">data</a>`,
+      ),
+    ).toEqual([]);
   });
 });
 
