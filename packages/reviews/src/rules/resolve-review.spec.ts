@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { ResolvedStep } from '../models/resolved-review.ts';
 import type { ReviewLayer, ReviewStep } from '../models/review.ts';
 import { resolveReview, unexplainedChanges } from './resolve-review.ts';
 
@@ -108,5 +109,252 @@ describe('broken review pointers', () => {
       { path: 'gone.ts', ranges: [], deleted: true },
       { path: 'src/x.ts', ranges: [{ startLine: 1, endLine: 1 }] },
     ]);
+  });
+});
+
+describe('explicit pointer coverage', () => {
+  it.each([
+    {
+      name: 'single line leaves its adjacent unrelated line unexplained',
+      lines: ['const explained = 1;', 'const unmentioned = 2;'],
+      startLine: 1,
+      endLine: 1,
+      ranges: [{ startLine: 2, endLine: 2 }],
+    },
+    {
+      name: 'inclusive range leaves the next line unexplained',
+      lines: ['const first = 1;', 'const second = 2;', 'const third = 3;'],
+      startLine: 1,
+      endLine: 2,
+      ranges: [{ startLine: 3, endLine: 3 }],
+    },
+    {
+      name: 'middle pointer leaves unrelated lines on both sides',
+      lines: ['const first = 1;', 'const second = 2;', 'const third = 3;'],
+      startLine: 2,
+      endLine: 2,
+      ranges: [
+        { startLine: 1, endLine: 1 },
+        { startLine: 3, endLine: 3 },
+      ],
+    },
+    {
+      name: 'whole hunk has no unexplained lines',
+      lines: ['const first = 1;', 'const second = 2;', 'const third = 3;'],
+      startLine: 1,
+      endLine: 3,
+      ranges: [],
+    },
+    {
+      name: 'blank line does not change unrelated line coverage',
+      lines: ['const explained = 1;', '', 'const unmentioned = 2;'],
+      startLine: 1,
+      endLine: 1,
+      ranges: [{ startLine: 3, endLine: 3 }],
+    },
+    {
+      name: 'partial function leaves its unmentioned behavior unexplained',
+      lines: ['function run() {', '  save();', '  notify();', '}'],
+      startLine: 1,
+      endLine: 2,
+      ranges: [{ startLine: 3, endLine: 3 }],
+    },
+  ])('$name', ({ lines, startLine, endLine, ranges }) => {
+    const texts = new Map([['src/x.ts', lines.join('\n') + '\n']]);
+    const resolution = resolveReview(
+      {
+        layers: [
+          {
+            ...layer,
+            steps: [
+              {
+                ...step,
+                pointer: { ...step.pointer, startLine, endLine },
+                published: lines.slice(startLine - 1, endLine),
+              },
+            ],
+          },
+        ],
+      },
+      {
+        texts,
+        missing: new Set(),
+        changes: [
+          {
+            path: 'src/x.ts',
+            fingerprint: 'new',
+            comparisons: [{ scope: 'untracked', path: 'src/x.ts' }],
+          },
+        ],
+        diffs: [],
+      },
+    );
+    expect(
+      unexplainedChanges(
+        resolution.changes,
+        texts,
+        resolution.diagnostics,
+        resolution.layers,
+      ),
+    ).toEqual(ranges.length === 0 ? [] : [{ path: 'src/x.ts', ranges }]);
+  });
+});
+
+describe('coverage boundaries', () => {
+  it.each([
+    {
+      name: 'context',
+      kind: 'context' as const,
+      location: { state: 'current' as const, startLine: 1, endLine: 1 },
+    },
+    {
+      name: 'broken',
+      kind: 'changed' as const,
+      location: { state: 'broken' as const },
+    },
+    {
+      name: 'changed',
+      kind: 'changed' as const,
+      location: { state: 'changed' as const },
+    },
+  ])('$name steps cover no changed lines', ({ kind, location }) => {
+    expect(
+      unexplainedChanges(
+        [{ path: 'src/x.ts', deleted: false, untracked: false }],
+        new Map([['src/x.ts', 'return 1;\n']]),
+        {
+          changed: new Map([['src/x.ts', new Set([1])]]),
+          deleted: new Map(),
+          binary: new Set(),
+        },
+        [
+          {
+            ...layer,
+            steps: [
+              {
+                ...step,
+                kind,
+                location,
+                pointer: { ...step.pointer, textFingerprint: 'published' },
+              },
+            ],
+          },
+        ],
+      ),
+    ).toEqual([{ path: 'src/x.ts', ranges: [{ startLine: 1, endLine: 1 }] }]);
+  });
+
+  it('unions overlapping, committed and moved ranges without covering gaps', () => {
+    const resolvedStep = (
+      startLine: number,
+      endLine: number,
+      state: 'current' | 'committed',
+    ): ResolvedStep => ({
+      ...step,
+      pointer: { ...step.pointer, textFingerprint: 'published' },
+      location: { state, startLine, endLine },
+    });
+    expect(
+      unexplainedChanges(
+        [{ path: 'src/x.ts', deleted: false, untracked: false }],
+        new Map([['src/x.ts', 'a();\nb();\nc();\nd();\ne();\nf();\n']]),
+        {
+          changed: new Map([['src/x.ts', new Set([1, 2, 3, 4, 5, 6])]]),
+          deleted: new Map(),
+          binary: new Set(),
+        },
+        [
+          {
+            ...layer,
+            steps: [
+              resolvedStep(2, 3, 'current'),
+              resolvedStep(3, 4, 'current'),
+              resolvedStep(6, 6, 'committed'),
+            ],
+          },
+        ],
+      ),
+    ).toEqual([
+      {
+        path: 'src/x.ts',
+        ranges: [
+          { startLine: 1, endLine: 1 },
+          { startLine: 5, endLine: 5 },
+        ],
+      },
+    ]);
+  });
+
+  it('preserves binary and removed files and ignores empty change sets', () => {
+    expect(
+      unexplainedChanges(
+        [
+          { path: 'gone.ts', deleted: true, untracked: false },
+          { path: 'image.png', deleted: false, untracked: false },
+          { path: 'empty.ts', deleted: false, untracked: true },
+        ],
+        new Map(),
+        {
+          changed: new Map(),
+          deleted: new Map(),
+          binary: new Set(['image.png']),
+        },
+        [],
+      ),
+    ).toEqual([
+      { path: 'gone.ts', ranges: [], deleted: true },
+      { path: 'image.png', ranges: [], binary: true },
+    ]);
+  });
+
+  it('keeps a pure deletion beside a pointed line unexplained', () => {
+    const texts = new Map([
+      ['src/x.ts', 'const explained = 1;\nconst survivor = 3;\n'],
+    ]);
+    const resolution = resolveReview(
+      {
+        layers: [
+          {
+            ...layer,
+            steps: [{ ...step, published: ['const explained = 1;'] }],
+          },
+        ],
+      },
+      {
+        texts,
+        missing: new Set(),
+        changes: [
+          {
+            path: 'src/x.ts',
+            fingerprint: 'new',
+            comparisons: [
+              { scope: 'unstaged', oldPath: 'src/x.ts', newPath: 'src/x.ts' },
+            ],
+          },
+        ],
+        diffs: [
+          {
+            selection: {
+              scope: 'unstaged',
+              oldPath: 'src/x.ts',
+              newPath: 'src/x.ts',
+            },
+            content: {
+              kind: 'text',
+              patch:
+                '@@ -1,3 +1,2 @@\n const explained = 1;\n-const removed = 2;\n const survivor = 3;\n',
+            },
+          },
+        ],
+      },
+    );
+    expect(
+      unexplainedChanges(
+        resolution.changes,
+        texts,
+        resolution.diagnostics,
+        resolution.layers,
+      ),
+    ).toEqual([{ path: 'src/x.ts', ranges: [{ startLine: 2, endLine: 2 }] }]);
   });
 });
