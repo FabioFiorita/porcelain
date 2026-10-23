@@ -9,11 +9,17 @@ import {
 import { copyText } from '@/shared/workspace/copy';
 import { cn } from '@/shared/lib/utils';
 import { devPairing } from '@/shared/shell';
+import { desktopLiveAddress } from '@/shared/adapters/desktop';
 
 function pairingAddress() {
-  return typeof window === 'undefined'
-    ? 'http://127.0.0.1:3000'
-    : window.location.origin;
+  if (typeof window === 'undefined') return 'http://127.0.0.1:3000';
+  const address = desktopLiveAddress();
+  const local = address ? URL.parse(address) : null;
+  if (local && (local.protocol === 'ws:' || local.protocol === 'wss:')) {
+    local.protocol = local.protocol.replace('ws', 'http');
+    return local.origin;
+  }
+  return window.location.origin;
 }
 
 export function NotPaired({
