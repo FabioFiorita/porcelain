@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 import {
   branchChangeMarks,
+  changeStatus,
   changeStatusMarks,
   worktreeChangeMarks,
 } from './change-marks.ts';
@@ -42,6 +43,22 @@ it.each([
   ]);
   const status = marks.files.get('apps/web/new.ts');
   expect(status && changeStatusMarks[status]).toEqual({ letter, label });
+});
+
+it.each([
+  [ordinary('staged', 'renamed'), 'renamed'],
+  [ordinary('unstaged', 'type-changed'), 'modified'],
+  [{ scope: 'untracked' as const, path: 'a.ts' }, 'untracked'],
+] as const)('reads the change status of %j as %s', (change, status) => {
+  expect(changeStatus(change)).toBe(status);
+});
+
+it('marks no folder for a file that only was deleted', () => {
+  const marks = worktreeChangeMarks([
+    { path: 'gone/old.ts', comparisons: [ordinary('staged', 'deleted')] },
+  ]);
+  expect([...marks.files]).toEqual([['gone/old.ts', 'deleted']]);
+  expect(marks.folders.size).toBe(0);
 });
 
 it('keeps the first comparison of a file staged and changed again', () => {
@@ -97,5 +114,7 @@ it.each([
     },
   ]);
   expect([...marks.files]).toEqual([['packages/a/b.ts', expected]]);
-  expect([...marks.folders]).toEqual(['packages', 'packages/a']);
+  expect([...marks.folders]).toEqual(
+    expected === 'deleted' ? [] : ['packages', 'packages/a'],
+  );
 });

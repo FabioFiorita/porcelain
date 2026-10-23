@@ -17,7 +17,7 @@ import { Separator } from '../../../components/ui/separator';
 import { Text } from '../../../components/ui/text';
 import { usePreferences } from '../../preferences';
 import { useServiceUpdates } from '../queries/service-updates';
-import { useEnvironments } from '../store';
+import { useEnvironments, useEnvironmentStorageStatus } from '../store';
 import { SettingsAbout } from './settings-about';
 
 const DevelopmentSettingsSection = __DEV__
@@ -36,6 +36,7 @@ export function SettingsScreen({
   onOpenComponentLibrary: () => void;
 }) {
   const remotes = useEnvironments();
+  const storage = useEnvironmentStorageStatus();
   const { preferences } = usePreferences();
   const { targets } = useServiceUpdates();
   const computers = computersSummary(
@@ -75,7 +76,7 @@ export function SettingsScreen({
               title="Computers"
               accessibilityLabel={[
                 'Computers',
-                computers.paired,
+                storage.status === 'ready' ? computers.paired : undefined,
                 computers.updates,
               ]
                 .filter(Boolean)
@@ -85,7 +86,9 @@ export function SettingsScreen({
               onPress={onOpenComputers}
             >
               <Text variant="caption" tone="muted" numberOfLines={1}>
-                {computers.paired}
+                {storage.status === 'ready'
+                  ? computers.paired
+                  : 'Reading saved computers…'}
                 {computers.updates ? (
                   <>
                     {' · '}

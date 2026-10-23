@@ -32,7 +32,7 @@ export function changeStatus(change: Change): ChangeStatus {
   return change.kind;
 }
 
-export function branchChangeStatus(file: BranchFile): ChangeStatus {
+function branchChangeStatus(file: BranchFile): ChangeStatus {
   return file.status === 'type-changed' ? 'modified' : file.status;
 }
 
@@ -41,7 +41,7 @@ export type FileChangeMarks = {
   folders: ReadonlySet<string>;
 };
 
-export function fileChangeMarks(
+function fileChangeMarks(
   changes: readonly { path: string; status: ChangeStatus }[],
 ): FileChangeMarks {
   const files = new Map<string, ChangeStatus>();
@@ -49,7 +49,11 @@ export function fileChangeMarks(
     if (!files.has(change.path)) files.set(change.path, change.status);
   return {
     files,
-    folders: new Set([...files.keys()].flatMap(fileTreeAncestors)),
+    folders: new Set(
+      [...files]
+        .filter(([, status]) => status !== 'deleted')
+        .flatMap(([path]) => fileTreeAncestors(path)),
+    ),
   };
 }
 

@@ -19,7 +19,7 @@ export function GroupHeader({
       size="sm"
       expanded={expanded}
       className="justify-start"
-      accessibilityLabel={`${label}${count === undefined ? '' : ` · ${count}`}, ${expanded ? 'expanded' : 'collapsed'}`}
+      accessibilityLabel={`${label}${count === undefined ? '' : ` · ${count}`}`}
       onPress={onPress}
     >
       <Icon name={expanded ? 'down' : 'chevron'} tone="muted" size="small" />

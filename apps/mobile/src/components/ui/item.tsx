@@ -79,6 +79,7 @@ export function Item({
                 variant="code"
                 tone="muted"
                 numberOfLines={1}
+                ellipsizeMode="head"
                 className="min-w-0 flex-1"
               >
                 {detail}

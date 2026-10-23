@@ -24,6 +24,5 @@ export {
   changeStatus,
   changeStatusMarks,
   worktreeChangeMarks,
-  type ChangeStatus,
   type FileChangeMarks,
 } from './change-marks.ts';

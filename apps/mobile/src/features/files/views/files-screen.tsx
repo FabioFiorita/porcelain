@@ -211,7 +211,10 @@ function FilesNavigationView({
     }));
   };
   const header = (
-    <Box gap={2}>
+    <Box
+      gap={embedded ? 3 : 2}
+      {...(embedded ? { paddingX: 4, paddingY: 3 } : {})}
+    >
       <Box className="flex-row items-center" gap={2}>
         <Box className="min-w-0 flex-1">
           <Input

@@ -13,6 +13,7 @@ import { ChangeMark } from './change-mark';
 import {
   changeStatusMarks,
   entryName,
+  fileTreeAncestors,
   visibleFileTreeRows,
   type FileChangeMarks,
   type FileTreeEntry,
@@ -82,8 +83,10 @@ export function FileTree({
         const mark = status ? changeStatusMarks[status] : undefined;
         const containsChanges =
           node.kind === 'directory' && Boolean(changes?.folders.has(path));
+        const parent = flat ? fileTreeAncestors(path).at(-1) : undefined;
         const item: ItemProps = {
-          title: flat ? node.path : entryName(node.path),
+          title: entryName(node.path),
+          ...(parent ? { detail: parent } : {}),
           titleNumberOfLines: 1,
           size: 'sm',
           selected: path === selected,
@@ -121,21 +124,31 @@ export function FileTree({
             node.kind === 'symlink' ||
             node.kind === 'submodule' ||
             node.kind === 'other' ||
-            node.ignored ? (
-              <Badge
-                label={
-                  node.kind === 'symlink'
-                    ? 'Symlink'
-                    : node.kind === 'submodule'
-                      ? 'Submodule'
-                      : node.kind === 'other'
-                        ? 'Unsupported'
-                        : 'Ignored'
-                }
-                variant="outline"
-              />
-            ) : mark || containsChanges ? (
-              <ChangeMark letter={mark?.letter} />
+            node.ignored ||
+            mark ||
+            containsChanges ? (
+              <View className="flex-row items-center gap-2">
+                {node.kind === 'symlink' ||
+                node.kind === 'submodule' ||
+                node.kind === 'other' ||
+                node.ignored ? (
+                  <Badge
+                    label={
+                      node.kind === 'symlink'
+                        ? 'Symlink'
+                        : node.kind === 'submodule'
+                          ? 'Submodule'
+                          : node.kind === 'other'
+                            ? 'Unsupported'
+                            : 'Ignored'
+                    }
+                    variant="outline"
+                  />
+                ) : null}
+                {mark || containsChanges ? (
+                  <ChangeMark letter={mark?.letter} />
+                ) : null}
+              </View>
             ) : undefined,
           onPress: () =>
             node.kind === 'directory' ? onToggle(path) : onSelect(path),

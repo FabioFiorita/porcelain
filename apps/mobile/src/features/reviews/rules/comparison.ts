@@ -82,7 +82,7 @@ export function fileReviewLabels<E, F>(
   );
 }
 
-export function fileChangeMarks<E>(
+export function snapshotChangeMarks<E>(
   snapshot: AsyncResult.AsyncResult<ReviewSnapshot, E>,
 ): FileChangeMarks {
   if (!AsyncResult.isSuccess(snapshot))
