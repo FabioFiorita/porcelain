@@ -41,6 +41,14 @@ export class CommentThreadsState extends Context.Service<
                 params: { worktreeId: scope.worktreeId },
               }),
             );
+            yield* currentAnswerEffect(
+              connection,
+              threads.every(
+                (thread) =>
+                  thread.worktreeId === scope.worktreeId ||
+                  thread.review !== undefined,
+              ),
+            );
             if (
               threads.some((thread) => thread.worktreeId !== scope.worktreeId)
             ) {
