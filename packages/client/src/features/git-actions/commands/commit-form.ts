@@ -11,7 +11,6 @@ import type {
   DraftedFiles,
 } from '../rules/commit-form.ts';
 import type { GitActionStatus } from '../rules/status.ts';
-import { draftIsStale } from '../rules/commit-form.ts';
 import {
   expectationFor,
   receiptFailed,
@@ -117,12 +116,8 @@ export const commitForm = Effect.fn('CommitForm.commit')(
       currentMessage,
       mode,
       commitAction,
-      model,
       paths,
-      generator,
       status,
-      setMessage,
-      setDrafted,
       groups,
       done,
       ownHead,
@@ -136,39 +131,13 @@ export const commitForm = Effect.fn('CommitForm.commit')(
     setBusy(true);
     setError(null);
     yield* Effect.addFinalizer(() => Effect.sync(() => setBusy(false)));
-    let text = currentMessage;
-    if (mode !== 'groups' && !text.trim()) {
-      if (commitAction === 'amend')
-        return yield* Effect.fail(
-          new Cause.UnknownError(
-            undefined,
-            'Give the amended commit a message.',
-          ),
-        );
-      if (!model || !paths.length)
-        return yield* Effect.fail(
-          new Cause.UnknownError(
-            undefined,
-            'Give every commit a message and at least one file.',
-          ),
-        );
-      const result = yield* generator.submit({
-        mode: 'message',
-        model,
-        paths,
-        expectedStatusToken: status.statusToken,
-      });
-      text = result.groups[0]?.message ?? '';
-      setMessage(text);
-      setDrafted('message', result.expectedFiles);
-      if (draftIsStale(status, result.expectedFiles)) return;
-    }
+    if (mode === 'groups' && !groups?.length) return;
     const pending =
       commitAction === 'amend'
-        ? [{ id: 'single', message: text, paths }]
+        ? [{ id: 'single', message: currentMessage, paths }]
         : mode === 'groups' && groups
           ? groups.filter((group) => !done.has(group.id))
-          : [{ id: 'single', message: text, paths }];
+          : [{ id: 'single', message: currentMessage, paths }];
     let expectedHead = ownHead ?? status.headOid ?? null;
     onBusy(true);
     yield* Effect.addFinalizer(() => Effect.sync(() => onBusy(false)));

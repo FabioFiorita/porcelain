@@ -21,6 +21,7 @@ type CommitState = {
   busy: boolean;
   error: unknown;
   drafted: Drafts;
+  draftedBy: Record<keyof Drafts, string | null>;
   editingFiles: boolean;
 };
 export const commitState = Atom.family((_owner: object) =>
@@ -31,6 +32,7 @@ export const commitState = Atom.family((_owner: object) =>
     busy: false,
     error: null,
     drafted: { message: null, groups: null },
+    draftedBy: { message: null, groups: null },
     editingFiles: false,
   }),
 );

@@ -1,5 +1,6 @@
 import type { RequestBoundary } from '../server-factory.ts';
 import { Effect, Layer } from 'effect';
+import { HttpRouter } from 'effect/http';
 import type { Limits } from '../../config/limits.ts';
 import type { HttpApplication } from '../application.ts';
 import {
@@ -16,6 +17,12 @@ import {
   type RequestOriginOptions,
 } from '../hooks/request-origin.ts';
 import { requestPolicy } from '../hooks/request-policy.ts';
+import {
+  authenticate,
+  bearerCredential,
+  type AuthenticateOptions,
+} from '../hooks/authenticate.ts';
+import { RequestContext } from '../request-context.ts';
 
 export type PublicUseCases = {
   access: PairingAttemptOptions['access'] &
@@ -29,7 +36,7 @@ export type PublicUseCases = {
 };
 export function publicScope(options: {
   boundary: RequestBoundary;
-  application: PublicUseCases;
+  application: PublicUseCases & AuthenticateOptions;
   allowedHosts: readonly string[];
   limits: Limits;
 }) {
@@ -42,7 +49,23 @@ export function publicScope(options: {
     application.access.routes.public.pipe(
       Layer.provide(
         requestPolicy(
-          checkRequestOrigin(origins, { crossOrigin: 'refused' }),
+          checkRequestOrigin(origins, { crossOrigin: 'refused' }).pipe(
+            Effect.andThen(
+              Effect.gen(function* () {
+                const context = yield* RequestContext;
+                const { route } = yield* HttpRouter.RouteContext;
+                if (
+                  context.crossOrigin &&
+                  route.path === '/api/environment' &&
+                  bearerCredential(context) !== undefined
+                )
+                  yield* authenticate(application, {
+                    cookieMaxAgeSeconds:
+                      options.limits.access.device.cookieMaxAgeSeconds,
+                  });
+              }),
+            ),
+          ),
         ).combine(options.boundary).layer,
       ),
     ),

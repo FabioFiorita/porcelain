@@ -30,7 +30,7 @@ A drafted message or group whose files no longer match what the dialog looked at
 
 ## How to get to it (user POV)
 
-- Group "Git controls" → button "Commit" → button "Generate with AI" (or tab "Use groups") → a file changes on disk → button "Commit selected files" (refused) → button "Look again".
+- Group "Git controls" → button "Commit" → button "Generate with AI" (or tab "Use groups" then Generate with AI) → a file changes on disk → button "Commit selected files" (refused) → button "Look again".
 - The stale alert reads "The worktree changed since this draft was proposed. Generate it again before committing."
 
 ## Driving it with browser
@@ -52,7 +52,7 @@ No setup on a fresh instance (README.md modified).
 1. Navigate to `/`, click button `Commit`, click button `Generate with AI`, then wait for 'Explain the change to review in the README'
    Expect: textbox "Message" holds "Explain the change to review in the README".
 2. On disk, with the dialog open: `printf 'Changed after the draft\n' > "$REPO/README.md"`
-3. Click button `Commit selected files`, then wait for button `Look again`
+3. Review and optionally edit Message. The current HEAD is unchanged until clicking Commit. Click button `Commit selected files`, then wait for button `Look again`
    Expect: alert "changed since looked"; button "Look again".
 4. Click button `Look again`
    Expect: STALE shows; button "Commit selected files" [disabled].
@@ -91,7 +91,7 @@ printf 'NOTES.md drafted in groups\n' > "$REPO/NOTES.md"
 ```
 Navigate to `/`, then wait for button `Mark NOTES.md as reviewed` and wait for button named `Mark README.md as reviewed`.
 
-1. Click button `Commit`, click tab `Use groups`, then wait for button `Commit groups in order`
+1. Click button `Commit`, click tab `Use groups`, then click button `Generate with AI` and wait for button `Commit groups in order`
    Expect: textbox "Message for commit 1" holds "Explain the change to review in the README"; textbox "Message for commit 2" holds "Add notes for the reviewer".
 2. On disk: `printf 'Changed after the groups were drafted\n' > "$REPO/NOTES.md"`
 3. Click button `Commit groups in order`, then wait for button `Look again`

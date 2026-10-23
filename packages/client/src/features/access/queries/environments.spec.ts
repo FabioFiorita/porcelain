@@ -98,6 +98,39 @@ describe('environment status', () => {
     ).toEqual({ kind: 'unreachable' });
   });
 
+  it.each([
+    [200, 'unreachable'],
+    [401, 'unauthorized'],
+    [503, 'unreachable'],
+  ])(
+    'checks the session after a descriptor transport failure and maps %s to %s',
+    async (code, kind) => {
+      const paths: string[] = [];
+      const answer = await status((path) => {
+        paths.push(path);
+        return path === '/api/environment'
+          ? Promise.reject(new TypeError('Failed to fetch'))
+          : Promise.resolve(
+              code === 200
+                ? Response.json({ kind: 'owner' })
+                : new Response(null, { status: code }),
+            );
+      });
+      expect(paths).toEqual(['/api/environment', '/api/session']);
+      expect(answer).toEqual({ kind });
+    },
+  );
+
+  it('stays unreachable when neither the descriptor nor its session can be reached', async () => {
+    const paths: string[] = [];
+    const answer = await status((path) => {
+      paths.push(path);
+      return Promise.reject(new TypeError('Network failed'));
+    });
+    expect(paths).toEqual(['/api/environment', '/api/session']);
+    expect(answer).toEqual({ kind: 'unreachable' });
+  });
+
   it('propagates cancellation during the authenticated read', async () => {
     const controller = new AbortController();
     await expect(
