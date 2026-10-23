@@ -1,5 +1,6 @@
 import type { EditFileRequest } from '@porcelain/contracts/files';
 import type { liveSubscriptionSchema } from '@porcelain/contracts/access';
+import type { StressVariant } from './stress-sample.ts';
 
 export type HttpRequest = {
   method: 'GET' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -125,6 +126,7 @@ export type ProofCheckStep = {
 
 export type AgentAction =
   | { kind: 'publish-architecture' }
+  | { kind: 'seed'; variant: StressVariant }
   | {
       kind: 'publish-review';
       title: string;

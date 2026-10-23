@@ -11,6 +11,7 @@ import {
 } from './requests.ts';
 import type { AgentAction, HttpRequest, Session } from './session.ts';
 import { seedArchitectureSample } from './architecture-sample.ts';
+import { seedStressSample } from './stress-sample.ts';
 
 const PROOF_SCREENSHOT = 'proof-screenshot.png';
 const onePixelPng = Buffer.from(
@@ -36,10 +37,8 @@ async function agentRequest(
   agent: Session,
   action: AgentAction,
 ): Promise<HttpRequest> {
-  if (action.kind === 'publish-architecture')
-    throw new Error(
-      'Architecture publications are prepared as a complete sample',
-    );
+  if (action.kind === 'publish-architecture' || action.kind === 'seed')
+    throw new Error('Samples are prepared as a whole');
   if (action.kind === 'edit-file')
     return {
       method: 'POST',
@@ -102,6 +101,7 @@ export async function agentActs(
 ): Promise<unknown> {
   if (action.kind === 'publish-architecture')
     return seedArchitectureSample(agent);
+  if (action.kind === 'seed') return seedStressSample(agent, action.variant);
   if (action.kind === 'publish-review' || action.kind === 'publish-proof') {
     await commitReviewFixture(agent);
   }
