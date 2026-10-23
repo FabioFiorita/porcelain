@@ -216,22 +216,6 @@ export function WalkthroughCompletion({
           </Box>
         );
       })}
-      {stop.kind === 'decision'
-        ? stop.elsewhere.map((file) => (
-            <Button
-              key={file.path}
-              label={`${file.path} · shown in another stop`}
-              accessibilityLabel={`Open owning stop for ${file.path}`}
-              variant="link"
-              onPress={() => go(file.stop)}
-            />
-          ))
-        : null}
-      {layer && progress.states.get(layer.id)?.stale ? (
-        <Text variant="caption" tone="muted">
-          Code changed since this decision was explained.
-        </Text>
-      ) : null}
       {layer ? (
         <Button
           label={

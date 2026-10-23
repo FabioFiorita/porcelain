@@ -85,6 +85,10 @@ export function useCommentDraft(
     cancel: () => confirmDiscard(onClose),
     submit: () => {
       if (!target || pending) return;
+      if (initialBody.length > 0 && body.trim() === initialBody.trim()) {
+        setInvalid('Write your comment after the prefilled text.');
+        return;
+      }
       if (!commentBodyValid(body)) {
         setInvalid(
           `Enter a comment of at most ${commentBodyLimit} characters without a NUL character.`,

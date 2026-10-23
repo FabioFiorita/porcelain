@@ -133,12 +133,15 @@ function ThreadSheet({
       ? JSON.stringify([workspace.key, review.publishedAt, review.revision])
       : '',
   );
-  const openDecision = review
-    ? (layer: ReviewLayer) => {
-        setPlace({ stop: decisionKey(layer.id), summary: false });
-        router.back();
-      }
-    : undefined;
+  const sameReview =
+    !thread.review || thread.review.reviewId === review?.reviewId;
+  const openDecision =
+    review && sameReview
+      ? (layer: ReviewLayer) => {
+          setPlace({ stop: decisionKey(layer.id), summary: false });
+          router.back();
+        }
+      : undefined;
   const path = anchorPath(thread.anchor);
   return (
     <>
@@ -190,8 +193,8 @@ function ThreadSheet({
               />
             )}
           </ScrollView>
-          {thread.resolved ? null : <Separator />}
-          {thread.resolved ? null : (
+          {thread.resolved && !draft.body ? null : <Separator />}
+          {thread.resolved && !draft.body ? null : (
             <Box paddingX={4} paddingY={3} gap={2}>
               {draft.error ? (
                 <Text
@@ -213,7 +216,9 @@ function ThreadSheet({
                     disabled={draft.pending}
                     invalid={!!draft.error}
                     returnKeyType="send"
-                    onSubmitEditing={draft.submit}
+                    onSubmitEditing={() => {
+                      if (draft.body.trim()) draft.submit();
+                    }}
                   />
                 </Box>
                 <IconButton

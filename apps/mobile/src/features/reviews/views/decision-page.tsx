@@ -37,8 +37,10 @@ import { diffPresentation } from '../rules/diff-presentation';
 import {
   foldThreads,
   foldedThread,
+  threadOnRevision,
   threadSummary,
 } from '../rules/thread-folds';
+import { IconButton } from '../../../components/ui/icon-button';
 import { ReviewReadState } from './read-state';
 
 type DecisionStop = Extract<WalkthroughStop, { kind: 'decision' }>;
@@ -58,6 +60,8 @@ export function DecisionPage({
   readStep,
   onComment,
   onThread,
+  changedPaths,
+  onFile,
 }: {
   workspace: Workspace;
   review: ReviewResponse;
@@ -69,6 +73,8 @@ export function DecisionPage({
   readStep: (step: string) => void;
   onComment: (body: string) => void;
   onThread: (thread: CommentThread) => void;
+  changedPaths: readonly string[];
+  onFile: (path: string) => void;
 }) {
   const { layer } = stop;
   const [allSteps, setAllSteps] = useState(false);
@@ -102,6 +108,7 @@ export function DecisionPage({
         <Box
           className="flex-row flex-wrap items-center"
           gap={2}
+          accessible
           accessibilityLabel={`Contracts: ${links
             .map((link) =>
               link.outgoing
@@ -208,6 +215,8 @@ export function DecisionPage({
           review={review}
           revision={revision}
           stop={stop}
+          changedPaths={changedPaths}
+          onFile={onFile}
           onThread={onThread}
         />
       ) : null}
@@ -237,15 +246,25 @@ function DecisionDiffs({
   review,
   revision,
   stop,
+  changedPaths,
+  onFile,
   onThread,
 }: {
   workspace: Workspace;
   review: ReviewResponse;
   revision: ReviewRevision;
   stop: DecisionStop;
+  changedPaths: readonly string[];
+  onFile: (path: string) => void;
   onThread: (thread: CommentThread) => void;
 }) {
   const [shown, setShown] = useState(DECISION_DIFF_FILES);
+  const threads = useAtomValue(
+    readCommentThreads({
+      connection: workspace.connection,
+      scope: workspace.scope,
+    }),
+  );
   const paths =
     walkthroughStops(
       review,
@@ -256,12 +275,25 @@ function DecisionDiffs({
   if (files.length === 0) return null;
   return (
     <Box gap={3}>
-      <RevisionDiffs
-        workspace={workspace}
-        revision={revision}
-        files={files.slice(0, shown)}
-        onThread={onThread}
-      />
+      {files.slice(0, shown).map((file) => (
+        <FileDiff
+          key={file.path}
+          workspace={workspace}
+          revision={revision}
+          file={file}
+          threads={
+            AsyncResult.isSuccess(threads)
+              ? threads.value.filter(
+                  (thread) => anchorPath(thread.anchor) === file.path,
+                )
+              : []
+          }
+          {...(changedPaths.includes(file.path)
+            ? { onOpen: () => onFile(file.path) }
+            : {})}
+          onThread={onThread}
+        />
+      ))}
       {files.length > shown ? (
         <Button
           label="Read more files"
@@ -273,81 +305,71 @@ function DecisionDiffs({
   );
 }
 
-function RevisionDiffs({
+function FileDiff({
   workspace,
   revision,
-  files,
+  file,
+  threads,
+  onOpen,
   onThread,
 }: {
   workspace: Workspace;
   revision: ReviewRevision;
-  files: ReviewRevision['files'];
+  file: ReviewRevision['files'][number];
+  threads: readonly CommentThread[];
+  onOpen?: () => void;
   onThread: (thread: CommentThread) => void;
 }) {
+  const { preferences } = usePreferences();
   const query = readReviewRevisionDiffs({
     connection: workspace.connection,
     reviewId: revision.reviewId,
     revision: revision.revision,
-    paths: files.map((file) => [
-      ...new Set(
-        [file.oldPath, file.newPath, file.path].filter(
-          (path) => path !== undefined,
+    paths: [
+      [
+        ...new Set(
+          [file.oldPath, file.newPath, file.path].filter(
+            (path) => path !== undefined,
+          ),
         ),
-      ),
-    ]),
+      ],
+    ],
   });
   const result = useAtomValue(query);
   const refresh = useAtomRefresh(query);
-  const threads = useAtomValue(
-    readCommentThreads({
-      connection: workspace.connection,
-      scope: workspace.scope,
-    }),
-  );
-  if (!AsyncResult.isSuccess(result))
-    return <ReviewReadState result={result} refresh={refresh} />;
-  return files.map((file) => (
-    <FileDiff
-      key={file.path}
-      path={file.path}
-      content={
-        result.value.diffs.find((item) => item.paths.includes(file.path))
-          ?.content
-      }
-      threads={
-        AsyncResult.isSuccess(threads)
-          ? threads.value.filter(
-              (thread) => anchorPath(thread.anchor) === file.path,
-            )
-          : []
-      }
-      onThread={onThread}
-    />
-  ));
-}
-
-function FileDiff({
-  path,
-  content,
-  threads,
-  onThread,
-}: {
-  path: string;
-  content: Parameters<typeof diffPresentation>[0] | undefined;
-  threads: readonly CommentThread[];
-  onThread: (thread: CommentThread) => void;
-}) {
-  const { preferences } = usePreferences();
+  const content = AsyncResult.isSuccess(result)
+    ? result.value.diffs.find((item) => item.paths.includes(file.path))?.content
+    : undefined;
   const presentation = content ? diffPresentation(content) : undefined;
   const lines = presentation?.kind === 'text' ? presentation.lines : [];
-  const folded = foldThreads(lines, threads);
+  const folded = foldThreads(lines, threads, revision);
   const added = lines.filter((line) => line.kind === 'added').length;
   const removed = lines.filter((line) => line.kind === 'removed').length;
-  const language = sourceLanguage(path);
+  const language = sourceLanguage(file.path);
   const open = (lineId: string) => {
     const thread = threads.find((entry) => entry.id === foldedThread(lineId));
     if (thread) onThread(thread);
   };
+  let body = (
+    <Box paddingX={4} paddingY={2}>
+      <Text variant="caption" tone="muted">
+        {diffNotice(presentation)}
+      </Text>
+    </Box>
+  );
+  if (!AsyncResult.isSuccess(result))
+    body = <ReviewReadState result={result} refresh={refresh} />;
+  else if (presentation?.kind === 'text')
+    body = (
+      <Box className={diffHeight(folded.lines.length)}>
+        <DiffView
+          lines={folded.lines}
+          wrap={preferences.lineOverflow === 'wrap'}
+          onExpand={open}
+          {...(language ? { language } : {})}
+        />
+      </Box>
+    );
   return (
     <Card className="overflow-hidden">
       <Box
@@ -358,7 +380,7 @@ function FileDiff({
         divider="bottom"
       >
         <Text variant="code" numberOfLines={1} className="flex-1">
-          {path}
+          {file.path}
         </Text>
         {presentation?.kind === 'text' ? (
           <Text
@@ -369,40 +391,52 @@ function FileDiff({
             −{removed} +{added}
           </Text>
         ) : null}
-      </Box>
-      {presentation?.kind === 'text' ? (
-        <Box className={diffHeight(folded.lines.length)}>
-          <DiffView
-            lines={folded.lines}
-            wrap={preferences.lineOverflow === 'wrap'}
-            onExpand={open}
-            {...(language ? { language } : {})}
+        {onOpen ? (
+          <IconButton
+            icon="chevron"
+            size="sm"
+            accessibilityLabel={`Open changed-file diff for ${file.path}`}
+            onPress={onOpen}
           />
-        </Box>
-      ) : (
-        <Box paddingX={4} paddingY={2}>
-          <Text variant="caption" tone="muted">
-            {presentation && presentation.kind === 'notice'
-              ? `${presentation.title} · ${presentation.description}`
-              : presentation?.kind === 'metadata'
-                ? 'Metadata only · no text lines changed'
-                : 'This file has no diff in the published revision.'}
-          </Text>
-        </Box>
-      )}
+        ) : null}
+      </Box>
+      {body}
       {folded.unplaced.map((thread) => (
         <Item
           key={thread.id}
           size="xs"
           title={threadSummary(thread)}
+          description={unplacedLabel(thread, revision)}
           leading={<Icon name="comment" tone="muted" />}
           trailing={<Icon name="chevron" tone="muted" />}
-          accessibilityLabel={`Open thread: ${threadSummary(thread)}`}
+          accessibilityLabel={`Open thread: ${threadSummary(thread)}, ${unplacedLabel(thread, revision)}`}
           onPress={() => onThread(thread)}
         />
       ))}
     </Card>
   );
+}
+
+function unplacedLabel(thread: CommentThread, revision: ReviewRevision) {
+  const anchor = thread.anchor;
+  if (anchor.kind !== 'codeRange') return 'Whole file';
+  const lines =
+    anchor.startLine === anchor.endLine
+      ? `Line ${anchor.startLine}`
+      : `Lines ${anchor.startLine}–${anchor.endLine}`;
+  return threadOnRevision(thread, revision)
+    ? `${lines} · outside this diff`
+    : `${lines} · written on other code`;
+}
+
+function diffNotice(
+  presentation: ReturnType<typeof diffPresentation> | undefined,
+) {
+  if (presentation?.kind === 'notice')
+    return `${presentation.title} · ${presentation.description}`;
+  if (presentation?.kind === 'metadata')
+    return 'Metadata only · no text lines changed';
+  return 'This file has no diff in the published revision.';
 }
 
 function diffHeight(lines: number) {

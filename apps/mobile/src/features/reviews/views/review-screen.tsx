@@ -202,7 +202,12 @@ function ReviewNavigationList({
   const files = AsyncResult.isSuccess(marks.result)
     ? reviewFiles(snapshot, marks.result.value)
     : [];
-  const publishedStop = usePublishedStop(workspace);
+  const publishedStop = usePublishedStop(
+    workspace,
+    snapshot.kind === 'worktree'
+      ? snapshot.answer.changes.map((file) => file.path)
+      : [],
+  );
   const onStop =
     inlineOverview &&
     comparison.kind === 'worktree' &&

@@ -248,12 +248,12 @@ function PublishedContent({
             onFile={onFile}
             go={go}
             done={progress.done}
-            readStep={(step) =>
-              setPlace({ stop: stop.key, summary: false, step })
-            }
             decision={(entry) => (
               <DecisionPage
+                key={entry.key}
                 workspace={workspace}
+                changedPaths={changedPaths ?? []}
+                onFile={onFile}
                 review={review}
                 revision={revision}
                 stop={entry}
@@ -325,7 +325,6 @@ function ReviewPage({
   changedPaths,
   onFile,
   go,
-  readStep,
   done,
   decision,
 }: {
@@ -339,7 +338,6 @@ function ReviewPage({
   changedPaths: readonly string[] | undefined;
   onFile: (path: string) => void;
   go: (key: WalkthroughKey) => void;
-  readStep: (step: string) => void;
   done: (stop: WalkthroughStop) => boolean;
 }) {
   if (pointer)
@@ -604,7 +602,10 @@ function StopBar({
   );
 }
 
-export function usePublishedStop(workspace: Workspace) {
+export function usePublishedStop(
+  workspace: Workspace,
+  changedPaths: readonly string[],
+) {
   const result = useAtomValue(
     readPublishedReview({
       connection: workspace.connection,
@@ -618,7 +619,10 @@ export function usePublishedStop(workspace: Workspace) {
       : '',
   );
   if (!review || place.summary) return undefined;
-  return place.stop;
+  return currentStop(
+    walkthroughStops(review, changedPaths, { specsApart: true }),
+    place.stop,
+  ).kind;
 }
 
 function screenTitle(
@@ -649,13 +653,7 @@ function DecisionStepper({
             <Badge
               key={entry.key}
               label={done(entry) ? `✓ ${entry.number}` : String(entry.number)}
-              variant={
-                entry.key === current.key
-                  ? 'default'
-                  : done(entry)
-                    ? 'secondary'
-                    : 'outline'
-              }
+              variant={stepVariant(entry.key === current.key, done(entry))}
               accessibilityLabel={`Open ${stopTitle(entry)}${done(entry) ? ', reviewed' : ''}`}
               accessibilityState={{ selected: entry.key === current.key }}
               onPress={() => go(entry.key)}
@@ -665,6 +663,11 @@ function DecisionStepper({
       </Box>
     </ScrollView>
   );
+}
+
+function stepVariant(current: boolean, reviewed: boolean) {
+  if (current) return 'default';
+  return reviewed ? 'secondary' : 'outline';
 }
 
 export function openComments(

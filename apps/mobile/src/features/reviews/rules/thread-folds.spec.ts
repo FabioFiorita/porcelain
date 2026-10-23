@@ -22,12 +22,20 @@ const lines = [
   { id: 'e', text: '}', kind: 'context' as const, oldLine: 6, newLine: 7 },
 ];
 
+const revision = { reviewId: 'r', revision: 2, headOid: 'head' };
+
 const thread = (
   id: string,
   anchor: CommentThread['anchor'],
   authors: ('reviewer' | 'agent')[] = ['reviewer', 'agent'],
+  review: CommentThread['review'] | null = {
+    reviewId: 'r',
+    revision: 2,
+    headOid: 'head',
+  },
 ): CommentThread => ({
   id,
+  ...(review ? { review } : {}),
   worktreeId: 'w',
   anchor,
   resolved: false,
@@ -59,7 +67,7 @@ describe('thread folds', () => {
       },
       ['reviewer'],
     );
-    const folded = foldThreads(lines, [added, removed]);
+    const folded = foldThreads(lines, [added, removed], revision);
     expect(folded.lines.map((line) => [line.id, line.kind, line.text])).toEqual(
       [
         ['h', undefined, '@@ -4,3 +4,4 @@'],
@@ -84,11 +92,56 @@ describe('thread folds', () => {
       endLine: 41,
       side: 'additions',
     });
-    const folded = foldThreads(lines, [file, outside]);
+    const folded = foldThreads(lines, [file, outside], revision);
     expect(folded.lines).toEqual(lines);
     expect(folded.unplaced.map((entry) => entry.id)).toEqual([
       'file',
       'outside',
+    ]);
+  });
+
+  it('places only threads written on this published revision, by review or by branch head', () => {
+    const range = {
+      kind: 'codeRange' as const,
+      filePath: 'a.ts',
+      startLine: 5,
+      endLine: 5,
+      side: 'additions' as const,
+    };
+    const reply: ('reviewer' | 'agent')[] = ['reviewer'];
+    const current = thread('current', range, reply, null);
+    const older = thread('older', range, reply, {
+      reviewId: 'r',
+      revision: 1,
+      headOid: 'old',
+    });
+    const otherReview = thread('other', range, reply, {
+      reviewId: 'x',
+      revision: 2,
+      headOid: 'head',
+    });
+    const branchHead = thread(
+      'branch',
+      {
+        ...range,
+        comparison: { kind: 'branch', base: 'main' },
+        revision: 'head',
+      },
+      reply,
+      null,
+    );
+    const folded = foldThreads(
+      lines,
+      [current, older, otherReview, branchHead],
+      revision,
+    );
+    expect(
+      folded.lines.filter((line) => line.kind === 'gap').map((line) => line.id),
+    ).toEqual(['thread:branch']);
+    expect(folded.unplaced.map((entry) => entry.id)).toEqual([
+      'current',
+      'older',
+      'other',
     ]);
   });
 

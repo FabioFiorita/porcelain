@@ -1,8 +1,7 @@
 import { Box } from '../../../components/ui/box';
 import { useState, type ReactNode } from 'react';
-import { Stack, useRouter, usePreventRemove } from 'expo-router';
-import { randomUUID } from 'expo-crypto';
-import { Alert, ScrollView } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
+import { ScrollView } from 'react-native';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
@@ -10,11 +9,9 @@ import { readCommentThreads } from '@porcelain/client/reviews';
 import {
   anchorLabel,
   anchorPath,
-  commentBodyValid,
   commentIsStale,
   matchesCommentTarget,
   type CommentTarget,
-  retainIntent,
   threadStateLabel,
   type CommentAnchor,
   type CommentThread,
@@ -27,13 +24,8 @@ import { headerIcon } from '../../../shared/icons/header-icon';
 import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
+import { WorkspaceGate } from '../../projects';
 import {
-  WorkspaceGate,
-  useDocumentLeave,
-  type Workspace,
-} from '../../projects';
-import {
-  commentBodyLimit,
   useCommentCommands,
   useVisibleComments,
   useCommentWrite,
@@ -43,7 +35,6 @@ import { ReviewReadState } from './read-state';
 import { CommentThreadSheet } from './comment-thread-sheet';
 import {
   useCommentDraft,
-  writeFailure,
   type CommentWorkspace,
   type ComposerTarget,
 } from './comment-draft';

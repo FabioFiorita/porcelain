@@ -11,16 +11,38 @@ export function threadSummary(thread: CommentThread): string {
   return `${count} ${count === 1 ? 'comment' : 'comments'} · ${threadStateLabel(thread)}`;
 }
 
+type PublishedRevision = {
+  reviewId: string;
+  revision: number;
+  headOid: string;
+};
+
+export function threadOnRevision(
+  thread: CommentThread,
+  revision: PublishedRevision,
+): boolean {
+  if (
+    thread.review?.reviewId === revision.reviewId &&
+    thread.review.revision === revision.revision
+  )
+    return true;
+  return (
+    thread.anchor.comparison?.kind === 'branch' &&
+    thread.anchor.revision === revision.headOid
+  );
+}
+
 export function foldThreads(
   lines: readonly DiffLine[],
   threads: readonly CommentThread[],
+  revision: PublishedRevision,
 ): { lines: DiffLine[]; unplaced: CommentThread[] } {
   const below = new Map<string, CommentThread[]>();
   const unplaced: CommentThread[] = [];
   for (const thread of threads) {
     const anchor = thread.anchor;
     const line =
-      anchor.kind === 'codeRange'
+      anchor.kind === 'codeRange' && threadOnRevision(thread, revision)
         ? lines.findLast((entry) =>
             anchor.side === 'deletions'
               ? entry.kind === 'removed' && entry.oldLine === anchor.endLine
