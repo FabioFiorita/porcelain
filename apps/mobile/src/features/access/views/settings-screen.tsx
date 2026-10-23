@@ -60,6 +60,7 @@ export function SettingsScreen({
             testID="settings-general"
             title="General"
             description={generalSettingsSummary(preferences)}
+            accessibilityLabel={`General, ${generalSettingsSummary(preferences)}`}
             leading={<IconTile name="sliders" />}
             trailing={<Icon name="chevron" tone="muted" />}
             onPress={onOpenGeneral}
@@ -69,6 +70,7 @@ export function SettingsScreen({
             testID="settings-reviews-git"
             title="Reviews & Git"
             description={reviewsGitSettingsSummary(preferences)}
+            accessibilityLabel={`Reviews & Git, ${reviewsGitSettingsSummary(preferences)}`}
             leading={<IconTile name="checklist" />}
             trailing={<Icon name="chevron" tone="muted" />}
             onPress={onOpenReviewsGit}

@@ -47,10 +47,11 @@ function fileChangeMarks(
   const files = new Map<string, ChangeStatus>();
   for (const change of changes)
     if (!files.has(change.path)) files.set(change.path, change.status);
+  const current = new Map(changes.map(({ path, status }) => [path, status]));
   return {
     files,
     folders: new Set(
-      [...files]
+      [...current]
         .filter(([, status]) => status !== 'deleted')
         .flatMap(([path]) => fileTreeAncestors(path)),
     ),

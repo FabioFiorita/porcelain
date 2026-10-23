@@ -63,14 +63,14 @@ export function Item({
   const content = (
     <>
       {leading}
-      <View className="min-w-0 flex-1 shrink gap-1">
+      <View className="w-0 min-w-0 flex-1 shrink gap-1">
         {titleTrailing || detail ? (
-          <View className="min-w-0 flex-row items-center gap-2">
+          <View className="w-full min-w-0 flex-row items-center gap-2">
             <Text
               variant="ui"
               weight="medium"
               numberOfLines={titleNumberOfLines}
-              className={detail ? 'min-w-0 shrink' : 'min-w-0 flex-1'}
+              className="w-0 min-w-0 flex-1"
             >
               {title}
             </Text>
@@ -80,7 +80,7 @@ export function Item({
                 tone="muted"
                 numberOfLines={1}
                 ellipsizeMode="head"
-                className="min-w-0 flex-1"
+                className="min-w-0 max-w-1/2 shrink"
               >
                 {detail}
               </Text>

@@ -21,7 +21,7 @@ import { MissingCredentialRow } from './missing-credential-row';
 import { EnvironmentRow } from './environment-row';
 import { PairEnvironment } from './pair-environment';
 import { PairEnvironmentForm } from './pair-environment-form';
-import { ThisDevice } from './this-device';
+import { ThisComputer } from './this-computer';
 
 function EnvironmentSettingsSection({
   presentation = 'overview',
@@ -33,7 +33,11 @@ function EnvironmentSettingsSection({
   showHeading?: boolean;
 }) {
   const [pairing, setPairing] = useState(false);
+  const [computerId, setComputerId] = useState<string | null>(null);
   const remotes = useEnvironments();
+  const computer = remotes.find(
+    (remote) => remote.environmentId === computerId,
+  );
   const missing = useMissingCredentials();
   const storage = useEnvironmentStorageStatus();
   const read = useReadEnvironments();
@@ -133,6 +137,7 @@ function EnvironmentSettingsSection({
                     (entry) => entry.environmentId === remote.environmentId,
                   )}
                   disabled={storage.status !== 'ready'}
+                  onOpenComputer={() => setComputerId(remote.environmentId)}
                 />
               </Fragment>
             ))}
@@ -151,6 +156,16 @@ function EnvironmentSettingsSection({
           ) : null}
         </BottomSheet>
       ) : null}
+      <BottomSheet
+        isPresented={computer !== undefined}
+        onDismiss={() => setComputerId(null)}
+        contentPadding={0}
+        snapPoints={['half', 'full']}
+      >
+        {computer ? (
+          <ThisComputer remote={computer} onClose={() => setComputerId(null)} />
+        ) : null}
+      </BottomSheet>
     </>
   );
 }
@@ -179,7 +194,6 @@ export function EnvironmentsSettings({
           showHeading={showHeading}
           inlinePairing={inlinePairing}
         />
-        <ThisDevice />
       </Box>
     </ScrollView>
   );

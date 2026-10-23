@@ -74,6 +74,31 @@ it('keeps the first comparison of a file staged and changed again', () => {
   expect([...marks.files]).toEqual([['src/app.ts', 'added']]);
 });
 
+it.each([
+  {
+    name: 'a staged deletion recreated as an untracked file',
+    comparisons: [
+      ordinary('staged', 'deleted'),
+      { scope: 'untracked' as const, path: 'src/app.ts' },
+    ],
+    status: 'deleted',
+    folders: ['src'],
+  },
+  {
+    name: 'a staged addition deleted from the worktree',
+    comparisons: [ordinary('staged', 'added'), ordinary('unstaged', 'deleted')],
+    status: 'added',
+    folders: [],
+  },
+])(
+  'marks folders from the current state of $name',
+  ({ comparisons, status, folders }) => {
+    const marks = worktreeChangeMarks([{ path: 'src/app.ts', comparisons }]);
+    expect([...marks.files]).toEqual([['src/app.ts', status]]);
+    expect([...marks.folders]).toEqual(folders);
+  },
+);
+
 it('marks every folder above a changed file and no other folder', () => {
   const marks = worktreeChangeMarks([
     {

@@ -36,7 +36,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [access.forget-environment](access.forget-environment.md) — Forget a saved computer locally and retain the others.
 - [access.lan-pairing](access.lan-pairing.md) — Local-network pairing and reconnection.
 - [access.pairing](access.pairing.md) — Paste links, pair multiple computers and restore after launch.
-- [access.settings](access.settings.md) — Settings categories, version and per-computer IDs.
+- [access.settings](access.settings.md) — Settings categories, version and This computer.
 - [access.updates](access.updates.md) — Update visibility, sheet navigation and batch outcomes.
 - [app.catalog-button](app.catalog-button.md) — Button variants, actions, disabled and pending states.
 - [app.catalog-library](app.catalog-library.md) — Catalog entry, sample selection and return.
