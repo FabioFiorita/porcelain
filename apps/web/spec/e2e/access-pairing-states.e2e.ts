@@ -80,7 +80,7 @@ test('checking a pairing link keeps the page and advances the route', async ({
   app,
   fetchGate,
 }) => {
-  const held = fetchGate.holdNextPost('/pair');
+  const held = await fetchGate.holdNextPost('/pair');
   held.arm();
   const opened = app.open(await app.link('this'));
   try {

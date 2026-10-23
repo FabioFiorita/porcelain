@@ -6,7 +6,7 @@ import {
 } from '@/features/access/index';
 import { ReviewPage, ReviewMissing } from '@/features/reviews/index';
 import { ConnectedWorkspace } from './connected-workspace';
-import { StateNotice } from '@/components/state-notice';
+import { StateNotice } from '@/shared/views/state-notice';
 import { Button } from '@/components/ui/button';
 
 export function ReviewRoute({

@@ -5,7 +5,7 @@ import {
 import { LinkIcon, ServerOffIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import { StateNotice } from '@/components/state-notice';
+import { StateNotice } from '@/shared/views/state-notice';
 
 import { type RemoteStatus } from '@porcelain/client/access/rules';
 

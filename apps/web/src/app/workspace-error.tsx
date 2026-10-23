@@ -1,6 +1,6 @@
 import { type ErrorComponentProps, useRouter } from '@tanstack/react-router';
 import { useWorkspaceRetry } from '@/features/access/index';
-import { StateFailure } from '@/components/state-notice';
+import { StateFailure } from '@/shared/views/state-notice';
 
 export function WorkspaceError({ reset }: ErrorComponentProps) {
   const router = useRouter();

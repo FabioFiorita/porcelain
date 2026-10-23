@@ -9,7 +9,7 @@ import {
   StateFailure,
   StateNotice,
   StateSkeleton,
-} from '@/components/state-notice';
+} from '@/shared/views/state-notice';
 
 export function BranchReviewPage({
   scope,

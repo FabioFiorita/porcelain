@@ -3,7 +3,7 @@ import { diffUnavailableReason } from '@porcelain/client/changes/rules';
 import { commitPaths, refLabel } from '@porcelain/client/history/rules';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
-import { type ReactNode, Suspense, useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
@@ -33,7 +33,7 @@ import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { ReadMoreFiles } from './read-more-files';
 import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
-import { StateNotice, StateSkeleton } from '@/components/state-notice';
+import { StateNotice } from '@/shared/views/state-notice';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Props = {
@@ -61,23 +61,18 @@ function BranchCode({
   base,
   path,
 }: Props & { path: string | undefined }) {
-  const { connection } = context;
-  const changes = useBranchChanges(scope, connection, base);
-  if (
-    !AsyncResult.isSuccess(changes.result) ||
-    changes.result.value.base === undefined
-  )
-    return <BranchState changes={changes} />;
   return (
-    <Suspense fallback={<StateSkeleton label="Comparing the branch" />}>
-      <BranchMarkedCode
-        scope={scope}
-        context={context}
-        interaction={interaction}
-        branch={changes.result.value}
-        path={path}
-      />
-    </Suspense>
+    <BranchState scope={scope} context={context} base={base}>
+      {(branch) => (
+        <BranchMarkedCode
+          scope={scope}
+          context={context}
+          interaction={interaction}
+          branch={branch}
+          path={path}
+        />
+      )}
+    </BranchState>
   );
 }
 

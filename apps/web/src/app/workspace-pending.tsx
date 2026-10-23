@@ -1,6 +1,6 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
-import { StateSkeleton } from '@/components/state-notice';
+import { StateSkeleton } from '@/shared/views/state-notice';
 
 export function WorkspacePending() {
   return (

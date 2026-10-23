@@ -19,7 +19,7 @@ import {
   type Surface,
 } from '@/shared/workspace/search';
 import { ReviewBoundary } from './review-boundary';
-import { StateNotice } from '@/components/state-notice';
+import { StateNotice } from '@/shared/views/state-notice';
 import { ReviewIndex } from './review-index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 

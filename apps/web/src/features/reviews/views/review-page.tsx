@@ -56,7 +56,7 @@ import {
   StateFailure,
   StateNotice,
   StateSkeleton,
-} from '@/components/state-notice';
+} from '@/shared/views/state-notice';
 import { ProofList } from './proof-list';
 
 type ReviewPageProps = {

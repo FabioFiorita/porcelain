@@ -13,7 +13,7 @@ import {
 } from '@tanstack/react-hotkeys';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
-import { StateNotice } from '@/components/state-notice';
+import { StateNotice } from '@/shared/views/state-notice';
 import { GitBranchIcon, CompassIcon, FolderXIcon } from 'lucide-react';
 import { Sidebar, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { buttonVariants } from '@/components/ui/button';

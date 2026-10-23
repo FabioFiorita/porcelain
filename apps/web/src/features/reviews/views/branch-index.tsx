@@ -1,7 +1,6 @@
 import { BranchState } from './branch-state';
 import { AsyncResult } from 'effect/reactivity';
 import { GitBranchIcon } from 'lucide-react';
-import { Suspense } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { refLabel } from '@porcelain/client/history/rules';
 import { useBranchChanges } from '@/features/changes/index';
@@ -21,7 +20,6 @@ import { branchReviewRange } from '@porcelain/client/reviews/rules';
 import { BranchBasePicker } from './branch-base-picker';
 import { SidebarDocumentRow } from './sidebar-section';
 import { ChangeRow } from './change-row';
-import { StateSkeleton } from '@/components/state-notice';
 import { groupSpecPaths } from '@porcelain/client/reviews/rules';
 import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
@@ -85,25 +83,20 @@ function BranchFiles({
   onOpen: OpenDocument;
   sideLabel: string;
 }) {
-  const { connection } = context;
-  const changes = useBranchChanges(scope, connection, base);
-  if (
-    !AsyncResult.isSuccess(changes.result) ||
-    changes.result.value.base === undefined
-  )
-    return <BranchState changes={changes} />;
   return (
-    <Suspense fallback={<StateSkeleton label="Comparing the branch" />}>
-      <BranchFileList
-        scope={scope}
-        context={context}
-        branch={changes.result.value}
-        activeEntry={activeEntry}
-        threads={threads}
-        onOpen={onOpen}
-        sideLabel={sideLabel}
-      />
-    </Suspense>
+    <BranchState scope={scope} context={context} base={base}>
+      {(branch) => (
+        <BranchFileList
+          scope={scope}
+          context={context}
+          branch={branch}
+          activeEntry={activeEntry}
+          threads={threads}
+          onOpen={onOpen}
+          sideLabel={sideLabel}
+        />
+      )}
+    </BranchState>
   );
 }
 

@@ -1,5 +1,5 @@
 import { Component, type ReactNode, Suspense } from 'react';
-import { StateFailure, StateSkeleton } from '@/components/state-notice';
+import { StateFailure, StateSkeleton } from '@/shared/views/state-notice';
 import { reviewErrorMessage } from '@porcelain/client/reviews/rules';
 import { useRetryReview } from '../commands/read-retry';
 import type { Connection } from '@/shared/workspace/connection';

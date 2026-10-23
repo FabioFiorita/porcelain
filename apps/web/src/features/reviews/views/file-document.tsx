@@ -28,7 +28,7 @@ import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { FindBar } from './find-bar';
-import { StateNotice } from '@/components/state-notice';
+import { StateNotice } from '@/shared/views/state-notice';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type FileDocumentProps = {

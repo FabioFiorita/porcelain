@@ -26,7 +26,7 @@ import { FileDocument } from './file-document';
 import { ProofDocument } from './proof-document';
 import { ReviewCodeDocument } from './review-code-document';
 import { MarkAllReviewed } from './reviewed-control';
-import { StateNotice } from '@/components/state-notice';
+import { StateNotice } from '@/shared/views/state-notice';
 import { BranchReviewPage } from './branch-review-page';
 import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';

@@ -11,7 +11,7 @@ import { PanelRightIcon, LayersIcon as ReviewLayersIcon } from 'lucide-react';
 import { type ReactNode, type SyntheticEvent, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
-import { StateNotice, StateSkeleton } from '@/components/state-notice';
+import { StateNotice, StateSkeleton } from '@/shared/views/state-notice';
 import {
   ResizableHandle,
   ResizablePanel,
