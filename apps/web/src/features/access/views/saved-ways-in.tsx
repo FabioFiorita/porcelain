@@ -47,7 +47,10 @@ export function SavedWaysIn({ remote }: { remote: Remote }) {
                     </Button>
                   }
                 />
-                <TooltipContent className="break-all">{`Copy ${address}`}</TooltipContent>
+                <TooltipContent
+                  role="tooltip"
+                  className="break-all"
+                >{`Copy ${address}`}</TooltipContent>
               </Tooltip>
             </ItemActions>
           </Item>

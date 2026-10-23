@@ -86,7 +86,10 @@ export function PinnedFiles({
                       </Button>
                     }
                   />
-                  <TooltipContent className="break-all">{`Unpin ${path}`}</TooltipContent>
+                  <TooltipContent
+                    role="tooltip"
+                    className="break-all"
+                  >{`Unpin ${path}`}</TooltipContent>
                 </Tooltip>
               </ContextMenuTrigger>
               <ContextMenuContent finalFocus={!openingSide}>

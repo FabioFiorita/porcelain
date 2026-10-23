@@ -106,7 +106,10 @@ function RouteStatus({
                 </Button>
               }
             />
-            <TooltipContent className="break-all">{`Copy ${url}`}</TooltipContent>
+            <TooltipContent
+              role="tooltip"
+              className="break-all"
+            >{`Copy ${url}`}</TooltipContent>
           </Tooltip>
         </div>
       ))}
@@ -321,7 +324,7 @@ function TailnetSettings({
                   </Button>
                 }
               />
-              <TooltipContent className="break-all">
+              <TooltipContent role="tooltip" className="break-all">
                 Copy the tailscale serve command
               </TooltipContent>
             </Tooltip>

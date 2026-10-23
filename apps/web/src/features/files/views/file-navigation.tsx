@@ -295,7 +295,7 @@ function ScopedFileNavigation({
                 </Button>
               }
             />
-            <TooltipContent className="break-all">
+            <TooltipContent role="tooltip" className="break-all">
               {showHidden ? 'Showing hidden' : `Hidden (${hidden.size})`}
             </TooltipContent>
           </Tooltip>
@@ -318,7 +318,7 @@ function ScopedFileNavigation({
                 </DropdownMenuTrigger>
               }
             />
-            <TooltipContent className="break-all">
+            <TooltipContent role="tooltip" className="break-all">
               Create file or folder
             </TooltipContent>
           </Tooltip>
@@ -358,7 +358,9 @@ function ScopedFileNavigation({
               </Button>
             }
           />
-          <TooltipContent className="break-all">{collapseLabel}</TooltipContent>
+          <TooltipContent role="tooltip" className="break-all">
+            {collapseLabel}
+          </TooltipContent>
         </Tooltip>
       </div>
       <PinnedFiles

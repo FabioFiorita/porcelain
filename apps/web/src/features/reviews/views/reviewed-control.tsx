@@ -127,7 +127,9 @@ export function ReviewedControl({
             </Button>
           }
         />
-        <TooltipContent className="break-all">{label}</TooltipContent>
+        <TooltipContent role="tooltip" className="break-all">
+          {label}
+        </TooltipContent>
       </Tooltip>
       {error !== undefined && (
         <span
@@ -183,7 +185,9 @@ export function MarkAllReviewed({
             </Button>
           }
         />
-        <TooltipContent className="break-all">{plan.label}</TooltipContent>
+        <TooltipContent role="tooltip" className="break-all">
+          {plan.label}
+        </TooltipContent>
       </Tooltip>
       {bulk.report && <BulkReport report={bulk.report} />}
       {AsyncResult.isFailure(bulk.result) && (

@@ -41,7 +41,7 @@ export function OpenProjectMenu({
         >
           <PlusIcon />
         </TooltipTrigger>
-        <TooltipContent>Open project</TooltipContent>
+        <TooltipContent role="tooltip">Open project</TooltipContent>
       </Tooltip>
     );
   return (
@@ -63,7 +63,7 @@ export function OpenProjectMenu({
         >
           <PlusIcon />
         </TooltipTrigger>
-        <TooltipContent>Open project</TooltipContent>
+        <TooltipContent role="tooltip">Open project</TooltipContent>
       </Tooltip>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuGroup>

@@ -140,7 +140,7 @@ export function SettingsUpdateRow({
                         </Button>
                       }
                     />
-                    <TooltipContent className="break-all">
+                    <TooltipContent role="tooltip" className="break-all">
                       Copy device ID
                     </TooltipContent>
                   </Tooltip>

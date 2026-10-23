@@ -99,7 +99,7 @@ export function FindBar({
                 </InputGroupButton>
               }
             />
-            <TooltipContent className="break-all">
+            <TooltipContent role="tooltip" className="break-all">
               Previous match
             </TooltipContent>
           </Tooltip>
@@ -116,7 +116,9 @@ export function FindBar({
                 </InputGroupButton>
               }
             />
-            <TooltipContent className="break-all">Next match</TooltipContent>
+            <TooltipContent role="tooltip" className="break-all">
+              Next match
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger
@@ -130,7 +132,9 @@ export function FindBar({
                 </InputGroupButton>
               }
             />
-            <TooltipContent className="break-all">Close find</TooltipContent>
+            <TooltipContent role="tooltip" className="break-all">
+              Close find
+            </TooltipContent>
           </Tooltip>
         </InputGroupAddon>
       </InputGroup>

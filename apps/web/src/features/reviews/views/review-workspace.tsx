@@ -235,7 +235,7 @@ function ReviewWorkspaceContent({
             </Button>
           }
         />
-        <TooltipContent className="break-all">
+        <TooltipContent role="tooltip" className="break-all">
           {sidebarOpen ? 'Hide review sidebar' : 'Show review sidebar'}{' '}
           <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>
         </TooltipContent>
@@ -260,7 +260,7 @@ function ReviewWorkspaceContent({
             </SheetTrigger>
           }
         />
-        <TooltipContent className="break-all">
+        <TooltipContent role="tooltip" className="break-all">
           Review <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>
         </TooltipContent>
       </Tooltip>

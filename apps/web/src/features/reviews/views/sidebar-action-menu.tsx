@@ -112,7 +112,9 @@ export function SidebarActionMenu({
                   </DropdownMenuTrigger>
                 }
               />
-              <TooltipContent className="break-all">{label}</TooltipContent>
+              <TooltipContent role="tooltip" className="break-all">
+                {label}
+              </TooltipContent>
             </Tooltip>
             <DropdownMenuContent align="end" finalFocus={!openingSide}>
               {actions.map((action) => (

@@ -136,7 +136,9 @@ function MessageMenu({
               </DropdownMenuTrigger>
             }
           />
-          <TooltipContent className="break-all">Comment actions</TooltipContent>
+          <TooltipContent role="tooltip" className="break-all">
+            Comment actions
+          </TooltipContent>
         </Tooltip>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={onEdit}>
