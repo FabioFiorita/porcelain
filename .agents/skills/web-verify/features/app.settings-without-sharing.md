@@ -30,7 +30,7 @@ Browser Settings has the same five sections as desktop. Computers starts with Th
 
 Preconditions: [surface baseline](README.md).
 
-Start a web verification instance and pair the browser. Open the sidebar, note the host name beneath Porcelain, then click Settings. Expect `/settings/general` and buttons General, Reviews & Git, Computers, Devices, Integrations and Back.
+Start a web verification instance and pair the browser. Open the sidebar, check that its header says Porcelain without a computer name, then click Settings. Expect `/settings/general` and buttons General, Reviews & Git, Computers, Devices, Integrations and Back.
 
 Click Computers, then Open This computer. Expect `/settings/computers/this-computer`, its current version and update state, Ways in, and Disconnect this browser. Click Devices. A local authorized browser shows Pair a device and Paired devices. A remote browser whose `GET /api/remote-access` is denied sees the one-line reason: Sharing is managed from a browser on the computer that runs Porcelain. No administration controls are mounted in that case.
 
