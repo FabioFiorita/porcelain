@@ -175,14 +175,22 @@ function DecisionBrief({
           className="flex flex-wrap items-center gap-1.5"
         >
           {route.map((lane, index) => (
-            <li key={`${lane}:${index}`} className="flex items-center gap-1.5">
+            <li
+              key={`${lane}:${index}`}
+              className="flex min-w-0 items-center gap-1.5"
+            >
               {index > 0 && (
                 <ArrowRightIcon
                   className="size-3 text-muted-foreground"
                   aria-hidden="true"
                 />
               )}
-              <Badge variant="secondary">{lane}</Badge>
+              <Badge
+                variant="secondary"
+                className="h-auto min-h-5 min-w-0 shrink whitespace-normal"
+              >
+                {lane}
+              </Badge>
             </li>
           ))}
         </ol>

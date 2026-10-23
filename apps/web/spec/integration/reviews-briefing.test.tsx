@@ -96,6 +96,50 @@ test.for([414, 1440])(
 
 const longRequest = `Keep a very long filename readable: ${'very-long-path-segment-'.repeat(18)}`;
 
+test.for([414, 1080, 1440])(
+  'long unbroken briefing prose fits the reading pane at width %s',
+  async (width, { repo, render, reviewLayout }) => {
+    await page.viewport(width, 896);
+    try {
+      const prose = `Asked: ${'documentHoldEscalationAcknowledgementWithoutAnyBreakOpportunity'.repeat(8)}`;
+      const title =
+        'documentHoldEscalationAcknowledgementWithoutAnyBreakOpportunity'.repeat(
+          3,
+        );
+      const fixture = await repo.review(title, prose);
+      const app = await render.route(`/reviews/${fixture.reviewId}`);
+      const briefing = app.page.getByRole('region', {
+        name: 'Briefing',
+        exact: true,
+      });
+      await expect.element(briefing).toBeVisible();
+      await expect
+        .element(
+          briefing.getByRole('region', { name: 'You asked', exact: true }),
+        )
+        .toMatchTextContent(prose);
+      await expect
+        .poll(() => reviewLayout.fitsViewport(briefing))
+        .toEqual({ insideViewport: true, contentFits: true });
+      await briefing
+        .getByRole('button', { name: 'Continue at decision 1', exact: true })
+        .click();
+      const decision = app.page.getByRole('region', {
+        name: `1. ${title}`,
+        exact: true,
+      });
+      await expect
+        .element(decision.getByRole('heading', { name: title, exact: true }))
+        .toBeVisible();
+      await expect
+        .poll(() => reviewLayout.fitsViewport(decision))
+        .toEqual({ insideViewport: true, contentFits: true });
+    } finally {
+      await page.viewport(414, 896);
+    }
+  },
+);
+
 test.for([
   { width: 414, asked: longRequest, clipped: true },
   { width: 1440, asked: longRequest, clipped: true },

@@ -292,7 +292,7 @@ function ReviewRevisionPage({
   return (
     <section
       aria-label="Review walkthrough"
-      className="@container/review flex min-h-0 min-w-0 flex-1 flex-col overflow-auto rounded-xl border bg-card"
+      className="@container/review flex min-h-0 min-w-0 flex-1 flex-col overflow-auto rounded-xl border bg-card wrap-anywhere"
     >
       {active && view === 'walkthrough' && (
         <WalkthroughKeys stops={stops} current={stop.key} onGo={go} />
