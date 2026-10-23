@@ -10,7 +10,7 @@ import { DIFF_WINDOW_FILES } from '@/config/limits';
 import { type BranchFile, branchRange } from '@porcelain/client/changes/rules';
 import {
   commitEntry,
-  useBranchChanges,
+  type useBranchChanges,
   useBranchDiffs,
   useReviewOverview,
 } from '@/features/changes/index';

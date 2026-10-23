@@ -182,7 +182,7 @@ function PairingStep({
   failed = false,
   children,
 }: {
-  number: number;
+  number: 1 | 2 | 3;
   current?: boolean;
   done?: boolean;
   failed?: boolean;
@@ -201,10 +201,12 @@ function PairingStep({
   if (current) state = ', current';
   return (
     <li className="relative grid grid-cols-[auto_minmax(0,1fr)] gap-4 pb-8 last:pb-0">
-      <span
-        aria-hidden="true"
-        className="absolute bottom-1 left-3 top-8 border-l last:hidden in-last:hidden"
-      />
+      {number !== 3 && (
+        <span
+          aria-hidden="true"
+          className="absolute bottom-1 left-3 top-8 border-l"
+        />
+      )}
       <span
         aria-current={current ? 'step' : undefined}
         aria-label={`Step ${number}${state}`}

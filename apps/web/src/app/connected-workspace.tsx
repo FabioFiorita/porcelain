@@ -3,6 +3,7 @@ import type { RemoteConnection } from '@porcelain/client/access';
 import {
   firstWaitingWorktree,
   selectedWorktreeInProject,
+  worktreeLabel,
 } from '@porcelain/client/projects/rules';
 import {
   detectPlatform,
@@ -102,6 +103,7 @@ export function ConnectedWorkspace({
     localInventory,
     firstWaitingWorktree(localInventory)?.id,
   );
+  const recoveryLabel = worktreeLabel(recovery?.worktree.branch || undefined);
   const remotes = useRemoteConnections();
   const context = useConnectedContext(remote?.connection);
   const shownOn = remote?.remote.environmentId ?? null;
@@ -237,13 +239,13 @@ export function ConnectedWorkspace({
                               }}
                             >
                               <span className="truncate font-medium">
-                                {recovery.worktree.branch ?? 'Detached HEAD'}
+                                {recoveryLabel}
                               </span>
                             </Link>
                           }
                         />
                         <TooltipContent className="max-w-sm break-words">
-                          {recovery.worktree.branch ?? 'Detached HEAD'}
+                          {recoveryLabel}
                         </TooltipContent>
                       </Tooltip>
                     </div>

@@ -13,6 +13,11 @@ test('first run explains the three-step pairing route and its expiry', async ({
     page.getByRole('list', { name: 'How pairing works', exact: true }),
   ).toBeVisible();
   await expect(
+    page
+      .getByRole('list', { name: 'How pairing works', exact: true })
+      .getByRole('listitem'),
+  ).toHaveCount(3);
+  await expect(
     page.getByText('It prints a link that works once, for 15 minutes.', {
       exact: true,
     }),
@@ -86,7 +91,9 @@ test('checking a pairing link keeps the page and advances the route', async ({
   try {
     await held.requested;
     await expect(
-      page.getByText('Checking the link with your computer', { exact: true }),
+      page.getByRole('status').filter({
+        hasText: 'Checking the link with your computer',
+      }),
     ).toBeVisible();
     await expect(
       page.getByRole('heading', {

@@ -1,9 +1,9 @@
 import { BranchState } from './branch-state';
-import { AsyncResult } from 'effect/reactivity';
+import type { AsyncResult } from 'effect/reactivity';
 import { GitBranchIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { refLabel } from '@porcelain/client/history/rules';
-import { useBranchChanges } from '@/features/changes/index';
+import type { useBranchChanges } from '@/features/changes/index';
 import { toast } from '@/components/ui/toast';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useReviewedMarks } from '../queries/reviewed';
