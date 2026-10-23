@@ -1,8 +1,50 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 const title =
   'Keep every committed revision readable after the publishing worktree has been removed';
+
+test.for([
+  'missing revision',
+  'malformed revision',
+  'missing review',
+  'unpaired computer',
+] as const)(
+  'a durable %s notice keeps the navigator and returns focus after Escape',
+  async (state, { repo, render }) => {
+    const review = await repo.review(title);
+    const paths = {
+      'missing revision': `/reviews/${review.reviewId}/99`,
+      'malformed revision': `/reviews/${review.reviewId}/not-a-revision`,
+      'missing review': '/reviews/00000000-0000-4000-8000-000000000099',
+      'unpaired computer': `/reviews/${review.reviewId}?environment=00000000-0000-4000-8000-000000000099`,
+    };
+    const headings = {
+      'missing revision': 'Revision not found',
+      'malformed revision': 'Revision not found',
+      'missing review': 'Review not found',
+      'unpaired computer': 'Computer not paired',
+    };
+    const app = await render.route(paths[state]);
+    await expect
+      .element(
+        app.page.getByRole('heading', { name: headings[state], exact: true }),
+      )
+      .toBeVisible();
+    const navigator = app.page.getByRole('button', {
+      name: 'Toggle Sidebar',
+      exact: true,
+    });
+    await expect.element(navigator).toBeVisible();
+    await navigator.click();
+    await expect
+      .element(app.page.getByRole('button', { name: 'Settings', exact: true }))
+      .toBeVisible();
+    await userEvent.keyboard('{Escape}');
+    await expect.element(navigator).toHaveFocus();
+    await expect.poll(() => app.location()).toBe(paths[state]);
+  },
+);
 
 test.for([
   title,

@@ -53,6 +53,7 @@ import { RevisionCode, RevisionFile } from './revision-code';
 import { ReviewActions } from './review-actions';
 import { ReviewComments } from './review-comments';
 import {
+  StateFrame,
   StateFailure,
   StateNotice,
   StateSkeleton,
@@ -99,18 +100,25 @@ export function ReviewPage({
   const retry = useAtomRefresh(query);
   const data = Option.getOrUndefined(AsyncResult.value(result));
   if (AsyncResult.isInitial(result))
-    return <StateSkeleton label="Loading review" />;
+    return (
+      <StateFrame navigation={navigation} title="Review">
+        <StateSkeleton label="Loading review" />
+      </StateFrame>
+    );
   if (AsyncResult.isFailure(result))
     return (
-      <StateFailure
-        description="Review could not be loaded. Check the link and connection."
-        onRetry={retry}
-        onBack={onBack}
-      />
+      <StateFrame navigation={navigation} title="Review">
+        <StateFailure
+          description="Review could not be loaded. Check the link and connection."
+          onRetry={retry}
+          onBack={onBack}
+        />
+      </StateFrame>
     );
   if (!data?.review || !data.revision)
     return (
       <ReviewMissing
+        navigation={navigation}
         reviewId={reviewId}
         revision={revision}
         context={context}
@@ -140,12 +148,16 @@ export function ReviewPage({
 }
 
 export function ReviewMissing({
+  navigation,
   reviewId,
   revision,
   context,
   onRevision,
   onBack,
-}: Pick<ReviewPageProps, 'reviewId' | 'context' | 'onRevision' | 'onBack'> & {
+}: Pick<
+  ReviewPageProps,
+  'navigation' | 'reviewId' | 'context' | 'onRevision' | 'onBack'
+> & {
   revision?: string | number | undefined;
 }) {
   const query = readReview({ connection: context.connection, reviewId });
@@ -153,33 +165,41 @@ export function ReviewMissing({
   const retry = useAtomRefresh(query);
   const latest = Option.getOrUndefined(AsyncResult.value(result))?.review;
   if (AsyncResult.isInitial(result))
-    return <StateSkeleton label="Loading review" />;
+    return (
+      <StateFrame navigation={navigation} title="Review">
+        <StateSkeleton label="Loading review" />
+      </StateFrame>
+    );
   if (AsyncResult.isFailure(result))
     return (
-      <StateFailure
-        description="Review could not be loaded. Check the link and connection."
-        onRetry={retry}
-        onBack={onBack}
-      />
+      <StateFrame navigation={navigation} title="Review">
+        <StateFailure
+          description="Review could not be loaded. Check the link and connection."
+          onRetry={retry}
+          onBack={onBack}
+        />
+      </StateFrame>
     );
   return (
-    <StateNotice
-      title={latest ? 'Revision not found' : 'Review not found'}
-      description={
-        latest
-          ? `This review has revisions r1 to r${latest.latestRevision}. This link asks for r${revision}.`
-          : 'This link does not identify an available review.'
-      }
-    >
-      {latest && onRevision && (
-        <Button onClick={() => onRevision(undefined)}>
-          Open r{latest.latestRevision}, the latest
+    <StateFrame navigation={navigation} title="Review">
+      <StateNotice
+        title={latest ? 'Revision not found' : 'Review not found'}
+        description={
+          latest
+            ? `This review has revisions r1 to r${latest.latestRevision}. This link asks for r${revision}.`
+            : 'This link does not identify an available review.'
+        }
+      >
+        {latest && onRevision && (
+          <Button onClick={() => onRevision(undefined)}>
+            Open r{latest.latestRevision}, the latest
+          </Button>
+        )}
+        <Button variant="outline" onClick={onBack}>
+          Back to workspace
         </Button>
-      )}
-      <Button variant="outline" onClick={onBack}>
-        Back to workspace
-      </Button>
-    </StateNotice>
+      </StateNotice>
+    </StateFrame>
   );
 }
 

@@ -8,6 +8,27 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
+export function StateFrame({
+  navigation,
+  title,
+  children,
+}: {
+  navigation?: ReactNode;
+  title: string;
+  children: ReactNode;
+}) {
+  if (!navigation) return children;
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card">
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
+        {navigation}
+        <span className="text-ui font-medium">{title}</span>
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto">{children}</div>
+    </div>
+  );
+}
+
 export function StateNotice({
   title,
   description,
