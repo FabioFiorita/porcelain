@@ -100,12 +100,8 @@ export function ReviewPage({
   const result = useAtomValue(query);
   const retry = useAtomRefresh(query);
   const data = Option.getOrUndefined(AsyncResult.value(result));
-  if (AsyncResult.isInitial(result))
-    return <ReviewLoading navigation={navigation} />;
-  if (AsyncResult.isFailure(result))
-    return (
-      <ReviewFailure navigation={navigation} retry={retry} onBack={onBack} />
-    );
+  const state = reviewReadState(result, navigation, retry, onBack);
+  if (state) return state;
   if (!data?.review || !data.revision)
     return (
       <ReviewMissing
@@ -155,12 +151,8 @@ export function ReviewMissing({
   const result = useAtomValue(query);
   const retry = useAtomRefresh(query);
   const latest = Option.getOrUndefined(AsyncResult.value(result))?.review;
-  if (AsyncResult.isInitial(result))
-    return <ReviewLoading navigation={navigation} />;
-  if (AsyncResult.isFailure(result))
-    return (
-      <ReviewFailure navigation={navigation} retry={retry} onBack={onBack} />
-    );
+  const state = reviewReadState(result, navigation, retry, onBack);
+  if (state) return state;
   return (
     <StateFrame navigation={navigation} title="Review">
       <StateNotice
@@ -182,6 +174,21 @@ export function ReviewMissing({
       </StateNotice>
     </StateFrame>
   );
+}
+
+function reviewReadState(
+  result: AsyncResult.AsyncResult<unknown, unknown>,
+  navigation: ReactNode,
+  retry: () => void,
+  onBack: () => void,
+) {
+  if (AsyncResult.isInitial(result))
+    return <ReviewLoading navigation={navigation} />;
+  if (AsyncResult.isFailure(result))
+    return (
+      <ReviewFailure navigation={navigation} retry={retry} onBack={onBack} />
+    );
+  return undefined;
 }
 
 function ReviewLoading({ navigation }: Pick<ReviewPageProps, 'navigation'>) {
