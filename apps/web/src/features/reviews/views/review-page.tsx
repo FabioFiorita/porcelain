@@ -28,6 +28,7 @@ import {
   readReviewComments,
   observeReviewSeen,
   reviewCommands,
+  readReviewPullRequest,
 } from '@porcelain/client/reviews';
 import type { DurableReviewRead } from '@porcelain/client/reviews/rules';
 import {
@@ -49,19 +50,19 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePreferences, useTheme } from '@/features/preferences/index';
 import { useBranchChanges } from '@/features/changes/index';
 import type { ConnectionContext } from '@/shared/workspace/connection';
-import { publishedLabel } from '@porcelain/client/reviews/rules';
+import { reviewListTitle } from '@porcelain/client/reviews/rules';
 import { bindSummaryLayerRequests } from '../adapters/summary-messages';
 import { useReviewSummary } from '../queries/summary';
 import { useWalkthroughPlace } from '../store';
 import { GitButton } from '@/features/git-actions/index';
 import { DocumentTabs } from './document-tabs';
-import { ReviewVerdict } from './review-verdict';
+import { BriefingMargin } from './briefing-margin';
+import { WalkthroughSpine } from './walkthrough-spine';
+import { ReviewProof } from './review-proof';
 import { WalkthroughBriefing } from './walkthrough-briefing';
 import { StopBrief } from './walkthrough-stop';
 import { RevisionCode, RevisionFile } from './revision-code';
-import { ReviewActions } from './review-actions';
 import { ReviewEmpty } from './review-empty';
-import { ProofList } from './proof-list';
 
 type ReviewPageProps = {
   toolbarTarget?: HTMLElement | null | undefined;
@@ -362,11 +363,27 @@ function ReviewRevisionPage({
       </span>
     </>
   );
+  const titleInput = {
+    connection: context.connection,
+    reviewId: revision.reviewId,
+  };
+  const latestReview = Option.getOrUndefined(
+    AsyncResult.value(useAtomValue(readReview(titleInput))),
+  );
+  const pull = Option.getOrUndefined(
+    AsyncResult.value(useAtomValue(readReviewPullRequest(titleInput))),
+  );
+  const title = reviewListTitle(
+    data.review ?? revision,
+    latestReview?.revision ?? revision,
+    pull?.kind === 'available' ? pull.pullRequest.title : undefined,
+  );
   const record = data.review;
   return (
     <section
       aria-label="Review walkthrough"
-      className="@container/pane flex min-h-0 min-w-0 flex-1 flex-col overflow-auto rounded-xl border bg-card"
+      className="@container/review flex min-h-0 min-w-0 flex-1 flex-col overflow-auto rounded-xl border bg-card"
+      style={{ containerName: 'pane review' }}
     >
       {toolbarTarget === undefined && (
         <DocumentTabs
@@ -417,12 +434,6 @@ function ReviewRevisionPage({
           </Button>
           <span className="flex-1" />
           <Badge variant="outline">{record?.state ?? 'open'}</Badge>
-          <ReviewActions
-            reviewId={revision.reviewId}
-            state={record?.state ?? 'open'}
-            context={context}
-            onDeleted={onDeleted ?? onBack}
-          />
         </div>
         <h1
           aria-label="Review"
@@ -440,41 +451,7 @@ function ReviewRevisionPage({
               {' · '}
             </>
           )}
-          {revision.branch} → {refLabel(revision.base)} ·{' '}
-          <span className="font-mono whitespace-nowrap">
-            {revision.headOid.slice(0, 7)}
-          </span>
         </h1>
-        <nav
-          aria-label="Review revisions"
-          className="flex w-full flex-wrap gap-1"
-        >
-          {data.revisions.map((entry) => (
-            <Button
-              key={entry.revision}
-              size="xs"
-              variant={
-                !latest && entry.revision === revision.revision
-                  ? 'secondary'
-                  : 'ghost'
-              }
-              aria-pressed={!latest && entry.revision === revision.revision}
-              onClick={() => onRevision?.(entry.revision)}
-              disabled={!onRevision}
-            >
-              r{entry.revision}
-            </Button>
-          ))}
-          <Button
-            size="xs"
-            variant={latest ? 'secondary' : 'ghost'}
-            aria-pressed={latest}
-            onClick={() => onRevision?.(undefined)}
-            disabled={!onRevision}
-          >
-            latest
-          </Button>
-        </nav>
       </header>
       {currentScope && (
         <BranchTipNotice
@@ -494,12 +471,6 @@ function ReviewRevisionPage({
           Choose another decision or revision.
         </p>
       )}
-      <ReviewVerdict
-        revision={revision}
-        scope={scope}
-        context={context}
-        onStart={(id) => go(decisionKey(id))}
-      />
       <Tabs
         value={view}
         onValueChange={(value: unknown) => {
@@ -533,157 +504,155 @@ function ReviewRevisionPage({
       >
         {view === 'walkthrough' && (
           <>
-            <nav
-              aria-label="Walkthrough progress"
-              className="flex flex-wrap gap-1 border-b p-3"
-            >
-              <span className="text-xs text-muted-foreground">
-                ·{' '}
-                {
-                  stops.filter((item) => item.kind === 'decision' && done(item))
-                    .length
-                }{' '}
-                of {review.layers.length} decisions
-              </span>
-              <Button
-                size="xs"
-                variant="ghost"
-                aria-label="Open the briefing"
-                onClick={() => go('briefing')}
-              >
-                Briefing
-              </Button>
-              {stops
-                .filter((item) => item.kind !== 'briefing')
-                .map((item) => (
-                  <Button
-                    key={item.key}
-                    size="xs"
-                    variant={item.key === stop.key ? 'secondary' : 'ghost'}
-                    className="h-auto max-w-full text-left whitespace-normal"
-                    aria-pressed={item.key === stop.key}
-                    onClick={() => go(item.key)}
-                  >
-                    {stopTitle(item)}
-                    {done(item) ? ' ✓' : ''}
-                  </Button>
-                ))}
-            </nav>
-            {AsyncResult.isFailure(markResult) && (
-              <p role="alert" className="p-3 text-sm">
-                Reviewed marks could not be read.{' '}
-                <Button variant="outline" size="xs" onClick={retryMarks}>
-                  Try again
-                </Button>
-              </p>
-            )}
-            {file ? (
-              <>
-                <Button
-                  variant="ghost"
-                  className="self-start"
-                  onClick={() => setFile(undefined)}
-                >
-                  Back to decision
-                </Button>
-                <RevisionFile
-                  revision={revision}
-                  scope={scope}
-                  context={context}
-                  path={file.path}
-                  step={file.step}
-                  active={active}
-                />
-              </>
-            ) : null}
-            {!file && stop.kind === 'briefing' && (
-              <WalkthroughBriefing
-                {...props}
+            <div className="flex min-w-0 flex-1 items-start">
+              <WalkthroughSpine
                 stops={stops}
-                items={items}
-                decisions={decisions}
+                current={stop.key}
                 done={done}
                 onGo={go}
               />
-            )}
-            {!file && stop.kind !== 'briefing' && (
-              <section
-                role="region"
-                aria-label={stopTitle(stop)}
-                className="flex flex-col"
-              >
-                <StopBrief
-                  stop={stop}
-                  stops={stops}
-                  review={review}
-                  decision={
-                    stop.kind === 'decision'
-                      ? decisions.get(stop.layer.id)
-                      : undefined
-                  }
-                  finished={done(stop)}
-                  onGo={go}
-                  onStep={(step) => setFile({ path: step.pointer.path, step })}
-                />
-                {stop.kind === 'decision' && (
-                  <DecisionMark
+              <div className="flex min-w-0 flex-1 flex-col">
+                {stop.kind !== 'briefing' && (
+                  <nav
+                    aria-label="Walkthrough navigation"
+                    className="flex flex-wrap gap-2 border-b p-3 @2xl/review:hidden"
+                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => go('briefing')}
+                    >
+                      Open the briefing
+                    </Button>
+                    {stops
+                      .filter((item) => item.kind !== 'briefing')
+                      .map((item) => (
+                        <Button
+                          key={item.key}
+                          variant={
+                            item.key === stop.key ? 'secondary' : 'ghost'
+                          }
+                          size="xs"
+                          className="h-auto max-w-full whitespace-normal"
+                          onClick={() => go(item.key)}
+                        >
+                          {stopTitle(item)}
+                        </Button>
+                      ))}
+                  </nav>
+                )}
+                {AsyncResult.isFailure(markResult) && (
+                  <p role="alert" className="p-3 text-sm">
+                    Reviewed marks could not be read.{' '}
+                    <Button variant="outline" size="xs" onClick={retryMarks}>
+                      Try again
+                    </Button>
+                  </p>
+                )}
+                {file ? (
+                  <>
+                    <Button
+                      variant="ghost"
+                      className="self-start"
+                      onClick={() => setFile(undefined)}
+                    >
+                      Back to decision
+                    </Button>
+                    <RevisionFile
+                      revision={revision}
+                      scope={scope}
+                      context={context}
+                      path={file.path}
+                      step={file.step}
+                      active={active}
+                    />
+                  </>
+                ) : null}
+                {!file && stop.kind === 'briefing' && (
+                  <WalkthroughBriefing
+                    {...props}
                     revision={revision}
-                    layerId={stop.layer.id}
-                    fingerprint={stop.layer.fingerprint}
-                    reviewed={done(stop)}
-                    files={revision.files.filter((file) =>
-                      stop.paths.includes(file.path),
-                    )}
-                    settled={AsyncResult.isSuccess(markResult)}
-                    context={context}
+                    title={title}
+                    proofCurrent={
+                      proofCurrent && revision.headOid === latestHead
+                    }
+                    margin={
+                      <BriefingMargin
+                        data={data}
+                        revision={revision}
+                        latest={latest}
+                        context={context}
+                        onRevision={onRevision}
+                        onDeleted={onDeleted ?? onBack}
+                      />
+                    }
+                    stops={stops}
+                    items={items}
+                    decisions={decisions}
+                    done={done}
+                    onGo={go}
                   />
                 )}
-                <RevisionCode
-                  key={stop.key}
-                  revision={revision}
-                  paths={stop.paths}
-                  scope={scope}
-                  context={context}
-                  active={active}
-                  marks={marks ?? { files: [], decisions: [] }}
-                  steps={stop.kind === 'decision' ? stop.layer.steps : []}
-                />
-              </section>
-            )}
+                {!file && stop.kind !== 'briefing' && (
+                  <section
+                    role="region"
+                    aria-label={stopTitle(stop)}
+                    className="flex flex-col"
+                  >
+                    <StopBrief
+                      stop={stop}
+                      stops={stops}
+                      review={review}
+                      decision={
+                        stop.kind === 'decision'
+                          ? decisions.get(stop.layer.id)
+                          : undefined
+                      }
+                      finished={done(stop)}
+                      onGo={go}
+                      onStep={(step) =>
+                        setFile({ path: step.pointer.path, step })
+                      }
+                    />
+                    {stop.kind === 'decision' && (
+                      <DecisionMark
+                        revision={revision}
+                        layerId={stop.layer.id}
+                        fingerprint={stop.layer.fingerprint}
+                        reviewed={done(stop)}
+                        files={revision.files.filter((file) =>
+                          stop.paths.includes(file.path),
+                        )}
+                        settled={AsyncResult.isSuccess(markResult)}
+                        context={context}
+                      />
+                    )}
+                    <RevisionCode
+                      key={stop.key}
+                      revision={revision}
+                      paths={stop.paths}
+                      scope={scope}
+                      context={context}
+                      active={active}
+                      marks={marks ?? { files: [], decisions: [] }}
+                      steps={stop.kind === 'decision' ? stop.layer.steps : []}
+                    />
+                  </section>
+                )}
+              </div>
+            </div>
           </>
         )}
         {view === 'proof' && (
-          <section aria-label="Proof" className="p-4">
-            <h2 className="mb-2 text-sm font-semibold">Proof</h2>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Published {publishedLabel(revision.publishedAt)} · at{' '}
-              {revision.headOid.slice(0, 7)}
-            </p>
-            {!proofCurrent && (
-              <p role="status" className="mb-3 text-sm">
-                These checks ran before the latest changes
-              </p>
-            )}
-            {review.proof.checks.some((check) => check.result === 'fail') && (
-              <div role="alert" className="mb-3 text-sm text-destructive">
-                <p>
-                  {
-                    review.proof.checks.filter(
-                      (check) => check.result === 'fail',
-                    ).length
-                  }{' '}
-                  check failed
-                </p>
-                <p>The agent reported this work as not passing yet.</p>
-              </div>
-            )}
-            <ProofList
+          <div className="p-4">
+            <ReviewProof
+              revision={revision}
               scope={scope}
               context={context}
-              proof={review.proof}
-              layers={review.layers}
+              current={proofCurrent && revision.headOid === latestHead}
+              title="Proof"
             />
-          </section>
+          </div>
         )}
         {view === 'summary' && showSummary && (
           <iframe

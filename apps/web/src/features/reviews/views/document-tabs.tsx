@@ -73,12 +73,14 @@ function describeTab(key: string, reviewTitle: ReviewTitle | undefined) {
       return {
         Icon: FileCodeIcon,
         title: basename(ref.path),
+        accessibleName: ref.path,
         hint: `${ref.path} · changes`,
       };
     case 'file':
       return {
         Icon: FileCodeIcon,
         title: basename(ref.path),
+        accessibleName: ref.path,
         hint: `${ref.path} · file`,
       };
     case 'commit':
@@ -97,6 +99,7 @@ function describeTab(key: string, reviewTitle: ReviewTitle | undefined) {
       return {
         Icon: FileCodeIcon,
         title: basename(ref.path),
+        accessibleName: ref.path,
         hint: `${ref.path} · branch`,
       };
     case 'graph':
@@ -109,6 +112,7 @@ function describeTab(key: string, reviewTitle: ReviewTitle | undefined) {
       return {
         Icon: HistoryIcon,
         title: `Timeline of ${basename(ref.path)}`,
+        accessibleName: `Timeline of ${ref.path}`,
         hint: `${ref.path} · timeline`,
       };
     default:
@@ -260,7 +264,12 @@ function DocumentTab({
   reviewTitle: ReviewTitle | undefined;
   side: 'left' | 'right' | null;
 }) {
-  const { Icon, title, hint } = describeTab(tabKey, reviewTitle);
+  const {
+    Icon,
+    title,
+    hint,
+    accessibleName = title,
+  } = describeTab(tabKey, reviewTitle);
   const [openingSide, setOpeningSide] = useState(false);
   const openToSideLabel = openToSideText(side);
 
@@ -285,7 +294,7 @@ function DocumentTab({
                 role="tab"
                 tabIndex={0}
                 aria-selected={active}
-                aria-label={title}
+                aria-label={accessibleName}
 
                 data-entry={tabKey}
                 className={cn(

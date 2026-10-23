@@ -169,22 +169,17 @@ function Workspace({ connection }: { connection: Connection }) {
 }
 
 function Navigator({
-  connection,
   remotes,
 }: {
-  connection: Connection;
   remotes: readonly RemoteConnection[] | undefined;
 }) {
-  const inventory = useInventory(connection);
   return (
     <ProjectNavigator
-      inventory={inventory}
       remotes={remotes}
       selected={undefined}
       onSelect={() => {}}
       onOpenProject={() => {}}
       onOpenSettings={() => {}}
-      onOpenComputers={() => {}}
       onOpenShortcuts={() => {}}
     />
   );
@@ -442,9 +437,7 @@ export const test = base
         return page;
       },
       async navigator(options) {
-        await show((connection) => (
-          <Navigator connection={connection} remotes={options?.remotes} />
-        ));
+        await show(() => <Navigator remotes={options?.remotes} />);
         await expect
           .element(
             page.getByRole('navigation', {

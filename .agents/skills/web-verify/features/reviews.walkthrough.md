@@ -5,8 +5,9 @@ selectors:
   - "Walkthrough progress"
   - "Open the briefing"
   - "Briefing"
-  - "Files reviewed"
-  - "Decisions reviewed"
+  - "Needs your decision"
+  - "Answer this question"
+  - "Continue at decision "
   - "What this adds to the system"
   - "The walkthrough"
   - "Not explained"
@@ -14,6 +15,7 @@ selectors:
   - "Mark decision reviewed"
 tests:
   - apps/web/spec/integration/reviews-walkthrough.test.tsx
+  - apps/web/spec/integration/reviews-briefing.test.tsx
   - apps/web/spec/integration/reviews-walkthrough-shortcuts.test.tsx
   - apps/web/spec/integration/reviews-unavailable-completion.test.tsx
 api:
@@ -27,18 +29,18 @@ api:
 
 # reviews.walkthrough
 
-The verdict precedes the existing briefing and walkthrough. The briefing retains system owners, New/Changed/Removed groups, Needs your decision, decision order and Not explained. Each decision reads code from its immutable revision. Context files and their stored excerpts remain available after worktree removal.
+The briefing is the first stop and the only view with the verdict. Its two-tone title uses the navigator name and the decision count sentence. A vertical spine follows published decision order, then Not explained and Specs when present; a nine-decision review with both closing stops has twelve stops. The briefing retains system owners, New/Changed/Removed groups, Needs your decision, decision order and Not explained. Each decision reads code from its immutable revision. Context files and their stored excerpts remain available after worktree removal.
 
 ## How to get to it (user POV)
 
-- Worktree Review tab → decision row; review page → Start here or a decision.
+- Worktree Review tab → decision row; review page → Continue at decision n or a decision.
 - N / P move between stops; Open the briefing returns to the overview.
 
 ## Driving it with browser
 
 Preconditions: [surface baseline](README.md).
 
-Follow [reviews.page](reviews.page.md) for setup, widths, themes and lifecycle. In the worktree Review tab the sidebar decision rows open this same page. In the page, select a decision or Start here; N and P move between stops. Open the briefing returns to owners and progress. A decision records its available files before its decision mark; unmarking the decision leaves file marks. Worktree edits do not change retained code or its marks. Branch commits ahead of the latest revision are reported separately.
+Follow [reviews.page](reviews.page.md) for setup, widths, themes and lifecycle. In the worktree Review tab the sidebar decision rows open this same page. In the page, select a decision or Continue at decision n; N and P move between stops. Open the briefing returns to owners, proof and progress. A Needs your decision card opens an answer box; blank answers cannot be sent, posting disables submission, and the saved whole-change comment quotes the complete question and names the selected revision. Proof and Comments tabs remain available. No floating dock appears on the briefing. A decision records its available files before its decision mark; unmarking the decision leaves file marks. Worktree edits do not change retained code or its marks. Branch commits ahead of the latest revision are reported separately.
 
 Automated coverage: `reviews-walkthrough.test.tsx`, `reviews-walkthrough-shortcuts.test.tsx`, `reviews-unavailable-completion.test.tsx`.
 

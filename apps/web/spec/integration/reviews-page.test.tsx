@@ -8,14 +8,14 @@ test.for([
   title,
   'Keep packages/reviews/src/services/retainEveryPublishedRevisionAfterThePublishingWorktreeHasBeenRemovedAndNeverLoseItsDecisionHistory.ts readable',
 ])(
-  'the verdict start button fits a 390 px viewport and names its full decision: %s',
+  'the briefing continue button fits a 390 px viewport with a long decision: %s',
   async (decision, { repo, render, reviewLayout }) => {
     await page.viewport(390, 844);
     try {
       const fixture = await repo.review(decision);
       const app = await render.route(`/reviews/${fixture.reviewId}/1`);
       const start = app.page.getByRole('button', {
-        name: `Start here · ${decision} →`,
+        name: 'Continue at decision 1',
         exact: true,
       });
       await expect.element(start).toBeVisible();
@@ -35,7 +35,7 @@ test.for([
   },
 );
 
-test('the latest, revision and decision routes share the verdict, retain immutable code after checkout removal, and recover unknown destinations', async ({
+test('the briefing owns the verdict, revisions retain immutable code after checkout removal, and unknown destinations recover', async ({
   repo,
   render,
 }) => {
@@ -66,7 +66,7 @@ test('the latest, revision and decision routes share the verdict, retain immutab
     .element(review.getByText(' · Mac is off', { exact: true }))
     .toBeVisible();
   await review
-    .getByRole('button', { name: `Start here · ${title} →`, exact: true })
+    .getByRole('button', { name: 'Continue at decision 1', exact: true })
     .click();
   await expect
     .poll(() => app.location())
@@ -78,6 +78,12 @@ test('the latest, revision and decision routes share the verdict, retain immutab
   await expect
     .element(stop.getByText('export const revision = 1;', { exact: true }))
     .toBeVisible();
+  await expect
+    .element(review.getByRole('region', { name: 'Verdict', exact: true }))
+    .not.toBeInTheDocument();
+  await review
+    .getByRole('button', { name: 'Open the briefing', exact: true })
+    .click();
   await review.getByRole('button', { name: 'latest', exact: true }).click();
   await expect.poll(() => app.location()).toBe(`/reviews/${first.reviewId}`);
   await expect
@@ -172,10 +178,10 @@ test('review-owned marks persist, closing keeps the review readable, and Delete 
     .poll(() => server.review(fixture.reviewId))
     .toMatchObject({ review: { lastSeenRevision: 1 } });
   await review
-    .getByRole('button', { name: 'Review actions', exact: true })
+    .getByRole('button', { name: 'Open the briefing', exact: true })
     .click();
-  await app.page
-    .getByRole('menuitem', { name: 'Close review', exact: true })
+  await review
+    .getByRole('button', { name: 'Close review', exact: true })
     .click();
   await expect
     .poll(() => server.review(fixture.reviewId))
@@ -183,19 +189,11 @@ test('review-owned marks persist, closing keeps the review readable, and Delete 
   await expect
     .element(review.getByText('closed', { exact: true }))
     .toBeVisible();
+  await expect
+    .element(review.getByRole('button', { name: 'Close review', exact: true }))
+    .not.toBeInTheDocument();
   await review
-    .getByRole('button', { name: 'Review actions', exact: true })
-    .click();
-  await expect
-    .element(
-      app.page.getByRole('menuitem', { name: 'Close review', exact: true }),
-    )
-    .not.toBeInTheDocument();
-  await expect
-    .element(app.page.getByRole('menuitem', { name: 'Reopen', exact: true }))
-    .not.toBeInTheDocument();
-  await app.page
-    .getByRole('menuitem', { name: 'Delete review', exact: true })
+    .getByRole('button', { name: 'Delete review…', exact: true })
     .click();
   const dialog = app.page.getByRole('alertdialog');
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
@@ -203,10 +201,7 @@ test('review-owned marks persist, closing keeps the review readable, and Delete 
     .poll(() => server.review(fixture.reviewId))
     .toMatchObject({ review: { state: 'closed' } });
   await review
-    .getByRole('button', { name: 'Review actions', exact: true })
-    .click();
-  await app.page
-    .getByRole('menuitem', { name: 'Delete review', exact: true })
+    .getByRole('button', { name: 'Delete review…', exact: true })
     .click();
   await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
   await expect

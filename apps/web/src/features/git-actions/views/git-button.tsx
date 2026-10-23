@@ -252,18 +252,25 @@ export function GitButton({
             if (open) setDetailsEnabled(true);
           }}
         >
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label="Git actions"
-                disabled={running !== null && running !== undefined}
-              />
-            }
-          >
-            <ChevronDownIcon className="size-3.5" />
-          </DropdownMenuTrigger>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      aria-label="Git actions"
+                      disabled={running !== null && running !== undefined}
+                    />
+                  }
+                />
+              }
+            >
+              <ChevronDownIcon className="size-3.5" />
+            </TooltipTrigger>
+            <TooltipContent>Git actions</TooltipContent>
+          </Tooltip>
           <DropdownMenuContent align="end" className="w-76">
             <DropdownMenuGroup>
               <DropdownMenuLabel className="flex items-center">
@@ -295,7 +302,13 @@ export function GitButton({
                     const reason =
                       blocker ?? gitActionReason(candidate.id, status);
                     return (
-                      <Tooltip key={candidate.id}>
+                      <Tooltip
+                        key={candidate.id}
+                        onOpenChange={(_open, details) => {
+                          if (details.reason === 'escape-key')
+                            details.allowPropagation();
+                        }}
+                      >
                         <TooltipTrigger render={<span className="block" />}>
                           <DropdownMenuItem
                             disabled={blocker !== null && blocker !== undefined}

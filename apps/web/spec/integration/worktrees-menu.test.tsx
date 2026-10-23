@@ -22,7 +22,10 @@ test('worktrees without reviews remain reachable in the flat checkout menu', asy
   const main = navigator.getByRole('button', {
     name: new RegExp(project.name),
   });
-  await expect.element(main.getByText(computer, { exact: true })).toBeVisible();
+  await expect.element(main).toBeVisible();
+  await expect
+    .element(main.getByText(computer, { exact: true }))
+    .not.toBeInTheDocument();
   await navigator
     .getByRole('button', { name: 'Filter reviews', exact: true })
     .click();

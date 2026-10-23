@@ -42,6 +42,12 @@ export function readRemoteEnvironment(
     const api = yield* BootstrapClient;
     const environment = yield* mapRequestErrors(
       api.publicAccess.readEnvironment(),
+    ).pipe(
+      Effect.catchTag('ConnectionError', (error) =>
+        mapRequestErrors(api.session.readSession()).pipe(
+          Effect.andThen(Effect.fail(error)),
+        ),
+      ),
     );
     if (
       environment.environmentId === environmentId &&

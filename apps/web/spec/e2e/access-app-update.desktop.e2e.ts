@@ -180,7 +180,7 @@ test('the footer Update badge offers the Mac app through its bridge without post
   ).toBeVisible();
   await expect(
     footer.getByRole('button', { name: 'Computers', exact: true }),
-  ).toBeVisible();
+  ).not.toBeAttached();
   await expect(pill).toBeVisible();
   await expect(pill).toHaveText('Update');
   const shortcuts = footer.getByRole('button', {
@@ -189,7 +189,6 @@ test('the footer Update badge offers the Mac app through its bridge without post
   });
   const controls = [
     footer.getByRole('button', { name: 'Settings', exact: true }),
-    footer.getByRole('button', { name: 'Computers', exact: true }),
     pill,
     shortcuts,
   ];
@@ -211,9 +210,7 @@ test('the footer Update badge offers the Mac app through its bridge without post
     })
     .toBe(true);
   await shortcuts.hover();
-  await expect(
-    page.getByText('Keyboard shortcuts', { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('tooltip')).toContainText('Keyboard shortcuts');
   await pill.click();
   const updates = page.getByRole('dialog', {
     name: 'Updates available',

@@ -16,6 +16,7 @@ selectors:
   - "Look again"
   - "Edit"
   - "Excluded"
+  - "Try again"
 tests:
   - apps/web/spec/integration/git-actions-draft-commit.test.tsx
 api:
@@ -31,8 +32,8 @@ With a coding CLI on the server, the Commit dialog drafts the message (Generate 
 ## How to get to it (user POV)
 
 - Group "Git controls" → button "Commit" → dialog "Commit changes" → select "Commit model" (options grouped by provider; with the fake `claude`: "Sonnet", "Haiku") → button "Generate with AI" → button "Commit selected files".
-- Same dialog → tab "Use groups" (drafts at once) → button "Commit groups in order".
-- Leaving textbox "Message" empty and clicking "Commit selected files" also drafts the message first, then commits.
+- Same dialog → tab "Use groups" → button "Generate with AI" → button "Commit groups in order".
+- An empty or whitespace-only Message disables Commit with a visible reason. The keyboard submit never generates a message. Generate with AI discloses the chosen model and coding CLI, fills the editable field, and leaves committing to a separate click.
 
 ## Driving it with browser
 
@@ -50,7 +51,7 @@ Required instance mode: `--coding-tool`.
    Expect: dialog "Commit changes" with tabs "Single commit" [selected], "Amend last", "Use groups"; "Files (1 of 1)" with README.md; button "Generate with AI" and combobox "Commit model" (a shadcn Select; opening it lists "Sonnet" and "Haiku" under "claude").
 2. Click combobox named `Commit model`, then option named `Haiku`, then click button `Generate with AI`
    Expect: the combobox displays "Haiku"; textbox "Message" holds "Explain the change to review in the README" (the submit button reads "Generating…" meanwhile).
-3. Click button `Commit selected files`, then wait for 'succeeded'
+3. Review and optionally edit Message. The current HEAD is unchanged until clicking Commit. Click button `Commit selected files`, then wait for 'succeeded'
    Expect: a status reads "succeeded". Disk: `git -C "$REPO" log -1 --format=%s` prints `Explain the change to review in the README`.
 4. Press `Escape`
    Expect: dialog "Commit changes" is gone.
@@ -67,7 +68,7 @@ Then Wait for button named `Mark NOTES.md as reviewed` and wait for button named
 
 1. Click button `Commit`
    Expect: dialog "Commit changes" listing "NOTES.md" and "README.md".
-2. Click tab `Use groups`, then wait for button `Commit groups in order`
+2. Click tab `Use groups`, then click button `Generate with AI` and wait for button `Commit groups in order`
    Expect: status "Proposing commits…" then region "Commit 1" with textbox "Message for commit 1" holding "Explain the change to review in the README" and combobox "Commit for README.md" on option "Commit 1", and region "Commit 2" with textbox "Message for commit 2" holding "Add notes for the reviewer" and combobox "Commit for NOTES.md" on "Commit 2"; buttons "Add group", "Single commit" and "Commit groups in order".
 3. Click button `Commit groups in order`, then wait for 'Commit 2 · committed'
    Expect: paragraphs "Commit 1 · committed" and "Commit 2 · committed".
@@ -93,10 +94,10 @@ Then Wait for button named `Mark README.md as reviewed`.
 4. Click button `Look again`
    Expect: "Files (2 of 2)" with "LATER.md changed" and "README.md modified".
 5. Click button `Generate with AI`, then wait for '/did not cover/'
-   Expect: alert "The generated groups did not cover the selected files. Generate again or write the message manually.", beside the stale alert "The worktree changed since this draft was proposed. Generate it again before committing." (the message still holds the first draft).
+   Expect: alert "The generated groups did not cover the selected files. Generate again or write the message manually.", with a Try again button, beside the stale alert "The worktree changed since this draft was proposed. Generate it again before committing." (the message still holds the first draft).
 6. Click button `Edit`, then click checkbox named `LATER.md`
    Expect: checkbox "LATER.md" unchecked and its row reading "LATER.md Excluded"; "Files (1 of 2)".
-7. Click button `Generate with AI`
+7. Click button `Try again`
    Expect: both alerts are gone; Message holds "Explain the change to review in the README".
 8. Click button `Commit selected files`, then wait for 'succeeded'
    Expect: status "succeeded". Disk: `git -C "$REPO" log -1 --format=%s` prints `Explain the change to review in the README`; `git -C "$REPO" status --porcelain` prints only `?? LATER.md`.
@@ -109,6 +110,7 @@ Automated coverage: `git-actions-draft-commit.test.tsx`.
 
 ## Gotchas
 
+- If the coding CLI offers models without an automatic default, "Choose a model to generate a message" keeps Generate disabled until a model is selected. Model loading or a failed catalogue read still allows a typed manual commit.
 - Requires --coding-tool. Commit model is a combobox with labelled options/provider groups; both fixture models draft the same text.
 - Case 2 needs README and NOTES changed because the fixture proposes NOTES. Wait for watcher updates before opening: the dialog captures that file set.
 - Generating… must finish and Message fill before submit. Each case commits; use fresh setup for each.
