@@ -592,7 +592,7 @@ export function ProjectNavigator({
             <TooltipTrigger
               render={
                 <Button
-                  ref={settingsButton.attach}
+                  ref={(element) => settingsButton.attach(element)}
                   variant="ghost"
                   size="sm"
                   onClick={onOpenSettings}
