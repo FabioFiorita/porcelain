@@ -60,7 +60,6 @@ import { WalkthroughBriefing } from './walkthrough-briefing';
 import { StopBrief } from './walkthrough-stop';
 import { RevisionCode, RevisionFile } from './revision-code';
 import { ReviewActions } from './review-actions';
-import { ReviewComments } from './review-comments';
 import { ReviewEmpty } from './review-empty';
 import { ProofList } from './proof-list';
 
@@ -243,7 +242,7 @@ function ReviewRevisionPage({
   );
   const [chosen, setChosen] = useState<string>();
   const [view, setView] = useState<
-    'walkthrough' | 'summary' | 'comments' | 'proof'
+    'walkthrough' | 'summary' | 'proof'
   >(initialView ?? 'walkthrough');
   const [file, setFile] = useState<{ path: string; step?: ReviewStep }>();
   const stops = walkthroughStops(
@@ -507,7 +506,6 @@ function ReviewRevisionPage({
           if (
             value === 'walkthrough' ||
             value === 'summary' ||
-            value === 'comments' ||
             value === 'proof'
           ) {
             setView(value);
@@ -524,7 +522,6 @@ function ReviewRevisionPage({
             <TabsTrigger value="walkthrough">Walkthrough</TabsTrigger>
           )}
           <TabsTrigger value="proof">Proof</TabsTrigger>
-          <TabsTrigger value="comments">Comments</TabsTrigger>
         </TabsList>
       </Tabs>
       <Suspense
@@ -687,17 +684,6 @@ function ReviewRevisionPage({
               layers={review.layers}
             />
           </section>
-        )}
-        {view === 'comments' && (
-          <ReviewComments
-            scope={scope}
-            context={context}
-            revision={revision}
-            onReveal={(path) => {
-              setFile({ path });
-              setView('walkthrough');
-            }}
-          />
         )}
         {view === 'summary' && showSummary && (
           <iframe

@@ -171,28 +171,6 @@ test('review-owned marks and comments persist, closing keeps the review readable
   await expect
     .poll(() => server.review(fixture.reviewId))
     .toMatchObject({ review: { lastSeenRevision: 1 } });
-  await review.getByRole('tab', { name: 'Comments', exact: true }).click();
-  await review
-    .getByRole('button', { name: 'Comment on this review', exact: true })
-    .click();
-  await review
-    .getByRole('textbox', { name: 'Comment', exact: true })
-    .fill('Please retain this explanation across checkout cleanup.');
-  await review.getByRole('button', { name: 'Comment', exact: true }).click();
-  await expect
-    .poll(() => server.reviewComments(fixture.reviewId))
-    .toMatchObject([
-      {
-        review: {
-          reviewId: fixture.reviewId,
-          revision: 1,
-          headOid: fixture.headOid,
-        },
-        messages: [
-          { body: 'Please retain this explanation across checkout cleanup.' },
-        ],
-      },
-    ]);
   await review
     .getByRole('button', { name: 'Review actions', exact: true })
     .click();
