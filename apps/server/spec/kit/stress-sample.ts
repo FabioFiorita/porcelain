@@ -18,7 +18,12 @@ import {
   REVIEW_TITLE_LENGTH,
 } from '@porcelain/contracts/shared';
 import { commitReviewFixture, lineCount, pairDevice } from './requests.ts';
-import type { HttpRequest, Session, StressVariant } from './session.ts';
+import {
+  type HttpRequest,
+  type Session,
+  type StressVariant,
+  stressVariants,
+} from './session.ts';
 
 type Layer = PublishReviewRequest['layers'][number];
 type Box = NonNullable<
@@ -60,6 +65,12 @@ function notePath(variant: StressVariant) {
 
 function appliedMarker(session: Session, variant: StressVariant) {
   return join(session.projectHome, `.porcelain-stress-${variant}`);
+}
+
+export function appliedStressVariants(session: Session): StressVariant[] {
+  return stressVariants.filter((variant) =>
+    existsSync(appliedMarker(session, variant)),
+  );
 }
 
 function longTextPlan(): Plan {

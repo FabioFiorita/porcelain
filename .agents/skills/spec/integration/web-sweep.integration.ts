@@ -12,19 +12,20 @@ import {
   WEB_CLI,
 } from './verification-cli.ts';
 
-const SWEEP_CASE_MS = 8 * 60_000;
+const SWEEP_CASE_MS = 10 * 60_000;
 const themed = `<script>const media = matchMedia('(prefers-color-scheme: dark)'); const apply = () => document.documentElement.classList.toggle('dark', media.matches); apply(); media.addEventListener('change', apply);</script>`;
 const pages = {
   'sweep-fixture.html': `<!doctype html><title>Sweep fixture</title>${themed}<p>Fits every width.</p>`,
   'sweep-error.html': `<!doctype html><title>Sweep error</title>${themed}<script>throw new Error('sweep fixture page error');</script>`,
+  'sweep-crash-text.html': `<!doctype html><title>Sweep crash text</title>${themed}<p>Fits every width.</p><script>if (innerWidth === 414) console.error('Target crashed: the review socket has been closed');</script>`,
   'sweep-overflow.html': `<!doctype html><title>Sweep overflow</title><style>body{margin:0}</style>${themed}<div aria-label="Too wide" style="width:2000px">Wide</div>`,
 };
 const onePixelPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
   'base64',
 );
-const captures = (folder: string) =>
-  ['as-is', 'long-text', 'many-items'].flatMap((state) =>
+const captures = (folder: string, first = 'as-is') =>
+  [first, 'long-text', 'many-items'].flatMap((state) =>
     ['light', 'dark'].flatMap((theme) =>
       [1440, 1080, 414].map(
         (width) => `${folder}/${state}/${theme}-${width}.png`,
@@ -44,7 +45,7 @@ async function filesUnder(folder: string) {
 }
 
 test(
-  'a sweep captures each route in every state, theme and width beside its board, and fails on a page error or overflow',
+  'a sweep captures each route in every state, theme and width beside its board, fails on a page error, a console error or overflow without retrying them, and labels a rerun’s first state as-left',
   async ({ onTestFinished }) => {
     const publicFolder = join(repositoryRoot, 'apps/web/public');
     for (const [name, html] of Object.entries(pages))
@@ -81,6 +82,7 @@ test(
     );
     const cleanIndex = await readFile(index, 'utf8');
     expect(cleanIndex).toContain('## Problems\n\nNone.\n');
+    expect(cleanIndex).not.toContain('## Retries');
     expect(cleanIndex).toContain(
       '| as-is | dark | [pass](01-sweep-fixture.html/as-is/dark-1440.png) | [pass](01-sweep-fixture.html/as-is/dark-1080.png) | [pass](01-sweep-fixture.html/as-is/dark-414.png) |',
     );
@@ -98,6 +100,7 @@ test(
     const failing = await web(
       'sweep',
       '/sweep-error.html',
+      '/sweep-crash-text.html',
       '/sweep-overflow.html',
     );
     const failingIndex = /read (\S+)\n$/.exec(failing.stderr)?.[1] ?? '';
@@ -107,30 +110,66 @@ test(
         await readFile(failingIndex.replace(/\/index\.md$/, '.json'), 'utf8'),
       ),
     );
+    const shots = list(failedRecord.shots).map(record);
+    const crashText = shots.filter(
+      (shot) => shot.entry === '/sweep-crash-text.html',
+    );
 
     expect(failing.code).toBe(1);
     expect(failing.stderr).toMatch(
-      /^The sweep found \d+ problems in 36 captures; read \S+\/index\.md\n$/,
+      /^The sweep found \d+ problems in 54 captures\. First: `\/sweep-error\.html` as-left light 1440: page error: sweep fixture page error\nread \S+\/index\.md\n$/,
+    );
+    expect(failedRecord.states).toStrictEqual([
+      'as-left',
+      'long-text',
+      'many-items',
+    ]);
+    expect(failed).toContain(
+      'States in order: as-left, long-text, many-items. An earlier sweep already seeded this instance',
+    );
+    expect(
+      (await filesUnder(failingIndex.replace(/\/index\.md$/, ''))).filter(
+        (file) => file.startsWith('02-sweep-crash-text.html/'),
+      ),
+    ).toStrictEqual(captures('02-sweep-crash-text.html', 'as-left').toSorted());
+    expect(failed).toContain(
+      '- `/sweep-error.html` as-left light 1440: page error: sweep fixture page error\n',
     );
     expect(failed).toContain(
-      '- `/sweep-error.html` as-is light 1440: page error: sweep fixture page error\n',
-    );
-    expect(failed).toContain(
-      '- `/sweep-overflow.html` as-is light 414: overflows horizontally: 2000 px of content in 414 px (<div> "Too wide" ends at 2000 px)\n',
+      '- `/sweep-overflow.html` as-left light 414: overflows horizontally: 2000 px of content in 414 px (<div> "Too wide" ends at 2000 px)\n',
     );
     expect(failed).not.toContain('`/sweep-fixture.html`');
+    expect(failed).not.toContain('## Retries');
+    expect(
+      crashText.map((shot) => [shot.width, list(shot.problems), shot.retried]),
+    ).toStrictEqual(
+      Array.from({ length: 6 }, () => [1440, 1080, 414]).flatMap((widths) =>
+        widths.map((width) => [
+          width,
+          width === 414
+            ? [
+                'console error: Target crashed: the review socket has been closed',
+              ]
+            : [],
+          undefined,
+        ]),
+      ),
+    );
     expect(
       list(failedRecord.seeds)
         .map(record)
         .map((seed) => seed.applied),
     ).toStrictEqual([false, false]);
     expect(
-      list(failedRecord.shots)
-        .map(record)
+      shots
         .filter((shot) => list(shot.problems).length > 0)
         .map((shot) => text(shot.entry))
         .filter((entry, at, all) => all.indexOf(entry) === at),
-    ).toStrictEqual(['/sweep-error.html', '/sweep-overflow.html']);
+    ).toStrictEqual([
+      '/sweep-error.html',
+      '/sweep-crash-text.html',
+      '/sweep-overflow.html',
+    ]);
     expect(list(printed(await web('server', 'comment-threads')))).toHaveLength(
       31,
     );

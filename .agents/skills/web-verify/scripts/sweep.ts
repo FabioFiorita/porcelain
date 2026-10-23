@@ -17,19 +17,21 @@ import {
   ServerHandle,
 } from '@porcelain/server/kit/isolated-server';
 import { type Session, stressVariants } from '@porcelain/server/kit/session';
-import { seedStressSample } from '@porcelain/server/kit/stress-sample';
+import {
+  appliedStressVariants,
+  seedStressSample,
+} from '@porcelain/server/kit/stress-sample';
 import { Refusal, Usage } from '../../verify-core/cli.ts';
 import { issuedLink } from '../../verify-core/fixtures.ts';
+import { captureOnceMore, firstLine } from './attempts.ts';
 import { registry, type WebInstance } from './instance.ts';
 
 const sweepWidths = [1440, 1080, 414] as const;
 const sweepThemes = ['light', 'dark'] as const;
-const sweepStates = ['as-is', ...stressVariants] as const;
+const firstStates = ['as-is', 'as-left'] as const;
 const heights = { 1440: 900, 1080: 810, 414: 896 } as const;
 const networkIdleMs = 20_000;
 const tallestCapture = 12_000;
-const browserExhausted =
-  /ERR_INSUFFICIENT_RESOURCES|Target crashed|Unable to capture screenshot|has been closed/;
 const settledMs = 15_000;
 const stableReads = 3;
 const readEveryMs = 200;
@@ -39,7 +41,7 @@ const withheld = 'A secret survived redaction, so this record was withheld.\n';
 
 type Width = (typeof sweepWidths)[number];
 type Theme = (typeof sweepThemes)[number];
-type State = (typeof sweepStates)[number];
+type State = (typeof firstStates)[number] | (typeof stressVariants)[number];
 type Target = { entry: string; board?: string };
 type Review = {
   reviewId?: string | undefined;
@@ -55,10 +57,12 @@ type Shot = {
   path?: string;
   file?: string;
   problems: string[];
+  retried?: string;
   skipped?: string;
 };
 type Composite = { target: number; file: string };
 type Found = {
+  states: State[];
   shots: Shot[];
   composites: Composite[];
   seeds: unknown[];
@@ -272,12 +276,6 @@ async function settledText(page: Page): Promise<string | undefined> {
   return undefined;
 }
 
-function firstLine(error: unknown) {
-  return error instanceof Error
-    ? (error.message.split('\n')[0] ?? '')
-    : String(error);
-}
-
 type Signed = Awaited<ReturnType<BrowserContext['storageState']>>;
 
 async function shoot(
@@ -390,25 +388,39 @@ function slug(entry: string, index: number) {
   return `${String(index + 1).padStart(2, '0')}-${name || 'root'}`;
 }
 
+function captureName(shot: Shot) {
+  return `\`${shot.path ?? shot.entry}\` ${shot.state} ${shot.theme} ${shot.width}`;
+}
+
+function problemLines(found: Found) {
+  return [
+    ...found.notes,
+    ...found.shots.flatMap((shot) =>
+      shot.problems.map((problem) => `${captureName(shot)}: ${problem}`),
+    ),
+  ];
+}
+
+function statesLine(states: readonly State[]) {
+  const order = `States in order: ${states.join(', ')}.`;
+  return states[0] === 'as-left'
+    ? `${order} An earlier sweep already seeded this instance, so the first state is as-left, the last seeded review, not the fixture as it started; as-is and a board beside it need a freshly started instance.`
+    : `${order} The seeds stay on the instance; restart it for a clean preview.`;
+}
+
 function indexMarkdown(
   instance: WebInstance,
   folder: string,
   targets: readonly Target[],
-  shots: readonly Shot[],
-  composites: readonly Composite[],
-  seeds: readonly unknown[],
-  notes: readonly string[],
+  found: Found,
 ) {
   const link = (file: string) => relative(folder, file);
-  const problems = [
-    ...notes.map((note) => `- ${note}`),
-    ...shots.flatMap((shot) =>
-      shot.problems.map(
-        (problem) =>
-          `- \`${shot.path ?? shot.entry}\` ${shot.state} ${shot.theme} ${shot.width}: ${problem}`,
-      ),
-    ),
-  ];
+  const problems = problemLines(found).map((line) => `- ${line}`);
+  const retries = found.shots.flatMap((shot) =>
+    shot.retried === undefined
+      ? []
+      : [`- ${captureName(shot)}: ${shot.retried}`],
+  );
   const cell = (shot: Shot | undefined) =>
     shot === undefined
       ? '—'
@@ -416,10 +428,10 @@ function indexMarkdown(
         ? `skipped: ${shot.skipped}`
         : shot.file === undefined
           ? 'not captured'
-          : `[${shot.problems.length === 0 ? 'pass' : 'problem'}](${link(shot.file)})`;
+          : `[${shot.problems.length === 0 ? 'pass' : 'problem'}${shot.retried === undefined ? '' : ', retried'}](${link(shot.file)})`;
   const sections = targets.map((target, index) => {
-    const mine = shots.filter((shot) => shot.target === index);
-    const rows = sweepStates.flatMap((state) =>
+    const mine = found.shots.filter((shot) => shot.target === index);
+    const rows = found.states.flatMap((state) =>
       sweepThemes.map(
         (theme) =>
           `| ${state} | ${theme} | ${sweepWidths
@@ -443,7 +455,7 @@ function indexMarkdown(
         ),
       ),
     ];
-    const boards = composites
+    const boards = found.composites
       .filter((item) => item.target === index)
       .map((item) => `![${basename(item.file)}](${link(item.file)})`);
     return [
@@ -462,14 +474,15 @@ function indexMarkdown(
     '',
     `Instance ${instance.id} · ${instance.detail.desktop ? 'desktop' : 'web'} mode · ${new Date().toISOString()}`,
     '',
-    `States in order: ${sweepStates.join(', ')}. The seeds stay on the instance; restart it for a clean preview.`,
+    statesLine(found.states),
     '',
-    `Seeds: \`${JSON.stringify(seeds)}\``,
+    `Seeds: \`${JSON.stringify(found.seeds)}\``,
     '',
     '## Problems',
     '',
     ...(problems.length === 0 ? ['None.'] : problems),
     '',
+    ...(retries.length === 0 ? [] : ['## Retries', '', ...retries, '']),
     ...sections,
   ].join('\n')}\n`;
 }
@@ -532,8 +545,13 @@ async function captureAll(
   );
   await pairing.close();
   const session = await sessionOf(instance, recorder);
-  for (const state of sweepStates) {
-    if (state !== 'as-is')
+  const states: State[] = [
+    appliedStressVariants(session).length > 0 ? 'as-left' : 'as-is',
+    ...stressVariants,
+  ];
+  for (const state of states) {
+    found.states.push(state);
+    if (state !== 'as-is' && state !== 'as-left')
       found.seeds.push(await seedStressSample(session, state));
     const review = await latestReview(session);
     for (const [index, target] of targets.entries()) {
@@ -557,25 +575,14 @@ async function captureAll(
             continue;
           }
           shot.path = path;
-          for (const attempt of [1, 2]) {
-            shot.problems = [];
-            await shoot(
+          await captureOnceMore(shot, () =>
+            shoot(
               signed,
               new URL(path, instance.detail.web),
               shot,
               join(directory, `${theme}-${width}.png`),
-            ).catch((error: unknown) => {
-              shot.problems.push(`not captured: ${firstLine(error)}`);
-            });
-            if (
-              !shot.problems.some((problem) => browserExhausted.test(problem))
-            )
-              break;
-            if (attempt === 2)
-              shot.problems.push(
-                'the browser ran out of resources twice; check free memory and sweep again',
-              );
-          }
+            ),
+          );
         }
     }
   }
@@ -591,7 +598,13 @@ export async function sweep(
   const recorder = redactor.recorder();
   const record = await registry.evidence(instance).claim('sweep', 'json');
   const folder = record.replace(/\.json$/, '');
-  const found: Found = { shots: [], composites: [], seeds: [], notes: [] };
+  const found: Found = {
+    states: [],
+    shots: [],
+    composites: [],
+    seeds: [],
+    notes: [],
+  };
   const browser = await chromium.launch();
   try {
     await captureAll(instance, browser, recorder, targets, folder, found);
@@ -609,17 +622,7 @@ export async function sweep(
   await mkdir(folder, { recursive: true, mode: 0o700 });
   await writeFile(
     index,
-    safe(
-      indexMarkdown(
-        instance,
-        folder,
-        targets,
-        found.shots,
-        found.composites,
-        found.seeds,
-        found.notes,
-      ),
-    ),
+    safe(indexMarkdown(instance, folder, targets, found)),
     { mode: 0o600 },
   );
   await writeFile(
@@ -629,6 +632,7 @@ export async function sweep(
         {
           command: args,
           index,
+          states: found.states,
           notes: found.notes,
           seeds: found.seeds,
           shots: found.shots.map((shot) => ({
@@ -642,13 +646,11 @@ export async function sweep(
     ),
     { mode: 0o600 },
   );
-  const problems =
-    found.shots.reduce((sum, shot) => sum + shot.problems.length, 0) +
-    found.notes.length;
+  const problems = problemLines(found);
   const captured = found.shots.filter((shot) => shot.file !== undefined).length;
-  if (problems > 0)
+  if (problems.length > 0)
     throw new Refusal(
-      `The sweep found ${problems} problem${problems === 1 ? '' : 's'} in ${captured} captures; read ${index}`,
+      `The sweep found ${problems.length} problem${problems.length === 1 ? '' : 's'} in ${captured} captures. First: ${safe(problems[0] ?? '').trimEnd()}\nread ${index}`,
     );
   return `swept ${captured} captures with no problems\nindex ${index}\n`;
 }
