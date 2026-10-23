@@ -347,11 +347,10 @@ function ReviewWorkspaceContent({
           const active = document.activeElement;
           const stayed =
             active === document.body || mobileSheet.element?.contains(active);
-          return stayed
-            ? browseTrigger.element?.isConnected
-              ? browseTrigger.element
-              : mobileTrigger.element
-            : false;
+          if (!stayed) return false;
+          return browseTrigger.element?.isConnected
+            ? browseTrigger.element
+            : mobileTrigger.element;
         }}
         className="w-[min(90vw,22rem)]!"
         showCloseButton={false}

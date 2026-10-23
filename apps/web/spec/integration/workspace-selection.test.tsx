@@ -79,8 +79,8 @@ test('first run offers project registration without inactive search advice', asy
     )
     .toBeVisible();
   await app.page
-    .getByTestId('document')
     .getByRole('button', { name: 'Open project', exact: true })
+    .filter({ hasText: 'Open project' })
     .click();
   await expect
     .element(
