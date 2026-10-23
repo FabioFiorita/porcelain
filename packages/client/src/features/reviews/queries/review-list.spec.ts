@@ -1,3 +1,4 @@
+import type { ReadPullRequestResponse } from '@porcelain/contracts/reviews';
 import { expect, it } from 'vitest';
 import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
 import { refreshReviewList } from '../commands/review-list.ts';
@@ -302,7 +303,7 @@ const mergedPull = {
     timeline: [],
     truncated: false,
   },
-};
+} satisfies ReadPullRequestResponse;
 
 it('includes a pending linked PR in loading without hiding its main-checkout review', async () => {
   let release = (_: Response) => {};
@@ -369,3 +370,51 @@ function linkedReviewClient(pull: () => Promise<Response>) {
   const list = readReviewList(connections);
   return { client, connections, list, stop: client.registry.mount(list) };
 }
+
+it('refreshes a main-checkout PR after an open read removes its review from the navigator', async () => {
+  let answer: ReadPullRequestResponse = {
+    ...mergedPull,
+    pullRequest: { ...mergedPull.pullRequest, state: 'open' },
+  };
+  let reads = 0;
+  const fixture = linkedReviewClient(() => {
+    reads++;
+    return Promise.resolve(Response.json(answer));
+  });
+  const snapshot = () => fixture.client.registry.get(fixture.list);
+  const refresh = () =>
+    fixture.client.registry.set(
+      refreshReviewList(fixture.connections),
+      undefined,
+    );
+  try {
+    await expect.poll(() => snapshot().loading).toBe(false);
+    expect(snapshot().entries.map((entry) => entry.group)).toEqual([
+      'Projects',
+    ]);
+    expect(reads).toBe(1);
+    answer = { kind: 'unavailable', reason: 'offline' };
+    refresh();
+    await expect
+      .poll(() => snapshot().messages)
+      .toEqual(['main: PR state unavailable: GitHub could not be reached.']);
+    expect(
+      snapshot().entries.find((entry) => entry.reviewId === linkedReviewId),
+    ).toMatchObject({ group: 'Needs you', closed: false });
+    answer = mergedPull;
+    refresh();
+    await expect
+      .poll(
+        () =>
+          snapshot().entries.find((entry) => entry.reviewId === linkedReviewId)
+            ?.archivable,
+      )
+      .toBe(true);
+    expect(
+      snapshot().entries.find((entry) => entry.reviewId === linkedReviewId),
+    ).toMatchObject({ group: 'Closed', closed: true, archivable: true });
+    expect(reads).toBe(3);
+  } finally {
+    fixture.stop();
+  }
+});

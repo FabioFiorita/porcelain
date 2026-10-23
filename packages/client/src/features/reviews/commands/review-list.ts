@@ -1,4 +1,5 @@
-import { Atom } from 'effect/reactivity';
+import { Option } from 'effect';
+import { AsyncResult, Atom } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { refreshInventories } from '../../projects/commands/projects.ts';
 import { readReviewList } from '../queries/review-list.ts';
@@ -14,17 +15,21 @@ export const refreshReviewList = Atom.family(
     Atom.fnSync((_: void, get) => {
       const list = get(readReviewList(connections));
       get.set(refreshInventories(connections), undefined);
-      for (const { connection, project } of list.projects)
-        get.refresh(readProjectReviews({ connection, projectId: project.id }));
-      for (const entry of list.entries) {
-        const connection = connections.find(
-          (candidate) => candidate.environmentId === entry.environmentId,
+      for (const { connection, project } of list.projects) {
+        const projectRead = readProjectReviews({
+          connection,
+          projectId: project.id,
+        });
+        const records = Option.getOrUndefined(
+          AsyncResult.value(get(projectRead)),
         );
-        if (!connection || !entry.reviewId) continue;
-        const input = { connection, reviewId: entry.reviewId };
-        get.refresh(readReview(input));
-        get.refresh(readReviewMarks(input));
-        get.refresh(readReviewPullRequest(input));
+        get.refresh(projectRead);
+        for (const { reviewId } of records ?? []) {
+          const input = { connection, reviewId };
+          get.refresh(readReview(input));
+          get.refresh(readReviewMarks(input));
+          get.refresh(readReviewPullRequest(input));
+        }
       }
     }),
 );
