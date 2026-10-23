@@ -18,7 +18,10 @@ test('comment text stays selectable and long filenames, waiting badges and actio
     name: 'Review sidebar',
     exact: true,
   });
-  await sidebar.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await page
+    .getByRole('tablist', { name: 'Side panel', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   await sidebar.getByRole('tab', { name: /^Comments/ }).click();
   const thread = sidebar.getByRole('article', {
     name: 'Comment thread',

@@ -68,6 +68,7 @@ import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewSidebar } from './review-sidebar';
+import { SideRail } from './side-rail';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Worktree = Project['worktrees'][number];
@@ -100,11 +101,12 @@ function ReviewWorkspaceContent({
   context,
   navigationTrigger,
 }: ReviewWorkspaceProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const desktop = useDesktopReview();
   const [focusedPane, setFocusedPane] = useState<PaneIndex>(0);
-  const desktopTrigger = useElement<HTMLButtonElement>();
+  const railToggle = useElement<HTMLButtonElement>();
+  const panelSlot = useElement<HTMLDivElement>();
   const mobileTrigger = useElement<HTMLButtonElement>();
   const mobileSheet = useElement<HTMLDivElement>();
   const {
@@ -145,8 +147,8 @@ function ReviewWorkspaceContent({
   const sideLabel = openToSideText(paneSide(layout.split, focusedPane));
 
   const toggleSidebar = () => {
-    if (sidebarOpen) desktopTrigger.element?.focus();
-    setSidebarOpen((open) => !open);
+    if (panelOpen) railToggle.element?.focus();
+    setPanelOpen((open) => !open);
   };
   useHotkey(
     SHORTCUTS.toggleSidebar,
@@ -185,17 +187,23 @@ function ReviewWorkspaceContent({
   const setSurface = (next: Surface) => {
     onSearch({ surface: next });
   };
-  useHotkey(SHORTCUTS.surfaceReview, () => setSurface('changes'), {
+  const showSurface = (next: Surface) => {
+    setSurface(next);
+    if (desktop) setPanelOpen(true);
+    else setMobileOpen(true);
+  };
+  useHotkey(SHORTCUTS.surfaceReview, () => showSurface('changes'), {
     ignoreInputs: true,
   });
-  useHotkey(SHORTCUTS.surfaceFiles, () => setSurface('files'), {
+  useHotkey(SHORTCUTS.surfaceFiles, () => showSurface('files'), {
     ignoreInputs: true,
   });
-  useHotkey(SHORTCUTS.surfaceHistory, () => setSurface('history'), {
+  useHotkey(SHORTCUTS.surfaceHistory, () => showSurface('history'), {
     ignoreInputs: true,
   });
-  const sidebar = (
+  const sidebar = (layout: 'docked' | 'sheet') => (
     <ReviewSidebar
+      layout={layout}
       scope={scope}
       context={context}
       worktreePath={worktree.path}
@@ -219,31 +227,6 @@ function ReviewWorkspaceContent({
     <div data-review-controls="" className="contents">
       <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
       <GitButton scope={scope} context={context} />
-      <Tooltip>
-        <TooltipTrigger render={<span className="inline-flex" />}>
-          <Button
-            ref={(element) => desktopTrigger.attach(element)}
-            className="hidden xl:inline-flex"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={
-              sidebarOpen ? 'Hide review sidebar' : 'Show review sidebar'
-            }
-            aria-expanded={sidebarOpen}
-            aria-keyshortcuts={SHORTCUTS.toggleSidebar}
-            onClick={() => {
-              layout.selectPane(pane);
-              toggleSidebar();
-            }}
-          >
-            <PanelRightIcon />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          {sidebarOpen ? 'Hide review sidebar' : 'Show review sidebar'}{' '}
-          <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>
-        </TooltipContent>
-      </Tooltip>
       <Tooltip>
         <TooltipTrigger render={<span className="inline-flex" />}>
           <SheetTrigger
@@ -277,6 +260,7 @@ function ReviewWorkspaceContent({
         if (!open) layout.focusDestination();
       }}
     >
+      <div className="flex min-h-0 flex-1">
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
         <ResizablePanel
           id="review-document"
@@ -307,7 +291,7 @@ function ReviewWorkspaceContent({
             />
           </section>
         </ResizablePanel>
-        {sidebarOpen && desktop && (
+        {panelOpen && desktop && (
           <>
             <ResizableHandle className="w-2 bg-transparent after:w-2" />
             <ResizablePanel
@@ -316,11 +300,26 @@ function ReviewWorkspaceContent({
               minSize={260}
               maxSize={520}
             >
-              {sidebar}
+              <div ref={panelSlot.attach} className="h-full" />
             </ResizablePanel>
           </>
         )}
       </ResizablePanelGroup>
+      {desktop && (
+        <SideRail
+          scope={scope}
+          context={context}
+          surface={surface}
+          open={panelOpen}
+          onSelect={showSurface}
+          onHide={() => setPanelOpen(false)}
+          onToggle={toggleSidebar}
+          toggleRef={railToggle.attach}
+          panel={sidebar('docked')}
+          panelTarget={panelSlot.element}
+        />
+      )}
+      </div>
       <SheetContent
         ref={(element) => {
           mobileSheet.attach(element);
@@ -342,7 +341,7 @@ function ReviewWorkspaceContent({
             Choose a review surface and open a document.
           </SheetDescription>
         </SheetHeader>
-        {sidebar}
+        {sidebar('sheet')}
       </SheetContent>
     </Sheet>
   );

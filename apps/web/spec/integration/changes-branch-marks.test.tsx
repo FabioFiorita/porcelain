@@ -56,8 +56,14 @@ test.for([1280, 414])(
       const page = app.page;
       if (width === 414)
         await page.getByRole('button', { name: 'Review', exact: true }).click();
-      await page
-        .getByRole('complementary', { name: 'Review sidebar', exact: true })
+      await (
+        width === 414
+          ? page.getByRole('complementary', {
+              name: 'Review sidebar',
+              exact: true,
+            })
+          : page.getByRole('tablist', { name: 'Side panel', exact: true })
+      )
         .getByRole('tab', { name: 'Changes', exact: true })
         .click();
       await page.getByRole('tab', { name: 'Branch', exact: true }).click();

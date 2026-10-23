@@ -1,4 +1,5 @@
-import { publishedReviewTitle } from '../rules/documents';
+import { ALL_CHANGES, publishedReviewTitle } from '../rules/documents';
+import { useElement } from '@/shared/hooks/use-element';
 import {
   FileDiffIcon,
   FilesIcon,
@@ -30,117 +31,123 @@ type ChangesScope = {
   onBase: (base: string | undefined) => void;
 };
 
-export function ReviewSidebar({
-  scope,
-  context,
-  worktreePath,
-  surface,
-  activeEntry,
-  available,
-  onSurface,
-  onOpen,
-  sideLabel,
-  changes,
-}: {
+type SidebarProps = {
   scope: ReviewScope;
   context: ConnectionContext;
   worktreePath: string;
   surface: Surface;
   activeEntry: string | undefined;
   available: boolean;
-  onSurface: (surface: Surface) => void;
   onOpen: OpenDocument;
   sideLabel: string;
   changes: ChangesScope;
+};
+
+export function ReviewSidebar({
+  layout,
+  onSurface,
+  ...props
+}: SidebarProps & {
+  layout: 'docked' | 'sheet';
+  onSurface: (surface: Surface) => void;
 }) {
+  const actions = useElement<HTMLDivElement>();
+  const toolbar = (
+    <div
+      ref={actions.attach}
+      role="toolbar"
+      aria-label="Panel actions"
+      className="ml-auto flex shrink-0 items-center gap-0.5"
+    />
+  );
+  const names = useSurfaceNames(props.scope, props.context);
+  const surface = (
+    <SidebarSurface {...props} actionsTarget={actions.element} />
+  );
   return (
     <aside
       aria-label="Review sidebar"
       data-testid="review-sidebar"
       className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card"
     >
-      <Tabs
-        value={surface}
-        onValueChange={(value) => {
-          if (isSurface(value)) onSurface(value);
-        }}
-        className="min-h-0 flex-1"
-      >
-        <div className="shrink-0 p-1.5">
-          <TabsList className="h-8 w-full">
-            <TabsTrigger value="files" className="min-w-0">
-              <FilesIcon className="size-3.5" />
-              <span className="truncate">Files</span>
-            </TabsTrigger>
-            <TabsTrigger value="changes" className="min-w-0">
-              <ChangesSurfaceLabel scope={scope} context={context} />
-            </TabsTrigger>
-            <TabsTrigger value="history" className="min-w-0">
-              <HistoryIcon className="size-3.5" />
-              <span className="truncate">History</span>
-            </TabsTrigger>
-          </TabsList>
-        </div>
-        <TabsContent value="changes" className="min-h-0 overflow-hidden">
-          <SidebarSurface
-            scope={scope}
-            context={context}
-            worktreePath={worktreePath}
-            surface="changes"
-            activeEntry={activeEntry}
-            available={available}
-            onOpen={onOpen}
-            sideLabel={sideLabel}
-            changes={changes}
-          />
-        </TabsContent>
-        <TabsContent value="files" className="min-h-0 overflow-hidden">
-          <SidebarSurface
-            scope={scope}
-            context={context}
-            worktreePath={worktreePath}
-            surface="files"
-            activeEntry={activeEntry}
-            available={available}
-            onOpen={onOpen}
-            sideLabel={sideLabel}
-            changes={changes}
-          />
-        </TabsContent>
-        <TabsContent value="history" className="min-h-0 overflow-hidden">
-          <SidebarSurface
-            scope={scope}
-            context={context}
-            worktreePath={worktreePath}
-            surface="history"
-            activeEntry={activeEntry}
-            available={available}
-            onOpen={onOpen}
-            sideLabel={sideLabel}
-            changes={changes}
-          />
-        </TabsContent>
-      </Tabs>
+      {layout === 'docked' ? (
+        <>
+          <header className="flex h-12 shrink-0 items-center gap-1 border-b pr-2 pl-3.5">
+            <h2 className="truncate text-ui font-semibold">
+              {names[props.surface]}
+            </h2>
+            {toolbar}
+          </header>
+          <div className="min-h-0 flex-1">{surface}</div>
+        </>
+      ) : (
+        <Tabs
+          value={props.surface}
+          onValueChange={(value) => {
+            if (isSurface(value)) onSurface(value);
+          }}
+          className="min-h-0 flex-1 gap-0"
+        >
+          <div className="flex h-12 shrink-0 items-center gap-1 border-b px-1.5">
+            <TabsList className="h-8 min-w-0 flex-1">
+              {SURFACES.map((value) => (
+                <TabsTrigger key={value} value={value} className="min-w-0">
+                  <SurfaceIcon
+                    scope={props.scope}
+                    context={props.context}
+                    surface={value}
+                    className="size-3.5 shrink-0"
+                  />
+                  <span className="truncate">{names[value]}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {toolbar}
+          </div>
+          <TabsContent
+            value={props.surface}
+            className="min-h-0 overflow-hidden"
+          >
+            {surface}
+          </TabsContent>
+        </Tabs>
+      )}
     </aside>
   );
 }
 
-function ChangesSurfaceLabel({
+const SURFACES: readonly Surface[] = ['files', 'changes', 'history'];
+
+export function useSurfaceNames(
+  scope: ReviewScope,
+  context: ConnectionContext,
+): Record<Surface, string> {
+  const { review } = usePublishedReview(scope, context);
+  return {
+    files: 'Files',
+    changes: publishedReviewTitle(review) ?? 'Changes',
+    history: 'History',
+  };
+}
+
+export function SurfaceIcon({
   scope,
   context,
+  surface,
+  className,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
+  surface: Surface;
+  className?: string;
 }) {
   const { review } = usePublishedReview(scope, context);
-  const title = publishedReviewTitle(review);
-  const hasReview = review !== null && review !== undefined;
-  const Icon = hasReview ? ListChecksIcon : FileDiffIcon;
-  return (
-    <>
-      <Icon className="size-3.5 shrink-0" />
-      <span className="truncate">{title ?? 'Changes'}</span>
-    </>
+  if (surface === 'files') return <FilesIcon className={className} />;
+  if (surface === 'history') return <HistoryIcon className={className} />;
+  return review ? (
+    <ListChecksIcon className={className} />
+  ) : (
+    <FileDiffIcon className={className} />
   );
 }
 
@@ -154,17 +161,8 @@ function SidebarSurface({
   onOpen,
   sideLabel,
   changes,
-}: {
-  scope: ReviewScope;
-  context: ConnectionContext;
-  worktreePath: string;
-  surface: Surface;
-  activeEntry: string | undefined;
-  available: boolean;
-  onOpen: OpenDocument;
-  sideLabel: string;
-  changes: ChangesScope;
-}) {
+  actionsTarget,
+}: SidebarProps & { actionsTarget: HTMLElement | null }) {
   const published = usePublishedReview(scope, context);
   if (!available)
     return (
@@ -210,6 +208,7 @@ function SidebarSurface({
           }
           onOpen={onOpen}
           sideLabel={sideLabel}
+          actionsTarget={actionsTarget}
         />
       )}
       {surface === 'history' && (
@@ -226,6 +225,7 @@ function SidebarSurface({
           }
           sideLabel={sideLabel}
           onOpenGraph={() => onOpen({ kind: 'graph' })}
+          onOpenChanges={() => onOpen(ALL_CHANGES)}
         />
       )}
     </ReviewBoundary>

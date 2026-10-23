@@ -7,7 +7,7 @@ Read [web verification](../SKILL.md) for lifecycle, pairing and failure injectio
 - From the repository root set `C=.agents/skills/web-verify/scripts/cli`; run `$C doctor`, then `$C start`. Read its card and private `connection.json`. Set `REPO` to `fixtures.repositoryPath`, `HOME_DIR` to `fixtures.projectHome`, and `WEB` to `webUrl`.
 - Open a fresh browser context and redeem the card's fresh pairing link, except when a map starts unpaired. Links work once; startup opens no browser. Reloads keep this context/session.
 - The default recipe viewport is phone width, 414 × 896; use 1280 × 800 for desktop proof unless the map specifies another size. At phone width: `Toggle Sidebar` opens the navigator; `Review` or `Alt+Shift+R` opens the `Worktree review` sheet. Opening a document closes that sheet; reopen it for the next tree action. Actions that open no document leave it open, so do not click the covered Review button.
-- Files is the default sidebar tab without a `surface` selection. Choose Changes/Review before using its controls. `Alt+1`, `Alt+2`, `Alt+3` select Files, Changes/Review and History. Explicit surface/document URL selections survive this default.
+- At 1280px and wider the rail (tablist "Side panel") switches the docked panel; clicking its selected tab hides the panel, so choose a different view or use the keys. Files is the default view without a `surface` selection. Choose Changes/Review before using its controls. `Alt+1`, `Alt+2`, `Alt+3` open Files, Changes/Review and History (and the sheet at phone width). Explicit surface/document URL selections survive this default.
 - A `shell: desktop` map needs `$C start --desktop` for desktop-mode views. Native bridge, menu and sheet proof requires desktop verification. Drafting maps need `$C start --coding-tool`.
 
 ## Driving conventions
@@ -129,6 +129,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [reviews.reply](reviews.reply.md) — Replies and live thread updates.
 - [reviews.resolve](reviews.resolve.md) — Resolve and reopen threads.
 - [reviews.revision](reviews.revision.md) — Numbered revisions and retained content.
+- [reviews.side-panel](reviews.side-panel.md) — The rail and its docked Files, Review and History panel.
 - [reviews.sidebar-actions](reviews.sidebar-actions.md) — Review actions from the sidebar.
 - [reviews.spec-files](reviews.spec-files.md) — Group specs and tests apart from other changed files.
 - [reviews.split-shortcuts](reviews.split-shortcuts.md) — Split views and keyboard controls.
