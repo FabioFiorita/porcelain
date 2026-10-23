@@ -107,11 +107,12 @@ export async function bootSimulator(
   try {
     const available = Object.values(await devices()).flat();
     const missing = poolNames[kind].filter(
-      (name) => !available.some((device) => device.name === name),
+      (name) =>
+        !available.some((device) => device.name === name && device.isAvailable),
     );
     if (missing.length === poolNames[kind].length)
       throw new Error(
-        `No simulator named ${missing.join(' or ')} exists. Rename one of the Mac's existing ${kind === 'ipad' ? 'iPad' : 'iPhone'} simulators with \`xcrun simctl rename <udid> ${missing[0]}\`; verification shares the Mac's existing simulators and never creates one.`,
+        `No available simulator named ${missing.join(' or ')}. Rename one of the Mac's available ${kind === 'ipad' ? 'iPad' : 'iPhone'} simulators with \`xcrun simctl rename <udid> '${missing.join("' or '")}'\`; verification shares the Mac's existing simulators and never creates one.`,
       );
     const unclaimed = [];
     for (const candidate of available) {
