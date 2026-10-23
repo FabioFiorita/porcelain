@@ -877,7 +877,7 @@ function ReviewRevisionPage({
   );
   if (!standalone) return page;
   return (
-    <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+    <Sheet open={sheetOpen && !desktop} onOpenChange={setSheetOpen}>
       <PanelKeys onShow={showPanel} onToggle={togglePanel} />
       <div className="flex min-h-0 min-w-0 flex-1">
         {page}
@@ -905,7 +905,7 @@ function ReviewRevisionPage({
             Readiness, changed files and comments of this review.
           </SheetDescription>
         </SheetHeader>
-        {panel('sheet')}
+        {!desktop && panel('sheet')}
       </SheetContent>
     </Sheet>
   );

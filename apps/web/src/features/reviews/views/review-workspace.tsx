@@ -141,7 +141,7 @@ function ReviewWorkspaceContent({
     setFocused: setFocusedPane,
     ready,
     focusBoundary: mobileSheet.element,
-    focusBoundaryOpen: mobileOpen,
+    focusBoundaryOpen: mobileOpen && !desktop,
   });
   const sideLabel = openToSideText(paneSide(layout.split, focusedPane));
 
@@ -253,7 +253,7 @@ function ReviewWorkspaceContent({
 
   return (
     <Sheet
-      open={mobileOpen}
+      open={mobileOpen && !desktop}
       onOpenChange={setMobileOpen}
       onOpenChangeComplete={(open) => {
         if (!open) layout.focusDestination();
@@ -342,7 +342,7 @@ function ReviewWorkspaceContent({
             Choose a review surface and open a document.
           </SheetDescription>
         </SheetHeader>
-        {sidebar('sheet')}
+        {!desktop && sidebar('sheet')}
       </SheetContent>
     </Sheet>
   );

@@ -116,6 +116,28 @@ test('Alt+3 opens the review sheet on History at phone width', async ({
   await expect.element(rail()).not.toBeInTheDocument();
 });
 
+test('widening past 1280px with the review sheet open closes the sheet and docks the panel', async ({
+  workspace,
+}) => {
+  await userEvent.keyboard('{Alt>}1{/Alt}');
+  const sheet = workspace.getByRole('dialog', {
+    name: 'Worktree review',
+    exact: true,
+  });
+  await expect.element(sheet).toBeVisible();
+  await page.viewport(1280, 896);
+  try {
+    await expect.element(sheet).not.toBeInTheDocument();
+    await expect
+      .element(
+        panel().getByRole('heading', { level: 2, name: 'Files', exact: true }),
+      )
+      .toBeVisible();
+  } finally {
+    await page.viewport(414, 896);
+  }
+});
+
 test('the History panel names the branch, counts uncommitted files as they change and opens them', async ({
   workspace,
   repo,
