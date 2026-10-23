@@ -24,7 +24,7 @@ export function WalkthroughSpine({
   onGo,
 }: {
   stops: readonly WalkthroughStop[];
-  current: WalkthroughKey;
+  current: WalkthroughKey | undefined;
   done: (stop: WalkthroughStop) => boolean;
   onGo: (key: WalkthroughKey) => void;
 }) {

@@ -209,6 +209,13 @@ export function summaryLayerNumber(message: unknown): number | null {
     : null;
 }
 
+export function summaryLayerLinks(page: string): number[] {
+  const numbers = [...page.matchAll(/\shref\s*=\s*(["'])#layer-(\d+)\1/gi)].map(
+    (match) => Number(match[2]),
+  );
+  return [...new Set(numbers)].filter((number) => number > 0);
+}
+
 export type DurableReviewRead = ReadReviewResponse;
 export type ReviewRecord = NonNullable<ReadReviewResponse['review']>;
 export type ReviewMarks = ReviewMarksResponse;
