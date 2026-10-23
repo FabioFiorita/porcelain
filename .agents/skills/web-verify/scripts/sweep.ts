@@ -1,7 +1,13 @@
-import { chromium, type Browser, type Page } from 'playwright';
+import {
+  chromium,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from 'playwright';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, join, relative } from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { parseArgs } from 'node:util';
 import { pairingLink } from '@porcelain/contracts/access';
 import { readPublishedReviewResponseSchema } from '@porcelain/contracts/reviews';
@@ -23,7 +29,10 @@ const sweepWidths = [1440, 1080, 414] as const;
 const sweepThemes = ['light', 'dark'] as const;
 const sweepStates = ['as-is', ...stressVariants] as const;
 const heights = { 1440: 900, 1080: 810, 414: 896 } as const;
-const settleMs = 5000;
+const networkIdleMs = 20_000;
+const settledMs = 15_000;
+const stableReads = 3;
+const readEveryMs = 200;
 const pairedMs = 30_000;
 const features = new URL('../features/', import.meta.url);
 const withheld = 'A secret survived redaction, so this record was withheld.\n';
@@ -184,28 +193,75 @@ const layoutScript = `(() => {
   const root = document.documentElement;
   const width = root.clientWidth;
   const scrollWidth = Math.max(root.scrollWidth, document.body.scrollWidth);
+  const describe = (element, right) => {
+    const label = element.getAttribute('aria-label') ?? element.textContent?.trim().slice(0, 60) ?? '';
+    return '<' + element.tagName.toLowerCase() + '> "' + label + '" ends at ' + Math.round(right) + ' px';
+  };
   const past = (element) => element.getBoundingClientRect().right > width + 1;
   const offenders = scrollWidth > width
     ? [...document.body.querySelectorAll('*')]
         .filter((element) => past(element) && (element.parentElement === null || !past(element.parentElement)))
         .slice(0, 5)
-        .map((element) => {
-          const label = element.getAttribute('aria-label') ?? element.textContent?.trim().slice(0, 60) ?? '';
-          return '<' + element.tagName.toLowerCase() + '> "' + label + '" ends at ' + Math.round(element.getBoundingClientRect().right) + ' px';
-        })
+        .map((element) => describe(element, element.getBoundingClientRect().right))
     : [];
-  return { width, scrollWidth, dark: root.classList.contains('dark'), offenders };
+  const clipped = [];
+  const truncated = (element) => {
+    for (let box = element; box !== null; box = box.parentElement)
+      if (getComputedStyle(box).textOverflow === 'ellipsis') return true;
+    return false;
+  };
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node !== null && clipped.length < 5; node = walker.nextNode()) {
+    const parent = node.parentElement;
+    if (parent === null || node.textContent.trim() === '' || clipped.some((entry) => entry.element === parent)) continue;
+    const box = parent.getBoundingClientRect();
+    const style = getComputedStyle(parent);
+    if (box.width <= 1 || box.height <= 1 || style.visibility === 'hidden' || style.whiteSpace === 'pre') continue;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const spill = [...range.getClientRects()].find((rect) => rect.width > 0 && rect.right > 0 && rect.left < width && rect.right > box.right + 8);
+    if (spill !== undefined && !truncated(parent))
+      clipped.push({ element: parent, text: describe(parent, spill.right) + ' past its box at ' + Math.round(box.right) + ' px' });
+  }
+  const row = (element) => {
+    const style = getComputedStyle(element);
+    return (style.display.endsWith('flex') && style.flexDirection.startsWith('row') && style.flexWrap === 'nowrap') || (style.display.endsWith('grid') && style.gridAutoFlow.startsWith('column'));
+  };
+  const oneRow = (element) => row(element) || (element.children.length === 1 && row(element.children[0]));
+  const sideways = [...document.body.querySelectorAll('*')]
+    .filter((element) => {
+      const style = getComputedStyle(element);
+      return (style.overflowY === 'auto' || style.overflowY === 'scroll') && style.visibility !== 'hidden' && element.clientWidth > 0 && element.scrollWidth > element.clientWidth + 8 && !oneRow(element);
+    })
+    .slice(0, 5)
+    .map((element) => describe(element, element.getBoundingClientRect().right).replace(/ ends at .*$/, '') + ' holds ' + element.scrollWidth + ' px of content in ' + element.clientWidth + ' px');
+  return { width, scrollWidth, dark: root.classList.contains('dark'), offenders, clipped: clipped.map((entry) => entry.text), sideways };
 })()`;
 const layoutSchema = Schema.Struct({
   width: Schema.Number,
   scrollWidth: Schema.Number,
   dark: Schema.Boolean,
   offenders: Schema.Array(Schema.String),
+  clipped: Schema.Array(Schema.String),
+  sideways: Schema.Array(Schema.String),
 });
-const settledScript =
-  'document.fonts.ready.then(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))))';
+const textScript = 'document.fonts.ready.then(() => document.body.innerText)';
 const imagesLoadedScript =
   '[...document.images].every((image) => image.complete)';
+
+async function settledText(page: Page): Promise<string | undefined> {
+  const deadline = Date.now() + settledMs;
+  let last: unknown;
+  let unchanged = 0;
+  while (Date.now() < deadline) {
+    const now: unknown = await page.evaluate(textScript);
+    unchanged = now === last ? unchanged + 1 : 0;
+    last = now;
+    if (unchanged >= stableReads && typeof now === 'string') return now;
+    await sleep(readEveryMs);
+  }
+  return undefined;
+}
 
 function firstLine(error: unknown) {
   return error instanceof Error
@@ -213,12 +269,22 @@ function firstLine(error: unknown) {
     : String(error);
 }
 
+type Signed = Awaited<ReturnType<BrowserContext['storageState']>>;
+
 async function shoot(
-  page: Page,
+  signed: Signed,
   url: URL,
   shot: Shot,
   file: string,
 ): Promise<void> {
+  const browser = await chromium.launch();
+  const context = await browser.newContext({
+    storageState: signed,
+    viewport: { width: shot.width, height: heights[shot.width] },
+    colorScheme: shot.theme,
+    reducedMotion: 'reduce',
+  });
+  const page = await context.newPage();
   const record = (problem: string) => shot.problems.push(problem);
   const onPageError = (error: Error) =>
     record(`page error: ${firstLine(error)}`);
@@ -228,21 +294,15 @@ async function shoot(
   page.on('pageerror', onPageError);
   page.on('console', onConsole);
   try {
-    await page.setViewportSize({
-      width: shot.width,
-      height: heights[shot.width],
-    });
-    await page.emulateMedia({
-      colorScheme: shot.theme,
-      reducedMotion: 'reduce',
-    });
     const response = await page.goto(url.href, { waitUntil: 'load' });
     if (response !== null && !response.ok())
       record(`the page answered HTTP ${response.status()}`);
     await page
-      .waitForLoadState('networkidle', { timeout: settleMs })
-      .catch(() => undefined);
-    await page.evaluate(settledScript);
+      .waitForLoadState('networkidle', { timeout: networkIdleMs })
+      .catch(() => record('the network did not go idle within 20 s'));
+    const text = await settledText(page);
+    if (text === undefined) record('the content kept changing for 15 s');
+    else if (text.trim() === '') record('the page rendered no text');
     const landed = new URL(page.url());
     if (`${landed.pathname}${landed.search}` !== `${url.pathname}${url.search}`)
       record(`landed on ${landed.pathname}${landed.search} instead`);
@@ -253,13 +313,18 @@ async function shoot(
       record(
         `overflows horizontally: ${layout.scrollWidth} px of content in ${layout.width} px${layout.offenders.length > 0 ? ` (${layout.offenders.join('; ')})` : ''}`,
       );
+    if (layout.clipped.length > 0)
+      record(`text runs past its box: ${layout.clipped.join('; ')}`);
+    if (layout.sideways.length > 0)
+      record(
+        `a scrolling area is wider than itself: ${layout.sideways.join('; ')}`,
+      );
     if (layout.dark !== (shot.theme === 'dark'))
       record(`the ${shot.theme} theme did not apply`);
     await page.screenshot({ path: file, fullPage: true });
     shot.file = file;
   } finally {
-    page.off('pageerror', onPageError);
-    page.off('console', onConsole);
+    await browser.close();
   }
 }
 
@@ -398,10 +463,11 @@ async function captureAll(
   folder: string,
   found: { shots: Shot[]; composites: Composite[]; seeds: unknown[] },
 ) {
-  const page = await (
-    await browser.newContext({ reducedMotion: 'reduce' })
-  ).newPage();
-  await pair(page, instance, recorder);
+  const pairing = await browser.newContext();
+  const signed = await pair(await pairing.newPage(), instance, recorder).then(
+    () => pairing.storageState(),
+  );
+  await pairing.close();
   const session = await sessionOf(instance, recorder);
   for (const state of sweepStates) {
     if (state !== 'as-is')
@@ -429,7 +495,7 @@ async function captureAll(
           }
           shot.path = path;
           await shoot(
-            page,
+            signed,
             new URL(path, instance.detail.web),
             shot,
             join(directory, `${theme}-${width}.png`),

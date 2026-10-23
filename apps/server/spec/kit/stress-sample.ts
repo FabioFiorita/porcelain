@@ -40,6 +40,7 @@ type Plan = {
   }[];
   comments: readonly { path: string; body: string }[];
   devices: readonly string[];
+  removal: { behavior: string; why: string };
   environmentName?: string;
   projectName?: string;
 };
@@ -115,6 +116,10 @@ function longTextPlan(): Plan {
       { path: longName, body: filled(COMMENT_BODY_LENGTH / 8, 'Comment:') },
     ],
     devices: [filled(DEVICE_LABEL_LENGTH, 'Phone')],
+    removal: {
+      behavior: filled(REVIEW_PROSE_LENGTH, 'Removed behavior:'),
+      why: filled(REVIEW_PROSE_LENGTH, 'Removed because'),
+    },
     environmentName: filled(ENVIRONMENT_NAME_LENGTH, 'Workstation'),
     projectName: filled(PROJECT_NAME_LENGTH, 'Project'),
   };
@@ -165,6 +170,10 @@ function manyItemsPlan(): Plan {
       .slice(0, 30)
       .map((path, index) => ({ path, body: `Comment ${index + 1}` })),
     devices: count(12).map((number) => `Device ${number}`),
+    removal: {
+      behavior: 'Files removed before this seed',
+      why: 'They stay removed',
+    },
   };
 }
 
@@ -220,6 +229,17 @@ export async function seedStressSample(
   }
   await session.git('add', '-A');
   await session.git('commit', '--allow-empty', '-m', plan.commit);
+  const deleted = (
+    await session.git(
+      'diff',
+      '--name-only',
+      '--diff-filter=D',
+      'porcelain-fixture-base',
+      'HEAD',
+    )
+  )
+    .split('\n')
+    .filter((path) => path !== '');
   const layers: Layer[] = plan.layers.map((layer) => ({
     id: randomUUID(),
     title: layer.title,
@@ -250,7 +270,11 @@ export async function seedStressSample(
     base: 'refs/heads/porcelain-fixture-base',
     expectedRevision:
       (await publishedReview(session, worktreeId))?.revision ?? 0,
-    verdict: plan.verdict,
+    verdict: {
+      ...plan.verdict,
+      removed:
+        deleted.length === 0 ? [] : [{ ...plan.removal, paths: deleted }],
+    },
     summaryHtml: plan.summaryHtml,
     diagram: {
       after: {
