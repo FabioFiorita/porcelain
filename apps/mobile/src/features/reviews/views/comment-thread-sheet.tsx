@@ -21,6 +21,7 @@ import {
   type ReviewLayer,
 } from '@porcelain/client/reviews/rules';
 import { headerIcon } from '../../../shared/icons/header-icon';
+import { sheetDismissButton } from '../../../shared/navigation/sheet-presentation';
 import { Box } from '../../../components/ui/box';
 import { Text } from '../../../components/ui/text';
 import { Input } from '../../../components/ui/input';
@@ -91,23 +92,27 @@ function SheetHeader({
   return (
     <>
       <Stack.Screen options={{ title }} />
-      <Stack.Toolbar placement="right">
-        {resolve ? (
-          <Stack.Toolbar.Button
-            icon={headerIcon(resolve.icon)}
-            disabled={resolve.pending}
-            accessibilityLabel={resolve.label}
-            onPress={resolve.onPress}
-          >
-            {resolve.label}
-          </Stack.Toolbar.Button>
-        ) : null}
-        <Stack.Toolbar.Button
-          icon={headerIcon('done')}
-          accessibilityLabel="Done"
-          onPress={() => router.back()}
-        />
-      </Stack.Toolbar>
+      {resolve || sheetDismissButton ? (
+        <Stack.Toolbar placement="right">
+          {resolve ? (
+            <Stack.Toolbar.Button
+              icon={headerIcon(resolve.icon)}
+              disabled={resolve.pending}
+              accessibilityLabel={resolve.label}
+              onPress={resolve.onPress}
+            >
+              {resolve.label}
+            </Stack.Toolbar.Button>
+          ) : null}
+          {sheetDismissButton ? (
+            <Stack.Toolbar.Button
+              icon={headerIcon('done')}
+              accessibilityLabel="Done"
+              onPress={() => router.back()}
+            />
+          ) : null}
+        </Stack.Toolbar>
+      ) : null}
     </>
   );
 }
@@ -140,7 +145,9 @@ function ThreadSheet({
       : '',
   );
   const sameReview =
-    !thread.review || thread.review.reviewId === review?.reviewId;
+    !thread.review ||
+    (thread.review.reviewId === review?.reviewId &&
+      thread.review.revision === review.revision);
   const openDecision =
     review && sameReview
       ? (layer: ReviewLayer) => {
@@ -301,29 +308,30 @@ function Messages({
           ) : null}
         </Box>
         <Text variant="ui" selectable>
-          {decisionMentions(message.body, onDecision ? layers.length : 0).map(
-            (segment, index) => {
-              const layer =
-                segment.kind === 'decision'
-                  ? layers[segment.decision - 1]
-                  : undefined;
-              return layer && onDecision ? (
-                <Text
-                  key={index}
-                  variant="link"
-                  tone="primary"
-                  weight="medium"
-                  accessibilityRole="link"
-                  accessibilityLabel={`Open decision: ${layer.title}`}
-                  onPress={() => onDecision(layer)}
-                >
-                  {segment.text}
-                </Text>
-              ) : (
-                segment.text
-              );
-            },
-          )}
+          {decisionMentions(
+            message.body,
+            onDecision && message.author === 'agent' ? layers.length : 0,
+          ).map((segment, index) => {
+            const layer =
+              segment.kind === 'decision'
+                ? layers[segment.decision - 1]
+                : undefined;
+            return layer && onDecision ? (
+              <Text
+                key={index}
+                variant="link"
+                tone="primary"
+                weight="medium"
+                accessibilityRole="link"
+                accessibilityLabel={`Open decision: ${layer.title}`}
+                onPress={() => onDecision(layer)}
+              >
+                {segment.text}
+              </Text>
+            ) : (
+              segment.text
+            );
+          })}
         </Text>
       </Box>
     );

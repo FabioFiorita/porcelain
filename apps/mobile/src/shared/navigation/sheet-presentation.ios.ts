@@ -3,3 +3,4 @@ export const sheetPresentation = {
   sheetAllowedDetents: [0.75, 1],
   sheetGrabberVisible: true,
 };
+export const sheetDismissButton = true;

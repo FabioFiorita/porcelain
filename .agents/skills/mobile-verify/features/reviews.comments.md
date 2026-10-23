@@ -40,7 +40,7 @@ Preconditions: [surface baseline](README.md).
 2. Add an agent reply through the fixture: it appears live. Reply, Resolve and Reopen. Global comments marks the displayed revision seen; file-filtered comments must not mark unseen threads elsewhere.
 3. Change the underlying file while composing: earlier-comparison notice appears and the draft retains the displayed fingerprint. Change workspace: Review unavailable. Done/checkmark or sheet gesture returns to the exact file/list underneath.
 
-4. Open one thread from a decision diff. The title names its line, Resolve/Reopen and Done sit in the sheet header, and each message shows its author and "on rN" (the revision published before it was written). An agent reply naming stop n or decision n links to that decision when the review has it; the link closes the sheet on that decision. The reply field stays above the keyboard; Send reply posts and clears it. A resolved thread hides the reply field. A deleted thread says Thread unavailable.
+4. Open one thread from a decision diff. The title names its line, Resolve/Reopen and Done sit in the sheet header (Android: Resolve/Reopen as an icon, back returns), and each message shows its author and "on rN" (the revision published before it was written). An agent reply naming stop n or decision n links to that decision when the thread's review and revision are the ones shown and that decision exists; the link closes the sheet on that decision. The reply field stays above the keyboard; Send reply posts and clears it. A resolved thread hides the reply field. A deleted thread says Thread unavailable.
 
 Automated coverage: `comments.spec.ts` (stop links and revision markers); retain the live action and readback evidence.
 
