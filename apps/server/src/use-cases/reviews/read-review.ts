@@ -39,7 +39,7 @@ export class ReadReviewUseCase extends Context.Service<
       const resolve = yield* ResolvePublishedReviewService;
       const environment = yield* ReadEnvironmentService;
       const links = yield* BuildReviewLinksService;
-      const hosts = yield* ReviewLinkSource;
+      const routes = yield* ReviewLinkSource;
       const access = yield* WorktreeAccess;
       const lanes = yield* Lanes;
       const keys = yield* LaneKeys;
@@ -83,7 +83,7 @@ export class ReadReviewUseCase extends Context.Service<
                 links: yield* links.execute({
                   review: revision,
                   environmentId,
-                  hosts: yield* hosts.read(),
+                  routes: yield* routes.read(),
                 }),
               },
             },

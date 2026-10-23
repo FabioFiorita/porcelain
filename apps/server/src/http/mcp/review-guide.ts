@@ -108,7 +108,7 @@ Comment tools accept \`reviewId\` to select a review owner. Each review thread r
 
 ## Handoff
 
-A publish returns \`reviewId\`, \`revision\`, \`headOid\`, \`baseOid\` and \`links\`. Web destinations cover the review, its revision and each decision. The app links use the configured Porcelain hub origin and retain the environment, selected host, revision and decision. Hosts prefer configured Cloudflare, then Tailscale, then LAN.
+A publish returns \`reviewId\`, \`revision\`, \`headOid\`, \`baseOid\` and \`links\`. When \`links.kind\` is \`available\`, web destinations cover the review, its revision and each decision. The app links use the configured Porcelain hub origin and retain the environment, selected host, protocol, revision and decision. Only enabled routes with an on status are used, preferring Cloudflare, then Tailscale, then LAN, then the running local listener. Local and LAN destinations use HTTP; Cloudflare and Tailscale destinations use their published HTTPS origin and port. The app-link \`protocol\` query accepts only \`http\` or \`https\`; older links without it retain HTTPS. If no route is reachable, \`links\` is \`{ "kind": "unavailable", "reason": "no-reachable-route" }\`: report "no link" in the handoff.
 
-Put the returned decision app link from \`links.decisions\` in the handoff, alongside the exact head commit and any unproven surfaces. New web review destinations and native universal-link handling are delivered separately; producing a link does not certify those clients can open it yet.
+When links are available, put the returned decision app link from \`links.decisions\` in the handoff, alongside the exact head commit and any unproven surfaces. Opening a link can still require pairing. Verify the destination in the client you are handing off to, and name any unproven client or network route.
 `;
