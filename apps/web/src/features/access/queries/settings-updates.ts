@@ -157,11 +157,17 @@ const updateRows = Atom.make((get) => {
   return { rows, failures, checking };
 });
 
-const refreshSettingsUpdates = Atom.fnSync((_: void, get) => {
+const refreshSettingsUpdates = Atom.fnSync((mode: 'entry' | 'retry', get) => {
   const local = accessSession.state.value.connection;
   const capabilities = Option.getOrUndefined(
     AsyncResult.value(get(desktopCapabilities)),
   );
+  if (
+    mode === 'retry' &&
+    capabilities?.isDesktopShell &&
+    !get(appUpdate).waiting
+  )
+    get.refresh(appUpdate);
   const connections = new Set([
     ...(local && !capabilities?.isDesktopShell ? [local] : []),
     ...remoteConnectionState.value.map(({ connection }) => connection),
@@ -175,7 +181,7 @@ const refreshSettingsUpdates = Atom.fnSync((_: void, get) => {
 const settingsUpdatesEntry = Atom.make((get) => {
   const capabilities = get(desktopCapabilities);
   if (AsyncResult.isSuccess(capabilities))
-    get.set(refreshSettingsUpdates, undefined);
+    get.set(refreshSettingsUpdates, 'entry');
 }).pipe(Atom.setIdleTTL(0));
 
 export function useSettingsUpdatesEntry() {
@@ -192,7 +198,8 @@ export function useSettingsUpdates() {
     rows,
     failures,
     checking,
-    refresh: () => refresh(),
+    refresh: () => refresh('entry'),
+    retry: () => refresh('retry'),
     batch,
     result,
     run,

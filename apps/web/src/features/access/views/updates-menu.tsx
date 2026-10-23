@@ -21,8 +21,17 @@ import { useSettingsUpdates } from '../queries/settings-updates';
 import { SettingsUpdateRow } from './settings-update-row';
 
 export function UpdatesMenu() {
-  const { rows, targets, count, batch, run, failures, checking, refresh } =
-    useSettingsUpdates();
+  const {
+    rows,
+    targets,
+    count,
+    batch,
+    run,
+    failures,
+    checking,
+    refresh,
+    retry,
+  } = useSettingsUpdates();
   const navigate = useNavigate();
   const { setOpenMobile } = useSidebar();
   const [open, setOpen] = useState(false);
@@ -76,7 +85,7 @@ export function UpdatesMenu() {
                 size="sm"
                 variant="outline"
                 disabled={checking}
-                onClick={refresh}
+                onClick={retry}
               >
                 Try again
               </Button>

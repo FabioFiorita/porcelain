@@ -150,6 +150,104 @@ test('a desktop build with updates disabled hides the check control', async ({
   ).not.toBeAttached();
 });
 
+for (const recovery of ['available', 'idle'] as const) {
+  test(`the footer retries a failed Mac app check and recovers to ${recovery}`, async ({
+    page,
+    app,
+  }, testInfo) => {
+    await updateFeed(page, true);
+    await app.open(await app.link('this'));
+    await page
+      .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+      .click();
+    await expect
+      .poll(() => page.evaluate(() => window.updateFixture.checks))
+      .toBe(1);
+    await page.evaluate(() =>
+      window.updateFixture.publish({ status: 'available', version: '0.66.0' }),
+    );
+    await page.getByRole('button', { name: 'Update', exact: true }).click();
+    const updates = page.getByRole('dialog', {
+      name: /^(Updates available|Could not check for updates|No updates available)$/,
+    });
+    await expect(updates).toHaveAccessibleName('Updates available');
+    await expect
+      .poll(() => page.evaluate(() => window.updateFixture.checks))
+      .toBe(1);
+    await page.evaluate(() =>
+      window.updateFixture.publish({
+        status: 'error',
+        message: 'Release feed is offline',
+      }),
+    );
+    await expect(updates).toHaveAccessibleName('Could not check for updates');
+    const retry = updates.getByRole('button', {
+      name: 'Try again',
+      exact: true,
+    });
+    await retry.click();
+    await expect
+      .poll(() => page.evaluate(() => window.updateFixture.checks))
+      .toBe(2);
+    await expect(
+      updates.getByRole('button', { name: 'Update all (0)', exact: true }),
+    ).toBeDisabled();
+    await expect(retry).not.toBeAttached();
+    await page.evaluate(() =>
+      window.updateFixture.finish({
+        status: 'error',
+        message: 'Release feed is still offline',
+      }),
+    );
+    await expect(
+      updates.getByText('Mac app: Release feed is still offline', {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(retry).toBeEnabled();
+    await page.screenshot({ path: testInfo.outputPath('app-retry-error.png') });
+    await retry.click();
+    await expect
+      .poll(() => page.evaluate(() => window.updateFixture.checks))
+      .toBe(3);
+    await page.evaluate(
+      (status) =>
+        window.updateFixture.finish(
+          status === 'available' ? { status, version: '0.67.0' } : { status },
+        ),
+      recovery,
+    );
+    await expect(updates).toHaveAccessibleName(
+      recovery === 'available' ? 'Updates available' : 'No updates available',
+    );
+    await expect(retry).not.toBeAttached();
+    if (recovery === 'available') {
+      await expect(
+        updates.getByText('Mac app 0.65.4 → 0.67.0', { exact: true }),
+      ).toBeVisible();
+      await expect(
+        updates.getByRole('button', { name: 'Update all (1)', exact: true }),
+      ).toBeEnabled();
+    } else {
+      await expect(
+        updates.getByRole('button', { name: 'Update all (0)', exact: true }),
+      ).toBeDisabled();
+    }
+    await page.screenshot({
+      path: testInfo.outputPath('app-retry-recovered.png'),
+    });
+    await updates
+      .getByRole('button', { name: 'Manage computers', exact: true })
+      .click();
+    await expect(
+      page.getByRole('button', { name: 'Open This computer', exact: true }),
+    ).toBeVisible();
+    await expect
+      .poll(() => page.evaluate(() => window.updateFixture.checks))
+      .toBe(3);
+  });
+}
+
 test('the footer Update badge offers the Mac app through its bridge without posting a service update', async ({
   page,
   app,
