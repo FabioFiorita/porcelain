@@ -162,3 +162,11 @@ export function useReviewPanelOpen(reviewId: string) {
   const atom = reviewPanelOpen(reviewId);
   return { open: useAtomValue(atom), setOpen: useAtomSet(atom) };
 }
+
+const reviewPanelView = Atom.family((_reviewId: string) =>
+  Atom.make<'layers' | 'comments'>('layers').pipe(Atom.keepAlive),
+);
+export function useReviewPanelView(reviewId: string) {
+  const atom = reviewPanelView(reviewId);
+  return { view: useAtomValue(atom), setView: useAtomSet(atom) };
+}

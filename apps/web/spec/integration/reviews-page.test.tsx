@@ -234,6 +234,11 @@ test('the review page keeps whole-change and inline comments in its Review panel
     resolved: boolean,
     bodies: readonly string[],
   ) => ({
+    review: {
+      reviewId: fixture.reviewId,
+      revision: 1,
+      headOid: fixture.headOid,
+    },
     anchor: { kind },
     resolved,
     messages: bodies.map((body) => ({ body })),
@@ -288,7 +293,8 @@ test('the review page keeps whole-change and inline comments in its Review panel
 
     await repo.removeReviewWorktree();
     await app.navigate(`/reviews/${fixture.reviewId}`);
-    await panel.getByRole('tab', { name: /^Comments/ }).click();
+    const comments = panel.getByRole('tab', { name: /^Comments/ });
+    await expect.element(comments).toHaveAttribute('aria-selected', 'true');
     const threads = panel.getByRole('article', {
       name: 'Comment thread',
       exact: true,
@@ -307,6 +313,11 @@ test('the review page keeps whole-change and inline comments in its Review panel
     await inlineThread
       .getByRole('button', { name: 'Post reply', exact: true })
       .click();
+    await wholeThread.getByRole('button', { name: /^Whole branch/ }).click();
+    await expect
+      .poll(() => app.location())
+      .toBe(`/reviews/${fixture.reviewId}/1`);
+    await expect.element(comments).toHaveAttribute('aria-selected', 'true');
     await wholeThread
       .getByRole('button', { name: 'Resolve', exact: true })
       .click();
@@ -316,6 +327,18 @@ test('the review page keeps whole-change and inline comments in its Review panel
         thread('file', false, [inline, answer]),
         thread('change', true, [whole]),
       ]);
+
+    await panel.getByRole('button', { name: /^resolved/i }).click();
+    await panel
+      .getByRole('button', { name: 'Delete resolved', exact: true })
+      .click();
+    await app.page
+      .getByRole('alertdialog')
+      .getByRole('button', { name: 'Delete', exact: true })
+      .click();
+    await expect
+      .poll(saved)
+      .toMatchObject([thread('file', false, [inline, answer])]);
   } finally {
     await page.viewport(414, 896);
   }

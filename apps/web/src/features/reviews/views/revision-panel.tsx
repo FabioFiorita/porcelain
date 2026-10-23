@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useReviewPanelView } from '../store';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { FileTypeIcon } from '@/features/files/index';
 import {
@@ -35,7 +36,7 @@ export function RevisionPanel({
   onProof: () => void;
 }) {
   const { threads } = useComments(scope, context);
-  const [view, setView] = useState<'layers' | 'comments'>('layers');
+  const { view, setView } = useReviewPanelView(revision.reviewId);
   const [expanded, setExpanded] = useState(true);
   const items = revisionReviewItems(revision, marks);
   return (
@@ -45,7 +46,9 @@ export function RevisionPanel({
         review={revision.content}
         threads={threads}
         onSelect={(key, firstStale) => {
-          if (key === 'comments' || key === 'replies') setView('comments');
+          setView(
+            key === 'comments' || key === 'replies' ? 'comments' : 'layers',
+          );
           if (key === 'files') onStop('briefing');
           if (key === 'unexplained') onStop('unexplained');
           if (key === 'checks') onProof();

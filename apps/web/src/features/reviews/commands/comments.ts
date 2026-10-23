@@ -105,7 +105,13 @@ export function useDeleteResolvedComments(
   context: ConnectionContext,
 ) {
   const [result, send] = useAtom(
-    commentCommands({ scope, connection: context.connection }).removeResolved,
+    scope.review
+      ? reviewCommands({
+          reviewId: scope.review.reviewId,
+          connection: context.connection,
+        }).deleteResolved
+      : commentCommands({ scope, connection: context.connection })
+          .removeResolved,
   );
   return { result, send, reset: () => send(Atom.Reset) };
 }
