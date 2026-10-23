@@ -88,3 +88,13 @@ export function settingsUpdateBatchProgress(batch: {
         : `Updating ${index + 1} of ${batch.entries.length}`,
   };
 }
+
+export function computersSummary(paired: number, updates: number) {
+  return {
+    paired: paired === 0 ? 'No computers paired' : `${paired} paired`,
+    updates:
+      updates === 0
+        ? undefined
+        : `${updates} ${updates === 1 ? 'update' : 'updates'} ready`,
+  };
+}

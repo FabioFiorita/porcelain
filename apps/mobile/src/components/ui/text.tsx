@@ -20,6 +20,7 @@ const tones = {
   destructive: 'text-destructive',
   card: 'text-card-foreground',
   primary: 'text-primary',
+  brand: 'text-brand',
   primaryForeground: 'text-primary-foreground',
   secondaryForeground: 'text-secondary-foreground',
 };

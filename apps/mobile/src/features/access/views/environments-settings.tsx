@@ -21,6 +21,7 @@ import { MissingCredentialRow } from './missing-credential-row';
 import { EnvironmentRow } from './environment-row';
 import { PairEnvironment } from './pair-environment';
 import { PairEnvironmentForm } from './pair-environment-form';
+import { ThisDevice } from './this-device';
 
 function EnvironmentSettingsSection({
   presentation = 'overview',
@@ -178,6 +179,7 @@ export function EnvironmentsSettings({
           showHeading={showHeading}
           inlinePairing={inlinePairing}
         />
+        <ThisDevice />
       </Box>
     </ScrollView>
   );

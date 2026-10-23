@@ -12,6 +12,11 @@ import {
   type ReviewStatus,
 } from '@porcelain/client/reviews/rules';
 import { commitPath } from '@porcelain/client/history/rules';
+import {
+  branchChangeMarks,
+  worktreeChangeMarks,
+  type FileChangeMarks,
+} from '@porcelain/client/files/rules';
 import type { ListReviewedFilesResponse } from '@porcelain/contracts/reviews';
 import { AsyncResult } from 'effect/reactivity';
 
@@ -75,6 +80,16 @@ export function fileReviewLabels<E, F>(
             : 'Unreviewed',
     ]),
   );
+}
+
+export function fileChangeMarks<E>(
+  snapshot: AsyncResult.AsyncResult<ReviewSnapshot, E>,
+): FileChangeMarks {
+  if (!AsyncResult.isSuccess(snapshot))
+    return { files: new Map(), folders: new Set() };
+  return snapshot.value.kind === 'worktree'
+    ? worktreeChangeMarks(snapshot.value.answer.changes)
+    : branchChangeMarks(snapshot.value.answer.files);
 }
 
 export function commentTarget(

@@ -12,7 +12,9 @@ import { Stack } from 'expo-router';
 import { Array, Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
+  changeStatusMarks,
   fileErrorMessage,
+  fileTreeAncestors,
   mergeFileTreeEntries,
   entryName,
   type FileTreeEntry,
@@ -30,7 +32,10 @@ import { useFilePaths } from '../queries/paths';
 import { FileActionSheet } from './file-action';
 import { CreateMenu } from './create-menu';
 import type { FileAction } from '../commands/edit-file';
-import { Button } from '../../../components/ui/button';
+import { ButtonSurface } from '../../../components/ui/button-surface';
+import { ChangeMark } from '../../../components/ui/change-mark';
+import { GroupHeader } from '../../../components/ui/group-header';
+import { Icon } from '../../../components/ui/icon';
 import { IconButton } from '../../../components/ui/icon-button';
 import { FileIcon } from '../../../components/ui/file-icon';
 import { ItemMenu } from '../../../components/ui/item-menu';
@@ -97,6 +102,8 @@ function FilesNavigationView({
   const [requested, setRequested] = useState<readonly string[]>(['']);
   const [query, setQuery] = useState('');
   const [showHidden, setShowHidden] = useState(false);
+  const [pinnedOpen, setPinnedOpen] = useState(true);
+  const [allOpen, setAllOpen] = useState(true);
   const [action, setAction] = useState<FileAction>();
   const [refreshRequested, setRefreshRequested] = useState(false);
   const directories = useDirectories({
@@ -204,7 +211,7 @@ function FilesNavigationView({
     }));
   };
   const header = (
-    <Box gap={3} paddingX={4} paddingY={3}>
+    <Box gap={2}>
       <Box className="flex-row items-center" gap={2}>
         <Box className="min-w-0 flex-1">
           <Input
@@ -241,23 +248,43 @@ function FilesNavigationView({
           />
         ) : null}
       </Box>
-      {preferenceEntries.hidden.size > 0 ? (
-        <Button
-          label={`${showHidden ? 'Hide hidden' : 'Show hidden'} (${preferenceEntries.hidden.size})`}
-          variant={showHidden ? 'secondary' : 'ghost'}
-          onPress={() => setShowHidden((current) => !current)}
-        />
+      {!embedded || preferenceEntries.hidden.size > 0 ? (
+        <Box className="min-h-8 flex-row items-center" gap={2}>
+          <Box className="min-w-0 flex-1">
+            {!embedded ? (
+              <Text variant="caption" tone="muted" numberOfLines={1}>
+                {selected.project.name} ·{' '}
+                {worktreeLabel(selected.worktree.branch)}
+              </Text>
+            ) : null}
+          </Box>
+          {preferenceEntries.hidden.size > 0 ? (
+            <ButtonSurface
+              variant="link"
+              size="sm"
+              accessibilityLabel={`${showHidden ? 'Hide hidden' : 'Show hidden'} (${preferenceEntries.hidden.size})`}
+              onPress={() => setShowHidden((current) => !current)}
+            >
+              <Icon
+                name={showHidden ? 'visible' : 'hidden'}
+                tone="brand"
+                size="small"
+              />
+              <Text variant="caption" tone="brand" weight="medium">
+                {showHidden ? 'Hide hidden' : 'Show hidden'} (
+                {preferenceEntries.hidden.size})
+              </Text>
+            </ButtonSurface>
+          ) : null}
+        </Box>
       ) : null}
-      {!embedded ? (
+      {embedded ? (
         <Text variant="caption" tone="muted">
-          {selected.project.name} · {worktreeLabel(selected.worktree.branch)}
+          {comparison.kind === 'worktree'
+            ? 'Uncommitted review status'
+            : 'Branch review status'}
         </Text>
       ) : null}
-      <Text variant="caption" tone="muted">
-        {comparison.kind === 'worktree'
-          ? 'Uncommitted review status'
-          : 'Branch review status'}
-      </Text>
       {review.unavailable ? (
         <ErrorState
           message="File review status is unavailable."
@@ -321,26 +348,51 @@ function FilesNavigationView({
       ) : null}
       {preferenceEntries.pinnedPaths.length > 0 ? (
         <Box gap={1}>
-          <Text variant="caption" tone="muted" weight="medium">
-            Pinned files
-          </Text>
-          {preferenceEntries.pinnedPaths.map((path) => (
-            <ItemMenu
-              key={path}
-              title={entryName(path)}
-              description={[path, review.labels.get(path)]
-                .filter(Boolean)
-                .join(' · ')}
-              leading={<FileIcon kind="file" />}
-              size="sm"
-              selected={path === activePath}
-              accessibilityLabel={`Open pinned file ${path}${review.labels.has(path) ? `, ${review.labels.get(path)}` : ''}`}
-              onPress={() => open(path)}
-              actions={menuFor({ path, kind: 'file' })}
-            />
-          ))}
+          <GroupHeader
+            label="Pinned"
+            count={preferenceEntries.pinnedPaths.length}
+            expanded={pinnedOpen}
+            onPress={() => setPinnedOpen((current) => !current)}
+          />
+          {pinnedOpen
+            ? preferenceEntries.pinnedPaths.map((path) => {
+                const status = review.changes.files.get(path);
+                const mark = status ? changeStatusMarks[status] : undefined;
+                const parent = fileTreeAncestors(path).at(-1);
+                return (
+                  <ItemMenu
+                    key={path}
+                    title={entryName(path)}
+                    titleNumberOfLines={1}
+                    {...(parent ? { detail: parent } : {})}
+                    leading={<FileIcon kind="file" />}
+                    trailing={
+                      mark ? <ChangeMark letter={mark.letter} /> : undefined
+                    }
+                    size="sm"
+                    selected={path === activePath}
+                    accessibilityLabel={[
+                      `Open pinned file ${path}`,
+                      mark?.label,
+                      review.labels.get(path),
+                    ]
+                      .filter(Boolean)
+                      .join(', ')}
+                    onPress={() => open(path)}
+                    actions={menuFor({ path, kind: 'file' })}
+                  />
+                );
+              })
+            : null}
         </Box>
       ) : null}
+      {searching ? null : (
+        <GroupHeader
+          label="All files"
+          expanded={allOpen}
+          onPress={() => setAllOpen((current) => !current)}
+        />
+      )}
     </Box>
   );
   return (
@@ -378,10 +430,15 @@ function FilesNavigationView({
         flat={searching}
         loaded={
           preferencesLoaded &&
-          (searching ? AsyncResult.isSuccess(paths.result) : loading.rootLoaded)
+          (searching
+            ? AsyncResult.isSuccess(paths.result)
+            : allOpen && loading.rootLoaded)
         }
-        nodes={preferencesLoaded ? visibleEntries : []}
+        nodes={
+          preferencesLoaded && (searching || allOpen) ? visibleEntries : []
+        }
         annotations={review.labels}
+        changes={review.changes}
         expanded={expanded}
         {...(activePath ? { selected: activePath } : {})}
         loading={loading.folders}
