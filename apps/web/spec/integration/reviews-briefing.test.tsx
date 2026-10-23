@@ -94,6 +94,53 @@ test.for([414, 1440])(
   },
 );
 
+const longRequest = `Keep a very long filename readable: ${'very-long-path-segment-'.repeat(18)}`;
+
+test.for([
+  { width: 414, asked: longRequest, clipped: true },
+  { width: 1440, asked: longRequest, clipped: true },
+  { width: 414, asked: 'Retain each review', clipped: false },
+  { width: 1440, asked: 'Retain each review', clipped: false },
+])(
+  'the briefing bounds its title and retains the full request: $width, clipped=$clipped',
+  async ({ width, asked, clipped }, { repo, render, reviewLayout }) => {
+    await page.viewport(width, 896);
+    try {
+      const fixture = await repo.review('Keep immutable decisions', asked);
+      const app = await render.route(`/reviews/${fixture.reviewId}`);
+      const briefing = app.page.getByRole('region', {
+        name: 'Briefing',
+        exact: true,
+      });
+      const heading = briefing.getByRole('heading', {
+        name: `${asked} 1 decision shapes this change.`,
+        exact: true,
+      });
+      await expect.element(heading).toBeVisible();
+      const title = heading.getByText(asked, { exact: true });
+      await expect
+        .poll(() => reviewLayout.titleLines(title))
+        .toEqual({ withinThreeLines: true, clipped });
+      await expect
+        .element(
+          heading.getByText('1 decision shapes this change.', { exact: true }),
+        )
+        .toBeVisible();
+      await expect
+        .element(
+          briefing.getByRole('region', { name: 'You asked', exact: true }),
+        )
+        .toMatchTextContent(`You asked: ${asked}`);
+      await userEvent.hover(title);
+      await expect
+        .element(app.page.getByRole('tooltip'))
+        .toHaveTextContent(asked);
+    } finally {
+      await page.viewport(414, 896);
+    }
+  },
+);
+
 test('a briefing answer quotes its question, rejects blanks and posts one review-owned whole-change comment', async ({
   agent,
   render,
