@@ -58,7 +58,7 @@ Files browses and searches the selected worktree, manages entries and preference
 
 Preconditions: [surface baseline](README.md).
 
-1. Choose a worktree, expand a folder/child, open a file, return and search a nested path. Collapse all clears search/closes folders while retaining loaded directories and the open document. Rename/trash the ancestor; current tree/reader recovers without retrying obsolete paths.
+1. Choose a worktree, expand a folder/child, open a file, return and search a nested path. Switch to another worktree and back several times: the tree draws its rows every time without a reload (Android once left them blank). Collapse all clears search/closes folders while retaining loaded directories and the open document. Rename/trash the ancestor; current tree/reader recovers without retrying obsolete paths.
 2. Without selection expect Select a worktree. Initial root load shows Reading files…, never No files. Only a completed empty root shows No files; completed no-match search shows No files match this view., while pending search shows no empty result. Initial child read announces loading and replaces its chevron without moving existing rows. Background reads retain rows/chevrons/header height.
 3. Fail a read: Read folders again retries with a pending disabled button, including when old data remains. Independently change a file/add a directory while visible: updates arrive without refresh.
 4. Create file or folder → open/dismiss menu, open New file/New folder sheets and Cancel: no disk change. Create a root folder/file; file opens, folder does not. Hold rows for nested creation, Rename (full relative path) and Move to trash confirmation. Inspect disk after each mutation. Errors keep sheets retryable; trash is recoverable.

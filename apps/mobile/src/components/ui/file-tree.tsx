@@ -54,6 +54,7 @@ export function FileTree({
       contentInsetAdjustmentBehavior="automatic"
       ListHeaderComponent={<>{header}</>}
       keyboardShouldPersistTaps="handled"
+      removeClippedSubviews={false}
       contentContainerStyle={padding}
       data={
         flat
