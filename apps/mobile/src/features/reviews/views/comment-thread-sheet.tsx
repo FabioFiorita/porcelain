@@ -80,7 +80,12 @@ function SheetHeader({
   resolve,
 }: {
   title: string;
-  resolve?: { label: string; pending: boolean; onPress: () => void };
+  resolve?: {
+    label: string;
+    icon: 'resolve' | 'reopen';
+    pending: boolean;
+    onPress: () => void;
+  };
 }) {
   const router = useRouter();
   return (
@@ -89,6 +94,7 @@ function SheetHeader({
       <Stack.Toolbar placement="right">
         {resolve ? (
           <Stack.Toolbar.Button
+            icon={headerIcon(resolve.icon)}
             disabled={resolve.pending}
             accessibilityLabel={resolve.label}
             onPress={resolve.onPress}
@@ -149,6 +155,7 @@ function ThreadSheet({
         title={sheetTitle(thread)}
         resolve={{
           label: thread.resolved ? 'Reopen' : 'Resolve',
+          icon: thread.resolved ? 'reopen' : 'resolve',
           pending: resolve.result.waiting,
           onPress: () => {
             if (!resolve.result.waiting)
