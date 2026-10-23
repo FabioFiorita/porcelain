@@ -1,4 +1,3 @@
-export { useCommitModels } from './queries/git-actions';
 export { InterruptedActionNotice } from './views/interrupted-action-notice';
 export { ConflictGuidance } from './views/conflict-guidance';
 export { DiscardButton } from './views/discard';
