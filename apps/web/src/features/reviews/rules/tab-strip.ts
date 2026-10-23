@@ -84,6 +84,7 @@ export function neighbourAfterClose(
   key: string,
   after: Pane,
 ): string | null {
+  if (after.tabs.includes(key)) return key;
   const order = orderedTabs(before);
   const remaining = new Set(orderedTabs(after));
   const index = order.indexOf(key);

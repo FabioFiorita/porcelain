@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  neighbourAfterClose,
   documentPane,
   primaryPane,
   orderedTabs,
@@ -155,6 +156,38 @@ describe('permanent review tab', () => {
         pin: pane.tabs,
       };
       expect(next.tabs).toEqual(expected[action]);
+    },
+  );
+
+  it.each([
+    ['handoff'],
+    ['handoff', 'file:a.ts'],
+    ['handoff', 'file:a.ts', 'graph'],
+  ])(
+    'keeps the active permanent document after a refused close: %j',
+    (...tabs) => {
+      const pane = { tabs, pinned: [] };
+      expect(
+        neighbourAfterClose(pane, 'handoff', closeInPane(pane, 'handoff')),
+      ).toBe('handoff');
+    },
+  );
+
+  it.each([
+    {
+      tabs: ['handoff', 'file:a.ts', 'graph'],
+      key: 'file:a.ts',
+      expected: 'graph',
+    },
+    { tabs: ['handoff', 'file:a.ts'], key: 'file:a.ts', expected: 'handoff' },
+    { tabs: ['file:a.ts'], key: 'file:a.ts', expected: null },
+  ])(
+    'selects the remaining neighbour after closing $key in $tabs',
+    ({ tabs, key, expected }) => {
+      const pane = { tabs, pinned: [] };
+      expect(neighbourAfterClose(pane, key, closeInPane(pane, key))).toBe(
+        expected,
+      );
     },
   );
 

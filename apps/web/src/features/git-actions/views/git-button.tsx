@@ -252,18 +252,25 @@ export function GitButton({
             if (open) setDetailsEnabled(true);
           }}
         >
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label="Git actions"
-                disabled={running !== null && running !== undefined}
-              />
-            }
-          >
-            <ChevronDownIcon className="size-3.5" />
-          </DropdownMenuTrigger>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      aria-label="Git actions"
+                      disabled={running !== null && running !== undefined}
+                    />
+                  }
+                />
+              }
+            >
+              <ChevronDownIcon className="size-3.5" />
+            </TooltipTrigger>
+            <TooltipContent>Git actions</TooltipContent>
+          </Tooltip>
           <DropdownMenuContent align="end" className="w-76">
             <DropdownMenuGroup>
               <DropdownMenuLabel className="flex items-center">
