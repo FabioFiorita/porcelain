@@ -1,3 +1,12 @@
+diffs-container {
+  --diffs-font-family: var(--font-mono);
+  --diffs-header-font-family: var(--font-sans);
+}
+
+[data-slot='file-tree'] {
+  --trees-font-family-override: var(--font-mono);
+}
+
 .pierre-file-icon {
   color-scheme: light;
   color: var(--muted-foreground);
