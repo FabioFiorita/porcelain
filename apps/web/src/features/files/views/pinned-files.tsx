@@ -119,7 +119,10 @@ export function PinnedFiles({
                           </span>
                         )}
                         {marks.has(path) && (
-                          <span className="ml-auto shrink-0 pl-1 font-mono text-2xs text-muted-foreground">
+                          <span
+                            aria-hidden="true"
+                            className="ml-auto shrink-0 pl-1 font-mono text-2xs text-muted-foreground"
+                          >
                             {marks.get(path)}
                           </span>
                         )}
