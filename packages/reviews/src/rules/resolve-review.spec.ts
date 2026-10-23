@@ -328,7 +328,17 @@ describe('coverage boundaries', () => {
             path: 'src/x.ts',
             fingerprint: 'new',
             comparisons: [
-              { scope: 'unstaged', oldPath: 'src/x.ts', newPath: 'src/x.ts' },
+              {
+                scope: 'unstaged',
+                kind: 'modified',
+                oldPath: 'src/x.ts',
+                newPath: 'src/x.ts',
+                oldMode: '100644',
+                newMode: '100644',
+                oldOid: undefined,
+                newOid: undefined,
+                supported: true,
+              },
             ],
           },
         ],
