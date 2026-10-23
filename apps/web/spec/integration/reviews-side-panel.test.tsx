@@ -15,17 +15,21 @@ test('the rail opens each view in the docked panel and the open view or the hide
       .element(rail().getByRole('button', { name: 'Files', exact: true }))
       .toHaveAttribute('aria-pressed', 'true');
     await expect
-      .element(panel().getByRole('heading', { level: 2 }))
-      .toHaveTextContent('Files');
+      .element(
+        panel().getByRole('heading', { level: 2, name: 'Files', exact: true }),
+      )
+      .toBeVisible();
     await expect
       .element(workspace.getByRole('button', { name: 'Review', exact: true }))
-      .not.toBeVisible();
+      .not.toBeInTheDocument();
 
     for (const view of ['Changes', 'History', 'Files']) {
       await rail().getByRole('button', { name: view, exact: true }).click();
       await expect
-        .element(panel().getByRole('heading', { level: 2 }))
-        .toHaveTextContent(view);
+        .element(
+          panel().getByRole('heading', { level: 2, name: view, exact: true }),
+        )
+        .toBeVisible();
     }
 
     await rail().getByRole('button', { name: 'Files', exact: true }).click();
@@ -42,8 +46,10 @@ test('the rail opens each view in the docked panel and the open view or the hide
 
     await show.click();
     await expect
-      .element(panel().getByRole('heading', { level: 2 }))
-      .toHaveTextContent('Files');
+      .element(
+        panel().getByRole('heading', { level: 2, name: 'Files', exact: true }),
+      )
+      .toBeVisible();
     await workspace
       .getByRole('button', { name: 'Hide side panel', exact: true })
       .click();
@@ -74,8 +80,10 @@ test('Alt+1, Alt+2 and Alt+3 open their view and Alt+Shift+R hides and shows the
     ] as const) {
       await userEvent.keyboard(`{Alt>}${key}{/Alt}`);
       await expect
-        .element(panel().getByRole('heading', { level: 2 }))
-        .toHaveTextContent(view);
+        .element(
+          panel().getByRole('heading', { level: 2, name: view, exact: true }),
+        )
+        .toBeVisible();
       await expect
         .element(rail().getByRole('button', { name: view, exact: true }))
         .toHaveAttribute('aria-pressed', 'true');
@@ -85,8 +93,10 @@ test('Alt+1, Alt+2 and Alt+3 open their view and Alt+Shift+R hides and shows the
     await expect.element(panel()).not.toBeInTheDocument();
     await userEvent.keyboard('{Alt>}{Shift>}R{/Shift}{/Alt}');
     await expect
-      .element(panel().getByRole('heading', { level: 2 }))
-      .toHaveTextContent('Files');
+      .element(
+        panel().getByRole('heading', { level: 2, name: 'Files', exact: true }),
+      )
+      .toBeVisible();
   } finally {
     await page.viewport(414, 896);
   }
@@ -106,13 +116,12 @@ test('Alt+3 opens the review sheet on History at phone width', async ({
   await expect.element(rail()).not.toBeInTheDocument();
 });
 
-test('the History panel names the branch, counts uncommitted files and opens them', async ({
+test('the History panel names the branch, counts uncommitted files as they change and opens them', async ({
   workspace,
   repo,
 }) => {
   await page.viewport(1280, 896);
   try {
-    await repo.write('notes.md', 'Uncommitted notes\n');
     await rail().getByRole('button', { name: 'History', exact: true }).click();
     const branch = panel().getByRole('region', { name: 'Branch', exact: true });
     await expect
@@ -121,9 +130,16 @@ test('the History panel names the branch, counts uncommitted files and opens the
     await expect
       .element(branch.getByText('No upstream', { exact: true }))
       .toBeVisible();
+    await expect
+      .element(
+        panel().getByRole('button', {
+          name: /^Uncommitted changes\s*1 file$/u,
+        }),
+      )
+      .toBeVisible();
+    await repo.write('notes.md', 'Uncommitted notes\n');
     const uncommitted = panel().getByRole('button', {
-      name: 'Uncommitted changes 1 file',
-      exact: true,
+      name: /^Uncommitted changes\s*2 files$/u,
     });
     await uncommitted.click();
     await expect
