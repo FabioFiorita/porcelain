@@ -107,6 +107,25 @@ for (const width of [1440, 414]) {
       await expect(tooltip).toContainText(
         (await server.inventory()).environment.name,
       );
+      await page.keyboard.press('Escape');
+      await expect(result).not.toBeVisible();
+      await expect(
+        page.getByRole('menuitem', { name: 'Worktrees', exact: true }),
+      ).toBeFocused();
+      await page.keyboard.press('Escape');
+      const filter = page.getByRole('button', {
+        name: 'Filter reviews',
+        exact: true,
+      });
+      await expect(filter).toBeFocused();
+      await expect(page.getByRole('menu')).toHaveCount(0);
+      await filter.click();
+      await page
+        .getByRole('menuitem', { name: 'Worktrees', exact: true })
+        .click();
+      await search.fill(branch);
+      await search.press('ArrowDown');
+      await expect(result).toBeFocused();
       await page.keyboard.press('Enter');
       await expect
         .poll(() => app.address().path)

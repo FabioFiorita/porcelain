@@ -50,7 +50,14 @@ export function TruncatedText({
   );
   const trigger = renderTrigger?.(label, clip) ?? label;
   return (
-    <Tooltip disabled={!hasText} disableHoverablePopup>
+    <Tooltip
+      disabled={!hasText}
+      disableHoverablePopup
+      onOpenChange={(_open, details) => {
+        if (renderTrigger && details.reason === 'escape-key')
+          details.allowPropagation();
+      }}
+    >
       <TooltipTrigger render={trigger}>{trigger.props.children}</TooltipTrigger>
       <TooltipContent role="tooltip" className="break-all">
         {text}
