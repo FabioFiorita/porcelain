@@ -3,7 +3,14 @@ import { Atom } from 'effect/reactivity';
 import { useAtom } from '@effect/atom-react';
 import { EnvironmentCommands } from '@porcelain/client/access';
 import { clientRuntime } from '../../../shared/application/store';
-import { removeDevelopmentCredential } from '../../../shared/adapters/environment-storage';
+import { environmentStorageHost } from '../../../shared/adapters/environment-storage';
+import { createDevelopmentCredentialRemoval } from '../../../shared/adapters/development-credential-storage';
+import { developmentPairingUrl } from '../api';
+
+const removeDevelopmentCredential = createDevelopmentCredentialRemoval(
+  environmentStorageHost,
+  () => __DEV__ && Boolean(developmentPairingUrl),
+);
 
 const removeCredential = Atom.family((deviceId: string) =>
   clientRuntime.fn((_: void) =>

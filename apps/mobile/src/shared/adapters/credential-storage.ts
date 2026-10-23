@@ -16,7 +16,6 @@ export type CredentialStorageHost = {
   readonly readCredential: (deviceId: string) => Promise<string | null>;
   readonly writeCredential: (deviceId: string, value: string) => Promise<void>;
   readonly forgetCredential: (deviceId: string) => Promise<void>;
-  readonly developmentFixtures: () => boolean;
 };
 const savedRouteSchema = Schema.Struct({
   address: Schema.String.check(
@@ -35,21 +34,21 @@ const savedEnvironmentSchema = Schema.Array(
 );
 const decode = Schema.decodeUnknownSync(savedEnvironmentSchema);
 
-export function createEnvironmentStorage(host: CredentialStorageHost) {
-  const readMetadata = Effect.fn('EnvironmentStorage.readMetadata')(
-    function* () {
-      const value = yield* Effect.tryPromise({
-        try: () => host.readMetadata(),
-        catch: (cause) => new Cause.UnknownError(cause),
-      });
-      if (value === null) return [];
-      return yield* Effect.try({
-        try: () => decode(JSON.parse(value)),
-        catch: (cause) => new Cause.UnknownError(cause),
-      });
-    },
-  );
+export const readCredentialMetadata = Effect.fn(
+  'EnvironmentStorage.readMetadata',
+)(function* (host: CredentialStorageHost) {
+  const value = yield* Effect.tryPromise({
+    try: () => host.readMetadata(),
+    catch: (cause) => new Cause.UnknownError(cause),
+  });
+  if (value === null) return [];
+  return yield* Effect.try({
+    try: () => decode(JSON.parse(value)),
+    catch: (cause) => new Cause.UnknownError(cause),
+  });
+});
 
+export function createEnvironmentStorage(host: CredentialStorageHost) {
   const readRoute = Effect.fn('EnvironmentStorage.readRoute')(function* (
     route: typeof savedRouteSchema.Type,
   ) {
@@ -71,7 +70,7 @@ export function createEnvironmentStorage(host: CredentialStorageHost) {
   const storage = EnvironmentStorage.of({
     read: () =>
       Effect.gen(function* () {
-        const saved = yield* readMetadata();
+        const saved = yield* readCredentialMetadata(host);
         const remotes: Remote[] = [];
         const missingCredentials: MissingCredentialRemote[] = [];
         for (const remote of saved) {
@@ -111,7 +110,7 @@ export function createEnvironmentStorage(host: CredentialStorageHost) {
       }),
     write: ({ remotes, missingCredentials }) =>
       Effect.gen(function* () {
-        const before = yield* readMetadata();
+        const before = yield* readCredentialMetadata(host);
         const next = yield* Effect.try({
           try: () =>
             decode(
@@ -199,32 +198,5 @@ export function createEnvironmentStorage(host: CredentialStorageHost) {
       }),
   });
 
-  const removeDevelopmentCredential = Effect.fn(
-    'EnvironmentStorage.removeDevelopmentCredential',
-  )(function* (deviceId: string) {
-    if (!host.developmentFixtures())
-      return yield* Effect.fail(
-        new Cause.UnknownError(
-          undefined,
-          'Credential fixtures require a disposable development profile.',
-        ),
-      );
-    const saved = yield* readMetadata();
-    const route = saved
-      .flatMap((remote) => [remote, ...(remote.alternateRoutes ?? [])])
-      .find((entry) => entry.deviceId === deviceId);
-    if (!route || URL.parse(route.address)?.hostname !== '10.0.2.2')
-      return yield* Effect.fail(
-        new Cause.UnknownError(
-          undefined,
-          'Only an emulator fixture credential can be removed.',
-        ),
-      );
-    yield* Effect.tryPromise({
-      try: () => host.forgetCredential(deviceId),
-      catch: (cause) => new Cause.UnknownError(cause),
-    });
-  });
-
-  return { storage, removeDevelopmentCredential };
+  return storage;
 }

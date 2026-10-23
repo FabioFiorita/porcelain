@@ -3,7 +3,7 @@ import { Box } from '../../../components/ui/box';
 import { Item } from '../../../components/ui/item';
 import { Text } from '../../../components/ui/text';
 
-export function DevelopmentSettingsSection({
+export default function DevelopmentSettingsSection({
   onOpenComponentLibrary,
 }: {
   onOpenComponentLibrary: () => void;

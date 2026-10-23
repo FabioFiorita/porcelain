@@ -4,6 +4,7 @@ import {
   createEnvironmentStorage,
   type CredentialStorageHost,
 } from './credential-storage';
+import { createDevelopmentCredentialRemoval } from './development-credential-storage';
 
 const native = {
   metadata: new Map<string, string>(),
@@ -38,9 +39,8 @@ const host: CredentialStorageHost = {
     native.keys.delete(name);
     return Promise.resolve();
   },
-  developmentFixtures: () => false,
 };
-const { storage: environmentStorage } = createEnvironmentStorage(host);
+const environmentStorage = createEnvironmentStorage(host);
 
 const a = {
   environmentId: 'a',
@@ -218,12 +218,12 @@ it.each([
   'refuses credential removal outside an emulator development fixture (%s, %s)',
   async (enabled, address) => {
     native.metadata.set('environments', JSON.stringify([{ ...a, address }]));
-    const fixture = createEnvironmentStorage({
-      ...host,
-      developmentFixtures: () => enabled,
-    });
+    const removeCredential = createDevelopmentCredentialRemoval(
+      host,
+      () => enabled,
+    );
     await expect(
-      Effect.runPromise(fixture.removeDevelopmentCredential('a-key')),
+      Effect.runPromise(removeCredential('a-key')),
     ).rejects.toThrow();
     expect(native.keys.get(key('a-key'))).toBe('a-key-credential');
     expect(native.removed).toEqual(new Set());
@@ -236,11 +236,8 @@ it('removes only the selected emulator fixture key while retaining saved metadat
     JSON.stringify([{ ...a, address: 'http://10.0.2.2:4738' }, b]),
   );
   const before = native.metadata.get('environments');
-  const fixture = createEnvironmentStorage({
-    ...host,
-    developmentFixtures: () => true,
-  });
-  await Effect.runPromise(fixture.removeDevelopmentCredential('a-key'));
+  const removeCredential = createDevelopmentCredentialRemoval(host, () => true);
+  await Effect.runPromise(removeCredential('a-key'));
   expect(native.keys.has(key('a-key'))).toBe(false);
   expect(native.keys.get(key('b-key'))).toBe('b-key-credential');
   expect(native.keys.get(key('a-alternate'))).toBe('a-alternate-credential');
