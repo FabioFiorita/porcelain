@@ -731,7 +731,7 @@ function ReviewRevisionPage({
                           revision={revision}
                           files={revision.files.filter(
                             (file) =>
-                              file.newOid !== undefined &&
+                              (file.newOid ?? file.oldOid) !== undefined &&
                               stop.paths.includes(file.path) &&
                               items.find((item) => item.path === file.path)
                                 ?.reviewStatus !== 'reviewed',
@@ -783,9 +783,10 @@ function MarginRowDock({ children }: { children: ReactNode }) {
 }
 
 function blobFiles(files: ReviewRevision['files']) {
-  return files.flatMap((file) =>
-    file.newOid ? [{ path: file.path, headBlobOid: file.newOid }] : [],
-  );
+  return files.flatMap((file) => {
+    const headBlobOid = file.newOid ?? file.oldOid;
+    return headBlobOid ? [{ path: file.path, headBlobOid }] : [];
+  });
 }
 
 function DecisionMark({

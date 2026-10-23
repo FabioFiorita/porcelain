@@ -3,7 +3,6 @@ import { Context, Effect, Layer, Clock, DateTime } from 'effect';
 import type { SetReviewMarkInput } from '../models/review-management.ts';
 import { ReviewNotFoundError } from '../errors/review-not-found-error.ts';
 import { ReviewedMarkConflictError } from '../errors/reviewed-mark-conflict-error.ts';
-import { ReviewCodeReader } from '../ports/review-code-reader.ts';
 import { ReviewStore } from '../ports/review-store.ts';
 import { ReviewedFileStore } from '../ports/reviewed-file-store.ts';
 import { ReviewedLayerStore } from '../ports/reviewed-layer-store.ts';
@@ -23,7 +22,6 @@ export class SetReviewMarkService extends Context.Service<
     SetReviewMarkService,
     Effect.gen(function* () {
       const reviews = yield* ReviewStore;
-      const code = yield* ReviewCodeReader;
       const files = yield* ReviewedFileStore;
       const layers = yield* ReviewedLayerStore;
       const clock = yield* Clock.Clock;
@@ -38,12 +36,11 @@ export class SetReviewMarkService extends Context.Service<
             DateTime.makeUnsafe(yield* clock.currentTimeMillis),
           );
           if (input.kind === 'file') {
-            const blob = yield* code.readText({
-              commonDirectory: review.commonDirectory,
-              oid: review.headOid,
-              path: input.path,
-            });
-            if (blob.kind === 'missing' || blob.blobOid !== input.headBlobOid)
+            const file = review.files.find((file) => file.path === input.path);
+            if (
+              file === undefined ||
+              (file.newOid ?? file.oldOid) !== input.headBlobOid
+            )
               return yield* new ReviewedMarkConflictError();
             yield* files.save({
               reviewId: input.reviewId,
