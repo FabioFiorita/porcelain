@@ -610,10 +610,12 @@ export const webRules = {
     create(context) {
       const path = webPath(context);
       const development = /(?:^|\/)development-[^/]+/;
+      const routerEntry = /^apps\/mobile\/src\/app\//.test(path);
       if (
         !/^(?:apps|packages)\/[^/]+\/src\//.test(path) ||
-        /\.(?:spec|test)\.[cm]?[jt]sx?$/.test(path) ||
-        development.test(path)
+        (!routerEntry &&
+          (/\.(?:spec|test)\.[cm]?[jt]sx?$/.test(path) ||
+            development.test(path)))
       )
         return {};
       const devFlag = (node) =>
@@ -665,7 +667,7 @@ export const webRules = {
         context.report({
           node,
           message:
-            'Load development-* modules only with a dynamic import behind __DEV__ or import.meta.env.DEV, because anything a production entry imports ships to every user, including development tools.',
+            'Load development-* modules only with a dynamic import behind __DEV__ or import.meta.env.DEV, because anything a production entry (including every Expo Router app route) imports ships to every user, including development tools.',
         });
       };
       return {

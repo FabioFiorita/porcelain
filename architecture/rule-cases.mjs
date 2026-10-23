@@ -1020,6 +1020,24 @@ export default [
     invalid: `import { tool } from './development-tools';`,
     errors: 1,
   })),
+  ...[
+    'apps/mobile/src/app/(settings)/component-library.tsx',
+    'apps/mobile/src/app/(development-tools)/index.tsx',
+    'apps/mobile/src/app/(settings)/development-library.tsx',
+    'apps/mobile/src/app/(settings)/component.spec.tsx',
+  ].flatMap((path) =>
+    [
+      `import { Tool } from '../../features/development-tools';`,
+      `export { Tool as default } from '../../features/development-tools';`,
+      `const Tool = import('../../features/development-tools');`,
+    ].map((invalid) => ({
+      rule: 'development-imports',
+      path,
+      valid: `const Tool = __DEV__ ? lazy(() => import('../../features/development-tools')) : () => null;`,
+      invalid,
+      errors: 1,
+    })),
+  ),
   ...nativeLaneCases,
   ...[
     [

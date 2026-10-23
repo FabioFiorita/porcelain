@@ -1,5 +1,17 @@
-import { ButtonPreview } from '../../features/catalog';
+import { lazy, Suspense } from 'react';
+
+const ButtonPreview = __DEV__
+  ? lazy(() =>
+      import('../../features/development-catalog').then((catalog) => ({
+        default: catalog.ButtonPreview,
+      })),
+    )
+  : () => null;
 
 export default function ComponentButtonRoute() {
-  return <ButtonPreview />;
+  return (
+    <Suspense fallback={null}>
+      <ButtonPreview />
+    </Suspense>
+  );
 }
