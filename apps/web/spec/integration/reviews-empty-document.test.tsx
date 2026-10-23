@@ -1,3 +1,4 @@
+import { userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('with every tab closed, the empty pane opens all changes, and the review once the agent has published one', async ({
@@ -44,3 +45,35 @@ test('with every tab closed, the empty pane opens all changes, and the review on
     )
     .toBeVisible();
 });
+
+for (const surface of ['Files', 'History'] as const) {
+  test(`a clean worktree opens ${surface} from its empty notice`, async ({
+    repo,
+    render,
+  }) => {
+    await repo.commit('Commit the sample change');
+    const workspace = await render.workspace();
+    await expect
+      .element(
+        workspace.getByRole('heading', {
+          name: 'No changes to review',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await workspace.getByRole('button', { name: surface, exact: true }).click();
+    await expect
+      .element(
+        workspace.getByRole('tab', {
+          name: surface,
+          selected: true,
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await userEvent.keyboard('{Escape}');
+    await expect
+      .element(workspace.getByRole('button', { name: surface, exact: true }))
+      .toHaveFocus();
+  });
+}

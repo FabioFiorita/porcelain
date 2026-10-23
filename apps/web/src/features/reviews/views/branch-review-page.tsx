@@ -5,7 +5,8 @@ import type { ConnectionContext } from '@/shared/workspace/connection';
 import { usePublishedReview } from '../queries/published-review';
 import { useReviewRevisionSelection } from '../store';
 import { ReviewPage } from './review-page';
-import { ReviewEmpty } from './review-empty';
+import { Button } from '@/components/ui/button';
+import { StateNotice, StateSkeleton } from '@/components/state-notice';
 
 export function BranchReviewPage({
   scope,
@@ -23,21 +24,21 @@ export function BranchReviewPage({
   const reviewId = published.review?.reviewId;
   const selection = useReviewRevisionSelection(reviewId ?? '');
   if (AsyncResult.isInitial(published.result))
-    return (
-      <p role="status" className="p-4">
-        Loading review…
-      </p>
-    );
+    return <StateSkeleton label="Loading review" />;
   if (AsyncResult.isFailure(published.result))
     return (
-      <ReviewEmpty
-        title="Review unavailable"
-        description="The branch review could not be read. Try opening it from the project's Reviews list."
-      />
+      <StateNotice
+        title="Could not display"
+        description="The branch review could not be read."
+      >
+        <Button variant="outline" onClick={published.refresh}>
+          Try again
+        </Button>
+      </StateNotice>
     );
   if (!reviewId || reviewId === deleted)
     return (
-      <ReviewEmpty
+      <StateNotice
         title="No review on this branch"
         description="Publish a review for this branch, or open an existing review from the project's Reviews list."
       />

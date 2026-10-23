@@ -26,7 +26,7 @@ import { FileDocument } from './file-document';
 import { ProofDocument } from './proof-document';
 import { ReviewCodeDocument } from './review-code-document';
 import { MarkAllReviewed } from './reviewed-control';
-import { ReviewEmpty } from './review-empty';
+import { StateNotice } from '@/components/state-notice';
 import { BranchReviewPage } from './branch-review-page';
 import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
@@ -260,7 +260,7 @@ function ChangeDocument({
   );
   if (!change)
     return (
-      <ReviewEmpty
+      <StateNotice
         title="Change no longer present"
         description="Choose a change that is still present in the current review."
       />

@@ -2,16 +2,10 @@ import {
   remoteStatusNote,
   remoteStatusText,
 } from '@porcelain/client/access/rules';
-import { ServerOffIcon } from 'lucide-react';
+import { LinkIcon, ServerOffIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty';
+import { Spinner } from '@/components/ui/spinner';
+import { StateNotice } from '@/components/state-notice';
 
 import { type RemoteStatus } from '@porcelain/client/access/rules';
 
@@ -24,22 +18,32 @@ export function RemoteUnavailable({
   status: RemoteStatus;
   onOpenRemotes: () => void;
 }) {
+  if (status.kind === 'online') return null;
+  const waiting = status.kind === 'checking' || status.kind === 'reconnecting';
   return (
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
+    <StateNotice
+      role="status"
+      icon={
+        waiting ? (
+          <Spinner />
+        ) : status.kind === 'needs-pairing' ? (
+          <LinkIcon />
+        ) : (
           <ServerOffIcon />
-        </EmptyMedia>
-        <EmptyTitle>
-          {name}: {remoteStatusText(status)}
-        </EmptyTitle>
-        <EmptyDescription>{remoteStatusNote(status)}</EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
+        )
+      }
+      title={
+        status.kind === 'offline'
+          ? `${name} is offline`
+          : `${name}: ${remoteStatusText(status)}`
+      }
+      description={remoteStatusNote(status)}
+    >
+      {!waiting && (
         <Button variant="outline" onClick={onOpenRemotes}>
           Computer settings
         </Button>
-      </EmptyContent>
-    </Empty>
+      )}
+    </StateNotice>
   );
 }

@@ -28,7 +28,7 @@ import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { FindBar } from './find-bar';
-import { ReviewEmpty } from './review-empty';
+import { StateNotice } from '@/components/state-notice';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type FileDocumentProps = {
@@ -82,7 +82,7 @@ function NotShownFile({ path, message }: { path: string; message: string }) {
     <div className="flex min-h-0 flex-1 flex-col">
       <FileToolbar path={path} />
       <div className="grid min-h-48 flex-1 place-items-center p-6">
-        <ReviewEmpty title="Not shown" description={message} />
+        <StateNotice title="Not shown" description={message} />
       </div>
     </div>
   );

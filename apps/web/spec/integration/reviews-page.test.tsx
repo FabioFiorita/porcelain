@@ -103,17 +103,41 @@ test('the latest, revision and decision routes share the verdict, retain immutab
     .toBeVisible();
   await app.navigate(`/reviews/${first.reviewId}/99`);
   await expect
-    .element(app.page.getByText('Review not found', { exact: true }))
+    .element(app.page.getByText('Revision not found', { exact: true }))
     .toBeVisible();
+  await app.page
+    .getByRole('button', { name: 'Open r2, the latest', exact: true })
+    .click();
+  await expect.poll(() => app.location()).toBe(`/reviews/${first.reviewId}`);
+  await expect
+    .element(
+      app.page.getByRole('region', { name: 'Review walkthrough', exact: true }),
+    )
+    .toBeVisible();
+  await app.navigate(`/reviews/${first.reviewId}/99`);
   await expect
     .element(
       app.page.getByRole('button', { name: 'Back to workspace', exact: true }),
+    )
+    .toBeVisible();
+  await app.navigate(`/reviews/${first.reviewId}/not-a-revision`);
+  await expect
+    .element(
+      app.page.getByRole('button', {
+        name: 'Open r2, the latest',
+        exact: true,
+      }),
     )
     .toBeVisible();
   await app.navigate('/reviews/00000000-0000-4000-8000-000000000099');
   await expect
     .element(app.page.getByText('Review not found', { exact: true }))
     .toBeVisible();
+  await expect
+    .element(
+      app.page.getByRole('button', { name: /^Open r[0-9]+, the latest$/ }),
+    )
+    .not.toBeInTheDocument();
 });
 
 test('an unpaired durable decision link survives pairing with its revision and query intact', async ({

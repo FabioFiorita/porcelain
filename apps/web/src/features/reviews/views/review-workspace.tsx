@@ -10,13 +10,8 @@ import {
 import { PanelRightIcon, LayersIcon as ReviewLayersIcon } from 'lucide-react';
 import { type ReactNode, type SyntheticEvent, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty';
+import { Kbd } from '@/components/ui/kbd';
+import { StateNotice, StateSkeleton } from '@/components/state-notice';
 import {
   ResizableHandle,
   ResizablePanel,
@@ -97,6 +92,7 @@ function ReviewWorkspaceContent({
   const [focusedPane, setFocusedPane] = useState<PaneIndex>(0);
   const desktopTrigger = useElement<HTMLButtonElement>();
   const mobileTrigger = useElement<HTMLButtonElement>();
+  const emptyTrigger = useElement<HTMLButtonElement>();
   const mobileSheet = useElement<HTMLDivElement>();
   const {
     isMobile: navigatorIsMobile,
@@ -245,7 +241,10 @@ function ReviewWorkspaceContent({
   return (
     <Sheet
       open={mobileOpen}
-      onOpenChange={setMobileOpen}
+      onOpenChange={(open) => {
+        if (open) emptyTrigger.attach(null);
+        setMobileOpen(open);
+      }}
       onOpenChangeComplete={(open) => {
         if (!open) layout.focusDestination();
       }}
@@ -273,6 +272,14 @@ function ReviewWorkspaceContent({
               base={search.base}
               focused={focusedPane}
               onOpen={open}
+              onBrowse={(next, trigger) => {
+                setSurface(next);
+                if (desktop) setSidebarOpen(true);
+                else {
+                  emptyTrigger.attach(trigger);
+                  setMobileOpen(true);
+                }
+              }}
               navigationTrigger={navigationTrigger}
               navigatorIsMobile={navigatorIsMobile}
               navigatorOpen={navigatorOpen}
@@ -305,7 +312,9 @@ function ReviewWorkspaceContent({
           const active = document.activeElement;
           const stayed =
             active === document.body || mobileSheet.element?.contains(active);
-          return stayed ? mobileTrigger.element : false;
+          if (!stayed) return false;
+          if (emptyTrigger.element?.isConnected) return emptyTrigger.element;
+          return mobileTrigger.element;
         }}
         className="w-[min(90vw,22rem)]!"
         showCloseButton={false}
@@ -327,6 +336,7 @@ type PaneContext = {
   context: ConnectionContext;
   base: string | undefined;
   onOpen: OpenDocument;
+  onBrowse: (surface: 'files' | 'history', trigger: HTMLButtonElement) => void;
   reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
   navigationTrigger: ElementTarget<HTMLButtonElement>;
   navigatorIsMobile: boolean;
@@ -362,11 +372,7 @@ function DocumentArea(props: DocumentAreaProps) {
   )
     throw Cause.squash(props.published.result.cause);
   if (props.needsDefault && (awaitingChanges || awaitingPublication)) {
-    return (
-      <div role="status" aria-label="Loading review" className="p-4">
-        Loading review…
-      </div>
-    );
+    return <StateSkeleton label="Loading review" />;
   }
   return <DocumentPanes {...props} />;
 }
@@ -381,6 +387,7 @@ function DocumentPanes({
   base,
   focused,
   onOpen,
+  onBrowse,
   navigationTrigger,
   navigatorIsMobile,
   navigatorOpen,
@@ -429,6 +436,7 @@ function DocumentPanes({
       (hasHandoff ? ('Changes' as const) : null),
     base,
     onOpen,
+    onBrowse,
     navigationTrigger,
     navigatorIsMobile,
     navigatorOpen,
@@ -467,6 +475,7 @@ function PaneView({
   handoff,
   base,
   onOpen,
+  onBrowse,
   navigationTrigger,
   navigatorIsMobile,
   navigatorOpen,
@@ -544,7 +553,7 @@ function PaneView({
         trailing={!split || index === 1 ? tabControls(index) : undefined}
       />
       {document === null || document === undefined ? (
-        <EmptyDocument handoff={handoff} onOpen={onOpen} />
+        <EmptyDocument handoff={handoff} onOpen={onOpen} onBrowse={onBrowse} />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <ReviewBoundary
@@ -576,9 +585,11 @@ function PaneView({
 function EmptyDocument({
   handoff,
   onOpen,
+  onBrowse,
 }: {
   handoff: ReviewTitle | 'Changes' | null;
   onOpen: OpenDocument;
+  onBrowse: PaneContext['onBrowse'];
 }) {
   const target =
     handoff &&
@@ -588,26 +599,40 @@ function EmptyDocument({
     }[handoff];
   return (
     <div className="grid min-h-0 flex-1 place-items-center p-8">
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia>
-            <ReviewLayersIcon />
-          </EmptyMedia>
-          <EmptyTitle>
-            {handoff ? 'Nothing open' : 'No changes to review'}
-          </EmptyTitle>
-          <EmptyDescription>
-            {target
-              ? `Open ${target.opens}, or choose a file or commit from the right.`
-              : 'Browse files or history from the right.'}
-          </EmptyDescription>
-        </EmptyHeader>
-        {target && (
+      <StateNotice
+        icon={<ReviewLayersIcon />}
+        title={handoff ? 'Nothing open' : 'No changes to review'}
+        description={
+          target
+            ? `Open ${target.opens}, or choose a file or commit from the right.`
+            : 'This worktree matches its last commit. Browse files or history from the right.'
+        }
+      >
+        {target ? (
           <Button onClick={() => onOpen({ kind: 'handoff' })}>
             {target.action}
           </Button>
+        ) : (
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Files"
+              onClick={(event) => onBrowse('files', event.currentTarget)}
+            >
+              Files <Kbd>{formatForDisplay(SHORTCUTS.surfaceFiles)}</Kbd>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="History"
+              onClick={(event) => onBrowse('history', event.currentTarget)}
+            >
+              History <Kbd>{formatForDisplay(SHORTCUTS.surfaceHistory)}</Kbd>
+            </Button>
+          </>
         )}
-      </Empty>
+      </StateNotice>
     </div>
   );
 }

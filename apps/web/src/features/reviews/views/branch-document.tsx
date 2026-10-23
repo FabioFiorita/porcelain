@@ -36,7 +36,7 @@ import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { ReadMoreFiles } from './read-more-files';
 import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
-import { ReviewEmpty } from './review-empty';
+import { StateNotice, StateSkeleton } from '@/components/state-notice';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Props = {
@@ -68,24 +68,20 @@ function BranchCode({
   const changes = useBranchChanges(scope, connection, base);
   if (AsyncResult.isFailure(changes.result))
     return (
-      <div className="flex flex-col items-center p-4">
-        <ReviewEmpty
-          title="Branch could not be compared"
-          description={branchErrorMessage(
-            AsyncResult.isFailure(changes.result)
-              ? Cause.squash(changes.result.cause)
-              : undefined,
-          )}
-        />
+      <StateNotice
+        role="alert"
+        title="Could not display"
+        description={branchErrorMessage(Cause.squash(changes.result.cause))}
+      >
         <Button variant="outline" onClick={changes.refresh}>
-          Compare again
+          Try again
         </Button>
-      </div>
+      </StateNotice>
     );
   if (!AsyncResult.isSuccess(changes.result)) return <ComparingBranch />;
   if (changes.result.value.base === undefined)
     return (
-      <ReviewEmpty
+      <StateNotice
         title="No default branch"
         description="Choose the branch this one is compared against in the Branch list."
       />
@@ -104,11 +100,7 @@ function BranchCode({
 }
 
 function ComparingBranch() {
-  return (
-    <p role="status" className="p-4 text-sm">
-      Comparing the branch…
-    </p>
-  );
+  return <StateSkeleton label="Comparing the branch" />;
 }
 
 function BranchMarkedCode({
@@ -136,7 +128,7 @@ function BranchMarkedCode({
   );
   if (path !== null && path !== undefined && items.length === 0)
     return (
-      <ReviewEmpty
+      <StateNotice
         title="Not changed on this branch"
         description={`${path} has no committed change since ${refLabel(branch.base.ref)}.`}
       />

@@ -3,6 +3,7 @@ route: /
 selectors:
   - "Close "
   - "Nothing open"
+  - "No changes to review"
   - "No open tabs"
   - "Open all changes"
   - "Open review"
@@ -22,7 +23,7 @@ With every tab closed, the document pane says "Nothing open" and offers one butt
 
 - Close the last tab with its close button ("Close Changes", or "Close Review" once a review is published), the tab context menu's Close, or `Alt+W` while the pane has focus.
 - The empty pane's button: "Open all changes" (no review) or "Open review" (review published).
-- With no changes and no review the pane says "No changes to review" and shows no button.
+- With no changes and no review the pane says "No changes to review" and offers Files and History; each opens its panel, including the phone sheet.
 
 ## Driving it with browser
 

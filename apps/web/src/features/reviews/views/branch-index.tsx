@@ -23,7 +23,7 @@ import { branchReviewRange } from '@porcelain/client/reviews/rules';
 import { BranchBasePicker } from './branch-base-picker';
 import { SidebarDocumentRow } from './sidebar-section';
 import { ChangeRow } from './change-row';
-import { ReviewEmpty } from './review-empty';
+import { StateNotice, StateSkeleton } from '@/components/state-notice';
 import { groupSpecPaths } from '@porcelain/client/reviews/rules';
 import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
@@ -91,29 +91,21 @@ function BranchFiles({
   const changes = useBranchChanges(scope, connection, base);
   if (AsyncResult.isFailure(changes.result))
     return (
-      <div role="alert" className="p-3 text-xs text-muted-foreground">
-        <span className="block">
-          {branchErrorMessage(
-            AsyncResult.isFailure(changes.result)
-              ? Cause.squash(changes.result.cause)
-              : undefined,
-          )}
-        </span>
-        <Button
-          variant="outline"
-          size="xs"
-          className="mt-2"
-          onClick={changes.refresh}
-        >
+      <StateNotice
+        role="alert"
+        title="Could not display"
+        description={branchErrorMessage(Cause.squash(changes.result.cause))}
+      >
+        <Button variant="outline" size="xs" onClick={changes.refresh}>
           Try again
         </Button>
-      </div>
+      </StateNotice>
     );
   if (!AsyncResult.isSuccess(changes.result)) return <ComparingBranch />;
   if (changes.result.value.base === undefined)
     return (
       <div className="p-3">
-        <ReviewEmpty
+        <StateNotice
           title="No default branch"
           description="Choose the branch this one is compared against."
         />
@@ -135,11 +127,7 @@ function BranchFiles({
 }
 
 function ComparingBranch() {
-  return (
-    <p role="status" className="p-3 text-xs text-muted-foreground">
-      Comparing the branch…
-    </p>
-  );
+  return <StateSkeleton label="Comparing the branch" />;
 }
 
 function BranchFileList({

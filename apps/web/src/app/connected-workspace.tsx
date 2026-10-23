@@ -13,12 +13,8 @@ import {
 } from '@tanstack/react-hotkeys';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from '@/components/ui/empty';
+import { StateNotice } from '@/components/state-notice';
+import { GitBranchIcon, CompassIcon, FolderXIcon } from 'lucide-react';
 import { Sidebar, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { buttonVariants } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
@@ -74,7 +70,7 @@ const workspaceMessages = {
   },
   empty: {
     title: 'Select a worktree',
-    description: 'Choose a worktree to establish your review context.',
+    description: 'Choose one on the left to open its review.',
   },
 };
 
@@ -215,13 +211,47 @@ export function ConnectedWorkspace({
                   }
                 />
               ) : (
-                <Empty>
-                  <EmptyHeader>
-                    <EmptyTitle>
-                      <h1>{message.title}</h1>
-                    </EmptyTitle>
-                    <EmptyDescription>{message.description}</EmptyDescription>
-                  </EmptyHeader>
+                <StateNotice
+                  title={message.title}
+                  description={message.description}
+                  icon={
+                    notice === 'not-found' ? (
+                      <CompassIcon />
+                    ) : notice === 'missing-worktree' ? (
+                      <FolderXIcon />
+                    ) : (
+                      <GitBranchIcon />
+                    )
+                  }
+                >
+                  {!notice && recovery && (
+                    <div className="flex w-full min-w-0 flex-col gap-2">
+                      <p className="text-sm text-muted-foreground">
+                        First that needs you
+                      </p>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Link
+                              className="flex min-w-0 flex-col rounded-lg border p-3 text-ui hover:bg-accent"
+                              to="/$projectId/$worktreeId"
+                              params={{
+                                projectId: recovery.projectId,
+                                worktreeId: recovery.worktree.id,
+                              }}
+                            >
+                              <span className="truncate font-medium">
+                                {recovery.worktree.branch ?? 'Detached HEAD'}
+                              </span>
+                            </Link>
+                          }
+                        />
+                        <TooltipContent className="max-w-sm break-words">
+                          {recovery.worktree.branch ?? 'Detached HEAD'}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  )}
                   {notice === 'missing-worktree' && recovery && (
                     <Link
                       className={cn(buttonVariants())}
@@ -243,7 +273,7 @@ export function ConnectedWorkspace({
                       Back to workspace
                     </Link>
                   )}
-                </Empty>
+                </StateNotice>
               )}
             </EmptyWorkspace>
           ))}
