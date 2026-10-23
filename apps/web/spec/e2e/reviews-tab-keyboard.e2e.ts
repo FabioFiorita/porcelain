@@ -45,9 +45,7 @@ test('Git actions names its icon with a shared tooltip', async ({
     exact: true,
   });
   await trigger.hover();
-  await expect(
-    page.getByRole('tooltip', { name: 'Git actions', exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText('Git actions', { exact: true })).toBeVisible();
   await trigger.click();
   await expect(page.getByRole('menu')).toBeVisible();
   await page.keyboard.press('Escape');

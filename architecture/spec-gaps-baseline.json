@@ -8,7 +8,6 @@
   "apps/web/src/features/reviews/rules/documents.ts#SPECS",
   "apps/web/src/features/reviews/rules/documents.ts#withDocument",
   "apps/web/src/features/reviews/rules/tab-strip.ts#emptyPane",
-  "apps/web/src/features/reviews/rules/tab-strip.ts#neighbourAfterClose",
   "packages/access/src/rules/device-activity.ts#sighted",
   "packages/access/src/rules/host-policy.ts#ipAddress",
   "packages/access/src/rules/host-policy.ts#isLoopbackHostname",
