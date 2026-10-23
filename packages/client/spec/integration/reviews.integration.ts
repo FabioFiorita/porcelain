@@ -14,7 +14,6 @@ import { expect } from 'vitest';
 import { join } from 'node:path';
 import { Schema } from 'effect';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
-import { inventory } from '@porcelain/server/kit/reads';
 import { test } from '@porcelain/server/kit/server-test';
 import {
   read,
@@ -236,7 +235,10 @@ for (const moved of [false, true])
         await session.git('worktree', 'add', checkout, reviewBranch);
         addedWorktree = true;
         const current = Schema.decodeUnknownSync(readInventoryResponseSchema)(
-          await inventory(session),
+          await read(session, {
+            method: 'POST',
+            path: '/api/inventory/refresh',
+          }),
         );
         const worktree = current.projects
           .flatMap((project) => project.worktrees)
