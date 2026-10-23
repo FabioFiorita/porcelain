@@ -122,9 +122,7 @@ export function useCommentDraft(
   };
 }
 
-function writeFailure(
-  result: AsyncResult.AsyncResult<unknown, unknown>,
-) {
+function writeFailure(result: AsyncResult.AsyncResult<unknown, unknown>) {
   return AsyncResult.isFailure(result)
     ? reviewErrorMessage(Cause.squash(result.cause))
     : undefined;
