@@ -1,6 +1,7 @@
 import { Schema } from 'effect';
 import { reviewFixtureSchema } from './protocol.ts';
 import type { EditFileRequest } from '@porcelain/contracts/files';
+import type { CreateCommentThreadRequest } from '@porcelain/contracts/reviews';
 import type {
   AgentAction,
   ProjectHomeStep,
@@ -62,8 +63,11 @@ export function agentOn(step: Step) {
       title: string,
       proof: { checks: ProofCheckStep[]; screenshot: string },
     ) => act({ kind: 'publish-proof', title, ...proof }),
-    comment: (path: string, body: string) =>
-      act({ kind: 'comment', path, body }),
+    comment: (
+      path: string,
+      body: string,
+      thread?: Omit<CreateCommentThreadRequest, 'body'>,
+    ) => act({ kind: 'comment', path, body, thread }),
     reply: (threadId: string, body: string) =>
       act({ kind: 'reply', threadId, body }),
     editFile: (edit: EditFileRequest) => act({ kind: 'edit-file', edit }),

@@ -47,6 +47,7 @@ import type { DocumentInteraction } from '../rules/documents';
 import { basename, type ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ReviewRange } from '@porcelain/client/reviews/rules';
 import { useCodeFolds, useCodeViewScroll } from '../store';
+import { useMarginStack } from '../adapters/margin-stack';
 import { InlineComposer } from './inline-composer';
 import { AgentNote } from './agent-note';
 import { ThreadCard } from './thread-card';
@@ -132,6 +133,7 @@ function CodeSurface({
   const entries = groupSpecPaths(given, preferences.collapseSpecs);
   const folds = useCodeFolds(interaction.worktreeId, interaction.entry);
   const viewer = useCodeViewScroll();
+  const marginCard = useMarginStack();
   const [composer, setComposer] = useState<{
     id: string;
     anchor: FileCommentAnchor;
@@ -507,6 +509,9 @@ function CodeSurface({
               />
             ) : (
               <div
+                {...(threadMargin && note.lineNumber > 0
+                  ? { ref: marginCard }
+                  : {})}
                 className={cn(
                   'm-3 flex flex-col gap-3 font-sans',
                   threadMargin &&

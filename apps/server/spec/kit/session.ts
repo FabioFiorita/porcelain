@@ -1,4 +1,5 @@
 import type { EditFileRequest } from '@porcelain/contracts/files';
+import type { CreateCommentThreadRequest } from '@porcelain/contracts/reviews';
 import type { liveSubscriptionSchema } from '@porcelain/contracts/access';
 
 export type HttpRequest = {
@@ -137,7 +138,12 @@ export type AgentAction =
       checks: ProofCheckStep[];
       screenshot: string;
     }
-  | { kind: 'comment'; path: string; body: string }
+  | {
+      kind: 'comment';
+      path: string;
+      body: string;
+      thread?: Omit<CreateCommentThreadRequest, 'body'> | undefined;
+    }
   | { kind: 'reply'; threadId: string; body: string }
   | { kind: 'edit-file'; edit: EditFileRequest };
 

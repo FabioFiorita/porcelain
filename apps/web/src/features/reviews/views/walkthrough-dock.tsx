@@ -66,7 +66,7 @@ export function WalkthroughDock({
               <Button
                 variant="ghost"
                 size="sm"
-                className="min-w-0"
+                className="min-w-0 shrink"
                 aria-label={`${label}, jump to a stop`}
               />
             }

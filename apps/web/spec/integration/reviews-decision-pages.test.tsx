@@ -1,3 +1,4 @@
+import { page as browserPage } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 const question =
@@ -151,3 +152,101 @@ test('the agent summary lists the decisions its page links to and opens one from
     )
     .toBeVisible();
 });
+
+test.for([1440, 900])(
+  'threads on neighbouring lines of a decision each stay readable and reachable at %i px',
+  { timeout: 30_000 },
+  async (width, { agent, render, server, reviewLayout }) => {
+    await browserPage.viewport(width, 896);
+    try {
+      await agent.publishArchitecture();
+      const published = (await server.publishedReview()).review;
+      if (!published?.reviewId || !published.headOid || !published.base)
+        throw new Error('The published fixture has no review');
+      const path = 'packages/workspace/src/outbox.ts';
+      const bodies = [2, 3, 4, 5, 6].map(
+        (line) => `Line ${line} needs a second look before delivery retries.`,
+      );
+      for (const [index, body] of bodies.entries())
+        await agent.comment(path, body, {
+          reviewId: published.reviewId,
+          reviewRevision: published.revision,
+          anchor: {
+            kind: 'codeRange',
+            filePath: path,
+            startLine: index + 2,
+            endLine: index + 2,
+            side: 'additions',
+            revision: published.headOid,
+            comparison: { kind: 'branch', base: published.base },
+          },
+        });
+      const app = await render.route(`/reviews/${published.reviewId}`);
+      await app.page
+        .getByRole('button', {
+          name: '9. Establish the shared mutation boundary',
+          exact: true,
+        })
+        .click();
+      const decision = app.page.getByRole('region', {
+        name: '9. Establish the shared mutation boundary',
+        exact: true,
+      });
+      const outbox = decision.getByRole('button', {
+        name: /^Comment on packages\/workspace\/src\/outbox\.ts/,
+      });
+      await expect.element(outbox).toBeInTheDocument();
+      reviewLayout.bringIntoView(outbox);
+      const threads = decision.getByRole('article', {
+        name: 'Comment thread',
+        exact: true,
+      });
+      for (const body of bodies)
+        await expect.element(threads.filter({ hasText: body })).toBeVisible();
+      await expect.poll(() => reviewLayout.separate(threads)).toBe(true);
+      for (const body of bodies)
+        await expect
+          .poll(() =>
+            reviewLayout.reachable(
+              threads
+                .filter({ hasText: body })
+                .getByRole('button', { name: 'Reply', exact: true }),
+            ),
+          )
+          .toBe(true);
+    } finally {
+      await browserPage.viewport(414, 896);
+    }
+  },
+);
+
+test.for([414, 360])(
+  'the dock keeps its primary action whole at %i px',
+  async (width, { agent, render, server, reviewLayout }) => {
+    await browserPage.viewport(width, 896);
+    try {
+      await agent.publishArchitecture();
+      const published = (await server.publishedReview()).review;
+      if (!published?.reviewId)
+        throw new Error('The published fixture has no review');
+      const app = await render.route(`/reviews/${published.reviewId}`);
+      await app.page
+        .getByRole('button', { name: 'Not explained', exact: true })
+        .click();
+      const dock = app.page.getByRole('navigation', {
+        name: 'Walkthrough dock',
+        exact: true,
+      });
+      const action = dock.getByRole('button', {
+        name: 'Mark 1 file reviewed',
+        exact: true,
+      });
+      await expect.element(action).toBeVisible();
+      await expect
+        .poll(() => reviewLayout.holds(dock, action))
+        .toEqual({ inside: true, fits: true });
+    } finally {
+      await browserPage.viewport(414, 896);
+    }
+  },
+);
