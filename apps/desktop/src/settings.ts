@@ -3,7 +3,7 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { readDesktopLimits } from '@porcelain/server/desktop-settings';
-import { developmentWeb } from './rules/development-web.ts';
+import { developmentWeb } from './rules/web-dev-server.ts';
 
 export function desktopSettings(
   userData: string,

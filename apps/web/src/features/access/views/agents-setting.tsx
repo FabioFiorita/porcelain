@@ -101,7 +101,9 @@ export function AgentsSetting() {
               >
                 <CopyIcon />
               </TooltipTrigger>
-              <TooltipContent>Copy MCP configuration</TooltipContent>
+              <TooltipContent role="tooltip">
+                Copy MCP configuration
+              </TooltipContent>
             </Tooltip>
           </ItemActions>
         </Item>

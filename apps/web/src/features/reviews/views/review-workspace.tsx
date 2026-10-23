@@ -220,49 +220,53 @@ function ReviewWorkspaceContent({
       <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
       <GitButton scope={scope} context={context} />
       <Tooltip>
-        <TooltipTrigger render={<span className="inline-flex" />}>
-          <Button
-            ref={(element) => desktopTrigger.attach(element)}
-            className="hidden xl:inline-flex"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={
-              sidebarOpen ? 'Hide review sidebar' : 'Show review sidebar'
-            }
-            aria-expanded={sidebarOpen}
-            aria-keyshortcuts={SHORTCUTS.toggleSidebar}
-            onClick={() => {
-              layout.selectPane(pane);
-              toggleSidebar();
-            }}
-          >
-            <PanelRightIcon />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
+        <TooltipTrigger
+          render={
+            <Button
+              ref={(element) => desktopTrigger.attach(element)}
+              className="hidden xl:inline-flex"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={
+                sidebarOpen ? 'Hide review sidebar' : 'Show review sidebar'
+              }
+              aria-expanded={sidebarOpen}
+              aria-keyshortcuts={SHORTCUTS.toggleSidebar}
+              onClick={() => {
+                layout.selectPane(pane);
+                toggleSidebar();
+              }}
+            >
+              <PanelRightIcon />
+            </Button>
+          }
+        />
+        <TooltipContent role="tooltip" className="break-all">
           {sidebarOpen ? 'Hide review sidebar' : 'Show review sidebar'}{' '}
           <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>
         </TooltipContent>
       </Tooltip>
       <Tooltip>
-        <TooltipTrigger render={<span className="inline-flex" />}>
-          <SheetTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                ref={(element) => mobileTrigger.attach(element)}
-                className="xl:hidden"
-                aria-label="Review"
-                aria-keyshortcuts={SHORTCUTS.toggleSidebar}
-                onClick={() => layout.selectPane(pane)}
-              />
-            }
-          >
-            <PanelRightIcon />
-          </SheetTrigger>
-        </TooltipTrigger>
-        <TooltipContent>
+        <TooltipTrigger
+          render={
+            <SheetTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  ref={(element) => mobileTrigger.attach(element)}
+                  className="xl:hidden"
+                  aria-label="Review"
+                  aria-keyshortcuts={SHORTCUTS.toggleSidebar}
+                  onClick={() => layout.selectPane(pane)}
+                />
+              }
+            >
+              <PanelRightIcon />
+            </SheetTrigger>
+          }
+        />
+        <TooltipContent role="tooltip" className="break-all">
           Review <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>
         </TooltipContent>
       </Tooltip>

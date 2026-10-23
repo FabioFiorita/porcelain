@@ -1,3 +1,8 @@
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
 import { reviewedCommandFailure } from '@porcelain/client/reviews';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -94,23 +99,38 @@ export function ReviewedControl({
   const label = reviewedControlLabel(path, status);
   return (
     <span className="inline-flex min-w-0 items-center gap-1">
-      <Button
-        type="button"
-        size={compact ? 'icon-xs' : 'xs'}
-        variant={reviewed ? 'ghost' : 'outline'}
-        className={cn(compact && 'size-5 ', compact && reviewed && '    ')}
-        aria-pressed={reviewed}
-        disabled={pending}
-        aria-label={label}
-        title={label}
-        onClick={() => {
-          if (reviewed) unmark.start(path);
-          else mark.start({ path, fingerprint });
-        }}
-      >
-        <ReviewedIcon pending={pending} status={status} compact={compact} />
-        {!compact && reviewedText(status)}
-      </Button>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              size={compact ? 'icon-xs' : 'xs'}
+              variant={reviewed ? 'ghost' : 'outline'}
+              className={cn(
+                compact && 'size-5 ',
+                compact && reviewed && '    ',
+              )}
+              aria-pressed={reviewed}
+              disabled={pending}
+              aria-label={label}
+              onClick={() => {
+                if (reviewed) unmark.start(path);
+                else mark.start({ path, fingerprint });
+              }}
+            >
+              <ReviewedIcon
+                pending={pending}
+                status={status}
+                compact={compact}
+              />
+              {!compact && reviewedText(status)}
+            </Button>
+          }
+        />
+        <TooltipContent role="tooltip" className="break-all">
+          {label}
+        </TooltipContent>
+      </Tooltip>
       {error !== undefined && (
         <span
           role="alert"
@@ -149,18 +169,26 @@ export function MarkAllReviewed({
 
   return (
     <span className="inline-flex min-w-0 flex-col items-end gap-1">
-      <Button
-        type="button"
-        size={compact ? 'icon-xs' : 'xs'}
-        variant="outline"
-        disabled={disabled}
-        aria-label={plan.label}
-        title={plan.label}
-        onClick={submit}
-      >
-        <MarkAllIcon pending={pending} unmarking={plan.unmarking} />
-        {!compact && markAllText(pending, plan.unmarking, plan.text)}
-      </Button>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              size={compact ? 'icon-xs' : 'xs'}
+              variant="outline"
+              disabled={disabled}
+              aria-label={plan.label}
+              onClick={submit}
+            >
+              <MarkAllIcon pending={pending} unmarking={plan.unmarking} />
+              {!compact && markAllText(pending, plan.unmarking, plan.text)}
+            </Button>
+          }
+        />
+        <TooltipContent role="tooltip" className="break-all">
+          {plan.label}
+        </TooltipContent>
+      </Tooltip>
       {bulk.report && <BulkReport report={bulk.report} />}
       {AsyncResult.isFailure(bulk.result) && (
         <span

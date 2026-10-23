@@ -241,8 +241,10 @@ export function GitButton({
               )}
             </PopoverContent>
           </Popover>
-          <TooltipContent>
-            {running ? `${networkLabel(running.name)} in progress` : primaryTip}
+          <TooltipContent role="tooltip" className="break-all">
+            {running
+              ? `${networkLabel(running.name)} in progress: show progress`
+              : primaryTip}
           </TooltipContent>
         </Tooltip>
         <DropdownMenu
@@ -269,7 +271,9 @@ export function GitButton({
             >
               <ChevronDownIcon className="size-3.5" />
             </TooltipTrigger>
-            <TooltipContent>Git actions</TooltipContent>
+            <TooltipContent role="tooltip" className="break-all">
+              Git actions
+            </TooltipContent>
           </Tooltip>
           <DropdownMenuContent align="end" className="w-76">
             <DropdownMenuGroup>

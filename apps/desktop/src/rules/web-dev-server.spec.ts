@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { developmentWeb } from './development-web.ts';
+import { developmentWeb } from './web-dev-server.ts';
 
 describe('developmentWeb', () => {
   it('serves the unpackaged app from the loopback Vite server it was given', () => {
