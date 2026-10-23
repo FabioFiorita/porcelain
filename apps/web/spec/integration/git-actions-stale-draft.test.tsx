@@ -155,6 +155,9 @@ test('when the file of a later group changes after the groups were drafted, look
   for (const path of groups.flatMap((group) => group.paths))
     await expect.element(dialog.getByText(path, { exact: true })).toBeVisible();
   await dialog.getByRole('tab', { name: 'Use groups', exact: true }).click();
+  await dialog
+    .getByRole('button', { name: 'Generate with AI', exact: true })
+    .click();
   await expect
     .element(
       dialog.getByRole('textbox', {

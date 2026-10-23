@@ -15,9 +15,8 @@ test('browser Settings uses the same three sections and exposes host-gated Devic
     name: 'Projects and worktrees',
     exact: true,
   });
-  await expect(
-    navigator.getByText(`Porcelain${host}`, { exact: true }),
-  ).toBeVisible();
+  await expect(navigator.getByText('Porcelain', { exact: true })).toBeVisible();
+  await expect(navigator.getByText(host, { exact: true })).not.toBeAttached();
 
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
