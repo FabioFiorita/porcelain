@@ -9,6 +9,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  truncateSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -165,13 +166,25 @@ it('never mixes files when concurrent copies try to publish the same destination
   expect(readdirSync(root).sort()).toEqual(['completed', 'first', 'second']);
 });
 
-function sqliteSnapshot(directory: string, value: string) {
+const migrationHistory = {
+  native:
+    "CREATE TABLE porcelain_migrations(migration_id INTEGER PRIMARY KEY, name TEXT NOT NULL); INSERT INTO porcelain_migrations VALUES (1, 'adopt_legacy_schema')",
+  legacy:
+    "CREATE TABLE __drizzle_migrations(id INTEGER PRIMARY KEY, hash TEXT NOT NULL, created_at NUMERIC); INSERT INTO __drizzle_migrations VALUES (1, 'applied migration', 1)",
+};
+
+function sqliteSnapshot(
+  directory: string,
+  value: string,
+  history: keyof typeof migrationHistory = 'native',
+) {
   const source = `${directory}-writer`;
   mkdirSync(source);
   mkdirSync(directory);
   const db = new DatabaseSync(join(source, 'inventory.sqlite'));
   try {
     db.exec('PRAGMA journal_mode = WAL; CREATE TABLE saved(value TEXT)');
+    db.exec(migrationHistory[history]);
     db.prepare('INSERT INTO saved VALUES (?)').run(value);
     for (const file of readdirSync(source))
       copyFileSync(join(source, file), join(directory, file));
@@ -181,11 +194,18 @@ function sqliteSnapshot(directory: string, value: string) {
   }
 }
 
-function checkpointedSnapshot(directory: string, value: string) {
+function checkpointedSnapshot(
+  directory: string,
+  value: string,
+  pageSize = 4096,
+  history: keyof typeof migrationHistory = 'native',
+) {
   mkdirSync(directory);
   const db = new DatabaseSync(join(directory, 'inventory.sqlite'));
   try {
+    db.exec(`PRAGMA page_size = ${pageSize}`);
     db.exec('CREATE TABLE saved(value TEXT)');
+    db.exec(migrationHistory[history]);
     db.prepare('INSERT INTO saved VALUES (?)').run(value);
   } finally {
     db.close();
@@ -257,6 +277,15 @@ it.each([
   'unreadable',
   'corrupt',
   'zero-byte',
+  'truncated-1',
+  'truncated-99',
+  'truncated-page-minus-one',
+  'no-migrations',
+  'empty-migrations',
+  'empty-legacy-migrations',
+  'migrations-view',
+  'bad-magic',
+  'corrupt-page',
   'copy-failure',
   'orphan-sidecar',
 ] as const)(
@@ -281,11 +310,72 @@ it.each([
         checkpointedSnapshot(source, 'backup before truncation');
         writeFileSync(join(source, 'inventory.sqlite'), '');
       }
+      if (failure.startsWith('truncated-')) {
+        rmSync(source, { recursive: true });
+        checkpointedSnapshot(source, 'backup before truncation');
+        const file = join(source, 'inventory.sqlite');
+        const header = readFileSync(file);
+        truncateSync(
+          file,
+          failure === 'truncated-1'
+            ? 1
+            : failure === 'truncated-99'
+              ? 99
+              : header.readUInt16BE(16) - 1,
+        );
+      }
+      if (
+        failure === 'no-migrations' ||
+        failure === 'empty-migrations' ||
+        failure === 'migrations-view'
+      ) {
+        rmSync(source, { recursive: true });
+        checkpointedSnapshot(source, 'foreign database');
+        const db = new DatabaseSync(join(source, 'inventory.sqlite'));
+        try {
+          db.exec(
+            failure === 'empty-migrations'
+              ? 'DELETE FROM porcelain_migrations'
+              : 'DROP TABLE porcelain_migrations',
+          );
+          if (failure === 'migrations-view')
+            db.exec(
+              'CREATE VIEW porcelain_migrations AS SELECT 1 AS migration_id',
+            );
+        } finally {
+          db.close();
+        }
+      }
       if (failure === 'orphan-sidecar')
         rmSync(join(source, 'inventory.sqlite'));
+      if (failure === 'empty-legacy-migrations') {
+        rmSync(source, { recursive: true });
+        checkpointedSnapshot(source, 'empty legacy history', 4096, 'legacy');
+        const db = new DatabaseSync(join(source, 'inventory.sqlite'));
+        try {
+          db.exec('DELETE FROM __drizzle_migrations');
+        } finally {
+          db.close();
+        }
+      }
+      if (failure === 'bad-magic' || failure === 'corrupt-page') {
+        rmSync(source, { recursive: true });
+        checkpointedSnapshot(source, 'corrupted database');
+        const file = join(source, 'inventory.sqlite');
+        const bytes = readFileSync(file);
+        bytes[failure === 'bad-magic' ? 0 : bytes.readUInt16BE(16)] = 255;
+        writeFileSync(file, bytes);
+      }
     }
     const current = snapshotBytes(data);
     try {
+      const original =
+        failure === 'missing' ||
+        failure === 'not-directory' ||
+        failure === 'unreadable-directory' ||
+        failure === 'unreadable'
+          ? undefined
+          : snapshotBytes(source);
       await expect(
         restore(data, source, failure === 'copy-failure'),
       ).rejects.toThrow('Could not prepare database backup');
@@ -293,6 +383,8 @@ it.each([
         restore(data, source, failure === 'copy-failure'),
       ).rejects.toThrow('Could not prepare database backup');
       expect(snapshotBytes(data)).toEqual(current);
+      if (original !== undefined)
+        expect(snapshotBytes(source)).toEqual(original);
       expect(readdirSync(root).sort()).toEqual(
         failure === 'missing' ? ['current'] : ['current', 'saved'],
       );
@@ -402,16 +494,44 @@ it('removes obsolete sidecars when restoring a checkpointed database', async () 
   const data = join(root, 'current');
   const source = join(root, 'saved');
   sqliteSnapshot(data, 'newer');
-  mkdirSync(source);
-  const db = new DatabaseSync(join(source, 'inventory.sqlite'));
-  db.exec(
-    "CREATE TABLE saved(value TEXT); INSERT INTO saved VALUES ('checkpointed')",
-  );
-  db.close();
+  checkpointedSnapshot(source, 'checkpointed');
   await restore(data, source);
   expect(readdirSync(data)).toEqual(['inventory.sqlite']);
   expect(savedValue(data)).toBe('checkpointed');
 });
+
+it.each([512, 65536])(
+  'restores a valid Porcelain database with %i-byte pages repeatedly',
+  async (pageSize) => {
+    const data = join(root, 'current');
+    const source = join(root, 'saved');
+    sqliteSnapshot(data, 'newer');
+    checkpointedSnapshot(source, 'restore me', pageSize);
+    const original = snapshotBytes(source);
+    await restore(data, source);
+    expect(savedValue(data)).toBe('restore me');
+    await restore(data, source);
+    expect(savedValue(data)).toBe('restore me');
+    expect(snapshotBytes(source)).toEqual(original);
+  },
+);
+
+it.each(['wal', 'checkpointed'] as const)(
+  'restores a valid legacy Porcelain %s backup repeatedly',
+  async (state) => {
+    const data = join(root, 'current');
+    const source = join(root, 'saved');
+    sqliteSnapshot(data, 'newer');
+    if (state === 'wal') sqliteSnapshot(source, 'legacy data', 'legacy');
+    else checkpointedSnapshot(source, 'legacy data', 4096, 'legacy');
+    const original = snapshotBytes(source);
+    await restore(data, source);
+    expect(savedValue(data)).toBe('legacy data');
+    await restore(data, source);
+    expect(savedValue(data)).toBe('legacy data');
+    expect(snapshotBytes(source)).toEqual(original);
+  },
+);
 
 it('restores an intentionally empty preinstall snapshot to empty repeatedly', async () => {
   const data = join(root, 'current');

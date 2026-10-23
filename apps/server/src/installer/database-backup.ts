@@ -63,10 +63,23 @@ export const restoreDatabase = Effect.fn('Installer.restoreDatabase')(
         );
       if (files.includes('inventory.sqlite')) {
         const databasePath = pathApi.join(staging, 'inventory.sqlite');
-        if (ByteSize.isZero((yield* fs.stat(databasePath)).size))
+        const file = yield* fs.open(databasePath);
+        const header = new Uint8Array(18);
+        const bytesRead = yield* file.read(header);
+        const encodedPageSize = new DataView(header.buffer).getUint16(16);
+        const pageSize = encodedPageSize === 1 ? 65536 : encodedPageSize;
+        if (
+          bytesRead !== header.length ||
+          new TextDecoder().decode(header.subarray(0, 16)) !==
+            'SQLite format 3\0' ||
+          pageSize < 512 ||
+          (pageSize & (pageSize - 1)) !== 0 ||
+          (yield* file.stat).size < ByteSize.bytes(pageSize)
+        )
           return yield* Effect.fail(
             new UpdateRecoveryError({
-              detail: 'The backup database file is empty.',
+              detail:
+                'The backup database must have a SQLite header and at least one complete page.',
             }),
           );
         yield* Effect.try(() => {
@@ -76,6 +89,25 @@ export const restoreDatabase = Effect.fn('Installer.restoreDatabase')(
             if (result.length !== 1 || result[0]?.quick_check !== 'ok')
               throw new Error(
                 'The backup database failed SQLite integrity validation.',
+              );
+            const migrationTable = database.prepare(
+              "SELECT name FROM sqlite_schema WHERE type = 'table' AND name = ?",
+            );
+            const migrationQueries = {
+              porcelain_migrations:
+                'SELECT migration_id FROM porcelain_migrations LIMIT 1',
+              __drizzle_migrations:
+                'SELECT hash FROM __drizzle_migrations LIMIT 1',
+            };
+            if (
+              !Object.entries(migrationQueries).some(
+                ([table, query]) =>
+                  migrationTable.get(table) !== undefined &&
+                  database.prepare(query).get() !== undefined,
+              )
+            )
+              throw new Error(
+                'The backup database must contain at least one applied Porcelain migration.',
               );
           } finally {
             database.close();
@@ -87,7 +119,7 @@ export const restoreDatabase = Effect.fn('Installer.restoreDatabase')(
       Effect.mapError(
         (error) =>
           new UpdateRecoveryError({
-            detail: `Could not prepare database backup "${backup}" for restoration. Check that the backup exists, is readable and contains a valid SQLite database, then retry recovery. ${error instanceof UpdateRecoveryError ? error.detail : failureDetail(error)}`,
+            detail: `Could not prepare database backup "${backup}" for restoration. Check that the backup exists, is readable and contains a valid Porcelain SQLite database with an applied migration, then retry recovery. ${error instanceof UpdateRecoveryError ? error.detail : failureDetail(error)}`,
           }),
       ),
     );

@@ -16,6 +16,7 @@ import {
   renameSync,
   rmSync,
   statSync,
+  truncateSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -55,7 +56,9 @@ function writeDatabase(file: string, value: string) {
     rmSync(`${file}${suffix}`, { force: true });
   const db = new DatabaseSync(file);
   try {
-    db.exec('CREATE TABLE saved(value TEXT)');
+    db.exec(
+      "CREATE TABLE saved(value TEXT); CREATE TABLE porcelain_migrations(migration_id INTEGER PRIMARY KEY, name TEXT NOT NULL); INSERT INTO porcelain_migrations VALUES (1, 'adopt_legacy_schema')",
+    );
     db.prepare('INSERT INTO saved VALUES (?)').run(value);
   } finally {
     db.close();
@@ -819,6 +822,11 @@ it.each([
   'missing',
   'corrupt',
   'zero-byte',
+  'truncated-1',
+  'truncated-99',
+  'truncated-page-minus-one',
+  'no-migrations',
+  'empty-migrations',
   'copy-failure',
   'promotion-failure',
 ] as const)(
@@ -829,6 +837,8 @@ it.each([
     renameSync(runtime(), join(root, 'runtime.previous'));
     writeRuntime(runtime(), '2.0.0');
     writeDatabase(database(), 'newer surviving data');
+    const currentBytes = readFileSync(database());
+    writeRuntime(join(root, 'runtime.next'), '2.0.0');
     writeFileSync(join(root, 'installed.json'), '{"version":"2.0.0"}');
     const backup = join(root, 'saved-database');
     if (failure !== 'missing') {
@@ -838,6 +848,29 @@ it.each([
       else writeDatabase(join(backup, 'inventory.sqlite'), 'saved database');
       if (failure === 'zero-byte')
         writeFileSync(join(backup, 'inventory.sqlite'), '');
+      if (failure.startsWith('truncated-')) {
+        const file = join(backup, 'inventory.sqlite');
+        truncateSync(
+          file,
+          failure === 'truncated-1'
+            ? 1
+            : failure === 'truncated-99'
+              ? 99
+              : readFileSync(file).readUInt16BE(16) - 1,
+        );
+      }
+      if (failure === 'no-migrations' || failure === 'empty-migrations') {
+        const db = new DatabaseSync(join(backup, 'inventory.sqlite'));
+        try {
+          db.exec(
+            failure === 'no-migrations'
+              ? 'DROP TABLE porcelain_migrations'
+              : 'DELETE FROM porcelain_migrations',
+          );
+        } finally {
+          db.close();
+        }
+      }
     }
     const journal = JSON.stringify({
       installed: { version: '1.0.0' },
@@ -873,6 +906,7 @@ it.each([
         };
       }).pipe(Effect.provide(NodeServices.layer)),
     );
+    const commandCount = commands.length;
     await expect(
       execute({ action: 'recover' }, '2.0.0', source, files),
     ).rejects.toThrow(
@@ -889,6 +923,7 @@ it.each([
         : 'Could not prepare database backup',
     );
     expect(existsSync(database())).toBe(true);
+    expect(readFileSync(database())).toEqual(currentBytes);
     expect(readDatabase(database())).toBe('newer surviving data');
     expect(JSON.parse(readFileSync(manifest(runtime()), 'utf8'))).toMatchObject(
       { version: '2.0.0' },
@@ -898,6 +933,14 @@ it.each([
         readFileSync(manifest(join(root, 'runtime.previous')), 'utf8'),
       ),
     ).toMatchObject({ version: '1.0.0' });
+    expect(
+      JSON.parse(readFileSync(manifest(join(root, 'runtime.next')), 'utf8')),
+    ).toMatchObject({ version: '2.0.0' });
+    expect(
+      commands
+        .slice(commandCount)
+        .filter((command) => command.includes(' start ')),
+    ).toEqual([]);
     expect(record('installed.json')).toEqual({ version: '2.0.0' });
     expect(readFileSync(join(root, 'update.json'), 'utf8')).toBe(journal);
     if (backupBytes !== undefined)
