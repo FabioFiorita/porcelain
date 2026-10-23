@@ -28,7 +28,9 @@ test('the Open Project menu opens the native folder sheet directly, and cancelin
   const page = await app.window();
   const browsing = folderRequests(page);
   await expect(
-    page.getByRole('button', { name: 'Open project', exact: true }),
+    page
+      .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
+      .getByRole('button', { name: 'Open project', exact: true }),
   ).toBeVisible();
   expect(await registered(page)).toEqual([]);
 
@@ -57,7 +59,10 @@ test('the Open project button opens the chosen Git repository through the native
   const page = await app.window();
   const browsing = folderRequests(page);
   await app.holdPicker();
-  await page.getByRole('button', { name: 'Open project', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
+    .getByRole('button', { name: 'Open project', exact: true })
+    .click();
   expect(await app.pickerRequest()).toEqual({
     ownerIsAppWindow: true,
     title: 'Open project',
