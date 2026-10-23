@@ -59,6 +59,96 @@ export function WalkthroughProgress({
   );
 }
 
+export function useStopCompletion({
+  workspace,
+  stop,
+  progress,
+  next,
+  go,
+  unavailable,
+}: {
+  workspace: Workspace;
+  stop: Exclude<WalkthroughStop, { kind: 'briefing' }>;
+  progress: Progress;
+  next: WalkthroughStop | undefined;
+  go: (key: WalkthroughKey) => void;
+  unavailable: boolean;
+}) {
+  const [notice, setNotice] = useState<ReviewNotice>();
+  const continueIfActive = useAtomValue(reviewContinuation(useId()));
+  const completion = decisionCompletionBinding(
+    useAtom(
+      completeDecision({
+        connection: workspace.connection,
+        scope: workspace.scope,
+      }),
+      { mode: 'promiseExit' },
+    ),
+    setNotice,
+  );
+  const finished = progress.done(stop);
+  const files = progress.items
+    .filter((item) => stop.paths.includes(item.path))
+    .map((item) => ({ ...item, fingerprint: item.fingerprint ?? undefined }));
+  const plan = completionPlan(files);
+  const layer = stop.kind === 'decision' ? stop.layer : undefined;
+  const disabled =
+    !progress.settled || unavailable || completion.pending || plan.blocked;
+  const complete = (onDone?: () => void) => {
+    if (disabled) return;
+    setNotice(undefined);
+    completion.complete({
+      files,
+      ...(layer
+        ? {
+            decision: {
+              layerId: layer.id,
+              fingerprint: layer.fingerprint,
+              reviewed: progress.states.get(layer.id)?.reviewed === true,
+            },
+          }
+        : {}),
+      ...(onDone ? { onDone: () => continueIfActive(onDone) } : {}),
+    });
+  };
+  const reopen = () => {
+    if (disabled || !layer) return;
+    setNotice(undefined);
+    completion.reopen({ layerId: layer.id, fingerprint: layer.fingerprint });
+  };
+  return {
+    finished,
+    plan,
+    layer,
+    disabled,
+    pending: completion.pending,
+    notice,
+    complete,
+    reopen,
+    advance: () => go(next?.key ?? 'briefing'),
+    markLabel: plan.action
+      ? `${plan.action} for ${stopTitle(stop)}`
+      : `Mark decision ${stopTitle(stop)} as reviewed`,
+  };
+}
+
+export function CompletionNotice({
+  notice,
+}: {
+  notice: ReviewNotice | undefined;
+}) {
+  return notice ? (
+    <Text
+      variant="ui"
+      tone={notice.type === 'error' ? 'destructive' : 'default'}
+      accessibilityRole={notice.type === 'error' ? 'alert' : undefined}
+      accessibilityLiveRegion="polite"
+    >
+      {notice.title}. {notice.description}
+    </Text>
+  ) : null;
+}
+
 export function WalkthroughCompletion({
   workspace,
   snapshot,
@@ -78,51 +168,21 @@ export function WalkthroughCompletion({
   onFile: (path: string) => void;
   unavailable: boolean;
 }) {
-  const [notice, setNotice] = useState<ReviewNotice>();
-  const continueIfActive = useAtomValue(reviewContinuation(useId()));
-  const completion = decisionCompletionBinding(
-    useAtom(
-      completeDecision({
-        connection: workspace.connection,
-        scope: workspace.scope,
-      }),
-      { mode: 'promiseExit' },
-    ),
-    setNotice,
-  );
-  const finished = progress.done(stop);
+  const {
+    finished,
+    plan,
+    layer,
+    disabled,
+    notice,
+    complete,
+    reopen,
+    advance,
+    markLabel,
+  } = useStopCompletion({ workspace, stop, progress, next, go, unavailable });
   const tally = filesReviewed(stop.paths, progress.items);
-  const files = progress.items
-    .filter((item) => stop.paths.includes(item.path))
-    .map((item) => ({ ...item, fingerprint: item.fingerprint ?? undefined }));
-  const plan = completionPlan(files);
-  const layer = stop.kind === 'decision' ? stop.layer : undefined;
-  const disabled =
-    !progress.settled || unavailable || completion.pending || plan.blocked;
-  const markLabel = plan.action
-    ? `${plan.action} for ${stopTitle(stop)}`
-    : `Mark decision ${stopTitle(stop)} as reviewed`;
   const continueLabel = plan.action
     ? `${plan.action} for ${stopTitle(stop)} and stay here`
     : `Mark remaining files for ${stopTitle(stop)} and continue`;
-  const complete = (onDone?: () => void) => {
-    if (disabled) return;
-    setNotice(undefined);
-    completion.complete({
-      files,
-      ...(layer
-        ? {
-            decision: {
-              layerId: layer.id,
-              fingerprint: layer.fingerprint,
-              reviewed: progress.states.get(layer.id)?.reviewed === true,
-            },
-          }
-        : {}),
-      ...(onDone ? { onDone: () => continueIfActive(onDone) } : {}),
-    });
-  };
-  const advance = () => go(next?.key ?? 'briefing');
   return (
     <Box gap={3}>
       <Text variant="ui" weight="medium">
@@ -186,16 +246,7 @@ export function WalkthroughCompletion({
           }
           variant="outline"
           disabled={disabled}
-          onPress={() => {
-            if (disabled) return;
-            if (finished) {
-              setNotice(undefined);
-              completion.reopen({
-                layerId: layer.id,
-                fingerprint: layer.fingerprint,
-              });
-            } else complete();
-          }}
+          onPress={() => (finished ? reopen() : complete())}
         />
       ) : null}
       <Button
@@ -210,16 +261,7 @@ export function WalkthroughCompletion({
         disabled={disabled}
         onPress={() => (finished ? advance() : complete(advance))}
       />
-      {notice ? (
-        <Text
-          variant="ui"
-          tone={notice.type === 'error' ? 'destructive' : 'default'}
-          accessibilityRole={notice.type === 'error' ? 'alert' : undefined}
-          accessibilityLiveRegion="polite"
-        >
-          {notice.title}. {notice.description}
-        </Text>
-      ) : null}
+      <CompletionNotice notice={notice} />
     </Box>
   );
 }

@@ -9,13 +9,18 @@ selectors:
   - "Reopen"
   - "Done"
   - "No comments"
-tests: []
+  - "Send reply"
+  - "Thread unavailable"
+tests:
+  - packages/client/src/features/reviews/rules/comments.spec.ts
 api:
   - GET /api/worktrees/:worktreeId/comments
   - POST /api/worktrees/:worktreeId/comments
   - POST /api/worktrees/:worktreeId/comments/:threadId/replies
   - PUT /api/worktrees/:worktreeId/comments/:threadId/resolution
   - POST /api/worktrees/:worktreeId/comments/seen
+  - GET /api/reviews/:reviewId
+  - GET /api/worktrees/:worktreeId/review
 ---
 
 # reviews.comments
@@ -25,6 +30,7 @@ The native comments sheet supports feedback, replies, resolution and reopening w
 ## How to get to it (user POV)
 
 - Review → Comments; diff → Comment on file / Comment on selected lines. Done or sheet dismissal returns.
+- A folded thread on a phone decision opens that one thread; the decision bar's Comment and a question's Answer open a whole-change draft.
 
 ## Driving it with agent-device
 
@@ -34,7 +40,9 @@ Preconditions: [surface baseline](README.md).
 2. Add an agent reply through the fixture: it appears live. Reply, Resolve and Reopen. Global comments marks the displayed revision seen; file-filtered comments must not mark unseen threads elsewhere.
 3. Change the underlying file while composing: earlier-comparison notice appears and the draft retains the displayed fingerprint. Change workspace: Review unavailable. Done/checkmark or sheet gesture returns to the exact file/list underneath.
 
-Automated coverage: none named; retain the live action and readback evidence.
+4. Open one thread from a decision diff. The title names its line, Resolve/Reopen and Done sit in the sheet header, and each message shows its author and "on rN" (the revision published before it was written). An agent reply naming stop n or decision n links to that decision when the review has it; the link closes the sheet on that decision. The reply field stays above the keyboard; Send reply posts and clears it. A resolved thread hides the reply field. A deleted thread says Thread unavailable.
+
+Automated coverage: `comments.spec.ts` (stop links and revision markers); retain the live action and readback evidence.
 
 ## Gotchas
 

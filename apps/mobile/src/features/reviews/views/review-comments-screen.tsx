@@ -40,6 +40,13 @@ import {
 } from '../commands/comments';
 import { documentCommentContext } from '../rules/document-comment';
 import { ReviewReadState } from './read-state';
+import { CommentThreadSheet } from './comment-thread-sheet';
+import {
+  useCommentDraft,
+  writeFailure,
+  type CommentWorkspace,
+  type ComposerTarget,
+} from './comment-draft';
 import { useReviewSnapshot } from '../queries/review';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 
@@ -49,24 +56,34 @@ export function ReviewCommentsScreen({
   anchor,
   compose,
   comparison,
+  thread,
+  body,
 }: {
   workspaceKey?: string | undefined;
   path?: string | undefined;
   anchor?: CommentAnchor | undefined;
   compose: boolean;
   comparison: ReviewComparison;
+  thread?: string | undefined;
+  body?: string | undefined;
 }) {
   const router = useRouter();
   return (
     <>
-      <Stack.Screen options={{ title: path ? 'File comments' : 'Comments' }} />
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          icon={headerIcon('done')}
-          accessibilityLabel="Done"
-          onPress={() => router.back()}
-        />
-      </Stack.Toolbar>
+      {thread ? null : (
+        <>
+          <Stack.Screen
+            options={{ title: path ? 'File comments' : 'Comments' }}
+          />
+          <Stack.Toolbar placement="right">
+            <Stack.Toolbar.Button
+              icon={headerIcon('done')}
+              accessibilityLabel="Done"
+              onPress={() => router.back()}
+            />
+          </Stack.Toolbar>
+        </>
+      )}
       <WorkspaceGate
         title="Review"
         expectedWorkspace={workspaceKey ?? ''}
@@ -77,24 +94,29 @@ export function ReviewCommentsScreen({
           />
         }
       >
-        {(workspace) => (
-          <CommentThreads
-            key={`${workspace.key}:${path}:${JSON.stringify(anchor)}`}
-            workspace={workspace}
-            path={path}
-            anchor={anchor}
-            compose={compose}
-            comparison={comparison}
-          />
-        )}
+        {(workspace) =>
+          thread ? (
+            <CommentThreadSheet
+              key={`${workspace.key}:${thread}`}
+              workspace={workspace}
+              threadId={thread}
+            />
+          ) : (
+            <CommentThreads
+              key={`${workspace.key}:${path}:${JSON.stringify(anchor)}`}
+              workspace={workspace}
+              path={path}
+              anchor={anchor}
+              compose={compose}
+              comparison={comparison}
+              initialBody={body}
+            />
+          )
+        }
       </WorkspaceGate>
     </>
   );
 }
-
-export type CommentWorkspace = Pick<Workspace, 'connection' | 'scope'>;
-
-type ComposerTarget = { anchor: CommentAnchor; threadId?: string | undefined };
 
 export function CommentThreads({
   workspace,
@@ -105,11 +127,13 @@ export function CommentThreads({
   currentTarget,
   onComposerChange,
   leaveScope,
+  initialBody = '',
 }: {
   workspace: CommentWorkspace;
   path?: string | undefined;
   anchor?: CommentAnchor | undefined;
   compose: boolean;
+  initialBody?: string | undefined;
   comparison?: ReviewComparison | undefined;
   currentTarget?: CommentTarget | undefined;
   leaveScope?: string | undefined;
@@ -132,6 +156,7 @@ export function CommentThreads({
       onComposerChange?.(undefined);
     },
     leaveScope,
+    initialBody,
   );
   const open = (next: ComposerTarget) =>
     draft.confirmDiscard(() => {
@@ -276,109 +301,6 @@ function AnchorFreshness({
       comparison.
     </Text>
   ) : null;
-}
-
-function useCommentDraft(
-  workspace: CommentWorkspace,
-  target: ComposerTarget | undefined,
-  onClose: () => void,
-  leaveScope?: string,
-) {
-  const commands = useCommentCommands(workspace);
-  const create = useCommentWrite(commands.create);
-  const reply = useCommentWrite(commands.reply);
-  const result = target?.threadId ? reply.result : create.result;
-  const pending = target !== undefined && result.waiting;
-  const [body, setBody] = useState('');
-  const [invalid, setInvalid] = useState<string>();
-  const [intent, setIntent] = useState<
-    { body: string; threadId: string; messageId: string } | undefined
-  >(undefined);
-  const failure = target ? writeFailure(result) : undefined;
-  const reset = (complete: () => void) => {
-    setBody('');
-    setInvalid(undefined);
-    setIntent(undefined);
-    create.reset();
-    reply.reset();
-    complete();
-  };
-  const confirmDiscard = (complete: () => void) => {
-    if (pending) {
-      Alert.alert(
-        'Sending comment',
-        'Wait for the comment to finish sending before closing.',
-      );
-      return;
-    }
-    if (body.length === 0) {
-      reset(complete);
-      return;
-    }
-    Alert.alert('Discard comment?', 'Your unsent comment will be lost.', [
-      { text: 'Keep writing', style: 'cancel' },
-      {
-        text: 'Discard',
-        style: 'destructive',
-        onPress: () => reset(complete),
-      },
-    ]);
-  };
-  useDocumentLeave(
-    leaveScope,
-    body.length > 0 || pending ? confirmDiscard : undefined,
-  );
-  usePreventRemove(body.length > 0 || pending, ({ repeat }) =>
-    confirmDiscard(repeat),
-  );
-  return {
-    body,
-    pending,
-    error: invalid ?? failure,
-    edit: (value: string) => {
-      setBody(value);
-      setInvalid(undefined);
-    },
-    cancel: () => confirmDiscard(onClose),
-    submit: () => {
-      if (!target || pending) return;
-      if (!commentBodyValid(body)) {
-        setInvalid(
-          `Enter a comment of at most ${commentBodyLimit} characters without a NUL character.`,
-        );
-        return;
-      }
-      const input = retainIntent(intent, body, () => ({
-        body,
-        threadId: target.threadId ?? randomUUID(),
-        messageId: randomUUID(),
-      }));
-      setIntent(input);
-      const sent = () => reset(onClose);
-      if (target.threadId)
-        reply.send(
-          { threadId: target.threadId, messageId: input.messageId, body },
-          sent,
-        );
-      else
-        create.send(
-          {
-            threadId: input.threadId,
-            messageId: input.messageId,
-            body,
-            anchor: target.anchor,
-          },
-          sent,
-        );
-    },
-    confirmDiscard,
-  };
-}
-
-function writeFailure(result: AsyncResult.AsyncResult<unknown, unknown>) {
-  return AsyncResult.isFailure(result)
-    ? reviewErrorMessage(Cause.squash(result.cause))
-    : undefined;
 }
 
 function CommentComposer({

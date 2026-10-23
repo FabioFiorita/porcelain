@@ -24,6 +24,10 @@ selectors:
   - 'Review progress is unavailable.'
   - 'Mark available files reviewed'
   - 'Review unavailable'
+  - 'Needs your decision'
+  - 'Answer'
+  - 'Unmark reviewed'
+  - 'Read more files'
 tests:
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
   - apps/mobile/src/features/reviews/rules/pointer-source.spec.ts
@@ -31,6 +35,7 @@ tests:
   - packages/client/src/features/reviews/commands/decisions.spec.ts
   - packages/client/src/features/reviews/rules/walkthrough.spec.ts
   - apps/mobile/src/features/reviews/rules/briefing.spec.ts
+  - apps/mobile/src/features/reviews/rules/thread-folds.spec.ts
 api:
   - GET /api/worktrees/:worktreeId/text
   - GET /api/inventory
@@ -44,6 +49,7 @@ api:
   - PUT /api/worktrees/:worktreeId/reviewed-bulk
   - GET /api/worktrees/:worktreeId/reviewed
   - GET /api/worktrees/:worktreeId/comments
+  - POST /api/reviews/:reviewId/revisions/:revision/diffs
 ---
 
 # reviews.review
@@ -78,6 +84,13 @@ Precondition: `--fixture development`. Expect decisions in publication order: Ke
 3. Removed lists actual deleted paths with behavior and reason; Not proven lists every gap or says none were reported. The walkthrough lists decisions in publication order, then Not explained (including partial coverage), then Specs when present. No publication, no decisions and legacy verdict-free reviews retain their explicit empty states.
 4. Scroll from the first card through the last walkthrough row: Continue at decision n remains fixed above the tab bar. It opens the first unfinished decision (the first decision when all are complete or progress is unknown). Back/Overview returns to briefing; decision marking and code-pointer navigation remain available. Republish: the new revision starts at briefing and proof remains pinned to its head.
 5. Repeat Merge, Hold with a question, image proof with a removed file and Not proven, and a long title in Android light/dark. Check full accessible names, many entries and larger text. Compare with v0.71.1: Asked, Recommendation, Proven, Removed and assets were absent from its worktree briefing. iOS, physical LAN and remote connections require separate proof.
+
+### Phone decision
+
+1. Open a decision from the briefing. The native title reads Decision n of N; the numbered decision row marks reviewed decisions and opens any decision. Code moved since it was explained shows when a step moved, beside the file tally for the decision.
+2. The title and explanation come first, then the contracts as one wrapped row (verb, owner, New/Changed/Removed), Needs your decision cards for every connected question, and the route (lanes joined by arrows) above the steps. More than four steps fold behind All n. A step opens its code pointer; broken pointers are not tappable.
+3. Each published file of the decision shows its diff from the published revision with −/+ counts. A thread folds under its last line as "n comments · state" and opens the thread sheet; file-level threads and lines outside the diff list under the block. More than three files load through Read more files.
+4. The bottom bar stays above the tab bar: previous, Mark decision reviewed (marks remaining files, then the decision, then moves on; Unmark reviewed afterwards), Comment (a whole-change comment that names the decision) and next. Answer on a question opens the comments sheet with the question quoted. The changed-file list and Comments button show on the briefing, not on a stop.
 
 ### Completion and progress
 

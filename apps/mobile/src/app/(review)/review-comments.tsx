@@ -13,6 +13,8 @@ function ReviewCommentsRoute() {
     compose?: string;
     comparison?: string;
     base?: string;
+    thread?: string;
+    body?: string;
   }>();
   return (
     <ReviewCommentsScreen
@@ -21,6 +23,8 @@ function ReviewCommentsRoute() {
       anchor={decodeCommentAnchor(params.anchor)}
       compose={params.compose === 'true'}
       comparison={reviewComparison(params.comparison, params.base)}
+      thread={params.thread}
+      body={params.body}
     />
   );
 }

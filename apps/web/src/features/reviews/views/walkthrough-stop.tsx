@@ -16,10 +16,10 @@ import {
   checkResultLabel,
   decisionKey,
   decisionLinks,
+  decisionQuestions,
   decisionRoute,
   orderedChecks,
   proofOnLayer,
-  systemChanges,
   stopTitle,
   type DecisionState,
   type ReviewLayer,
@@ -136,15 +136,7 @@ function DecisionBrief({
   const { layer } = stop;
   const route = decisionRoute(layer);
   const links = decisionLinks(review, layer.id);
-  const questions = [
-    ...systemChanges(review).questions.filter(
-      (part) => part.decision === stop.number,
-    ),
-    ...links.flatMap((link) => (link.part.problem ? [link.part] : [])),
-  ].filter(
-    (part, index, all) =>
-      all.findIndex((other) => other.id === part.id) === index,
-  );
+  const questions = decisionQuestions(review, stop);
   const proof = proofOnLayer(review.proof, layer.id);
   return (
     <Brief
