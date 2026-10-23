@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/shared/lib/utils';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { toast } from '@/components/ui/toast';
 import { DiscardButton } from '@/features/git-actions/index';
@@ -25,6 +26,7 @@ import {
   contentVersion,
   PIERRE_COMMENT_CSS,
   PIERRE_HEADER_CSS,
+  PIERRE_MARGIN_THREAD_CSS,
   PIERRE_SURFACE_CSS,
   PIERRE_THEME,
 } from '@/shared/lib/pierre';
@@ -48,6 +50,7 @@ import type { DocumentInteraction } from '../rules/documents';
 import { basename, type ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ReviewRange } from '@porcelain/client/reviews/rules';
 import { useCodeFolds, useCodeViewScroll } from '../store';
+import { useMarginStack } from '../adapters/margin-stack';
 import { InlineComposer } from './inline-composer';
 import { AgentNote } from './agent-note';
 import { ThreadCard } from './thread-card';
@@ -55,7 +58,12 @@ import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Note =
   | ({ kind: 'agent' } & AgentCodeNote)
-  | { kind: 'thread'; thread: CommentThread; stale: boolean }
+  | {
+      kind: 'thread';
+      lineNumber: number;
+      side: 'additions' | 'deletions';
+      threads: { thread: CommentThread; stale: boolean }[];
+    }
   | { kind: 'composer'; anchor: FileCommentAnchor };
 type Props = {
   onReview?: (entry: CodeEntry) => void;
@@ -74,6 +82,7 @@ type Props = {
   fullHeight?: boolean;
   collapsible?: boolean;
   range?: ReviewRange;
+  threadMargin?: boolean;
 };
 export function CodeDocument(props: Props) {
   const { threads, result } = useComments(props.scope, props.context);
@@ -116,6 +125,7 @@ function CodeSurface({
   disableFileHeader = false,
   fullHeight = false,
   collapsible = false,
+  threadMargin = false,
   onToggleReviewed,
 }: Props & {
   threads: readonly CommentThread[];
@@ -126,6 +136,7 @@ function CodeSurface({
   const entries = groupSpecPaths(given, preferences.collapseSpecs);
   const folds = useCodeFolds(interaction.worktreeId, interaction.entry);
   const viewer = useCodeViewScroll();
+  const margin = useMarginStack();
   const [composer, setComposer] = useState<{
     id: string;
     anchor: FileCommentAnchor;
@@ -184,7 +195,9 @@ function CodeSurface({
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
   const items: CodeViewItem<Note>[] = entries.map((entry) => {
     const target = entry.comment;
-    const notes: Note[] = target
+    const notes: Note[] = [];
+    const lines = new Map<string, Extract<Note, { kind: 'thread' }>>();
+    const placed = target
       ? threads
           .filter(
             (thread) =>
@@ -197,11 +210,32 @@ function CodeSurface({
                 )?.id === entry.id),
           )
           .map((thread) => ({
-            kind: 'thread',
             thread,
             stale: commentIsStale(thread.anchor, target),
           }))
       : [];
+    for (const item of placed) {
+      const anchor = item.thread.anchor;
+      const lineNumber =
+        anchor.kind === 'codeRange' && !item.stale ? anchor.endLine : 0;
+      const side =
+        anchor.kind === 'codeRange'
+          ? (anchor.side ?? 'additions')
+          : 'additions';
+      const key = lineNumber === 0 ? item.thread.id : `${side}:${lineNumber}`;
+      const line = lines.get(key);
+      if (line) line.threads.push(item);
+      else {
+        const note = {
+          kind: 'thread' as const,
+          lineNumber,
+          side,
+          threads: [item],
+        };
+        lines.set(key, note);
+        notes.push(note);
+      }
+    }
     for (const note of entry.agentNotes ?? [])
       notes.push({ ...note, kind: 'agent' });
     if (composer?.id === entry.id)
@@ -213,18 +247,16 @@ function CodeSurface({
           side: 'additions',
           metadata: note,
         };
-      const anchor = note.kind === 'thread' ? note.thread.anchor : note.anchor;
-      const lineNumber =
-        anchor.kind === 'codeRange' && !(note.kind === 'thread' && note.stale)
-          ? anchor.endLine
-          : 0;
-      const side =
-        anchor.kind === 'codeRange'
-          ? (anchor.side ?? 'additions')
-          : 'additions';
-      return note.kind === 'thread'
-        ? { lineNumber, side, metadata: note }
-        : { lineNumber, side, metadata: note };
+      if (note.kind === 'thread')
+        return { lineNumber: note.lineNumber, side: note.side, metadata: note };
+      const anchor = note.anchor;
+      return anchor.kind === 'codeRange'
+        ? {
+            lineNumber: anchor.endLine,
+            side: anchor.side ?? 'additions',
+            metadata: note,
+          }
+        : { lineNumber: 0, side: 'additions', metadata: note };
     });
     const shared = {
       id: entry.id,
@@ -273,7 +305,7 @@ function CodeSurface({
       setSelection({ id: entry.id, range });
     },
     lineHoverHighlight: 'number',
-    unsafeCSS: `${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}`,
+    unsafeCSS: `${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}`,
     ...(disableFileHeader ? { itemMetrics: { paddingTop: 0 } } : {}),
     layout: {
       paddingTop: disableFileHeader ? 0 : 12,
@@ -509,17 +541,31 @@ function CodeSurface({
                 onClose={closeComposer}
               />
             ) : (
-              <div className="m-3 font-sans">
-                {note.stale && (
-                  <p className="mb-2 text-xs text-graph-4">
-                    Code changed since this comment
-                  </p>
+              <div
+                {...(threadMargin && note.lineNumber > 0
+                  ? { ref: margin.card }
+                  : {})}
+                className={cn(
+                  'm-3 flex flex-col gap-3 font-sans',
+                  threadMargin &&
+                    note.lineNumber > 0 &&
+                    '@5xl/review:absolute @5xl/review:left-full @5xl/review:z-10 @5xl/review:my-0 @5xl/review:mr-0 @5xl/review:ml-8 @5xl/review:w-60',
                 )}
-                <ThreadCard
-                  scope={scope}
-                  context={gitContext}
-                  thread={note.thread}
-                />
+              >
+                {note.threads.map(({ thread, stale }) => (
+                  <div key={thread.id}>
+                    {stale && (
+                      <p className="mb-2 text-xs text-graph-4">
+                        Code changed since this comment
+                      </p>
+                    )}
+                    <ThreadCard
+                      scope={scope}
+                      context={gitContext}
+                      thread={thread}
+                    />
+                  </div>
+                ))}
               </div>
             );
           }}
@@ -561,6 +607,9 @@ function CodeSurface({
             );
           }}
           options={options}
+          {...(margin.reserve > 0
+            ? { style: { paddingBottom: margin.reserve } }
+            : {})}
           className={
             fullHeight
               ? 'flex-none overflow-visible'

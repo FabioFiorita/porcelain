@@ -18,7 +18,9 @@ async function addRemoteComputer(page: Page, link: string, name: string) {
       .getByRole('list', { name: 'Computers', exact: true })
       .getByRole('listitem', { name, exact: true }),
   ).toBeVisible();
-  await settings.getByRole('button', { name: 'Back', exact: true }).click();
+  await settings
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
   await page
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
@@ -65,7 +67,9 @@ test('the desktop app opens a project on another computer from the Open project 
       .getByRole('list', { name: 'Computers', exact: true })
       .getByRole('listitem', { name: other.environment.name, exact: true }),
   ).toBeVisible();
-  await settings.getByRole('button', { name: 'Back', exact: true }).click();
+  await settings
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();

@@ -7,7 +7,7 @@ selectors:
   - 'Computers'
   - 'Pairing link'
   - 'Add'
-  - 'Back'
+  - 'Close Settings'
   - 'Online'
   - 'This computer'
   - 'Open a worktree'
@@ -63,7 +63,7 @@ Required instance mode: `--desktop`.
 
 ### Open the remote worktree
 
-1. Click button `Back`, then click button `Toggle Sidebar`
+1. Click button `Close Settings`, then click button `Toggle Sidebar`
    Expect: group "This computer" holding project "repository" only; group "Remote journey computer" with button "Remote journey computer Online" holding project "remote-sample" only (its worktree row's path is `$REMOTE_REPO`).
 2. Click button `/remote-sample.*Open a worktree/`
    Expect: the sheet closes; URL `/remotes/<remote environmentId>/<projectId>/<worktreeId>?entry=handoff` (call its path and query `$REMOTE_PAGE`); title "Changes — remote-sample · Remote journey computer"; button "Mark README.md as reviewed".

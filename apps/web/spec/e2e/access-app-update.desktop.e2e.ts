@@ -97,6 +97,12 @@ test('the release app checks on demand, shows each result and installs the offer
     name: 'Restart to update',
     exact: true,
   });
+  await page.evaluate(() => window.updateFixture.refuseNext());
+  await check.click();
+  await expect(
+    settings.getByText('Could not check for an app update.', { exact: true }),
+  ).toBeVisible();
+  await expect(install).not.toBeAttached();
   await check.click();
   await expect(
     settings.getByText('Checking for a new version…', { exact: true }),
@@ -124,10 +130,100 @@ test('the release app checks on demand, shows each result and installs the offer
   ).toBeVisible();
   await expect(check).toBeDisabled();
   await expect(newer).not.toBeAttached();
-  await settings.getByRole('button', { name: 'Back', exact: true }).click();
-  await settings.getByRole('button', { name: 'Back', exact: true }).click();
+  await settings
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
+  await settings
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
   await expect(settings).not.toBeAttached();
 });
+
+for (const width of [1440, 414]) {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test(`update errors remain readable and restore focus at ${width} in ${colorScheme}`, async ({
+      page,
+      app,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 896 });
+      await page.emulateMedia({ colorScheme });
+      await updateFeed(page, true);
+      await app.open(await app.link('this'));
+      const settings = page.getByRole('button', {
+        name: 'Settings',
+        exact: true,
+      });
+      if (width === 414)
+        await page
+          .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+          .click();
+      await expect(settings).toBeVisible();
+      await expect
+        .poll(() => page.evaluate(() => window.updateFixture.checks))
+        .toBe(1);
+      await page.evaluate(() =>
+        window.updateFixture.publish({
+          status: 'available',
+          version: '0.66.0',
+        }),
+      );
+      const badge = page.getByRole('button', { name: 'Update', exact: true });
+      await badge.click();
+      const updates = page.getByRole('dialog', { name: /updates/i });
+      const retry = updates.getByRole('button', {
+        name: 'Try again',
+        exact: true,
+      });
+      for (const message of [
+        `Feed refused request-id=${'unbrokenidentifier'.repeat(75)}`,
+        'The release manifest could not be read. '.repeat(120),
+      ]) {
+        await page.evaluate(
+          (message) =>
+            window.updateFixture.publish({ status: 'error', message }),
+          message,
+        );
+        await expect(
+          updates.getByText(`Mac app: ${message}`, { exact: true }),
+        ).toBeVisible();
+        await expect(updates).toBeInViewport({ ratio: 1 });
+        await expect
+          .poll(() =>
+            updates.evaluate(
+              (element) => element.scrollWidth <= element.clientWidth + 1,
+            ),
+          )
+          .toBe(true);
+        await retry.scrollIntoViewIfNeeded();
+        await expect(retry).toBeInViewport();
+        await expect(updates).toBeInViewport({ ratio: 1 });
+        const manage = updates.getByRole('button', {
+          name: 'Manage computers',
+          exact: true,
+        });
+        await manage.scrollIntoViewIfNeeded();
+        await expect(manage).toBeInViewport();
+        await expect(updates).toBeInViewport({ ratio: 1 });
+      }
+      await page.screenshot({
+        path: testInfo.outputPath('long-update-error.png'),
+      });
+      await page.keyboard.press('Escape');
+      await expect(updates).not.toBeAttached();
+      await expect(settings).toBeFocused();
+      await expect(badge).not.toBeAttached();
+      await page.keyboard.press('Enter');
+      await expect(
+        page.getByRole('main', { name: 'Settings', exact: true }),
+      ).toBeVisible();
+      if (width === 414) {
+        await expect(
+          page.getByRole('dialog', { name: 'Sidebar', exact: true }),
+        ).not.toBeAttached();
+      }
+    });
+  }
+}
 
 test('a desktop build with updates disabled hides the check control', async ({
   page,
@@ -149,6 +245,104 @@ test('a desktop build with updates disabled hides the check control', async ({
     settings.getByRole('button', { name: 'Check for updates', exact: true }),
   ).not.toBeAttached();
 });
+
+for (const recovery of ['available', 'idle'] as const) {
+  test(`the footer retries a failed Mac app check and recovers to ${recovery}`, async ({
+    page,
+    app,
+  }, testInfo) => {
+    await updateFeed(page, true);
+    await app.open(await app.link('this'));
+    await page
+      .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+      .click();
+    await expect
+      .poll(() => page.evaluate(() => window.updateFixture.checks))
+      .toBe(1);
+    await page.evaluate(() =>
+      window.updateFixture.publish({ status: 'available', version: '0.66.0' }),
+    );
+    await page.getByRole('button', { name: 'Update', exact: true }).click();
+    const updates = page.getByRole('dialog', {
+      name: /^(Updates available|Could not check for updates|No updates available)$/,
+    });
+    await expect(updates).toHaveAccessibleName('Updates available');
+    await expect
+      .poll(() => page.evaluate(() => window.updateFixture.checks))
+      .toBe(1);
+    await page.evaluate(() =>
+      window.updateFixture.publish({
+        status: 'error',
+        message: 'Release feed is offline',
+      }),
+    );
+    await expect(updates).toHaveAccessibleName('Could not check for updates');
+    const retry = updates.getByRole('button', {
+      name: 'Try again',
+      exact: true,
+    });
+    await retry.click();
+    await expect
+      .poll(() => page.evaluate(() => window.updateFixture.checks))
+      .toBe(2);
+    await expect(
+      updates.getByRole('button', { name: 'Update all (0)', exact: true }),
+    ).toBeDisabled();
+    await expect(retry).not.toBeAttached();
+    await page.evaluate(() =>
+      window.updateFixture.finish({
+        status: 'error',
+        message: 'Release feed is still offline',
+      }),
+    );
+    await expect(
+      updates.getByText('Mac app: Release feed is still offline', {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(retry).toBeEnabled();
+    await page.screenshot({ path: testInfo.outputPath('app-retry-error.png') });
+    await retry.click();
+    await expect
+      .poll(() => page.evaluate(() => window.updateFixture.checks))
+      .toBe(3);
+    await page.evaluate(
+      (status) =>
+        window.updateFixture.finish(
+          status === 'available' ? { status, version: '0.67.0' } : { status },
+        ),
+      recovery,
+    );
+    await expect(updates).toHaveAccessibleName(
+      recovery === 'available' ? 'Updates available' : 'No updates available',
+    );
+    await expect(retry).not.toBeAttached();
+    if (recovery === 'available') {
+      await expect(
+        updates.getByText('Mac app 0.65.4 → 0.67.0', { exact: true }),
+      ).toBeVisible();
+      await expect(
+        updates.getByRole('button', { name: 'Update all (1)', exact: true }),
+      ).toBeEnabled();
+    } else {
+      await expect(
+        updates.getByRole('button', { name: 'Update all (0)', exact: true }),
+      ).toBeDisabled();
+    }
+    await page.screenshot({
+      path: testInfo.outputPath('app-retry-recovered.png'),
+    });
+    await updates
+      .getByRole('button', { name: 'Manage computers', exact: true })
+      .click();
+    await expect(
+      page.getByRole('button', { name: 'Open This computer', exact: true }),
+    ).toBeVisible();
+    await expect
+      .poll(() => page.evaluate(() => window.updateFixture.checks))
+      .toBe(3);
+  });
+}
 
 test('the footer Update badge offers the Mac app through its bridge without posting a service update', async ({
   page,

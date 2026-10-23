@@ -24,7 +24,10 @@ import { submitForm } from '@/shared/lib/submit-form';
 import { useAddRemote, useReadSavedEnvironments } from '../commands/remotes';
 import { useRemoteStatus } from '../queries/remotes';
 import { useSavedEnvironments } from '../store';
-import { useSettingsUpdates } from '../queries/settings-updates';
+import {
+  useSettingsUpdates,
+  useSettingsUpdatesEntry,
+} from '../queries/settings-updates';
 import { SettingsUpdateRow } from './settings-update-row';
 import { ComputerUpdate } from './share-settings';
 
@@ -132,9 +135,24 @@ export function RemoteComputers({
 }) {
   const { remotes, error: unreadable } = useSavedEnvironments();
   const restore = useReadSavedEnvironments();
+  useSettingsUpdatesEntry();
   const { targets, count, batch, run } = useSettingsUpdates();
   return (
     <>
+      <div className="space-y-3">
+        <h1 className="text-4xl font-semibold tracking-tight">
+          <span className="text-muted-foreground">Settings.</span> Computers
+        </h1>
+        <p className="text-base">
+          Every computer this app is paired with. In the Mac app and on iPhone
+          and iPad, their worktrees share one sidebar, and Update updates them
+          all.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          In a browser, a tab opens one computer: its sidebar shows that
+          computer’s worktrees, and each other computer opens in its own tab.
+        </p>
+      </div>
       {unreadable !== undefined && (
         <Alert variant="destructive">
           <KeyRoundIcon />

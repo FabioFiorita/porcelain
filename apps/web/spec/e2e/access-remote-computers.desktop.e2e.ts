@@ -61,7 +61,9 @@ test('the desktop app adds a remote computer from the link porcelain pair prints
     new RegExp(`/settings/computers/${inventory.environmentId}$`),
   );
   await expect(settings.getByText('Online', { exact: true })).toBeVisible();
-  await settings.getByRole('button', { name: 'Back', exact: true }).click();
+  await settings
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
   await expect
     .poll(async () =>
       (await remote.server.devices()).map((device) => device.label),

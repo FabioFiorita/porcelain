@@ -1,5 +1,6 @@
 import { cn } from '@/shared/lib/utils';
 import { useTheme } from '@/features/preferences/index';
+import { htmlFrameDocument } from '../adapters/html-assets';
 
 export function HtmlFrame({
   html,
@@ -17,7 +18,7 @@ export function HtmlFrame({
       aria-label={title}
       sandbox="allow-scripts"
       referrerPolicy="no-referrer"
-      srcDoc={html}
+      srcDoc={htmlFrameDocument(html)}
       style={{ colorScheme: dark ? 'dark' : 'light' }}
       className={cn(
         'block min-h-128 w-full border-0 bg-transparent',

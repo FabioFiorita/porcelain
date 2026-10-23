@@ -27,6 +27,7 @@ import {
   ContextMenuShortcut,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import { Kbd } from '@/components/ui/kbd';
 import { ScrollBar } from '@/components/ui/scroll-area';
 import { shortOid } from '@porcelain/client/history/rules';
 import { cn } from '@/shared/lib/utils';
@@ -331,30 +332,47 @@ function DocumentTab({
             </span>
             {tabKey === 'handoff' && reviewCount}
             {tabKey !== 'handoff' && pinned && (
-              <button
-                type="button"
-                aria-label={`Unpin ${title}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onTogglePin(tabKey);
-                }}
-                className="grid size-4 place-items-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
-              >
-                <PinIcon className="size-3" />
-              </button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      aria-label={`Unpin ${title}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onTogglePin(tabKey);
+                      }}
+                      className="grid size-4 place-items-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                    />
+                  }
+                >
+                  <PinIcon className="size-3" />
+                </TooltipTrigger>
+                <TooltipContent>{`Unpin ${title}`}</TooltipContent>
+              </Tooltip>
             )}
             {tabKey !== 'handoff' && active && (
-              <button
-                type="button"
-                aria-label={`Close ${title}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onClose(tabKey);
-                }}
-                className="grid size-4 place-items-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
-              >
-                <XIcon className="size-3" />
-              </button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      aria-label={`Close ${title}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onClose(tabKey);
+                      }}
+                      className="grid size-4 place-items-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                    />
+                  }
+                >
+                  <XIcon className="size-3" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  {`Close ${title}`}
+                  <Kbd>{formatForDisplay(SHORTCUTS.closeTab)}</Kbd>
+                </TooltipContent>
+              </Tooltip>
             )}
           </ContextMenuTrigger>
           <ContextMenuContent className="min-w-52" finalFocus={!openingSide}>

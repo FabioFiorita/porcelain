@@ -8,6 +8,7 @@ import {
   AccessPlatform,
   EnvironmentStorage,
   type AccessPlatformValue,
+  type EnvironmentSnapshot,
 } from '@porcelain/client/access';
 import type { Remote } from '@porcelain/client/access/rules';
 
@@ -84,6 +85,7 @@ it('cancels the actual browser pairing transport before reading or publishing a 
 function fixture(
   environmentId = 'installation',
   protocol = ENVIRONMENT_PROTOCOL,
+  snapshot: EnvironmentSnapshot = { remotes: [], missingCredentials: [] },
 ) {
   const saved: Remote[][] = [];
   const requests: {
@@ -95,8 +97,8 @@ function fixture(
     AccessStore.pipe(
       Effect.provide(AccessStore.layer),
       Effect.provideService(EnvironmentStorage, {
-        read: () => Effect.succeed([]),
-        write: (remotes) =>
+        read: () => Effect.succeed(snapshot),
+        write: ({ remotes }) =>
           Effect.sync(() => {
             saved.push([...remotes]);
           }),
@@ -274,4 +276,76 @@ it('rejects adding another computer as an alternate connection before contacting
   ).rejects.toThrow('another computer');
   expect(requests).toEqual([]);
   expect(saved).toEqual([]);
+});
+
+it.each([undefined, 'installation'])(
+  'refuses to replace a healthy route while recovering a missing route (%s)',
+  async (expected) => {
+    const { store, platform, requests, saved } = fixture(
+      'installation',
+      ENVIRONMENT_PROTOCOL,
+      {
+        remotes: [],
+        missingCredentials: [
+          {
+            environmentId: 'installation',
+            name: 'Computer',
+            routes: [
+              { address: 'http://missing.local:4738', deviceId: 'missing' },
+            ],
+          },
+        ],
+      },
+    );
+    await Effect.runPromise(store.load());
+    await expect(
+      Effect.runPromise(
+        pairEnvironment(
+          'http://computer.local:4738/pair#c=one-time&e=installation',
+          expected,
+        ).pipe(
+          Effect.provideService(AccessStore, store),
+          Effect.provideService(AccessPlatform, platform),
+        ),
+      ),
+    ).rejects.toThrow('credential is missing');
+    expect(requests).toEqual([]);
+    expect(saved).toEqual([]);
+    expect(store.state.value.missingCredentials).toHaveLength(1);
+  },
+);
+
+it('re-pairs a missing credential while keeping its operation identity', async () => {
+  const { store, platform, saved } = fixture(
+    'installation',
+    ENVIRONMENT_PROTOCOL,
+    {
+      remotes: [],
+      missingCredentials: [
+        {
+          environmentId: 'installation',
+          name: 'Computer',
+          operationIdentity: 'original-journal',
+          routes: [
+            { address: 'http://computer.local:4738', deviceId: 'missing' },
+          ],
+        },
+      ],
+    },
+  );
+  await Effect.runPromise(store.load());
+  await Effect.runPromise(
+    pairEnvironment(
+      'http://computer.local:4738/pair#c=one-time&e=installation',
+      'installation',
+    ).pipe(
+      Effect.provideService(AccessStore, store),
+      Effect.provideService(AccessPlatform, platform),
+    ),
+  );
+  expect(store.state.value.missingCredentials).toEqual([]);
+  expect(store.state.value.remotes[0]?.operationIdentity).toBe(
+    'original-journal',
+  );
+  expect(saved[0]?.[0]?.operationIdentity).toBe('original-journal');
 });

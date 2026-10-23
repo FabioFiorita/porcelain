@@ -18,6 +18,8 @@ $C start
 
 The short card prints server/web/WebSocket URLs, the exact pairing and MCP commands, evidence and stop commands, renderer URL/CDP, and the lifecycle entry point. Private `connection.json` contains build identity, fixture paths, owner socket, credential file paths, app/server PIDs, staged path, disposable profile, launch-options file and platform capabilities. Launch options contain inherited environment values: keep that file private and never attach it to a PR.
 
+The app uses an isolated home and removes host provider credentials and configuration variables. Coding CLI lookup is explicitly disabled by default, even after login-shell PATH restoration. In-process journeys can supply an absolute `codingToolDirectory` containing only their fixture executables; missing executables never fall back to PATH.
+
 The sample repository starts unregistered so the real folder-picker journey can prove registration. `fixtures.projectId` and `worktreeId` are empty until a project is opened; read `/api/inventory` through the app renderer for its IDs. The app's local server credential remains in the app host's memory. `credentialFiles.remoteEncrypted` names the disposable encrypted remote-store file, which may not exist yet.
 
 Use the published renderer CDP endpoint with a browser tool that supports attachment, or Computer Use on the exact development app identity. For Playwright, attach with `chromium.connectOverCDP(card.rendererCdpEndpoint)` and select the page whose URL equals `card.rendererUrl`. Close the driver connection after the journey.

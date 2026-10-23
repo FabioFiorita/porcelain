@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useSidebar } from '@/components/ui/sidebar';
 import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog';
 import { archiveReviewDialog } from '../overlays';
 import { AsyncResult } from 'effect/reactivity';
@@ -26,12 +25,13 @@ import {
 export function ArchiveReview({
   connection,
   reviewId,
+  beforeLeave = () => {},
 }: {
   connection: Connection;
   reviewId: string;
+  beforeLeave?: () => void;
 }) {
   const { preferences } = usePreferences();
-  const { setOpenMobile } = useSidebar();
   const { submit } = useArchiveReview(connection, reviewId);
   return (
     <Button
@@ -44,7 +44,7 @@ export function ArchiveReview({
           reviewId,
           options,
           requestId: crypto.randomUUID(),
-          beforeLeave: () => setOpenMobile(false),
+          beforeLeave,
         });
         void submit({ options });
       }}

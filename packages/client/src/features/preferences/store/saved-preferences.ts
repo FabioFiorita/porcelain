@@ -9,8 +9,7 @@ const fields = Schema.Struct({
   appearance: appearanceSchema,
   diffStyle: Schema.Literals(['unified', 'split']),
   lineOverflow: Schema.Literals(['scroll', 'wrap']),
-  markdownDefault: Schema.Literals(['reader', 'source']),
-  htmlDefault: Schema.Literals(['preview', 'source']),
+  documentsDefault: Schema.Literals(['rendered', 'source']),
   archiveDeleteWorktree: Schema.Boolean,
   archiveDeleteLocalBranch: Schema.Boolean,
   archiveDeleteRemoteBranch: Schema.Boolean,
@@ -24,8 +23,7 @@ export const defaultPreferences: Preferences = {
   appearance: 'system',
   diffStyle: 'unified',
   lineOverflow: 'scroll',
-  markdownDefault: 'reader',
-  htmlDefault: 'preview',
+  documentsDefault: 'rendered',
   archiveDeleteWorktree: true,
   archiveDeleteLocalBranch: true,
   archiveDeleteRemoteBranch: true,
@@ -85,15 +83,12 @@ export const preferencesSchema = Schema.Unknown.pipe(
                 : undefined,
             defaultPreferences.lineOverflow,
           ),
-          markdownDefault: savedField(
-            fields.fields.markdownDefault,
-            saved.markdownDefault,
-            defaultPreferences.markdownDefault,
-          ),
-          htmlDefault: savedField(
-            fields.fields.htmlDefault,
-            saved.htmlDefault,
-            defaultPreferences.htmlDefault,
+          documentsDefault: savedField(
+            fields.fields.documentsDefault,
+            saved.documentsDefault,
+            saved.markdownDefault === 'source' || saved.htmlDefault === 'source'
+              ? 'source'
+              : defaultPreferences.documentsDefault,
           ),
           archiveDeleteWorktree: savedField(
             fields.fields.archiveDeleteWorktree,

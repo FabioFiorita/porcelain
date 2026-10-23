@@ -37,7 +37,9 @@ test('the desktop app opens another computer’s worktree and HTML review, marks
       .getByRole('list', { name: 'Computers', exact: true })
       .getByRole('listitem', { name: other.environment.name, exact: true }),
   ).toBeVisible();
-  await settings.getByRole('button', { name: 'Back', exact: true }).click();
+  await settings
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
 
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })

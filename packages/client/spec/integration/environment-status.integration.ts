@@ -140,8 +140,9 @@ test('pairing two real endpoints retains both devices and falls back without rep
     AccessStore.pipe(
       Effect.provide(AccessStore.layer),
       Effect.provideService(EnvironmentStorage, {
-        read: () => Effect.succeed([...persisted]),
-        write: (remotes) =>
+        read: () =>
+          Effect.succeed({ remotes: [...persisted], missingCredentials: [] }),
+        write: ({ remotes }) =>
           Effect.sync(() => {
             persisted = remotes;
           }),

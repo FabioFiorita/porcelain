@@ -155,7 +155,7 @@ export function useReviewRevisionSelection(reviewId: string) {
   };
 }
 
-const reviewPanelOpen = Atom.family((reviewId: string) =>
+const reviewPanelOpen = Atom.family((_reviewId: string) =>
   Atom.make(true).pipe(Atom.keepAlive),
 );
 export function useReviewPanelOpen(reviewId: string) {

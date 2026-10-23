@@ -3,7 +3,10 @@ import { Context, Effect, Layer } from 'effect';
 import type { AtomRef } from 'effect/reactivity';
 import { ConnectionError } from '../../shared/api/connection-error.ts';
 import { type WriteNotSentError } from '../../shared/api/write-queue.ts';
-import { EnvironmentStorage } from './ports/environment-storage.ts';
+import {
+  EnvironmentStorage,
+  type EnvironmentSnapshot,
+} from './ports/environment-storage.ts';
 import {
   withRemote,
   connectionRoutes,
@@ -12,9 +15,7 @@ import {
 } from './rules/remotes.ts';
 import type { PersistedReadState } from '../persistence/rules/read-state.ts';
 
-type AccessState = PersistedReadState & {
-  readonly remotes: readonly Remote[];
-};
+type AccessState = PersistedReadState & EnvironmentSnapshot;
 
 type WriteFailure = ConnectionError | WriteNotSentError;
 
@@ -38,10 +39,14 @@ export class AccessStore extends Context.Service<
     AccessStore,
     Effect.gen(function* () {
       const storage = yield* EnvironmentStorage;
+      const initial: EnvironmentSnapshot = {
+        remotes: [],
+        missingCredentials: [],
+      };
       const owner = yield* persistedState({
-        initial: { remotes: [] as readonly Remote[] },
-        read: () => Effect.map(storage.read(), (remotes) => ({ remotes })),
-        write: ({ remotes }) => storage.write(remotes),
+        initial,
+        read: storage.read,
+        write: storage.write,
         messages: {
           beforeRead: 'Saved environments must be read before changing them.',
           readFailed:
@@ -50,18 +55,36 @@ export class AccessStore extends Context.Service<
             'The saved environments could not be updated. Read them again before making changes.',
         },
       });
-      const write = (update: (remotes: readonly Remote[]) => Remote[]) =>
-        owner.write(({ remotes }) =>
-          Effect.succeed({ remotes: update(remotes) }),
-        );
       return {
         state: owner.state,
         load: owner.load,
         save: Effect.fn('AccessStore.save')((remote: Remote) =>
-          write((remotes) => withRemote(remotes, remote)),
+          owner.write((snapshot) => {
+            const missing = snapshot.missingCredentials.find(
+              (entry) => entry.environmentId === remote.environmentId,
+            );
+            const incoming = connectionRoutes(remote);
+            const recovered = missing?.operationIdentity
+              ? { ...remote, operationIdentity: missing.operationIdentity }
+              : remote;
+            return Effect.succeed({
+              remotes: withRemote(snapshot.remotes, recovered),
+              missingCredentials: snapshot.missingCredentials.flatMap(
+                (entry) => {
+                  if (entry.environmentId !== remote.environmentId)
+                    return [entry];
+                  const routes = entry.routes.filter(
+                    (route) =>
+                      !incoming.some((next) => next.address === route.address),
+                  );
+                  return routes.length ? [{ ...entry, routes }] : [];
+                },
+              ),
+            });
+          }),
         ),
         route: Effect.fn('AccessStore.route')((input) =>
-          owner.write(({ remotes }) =>
+          owner.write(({ remotes, missingCredentials }) =>
             Effect.gen(function* () {
               const remote = remotes.find(
                 (entry) => entry.environmentId === input.environmentId,
@@ -97,6 +120,7 @@ export class AccessStore extends Context.Service<
                 input.kind === 'prefer' ? [chosen, ...rest] : rest,
               );
               return {
+                missingCredentials,
                 remotes: remotes.map((entry) =>
                   entry.environmentId === input.environmentId ? updated : entry,
                 ),
@@ -105,8 +129,15 @@ export class AccessStore extends Context.Service<
           ),
         ),
         forget: Effect.fn('AccessStore.forget')((environmentId: string) =>
-          write((remotes) =>
-            remotes.filter((remote) => remote.environmentId !== environmentId),
+          owner.write((snapshot) =>
+            Effect.succeed({
+              remotes: snapshot.remotes.filter(
+                (remote) => remote.environmentId !== environmentId,
+              ),
+              missingCredentials: snapshot.missingCredentials.filter(
+                (remote) => remote.environmentId !== environmentId,
+              ),
+            }),
           ),
         ),
       };

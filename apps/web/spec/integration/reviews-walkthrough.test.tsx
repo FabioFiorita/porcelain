@@ -51,8 +51,9 @@ test('the briefing keeps system owners and questions, the decisions open retaine
       revoke.getByText('Code moved since it was explained', { exact: true }),
     )
     .not.toBeInTheDocument();
-  await review
-    .getByRole('button', { name: 'Not explained', exact: true })
+  await review.getByRole('button', { name: /, jump to a stop$/ }).click();
+  await workspace
+    .getByRole('menuitem', { name: 'Not explained', exact: true })
     .click();
   await expect
     .element(review.getByRole('region', { name: 'Not explained', exact: true }))
