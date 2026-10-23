@@ -19,25 +19,42 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
+export type InlineCommentDraft = {
+  body: string;
+  pending?:
+    | { body: string; anchor: string; threadId: string; messageId: string }
+    | undefined;
+};
+
+type DraftControl =
+  | {
+      draft: InlineCommentDraft;
+      onDraftChange: (draft: InlineCommentDraft) => void;
+    }
+  | { draft?: never; onDraftChange?: never };
+
 export function InlineComposer({
   scope,
   context,
   anchor,
   onClose,
   quote,
+  draft: controlledDraft,
+  onDraftChange,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   anchor: CommentAnchor;
   onClose: () => void;
   quote?: string | undefined;
-}) {
+} & DraftControl) {
   const id = useId();
-  const [body, setBody] = useState('');
-  const [pending, setPending] = useState<
-    | { body: string; anchor: string; threadId: string; messageId: string }
-    | undefined
-  >(undefined);
+  const [localDraft, setLocalDraft] = useState<InlineCommentDraft>({
+    body: '',
+  });
+  const draft = controlledDraft ?? localDraft;
+  const setDraft = onDraftChange ?? setLocalDraft;
+  const { body, pending } = draft;
   const anchorKey = JSON.stringify(anchor);
   const mutation = useCreateComment(scope, context);
   const message = quote === undefined ? body : questionAnswer(quote, body);
@@ -55,7 +72,7 @@ export function InlineComposer({
         messageId: crypto.randomUUID(),
       }),
     );
-    setPending(intent);
+    setDraft({ ...draft, pending: intent });
     mutation.send(
       {
         anchor,
@@ -65,7 +82,7 @@ export function InlineComposer({
         ...(scope.review ? { reviewRevision: scope.review.revision } : {}),
       },
       () => {
-        setPending(undefined);
+        setDraft({ ...draft, pending: undefined });
         onClose();
       },
     );
@@ -100,8 +117,7 @@ export function InlineComposer({
         maxLength={Math.max(0, mutation.bodyLimit - quoteLength)}
         disabled={mutation.result.waiting}
         onChange={(event) => {
-          setPending(undefined);
-          setBody(event.target.value);
+          setDraft({ body: event.target.value, pending: undefined });
         }}
         onKeyDown={(event) => {
           if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
