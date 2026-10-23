@@ -154,3 +154,11 @@ export function useReviewRevisionSelection(reviewId: string) {
       set((current) => ({ revision, request: current.request + 1 })),
   };
 }
+
+const reviewPanelOpen = Atom.family((reviewId: string) =>
+  Atom.make(true).pipe(Atom.keepAlive),
+);
+export function useReviewPanelOpen(reviewId: string) {
+  const atom = reviewPanelOpen(reviewId);
+  return { open: useAtomValue(atom), setOpen: useAtomSet(atom) };
+}

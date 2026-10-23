@@ -22,6 +22,8 @@ At 1280px and wider a 44px rail stands at the far right of the worktree: buttons
 
 The History view names the branch and counts ahead and behind against its named upstream ("No upstream" when it has none), lists "Uncommitted changes" with a file count that opens All changes, draws the commits on their graph line and ends with "Open graph". The Files view uses Pierre's default 30px rows; its header holds "Create file or folder" and "Collapse all".
 
+A durable review page (`/reviews/<reviewId>`) uses the same rail and panel with the Review view only, because it has no worktree to browse: see [reviews.page](reviews.page.md).
+
 ## How to get to it (user POV)
 
 - Desktop: the rail at the far right; its tooltips name each view and its key.

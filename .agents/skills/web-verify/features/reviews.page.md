@@ -11,6 +11,9 @@ selectors:
   - "Close review"
   - "Delete review…"
   - "Delete review?"
+  - "Side panel"
+  - "Review sidebar"
+  - "Comment on the whole branch"
 tests:
   - apps/web/spec/integration/reviews-page.test.tsx
   - apps/web/spec/integration/reviews-summary.test.tsx
@@ -41,7 +44,7 @@ One page owns the latest durable route, numbered revisions, decision links and t
 
 Preconditions: [surface baseline](README.md).
 
-The navigator has one status-grouped Reviews list across projects and environments; closed reviews are behind Closed. The briefing owns the verdict, proof and review details. Wide proof places checks beside media; Removed aligns with owners and Not proven with proof. Decision, Not explained, summary, Proof and Comments views do not repeat the verdict. Deleted paths and their behavior and reason appear in the briefing margin; at narrow widths each margin section follows its matching content.
+The navigator has one status-grouped Reviews list across projects and environments; closed reviews are behind Closed. The briefing owns the verdict, proof and review details. Wide proof places checks beside media; Removed aligns with owners and Not proven with proof. Decision, Not explained, summary and Proof views do not repeat the verdict. The page's own Review panel holds Readiness, Changed files and Comments: at 1280px and wider it docks beside the page with a rail (button "Review", `Alt+2`; `Alt+Shift+R` hides or shows it); below 1280px button "Review" in the bar opens it as a sheet. Inside a worktree the branch Review tab uses the worktree's own panel instead. Deleted paths and their behavior and reason appear in the briefing margin; at narrow widths each margin section follows its matching content.
 
 Check `free -g` before startup. Start one disposable instance and retain the connection card. Run `$C agent publish-revision 'Retain the committed revision after removing the publishing checkout'` twice. Each command commits on an owned fixture worktree and publishes through MCP, returning reviewId, revision, headOid, layerId and worktree. Keep both responses. The fixture has a deletion, a long decision title, passing and failing checks, and an explicit desktop gap.
 
@@ -49,7 +52,7 @@ Check `free -g` before startup. Start one disposable instance and retain the con
 2. Open `/reviews/<reviewId>`. Check the briefing order: two-tone title, You asked and links, Recommendation, Continue at decision n, Needs your decision, What this adds, Proven at the short head SHA, and The walkthrough. The margin holds revisions, branch/head, Close review, Delete review…, Removed and Not proven. The removed group names `retired.ts` and its behavior and reason. The proof keeps its failing check first. Not proven names Desktop app and Mac is off.
 3. Open the project navigator and its unified Reviews list. Its entry opens this same page. The worktree's Review tab opens its current branch review using this same component; run `$C agent advance-review-branch` and expect "The branch tip differs from this review. Publish a revision to include it." Exact newer-commit counts need a contract that accepts the retained revision SHA as the comparison base; the current branch-changes base accepts branch refs only.
 4. Select r1, r2 and latest. The SHA and committed code follow the selected revision. Open the first decision with Continue at decision 1. Return with Open the briefing before selecting revisions. Its code uses the revision file/diffs endpoints, and each pointer opens the retained full file.
-5. Use `$C agent remove-review-worktree`, reload each route, and check that verdict, explanations, code and proof remain readable. This removes only the fixture worktree created by publish-revision.
+5. On a decision, comment on `review-page.ts` from its code; in the Review panel's Comments tab use "Comment on the whole branch". Use `$C agent remove-review-worktree`, reload each route, and check that verdict, explanations, code and proof remain readable, and that the Review panel's Comments tab still lists both threads; reply to one and resolve the other. This removes only the fixture worktree created by publish-revision.
 6. Mark a decision reviewed. Inspect PUT `/api/reviews/<id>/marks` and GET of the same endpoint: its files and decision are review-owned. Unmarking a decision keeps file marks. A file toggle changes the completion indicator without removing the decision mark.
 7. On the briefing, choose Close review. The closed review stays readable. The margin keeps Delete review… and removes Close review. Delete review… opens a confirmation covering every revision and its owned proof, comments and marks. Cancel keeps it; Delete removes it and returns to the workspace.
 8. Open an unknown review, revision and decision. A missing review/revision has a clear state and Back to workspace. An absent decision shows the briefing and a note explaining that the decision is not in this revision.

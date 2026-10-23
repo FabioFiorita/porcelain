@@ -8,21 +8,20 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import type { ReviewScope } from '@porcelain/client/reviews/rules';
-import type { ConnectionContext } from '@/shared/workspace/connection';
 import type { Surface } from '@/shared/workspace/search';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
-import { SurfaceIcon, useSurfaceNames } from './review-sidebar';
+import { SurfaceIcon } from './review-sidebar';
 
-const RAIL: readonly { surface: Surface; keys: string }[] = [
-  { surface: 'files', keys: SHORTCUTS.surfaceFiles },
-  { surface: 'changes', keys: SHORTCUTS.surfaceReview },
-  { surface: 'history', keys: SHORTCUTS.surfaceHistory },
-];
+const KEYS: Record<Surface, string> = {
+  files: SHORTCUTS.surfaceFiles,
+  changes: SHORTCUTS.surfaceReview,
+  history: SHORTCUTS.surfaceHistory,
+};
 
 export function SideRail({
-  scope,
-  context,
+  surfaces,
+  names,
+  published,
   surface,
   open,
   onSelect,
@@ -30,8 +29,9 @@ export function SideRail({
   onToggle,
   toggleRef,
 }: {
-  scope: ReviewScope;
-  context: ConnectionContext;
+  surfaces: readonly Surface[];
+  names: Record<Surface, string>;
+  published: boolean;
   surface: Surface;
   open: boolean;
   onSelect: (surface: Surface) => void;
@@ -39,18 +39,17 @@ export function SideRail({
   onToggle: () => void;
   toggleRef: RefCallback<HTMLButtonElement>;
 }) {
-  const names = useSurfaceNames(scope, context);
   const toggleLabel = open ? 'Hide side panel' : 'Show side panel';
   return (
     <nav
       aria-label="Side panel"
       className="flex w-11 shrink-0 flex-col items-center gap-1 pt-2.5 pb-2 pl-1 text-muted-foreground"
     >
-      {RAIL.map((item) => {
-        const selected = open && surface === item.surface;
+      {surfaces.map((item) => {
+        const selected = open && surface === item;
         return (
           <span
-            key={item.surface}
+            key={item}
             data-selected={selected || undefined}
             className="workspace-choice inline-flex rounded-lg data-selected:text-foreground"
           >
@@ -60,23 +59,17 @@ export function SideRail({
                   <Button
                     variant="ghost"
                     size="icon"
-                    aria-label={names[item.surface]}
+                    aria-label={names[item]}
                     aria-pressed={selected}
-                    aria-keyshortcuts={item.keys}
-                    onClick={() =>
-                      selected ? onHide() : onSelect(item.surface)
-                    }
+                    aria-keyshortcuts={KEYS[item]}
+                    onClick={() => (selected ? onHide() : onSelect(item))}
                   />
                 }
               >
-                <SurfaceIcon
-                  scope={scope}
-                  context={context}
-                  surface={item.surface}
-                />
+                <SurfaceIcon published={published} surface={item} />
               </TooltipTrigger>
               <TooltipContent side="left">
-                {names[item.surface]} <Kbd>{formatForDisplay(item.keys)}</Kbd>
+                {names[item]} <Kbd>{formatForDisplay(KEYS[item])}</Kbd>
               </TooltipContent>
             </Tooltip>
           </span>

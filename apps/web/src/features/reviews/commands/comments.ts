@@ -17,7 +17,7 @@ function useCommentWrite<Input, A, E>(command: Atom.AtomResultFn<Input, A, E>) {
 export function useVisibleComments(
   scope: ReviewScope,
   context: ConnectionContext,
-  filter: 'open' | 'resolved',
+  filter: 'open' | 'resolved' | undefined,
 ) {
   const owner = useId();
   useAtomMount(

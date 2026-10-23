@@ -67,7 +67,7 @@ import { openToSideText } from '../rules/tab-strip';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
 import { ReviewBoundary } from './review-boundary';
-import { ReviewSidebar } from './review-sidebar';
+import { ReviewSidebar, SURFACES, surfaceNames } from './review-sidebar';
 import { SideRail } from './side-rail';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -309,8 +309,9 @@ function ReviewWorkspaceContent({
         </ResizablePanelGroup>
         {desktop && (
           <SideRail
-            scope={scope}
-            context={context}
+            surfaces={SURFACES}
+            names={surfaceNames(published.review)}
+            published={Boolean(published.review)}
             surface={surface}
             open={panelOpen}
             onSelect={showSurface}

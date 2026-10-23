@@ -4,6 +4,7 @@ import {
   surfaceTitles,
 } from '../rules/documents';
 import { useElement } from '@/shared/hooks/use-element';
+import type { ReactNode } from 'react';
 import {
   FileDiffIcon,
   FilesIcon,
@@ -55,6 +56,40 @@ export function ReviewSidebar({
   layout: 'docked' | 'sheet';
   onSurface: (surface: Surface) => void;
 }) {
+  const { review } = usePublishedReview(props.scope, props.context);
+  return (
+    <SidePanel
+      layout={layout}
+      surfaces={SURFACES}
+      names={surfaceNames(review)}
+      published={Boolean(review)}
+      surface={props.surface}
+      onSurface={onSurface}
+    >
+      {(actionsTarget) => (
+        <SidebarSurface {...props} actionsTarget={actionsTarget} />
+      )}
+    </SidePanel>
+  );
+}
+
+export function SidePanel({
+  layout,
+  surfaces,
+  names,
+  published,
+  surface,
+  onSurface,
+  children,
+}: {
+  layout: 'docked' | 'sheet';
+  surfaces: readonly Surface[];
+  names: Record<Surface, string>;
+  published: boolean;
+  surface: Surface;
+  onSurface: (surface: Surface) => void;
+  children: (actionsTarget: HTMLElement | null) => ReactNode;
+}) {
   const { element: actionsTarget, attach: setActionsTarget } =
     useElement<HTMLDivElement>();
   const toolbar = (
@@ -63,8 +98,7 @@ export function ReviewSidebar({
       className="ml-auto flex shrink-0 items-center gap-0.5"
     />
   );
-  const names = useSurfaceNames(props.scope, props.context);
-  const surface = <SidebarSurface {...props} actionsTarget={actionsTarget} />;
+  const content = children(actionsTarget);
   return (
     <aside
       aria-label="Review sidebar"
@@ -74,16 +108,14 @@ export function ReviewSidebar({
       {layout === 'docked' ? (
         <>
           <header className="flex h-12 shrink-0 items-center gap-1 border-b pr-2.5 pl-3.5">
-            <h2 className="truncate text-ui font-semibold">
-              {names[props.surface]}
-            </h2>
+            <h2 className="truncate text-ui font-semibold">{names[surface]}</h2>
             {toolbar}
           </header>
-          <div className="min-h-0 flex-1 text-sm">{surface}</div>
+          <div className="min-h-0 flex-1 text-sm">{content}</div>
         </>
       ) : (
         <Tabs
-          value={props.surface}
+          value={surface}
           onValueChange={(value) => {
             if (isSurface(value)) onSurface(value);
           }}
@@ -91,11 +123,10 @@ export function ReviewSidebar({
         >
           <div className="flex h-12 shrink-0 items-center gap-1 border-b px-1.5">
             <TabsList className="h-8 min-w-0 flex-1">
-              {SURFACES.map((value) => (
+              {surfaces.map((value) => (
                 <TabsTrigger key={value} value={value} className="min-w-0">
                   <SurfaceIcon
-                    scope={props.scope}
-                    context={props.context}
+                    published={published}
                     surface={value}
                     className="size-3.5 shrink-0"
                   />
@@ -105,11 +136,8 @@ export function ReviewSidebar({
             </TabsList>
             {toolbar}
           </div>
-          <TabsContent
-            value={props.surface}
-            className="min-h-0 overflow-hidden"
-          >
-            {surface}
+          <TabsContent value={surface} className="min-h-0 overflow-hidden">
+            {content}
           </TabsContent>
         </Tabs>
       )}
@@ -117,13 +145,11 @@ export function ReviewSidebar({
   );
 }
 
-const SURFACES: readonly Surface[] = ['files', 'changes', 'history'];
+export const SURFACES: readonly Surface[] = ['files', 'changes', 'history'];
 
-export function useSurfaceNames(
-  scope: ReviewScope,
-  context: ConnectionContext,
+export function surfaceNames(
+  review: Parameters<typeof publishedReviewTitle>[0],
 ): Record<Surface, string> {
-  const { review } = usePublishedReview(scope, context);
   return {
     ...surfaceTitles,
     changes: publishedReviewTitle(review) ?? surfaceTitles.changes,
@@ -131,20 +157,17 @@ export function useSurfaceNames(
 }
 
 export function SurfaceIcon({
-  scope,
-  context,
+  published,
   surface,
   className,
 }: {
-  scope: ReviewScope;
-  context: ConnectionContext;
+  published: boolean;
   surface: Surface;
   className?: string;
 }) {
-  const { review } = usePublishedReview(scope, context);
   if (surface === 'files') return <FilesIcon className={className} />;
   if (surface === 'history') return <HistoryIcon className={className} />;
-  return review ? (
+  return published ? (
     <ListChecksIcon className={className} />
   ) : (
     <FileDiffIcon className={className} />
