@@ -316,7 +316,7 @@ function ReviewWorkspaceContent({
             onSelect={showSurface}
             onHide={() => setPanelOpen(false)}
             onToggle={toggleSidebar}
-            toggleRef={railToggle.attach}
+            toggleRef={(element) => railToggle.attach(element)}
           />
         )}
       </div>

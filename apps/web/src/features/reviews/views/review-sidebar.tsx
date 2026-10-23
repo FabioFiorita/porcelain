@@ -51,17 +51,18 @@ export function ReviewSidebar({
   layout: 'docked' | 'sheet';
   onSurface: (surface: Surface) => void;
 }) {
-  const actions = useElement<HTMLDivElement>();
+  const { element: actionsTarget, attach: setActionsTarget } =
+    useElement<HTMLDivElement>();
   const toolbar = (
     <div
-      ref={actions.attach}
+      ref={setActionsTarget}
       role="toolbar"
       aria-label="Panel actions"
       className="ml-auto flex shrink-0 items-center gap-0.5"
     />
   );
   const names = useSurfaceNames(props.scope, props.context);
-  const surface = <SidebarSurface {...props} actionsTarget={actions.element} />;
+  const surface = <SidebarSurface {...props} actionsTarget={actionsTarget} />;
   return (
     <aside
       aria-label="Review sidebar"
