@@ -24,7 +24,10 @@ import { submitForm } from '@/shared/lib/submit-form';
 import { useAddRemote, useReadSavedEnvironments } from '../commands/remotes';
 import { useRemoteStatus } from '../queries/remotes';
 import { useSavedEnvironments } from '../store';
-import { useSettingsUpdates } from '../queries/settings-updates';
+import {
+  useSettingsUpdates,
+  useSettingsUpdatesEntry,
+} from '../queries/settings-updates';
 import { SettingsUpdateRow } from './settings-update-row';
 import { ComputerUpdate } from './share-settings';
 
@@ -132,6 +135,7 @@ export function RemoteComputers({
 }) {
   const { remotes, error: unreadable } = useSavedEnvironments();
   const restore = useReadSavedEnvironments();
+  useSettingsUpdatesEntry();
   const { targets, count, batch, run } = useSettingsUpdates();
   return (
     <>
