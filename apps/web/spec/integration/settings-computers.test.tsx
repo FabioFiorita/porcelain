@@ -1,8 +1,7 @@
 import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
-const name =
-  'Workstation documentHoldEscalationAcknowledgementWithoutAnyBreakOpportunity';
+const name = 'documentHoldEscalationAcknowledgementWithoutAnyBreakOpportunity';
 
 test.for([414, 1080, 1440])(
   'a long computer name fits its card and remains accessible at width %s',
