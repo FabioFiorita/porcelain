@@ -8,7 +8,10 @@ test('discarding a changed file returns it to the last commit, and Restore bring
   const readme = repo.readme.path;
   const saved = async () => (await server.text(readme)).text;
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   await workspace
     .getByRole('button', { name: `${readme} · unstaged`, exact: true })
     .click();
@@ -41,7 +44,10 @@ test('discarding a file that changed after the dialog opened is refused and keep
   const readme = repo.readme.path;
   const newer = 'Changed on disk after the discard dialog opened\n';
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   await workspace
     .getByRole('button', { name: `${readme} · unstaged`, exact: true })
     .click();

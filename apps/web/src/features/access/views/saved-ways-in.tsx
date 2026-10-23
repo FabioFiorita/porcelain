@@ -1,4 +1,9 @@
 import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
+import {
   connectionRoutes,
   connectionRouteTitle,
   type Remote,
@@ -29,14 +34,24 @@ export function SavedWaysIn({ remote }: { remote: Remote }) {
               <ItemDescription className="break-all">{address}</ItemDescription>
             </ItemContent>
             <ItemActions>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                aria-label={`Copy ${address}`}
-                onClick={() => copyText(address, 'address')}
-              >
-                <CopyIcon />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label={`Copy ${address}`}
+                      onClick={() => copyText(address, 'address')}
+                    >
+                      <CopyIcon />
+                    </Button>
+                  }
+                />
+                <TooltipContent
+                  role="tooltip"
+                  className="break-all"
+                >{`Copy ${address}`}</TooltipContent>
+              </Tooltip>
             </ItemActions>
           </Item>
         ))}

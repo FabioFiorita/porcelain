@@ -13,7 +13,9 @@ test('omitting summary HTML keeps the Agent summary tab hidden on a retained rev
     exact: true,
   });
   await expect
-    .element(tabs.getByRole('tab', { name: 'Walkthrough', exact: true }))
+    .element(
+      app.page.getByRole('region', { name: 'Review walkthrough', exact: true }),
+    )
     .toBeVisible();
   await expect
     .poll(async () =>
@@ -22,9 +24,9 @@ test('omitting summary HTML keeps the Agent summary tab hidden on a retained rev
       ),
     )
     .toBe(true);
-  await expect.element(tabs).toHaveAttribute('aria-busy', 'false');
+  await expect.element(tabs).not.toBeInTheDocument();
   await expect
-    .element(tabs.getByRole('tab', { name: 'Agent summary', exact: true }))
+    .element(app.page.getByRole('tab', { name: 'Agent summary', exact: true }))
     .not.toBeInTheDocument();
 });
 
@@ -47,9 +49,7 @@ for (const summary of [
       name: 'Review walkthrough',
       exact: true,
     });
-    await expect
-      .element(review.getByRole('tab', { name: 'Walkthrough', exact: true }))
-      .toBeVisible();
+    await expect.element(review).toBeVisible();
     await expect
       .poll(async () =>
         (await world.porcelainHits('this')).some(
@@ -58,22 +58,20 @@ for (const summary of [
         ),
       )
       .toBe(true);
-    await expect
-      .element(
-        review.getByRole('tablist', {
-          name: 'Review presentation',
-          exact: true,
-        }),
-      )
-      .toHaveAttribute('aria-busy', 'false');
-    const tab = review.getByRole('tab', {
+    const tabs = workspace.getByRole('tablist', {
+      name: 'Review presentation',
+      exact: true,
+    });
+    const tab = workspace.getByRole('tab', {
       name: 'Agent summary',
       exact: true,
     });
     if (summary.visible) {
+      await expect.element(tabs).toHaveAttribute('aria-busy', 'false');
       await tab.click();
       await expect.element(tab).toHaveAttribute('aria-selected', 'true');
     } else {
+      await expect.element(tabs).not.toBeInTheDocument();
       await expect.element(tab).not.toBeInTheDocument();
     }
   });

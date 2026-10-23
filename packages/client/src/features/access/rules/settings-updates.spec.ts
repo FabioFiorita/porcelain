@@ -107,7 +107,7 @@ describe('settings update eligibility', () => {
         ...target,
         state: { ...target.state, available, managed, canUpdate },
       };
-      expect(settingsUpdateAvailable(row)).toBe(available);
+      expect(settingsUpdateAvailable(row)).toBe(available && managed);
       expect(settingsUpdateVersion(row)).toBe(expected);
     },
   );

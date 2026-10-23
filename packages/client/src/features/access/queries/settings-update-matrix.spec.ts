@@ -26,7 +26,7 @@ const offered: ReadServiceUpdateResponse = {
 type MatrixCase = {
   name: string;
   state?: Partial<ReadServiceUpdateResponse>;
-  read?: 'loading' | 'error' | 'stale-error';
+  read?: 'loading' | 'error' | 'stale-error' | 'recovery';
   mac?: 'available' | 'absent' | 'missing-latest';
   running?: boolean;
   visible: boolean;
@@ -60,6 +60,14 @@ const cases: readonly MatrixCase[] = [
     visible: false,
     count: 0,
     offered: 0,
+  },
+  {
+    name: 'Try again recovers a failed refresh',
+    state: {},
+    read: 'recovery',
+    visible: true,
+    count: 1,
+    offered: 1,
   },
   {
     name: 'older installed, available',
@@ -113,9 +121,9 @@ const cases: readonly MatrixCase[] = [
   {
     name: 'unmanaged, available',
     state: { managed: false },
-    visible: true,
+    visible: false,
     count: 0,
-    offered: 1,
+    offered: 0,
   },
   {
     name: 'unmanaged, unavailable',
@@ -218,7 +226,11 @@ it.each(cases)(
     let reads = 0;
     const client = fixture(async () => {
       reads += 1;
-      if (row.read === 'error' || (row.read === 'stale-error' && reads > 1))
+      if (
+        row.read === 'error' ||
+        (row.read === 'stale-error' && reads > 1) ||
+        (row.read === 'recovery' && reads === 2)
+      )
         return new Response(null, { status: 503 });
       const state = { ...offered, ...row.state };
       return Response.json({
@@ -240,7 +252,7 @@ it.each(cases)(
             }),
           ),
         );
-        if (row.read === 'stale-error') {
+        if (row.read === 'stale-error' || row.read === 'recovery') {
           client.registry.refresh(atom);
           await Effect.runPromise(
             Effect.exit(
@@ -249,6 +261,14 @@ it.each(cases)(
               }),
             ),
           );
+        }
+        if (row.read === 'recovery') {
+          expect(AsyncResult.isFailure(client.registry.get(atom))).toBe(true);
+          client.registry.refresh(atom);
+          await expect
+            .poll(() => AsyncResult.isSuccess(client.registry.get(atom)))
+            .toBe(true);
+          expect(reads).toBe(3);
         }
       }
       const result = client.registry.get(atom);

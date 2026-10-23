@@ -1,4 +1,8 @@
 import { Schema } from 'effect';
+import {
+  readServiceUpdateResponseSchema,
+  type ReadServiceUpdateResponse,
+} from '@porcelain/contracts/access';
 import { reviewFixtureSchema } from './protocol.ts';
 import type { EditFileRequest } from '@porcelain/contracts/files';
 import type { CreateCommentThreadRequest } from '@porcelain/contracts/reviews';
@@ -17,6 +21,14 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
   return {
     ...rest,
     initialBranch,
+    serviceUpdate: (state: ReadServiceUpdateResponse | 'error' | null) =>
+      step({
+        kind: 'service-update-fixture',
+        state:
+          state === null || state === 'error'
+            ? state
+            : Schema.encodeSync(readServiceUpdateResponseSchema)(state),
+      }),
     review: async (title: string, asked?: string) =>
       Schema.decodeUnknownSync(reviewFixtureSchema)(
         JSON.parse(

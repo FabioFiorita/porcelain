@@ -25,7 +25,9 @@ type UpdateOffer =
 
 export function settingsUpdateAvailable(target: UpdateOffer) {
   return target.kind === 'service'
-    ? target.state.available && target.state.latest !== undefined
+    ? target.state.managed &&
+        target.state.available &&
+        target.state.latest !== undefined
     : target.available && target.latest !== undefined;
 }
 

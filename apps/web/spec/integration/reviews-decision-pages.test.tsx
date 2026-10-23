@@ -91,7 +91,7 @@ test('the closing page keeps Ready to merge behind every decision and the agent 
     exact: true,
   });
   await dock
-    .getByRole('button', { name: 'Mark 1 file reviewed', exact: true })
+    .getByRole('button', { name: 'Mark 2 files reviewed', exact: true })
     .click();
   await expect
     .element(
@@ -111,10 +111,21 @@ test('the closing page keeps Ready to merge behind every decision and the agent 
     )
     .toHaveAttribute('aria-pressed', 'true');
   await expect
-    .poll(async () =>
-      JSON.stringify(await server.reviewMarks(published.reviewId ?? '')),
+    .element(
+      closing.getByRole('button', {
+        name: 'Unmark packages/workspace/src/legacy-write.ts as unreviewed',
+        exact: true,
+      }),
     )
-    .toContain('"path":"docs/architecture.md"');
+    .toHaveAttribute('aria-pressed', 'true');
+  await expect
+    .poll(() => server.reviewMarks(published.reviewId ?? ''))
+    .toMatchObject({
+      files: [
+        { path: 'docs/architecture.md' },
+        { path: 'packages/workspace/src/legacy-write.ts' },
+      ],
+    });
 });
 
 test('the agent summary lists the decisions its page links to and opens one from the margin', async ({
@@ -260,7 +271,7 @@ test.for([414, 360])(
         exact: true,
       });
       const action = dock.getByRole('button', {
-        name: 'Mark 1 file reviewed',
+        name: 'Mark 2 files reviewed',
         exact: true,
       });
       await expect.element(action).toBeVisible();

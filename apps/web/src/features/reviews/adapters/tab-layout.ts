@@ -11,6 +11,7 @@ import {
   neighbourAfterClose,
   openInPane,
   orderedTabs,
+  primaryPane,
   type Pane,
   togglePinInPane,
 } from '../rules/tab-strip';
@@ -72,15 +73,14 @@ export function useTabLayout({
     return target === undefined ? urlActive[index] : (target ?? undefined);
   };
 
-  const base: readonly Pane[] = stored ?? [
-    fallback === null || fallback === undefined
-      ? emptyPane()
-      : { tabs: [fallback], pinned: [] },
+  const base: readonly Pane[] = [
+    primaryPane(stored?.[0] ?? emptyPane()),
+    ...(stored?.slice(1) ?? []),
   ];
   const actives: [string | null, string | null] = [
     current(0) ??
       (stored === null || stored === undefined
-        ? fallback
+        ? (fallback ?? 'handoff')
         : (orderedTabs(base[0] ?? emptyPane()).at(-1) ?? null)),
     current(1) ??
       (base[1] === null || base[1] === undefined
@@ -186,6 +186,9 @@ export function useTabLayout({
       focus.request({ pane: target, key });
       setFocused(target);
       return target;
+    },
+    closePane(index: PaneIndex) {
+      if (split) settle(index, emptyPane(), null);
     },
     close(index: PaneIndex, key: string) {
       const pane = panes[index] ?? emptyPane();

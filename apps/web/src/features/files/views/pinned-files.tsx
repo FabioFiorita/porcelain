@@ -1,3 +1,8 @@
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
 import { useState } from 'react';
 import { flushSync } from 'react-dom';
 import { PinOffIcon } from 'lucide-react';
@@ -68,15 +73,24 @@ export function PinnedFiles({
                     </span>
                   )}
                 </button>
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  aria-label={`Unpin ${path}`}
-                  title="Unpin"
-                  onClick={() => onUnpin(path)}
-                >
-                  <PinOffIcon />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        size="icon-xs"
+                        variant="ghost"
+                        aria-label={`Unpin ${path}`}
+                        onClick={() => onUnpin(path)}
+                      >
+                        <PinOffIcon />
+                      </Button>
+                    }
+                  />
+                  <TooltipContent
+                    role="tooltip"
+                    className="break-all"
+                  >{`Unpin ${path}`}</TooltipContent>
+                </Tooltip>
               </ContextMenuTrigger>
               <ContextMenuContent finalFocus={!openingSide}>
                 <FileTreeMenuList

@@ -1,4 +1,4 @@
-import { page as browserPage } from 'vitest/browser';
+import { page as browserPage, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 test.for([1280, 414])(
@@ -14,7 +14,10 @@ test.for([1280, 414])(
       const page = app.page;
       if (width === 414)
         await page.getByRole('button', { name: 'Review', exact: true }).click();
-      await page.getByRole('tab', { name: 'Changes', exact: true }).click();
+      await page
+        .getByRole('complementary', { name: 'Review sidebar', exact: true })
+        .getByRole('tab', { name: 'Changes', exact: true })
+        .click();
       await page.getByRole('tab', { name: 'Branch', exact: true }).click();
       await page
         .getByRole('button', { name: 'notes.md · added', exact: true })
@@ -25,15 +28,13 @@ test.for([1280, 414])(
       const body = 'Why a second line?';
       const tip = (await server.branchChanges()).head.oid;
       await page
-        .getByRole('button', {
-          name: 'Comment on notes.md (added)',
-          exact: true,
-        })
+        .getByRole('toolbar', { name: 'Document controls', exact: true })
+        .getByRole('button', { name: 'Comment', exact: true })
         .click();
       await page
         .getByRole('textbox', { name: 'Comment', exact: true })
         .fill(body);
-      await page.getByRole('button', { name: 'Comment', exact: true }).click();
+      await userEvent.keyboard('{Control>}{Enter}{/Control}');
       await expect
         .element(page.getByText('Waiting for the agent', { exact: true }))
         .toBeVisible();
@@ -81,7 +82,10 @@ test.for([1280, 414])(
       const search = () => new URL(app.location(), 'http://test').searchParams;
       if (width === 414)
         await page.getByRole('button', { name: 'Review', exact: true }).click();
-      await page.getByRole('tab', { name: 'Changes', exact: true }).click();
+      await page
+        .getByRole('complementary', { name: 'Review sidebar', exact: true })
+        .getByRole('tab', { name: 'Changes', exact: true })
+        .click();
       await page.getByRole('tab', { name: 'Branch', exact: true }).click();
       await expect
         .element(

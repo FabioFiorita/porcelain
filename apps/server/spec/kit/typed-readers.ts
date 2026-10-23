@@ -100,6 +100,13 @@ export function serverReaders(transport: ServerTransport) {
           hit.method === 'POST' &&
           hit.route === '/api/worktrees/:worktreeId/files',
       ).length,
+    serviceUpdateReads: async () =>
+      (await hits()).filter(
+        (hit) =>
+          !hit.kit &&
+          hit.method === 'GET' &&
+          hit.route === '/api/service/update',
+      ).length,
     health: () => read(readHealthResponseSchema, '/api/health'),
     inventory: () => read(readInventoryResponseSchema, '/api/inventory'),
     project: sampleProject,
